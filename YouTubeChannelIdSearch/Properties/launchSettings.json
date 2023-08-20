@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "YouTubeChannelIdSearch": {
+      "commandName": "Project",
+      "commandLineArgs": "\"NAME OF CHANNEL\" \"TITLE OF MOST RECENT VIDEO\""
+    }
+  }
+}

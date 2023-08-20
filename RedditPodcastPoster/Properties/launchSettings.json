@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "RedditPodcastPoster": {
+      "commandLineArgs": "-e -y \"10 September 2023\"",
+      "commandName": "Project"
+    }
+  }
+}

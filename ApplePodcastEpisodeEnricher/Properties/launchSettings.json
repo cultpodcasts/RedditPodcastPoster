@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ApplePodcastEpisodeEnricher": {
+      "commandName": "Project",
+      "commandLineArgs": "Bearer xxxxxx"
+    }
+  }
+}
