@@ -1,7 +1,7 @@
 {
   "profiles": {
     "RedditPodcastPoster": {
-      "commandLineArgs": "-e -y",
+      "commandLineArgs": "-e -y \"10 August 2023\"",
       "commandName": "Project"
     }
   }
