@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -24,7 +25,12 @@ builder.Services
     .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
     .AddSingleton(new JsonSerializerOptions
     {
-        WriteIndented = true
+        WriteIndented = true,
+        ReferenceHandler = ReferenceHandler.Preserve,
+        MaxDepth = 0,
+        IgnoreNullValues = true,
+        IgnoreReadOnlyProperties = true
+
     })
     .AddScoped<SubredditPostFlareEnricher>()
     .AddScoped<IFilenameSelector, FilenameSelector>()
