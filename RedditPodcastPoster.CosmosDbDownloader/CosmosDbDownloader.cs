@@ -7,19 +7,16 @@ namespace RedditPodcastPoster.CosmosDbDownloader;
 
 public class CosmosDbDownloader
 {
-    private readonly CosmosClient _cosmosClient;
     private readonly ICosmosDbRepository _cosmosDbRepository;
     private readonly IFileRepository _fileRepository;
     private readonly ILogger<CosmosDbRepository> _logger;
 
     public CosmosDbDownloader(IFileRepository fileRepository,
         ICosmosDbRepository cosmosDbRepository,
-        CosmosClient cosmosClient,
         ILogger<CosmosDbRepository> logger)
     {
         _fileRepository = fileRepository;
         _cosmosDbRepository = cosmosDbRepository;
-        _cosmosClient = cosmosClient;
         _logger = logger;
     }
 

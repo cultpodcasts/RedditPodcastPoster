@@ -1,11 +1,11 @@
 ﻿using System.Reflection;
 using System.Text.Json;
+using CultPodcasts.DatabasePublisher;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Persistence;
-using RedditPodcastPoster.CosmosDbUploader;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -17,6 +17,7 @@ builder.Configuration
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
 
+
 builder.Services
     .AddLogging()
     .AddScoped<IFileRepository, FileRepository>()
@@ -25,7 +26,7 @@ builder.Services
     {
         WriteIndented = true
     })
-    .AddScoped<CosmosDbUploader>()
+    .AddScoped<PublicDatabasePublisher>()
     .AddScoped<IFilenameSelector, FilenameSelector>()
     .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>();
 
@@ -35,5 +36,5 @@ builder.Services
 
 
 using var host = builder.Build();
-var processor = host.Services.GetService<CosmosDbUploader>();
+var processor = host.Services.GetService<PublicDatabasePublisher>();
 await processor.Run();
