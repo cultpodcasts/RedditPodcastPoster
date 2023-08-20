@@ -23,8 +23,8 @@ public class RedditEpisodeCommentPoster : IRedditEpisodeCommentPoster
             body.AppendLine();
         }
 
-        if (postModel.Apple != null && !postModel.HasYouTubeUrl &&
-            postModel.Spotify != null)
+        if (postModel.Apple != null && (postModel.HasYouTubeUrl ||
+            postModel.Spotify != null))
         {
             body.AppendLine($"Apple Podcasts: {postModel.Apple}");
         }

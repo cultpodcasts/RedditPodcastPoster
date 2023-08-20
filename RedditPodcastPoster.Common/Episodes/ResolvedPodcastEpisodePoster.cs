@@ -23,26 +23,18 @@ public class ResolvedPodcastEpisodePoster : IResolvedPodcastEpisodePoster
 
     public async Task<ProcessResponse> PostResolvedPodcastEpisode(ResolvedPodcastEpisode resolvedEpisode)
     {
-        ProcessResponse? result;
-        if (!resolvedEpisode.Episode!.Posted)
+        var episodes = GetEpisodes(resolvedEpisode);
+        var postModel =
+            _resolvedPodcastEpisodeAdaptor.ToPostModel(resolvedEpisode.Podcast!, episodes);
+
+        var result = await _episodePostManager.Post(postModel);
+
+        if (result.Success)
         {
-            var episodes = GetEpisodes(resolvedEpisode);
-            var postModel =
-                _resolvedPodcastEpisodeAdaptor.ToPostModel(resolvedEpisode.Podcast!, episodes);
-
-            result = await _episodePostManager.Post(postModel);
-
-            if (result.Success)
+            foreach (var episode in episodes)
             {
-                foreach (var episode in episodes)
-                {
-                    episode.Posted = true;
-                }
+                episode.Posted = true;
             }
-        }
-        else
-        {
-            result= ProcessResponse.AlreadyPosted();
         }
 
         return result;
