@@ -18,11 +18,5 @@
     <ProjectReference Include="..\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="appsettings.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 
 </Project>

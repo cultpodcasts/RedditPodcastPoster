@@ -40,12 +40,13 @@ public class ModelTransformer
             newPodcast.Episodes = oldPodcast.Episodes.Select(oldEpisode => new Episode
                 {
                     Id = oldEpisode.Id,
-                    ModelType = oldPodcast.ModelType,
+                    ModelType = oldEpisode.ModelType,
                     AppleId = oldEpisode.AppleId,
                     Description = oldEpisode.Description,
                     Explicit = oldEpisode.Explicit,
                     Length = oldEpisode.Length,
                     Posted = oldEpisode.Posted,
+                    Ignored = oldEpisode.Ignored,
                     Release = oldEpisode.Release,
                     SpotifyId = oldEpisode.SpotifyId,
                     Title = oldEpisode.Title,

@@ -12,7 +12,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 
 builder.Configuration
-    .AddJsonFile("appsettings.json", false)
+    .AddJsonFile("appsettings.json", true)
     .AddEnvironmentVariables("RedditPodcastPoster_")
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
