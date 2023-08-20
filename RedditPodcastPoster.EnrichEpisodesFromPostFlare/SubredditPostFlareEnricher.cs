@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Reddit;
+using Reddit.Controllers;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Models;
@@ -31,7 +32,25 @@ public class SubredditPostFlareEnricher
 
     public async Task Run()
     {
-        var podcasts = await _cosmosDbRepository.GetAll<Podcast>().ToListAsync();
-        var redditPosts = _redditClient.Subreddit(_subredditSettings.SubredditName).Posts.GetNew(limit:3000, before: "2023-08-11T21:35:59+00:00");
+
+
+
+        var container = "redditposts";
+        //        var podcasts = await _cosmosDbRepository.GetAll<Podcast>().ToListAsync();
+        string after = string.Empty;
+        var redditPosts = _redditClient.Subreddit(_subredditSettings.SubredditName).Posts
+            .GetNew(after: after, limit: 10).ToList();
+        while (redditPosts.Any())
+        {
+            foreach (var post in redditPosts)
+            {
+                await _fileRepository.Write(post.Fullname, post);
+            }
+            after = redditPosts.Last().Fullname;
+            redditPosts = _redditClient.Subreddit(_subredditSettings.SubredditName).Posts
+                .GetNew(limit: 10, after: after);
+        }
+
+
     }
 }
