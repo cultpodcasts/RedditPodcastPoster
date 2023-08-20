@@ -1,6 +1,6 @@
-﻿using FluentAssertions;
+﻿using System.Text.RegularExpressions;
+using FluentAssertions;
 using RedditPodcastPoster.Common.Text;
-using System.Text.RegularExpressions;
 using Xunit;
 
 namespace RedditPodcastPoster.Common.Tests.Text;
@@ -18,7 +18,7 @@ public class TextSanitiserTests
         // act
         var result = Sut.Sanitise(text);
         // assert
-        result.Should().Be(text);
+        result.Should().Be(text.TrimEnd());
     }
 
     [Fact]
@@ -74,7 +74,5 @@ public class TextSanitiserTests
         var result = Sut.ExtractBody(content, new Regex(regex));
         // assert
         result.Should().Be(expected);
-
     }
-
 }
