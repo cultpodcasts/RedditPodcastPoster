@@ -6,7 +6,6 @@ namespace RedditPodcastPoster.Common.Podcasts;
 
 public class PodcastRepository : IPodcastRepository
 {
-    private const string ContainerName = "cultpodcasts";
     private readonly IDataRepository _dataRepository;
     private readonly ILogger<PodcastRepository> _logger;
 
@@ -73,6 +72,4 @@ public class PodcastRepository : IPodcastRepository
         throw new InvalidOperationException(
             $"Unable to determine likeness of incoming episode with spotify-url {episodeToMerge.SpotifyId} and youtube-url {episodeToMerge.YouTubeId}");
     }
-
-
 }
