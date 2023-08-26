@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
@@ -10,6 +11,7 @@ namespace AddAudioPodcast;
 public class PodcastFactory
 {
     private readonly IApplePodcastEnricher _applePodcastEnricher;
+    private readonly IPodcastUpdater _podcastUpdater;
     private readonly ILogger<PodcastFactory> _logger;
     private readonly RedditPodcastPoster.Common.Podcasts.PodcastFactory _podcastFactory;
     private readonly IPodcastRepository _podcastRepository;
@@ -20,12 +22,14 @@ public class PodcastFactory
         ISpotifyClient spotifyClient,
         RedditPodcastPoster.Common.Podcasts.PodcastFactory podcastFactory,
         IApplePodcastEnricher applePodcastEnricher,
+        IPodcastUpdater podcastUpdater,
         ILogger<PodcastFactory> logger)
     {
         _podcastRepository = podcastRepository;
         _spotifyClient = spotifyClient;
         _podcastFactory = podcastFactory;
         _applePodcastEnricher = applePodcastEnricher;
+        _podcastUpdater = podcastUpdater;
         _logger = logger;
     }
 
@@ -43,6 +47,8 @@ public class PodcastFactory
             podcast.Publisher = spotifyPodcast.Publisher.Trim();
             
             await _applePodcastEnricher.AddId(podcast);
+
+            await _podcastUpdater.Update(podcast, null, true);
             await _podcastRepository.Save(podcast);
         }
         else

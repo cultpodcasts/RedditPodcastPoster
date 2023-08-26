@@ -28,6 +28,8 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
+    .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
+    .AddScoped<IPodcastUpdater, PodcastUpdater>()
     .AddScoped<IEpisodeProvider, EpisodeProvider>()
     .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
     .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()

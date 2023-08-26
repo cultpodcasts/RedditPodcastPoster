@@ -6,10 +6,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
+using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using PodcastFactory = RedditPodcastPoster.Common.Podcasts.PodcastFactory;
 
 if (args.Length != 1)
@@ -43,15 +46,29 @@ builder.Services
     .AddScoped(s => new iTunesSearchManager())
     .AddScoped<IRemoteClient, RemoteClient>()
     .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
+    .AddScoped<IPodcastUpdater, PodcastUpdater>()
+    .AddScoped<IEpisodeProvider, EpisodeProvider>()
+    .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
+    .AddScoped<ISpotifyItemResolver, SpotifyItemResolver>()
+    .AddScoped<ISpotifySearcher, SpotifySearcher>()
+    .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
+    .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
+    .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
+    .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
+    .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>()
+    .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
     .AddHttpClient<RemoteClient>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
 SpotifyClientFactory.AddSpotifyClient(builder.Services);
+YouTubeServiceFactory.AddYouTubeService(builder.Services);
 
 builder.Services
     .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
 builder.Services
     .AddOptions<SpotifySettings>().Bind(builder.Configuration.GetSection("spotify"));
+builder.Services
+    .AddOptions<YouTubeSettings>().Bind(builder.Configuration.GetSection("youtube"));
 
 using var host = builder.Build();
 var processor = host.Services.GetService<AddAudioPodcast.PodcastFactory>();
