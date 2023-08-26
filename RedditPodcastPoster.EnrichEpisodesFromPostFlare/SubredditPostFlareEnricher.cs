@@ -18,6 +18,8 @@ public class SubredditPostFlareEnricher
     private readonly SubredditSettings _subredditSettings;
     private readonly Regex SpotifyUrl = new("episode/(?'episodeid'[a-zA-Z0-9]+)/?", RegexOptions.Compiled);
     private readonly Regex AppleUrl = new(@"\?i=(?'epsiodeid'\d+)", RegexOptions.Compiled);
+    private readonly Regex YouTubeUrl = new(@"v=(?'episodeid'\w+)", RegexOptions.Compiled);
+    private readonly Regex YouTubeShortUrl = new(@"/(?'episodeid'\w+)$", RegexOptions.Compiled);
 
     public SubredditPostFlareEnricher(
         IFileRepository fileRepository,
@@ -87,10 +89,21 @@ public class SubredditPostFlareEnricher
                 var host = postUrl.Host;
                 if (host.Contains("spotify"))
                 {
-                    ApplyFlareToMatchingPodcastServiceUrls(SpotifyUrl, redditPost, podcasts, (ServiceUrls su) => su.Spotify);
+                    ApplyFlareToMatchingPodcastServiceUrls(SpotifyUrl, redditPost, podcasts, urls=> urls.Spotify);
                 } else if (host.Contains("apple"))
                 {
-                    ApplyFlareToMatchingPodcastServiceUrls(AppleUrl, redditPost, podcasts, (ServiceUrls su) => su.Apple);
+                    ApplyFlareToMatchingPodcastServiceUrls(AppleUrl, redditPost, podcasts, urls => urls.Apple);
+                } else if (host.Contains("youtube"))
+                {
+                    ApplyFlareToMatchingPodcastServiceUrls(YouTubeUrl, redditPost, podcasts, urls => urls.YouTube);
+
+                } else if (host.Contains("youtu.be"))
+                {
+                    ApplyFlareToMatchingPodcastServiceUrls(YouTubeShortUrl, redditPost, podcasts, urls => urls.YouTube);
+                }
+                else
+                {
+                    _logger.LogError($"Unknown podcast service host: {redditPost.Url}");
                 }
             }
         }
