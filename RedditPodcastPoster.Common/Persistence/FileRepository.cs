@@ -3,19 +3,21 @@ using Microsoft.Extensions.Logging;
 
 namespace RedditPodcastPoster.Common.Persistence;
 
-public class FileRepository : IDataRepository, IFileRepository
+internal class FileRepository : IFileRepository
 {
     private const string FileExtension = ".json";
     private readonly JsonSerializerOptions _jsonSerializerOptions;
-    private readonly ILogger<FileRepository> _logger;
-    private readonly string _container = "podcasts";
+    private readonly string _container;
+    private readonly ILogger<IFileRepository> _logger;
 
-    public FileRepository(
+    internal FileRepository(
         JsonSerializerOptions jsonSerializerOptions,
         IFilenameSelector filenameSelector,
-        ILogger<FileRepository> logger)
+        string container,
+        ILogger<IFileRepository> logger)
     {
         _jsonSerializerOptions = jsonSerializerOptions;
+        _container = container;
         KeySelector = filenameSelector;
         _logger = logger;
     }
