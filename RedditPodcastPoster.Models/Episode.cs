@@ -11,7 +11,7 @@ public class Episode
     [JsonPropertyName("type")]
     [JsonPropertyOrder(2)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public ModelType ModelType { get; set; }
+    public ModelType ModelType { get; set; } = ModelType.Episode;
 
     [JsonPropertyName("title")]
     [JsonPropertyOrder(3)]
@@ -55,7 +55,12 @@ public class Episode
 
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(13)]
+
     public ServiceUrls Urls { get; set; } = new();
+
+    [JsonPropertyName("subjects")]
+    [JsonPropertyOrder(14)]
+    public List<string> Subjects { get; set; } = new();
 
     public static Episode FromSpotify(string spotifyId,
         string title,

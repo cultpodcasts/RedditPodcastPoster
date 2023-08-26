@@ -14,7 +14,8 @@ builder.Services
     {
         WriteIndented = true
     })
-    .AddScoped<IDataRepository, FileRepository>()
+    .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
+    .AddScoped(services => services.GetService<IFileRepositoryFactory>().Create("podcasts"))
     .AddSingleton<IFilenameSelector, FilenameSelector>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<MissingFilesProcessor>()
@@ -27,8 +28,8 @@ builder.Services
         c.DefaultRequestHeaders.Referrer = new Uri("https://podcasts.apple.com/");
         c.DefaultRequestHeaders.Add("Origin", "https://podcasts.apple.com");
         c.DefaultRequestHeaders.UserAgent.Clear();
-        c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0");
-
+        c.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0");
     });
 
 using var host = builder.Build();

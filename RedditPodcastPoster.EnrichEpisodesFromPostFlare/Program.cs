@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Persistence;
+using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.EnrichEpisodesFromPostFlare;
 
@@ -21,8 +22,9 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<IFileRepository, FileRepository>()
-    .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
+    .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
+    .AddScoped(services => services.GetService<IFileRepositoryFactory>().Create("reddit-posts"))
+    .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddSingleton(new JsonSerializerOptions
     {
         WriteIndented = true,
@@ -33,6 +35,7 @@ builder.Services
 
     })
     .AddScoped<SubredditPostFlareEnricher>()
+    .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IFilenameSelector, FilenameSelector>()
     .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>();
 
@@ -50,4 +53,4 @@ builder.Services
 
 using var host = builder.Build();
 var processor = host.Services.GetService<SubredditPostFlareEnricher>();
-await processor.Run();
+await processor.Run(false);

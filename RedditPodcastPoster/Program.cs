@@ -32,7 +32,6 @@ builder.Services
     .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
     .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
     .AddScoped<IPodcastProcessor, PodcastProcessor>()
-//    .AddScoped<IDataRepository, FileRepository>()
     .AddScoped<IFilenameSelector, FilenameSelector>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()

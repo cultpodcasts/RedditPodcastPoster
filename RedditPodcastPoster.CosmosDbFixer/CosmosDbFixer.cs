@@ -27,7 +27,7 @@ public class CosmosDbFixer
         {
             foreach (var episode in podcast.Episodes)
             {
-                episode.Id = Guid.NewGuid();
+                episode.ModelType = ModelType.Episode;
             }
 
             var key = _cosmosDbRepository.KeySelector.GetKey(podcast);

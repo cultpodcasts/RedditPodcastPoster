@@ -11,7 +11,7 @@ public class Podcast
     [JsonPropertyName("type")]
     [JsonPropertyOrder(2)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public ModelType ModelType { get; set; }
+    public ModelType ModelType { get; set; } = ModelType.Podcast;
 
     [JsonPropertyName("name")]
     [JsonPropertyOrder(3)]
