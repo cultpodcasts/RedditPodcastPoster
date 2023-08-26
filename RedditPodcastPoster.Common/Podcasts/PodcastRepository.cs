@@ -30,6 +30,7 @@ public class PodcastRepository : IPodcastRepository
             if (existingEpisode == null)
             {
                 episodeToMerge.Id = Guid.NewGuid();
+                episodeToMerge.ModelType = ModelType.Episode;
                 podcast.Episodes.Add(episodeToMerge);
             }
             else
