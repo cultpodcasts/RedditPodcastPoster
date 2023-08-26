@@ -40,16 +40,19 @@ public class EpisodeProcessor : IEpisodeProcessor
         var matchingPodcastEpisodeResults = new List<ProcessResponse>();
         foreach (var matchingPodcastEpisode in matchingPodcastEpisodes)
         {
-            if (matchingPodcastEpisode.Episode.Length >= _postingCriteria.MinimumDuration)
+            if (!matchingPodcastEpisode.Episode.Posted)
             {
-                var result = await _resolvedPodcastEpisodePoster.PostResolvedPodcastEpisode(matchingPodcastEpisode);
-                matchingPodcastEpisodeResults.Add(result);
-            }
-            else
-            {
-                matchingPodcastEpisode.Episode.Ignored = true;
-                matchingPodcastEpisodeResults.Add(ProcessResponse.TooShort(
-                    $"Episode with id {matchingPodcastEpisode.Episode.Id} and title '{matchingPodcastEpisode.Episode.Title}' from podcast '{matchingPodcastEpisode.Podcast.Name}' was Ignored for being too short at '{matchingPodcastEpisode.Episode.Length}'."));
+                if (matchingPodcastEpisode.Episode.Length >= _postingCriteria.MinimumDuration)
+                {
+                    var result = await _resolvedPodcastEpisodePoster.PostResolvedPodcastEpisode(matchingPodcastEpisode);
+                    matchingPodcastEpisodeResults.Add(result);
+                }
+                else
+                {
+                    matchingPodcastEpisode.Episode.Ignored = true;
+                    matchingPodcastEpisodeResults.Add(ProcessResponse.TooShort(
+                        $"Episode with id {matchingPodcastEpisode.Episode.Id} and title '{matchingPodcastEpisode.Episode.Title}' from podcast '{matchingPodcastEpisode.Podcast.Name}' was Ignored for being too short at '{matchingPodcastEpisode.Episode.Length}'."));
+                }
             }
         }
 
