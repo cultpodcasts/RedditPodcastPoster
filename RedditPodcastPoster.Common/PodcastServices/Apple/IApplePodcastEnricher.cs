@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
 public interface IApplePodcastEnricher
 {
-    Task AddIdAndUrls(Podcast podcast, IEnumerable<Episode> newEpisodes);
+    Task AddId(Podcast podcast);
 }

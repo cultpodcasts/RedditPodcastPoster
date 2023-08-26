@@ -5,41 +5,25 @@ using RedditPodcastPoster.Common.Text;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
-public class AppleItemResolver : IAppleItemResolver
+public class AppleEpisodeResolver : IAppleEpisodeResolver
 {
     private const int PodcastEpisodeSearchLimit = 10;
     private const string Country = "US";
     private const int PodcastSearchLimit = 200;
-    private readonly iTunesSearchManager _iTunesSearchManager;
-    private readonly ILogger<AppleItemResolver> _logger;
+    private readonly ILogger<AppleEpisodeResolver> _logger;
     private readonly IRemoteClient _remoteClient;
+    private readonly IApplePodcastEnricher _applePodcastEnricher;
 
-    public AppleItemResolver(iTunesSearchManager iTunesSearchManager, IRemoteClient remoteClient,
-        ILogger<AppleItemResolver> logger)
+    public AppleEpisodeResolver(
+        IRemoteClient remoteClient,
+        IApplePodcastEnricher applePodcastEnricher,
+        ILogger<AppleEpisodeResolver> logger)
     {
-        _iTunesSearchManager = iTunesSearchManager;
         _remoteClient = remoteClient;
+        _applePodcastEnricher = applePodcastEnricher;
         _logger = logger;
     }
-
-    public async Task<iTunesSearch.Library.Models.Podcast?> FindPodcast(Podcast podcast)
-    {
-        iTunesSearch.Library.Models.Podcast? matchingPodcast = null;
-        if (podcast.AppleId != null)
-        {
-            var podcastResult = await _iTunesSearchManager.GetPodcastById(podcast.AppleId.Value);
-            matchingPodcast = podcastResult.Podcasts.FirstOrDefault();
-        }
-
-        if (matchingPodcast == null)
-        {
-            var items = await _iTunesSearchManager.GetPodcasts(podcast.Name, PodcastSearchLimit);
-            matchingPodcast = items.Podcasts.SingleOrDefault(x => x.Name == podcast.Name);
-        }
-
-        return matchingPodcast;
-    }
-
+    
     public async Task<PodcastEpisode> FindEpisode(Podcast podcast, Episode episode)
     {
         PodcastEpisode? matchingEpisode = null;
@@ -50,18 +34,13 @@ public class AppleItemResolver : IAppleItemResolver
         }
         if (matchingEpisode == null)
         {
-            long? podcastAppleId = podcast.AppleId;
-            if (podcastAppleId == null)
+            if (podcast.AppleId == null)
             {
-                var matchingPodcast = await FindPodcast(podcast);
-                if (matchingPodcast == null)
-                    throw new InvalidOperationException($"Could not find matching podcast with name '{podcast.Name}'.");
-                podcastAppleId = matchingPodcast.Id;
-
+                await _applePodcastEnricher.AddId(podcast);
             }
             if (podcast.Episodes.ToList().FindIndex(x => x == episode) <= PodcastSearchLimit)
             {
-                var podcastEpisodes = await GetPodcastEpisodesByPodcastId(podcastAppleId.Value);
+                var podcastEpisodes = await GetPodcastEpisodesByPodcastId(podcast.AppleId.Value);
 
                 var matchingEpisodes = podcastEpisodes.Episodes.Where(x => x.Title == episode.Title);
                 if (!matchingEpisodes.Any() || matchingEpisodes.Count() > 1)
