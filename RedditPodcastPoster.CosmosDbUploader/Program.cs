@@ -19,7 +19,8 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<IFileRepository, FileRepository>()
+    .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
+    .AddScoped(services => services.GetService<IFileRepositoryFactory>().Create("podcasts"))
     .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
     .AddSingleton(new JsonSerializerOptions
     {

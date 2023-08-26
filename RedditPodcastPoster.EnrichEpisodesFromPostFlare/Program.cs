@@ -1,11 +1,14 @@
 ﻿using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Persistence;
-using RedditPodcastPoster.CosmosDbDownloader;
+using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.Common.Reddit;
+using RedditPodcastPoster.EnrichEpisodesFromPostFlare;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -17,25 +20,37 @@ builder.Configuration
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
 
-
 builder.Services
     .AddLogging()
     .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    .AddScoped(services => services.GetService<IFileRepositoryFactory>().Create("podcasts"))
-    .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
+    .AddScoped(services => services.GetService<IFileRepositoryFactory>().Create("reddit-posts"))
+    .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddSingleton(new JsonSerializerOptions
     {
-        WriteIndented = true
+        WriteIndented = true,
+        ReferenceHandler = ReferenceHandler.Preserve,
+        MaxDepth = 0,
+        IgnoreNullValues = true,
+        IgnoreReadOnlyProperties = true
+
     })
-    .AddScoped<CosmosDbDownloader>()
+    .AddScoped<SubredditPostFlareEnricher>()
+    .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IFilenameSelector, FilenameSelector>()
     .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
+RedditClientFactory.AddRedditClient(builder.Services);
+
+
 builder.Services
     .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
+builder.Services
+    .AddOptions<RedditSettings>().Bind(builder.Configuration.GetSection("reddit"));
+builder.Services
+    .AddOptions<SubredditSettings>().Bind(builder.Configuration.GetSection("subreddit"));
 
 
 using var host = builder.Build();
-var processor = host.Services.GetService<CosmosDbDownloader>();
-await processor.Run();
+var processor = host.Services.GetService<SubredditPostFlareEnricher>();
+await processor.Run(false);
