@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Headers;
+using System.Text.Json;
 using ApplePodcastEpisodeEnricher;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -9,7 +10,12 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services
     .AddLogging()
+    .AddSingleton(new JsonSerializerOptions
+    {
+        WriteIndented = true
+    })
     .AddScoped<IDataRepository, FileRepository>()
+    .AddSingleton<IFilenameSelector, FilenameSelector>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<MissingFilesProcessor>()
     .AddHttpClient<MissingFilesProcessor>(c =>

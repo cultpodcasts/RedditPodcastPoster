@@ -8,19 +8,19 @@ namespace RedditPodcastPoster.Common.PodcastServices;
 
 public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
 {
-    private readonly IAppleItemResolver _appleItemResolver;
+    private readonly IAppleEpisodeResolver _appleEpisodeResolver;
     private readonly ILogger<PodcastServicesEpisodeEnricher> _logger;
     private readonly ISpotifyItemResolver _spotifyItemResolver;
     private readonly IYouTubeItemResolver _youTubeItemResolver;
 
     public PodcastServicesEpisodeEnricher(
         ISpotifyItemResolver spotifyItemResolver,
-        IAppleItemResolver appleItemResolver,
+        IAppleEpisodeResolver appleEpisodeResolver,
         IYouTubeItemResolver youTubeItemResolver,
         ILogger<PodcastServicesEpisodeEnricher> logger)
     {
         _spotifyItemResolver = spotifyItemResolver;
-        _appleItemResolver = appleItemResolver;
+        _appleEpisodeResolver = appleEpisodeResolver;
         _youTubeItemResolver = youTubeItemResolver;
         _logger = logger;
     }
@@ -68,7 +68,7 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
 
     private async Task EnrichFromApple(Podcast podcast, Episode episode)
     {
-        var appleItem = await _appleItemResolver.FindEpisode(podcast, episode);
+        var appleItem = await _appleEpisodeResolver.FindEpisode(podcast, episode);
         if (appleItem != null)
         {
             episode.Urls.Apple = appleItem.Url;

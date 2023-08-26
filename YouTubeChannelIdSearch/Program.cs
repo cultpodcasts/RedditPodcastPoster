@@ -32,7 +32,8 @@ return await Parser.Default.ParseArguments<Args>(args)
 
 async Task<int> Run(Args request)
 {
-    var match = await host.Services.GetService<IYouTubeChannelResolver>()!.FindChannel(request.ChannelName,
+    var youTubeChannelResolver = host.Services.GetService<IYouTubeChannelResolver>()!;
+    var match = await youTubeChannelResolver.FindChannel(request.ChannelName,
         request.MostRecentUploadedVideoTitle);
     if (match != null)
     {

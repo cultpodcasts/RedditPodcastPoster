@@ -41,7 +41,9 @@ builder.Services
     .AddScoped<ISpotifyUrlResolver, SpotifyUrlResolver>()
     .AddScoped<IAppleUrlResolver, AppleUrlResolver>()
     .AddScoped(s => new iTunesSearchManager())
-    .AddScoped<IAppleItemResolver, AppleItemResolver>()
+    .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
+    .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
+    .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
     .AddScoped<IEpisodeResolver, EpisodeResolver>()
     .AddSingleton<ITextSanitiser, TextSanitiser>()
     .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
@@ -92,7 +94,8 @@ return await Parser.Default.ParseArguments<ProcessRequest>(args)
 
 async Task<int> Run(ProcessRequest request)
 {
-    var result = await host.Services.GetService<IPodcastProcessor>()!.Process(request);
+    var podcastProcessor = host.Services.GetService<IPodcastProcessor>()!;
+    var result = await podcastProcessor.Process(request);
     Console.WriteLine(result.ToString());
     return result.ToResultCode();
 }

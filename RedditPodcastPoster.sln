@@ -30,7 +30,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.CosmosD
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Model Tools", "Model Tools", "{A0B7B88E-119E-4B41-A81D-E824392DD4D4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CultPodcasts.DatabasePublisher", "CultPodcasts.DatabasePublisher\CultPodcasts.DatabasePublisher.csproj", "{7962E4E6-87B2-48AC-B5E3-49E43878D630}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CultPodcasts.DatabasePublisher", "CultPodcasts.DatabasePublisher\CultPodcasts.DatabasePublisher.csproj", "{7962E4E6-87B2-48AC-B5E3-49E43878D630}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AddAudioPodcast", "AddAudioPodcast\AddAudioPodcast.csproj", "{9718B0C0-99C0-490C-922E-93C9DA7CBCB9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -82,6 +84,10 @@ Global
 		{7962E4E6-87B2-48AC-B5E3-49E43878D630}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7962E4E6-87B2-48AC-B5E3-49E43878D630}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7962E4E6-87B2-48AC-B5E3-49E43878D630}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9718B0C0-99C0-490C-922E-93C9DA7CBCB9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9718B0C0-99C0-490C-922E-93C9DA7CBCB9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9718B0C0-99C0-490C-922E-93C9DA7CBCB9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9718B0C0-99C0-490C-922E-93C9DA7CBCB9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -94,6 +100,7 @@ Global
 		{40B5D8E9-5344-4608-8758-C685D1D0A0EC} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{4B886269-4580-40C0-84CD-4FC8C838B329} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{7962E4E6-87B2-48AC-B5E3-49E43878D630} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
+		{9718B0C0-99C0-490C-922E-93C9DA7CBCB9} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}
