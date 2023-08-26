@@ -38,29 +38,41 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
             {
                 await _applePodcastEnricher.AddId(podcast);
             }
-            if (podcast.Episodes.ToList().FindIndex(x => x == episode) <= PodcastSearchLimit)
-            {
-                var podcastEpisodes = await GetPodcastEpisodesByPodcastId(podcast.AppleId.Value);
 
-                var matchingEpisodes = podcastEpisodes.Episodes.Where(x => x.Title == episode.Title);
-                if (!matchingEpisodes.Any() || matchingEpisodes.Count() > 1)
+            if (podcast.AppleId.HasValue)
+            {
+                if (podcast.Episodes.ToList().FindIndex(x => x == episode) <= PodcastSearchLimit)
                 {
-                    var sameDateMatches = podcastEpisodes.Episodes.Where(x =>
-                        DateOnly.FromDateTime(x.Release) == DateOnly.FromDateTime(episode.Release));
-                    if (sameDateMatches.Count() > 1)
+                    var podcastEpisodes = await GetPodcastEpisodesByPodcastId(podcast.AppleId.Value);
+
+                    var matchingEpisodes = podcastEpisodes.Episodes.Where(x => x.Title == episode.Title);
+                    if (!matchingEpisodes.Any() || matchingEpisodes.Count() > 1)
                     {
-                        var distances =
-                            sameDateMatches.OrderByDescending(x =>
-                                Levenshtein.CalculateSimilarity(episode.Title, x.Title));
-                        return distances.FirstOrDefault();
+                        var sameDateMatches = podcastEpisodes.Episodes.Where(x =>
+                            DateOnly.FromDateTime(x.Release) == DateOnly.FromDateTime(episode.Release));
+                        if (sameDateMatches.Count() > 1)
+                        {
+                            var distances =
+                                sameDateMatches.OrderByDescending(x =>
+                                    Levenshtein.CalculateSimilarity(episode.Title, x.Title));
+                            return distances.FirstOrDefault();
+                        }
+
+                        matchingEpisode = sameDateMatches.SingleOrDefault();
                     }
-                    matchingEpisode = sameDateMatches.SingleOrDefault();
+
+                    matchingEpisode ??= matchingEpisodes.FirstOrDefault();
                 }
-                matchingEpisode ??= matchingEpisodes.FirstOrDefault();
+                else
+                {
+                    _logger.LogInformation(
+                        $"Podcast '{podcast.Name}' episode with title '{episode.Title}' and release-date '{episode.Release}' is beyond limit of Apple Lookup.");
+                }
             }
             else
             {
-                _logger.LogInformation($"Podcast '{podcast.Name}' episode with title '{episode.Title}' and release-date '{episode.Release}' is beyond limit of Apple Lookup.");
+                _logger.LogInformation(
+                    $"Podcast '{podcast.Name}' cannot be found on Apple Podcasts.");
             }
         }
         return matchingEpisode;
