@@ -7,11 +7,11 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public class YouTubeChannelResolver : IYouTubeChannelResolver
 {
-    private readonly ILogger<YouTubeUrlResolver> _logger;
+    private readonly ILogger<YouTubeChannelResolver> _logger;
     private readonly YouTubeService _youTubeService;
 
 
-    public YouTubeChannelResolver(YouTubeService youTubeService, ILogger<YouTubeUrlResolver> logger)
+    public YouTubeChannelResolver(YouTubeService youTubeService, ILogger<YouTubeChannelResolver> logger)
     {
         _youTubeService = youTubeService;
         _logger = logger;
@@ -42,6 +42,7 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
                 return searchResult.Snippet.ChannelId;
             }
         }
+
         return null;
     }
 

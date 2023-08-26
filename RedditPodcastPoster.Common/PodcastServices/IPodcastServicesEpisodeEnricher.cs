@@ -2,9 +2,9 @@
 
 namespace RedditPodcastPoster.Common.PodcastServices;
 
-public interface IUrlResolver
+public interface IPodcastServicesEpisodeEnricher
 {
-    Task<bool> ResolveEpisodeUrls(
+    Task EnrichEpisodes(
         Podcast podcast,
         IList<Episode> newEpisodes,
         DateTime? publishedSince,

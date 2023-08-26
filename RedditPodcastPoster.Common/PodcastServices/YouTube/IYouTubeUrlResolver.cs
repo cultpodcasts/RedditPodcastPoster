@@ -3,8 +3,7 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
-public interface IYouTubeUrlResolver
+public interface IYouTubeItemResolver
 {
-    Task<Uri?> Resolve(Podcast podcast, Episode episode, DateTime? publishedSince);
-    Uri GetYouTubeUrl(SearchResult matchedYouTubeVideo);
+    Task<SearchResult?> FindEpisode(Podcast podcast, Episode episode, DateTime? publishedSince);
 }

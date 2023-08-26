@@ -2,32 +2,28 @@
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices;
-using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common;
 
 public class PodcastProcessor : IPodcastProcessor
 {
-    private readonly IApplePodcastEnricher _applePodcastEnricher;
     private readonly IEpisodeProcessor _episodeProcessor;
     private readonly IEpisodeProvider _episodeProvider;
     private readonly ILogger<PodcastProcessor> _logger;
     private readonly IPodcastRepository _podcastRepository;
-    private readonly IUrlResolver _urlResolver;
+    private readonly IPodcastServicesEpisodeEnricher _podcastServicesEpisodeEnricher;
 
     public PodcastProcessor(
         IEpisodeProvider episodeProvider,
         IPodcastRepository podcastRepository,
-        IUrlResolver urlResolver,
-        IApplePodcastEnricher applePodcastEnricher,
+        IPodcastServicesEpisodeEnricher podcastServicesEpisodeEnricher,
         IEpisodeProcessor episodeProcessor,
         ILogger<PodcastProcessor> logger)
     {
         _episodeProvider = episodeProvider;
         _podcastRepository = podcastRepository;
-        _urlResolver = urlResolver;
-        _applePodcastEnricher = applePodcastEnricher;
+        _podcastServicesEpisodeEnricher = podcastServicesEpisodeEnricher;
         _episodeProcessor = episodeProcessor;
         _logger = logger;
     }
@@ -51,8 +47,7 @@ public class PodcastProcessor : IPodcastProcessor
                     episodes = episodes.Where(x => x.Release > processRequest.ReleasedSince.Value).ToList();
                 }
 
-                await _applePodcastEnricher.AddIdAndUrls(podcast, episodes);
-                await _urlResolver.ResolveEpisodeUrls(podcast, episodes, processRequest.ReleasedSince,
+                await _podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, episodes, processRequest.ReleasedSince,
                     processRequest.SkipYouTubeUrlResolving);
                 await _podcastRepository.Update(podcast);
             }
@@ -70,5 +65,16 @@ public class PodcastProcessor : IPodcastProcessor
     {
         existingEpisode.Urls.Spotify ??= episodeToMerge.Urls.Spotify;
         existingEpisode.Urls.YouTube ??= episodeToMerge.Urls.YouTube;
+        if (string.IsNullOrWhiteSpace(existingEpisode.SpotifyId) &&
+            !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
+        {
+            existingEpisode.SpotifyId = episodeToMerge.SpotifyId;
+        }
+
+        if (string.IsNullOrWhiteSpace(existingEpisode.YouTubeId) &&
+            !string.IsNullOrWhiteSpace(episodeToMerge.YouTubeId))
+        {
+            existingEpisode.YouTubeId = episodeToMerge.YouTubeId;
+        }
     }
 }
