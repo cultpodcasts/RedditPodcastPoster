@@ -9,15 +9,15 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
 {
     private readonly ILogger<YouTubeEpisodeProvider> _logger;
     private readonly IYouTubeSearchService _youTubeSearchService;
-    private readonly IYouTubeUrlResolver _youTubeUrlResolver;
+    private readonly IYouTubeItemResolver _youTubeItemResolver;
 
     public YouTubeEpisodeProvider(
         IYouTubeSearchService youTubeSearchService,
-        IYouTubeUrlResolver youTubeUrlResolver,
+        IYouTubeItemResolver youTubeItemResolver,
         ILogger<YouTubeEpisodeProvider> logger)
     {
         _youTubeSearchService = youTubeSearchService;
-        _youTubeUrlResolver = youTubeUrlResolver;
+        _youTubeItemResolver = youTubeItemResolver;
         _logger = logger;
     }
 
@@ -62,6 +62,6 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
             XmlConvert.ToTimeSpan(videoDetails.ContentDetails.Duration),
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
             x.Snippet.PublishedAtDateTimeOffset.Value.UtcDateTime,
-            _youTubeUrlResolver.GetYouTubeUrl(x));
+            x.ToYouTubeUrl());
     }
 }
