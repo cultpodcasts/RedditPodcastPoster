@@ -11,4 +11,5 @@ public interface IYouTubeSearchService
     Task FindChannel(string channelName);
     Task<IList<Video>> GetVideoDetails(IEnumerable<string> videoIds);
     Task<IList<PlaylistItem>> GetPlaylist(string playlistId);
+    Task<Channel?> GetChannel(string channelId);
 }
