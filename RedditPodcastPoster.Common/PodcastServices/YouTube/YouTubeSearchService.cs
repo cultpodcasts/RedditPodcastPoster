@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
