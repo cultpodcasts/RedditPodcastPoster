@@ -8,8 +8,8 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
 {
     private readonly ILogger<YouTubeEpisodeProvider> _logger;
-    private readonly IYouTubeSearchService _youTubeSearchService;
     private readonly IYouTubeItemResolver _youTubeItemResolver;
+    private readonly IYouTubeSearchService _youTubeSearchService;
 
     public YouTubeEpisodeProvider(
         IYouTubeSearchService youTubeSearchService,
@@ -23,45 +23,36 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
 
     public async Task<IList<Episode>?> GetEpisodes(Podcast podcast, DateTime? processRequestReleasedSince)
     {
-        var episodes = new List<Episode>();
-        var batch = _youTubeSearchService.GetLatestChannelVideos(podcast, processRequestReleasedSince);
-        SearchListResponse batchResults;
-        do
-        {
-            batchResults = await batch;
-            var videoDetails =
-                await _youTubeSearchService.GetVideoDetails(batchResults.Items.Select(x => x.Id.VideoId));
-            episodes.AddRange(
-                batchResults.Items.Select(
-                    x => GetEpisode(
-                        x, videoDetails.Items.SingleOrDefault(y => y.Id == x.Id.VideoId))));
-            batch = _youTubeSearchService.GetLatestChannelVideos(podcast, processRequestReleasedSince,
-                pageToken: batchResults.NextPageToken);
-        } while (!string.IsNullOrWhiteSpace(batchResults.NextPageToken) &&
-                 Active(processRequestReleasedSince, episodes.Last().Release));
+        var youTubeVideos = await _youTubeSearchService.GetLatestChannelVideos(podcast, processRequestReleasedSince);
+        var videoDetails =
+            await _youTubeSearchService.GetVideoDetails(youTubeVideos.Select(x => x.Id.VideoId));
 
-        return episodes;
+        return youTubeVideos.Select(searchResult => GetEpisode(
+                searchResult, videoDetails.SingleOrDefault(videoDetails => videoDetails.Id == searchResult.Id.VideoId)))
+            .ToList();
     }
 
-    private static bool Active(DateTime? processRequestReleasedSince, DateTime release)
-    {
-        if (!processRequestReleasedSince.HasValue)
-        {
-            return true;
-        }
-
-        return release > processRequestReleasedSince.Value;
-    }
-
-    private Episode GetEpisode(SearchResult x, Video videoDetails)
+    public Episode GetEpisode(SearchResult searchResult, Video videoDetails)
     {
         return Episode.FromYouTube(
-            x.Id.VideoId,
-            x.Snippet.Title,
-            x.Snippet.Description,
+            searchResult.Id.VideoId,
+            searchResult.Snippet.Title,
+            searchResult.Snippet.Description,
             XmlConvert.ToTimeSpan(videoDetails.ContentDetails.Duration),
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
-            x.Snippet.PublishedAtDateTimeOffset.Value.UtcDateTime,
-            x.ToYouTubeUrl());
+            searchResult.Snippet.PublishedAtDateTimeOffset.Value.UtcDateTime,
+            searchResult.ToYouTubeUrl());
+    }
+
+    public Episode GetEpisode(PlaylistItemSnippet playlistItemSnippet, Video videoDetails)
+    {
+        return Episode.FromYouTube(
+            playlistItemSnippet.ResourceId.VideoId,
+            playlistItemSnippet.Title,
+            playlistItemSnippet.Description,
+            XmlConvert.ToTimeSpan(videoDetails.ContentDetails.Duration),
+            videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
+            playlistItemSnippet.PublishedAtDateTimeOffset.Value.UtcDateTime,
+            playlistItemSnippet.ToYouTubeUrl());
     }
 }

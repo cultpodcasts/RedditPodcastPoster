@@ -9,9 +9,9 @@ using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 
-if (args.Length != 1)
+if (args.Length != 2)
 {
-    throw new ArgumentNullException("Missing podcast-id");
+    throw new ArgumentNullException("Missing podcast-id and playlist-id");
 }
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -33,7 +33,11 @@ builder.Services
     .AddScoped<EnrichYouTubePodcastProcessor>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddSingleton<ICosmosDbKeySelector, CosmosDbKeySelector>();
+    .AddSingleton<ICosmosDbKeySelector, CosmosDbKeySelector>()
+    .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
+    .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
+    .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
+    .AddScoped<IYouTubeSearcher, YouTubeSearcher>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
 YouTubeServiceFactory.AddYouTubeService(builder.Services);
@@ -45,4 +49,4 @@ builder.Services
 
 using var host = builder.Build();
 var processor = host.Services.GetService<EnrichYouTubePodcastProcessor>();
-await processor.Run(new EnrichYouTubePodcastRequest(Guid.Parse(args[0])));
+await processor.Run(new EnrichYouTubePodcastRequest(Guid.Parse(args[0]), args[1]));

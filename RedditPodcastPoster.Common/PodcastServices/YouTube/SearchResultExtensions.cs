@@ -4,8 +4,18 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public static class SearchResultExtensions
 {
+    private static Uri ToYouTubeUrl(string videoId)
+    {
+        return new Uri($"https://www.youtube.com/watch?v={videoId}");
+    }
+
     public static Uri ToYouTubeUrl(this SearchResult matchedYouTubeVideo)
     {
-        return new Uri($"https://www.youtube.com/watch?v={matchedYouTubeVideo.Id.VideoId}");
+        return ToYouTubeUrl(matchedYouTubeVideo.Id.VideoId);
+    }
+
+    public static Uri ToYouTubeUrl(this PlaylistItemSnippet matchedYouTubeVideo)
+    {
+        return ToYouTubeUrl(matchedYouTubeVideo.ResourceId.VideoId);
     }
 }
