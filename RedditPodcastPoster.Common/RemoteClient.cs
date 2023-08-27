@@ -26,7 +26,7 @@ public class RemoteClient : IRemoteClient
     private T DeserializeObject<T>(string objString)
     {
         using var memoryStream = new MemoryStream(Encoding.Unicode.GetBytes(objString));
-        var responseObject = (T)new DataContractJsonSerializer(typeof(T)).ReadObject(memoryStream);
+        var responseObject = (T)new DataContractJsonSerializer(typeof(T)).ReadObject(memoryStream)!;
         return responseObject;
     }
 }
