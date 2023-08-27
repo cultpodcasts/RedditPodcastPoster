@@ -28,9 +28,9 @@ public class PodcastRepository : IPodcastRepository
         {
             var existingEpisodes = podcast.Episodes.Where(x => Match(x, episodeToMerge));
 
-            if (existingEpisodes.Count() == 1)
+            if (existingEpisodes.Count() <= 1)
             {
-                var existingEpisode = existingEpisodes.Single();
+                var existingEpisode = existingEpisodes.SingleOrDefault();
                 if (existingEpisode == null)
                 {
                     episodeToMerge.Id = Guid.NewGuid();
@@ -45,7 +45,8 @@ public class PodcastRepository : IPodcastRepository
             else
             {
                 var multipleEpisodes = string.Join(",", existingEpisodes.Select(x => $"'{x.Title}'").ToArray());
-                _logger.LogWarning($"Found multiple episode matches for podcast {podcast.Name}. Multiple episodes: {multipleEpisodes}");
+                _logger.LogWarning(
+                    $"Found multiple episode matches for podcast {podcast.Name}. Multiple episodes: '{multipleEpisodes}'.");
             }
         }
 
@@ -84,7 +85,7 @@ public class PodcastRepository : IPodcastRepository
         {
             return episode.AppleId.Value == episodeToMerge.AppleId.Value;
         }
-        
+
 
         if (!string.IsNullOrWhiteSpace(episode.Title) && !string.IsNullOrWhiteSpace(episodeToMerge.Title))
         {
