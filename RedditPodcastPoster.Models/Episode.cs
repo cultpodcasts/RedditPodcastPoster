@@ -19,7 +19,7 @@ public class Episode
 
     [JsonPropertyName("description")]
     [JsonPropertyOrder(4)]
-    public string Description { get; init; }
+    public string Description { get; set; }
 
     [JsonPropertyName("posted")]
     [JsonPropertyOrder(5)]

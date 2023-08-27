@@ -49,21 +49,4 @@ public class PodcastUpdater : IPodcastUpdater
             releasedSince,
             skipYouTubeUrlResolving);
     }
-
-    private void MergeEnrichedProperties(Episode existingEpisode, Episode episodeToMerge)
-    {
-        existingEpisode.Urls.Spotify ??= episodeToMerge.Urls.Spotify;
-        existingEpisode.Urls.YouTube ??= episodeToMerge.Urls.YouTube;
-        if (string.IsNullOrWhiteSpace(existingEpisode.SpotifyId) &&
-            !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
-        {
-            existingEpisode.SpotifyId = episodeToMerge.SpotifyId;
-        }
-
-        if (string.IsNullOrWhiteSpace(existingEpisode.YouTubeId) &&
-            !string.IsNullOrWhiteSpace(episodeToMerge.YouTubeId))
-        {
-            existingEpisode.YouTubeId = episodeToMerge.YouTubeId;
-        }
-    }
 }
