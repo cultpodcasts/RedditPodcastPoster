@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
@@ -40,10 +40,12 @@ public class YouTubeSearchService : IYouTubeSearchService
                     string.Concat(publishedSince.Value.ToString("o", CultureInfo.InvariantCulture),
                         "Z");
             }
+
             var response = await searchListRequest.ExecuteAsync();
             result.AddRange(response.Items);
             nextPageToken = response.NextPageToken;
         }
+
         return result;
     }
 
@@ -53,7 +55,8 @@ public class YouTubeSearchService : IYouTubeSearchService
         var nextPageToken = "";
         var batch = 0;
         var batchVideoIds = videoIds.Take(IYouTubeSearchService.MaxSearchResults);
-        while (batchVideoIds.Any()) {
+        while (batchVideoIds.Any())
+        {
             while (nextPageToken != null)
             {
                 var request = _youTubeService.Videos.List("snippet, contentDetails");
@@ -63,11 +66,13 @@ public class YouTubeSearchService : IYouTubeSearchService
                 result.AddRange(response.Items);
                 nextPageToken = response.NextPageToken;
             }
+
             nextPageToken = "";
             batch++;
             batchVideoIds = videoIds.Skip(batch * IYouTubeSearchService.MaxSearchResults)
                 .Take(IYouTubeSearchService.MaxSearchResults);
         }
+
         return result;
     }
 
@@ -83,7 +88,7 @@ public class YouTubeSearchService : IYouTubeSearchService
 
     public async Task<IList<PlaylistItem>> GetPlaylist(string playlistId)
     {
-        var result= new List<PlaylistItem>();
+        var result = new List<PlaylistItem>();
         var nextPageToken = "";
         while (nextPageToken != null)
         {
@@ -95,6 +100,15 @@ public class YouTubeSearchService : IYouTubeSearchService
             result.AddRange(playlistItemsListResponse.Items);
             nextPageToken = playlistItemsListResponse.NextPageToken;
         }
+
         return result;
+    }
+
+    public async Task<Channel?> GetChannel(string channelId)
+    {
+        var listRequest = _youTubeService.Channels.List("contentDetails");
+        listRequest.Id = channelId;
+        var result = await listRequest.ExecuteAsync();
+        return result.Items.SingleOrDefault();
     }
 }

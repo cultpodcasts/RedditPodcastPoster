@@ -1,4 +1,4 @@
-﻿using Google.Apis.YouTube.v3.Data;
+using Google.Apis.YouTube.v3.Data;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
@@ -11,4 +11,5 @@ public interface IYouTubeSearchService
     Task FindChannel(string channelName);
     Task<IList<Video>> GetVideoDetails(IEnumerable<string> videoIds);
     Task<IList<PlaylistItem>> GetPlaylist(string playlistId);
+    Task<Channel?> GetChannel(string channelId);
 }
