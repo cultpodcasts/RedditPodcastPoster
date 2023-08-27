@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using System.Text.Json;
+using CommandLine;
 using EnrichYouTubeOnlyPodcasts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,9 +10,9 @@ using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 
-if (args.Length != 2)
+if (args.Length < 1)
 {
-    throw new ArgumentNullException("Missing podcast-id and playlist-id");
+    throw new ArgumentNullException("Missing podcast-id and optional playlist-id");
 }
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -48,5 +49,13 @@ builder.Services
     .AddOptions<YouTubeSettings>().Bind(builder.Configuration.GetSection("youtube"));
 
 using var host = builder.Build();
-var processor = host.Services.GetService<EnrichYouTubePodcastProcessor>();
-await processor.Run(new EnrichYouTubePodcastRequest(Guid.Parse(args[0]), args[1]));
+
+return await Parser.Default.ParseArguments<EnrichYouTubePodcastRequest>(args)
+    .MapResult(async processRequest => await Run(processRequest), errs => Task.FromResult(-1)); // Invalid arguments
+
+async Task<int> Run(EnrichYouTubePodcastRequest request)
+{
+    var processor = host.Services.GetService<EnrichYouTubePodcastProcessor>();
+    await processor.Run(request);
+    return 0;
+}
