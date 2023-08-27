@@ -51,7 +51,8 @@ public class PublicDatabasePublisher
                     Apple = oldEpisode.Urls.Apple,
                     Spotify = oldEpisode.Urls.Spotify,
                     YouTube = oldEpisode.Urls.YouTube
-                }
+                },
+                Subjects = oldEpisode.Subjects
             }).ToList();
 
             await _fileRepository.Write(key, publicPodcast);

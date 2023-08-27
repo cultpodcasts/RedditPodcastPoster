@@ -34,7 +34,7 @@ public class PodcastUpdater : IPodcastUpdater
                 releasedSince,
                 skipYouTubeUrlResolving) ??
             new List<Episode>();
-        await _podcastRepository.Merge(podcast, newEpisodes, MergeEnrichedProperties);
+        await _podcastRepository.Merge(podcast, newEpisodes);
 
         var episodes = podcast.Episodes;
 
@@ -48,22 +48,5 @@ public class PodcastUpdater : IPodcastUpdater
             episodes,
             releasedSince,
             skipYouTubeUrlResolving);
-    }
-
-    private void MergeEnrichedProperties(Episode existingEpisode, Episode episodeToMerge)
-    {
-        existingEpisode.Urls.Spotify ??= episodeToMerge.Urls.Spotify;
-        existingEpisode.Urls.YouTube ??= episodeToMerge.Urls.YouTube;
-        if (string.IsNullOrWhiteSpace(existingEpisode.SpotifyId) &&
-            !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
-        {
-            existingEpisode.SpotifyId = episodeToMerge.SpotifyId;
-        }
-
-        if (string.IsNullOrWhiteSpace(existingEpisode.YouTubeId) &&
-            !string.IsNullOrWhiteSpace(episodeToMerge.YouTubeId))
-        {
-            existingEpisode.YouTubeId = episodeToMerge.YouTubeId;
-        }
     }
 }

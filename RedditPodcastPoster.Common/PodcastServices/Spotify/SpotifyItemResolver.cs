@@ -36,7 +36,8 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             Paging<SimpleEpisode>[] episodes;
             if (!string.IsNullOrWhiteSpace(podcast.SpotifyId))
             {
-                var fullShow = await _spotifyClient.Shows.Get(podcast.SpotifyId);
+                var fullShow = await _spotifyClient.Shows.Get(podcast.SpotifyId,
+                    new ShowRequest() {Market = SpotifyItemResolver.Market});
                 episodes = new[] {fullShow.Episodes};
             }
             else

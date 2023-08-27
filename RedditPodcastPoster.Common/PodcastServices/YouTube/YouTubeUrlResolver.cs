@@ -25,7 +25,7 @@ public class YouTubeItemResolver : IYouTubeItemResolver
         var youTubePublishingDelay = TimeSpan.Parse(podcast.YouTubePublishingDelayTimeSpan).Ticks;
         var searchListResponse = await _youTubeSearchService.GetLatestChannelVideos(podcast, publishedSince);
         var matchedYouTubeVideo =
-            _youTubeSearcher.FindMatchingYouTubeVideo(episode, searchListResponse.Items, youTubePublishingDelay);
+            _youTubeSearcher.FindMatchingYouTubeVideo(episode, searchListResponse, youTubePublishingDelay);
         return matchedYouTubeVideo;
     }
 }

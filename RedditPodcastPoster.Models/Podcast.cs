@@ -49,12 +49,16 @@ public class Podcast
     [JsonPropertyOrder(11)]
     public string DescriptionRegex { get; set; } = "";
 
-    [JsonPropertyName("episodes")]
+    [JsonPropertyName("episodeMatchRegex")]
     [JsonPropertyOrder(12)]
+    public string EpisodeMatchRegex { get; set; } = "";
+
+    [JsonPropertyName("episodes")]
+    [JsonPropertyOrder(13)]
     public List<Episode> Episodes { get; set; } = new();
 
     [JsonPropertyName("fileKey")]
-    [JsonPropertyOrder(13)]
+    [JsonPropertyOrder(14)]
     public string FileKey { get; set; }
 
     public Podcast FromName(string name)

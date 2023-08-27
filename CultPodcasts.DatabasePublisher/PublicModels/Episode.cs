@@ -40,7 +40,11 @@ public class PublicEpisode
     [JsonPropertyOrder(12)]
     public string YouTubeId { get; set; }
 
-    [JsonPropertyName("urls")]
+    [JsonPropertyName("subjects")]
     [JsonPropertyOrder(13)]
+    public List<string> Subjects { get; set; } = new();
+
+    [JsonPropertyName("urls")]
+    [JsonPropertyOrder(14)]
     public PublicServiceUrls Urls { get; set; } = new();
 }

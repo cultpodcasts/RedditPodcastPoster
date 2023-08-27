@@ -19,35 +19,56 @@ public class YouTubeSearchService : IYouTubeSearchService
         _logger = logger;
     }
 
-    public async Task<SearchListResponse> GetLatestChannelVideos(
+    public async Task<IList<SearchResult>> GetLatestChannelVideos(
         Podcast podcast,
-        DateTime? publishedSince,
-        int maxResults = IYouTubeSearchService.MaxSearchResults,
-        string pageToken = " ")
+        DateTime? publishedSince)
     {
-        var searchListRequest = _youTubeService.Search.List("snippet");
-        searchListRequest.MaxResults = maxResults;
-        searchListRequest.ChannelId = podcast.YouTubeChannelId;
-        searchListRequest.PageToken = pageToken; // or searchListResponse.NextPageToken if paging
-        searchListRequest.Type = "video";
-        searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
-        searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
-        if (publishedSince.HasValue)
+        var result = new List<SearchResult>();
+        var nextPageToken = "";
+        while (nextPageToken != null)
         {
-            searchListRequest.PublishedAfter =
-                string.Concat(publishedSince.Value.ToString("o", CultureInfo.InvariantCulture),
-                    "Z");
+            var searchListRequest = _youTubeService.Search.List("snippet");
+            searchListRequest.MaxResults = IYouTubeSearchService.MaxSearchResults;
+            searchListRequest.ChannelId = podcast.YouTubeChannelId;
+            searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
+            searchListRequest.Type = "video";
+            searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
+            searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
+            if (publishedSince.HasValue)
+            {
+                searchListRequest.PublishedAfter =
+                    string.Concat(publishedSince.Value.ToString("o", CultureInfo.InvariantCulture),
+                        "Z");
+            }
+            var response = await searchListRequest.ExecuteAsync();
+            result.AddRange(response.Items);
+            nextPageToken = response.NextPageToken;
         }
-
-        return await searchListRequest.ExecuteAsync();
+        return result;
     }
 
-    public async Task<VideoListResponse> GetVideoDetails(IEnumerable<string> videoIds)
+    public async Task<IList<Video>> GetVideoDetails(IEnumerable<string> videoIds)
     {
-        var request = _youTubeService.Videos.List("snippet, contentDetails");
-        request.Id = string.Join(",", videoIds);
-        request.MaxResults = videoIds.Count();
-        return await request.ExecuteAsync();
+        var result = new List<Video>();
+        var nextPageToken = "";
+        var batch = 0;
+        var batchVideoIds = videoIds.Take(IYouTubeSearchService.MaxSearchResults);
+        while (batchVideoIds.Any()) {
+            while (nextPageToken != null)
+            {
+                var request = _youTubeService.Videos.List("snippet, contentDetails");
+                request.Id = string.Join(",", batchVideoIds);
+                request.MaxResults = IYouTubeSearchService.MaxSearchResults;
+                var response = await request.ExecuteAsync();
+                result.AddRange(response.Items);
+                nextPageToken = response.NextPageToken;
+            }
+            nextPageToken = "";
+            batch++;
+            batchVideoIds = videoIds.Skip(batch * IYouTubeSearchService.MaxSearchResults)
+                .Take(IYouTubeSearchService.MaxSearchResults);
+        }
+        return result;
     }
 
     public async Task FindChannel(string channelName)
@@ -58,5 +79,22 @@ public class YouTubeSearchService : IYouTubeSearchService
         channelsListRequest.Q = channelName;
         var channelsListResponse = await channelsListRequest.ExecuteAsync();
         throw new NotImplementedException("method not fully implemented");
+    }
+
+    public async Task<IList<PlaylistItem>> GetPlaylist(string playlistId)
+    {
+        var result= new List<PlaylistItem>();
+        var nextPageToken = "";
+        while (nextPageToken != null)
+        {
+            var playlistRequest = _youTubeService.PlaylistItems.List("snippet");
+            playlistRequest.PlaylistId = playlistId;
+            playlistRequest.MaxResults = 50;
+            playlistRequest.PageToken = nextPageToken;
+            var playlistItemsListResponse = await playlistRequest.ExecuteAsync();
+            result.AddRange(playlistItemsListResponse.Items);
+            nextPageToken = playlistItemsListResponse.NextPageToken;
+        }
+        return result;
     }
 }

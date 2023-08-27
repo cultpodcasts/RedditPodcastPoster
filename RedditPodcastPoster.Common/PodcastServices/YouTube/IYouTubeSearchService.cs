@@ -7,9 +7,8 @@ public interface IYouTubeSearchService
 {
     public const int MaxSearchResults = 20;
 
-    Task<SearchListResponse> GetLatestChannelVideos(Podcast podcast, DateTime? publishedSince,
-        int maxResults = MaxSearchResults, string pageToken = " ");
-
+    Task<IList<SearchResult>> GetLatestChannelVideos(Podcast podcast, DateTime? publishedSince);
     Task FindChannel(string channelName);
-    Task<VideoListResponse> GetVideoDetails(IEnumerable<string> videoIds);
+    Task<IList<Video>> GetVideoDetails(IEnumerable<string> videoIds);
+    Task<IList<PlaylistItem>> GetPlaylist(string playlistId);
 }
