@@ -11,10 +11,11 @@ namespace AddAudioPodcast;
 public class PodcastFactory
 {
     private readonly IApplePodcastEnricher _applePodcastEnricher;
-    private readonly IPodcastUpdater _podcastUpdater;
+    private readonly IndexOptions _indexOptions = new(null, true);
     private readonly ILogger<PodcastFactory> _logger;
     private readonly RedditPodcastPoster.Common.Podcasts.PodcastFactory _podcastFactory;
     private readonly IPodcastRepository _podcastRepository;
+    private readonly IPodcastUpdater _podcastUpdater;
     private readonly ISpotifyClient _spotifyClient;
 
     public PodcastFactory(
@@ -45,10 +46,10 @@ public class PodcastFactory
             podcast.ModelType = ModelType.Podcast;
             podcast.Bundles = false;
             podcast.Publisher = spotifyPodcast.Publisher.Trim();
-            
+
             await _applePodcastEnricher.AddId(podcast);
 
-            await _podcastUpdater.Update(podcast, null, true);
+            await _podcastUpdater.Update(podcast, _indexOptions);
             await _podcastRepository.Save(podcast);
         }
         else
