@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Globalization;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Models;
@@ -11,7 +12,8 @@ public class RedditPostTitleFactory : IRedditPostTitleFactory
     private readonly ILogger<RedditPostTitleFactory> _logger;
     private readonly SubredditSettings _settings;
     private readonly ITextSanitiser _textSanitiser;
-    private readonly Regex WithName = new Regex(@"(?'before'\s)(?'with'with )(?'after'[A-Z])");
+    private readonly Regex _withName = new Regex(@"(?'before'\s)(?'with'[Ww]ith )(?'after'[A-Z])");
+    private readonly TextInfo _textInfo= new CultureInfo("en-GB", false).TextInfo;
 
     public RedditPostTitleFactory(
         ITextSanitiser textSanitiser,
@@ -76,11 +78,17 @@ public class RedditPostTitleFactory : IRedditPostTitleFactory
         podcastName = _textSanitiser.FixCharacters(podcastName);
         description = _textSanitiser.FixCharacters(description);
 
-        var withMatch = WithName.Match(episodeTitle).Groups["with"];
+
+        var withMatch = _withName.Match(episodeTitle).Groups["with"];
         if (withMatch.Success)
         {
-            episodeTitle= WithName.Replace(episodeTitle, "${before}w/${after}");
+            episodeTitle= _withName.Replace(episodeTitle, "${before}w/${after}");
         }
+
+        episodeTitle = _textInfo.ToTitleCase(episodeTitle.ToLower());
+        podcastName= _textInfo.ToTitleCase(podcastName.ToLower());
+
+        episodeTitle = _textSanitiser.FixCasing(episodeTitle);
 
         return $"\"{episodeTitle}\", {podcastName}, {postModel.ReleaseDate} {postModel.EpisodeLength} \"{description}";
     }

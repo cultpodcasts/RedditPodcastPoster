@@ -42,7 +42,7 @@ public class RedditPostTitleFactoryTests
         // act
         var result = Sut.ConstructPostTitle(postModel);
         // assert
-        result.Should().Contain(" with a ");
+        result.Should().Contain(" With A ");
     }
 
     [Fact]
@@ -65,4 +65,113 @@ public class RedditPostTitleFactoryTests
         // assert
         result.Should().Contain(" w/Name ");
     }
+
+    [Fact]
+    public void ConstructPostTitle_TitleCaseWithName_IsCorrect()
+    {
+        // arrange
+        var postModel = new PostModel(
+            new PodcastPost("podcast-title",
+                string.Empty,
+                string.Empty,
+                new[]
+                {
+                    _fixture
+                        .Build<EpisodePost>()
+                        .With(x => x.Title, "title-prefix With Name title-suffix")
+                        .Create()
+                }));
+        // act
+        var result = Sut.ConstructPostTitle(postModel);
+        // assert
+        result.Should().Contain(" w/Name ");
+    }
+
+    [Fact]
+    public void ConstructPostTitle_WithLowerCaseTitle_IsCorrect()
+    {
+        // arrange
+        var postModel = new PostModel(
+            new PodcastPost("podcast-title",
+                string.Empty,
+                string.Empty,
+                new[]
+                {
+                    _fixture
+                        .Build<EpisodePost>()
+                        .With(x => x.Title, "episode title")
+                        .Create()
+                }));
+        // act
+        var result = Sut.ConstructPostTitle(postModel);
+        // assert
+        result.Should().Contain("Episode Title");
+    }
+
+    [Fact]
+    public void ConstructPostTitle_WithAllUpperText_IsCorrect()
+    {
+        // arrange
+        var postModel = new PostModel(
+            new PodcastPost("podcast-title",
+                string.Empty,
+                string.Empty,
+                new[]
+                {
+                    _fixture
+                        .Build<EpisodePost>()
+                        .With(x => x.Title, "Episode title UPPER TEXT")
+                        .Create()
+                }));
+        // act
+        var result = Sut.ConstructPostTitle(postModel);
+        // assert
+        result.Should().Contain("Episode Title Upper Text");
+    }
+
+    [Theory]
+    [InlineData("BJU")]
+    [InlineData("JW")]
+    [InlineData("JWs")]
+    public void ConstructPostTitle_WithUpperTextGroupName_IsCorrect(string upperCaseGroupName)
+    {
+        // arrange
+        var postModel = new PostModel(
+            new PodcastPost("podcast-title",
+                string.Empty,
+                string.Empty,
+                new[]
+                {
+                    _fixture
+                        .Build<EpisodePost>()
+                        .With(x => x.Title, $"Episode title {upperCaseGroupName} ending")
+                        .Create()
+                }));
+        // act
+        var result = Sut.ConstructPostTitle(postModel);
+        // assert
+        result.Should().Contain($"Episode Title {upperCaseGroupName} Ending");
+    }
+
+    [Fact]
+    public void ConstructPostTitle_LowerCasePodCastTitle_IsCorrect()
+    {
+        // arrange
+        var postModel = new PostModel(
+            new PodcastPost("podcast title",
+                string.Empty,
+                string.Empty,
+                new[]
+                {
+                    _fixture
+                        .Build<EpisodePost>()
+                        .With(x => x.Title, "title-prefix With Name title-suffix")
+                        .Create()
+                }));
+        // act
+        var result = Sut.ConstructPostTitle(postModel);
+        // assert
+        result.Should().Contain("Podcast Title");
+    }
+
 }

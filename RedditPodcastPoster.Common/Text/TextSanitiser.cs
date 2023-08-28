@@ -44,6 +44,19 @@ public class TextSanitiser : ITextSanitiser
         return title;
     }
 
+    public string FixCasing(string input)
+    {
+        input = input.Replace("W/", "w/");
+        input = input.Replace(" The ", " the ");
+        input = input.Replace(" Of ", " of ");
+        input = input.Replace(" In ", " in ");
+        input = input.Replace(" Bju ", " BJU ");
+        input = input.Replace(" Jw ", " JW ");
+        input = input.Replace(" Jws ", " JWs ");
+        input = input.Replace(" Etc ", " etc ");
+        return input;
+    }
+
     public string ExtractTitle(string episodeTitle, Regex regex)
     {
         var match = regex.Match(episodeTitle);
