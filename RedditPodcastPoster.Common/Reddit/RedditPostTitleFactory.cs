@@ -14,6 +14,7 @@ public class RedditPostTitleFactory : IRedditPostTitleFactory
     private readonly ITextSanitiser _textSanitiser;
     private readonly Regex _withName = new Regex(@"(?'before'\s)(?'with'[Ww]ith )(?'after'[A-Z])");
     private readonly TextInfo _textInfo= new CultureInfo("en-GB", false).TextInfo;
+    private readonly Regex _invalidTitlePrefix = new Regex(@"(?'prefix'^[^a-zA-Z\d""]+)(?'after'.*$)");
 
     public RedditPostTitleFactory(
         ITextSanitiser textSanitiser,
@@ -83,6 +84,11 @@ public class RedditPostTitleFactory : IRedditPostTitleFactory
         if (withMatch.Success)
         {
             episodeTitle= _withName.Replace(episodeTitle, "${before}w/${after}");
+        }
+        var invalidPrefixMatch= _invalidTitlePrefix.Match(episodeTitle).Groups["prefix"];
+        if (invalidPrefixMatch.Success)
+        {
+            episodeTitle = _invalidTitlePrefix.Replace(episodeTitle, "${after}");
         }
 
         episodeTitle = _textInfo.ToTitleCase(episodeTitle.ToLower());

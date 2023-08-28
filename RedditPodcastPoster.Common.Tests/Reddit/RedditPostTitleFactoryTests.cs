@@ -174,4 +174,28 @@ public class RedditPostTitleFactoryTests
         result.Should().Contain("Podcast Title");
     }
 
+    [Theory]
+    [InlineData(" - ")]
+    [InlineData(" ")]
+    [InlineData("-")]
+    public void ConstructPostTitle_TitleBeginningWithNonWordCharacter_IsCorrect(string prefix)
+    {
+        // arrange
+        var postModel = new PostModel(
+            new PodcastPost("podcast title",
+                string.Empty,
+                string.Empty,
+                new[]
+                {
+                    _fixture
+                        .Build<EpisodePost>()
+                        .With(x => x.Title, $"{prefix}Proper Title")
+                        .Create()
+                }));
+        // act
+        var result = Sut.ConstructPostTitle(postModel);
+        // assert
+        result.Should().StartWith("\"Proper Title");
+    }
+
 }
