@@ -28,8 +28,7 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
     public async Task EnrichEpisodes(
         Podcast podcast,
         IList<Episode> newEpisodes,
-        DateTime? publishedSince,
-        bool skipYouTubeUrlResolving
+        IndexOptions indexOptions
     )
     {
         foreach (var episode in newEpisodes)
@@ -45,11 +44,11 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
                     case Service.Apple when episode.Urls.Apple == null || episode.AppleId == 0:
                         await EnrichFromApple(podcast, episode);
                         break;
-                    case Service.YouTube when !skipYouTubeUrlResolving && !string.IsNullOrWhiteSpace(
+                    case Service.YouTube when !indexOptions.SkipYouTubeUrlResolving && !string.IsNullOrWhiteSpace(
                                                   podcast.YouTubeChannelId) &&
                                               (episode.Urls.YouTube == null ||
                                                string.IsNullOrWhiteSpace(episode.YouTubeId)):
-                        await EnrichFromYouTube(podcast, episode, publishedSince);
+                        await EnrichFromYouTube(podcast, episode, indexOptions.ReleasedSince);
                         break;
                 }
             }

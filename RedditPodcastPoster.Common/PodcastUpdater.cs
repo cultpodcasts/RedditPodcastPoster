@@ -26,27 +26,26 @@ public class PodcastUpdater : IPodcastUpdater
         _logger = logger;
     }
 
-    public async Task Update(Podcast podcast, DateTime? releasedSince, bool skipYouTubeUrlResolving)
+    public async Task Update(Podcast podcast, IndexOptions indexOptions)
     {
         var newEpisodes =
             await _episodeProvider.GetEpisodes(
                 podcast,
-                releasedSince,
-                skipYouTubeUrlResolving) ??
+                indexOptions.ReleasedSince,
+                indexOptions.SkipYouTubeUrlResolving) ??
             new List<Episode>();
         _podcastRepository.Merge(podcast, newEpisodes);
 
         var episodes = podcast.Episodes;
 
-        if (releasedSince.HasValue)
+        if (indexOptions.ReleasedSince.HasValue)
         {
-            episodes = episodes.Where(x => x.Release > releasedSince.Value).ToList();
+            episodes = episodes.Where(x => x.Release > indexOptions.ReleasedSince.Value).ToList();
         }
 
         await _podcastServicesEpisodeEnricher.EnrichEpisodes(
             podcast,
             episodes,
-            releasedSince,
-            skipYouTubeUrlResolving);
+            indexOptions);
     }
 }
