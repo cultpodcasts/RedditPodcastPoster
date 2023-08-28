@@ -197,5 +197,4 @@ public class RedditPostTitleFactoryTests
         // assert
         result.Should().StartWith("\"Proper Title");
     }
-
 }

@@ -9,12 +9,12 @@ namespace RedditPodcastPoster.Common.Reddit;
 
 public class RedditPostTitleFactory : IRedditPostTitleFactory
 {
+    private readonly Regex _invalidTitlePrefix = new(@"(?'prefix'^[^a-zA-Z\d""]+)(?'after'.*$)");
     private readonly ILogger<RedditPostTitleFactory> _logger;
     private readonly SubredditSettings _settings;
+    private readonly TextInfo _textInfo = new CultureInfo("en-GB", false).TextInfo;
     private readonly ITextSanitiser _textSanitiser;
-    private readonly Regex _withName = new Regex(@"(?'before'\s)(?'with'[Ww]ith )(?'after'[A-Z])");
-    private readonly TextInfo _textInfo= new CultureInfo("en-GB", false).TextInfo;
-    private readonly Regex _invalidTitlePrefix = new Regex(@"(?'prefix'^[^a-zA-Z\d""]+)(?'after'.*$)");
+    private readonly Regex _withName = new(@"(?'before'\s)(?'with'[Ww]ith )(?'after'[A-Z])");
 
     public RedditPostTitleFactory(
         ITextSanitiser textSanitiser,
@@ -83,16 +83,17 @@ public class RedditPostTitleFactory : IRedditPostTitleFactory
         var withMatch = _withName.Match(episodeTitle).Groups["with"];
         if (withMatch.Success)
         {
-            episodeTitle= _withName.Replace(episodeTitle, "${before}w/${after}");
+            episodeTitle = _withName.Replace(episodeTitle, "${before}w/${after}");
         }
-        var invalidPrefixMatch= _invalidTitlePrefix.Match(episodeTitle).Groups["prefix"];
+
+        var invalidPrefixMatch = _invalidTitlePrefix.Match(episodeTitle).Groups["prefix"];
         if (invalidPrefixMatch.Success)
         {
             episodeTitle = _invalidTitlePrefix.Replace(episodeTitle, "${after}");
         }
 
         episodeTitle = _textInfo.ToTitleCase(episodeTitle.ToLower());
-        podcastName= _textInfo.ToTitleCase(podcastName.ToLower());
+        podcastName = _textInfo.ToTitleCase(podcastName.ToLower());
 
         episodeTitle = _textSanitiser.FixCasing(episodeTitle);
 

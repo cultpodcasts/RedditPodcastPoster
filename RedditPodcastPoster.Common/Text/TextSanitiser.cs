@@ -1,5 +1,5 @@
-﻿using HtmlAgilityPack;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
+using HtmlAgilityPack;
 
 namespace RedditPodcastPoster.Common.Text;
 
@@ -7,8 +7,8 @@ public class TextSanitiser : ITextSanitiser
 {
     public string Sanitise(string text)
     {
-        HtmlDocument doc = new HtmlDocument();
-        doc.LoadHtml("<body>"+text+"</body>");
+        var doc = new HtmlDocument();
+        doc.LoadHtml("<body>" + text + "</body>");
         var innerText = doc.DocumentNode.SelectSingleNode("//body").InnerText;
         return innerText.Trim();
     }
@@ -65,7 +65,7 @@ public class TextSanitiser : ITextSanitiser
         {
             replacement += " Pt.${partnumber}";
         }
+
         return match.Result(replacement);
     }
-
 }
