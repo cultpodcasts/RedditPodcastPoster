@@ -24,7 +24,7 @@ public class PodcastsUpdater : IPodcastsUpdater
     public async Task UpdatePodcasts(DateTime? releasedSince, bool skipYouTubeUrlResolving)
     {
         IEnumerable<Podcast> podcasts = await _podcastRepository.GetAll().ToListAsync();
-        foreach (var podcast in podcasts)
+        foreach (var podcast in podcasts.Where(x=>x.IndexAllEpisodes))
         {
             await _podcastUpdater.Update(podcast, releasedSince, skipYouTubeUrlResolving);
 
