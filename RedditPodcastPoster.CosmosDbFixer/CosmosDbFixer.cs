@@ -1,9 +1,7 @@
-﻿using Microsoft.Azure.Cosmos;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
-using RedditPodcastPoster.Common.PodcastServices.Spotify;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Common.PodcastServices.Apple;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.CosmosDbDownloader;
@@ -11,9 +9,9 @@ namespace RedditPodcastPoster.CosmosDbDownloader;
 public class CosmosDbFixer
 {
     private readonly ICosmosDbRepository _cosmosDbRepository;
+    private readonly ILogger<CosmosDbRepository> _logger;
     private readonly IPodcastRepository _podcastRepository;
     private readonly ISpotifyClient _spotifyClient;
-    private readonly ILogger<CosmosDbRepository> _logger;
 
     public CosmosDbFixer(
         IPodcastRepository podcastRepository,
@@ -30,15 +28,13 @@ public class CosmosDbFixer
         var podcasts = await _podcastRepository.GetAll().ToListAsync();
         foreach (var podcast in podcasts)
         {
-            var spotifyId = podcast.SpotifyId;
-            if (!string.IsNullOrWhiteSpace(spotifyId))
+            foreach (var episode in podcast.Episodes)
             {
-                var spotifyPodcast =
-                    await _spotifyClient.Shows.Get(spotifyId, new ShowRequest { Market = SpotifyItemResolver.Market });
-                podcast.Publisher = spotifyPodcast.Publisher.Trim();
+                if (episode.Urls.Apple != null)
+                {
+                    episode.Urls.Apple = AppleUrlResolver.CleanUrl(episode.Urls.Apple);
+                }
             }
-
-            podcast.IndexAllEpisodes = true;
 
             await _podcastRepository.Save(podcast);
         }
