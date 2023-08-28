@@ -42,19 +42,11 @@ public class AppleUrlResolver : IAppleUrlResolver
             var podcastsIndex = appleUrl.PathAndQuery.IndexOf(prefix);
             applePath = appleUrl.PathAndQuery.Substring(podcastsIndex);
         }
-        else
-        {
-            var breakpoint = 1;
-        }
 
         if (applePath.EndsWith(suffix))
         {
             applePath =
                 applePath.Substring(0, applePath.Length - suffix.Length);
-        }
-        else
-        {
-            var breakpoint = 1;
         }
 
         return new Uri($"{appleUrl.Scheme}://{appleUrl.Host}{applePath}", UriKind.Absolute);
