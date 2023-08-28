@@ -23,14 +23,14 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    .AddScoped(services => services.GetService<IFileRepositoryFactory>().Create("reddit-posts"))
+    .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create("reddit-posts"))
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddSingleton(new JsonSerializerOptions
     {
         WriteIndented = true,
         ReferenceHandler = ReferenceHandler.Preserve,
         MaxDepth = 0,
-        IgnoreNullValues = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         IgnoreReadOnlyProperties = true
 
     })
@@ -53,4 +53,4 @@ builder.Services
 
 using var host = builder.Build();
 var processor = host.Services.GetService<SubredditPostFlareEnricher>();
-await processor.Run(false);
+await processor!.Run(false);

@@ -20,7 +20,7 @@ public sealed class CosmosSystemTextJsonSerializer : CosmosSerializer
     {
         if (stream.CanSeek && stream.Length == 0)
         {
-            return default;
+            return default!;
         }
 
         if (typeof(Stream).IsAssignableFrom(typeof(T)))
@@ -30,7 +30,7 @@ public sealed class CosmosSystemTextJsonSerializer : CosmosSerializer
 
         using (stream)
         {
-            return (T) _systemTextJsonSerializer.Deserialize(stream, typeof(T), default);
+            return ((T) _systemTextJsonSerializer.Deserialize(stream, typeof(T), default)!)!;
         }
     }
 

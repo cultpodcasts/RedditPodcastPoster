@@ -22,7 +22,7 @@ public class PodcastRepository : IPodcastRepository
         return await _dataRepository.Read<Podcast>(key);
     }
 
-    public async Task Merge(Podcast podcast, IEnumerable<Episode> episodesToMerge)
+    public void Merge(Podcast podcast, IEnumerable<Episode> episodesToMerge)
     {
         foreach (var episodeToMerge in episodesToMerge)
         {

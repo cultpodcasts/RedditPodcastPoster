@@ -16,13 +16,13 @@ public class SpotifySearcher : ISpotifySearcher
 
     public IEnumerable<SimpleShow> FindMatchingPodcasts(Podcast podcast, List<SimpleShow>? podcasts)
     {
-        var matches = podcasts.Where(x => x.Name == podcast.Name);
+        var matches = podcasts!.Where(x => x.Name == podcast.Name);
 
         var matchingPodcasts = matches.Where(x => x.Name == podcast.Name);
         return matchingPodcasts;
     }
 
-    public async Task<SimpleEpisode?> FindMatchingEpisode(Episode episode,
+    public SimpleEpisode? FindMatchingEpisode(Episode episode,
         IEnumerable<IEnumerable<SimpleEpisode>> episodeLists)
     {
         foreach (var episodeList in episodeLists)

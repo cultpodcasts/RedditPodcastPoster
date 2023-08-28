@@ -48,4 +48,4 @@ builder.Services
 
 using var host = builder.Build();
 var processor = host.Services.GetService<MissingFilesProcessor>();
-await processor.Run();
+await processor!.Run();

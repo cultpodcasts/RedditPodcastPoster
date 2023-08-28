@@ -55,7 +55,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
                             var distances =
                                 sameDateMatches.OrderByDescending(x =>
                                     Levenshtein.CalculateSimilarity(episode.Title, x.Title));
-                            return distances.FirstOrDefault();
+                            return distances.FirstOrDefault()!;
                         }
 
                         matchingEpisode = sameDateMatches.SingleOrDefault();
@@ -75,7 +75,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
                     $"Podcast '{podcast.Name}' cannot be found on Apple Podcasts.");
             }
         }
-        return matchingEpisode;
+        return matchingEpisode!;
     }
 
     public async Task<PodcastEpisodeListResult> GetPodcastEpisodesByPodcastId(long podcastId)

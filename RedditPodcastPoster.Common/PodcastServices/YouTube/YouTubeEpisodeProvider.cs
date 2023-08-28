@@ -28,7 +28,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
             await _youTubeSearchService.GetVideoDetails(youTubeVideos.Select(x => x.Id.VideoId));
 
         return youTubeVideos.Select(searchResult => GetEpisode(
-                searchResult, videoDetails.SingleOrDefault(videoDetails => videoDetails.Id == searchResult.Id.VideoId)))
+                searchResult, videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == searchResult.Id.VideoId)!))
             .ToList();
     }
 
@@ -40,7 +40,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
             searchResult.Snippet.Description,
             XmlConvert.ToTimeSpan(videoDetails.ContentDetails.Duration),
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
-            searchResult.Snippet.PublishedAtDateTimeOffset.Value.UtcDateTime,
+            searchResult.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
             searchResult.ToYouTubeUrl());
     }
 
@@ -52,7 +52,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
             playlistItemSnippet.Description,
             XmlConvert.ToTimeSpan(videoDetails.ContentDetails.Duration),
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
-            playlistItemSnippet.PublishedAtDateTimeOffset.Value.UtcDateTime,
+            playlistItemSnippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
             playlistItemSnippet.ToYouTubeUrl());
     }
 }

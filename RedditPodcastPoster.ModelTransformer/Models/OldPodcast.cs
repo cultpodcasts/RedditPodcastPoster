@@ -16,7 +16,7 @@ public class OldPodcast
 
     [JsonPropertyName("name")]
     [JsonPropertyOrder(3)]
-    public string Name { get; set; }
+    public string Name { get; set; } = "";
 
     [JsonPropertyName("hasBundledEpisodes")]
     [JsonPropertyOrder(4)]
@@ -38,7 +38,6 @@ public class OldPodcast
     [JsonPropertyOrder(8)]
     public string YouTubePublishingDelayTimeSpan { get; set; } = "";
 
-
     [JsonPropertyName("titleRegex")]
     [JsonPropertyOrder(9)]
     public string TitleRegex { get; set; } = "";
@@ -49,12 +48,11 @@ public class OldPodcast
 
     [JsonPropertyName("episodes")]
     [JsonPropertyOrder(11)]
-    public List<OldEpisode> Episodes { get; set; }
+    public List<OldEpisode> Episodes { get; set; } = new();
 
     [JsonPropertyName("fileKey")]
     [JsonPropertyOrder(12)]
-    public string FileKey { get; set; }
-
+    public string FileKey { get; set; } = "";
 
     public Podcast FromName(string name)
     {

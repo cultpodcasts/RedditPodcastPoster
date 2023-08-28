@@ -10,7 +10,7 @@ public class PublicPodcast
 
     [JsonPropertyName("name")]
     [JsonPropertyOrder(3)]
-    public string Name { get; set; }
+    public string Name { get; set; } = "";
 
     [JsonPropertyName("spotifyId")]
     [JsonPropertyOrder(5)]
@@ -26,5 +26,5 @@ public class PublicPodcast
 
     [JsonPropertyName("episodes")]
     [JsonPropertyOrder(11)]
-    public List<PublicEpisode> Episodes { get; set; }
+    public List<PublicEpisode> Episodes { get; set; } = new();
 }

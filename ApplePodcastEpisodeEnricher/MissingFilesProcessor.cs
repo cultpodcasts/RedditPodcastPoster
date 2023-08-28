@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.RegularExpressions;
+using ApplePodcastEpisodeEnricher.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Models;
@@ -33,8 +34,6 @@ public class MissingFilesProcessor
                 episodeMatchRegex = new Regex(podcast.EpisodeMatchRegex, RegexOptions.Compiled);
             }
 
-
-            List<Record> podcastRecords = null;
             var episodes = podcast.Episodes.Where(x => x.AppleId == null || x.Urls.Apple == null);
             if (episodes.Any())
             {
@@ -117,7 +116,7 @@ public class MissingFilesProcessor
         {
             var appleJson = await response.Content.ReadAsStringAsync();
             var appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
-            podcastRecords.AddRange(appleObject.Records);
+            podcastRecords.AddRange(appleObject!.Records);
             while (!string.IsNullOrWhiteSpace(appleObject.Next))
             {
                 response = await _httpClient.GetAsync(appleObject.Next);
@@ -125,7 +124,7 @@ public class MissingFilesProcessor
                 {
                     appleJson = await response.Content.ReadAsStringAsync();
                     appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
-                    podcastRecords.AddRange(appleObject.Records);
+                    podcastRecords.AddRange(appleObject!.Records);
                 }
             }
         }

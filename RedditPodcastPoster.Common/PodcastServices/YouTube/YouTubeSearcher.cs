@@ -19,7 +19,7 @@ public class YouTubeSearcher : IYouTubeSearcher
     {
         var withinPublishingDelayThreshold = searchResults.Where(x =>
         {
-            var difference = x.Snippet.PublishedAtDateTimeOffset.Value.UtcDateTime - episode.Release;
+            var difference = x.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime - episode.Release;
             var valueTicks = difference.Ticks;
             return Math.Abs(valueTicks) < youTubePublishingDelay;
         }).ToList();

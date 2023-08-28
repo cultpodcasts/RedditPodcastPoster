@@ -9,6 +9,6 @@ public class EnrichYouTubePodcastRequest
     public Guid PodcastGuid { get; set; }
 
     [Value(1, MetaName = "YouTube Playlist ID", HelpText = "")]
-    public string PlaylistId { get; set; }
+    public string PlaylistId { get; set; } = "";
 
 }

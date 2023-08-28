@@ -72,4 +72,4 @@ builder.Services
 
 using var host = builder.Build();
 var processor = host.Services.GetService<AddAudioPodcast.PodcastFactory>();
-await processor.Create(new PodcastCreateRequest(args[0]));
+await processor!.Create(new PodcastCreateRequest(args[0]));

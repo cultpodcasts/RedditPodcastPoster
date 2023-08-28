@@ -30,6 +30,6 @@ public class SpotifyClientFactory : ISpotifyClientFactory
     {
         return services
             .AddScoped<ISpotifyClientFactory, SpotifyClientFactory>()
-            .AddScoped(s => s.GetService<ISpotifyClientFactory>().Create().GetAwaiter().GetResult());
+            .AddScoped(s => s.GetService<ISpotifyClientFactory>()!.Create().GetAwaiter().GetResult());
     }
 }

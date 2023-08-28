@@ -63,7 +63,7 @@ public class EpisodePostManager : IEpisodePostManager
                 return RedditPostResult.Fail("No Url to post");
             }
         }
-        catch (RedditAlreadySubmittedException submittedException)
+        catch (RedditAlreadySubmittedException)
         {
             return RedditPostResult.FailAlreadyPosted();
         }

@@ -20,7 +20,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    .AddScoped(services => services.GetService<IFileRepositoryFactory>().Create("podcasts"))
+    .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create("podcasts"))
     .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
     .AddSingleton(new JsonSerializerOptions
     {
@@ -37,4 +37,4 @@ builder.Services
 
 using var host = builder.Build();
 var processor = host.Services.GetService<CosmosDbUploader>();
-await processor.Run();
+await processor!.Run();

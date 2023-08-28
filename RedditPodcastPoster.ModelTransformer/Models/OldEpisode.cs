@@ -16,11 +16,11 @@ public class OldEpisode
 
     [JsonPropertyName("title")]
     [JsonPropertyOrder(3)]
-    public string Title { get; init; }
+    public string Title { get; init; } = "";
 
     [JsonPropertyName("description")]
     [JsonPropertyOrder(4)]
-    public string Description { get; init; }
+    public string Description { get; init; } = "";
 
     [JsonPropertyName("posted")]
     [JsonPropertyOrder(5)]
@@ -44,7 +44,7 @@ public class OldEpisode
 
     [JsonPropertyName("spotifyId")]
     [JsonPropertyOrder(10)]
-    public string SpotifyId { get; set; }
+    public string SpotifyId { get; set; } = "";
 
     [JsonPropertyName("appleId")]
     [JsonPropertyOrder(11)]
@@ -52,7 +52,7 @@ public class OldEpisode
 
     [JsonPropertyName("youTubeId")]
     [JsonPropertyOrder(12)]
-    public string YouTubeId { get; set; }
+    public string YouTubeId { get; set; } = "";
 
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(13)]

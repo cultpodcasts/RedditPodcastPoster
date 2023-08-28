@@ -44,6 +44,6 @@ public class CosmosDbClientFactory : ICosmosDbClientFactory
     {
         return services
             .AddScoped<ICosmosDbClientFactory, CosmosDbClientFactory>()
-            .AddScoped(s => s.GetService<ICosmosDbClientFactory>().Create());
+            .AddScoped(s => s.GetService<ICosmosDbClientFactory>()!.Create());
     }
 }
