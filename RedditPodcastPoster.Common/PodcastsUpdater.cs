@@ -21,12 +21,12 @@ public class PodcastsUpdater : IPodcastsUpdater
         _logger = logger;
     }
 
-    public async Task UpdatePodcasts(DateTime? releasedSince, bool skipYouTubeUrlResolving)
+    public async Task UpdatePodcasts(IndexOptions indexOptions)
     {
         IEnumerable<Podcast> podcasts = await _podcastRepository.GetAll().ToListAsync();
-        foreach (var podcast in podcasts)
+        foreach (var podcast in podcasts.Where(x=>x.IndexAllEpisodes))
         {
-            await _podcastUpdater.Update(podcast, releasedSince, skipYouTubeUrlResolving);
+            await _podcastUpdater.Update(podcast, indexOptions);
 
             await _podcastRepository.Update(podcast);
         }

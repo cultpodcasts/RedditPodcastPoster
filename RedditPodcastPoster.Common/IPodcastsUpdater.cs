@@ -2,5 +2,5 @@
 
 public interface IPodcastsUpdater
 {
-    Task UpdatePodcasts(DateTime? releasedSince, bool skipYouTubeUrlResolving);
+    Task UpdatePodcasts(IndexOptions indexOptions);
 }

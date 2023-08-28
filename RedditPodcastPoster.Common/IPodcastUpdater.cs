@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Common;
 
 public interface IPodcastUpdater
 {
-    Task Update(Podcast podcast, DateTime? releasedSince, bool skipYouTubeUrlResolving);
+    Task Update(Podcast podcast, IndexOptions indexOptions);
 }

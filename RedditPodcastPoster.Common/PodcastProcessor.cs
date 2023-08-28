@@ -5,9 +5,9 @@ namespace RedditPodcastPoster.Common;
 
 public class PodcastProcessor : IPodcastProcessor
 {
-    private readonly IPodcastsUpdater _podcastsUpdater;
     private readonly IEpisodeProcessor _episodeProcessor;
     private readonly ILogger<PodcastProcessor> _logger;
+    private readonly IPodcastsUpdater _podcastsUpdater;
 
     public PodcastProcessor(
         IPodcastsUpdater podcastsUpdater,
@@ -23,7 +23,8 @@ public class PodcastProcessor : IPodcastProcessor
     {
         if (processRequest.RefreshEpisodes)
         {
-            await _podcastsUpdater.UpdatePodcasts(processRequest.ReleasedSince, processRequest.SkipYouTubeUrlResolving);
+            IndexOptions indexOptions = new(processRequest.ReleasedSince, processRequest.SkipYouTubeUrlResolving);
+            await _podcastsUpdater.UpdatePodcasts(indexOptions);
         }
 
         if (processRequest.ReleasedSince != null)

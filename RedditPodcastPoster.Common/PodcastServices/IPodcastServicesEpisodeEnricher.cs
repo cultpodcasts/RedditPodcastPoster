@@ -7,6 +7,5 @@ public interface IPodcastServicesEpisodeEnricher
     Task EnrichEpisodes(
         Podcast podcast,
         IList<Episode> newEpisodes,
-        DateTime? publishedSince,
-        bool skipYouTubeUrlResolving);
+        IndexOptions indexOptions);
 }

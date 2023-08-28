@@ -25,40 +25,44 @@ public class Podcast
     [JsonPropertyOrder(5)]
     public bool Bundles { get; set; } = false;
 
-    [JsonPropertyName("spotifyId")]
+    [JsonPropertyName("indexAllEpisodes")]
     [JsonPropertyOrder(6)]
+    public bool IndexAllEpisodes { get; set; } = false;
+
+    [JsonPropertyName("spotifyId")]
+    [JsonPropertyOrder(20)]
     public string SpotifyId { get; set; } = "";
 
     [JsonPropertyName("appleId")]
-    [JsonPropertyOrder(7)]
+    [JsonPropertyOrder(21)]
     public long? AppleId { get; set; } = null;
 
     [JsonPropertyName("youTubeChannelId")]
-    [JsonPropertyOrder(8)]
+    [JsonPropertyOrder(22)]
     public string YouTubeChannelId { get; set; } = "";
 
     [JsonPropertyName("youTubePublicationDelay")]
-    [JsonPropertyOrder(9)]
+    [JsonPropertyOrder(40)]
     public string YouTubePublishingDelayTimeSpan { get; set; } = "";
 
     [JsonPropertyName("titleRegex")]
-    [JsonPropertyOrder(10)]
+    [JsonPropertyOrder(60)]
     public string TitleRegex { get; set; } = "";
 
     [JsonPropertyName("descriptionRegex")]
-    [JsonPropertyOrder(11)]
+    [JsonPropertyOrder(61)]
     public string DescriptionRegex { get; set; } = "";
 
     [JsonPropertyName("episodeMatchRegex")]
-    [JsonPropertyOrder(12)]
+    [JsonPropertyOrder(62)]
     public string EpisodeMatchRegex { get; set; } = "";
 
     [JsonPropertyName("episodes")]
-    [JsonPropertyOrder(13)]
+    [JsonPropertyOrder(80)]
     public List<Episode> Episodes { get; set; } = new();
 
     [JsonPropertyName("fileKey")]
-    [JsonPropertyOrder(14)]
+    [JsonPropertyOrder(100)]
     public string FileKey { get; set; } = "";
 
     public Podcast FromName(string name)
