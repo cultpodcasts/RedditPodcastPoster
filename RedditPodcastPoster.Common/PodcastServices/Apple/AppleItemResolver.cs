@@ -24,7 +24,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
         _logger = logger;
     }
     
-    public async Task<PodcastEpisode> FindEpisode(Podcast podcast, Episode episode)
+    public async Task<PodcastEpisode?> FindEpisode(Podcast podcast, Episode episode)
     {
         PodcastEpisode? matchingEpisode = null;
         if (podcast.AppleId != null && episode.AppleId != null)
@@ -75,7 +75,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
                     $"Podcast '{podcast.Name}' cannot be found on Apple Podcasts.");
             }
         }
-        return matchingEpisode!;
+        return matchingEpisode;
     }
 
     public async Task<PodcastEpisodeListResult> GetPodcastEpisodesByPodcastId(long podcastId)

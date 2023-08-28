@@ -19,6 +19,44 @@ public class AppleUrlResolver : IAppleUrlResolver
     public async Task<Uri?> Resolve(Podcast podcast, Episode episode)
     {
         var item = await _appleEpisodeResolver.FindEpisode(podcast, episode);
-        return item?.Url;
+        if (item == null)
+        {
+            return null;
+        }
+
+        return CleanUrl(item.Url);
+    }
+
+    public static Uri CleanUrl(Uri appleUrl)
+    {
+        const string prefix = "/podcast";
+        const string suffix = "&uo=4";
+        if (appleUrl.PathAndQuery.StartsWith(prefix) && !appleUrl.PathAndQuery.EndsWith(suffix))
+        {
+            return appleUrl;
+        }
+
+        var applePath = appleUrl.PathAndQuery;
+        if (!appleUrl.PathAndQuery.StartsWith(prefix))
+        {
+            var podcastsIndex = appleUrl.PathAndQuery.IndexOf(prefix);
+            applePath = appleUrl.PathAndQuery.Substring(podcastsIndex);
+        }
+        else
+        {
+            var breakpoint = 1;
+        }
+
+        if (applePath.EndsWith(suffix))
+        {
+            applePath =
+                applePath.Substring(0, applePath.Length - suffix.Length);
+        }
+        else
+        {
+            var breakpoint = 1;
+        }
+
+        return new Uri($"{appleUrl.Scheme}://{appleUrl.Host}{applePath}", UriKind.Absolute);
     }
 }
