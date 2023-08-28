@@ -1,5 +1,5 @@
-﻿using HtmlAgilityPack;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
+using HtmlAgilityPack;
 
 namespace RedditPodcastPoster.Common.Text;
 
@@ -7,8 +7,8 @@ public class TextSanitiser : ITextSanitiser
 {
     public string Sanitise(string text)
     {
-        HtmlDocument doc = new HtmlDocument();
-        doc.LoadHtml("<body>"+text+"</body>");
+        var doc = new HtmlDocument();
+        doc.LoadHtml("<body>" + text + "</body>");
         var innerText = doc.DocumentNode.SelectSingleNode("//body").InnerText;
         return innerText.Trim();
     }
@@ -44,6 +44,19 @@ public class TextSanitiser : ITextSanitiser
         return title;
     }
 
+    public string FixCasing(string input)
+    {
+        input = input.Replace("W/", "w/");
+        input = input.Replace(" The ", " the ");
+        input = input.Replace(" Of ", " of ");
+        input = input.Replace(" In ", " in ");
+        input = input.Replace(" Bju ", " BJU ");
+        input = input.Replace(" Jw ", " JW ");
+        input = input.Replace(" Jws ", " JWs ");
+        input = input.Replace(" Etc ", " etc ");
+        return input;
+    }
+
     public string ExtractTitle(string episodeTitle, Regex regex)
     {
         var match = regex.Match(episodeTitle);
@@ -52,7 +65,7 @@ public class TextSanitiser : ITextSanitiser
         {
             replacement += " Pt.${partnumber}";
         }
+
         return match.Result(replacement);
     }
-
 }

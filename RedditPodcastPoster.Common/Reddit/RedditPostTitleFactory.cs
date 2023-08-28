@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Globalization;
+using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Models;
 using RedditPodcastPoster.Common.Text;
@@ -7,9 +9,12 @@ namespace RedditPodcastPoster.Common.Reddit;
 
 public class RedditPostTitleFactory : IRedditPostTitleFactory
 {
+    private readonly Regex _invalidTitlePrefix = new(@"(?'prefix'^[^a-zA-Z\d""]+)(?'after'.*$)");
     private readonly ILogger<RedditPostTitleFactory> _logger;
     private readonly SubredditSettings _settings;
+    private readonly TextInfo _textInfo = new CultureInfo("en-GB", false).TextInfo;
     private readonly ITextSanitiser _textSanitiser;
+    private readonly Regex _withName = new(@"(?'before'\s)(?'with'[Ww]ith )(?'after'[A-Z])");
 
     public RedditPostTitleFactory(
         ITextSanitiser textSanitiser,
@@ -61,7 +66,7 @@ public class RedditPostTitleFactory : IRedditPostTitleFactory
         return title;
     }
 
-    public string ConstructBasePostTitle(PostModel postModel, string episodeTitle)
+    private string ConstructBasePostTitle(PostModel postModel, string episodeTitle)
     {
         var podcastName = postModel.PodcastName;
         var description = _textSanitiser.Sanitise(postModel.EpisodeDescription);
@@ -74,7 +79,23 @@ public class RedditPostTitleFactory : IRedditPostTitleFactory
         podcastName = _textSanitiser.FixCharacters(podcastName);
         description = _textSanitiser.FixCharacters(description);
 
-        episodeTitle = episodeTitle.Replace(" with ", " w/");
+
+        var withMatch = _withName.Match(episodeTitle).Groups["with"];
+        if (withMatch.Success)
+        {
+            episodeTitle = _withName.Replace(episodeTitle, "${before}w/${after}");
+        }
+
+        var invalidPrefixMatch = _invalidTitlePrefix.Match(episodeTitle).Groups["prefix"];
+        if (invalidPrefixMatch.Success)
+        {
+            episodeTitle = _invalidTitlePrefix.Replace(episodeTitle, "${after}");
+        }
+
+        episodeTitle = _textInfo.ToTitleCase(episodeTitle.ToLower());
+        podcastName = _textInfo.ToTitleCase(podcastName.ToLower());
+
+        episodeTitle = _textSanitiser.FixCasing(episodeTitle);
 
         return $"\"{episodeTitle}\", {podcastName}, {postModel.ReleaseDate} {postModel.EpisodeLength} \"{description}";
     }
