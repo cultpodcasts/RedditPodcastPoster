@@ -15,7 +15,6 @@ public class PostModel
 
         IsBundledPost = PodcastPost.Episodes.Count() > 1;
 
-        EpisodePost = firstEpisode;
         HasYouTubeUrl = firstEpisode.YouTube != null;
         Spotify = firstEpisode.Spotify;
         Apple = firstEpisode.Apple;
@@ -57,14 +56,13 @@ public class PostModel
     public IEnumerable<EpisodePost> Episodes { get; set; }
     public bool IsBundledPost { get; init; }
     public PodcastPost PodcastPost { get; init; }
-    private EpisodePost EpisodePost { get; }
     public Regex? TitleRegex { get; init; }
     public Regex? DescriptionRegex { get; init; }
     public bool HasYouTubeUrl { get; init; }
     public Uri? Spotify { get; init; }
     public Uri? Apple { get; init; }
     public Uri? YouTube { get; init; }
-    public IEnumerable<int> BundledPartNumbers { get; set; }
+    public IEnumerable<int> BundledPartNumbers { get; set; }= Enumerable.Empty<int>();
     public string ReleaseDate { get; init; }
     public string EpisodeLength { get; init; }
     public string EpisodeDescription { get; init; }

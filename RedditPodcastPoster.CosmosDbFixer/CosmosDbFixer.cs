@@ -24,7 +24,7 @@ public class CosmosDbFixer
     {
         var podcasts = await _cosmosDbRepository.GetAll<Podcast>().ToListAsync();
         var podcast = podcasts.SingleOrDefault(x => x.Id == Guid.Parse("67d44b5c-7421-4f9a-89db-5564f67da7a9"));
-        foreach (var episode in podcast.Episodes)
+        foreach (var episode in podcast!.Episodes)
         {
             episode.Subjects.Clear();
             episode.Subjects.AddRange(new[]

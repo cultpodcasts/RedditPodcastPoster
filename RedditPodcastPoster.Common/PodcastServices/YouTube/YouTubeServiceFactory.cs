@@ -17,7 +17,7 @@ public class YouTubeServiceFactory : IYouTubeServiceFactory
         _logger = logger;
     }
 
-    public async Task<YouTubeService> Create()
+    public YouTubeService Create()
     {
         return new YouTubeService(new BaseClientService.Initializer
         {
@@ -30,6 +30,6 @@ public class YouTubeServiceFactory : IYouTubeServiceFactory
     {
         return services
             .AddScoped<IYouTubeServiceFactory, YouTubeServiceFactory>()
-            .AddScoped(s => s.GetService<IYouTubeServiceFactory>().Create().GetAwaiter().GetResult());
+            .AddScoped(s => s.GetService<IYouTubeServiceFactory>()!.Create());
     }
 }

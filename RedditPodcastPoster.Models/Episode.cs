@@ -15,11 +15,11 @@ public class Episode
 
     [JsonPropertyName("title")]
     [JsonPropertyOrder(3)]
-    public string Title { get; init; }
+    public string Title { get; init; } = "";
 
     [JsonPropertyName("description")]
     [JsonPropertyOrder(4)]
-    public string Description { get; set; }
+    public string Description { get; set; } = "";
 
     [JsonPropertyName("posted")]
     [JsonPropertyOrder(5)]
@@ -43,7 +43,7 @@ public class Episode
 
     [JsonPropertyName("spotifyId")]
     [JsonPropertyOrder(10)]
-    public string SpotifyId { get; set; }
+    public string SpotifyId { get; set; } = "";
 
     [JsonPropertyName("appleId")]
     [JsonPropertyOrder(11)]
@@ -51,7 +51,7 @@ public class Episode
 
     [JsonPropertyName("youTubeId")]
     [JsonPropertyOrder(12)]
-    public string YouTubeId { get; set; }
+    public string YouTubeId { get; set; } = "";
 
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(13)]
@@ -90,7 +90,7 @@ public class Episode
         string title,
         string description,
         TimeSpan length,
-        bool _explicit,
+        bool @explicit,
         DateTime release,
         Uri youTubeUrl)
     {
@@ -100,7 +100,7 @@ public class Episode
             Title = title,
             Description = description,
             Length = length,
-            Explicit = _explicit,
+            Explicit = @explicit,
             Release = release,
             Urls = new ServiceUrls {YouTube = youTubeUrl}
         };

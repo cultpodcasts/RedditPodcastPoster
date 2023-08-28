@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public interface IYouTubeServiceFactory
 {
-    Task<YouTubeService> Create();
+    YouTubeService Create();
 }

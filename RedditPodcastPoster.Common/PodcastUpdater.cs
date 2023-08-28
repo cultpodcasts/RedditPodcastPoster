@@ -34,7 +34,7 @@ public class PodcastUpdater : IPodcastUpdater
                 releasedSince,
                 skipYouTubeUrlResolving) ??
             new List<Episode>();
-        await _podcastRepository.Merge(podcast, newEpisodes);
+        _podcastRepository.Merge(podcast, newEpisodes);
 
         var episodes = podcast.Episodes;
 

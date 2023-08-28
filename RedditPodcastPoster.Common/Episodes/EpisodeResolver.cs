@@ -22,7 +22,9 @@ public class EpisodeResolver : IEpisodeResolver
             x.Episodes.Select(y => y.Urls.Spotify).Contains(spotifyUrl));
         var matchingEpisode = matchingPodcast?.Episodes
             .SingleOrDefault(x => x.Urls.Spotify == spotifyUrl);
-        return new ResolvedPodcastEpisode(matchingPodcast, matchingEpisode);
+        return new ResolvedPodcastEpisode(
+            matchingPodcast ?? throw new InvalidOperationException($"Missing matching podcast for '{spotifyUrl}'."),
+            matchingEpisode ?? throw new InvalidOperationException($"Missing matching episode for '{spotifyUrl}'."));
     }
 
     public async Task<IEnumerable<ResolvedPodcastEpisode>> ResolveSinceReleaseDate(DateTime since)
@@ -47,6 +49,7 @@ public class EpisodeResolver : IEpisodeResolver
                 }
             }
         }
+
         return resolvedPodcastEpisodeSince;
     }
 }

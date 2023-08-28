@@ -131,7 +131,7 @@ public class SubredditPostFlareEnricher
                         return false;
                     }
 
-                    return Accessor(episode.Urls).ToString().Contains(serviceId);
+                    return Accessor(episode.Urls)!.ToString().Contains(serviceId);
                 }), (podcast, episode) => new {Podcast = podcast, Episode = episode});
                 foreach (var match in matches)
                 {

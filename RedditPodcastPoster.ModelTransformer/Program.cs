@@ -19,4 +19,4 @@ builder.Services
 
 using var host = builder.Build();
 var processor = host.Services.GetService<ModelTransformer>();
-await processor.Run();
+await processor!.Run();

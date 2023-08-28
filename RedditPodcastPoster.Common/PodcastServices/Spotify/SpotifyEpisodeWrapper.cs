@@ -23,6 +23,6 @@ public class SpotifyEpisodeWrapper
             return new Uri(FullEpisode.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute);
         }
 
-        return new Uri(SimpleEpisode.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute);
+        return new Uri(SimpleEpisode!.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute);
     }
 }

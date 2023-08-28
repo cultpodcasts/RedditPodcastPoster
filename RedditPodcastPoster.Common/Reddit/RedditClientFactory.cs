@@ -28,7 +28,7 @@ public class RedditClientFactory  : IRedditClientFactory
     {
         return services
             .AddScoped<IRedditClientFactory, RedditClientFactory>()
-            .AddScoped(s => s.GetService<IRedditClientFactory>().Create());
+            .AddScoped(s => s.GetService<IRedditClientFactory>()!.Create());
     }
     
 }

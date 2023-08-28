@@ -56,6 +56,6 @@ return await Parser.Default.ParseArguments<EnrichYouTubePodcastRequest>(args)
 async Task<int> Run(EnrichYouTubePodcastRequest request)
 {
     var processor = host.Services.GetService<EnrichYouTubePodcastProcessor>();
-    await processor.Run(request);
+    await processor!.Run(request);
     return 0;
 }

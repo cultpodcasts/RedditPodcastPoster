@@ -15,11 +15,11 @@ public class Podcast
 
     [JsonPropertyName("name")]
     [JsonPropertyOrder(3)]
-    public string Name { get; set; }
+    public string Name { get; set; } = "";
 
     [JsonPropertyName("publisher")]
     [JsonPropertyOrder(4)]
-    public string Publisher { get; set; }
+    public string Publisher { get; set; } = "";
 
     [JsonPropertyName("hasBundledEpisodes")]
     [JsonPropertyOrder(5)]
@@ -59,7 +59,7 @@ public class Podcast
 
     [JsonPropertyName("fileKey")]
     [JsonPropertyOrder(14)]
-    public string FileKey { get; set; }
+    public string FileKey { get; set; } = "";
 
     public Podcast FromName(string name)
     {

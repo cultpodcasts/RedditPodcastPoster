@@ -61,7 +61,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                 allEpisodes.Add(simpleEpisodes);
             }
 
-            var matchingEpisode = await _spotifySearcher.FindMatchingEpisode(episode, allEpisodes);
+            var matchingEpisode = _spotifySearcher.FindMatchingEpisode(episode, allEpisodes);
             simpleEpisode = matchingEpisode;
         }
 
@@ -93,11 +93,11 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                     var allEpisodes = await _spotifyClient.PaginateAll(pagedEpisodes);
 
                     var matchingEpisode =
-                        await _spotifySearcher.FindMatchingEpisode(
+                        _spotifySearcher.FindMatchingEpisode(
                             podcast.Episodes.OrderByDescending(x => x.Release).First(),
                             new[] {allEpisodes});
-                    if (podcast.Episodes.Select(x => x.Urls.Spotify.ToString())
-                        .Contains(matchingEpisode.ExternalUrls.FirstOrDefault().Value))
+                    if (podcast.Episodes.Select(x => x.Urls.Spotify!.ToString())
+                        .Contains(matchingEpisode!.ExternalUrls.FirstOrDefault().Value))
                     {
                         matchingSimpleShow = candidatePodcast;
                         break;

@@ -2,7 +2,7 @@
 
 public class SubredditSettings
 {
-    public String SubredditName { get; set; }
+    public string SubredditName { get; set; } = "";
     public int SubredditTitleMaxLength { get; set; }
 
 }
