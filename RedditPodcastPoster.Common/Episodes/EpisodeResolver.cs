@@ -43,8 +43,23 @@ public class EpisodeResolver : IEpisodeResolver
                 {
                     if (matchingEpisode is {Posted: false, Ignored: false})
                     {
-                        resolvedPodcastEpisodeSince.Add(
-                            new ResolvedPodcastEpisode(matchingPodcast!, matchingEpisode));
+                        var post = true;
+                        // test for whether episode could be waiting for YouTube item
+                        if (matchingEpisode.Urls.YouTube == null &&
+                            !string.IsNullOrWhiteSpace(matchingPodcast!.YouTubePublishingDelayTimeSpan))
+                        {
+                            var timeSpan = TimeSpan.Parse(matchingPodcast.YouTubePublishingDelayTimeSpan);
+                            if (matchingEpisode.Release.Add(timeSpan) > DateTime.UtcNow)
+                            {
+                                post = false;
+                            }
+                        }
+
+                        if (post)
+                        {
+                            resolvedPodcastEpisodeSince.Add(
+                                new ResolvedPodcastEpisode(matchingPodcast!, matchingEpisode));
+                        }
                     }
                 }
             }
