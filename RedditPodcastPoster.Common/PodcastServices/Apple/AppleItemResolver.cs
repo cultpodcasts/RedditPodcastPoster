@@ -1,6 +1,6 @@
 ﻿using iTunesSearch.Library;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.Text;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Apple;
@@ -12,49 +12,42 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
     private const int PodcastSearchLimit = 200;
     private readonly ILogger<AppleEpisodeResolver> _logger;
     private readonly IRemoteClient _remoteClient;
-    private readonly IApplePodcastEnricher _applePodcastEnricher;
 
     public AppleEpisodeResolver(
         IRemoteClient remoteClient,
-        IApplePodcastEnricher applePodcastEnricher,
         ILogger<AppleEpisodeResolver> logger)
     {
         _remoteClient = remoteClient;
-        _applePodcastEnricher = applePodcastEnricher;
         _logger = logger;
     }
-    
-    public async Task<PodcastEpisode?> FindEpisode(Podcast podcast, Episode episode)
+
+    public async Task<PodcastEpisode?> FindEpisode(FindAppleEpisodeRequest request)
     {
         PodcastEpisode? matchingEpisode = null;
-        if (podcast.AppleId != null && episode.AppleId != null)
+        if (request.PodcastAppleId != null && request.EpisodeAppleId != null)
         {
-            var episodeResult = await GetPodcastEpisodesByPodcastId(podcast.AppleId.Value);
-            matchingEpisode = episodeResult.Episodes.FirstOrDefault(x => x.Id == episode.AppleId);
+            var episodeResult = await GetPodcastEpisodesByPodcastId(request.PodcastAppleId.Value);
+            matchingEpisode = episodeResult.Episodes.FirstOrDefault(x => x.Id == request.EpisodeAppleId);
         }
+
         if (matchingEpisode == null)
         {
-            if (podcast.AppleId == null)
+            if (request.PodcastAppleId.HasValue)
             {
-                await _applePodcastEnricher.AddId(podcast);
-            }
-
-            if (podcast.AppleId.HasValue)
-            {
-                if (podcast.Episodes.ToList().FindIndex(x => x == episode) <= PodcastSearchLimit)
+                if (request.EpisodeIndex <= PodcastSearchLimit)
                 {
-                    var podcastEpisodes = await GetPodcastEpisodesByPodcastId(podcast.AppleId.Value);
+                    var podcastEpisodes = await GetPodcastEpisodesByPodcastId(request.PodcastAppleId.Value);
 
-                    var matchingEpisodes = podcastEpisodes.Episodes.Where(x => x.Title == episode.Title);
+                    var matchingEpisodes = podcastEpisodes.Episodes.Where(x => x.Title == request.EpisodeTitle);
                     if (!matchingEpisodes.Any() || matchingEpisodes.Count() > 1)
                     {
                         var sameDateMatches = podcastEpisodes.Episodes.Where(x =>
-                            DateOnly.FromDateTime(x.Release) == DateOnly.FromDateTime(episode.Release));
+                            DateOnly.FromDateTime(x.Release) == DateOnly.FromDateTime(request.Released));
                         if (sameDateMatches.Count() > 1)
                         {
                             var distances =
                                 sameDateMatches.OrderByDescending(x =>
-                                    Levenshtein.CalculateSimilarity(episode.Title, x.Title));
+                                    Levenshtein.CalculateSimilarity(request.EpisodeTitle, x.Title));
                             return distances.FirstOrDefault()!;
                         }
 
@@ -66,15 +59,16 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
                 else
                 {
                     _logger.LogInformation(
-                        $"Podcast '{podcast.Name}' episode with title '{episode.Title}' and release-date '{episode.Release}' is beyond limit of Apple Lookup.");
+                        $"Podcast '{request.PodcastName}' episode with title '{request.EpisodeTitle}' and release-date '{request.Released}' is beyond limit of Apple Lookup.");
                 }
             }
             else
             {
                 _logger.LogInformation(
-                    $"Podcast '{podcast.Name}' cannot be found on Apple Podcasts.");
+                    $"Podcast '{request.PodcastName}' cannot be found on Apple Podcasts.");
             }
         }
+
         return matchingEpisode;
     }
 

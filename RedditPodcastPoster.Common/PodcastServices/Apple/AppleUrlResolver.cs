@@ -1,5 +1,5 @@
-﻿using iTunesSearch.Library;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Apple;
@@ -7,18 +7,27 @@ namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 public class AppleUrlResolver : IAppleUrlResolver
 {
     private readonly IAppleEpisodeResolver _appleEpisodeResolver;
+    private readonly IApplePodcastEnricher _applePodcastEnricher;
     private readonly ILogger<AppleUrlResolver> _logger;
 
-    public AppleUrlResolver(IAppleEpisodeResolver appleEpisodeResolver, iTunesSearchManager iTunesSearchManager,
+    public AppleUrlResolver(
+        IAppleEpisodeResolver appleEpisodeResolver,
+        IApplePodcastEnricher applePodcastEnricher,
         ILogger<AppleUrlResolver> logger)
     {
         _appleEpisodeResolver = appleEpisodeResolver;
+        _applePodcastEnricher = applePodcastEnricher;
         _logger = logger;
     }
 
     public async Task<Uri?> Resolve(Podcast podcast, Episode episode)
     {
-        var item = await _appleEpisodeResolver.FindEpisode(podcast, episode);
+        if (podcast.AppleId == null)
+        {
+            await _applePodcastEnricher.AddId(podcast);
+        }
+
+        var item = await _appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(podcast, episode));
         if (item == null)
         {
             return null;

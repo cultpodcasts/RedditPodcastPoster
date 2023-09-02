@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Apple;
@@ -20,7 +21,7 @@ public class ApplePodcastEnricher : IApplePodcastEnricher
     {
         if (podcast.AppleId == null)
         {
-            var matchedPodcast = await _applePodcastResolver.FindPodcast(podcast);
+            var matchedPodcast = await _applePodcastResolver.FindPodcast(podcast.ToFindApplePodcastRequest());
             if (matchedPodcast != null)
             {
                 podcast.AppleId = matchedPodcast?.Id;

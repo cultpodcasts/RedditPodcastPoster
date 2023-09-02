@@ -23,7 +23,8 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
 
     public async Task<IList<Episode>?> GetEpisodes(Podcast podcast, DateTime? processRequestReleasedSince)
     {
-        var youTubeVideos = await _youTubeSearchService.GetLatestChannelVideos(podcast, processRequestReleasedSince);
+        var youTubeVideos =
+            await _youTubeSearchService.GetLatestChannelVideos(podcast.YouTubeChannelId, processRequestReleasedSince);
         var videoDetails =
             await _youTubeSearchService.GetVideoDetails(youTubeVideos.Select(x => x.Id.VideoId));
 

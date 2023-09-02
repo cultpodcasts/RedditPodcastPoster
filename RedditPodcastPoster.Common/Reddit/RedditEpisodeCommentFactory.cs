@@ -27,6 +27,7 @@ public class RedditEpisodeCommentFactory : IRedditEpisodeCommentFactory
         foreach (var availableKey in availableKeys)
         {
             body.AppendLine($"{availableKey}: {links[availableKey]}");
+            body.AppendLine("");
         }
 
         return body.ToString();

@@ -16,7 +16,7 @@ public class SpotifyUrlResolver : ISpotifyUrlResolver
 
     public async Task<Uri?> Resolve(Podcast podcast, Episode episode)
     {
-        var match = await _spotifyItemResolver.FindEpisode(podcast, episode);
+        var match = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode));
         return match.Url();
     }
 }

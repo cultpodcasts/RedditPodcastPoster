@@ -1,0 +1,64 @@
+﻿using System.Text.RegularExpressions;
+using System.Xml;
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.PodcastServices.YouTube;
+
+namespace RedditPodcastPoster.Common.UrlCategorisation;
+
+public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
+{
+    private static readonly Regex VideoId = new(@"v=(?'videoId'\w+)", RegexOptions.Compiled);
+    private readonly ILogger<YouTubeUrlCategoriser> _logger;
+
+    private readonly IYouTubeSearchService _youTubeSearchService;
+
+    public YouTubeUrlCategoriser(
+        IYouTubeSearchService youTubeSearchService,
+        ILogger<YouTubeUrlCategoriser> logger)
+    {
+        _youTubeSearchService = youTubeSearchService;
+        _logger = logger;
+    }
+
+    public bool IsMatch(Uri url)
+    {
+        return url.Host.ToLower().Contains("youtube");
+    }
+
+    public async Task<ResolvedYouTubeItem> Resolve(Uri url)
+    {
+        var videoIdMatch = VideoId.Match(url.ToString()).Groups["videoId"];
+        if (!videoIdMatch.Success)
+        {
+            throw new InvalidOperationException($"Unable to find video-id in url '{url}'.");
+        }
+
+        var items = await _youTubeSearchService.GetVideoDetails(new[] {videoIdMatch.Value});
+        var item = items.FirstOrDefault();
+        if (item == null)
+        {
+            throw new InvalidOperationException($"Unable to find video with id '{videoIdMatch.Value}'.");
+        }
+
+        var channel = await _youTubeSearchService.GetChannel(item.Snippet.ChannelId);
+
+        return new ResolvedYouTubeItem(
+            item.Snippet.ChannelId,
+            item.Id,
+            item.Snippet.ChannelTitle,
+            channel.Snippet.Description,
+            channel.ContentOwnerDetails.ContentOwner,
+            item.Snippet.Title,
+            item.Snippet.Description,
+            item.Snippet.PublishedAt.Value,
+            XmlConvert.ToTimeSpan(item.ContentDetails.Duration),
+            item.ToYouTubeUrl(),
+            item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted"
+        );
+    }
+
+    public Task<ResolvedYouTubeItem?> Resolve(PodcastServiceSearchCriteria criteria)
+    {
+        return Task.FromResult((ResolvedYouTubeItem) null!)!;
+    }
+}

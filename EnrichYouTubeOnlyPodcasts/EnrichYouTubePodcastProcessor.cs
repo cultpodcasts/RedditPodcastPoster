@@ -49,7 +49,7 @@ public class EnrichYouTubePodcastProcessor
             if (channel == null)
             {
                 throw new InvalidOperationException(
-                    $"Could not find YouTube channel with Id '{podcast.YouTubeChannelId}'.");
+                    $"Could not find YouTube channel with channel-id '{podcast.YouTubeChannelId}'.");
             }
             playlistId = channel.ContentDetails.RelatedPlaylists.Uploads;
         }

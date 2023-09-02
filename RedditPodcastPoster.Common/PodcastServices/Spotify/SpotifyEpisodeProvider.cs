@@ -1,7 +1,5 @@
-﻿using System.Globalization;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
@@ -9,8 +7,6 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
 {
     private readonly ILogger<SpotifyEpisodeProvider> _logger;
 
-    private readonly Func<SimpleEpisode, DateTime> _releaseDate = episode =>
-        DateTime.ParseExact(episode.ReleaseDate, "yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     private readonly ISpotifyItemResolver _spotifyItemResolver;
 
@@ -29,7 +25,7 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
             var allEpisodes = await _spotifyItemResolver.GetEpisodes(podcast);
             if (processRequestReleasedSince.HasValue)
             {
-                allEpisodes = allEpisodes.Where(x => _releaseDate(x) > processRequestReleasedSince.Value);
+                allEpisodes = allEpisodes.Where(x => x.GetReleaseDate() > processRequestReleasedSince.Value);
             }
 
             return allEpisodes.Select(x =>
@@ -39,7 +35,7 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
                     x.Description,
                     TimeSpan.FromMilliseconds(x.DurationMs),
                     x.Explicit,
-                    _releaseDate(x),
+                    x.GetReleaseDate(),
                     new Uri(x.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute))
             ).ToList();
         }

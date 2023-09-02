@@ -5,6 +5,9 @@ namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
 public interface ISpotifySearcher
 {
-    SimpleEpisode? FindMatchingEpisode(Episode episode, IEnumerable<IEnumerable<SimpleEpisode>> episodeLists);
-    IEnumerable<SimpleShow> FindMatchingPodcasts(Podcast podcast, List<SimpleShow>? podcasts);
+    SimpleEpisode? FindMatchingEpisode(
+        string episodeTitle,
+        DateTime episodeRelease,
+        IEnumerable<IEnumerable<SimpleEpisode>> episodeLists);
+    IEnumerable<SimpleShow> FindMatchingPodcasts(string podcastName, List<SimpleShow>? podcasts);
 }

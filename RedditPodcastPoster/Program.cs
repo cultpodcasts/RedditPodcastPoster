@@ -51,7 +51,6 @@ builder.Services
     .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
     .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
     .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
-    .AddScoped<ISpotifyItemResolver, SpotifyItemResolver>()
     .AddScoped<ISpotifyPodcastEnricher, SpotifyPodcastEnricher>()
     .AddScoped<ISpotifyIdResolver, SpotifyIdResolver>()
     .AddScoped<ISpotifyItemResolver, SpotifyItemResolver>()
