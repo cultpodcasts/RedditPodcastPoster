@@ -19,7 +19,7 @@ public class PodcastRepository : IPodcastRepository
 
     public async Task<Podcast?> GetPodcast(string key)
     {
-        var partitionKey = _dataRepository.KeySelector.GetKey((Podcast) null);
+        var partitionKey = _dataRepository.KeySelector.GetKey(new Podcast());
         return await _dataRepository.Read<Podcast>(key, partitionKey);
     }
 

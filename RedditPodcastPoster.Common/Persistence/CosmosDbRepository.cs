@@ -80,7 +80,7 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
     public bool IsOfType<T>(CosmosSelector x)
     {
         var customAttributes = typeof(T).GetCustomAttributes(typeof(CosmosSelectorAttribute), true);
-        var typeModelType = ((CosmosSelectorAttribute) customAttributes.FirstOrDefault()).ModelType;
+        var typeModelType = ((CosmosSelectorAttribute) customAttributes.First()).ModelType;
         return x.ModelType == typeModelType;
     }
 }

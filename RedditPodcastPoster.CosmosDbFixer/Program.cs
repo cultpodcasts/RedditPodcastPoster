@@ -7,7 +7,7 @@ using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
-using RedditPodcastPoster.CosmosDbDownloader;
+using RedditPodcastPoster.CosmosDbFixer;
 
 var builder = Host.CreateApplicationBuilder(args);
 
