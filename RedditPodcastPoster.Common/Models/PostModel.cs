@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Models;
 
@@ -50,7 +51,18 @@ public class PostModel
             BundledPartNumbers = bundledPartNumbers;
         }
 
-        Link = firstEpisode.YouTube ?? firstEpisode.Spotify ?? firstEpisode.Apple ?? null;
+        if (podcastPost.PodcastPrimaryPostService.HasValue)
+        {
+            Link = podcastPost.PodcastPrimaryPostService switch
+            {
+                Service.Apple => firstEpisode.Apple,
+                Service.Spotify => firstEpisode.Spotify,
+                Service.YouTube => firstEpisode.YouTube,
+                _ => Link
+            };
+        }
+
+        Link ??= firstEpisode.YouTube ?? firstEpisode.Spotify ?? firstEpisode.Apple ?? null;
     }
 
     public IEnumerable<EpisodePost> Episodes { get; set; }
@@ -62,7 +74,7 @@ public class PostModel
     public Uri? Spotify { get; init; }
     public Uri? Apple { get; init; }
     public Uri? YouTube { get; init; }
-    public IEnumerable<int> BundledPartNumbers { get; set; }= Enumerable.Empty<int>();
+    public IEnumerable<int> BundledPartNumbers { get; set; } = Enumerable.Empty<int>();
     public string ReleaseDate { get; init; }
     public string EpisodeLength { get; init; }
     public string EpisodeDescription { get; init; }

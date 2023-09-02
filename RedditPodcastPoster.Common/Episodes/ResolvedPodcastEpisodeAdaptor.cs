@@ -20,7 +20,8 @@ public class ResolvedPodcastEpisodeAdaptor : IResolvedPodcastEpisodeAdaptor
             podcast.Name,
             podcast.TitleRegex,
             podcast.DescriptionRegex,
-            episodes.Select(ToBasicEpisode)
+            episodes.Select(ToBasicEpisode),
+            podcast.PrimaryPostService
         ));
         return postModel;
     }

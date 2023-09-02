@@ -8,19 +8,19 @@ namespace RedditPodcastPoster.Common.Episodes;
 public class EpisodePostManager : IEpisodePostManager
 {
     private readonly ILogger<EpisodePostManager> _logger;
-    private readonly IRedditBundleCommentPoster _redditBundleCommentPoster;
+    private readonly IRedditBundleCommentFactory _redditBundleCommentFactory;
     private readonly IRedditLinkPoster _redditLinkPoster;
-    private readonly IRedditEpisodeCommentPoster _redditEpisodeCommentPoster;
+    private readonly IRedditEpisodeCommentFactory _redditEpisodeCommentFactory;
 
     public EpisodePostManager(
         IRedditLinkPoster redditLinkPoster,
-        IRedditEpisodeCommentPoster redditEpisodeCommentPoster,
-        IRedditBundleCommentPoster redditBundleCommentPoster,
+        IRedditEpisodeCommentFactory redditEpisodeCommentFactory,
+        IRedditBundleCommentFactory redditBundleCommentFactory,
         ILogger<EpisodePostManager> logger)
     {
         _redditLinkPoster = redditLinkPoster;
-        _redditEpisodeCommentPoster = redditEpisodeCommentPoster;
-        _redditBundleCommentPoster = redditBundleCommentPoster;
+        _redditEpisodeCommentFactory = redditEpisodeCommentFactory;
+        _redditBundleCommentFactory = redditBundleCommentFactory;
         _logger = logger;
     }
 
@@ -49,13 +49,18 @@ public class EpisodePostManager : IEpisodePostManager
             var result = await _redditLinkPoster.Post(postModel);
             if (result != null)
             {
+                string comments;
                 if (postModel.IsBundledPost)
                 {
-                    await _redditBundleCommentPoster.Post(postModel, result);
+                    comments= _redditBundleCommentFactory.Post(postModel);
                 }
                 else
                 {
-                    await _redditEpisodeCommentPoster.Post(postModel, result);
+                    comments= _redditEpisodeCommentFactory.Post(postModel);
+                }
+                if (!string.IsNullOrWhiteSpace(comments.Trim()))
+                {
+                    await result.ReplyAsync(comments);
                 }
             }
             else

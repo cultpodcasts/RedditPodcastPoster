@@ -1,29 +1,28 @@
 ﻿using System.Text;
 using Microsoft.Extensions.Logging;
-using Reddit.Controllers;
 using RedditPodcastPoster.Common.Models;
 
 namespace RedditPodcastPoster.Common.Reddit;
 
-public class RedditBundleCommentPoster : IRedditBundleCommentPoster
+public class RedditBundleCommentFactory : IRedditBundleCommentFactory
 {
-    private readonly ILogger<RedditBundleCommentPoster> _logger;
+    private readonly ILogger<RedditBundleCommentFactory> _logger;
 
-    public RedditBundleCommentPoster(ILogger<RedditBundleCommentPoster> logger)
+    public RedditBundleCommentFactory(ILogger<RedditBundleCommentFactory> logger)
     {
         _logger = logger;
     }
 
-    public async Task Post(PostModel postModel, LinkPost result)
+    public string Post(PostModel postModel)
     {
         var comment = new StringBuilder();
         for (var i = 0; i < postModel.BundledPartNumbers.Count(); i++)
         {
             var episode = postModel.Episodes.Skip(i).First();
-            if (!(episode.Spotify == null && episode.Apple == null))
+            if (!(episode.Spotify == null && episode.Apple == null || episode.YouTube == null))
             {
                 comment.AppendLine(
-                    $"**Part {postModel.BundledPartNumbers.Skip(i).First()}, {episode.Release}, {episode.Duration}**");
+                    $"**Part {postModel.BundledPartNumbers.Skip(i).First()}, {episode.Release} {episode.Duration}**");
                 comment.AppendLine();
             }
 
@@ -40,12 +39,15 @@ public class RedditBundleCommentPoster : IRedditBundleCommentPoster
                     $"Apple Podcasts: {episode.Apple.ToString()}");
                 comment.AppendLine();
             }
+
+            if (episode.YouTube != null)
+            {
+                comment.AppendLine(
+                    $"YouTube: {episode.YouTube.ToString()}");
+                comment.AppendLine();
+            }
         }
 
-        var commentContents = comment.ToString();
-        if (!string.IsNullOrWhiteSpace(commentContents))
-        {
-            await result.ReplyAsync(comment.ToString());
-        }
+        return comment.ToString();
     }
 }

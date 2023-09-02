@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Common.PodcastServices;
+﻿namespace RedditPodcastPoster.Models;
 
 public enum Service
 {

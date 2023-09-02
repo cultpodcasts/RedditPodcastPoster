@@ -5,6 +5,7 @@ using Moq.AutoMock;
 using RedditPodcastPoster.Common.Models;
 using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Common.Text;
+using RedditPodcastPoster.Models;
 using Xunit;
 
 namespace RedditPodcastPoster.Common.Tests.Reddit;
@@ -38,7 +39,7 @@ public class RedditPostTitleFactoryTests
                         .Build<EpisodePost>()
                         .With(x => x.Title, "title-prefix with a title-suffix")
                         .Create()
-                }));
+                }, _fixture.Create<Service?>()));
         // act
         var result = Sut.ConstructPostTitle(postModel);
         // assert
@@ -59,7 +60,8 @@ public class RedditPostTitleFactoryTests
                         .Build<EpisodePost>()
                         .With(x => x.Title, "title-prefix with Name title-suffix")
                         .Create()
-                }));
+                },
+                _fixture.Create<Service?>()));
         // act
         var result = Sut.ConstructPostTitle(postModel);
         // assert
@@ -80,7 +82,8 @@ public class RedditPostTitleFactoryTests
                         .Build<EpisodePost>()
                         .With(x => x.Title, "title-prefix With Name title-suffix")
                         .Create()
-                }));
+                },
+                _fixture.Create<Service?>()));
         // act
         var result = Sut.ConstructPostTitle(postModel);
         // assert
@@ -101,7 +104,8 @@ public class RedditPostTitleFactoryTests
                         .Build<EpisodePost>()
                         .With(x => x.Title, "episode title")
                         .Create()
-                }));
+                },
+                _fixture.Create<Service?>()));
         // act
         var result = Sut.ConstructPostTitle(postModel);
         // assert
@@ -122,7 +126,8 @@ public class RedditPostTitleFactoryTests
                         .Build<EpisodePost>()
                         .With(x => x.Title, "Episode title UPPER TEXT")
                         .Create()
-                }));
+                },
+                _fixture.Create<Service?>()));
         // act
         var result = Sut.ConstructPostTitle(postModel);
         // assert
@@ -146,7 +151,8 @@ public class RedditPostTitleFactoryTests
                         .Build<EpisodePost>()
                         .With(x => x.Title, $"Episode title {upperCaseGroupName} ending")
                         .Create()
-                }));
+                },
+                _fixture.Create<Service?>()));
         // act
         var result = Sut.ConstructPostTitle(postModel);
         // assert
@@ -167,7 +173,8 @@ public class RedditPostTitleFactoryTests
                         .Build<EpisodePost>()
                         .With(x => x.Title, "title-prefix With Name title-suffix")
                         .Create()
-                }));
+                },
+                _fixture.Create<Service?>()));
         // act
         var result = Sut.ConstructPostTitle(postModel);
         // assert
@@ -191,7 +198,8 @@ public class RedditPostTitleFactoryTests
                         .Build<EpisodePost>()
                         .With(x => x.Title, $"{prefix}Proper Title")
                         .Create()
-                }));
+                },
+                _fixture.Create<Service?>()));
         // act
         var result = Sut.ConstructPostTitle(postModel);
         // assert
