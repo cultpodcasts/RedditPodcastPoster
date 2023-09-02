@@ -2,16 +2,17 @@
 
 namespace RedditPodcastPoster.Models;
 
-public class Podcast
+[CosmosSelector(ModelType.Podcast)]
+public class Podcast : CosmosSelector
 {
+    public Podcast() : base(ModelType.Podcast)
+    {
+    }
+
     [JsonPropertyName("id")]
     [JsonPropertyOrder(1)]
     public Guid Id { get; set; }
 
-    [JsonPropertyName("type")]
-    [JsonPropertyOrder(2)]
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public ModelType ModelType { get; set; } = ModelType.Podcast;
 
     [JsonPropertyName("name")]
     [JsonPropertyOrder(3)]

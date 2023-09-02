@@ -8,4 +8,9 @@ public class CosmosDbKeySelector : ICosmosDbKeySelector
     {
         return Enum.GetName(typeof(ModelType), podcast.ModelType)!;
     }
+
+    public string GetKey(EliminationTerms.EliminationTerms eliminationTerms)
+    {
+        return nameof(ModelType.EliminationTerms);
+    }
 }

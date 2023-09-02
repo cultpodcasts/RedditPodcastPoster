@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
@@ -64,6 +65,8 @@ builder.Services
     .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
     .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
     .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
+    .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
+    .AddScoped<IPodcastFilter, PodcastFilter>()
     .AddSingleton(new JsonSerializerOptions
     {
         WriteIndented = true

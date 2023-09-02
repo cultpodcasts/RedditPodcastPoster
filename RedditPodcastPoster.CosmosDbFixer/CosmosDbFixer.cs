@@ -4,11 +4,10 @@ using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.CosmosDbDownloader;
+namespace RedditPodcastPoster.CosmosDbFixer;
 
 public class CosmosDbFixer
 {
-    private readonly ICosmosDbRepository _cosmosDbRepository;
     private readonly ILogger<CosmosDbRepository> _logger;
     private readonly IPodcastRepository _podcastRepository;
     private readonly ISpotifyClient _spotifyClient;

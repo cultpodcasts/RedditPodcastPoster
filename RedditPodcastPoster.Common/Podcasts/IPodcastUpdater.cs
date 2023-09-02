@@ -1,6 +1,6 @@
 ﻿using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Common;
+namespace RedditPodcastPoster.Common.Podcasts;
 
 public interface IPodcastUpdater
 {

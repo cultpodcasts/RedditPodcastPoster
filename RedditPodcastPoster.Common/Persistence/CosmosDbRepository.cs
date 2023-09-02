@@ -2,6 +2,7 @@
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Persistence;
 
@@ -25,42 +26,48 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
 
     public IKeySelector KeySelector { get; }
 
-    public async Task Write<T>(string key, T data)
+    public async Task Write<T>(string partitionKey, T data)
     {
         var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
         try
         {
-            await c.UpsertItemAsync(data, new PartitionKey(key));
+            await c.UpsertItemAsync(data, new PartitionKey(partitionKey));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                $"Error UpsertItemAsync on document with partition-key '{key}' in Database with DatabaseId '{_cosmosDbSettings.DatabaseId}' and Container '{_cosmosDbSettings.Container}'.");
+                $"Error UpsertItemAsync on document with partition-partitionKey '{partitionKey}' in Database with DatabaseId '{_cosmosDbSettings.DatabaseId}' and Container '{_cosmosDbSettings.Container}'.");
             throw;
         }
     }
 
-    public async Task<T?> Read<T>(string key) where T : class
+    public async Task<T?> Read<T>(string key, string partitionKey) where T : class
     {
         var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
         try
         {
-            return await c.ReadItemAsync<T>(key, new PartitionKey(key));
+            return await c.ReadItemAsync<T>(key, new PartitionKey(partitionKey));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                $"Error ReadItemAsync on document with partition-key '{key}' in Database with DatabaseId '{_cosmosDbSettings.DatabaseId}' and Container '{_cosmosDbSettings.Container}'.");
+                $"Error ReadItemAsync on document with key '{key}', partition-partitionKey '{partitionKey}' in Database with DatabaseId '{_cosmosDbSettings.DatabaseId}' and Container '{_cosmosDbSettings.Container}'.");
             throw;
         }
     }
 
-    public IAsyncEnumerable<T> GetAll<T>() where T : class
+    public IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector
     {
         var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
         try
         {
-            return c.GetItemLinqQueryable<T>().ToFeedIterator().ToAsyncEnumerable();
+            return c
+                .GetItemLinqQueryable<T>()
+
+                .ToFeedIterator()
+                .ToAsyncEnumerable()
+                .Where(IsOfType<T>)
+                ;
         }
         catch (Exception ex)
         {
@@ -68,5 +75,12 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
                 $"Error GetItemLinqQueryable on documents in Database with DatabaseId '{_cosmosDbSettings.DatabaseId}' and Container '{_cosmosDbSettings.Container}'.");
             throw;
         }
+    }
+
+    public bool IsOfType<T>(CosmosSelector x)
+    {
+        var customAttributes = typeof(T).GetCustomAttributes(typeof(CosmosSelectorAttribute), true);
+        var typeModelType = ((CosmosSelectorAttribute) customAttributes.First()).ModelType;
+        return x.ModelType == typeModelType;
     }
 }
