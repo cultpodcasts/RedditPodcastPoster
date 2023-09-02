@@ -41,6 +41,7 @@ public class TextSanitiser : ITextSanitiser
         title = title.Replace(" ", " ");
         title = title.Replace("“", "'");
         title = title.Replace("”", "'");
+        title = title.Replace("’", "'");
         return title;
     }
 
@@ -53,6 +54,8 @@ public class TextSanitiser : ITextSanitiser
         input = input.Replace(" Bju ", " BJU ");
         input = input.Replace(" Jw ", " JW ");
         input = input.Replace(" Jws ", " JWs ");
+        input = input.Replace(" Pbcc ", " PBCC ");
+        input = input.Replace("Exjwhelp", "ExJWHelp");
         input = input.Replace(" Etc ", " etc ");
         return input;
     }
