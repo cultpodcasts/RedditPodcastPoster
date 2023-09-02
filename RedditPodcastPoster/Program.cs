@@ -62,8 +62,8 @@ builder.Services
     .AddScoped<IResolvedPodcastEpisodeAdaptor, ResolvedPodcastEpisodeAdaptor>()
     .AddScoped<IResolvedPodcastEpisodePoster, ResolvedPodcastEpisodePoster>()
     .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
-    .AddScoped<IRedditEpisodeCommentPoster, RedditEpisodeCommentPoster>()
-    .AddScoped<IRedditBundleCommentPoster, RedditBundleCommentPoster>()
+    .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
+    .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
     .AddSingleton(new JsonSerializerOptions
     {
         WriteIndented = true

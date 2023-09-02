@@ -29,6 +29,11 @@ public class Podcast
     [JsonPropertyOrder(6)]
     public bool IndexAllEpisodes { get; set; } = false;
 
+    [JsonPropertyName("primaryPostService")]
+    [JsonPropertyOrder(7)]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public Service? PrimaryPostService { get; set; }
+
     [JsonPropertyName("spotifyId")]
     [JsonPropertyOrder(20)]
     public string SpotifyId { get; set; } = "";
