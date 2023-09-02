@@ -46,7 +46,7 @@ public class ResolvedPodcastEpisodeAdaptor : IResolvedPodcastEpisodeAdaptor
             episode.Urls.YouTube, 
             episode.Urls.Spotify, 
             episode.Urls.Apple,
-            episode.Release.ToString("dd MMMM yyyy"), 
+            episode.Release.ToString("dd MMM yyyy"), 
             episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture), 
             episode.Description, 
             id);
