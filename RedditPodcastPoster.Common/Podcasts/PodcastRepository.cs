@@ -19,7 +19,8 @@ public class PodcastRepository : IPodcastRepository
 
     public async Task<Podcast?> GetPodcast(string key)
     {
-        return await _dataRepository.Read<Podcast>(key);
+        var partitionKey = _dataRepository.KeySelector.GetKey((Podcast) null);
+        return await _dataRepository.Read<Podcast>(key, partitionKey);
     }
 
     public void Merge(Podcast podcast, IEnumerable<Episode> episodesToMerge)

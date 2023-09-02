@@ -8,5 +8,11 @@ public enum ModelType
     Podcast = 1,
 
     [JsonPropertyName("episode")]
-    Episode = 2
+    Episode = 2,
+
+    [JsonPropertyName(nameof(EliminationTerms))]
+    EliminationTerms = 3,
+
+    [JsonPropertyName(nameof(RedditPost))] 
+    RedditPost = 4
 }

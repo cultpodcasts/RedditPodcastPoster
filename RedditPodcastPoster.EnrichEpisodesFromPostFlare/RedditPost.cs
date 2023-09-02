@@ -1,7 +1,15 @@
-﻿namespace RedditPodcastPoster.EnrichEpisodesFromPostFlare;
+﻿using RedditPodcastPoster.Models;
 
-public class RedditPost
+namespace RedditPodcastPoster.EnrichEpisodesFromPostFlare;
+
+[CosmosSelector(ModelType.RedditPost)]
+
+public class RedditPost: CosmosSelector
 {
+    public RedditPost() : base(ModelType.RedditPost)
+    {
+    }
+
     public string FullName { get; set; } = "";
     public string Author { get; set; } = "";
     public string RedditId { get; set; } = "";

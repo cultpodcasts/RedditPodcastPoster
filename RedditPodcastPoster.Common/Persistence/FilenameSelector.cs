@@ -8,4 +8,9 @@ public class FilenameSelector : IFilenameSelector
     {
         return podcast.FileKey;
     }
+
+    public string GetKey(EliminationTerms.EliminationTerms eliminationTerms)
+    {
+        return nameof(ModelType.EliminationTerms);
+    }
 }

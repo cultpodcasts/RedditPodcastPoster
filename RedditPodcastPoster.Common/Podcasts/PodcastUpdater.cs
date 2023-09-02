@@ -1,10 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Episodes;
-using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Common;
+namespace RedditPodcastPoster.Common.Podcasts;
 
 public class PodcastUpdater : IPodcastUpdater
 {
