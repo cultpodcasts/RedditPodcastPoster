@@ -20,7 +20,12 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
     public async Task<AppleEpisode?> FindEpisode(FindAppleEpisodeRequest request)
     {
         AppleEpisode? matchingEpisode = null;
-        var podcastEpisodes = await _applePodcastService.GetEpisodes(request.PodcastAppleId.Value);
+        IEnumerable<AppleEpisode> podcastEpisodes= new List<AppleEpisode>();
+        if (request.PodcastAppleId.HasValue)
+        {
+            podcastEpisodes = await _applePodcastService.GetEpisodes(request.PodcastAppleId.Value);
+        }
+
         if (request.EpisodeAppleId != null)
         {
             matchingEpisode = podcastEpisodes.FirstOrDefault(x => x.Id == request.EpisodeAppleId);
@@ -32,7 +37,6 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
             {
                 if (request.EpisodeIndex <= PodcastSearchLimit)
                 {
-
                     var matchingEpisodes = podcastEpisodes.Where(x => x.Title == request.EpisodeTitle);
                     if (!matchingEpisodes.Any() || matchingEpisodes.Count() > 1)
                     {
