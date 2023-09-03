@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace ApplePodcastEpisodeEnricher.Models;
+namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
 public class PodcastResponse
 {

@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
+﻿namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
 public record FindApplePodcastRequest(
     long? PodcastAppleId,

@@ -105,7 +105,6 @@ public class YouTubeSearchService : IYouTubeSearchService
 
     public async Task<Channel?> GetChannel(string channelId)
     {
-        var nextPageToken = "";
         var listRequest = _youTubeService.Channels.List("snippet,contentDetails,contentOwnerDetails");
         listRequest.Id = channelId;
         var result = await listRequest.ExecuteAsync();

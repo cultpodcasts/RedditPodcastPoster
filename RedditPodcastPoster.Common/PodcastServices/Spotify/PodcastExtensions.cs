@@ -1,4 +1,5 @@
-﻿using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Common.PodcastServices.Apple;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 

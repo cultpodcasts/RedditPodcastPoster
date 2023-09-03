@@ -30,9 +30,10 @@ public class CosmosDbDownloader
             await _fileRepository.Write(key, podcast);
         }
 
-        var eliminationTerms = await _cosmosDbRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString(),
-            _cosmosDbRepository.KeySelector.GetKey((EliminationTerms) null));
-        key = _fileRepository.KeySelector.GetKey(eliminationTerms);
+        var eliminationTerms = 
+            await _cosmosDbRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString(),
+            _cosmosDbRepository.KeySelector.GetKey(new EliminationTerms()));
+        key = _fileRepository.KeySelector.GetKey(eliminationTerms!);
         await _fileRepository.Write(key, eliminationTerms);
     }
 }

@@ -38,7 +38,7 @@ public class SpotifyPodcastEnricher : ISpotifyPodcastEnricher
                     var episode =
                         await _spotifyItemResolver.FindEpisode(
                             FindSpotifyEpisodeRequestFactory.Create(podcast, podcastEpisode));
-                    if (!string.IsNullOrWhiteSpace(episode.FullEpisode.Id))
+                    if (!string.IsNullOrWhiteSpace(episode.FullEpisode?.Id))
                     {
                         podcastEpisode.SpotifyId = episode.FullEpisode.Id;
                         podcastShouldUpdate = true;

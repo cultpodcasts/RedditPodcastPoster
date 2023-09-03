@@ -1,6 +1,6 @@
 ﻿using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
+namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
 public static class FindAppleEpisodeRequestFactory
 {

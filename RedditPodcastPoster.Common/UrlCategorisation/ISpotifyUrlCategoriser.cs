@@ -1,8 +1,10 @@
-﻿namespace RedditPodcastPoster.Common.UrlCategorisation;
+﻿using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.Common.UrlCategorisation;
 
 public interface ISpotifyUrlCategoriser : IPodcastServiceUrlResolver
 {
-    Task<ResolvedSpotifyItem> Resolve(Uri url);
+    Task<ResolvedSpotifyItem> Resolve(List<Podcast> podcasts, Uri url);
 
-    Task<ResolvedSpotifyItem?> Resolve(PodcastServiceSearchCriteria criteria);
+    Task<ResolvedSpotifyItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast);
 }

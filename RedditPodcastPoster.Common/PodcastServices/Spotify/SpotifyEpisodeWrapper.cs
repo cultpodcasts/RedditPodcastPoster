@@ -4,15 +4,20 @@ namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
 public class SpotifyEpisodeWrapper
 {
-    public FullEpisode? FullEpisode { get; init; }
-
     public SpotifyEpisodeWrapper(FullEpisode? fullEpisode)
     {
         FullEpisode = fullEpisode;
     }
 
-    public Uri Url()
+    public FullEpisode? FullEpisode { get; init; }
+
+    public Uri? Url()
     {
+        if (FullEpisode == null)
+        {
+            return null;
+        }
+
         return new Uri(FullEpisode.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute);
     }
 }

@@ -2,6 +2,7 @@
 using System.Xml;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.UrlCategorisation;
 
@@ -25,8 +26,17 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
         return url.Host.ToLower().Contains("youtube");
     }
 
-    public async Task<ResolvedYouTubeItem> Resolve(Uri url)
+    public async Task<ResolvedYouTubeItem> Resolve(List<Podcast> podcasts, Uri url)
     {
+        var pair = podcasts
+            .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new PodcastEpisodePair(podcast, episode))
+            .FirstOrDefault(pair => pair.Episode.Urls.YouTube == url);
+
+        if (pair != null)
+        {
+            return new ResolvedYouTubeItem(pair);
+        }
+
         var videoIdMatch = VideoId.Match(url.ToString()).Groups["videoId"];
         if (!videoIdMatch.Success)
         {
@@ -46,18 +56,18 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
             item.Snippet.ChannelId,
             item.Id,
             item.Snippet.ChannelTitle,
-            channel.Snippet.Description,
+            channel!.Snippet.Description,
             channel.ContentOwnerDetails.ContentOwner,
             item.Snippet.Title,
             item.Snippet.Description,
-            item.Snippet.PublishedAt.Value,
+            item.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
             XmlConvert.ToTimeSpan(item.ContentDetails.Duration),
             item.ToYouTubeUrl(),
             item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted"
         );
     }
 
-    public Task<ResolvedYouTubeItem?> Resolve(PodcastServiceSearchCriteria criteria)
+    public Task<ResolvedYouTubeItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast)
     {
         return Task.FromResult((ResolvedYouTubeItem) null!)!;
     }

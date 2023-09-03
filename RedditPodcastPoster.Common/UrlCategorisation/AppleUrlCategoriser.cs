@@ -1,7 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
-using RedditPodcastPoster.Common.PodcastServices.Spotify;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.UrlCategorisation;
 
@@ -28,8 +28,60 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
         return url.Host.ToLower().Contains("apple");
     }
 
-    public async Task<ResolvedAppleItem> Resolve(Uri url)
+    public async Task<ResolvedAppleItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast)
     {
+        var podcast =
+            await _applePodcastResolver.FindPodcast(new FindApplePodcastRequest(
+                matchingPodcast?.AppleId,
+                matchingPodcast?.Name ?? criteria.ShowName,
+                matchingPodcast?.Publisher ?? criteria.Publisher));
+
+        if (podcast == null)
+        {
+            _logger.LogWarning($"Could not find podcast with name '{criteria.ShowName}'.");
+            return null;
+        }
+
+        var episode = await _appleEpisodeResolver.FindEpisode(
+            new FindAppleEpisodeRequest(
+                podcast.Id,
+                podcast.Name,
+                null,
+                criteria.EpisodeTitle,
+                criteria.Release,
+                0));
+
+        if (episode != null)
+        {
+            return new ResolvedAppleItem(
+                podcast.Id,
+                episode.Id,
+                podcast.Name,
+                podcast.Description,
+                podcast.ArtistName,
+                episode.Title,
+                episode.Description,
+                episode.Release,
+                episode.Duration,
+                AppleUrlResolver.CleanUrl(episode.Url),
+                episode.Explicit);
+        }
+
+        _logger.LogWarning(
+            $"Could not find item with episode-title '{criteria.EpisodeTitle}' and for podcast with name '{criteria.ShowName}'.");
+        return null;
+    }
+
+    public async Task<ResolvedAppleItem> Resolve(List<Podcast> podcasts, Uri url)
+    {
+        var pair = podcasts
+            .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new PodcastEpisodePair(podcast, episode))
+            .FirstOrDefault(pair => pair.Episode.Urls.Apple == url);
+        if (pair != null)
+        {
+            return new ResolvedAppleItem(pair);
+        }
+
         var podcastIdMatch = AppleIds.Match(url.ToString()).Groups["podcastId"];
         var episodeIdMatch = AppleIds.Match(url.ToString()).Groups["episodeId"];
 
@@ -69,54 +121,12 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
                 episode.Title,
                 episode.Description,
                 episode.Release,
-                TimeSpan.FromMilliseconds(episode.LengthMs),
+                episode.Duration,
                 AppleUrlResolver.CleanUrl(episode.Url),
                 episode.Explicit);
         }
 
         throw new InvalidOperationException(
             $"Could not find item with apple-episode-id '{episodeId}' and apple-podcast-id '{podcastId}'.");
-    }
-
-    public async Task<ResolvedAppleItem?> Resolve(PodcastServiceSearchCriteria criteria)
-    {
-        var podcast =
-            await _applePodcastResolver.FindPodcast(new FindApplePodcastRequest(null, criteria.ShowName,
-                criteria.Publisher));
-
-
-        if (podcast == null)
-        {
-            _logger.LogWarning($"Could not find podcast with name '{criteria.ShowName}'.");
-            return null;
-        }
-
-        var episode = await _appleEpisodeResolver.FindEpisode(
-            new FindAppleEpisodeRequest(
-                podcast.Id,
-                criteria.ShowName,
-                null,
-                criteria.EpisodeTitle,
-                criteria.Release,
-                0));
-
-        if (episode != null)
-        {
-            return new ResolvedAppleItem(
-                podcast.Id,
-                episode.Id,
-                podcast.Name,
-                podcast.Description,
-                podcast.ArtistName,
-                episode.Title,
-                episode.Description,
-                episode.Release,
-                episode.Duration,
-                AppleUrlResolver.CleanUrl(episode.Url),
-                episode.Explicit);
-        }
-
-        _logger.LogWarning($"Could not find item with episode-title '{criteria.EpisodeTitle}' and for podcast with name '{criteria.ShowName}'.");
-        return null;
     }
 }

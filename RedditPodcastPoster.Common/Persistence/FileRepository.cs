@@ -4,14 +4,14 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Persistence;
 
-internal class FileRepository : IFileRepository
+public class FileRepository : IFileRepository
 {
     private const string FileExtension = ".json";
     private readonly string _container;
     private readonly JsonSerializerOptions _jsonSerializerOptions;
     private readonly ILogger<IFileRepository> _logger;
 
-    internal FileRepository(
+    public FileRepository(
         JsonSerializerOptions jsonSerializerOptions,
         IFilenameSelector filenameSelector,
         string container,
@@ -52,7 +52,7 @@ internal class FileRepository : IFileRepository
         foreach (var item in keys)
         {
             var cosmosSelector = await Read<T>(item, string.Empty);
-            if (cosmosSelector.IsOfType<T>())
+            if (cosmosSelector!.IsOfType<T>())
             {
                 yield return cosmosSelector!;
             }

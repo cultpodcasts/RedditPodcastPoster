@@ -25,23 +25,23 @@ public class UrlSubmitter
     {
         var categorisedItem = await _urlCategoriser.Categorise(url);
 
-        var podcasts = await _podcastRepository.GetAll().ToListAsync();
-        var matchingPodcast = podcasts.SingleOrDefault(podcast => IsMatchingPodcast(podcast, categorisedItem));
-        if (matchingPodcast != null)
+        if (categorisedItem.MatchingPodcast != null)
         {
-            var matchingEpisode =
-                matchingPodcast.Episodes.SingleOrDefault(episode => IsMatchingEpisode(episode, categorisedItem));
+            var matchingEpisode = categorisedItem.MatchingEpisode ??
+                                  categorisedItem.MatchingPodcast.Episodes.SingleOrDefault(episode =>
+                                      IsMatchingEpisode(episode, categorisedItem));
 
             if (matchingEpisode != null)
             {
-                ApplyResolvedPodcastServiceProperties(matchingEpisode, categorisedItem);
+                ApplyResolvedPodcastServiceProperties(categorisedItem.MatchingPodcast, matchingEpisode,
+                    categorisedItem);
             }
             else
             {
-                matchingPodcast.Episodes.Add(CreateEpisode(categorisedItem));
+                categorisedItem.MatchingPodcast.Episodes.Add(CreateEpisode(categorisedItem));
             }
 
-            await _podcastRepository.Save(matchingPodcast);
+            await _podcastRepository.Save(categorisedItem.MatchingPodcast);
         }
         else
         {
@@ -112,36 +112,63 @@ public class UrlSubmitter
         return newEpisode;
     }
 
-    private static void ApplyResolvedPodcastServiceProperties(Episode matchingEpisode, CategorisedItem categorisedItem)
+    private static void ApplyResolvedPodcastServiceProperties(
+        Podcast matchingPodcast,
+        Episode matchingEpisode,
+        CategorisedItem categorisedItem)
     {
-        if (!matchingEpisode.AppleId.HasValue && categorisedItem.ResolvedAppleItem != null)
+        if (categorisedItem.ResolvedAppleItem != null)
         {
-            matchingEpisode.AppleId = categorisedItem.ResolvedAppleItem.EpisodeId;
+            if (!matchingPodcast.AppleId.HasValue)
+            {
+                matchingPodcast.AppleId = categorisedItem.ResolvedAppleItem.ShowId;
+            }
+
+            if (!matchingEpisode.AppleId.HasValue)
+            {
+                matchingEpisode.AppleId = categorisedItem.ResolvedAppleItem.EpisodeId;
+            }
+
+            if (matchingEpisode.Urls.Apple == null)
+            {
+                matchingEpisode.Urls.Apple = categorisedItem.ResolvedAppleItem.Url;
+            }
         }
 
-        if (matchingEpisode.Urls.Apple == null && categorisedItem.ResolvedAppleItem != null)
+        if (categorisedItem.ResolvedSpotifyItem != null)
         {
-            matchingEpisode.Urls.Apple = categorisedItem.ResolvedAppleItem.Url;
+            if (string.IsNullOrWhiteSpace(matchingPodcast.SpotifyId))
+            {
+                matchingPodcast.SpotifyId = categorisedItem.ResolvedSpotifyItem.ShowId;
+            }
+
+            if (string.IsNullOrWhiteSpace(matchingEpisode.SpotifyId))
+            {
+                matchingEpisode.SpotifyId = categorisedItem.ResolvedSpotifyItem.EpisodeId;
+            }
+
+            if (matchingEpisode.Urls.Spotify == null)
+            {
+                matchingEpisode.Urls.Spotify = categorisedItem.ResolvedSpotifyItem.Url;
+            }
         }
 
-        if (!string.IsNullOrWhiteSpace(matchingEpisode.SpotifyId) && categorisedItem.ResolvedSpotifyItem != null)
+        if (categorisedItem.ResolvedYouTubeItem != null)
         {
-            matchingEpisode.SpotifyId = categorisedItem.ResolvedSpotifyItem.EpisodeId;
-        }
+            if (string.IsNullOrWhiteSpace(matchingPodcast.YouTubeChannelId))
+            {
+                matchingPodcast.YouTubeChannelId = categorisedItem.ResolvedYouTubeItem.ShowId;
+            }
 
-        if (matchingEpisode.Urls.Spotify == null && categorisedItem.ResolvedSpotifyItem != null)
-        {
-            matchingEpisode.Urls.Spotify = categorisedItem.ResolvedSpotifyItem.Url;
-        }
+            if (string.IsNullOrWhiteSpace(matchingEpisode.YouTubeId))
+            {
+                matchingEpisode.YouTubeId = categorisedItem.ResolvedYouTubeItem.EpisodeId;
+            }
 
-        if (!string.IsNullOrWhiteSpace(matchingEpisode.YouTubeId) && categorisedItem.ResolvedYouTubeItem != null)
-        {
-            matchingEpisode.YouTubeId = categorisedItem.ResolvedYouTubeItem.EpisodeId;
-        }
-
-        if (matchingEpisode.Urls.YouTube == null && categorisedItem.ResolvedYouTubeItem != null)
-        {
-            matchingEpisode.Urls.YouTube = categorisedItem.ResolvedYouTubeItem.Url;
+            if (matchingEpisode.Urls.YouTube == null)
+            {
+                matchingEpisode.Urls.YouTube = categorisedItem.ResolvedYouTubeItem.Url;
+            }
         }
     }
 
@@ -161,33 +188,6 @@ public class UrlSubmitter
 
         if (categorisedItem.ResolvedYouTubeItem != null &&
             categorisedItem.ResolvedYouTubeItem.EpisodeTitle == episode.Title)
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    private bool IsMatchingPodcast(Podcast podcast, CategorisedItem categorisedItem)
-    {
-        if (categorisedItem.ResolvedAppleItem != null &&
-            podcast.AppleId.HasValue &&
-            categorisedItem.ResolvedAppleItem.ShowId.HasValue &&
-            categorisedItem.ResolvedAppleItem.ShowId == podcast.AppleId)
-        {
-            return true;
-        }
-
-        if (categorisedItem.ResolvedYouTubeItem != null &&
-            !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
-            categorisedItem.ResolvedYouTubeItem.ShowId == podcast.YouTubeChannelId)
-        {
-            return true;
-        }
-
-        if (categorisedItem.ResolvedSpotifyItem != null &&
-            !string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
-            categorisedItem.ResolvedSpotifyItem.ShowId == podcast.SpotifyId)
         {
             return true;
         }

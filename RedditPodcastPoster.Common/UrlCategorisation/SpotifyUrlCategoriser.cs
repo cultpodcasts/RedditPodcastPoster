@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
+using RedditPodcastPoster.Models;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.Common.UrlCategorisation;
@@ -27,8 +28,17 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
         return url.Host.ToLower().Contains("spotify");
     }
 
-    public async Task<ResolvedSpotifyItem> Resolve(Uri url)
+    public async Task<ResolvedSpotifyItem> Resolve(List<Podcast> podcasts, Uri url)
     {
+        var pair = podcasts
+            .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new PodcastEpisodePair(podcast, episode))
+            .FirstOrDefault(pair => pair.Episode.Urls.Spotify == url);
+
+        if (pair != null)
+        {
+            return new ResolvedSpotifyItem(pair);
+        }
+
         var episodeId = SpotifyId.Match(url.ToString()).Groups["episodeId"].Value;
         if (episodeId == null)
         {
@@ -41,7 +51,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
         {
             return new ResolvedSpotifyItem(
                 item.Show.Id,
-                item.Id, 
+                item.Id,
                 item.Show.Name,
                 item.Show.Description,
                 item.Show.Publisher,
@@ -56,10 +66,14 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
         throw new InvalidOperationException($"Could not find item with spotify-id '{SpotifyId}'.");
     }
 
-    public async Task<ResolvedSpotifyItem?> Resolve(PodcastServiceSearchCriteria criteria)
+    public async Task<ResolvedSpotifyItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast)
     {
-        var request = new FindSpotifyEpisodeRequest(string.Empty, criteria.ShowName, string.Empty,
-            criteria.EpisodeTitle, criteria.Release);
+        var request = new FindSpotifyEpisodeRequest(
+            matchingPodcast?.SpotifyId ?? string.Empty,
+            matchingPodcast?.Name ?? criteria.ShowName,
+            string.Empty,
+            criteria.EpisodeTitle,
+            criteria.Release);
         var item = await _spotifyItemResolver.FindEpisode(request);
         if (item.FullEpisode != null)
         {
@@ -76,7 +90,9 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
                 new Uri(item.FullEpisode.Uri, UriKind.Absolute),
                 item.FullEpisode.Explicit);
         }
-        _logger.LogWarning($"Could not find spotify episode for show named '{criteria.ShowName}' and episode-name '{criteria.EpisodeTitle}'.");
+
+        _logger.LogWarning(
+            $"Could not find spotify episode for show named '{criteria.ShowName}' and episode-name '{criteria.EpisodeTitle}'.");
         return null;
     }
 }

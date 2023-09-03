@@ -1,33 +1,29 @@
-﻿using iTunesSearch.Library;
-using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.PodcastServices.Spotify;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Text;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
 public class AppleEpisodeResolver : IAppleEpisodeResolver
 {
-    private const int PodcastEpisodeSearchLimit = 10;
-    private const string Country = "US";
     private const int PodcastSearchLimit = 200;
+    private readonly IApplePodcastService _applePodcastService;
     private readonly ILogger<AppleEpisodeResolver> _logger;
-    private readonly IRemoteClient _remoteClient;
 
     public AppleEpisodeResolver(
-        IRemoteClient remoteClient,
+        IApplePodcastService applePodcastService,
         ILogger<AppleEpisodeResolver> logger)
     {
-        _remoteClient = remoteClient;
+        _applePodcastService = applePodcastService;
         _logger = logger;
     }
 
-    public async Task<PodcastEpisode?> FindEpisode(FindAppleEpisodeRequest request)
+    public async Task<AppleEpisode?> FindEpisode(FindAppleEpisodeRequest request)
     {
-        PodcastEpisode? matchingEpisode = null;
+        AppleEpisode? matchingEpisode = null;
+        var podcastEpisodes = await _applePodcastService.GetEpisodes(request.PodcastAppleId.Value);
         if (request.PodcastAppleId != null && request.EpisodeAppleId != null)
         {
-            var episodeResult = await GetPodcastEpisodesByPodcastId(request.PodcastAppleId.Value);
-            matchingEpisode = episodeResult.Episodes.FirstOrDefault(x => x.Id == request.EpisodeAppleId);
+            matchingEpisode = podcastEpisodes.FirstOrDefault(x => x.Id == request.EpisodeAppleId);
         }
 
         if (matchingEpisode == null)
@@ -36,12 +32,11 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
             {
                 if (request.EpisodeIndex <= PodcastSearchLimit)
                 {
-                    var podcastEpisodes = await GetPodcastEpisodesByPodcastId(request.PodcastAppleId.Value);
 
-                    var matchingEpisodes = podcastEpisodes.Episodes.Where(x => x.Title == request.EpisodeTitle);
+                    var matchingEpisodes = podcastEpisodes.Where(x => x.Title == request.EpisodeTitle);
                     if (!matchingEpisodes.Any() || matchingEpisodes.Count() > 1)
                     {
-                        var sameDateMatches = podcastEpisodes.Episodes.Where(x =>
+                        var sameDateMatches = podcastEpisodes.Where(x =>
                             DateOnly.FromDateTime(x.Release) == DateOnly.FromDateTime(request.Released));
                         if (sameDateMatches.Count() > 1)
                         {
@@ -70,23 +65,5 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
         }
 
         return matchingEpisode;
-    }
-
-    public async Task<PodcastEpisodeListResult> GetPodcastEpisodesByPodcastId(long podcastId)
-    {
-        var queryString = HttpUtility.ParseQueryString(string.Empty);
-        queryString.Add("id", podcastId.ToString());
-        queryString.Add("country", Country);
-        queryString.Add("media", "podcast");
-        queryString.Add("entity", "podcastEpisode");
-        queryString.Add("limit", PodcastEpisodeSearchLimit.ToString());
-        var podcastEpisodeListResult = await _remoteClient.InvokeGet<PodcastEpisodeListResult>(
-            string.Format(
-                "https://itunes.apple.com/lookup?{0}",
-                new object[1]
-                {
-                    queryString.ToString()
-                }));
-        return podcastEpisodeListResult;
     }
 }

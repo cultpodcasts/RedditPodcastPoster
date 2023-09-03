@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Net.Http.Headers;
+using System.Reflection;
 using System.Text.Json;
 using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
@@ -15,6 +16,9 @@ using SubmitUrl;
 
 var builder = Host.CreateApplicationBuilder(args);
 
+if (args.Length != 3)
+    throw new InvalidOperationException("Requires 3 arguments - the url, bearer and apple.com bearer token");
+
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 
 builder.Configuration
@@ -25,13 +29,16 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<IDataRepository, CosmosDbRepository>()
+    .AddScoped<IFilenameSelector, FilenameSelector>()
+    .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
+    .AddScoped(services =>(IDataRepository) services.GetService<IFileRepositoryFactory>()!.Create("podcasts"))
+    //.AddScoped<IDataRepository, CosmosDbRepository>()
+    //.AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddSingleton(new JsonSerializerOptions
     {
         WriteIndented = true
     })
     .AddScoped<UrlSubmitter>()
-    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IUrlCategoriser, UrlCategoriser>()
     .AddScoped<IAppleUrlCategoriser, AppleUrlCategoriser>()
@@ -43,8 +50,24 @@ builder.Services
     .AddScoped<IRemoteClient, RemoteClient>()
     .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
     .AddScoped(s => new iTunesSearchManager())
+    .AddScoped<IApplePodcastService, ApplePodcastService>()
     .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
-    .AddHttpClient();
+    .AddSingleton(new JsonSerializerOptions
+    {
+        WriteIndented = true
+    })
+    .AddHttpClient<IApplePodcastService, ApplePodcastService>(c =>
+    {
+        c.BaseAddress = new Uri("https://amp-api.podcasts.apple.com/");
+        c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(args[1], args[2]);
+        c.DefaultRequestHeaders.Accept.Clear();
+        c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
+        c.DefaultRequestHeaders.Referrer = new Uri("https://podcasts.apple.com/");
+        c.DefaultRequestHeaders.Add("Origin", "https://podcasts.apple.com");
+        c.DefaultRequestHeaders.UserAgent.Clear();
+        c.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0");
+    });
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
 SpotifyClientFactory.AddSpotifyClient(builder.Services);

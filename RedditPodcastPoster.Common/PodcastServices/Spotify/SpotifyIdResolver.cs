@@ -30,6 +30,6 @@ public class SpotifyIdResolver : ISpotifyIdResolver
             return string.Empty;
         }
 
-        return match.FullEpisode.Id;
+        return match.FullEpisode?.Id ?? string.Empty;
     }
 }
