@@ -63,11 +63,9 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
         {
             return c
                 .GetItemLinqQueryable<T>()
-
                 .ToFeedIterator()
                 .ToAsyncEnumerable()
-                .Where(IsOfType<T>)
-                ;
+                .Where(x => x.IsOfType<T>());
         }
         catch (Exception ex)
         {
@@ -75,12 +73,5 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
                 $"Error GetItemLinqQueryable on documents in Database with DatabaseId '{_cosmosDbSettings.DatabaseId}' and Container '{_cosmosDbSettings.Container}'.");
             throw;
         }
-    }
-
-    public bool IsOfType<T>(CosmosSelector x)
-    {
-        var customAttributes = typeof(T).GetCustomAttributes(typeof(CosmosSelectorAttribute), true);
-        var typeModelType = ((CosmosSelectorAttribute) customAttributes.First()).ModelType;
-        return x.ModelType == typeModelType;
     }
 }
