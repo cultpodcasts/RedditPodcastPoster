@@ -1,7 +1,6 @@
 ﻿using iTunesSearch.Library;
 using iTunesSearch.Library.Models;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.PodcastServices.Spotify;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
@@ -34,10 +33,10 @@ public class ApplePodcastResolver : IApplePodcastResolver
             IEnumerable<Podcast> podcasts = items.Podcasts;
             if (podcasts.Count() > 1)
             {
-                podcasts = podcasts.Where(x => x.ArtistName.Trim() == request.PodcastPublisher);
+                podcasts = podcasts.Where(x => x.ArtistName.ToLower().Trim() == request.PodcastPublisher.ToLower());
             }
 
-            matchingPodcast = podcasts.SingleOrDefault(x => x.Name == request.PodcastName);
+            matchingPodcast = podcasts.SingleOrDefault(x => x.Name.ToLower() == request.PodcastName.ToLower());
         }
 
         return matchingPodcast;

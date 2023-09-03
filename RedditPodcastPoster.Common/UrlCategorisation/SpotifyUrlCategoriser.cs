@@ -59,7 +59,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
                 item.Description,
                 item.GetReleaseDate(),
                 item.GetDuration(),
-                new Uri(item.Uri, UriKind.Absolute),
+                new Uri(item.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute),
                 item.Explicit);
         }
 
@@ -70,9 +70,9 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
     {
         var request = new FindSpotifyEpisodeRequest(
             matchingPodcast?.SpotifyId ?? string.Empty,
-            matchingPodcast?.Name ?? criteria.ShowName,
+            (matchingPodcast?.Name ?? criteria.ShowName).Trim(),
             string.Empty,
-            criteria.EpisodeTitle,
+            criteria.EpisodeTitle.Trim(),
             criteria.Release);
         var item = await _spotifyItemResolver.FindEpisode(request);
         if (item.FullEpisode != null)
@@ -87,7 +87,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
                 item.FullEpisode.Description,
                 item.FullEpisode.GetReleaseDate(),
                 item.FullEpisode.GetDuration(),
-                new Uri(item.FullEpisode.Uri, UriKind.Absolute),
+                new Uri(item.FullEpisode.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute),
                 item.FullEpisode.Explicit);
         }
 

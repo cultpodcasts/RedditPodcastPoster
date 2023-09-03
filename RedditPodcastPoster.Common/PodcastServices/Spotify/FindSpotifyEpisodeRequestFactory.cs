@@ -8,9 +8,9 @@ public static class FindSpotifyEpisodeRequestFactory
     {
         return new FindSpotifyEpisodeRequest(
             podcast.SpotifyId, 
-            podcast.Name, 
+            podcast.Name.Trim(), 
             episode.SpotifyId, 
-            episode.Title,
+            episode.Title.Trim(),
             episode.Release);
     }
 }

@@ -73,7 +73,12 @@ public class UrlCategoriser : IUrlCategoriser
                  string.IsNullOrWhiteSpace(matchingPodcast?.SpotifyId)))
             {
                 resolvedSpotifyItem = await _spotifyUrlCategoriser.Resolve(criteria, matchingPodcast);
+                if (resolvedSpotifyItem != null)
+                {
+                    criteria = criteria.Merge(resolvedSpotifyItem);
+                }
             }
+
 
             if (resolvedAppleItem == null && !_appleUrlCategoriser.IsMatch(url) &&
                 (matchingEpisode?.AppleId == null ||
@@ -81,6 +86,10 @@ public class UrlCategoriser : IUrlCategoriser
                  matchingPodcast.AppleId == null))
             {
                 resolvedAppleItem = await _appleUrlCategoriser.Resolve(criteria, matchingPodcast);
+                if (resolvedAppleItem != null)
+                {
+                    criteria = criteria.Merge(resolvedAppleItem);
+                }
             }
 
             if (resolvedYouTubeItem == null && !_youTubeUrlCategoriser.IsMatch(url) &&
@@ -89,12 +98,16 @@ public class UrlCategoriser : IUrlCategoriser
                  string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId)))
             {
                 resolvedYouTubeItem = await _youTubeUrlCategoriser.Resolve(criteria, matchingPodcast);
+                if (resolvedYouTubeItem != null)
+                {
+                    criteria = criteria.Merge(resolvedYouTubeItem);
+                }
             }
 
             return new CategorisedItem(
-                matchingPodcast, 
-                matchingEpisode, 
-                resolvedSpotifyItem, 
+                matchingPodcast,
+                matchingEpisode,
+                resolvedSpotifyItem,
                 resolvedAppleItem,
                 resolvedYouTubeItem);
         }

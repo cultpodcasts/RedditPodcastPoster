@@ -15,10 +15,9 @@ public class SpotifySearcher : ISpotifySearcher
 
     public IEnumerable<SimpleShow> FindMatchingPodcasts(string podcastName, List<SimpleShow>? podcasts)
     {
-        var matches = podcasts!.Where(x => x.Name == podcastName);
+        var matches = podcasts!.Where(x => x.Name.ToLower().Trim() == podcastName.ToLower());
 
-        var matchingPodcasts = matches.Where(x => x.Name == podcastName);
-        return matchingPodcasts;
+        return matches;
     }
 
     public SimpleEpisode? FindMatchingEpisode(

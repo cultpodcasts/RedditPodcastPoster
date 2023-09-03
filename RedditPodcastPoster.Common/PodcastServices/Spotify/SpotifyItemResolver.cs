@@ -41,12 +41,12 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             }
             else
             {
-                var podcasts = await _spotifyClient.Search.Item(
+                var podcastSearchResponse = await _spotifyClient.Search.Item(
                     new SearchRequest(SearchRequest.Types.Show, request.PodcastName)
                         {Market = Market});
 
-                var podcastsEpisodes = podcasts.Shows.Items;
-                var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(request.PodcastName, podcastsEpisodes);
+                var podcasts = podcastSearchResponse.Shows.Items;
+                var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(request.PodcastName, podcasts);
                 var episodesFetches = matchingPodcasts.Select(async x =>
                     await _spotifyClient.Shows.GetEpisodes(x.Id,
                         new ShowEpisodesRequest {Market = Market}));

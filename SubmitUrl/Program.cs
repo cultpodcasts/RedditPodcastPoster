@@ -16,8 +16,8 @@ using SubmitUrl;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-if (args.Length != 3)
-    throw new InvalidOperationException("Requires 3 arguments - the url, bearer and apple.com bearer token");
+if (args.Length != 2)
+    throw new InvalidOperationException("Requires 3 arguments - the url and apple.com bearer token");
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 
@@ -52,20 +52,22 @@ builder.Services
     .AddScoped(s => new iTunesSearchManager())
     .AddScoped<IApplePodcastService, ApplePodcastService>()
     .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
+    .AddSingleton<IAppleBearerTokenProvider>(new AppleBearerTokenProvider(args[1]))
     .AddSingleton(new JsonSerializerOptions
     {
         WriteIndented = true
     })
-    .AddHttpClient<IApplePodcastService, ApplePodcastService>(c =>
+    .AddHttpClient<IApplePodcastService, ApplePodcastService>((services,httpClient) =>
     {
-        c.BaseAddress = new Uri("https://amp-api.podcasts.apple.com/");
-        c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(args[1], args[2]);
-        c.DefaultRequestHeaders.Accept.Clear();
-        c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
-        c.DefaultRequestHeaders.Referrer = new Uri("https://podcasts.apple.com/");
-        c.DefaultRequestHeaders.Add("Origin", "https://podcasts.apple.com");
-        c.DefaultRequestHeaders.UserAgent.Clear();
-        c.DefaultRequestHeaders.UserAgent.ParseAdd(
+        var appleBearerTokenProvider = services.GetService<IAppleBearerTokenProvider>();
+        httpClient.BaseAddress = new Uri("https://amp-api.podcasts.apple.com/");
+        httpClient.DefaultRequestHeaders.Authorization = appleBearerTokenProvider.GetHeader();
+        httpClient.DefaultRequestHeaders.Accept.Clear();
+        httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
+        httpClient.DefaultRequestHeaders.Referrer = new Uri("https://podcasts.apple.com/");
+        httpClient.DefaultRequestHeaders.Add("Origin", "https://podcasts.apple.com");
+        httpClient.DefaultRequestHeaders.UserAgent.Clear();
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0");
     });
 

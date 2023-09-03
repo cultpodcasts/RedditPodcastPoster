@@ -21,7 +21,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
     {
         AppleEpisode? matchingEpisode = null;
         var podcastEpisodes = await _applePodcastService.GetEpisodes(request.PodcastAppleId.Value);
-        if (request.PodcastAppleId != null && request.EpisodeAppleId != null)
+        if (request.EpisodeAppleId != null)
         {
             matchingEpisode = podcastEpisodes.FirstOrDefault(x => x.Id == request.EpisodeAppleId);
         }
