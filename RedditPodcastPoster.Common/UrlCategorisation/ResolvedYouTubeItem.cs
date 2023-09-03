@@ -47,12 +47,12 @@ public class ResolvedYouTubeItem
     public string ShowId { get; init; }
     public string EpisodeId { get; init; }
     public string ShowName { get; init; }
-    public string ShowDescription { get; init; }
+    public string ShowDescription { get; init; } = string.Empty;
     public string Publisher { get; init; }
     public string EpisodeTitle { get; init; }
     public string EpisodeDescription { get; init; }
     public DateTime Release { get; init; }
     public TimeSpan Duration { get; init; }
-    public Uri Url { get; init; }
+    public Uri? Url { get; init; } = null;
     public bool Explicit { get; init; }
 }

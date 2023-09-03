@@ -61,7 +61,7 @@ builder.Services
     {
         var appleBearerTokenProvider = services.GetService<IAppleBearerTokenProvider>();
         httpClient.BaseAddress = new Uri("https://amp-api.podcasts.apple.com/");
-        httpClient.DefaultRequestHeaders.Authorization = appleBearerTokenProvider.GetHeader();
+        httpClient.DefaultRequestHeaders.Authorization = appleBearerTokenProvider!.GetHeader();
         httpClient.DefaultRequestHeaders.Accept.Clear();
         httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
         httpClient.DefaultRequestHeaders.Referrer = new Uri("https://podcasts.apple.com/");

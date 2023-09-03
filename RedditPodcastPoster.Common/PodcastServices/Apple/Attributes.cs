@@ -17,10 +17,10 @@ public class Attributes
     public long LengthMs { get; set; }
 
     [JsonPropertyName("description")]
-    public Description Description { get; set; }
+    public Description Description { get; set; } = new Description();
 
     [JsonPropertyName("contentAdvisory")]
-    public string ContentAdvisory { get; set; }
+    public string ContentAdvisory { get; set; } = string.Empty;
 
     public bool Explicit => !string.IsNullOrWhiteSpace(ContentAdvisory);
 

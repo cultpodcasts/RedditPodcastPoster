@@ -38,7 +38,6 @@ public class UrlCategoriser : IUrlCategoriser
         Episode? matchingEpisode = null;
 
 
-        IEnumerable<PodcastEpisodePair> pair;
         if (_spotifyUrlCategoriser.IsMatch(url))
         {
             resolvedSpotifyItem = await _spotifyUrlCategoriser.Resolve(podcasts, url);
@@ -83,7 +82,7 @@ public class UrlCategoriser : IUrlCategoriser
             if (resolvedAppleItem == null && !_appleUrlCategoriser.IsMatch(url) &&
                 (matchingEpisode?.AppleId == null ||
                  matchingEpisode?.Urls.Apple == null ||
-                 matchingPodcast.AppleId == null))
+                 matchingPodcast?.AppleId == null))
             {
                 resolvedAppleItem = await _appleUrlCategoriser.Resolve(criteria, matchingPodcast);
                 if (resolvedAppleItem != null)
