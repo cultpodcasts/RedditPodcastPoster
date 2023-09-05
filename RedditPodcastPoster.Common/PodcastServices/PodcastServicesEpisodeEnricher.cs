@@ -57,6 +57,16 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
 
     private async Task EnrichFromYouTube(Podcast podcast, Episode episode, DateTime? publishedSince)
     {
+        if (episode.Urls.YouTube == null &&
+            !string.IsNullOrWhiteSpace(podcast!.YouTubePublishingDelayTimeSpan))
+        {
+            var timeSpan = TimeSpan.Parse(podcast.YouTubePublishingDelayTimeSpan);
+            if (episode.Release.Add(timeSpan) > DateTime.UtcNow)
+            {
+                return;
+            }
+        }
+
         var youTubeItem = await _youTubeItemResolver.FindEpisode(podcast, episode, publishedSince);
         if (!string.IsNullOrWhiteSpace(youTubeItem?.Id.VideoId))
         {
