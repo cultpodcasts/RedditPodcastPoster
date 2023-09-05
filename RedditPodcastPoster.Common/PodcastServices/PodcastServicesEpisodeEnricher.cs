@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
@@ -60,6 +61,21 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
 
     private async Task EnrichFromYouTube(Podcast podcast, Episode episode, DateTime? publishedSince)
     {
+        if (podcast.IsDelayedYouTubePublishing(episode))
+        {
+            return;
+        }
+
+        if (episode.Urls.YouTube == null &&
+            !string.IsNullOrWhiteSpace(podcast!.YouTubePublishingDelayTimeSpan))
+        {
+            var timeSpan = TimeSpan.Parse(podcast.YouTubePublishingDelayTimeSpan);
+            if (episode.Release.Add(timeSpan) > DateTime.UtcNow)
+            {
+                return;
+            }
+        }
+
         var youTubeItem = await _youTubeItemResolver.FindEpisode(podcast, episode, publishedSince);
         if (!string.IsNullOrWhiteSpace(youTubeItem?.Id.VideoId))
         {
