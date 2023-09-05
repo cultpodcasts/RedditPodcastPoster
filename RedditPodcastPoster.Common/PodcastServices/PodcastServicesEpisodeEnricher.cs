@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
@@ -57,6 +58,11 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
 
     private async Task EnrichFromYouTube(Podcast podcast, Episode episode, DateTime? publishedSince)
     {
+        if (podcast.IsDelayedYouTubePublishing(episode))
+        {
+            return;
+        }
+
         if (episode.Urls.YouTube == null &&
             !string.IsNullOrWhiteSpace(podcast!.YouTubePublishingDelayTimeSpan))
         {
