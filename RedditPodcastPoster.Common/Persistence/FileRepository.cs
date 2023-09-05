@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Persistence;
 
@@ -24,13 +25,13 @@ internal class FileRepository : IFileRepository
 
     public IKeySelector KeySelector { get; }
 
-    public async Task Write<T>(string key, T data)
+    public async Task Write<T>(string partitionKey, T data)
     {
-        await using var createStream = File.Create($"{_container}\\{key}{FileExtension}");
+        await using var createStream = File.Create($"{_container}\\{partitionKey}{FileExtension}");
         await JsonSerializer.SerializeAsync(createStream, data, _jsonSerializerOptions);
     }
 
-    public async Task<T?> Read<T>(string key) where T : class
+    public async Task<T?> Read<T>(string key, string partitionKey) where T : class
     {
         try
         {
@@ -43,14 +44,14 @@ internal class FileRepository : IFileRepository
         }
     }
 
-    public async IAsyncEnumerable<T> GetAll<T>() where T : class
+    public async IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector
     {
         var filenames = Directory.GetFiles(_container, $"*{FileExtension}");
         var keys = filenames.Select(x =>
             x.Substring(_container.Length + 1, x.Length - (FileExtension.Length + _container.Length + 1)));
         foreach (var item in keys)
         {
-            yield return (await Read<T>(item))!;
+            yield return (await Read<T>(item, string.Empty))!;
         }
     }
 }

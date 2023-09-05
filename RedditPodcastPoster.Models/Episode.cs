@@ -29,6 +29,10 @@ public class Episode
     [JsonPropertyOrder(6)]
     public bool Ignored { get; set; } = false;
 
+    [JsonPropertyName("removed")]
+    [JsonPropertyOrder(14)]
+    public bool Removed { get; set; }
+
     [JsonPropertyName("release")]
     [JsonPropertyOrder(7)]
     public DateTime Release { get; init; }

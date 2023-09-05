@@ -4,10 +4,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Persistence;
-using RedditPodcastPoster.Common.Podcasts;
-using RedditPodcastPoster.Common.PodcastServices.Spotify;
-using RedditPodcastPoster.CosmosDbFixer;
+using SeedEliminationTerms;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -22,23 +21,19 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<IDataRepository, CosmosDbRepository>()
+    .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
     .AddSingleton(new JsonSerializerOptions
     {
         WriteIndented = true
     })
-    .AddScoped<CosmosDbFixer>()
-    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
-    .AddScoped<IPodcastRepository, PodcastRepository>();
+    .AddScoped<EliminationTermsSeeder>()
+    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
-SpotifyClientFactory.AddSpotifyClient(builder.Services);
-
 builder.Services
     .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
-builder.Services
-    .AddOptions<SpotifySettings>().Bind(builder.Configuration.GetSection("spotify"));
 
 
 using var host = builder.Build();
-var processor = host.Services.GetService<CosmosDbFixer>();
+var processor = host.Services.GetService<EliminationTermsSeeder>();
 await processor!.Run();

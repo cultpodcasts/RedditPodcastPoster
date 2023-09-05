@@ -35,7 +35,7 @@ public class PublicDatabasePublisher
                 SpotifyId = podcast.SpotifyId,
                 YouTubeChannelId = podcast.YouTubeChannelId
             };
-            publicPodcast.Episodes = podcast.Episodes.Select(oldEpisode => new PublicEpisode
+            publicPodcast.Episodes = podcast.Episodes.Where(x => !x.Removed).Select(oldEpisode => new PublicEpisode
             {
                 Id = oldEpisode.Id,
                 AppleId = oldEpisode.AppleId,

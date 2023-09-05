@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.Common.Podcasts;
 
 namespace RedditPodcastPoster.Common;
 
