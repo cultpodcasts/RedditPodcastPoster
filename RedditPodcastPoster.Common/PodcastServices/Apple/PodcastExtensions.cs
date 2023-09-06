@@ -1,7 +1,6 @@
-﻿using RedditPodcastPoster.Common.PodcastServices.Apple;
-using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
+namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
 public static class PodcastExtensions
 {
