@@ -1,24 +1,25 @@
-﻿using System.Text.Json;
-using System.Text.RegularExpressions;
-using ApplePodcastEpisodeEnricher.Models;
+﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Common.PodcastServices.Apple;
 
 namespace ApplePodcastEpisodeEnricher;
 
 public class MissingFilesProcessor
 {
-    private readonly HttpClient _httpClient;
+    private readonly IApplePodcastService _applePodcastService;
+    private readonly IAppleEpisodeResolver _appleEpisodeResolver;
     private readonly ILogger<MissingFilesProcessor> _logger;
     private readonly IPodcastRepository _podcastsRepository;
 
     public MissingFilesProcessor(
-        HttpClient httpClient,
+        IApplePodcastService applePodcastService,
+        IAppleEpisodeResolver appleEpisodeResolver,
         IPodcastRepository podcastsRepository,
         ILogger<MissingFilesProcessor> logger)
     {
-        _httpClient = httpClient;
+        _applePodcastService = applePodcastService;
+        _appleEpisodeResolver = appleEpisodeResolver;
         _podcastsRepository = podcastsRepository;
         _logger = logger;
     }
@@ -35,20 +36,19 @@ public class MissingFilesProcessor
             }
 
             var episodes = podcast.Episodes.Where(x => x.AppleId == null || x.Urls.Apple == null);
-            if (episodes.Any())
+            if (episodes.Any() && podcast.AppleId.HasValue)
             {
-                var appleApiRecords = await GetPodcastRecords(podcast);
+                var appleApiRecords = await _applePodcastService.GetEpisodes(podcast.AppleId.Value);
                 foreach (var episode in episodes)
                 {
                     var matchingApiRecord = appleApiRecords.SingleOrDefault(appleEpisode =>
                     {
-
                         if (episodeMatchRegex == null)
                         {
-                            return appleEpisode.Attributes.Name == episode.Title;
+                            return appleEpisode.Title == episode.Title;
                         }
 
-                        var appleEpisodeMatch = episodeMatchRegex.Match(appleEpisode.Attributes.Name);
+                        var appleEpisodeMatch = episodeMatchRegex.Match(appleEpisode.Title);
                         var episodeMatch = episodeMatchRegex.Match(episode.Title);
 
                         if (appleEpisodeMatch.Groups["episodematch"].Success &&
@@ -59,7 +59,7 @@ public class MissingFilesProcessor
                             var isMatch = appleEpisodeUniqueMatch == episodeUniqueMatch;
                             return isMatch;
                         }
-                        
+
 
                         if (appleEpisodeMatch.Groups["title"].Success && episodeMatch.Groups["title"].Success)
                         {
@@ -72,10 +72,10 @@ public class MissingFilesProcessor
                             }
                         }
 
-                        var publishDifference = episode.Release - appleEpisode.Attributes.Released;
+                        var publishDifference = episode.Release - appleEpisode.Release;
                         if (Math.Abs(publishDifference.Ticks) < TimeSpan.FromMinutes(5).Ticks && Math.Abs(
                                 (episode.Length -
-                                 appleEpisode.Attributes.Duration).Ticks) < TimeSpan.FromMinutes(1).Ticks)
+                                 appleEpisode.Duration).Ticks) < TimeSpan.FromMinutes(1).Ticks)
                         {
                             return true;
                         }
@@ -86,12 +86,12 @@ public class MissingFilesProcessor
                     {
                         if (episode.AppleId == null)
                         {
-                            episode.AppleId = long.Parse(matchingApiRecord.Id);
+                            episode.AppleId = matchingApiRecord.Id;
                         }
 
                         if (episode.Urls.Apple == null)
                         {
-                            episode.Urls.Apple = new Uri(matchingApiRecord.Attributes.Url, UriKind.Absolute);
+                            episode.Urls.Apple = matchingApiRecord.Url;
                         }
                     }
                     else
@@ -105,30 +105,5 @@ public class MissingFilesProcessor
         }
 
         Console.ReadKey();
-    }
-
-    public async Task<List<Record>> GetPodcastRecords(Podcast podcast)
-    {
-        var response =
-            await _httpClient.GetAsync($"/v1/catalog/us/podcasts/{podcast.AppleId}/episodes");
-        var podcastRecords = new List<Record>();
-        if (response.IsSuccessStatusCode)
-        {
-            var appleJson = await response.Content.ReadAsStringAsync();
-            var appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
-            podcastRecords.AddRange(appleObject!.Records);
-            while (!string.IsNullOrWhiteSpace(appleObject.Next))
-            {
-                response = await _httpClient.GetAsync(appleObject.Next);
-                if (response.IsSuccessStatusCode)
-                {
-                    appleJson = await response.Content.ReadAsStringAsync();
-                    appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
-                    podcastRecords.AddRange(appleObject!.Records);
-                }
-            }
-        }
-
-        return podcastRecords;
     }
 }

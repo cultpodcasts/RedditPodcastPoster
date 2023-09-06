@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace ApplePodcastEpisodeEnricher.Models;
+namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
 public class Attributes
 {
@@ -15,6 +15,14 @@ public class Attributes
 
     [JsonPropertyName("durationInMilliseconds")]
     public long LengthMs { get; set; }
+
+    [JsonPropertyName("description")]
+    public Description Description { get; set; } = new Description();
+
+    [JsonPropertyName("contentAdvisory")]
+    public string ContentAdvisory { get; set; } = string.Empty;
+
+    public bool Explicit => !string.IsNullOrWhiteSpace(ContentAdvisory);
 
     public TimeSpan Duration => TimeSpan.FromMilliseconds(LengthMs);
 }

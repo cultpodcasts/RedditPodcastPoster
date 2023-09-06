@@ -2,7 +2,6 @@ using System.Globalization;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
@@ -20,7 +19,7 @@ public class YouTubeSearchService : IYouTubeSearchService
     }
 
     public async Task<IList<SearchResult>> GetLatestChannelVideos(
-        Podcast podcast,
+        string youTubeChannelId,
         DateTime? publishedSince)
     {
         var result = new List<SearchResult>();
@@ -29,7 +28,7 @@ public class YouTubeSearchService : IYouTubeSearchService
         {
             var searchListRequest = _youTubeService.Search.List("snippet");
             searchListRequest.MaxResults = IYouTubeSearchService.MaxSearchResults;
-            searchListRequest.ChannelId = podcast.YouTubeChannelId;
+            searchListRequest.ChannelId = youTubeChannelId;
             searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
             searchListRequest.Type = "video";
             searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
@@ -59,7 +58,7 @@ public class YouTubeSearchService : IYouTubeSearchService
         {
             while (nextPageToken != null)
             {
-                var request = _youTubeService.Videos.List("snippet, contentDetails");
+                var request = _youTubeService.Videos.List("snippet,contentDetails");
                 request.Id = string.Join(",", batchVideoIds);
                 request.MaxResults = IYouTubeSearchService.MaxSearchResults;
                 var response = await request.ExecuteAsync();
@@ -106,7 +105,7 @@ public class YouTubeSearchService : IYouTubeSearchService
 
     public async Task<Channel?> GetChannel(string channelId)
     {
-        var listRequest = _youTubeService.Channels.List("contentDetails");
+        var listRequest = _youTubeService.Channels.List("snippet,contentDetails,contentOwnerDetails");
         listRequest.Id = channelId;
         var result = await listRequest.ExecuteAsync();
         return result.Items.SingleOrDefault();

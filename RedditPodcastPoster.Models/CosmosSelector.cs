@@ -4,7 +4,7 @@ namespace RedditPodcastPoster.Models;
 
 public class CosmosSelector
 {
-    public CosmosSelector(ModelType modelType)
+    protected CosmosSelector(ModelType modelType)
     {
         ModelType = modelType;
     }

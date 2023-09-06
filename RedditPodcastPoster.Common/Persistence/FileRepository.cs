@@ -4,14 +4,14 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Persistence;
 
-internal class FileRepository : IFileRepository
+public class FileRepository : IFileRepository
 {
     private const string FileExtension = ".json";
-    private readonly JsonSerializerOptions _jsonSerializerOptions;
     private readonly string _container;
+    private readonly JsonSerializerOptions _jsonSerializerOptions;
     private readonly ILogger<IFileRepository> _logger;
 
-    internal FileRepository(
+    public FileRepository(
         JsonSerializerOptions jsonSerializerOptions,
         IFilenameSelector filenameSelector,
         string container,
@@ -25,9 +25,9 @@ internal class FileRepository : IFileRepository
 
     public IKeySelector KeySelector { get; }
 
-    public async Task Write<T>(string partitionKey, T data)
+    public async Task Write<T>(string key, T data)
     {
-        await using var createStream = File.Create($"{_container}\\{partitionKey}{FileExtension}");
+        await using var createStream = File.Create($"{_container}\\{key}{FileExtension}");
         await JsonSerializer.SerializeAsync(createStream, data, _jsonSerializerOptions);
     }
 
@@ -51,7 +51,11 @@ internal class FileRepository : IFileRepository
             x.Substring(_container.Length + 1, x.Length - (FileExtension.Length + _container.Length + 1)));
         foreach (var item in keys)
         {
-            yield return (await Read<T>(item, string.Empty))!;
+            var cosmosSelector = await Read<T>(item, string.Empty);
+            if (cosmosSelector!.IsOfType<T>())
+            {
+                yield return cosmosSelector!;
+            }
         }
     }
 }

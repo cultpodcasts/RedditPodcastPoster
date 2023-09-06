@@ -40,6 +40,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EnrichYouTubeOnlyPodcasts",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SeedEliminationTerms", "SeedEliminationTerms\SeedEliminationTerms.csproj", "{1D4DEFCB-9B03-4D50-9FDE-8035B5CC4310}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubmitUrl", "SubmitUrl\SubmitUrl.csproj", "{BE33D81B-1B31-4FA1-B7CB-B5E29D470728}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -106,6 +108,10 @@ Global
 		{1D4DEFCB-9B03-4D50-9FDE-8035B5CC4310}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1D4DEFCB-9B03-4D50-9FDE-8035B5CC4310}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1D4DEFCB-9B03-4D50-9FDE-8035B5CC4310}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE33D81B-1B31-4FA1-B7CB-B5E29D470728}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE33D81B-1B31-4FA1-B7CB-B5E29D470728}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE33D81B-1B31-4FA1-B7CB-B5E29D470728}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE33D81B-1B31-4FA1-B7CB-B5E29D470728}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -122,6 +128,7 @@ Global
 		{9718B0C0-99C0-490C-922E-93C9DA7CBCB9} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{747941FA-4A65-4696-952A-6274A233ED57} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{1D4DEFCB-9B03-4D50-9FDE-8035B5CC4310} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
+		{BE33D81B-1B31-4FA1-B7CB-B5E29D470728} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

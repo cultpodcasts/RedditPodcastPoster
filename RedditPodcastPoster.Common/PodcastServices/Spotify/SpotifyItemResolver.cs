@@ -22,32 +22,31 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         _logger = logger;
     }
 
-    public async Task<SpotifyEpisodeWrapper> FindEpisode(Podcast podcast, Episode episode)
+    public async Task<SpotifyEpisodeWrapper> FindEpisode(FindSpotifyEpisodeRequest request)
     {
-        SimpleEpisode? simpleEpisode = null;
         FullEpisode? fullEpisode = null;
-        if (!string.IsNullOrWhiteSpace(episode.SpotifyId))
+        if (!string.IsNullOrWhiteSpace(request.EpisodeSpotifyId))
         {
-            fullEpisode = await _spotifyClient.Episodes.Get(episode.SpotifyId);
+            fullEpisode = await _spotifyClient.Episodes.Get(request.EpisodeSpotifyId);
         }
 
         if (fullEpisode == null)
         {
             Paging<SimpleEpisode>[] episodes;
-            if (!string.IsNullOrWhiteSpace(podcast.SpotifyId))
+            if (!string.IsNullOrWhiteSpace(request.PodcastSpotifyId))
             {
-                var fullShow = await _spotifyClient.Shows.Get(podcast.SpotifyId,
+                var fullShow = await _spotifyClient.Shows.Get(request.PodcastSpotifyId,
                     new ShowRequest() {Market = SpotifyItemResolver.Market});
                 episodes = new[] {fullShow.Episodes};
             }
             else
             {
-                var podcasts = await _spotifyClient.Search.Item(
-                    new SearchRequest(SearchRequest.Types.Show, podcast.Name)
+                var podcastSearchResponse = await _spotifyClient.Search.Item(
+                    new SearchRequest(SearchRequest.Types.Show, request.PodcastName)
                         {Market = Market});
 
-                var podcastsEpisodes = podcasts.Shows.Items;
-                var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(podcast, podcastsEpisodes);
+                var podcasts = podcastSearchResponse.Shows.Items;
+                var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(request.PodcastName, podcasts);
                 var episodesFetches = matchingPodcasts.Select(async x =>
                     await _spotifyClient.Shows.GetEpisodes(x.Id,
                         new ShowEpisodesRequest {Market = Market}));
@@ -61,11 +60,16 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                 allEpisodes.Add(simpleEpisodes);
             }
 
-            var matchingEpisode = _spotifySearcher.FindMatchingEpisode(episode, allEpisodes);
-            simpleEpisode = matchingEpisode;
+            var matchingEpisode =
+                _spotifySearcher.FindMatchingEpisode(request.EpisodeTitle, request.Released, allEpisodes);
+            if (matchingEpisode != null)
+            {
+                fullEpisode = await _spotifyClient.Episodes.Get(matchingEpisode.Id,
+                    new EpisodeRequest() {Market = SpotifyItemResolver.Market});
+            }
         }
 
-        return new SpotifyEpisodeWrapper(fullEpisode, simpleEpisode);
+        return new SpotifyEpisodeWrapper(fullEpisode);
     }
 
     public async Task<SpotifyPodcastWrapper> FindPodcast(Podcast podcast)
@@ -82,7 +86,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             var podcasts = await _spotifyClient.Search.Item(new SearchRequest(SearchRequest.Types.Show, podcast.Name)
                 {Market = Market});
 
-            var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(podcast, podcasts.Shows.Items);
+            var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(podcast.Name, podcasts.Shows.Items);
             if (podcast.Episodes.Any())
             {
                 foreach (var candidatePodcast in matchingPodcasts)
@@ -92,9 +96,11 @@ public class SpotifyItemResolver : ISpotifyItemResolver
 
                     var allEpisodes = await _spotifyClient.PaginateAll(pagedEpisodes);
 
+                    var mostRecentEpisode = podcast.Episodes.OrderByDescending(x => x.Release).First();
                     var matchingEpisode =
                         _spotifySearcher.FindMatchingEpisode(
-                            podcast.Episodes.OrderByDescending(x => x.Release).First(),
+                            mostRecentEpisode.Title,
+                            mostRecentEpisode.Release,
                             new[] {allEpisodes});
                     if (podcast.Episodes.Select(x => x.Urls.Spotify!.ToString())
                         .Contains(matchingEpisode!.ExternalUrls.FirstOrDefault().Value))

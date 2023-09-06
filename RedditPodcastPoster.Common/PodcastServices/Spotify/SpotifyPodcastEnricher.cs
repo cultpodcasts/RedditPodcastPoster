@@ -35,10 +35,12 @@ public class SpotifyPodcastEnricher : ISpotifyPodcastEnricher
             {
                 if (string.IsNullOrWhiteSpace(podcastEpisode.SpotifyId))
                 {
-                    var episode = await _spotifyItemResolver.FindEpisode(podcast, podcastEpisode);
-                    if (!string.IsNullOrWhiteSpace(episode.Id))
+                    var episode =
+                        await _spotifyItemResolver.FindEpisode(
+                            FindSpotifyEpisodeRequestFactory.Create(podcast, podcastEpisode));
+                    if (!string.IsNullOrWhiteSpace(episode.FullEpisode?.Id))
                     {
-                        podcastEpisode.SpotifyId = episode.Id;
+                        podcastEpisode.SpotifyId = episode.FullEpisode.Id;
                         podcastShouldUpdate = true;
                     }
                 }

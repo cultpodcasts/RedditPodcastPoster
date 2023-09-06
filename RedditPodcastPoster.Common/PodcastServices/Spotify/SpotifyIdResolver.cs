@@ -24,12 +24,12 @@ public class SpotifyIdResolver : ISpotifyIdResolver
 
     public async Task<string> FindEpisodeId(Podcast podcast, Episode episode)
     {
-        var match = await _spotifyItemResolver.FindEpisode(podcast, episode);
+        var match = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode));
         if (match == null)
         {
             return string.Empty;
         }
 
-        return match.Id;
+        return match.FullEpisode?.Id ?? string.Empty;
     }
 }

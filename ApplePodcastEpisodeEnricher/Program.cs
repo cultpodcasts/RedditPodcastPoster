@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.Common.PodcastServices.Apple;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -29,7 +30,9 @@ builder.Services
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddSingleton<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddScoped<MissingFilesProcessor>()
-    .AddHttpClient<MissingFilesProcessor>(c =>
+    .AddScoped<IApplePodcastService, ApplePodcastService>()
+    .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
+    .AddHttpClient<IApplePodcastService, ApplePodcastService>(c =>
     {
         c.BaseAddress = new Uri("https://amp-api.podcasts.apple.com/");
         c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(args[0], args[1]);

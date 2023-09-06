@@ -31,7 +31,7 @@ public class Episode
 
     [JsonPropertyName("removed")]
     [JsonPropertyOrder(14)]
-    public bool Removed { get; set; }
+    public bool Removed { get; set; } = false;
 
     [JsonPropertyName("release")]
     [JsonPropertyOrder(7)]

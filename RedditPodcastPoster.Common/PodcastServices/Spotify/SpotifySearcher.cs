@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Text;
-using RedditPodcastPoster.Models;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
@@ -14,27 +13,28 @@ public class SpotifySearcher : ISpotifySearcher
         _logger = logger;
     }
 
-    public IEnumerable<SimpleShow> FindMatchingPodcasts(Podcast podcast, List<SimpleShow>? podcasts)
+    public IEnumerable<SimpleShow> FindMatchingPodcasts(string podcastName, List<SimpleShow>? podcasts)
     {
-        var matches = podcasts!.Where(x => x.Name == podcast.Name);
+        var matches = podcasts!.Where(x => x.Name.ToLower().Trim() == podcastName.ToLower());
 
-        var matchingPodcasts = matches.Where(x => x.Name == podcast.Name);
-        return matchingPodcasts;
+        return matches;
     }
 
-    public SimpleEpisode? FindMatchingEpisode(Episode episode,
+    public SimpleEpisode? FindMatchingEpisode(
+        string episodeTitle,
+        DateTime episodeRelease,
         IEnumerable<IEnumerable<SimpleEpisode>> episodeLists)
     {
         foreach (var episodeList in episodeLists)
         {
-            var match = episodeList.SingleOrDefault(x => x.Name == episode.Title);
+            var match = episodeList.SingleOrDefault(x => x.Name == episodeTitle);
             if (match == null)
             {
                 var sameDateMatches = episodeList.Where(x =>
-                    DateOnly.ParseExact(x.ReleaseDate, "yyyy-MM-dd") == DateOnly.FromDateTime(episode.Release));
+                    DateOnly.ParseExact(x.ReleaseDate, "yyyy-MM-dd") == DateOnly.FromDateTime(episodeRelease));
                 if (sameDateMatches.Count() > 1)
                 {
-                    return sameDateMatches.MaxBy(x => Levenshtein.CalculateSimilarity(episode.Title, x.Name));
+                    return sameDateMatches.MaxBy(x => Levenshtein.CalculateSimilarity(episodeTitle, x.Name));
                 }
 
                 match = sameDateMatches.SingleOrDefault();

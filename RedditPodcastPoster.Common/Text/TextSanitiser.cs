@@ -16,7 +16,12 @@ public class TextSanitiser : ITextSanitiser
     public string ExtractBody(string body, Regex regex)
     {
         var match = regex.Match(body);
-        return match.Result("${body}");
+        if (match.Success)
+        {
+            return match.Result("${body}");
+        }
+
+        return body;
     }
 
     public string FixCharacters(string title)

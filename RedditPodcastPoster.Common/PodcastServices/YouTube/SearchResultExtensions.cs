@@ -18,4 +18,9 @@ public static class SearchResultExtensions
     {
         return ToYouTubeUrl(matchedYouTubeVideo.ResourceId.VideoId);
     }
+
+    public static Uri ToYouTubeUrl(this Video video)
+    {
+        return ToYouTubeUrl(video.Id);
+    }
 }

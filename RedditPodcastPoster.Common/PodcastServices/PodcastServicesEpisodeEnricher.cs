@@ -13,16 +13,19 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
     private readonly ILogger<PodcastServicesEpisodeEnricher> _logger;
     private readonly ISpotifyItemResolver _spotifyItemResolver;
     private readonly IYouTubeItemResolver _youTubeItemResolver;
+    private readonly IApplePodcastEnricher _applePodcastEnricher;
 
     public PodcastServicesEpisodeEnricher(
         ISpotifyItemResolver spotifyItemResolver,
         IAppleEpisodeResolver appleEpisodeResolver,
         IYouTubeItemResolver youTubeItemResolver,
+        IApplePodcastEnricher applePodcastEnricher,
         ILogger<PodcastServicesEpisodeEnricher> logger)
     {
         _spotifyItemResolver = spotifyItemResolver;
         _appleEpisodeResolver = appleEpisodeResolver;
         _youTubeItemResolver = youTubeItemResolver;
+        _applePodcastEnricher = applePodcastEnricher;
         _logger = logger;
     }
 
@@ -83,17 +86,23 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
 
     private async Task EnrichFromApple(Podcast podcast, Episode episode)
     {
-        var appleItem = await _appleEpisodeResolver.FindEpisode(podcast, episode);
+        if (podcast.AppleId == null)
+        {
+            await _applePodcastEnricher.AddId(podcast);
+        }
+
+        var appleItem =
+            await _appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(podcast, episode));
         if (appleItem != null)
         {
-            episode.Urls.Apple = appleItem.Url;
+            episode.Urls.Apple = AppleUrlResolver.CleanUrl(appleItem.Url);
             episode.AppleId = appleItem.Id;
         }
     }
 
     private async Task EnrichFromSpotify(Podcast podcast, Episode episode)
     {
-        var spotifyItem = await _spotifyItemResolver.FindEpisode(podcast, episode);
+        var spotifyItem = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode));
         if (spotifyItem?.FullEpisode != null)
         {
             episode.SpotifyId = spotifyItem.FullEpisode.Id;
