@@ -12,7 +12,6 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
     private readonly IApplePodcastResolver _applePodcastResolver;
     private readonly ILogger<AppleUrlCategoriser> _logger;
 
-
     public AppleUrlCategoriser(
         IAppleEpisodeResolver appleEpisodeResolver,
         IApplePodcastResolver applePodcastResolver,

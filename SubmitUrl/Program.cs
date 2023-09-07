@@ -16,8 +16,8 @@ using SubmitUrl;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-if (args.Length != 2)
-    throw new InvalidOperationException("Requires 3 arguments - the url and apple.com bearer token");
+if (args.Length != 1)
+    throw new InvalidOperationException("Requires a url.");
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 
@@ -52,7 +52,7 @@ builder.Services
     .AddScoped(s => new iTunesSearchManager())
     .AddScoped<IApplePodcastService, ApplePodcastService>()
     .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
-    .AddSingleton<IAppleBearerTokenProvider>(new AppleBearerTokenProvider(args[1]))
+    .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddSingleton(new JsonSerializerOptions
     {
         WriteIndented = true
@@ -61,7 +61,7 @@ builder.Services
     {
         var appleBearerTokenProvider = services.GetService<IAppleBearerTokenProvider>();
         httpClient.BaseAddress = new Uri("https://amp-api.podcasts.apple.com/");
-        httpClient.DefaultRequestHeaders.Authorization = appleBearerTokenProvider!.GetHeader();
+        httpClient.DefaultRequestHeaders.Authorization = appleBearerTokenProvider!.GetHeader().GetAwaiter().GetResult();
         httpClient.DefaultRequestHeaders.Accept.Clear();
         httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
         httpClient.DefaultRequestHeaders.Referrer = new Uri("https://podcasts.apple.com/");
