@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Net.Http.Headers;
+using System.Reflection;
 using System.Text.Json;
 using CommandLine;
 using iTunesSearch.Library;
@@ -46,7 +47,8 @@ builder.Services
     .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
     .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
     .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
-    .AddScoped<IApplePodcastService, RecentApplePodcastService>()
+//    .AddScoped<IApplePodcastService, RecentApplePodcastService>()
+    .AddScoped<IApplePodcastService, ApplePodcastService>()
     .AddScoped<IRemoteClient, RemoteClient>()
     .AddScoped<IEpisodeResolver, EpisodeResolver>()
     .AddSingleton<ITextSanitiser, TextSanitiser>()
@@ -67,11 +69,27 @@ builder.Services
     .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
     .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
     .AddScoped<IPodcastFilter, PodcastFilter>()
+    .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddSingleton(new JsonSerializerOptions
     {
         WriteIndented = true
-    })
-    .AddHttpClient<RemoteClient>();
+    });
+
+builder.Services.AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
+{
+    var appleBearerTokenProvider = services.GetService<IAppleBearerTokenProvider>();
+    httpClient.BaseAddress = new Uri("https://amp-api.podcasts.apple.com/");
+    httpClient.DefaultRequestHeaders.Authorization = appleBearerTokenProvider!.GetHeader().GetAwaiter().GetResult();
+    httpClient.DefaultRequestHeaders.Accept.Clear();
+    httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
+    httpClient.DefaultRequestHeaders.Referrer = new Uri("https://podcasts.apple.com/");
+    httpClient.DefaultRequestHeaders.Add("Origin", "https://podcasts.apple.com");
+    httpClient.DefaultRequestHeaders.UserAgent.Clear();
+    httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0");
+});
+
+builder.Services.AddHttpClient<IRemoteClient, RemoteClient>();
 
 SpotifyClientFactory.AddSpotifyClient(builder.Services);
 RedditClientFactory.AddRedditClient(builder.Services);
