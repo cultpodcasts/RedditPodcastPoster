@@ -1,5 +1,5 @@
 ﻿using System.Net.Http.Headers;
-using Google.Apis.Logging;
+using HtmlAgilityPack;
 using Microsoft.Extensions.Logging;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Apple;
@@ -11,7 +11,7 @@ public class AppleBearerTokenProvider : IAppleBearerTokenProvider
     private readonly string _token;
 
     public AppleBearerTokenProvider(
-        HttpClient httpClient, 
+        HttpClient httpClient,
         ILogger<AppleBearerTokenProvider> logger)
     {
         _httpClient = httpClient;
@@ -24,13 +24,15 @@ public class AppleBearerTokenProvider : IAppleBearerTokenProvider
             _httpClient.GetAsync("https://www.apple.com/apple-podcasts/").GetAwaiter().GetResult();
         podcastsHomepageContent.EnsureSuccessStatusCode();
 
-        var document = new HtmlAgilityPack.HtmlDocument();
+        var document = new HtmlDocument();
         document.Load(await podcastsHomepageContent.Content.ReadAsStreamAsync());
-        var applePodcastTokenNodes= document.DocumentNode.SelectNodes("//meta[@property=\"apple-podcast-token\"]/@content");
+        var applePodcastTokenNodes =
+            document.DocumentNode.SelectNodes("//meta[@property=\"apple-podcast-token\"]/@content");
 
         if (!applePodcastTokenNodes.Any() || applePodcastTokenNodes.Count > 1)
         {
-            throw new InvalidOperationException($"Found {applePodcastTokenNodes.Count} apple-podcast-token meta-property tags.");
+            throw new InvalidOperationException(
+                $"Found {applePodcastTokenNodes.Count} apple-podcast-token meta-property tags.");
         }
 
         var token = applePodcastTokenNodes.Single().Attributes["content"].Value;

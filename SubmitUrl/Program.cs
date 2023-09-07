@@ -17,7 +17,9 @@ using SubmitUrl;
 var builder = Host.CreateApplicationBuilder(args);
 
 if (args.Length != 1)
+{
     throw new InvalidOperationException("Requires a url.");
+}
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 
@@ -31,7 +33,7 @@ builder.Services
     .AddLogging()
     .AddScoped<IFilenameSelector, FilenameSelector>()
     .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    .AddScoped(services =>(IDataRepository) services.GetService<IFileRepositoryFactory>()!.Create("podcasts"))
+    .AddScoped(services => (IDataRepository) services.GetService<IFileRepositoryFactory>()!.Create("podcasts"))
     //.AddScoped<IDataRepository, CosmosDbRepository>()
     //.AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddSingleton(new JsonSerializerOptions
@@ -57,7 +59,7 @@ builder.Services
     {
         WriteIndented = true
     })
-    .AddHttpClient<IApplePodcastService, ApplePodcastService>((services,httpClient) =>
+    .AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
     {
         var appleBearerTokenProvider = services.GetService<IAppleBearerTokenProvider>();
         httpClient.BaseAddress = new Uri("https://amp-api.podcasts.apple.com/");
