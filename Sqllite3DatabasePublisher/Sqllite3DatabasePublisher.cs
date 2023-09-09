@@ -30,11 +30,8 @@ public class Sqllite3DatabasePublisher
             {
                 Guid = podcast.Id,
                 PrimaryPostService = podcast.PrimaryPostService,
-                Text = new PodcastText
-                {
-                    Name = podcast.Name,
-                    Publisher = podcast.Publisher
-                },
+                Name = podcast.Name,
+                Publisher = podcast.Publisher,
                 Episodes = podcast.Episodes
                     .Where(episode => !episode.Removed)
                     .Select(episode => new Episode
@@ -43,15 +40,12 @@ public class Sqllite3DatabasePublisher
                         Release = episode.Release,
                         Length = episode.Length,
                         Explicit = episode.Explicit,
-                        Text = new EpisodeText
-                        {
-                            Title = episode.Title,
-                            Description = episode.Description,
-                            Subjects = string.Join(",", episode.Subjects),
-                            YouTube = episode.Urls.YouTube,
-                            Spotify = episode.Urls.Spotify,
-                            Apple = episode.Urls.Apple
-                        }
+                        Title = episode.Title,
+                        Description = episode.Description,
+                        Subjects = string.Join(",", episode.Subjects),
+                        YouTube = episode.Urls.YouTube,
+                        Spotify = episode.Urls.Spotify,
+                        Apple = episode.Urls.Apple
                     }).ToList()
             };
             _podcastContext.Podcasts.Add(entity);
