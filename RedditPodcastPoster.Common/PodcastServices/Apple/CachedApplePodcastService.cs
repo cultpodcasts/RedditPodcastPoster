@@ -24,6 +24,6 @@ public class CachedApplePodcastService : ICachedApplePodcastService
             podcastEpisodes= Cache[podcastId] = await _applePodcastService.GetEpisodes(podcastId);
         }
 
-        return podcastEpisodes;
+        return podcastEpisodes!;
     }
 }

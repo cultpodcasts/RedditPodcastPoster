@@ -8,7 +8,6 @@ public class AppleBearerTokenProvider : IAppleBearerTokenProvider
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<AppleBearerTokenProvider> _logger;
-    private readonly string _token;
 
     public AppleBearerTokenProvider(
         HttpClient httpClient,

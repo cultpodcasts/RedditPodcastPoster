@@ -31,7 +31,7 @@ public class CosmosDbFixer
             {
                 if (episode.Urls.Apple != null)
                 {
-                    episode.Urls.Apple = AppleUrlResolver.CleanUrl(episode.Urls.Apple);
+                    episode.Urls.Apple = episode.Urls.Apple.CleanAppleUrl();
                 }
             }
 

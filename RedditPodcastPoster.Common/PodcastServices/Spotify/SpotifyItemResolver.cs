@@ -71,7 +71,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         return new SpotifyEpisodeWrapper(fullEpisode);
     }
 
-    public async Task<SpotifyPodcastWrapper> FindPodcast(SpotifyFindPodcastRequest request)
+    public async Task<SpotifyPodcastWrapper> FindPodcast(FindSpotifyPodcastRequest request)
     {
         SimpleShow? matchingSimpleShow = null;
         FullShow? matchingFullShow = null;
@@ -101,7 +101,8 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                             mostRecentEpisode.Title,
                             mostRecentEpisode.Release,
                             new[] {allEpisodes});
-                    if (request.Episodes.Select(x => x.Url.ToString())
+                    if (request.Episodes
+                        .Select(x => x.Url?.ToString())
                         .Contains(matchingEpisode!.ExternalUrls.FirstOrDefault().Value))
                     {
                         matchingSimpleShow = candidatePodcast;

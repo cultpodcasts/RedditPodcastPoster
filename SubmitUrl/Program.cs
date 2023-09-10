@@ -31,15 +31,11 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<IFilenameSelector, FilenameSelector>()
-    .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    .AddScoped(services => (IDataRepository) services.GetService<IFileRepositoryFactory>()!.Create("podcasts"))
-    //.AddScoped<IDataRepository, CosmosDbRepository>()
-    //.AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
-    .AddSingleton(new JsonSerializerOptions
-    {
-        WriteIndented = true
-    })
+    //.AddScoped<IFilenameSelector, FilenameSelector>()
+    //.AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
+    //.AddScoped(services => (IDataRepository) services.GetService<IFileRepositoryFactory>()!.Create("podcasts"))
+    .AddScoped<IDataRepository, CosmosDbRepository>()
+    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddScoped<UrlSubmitter>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IUrlCategoriser, UrlCategoriser>()
