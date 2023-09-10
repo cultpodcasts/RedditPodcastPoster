@@ -5,12 +5,11 @@ namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
 public class AppleEpisodeResolver : IAppleEpisodeResolver
 {
-    private const int PodcastSearchLimit = 200;
-    private readonly IApplePodcastService _applePodcastService;
+    private readonly ICachedApplePodcastService _applePodcastService;
     private readonly ILogger<AppleEpisodeResolver> _logger;
 
     public AppleEpisodeResolver(
-        IApplePodcastService applePodcastService,
+        ICachedApplePodcastService applePodcastService,
         ILogger<AppleEpisodeResolver> logger)
     {
         _applePodcastService = applePodcastService;
@@ -20,7 +19,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
     public async Task<AppleEpisode?> FindEpisode(FindAppleEpisodeRequest request)
     {
         AppleEpisode? matchingEpisode = null;
-        IEnumerable<AppleEpisode> podcastEpisodes= new List<AppleEpisode>();
+        IEnumerable<AppleEpisode> podcastEpisodes = new List<AppleEpisode>();
         if (request.PodcastAppleId.HasValue)
         {
             podcastEpisodes = await _applePodcastService.GetEpisodes(request.PodcastAppleId.Value);
@@ -35,31 +34,23 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
         {
             if (request.PodcastAppleId.HasValue)
             {
-                if (request.EpisodeIndex <= PodcastSearchLimit)
+                var matchingEpisodes = podcastEpisodes.Where(x => x.Title == request.EpisodeTitle);
+                if (!matchingEpisodes.Any() || matchingEpisodes.Count() > 1)
                 {
-                    var matchingEpisodes = podcastEpisodes.Where(x => x.Title == request.EpisodeTitle);
-                    if (!matchingEpisodes.Any() || matchingEpisodes.Count() > 1)
+                    var sameDateMatches = podcastEpisodes.Where(x =>
+                        DateOnly.FromDateTime(x.Release) == DateOnly.FromDateTime(request.Released));
+                    if (sameDateMatches.Count() > 1)
                     {
-                        var sameDateMatches = podcastEpisodes.Where(x =>
-                            DateOnly.FromDateTime(x.Release) == DateOnly.FromDateTime(request.Released));
-                        if (sameDateMatches.Count() > 1)
-                        {
-                            var distances =
-                                sameDateMatches.OrderByDescending(x =>
-                                    Levenshtein.CalculateSimilarity(request.EpisodeTitle, x.Title));
-                            return distances.FirstOrDefault()!;
-                        }
-
-                        matchingEpisode = sameDateMatches.SingleOrDefault();
+                        var distances =
+                            sameDateMatches.OrderByDescending(x =>
+                                Levenshtein.CalculateSimilarity(request.EpisodeTitle, x.Title));
+                        return distances.FirstOrDefault()!;
                     }
 
-                    matchingEpisode ??= matchingEpisodes.FirstOrDefault();
+                    matchingEpisode = sameDateMatches.SingleOrDefault();
                 }
-                else
-                {
-                    _logger.LogInformation(
-                        $"Podcast '{request.PodcastName}' episode with title '{request.EpisodeTitle}' and release-date '{request.Released}' is beyond limit of Apple Lookup.");
-                }
+
+                matchingEpisode ??= matchingEpisodes.FirstOrDefault();
             }
             else
             {
