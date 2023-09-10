@@ -1,8 +1,8 @@
-﻿using RedditPodcastPoster.Common.PodcastServices.Spotify;
+﻿using iTunesSearch.Library.Models;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
 public interface IApplePodcastResolver
 {
-    Task<iTunesSearch.Library.Models.Podcast?> FindPodcast(FindApplePodcastRequest request);
+    Task<Podcast?> FindPodcast(FindApplePodcastRequest request);
 }

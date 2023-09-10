@@ -1,11 +1,10 @@
-﻿using RedditPodcastPoster.Models;
-using SpotifyAPI.Web;
+﻿using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
 public interface ISpotifyItemResolver
 {
     Task<SpotifyEpisodeWrapper> FindEpisode(FindSpotifyEpisodeRequest request);
-    Task<SpotifyPodcastWrapper> FindPodcast(Podcast podcast);
-    Task<IEnumerable<SimpleEpisode>> GetEpisodes(Podcast podcast);
+    Task<SpotifyPodcastWrapper> FindPodcast(SpotifyFindPodcastRequest request);
+    Task<IEnumerable<SimpleEpisode>> GetEpisodes(string spotifyId);
 }

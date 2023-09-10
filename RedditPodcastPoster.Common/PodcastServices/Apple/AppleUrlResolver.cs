@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Apple;

@@ -78,7 +78,7 @@ public class EpisodeProcessor : IEpisodeProcessor
 
     public async Task<ProcessResponse?> PostEpisodeFromSpotifyUrl(Uri spotifyUri)
     {
-        var matchingPodcastEpisode = await _episodeResolver.ResolveSpotifyUrl(spotifyUri);
+        var matchingPodcastEpisode = await _episodeResolver.ResolveServiceUrl(spotifyUri);
         if (matchingPodcastEpisode.Podcast == null || matchingPodcastEpisode.Episode == null)
         {
             return ProcessResponse.Fail($"Could not find spotify-url {spotifyUri}");

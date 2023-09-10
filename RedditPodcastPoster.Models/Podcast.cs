@@ -63,6 +63,10 @@ public class Podcast : CosmosSelector
     [JsonPropertyOrder(62)]
     public string EpisodeMatchRegex { get; set; } = "";
 
+    [JsonPropertyName("episodeIncludeTitleRegex")]
+    [JsonPropertyOrder(63)]
+    public string EpisodeIncludeTitleRegex { get; set; }
+
     [JsonPropertyName("episodes")]
     [JsonPropertyOrder(80)]
     public List<Episode> Episodes { get; set; } = new();
