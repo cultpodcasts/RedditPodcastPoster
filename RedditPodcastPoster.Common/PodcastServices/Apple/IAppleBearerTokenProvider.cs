@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
 public interface IAppleBearerTokenProvider
 {
-    AuthenticationHeaderValue GetHeader();
+    Task<AuthenticationHeaderValue> GetHeader();
 }

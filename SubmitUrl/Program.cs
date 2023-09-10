@@ -16,8 +16,10 @@ using SubmitUrl;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-if (args.Length != 2)
-    throw new InvalidOperationException("Requires 3 arguments - the url and apple.com bearer token");
+if (args.Length != 1)
+{
+    throw new InvalidOperationException("Requires a url.");
+}
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 
@@ -29,15 +31,11 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<IFilenameSelector, FilenameSelector>()
-    .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    .AddScoped(services =>(IDataRepository) services.GetService<IFileRepositoryFactory>()!.Create("podcasts"))
-    //.AddScoped<IDataRepository, CosmosDbRepository>()
-    //.AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
-    .AddSingleton(new JsonSerializerOptions
-    {
-        WriteIndented = true
-    })
+    //.AddScoped<IFilenameSelector, FilenameSelector>()
+    //.AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
+    //.AddScoped(services => (IDataRepository) services.GetService<IFileRepositoryFactory>()!.Create("podcasts"))
+    .AddScoped<IDataRepository, CosmosDbRepository>()
+    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddScoped<UrlSubmitter>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IUrlCategoriser, UrlCategoriser>()
@@ -51,17 +49,18 @@ builder.Services
     .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
     .AddScoped(s => new iTunesSearchManager())
     .AddScoped<IApplePodcastService, ApplePodcastService>()
+    .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
     .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
-    .AddSingleton<IAppleBearerTokenProvider>(new AppleBearerTokenProvider(args[1]))
+    .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddSingleton(new JsonSerializerOptions
     {
         WriteIndented = true
     })
-    .AddHttpClient<IApplePodcastService, ApplePodcastService>((services,httpClient) =>
+    .AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
     {
         var appleBearerTokenProvider = services.GetService<IAppleBearerTokenProvider>();
         httpClient.BaseAddress = new Uri("https://amp-api.podcasts.apple.com/");
-        httpClient.DefaultRequestHeaders.Authorization = appleBearerTokenProvider!.GetHeader();
+        httpClient.DefaultRequestHeaders.Authorization = appleBearerTokenProvider!.GetHeader().GetAwaiter().GetResult();
         httpClient.DefaultRequestHeaders.Accept.Clear();
         httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
         httpClient.DefaultRequestHeaders.Referrer = new Uri("https://podcasts.apple.com/");

@@ -91,12 +91,15 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
             await _applePodcastEnricher.AddId(podcast);
         }
 
-        var appleItem =
-            await _appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(podcast, episode));
-        if (appleItem != null)
+        if (podcast.AppleId != null)
         {
-            episode.Urls.Apple = AppleUrlResolver.CleanUrl(appleItem.Url);
-            episode.AppleId = appleItem.Id;
+            var appleItem =
+                await _appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(podcast, episode));
+            if (appleItem != null)
+            {
+                episode.Urls.Apple = appleItem.Url.CleanAppleUrl();
+                episode.AppleId = appleItem.Id;
+            }
         }
     }
 

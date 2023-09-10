@@ -18,7 +18,7 @@ public class SpotifyIdResolver : ISpotifyIdResolver
 
     public async Task<string> FindPodcastId(Podcast podcast)
     {
-        var match = await _spotifyItemResolver.FindPodcast(podcast);
+        var match = await _spotifyItemResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest());
         return match.Id;
     }
 
