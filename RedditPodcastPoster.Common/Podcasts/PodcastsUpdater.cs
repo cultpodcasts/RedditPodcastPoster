@@ -33,7 +33,7 @@ public class PodcastsUpdater : IPodcastsUpdater
         var eliminationTerms = await _eliminationTermsRepository.Get();
         foreach (var podcast in podcasts)
         {
-            if (podcast.IndexAllEpisodes)
+            if (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
             {
                 await _podcastUpdater.Update(podcast, indexOptions);
             }

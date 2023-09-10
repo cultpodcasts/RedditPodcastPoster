@@ -47,6 +47,7 @@ builder.Services
     .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
 //    .AddScoped<IApplePodcastService, RecentApplePodcastService>()
     .AddScoped<IApplePodcastService, ApplePodcastService>()
+    .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
     .AddScoped<IRemoteClient, RemoteClient>()
     .AddScoped<IEpisodeResolver, EpisodeResolver>()
     .AddSingleton<ITextSanitiser, TextSanitiser>()

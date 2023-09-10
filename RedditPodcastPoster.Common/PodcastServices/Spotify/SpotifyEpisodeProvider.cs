@@ -3,6 +3,9 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
+public record SpotifyGetEpisodesRequest(string SpotifyId, DateTime? ProcessRequestReleasedSince);
+
+
 public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
 {
     private readonly ILogger<SpotifyEpisodeProvider> _logger;
@@ -18,28 +21,23 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
         _logger = logger;
     }
 
-    public async Task<IList<Episode>?> GetEpisodes(Podcast podcast, DateTime? processRequestReleasedSince)
+    public async Task<IList<Episode>> GetEpisodes(SpotifyGetEpisodesRequest request)
     {
-        if (!string.IsNullOrWhiteSpace(podcast.SpotifyId))
+        var allEpisodes = await _spotifyItemResolver.GetEpisodes(request.SpotifyId);
+        if (request.ProcessRequestReleasedSince.HasValue)
         {
-            var allEpisodes = await _spotifyItemResolver.GetEpisodes(podcast.SpotifyId);
-            if (processRequestReleasedSince.HasValue)
-            {
-                allEpisodes = allEpisodes.Where(x => x.GetReleaseDate() > processRequestReleasedSince.Value);
-            }
-
-            return allEpisodes.Select(x =>
-                Episode.FromSpotify(
-                    x.Id,
-                    x.Name,
-                    x.Description,
-                    TimeSpan.FromMilliseconds(x.DurationMs),
-                    x.Explicit,
-                    x.GetReleaseDate(),
-                    new Uri(x.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute))
-            ).ToList();
+            allEpisodes = allEpisodes.Where(x => x.GetReleaseDate() > request.ProcessRequestReleasedSince.Value);
         }
 
-        return null;
+        return allEpisodes.Select(x =>
+            Episode.FromSpotify(
+                x.Id,
+                x.Name,
+                x.Description,
+                TimeSpan.FromMilliseconds(x.DurationMs),
+                x.Explicit,
+                x.GetReleaseDate(),
+                new Uri(x.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute))
+        ).ToList();
     }
 }
