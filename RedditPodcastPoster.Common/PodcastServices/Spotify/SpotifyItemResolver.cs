@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Text;
-using RedditPodcastPoster.Models;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
@@ -36,7 +35,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             if (!string.IsNullOrWhiteSpace(request.PodcastSpotifyId))
             {
                 var fullShow = await _spotifyClient.Shows.Get(request.PodcastSpotifyId,
-                    new ShowRequest() {Market = SpotifyItemResolver.Market});
+                    new ShowRequest {Market = Market});
                 episodes = new[] {fullShow.Episodes};
             }
             else
@@ -65,29 +64,29 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             if (matchingEpisode != null)
             {
                 fullEpisode = await _spotifyClient.Episodes.Get(matchingEpisode.Id,
-                    new EpisodeRequest() {Market = SpotifyItemResolver.Market});
+                    new EpisodeRequest {Market = Market});
             }
         }
 
         return new SpotifyEpisodeWrapper(fullEpisode);
     }
 
-    public async Task<SpotifyPodcastWrapper> FindPodcast(Podcast podcast)
+    public async Task<SpotifyPodcastWrapper> FindPodcast(SpotifyFindPodcastRequest request)
     {
         SimpleShow? matchingSimpleShow = null;
         FullShow? matchingFullShow = null;
-        if (!string.IsNullOrWhiteSpace(podcast.SpotifyId))
+        if (!string.IsNullOrWhiteSpace(request.SpotifyId))
         {
-            matchingFullShow = await _spotifyClient.Shows.Get(podcast.SpotifyId);
+            matchingFullShow = await _spotifyClient.Shows.Get(request.SpotifyId);
         }
 
         if (matchingFullShow == null)
         {
-            var podcasts = await _spotifyClient.Search.Item(new SearchRequest(SearchRequest.Types.Show, podcast.Name)
+            var podcasts = await _spotifyClient.Search.Item(new SearchRequest(SearchRequest.Types.Show, request.Name)
                 {Market = Market});
 
-            var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(podcast.Name, podcasts.Shows.Items);
-            if (podcast.Episodes.Any())
+            var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(request.Name, podcasts.Shows.Items);
+            if (request.Episodes.Any())
             {
                 foreach (var candidatePodcast in matchingPodcasts)
                 {
@@ -96,13 +95,13 @@ public class SpotifyItemResolver : ISpotifyItemResolver
 
                     var allEpisodes = await _spotifyClient.PaginateAll(pagedEpisodes);
 
-                    var mostRecentEpisode = podcast.Episodes.OrderByDescending(x => x.Release).First();
+                    var mostRecentEpisode = request.Episodes.OrderByDescending(x => x.Release).First();
                     var matchingEpisode =
                         _spotifySearcher.FindMatchingEpisode(
                             mostRecentEpisode.Title,
                             mostRecentEpisode.Release,
                             new[] {allEpisodes});
-                    if (podcast.Episodes.Select(x => x.Urls.Spotify!.ToString())
+                    if (request.Episodes.Select(x => x.Url.ToString())
                         .Contains(matchingEpisode!.ExternalUrls.FirstOrDefault().Value))
                     {
                         matchingSimpleShow = candidatePodcast;
@@ -111,16 +110,16 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                 }
             }
 
-            matchingSimpleShow = matchingPodcasts.MaxBy(x => Levenshtein.CalculateSimilarity(podcast.Name, x.Name));
+            matchingSimpleShow = matchingPodcasts.MaxBy(x => Levenshtein.CalculateSimilarity(request.Name, x.Name));
         }
 
         return new SpotifyPodcastWrapper(matchingFullShow, matchingSimpleShow);
     }
 
-    public async Task<IEnumerable<SimpleEpisode>> GetEpisodes(Podcast podcast)
+    public async Task<IEnumerable<SimpleEpisode>> GetEpisodes(string spotifyId)
     {
         var episodes =
-            await _spotifyClient.Shows.GetEpisodes(podcast.SpotifyId,
+            await _spotifyClient.Shows.GetEpisodes(spotifyId,
                 new ShowEpisodesRequest {Market = Market});
         IEnumerable<SimpleEpisode> allEpisodes = await _spotifyClient.PaginateAll(episodes);
 

@@ -5,8 +5,10 @@ namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
 public static class PodcastExtensions
 {
-    public static FindApplePodcastRequest ToFindApplePodcastRequest(this Podcast podcast)
+    public static SpotifyFindPodcastRequest ToSpotifyFindPodcastRequest(this Podcast podcast)
     {
-        return new FindApplePodcastRequest(podcast.AppleId, podcast.Name, podcast.Publisher);
+        return new SpotifyFindPodcastRequest(podcast.SpotifyId, podcast.Name,
+            podcast.Episodes.Select(episode =>
+                new SpotifyFindPodcastRequestEpisodes(episode.Release, episode.Urls.Spotify, episode.Title)).ToList());
     }
 }

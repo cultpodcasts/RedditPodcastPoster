@@ -31,6 +31,7 @@ builder.Services
     .AddSingleton<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddScoped<MissingFilesProcessor>()
     .AddScoped<IApplePodcastService, ApplePodcastService>()
+    .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
     .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>

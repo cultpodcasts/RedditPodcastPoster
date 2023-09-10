@@ -1,6 +1,8 @@
-﻿using System.Reflection;
+﻿using System.Net.Http.Headers;
+using System.Reflection;
 using System.Text.Json;
 using AddAudioPodcast;
+using CommandLine;
 using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,11 +16,6 @@ using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using PodcastFactory = RedditPodcastPoster.Common.Podcasts.PodcastFactory;
-
-if (args.Length != 1)
-{
-    throw new ArgumentNullException("Missing Spotify-Id");
-}
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -36,7 +33,7 @@ builder.Services
     {
         WriteIndented = true
     })
-    .AddScoped<AddAudioPodcast.PodcastFactory>()
+    .AddScoped<AddAudioPodcast.AddAudioPodcastProcessor>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddSingleton<ICosmosDbKeySelector, CosmosDbKeySelector>()
@@ -57,7 +54,22 @@ builder.Services
     .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
     .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>()
     .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
-    .AddHttpClient<RemoteClient>();
+    .AddScoped<IApplePodcastService, ApplePodcastService>()
+    .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
+    .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
+    .AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
+    {
+        var appleBearerTokenProvider = services.GetService<IAppleBearerTokenProvider>();
+        httpClient.BaseAddress = new Uri("https://amp-api.podcasts.apple.com/");
+        httpClient.DefaultRequestHeaders.Authorization = appleBearerTokenProvider!.GetHeader().GetAwaiter().GetResult();
+        httpClient.DefaultRequestHeaders.Accept.Clear();
+        httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
+        httpClient.DefaultRequestHeaders.Referrer = new Uri("https://podcasts.apple.com/");
+        httpClient.DefaultRequestHeaders.Add("Origin", "https://podcasts.apple.com");
+        httpClient.DefaultRequestHeaders.UserAgent.Clear();
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0");
+    });
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
 SpotifyClientFactory.AddSpotifyClient(builder.Services);
@@ -71,5 +83,15 @@ builder.Services
     .AddOptions<YouTubeSettings>().Bind(builder.Configuration.GetSection("youtube"));
 
 using var host = builder.Build();
-var processor = host.Services.GetService<AddAudioPodcast.PodcastFactory>();
-await processor!.Create(new PodcastCreateRequest(args[0]));
+
+
+
+return await Parser.Default.ParseArguments<AddAudioPodcastRequest>(args)
+    .MapResult(async addAudioPodcastRequest => await Run(addAudioPodcastRequest), errs => Task.FromResult(-1)); // Invalid arguments
+
+async Task<int> Run(AddAudioPodcastRequest request)
+{
+    var podcastProcessor = host.Services.GetService<AddAudioPodcastProcessor>()!;
+    await podcastProcessor.Create(request);
+    return 0;
+}

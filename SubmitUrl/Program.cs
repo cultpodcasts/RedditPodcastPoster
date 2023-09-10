@@ -53,6 +53,7 @@ builder.Services
     .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
     .AddScoped(s => new iTunesSearchManager())
     .AddScoped<IApplePodcastService, ApplePodcastService>()
+    .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
     .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddSingleton(new JsonSerializerOptions
