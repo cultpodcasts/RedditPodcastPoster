@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Models;
 
@@ -27,6 +28,12 @@ public class CosmosDbUploader
         {
             var key = _cosmosDbRepository.KeySelector.GetKey(podcast);
             await _cosmosDbRepository.Write(key, podcast);
+        }
+        var eliminationTerms = await _fileRepository.GetAll<EliminationTerms>().ToListAsync();
+        foreach (var eliminationTermsDocument in eliminationTerms)
+        {
+            var key = _cosmosDbRepository.KeySelector.GetKey(eliminationTermsDocument);
+            await _cosmosDbRepository.Write(key, eliminationTermsDocument);
         }
     }
 }

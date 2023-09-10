@@ -22,7 +22,7 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
     {
         if (!string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
-            var allEpisodes = await _spotifyItemResolver.GetEpisodes(podcast);
+            var allEpisodes = await _spotifyItemResolver.GetEpisodes(podcast.SpotifyId);
             if (processRequestReleasedSince.HasValue)
             {
                 allEpisodes = allEpisodes.Where(x => x.GetReleaseDate() > processRequestReleasedSince.Value);

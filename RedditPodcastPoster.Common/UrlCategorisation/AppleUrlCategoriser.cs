@@ -62,7 +62,7 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
                 episode.Description,
                 episode.Release,
                 episode.Duration,
-                AppleUrlResolver.CleanUrl(episode.Url),
+                episode.Url.CleanAppleUrl(),
                 episode.Explicit);
         }
 
@@ -121,7 +121,7 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
                 episode.Description,
                 episode.Release,
                 episode.Duration,
-                AppleUrlResolver.CleanUrl(episode.Url),
+                episode.Url.CleanAppleUrl(),
                 episode.Explicit);
         }
 

@@ -41,8 +41,6 @@ builder.Services
     .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>()
-    .AddScoped<ISpotifyUrlResolver, SpotifyUrlResolver>()
-    .AddScoped<IAppleUrlResolver, AppleUrlResolver>()
     .AddScoped(s => new iTunesSearchManager())
     .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
     .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
