@@ -24,6 +24,7 @@ var host = new HostBuilder()
     .ConfigureServices((context, collection) =>
     {
         collection.AddLogging()
+            .AddApplicationInsightsTelemetryWorkerService()
             .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
             .AddScoped<IPodcastUpdater, PodcastUpdater>()
             .AddScoped<IEpisodeProvider, EpisodeProvider>()
