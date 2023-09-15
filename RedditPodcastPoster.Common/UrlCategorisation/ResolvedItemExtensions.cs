@@ -18,7 +18,7 @@ public static class ResolvedItemExtensions
     {
         return new PodcastServiceSearchCriteria(
             item.ShowName.Trim(),
-            item.ShowDescription.Trim(),
+            item.ShowDescription?.Trim()??string.Empty,
             item.Publisher,
             item.EpisodeTitle.Trim(),
             item.EpisodeDescription.Trim(),

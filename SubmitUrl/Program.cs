@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text.Json;
+using CommandLine;
 using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,14 +13,11 @@ using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Common.UrlCategorisation;
+using RedditPodcastPoster.Common.UrlSubmission;
 using SubmitUrl;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-if (args.Length != 1)
-{
-    throw new InvalidOperationException("Requires a url.");
-}
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 
@@ -52,6 +50,8 @@ builder.Services
     .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
     .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
+    .AddScoped<IUrlSubmitter, UrlSubmitter>()
+    .AddScoped<ISubmitUrlProcessor, SubmitUrlProcessor>()
     .AddSingleton(new JsonSerializerOptions
     {
         WriteIndented = true
@@ -83,5 +83,12 @@ builder.Services
 
 
 using var host = builder.Build();
-var processor = host.Services.GetService<UrlSubmitter>();
-await processor!.Run(new Uri(args[0], UriKind.Absolute));
+return await Parser.Default.ParseArguments<SubmitUrlRequest>(args)
+    .MapResult(async submitUrlRequest => await Run(submitUrlRequest), errs => Task.FromResult(-1)); // Invalid arguments
+
+async Task<int> Run(SubmitUrlRequest request)
+{
+    var urlSubmitter = host.Services.GetService<ISubmitUrlProcessor>()!;
+    await urlSubmitter.Process(request);
+    return 0;
+}
