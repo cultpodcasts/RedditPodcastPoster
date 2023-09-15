@@ -3,9 +3,9 @@ using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.UrlCategorisation;
 using RedditPodcastPoster.Models;
 
-namespace SubmitUrl;
+namespace RedditPodcastPoster.Common.UrlSubmission;
 
-public class UrlSubmitter
+public class UrlSubmitter : IUrlSubmitter
 {
     private readonly ILogger<UrlSubmitter> _logger;
     private readonly IPodcastRepository _podcastRepository;
@@ -21,9 +21,9 @@ public class UrlSubmitter
         _logger = logger;
     }
 
-    public async Task Run(Uri url)
+    public async Task Submit(Uri url, bool bypassYouTube)
     {
-        var categorisedItem = await _urlCategoriser.Categorise(url);
+        var categorisedItem = await _urlCategoriser.Categorise(url, bypassYouTube);
 
         if (categorisedItem.MatchingPodcast != null)
         {
@@ -33,7 +33,9 @@ public class UrlSubmitter
 
             if (matchingEpisode != null)
             {
-                ApplyResolvedPodcastServiceProperties(categorisedItem.MatchingPodcast, matchingEpisode,
+                ApplyResolvedPodcastServiceProperties(
+                    categorisedItem.MatchingPodcast, 
+                    matchingEpisode,
                     categorisedItem);
             }
             else

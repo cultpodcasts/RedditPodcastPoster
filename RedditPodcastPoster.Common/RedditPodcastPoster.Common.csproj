@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <Folder Include="Text\" />
+    <Folder Include="UrlSubmission\" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,17 @@
+﻿using CommandLine;
+
+namespace SubmitUrl;
+
+public class SubmitUrlRequest
+{
+    [Option('y', "skip-youtube-url-enrichment", Required = false, HelpText = "Skip YouTube-Url resolving",
+        Default = false)]
+    public bool SkipYouTubeUrlResolving { get; set; }
+
+    [Option('f', "submit-urls-in-file", Required = false, HelpText = "Use urls in provided file",
+        Default = false)]
+    public bool SubmitUrlsInFIle { get; set; }
+
+    [Value(0, MetaName = "url of file", HelpText = "The Url or file containing Urls to submit")]
+    public string UrlOrFile { get; set; }
+}
