@@ -69,6 +69,7 @@ var host = new HostBuilder()
                 WriteIndented = true
             });
 
+        collection.AddHttpClient<IAppleBearerTokenProvider, AppleBearerTokenProvider>();
         collection.AddHttpClient<IRemoteClient, RemoteClient>();
         collection.AddHttpClient();
 
