@@ -2,5 +2,5 @@
 
 public interface IUrlCategoriser
 {
-    Task<CategorisedItem> Categorise(Uri url);
+    Task<CategorisedItem> Categorise(Uri url, bool bypassYouTube);
 }

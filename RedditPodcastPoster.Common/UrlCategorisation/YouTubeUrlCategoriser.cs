@@ -8,7 +8,7 @@ namespace RedditPodcastPoster.Common.UrlCategorisation;
 
 public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
 {
-    private static readonly Regex VideoId = new(@"v=(?'videoId'\w+)", RegexOptions.Compiled);
+    private static readonly Regex VideoId = new(@"v=(?'videoId'[\-\w]+)", RegexOptions.Compiled);
     private readonly ILogger<YouTubeUrlCategoriser> _logger;
 
     private readonly IYouTubeSearchService _youTubeSearchService;
