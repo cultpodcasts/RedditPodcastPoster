@@ -7,7 +7,7 @@ on:
   push:
     branches:
       - main
-      - 'releases/**'
+      - 'feature/**'
   workflow_dispatch:
 
 env:
