@@ -1,11 +1,11 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Azure;
 using Indexer;
 using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Episodes;
@@ -31,7 +31,6 @@ var host = new HostBuilder()
             .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
             .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
             .AddScoped<IPodcastProcessor, PodcastProcessor>()
-            .AddScoped<IFilenameSelector, FilenameSelector>()
             .AddScoped<IDataRepository, CosmosDbRepository>()
             .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
             .AddScoped<IPodcastRepository, PodcastRepository>()
@@ -40,7 +39,6 @@ var host = new HostBuilder()
             .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
             .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
             .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
-            //    .AddScoped<IApplePodcastService, RecentApplePodcastService>()
             .AddScoped<IApplePodcastService, ApplePodcastService>()
             .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
             .AddScoped<IRemoteClient, RemoteClient>()
@@ -53,14 +51,6 @@ var host = new HostBuilder()
             .AddScoped<ISpotifyIdResolver, SpotifyIdResolver>()
             .AddScoped<ISpotifyItemResolver, SpotifyItemResolver>()
             .AddScoped<ISpotifySearcher, SpotifySearcher>()
-            .AddScoped<IEpisodeProcessor, EpisodeProcessor>()
-            .AddScoped<IRedditPostTitleFactory, RedditPostTitleFactory>()
-            .AddScoped<IEpisodePostManager, EpisodePostManager>()
-            .AddScoped<IResolvedPodcastEpisodeAdaptor, ResolvedPodcastEpisodeAdaptor>()
-            .AddScoped<IResolvedPodcastEpisodePoster, ResolvedPodcastEpisodePoster>()
-            .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
-            .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
-            .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
             .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
             .AddScoped<IPodcastFilter, PodcastFilter>()
             .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
@@ -97,32 +87,13 @@ var host = new HostBuilder()
         services
             .AddOptions<SpotifySettings>().Bind(context.Configuration.GetSection("spotify"));
         services
-            .AddOptions<RedditSettings>().Bind(context.Configuration.GetSection("reddit"));
-        services
-            .AddOptions<SubredditSettings>().Bind(context.Configuration.GetSection("subreddit"));
-        services
             .AddOptions<YouTubeSettings>().Bind(context.Configuration.GetSection("youtube"));
         services
             .AddOptions<CosmosDbSettings>().Bind(context.Configuration.GetSection("cosmosdb"));
         services
-            .AddOptions<PostingCriteria>().Bind(context.Configuration.GetSection("postingCriteria"));
-        services
             .AddOptions<IndexerOptions>().Bind(context.Configuration.GetSection("indexer"));
     })
-    .ConfigureLogging(logging =>
-    {
-        logging.Services.Configure<LoggerFilterOptions>(options =>
-        {
-            var defaultRule =
-                options.Rules.FirstOrDefault(
-                    rule => rule.ProviderName ==
-                            "Microsoft.Extensions.Logging.ApplicationInsights.ApplicationInsightsLoggerProvider");
-            if (defaultRule is not null)
-            {
-                options.Rules.Remove(defaultRule);
-            }
-        });
-    })
+    .ConfigureLogging(logging => { logging.AllowAzureFunctionApplicationInsightsTraceLogging(); })
     .Build();
 
 host.Run();
