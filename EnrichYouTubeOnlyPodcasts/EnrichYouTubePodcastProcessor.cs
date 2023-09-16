@@ -67,12 +67,14 @@ public class EnrichYouTubePodcastProcessor
 
         foreach (var missingPlaylistItem in missingPlaylistItems)
         {
-            var video = missingPlaylistVideos.Single(video =>
+            var video = missingPlaylistVideos.SingleOrDefault(video =>
                 video.Id == missingPlaylistItem.Snippet.ResourceId.VideoId);
-
-            var episode = _youTubeEpisodeProvider.GetEpisode(missingPlaylistItem.Snippet, video);
-            episode.Id = Guid.NewGuid();
-            podcast.Episodes.Add(episode);
+            if (video != null)
+            {
+                var episode = _youTubeEpisodeProvider.GetEpisode(missingPlaylistItem.Snippet, video);
+                episode.Id = Guid.NewGuid();
+                podcast.Episodes.Add(episode);
+            }
         }
 
         foreach (var podcastEpisode in podcast.Episodes)
