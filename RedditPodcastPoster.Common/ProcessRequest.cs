@@ -22,10 +22,7 @@ public class ProcessRequest
             DateTime? releaseBaseLine = null;
             if (ReleasedSince != null)
             {
-                releaseBaseLine = DateOnly
-                    .FromDateTime(DateTime.UtcNow)
-                    .AddDays(ReleasedSince.Value * -1)
-                    .ToDateTime(TimeOnly.MinValue);
+                releaseBaseLine = DateTimeHelper.DaysAgo(ReleasedSince.Value);
             }
 
             return releaseBaseLine;

@@ -15,6 +15,7 @@ using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Common.Text;
 using System.Net.Http.Headers;
+using Indexer;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults(builder =>
@@ -105,6 +106,8 @@ var host = new HostBuilder()
             .AddOptions<CosmosDbSettings>().Bind(context.Configuration.GetSection("cosmosdb"));
         collection
             .AddOptions<PostingCriteria>().Bind(context.Configuration.GetSection("postingCriteria"));
+        collection
+            .AddOptions<IndexerOptions>().Bind(context.Configuration.GetSection("indexer"));
 
     })
     .Build();
