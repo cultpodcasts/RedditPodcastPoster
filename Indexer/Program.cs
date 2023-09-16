@@ -1,8 +1,11 @@
+using System.Net.Http.Headers;
+using System.Text.Json;
+using Indexer;
+using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System.Text.Json;
-using iTunesSearch.Library;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Episodes;
@@ -14,18 +17,14 @@ using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Common.Text;
-using System.Net.Http.Headers;
-using Indexer;
 
 var host = new HostBuilder()
-    .ConfigureFunctionsWorkerDefaults(builder =>
+    .ConfigureFunctionsWorkerDefaults(builder => { builder.Services.ConfigureFunctionsApplicationInsights(); })
+    .ConfigureServices((context, services) =>
     {
-        builder.Services.ConfigureFunctionsApplicationInsights();
-    })
-    .ConfigureServices((context, collection) =>
-    {
-        collection.AddLogging()
+        services.AddLogging()
             .AddApplicationInsightsTelemetryWorkerService()
+            .ConfigureFunctionsApplicationInsights()
             .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
             .AddScoped<IPodcastUpdater, PodcastUpdater>()
             .AddScoped<IEpisodeProvider, EpisodeProvider>()
@@ -70,15 +69,16 @@ var host = new HostBuilder()
                 WriteIndented = true
             });
 
-        collection.AddHttpClient<IAppleBearerTokenProvider, AppleBearerTokenProvider>();
-        collection.AddHttpClient<IRemoteClient, RemoteClient>();
-        collection.AddHttpClient();
+        services.AddHttpClient<IAppleBearerTokenProvider, AppleBearerTokenProvider>();
+        services.AddHttpClient<IRemoteClient, RemoteClient>();
+        services.AddHttpClient();
 
-        collection.AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
+        services.AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
         {
             var appleBearerTokenProvider = services.GetService<IAppleBearerTokenProvider>();
             httpClient.BaseAddress = new Uri("https://amp-api.podcasts.apple.com/");
-            httpClient.DefaultRequestHeaders.Authorization = appleBearerTokenProvider!.GetHeader().GetAwaiter().GetResult();
+            httpClient.DefaultRequestHeaders.Authorization =
+                appleBearerTokenProvider!.GetHeader().GetAwaiter().GetResult();
             httpClient.DefaultRequestHeaders.Accept.Clear();
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
             httpClient.DefaultRequestHeaders.Referrer = new Uri("https://podcasts.apple.com/");
@@ -89,26 +89,39 @@ var host = new HostBuilder()
         });
 
 
-        SpotifyClientFactory.AddSpotifyClient(collection);
-        RedditClientFactory.AddRedditClient(collection);
-        YouTubeServiceFactory.AddYouTubeService(collection);
-        CosmosDbClientFactory.AddCosmosClient(collection);
+        SpotifyClientFactory.AddSpotifyClient(services);
+        RedditClientFactory.AddRedditClient(services);
+        YouTubeServiceFactory.AddYouTubeService(services);
+        CosmosDbClientFactory.AddCosmosClient(services);
 
-        collection
+        services
             .AddOptions<SpotifySettings>().Bind(context.Configuration.GetSection("spotify"));
-        collection
+        services
             .AddOptions<RedditSettings>().Bind(context.Configuration.GetSection("reddit"));
-        collection
+        services
             .AddOptions<SubredditSettings>().Bind(context.Configuration.GetSection("subreddit"));
-        collection
+        services
             .AddOptions<YouTubeSettings>().Bind(context.Configuration.GetSection("youtube"));
-        collection
+        services
             .AddOptions<CosmosDbSettings>().Bind(context.Configuration.GetSection("cosmosdb"));
-        collection
+        services
             .AddOptions<PostingCriteria>().Bind(context.Configuration.GetSection("postingCriteria"));
-        collection
+        services
             .AddOptions<IndexerOptions>().Bind(context.Configuration.GetSection("indexer"));
-
+    })
+    .ConfigureLogging(logging =>
+    {
+        logging.Services.Configure<LoggerFilterOptions>(options =>
+        {
+            var defaultRule =
+                options.Rules.FirstOrDefault(
+                    rule => rule.ProviderName ==
+                            "Microsoft.Extensions.Logging.ApplicationInsights.ApplicationInsightsLoggerProvider");
+            if (defaultRule is not null)
+            {
+                options.Rules.Remove(defaultRule);
+            }
+        });
     })
     .Build();
 
