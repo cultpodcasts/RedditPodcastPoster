@@ -6,10 +6,10 @@ namespace RedditPodcastPoster.Common.Podcasts;
 
 public class PodcastsUpdater : IPodcastsUpdater
 {
-    private readonly ILogger<PodcastsUpdater> _logger;
-    private readonly IPodcastRepository _podcastRepository;
-    private readonly IPodcastFilter _podcastFilter;
     private readonly IEliminationTermsRepository _eliminationTermsRepository;
+    private readonly ILogger<PodcastsUpdater> _logger;
+    private readonly IPodcastFilter _podcastFilter;
+    private readonly IPodcastRepository _podcastRepository;
     private readonly IPodcastUpdater _podcastUpdater;
 
     public PodcastsUpdater(
@@ -29,7 +29,11 @@ public class PodcastsUpdater : IPodcastsUpdater
 
     public async Task UpdatePodcasts(IndexOptions indexOptions)
     {
-        _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing with options released-since: '{indexOptions.ReleasedSince?.Date}', bypass-youtube: '{indexOptions.SkipYouTubeUrlResolving}'.");
+        _logger.LogInformation(
+            indexOptions.ReleasedSince.HasValue
+                ? $"{nameof(UpdatePodcasts)} Indexing with options released-since: '{indexOptions.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-youtube: '{indexOptions.SkipYouTubeUrlResolving}'."
+                : $"{nameof(UpdatePodcasts)} Indexing with options released-since: Null, bypass-youtube: '{indexOptions.SkipYouTubeUrlResolving}'.");
+
         IEnumerable<Podcast> podcasts = await _podcastRepository.GetAll().ToListAsync();
         var eliminationTerms = await _eliminationTermsRepository.Get();
         foreach (var podcast in podcasts)
@@ -43,6 +47,7 @@ public class PodcastsUpdater : IPodcastsUpdater
             _podcastFilter.Filter(podcast, eliminationTerms.Terms);
             await _podcastRepository.Update(podcast);
         }
+
         _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing complete.");
     }
 }
