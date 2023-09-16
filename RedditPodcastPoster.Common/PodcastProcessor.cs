@@ -24,13 +24,13 @@ public class PodcastProcessor : IPodcastProcessor
     {
         if (processRequest.RefreshEpisodes)
         {
-            IndexOptions indexOptions = new(processRequest.ReleasedSince, processRequest.SkipYouTubeUrlResolving);
+            IndexOptions indexOptions = new(processRequest.ReleaseBaseline, processRequest.SkipYouTubeUrlResolving);
             await _podcastsUpdater.UpdatePodcasts(indexOptions);
         }
 
-        if (processRequest.ReleasedSince != null)
+        if (processRequest.ReleaseBaseline != null)
         {
-            return await _episodeProcessor.PostEpisodesSinceReleaseDate(processRequest.ReleasedSince.Value);
+            return await _episodeProcessor.PostEpisodesSinceReleaseDate(processRequest.ReleaseBaseline.Value);
         }
 
         return ProcessResponse.Successful();

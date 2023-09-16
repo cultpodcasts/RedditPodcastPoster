@@ -29,17 +29,20 @@ public class PodcastsUpdater : IPodcastsUpdater
 
     public async Task UpdatePodcasts(IndexOptions indexOptions)
     {
+        _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing with options released-since: '{indexOptions.ReleasedSince?.Date}', bypass-youtube: '{indexOptions.SkipYouTubeUrlResolving}'.");
         IEnumerable<Podcast> podcasts = await _podcastRepository.GetAll().ToListAsync();
         var eliminationTerms = await _eliminationTermsRepository.Get();
         foreach (var podcast in podcasts)
         {
             if (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
             {
+                _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing '{podcast.Name}' ({podcast.Id}).");
                 await _podcastUpdater.Update(podcast, indexOptions);
             }
 
             _podcastFilter.Filter(podcast, eliminationTerms.Terms);
             await _podcastRepository.Update(podcast);
         }
+        _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing complete.");
     }
 }
