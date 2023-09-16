@@ -16,13 +16,13 @@ public class MessageResponseBase
     {
         if (Success)
         {
-            return "Success";
+            return $"Success : {Message}";
         }
 
         return $"FAILURE: {Message}";
     }
 
-    public  int ToResultCode()
+    public int ToResultCode()
     {
         return Success ? 0 : 1;
     }

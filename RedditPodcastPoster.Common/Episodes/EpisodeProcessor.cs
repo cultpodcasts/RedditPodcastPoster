@@ -29,6 +29,7 @@ public class EpisodeProcessor : IEpisodeProcessor
 
     public async Task<ProcessResponse> PostEpisodesSinceReleaseDate(DateTime since)
     {
+        _logger.LogInformation($"{nameof(PostEpisodesSinceReleaseDate)} Finding episodes released since '{since}'.");
         var matchingPodcastEpisodes =
             await _episodeResolver.ResolveSinceReleaseDate(since);
         if (!matchingPodcastEpisodes.Any())

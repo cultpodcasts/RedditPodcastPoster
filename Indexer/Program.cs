@@ -15,6 +15,7 @@ using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Common.Text;
 using System.Net.Http.Headers;
+using Indexer;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults(builder =>
@@ -68,6 +69,11 @@ var host = new HostBuilder()
             {
                 WriteIndented = true
             });
+
+        collection.AddHttpClient<IAppleBearerTokenProvider, AppleBearerTokenProvider>();
+        collection.AddHttpClient<IRemoteClient, RemoteClient>();
+        collection.AddHttpClient();
+
         collection.AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
         {
             var appleBearerTokenProvider = services.GetService<IAppleBearerTokenProvider>();
@@ -82,7 +88,6 @@ var host = new HostBuilder()
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0");
         });
 
-        collection.AddHttpClient<IRemoteClient, RemoteClient>();
 
         SpotifyClientFactory.AddSpotifyClient(collection);
         RedditClientFactory.AddRedditClient(collection);
@@ -101,6 +106,8 @@ var host = new HostBuilder()
             .AddOptions<CosmosDbSettings>().Bind(context.Configuration.GetSection("cosmosdb"));
         collection
             .AddOptions<PostingCriteria>().Bind(context.Configuration.GetSection("postingCriteria"));
+        collection
+            .AddOptions<IndexerOptions>().Bind(context.Configuration.GetSection("indexer"));
 
     })
     .Build();

@@ -6,6 +6,7 @@ using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Episodes;
@@ -108,15 +109,20 @@ builder.Services
 builder.Services
     .AddOptions<PostingCriteria>().Bind(builder.Configuration.GetSection("postingCriteria"));
 
+
 using var host = builder.Build();
+
+var logger = host.Services.GetService<ILogger<Program>>();
 
 return await Parser.Default.ParseArguments<ProcessRequest>(args)
     .MapResult(async processRequest => await Run(processRequest), errs => Task.FromResult(-1)); // Invalid arguments
 
 async Task<int> Run(ProcessRequest request)
 {
+    logger!.LogInformation($"{nameof(Run)} initiated.");
     var podcastProcessor = host.Services.GetService<IPodcastProcessor>()!;
     var result = await podcastProcessor.Process(request);
-    Console.WriteLine(result.ToString());
+    logger!.LogInformation($"{nameof(Run)} Operation results: '{result}'.");
+    logger!.LogInformation($"{nameof(Run)} complete.");
     return result.ToResultCode();
 }

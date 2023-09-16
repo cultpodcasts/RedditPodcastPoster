@@ -11,7 +11,21 @@ public class ProcessRequest
         Default = false)]
     public bool SkipYouTubeUrlResolving { get; set; }
 
-    [Value(0, MetaName = "released-since", HelpText = "Set date-time since last set of Reddit-posts")]
-    public DateTime? ReleasedSince { get; set; }
+    [Value(0, MetaName = "release-within-days",
+        HelpText = "Unposted podcasts released within these number of days will be posted")]
+    public int? ReleasedSince { get; set; }
 
+    public DateTime? ReleaseBaseline
+    {
+        get
+        {
+            DateTime? releaseBaseLine = null;
+            if (ReleasedSince != null)
+            {
+                releaseBaseLine = DateTimeHelper.DaysAgo(ReleasedSince.Value);
+            }
+
+            return releaseBaseLine;
+        }
+    }
 }

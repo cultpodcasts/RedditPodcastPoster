@@ -26,6 +26,7 @@ public class EpisodePostManager : IEpisodePostManager
 
     public async Task<ProcessResponse> Post(PostModel postModel)
     {
+        _logger.LogInformation($"{nameof(Post)} Posting '{postModel.EpisodeTitle}' / '{postModel.PodcastName}' bundled='{postModel.IsBundledPost}'.");
         var result = await PostEpisode(postModel);
         if (result is {Success: false, AlreadyPosted: false})
         {
