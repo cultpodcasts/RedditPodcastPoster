@@ -83,6 +83,7 @@ var host = new HostBuilder()
         });
 
         collection.AddHttpClient<IRemoteClient, RemoteClient>();
+        collection.AddHttpClient();
 
         SpotifyClientFactory.AddSpotifyClient(collection);
         RedditClientFactory.AddRedditClient(collection);
