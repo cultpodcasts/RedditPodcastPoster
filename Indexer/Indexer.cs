@@ -28,6 +28,6 @@ public class Indexer
         _logger.LogInformation(_indexerOptions.ToString());
         await _podcastsUpdater.UpdatePodcasts(_indexerOptions.ToIndexOptions());
         _logger.LogInformation(
-            $"{nameof(Run)} Completed - Next timer schedule at: {timerTimer.ScheduleStatus.Next:dd/MM/yyyy}");
+            $"{nameof(Run)} Completed - Next timer schedule at: {timerTimer.ScheduleStatus.Next:dd/MM/yyyy HH:mm:ss}");
     }
 }
