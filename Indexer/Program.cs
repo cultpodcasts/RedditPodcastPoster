@@ -68,6 +68,10 @@ var host = new HostBuilder()
             {
                 WriteIndented = true
             });
+
+        collection.AddHttpClient<IRemoteClient, RemoteClient>();
+        collection.AddHttpClient();
+
         collection.AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
         {
             var appleBearerTokenProvider = services.GetService<IAppleBearerTokenProvider>();
@@ -82,8 +86,6 @@ var host = new HostBuilder()
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0");
         });
 
-        collection.AddHttpClient<IRemoteClient, RemoteClient>();
-        collection.AddHttpClient();
 
         SpotifyClientFactory.AddSpotifyClient(collection);
         RedditClientFactory.AddRedditClient(collection);
