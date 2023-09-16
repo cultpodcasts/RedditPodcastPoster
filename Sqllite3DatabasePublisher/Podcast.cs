@@ -10,9 +10,9 @@ public class Podcast
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
     public Guid Guid { get; set; }
-    public virtual List<Episode> Episodes { get; set; }
+    public virtual List<Episode> Episodes { get; set; } = null!;
     public Service? PrimaryPostService { get; set; }
-    public string Name { get; set; }
-    public string Publisher { get; set; }
+    public string Name { get; set; } = "";
+    public string Publisher { get; set; } = "";
 }
 

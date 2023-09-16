@@ -119,10 +119,10 @@ return await Parser.Default.ParseArguments<ProcessRequest>(args)
 
 async Task<int> Run(ProcessRequest request)
 {
-    logger.LogInformation($"{nameof(Run)} initiated.");
+    logger!.LogInformation($"{nameof(Run)} initiated.");
     var podcastProcessor = host.Services.GetService<IPodcastProcessor>()!;
     var result = await podcastProcessor.Process(request);
-    logger.LogInformation($"{nameof(Run)} Operation results: '{result}'.");
-    logger.LogInformation($"{nameof(Run)} complete.");
+    logger!.LogInformation($"{nameof(Run)} Operation results: '{result}'.");
+    logger!.LogInformation($"{nameof(Run)} complete.");
     return result.ToResultCode();
 }

@@ -13,5 +13,5 @@ public class SubmitUrlRequest
     public bool SubmitUrlsInFIle { get; set; }
 
     [Value(0, MetaName = "url of file", HelpText = "The Url or file containing Urls to submit")]
-    public string UrlOrFile { get; set; }
+    public string UrlOrFile { get; set; } = "";
 }
