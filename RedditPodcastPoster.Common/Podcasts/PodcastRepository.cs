@@ -37,6 +37,8 @@ public class PodcastRepository : IPodcastRepository
                     episodeToMerge.Id = Guid.NewGuid();
                     episodeToMerge.ModelType = ModelType.Episode;
                     podcast.Episodes.Add(episodeToMerge);
+                    _logger.LogInformation(
+                        $"{nameof(Merge)} Added episode '{episodeToMerge.Title}', released '{episodeToMerge.Release:R}'.");
                 }
                 else
                 {
@@ -100,24 +102,39 @@ public class PodcastRepository : IPodcastRepository
 
     private void Merge(Episode existingEpisode, Episode episodeToMerge)
     {
+        var preSpotifyUrl = existingEpisode.Urls.Spotify;
         existingEpisode.Urls.Spotify ??= episodeToMerge.Urls.Spotify;
+        if (existingEpisode.Urls.Spotify != preSpotifyUrl)
+        {
+            _logger.LogInformation($"{nameof(Merge)} Updated SpotifyUrl from '{episodeToMerge.Title}'.");
+        }
+
+        var preYouTubeUrl = existingEpisode.Urls.YouTube;
         existingEpisode.Urls.YouTube ??= episodeToMerge.Urls.YouTube;
+        if (existingEpisode.Urls.YouTube != preYouTubeUrl)
+        {
+            _logger.LogInformation($"{nameof(Merge)} Updated YouTubeUrl from '{episodeToMerge.Title}'.");
+        }
+
         if (string.IsNullOrWhiteSpace(existingEpisode.SpotifyId) &&
             !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
         {
             existingEpisode.SpotifyId = episodeToMerge.SpotifyId;
+            _logger.LogInformation($"{nameof(Merge)} Updated SpotifyId from '{episodeToMerge.Title}'.");
         }
 
         if (string.IsNullOrWhiteSpace(existingEpisode.YouTubeId) &&
             !string.IsNullOrWhiteSpace(episodeToMerge.YouTubeId))
         {
             existingEpisode.YouTubeId = episodeToMerge.YouTubeId;
+            _logger.LogInformation($"{nameof(Merge)} Updated YouTubeId from '{episodeToMerge.Title}'.");
         }
 
         if (existingEpisode.Description.EndsWith("...") &&
             existingEpisode.Description.Length < episodeToMerge.Description.Length)
         {
             existingEpisode.Description = episodeToMerge.Description;
+            _logger.LogInformation($"{nameof(Merge)} Updated Description from '{episodeToMerge.Title}'.");
         }
     }
 }

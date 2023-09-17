@@ -5,6 +5,8 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public interface IYouTubeSearcher
 {
-    SearchResult? FindMatchingYouTubeVideo(Episode episode, IList<SearchResult> searchResults,
-        long youTubePublishingDelay);
+    SearchResult? FindMatchingYouTubeVideo(
+        Episode episode,
+        IList<SearchResult> searchResults,
+        TimeSpan youTubePublishingDelay);
 }

@@ -22,12 +22,27 @@ public class Indexer
     }
 
     [Function("Indexer")]
-    public async Task Run([TimerTrigger("0 */4 * * *")] TimerInfo timerTimer)
+    public async Task Run([TimerTrigger("0 */1 * * *"
+#if DEBUG
+            , RunOnStartup = true
+#endif
+        )] TimerInfo timerTimer
+    )
     {
-        _logger.LogInformation($"{nameof(Run)} Initiated.");
-        _logger.LogInformation(_indexerOptions.ToString());
-        await _podcastsUpdater.UpdatePodcasts(_indexerOptions.ToIndexOptions());
         _logger.LogInformation(
-            $"{nameof(Run)} Completed - Next timer schedule at: {timerTimer.ScheduleStatus.Next:R}");
+            $"{nameof(Indexer)}.{nameof(Run)} Initiated. Current timer schedule is: {timerTimer.ScheduleStatus.Next:R}");
+        _logger.LogInformation(_indexerOptions.ToString());
+
+        var indexOptions = _indexerOptions.ToIndexOptions();
+
+        _logger.LogInformation(
+            indexOptions.ReleasedSince.HasValue
+                ? $"{nameof(Run)} Indexing with options released-since: '{indexOptions.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-youtube: '{indexOptions.SkipYouTubeUrlResolving}'."
+                : $"{nameof(Run)} Indexing with options released-since: Null, bypass-youtube: '{indexOptions.SkipYouTubeUrlResolving}'.");
+
+        await _podcastsUpdater.UpdatePodcasts(indexOptions);
+
+        _logger.LogInformation(
+            $"{nameof(Run)} Completed");
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Azure;
@@ -21,5 +22,18 @@ public static class LoggingBuilderExtensions
                 options.Rules.Remove(defaultRule);
             }
         });
+    }
+}
+
+public static class ConfigurationBuilderExtensions
+{
+    public static IConfiguration AddToConfigurationBuilder<T>(this IConfigurationBuilder configurationBuilder) where T : class
+    {
+        return
+            configurationBuilder
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddUserSecrets<T>()
+                .AddEnvironmentVariables()
+                .Build();
     }
 }

@@ -31,8 +31,7 @@ public class PodcastUpdater : IPodcastUpdater
             await _episodeProvider.GetEpisodes(
                 podcast,
                 indexOptions.ReleasedSince,
-                indexOptions.SkipYouTubeUrlResolving) ??
-            new List<Episode>();
+                indexOptions.SkipYouTubeUrlResolving);
         _podcastRepository.Merge(podcast, newEpisodes);
 
         var episodes = podcast.Episodes;

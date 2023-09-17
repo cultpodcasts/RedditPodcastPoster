@@ -8,4 +8,5 @@ public record EpisodePost(
     string Release, 
     string Duration, 
     string Description, 
-    string Id);
+    string Id,
+    DateTime Published);

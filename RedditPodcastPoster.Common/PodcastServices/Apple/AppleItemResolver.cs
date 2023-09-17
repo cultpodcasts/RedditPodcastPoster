@@ -51,6 +51,15 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
                 }
 
                 matchingEpisode ??= matchingEpisodes.FirstOrDefault();
+
+                if (matchingEpisode == null)
+                {
+                    _logger.LogInformation($"{nameof(FindEpisode)} Found matching episode for '{request.EpisodeTitle}' on podcast '{request.PodcastName}' and release-date '{request.Released:R}' from Apple with title '{matchingEpisode.Title}' and release-date '{matchingEpisode.Release:R}'.");
+                }
+                else
+                {
+                    _logger.LogInformation($"{nameof(FindEpisode)} Did not find matching episode for '{request.EpisodeTitle}' on podcast '{request.PodcastName}' and release-date '{request.Released:R}' from Apple.");
+                }
             }
             else
             {

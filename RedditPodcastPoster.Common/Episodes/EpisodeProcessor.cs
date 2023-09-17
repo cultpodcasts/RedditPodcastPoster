@@ -39,7 +39,7 @@ public class EpisodeProcessor : IEpisodeProcessor
         }
 
         var matchingPodcastEpisodeResults = new List<ProcessResponse>();
-        foreach (var matchingPodcastEpisode in matchingPodcastEpisodes)
+        foreach (var matchingPodcastEpisode in matchingPodcastEpisodes.OrderByDescending(x => x.Episode.Release))
         {
             if (!matchingPodcastEpisode.Episode.Posted)
             {

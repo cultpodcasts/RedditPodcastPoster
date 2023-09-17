@@ -63,22 +63,14 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
     {
         if (podcast.IsDelayedYouTubePublishing(episode))
         {
+            _logger.LogInformation($"{nameof(EnrichFromYouTube)} Bypassing enriching of '{episode.Title}' with release-date of '{episode.Release:R}' from YouTube as is below the {nameof(podcast.YouTubePublishingDelayTimeSpan)} which is '{podcast.YouTubePublishingDelayTimeSpan}'.");
             return;
-        }
-
-        if (episode.Urls.YouTube == null &&
-            !string.IsNullOrWhiteSpace(podcast!.YouTubePublishingDelayTimeSpan))
-        {
-            var timeSpan = TimeSpan.Parse(podcast.YouTubePublishingDelayTimeSpan);
-            if (episode.Release.Add(timeSpan) > DateTime.UtcNow)
-            {
-                return;
-            }
         }
 
         var youTubeItem = await _youTubeItemResolver.FindEpisode(podcast, episode, publishedSince);
         if (!string.IsNullOrWhiteSpace(youTubeItem?.Id.VideoId))
         {
+            _logger.LogInformation($"{nameof(EnrichFromApple)} Found matching YouTube episode: '{youTubeItem.Id.VideoId}' with title '{youTubeItem.Snippet.Title}' and release-date '{youTubeItem.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime:R}'.");
             episode.YouTubeId = youTubeItem.Id.VideoId;
             episode.Urls.YouTube = youTubeItem.ToYouTubeUrl();
         }
@@ -97,6 +89,7 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
                 await _appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(podcast, episode));
             if (appleItem != null)
             {
+                _logger.LogInformation($"{nameof(EnrichFromApple)} Found matching Apple episode: '{appleItem.Id}' with title '{appleItem.Title}' and release-date '{appleItem.Release:R}'.");
                 episode.Urls.Apple = appleItem.Url.CleanAppleUrl();
                 episode.AppleId = appleItem.Id;
             }
@@ -108,6 +101,7 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
         var spotifyItem = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode));
         if (spotifyItem?.FullEpisode != null)
         {
+            _logger.LogInformation($"{nameof(EnrichFromSpotify)} Found matching Spotify episode: '{spotifyItem.FullEpisode.Id}' with title '{spotifyItem.FullEpisode.Name}' and release-date '{spotifyItem.FullEpisode.ReleaseDate}'.");
             episode.SpotifyId = spotifyItem.FullEpisode.Id;
             episode.Urls.Spotify = spotifyItem.Url();
         }

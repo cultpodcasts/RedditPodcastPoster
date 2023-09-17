@@ -21,6 +21,7 @@ public class PostModel
         Apple = firstEpisode.Apple;
         YouTube = firstEpisode.YouTube;
         ReleaseDate = firstEpisode.Release;
+        Published = firstEpisode.Published;
         EpisodeLength = firstEpisode.Duration;
         EpisodeDescription = firstEpisode.Description;
         EpisodeTitle = firstEpisode.Title;
@@ -65,6 +66,7 @@ public class PostModel
         Link ??= firstEpisode.YouTube ?? firstEpisode.Spotify ?? firstEpisode.Apple ?? null;
     }
 
+    public DateTime Published { get; init; }
     public IEnumerable<EpisodePost> Episodes { get; set; }
     public bool IsBundledPost { get; init; }
     public PodcastPost PodcastPost { get; init; }
