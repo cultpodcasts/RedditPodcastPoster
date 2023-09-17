@@ -19,7 +19,8 @@ using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Common.Text;
 
 var host = new HostBuilder()
-    .ConfigureFunctionsWorkerDefaults(builder => { builder.Services.ConfigureFunctionsApplicationInsights(); })
+    .ConfigureFunctionsWorkerDefaults(
+        builder => { builder.Services.ConfigureFunctionsApplicationInsights(); })
     .ConfigureServices((context, services) =>
     {
         services.AddLogging()
