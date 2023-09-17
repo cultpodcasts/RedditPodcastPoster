@@ -17,6 +17,8 @@ using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Common.Text;
+using System.Net.Http.Headers;
+using Indexer;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults(builder => { builder.Services.ConfigureFunctionsApplicationInsights(); })
@@ -90,7 +92,6 @@ var host = new HostBuilder()
             .AddOptions<YouTubeSettings>().Bind(context.Configuration.GetSection("youtube"));
         services
             .AddOptions<CosmosDbSettings>().Bind(context.Configuration.GetSection("cosmosdb"));
-        services
             .AddOptions<IndexerOptions>().Bind(context.Configuration.GetSection("indexer"));
     })
     .ConfigureLogging(logging => { logging.AllowAzureFunctionApplicationInsightsTraceLogging(); })
