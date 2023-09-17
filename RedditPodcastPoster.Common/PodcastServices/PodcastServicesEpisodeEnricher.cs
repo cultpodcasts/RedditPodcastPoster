@@ -35,7 +35,6 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
         IndexOptions indexOptions
     )
     {
-        _logger.LogInformation($"{nameof(EnrichEpisodes)} Enrich episodes with options {indexOptions}.");
         foreach (var episode in newEpisodes)
         {
             foreach (Service service in Enum.GetValues(typeof(Service)))

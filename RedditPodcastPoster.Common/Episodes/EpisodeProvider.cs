@@ -30,14 +30,12 @@ public class EpisodeProvider : IEpisodeProvider
         IList<Episode> episodes;
         if (!string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
-            _logger.LogInformation($"{nameof(GetEpisodes)} Resolving new episodes using Spotify.");
             episodes = await _spotifyEpisodeProvider.GetEpisodes(
                 new SpotifyGetEpisodesRequest(podcast.SpotifyId, processRequestReleasedSince));
             _logger.LogInformation($"{nameof(GetEpisodes)} (Spotify) - Found '{episodes.Count}' episodes released since {processRequestReleasedSince:R}");
         }
         else if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
-            _logger.LogInformation($"{nameof(GetEpisodes)} Resolving new episodes using YouTube.");
             if (skipYouTube)
             {
                 _logger.LogInformation(

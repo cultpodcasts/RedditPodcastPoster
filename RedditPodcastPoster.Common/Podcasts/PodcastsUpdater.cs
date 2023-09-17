@@ -29,11 +29,6 @@ public class PodcastsUpdater : IPodcastsUpdater
 
     public async Task UpdatePodcasts(IndexOptions indexOptions)
     {
-        _logger.LogInformation(
-            indexOptions.ReleasedSince.HasValue
-                ? $"{nameof(UpdatePodcasts)} Indexing with options released-since: '{indexOptions.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-youtube: '{indexOptions.SkipYouTubeUrlResolving}'."
-                : $"{nameof(UpdatePodcasts)} Indexing with options released-since: Null, bypass-youtube: '{indexOptions.SkipYouTubeUrlResolving}'.");
-
         IEnumerable<Podcast> podcasts = await _podcastRepository.GetAll().ToListAsync();
         var eliminationTerms = await _eliminationTermsRepository.Get();
         foreach (var podcast in podcasts)
