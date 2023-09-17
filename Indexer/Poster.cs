@@ -33,7 +33,7 @@ public class Poster
     )
     {
         _logger.LogInformation(
-            $"{nameof(Run)} Initiated. Current timer schedule is: {timerTimer.ScheduleStatus.Next:R}");
+            $"{nameof(Poster)}.{nameof(Run)} Initiated. Current timer schedule is: {timerTimer.ScheduleStatus.Next:R}");
         _logger.LogInformation(_posterOptions.ToString());
         var baselineDate = DateTimeHelper.DaysAgo(_posterOptions.ReleasedDaysAgo);
 

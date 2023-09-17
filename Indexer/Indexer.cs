@@ -30,7 +30,7 @@ public class Indexer
     )
     {
         _logger.LogInformation(
-            $"{nameof(Run)} Initiated. Current timer schedule is: {timerTimer.ScheduleStatus.Next:R}");
+            $"{nameof(Indexer)}.{nameof(Run)} Initiated. Current timer schedule is: {timerTimer.ScheduleStatus.Next:R}");
         _logger.LogInformation(_indexerOptions.ToString());
 
         var indexOptions = _indexerOptions.ToIndexOptions();
