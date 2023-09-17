@@ -22,7 +22,12 @@ public class Indexer
     }
 
     [Function("Indexer")]
-    public async Task Run([TimerTrigger("0 */4 * * *")] TimerInfo timerTimer)
+    public async Task Run([TimerTrigger("0 */4 * * *"
+#if DEBUG
+            , RunOnStartup = true
+#endif
+        )] TimerInfo timerTimer
+    )
     {
         _logger.LogInformation(
             $"{nameof(Run)} Initiated. Current timer schedule is: {timerTimer.ScheduleStatus.Next:R}");

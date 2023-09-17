@@ -4,6 +4,7 @@ using Azure;
 using Indexer;
 using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
@@ -15,12 +16,16 @@ using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
-using RedditPodcastPoster.Common.Reddit;
-using RedditPodcastPoster.Common.Text;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults(
         builder => { builder.Services.ConfigureFunctionsApplicationInsights(); })
+    .ConfigureAppConfiguration(builder =>
+    {
+#if DEBUG
+        builder.AddConfiguration(new ConfigurationBuilder().AddToConfigurationBuilder<Program>());
+#endif
+    })
     .ConfigureServices((context, services) =>
     {
         services.AddLogging()
