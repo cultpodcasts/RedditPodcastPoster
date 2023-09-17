@@ -15,6 +15,7 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.14.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Azure\Azure.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
   </ItemGroup>
   <ItemGroup>
