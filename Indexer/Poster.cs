@@ -16,7 +16,7 @@ public class Poster
         _logger = logger;
     }
 
-    [Function("Indexer")]
+    [Function("Poster")]
     public async Task Run([TimerTrigger("10 */4 * * *"
 #if DEBUG
             , RunOnStartup = true

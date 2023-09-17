@@ -16,6 +16,8 @@ using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
+using RedditPodcastPoster.Common.Reddit;
+using RedditPodcastPoster.Common.Text;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults(
@@ -31,14 +33,22 @@ var host = new HostBuilder()
         services.AddLogging()
             .AddApplicationInsightsTelemetryWorkerService()
             .ConfigureFunctionsApplicationInsights()
+
+            // Common
+            .AddScoped<IDataRepository, CosmosDbRepository>()
+            .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
+            .AddScoped<IPodcastRepository, PodcastRepository>()
+            .AddSingleton(new JsonSerializerOptions
+            {
+                WriteIndented = true
+            })
+
+            // Indexer
             .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
             .AddScoped<IPodcastUpdater, PodcastUpdater>()
             .AddScoped<IEpisodeProvider, EpisodeProvider>()
             .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
             .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
-            .AddScoped<IDataRepository, CosmosDbRepository>()
-            .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
-            .AddScoped<IPodcastRepository, PodcastRepository>()
             .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>()
             .AddScoped(s => new iTunesSearchManager())
             .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
@@ -57,15 +67,23 @@ var host = new HostBuilder()
             .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
             .AddScoped<IPodcastFilter, PodcastFilter>()
             .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
-            .AddSingleton(new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
 
+            // Poster 
+            .AddScoped<IEpisodeResolver, EpisodeResolver>()
+            .AddSingleton<ITextSanitiser, TextSanitiser>()
+            .AddScoped<IRedditPostTitleFactory, RedditPostTitleFactory>()
+            .AddScoped<IEpisodePostManager, EpisodePostManager>()
+            .AddScoped<IResolvedPodcastEpisodeAdaptor, ResolvedPodcastEpisodeAdaptor>()
+            .AddScoped<IResolvedPodcastEpisodePoster, ResolvedPodcastEpisodePoster>()
+            .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
+            .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
+            .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
+            ;
+
+        // Indexer
         services.AddHttpClient<IAppleBearerTokenProvider, AppleBearerTokenProvider>();
         services.AddHttpClient<IRemoteClient, RemoteClient>();
         services.AddHttpClient();
-
         services.AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
         {
             var appleBearerTokenProvider = services.GetService<IAppleBearerTokenProvider>();
@@ -81,11 +99,16 @@ var host = new HostBuilder()
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0");
         });
 
-
+        // Indexer
         SpotifyClientFactory.AddSpotifyClient(services);
         YouTubeServiceFactory.AddYouTubeService(services);
         CosmosDbClientFactory.AddCosmosClient(services);
 
+        // Common
+        RedditClientFactory.AddRedditClient(services);
+
+
+        // Indexer
         services
             .AddOptions<SpotifySettings>().Bind(context.Configuration.GetSection("spotify"));
         services
@@ -94,6 +117,13 @@ var host = new HostBuilder()
             .AddOptions<CosmosDbSettings>().Bind(context.Configuration.GetSection("cosmosdb"));
         services
             .AddOptions<IndexerOptions>().Bind(context.Configuration.GetSection("indexer"));
+
+        // Poster
+        services
+            .AddOptions<RedditSettings>().Bind(context.Configuration.GetSection("reddit"));
+        services
+            .AddOptions<SubredditSettings>().Bind(context.Configuration.GetSection("subreddit"));
+
     })
     .ConfigureLogging(logging => { logging.AllowAzureFunctionApplicationInsightsTraceLogging(); })
     .Build();
