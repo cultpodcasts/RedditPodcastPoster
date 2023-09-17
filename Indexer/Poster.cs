@@ -38,7 +38,7 @@ public class Poster
         var baselineDate = DateTimeHelper.DaysAgo(_posterOptions.ReleasedDaysAgo);
 
         _logger.LogInformation(
-            $"{nameof(Run)} Indexing with options released-since: '{baselineDate:dd/MM/yyyy HH:mm:ss}''.");
+            $"{nameof(Run)} Posting with options released-since: '{baselineDate:dd/MM/yyyy HH:mm:ss}''.");
 
         var result = await _episodeProcessor.PostEpisodesSinceReleaseDate(baselineDate);
         if (!result.Success)
