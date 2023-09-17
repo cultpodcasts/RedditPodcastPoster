@@ -50,6 +50,7 @@ public class ResolvedPodcastEpisodeAdaptor : IResolvedPodcastEpisodeAdaptor
             episode.Release.ToString("dd MMM yyyy"), 
             episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture), 
             episode.Description, 
-            id);
+            id,
+            episode.Release);
     }
 }
