@@ -31,7 +31,6 @@ var host = new HostBuilder()
             .AddScoped<IEpisodeProvider, EpisodeProvider>()
             .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
             .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
-            .AddScoped<IPodcastProcessor, PodcastProcessor>()
             .AddScoped<IDataRepository, CosmosDbRepository>()
             .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
             .AddScoped<IPodcastRepository, PodcastRepository>()
@@ -43,8 +42,6 @@ var host = new HostBuilder()
             .AddScoped<IApplePodcastService, ApplePodcastService>()
             .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
             .AddScoped<IRemoteClient, RemoteClient>()
-            .AddScoped<IEpisodeResolver, EpisodeResolver>()
-            .AddSingleton<ITextSanitiser, TextSanitiser>()
             .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
             .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
             .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
@@ -81,7 +78,6 @@ var host = new HostBuilder()
 
 
         SpotifyClientFactory.AddSpotifyClient(services);
-        RedditClientFactory.AddRedditClient(services);
         YouTubeServiceFactory.AddYouTubeService(services);
         CosmosDbClientFactory.AddCosmosClient(services);
 
