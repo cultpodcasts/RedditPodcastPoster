@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Azure;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Episodes;
@@ -9,9 +10,16 @@ using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Common.Text;
 
+
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults(
         builder => { builder.Services.ConfigureFunctionsApplicationInsights(); })
+    .ConfigureAppConfiguration(builder =>
+    {
+#if DEBUG
+        builder.AddConfiguration(new ConfigurationBuilder().AddToConfigurationBuilder<Program>());
+#endif
+    })
     .ConfigureServices((context, services) =>
     {
         services.AddLogging()
