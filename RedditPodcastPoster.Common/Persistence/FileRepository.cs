@@ -58,4 +58,9 @@ public class FileRepository : IFileRepository
             }
         }
     }
+
+    public Task Delete<T>(Guid id, string partitionKey) where T : CosmosSelector
+    {
+        throw new NotImplementedException();
+    }
 }

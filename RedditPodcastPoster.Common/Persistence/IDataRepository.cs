@@ -8,4 +8,6 @@ public interface IDataRepository
     Task Write<T>(string key, T data);
     Task<T?> Read<T>(string key, string partitionKey) where T : class;
     IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector;
+
+    Task Delete<T>(Guid id, string partitionKey) where T : CosmosSelector;
 }

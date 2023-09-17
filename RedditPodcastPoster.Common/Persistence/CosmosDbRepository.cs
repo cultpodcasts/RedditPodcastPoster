@@ -1,4 +1,5 @@
-﻿using Microsoft.Azure.Cosmos;
+﻿using System.Net;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -48,6 +49,15 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
         {
             return await c.ReadItemAsync<T>(key, new PartitionKey(partitionKey));
         }
+        catch (CosmosException ex)
+        {
+            if (ex.StatusCode == HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex,
@@ -71,6 +81,21 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
         {
             _logger.LogError(ex,
                 $"Error GetItemLinqQueryable on documents in Database with DatabaseId '{_cosmosDbSettings.DatabaseId}' and Container '{_cosmosDbSettings.Container}'.");
+            throw;
+        }
+    }
+
+    public async Task Delete<T>(Guid id, string partitionKey) where T : CosmosSelector
+    {
+        var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
+        try
+        {
+            await c.DeleteItemAsync<T>(id.ToString(), new PartitionKey(partitionKey));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                $"Error Could not delete on document of type '{typeof(T)}' with partition-partitionKey '{partitionKey}' in Database with DatabaseId '{_cosmosDbSettings.DatabaseId}' and Container '{_cosmosDbSettings.Container}'.");
             throw;
         }
     }

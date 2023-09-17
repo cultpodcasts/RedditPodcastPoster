@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using Azure;
 using Indexer;
+using Indexer.Auth0;
 using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
@@ -78,7 +79,15 @@ var host = new HostBuilder()
             .AddScoped<IResolvedPodcastEpisodePoster, ResolvedPodcastEpisodePoster>()
             .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
             .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
-            .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>();
+            .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
+
+            // SubmitUrl
+            .AddScoped<ITokenValidator, TokenValidator>()
+            .AddScoped<IOpenIdConnectConfigurationManagerFactory, OpenIdConnectConfigurationManagerFactory>()
+            .AddScoped<IHttpDocumentRetrieverFactory, HttpDocumentRetrieverFactory>()
+            .AddScoped(s => s.GetService<IHttpDocumentRetrieverFactory>().Create())
+            .AddScoped(s => s.GetService<IOpenIdConnectConfigurationManagerFactory>().Create());
+
 
         // Indexer
         services.AddHttpClient<IAppleBearerTokenProvider, AppleBearerTokenProvider>();
@@ -129,6 +138,10 @@ var host = new HostBuilder()
             .AddOptions<RedditSettings>().Bind(context.Configuration.GetSection("reddit"));
         services
             .AddOptions<SubredditSettings>().Bind(context.Configuration.GetSection("subreddit"));
+
+        // SubmitUrl
+        services
+            .AddOptions<Auth0Settings>().Bind(context.Configuration.GetSection("auth0"));
     })
     .ConfigureLogging(logging => { logging.AllowAzureFunctionApplicationInsightsTraceLogging(); })
     .Build();

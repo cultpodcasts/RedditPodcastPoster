@@ -1,30 +1,47 @@
 using System.Net;
+using System.Net.Http.Headers;
+using System.Security.Claims;
+using Indexer.Auth0;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 
-namespace Indexer
+namespace Indexer;
+
+public class SubmitUrl
 {
-    public class SubmitUrl
+    private readonly ILogger _logger;
+    private readonly ITokenValidator _tokenValidator;
+
+    public SubmitUrl(
+        ITokenValidator tokenValidator,
+        ILoggerFactory loggerFactory)
     {
-        private readonly ILogger _logger;
+        _tokenValidator = tokenValidator;
+        _logger = loggerFactory.CreateLogger<SubmitUrl>();
+    }
 
-        public SubmitUrl(ILoggerFactory loggerFactory)
+    [Function("SubmitUrl")]
+    public async Task<HttpResponseData> Run(
+        [HttpTrigger(AuthorizationLevel.Function, "get", "post")]
+        HttpRequestData req)
+    {
+        if (req.Headers.TryGetValues("Authorization", out var authHeaders))
         {
-            _logger = loggerFactory.CreateLogger<SubmitUrl>();
+            var authHeaderValue = authHeaders.FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(authHeaderValue))
+            {
+                ClaimsPrincipal principal;
+                principal = await _tokenValidator.ValidateTokenAsync(AuthenticationHeaderValue.Parse(authHeaderValue));
+                if (principal == null)
+                {
+                    return req.CreateResponse(HttpStatusCode.Unauthorized);
+                }
+
+                return req.CreateResponse(HttpStatusCode.OK);
+            }
         }
 
-        [Function("SubmitUrl")]
-        public HttpResponseData Run([HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequestData req)
-        {
-            _logger.LogInformation("C# HTTP trigger function processed a request.");
-
-            var response = req.CreateResponse(HttpStatusCode.OK);
-            response.Headers.Add("Content-Type", "text/plain; charset=utf-8");
-
-            response.WriteString("End");
-
-            return response;
-        }
+        return req.CreateResponse(HttpStatusCode.Unauthorized);
     }
 }
