@@ -50,6 +50,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sqllite3DatabasePublisher",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Azure", "Azure\Azure.csproj", "{922149E7-D3E3-4FD7-BBEB-315C08A9583A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Poster", "Poster\Poster.csproj", "{6822E116-CD59-4906-BEAB-6100DF377440}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -132,6 +134,10 @@ Global
 		{922149E7-D3E3-4FD7-BBEB-315C08A9583A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{922149E7-D3E3-4FD7-BBEB-315C08A9583A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{922149E7-D3E3-4FD7-BBEB-315C08A9583A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6822E116-CD59-4906-BEAB-6100DF377440}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6822E116-CD59-4906-BEAB-6100DF377440}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6822E116-CD59-4906-BEAB-6100DF377440}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6822E116-CD59-4906-BEAB-6100DF377440}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -152,6 +158,7 @@ Global
 		{425D3FF0-8C4C-490E-AC3C-DBB3F1892DD9} = {8C39850E-EB98-4D1F-B961-FBF7FF98049E}
 		{A2FE6676-BE6F-4EBC-9261-F27A7E8A8510} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{922149E7-D3E3-4FD7-BBEB-315C08A9583A} = {8C39850E-EB98-4D1F-B961-FBF7FF98049E}
+		{6822E116-CD59-4906-BEAB-6100DF377440} = {8C39850E-EB98-4D1F-B961-FBF7FF98049E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

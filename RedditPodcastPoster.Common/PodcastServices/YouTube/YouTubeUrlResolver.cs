@@ -22,8 +22,17 @@ public class YouTubeItemResolver : IYouTubeItemResolver
 
     public async Task<SearchResult?> FindEpisode(Podcast podcast, Episode episode, DateTime? publishedSince)
     {
-        var youTubePublishingDelay = TimeSpan.Parse(podcast.YouTubePublishingDelayTimeSpan).Ticks;
+        var youTubePublishingDelay = TimeSpan.Parse(podcast.YouTubePublishingDelayTimeSpan);
         var searchListResponse = await _youTubeSearchService.GetLatestChannelVideos(podcast.YouTubeChannelId, publishedSince);
+        if (publishedSince.HasValue)
+        {
+            _logger.LogInformation($"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube since '{publishedSince.Value:R}'");
+        }
+        else
+        {
+            _logger.LogInformation($"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube. {nameof(publishedSince)} is Null.");
+
+        }
         var matchedYouTubeVideo =
             _youTubeSearcher.FindMatchingYouTubeVideo(episode, searchListResponse, youTubePublishingDelay);
         return matchedYouTubeVideo;
