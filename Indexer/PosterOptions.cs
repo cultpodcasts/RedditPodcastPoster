@@ -7,6 +7,6 @@ public class PosterOptions
     public override string ToString()
     {
         return
-            $"IndexerOptions {{ {nameof(ReleasedDaysAgo)}: '{ReleasedDaysAgo}'.";
+            $"{nameof(PosterOptions)} {{{nameof(ReleasedDaysAgo)}: '{ReleasedDaysAgo}'}}.";
     }
 }

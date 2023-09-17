@@ -10,7 +10,7 @@ public class IndexerOptions
     public override string ToString()
     {
         return
-            $"IndexerOptions {{ {nameof(ReleasedDaysAgo)}: '{ReleasedDaysAgo}', {nameof(ByPassYouTube)}: '{ByPassYouTube}'}}.";
+            $"{nameof(IndexerOptions)} {{ {nameof(ReleasedDaysAgo)}: '{ReleasedDaysAgo}', {nameof(ByPassYouTube)}: '{ByPassYouTube}'}}.";
     }
 
     public IndexOptions ToIndexOptions()
