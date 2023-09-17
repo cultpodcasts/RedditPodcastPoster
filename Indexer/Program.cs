@@ -69,6 +69,7 @@ var host = new HostBuilder()
             .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
 
             // Poster 
+            .AddScoped<IEpisodeProcessor, EpisodeProcessor>()
             .AddScoped<IEpisodeResolver, EpisodeResolver>()
             .AddSingleton<ITextSanitiser, TextSanitiser>()
             .AddScoped<IRedditPostTitleFactory, RedditPostTitleFactory>()
@@ -77,8 +78,7 @@ var host = new HostBuilder()
             .AddScoped<IResolvedPodcastEpisodePoster, ResolvedPodcastEpisodePoster>()
             .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
             .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
-            .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
-            ;
+            .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>();
 
         // Indexer
         services.AddHttpClient<IAppleBearerTokenProvider, AppleBearerTokenProvider>();
@@ -99,14 +99,20 @@ var host = new HostBuilder()
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0");
         });
 
+        // Common
+        CosmosDbClientFactory.AddCosmosClient(services);
+
         // Indexer
         SpotifyClientFactory.AddSpotifyClient(services);
         YouTubeServiceFactory.AddYouTubeService(services);
-        CosmosDbClientFactory.AddCosmosClient(services);
 
-        // Common
+        // Poster
         RedditClientFactory.AddRedditClient(services);
 
+
+        // Common
+        services
+            .AddOptions<CosmosDbSettings>().Bind(context.Configuration.GetSection("cosmosdb"));
 
         // Indexer
         services
@@ -114,16 +120,15 @@ var host = new HostBuilder()
         services
             .AddOptions<YouTubeSettings>().Bind(context.Configuration.GetSection("youtube"));
         services
-            .AddOptions<CosmosDbSettings>().Bind(context.Configuration.GetSection("cosmosdb"));
-        services
             .AddOptions<IndexerOptions>().Bind(context.Configuration.GetSection("indexer"));
 
         // Poster
         services
+            .AddOptions<PosterOptions>().Bind(context.Configuration.GetSection("poster"));
+        services
             .AddOptions<RedditSettings>().Bind(context.Configuration.GetSection("reddit"));
         services
             .AddOptions<SubredditSettings>().Bind(context.Configuration.GetSection("subreddit"));
-
     })
     .ConfigureLogging(logging => { logging.AllowAzureFunctionApplicationInsightsTraceLogging(); })
     .Build();
