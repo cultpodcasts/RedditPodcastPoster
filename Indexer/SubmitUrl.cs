@@ -26,22 +26,23 @@ public class SubmitUrl
         [HttpTrigger(AuthorizationLevel.Function, "get", "post")]
         HttpRequestData req)
     {
-        if (req.Headers.TryGetValues("Authorization", out var authHeaders))
-        {
-            var authHeaderValue = authHeaders.FirstOrDefault();
-            if (!string.IsNullOrWhiteSpace(authHeaderValue))
-            {
-                ClaimsPrincipal principal;
-                principal = await _tokenValidator.ValidateTokenAsync(AuthenticationHeaderValue.Parse(authHeaderValue));
-                if (principal == null)
-                {
-                    return req.CreateResponse(HttpStatusCode.Unauthorized);
-                }
+        //if (req.Headers.TryGetValues("Authorization", out var authHeaders))
+        //{
+        //    var authHeaderValue = authHeaders.FirstOrDefault();
+        //    if (!string.IsNullOrWhiteSpace(authHeaderValue))
+        //    {
+        //        ClaimsPrincipal principal;
+        //        principal = await _tokenValidator.ValidateTokenAsync(AuthenticationHeaderValue.Parse(authHeaderValue));
+        //        if (principal == null)
+        //        {
+        //            return req.CreateResponse(HttpStatusCode.Unauthorized);
+        //        }
 
-                return req.CreateResponse(HttpStatusCode.OK);
-            }
-        }
+        //        return req.CreateResponse(HttpStatusCode.OK);
+        //    }
+        //}
 
-        return req.CreateResponse(HttpStatusCode.Unauthorized);
+        //return req.CreateResponse(HttpStatusCode.Unauthorized);
+        return req.CreateResponse(HttpStatusCode.OK);
     }
 }
