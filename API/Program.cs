@@ -1,12 +1,33 @@
+using API.Data;
+using RedditPodcastPoster.Common.Persistence;
+using System.Reflection;
+using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.Text;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+builder.Configuration
+    .AddJsonFile("appsettings.json", false)
+    .AddEnvironmentVariables("RedditPodcastPoster_")
+    .AddCommandLine(args)
+    .AddSecrets(Assembly.GetExecutingAssembly());
 
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddApplicationInsightsTelemetry(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]);
+
+builder.Services.AddScoped<IQueryExecutor, QueryExecutor>();
+builder.Services.AddScoped<ITextSanitiser, TextSanitiser>();
+
+CosmosDbClientFactory.AddCosmosClient(builder.Services);
+builder.Services
+    .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
+
+
+
+builder.Services.AddControllers();
+
+
 
 var app = builder.Build();
 
