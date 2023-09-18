@@ -42,13 +42,15 @@ public class RedditPostTitleFactory : IRedditPostTitleFactory
             audioLinksSuffix = "(Audio links in comments)";
         }
 
-        return ConstructFinalPostTitle(title, bundleSuffix, audioLinksSuffix);
+        return ConstructFinalPostTitle(title, !string.IsNullOrWhiteSpace(postModel.EpisodeTitle), bundleSuffix,
+            audioLinksSuffix);
     }
 
-    private string ConstructFinalPostTitle(string title, string bundleSuffix, string audioLinksSuffix)
+    private string ConstructFinalPostTitle(string title, bool hasDescription, string bundleSuffix,
+        string audioLinksSuffix)
     {
-        const string ellipsisSuffix = @"..""";
-        const string terminalSuffix = @"""";
+        var ellipsisSuffix = hasDescription ? @"..""" : string.Empty;
+        var terminalSuffix = hasDescription ? @"""" : string.Empty;
         if ((title + bundleSuffix + audioLinksSuffix).Length >
             _settings.SubredditTitleMaxLength - terminalSuffix.Length)
         {
@@ -97,7 +99,13 @@ public class RedditPostTitleFactory : IRedditPostTitleFactory
 
         episodeTitle = _textSanitiser.FixCasing(episodeTitle);
 
-        return $"\"{episodeTitle}\", {podcastName}, {postModel.ReleaseDate} {postModel.EpisodeLength} \"{description}";
+        var title = $"\"{episodeTitle}\", {podcastName}, {postModel.ReleaseDate} {postModel.EpisodeLength}";
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            title += $" \"{description}";
+        }
+
+        return title;
     }
 
 
