@@ -26,6 +26,12 @@ public class SubmitUrl
         [HttpTrigger(AuthorizationLevel.Function, "get", "post")]
         HttpRequestData req)
     {
+        foreach (var reqHeader in req.Headers)
+        {
+            _logger.LogInformation($"'{reqHeader.Key}'='{string.Join(", ", reqHeader.Value)}'");
+        }
+
+
         //if (req.Headers.TryGetValues("Authorization", out var authHeaders))
         //{
         //    var authHeaderValue = authHeaders.FirstOrDefault();
