@@ -16,6 +16,7 @@ public class HomePageController : ControllerBase
         _logger = logger;
     }
 
+    [HttpGet]
     public async Task<ActionResult> Get(CancellationToken ct)
     {
         var homepageModel = await _queryExecutor.GetHomePage(ct);
