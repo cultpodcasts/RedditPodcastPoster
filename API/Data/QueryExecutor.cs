@@ -75,7 +75,17 @@ public class QueryExecutor : IQueryExecutor
         return new HomePageModel
         {
             EpisodeCount = count,
-            RecentEpisodes = podcastResults.OrderByDescending(x => x.Release).Select(Santitise)
+            RecentEpisodes = podcastResults.OrderByDescending(x => x.Release).Select(Santitise).Select(x =>
+                new RecentEpisode
+                {
+                    Apple = x.Apple,
+                    EpisodeDescription = x.EpisodeDescription,
+                    EpisodeTitle = x.EpisodeTitle,
+                    PodcastName = x.PodcastName,
+                    Release = x.Release,
+                    Spotify = x.Spotify,
+                    YouTube = x.YouTube
+                })
         };
     }
 
