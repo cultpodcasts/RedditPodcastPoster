@@ -1,7 +1,7 @@
 {
   "profiles": {
     "RedditPodcastPoster": {
-      "commandLineArgs": "7",
+      "commandLineArgs": "",
       "commandName": "Project"
     }
   }
