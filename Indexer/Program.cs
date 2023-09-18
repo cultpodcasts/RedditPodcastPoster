@@ -82,11 +82,11 @@ var host = new HostBuilder()
             .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
 
             // SubmitUrl
-            .AddScoped<ITokenValidator, TokenValidator>()
-            .AddScoped<IOpenIdConnectConfigurationManagerFactory, OpenIdConnectConfigurationManagerFactory>()
-            .AddScoped<IHttpDocumentRetrieverFactory, HttpDocumentRetrieverFactory>()
-            .AddScoped(s => s.GetService<IHttpDocumentRetrieverFactory>().Create())
-            .AddScoped(s => s.GetService<IOpenIdConnectConfigurationManagerFactory>().Create());
+            //.AddScoped<ITokenValidator, TokenValidator>()
+            //.AddScoped<IOpenIdConnectConfigurationManagerFactory, OpenIdConnectConfigurationManagerFactory>()
+            //.AddScoped<IHttpDocumentRetrieverFactory, HttpDocumentRetrieverFactory>()
+            //.AddScoped(s => s.GetService<IHttpDocumentRetrieverFactory>().Create())
+            //.AddScoped(s => s.GetService<IOpenIdConnectConfigurationManagerFactory>().Create());
 
 
         // Indexer

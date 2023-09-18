@@ -11,13 +11,13 @@ namespace Indexer;
 public class SubmitUrl
 {
     private readonly ILogger _logger;
-    private readonly ITokenValidator _tokenValidator;
+    //private readonly ITokenValidator _tokenValidator;
 
     public SubmitUrl(
-        ITokenValidator tokenValidator,
+        //ITokenValidator tokenValidator,
         ILoggerFactory loggerFactory)
     {
-        _tokenValidator = tokenValidator;
+        //_tokenValidator = tokenValidator;
         _logger = loggerFactory.CreateLogger<SubmitUrl>();
     }
 
