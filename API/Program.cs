@@ -6,11 +6,11 @@ using RedditPodcastPoster.Common.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Configuration
-    .AddJsonFile("appsettings.json", false)
-    .AddEnvironmentVariables("RedditPodcastPoster_")
-    .AddCommandLine(args)
-    .AddSecrets(Assembly.GetExecutingAssembly());
+//builder.Configuration
+//    .AddJsonFile("appsettings.json", false)
+//    .AddEnvironmentVariables("RedditPodcastPoster_")
+//    .AddCommandLine(args)
+//    .AddSecrets(Assembly.GetExecutingAssembly());
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
