@@ -79,7 +79,7 @@ var host = new HostBuilder()
             .AddScoped<IResolvedPodcastEpisodePoster, ResolvedPodcastEpisodePoster>()
             .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
             .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
-            .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
+            .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>();
 
             // SubmitUrl
             //.AddScoped<ITokenValidator, TokenValidator>()
