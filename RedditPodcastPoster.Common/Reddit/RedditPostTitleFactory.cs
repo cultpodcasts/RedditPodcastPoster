@@ -42,7 +42,7 @@ public class RedditPostTitleFactory : IRedditPostTitleFactory
             audioLinksSuffix = "(Audio links in comments)";
         }
 
-        return ConstructFinalPostTitle(title, !string.IsNullOrWhiteSpace(postModel.EpisodeTitle), bundleSuffix,
+        return ConstructFinalPostTitle(title, !string.IsNullOrWhiteSpace(postModel.EpisodeDescription), bundleSuffix,
             audioLinksSuffix);
     }
 
