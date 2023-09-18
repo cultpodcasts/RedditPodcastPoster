@@ -2,7 +2,7 @@
   "profiles": {
     "EnrichYouTubeOnlyPodcasts": {
       "commandName": "Project",
-      "commandLineArgs": "\"ad3c0291-c9c2-4114-a382-b300096f9f26\""
+      "commandLineArgs": "\"e6ecf7f9-7edc-479a-9466-36222f71672d\" \"PL9AAB4ECFC9741D1F\""
     }
   }
 }

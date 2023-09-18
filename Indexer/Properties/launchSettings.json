@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "Indexer": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7063",
+      "environmentVariables": {
+        "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=0c010dbf-a55a-4a9e-a258-2eb808f9a8c3;IngestionEndpoint=https://uksouth-1.in.applicationinsights.azure.com/;LiveEndpoint=https://uksouth.livediagnostics.monitor.azure.com/"
+      }
+    }
+  }
+}
