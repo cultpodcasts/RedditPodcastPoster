@@ -52,6 +52,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Azure", "Azure\Azure.csproj
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EnrichSinglePodcastFromPodcastServices", "EnrichSinglePodcastFromPodcastServices\EnrichSinglePodcastFromPodcastServices.csproj", "{F4C20096-1974-4C81-BED5-680C5DDA8AFA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "API", "API\API.csproj", "{6BEBF7FF-DFEF-4480-B0E6-D4DEFE6EC9CD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -138,6 +140,10 @@ Global
 		{F4C20096-1974-4C81-BED5-680C5DDA8AFA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F4C20096-1974-4C81-BED5-680C5DDA8AFA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F4C20096-1974-4C81-BED5-680C5DDA8AFA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6BEBF7FF-DFEF-4480-B0E6-D4DEFE6EC9CD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6BEBF7FF-DFEF-4480-B0E6-D4DEFE6EC9CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6BEBF7FF-DFEF-4480-B0E6-D4DEFE6EC9CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6BEBF7FF-DFEF-4480-B0E6-D4DEFE6EC9CD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
