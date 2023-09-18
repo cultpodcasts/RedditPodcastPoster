@@ -26,9 +26,58 @@ public class QueryExecutor : IQueryExecutor
 
     public async Task<HomePageModel> GetHomePage(CancellationToken ct)
     {
-        var podcastResults = new List<PodcastResult>();
         var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
 
+        var podcastResults =  GetRecentPodcasts(ct, c);
+
+        var count =  GetEpisodeCount(ct, c);
+        IEnumerable<Task> tasks = new Task[] { podcastResults, count };
+
+        await Task.WhenAll(tasks);
+
+        return new HomePageModel
+        {
+            EpisodeCount = count.Result,
+            RecentEpisodes = podcastResults.Result.OrderByDescending(x => x.Release).Select(Santitise).Select(x =>
+                new RecentEpisode
+                {
+                    Apple = x.Apple,
+                    EpisodeDescription = x.EpisodeDescription,
+                    EpisodeTitle = x.EpisodeTitle,
+                    PodcastName = x.PodcastName,
+                    Release = x.Release,
+                    Spotify = x.Spotify,
+                    YouTube = x.YouTube
+                })
+        };
+    }
+
+    private static async Task<int?> GetEpisodeCount(CancellationToken ct, Container c)
+    {
+        var numberOfEpisodes = new QueryDefinition(@"
+                SELECT Count(p.episodes)
+                FROM
+                  podcasts p
+                JOIN
+                e IN p.episodes
+                WHERE e.ignored=false AND e.removed=false
+                ");
+        using var episodeCount = c.GetItemQueryIterator<ScalarResult<int>>(
+            numberOfEpisodes
+        );
+        int? count = null;
+        if (episodeCount.HasMoreResults)
+        {
+            var item = await episodeCount.ReadNextAsync(ct);
+            count = item.First().item;
+        }
+
+        return count;
+    }
+
+    private static async Task<List<PodcastResult>> GetRecentPodcasts(CancellationToken ct, Container c)
+    {
+        var podcastResults = new List<PodcastResult>();
         var lastWeeksEpisodes = new QueryDefinition(
             @"
                             SELECT
@@ -54,39 +103,7 @@ public class QueryExecutor : IQueryExecutor
             podcastResults.AddRange(await feed.ReadNextAsync(ct));
         }
 
-        var numberOfEpisodes = new QueryDefinition(@"
-                SELECT Count(p.episodes)
-                FROM
-                  podcasts p
-                JOIN
-                e IN p.episodes
-                WHERE e.ignored=false AND e.removed=false
-                ");
-        using var episodeCount = c.GetItemQueryIterator<ScalarResult<int>>(
-            numberOfEpisodes
-        );
-        int? count = null;
-        if (episodeCount.HasMoreResults)
-        {
-            var item = await episodeCount.ReadNextAsync(ct);
-            count = item.First().item;
-        }
-
-        return new HomePageModel
-        {
-            EpisodeCount = count,
-            RecentEpisodes = podcastResults.OrderByDescending(x => x.Release).Select(Santitise).Select(x =>
-                new RecentEpisode
-                {
-                    Apple = x.Apple,
-                    EpisodeDescription = x.EpisodeDescription,
-                    EpisodeTitle = x.EpisodeTitle,
-                    PodcastName = x.PodcastName,
-                    Release = x.Release,
-                    Spotify = x.Spotify,
-                    YouTube = x.YouTube
-                })
-        };
+        return podcastResults;
     }
 
     private PodcastResult Santitise(PodcastResult podcastResult)
