@@ -47,7 +47,8 @@ public class QueryExecutor : IQueryExecutor
                     PodcastName = x.PodcastName,
                     Release = x.Release,
                     Spotify = x.Spotify,
-                    YouTube = x.YouTube
+                    YouTube = x.YouTube,
+                    Length = x.Length
                 })
         };
     }
@@ -89,7 +90,8 @@ public class QueryExecutor : IQueryExecutor
                             e.release as release,
                             e.urls.spotify as spotify,
                             e.urls.apple as apple,
-                            e.urls.youtube as youtube
+                            e.urls.youtube as youtube,
+                            e.duration as length
                             FROM
                             podcasts p
                             JOIN

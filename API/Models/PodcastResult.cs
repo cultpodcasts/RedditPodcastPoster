@@ -10,6 +10,8 @@ public class PodcastResult
     public string EpisodeTitle { get; set; }
     [JsonPropertyName("episodeDescription")]
     public string EpisodeDescription { get; set; }
+    [JsonPropertyName("length")]
+    public TimeSpan Length { get; set; }
     [JsonPropertyName("release")]
     public DateTime Release { get; set; }
     [JsonPropertyName("spotify")]
