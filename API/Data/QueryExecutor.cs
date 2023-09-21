@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System;
+using System.Text.RegularExpressions;
 using API.Dtos;
 using API.Models;
 using Microsoft.Azure.Cosmos;
@@ -48,7 +49,7 @@ public class QueryExecutor : IQueryExecutor
                     Release = x.Release,
                     Spotify = x.Spotify,
                     YouTube = x.YouTube,
-                    Length = x.Length
+                    Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds))
                 })
         };
     }
