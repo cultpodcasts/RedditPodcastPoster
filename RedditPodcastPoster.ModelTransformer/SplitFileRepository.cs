@@ -4,16 +4,16 @@ using RedditPodcastPoster.Common.Persistence;
 
 namespace RedditPodcastPoster.ModelTransformer;
 
-public class FileRepository
+public class SplitFileRepository
 {
     private const string FileExtension = ".json";
     private readonly JsonSerializerOptions _jsonSerializerOptions;
-    private readonly ILogger<FileRepository> _logger;
+    private readonly ILogger<SplitFileRepository> _logger;
 
-    public FileRepository(
+    public SplitFileRepository(
         JsonSerializerOptions jsonSerializerOptions,
         IFilenameSelector filenameSelector,
-        ILogger<FileRepository> logger)
+        ILogger<SplitFileRepository> logger)
     {
         _jsonSerializerOptions = jsonSerializerOptions;
         KeySelector = filenameSelector;

@@ -5,14 +5,14 @@ namespace RedditPodcastPoster.ModelTransformer.Models;
 
 public class OldEpisode
 {
-    [JsonPropertyName("_id")]
+    [JsonPropertyName("id")]
     [JsonPropertyOrder(1)]
     public Guid Id { get; set; }
 
     [JsonPropertyName("type")]
     [JsonPropertyOrder(2)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public ModelType ModelType { get; set; }
+    public ModelType ModelType { get; set; } = ModelType.Episode;
 
     [JsonPropertyName("title")]
     [JsonPropertyOrder(3)]
@@ -20,7 +20,7 @@ public class OldEpisode
 
     [JsonPropertyName("description")]
     [JsonPropertyOrder(4)]
-    public string Description { get; init; } = "";
+    public string Description { get; set; } = "";
 
     [JsonPropertyName("posted")]
     [JsonPropertyOrder(5)]
@@ -30,9 +30,13 @@ public class OldEpisode
     [JsonPropertyOrder(6)]
     public bool Ignored { get; set; } = false;
 
+    [JsonPropertyName("removed")]
+    [JsonPropertyOrder(14)]
+    public bool Removed { get; set; } = false;
+
     [JsonPropertyName("release")]
     [JsonPropertyOrder(7)]
-    public DateTime Release { get; init; }
+    public DateTime Release { get; set; }
 
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(8)]
@@ -56,7 +60,12 @@ public class OldEpisode
 
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(13)]
+
     public OldServiceUrls Urls { get; set; } = new();
+
+    [JsonPropertyName("subjects")]
+    [JsonPropertyOrder(14)]
+    public List<string> Subjects { get; set; } = new();
 
     public static Episode FromSpotify(string spotifyId,
         string title,
@@ -86,7 +95,7 @@ public class OldEpisode
         string title,
         string description,
         TimeSpan length,
-        bool _explicit,
+        bool @explicit,
         DateTime release,
         Uri youTubeUrl)
     {
@@ -96,9 +105,9 @@ public class OldEpisode
             Title = title,
             Description = description,
             Length = length,
-            Explicit = _explicit,
+            Explicit = @explicit,
             Release = release,
-            Urls = new ServiceUrls {YouTube = youTubeUrl}
+            Urls = new ServiceUrls { YouTube = youTubeUrl }
         };
     }
 }
