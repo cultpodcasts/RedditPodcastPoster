@@ -30,8 +30,13 @@ public class Podcast : CosmosSelector
     [JsonPropertyOrder(6)]
     public bool IndexAllEpisodes { get; set; } = false;
 
-    [JsonPropertyName("primaryPostService")]
+    [JsonPropertyName("useYouTubeAsReleaseAuthority")]
     [JsonPropertyOrder(7)]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public Service? ReleaseAuthority { get; set; }
+
+    [JsonPropertyName("primaryPostService")]
+    [JsonPropertyOrder(8)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public Service? PrimaryPostService { get; set; }
 

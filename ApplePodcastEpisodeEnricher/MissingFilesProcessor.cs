@@ -60,7 +60,6 @@ public class MissingFilesProcessor
                             return isMatch;
                         }
 
-
                         if (appleEpisodeMatch.Groups["title"].Success && episodeMatch.Groups["title"].Success)
                         {
                             var appleEpisodeTitle = appleEpisodeMatch.Groups["title"].Value;
