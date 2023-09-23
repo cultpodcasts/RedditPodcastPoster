@@ -2,6 +2,8 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using Azure;
 using Indexer;
+using Indexer.Data;
+using Indexer.Publishing;
 using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
@@ -78,7 +80,14 @@ var host = new HostBuilder()
             .AddScoped<IResolvedPodcastEpisodePoster, ResolvedPodcastEpisodePoster>()
             .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
             .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
-            .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>();
+            .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
+
+            // Content Publisher
+            .AddScoped<IQueryExecutor, QueryExecutor>()
+            .AddScoped<ITextSanitiser, TextSanitiser>()
+            .AddScoped<IContentPublisher, ContentPublisher>()
+            .AddScoped<IAmazonS3ClientFactory, AmazonS3ClientFactory>()
+            .AddScoped(s => s.GetService<IAmazonS3ClientFactory>().Create());
 
         // Indexer
         services.AddHttpClient<IAppleBearerTokenProvider, AppleBearerTokenProvider>();
@@ -129,6 +138,10 @@ var host = new HostBuilder()
             .AddOptions<RedditSettings>().Bind(context.Configuration.GetSection("reddit"));
         services
             .AddOptions<SubredditSettings>().Bind(context.Configuration.GetSection("subreddit"));
+
+        //Publisher
+        services
+            .AddOptions<CloudFlareOptions>().Bind(context.Configuration.GetSection("cloudflare"));
     })
     .ConfigureLogging(logging => { logging.AllowAzureFunctionApplicationInsightsTraceLogging(); })
     .Build();
