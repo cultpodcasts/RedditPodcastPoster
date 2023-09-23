@@ -9,62 +9,67 @@ public class Episode
     public Guid Id { get; set; }
 
     [JsonPropertyName("type")]
-    [JsonPropertyOrder(2)]
+    [JsonPropertyOrder(20)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public ModelType ModelType { get; set; } = ModelType.Episode;
 
     [JsonPropertyName("title")]
-    [JsonPropertyOrder(3)]
+    [JsonPropertyOrder(30)]
     public string Title { get; init; } = "";
 
     [JsonPropertyName("description")]
-    [JsonPropertyOrder(4)]
+    [JsonPropertyOrder(40)]
     public string Description { get; set; } = "";
 
     [JsonPropertyName("posted")]
-    [JsonPropertyOrder(5)]
+    [JsonPropertyOrder(50)]
     public bool Posted { get; set; } = false;
 
+    [JsonPropertyName("tweeted")]
+    [JsonPropertyOrder(51)]
+    public bool Tweeted { get; set; }
+
     [JsonPropertyName("ignored")]
-    [JsonPropertyOrder(6)]
+    [JsonPropertyOrder(60)]
     public bool Ignored { get; set; } = false;
 
     [JsonPropertyName("removed")]
-    [JsonPropertyOrder(14)]
+    [JsonPropertyOrder(61)]
     public bool Removed { get; set; } = false;
 
     [JsonPropertyName("release")]
-    [JsonPropertyOrder(7)]
+    [JsonPropertyOrder(70)]
     public DateTime Release { get; set; }
 
     [JsonPropertyName("duration")]
-    [JsonPropertyOrder(8)]
+    [JsonPropertyOrder(71)]
     public TimeSpan Length { get; init; }
 
     [JsonPropertyName("explicit")]
-    [JsonPropertyOrder(9)]
+    [JsonPropertyOrder(72)]
     public bool Explicit { get; init; }
 
     [JsonPropertyName("spotifyId")]
-    [JsonPropertyOrder(10)]
+    [JsonPropertyOrder(80)]
     public string SpotifyId { get; set; } = "";
 
     [JsonPropertyName("appleId")]
-    [JsonPropertyOrder(11)]
+    [JsonPropertyOrder(81)]
     public long? AppleId { get; set; } = null;
 
     [JsonPropertyName("youTubeId")]
-    [JsonPropertyOrder(12)]
+    [JsonPropertyOrder(82)]
     public string YouTubeId { get; set; } = "";
 
     [JsonPropertyName("urls")]
-    [JsonPropertyOrder(13)]
+    [JsonPropertyOrder(100)]
 
     public ServiceUrls Urls { get; set; } = new();
 
     [JsonPropertyName("subjects")]
-    [JsonPropertyOrder(14)]
+    [JsonPropertyOrder(90)]
     public List<string> Subjects { get; set; } = new();
+
 
     public static Episode FromSpotify(string spotifyId,
         string title,

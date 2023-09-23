@@ -108,7 +108,6 @@ public class RedditPostTitleFactory : IRedditPostTitleFactory
         return title;
     }
 
-
     private static string CreateBundleSuffix(IEnumerable<int>? partNumbers)
     {
         var bundleSuffix = string.Empty;

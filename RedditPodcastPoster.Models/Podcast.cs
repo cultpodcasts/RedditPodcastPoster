@@ -15,61 +15,61 @@ public class Podcast : CosmosSelector
 
 
     [JsonPropertyName("name")]
-    [JsonPropertyOrder(3)]
+    [JsonPropertyOrder(20)]
     public string Name { get; set; } = "";
 
     [JsonPropertyName("publisher")]
-    [JsonPropertyOrder(4)]
+    [JsonPropertyOrder(21)]
     public string Publisher { get; set; } = "";
 
     [JsonPropertyName("hasBundledEpisodes")]
-    [JsonPropertyOrder(5)]
+    [JsonPropertyOrder(30)]
     public bool Bundles { get; set; } = false;
 
     [JsonPropertyName("indexAllEpisodes")]
-    [JsonPropertyOrder(6)]
+    [JsonPropertyOrder(31)]
     public bool IndexAllEpisodes { get; set; } = false;
 
     [JsonPropertyName("releaseAuthority")]
-    [JsonPropertyOrder(7)]
+    [JsonPropertyOrder(40)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public Service? ReleaseAuthority { get; set; }
 
     [JsonPropertyName("primaryPostService")]
-    [JsonPropertyOrder(8)]
+    [JsonPropertyOrder(41)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public Service? PrimaryPostService { get; set; }
 
     [JsonPropertyName("spotifyId")]
-    [JsonPropertyOrder(20)]
+    [JsonPropertyOrder(50)]
     public string SpotifyId { get; set; } = "";
 
     [JsonPropertyName("appleId")]
-    [JsonPropertyOrder(21)]
+    [JsonPropertyOrder(51)]
     public long? AppleId { get; set; } = null;
 
     [JsonPropertyName("youTubeChannelId")]
-    [JsonPropertyOrder(22)]
+    [JsonPropertyOrder(52)]
     public string YouTubeChannelId { get; set; } = "";
 
     [JsonPropertyName("youTubePublicationDelay")]
-    [JsonPropertyOrder(40)]
+    [JsonPropertyOrder(60)]
     public string YouTubePublishingDelayTimeSpan { get; set; } = "";
 
     [JsonPropertyName("titleRegex")]
-    [JsonPropertyOrder(60)]
+    [JsonPropertyOrder(70)]
     public string TitleRegex { get; set; } = "";
 
     [JsonPropertyName("descriptionRegex")]
-    [JsonPropertyOrder(61)]
+    [JsonPropertyOrder(71)]
     public string DescriptionRegex { get; set; } = "";
 
     [JsonPropertyName("episodeMatchRegex")]
-    [JsonPropertyOrder(62)]
+    [JsonPropertyOrder(72)]
     public string EpisodeMatchRegex { get; set; } = "";
 
     [JsonPropertyName("episodeIncludeTitleRegex")]
-    [JsonPropertyOrder(63)]
+    [JsonPropertyOrder(73)]
     public string EpisodeIncludeTitleRegex { get; set; } = "";
 
     [JsonPropertyName("episodes")]
