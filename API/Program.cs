@@ -1,4 +1,5 @@
 using API.Data;
+using Microsoft.Extensions.Logging.ApplicationInsights;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Text;
 
@@ -7,6 +8,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration
     .AddJsonFile("appsettings.json", false)
     .AddEnvironmentVariables("API_");
+
+builder.Logging.AddFilter<ApplicationInsightsLoggerProvider>("", LogLevel.Information);
 
 builder.Services
     .AddEndpointsApiExplorer()
