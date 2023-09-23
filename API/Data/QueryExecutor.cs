@@ -32,7 +32,10 @@ public class QueryExecutor : IQueryExecutor
         var podcastResults =  GetRecentPodcasts(ct, c);
 
         var count =  GetEpisodeCount(ct, c);
-        IEnumerable<Task> tasks = new Task[] { podcastResults, count };
+
+        var totalDuration = GetTotalDuration(ct, c);
+
+        IEnumerable<Task> tasks = new Task[] { podcastResults, count, totalDuration };
 
         await Task.WhenAll(tasks);
 
@@ -50,7 +53,8 @@ public class QueryExecutor : IQueryExecutor
                     Spotify = x.Spotify,
                     YouTube = x.YouTube,
                     Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds))
-                })
+                }),
+            TotalDuration= totalDuration.Result
         };
     }
 
@@ -77,28 +81,50 @@ public class QueryExecutor : IQueryExecutor
         return count;
     }
 
+    private static async Task<TimeSpan> GetTotalDuration(CancellationToken ct, Container c)
+    {
+        var durationResults = new List<DurationResult>();
+
+        var allDurations = new QueryDefinition(@"
+               SELECT e.duration
+               FROM
+                 podcasts p
+               JOIN
+               e IN p.episodes
+               WHERE e.ignored=false AND e.removed=false
+        ");
+        using var feed = c.GetItemQueryIterator<DurationResult>(allDurations);
+        while (feed.HasMoreResults)
+        {
+            durationResults.AddRange(await feed.ReadNextAsync(ct));
+        }
+        return TimeSpan.FromTicks(durationResults.Sum(x => x.Duration.Ticks));
+    }
+
     private static async Task<List<PodcastResult>> GetRecentPodcasts(CancellationToken ct, Container c)
     {
         var podcastResults = new List<PodcastResult>();
         var lastWeeksEpisodes = new QueryDefinition(
             @"
-                            SELECT
-                            p.name as podcastName,
-                            p.titleRegex as titleRegex,
-                            p.descriptionRegex as descriptionRegex,
-                            e.title as episodeTitle,
-                            e.description as episodeDescription,
-                            e.release as release,
-                            e.urls.spotify as spotify,
-                            e.urls.apple as apple,
-                            e.urls.youtube as youtube,
-                            e.duration as length
-                            FROM
-                            podcasts p
-                            JOIN
-                            e IN p.episodes
-                            WHERE DateTimeDiff('dd', e.release, GetCurrentDateTime()) < 7"
-        );
+                           SELECT
+                           p.name as podcastName,
+                           p.titleRegex as titleRegex,
+                           p.descriptionRegex as descriptionRegex,
+                           e.title as episodeTitle,
+                           e.description as episodeDescription,
+                           e.release as release,
+                           e.urls.spotify as spotify,
+                           e.urls.apple as apple,
+                           e.urls.youtube as youtube,
+                           e.duration as length
+                           FROM
+                           podcasts p
+                           JOIN
+                           e IN p.episodes
+                           WHERE e.removed=false
+                           AND e.ignored=false
+                           AND DateTimeDiff('dd', e.release, GetCurrentDateTime()) < 7
+            ");
 
         using var feed = c.GetItemQueryIterator<PodcastResult>(lastWeeksEpisodes);
         while (feed.HasMoreResults)
