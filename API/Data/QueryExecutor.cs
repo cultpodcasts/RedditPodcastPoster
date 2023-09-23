@@ -14,19 +14,23 @@ public class QueryExecutor : IQueryExecutor
     private readonly CosmosClient _cosmosClient;
     private readonly CosmosDbSettings _cosmosDbSettings;
     private readonly ITextSanitiser _textSanitiser;
+    private readonly ILogger<QueryExecutor> _logger;
 
     public QueryExecutor(
         CosmosClient cosmosClient,
         ITextSanitiser textSanitiser,
-        IOptions<CosmosDbSettings> cosmosDbSettings)
+        IOptions<CosmosDbSettings> cosmosDbSettings,
+        ILogger<QueryExecutor> logger)
     {
         _cosmosClient = cosmosClient;
         _textSanitiser = textSanitiser;
+        _logger = logger;
         _cosmosDbSettings = cosmosDbSettings.Value;
     }
 
     public async Task<HomePageModel> GetHomePage(CancellationToken ct)
     {
+        _logger.LogInformation($"{nameof(GetHomePage)} initiated.");
         var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
 
         var podcastResults =  GetRecentPodcasts(ct, c);
@@ -38,6 +42,8 @@ public class QueryExecutor : IQueryExecutor
         IEnumerable<Task> tasks = new Task[] { podcastResults, count, totalDuration };
 
         await Task.WhenAll(tasks);
+
+        _logger.LogInformation($"{nameof(GetHomePage)} complete.");
 
         return new HomePageModel
         {
