@@ -35,7 +35,7 @@ public class Episode
 
     [JsonPropertyName("release")]
     [JsonPropertyOrder(7)]
-    public DateTime Release { get; init; }
+    public DateTime Release { get; set; }
 
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(8)]

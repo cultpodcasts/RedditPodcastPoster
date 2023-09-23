@@ -28,13 +28,13 @@ public class EpisodeProvider : IEpisodeProvider
         bool skipYouTube)
     {
         IList<Episode> episodes;
-        if (!string.IsNullOrWhiteSpace(podcast.SpotifyId))
+        if (podcast.ReleaseAuthority is null or Service.Spotify && !string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
             episodes = await _spotifyEpisodeProvider.GetEpisodes(
                 new SpotifyGetEpisodesRequest(podcast.SpotifyId, processRequestReleasedSince));
             _logger.LogInformation($"{nameof(GetEpisodes)} (Spotify) - Found '{episodes.Count}' episodes released since {processRequestReleasedSince:R}");
         }
-        else if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
+        else if (podcast.ReleaseAuthority is Service.YouTube || !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
             if (skipYouTube)
             {

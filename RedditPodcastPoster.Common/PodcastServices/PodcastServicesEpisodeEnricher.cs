@@ -92,6 +92,10 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
                 _logger.LogInformation($"{nameof(EnrichFromApple)} Found matching Apple episode: '{appleItem.Id}' with title '{appleItem.Title}' and release-date '{appleItem.Release:R}'.");
                 episode.Urls.Apple = appleItem.Url.CleanAppleUrl();
                 episode.AppleId = appleItem.Id;
+                if (episode.Release.TimeOfDay == TimeSpan.MinValue)
+                {
+                    episode.Release = appleItem.Release;
+                }
             }
         }
     }
