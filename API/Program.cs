@@ -4,6 +4,9 @@ using RedditPodcastPoster.Common.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Configuration
+    .AddJsonFile("appsettings.json", false)
+    .AddEnvironmentVariables("API_");
 
 builder.Services
     .AddEndpointsApiExplorer()
