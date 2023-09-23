@@ -1,6 +1,6 @@
-﻿using API.Dtos;
+﻿using Indexer.Dtos;
 
-namespace API.Data;
+namespace Indexer.Data;
 
 public interface IQueryExecutor
 {

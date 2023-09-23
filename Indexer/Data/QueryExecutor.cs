@@ -1,13 +1,13 @@
-﻿using System;
-using System.Text.RegularExpressions;
-using API.Dtos;
-using API.Models;
+﻿using System.Text.RegularExpressions;
+using Indexer.Dtos;
+using Indexer.Models;
 using Microsoft.Azure.Cosmos;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Text;
 
-namespace API.Data;
+namespace Indexer.Data;
 
 public class QueryExecutor : IQueryExecutor
 {

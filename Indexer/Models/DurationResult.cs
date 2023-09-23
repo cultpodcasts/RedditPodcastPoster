@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace API.Models;
+namespace Indexer.Models;
 
 public class DurationResult
 {
