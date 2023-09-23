@@ -1,6 +1,5 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.ModelTransformer.Models;
 
@@ -9,23 +8,23 @@ namespace RedditPodcastPoster.ModelTransformer;
 public class ModelTransformer
 {
     private static readonly Regex AlphaNumerics = new("[^a-zA-Z0-9 ]", RegexOptions.Compiled);
-    private readonly FileRepository _fileRepository;
     private readonly ILogger<ModelTransformer> _logger;
+    private readonly SplitFileRepository _splitFileRepository;
 
-    public ModelTransformer(FileRepository fileRepository, ILogger<ModelTransformer> logger)
+    public ModelTransformer(SplitFileRepository splitFileRepository, ILogger<ModelTransformer> logger)
     {
-        _fileRepository = fileRepository;
+        _splitFileRepository = splitFileRepository;
         _logger = logger;
     }
 
     public async Task Run()
     {
-        var podcasts = await _fileRepository.GetAll<OldPodcast>("old").ToListAsync();
+        var podcasts = await _splitFileRepository.GetAll<OldPodcast>("old").ToListAsync();
         foreach (var oldPodcast in podcasts)
         {
             var newPodcast = new Podcast
             {
-                Id= oldPodcast.Id,
+                Id = oldPodcast.Id,
                 ModelType = ModelType.Podcast,
                 AppleId = oldPodcast.AppleId,
                 Bundles = oldPodcast.Bundles,
@@ -35,7 +34,12 @@ public class ModelTransformer
                 TitleRegex = oldPodcast.TitleRegex,
                 YouTubeChannelId = oldPodcast.YouTubeChannelId,
                 YouTubePublishingDelayTimeSpan = oldPodcast.YouTubePublishingDelayTimeSpan,
-                FileKey= oldPodcast.FileKey,
+                FileKey = oldPodcast.FileKey,
+                Publisher = oldPodcast.Publisher,
+                IndexAllEpisodes = oldPodcast.IndexAllEpisodes,
+                PrimaryPostService = oldPodcast.PrimaryPostService,
+                EpisodeIncludeTitleRegex = oldPodcast.EpisodeIncludeTitleRegex,
+                EpisodeMatchRegex = oldPodcast.EpisodeMatchRegex
             };
             newPodcast.Episodes = oldPodcast.Episodes.Select(oldEpisode => new Episode
                 {
@@ -56,10 +60,12 @@ public class ModelTransformer
                         Apple = oldEpisode.Urls.Apple,
                         Spotify = oldEpisode.Urls.Spotify,
                         YouTube = oldEpisode.Urls.YouTube
-                    }
-                }
+                    },
+                    Subjects = oldEpisode.Subjects,
+                    Removed = oldEpisode.Removed
+            }
             ).ToList();
-            await _fileRepository.Write(
+            await _splitFileRepository.Write(
                 "new",
                 oldPodcast.FileKey,
                 newPodcast);
