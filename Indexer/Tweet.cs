@@ -18,7 +18,7 @@ public class Tweet
     }
 
     [Function("Tweet")]
-    public async Task Run([TimerTrigger("10 */2 * * *"
+    public async Task Run([TimerTrigger("6 */2 * * *"
 #if DEBUG
             , RunOnStartup = true
 #endif
