@@ -20,7 +20,7 @@ public class Publisher
     [Function("ContentPublisher")]
     public async Task Run([TimerTrigger("10 */1 * * *"
 #if DEBUG
-            , RunOnStartup = true
+            , RunOnStartup = false
 #endif
         )]
         TimerInfo timerTimer

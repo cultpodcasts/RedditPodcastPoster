@@ -4,6 +4,7 @@ using Azure;
 using Indexer;
 using Indexer.Data;
 using Indexer.Publishing;
+using Indexer.Tweets;
 using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
@@ -87,7 +88,14 @@ var host = new HostBuilder()
             .AddScoped<ITextSanitiser, TextSanitiser>()
             .AddScoped<IContentPublisher, ContentPublisher>()
             .AddScoped<IAmazonS3ClientFactory, AmazonS3ClientFactory>()
-            .AddScoped(s => s.GetService<IAmazonS3ClientFactory>().Create());
+            .AddScoped(s => s.GetService<IAmazonS3ClientFactory>().Create())
+
+            // Tweet
+            //.AddScoped<ITwitterClientFactory, TwitterClientFactory>()
+            //.AddScoped(s => s.GetService<ITwitterClientFactory>().Create())
+            .AddScoped<ITwitterClient, TwitterClient>()
+            .AddScoped<ITweeter, Tweeter>();
+
 
         // Indexer
         services.AddHttpClient<IAppleBearerTokenProvider, AppleBearerTokenProvider>();
@@ -142,6 +150,11 @@ var host = new HostBuilder()
         //Publisher
         services
             .AddOptions<CloudFlareOptions>().Bind(context.Configuration.GetSection("cloudflare"));
+
+        //Tweet
+        services
+            .AddOptions<TwitterOptions>().Bind(context.Configuration.GetSection("twitter"));
+
     })
     .ConfigureLogging(logging => { logging.AllowAzureFunctionApplicationInsightsTraceLogging(); })
     .Build();

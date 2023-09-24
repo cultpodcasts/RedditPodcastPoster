@@ -24,7 +24,7 @@ public class Indexer
     [Function("Indexer")]
     public async Task Run([TimerTrigger("0 */1 * * *"
 #if DEBUG
-            , RunOnStartup = true
+            , RunOnStartup = false
 #endif
         )] TimerInfo timerTimer
     )
