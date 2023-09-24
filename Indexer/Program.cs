@@ -91,8 +91,6 @@ var host = new HostBuilder()
             .AddScoped(s => s.GetService<IAmazonS3ClientFactory>().Create())
 
             // Tweet
-            //.AddScoped<ITwitterClientFactory, TwitterClientFactory>()
-            //.AddScoped(s => s.GetService<ITwitterClientFactory>().Create())
             .AddScoped<ITwitterClient, TwitterClient>()
             .AddScoped<ITweeter, Tweeter>();
 

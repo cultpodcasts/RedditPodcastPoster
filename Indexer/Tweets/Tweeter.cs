@@ -31,16 +31,17 @@ public class Tweeter : ITweeter
     {
         _logger.LogInformation($"{nameof(Tweet)} initiated.");
         var podcasts = await _repository.GetAll().ToListAsync();
-        var podcastEpisode =
+        var podcastEpisodes =
             podcasts
                 .Where(p => p.IndexAllEpisodes)
                 .SelectMany(p =>
-                    p.Episodes.Select(e => new {Podcast = p, Episode = e}))
-                .Where(x =>
-                    (x.Episode.Release >= DateTime.UtcNow.Date &&
-                     x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
-                     x.Episode.Urls.YouTube != null) || x.Episode.Urls.Spotify != null || x.Episode.Urls.Apple != null)
-                .MinBy(x => x.Episode.Release);
+                    p.Episodes.Select(e => new {Podcast = p, Episode = e}));
+        var podcastEpisode = podcastEpisodes
+            .Where(x =>
+                x.Episode.Release >= DateTime.UtcNow.Date && (
+                    (x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
+                     x.Episode.Urls.YouTube != null) || x.Episode.Urls.Spotify != null || x.Episode.Urls.Apple != null))
+            .MinBy(x => x.Episode.Release);
         if (podcastEpisode != null)
         {
             var episodeTitle = podcastEpisode.Episode.Title;
@@ -61,7 +62,7 @@ public class Tweeter : ITweeter
             tweetBuilder.AppendLine($"\"{episodeTitle}\"");
             tweetBuilder.AppendLine($"{podcastName}");
             tweetBuilder.AppendLine(
-                $"{podcastEpisode.Episode.Release.ToString("dd MMM yyyy")} - {podcastEpisode.Episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture)}");
+                $"{podcastEpisode.Episode.Release.ToString("dd MMM yyyy")} {podcastEpisode.Episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture)}");
             tweetBuilder.AppendLine("#CultPodcasts");
             if (podcastEpisode.Episode.Urls.YouTube != null)
             {
@@ -84,7 +85,8 @@ public class Tweeter : ITweeter
             }
             else
             {
-                _logger.LogError($"Could not post tweet for candidate-podcast-episode: Podcast-id: '{podcastEpisode.Podcast.Id}', Episode-id: '{podcastEpisode.Episode.Id}'.");
+                _logger.LogError(
+                    $"Could not post tweet for candidate-podcast-episode: Podcast-id: '{podcastEpisode.Podcast.Id}', Episode-id: '{podcastEpisode.Episode.Id}'.");
             }
 
             _logger.LogInformation($"{nameof(Tweet)} completed.");
