@@ -24,7 +24,7 @@ public class Poster
     }
 
     [Function("Poster")]
-    public async Task Run([TimerTrigger("10 */1 * * *"
+    public async Task Run([TimerTrigger("4 */1 * * *"
 #if DEBUG
             , RunOnStartup = false
 #endif

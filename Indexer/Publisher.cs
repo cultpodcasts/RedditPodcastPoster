@@ -18,7 +18,7 @@ public class Publisher
     }
 
     [Function("ContentPublisher")]
-    public async Task Run([TimerTrigger("10 */1 * * *"
+    public async Task Run([TimerTrigger("3 */1 * * *"
 #if DEBUG
             , RunOnStartup = false
 #endif
