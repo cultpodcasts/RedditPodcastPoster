@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.Text;
-using Tweetinvi;
 
 namespace Indexer.Tweets;
 
@@ -32,49 +31,62 @@ public class Tweeter : ITweeter
     {
         _logger.LogInformation($"{nameof(Tweet)} initiated.");
         var podcasts = await _repository.GetAll().ToListAsync();
-        var candidate =
+        var podcastEpisode =
             podcasts
                 .Where(p => p.IndexAllEpisodes)
-                .SelectMany(p => p.Episodes.Select(e => new {Podcast = p, Episode = e}))
-                .Where(x => x.Episode.Release > DateTime.UtcNow.Date &&
-                            x.Episode is {Removed: false, Ignored: false, Tweeted: false})
+                .SelectMany(p =>
+                    p.Episodes.Select(e => new {Podcast = p, Episode = e}))
+                .Where(x =>
+                    (x.Episode.Release >= DateTime.UtcNow.Date &&
+                     x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
+                     x.Episode.Urls.YouTube != null) || x.Episode.Urls.Spotify != null || x.Episode.Urls.Apple != null)
                 .MinBy(x => x.Episode.Release);
-        if (candidate != null)
+        if (podcastEpisode != null)
         {
-            var episodeTitle = candidate.Episode.Title;
-            if (!string.IsNullOrWhiteSpace(candidate.Podcast.TitleRegex))
+            var episodeTitle = podcastEpisode.Episode.Title;
+            if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TitleRegex))
             {
                 episodeTitle =
-                    _textSanitiser.ExtractTitle(episodeTitle, new Regex(candidate.Podcast.TitleRegex));
+                    _textSanitiser.ExtractTitle(episodeTitle, new Regex(podcastEpisode.Podcast.TitleRegex));
             }
 
             episodeTitle = _textSanitiser.FixCharacters(episodeTitle);
             episodeTitle = _textInfo.ToTitleCase(episodeTitle.ToLower());
 
-            var podcastName = _textSanitiser.FixCharacters(candidate.Podcast.Name);
+            var podcastName = _textSanitiser.FixCharacters(podcastEpisode.Podcast.Name);
             podcastName = _textInfo.ToTitleCase(podcastName.ToLower());
 
             var tweetBuilder = new StringBuilder();
 
-            tweetBuilder.AppendLine(episodeTitle);
-            tweetBuilder.AppendLine(podcastName);
-            tweetBuilder.AppendLine(candidate.Episode.Release.ToString("dd MMM yyyy"));
-            tweetBuilder.AppendLine(candidate.Episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture));
-            if (candidate.Episode.Urls.YouTube != null)
+            tweetBuilder.AppendLine($"\"{episodeTitle}\"");
+            tweetBuilder.AppendLine($"{podcastName}");
+            tweetBuilder.AppendLine(
+                $"{podcastEpisode.Episode.Release.ToString("dd MMM yyyy")} - {podcastEpisode.Episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture)}");
+            tweetBuilder.AppendLine("#CultPodcasts");
+            if (podcastEpisode.Episode.Urls.YouTube != null)
             {
-                tweetBuilder.AppendLine(candidate.Episode.Urls.YouTube.ToString());
+                tweetBuilder.AppendLine(podcastEpisode.Episode.Urls.YouTube.ToString());
             }
-            else if (candidate.Episode.Urls.Spotify != null)
+            else if (podcastEpisode.Episode.Urls.Spotify != null)
             {
-                tweetBuilder.AppendLine(candidate.Episode.Urls.Spotify.ToString());
+                tweetBuilder.AppendLine(podcastEpisode.Episode.Urls.Spotify.ToString());
             }
             else
             {
-                tweetBuilder.AppendLine(candidate.Episode.Urls.Apple.ToString());
+                tweetBuilder.AppendLine(podcastEpisode.Episode.Urls.Apple!.ToString());
             }
 
-            var tweet = await _twitterClient.Tweets.PublishTweetAsync(tweetBuilder.ToString());
-            _logger.LogInformation($"Tweet Id: {tweet.Id}");
+            var tweeted = await _twitterClient.Send(tweetBuilder.ToString());
+            if (tweeted)
+            {
+                podcastEpisode.Episode.Tweeted = true;
+                await _repository.Update(podcastEpisode.Podcast);
+            }
+            else
+            {
+                _logger.LogError($"Could not post tweet for candidate-podcast-episode: Podcast-id: '{podcastEpisode.Podcast.Id}', Episode-id: '{podcastEpisode.Episode.Id}'.");
+            }
+
             _logger.LogInformation($"{nameof(Tweet)} completed.");
         }
     }

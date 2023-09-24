@@ -1,8 +1,9 @@
-﻿using Tweetinvi;
+﻿using Amazon.Runtime.Internal.Util;
+using Azure.Core;
 
 namespace Indexer.Tweets;
 
 public interface ITwitterClientFactory
 {
-    ITwitterClient Create();
+    TwitterClient Create();
 }

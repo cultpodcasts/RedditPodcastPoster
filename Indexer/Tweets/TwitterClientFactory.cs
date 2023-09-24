@@ -1,7 +1,5 @@
-﻿using Google.Apis.Logging;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Tweetinvi;
 
 namespace Indexer.Tweets;
 
@@ -18,12 +16,8 @@ public class TwitterClientFactory : ITwitterClientFactory
         _options = options.Value;
     }
 
-    public ITwitterClient Create()
+    public TwitterClient Create()
     {
-        return new TwitterClient(
-            _options.ConsumerKey, 
-            _options.ConsumerSecret, 
-            _options.AccessToken,
-            _options.AccessTokenSecret);
+        throw new NotImplementedException();
     }
 }
