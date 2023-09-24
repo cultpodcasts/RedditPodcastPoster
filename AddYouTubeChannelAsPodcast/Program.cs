@@ -4,8 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using System.Reflection;
+using AddYouTubeChannelAsPodcast;
 using RedditPodcastPoster.Common;
-using YouTubeChannelIdSearch;
 
 var builder = Host.CreateApplicationBuilder(args);
 
