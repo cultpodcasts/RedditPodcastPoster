@@ -1,6 +1,8 @@
-﻿namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
+﻿using Google.Apis.YouTube.v3.Data;
+
+namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public interface IYouTubeChannelResolver
 {
-    Task<string?> FindChannel(string channelName, string mostRecentlyUploadVideoTitle);
+    Task<SearchResult?> FindChannel(string channelName, string mostRecentlyUploadVideoTitle);
 }
