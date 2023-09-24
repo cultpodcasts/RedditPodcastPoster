@@ -6,12 +6,12 @@ using OAuth;
 
 namespace Indexer.Tweets;
 
-public class TwitterClient: ITwitterClient
+public class TwitterClient : ITwitterClient
 {
-    private readonly TwitterOptions _options;
     private readonly ILogger<TwitterClient> _logger;
+    private readonly TwitterOptions _options;
 
-    public TwitterClient(IOptions<TwitterOptions> options, ILogger<TwitterClient>logger)
+    public TwitterClient(IOptions<TwitterOptions> options, ILogger<TwitterClient> logger)
     {
         _options = options.Value;
         _logger = logger;
@@ -22,7 +22,7 @@ public class TwitterClient: ITwitterClient
         var oauth = new OAuthMessageHandler(_options.ConsumerKey, _options.ConsumerSecret, _options.AccessToken,
             _options.AccessTokenSecret);
 
-        var tweetData = new { text = tweet };
+        var tweetData = new {text = tweet};
         var jsonData = JsonConvert.SerializeObject(tweetData);
 
         var createTweetRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.twitter.com/2/tweets")
@@ -35,11 +35,12 @@ public class TwitterClient: ITwitterClient
         var response = await httpClient.SendAsync(createTweetRequest);
         if (response.IsSuccessStatusCode)
         {
-            _logger.LogInformation("Tweet sent successfully!");
+            _logger.LogInformation($"Tweet sent successfully! Tweet: '{tweet}'.");
             return true;
         }
 
-        _logger.LogError($"Failed to send tweet. Error: {response.ReasonPhrase}");
+        _logger.LogError(
+            $"Failed to send tweet. Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Body: '{await response.Content.ReadAsStringAsync()}'.");
         return false;
     }
 }

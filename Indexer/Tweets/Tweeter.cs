@@ -77,7 +77,8 @@ public class Tweeter : ITweeter
                 tweetBuilder.AppendLine(podcastEpisode.Episode.Urls.Apple!.ToString());
             }
 
-            var tweeted = await _twitterClient.Send(tweetBuilder.ToString());
+            var tweet = tweetBuilder.ToString();
+            var tweeted = await _twitterClient.Send(tweet);
             if (tweeted)
             {
                 podcastEpisode.Episode.Tweeted = true;
