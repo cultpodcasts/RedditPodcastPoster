@@ -13,6 +13,6 @@ public class Podcast
     public virtual List<Episode> Episodes { get; set; } = null!;
     public Service? PrimaryPostService { get; set; }
     public string Name { get; set; } = "";
-    public string Publisher { get; set; } = "";
+    public string? Publisher { get; set; } = "";
 }
 

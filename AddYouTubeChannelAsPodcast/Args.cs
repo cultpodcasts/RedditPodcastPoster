@@ -1,6 +1,6 @@
 ﻿using CommandLine;
 
-namespace YouTubeChannelIdSearch;
+namespace AddYouTubeChannelAsPodcast;
 
 public class Args
 {

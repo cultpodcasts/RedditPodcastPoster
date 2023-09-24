@@ -38,9 +38,9 @@ public class Tweeter : ITweeter
                     p.Episodes.Select(e => new {Podcast = p, Episode = e}));
         var podcastEpisode = podcastEpisodes
             .Where(x =>
-                x.Episode.Release >= DateTime.UtcNow.Date && (
-                    (x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
-                     x.Episode.Urls.YouTube != null) || x.Episode.Urls.Spotify != null || x.Episode.Urls.Apple != null))
+                x.Episode.Release >= DateTime.UtcNow.Date &&
+                x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
+                (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null || x.Episode.Urls.Apple != null))
             .MinBy(x => x.Episode.Release);
         if (podcastEpisode != null)
         {
@@ -83,10 +83,12 @@ public class Tweeter : ITweeter
             {
                 podcastEpisode.Episode.Tweeted = true;
                 await _repository.Update(podcastEpisode.Podcast);
+                _logger.LogInformation($"Tweeted '{tweet}'.");
             }
             else
             {
-                var message = $"Could not post tweet for candidate-podcast-episode: Podcast-id: '{podcastEpisode.Podcast.Id}', Episode-id: '{podcastEpisode.Episode.Id}'.";
+                var message =
+                    $"Could not post tweet for candidate-podcast-episode: Podcast-id: '{podcastEpisode.Podcast.Id}', Episode-id: '{podcastEpisode.Episode.Id}'. Tweet: '{tweet}'.";
                 _logger.LogError(message);
                 throw new Exception(message);
             }

@@ -14,7 +14,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentat
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Common.Tests", "RedditPodcastPoster.Common.Tests\RedditPodcastPoster.Common.Tests.csproj", "{577AD099-5D35-441E-B02F-06D2180EFE55}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YouTubeChannelIdSearch", "YouTubeChannelIdSearch\YouTubeChannelIdSearch.csproj", "{62ED1991-2A45-4A71-9B6A-05829CBEE5F8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AddYouTubeChannelAsPodcast", "AddYouTubeChannelAsPodcast\AddYouTubeChannelAsPodcast.csproj", "{62ED1991-2A45-4A71-9B6A-05829CBEE5F8}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApplePodcastEpisodeEnricher", "ApplePodcastEpisodeEnricher\ApplePodcastEpisodeEnricher.csproj", "{32C94732-069F-4D86-B527-6B9D78AFA2D0}"
 EndProject

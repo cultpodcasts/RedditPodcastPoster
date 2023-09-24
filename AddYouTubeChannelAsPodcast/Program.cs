@@ -1,11 +1,13 @@
-﻿using CommandLine;
+﻿using System.Reflection;
+using AddYouTubeChannelAsPodcast;
+using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RedditPodcastPoster.Common.PodcastServices.YouTube;
-using System.Reflection;
 using RedditPodcastPoster.Common;
-using YouTubeChannelIdSearch;
+using RedditPodcastPoster.Common.Persistence;
+using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -18,10 +20,19 @@ builder.Configuration
     .AddSecrets(Assembly.GetExecutingAssembly());
 
 builder.Services
-    .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>();
+    .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>()
+    .AddScoped<AddYouTubeChannelProcessor>()
+    .AddScoped<IPodcastRepository, PodcastRepository>()
+    .AddScoped<IDataRepository, CosmosDbRepository>()
+    .AddSingleton<ICosmosDbKeySelector, CosmosDbKeySelector>()
+    .AddSingleton<PodcastFactory>()
+    .AddScoped<IYouTubeSearchService, YouTubeSearchService>();
 
 YouTubeServiceFactory.AddYouTubeService(builder.Services);
+CosmosDbClientFactory.AddCosmosClient(builder.Services);
 
+builder.Services
+    .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
 builder.Services
     .AddOptions<YouTubeSettings>().Bind(builder.Configuration.GetSection("youtube"));
 
@@ -32,15 +43,12 @@ return await Parser.Default.ParseArguments<Args>(args)
 
 async Task<int> Run(Args request)
 {
-    var youTubeChannelResolver = host.Services.GetService<IYouTubeChannelResolver>()!;
-    var match = await youTubeChannelResolver.FindChannel(request.ChannelName,
-        request.MostRecentUploadedVideoTitle);
-    if (match != null)
+    var processor = host.Services.GetService<AddYouTubeChannelProcessor>();
+    var result = await processor.Run(request);
+    if (result)
     {
-        Console.WriteLine($"Found channel-id: {match}");
         return 0;
     }
 
-    Console.WriteLine("Failed to match channel");
     return -1;
 }
