@@ -29,7 +29,6 @@ public class Indexer
         )] TimerInfo timerTimer
     )
     {
-        return;
         _logger.LogInformation(
             $"{nameof(Indexer)}.{nameof(Run)} Initiated. Current timer schedule is: {timerTimer.ScheduleStatus.Next:R}");
         _logger.LogInformation(_indexerOptions.ToString());
