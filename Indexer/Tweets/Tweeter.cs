@@ -86,8 +86,9 @@ public class Tweeter : ITweeter
             }
             else
             {
-                _logger.LogError(
-                    $"Could not post tweet for candidate-podcast-episode: Podcast-id: '{podcastEpisode.Podcast.Id}', Episode-id: '{podcastEpisode.Episode.Id}'.");
+                var message = $"Could not post tweet for candidate-podcast-episode: Podcast-id: '{podcastEpisode.Podcast.Id}', Episode-id: '{podcastEpisode.Episode.Id}'.";
+                _logger.LogError(message);
+                throw new Exception(message);
             }
 
             _logger.LogInformation($"{nameof(Tweet)} completed.");
