@@ -26,7 +26,7 @@ public class Publisher
         TimerInfo timerTimer
     )
     {
-        _logger.LogInformation($"{nameof(Indexer)}.{nameof(Run)} Initiated.");
+        _logger.LogInformation($"{nameof(Publisher)}.{nameof(Run)} Initiated. Current timer schedule is: {timerTimer.ScheduleStatus.Next:R}");
 
         await _contentPublisher.Publish();
 
