@@ -59,7 +59,15 @@ public class Tweeter : ITweeter
             var tweetBuilder = new StringBuilder();
 
             tweetBuilder.AppendLine($"\"{episodeTitle}\"");
-            tweetBuilder.AppendLine($"{podcastName}");
+            if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TwitterHandle))
+            {
+                tweetBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.TwitterHandle}");
+            }
+            else
+            {
+                tweetBuilder.AppendLine($"{podcastName}");
+            }
+
             tweetBuilder.AppendLine(
                 $"{podcastEpisode.Episode.Release.ToString("dd MMM yyyy")} {podcastEpisode.Episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture)}");
             tweetBuilder.AppendLine("#CultPodcasts");
