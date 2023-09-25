@@ -33,12 +33,12 @@ public class AddYouTubeChannelProcessor
             request.MostRecentUploadedVideoTitle);
         if (match != null)
         {
-            _logger.LogInformation($"Found channel-id: {match}");
+            _logger.LogInformation($"Found channel-id: {match.Snippet.ChannelId}");
             var allPodcasts = await _repository.GetAll().ToListAsync();
             var matchingPodcast = allPodcasts.SingleOrDefault(x => x.YouTubeChannelId == match.Snippet.ChannelId);
             if (matchingPodcast != null)
             {
-                _logger.LogError($"Found existing podcast with YouTube-Id '{match}' with Podcast-id '{matchingPodcast.Id}'.");
+                _logger.LogError($"Found existing podcast with YouTube-Id '{match.Snippet.ChannelId}' with Podcast-id '{matchingPodcast.Id}'.");
                 return false;
             }
 
