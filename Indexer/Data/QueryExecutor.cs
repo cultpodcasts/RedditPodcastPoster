@@ -30,7 +30,6 @@ public class QueryExecutor : IQueryExecutor
 
     public async Task<HomePageModel> GetHomePage(CancellationToken ct)
     {
-        _logger.LogInformation($"{nameof(GetHomePage)} initiated.");
         var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
 
         var podcastResults =  GetRecentPodcasts(ct, c);
@@ -42,8 +41,6 @@ public class QueryExecutor : IQueryExecutor
         IEnumerable<Task> tasks = new Task[] { podcastResults, count, totalDuration };
 
         await Task.WhenAll(tasks);
-
-        _logger.LogInformation($"{nameof(GetHomePage)} complete.");
 
         return new HomePageModel
         {

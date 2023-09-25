@@ -56,4 +56,15 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
             playlistItemSnippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
             playlistItemSnippet.ToYouTubeUrl());
     }
+
+    public async Task<IList<Episode>> GetPlaylistEpisodes(YouTubeGetPlaylistEpisodesRequest youTubeGetPlaylistEpisodesRequest)
+    {
+        var playlistVideos= await _youTubeSearchService.GetPlaylist(youTubeGetPlaylistEpisodesRequest.playlistId);
+        var videoDetails =
+            await _youTubeSearchService.GetVideoDetails(playlistVideos.Select(x => x.Snippet.ResourceId.VideoId));
+        return playlistVideos.Select(playlistItem => GetEpisode(
+                playlistItem.Snippet, videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == playlistItem.Snippet.ResourceId.VideoId)!))
+            .ToList();
+
+    }
 }

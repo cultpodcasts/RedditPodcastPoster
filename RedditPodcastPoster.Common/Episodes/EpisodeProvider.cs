@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.ComponentModel.Design;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
@@ -44,9 +45,18 @@ public class EpisodeProvider : IEpisodeProvider
             }
             else
             {
-                episodes = await _youTubeEpisodeProvider.GetEpisodes(
-                    new YouTubeGetEpisodesRequest(podcast.YouTubeChannelId, processRequestReleasedSince));
-                _logger.LogInformation($"{nameof(GetEpisodes)} (YouTube) - Found '{episodes.Count}' episodes released since {processRequestReleasedSince:R}");
+                if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
+                {
+                    episodes = await _youTubeEpisodeProvider.GetPlaylistEpisodes(
+                        new YouTubeGetPlaylistEpisodesRequest(podcast.YouTubePlaylistId, processRequestReleasedSince));
+
+                }
+                else
+                {
+                    episodes = await _youTubeEpisodeProvider.GetEpisodes(
+                        new YouTubeGetEpisodesRequest(podcast.YouTubeChannelId, processRequestReleasedSince));
+                    _logger.LogInformation($"{nameof(GetEpisodes)} (YouTube) - Found '{episodes.Count}' episodes released since {processRequestReleasedSince:R}");
+                }
             }
         }
         else

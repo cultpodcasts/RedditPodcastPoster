@@ -43,7 +43,7 @@ public class EpisodeResolver : IEpisodeResolver
             {
                 foreach (var matchingEpisode in matchingEpisodes)
                 {
-                    if (matchingEpisode is {Posted: false, Ignored: false})
+                    if (matchingEpisode is {Posted: false, Ignored: false, Removed: false})
                     {
                         var post = !matchingPodcast!.IsDelayedYouTubePublishing(matchingEpisode);
 

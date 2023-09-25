@@ -52,6 +52,17 @@ public class Podcast : CosmosSelector
     [JsonPropertyOrder(52)]
     public string YouTubeChannelId { get; set; } = "";
 
+    /// <summary>
+    /// This only works for Spotify-channels with YouTube where this is a side-podcast in a YouTube-playlist
+    /// </summary>
+    [JsonPropertyName("youTubePlaylistId")]
+    [JsonPropertyOrder(53)]
+    public string YouTubePlaylistId { get; set; }
+
+    [JsonPropertyName("twitterHandle")]
+    [JsonPropertyOrder(53)]
+    public string TwitterHandle { get; set; }
+
     [JsonPropertyName("youTubePublicationDelay")]
     [JsonPropertyOrder(60)]
     public string YouTubePublishingDelayTimeSpan { get; set; } = "";
@@ -79,6 +90,7 @@ public class Podcast : CosmosSelector
     [JsonPropertyName("fileKey")]
     [JsonPropertyOrder(100)]
     public string FileKey { get; set; } = "";
+
 
     public Podcast FromName(string name)
     {

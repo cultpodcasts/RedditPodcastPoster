@@ -29,7 +29,6 @@ public class Tweeter : ITweeter
 
     public async Task Tweet()
     {
-        _logger.LogInformation($"{nameof(Tweet)} initiated.");
         var podcasts = await _repository.GetAll().ToListAsync();
         var podcastEpisodes =
             podcasts
@@ -92,8 +91,6 @@ public class Tweeter : ITweeter
                 _logger.LogError(message);
                 throw new Exception(message);
             }
-
-            _logger.LogInformation($"{nameof(Tweet)} completed.");
         }
     }
 }

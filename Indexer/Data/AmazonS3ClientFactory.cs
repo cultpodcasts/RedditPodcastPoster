@@ -20,8 +20,6 @@ public class AmazonS3ClientFactory : IAmazonS3ClientFactory
 
     public IAmazonS3 Create()
     {
-        _logger.LogInformation($"{nameof(Create)} initiated.");
-
         var config = new AmazonS3Config
         {
             ServiceURL = $"https://{_cloudFlareOptions.AccountId}.r2.cloudflarestorage.com",
@@ -31,8 +29,6 @@ public class AmazonS3ClientFactory : IAmazonS3ClientFactory
         AWSCredentials credentials = new BasicAWSCredentials(_cloudFlareOptions.R2AccessKey, _cloudFlareOptions.R2SecretKey);
         var s3Client = new AmazonS3Client(credentials, config);
 
-
-        _logger.LogInformation($"{nameof(Create)} completed.");
         return s3Client;
     }
 }
