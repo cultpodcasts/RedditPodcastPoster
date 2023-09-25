@@ -8,4 +8,5 @@ public interface IYouTubeEpisodeProvider
     Task<IList<Episode>> GetEpisodes(YouTubeGetEpisodesRequest request);
     Episode GetEpisode(SearchResult searchResult, Video videoDetails);
     Episode GetEpisode(PlaylistItemSnippet playlistItemSnippet, Video videoDetails);
+    Task<IList<Episode>> GetPlaylistEpisodes(YouTubeGetPlaylistEpisodesRequest youTubeGetPlaylistEpisodesRequest);
 }

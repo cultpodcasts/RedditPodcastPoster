@@ -122,7 +122,16 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         var episodes =
             await _spotifyClient.Shows.GetEpisodes(spotifyId,
                 new ShowEpisodesRequest {Market = Market});
-        IEnumerable<SimpleEpisode> allEpisodes = await _spotifyClient.PaginateAll(episodes);
+        IEnumerable<SimpleEpisode> allEpisodes;
+        try
+        {
+            allEpisodes = await _spotifyClient.PaginateAll(episodes);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failure to retrieve episodes from Spotify with spotify-id '{spotifyId}'.");
+            return Enumerable.Empty<SimpleEpisode>();
+        }
 
         return allEpisodes;
     }

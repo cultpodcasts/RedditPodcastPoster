@@ -29,7 +29,6 @@ public class Tweeter : ITweeter
 
     public async Task Tweet()
     {
-        _logger.LogInformation($"{nameof(Tweet)} initiated.");
         var podcasts = await _repository.GetAll().ToListAsync();
         var podcastEpisodes =
             podcasts
@@ -60,7 +59,15 @@ public class Tweeter : ITweeter
             var tweetBuilder = new StringBuilder();
 
             tweetBuilder.AppendLine($"\"{episodeTitle}\"");
-            tweetBuilder.AppendLine($"{podcastName}");
+            if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TwitterHandle))
+            {
+                tweetBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.TwitterHandle}");
+            }
+            else
+            {
+                tweetBuilder.AppendLine($"{podcastName}");
+            }
+
             tweetBuilder.AppendLine(
                 $"{podcastEpisode.Episode.Release.ToString("dd MMM yyyy")} {podcastEpisode.Episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture)}");
             tweetBuilder.AppendLine("#CultPodcasts");
@@ -92,8 +99,6 @@ public class Tweeter : ITweeter
                 _logger.LogError(message);
                 throw new Exception(message);
             }
-
-            _logger.LogInformation($"{nameof(Tweet)} completed.");
         }
     }
 }

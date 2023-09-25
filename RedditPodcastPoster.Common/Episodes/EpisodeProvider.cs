@@ -32,7 +32,8 @@ public class EpisodeProvider : IEpisodeProvider
         {
             episodes = await _spotifyEpisodeProvider.GetEpisodes(
                 new SpotifyGetEpisodesRequest(podcast.SpotifyId, processRequestReleasedSince));
-            _logger.LogInformation($"{nameof(GetEpisodes)} (Spotify) - Found '{episodes.Count}' episodes released since {processRequestReleasedSince:R}");
+            _logger.LogInformation(
+                $"{nameof(GetEpisodes)} (Spotify) - Found '{episodes.Count}' episodes released since {processRequestReleasedSince:R}");
         }
         else if (podcast.ReleaseAuthority is Service.YouTube || !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
@@ -44,9 +45,18 @@ public class EpisodeProvider : IEpisodeProvider
             }
             else
             {
-                episodes = await _youTubeEpisodeProvider.GetEpisodes(
-                    new YouTubeGetEpisodesRequest(podcast.YouTubeChannelId, processRequestReleasedSince));
-                _logger.LogInformation($"{nameof(GetEpisodes)} (YouTube) - Found '{episodes.Count}' episodes released since {processRequestReleasedSince:R}");
+                if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
+                {
+                    episodes = await _youTubeEpisodeProvider.GetPlaylistEpisodes(
+                        new YouTubeGetPlaylistEpisodesRequest(podcast.YouTubePlaylistId, processRequestReleasedSince));
+                }
+                else
+                {
+                    episodes = await _youTubeEpisodeProvider.GetEpisodes(
+                        new YouTubeGetEpisodesRequest(podcast.YouTubeChannelId, processRequestReleasedSince));
+                    _logger.LogInformation(
+                        $"{nameof(GetEpisodes)} (YouTube) - Found '{episodes.Count}' episodes released since {processRequestReleasedSince:R}");
+                }
             }
         }
         else
@@ -57,7 +67,8 @@ public class EpisodeProvider : IEpisodeProvider
 
         if (!podcast.IndexAllEpisodes && !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
         {
-            _logger.LogInformation($"{nameof(GetEpisodes)} - Filtering episodes by '{nameof(podcast.EpisodeIncludeTitleRegex)}'='{podcast.EpisodeIncludeTitleRegex}'.");
+            _logger.LogInformation(
+                $"{nameof(GetEpisodes)} - Filtering episodes by '{nameof(podcast.EpisodeIncludeTitleRegex)}'='{podcast.EpisodeIncludeTitleRegex}'.");
             var includeEpisodeRegex = new Regex(podcast.EpisodeIncludeTitleRegex,
                 RegexOptions.Compiled | RegexOptions.IgnoreCase);
             episodes = episodes.Where(x => includeEpisodeRegex.IsMatch(x.Title)).ToList();

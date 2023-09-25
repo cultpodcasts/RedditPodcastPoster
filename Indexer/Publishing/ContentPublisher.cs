@@ -28,7 +28,6 @@ public class ContentPublisher : IContentPublisher
 
     public async Task Publish()
     {
-        _logger.LogInformation($"{nameof(Publish)} initiated.");
         var homepageContent = await _queryExecutor.GetHomePage(CancellationToken.None);
         var homepageContentAsJson = JsonSerializer.Serialize(homepageContent);
 
@@ -50,7 +49,5 @@ public class ContentPublisher : IContentPublisher
         {
             _logger.LogError(ex, "Failed to upload homepage-content to R2");
         }
-
-        _logger.LogInformation($"{nameof(Publish)} complete.");
     }
 }
