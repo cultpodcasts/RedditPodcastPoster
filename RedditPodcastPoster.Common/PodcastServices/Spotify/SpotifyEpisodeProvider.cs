@@ -23,7 +23,7 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
 
     public async Task<IList<Episode>> GetEpisodes(SpotifyGetEpisodesRequest request)
     {
-        var allEpisodes = await _spotifyItemResolver.GetEpisodes(request.SpotifyId);
+        var allEpisodes = await _spotifyItemResolver.GetEpisodes(request.SpotifyId, request.ProcessRequestReleasedSince);
         if (request.ProcessRequestReleasedSince.HasValue)
         {
             allEpisodes = allEpisodes.Where(x => x.GetReleaseDate() > request.ProcessRequestReleasedSince.Value);

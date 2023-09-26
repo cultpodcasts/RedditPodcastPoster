@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Text;
 using SpotifyAPI.Web;
+using System.Text.RegularExpressions;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
@@ -117,15 +118,28 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         return new SpotifyPodcastWrapper(matchingFullShow, matchingSimpleShow);
     }
 
-    public async Task<IEnumerable<SimpleEpisode>> GetEpisodes(string spotifyId)
+    public async Task<IEnumerable<SimpleEpisode>> GetEpisodes(string spotifyId, DateTime? releasedSince)
     {
         var episodes =
             await _spotifyClient.Shows.GetEpisodes(spotifyId,
                 new ShowEpisodesRequest {Market = Market});
-        IEnumerable<SimpleEpisode> allEpisodes;
+        List<SimpleEpisode> allEpisodes = new List<SimpleEpisode>();
         try
         {
-            allEpisodes = await _spotifyClient.PaginateAll(episodes);
+            if (releasedSince == null)
+            {
+                var fetch = await _spotifyClient.PaginateAll(episodes);
+                allEpisodes= fetch.ToList();
+            }
+            else
+            {
+                while (episodes.Items.Last().GetReleaseDate() > releasedSince)
+                {
+                    await _spotifyClient.Paginate(episodes).ToListAsync();
+                }
+
+                allEpisodes = episodes.Items;
+            }
         }
         catch (Exception ex)
         {

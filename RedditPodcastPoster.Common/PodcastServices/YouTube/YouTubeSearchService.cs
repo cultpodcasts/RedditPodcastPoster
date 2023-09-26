@@ -89,7 +89,7 @@ public class YouTubeSearchService : IYouTubeSearchService
     {
         var result = new List<PlaylistItem>();
         var nextPageToken = "";
-        while (nextPageToken != null)
+        while (nextPageToken != null && result.LastOrDefault().Snippet.PublishedAtDateTimeOffset > )
         {
             var playlistRequest = _youTubeService.PlaylistItems.List("snippet");
             playlistRequest.PlaylistId = playlistId;

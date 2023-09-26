@@ -59,7 +59,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
 
     public async Task<IList<Episode>> GetPlaylistEpisodes(YouTubeGetPlaylistEpisodesRequest youTubeGetPlaylistEpisodesRequest)
     {
-        var playlistVideos= await _youTubeSearchService.GetPlaylist(youTubeGetPlaylistEpisodesRequest.playlistId);
+        var playlistVideos= await _youTubeSearchService.GetPlaylist(youTubeGetPlaylistEpisodesRequest.playlistId, youTubeGetPlaylistEpisodesRequest.ProcessRequestReleasedSince);
         var videoDetails =
             await _youTubeSearchService.GetVideoDetails(playlistVideos.Select(x => x.Snippet.ResourceId.VideoId));
         return playlistVideos.Select(playlistItem => GetEpisode(
