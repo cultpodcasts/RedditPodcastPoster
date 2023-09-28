@@ -102,12 +102,12 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
 
     private async Task EnrichFromSpotify(Podcast podcast, Episode episode)
     {
-        var spotifyItem = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode));
-        if (spotifyItem?.FullEpisode != null)
+        var spotifyEpisode = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode));
+        if (spotifyEpisode != null)
         {
-            _logger.LogInformation($"{nameof(EnrichFromSpotify)} Found matching Spotify episode: '{spotifyItem.FullEpisode.Id}' with title '{spotifyItem.FullEpisode.Name}' and release-date '{spotifyItem.FullEpisode.ReleaseDate}'.");
-            episode.SpotifyId = spotifyItem.FullEpisode.Id;
-            episode.Urls.Spotify = spotifyItem.Url();
+            _logger.LogInformation($"{nameof(EnrichFromSpotify)} Found matching Spotify episode: '{spotifyEpisode.Id}' with title '{spotifyEpisode.Name}' and release-date '{spotifyEpisode.ReleaseDate}'.");
+            episode.SpotifyId = spotifyEpisode.Id;
+            episode.Urls.Spotify = spotifyEpisode.GetUrl();
         }
     }
 }

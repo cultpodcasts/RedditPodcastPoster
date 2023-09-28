@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Text;
 using SpotifyAPI.Web;
-using System.Text.RegularExpressions;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
@@ -22,7 +21,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         _logger = logger;
     }
 
-    public async Task<SpotifyEpisodeWrapper> FindEpisode(FindSpotifyEpisodeRequest request)
+    public async Task<FullEpisode?> FindEpisode(FindSpotifyEpisodeRequest request)
     {
         FullEpisode? fullEpisode = null;
         if (!string.IsNullOrWhiteSpace(request.EpisodeSpotifyId))
@@ -69,7 +68,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             }
         }
 
-        return new SpotifyEpisodeWrapper(fullEpisode);
+        return fullEpisode;
     }
 
     public async Task<SpotifyPodcastWrapper> FindPodcast(FindSpotifyPodcastRequest request)
@@ -118,35 +117,35 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         return new SpotifyPodcastWrapper(matchingFullShow, matchingSimpleShow);
     }
 
-    public async Task<IEnumerable<SimpleEpisode>> GetEpisodes(string spotifyId, DateTime? releasedSince)
+    public async Task<IEnumerable<SimpleEpisode>> GetEpisodes(GetSpotifyPodcastEpisodesRequest request)
     {
-        var episodes =
-            await _spotifyClient.Shows.GetEpisodes(spotifyId,
-                new ShowEpisodesRequest {Market = Market});
-        List<SimpleEpisode> allEpisodes = new List<SimpleEpisode>();
+        var pagedEpisodes =
+            await _spotifyClient.Shows.GetEpisodes(request.SpotifyPodcastId, new ShowEpisodesRequest {Market = Market});
+        var episodes = new List<SimpleEpisode>();
         try
         {
-            if (releasedSince == null)
+            if (request.SpotifyPodcastId == null)
             {
-                var fetch = await _spotifyClient.PaginateAll(episodes);
-                allEpisodes= fetch.ToList();
+                var fetch = await _spotifyClient.PaginateAll(pagedEpisodes);
+                episodes = fetch.ToList();
             }
             else
             {
-                while (episodes.Items.Last().GetReleaseDate() > releasedSince)
+                episodes.AddRange(pagedEpisodes.Items);
+                while (pagedEpisodes.Items.Last().GetReleaseDate() > request.ReleasedSince)
                 {
-                    await _spotifyClient.Paginate(episodes).ToListAsync();
+                    await _spotifyClient.Paginate(pagedEpisodes).ToListAsync();
                 }
 
-                allEpisodes = episodes.Items;
+                episodes = pagedEpisodes.Items;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Failure to retrieve episodes from Spotify with spotify-id '{spotifyId}'.");
+            _logger.LogError(ex, $"Failure to retrieve episodes from Spotify with spotify-id '{request.SpotifyPodcastId}'.");
             return Enumerable.Empty<SimpleEpisode>();
         }
 
-        return allEpisodes;
+        return episodes;
     }
 }
