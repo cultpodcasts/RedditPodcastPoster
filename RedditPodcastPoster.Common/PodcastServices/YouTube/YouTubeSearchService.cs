@@ -85,11 +85,20 @@ public class YouTubeSearchService : IYouTubeSearchService
         throw new NotImplementedException("method not fully implemented");
     }
 
-    public async Task<IList<PlaylistItem>> GetPlaylist(string playlistId)
+    public async Task<Channel?> GetChannel(string channelId)
+    {
+        var listRequest = _youTubeService.Channels.List("snippet,contentDetails,contentOwnerDetails");
+        listRequest.Id = channelId;
+        var result = await listRequest.ExecuteAsync();
+        return result.Items.SingleOrDefault();
+    }
+
+    public async Task<IList<PlaylistItem>> GetPlaylist(string playlistId, DateTime? releasedSince)
     {
         var result = new List<PlaylistItem>();
         var nextPageToken = "";
-        while (nextPageToken != null && result.LastOrDefault().Snippet.PublishedAtDateTimeOffset > )
+        while (nextPageToken != null &&
+               ReleasedSinceDate(result.LastOrDefault()?.Snippet.PublishedAtDateTimeOffset, releasedSince))
         {
             var playlistRequest = _youTubeService.PlaylistItems.List("snippet");
             playlistRequest.PlaylistId = playlistId;
@@ -103,11 +112,13 @@ public class YouTubeSearchService : IYouTubeSearchService
         return result;
     }
 
-    public async Task<Channel?> GetChannel(string channelId)
+    private bool ReleasedSinceDate(DateTimeOffset? releaseDate, DateTime? date)
     {
-        var listRequest = _youTubeService.Channels.List("snippet,contentDetails,contentOwnerDetails");
-        listRequest.Id = channelId;
-        var result = await listRequest.ExecuteAsync();
-        return result.Items.SingleOrDefault();
+        if (releaseDate.HasValue && date.HasValue)
+        {
+            return releaseDate.Value.ToUniversalTime() > date.Value.ToUniversalTime();
+        }
+
+        return true;
     }
 }

@@ -9,6 +9,6 @@ public interface IYouTubeSearchService
     Task<IList<SearchResult>> GetLatestChannelVideos(string youTubeChannelId, DateTime? publishedSince);
     Task FindChannel(string channelName);
     Task<IList<Video>> GetVideoDetails(IEnumerable<string> videoIds);
-    Task<IList<PlaylistItem>> GetPlaylist(string playlistId);
+    Task<IList<PlaylistItem>> GetPlaylist(string playlistId, DateTime? releasedSince);
     Task<Channel?> GetChannel(string channelId);
 }

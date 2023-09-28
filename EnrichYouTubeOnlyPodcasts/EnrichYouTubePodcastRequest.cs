@@ -11,4 +11,6 @@ public class EnrichYouTubePodcastRequest
     [Value(1, MetaName = "YouTube Playlist ID", HelpText = "")]
     public string PlaylistId { get; set; } = "";
 
+    [Option("released-since", Default = 7,  HelpText = "Only ingest items released within these days" )]
+    public int ReleasedSince { get; set; }
 }

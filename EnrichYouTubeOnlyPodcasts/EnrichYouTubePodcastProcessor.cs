@@ -58,7 +58,8 @@ public class EnrichYouTubePodcastProcessor
             playlistId = request.PlaylistId;
         }
 
-        var playlistItems = await _youTubeSearchService.GetPlaylist(playlistId);
+        var playlistItems =
+            await _youTubeSearchService.GetPlaylist(playlistId, DateTime.Today.AddDays(-1 * request.ReleasedSince));
 
         var missingPlaylistItems = playlistItems.Where(playlistItem =>
             podcast.Episodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();
