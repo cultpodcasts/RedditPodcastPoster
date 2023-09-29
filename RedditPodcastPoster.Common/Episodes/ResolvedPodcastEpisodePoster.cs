@@ -47,7 +47,7 @@ public class ResolvedPodcastEpisodePoster : IResolvedPodcastEpisodePoster
             !string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex) &&
             int.TryParse(
                 new Regex(matchingPodcastEpisode.Podcast.TitleRegex).Match(matchingPodcastEpisode.Episode.Title)
-                    .Result("${partnumber}"), out var _))
+                    .Result("${partnumber}"), out _))
         {
             orderedBundleEpisodes = GetOrderedBundleEpisodes(matchingPodcastEpisode).ToArray();
         }
