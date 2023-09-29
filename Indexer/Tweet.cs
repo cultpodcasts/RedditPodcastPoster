@@ -26,7 +26,6 @@ public class Tweet
         TimerInfo timerTimer
     )
     {
-        return;
         _logger.LogInformation($"{nameof(Tweet)}.{nameof(Run)} Initiated. Current timer schedule is: {timerTimer.ScheduleStatus.Next:R}");
 
         await _tweeter.Tweet();
