@@ -74,6 +74,10 @@ public class TextSanitiser : ITextSanitiser
             replacement += " Pt.${partnumber}";
         }
 
-        return match.Result(replacement);
+        if (match.Success)
+        {
+            return match.Result(replacement);
+        }
+        return episodeTitle;
     }
 }

@@ -58,7 +58,9 @@ public class EnrichYouTubePodcastProcessor
             playlistId = request.PlaylistId;
         }
 
-        var playlistItems = await _youTubeSearchService.GetPlaylist(playlistId);
+        var playlistItems =
+            await _youTubeSearchService.GetPlaylist(new GetYouTubePlaylistItems(playlistId,
+                DateTime.Today.AddDays(-1 * request.ReleasedSince)));
 
         var missingPlaylistItems = playlistItems.Where(playlistItem =>
             podcast.Episodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();
@@ -91,9 +93,7 @@ public class EnrichYouTubePodcastProcessor
                 }
             }
         }
-
         podcast.Episodes = podcast.Episodes.OrderByDescending(x => x.Release).ToList();
-
         await _podcastRepository.Save(podcast);
     }
 
@@ -129,7 +129,6 @@ public class EnrichYouTubePodcastProcessor
                 }
             }
         }
-
         return false;
     }
 }

@@ -20,12 +20,13 @@ public class Tweet
     [Function("Tweet")]
     public async Task Run([TimerTrigger("6 */2 * * *"
 #if DEBUG
-            , RunOnStartup = true
+            , RunOnStartup = false
 #endif
         )]
         TimerInfo timerTimer
     )
     {
+        return;
         _logger.LogInformation($"{nameof(Tweet)}.{nameof(Run)} Initiated. Current timer schedule is: {timerTimer.ScheduleStatus.Next:R}");
 
         await _tweeter.Tweet();

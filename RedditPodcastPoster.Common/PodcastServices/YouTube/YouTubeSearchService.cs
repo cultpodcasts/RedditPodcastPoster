@@ -18,9 +18,7 @@ public class YouTubeSearchService : IYouTubeSearchService
         _logger = logger;
     }
 
-    public async Task<IList<SearchResult>> GetLatestChannelVideos(
-        string youTubeChannelId,
-        DateTime? publishedSince)
+    public async Task<IList<SearchResult>> GetLatestChannelVideos(GetLatestYouTubeChannelVideosRequest request)
     {
         var result = new List<SearchResult>();
         var nextPageToken = "";
@@ -28,15 +26,15 @@ public class YouTubeSearchService : IYouTubeSearchService
         {
             var searchListRequest = _youTubeService.Search.List("snippet");
             searchListRequest.MaxResults = IYouTubeSearchService.MaxSearchResults;
-            searchListRequest.ChannelId = youTubeChannelId;
+            searchListRequest.ChannelId = request.YouTubeChannelId;
             searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
             searchListRequest.Type = "video";
             searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
             searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
-            if (publishedSince.HasValue)
+            if (request.PublishedSince.HasValue)
             {
                 searchListRequest.PublishedAfter =
-                    string.Concat(publishedSince.Value.ToString("o", CultureInfo.InvariantCulture),
+                    string.Concat(request.PublishedSince.Value.ToString("o", CultureInfo.InvariantCulture),
                         "Z");
             }
 
@@ -85,14 +83,23 @@ public class YouTubeSearchService : IYouTubeSearchService
         throw new NotImplementedException("method not fully implemented");
     }
 
-    public async Task<IList<PlaylistItem>> GetPlaylist(string playlistId)
+    public async Task<Channel?> GetChannel(string channelId)
+    {
+        var listRequest = _youTubeService.Channels.List("snippet,contentDetails,contentOwnerDetails");
+        listRequest.Id = channelId;
+        var result = await listRequest.ExecuteAsync();
+        return result.Items.SingleOrDefault();
+    }
+
+    public async Task<IList<PlaylistItem>> GetPlaylist(GetYouTubePlaylistItems request)
     {
         var result = new List<PlaylistItem>();
         var nextPageToken = "";
-        while (nextPageToken != null)
+        while (nextPageToken != null &&
+               ReleasedSinceDate(result.LastOrDefault()?.Snippet.PublishedAtDateTimeOffset, request.ReleasedSince))
         {
             var playlistRequest = _youTubeService.PlaylistItems.List("snippet");
-            playlistRequest.PlaylistId = playlistId;
+            playlistRequest.PlaylistId = request.PlaylistId;
             playlistRequest.MaxResults = 50;
             playlistRequest.PageToken = nextPageToken;
             var playlistItemsListResponse = await playlistRequest.ExecuteAsync();
@@ -103,11 +110,13 @@ public class YouTubeSearchService : IYouTubeSearchService
         return result;
     }
 
-    public async Task<Channel?> GetChannel(string channelId)
+    private bool ReleasedSinceDate(DateTimeOffset? releaseDate, DateTime? date)
     {
-        var listRequest = _youTubeService.Channels.List("snippet,contentDetails,contentOwnerDetails");
-        listRequest.Id = channelId;
-        var result = await listRequest.ExecuteAsync();
-        return result.Items.SingleOrDefault();
+        if (releaseDate.HasValue && date.HasValue)
+        {
+            return releaseDate.Value.ToUniversalTime() > date.Value.ToUniversalTime();
+        }
+
+        return true;
     }
 }

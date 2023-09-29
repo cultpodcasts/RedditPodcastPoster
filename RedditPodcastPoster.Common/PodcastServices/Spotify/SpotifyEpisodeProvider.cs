@@ -3,9 +3,6 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
-public record SpotifyGetEpisodesRequest(string SpotifyId, DateTime? ProcessRequestReleasedSince);
-
-
 public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
 {
     private readonly ILogger<SpotifyEpisodeProvider> _logger;
@@ -23,13 +20,15 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
 
     public async Task<IList<Episode>> GetEpisodes(SpotifyGetEpisodesRequest request)
     {
-        var allEpisodes = await _spotifyItemResolver.GetEpisodes(request.SpotifyId);
+        var episodes =
+            await _spotifyItemResolver.GetEpisodes(
+                new GetSpotifyPodcastEpisodesRequest(request.SpotifyId, request.ProcessRequestReleasedSince));
         if (request.ProcessRequestReleasedSince.HasValue)
         {
-            allEpisodes = allEpisodes.Where(x => x.GetReleaseDate() > request.ProcessRequestReleasedSince.Value);
+            episodes = episodes.Where(x => x.GetReleaseDate() > request.ProcessRequestReleasedSince.Value);
         }
 
-        return allEpisodes.Select(x =>
+        return episodes.Select(x =>
             Episode.FromSpotify(
                 x.Id,
                 x.Name,

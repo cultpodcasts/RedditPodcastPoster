@@ -44,7 +44,10 @@ public class ResolvedPodcastEpisodePoster : IResolvedPodcastEpisodePoster
     {
         var orderedBundleEpisodes = Array.Empty<Episode>();
         if (matchingPodcastEpisode.Podcast!.Bundles &&
-            !string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex))
+            !string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex) &&
+            int.TryParse(
+                new Regex(matchingPodcastEpisode.Podcast.TitleRegex).Match(matchingPodcastEpisode.Episode.Title)
+                    .Result("${partnumber}"), out var _))
         {
             orderedBundleEpisodes = GetOrderedBundleEpisodes(matchingPodcastEpisode).ToArray();
         }

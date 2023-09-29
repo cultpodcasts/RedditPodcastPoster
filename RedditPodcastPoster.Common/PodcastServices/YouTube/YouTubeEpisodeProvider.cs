@@ -24,7 +24,9 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
     public async Task<IList<Episode>> GetEpisodes(YouTubeGetEpisodesRequest request)
     {
         var youTubeVideos =
-            await _youTubeSearchService.GetLatestChannelVideos(request.YouTubeChannelId, request.ProcessRequestReleasedSince);
+            await _youTubeSearchService.GetLatestChannelVideos(
+                new GetLatestYouTubeChannelVideosRequest(request.YouTubeChannelId,
+                    request.ProcessRequestReleasedSince));
         var videoDetails =
             await _youTubeSearchService.GetVideoDetails(youTubeVideos.Select(x => x.Id.VideoId));
 
@@ -59,12 +61,13 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
 
     public async Task<IList<Episode>> GetPlaylistEpisodes(YouTubeGetPlaylistEpisodesRequest youTubeGetPlaylistEpisodesRequest)
     {
-        var playlistVideos= await _youTubeSearchService.GetPlaylist(youTubeGetPlaylistEpisodesRequest.playlistId);
+        var playlistVideos = await _youTubeSearchService.GetPlaylist(new GetYouTubePlaylistItems(
+            youTubeGetPlaylistEpisodesRequest.playlistId,
+            youTubeGetPlaylistEpisodesRequest.ProcessRequestReleasedSince));
         var videoDetails =
             await _youTubeSearchService.GetVideoDetails(playlistVideos.Select(x => x.Snippet.ResourceId.VideoId));
         return playlistVideos.Select(playlistItem => GetEpisode(
                 playlistItem.Snippet, videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == playlistItem.Snippet.ResourceId.VideoId)!))
             .ToList();
-
     }
 }
