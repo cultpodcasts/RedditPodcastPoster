@@ -24,6 +24,11 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
             await _spotifyItemResolver.GetEpisodes(
                 new GetSpotifyPodcastEpisodesRequest(request.SpotifyId, request.ProcessRequestReleasedSince));
 
+        if (request.ProcessRequestReleasedSince.HasValue)
+        {
+            episodes = episodes.Where(x => x.GetReleaseDate() > request.ProcessRequestReleasedSince.Value);
+        }
+
         return episodes.Select(x =>
             Episode.FromSpotify(
                 x.Id,
