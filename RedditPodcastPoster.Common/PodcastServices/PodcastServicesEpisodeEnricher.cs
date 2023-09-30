@@ -37,77 +37,78 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
     {
         foreach (var episode in newEpisodes)
         {
+            var enrichmentRequest = new EnrichmentRequest(podcast, episode, indexOptions.ReleasedSince);
             foreach (Service service in Enum.GetValues(typeof(Service)))
             {
                 switch (service)
                 {
                     case Service.Spotify
                         when episode.Urls.Spotify == null || string.IsNullOrWhiteSpace(episode.SpotifyId):
-                        await EnrichFromSpotify(podcast, episode);
+                        await EnrichFromSpotify(enrichmentRequest);
                         break;
                     case Service.Apple when episode.Urls.Apple == null || episode.AppleId == 0:
-                        await EnrichFromApple(podcast, episode);
+                        await EnrichFromApple(enrichmentRequest);
                         break;
                     case Service.YouTube when !indexOptions.SkipYouTubeUrlResolving && !string.IsNullOrWhiteSpace(
                                                   podcast.YouTubeChannelId) &&
                                               (episode.Urls.YouTube == null ||
                                                string.IsNullOrWhiteSpace(episode.YouTubeId)):
-                        await EnrichFromYouTube(podcast, episode, indexOptions.ReleasedSince);
+                        await EnrichFromYouTube(enrichmentRequest);
                         break;
                 }
             }
         }
     }
 
-    private async Task EnrichFromYouTube(Podcast podcast, Episode episode, DateTime? publishedSince)
+    private async Task EnrichFromYouTube(EnrichmentRequest request)
     {
-        if (podcast.IsDelayedYouTubePublishing(episode))
+        if (request.Podcast.IsDelayedYouTubePublishing(request.Episode))
         {
-            _logger.LogInformation($"{nameof(EnrichFromYouTube)} Bypassing enriching of '{episode.Title}' with release-date of '{episode.Release:R}' from YouTube as is below the {nameof(podcast.YouTubePublishingDelayTimeSpan)} which is '{podcast.YouTubePublishingDelayTimeSpan}'.");
+            _logger.LogInformation($"{nameof(EnrichFromYouTube)} Bypassing enriching of '{request.Episode.Title}' with release-date of '{request.Episode.Release:R}' from YouTube as is below the {nameof(request.Podcast.YouTubePublishingDelayTimeSpan)} which is '{request.Podcast.YouTubePublishingDelayTimeSpan}'.");
             return;
         }
 
-        var youTubeItem = await _youTubeItemResolver.FindEpisode(podcast, episode, publishedSince);
+        var youTubeItem = await _youTubeItemResolver.FindEpisode(request);
         if (!string.IsNullOrWhiteSpace(youTubeItem?.Id.VideoId))
         {
             _logger.LogInformation($"{nameof(EnrichFromApple)} Found matching YouTube episode: '{youTubeItem.Id.VideoId}' with title '{youTubeItem.Snippet.Title}' and release-date '{youTubeItem.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime:R}'.");
-            episode.YouTubeId = youTubeItem.Id.VideoId;
-            episode.Urls.YouTube = youTubeItem.ToYouTubeUrl();
+            request.Episode.YouTubeId = youTubeItem.Id.VideoId;
+            request.Episode.Urls.YouTube = youTubeItem.ToYouTubeUrl();
         }
     }
 
-    private async Task EnrichFromApple(Podcast podcast, Episode episode)
+    private async Task EnrichFromApple(EnrichmentRequest request)
     {
-        if (podcast.AppleId == null)
+        if (request.Podcast.AppleId == null)
         {
-            await _applePodcastEnricher.AddId(podcast);
+            await _applePodcastEnricher.AddId(request.Podcast);
         }
 
-        if (podcast.AppleId != null)
+        if (request.Podcast.AppleId != null)
         {
             var appleItem =
-                await _appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(podcast, episode));
+                await _appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(request.Podcast, request.Episode));
             if (appleItem != null)
             {
                 _logger.LogInformation($"{nameof(EnrichFromApple)} Found matching Apple episode: '{appleItem.Id}' with title '{appleItem.Title}' and release-date '{appleItem.Release:R}'.");
-                episode.Urls.Apple = appleItem.Url.CleanAppleUrl();
-                episode.AppleId = appleItem.Id;
-                if (episode.Release.TimeOfDay == TimeSpan.MinValue)
+                request.Episode.Urls.Apple = appleItem.Url.CleanAppleUrl();
+                request.Episode.AppleId = appleItem.Id;
+                if (request.Episode.Release.TimeOfDay == TimeSpan.Zero)
                 {
-                    episode.Release = appleItem.Release;
+                    request.Episode.Release = appleItem.Release;
                 }
             }
         }
     }
 
-    private async Task EnrichFromSpotify(Podcast podcast, Episode episode)
+    private async Task EnrichFromSpotify(EnrichmentRequest request)
     {
-        var spotifyEpisode = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode));
+        var spotifyEpisode = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(request.Podcast, request.Episode));
         if (spotifyEpisode != null)
         {
             _logger.LogInformation($"{nameof(EnrichFromSpotify)} Found matching Spotify episode: '{spotifyEpisode.Id}' with title '{spotifyEpisode.Name}' and release-date '{spotifyEpisode.ReleaseDate}'.");
-            episode.SpotifyId = spotifyEpisode.Id;
-            episode.Urls.Spotify = spotifyEpisode.GetUrl();
+            request.Episode.SpotifyId = spotifyEpisode.Id;
+            request.Episode.Urls.Spotify = spotifyEpisode.GetUrl();
         }
     }
 }

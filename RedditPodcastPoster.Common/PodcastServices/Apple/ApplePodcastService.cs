@@ -16,7 +16,7 @@ public class ApplePodcastService : IApplePodcastService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<AppleEpisode>> GetEpisodes(long podcastId)
+    public async Task<IEnumerable<AppleEpisode>> GetEpisodes(long podcastId, DateTime releasedSince)
     {
         var response =
             await _httpClient.GetAsync($"/v1/catalog/us/podcasts/{podcastId}/episodes");
@@ -26,7 +26,8 @@ public class ApplePodcastService : IApplePodcastService
             var appleJson = await response.Content.ReadAsStringAsync();
             var appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
             podcastRecords.AddRange(appleObject!.Records);
-            while (!string.IsNullOrWhiteSpace(appleObject.Next))
+            while (!string.IsNullOrWhiteSpace(appleObject.Next) &&
+                   podcastRecords.Last().ToAppleEpisode().Release >= releasedSince)
             {
                 response = await _httpClient.GetAsync(appleObject.Next);
                 if (response.IsSuccessStatusCode)
@@ -37,6 +38,7 @@ public class ApplePodcastService : IApplePodcastService
                 }
             }
         }
+
         return podcastRecords.Select(x => x.ToAppleEpisode());
     }
 }

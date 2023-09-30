@@ -20,23 +20,23 @@ public class YouTubeItemResolver : IYouTubeItemResolver
         _logger = logger;
     }
 
-    public async Task<SearchResult?> FindEpisode(Podcast podcast, Episode episode, DateTime? publishedSince)
+    public async Task<SearchResult?> FindEpisode(EnrichmentRequest request)
     {
-        var youTubePublishingDelay = TimeSpan.Parse(podcast.YouTubePublishingDelayTimeSpan);
+        var youTubePublishingDelay = TimeSpan.Parse(request.Podcast.YouTubePublishingDelayTimeSpan);
         var searchListResponse =
             await _youTubeSearchService.GetLatestChannelVideos(
-                new GetLatestYouTubeChannelVideosRequest(podcast.YouTubeChannelId, publishedSince));
-        if (publishedSince.HasValue)
+                new GetLatestYouTubeChannelVideosRequest(request.Podcast.YouTubeChannelId, request.ReleasedSince));
+        if (request.ReleasedSince.HasValue)
         {
-            _logger.LogInformation($"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube since '{publishedSince.Value:R}'");
+            _logger.LogInformation($"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube since '{request.ReleasedSince.Value:R}'");
         }
         else
         {
-            _logger.LogInformation($"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube. {nameof(publishedSince)} is Null.");
+            _logger.LogInformation($"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube. {nameof(request.ReleasedSince)} is Null.");
 
         }
         var matchedYouTubeVideo =
-            _youTubeSearcher.FindMatchingYouTubeVideo(episode, searchListResponse, youTubePublishingDelay);
+            _youTubeSearcher.FindMatchingYouTubeVideo(request.Episode, searchListResponse, youTubePublishingDelay);
         return matchedYouTubeVideo;
     }
 }

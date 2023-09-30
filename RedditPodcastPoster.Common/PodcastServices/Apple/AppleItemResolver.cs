@@ -22,7 +22,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
         IEnumerable<AppleEpisode> podcastEpisodes = new List<AppleEpisode>();
         if (request.PodcastAppleId.HasValue)
         {
-            podcastEpisodes = await _applePodcastService.GetEpisodes(request.PodcastAppleId.Value);
+            podcastEpisodes = await _applePodcastService.GetEpisodes(request.PodcastAppleId.Value, request.Released.Date);
         }
 
         if (request.EpisodeAppleId != null)
