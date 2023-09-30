@@ -17,19 +17,24 @@ public class CachedApplePodcastService : ICachedApplePodcastService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<AppleEpisode>> GetEpisodes(long podcastId, DateTime releasedSince)
+    public async Task<IEnumerable<AppleEpisode>> GetEpisodes(long podcastId, DateTime? releasedSince)
     {
         var cacheKey = GetCacheKey(podcastId, releasedSince);
         if (!Cache.TryGetValue(cacheKey, out var podcastEpisodes))
         {
-            podcastEpisodes= Cache[cacheKey] = await _applePodcastService.GetEpisodes(podcastId, releasedSince);
+            podcastEpisodes = Cache[cacheKey] = await _applePodcastService.GetEpisodes(podcastId, releasedSince);
         }
 
         return podcastEpisodes!;
     }
 
-    private string GetCacheKey(long podcastId, DateTime releasedSince)
+    private string GetCacheKey(long podcastId, DateTime? releasedSince)
     {
-        return $"{podcastId}-{releasedSince.Ticks}";
+        if (releasedSince.HasValue)
+        {
+            return $"{podcastId}-{releasedSince.Value.Ticks}";
+        }
+
+        return $"{podcastId}";
     }
 }

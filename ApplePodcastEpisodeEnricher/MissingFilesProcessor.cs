@@ -7,8 +7,8 @@ namespace ApplePodcastEpisodeEnricher;
 
 public class MissingFilesProcessor
 {
-    private readonly IApplePodcastService _applePodcastService;
     private readonly IAppleEpisodeResolver _appleEpisodeResolver;
+    private readonly IApplePodcastService _applePodcastService;
     private readonly ILogger<MissingFilesProcessor> _logger;
     private readonly IPodcastRepository _podcastsRepository;
 
@@ -38,7 +38,7 @@ public class MissingFilesProcessor
             var episodes = podcast.Episodes.Where(x => x.AppleId == null || x.Urls.Apple == null);
             if (episodes.Any() && podcast.AppleId.HasValue)
             {
-                var appleApiRecords = await _applePodcastService.GetEpisodes(podcast.AppleId.Value);
+                var appleApiRecords = await _applePodcastService.GetEpisodes(podcast.AppleId.Value, null);
                 foreach (var episode in episodes)
                 {
                     var matchingApiRecord = appleApiRecords.SingleOrDefault(appleEpisode =>
