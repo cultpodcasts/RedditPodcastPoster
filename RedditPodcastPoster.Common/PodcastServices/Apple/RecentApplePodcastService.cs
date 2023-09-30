@@ -18,7 +18,7 @@ public class RecentApplePodcastService : IApplePodcastService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<AppleEpisode>> GetEpisodes(long podcastId)
+    public async Task<IEnumerable<AppleEpisode>> GetEpisodes(long podcastId, DateTime? releasedSince)
     {
         var queryString = HttpUtility.ParseQueryString(string.Empty);
         queryString.Add("id", podcastId.ToString());

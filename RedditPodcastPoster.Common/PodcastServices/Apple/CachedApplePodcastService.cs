@@ -5,7 +5,7 @@ namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
 public class CachedApplePodcastService : ICachedApplePodcastService
 {
-    private static readonly ConcurrentDictionary<long, IEnumerable<AppleEpisode>?> Cache = new();
+    private static readonly ConcurrentDictionary<string, IEnumerable<AppleEpisode>?> Cache = new();
     private readonly IApplePodcastService _applePodcastService;
     private readonly ILogger<CachedApplePodcastService> _logger;
 
@@ -17,13 +17,24 @@ public class CachedApplePodcastService : ICachedApplePodcastService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<AppleEpisode>> GetEpisodes(long podcastId)
+    public async Task<IEnumerable<AppleEpisode>> GetEpisodes(long podcastId, DateTime? releasedSince)
     {
-        if (!Cache.TryGetValue(podcastId, out var podcastEpisodes))
+        var cacheKey = GetCacheKey(podcastId, releasedSince);
+        if (!Cache.TryGetValue(cacheKey, out var podcastEpisodes))
         {
-            podcastEpisodes= Cache[podcastId] = await _applePodcastService.GetEpisodes(podcastId);
+            podcastEpisodes = Cache[cacheKey] = await _applePodcastService.GetEpisodes(podcastId, releasedSince);
         }
 
         return podcastEpisodes!;
+    }
+
+    private string GetCacheKey(long podcastId, DateTime? releasedSince)
+    {
+        if (releasedSince.HasValue)
+        {
+            return $"{podcastId}-{releasedSince.Value.Ticks}";
+        }
+
+        return $"{podcastId}";
     }
 }

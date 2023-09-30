@@ -124,7 +124,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         var episodes = new List<SimpleEpisode>();
         try
         {
-            if (request.SpotifyPodcastId == null)
+            if (request.ReleasedSince == null)
             {
                 var fetch = await _spotifyClient.PaginateAll(pagedEpisodes);
                 episodes = fetch.ToList();

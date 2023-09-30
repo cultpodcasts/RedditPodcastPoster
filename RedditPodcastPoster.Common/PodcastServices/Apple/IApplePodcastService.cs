@@ -2,5 +2,5 @@
 
 public interface IApplePodcastService
 {
-    public Task<IEnumerable<AppleEpisode>> GetEpisodes(long podcastId);
+    public Task<IEnumerable<AppleEpisode>> GetEpisodes(long podcastId, DateTime? date);
 }

@@ -38,7 +38,7 @@ public class PodcastUpdater : IPodcastUpdater
 
         if (indexOptions.ReleasedSince.HasValue)
         {
-            episodes = episodes.Where(x => x.Release > indexOptions.ReleasedSince.Value).ToList();
+            episodes = episodes.Where(x => x.Release >= indexOptions.ReleasedSince.Value).ToList();
         }
 
         await _podcastServicesEpisodeEnricher.EnrichEpisodes(
