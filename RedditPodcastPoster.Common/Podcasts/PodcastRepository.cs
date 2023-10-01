@@ -23,8 +23,11 @@ public class PodcastRepository : IPodcastRepository
         return await _dataRepository.Read<Podcast>(key, partitionKey);
     }
 
-    public void Merge(Podcast podcast, IEnumerable<Episode> episodesToMerge)
+    public MergeResult Merge(Podcast podcast, IEnumerable<Episode> episodesToMerge)
     {
+        var addedEpisodes = new List<Episode>();
+        var mergedEpisodes = new List<(Episode Existing, Episode NewDetails)>();
+        var failedEpisodes = new List<IEnumerable<Episode>>();
         foreach (var episodeToMerge in episodesToMerge)
         {
             var existingEpisodes = podcast.Episodes.Where(x => Match(x, episodeToMerge));
@@ -37,23 +40,23 @@ public class PodcastRepository : IPodcastRepository
                     episodeToMerge.Id = Guid.NewGuid();
                     episodeToMerge.ModelType = ModelType.Episode;
                     podcast.Episodes.Add(episodeToMerge);
-                    _logger.LogInformation(
-                        $"{nameof(Merge)} Added episode '{episodeToMerge.Title}', released '{episodeToMerge.Release:R}'.");
+                    addedEpisodes.Add(episodeToMerge);
                 }
                 else
                 {
                     Merge(existingEpisode, episodeToMerge);
+                    mergedEpisodes.Add((Existing: existingEpisode, NewDetails: episodeToMerge));
                 }
             }
             else
             {
-                var multipleEpisodes = string.Join(",", existingEpisodes.Select(x => $"'{x.Title}'").ToArray());
-                _logger.LogWarning(
-                    $"Found multiple episode matches for podcast {podcast.Name}. Multiple episodes: '{multipleEpisodes}'.");
+                failedEpisodes.Add(existingEpisodes);
             }
         }
 
         podcast.Episodes = new List<Episode>(podcast.Episodes.OrderByDescending(x => x.Release));
+        return new MergeResult(podcast.Id, podcast.Name, podcast.Publisher, addedEpisodes, mergedEpisodes,
+            failedEpisodes);
     }
 
     public IAsyncEnumerable<Podcast> GetAll()
@@ -102,39 +105,25 @@ public class PodcastRepository : IPodcastRepository
 
     private void Merge(Episode existingEpisode, Episode episodeToMerge)
     {
-        var preSpotifyUrl = existingEpisode.Urls.Spotify;
         existingEpisode.Urls.Spotify ??= episodeToMerge.Urls.Spotify;
-        if (existingEpisode.Urls.Spotify != preSpotifyUrl)
-        {
-            _logger.LogInformation($"{nameof(Merge)} Updated SpotifyUrl from '{episodeToMerge.Title}'.");
-        }
-
-        var preYouTubeUrl = existingEpisode.Urls.YouTube;
         existingEpisode.Urls.YouTube ??= episodeToMerge.Urls.YouTube;
-        if (existingEpisode.Urls.YouTube != preYouTubeUrl)
-        {
-            _logger.LogInformation($"{nameof(Merge)} Updated YouTubeUrl from '{episodeToMerge.Title}'.");
-        }
 
         if (string.IsNullOrWhiteSpace(existingEpisode.SpotifyId) &&
             !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
         {
             existingEpisode.SpotifyId = episodeToMerge.SpotifyId;
-            _logger.LogInformation($"{nameof(Merge)} Updated SpotifyId from '{episodeToMerge.Title}'.");
         }
 
         if (string.IsNullOrWhiteSpace(existingEpisode.YouTubeId) &&
             !string.IsNullOrWhiteSpace(episodeToMerge.YouTubeId))
         {
             existingEpisode.YouTubeId = episodeToMerge.YouTubeId;
-            _logger.LogInformation($"{nameof(Merge)} Updated YouTubeId from '{episodeToMerge.Title}'.");
         }
 
         if (existingEpisode.Description.EndsWith("...") &&
             existingEpisode.Description.Length < episodeToMerge.Description.Length)
         {
             existingEpisode.Description = episodeToMerge.Description;
-            _logger.LogInformation($"{nameof(Merge)} Updated Description from '{episodeToMerge.Title}'.");
         }
     }
 }

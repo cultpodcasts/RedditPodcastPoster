@@ -2,5 +2,5 @@
 
 public interface IUrlSubmitter
 {
-    Task Submit(Uri url, bool bypassYouTube);
+    Task Submit(Uri url, IndexOptions indexOptions);
 }

@@ -2,8 +2,7 @@
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
-
 public interface ISpotifyEpisodeProvider
 {
-    Task<IList<Episode>> GetEpisodes(SpotifyGetEpisodesRequest request);
+    Task<IList<Episode>?> GetEpisodes(SpotifyPodcastId podcastId, IndexOptions indexOptions);
 }

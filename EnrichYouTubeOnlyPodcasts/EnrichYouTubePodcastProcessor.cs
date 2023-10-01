@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Models;
@@ -28,6 +29,7 @@ public class EnrichYouTubePodcastProcessor
 
     public async Task Run(EnrichYouTubePodcastRequest request)
     {
+        var indexOptions = new IndexOptions {ReleasedSince = DateTime.Today.AddDays(-1 * request.ReleasedSince)};
         var podcasts = await _podcastRepository.GetAll().ToListAsync();
         var podcast = podcasts.Single(x => x.Id == request.PodcastGuid);
         if (string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
@@ -45,12 +47,14 @@ public class EnrichYouTubePodcastProcessor
         string playlistId;
         if (string.IsNullOrWhiteSpace(request.PlaylistId))
         {
-            var channel = await _youTubeSearchService.GetChannel(podcast.YouTubeChannelId);
+            var channel =
+                await _youTubeSearchService.GetChannel(new YouTubeChannelId(podcast.YouTubeChannelId), indexOptions);
             if (channel == null)
             {
                 throw new InvalidOperationException(
                     $"Could not find YouTube channel with channel-id '{podcast.YouTubeChannelId}'.");
             }
+
             playlistId = channel.ContentDetails.RelatedPlaylists.Uploads;
         }
         else
@@ -59,13 +63,13 @@ public class EnrichYouTubePodcastProcessor
         }
 
         var playlistItems =
-            await _youTubeSearchService.GetPlaylist(new GetYouTubePlaylistItems(playlistId,
-                DateTime.Today.AddDays(-1 * request.ReleasedSince)));
+            await _youTubeSearchService.GetPlaylist(new YouTubePlaylistId(playlistId),
+                indexOptions);
 
         var missingPlaylistItems = playlistItems.Where(playlistItem =>
             podcast.Episodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();
         var missingVideoIds = missingPlaylistItems.Select(x => x.Snippet.ResourceId.VideoId).Distinct();
-        var missingPlaylistVideos = await _youTubeSearchService.GetVideoDetails(missingVideoIds);
+        var missingPlaylistVideos = await _youTubeSearchService.GetVideoDetails(missingVideoIds, indexOptions);
 
         foreach (var missingPlaylistItem in missingPlaylistItems)
         {
@@ -93,6 +97,7 @@ public class EnrichYouTubePodcastProcessor
                 }
             }
         }
+
         podcast.Episodes = podcast.Episodes.OrderByDescending(x => x.Release).ToList();
         await _podcastRepository.Save(podcast);
     }
@@ -129,6 +134,7 @@ public class EnrichYouTubePodcastProcessor
                 }
             }
         }
+
         return false;
     }
 }

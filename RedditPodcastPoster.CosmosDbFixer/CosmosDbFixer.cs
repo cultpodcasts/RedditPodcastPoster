@@ -10,15 +10,12 @@ public class CosmosDbFixer
 {
     private readonly ILogger<CosmosDbRepository> _logger;
     private readonly IPodcastRepository _podcastRepository;
-    private readonly ISpotifyClient _spotifyClient;
 
     public CosmosDbFixer(
         IPodcastRepository podcastRepository,
-        ISpotifyClient spotifyClient,
         ILogger<CosmosDbRepository> logger)
     {
         _podcastRepository = podcastRepository;
-        _spotifyClient = spotifyClient;
         _logger = logger;
     }
 

@@ -7,6 +7,6 @@ public interface IPodcastRepository
     Task<Podcast?> GetPodcast(string key);
     Task Save(Podcast podcast);
     Task Update(Podcast podcast);
-    void Merge(Podcast podcast, IEnumerable<Episode> episodesToMerge);
+    MergeResult Merge(Podcast podcast, IEnumerable<Episode> episodesToMerge);
     IAsyncEnumerable<Podcast> GetAll();
 }

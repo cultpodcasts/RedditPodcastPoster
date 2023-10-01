@@ -25,7 +25,15 @@ public class PodcastProcessor : IPodcastProcessor
         if (processRequest.RefreshEpisodes)
         {
             IndexOptions indexOptions = new(processRequest.ReleaseBaseline, processRequest.SkipYouTubeUrlResolving);
-            await _podcastsUpdater.UpdatePodcasts(indexOptions);
+            var results= await _podcastsUpdater.UpdatePodcasts(indexOptions);
+            if (results.Success)
+            {
+                _logger.LogInformation(results.ToString());
+            }
+            else
+            {
+                _logger.LogError(results.ToString());
+            }
         }
 
         if (processRequest.ReleaseBaseline != null)

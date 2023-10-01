@@ -24,38 +24,40 @@ public class EpisodeProvider : IEpisodeProvider
 
     public async Task<IList<Episode>> GetEpisodes(
         Podcast podcast,
-        DateTime? processRequestReleasedSince,
-        bool skipYouTube)
+        IndexOptions indexOptions)
     {
-        IList<Episode> episodes;
+        IList<Episode> episodes = new List<Episode>();
         if (podcast.ReleaseAuthority is null or Service.Spotify && !string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
-            episodes = await _spotifyEpisodeProvider.GetEpisodes(
-                new SpotifyGetEpisodesRequest(podcast.SpotifyId, processRequestReleasedSince));
-            _logger.LogInformation(
-                $"{nameof(GetEpisodes)} (Spotify) - Found '{episodes.Count}' episodes released since {processRequestReleasedSince:R}");
+            var foundEpisodes = await _spotifyEpisodeProvider.GetEpisodes(
+                new SpotifyPodcastId(podcast.SpotifyId), indexOptions);
+            if (foundEpisodes != null)
+            {
+                episodes = foundEpisodes;
+                _logger.LogInformation(
+                    $"{nameof(GetEpisodes)} (Spotify) - Found '{episodes.Count}' episodes released since {indexOptions.ReleasedSince:R}");
+            }
         }
         else if (podcast.ReleaseAuthority is Service.YouTube || !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
-            if (skipYouTube)
+            if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
             {
-                _logger.LogInformation(
-                    $"{nameof(GetEpisodes)} Bypassing resolving using YouTube due to '{nameof(skipYouTube)}'.");
-                episodes = new List<Episode>();
+                var foundEpisodes = await _youTubeEpisodeProvider.GetPlaylistEpisodes(
+                    new YouTubePlaylistId(podcast.YouTubePlaylistId), indexOptions);
+                if (foundEpisodes != null)
+                {
+                    episodes = foundEpisodes;
+                }
             }
             else
             {
-                if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
+                var foundEpisodes = await _youTubeEpisodeProvider.GetEpisodes(
+                    new YouTubeChannelId(podcast.YouTubeChannelId), indexOptions);
+                if (foundEpisodes != null)
                 {
-                    episodes = await _youTubeEpisodeProvider.GetPlaylistEpisodes(
-                        new YouTubeGetPlaylistEpisodesRequest(podcast.YouTubePlaylistId, processRequestReleasedSince));
-                }
-                else
-                {
-                    episodes = await _youTubeEpisodeProvider.GetEpisodes(
-                        new YouTubeGetEpisodesRequest(podcast.YouTubeChannelId, processRequestReleasedSince));
+                    episodes = foundEpisodes;
                     _logger.LogInformation(
-                        $"{nameof(GetEpisodes)} (YouTube) - Found '{episodes.Count}' episodes released since {processRequestReleasedSince:R}");
+                        $"{nameof(GetEpisodes)} (YouTube) - Found '{episodes.Count}' episodes released since {indexOptions.ReleasedSince:R}");
                 }
             }
         }

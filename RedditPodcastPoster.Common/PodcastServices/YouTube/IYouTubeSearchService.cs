@@ -6,9 +6,9 @@ public interface IYouTubeSearchService
 {
     public const int MaxSearchResults = 20;
 
-    Task<IList<SearchResult>> GetLatestChannelVideos(GetLatestYouTubeChannelVideosRequest request);
-    Task FindChannel(string channelName);
-    Task<IList<Video>> GetVideoDetails(IEnumerable<string> videoIds);
-    Task<IList<PlaylistItem>> GetPlaylist(GetYouTubePlaylistItems request);
-    Task<Channel?> GetChannel(string channelId);
+    Task<IList<SearchResult>?> GetLatestChannelVideos(YouTubeChannelId channelId, IndexOptions indexOptions);
+    Task FindChannel(string channelName, IndexOptions indexOptions);
+    Task<IList<Video>?> GetVideoDetails(IEnumerable<string> videoIds, IndexOptions options);
+    Task<IList<PlaylistItem>?> GetPlaylist(YouTubePlaylistId playlistId, IndexOptions indexOptions);
+    Task<Channel?> GetChannel(YouTubeChannelId channelId, IndexOptions indexOptions);
 }

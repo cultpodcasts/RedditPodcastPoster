@@ -17,15 +17,34 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
         _logger = logger;
     }
 
-    public async Task<SearchResult?> FindChannel(string channelName, string mostRecentlyUploadVideoTitle)
+    public async Task<SearchResult?> FindChannel(string channelName, string mostRecentlyUploadVideoTitle,
+        IndexOptions indexOptions)
     {
+        if (indexOptions.SkipYouTubeUrlResolving)
+        {
+            _logger.LogInformation(
+                $"Skipping '{nameof(FindChannel)}' as '{nameof(indexOptions.SkipYouTubeUrlResolving)}' is set. Channel-name: '{channelName}'.");
+            return null;
+        }
+
         mostRecentlyUploadVideoTitle = AlphaNumericOnly(mostRecentlyUploadVideoTitle);
         var channelsListRequest = _youTubeService.Search.List("snippet");
         channelsListRequest.Type = "channel";
         channelsListRequest.Fields = "items/snippet/channelId,items/snippet/channelTitle";
         channelsListRequest.Q = channelName;
         channelsListRequest.MaxResults = 10;
-        var channelsListResponse = await channelsListRequest.ExecuteAsync();
+        SearchListResponse channelsListResponse;
+        try
+        {
+            channelsListResponse = await channelsListRequest.ExecuteAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failed to use {nameof(_youTubeService)}.");
+            indexOptions.SkipYouTubeUrlResolving = true;
+            return null;
+        }
+
         foreach (var searchResult in channelsListResponse.Items)
         {
             var searchListRequest = _youTubeService.Search.List("snippet");
@@ -34,7 +53,18 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
             searchListRequest.PageToken = " "; // or searchListResponse.NextPageToken if paging
             searchListRequest.Type = "video";
             searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
-            var searchListResponse = await searchListRequest.ExecuteAsync();
+            SearchListResponse searchListResponse;
+            try
+            {
+                searchListResponse = await searchListRequest.ExecuteAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to use {nameof(_youTubeService)}.");
+                indexOptions.SkipYouTubeUrlResolving = true;
+                return null;
+            }
+
             var lastUpload = searchListResponse.Items.FirstOrDefault();
             if (lastUpload != null && AlphaNumericOnly(lastUpload.Snippet.Title) == mostRecentlyUploadVideoTitle)
             {

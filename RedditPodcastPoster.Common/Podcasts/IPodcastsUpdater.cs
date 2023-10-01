@@ -2,5 +2,5 @@
 
 public interface IPodcastsUpdater
 {
-    Task UpdatePodcasts(IndexOptions indexOptions);
+    Task<IndexPodcastsResult> UpdatePodcasts(IndexOptions indexOptions);
 }

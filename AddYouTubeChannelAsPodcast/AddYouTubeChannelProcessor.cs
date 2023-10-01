@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Models;
@@ -8,10 +9,10 @@ namespace AddYouTubeChannelAsPodcast;
 public class AddYouTubeChannelProcessor
 {
     private readonly ILogger<AddYouTubeChannelProcessor> _logger;
-    private readonly IYouTubeChannelResolver _youTubeChannelResolver;
-    private readonly IYouTubeSearchService _youTubeSearchService;
     private readonly PodcastFactory _podcastFactory;
     private readonly IPodcastRepository _repository;
+    private readonly IYouTubeChannelResolver _youTubeChannelResolver;
+    private readonly IYouTubeSearchService _youTubeSearchService;
 
     public AddYouTubeChannelProcessor(
         IYouTubeChannelResolver youTubeChannelResolver,
@@ -29,8 +30,11 @@ public class AddYouTubeChannelProcessor
 
     public async Task<bool> Run(Args request)
     {
-        var match = await _youTubeChannelResolver.FindChannel(request.ChannelName,
-            request.MostRecentUploadedVideoTitle);
+        var indexOptions = new IndexOptions();
+        var match = await _youTubeChannelResolver.FindChannel(
+            request.ChannelName,
+            request.MostRecentUploadedVideoTitle,
+            indexOptions);
         if (match != null)
         {
             _logger.LogInformation($"Found channel-id: {match.Snippet.ChannelId}");
@@ -38,16 +42,17 @@ public class AddYouTubeChannelProcessor
             var matchingPodcast = allPodcasts.SingleOrDefault(x => x.YouTubeChannelId == match.Snippet.ChannelId);
             if (matchingPodcast != null)
             {
-                _logger.LogError($"Found existing podcast with YouTube-Id '{match.Snippet.ChannelId}' with Podcast-id '{matchingPodcast.Id}'.");
+                _logger.LogError(
+                    $"Found existing podcast with YouTube-Id '{match.Snippet.ChannelId}' with Podcast-id '{matchingPodcast.Id}'.");
                 return false;
             }
 
-            var channel = await _youTubeSearchService.GetChannel(match.Snippet.ChannelId);
+            var channel = await _youTubeSearchService.GetChannel(new YouTubeChannelId(match.Snippet.ChannelId), indexOptions);
 
             var newPodcast = _podcastFactory.Create(match.Snippet.ChannelTitle);
             newPodcast.Publisher = channel.ContentOwnerDetails.ContentOwner;
             newPodcast.YouTubePublishingDelayTimeSpan = "1:00:00:00";
-            newPodcast.YouTubeChannelId= match.Snippet.ChannelId;
+            newPodcast.YouTubeChannelId = match.Snippet.ChannelId;
             newPodcast.ReleaseAuthority = Service.YouTube;
             newPodcast.PrimaryPostService = Service.YouTube;
             await _repository.Save(newPodcast);

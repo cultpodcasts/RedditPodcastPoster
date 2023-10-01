@@ -26,7 +26,7 @@ public class UrlCategoriser : IUrlCategoriser
         _logger = logger;
     }
 
-    public async Task<CategorisedItem> Categorise(Uri url, bool bypassYouTube)
+    public async Task<CategorisedItem> Categorise(Uri url, IndexOptions indexOptions)
     {
         ResolvedSpotifyItem? resolvedSpotifyItem = null;
         ResolvedAppleItem? resolvedAppleItem = null;
@@ -48,7 +48,7 @@ public class UrlCategoriser : IUrlCategoriser
         }
         else if (_appleUrlCategoriser.IsMatch(url))
         {
-            resolvedAppleItem = await _appleUrlCategoriser.Resolve(podcasts, url);
+            resolvedAppleItem = await _appleUrlCategoriser.Resolve(podcasts, url, indexOptions);
             criteria = resolvedAppleItem.ToPodcastServiceSearchCriteria();
             matchingPodcast = podcasts.SingleOrDefault(podcast => IsMatchingPodcast(podcast, resolvedAppleItem));
             matchingEpisode = matchingPodcast?.Episodes.SingleOrDefault(x =>
@@ -56,7 +56,7 @@ public class UrlCategoriser : IUrlCategoriser
         }
         else if (_youTubeUrlCategoriser.IsMatch(url))
         {
-            resolvedYouTubeItem = await _youTubeUrlCategoriser.Resolve(podcasts, url);
+            resolvedYouTubeItem = await _youTubeUrlCategoriser.Resolve(podcasts, url, indexOptions);
             criteria = resolvedYouTubeItem.ToPodcastServiceSearchCriteria();
             matchingPodcast = podcasts.SingleOrDefault(podcast => IsMatchingPodcast(podcast, resolvedYouTubeItem));
             matchingEpisode = matchingPodcast?.Episodes.SingleOrDefault(x =>
@@ -71,7 +71,7 @@ public class UrlCategoriser : IUrlCategoriser
                  matchingEpisode?.Urls.Spotify == null ||
                  string.IsNullOrWhiteSpace(matchingPodcast?.SpotifyId)))
             {
-                resolvedSpotifyItem = await _spotifyUrlCategoriser.Resolve(criteria, matchingPodcast);
+                resolvedSpotifyItem = await _spotifyUrlCategoriser.Resolve(criteria, matchingPodcast, indexOptions);
                 if (resolvedSpotifyItem != null)
                 {
                     criteria = criteria.Merge(resolvedSpotifyItem);
@@ -84,25 +84,22 @@ public class UrlCategoriser : IUrlCategoriser
                  matchingEpisode?.Urls.Apple == null ||
                  matchingPodcast?.AppleId == null))
             {
-                resolvedAppleItem = await _appleUrlCategoriser.Resolve(criteria, matchingPodcast);
+                resolvedAppleItem = await _appleUrlCategoriser.Resolve(criteria, matchingPodcast, indexOptions);
                 if (resolvedAppleItem != null)
                 {
                     criteria = criteria.Merge(resolvedAppleItem);
                 }
             }
 
-            if (!bypassYouTube)
+            if (resolvedYouTubeItem == null && !_youTubeUrlCategoriser.IsMatch(url) &&
+                (string.IsNullOrWhiteSpace(matchingEpisode?.YouTubeId) ||
+                 matchingEpisode?.Urls.YouTube == null ||
+                 string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId)))
             {
-                if (resolvedYouTubeItem == null && !_youTubeUrlCategoriser.IsMatch(url) &&
-                    (string.IsNullOrWhiteSpace(matchingEpisode?.YouTubeId) ||
-                     matchingEpisode?.Urls.YouTube == null ||
-                     string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId)))
+                resolvedYouTubeItem = await _youTubeUrlCategoriser.Resolve(criteria, matchingPodcast, indexOptions);
+                if (resolvedYouTubeItem != null)
                 {
-                    resolvedYouTubeItem = await _youTubeUrlCategoriser.Resolve(criteria, matchingPodcast);
-                    if (resolvedYouTubeItem != null)
-                    {
-                        criteria = criteria.Merge(resolvedYouTubeItem);
-                    }
+                    criteria = criteria.Merge(resolvedYouTubeItem);
                 }
             }
 

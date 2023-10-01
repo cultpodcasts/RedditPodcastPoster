@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Common.Podcasts;
 
 public interface IPodcastFilter
 {
-    void Filter(Podcast podcast, List<string> eliminationTerms);
+    FilterResult Filter(Podcast podcast, List<string> eliminationTerms);
 }

@@ -1,3 +1,4 @@
+using Microsoft.Azure.Cosmos.Serialization.HybridRow;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -40,7 +41,15 @@ public class Indexer
                 ? $"{nameof(Run)} Indexing with options released-since: '{indexOptions.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-youtube: '{indexOptions.SkipYouTubeUrlResolving}'."
                 : $"{nameof(Run)} Indexing with options released-since: Null, bypass-youtube: '{indexOptions.SkipYouTubeUrlResolving}'.");
 
-        await _podcastsUpdater.UpdatePodcasts(indexOptions);
+        var results= await _podcastsUpdater.UpdatePodcasts(indexOptions);
+        if (results.Success)
+        {
+            _logger.LogInformation(results.ToString());
+        }
+        else
+        {
+            _logger.LogError(results.ToString());
+        }
 
         _logger.LogInformation(
             $"{nameof(Run)} Completed");

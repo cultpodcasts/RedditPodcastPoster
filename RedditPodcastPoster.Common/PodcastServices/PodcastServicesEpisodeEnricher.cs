@@ -44,23 +44,20 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
                 {
                     case Service.Spotify
                         when episode.Urls.Spotify == null || string.IsNullOrWhiteSpace(episode.SpotifyId):
-                        await EnrichFromSpotify(enrichmentRequest);
+                        await EnrichFromSpotify(enrichmentRequest,indexOptions);
                         break;
                     case Service.Apple when episode.Urls.Apple == null || episode.AppleId == 0:
                         await EnrichFromApple(enrichmentRequest);
                         break;
-                    case Service.YouTube when !indexOptions.SkipYouTubeUrlResolving && !string.IsNullOrWhiteSpace(
-                                                  podcast.YouTubeChannelId) &&
-                                              (episode.Urls.YouTube == null ||
-                                               string.IsNullOrWhiteSpace(episode.YouTubeId)):
-                        await EnrichFromYouTube(enrichmentRequest);
+                    case Service.YouTube when !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) && (episode.Urls.YouTube == null || string.IsNullOrWhiteSpace(episode.YouTubeId)):
+                        await EnrichFromYouTube(enrichmentRequest, indexOptions);
                         break;
                 }
             }
         }
     }
 
-    private async Task EnrichFromYouTube(EnrichmentRequest request)
+    private async Task EnrichFromYouTube(EnrichmentRequest request, IndexOptions indexOptions)
     {
         if (request.Podcast.IsDelayedYouTubePublishing(request.Episode))
         {
@@ -68,7 +65,7 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
             return;
         }
 
-        var youTubeItem = await _youTubeItemResolver.FindEpisode(request);
+        var youTubeItem = await _youTubeItemResolver.FindEpisode(request, indexOptions);
         if (!string.IsNullOrWhiteSpace(youTubeItem?.Id.VideoId))
         {
             _logger.LogInformation($"{nameof(EnrichFromApple)} Found matching YouTube episode: '{youTubeItem.Id.VideoId}' with title '{youTubeItem.Snippet.Title}' and release-date '{youTubeItem.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime:R}'.");
@@ -101,9 +98,9 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
         }
     }
 
-    private async Task EnrichFromSpotify(EnrichmentRequest request)
+    private async Task EnrichFromSpotify(EnrichmentRequest request, IndexOptions indexOptions)
     {
-        var spotifyEpisode = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(request.Podcast, request.Episode));
+        var spotifyEpisode = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(request.Podcast, request.Episode), indexOptions);
         if (spotifyEpisode != null)
         {
             _logger.LogInformation($"{nameof(EnrichFromSpotify)} Found matching Spotify episode: '{spotifyEpisode.Id}' with title '{spotifyEpisode.Name}' and release-date '{spotifyEpisode.ReleaseDate}'.");

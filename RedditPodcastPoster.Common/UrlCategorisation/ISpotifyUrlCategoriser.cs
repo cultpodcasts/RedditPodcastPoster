@@ -6,5 +6,8 @@ public interface ISpotifyUrlCategoriser : IPodcastServiceUrlResolver
 {
     Task<ResolvedSpotifyItem> Resolve(List<Podcast> podcasts, Uri url);
 
-    Task<ResolvedSpotifyItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast);
+    Task<ResolvedSpotifyItem?> Resolve(
+        PodcastServiceSearchCriteria criteria, 
+        Podcast? matchingPodcast,
+        IndexOptions indexOptions);
 }

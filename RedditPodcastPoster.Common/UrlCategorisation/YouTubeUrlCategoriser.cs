@@ -26,7 +26,7 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
         return url.Host.ToLower().Contains("youtube");
     }
 
-    public async Task<ResolvedYouTubeItem> Resolve(List<Podcast> podcasts, Uri url)
+    public async Task<ResolvedYouTubeItem?> Resolve(List<Podcast> podcasts, Uri url, IndexOptions indexOptions)
     {
         var pair = podcasts
             .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new PodcastEpisodePair(podcast, episode))
@@ -43,31 +43,37 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
             throw new InvalidOperationException($"Unable to find video-id in url '{url}'.");
         }
 
-        var items = await _youTubeSearchService.GetVideoDetails(new[] {videoIdMatch.Value});
+        var items = await _youTubeSearchService.GetVideoDetails(new[] {videoIdMatch.Value}, indexOptions);
         var item = items.FirstOrDefault();
         if (item == null)
         {
             throw new InvalidOperationException($"Unable to find video with id '{videoIdMatch.Value}'.");
         }
 
-        var channel = await _youTubeSearchService.GetChannel(item.Snippet.ChannelId);
+        var channel =
+            await _youTubeSearchService.GetChannel(new YouTubeChannelId(item.Snippet.ChannelId), indexOptions);
+        if (channel != null)
+        {
+            return new ResolvedYouTubeItem(
+                item.Snippet.ChannelId,
+                item.Id,
+                item.Snippet.ChannelTitle,
+                channel!.Snippet.Description,
+                channel.ContentOwnerDetails.ContentOwner,
+                item.Snippet.Title,
+                item.Snippet.Description,
+                item.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
+                XmlConvert.ToTimeSpan(item.ContentDetails.Duration),
+                item.ToYouTubeUrl(),
+                item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted"
+            );
+        }
 
-        return new ResolvedYouTubeItem(
-            item.Snippet.ChannelId,
-            item.Id,
-            item.Snippet.ChannelTitle,
-            channel!.Snippet.Description,
-            channel.ContentOwnerDetails.ContentOwner,
-            item.Snippet.Title,
-            item.Snippet.Description,
-            item.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-            XmlConvert.ToTimeSpan(item.ContentDetails.Duration),
-            item.ToYouTubeUrl(),
-            item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted"
-        );
+        return null;
     }
 
-    public Task<ResolvedYouTubeItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast)
+    public Task<ResolvedYouTubeItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast,
+        IndexOptions indexOptions)
     {
         return Task.FromResult((ResolvedYouTubeItem) null!)!;
     }
