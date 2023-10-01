@@ -54,7 +54,7 @@ public class PodcastUpdater : IPodcastUpdater
             podcast,
             mergeResult, 
             filterResult,
-            initialSkipSpotify == indexOptions.SkipSpotifyUrlResolving,
-            initialSkipYouTube == indexOptions.SkipYouTubeUrlResolving);
+            initialSkipSpotify != indexOptions.SkipSpotifyUrlResolving,
+            initialSkipYouTube != indexOptions.SkipYouTubeUrlResolving);
     }
 }
