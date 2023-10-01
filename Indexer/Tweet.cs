@@ -1,10 +1,11 @@
 using Indexer.Tweets;
-using Microsoft.Azure.Functions.Worker;
+using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 
 namespace Indexer;
 
-public class Tweet
+[DurableTask(nameof(Tweet))]
+public class Tweet : TaskActivity<object, bool>
 {
     private readonly ILogger<Tweet> _logger;
     private readonly ITweeter _tweeter;
@@ -17,19 +18,10 @@ public class Tweet
         _logger = logger;
     }
 
-    [Function("Tweet")]
-    public async Task Run([TimerTrigger("6 */2 * * *"
-#if DEBUG
-            , RunOnStartup = false
-#endif
-        )]
-        TimerInfo timerTimer
-    )
+    public override async Task<bool> RunAsync(TaskActivityContext context, object input)
     {
-        _logger.LogInformation($"{nameof(Tweet)}.{nameof(Run)} Initiated. Current timer schedule is: {timerTimer.ScheduleStatus.Next:R}");
-
         await _tweeter.Tweet();
-
-        _logger.LogInformation($"{nameof(Run)} Completed");
+        _logger.LogInformation($"{nameof(RunAsync)} Completed");
+        return true;
     }
 }

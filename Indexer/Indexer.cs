@@ -1,11 +1,12 @@
-using Microsoft.Azure.Functions.Worker;
+using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Podcasts;
 
 namespace Indexer;
 
-public class Indexer
+[DurableTask(nameof(Indexer))]
+public class Indexer : TaskActivity<Object, bool>
 {
     private readonly IndexerOptions _indexerOptions;
     private readonly ILogger _logger;
@@ -21,27 +22,18 @@ public class Indexer
         _logger = logger;
     }
 
-    [Function("Indexer")]
-    public async Task Run([TimerTrigger("0 */1 * * *"
-#if DEBUG
-            , RunOnStartup = false
-#endif
-        )]
-        TimerInfo timerTimer
-    )
+    public override async Task<bool> RunAsync(TaskActivityContext context, Object input)
     {
-        _logger.LogInformation(
-            $"{nameof(Indexer)}.{nameof(Run)} Initiated. Current timer schedule is: {timerTimer.ScheduleStatus.Next:R}");
         _logger.LogInformation(_indexerOptions.ToString());
 
-        var indexOptions = _indexerOptions.ToIndexOptions();
+        var indexContext = _indexerOptions.ToIndexOptions();
 
         _logger.LogInformation(
-            indexOptions.ReleasedSince.HasValue
-                ? $"{nameof(Run)} Indexing with options released-since: '{indexOptions.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-youtube: '{indexOptions.SkipYouTubeUrlResolving}'."
-                : $"{nameof(Run)} Indexing with options released-since: Null, bypass-youtube: '{indexOptions.SkipYouTubeUrlResolving}'.");
+            indexContext.ReleasedSince.HasValue
+                ? $"{nameof(RunAsync)} Indexing with options released-since: '{indexContext.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}'."
+                : $"{nameof(RunAsync)} Indexing with options released-since: Null, bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}'.");
 
-        var results = await _podcastsUpdater.UpdatePodcasts(indexOptions);
+        var results = await _podcastsUpdater.UpdatePodcasts(indexContext);
         if (results.Success)
         {
             _logger.LogInformation(results.ToString());
@@ -52,6 +44,7 @@ public class Indexer
         }
 
         _logger.LogInformation(
-            $"{nameof(Run)} Completed");
+            $"{nameof(RunAsync)} Completed");
+        return results.Success;
     }
 }
