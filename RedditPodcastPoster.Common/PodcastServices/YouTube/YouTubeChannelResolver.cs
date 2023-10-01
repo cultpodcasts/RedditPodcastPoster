@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Web;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
@@ -53,6 +54,13 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
             searchListRequest.PageToken = " "; // or searchListResponse.NextPageToken if paging
             searchListRequest.Type = "video";
             searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
+            if (indexOptions.ReleasedSince.HasValue)
+            {
+                searchListRequest.PublishedAfter =
+                    string.Concat(indexOptions.ReleasedSince.Value.ToString("o", CultureInfo.InvariantCulture),
+                        "Z");
+            }
+
             SearchListResponse searchListResponse;
             try
             {

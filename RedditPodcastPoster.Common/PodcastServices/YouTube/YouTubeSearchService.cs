@@ -174,8 +174,9 @@ public class YouTubeSearchService : IYouTubeSearchService
         {
             var playlistRequest = _youTubeService.PlaylistItems.List("snippet");
             playlistRequest.PlaylistId = playlistId.PlaylistId;
-            playlistRequest.MaxResults = 50;
+            playlistRequest.MaxResults = IYouTubeSearchService.MaxSearchResults;
             playlistRequest.PageToken = nextPageToken;
+
             PlaylistItemListResponse playlistItemsListResponse;
             try
             {

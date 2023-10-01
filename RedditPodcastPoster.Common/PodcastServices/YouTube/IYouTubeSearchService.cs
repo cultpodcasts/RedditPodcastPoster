@@ -4,7 +4,7 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public interface IYouTubeSearchService
 {
-    public const int MaxSearchResults = 20;
+    public const int MaxSearchResults = 5;
 
     Task<IList<SearchResult>?> GetLatestChannelVideos(YouTubeChannelId channelId, IndexOptions indexOptions);
     Task FindChannel(string channelName, IndexOptions indexOptions);
