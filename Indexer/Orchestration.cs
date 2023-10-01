@@ -18,7 +18,7 @@ public class Orchestration : TaskOrchestrator<object, bool>
         success |= await context.CallPosterAsync(new object());
         logger.LogInformation($"{nameof(Poster)} complete.");
         success |= await context.CallTweetAsync(new object());
-        logger.LogInformation($"{nameof(Publisher)} complete. All tasks complete.");
+        logger.LogInformation($"{nameof(Tweet)} complete. All tasks complete.");
         return success;
     }
 }
