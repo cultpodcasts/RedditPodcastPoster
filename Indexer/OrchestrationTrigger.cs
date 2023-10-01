@@ -16,7 +16,11 @@ public class OrchestrationTrigger
 
     [Function("OrchestrationTrigger")]
     public async Task Run(
-        [TimerTrigger("0 */1 * * *", RunOnStartup = true)] TimerInfo info,
+        [TimerTrigger("0 */1 * * *"
+#if DEBUG            
+            , RunOnStartup = true
+#endif        
+        )] TimerInfo info,
         [DurableClient] DurableTaskClient client)
     {
         _logger.LogInformation($"{nameof(OrchestrationTrigger)} {nameof(Run)} initiated.");
