@@ -1,10 +1,11 @@
 using Indexer.Publishing;
-using Microsoft.Azure.Functions.Worker;
+using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 
 namespace Indexer;
 
-public class Publisher
+[DurableTask(nameof(Publisher))]
+public class Publisher : TaskActivity<object, bool>
 {
     private readonly IContentPublisher _contentPublisher;
     private readonly ILogger _logger;
@@ -17,19 +18,10 @@ public class Publisher
         _logger = loggerFactory.CreateLogger<Publisher>();
     }
 
-    [Function("ContentPublisher")]
-    public async Task Run([TimerTrigger("3 */1 * * *"
-#if DEBUG
-            , RunOnStartup = false
-#endif
-        )]
-        TimerInfo timerTimer
-    )
+    public override async Task<bool> RunAsync(TaskActivityContext context, object input)
     {
-        _logger.LogInformation($"{nameof(Publisher)}.{nameof(Run)} Initiated. Current timer schedule is: {timerTimer.ScheduleStatus.Next:R}");
-
         await _contentPublisher.Publish();
-
-        _logger.LogInformation($"{nameof(Run)} Completed");
+        _logger.LogInformation($"{nameof(RunAsync)} Completed");
+        return true;
     }
 }
