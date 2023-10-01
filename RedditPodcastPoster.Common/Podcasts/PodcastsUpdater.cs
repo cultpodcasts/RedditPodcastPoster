@@ -1,48 +1,40 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Podcasts;
 
 public class PodcastsUpdater : IPodcastsUpdater
 {
-    private readonly IEliminationTermsRepository _eliminationTermsRepository;
     private readonly ILogger<PodcastsUpdater> _logger;
-    private readonly IPodcastFilter _podcastFilter;
     private readonly IPodcastRepository _podcastRepository;
     private readonly IPodcastUpdater _podcastUpdater;
 
     public PodcastsUpdater(
         IPodcastUpdater podcastUpdater,
         IPodcastRepository podcastRepository,
-        IPodcastFilter podcastFilter,
-        IEliminationTermsRepository eliminationTermsRepository,
         ILogger<PodcastsUpdater> logger
     )
     {
         _podcastUpdater = podcastUpdater;
         _podcastRepository = podcastRepository;
-        _podcastFilter = podcastFilter;
-        _eliminationTermsRepository = eliminationTermsRepository;
         _logger = logger;
     }
 
-    public async Task UpdatePodcasts(IndexOptions indexOptions)
+    public async Task<IndexPodcastsResult> UpdatePodcasts(IndexingContext indexingContext)
     {
+        var results = new List<IndexPodcastResult>();
+        _logger.LogInformation($"{nameof(UpdatePodcasts)} Retrieving podcasts.");
         IEnumerable<Podcast> podcasts = await _podcastRepository.GetAll().ToListAsync();
-        var eliminationTerms = await _eliminationTermsRepository.Get();
+        _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
         foreach (var podcast in podcasts)
         {
             if (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
             {
-                _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing '{podcast.Name}' ({podcast.Id}).");
-                await _podcastUpdater.Update(podcast, indexOptions);
+                results.Add(await _podcastUpdater.Update(podcast, indexingContext));
             }
-
-            _podcastFilter.Filter(podcast, eliminationTerms.Terms);
-            await _podcastRepository.Update(podcast);
         }
 
         _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing complete.");
+        return new IndexPodcastsResult(results);
     }
 }

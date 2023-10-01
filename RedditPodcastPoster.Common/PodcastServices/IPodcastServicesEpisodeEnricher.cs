@@ -7,5 +7,5 @@ public interface IPodcastServicesEpisodeEnricher
     Task EnrichEpisodes(
         Podcast podcast,
         IList<Episode> newEpisodes,
-        IndexOptions indexOptions);
+        IndexingContext indexingContext);
 }

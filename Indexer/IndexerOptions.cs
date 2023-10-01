@@ -13,7 +13,7 @@ public class IndexerOptions
             $"{nameof(IndexerOptions)} {{ {nameof(ReleasedDaysAgo)}: '{ReleasedDaysAgo}', {nameof(ByPassYouTube)}: '{ByPassYouTube}'}}.";
     }
 
-    public IndexOptions ToIndexOptions()
+    public IndexingContext ToIndexOptions()
     {
         DateTime? releasedSince = null;
         if (ReleasedDaysAgo != null)
@@ -21,7 +21,7 @@ public class IndexerOptions
             releasedSince= DateTimeHelper.DaysAgo(ReleasedDaysAgo.Value);
         }
 
-        return new IndexOptions(releasedSince, ByPassYouTube);
+        return new IndexingContext(releasedSince, ByPassYouTube);
     }
 
 }

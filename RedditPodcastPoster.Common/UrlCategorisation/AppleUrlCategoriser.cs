@@ -27,7 +27,7 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
         return url.Host.ToLower().Contains("apple");
     }
 
-    public async Task<ResolvedAppleItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast)
+    public async Task<ResolvedAppleItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast, IndexingContext indexingContext)
     {
         var podcast =
             await _applePodcastResolver.FindPodcast(new FindApplePodcastRequest(
@@ -71,7 +71,7 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
         return null;
     }
 
-    public async Task<ResolvedAppleItem> Resolve(List<Podcast> podcasts, Uri url)
+    public async Task<ResolvedAppleItem> Resolve(List<Podcast> podcasts, Uri url, IndexingContext indexingContext)
     {
         var pair = podcasts
             .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new PodcastEpisodePair(podcast, episode))

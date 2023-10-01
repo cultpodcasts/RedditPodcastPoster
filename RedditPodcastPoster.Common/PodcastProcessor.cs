@@ -24,8 +24,16 @@ public class PodcastProcessor : IPodcastProcessor
     {
         if (processRequest.RefreshEpisodes)
         {
-            IndexOptions indexOptions = new(processRequest.ReleaseBaseline, processRequest.SkipYouTubeUrlResolving);
-            await _podcastsUpdater.UpdatePodcasts(indexOptions);
+            IndexingContext indexingContext = new(processRequest.ReleaseBaseline, processRequest.SkipYouTubeUrlResolving);
+            var results= await _podcastsUpdater.UpdatePodcasts(indexingContext);
+            if (results.Success)
+            {
+                _logger.LogInformation(results.ToString());
+            }
+            else
+            {
+                _logger.LogError(results.ToString());
+            }
         }
 
         if (processRequest.ReleaseBaseline != null)
@@ -33,6 +41,6 @@ public class PodcastProcessor : IPodcastProcessor
             return await _episodeProcessor.PostEpisodesSinceReleaseDate(processRequest.ReleaseBaseline.Value);
         }
 
-        return ProcessResponse.Successful();
+        return ProcessResponse.Successful("Operation successful.");
     }
 }

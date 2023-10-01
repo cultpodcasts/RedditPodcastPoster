@@ -5,8 +5,10 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public interface IYouTubeEpisodeProvider
 {
-    Task<IList<Episode>> GetEpisodes(YouTubeGetEpisodesRequest request);
+    Task<IList<Episode>?> GetEpisodes(YouTubeChannelId request, IndexingContext indexingContext);
     Episode GetEpisode(SearchResult searchResult, Video videoDetails);
     Episode GetEpisode(PlaylistItemSnippet playlistItemSnippet, Video videoDetails);
-    Task<IList<Episode>> GetPlaylistEpisodes(YouTubeGetPlaylistEpisodesRequest youTubeGetPlaylistEpisodesRequest);
+
+    Task<IList<Episode>?> GetPlaylistEpisodes(YouTubePlaylistId youTubePlaylistId,
+        IndexingContext indexingContext);
 }

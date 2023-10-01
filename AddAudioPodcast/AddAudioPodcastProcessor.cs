@@ -12,7 +12,7 @@ namespace AddAudioPodcast;
 public class AddAudioPodcastProcessor
 {
     private readonly IApplePodcastEnricher _applePodcastEnricher;
-    private readonly IndexOptions _indexOptions = new(null, true);
+    private readonly IndexingContext _indexingContext = new(null, true);
     private readonly ILogger<AddAudioPodcastProcessor> _logger;
     private readonly PodcastFactory _podcastFactory;
     private readonly IPodcastRepository _podcastRepository;
@@ -53,7 +53,7 @@ public class AddAudioPodcastProcessor
             await _applePodcastEnricher.AddId(podcast);
         }
 
-        await _podcastUpdater.Update(podcast, _indexOptions);
+        await _podcastUpdater.Update(podcast, _indexingContext);
 
         if (!string.IsNullOrWhiteSpace(request.EpisodeTitleRegex))
         {

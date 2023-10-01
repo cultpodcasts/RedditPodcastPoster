@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Common.Podcasts;
 
 public interface IPodcastUpdater
 {
-    Task Update(Podcast podcast, IndexOptions indexOptions);
+    Task<IndexPodcastResult> Update(Podcast podcast, IndexingContext indexingContext);
 }

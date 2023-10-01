@@ -66,7 +66,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
         throw new InvalidOperationException($"Could not find item with spotify-id '{SpotifyId}'.");
     }
 
-    public async Task<ResolvedSpotifyItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast)
+    public async Task<ResolvedSpotifyItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast, IndexingContext indexingContext)
     {
         var request = new FindSpotifyEpisodeRequest(
             matchingPodcast?.SpotifyId ?? string.Empty,
@@ -74,7 +74,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
             string.Empty,
             criteria.EpisodeTitle.Trim(),
             criteria.Release);
-        var item = await _spotifyItemResolver.FindEpisode(request);
+        var item = await _spotifyItemResolver.FindEpisode(request, indexingContext);
         if (item != null)
         {
             return new ResolvedSpotifyItem(

@@ -21,9 +21,9 @@ public class UrlSubmitter : IUrlSubmitter
         _logger = logger;
     }
 
-    public async Task Submit(Uri url, bool bypassYouTube)
+    public async Task Submit(Uri url, IndexingContext indexingContext)
     {
-        var categorisedItem = await _urlCategoriser.Categorise(url, bypassYouTube);
+        var categorisedItem = await _urlCategoriser.Categorise(url, indexingContext);
 
         if (categorisedItem.MatchingPodcast != null)
         {

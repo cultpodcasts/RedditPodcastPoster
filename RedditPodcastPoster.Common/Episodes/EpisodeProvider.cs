@@ -24,38 +24,36 @@ public class EpisodeProvider : IEpisodeProvider
 
     public async Task<IList<Episode>> GetEpisodes(
         Podcast podcast,
-        DateTime? processRequestReleasedSince,
-        bool skipYouTube)
+        IndexingContext indexingContext)
     {
-        IList<Episode> episodes;
+        IList<Episode> episodes = new List<Episode>();
         if (podcast.ReleaseAuthority is null or Service.Spotify && !string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
-            episodes = await _spotifyEpisodeProvider.GetEpisodes(
-                new SpotifyGetEpisodesRequest(podcast.SpotifyId, processRequestReleasedSince));
-            _logger.LogInformation(
-                $"{nameof(GetEpisodes)} (Spotify) - Found '{episodes.Count}' episodes released since {processRequestReleasedSince:R}");
+            var foundEpisodes = await _spotifyEpisodeProvider.GetEpisodes(
+                new SpotifyPodcastId(podcast.SpotifyId), indexingContext);
+            if (foundEpisodes != null)
+            {
+                episodes = foundEpisodes;
+            }
         }
         else if (podcast.ReleaseAuthority is Service.YouTube || !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
-            if (skipYouTube)
+            if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
             {
-                _logger.LogInformation(
-                    $"{nameof(GetEpisodes)} Bypassing resolving using YouTube due to '{nameof(skipYouTube)}'.");
-                episodes = new List<Episode>();
+                var foundEpisodes = await _youTubeEpisodeProvider.GetPlaylistEpisodes(
+                    new YouTubePlaylistId(podcast.YouTubePlaylistId), indexingContext);
+                if (foundEpisodes != null)
+                {
+                    episodes = foundEpisodes;
+                }
             }
             else
             {
-                if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
+                var foundEpisodes = await _youTubeEpisodeProvider.GetEpisodes(
+                    new YouTubeChannelId(podcast.YouTubeChannelId), indexingContext);
+                if (foundEpisodes != null)
                 {
-                    episodes = await _youTubeEpisodeProvider.GetPlaylistEpisodes(
-                        new YouTubeGetPlaylistEpisodesRequest(podcast.YouTubePlaylistId, processRequestReleasedSince));
-                }
-                else
-                {
-                    episodes = await _youTubeEpisodeProvider.GetEpisodes(
-                        new YouTubeGetEpisodesRequest(podcast.YouTubeChannelId, processRequestReleasedSince));
-                    _logger.LogInformation(
-                        $"{nameof(GetEpisodes)} (YouTube) - Found '{episodes.Count}' episodes released since {processRequestReleasedSince:R}");
+                    episodes = foundEpisodes;
                 }
             }
         }
@@ -67,10 +65,13 @@ public class EpisodeProvider : IEpisodeProvider
 
         if (!podcast.IndexAllEpisodes && !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
         {
-            _logger.LogInformation(
-                $"{nameof(GetEpisodes)} - Filtering episodes by '{nameof(podcast.EpisodeIncludeTitleRegex)}'='{podcast.EpisodeIncludeTitleRegex}'.");
             var includeEpisodeRegex = new Regex(podcast.EpisodeIncludeTitleRegex,
                 RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            var eliminatedEpisodes = episodes.Where(x => !includeEpisodeRegex.IsMatch(x.Title));
+            if (eliminatedEpisodes.Any())
+            {
+                _logger.LogInformation($"Eliminating episodes of podcast '{podcast.Name}' with id '{podcast.Id}' with titles '{string.Join(", ", eliminatedEpisodes)}' as they do not match {nameof(podcast.EpisodeIncludeTitleRegex)} of value '{podcast.EpisodeIncludeTitleRegex}'.");
+            }
             episodes = episodes.Where(x => includeEpisodeRegex.IsMatch(x.Title)).ToList();
         }
 
