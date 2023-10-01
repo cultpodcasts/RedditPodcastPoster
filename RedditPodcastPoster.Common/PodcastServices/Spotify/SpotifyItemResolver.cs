@@ -21,12 +21,12 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         _logger = logger;
     }
 
-    public async Task<FullEpisode?> FindEpisode(FindSpotifyEpisodeRequest request, IndexOptions indexOptions)
+    public async Task<FullEpisode?> FindEpisode(FindSpotifyEpisodeRequest request, IndexingContext indexingContext)
     {
-        if (indexOptions.SkipSpotifyUrlResolving)
+        if (indexingContext.SkipSpotifyUrlResolving)
         {
             _logger.LogInformation(
-                $"Skipping '{nameof(FindEpisode)}' as '{nameof(indexOptions.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.PodcastSpotifyId}', Podcast-Name:'{request.PodcastName}', Episode-Id:'{request.EpisodeSpotifyId}', Episode-Name:'{request.EpisodeTitle}', Released:{request.Released:R}.");
+                $"Skipping '{nameof(FindEpisode)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.PodcastSpotifyId}', Podcast-Name:'{request.PodcastName}', Episode-Id:'{request.EpisodeSpotifyId}', Episode-Name:'{request.EpisodeTitle}', Released:{request.Released:R}.");
             return null;
         }
 
@@ -40,7 +40,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Failed using {nameof(_spotifyClient)}.");
-                indexOptions.SkipSpotifyUrlResolving = true;
+                indexingContext.SkipSpotifyUrlResolving = true;
                 return null;
             }
         }
@@ -59,7 +59,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, $"Failed using {nameof(_spotifyClient)}.");
-                    indexOptions.SkipSpotifyUrlResolving = true;
+                    indexingContext.SkipSpotifyUrlResolving = true;
                     return null;
                 }
 
@@ -77,7 +77,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, $"Failed using {nameof(_spotifyClient)}.");
-                    indexOptions.SkipSpotifyUrlResolving = true;
+                    indexingContext.SkipSpotifyUrlResolving = true;
                     return null;
                 }
 
@@ -92,7 +92,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             IList<IList<SimpleEpisode>> allEpisodes = new List<IList<SimpleEpisode>>();
             foreach (var paging in episodes)
             {
-                var simpleEpisodes = await PaginateEpisodes(paging, indexOptions);
+                var simpleEpisodes = await PaginateEpisodes(paging, indexingContext);
                 allEpisodes.Add(simpleEpisodes);
             }
 
@@ -108,7 +108,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, $"Failed using {nameof(_spotifyClient)}.");
-                    indexOptions.SkipSpotifyUrlResolving = true;
+                    indexingContext.SkipSpotifyUrlResolving = true;
                     return null;
                 }
             }
@@ -118,12 +118,12 @@ public class SpotifyItemResolver : ISpotifyItemResolver
     }
 
 
-    public async Task<SpotifyPodcastWrapper?> FindPodcast(FindSpotifyPodcastRequest request, IndexOptions indexOptions)
+    public async Task<SpotifyPodcastWrapper?> FindPodcast(FindSpotifyPodcastRequest request, IndexingContext indexingContext)
     {
-        if (indexOptions.SkipSpotifyUrlResolving)
+        if (indexingContext.SkipSpotifyUrlResolving)
         {
             _logger.LogInformation(
-                $"Skipping '{nameof(FindPodcast)}' as '{nameof(indexOptions.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.PodcastId}', Podcast-Name:'{request.Name}'.");
+                $"Skipping '{nameof(FindPodcast)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.PodcastId}', Podcast-Name:'{request.Name}'.");
             return null;
         }
 
@@ -138,7 +138,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Failed using {nameof(_spotifyClient)}.");
-                indexOptions.SkipSpotifyUrlResolving = true;
+                indexingContext.SkipSpotifyUrlResolving = true;
                 return null;
             }
         }
@@ -154,7 +154,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Failed using {nameof(_spotifyClient)}.");
-                indexOptions.SkipSpotifyUrlResolving = true;
+                indexingContext.SkipSpotifyUrlResolving = true;
                 return null;
             }
 
@@ -172,11 +172,11 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, $"Failed using {nameof(_spotifyClient)}.");
-                        indexOptions.SkipSpotifyUrlResolving = true;
+                        indexingContext.SkipSpotifyUrlResolving = true;
                         return null;
                     }
 
-                    var allEpisodes = await PaginateEpisodes(pagedEpisodes, indexOptions);
+                    var allEpisodes = await PaginateEpisodes(pagedEpisodes, indexingContext);
 
                     var mostRecentEpisode = request.Episodes.OrderByDescending(x => x.Release).First();
                     var matchingEpisode =
@@ -203,12 +203,12 @@ public class SpotifyItemResolver : ISpotifyItemResolver
 
     public async Task<IEnumerable<SimpleEpisode>> GetEpisodes(
         SpotifyPodcastId request,
-        IndexOptions indexOptions)
+        IndexingContext indexingContext)
     {
-        if (indexOptions.SkipSpotifyUrlResolving)
+        if (indexingContext.SkipSpotifyUrlResolving)
         {
             _logger.LogInformation(
-                $"Skipping '{nameof(GetEpisodes)}' as '{nameof(indexOptions.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.PodcastId}'.");
+                $"Skipping '{nameof(GetEpisodes)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.PodcastId}'.");
             return null;
         }
 
@@ -222,27 +222,27 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         catch (Exception e)
         {
             _logger.LogError(e, $"Failed using {nameof(_spotifyClient)}.");
-            indexOptions.SkipSpotifyUrlResolving = true;
+            indexingContext.SkipSpotifyUrlResolving = true;
             return Enumerable.Empty<SimpleEpisode>();
         }
 
-        return await PaginateEpisodes(pagedEpisodes, indexOptions);
+        return await PaginateEpisodes(pagedEpisodes, indexingContext);
     }
 
     private async Task<IList<SimpleEpisode>> PaginateEpisodes(
         IPaginatable<SimpleEpisode> pagedEpisodes,
-        IndexOptions indexOptions)
+        IndexingContext indexingContext)
     {
-        if (indexOptions.SkipSpotifyUrlResolving)
+        if (indexingContext.SkipSpotifyUrlResolving)
         {
             _logger.LogInformation(
-                $"Skipping '{nameof(PaginateEpisodes)}' as '{nameof(indexOptions.SkipSpotifyUrlResolving)}' is set.");
+                $"Skipping '{nameof(PaginateEpisodes)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set.");
             return new List<SimpleEpisode>();
         }
 
         IList<SimpleEpisode> episodes;
 
-        if (indexOptions.ReleasedSince == null)
+        if (indexingContext.ReleasedSince == null)
         {
             IList<SimpleEpisode> fetch;
             try
@@ -252,7 +252,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             catch (Exception e)
             {
                 _logger.LogError(e, $"Failed using {nameof(_spotifyClient)}.");
-                indexOptions.SkipSpotifyUrlResolving = true;
+                indexingContext.SkipSpotifyUrlResolving = true;
                 return new List<SimpleEpisode>();
             }
 
@@ -260,7 +260,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         }
         else
         {
-            while (pagedEpisodes.Items!.Last().GetReleaseDate() > indexOptions.ReleasedSince)
+            while (pagedEpisodes.Items!.Last().GetReleaseDate() > indexingContext.ReleasedSince)
             {
                 try
                 {
@@ -269,7 +269,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                 catch (Exception e)
                 {
                     _logger.LogError(e, $"Failed using {nameof(_spotifyClient)}.");
-                    indexOptions.SkipSpotifyUrlResolving = true;
+                    indexingContext.SkipSpotifyUrlResolving = true;
                     return new List<SimpleEpisode>();
                 }
             }

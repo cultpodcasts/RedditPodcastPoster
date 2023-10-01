@@ -20,7 +20,7 @@ public class PodcastsUpdater : IPodcastsUpdater
         _logger = logger;
     }
 
-    public async Task<IndexPodcastsResult> UpdatePodcasts(IndexOptions indexOptions)
+    public async Task<IndexPodcastsResult> UpdatePodcasts(IndexingContext indexingContext)
     {
         var results = new List<IndexPodcastResult>();
         _logger.LogInformation($"{nameof(UpdatePodcasts)} Retrieving podcasts.");
@@ -30,7 +30,7 @@ public class PodcastsUpdater : IPodcastsUpdater
         {
             if (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
             {
-                results.Add(await _podcastUpdater.Update(podcast, indexOptions));
+                results.Add(await _podcastUpdater.Update(podcast, indexingContext));
             }
         }
 

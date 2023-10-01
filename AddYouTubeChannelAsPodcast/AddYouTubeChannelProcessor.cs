@@ -30,7 +30,7 @@ public class AddYouTubeChannelProcessor
 
     public async Task<bool> Run(Args request)
     {
-        var indexOptions = new IndexOptions();
+        var indexOptions = new IndexingContext();
         var match = await _youTubeChannelResolver.FindChannel(
             request.ChannelName,
             request.MostRecentUploadedVideoTitle,

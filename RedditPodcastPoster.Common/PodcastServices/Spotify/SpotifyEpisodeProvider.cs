@@ -18,15 +18,15 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
         _logger = logger;
     }
 
-    public async Task<IList<Episode>?> GetEpisodes(SpotifyPodcastId podcastId, IndexOptions indexOptions)
+    public async Task<IList<Episode>?> GetEpisodes(SpotifyPodcastId podcastId, IndexingContext indexingContext)
     {
         var episodes =
             await _spotifyItemResolver.GetEpisodes(
-                new SpotifyPodcastId(podcastId.PodcastId), indexOptions);
+                new SpotifyPodcastId(podcastId.PodcastId), indexingContext);
 
-        if (indexOptions.ReleasedSince.HasValue)
+        if (indexingContext.ReleasedSince.HasValue)
         {
-            episodes = episodes.Where(x => x.GetReleaseDate() > indexOptions.ReleasedSince.Value);
+            episodes = episodes.Where(x => x.GetReleaseDate() > indexingContext.ReleasedSince.Value);
         }
 
         return episodes.Select(x =>

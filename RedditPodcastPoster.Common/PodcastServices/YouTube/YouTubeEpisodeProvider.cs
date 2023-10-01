@@ -21,15 +21,15 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
         _logger = logger;
     }
 
-    public async Task<IList<Episode>?> GetEpisodes(YouTubeChannelId request, IndexOptions indexOptions)
+    public async Task<IList<Episode>?> GetEpisodes(YouTubeChannelId request, IndexingContext indexingContext)
     {
         var youTubeVideos =
             await _youTubeSearchService.GetLatestChannelVideos(
-                new YouTubeChannelId(request.ChannelId), indexOptions);
+                new YouTubeChannelId(request.ChannelId), indexingContext);
         if (youTubeVideos != null)
         {
             var videoDetails =
-                await _youTubeSearchService.GetVideoDetails(youTubeVideos.Select(x => x.Id.VideoId), indexOptions);
+                await _youTubeSearchService.GetVideoDetails(youTubeVideos.Select(x => x.Id.VideoId), indexingContext);
 
             if (videoDetails != null)
             {
@@ -68,15 +68,15 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
     }
 
     public async Task<IList<Episode>?> GetPlaylistEpisodes(
-        YouTubePlaylistId youTubePlaylistId, IndexOptions indexOptions)
+        YouTubePlaylistId youTubePlaylistId, IndexingContext indexingContext)
     {
         var playlistVideos = await _youTubeSearchService.GetPlaylist(new YouTubePlaylistId(
-            youTubePlaylistId.PlaylistId), indexOptions);
+            youTubePlaylistId.PlaylistId), indexingContext);
         if (playlistVideos != null)
         {
             var videoDetails =
                 await _youTubeSearchService.GetVideoDetails(playlistVideos.Select(x => x.Snippet.ResourceId.VideoId),
-                    indexOptions);
+                    indexingContext);
             if (videoDetails != null)
             {
                 return playlistVideos.Select(playlistItem => GetEpisode(

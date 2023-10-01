@@ -2,5 +2,5 @@
 
 public interface IUrlCategoriser
 {
-    Task<CategorisedItem> Categorise(Uri url, IndexOptions indexOptions);
+    Task<CategorisedItem> Categorise(Uri url, IndexingContext indexingContext);
 }

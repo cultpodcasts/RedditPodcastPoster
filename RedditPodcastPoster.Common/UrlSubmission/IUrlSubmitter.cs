@@ -2,5 +2,5 @@
 
 public interface IUrlSubmitter
 {
-    Task Submit(Uri url, IndexOptions indexOptions);
+    Task Submit(Uri url, IndexingContext indexingContext);
 }

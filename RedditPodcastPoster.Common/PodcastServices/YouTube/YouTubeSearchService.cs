@@ -21,11 +21,11 @@ public class YouTubeSearchService : IYouTubeSearchService
         _logger = logger;
     }
 
-    public async Task<IList<SearchResult>?> GetLatestChannelVideos(YouTubeChannelId channelId, IndexOptions indexOptions)
+    public async Task<IList<SearchResult>?> GetLatestChannelVideos(YouTubeChannelId channelId, IndexingContext indexingContext)
     {
-        if (indexOptions.SkipYouTubeUrlResolving)
+        if (indexingContext.SkipYouTubeUrlResolving)
         {
-            _logger.LogInformation($"Skipping '{nameof(GetLatestChannelVideos)}' as '{nameof(indexOptions.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
+            _logger.LogInformation($"Skipping '{nameof(GetLatestChannelVideos)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
             return null;
         }
         var result = new List<SearchResult>();
@@ -39,10 +39,10 @@ public class YouTubeSearchService : IYouTubeSearchService
             searchListRequest.Type = "video";
             searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
             searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
-            if (indexOptions.ReleasedSince.HasValue)
+            if (indexingContext.ReleasedSince.HasValue)
             {
                 searchListRequest.PublishedAfter =
-                    string.Concat(indexOptions.ReleasedSince.Value.ToString("o", CultureInfo.InvariantCulture),
+                    string.Concat(indexingContext.ReleasedSince.Value.ToString("o", CultureInfo.InvariantCulture),
                         "Z");
             }
 
@@ -54,7 +54,7 @@ public class YouTubeSearchService : IYouTubeSearchService
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Failed to use {nameof(_youTubeService)}.");
-                indexOptions.SkipYouTubeUrlResolving = true;
+                indexingContext.SkipYouTubeUrlResolving = true;
                 return null;
             }
 
@@ -65,12 +65,12 @@ public class YouTubeSearchService : IYouTubeSearchService
         return result;
     }
 
-    public async Task<IList<Video>?> GetVideoDetails(IEnumerable<string> videoIds, IndexOptions indexOptions)
+    public async Task<IList<Video>?> GetVideoDetails(IEnumerable<string> videoIds, IndexingContext indexingContext)
     {
-        if (indexOptions.SkipYouTubeUrlResolving)
+        if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(
-                $"Skipping '{nameof(GetVideoDetails)}' as '{nameof(indexOptions.SkipYouTubeUrlResolving)}' is set. Video-ids: '{string.Join(",", videoIds)}'.");
+                $"Skipping '{nameof(GetVideoDetails)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Video-ids: '{string.Join(",", videoIds)}'.");
             return null;
         }
         var result = new List<Video>();
@@ -92,7 +92,7 @@ public class YouTubeSearchService : IYouTubeSearchService
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, $"Failed to use {nameof(_youTubeService)}.");
-                    indexOptions.SkipYouTubeUrlResolving = true;
+                    indexingContext.SkipYouTubeUrlResolving = true;
                     return null;
                 }
 
@@ -109,11 +109,11 @@ public class YouTubeSearchService : IYouTubeSearchService
         return result;
     }
 
-    public async Task FindChannel(string channelName, IndexOptions indexOptions)
+    public async Task FindChannel(string channelName, IndexingContext indexingContext)
     {
-        if (indexOptions.SkipYouTubeUrlResolving)
+        if (indexingContext.SkipYouTubeUrlResolving)
         {
-            _logger.LogInformation($"Skipping '{nameof(FindChannel)}' as '{nameof(indexOptions.SkipYouTubeUrlResolving)}' is set. Channel-name: '{channelName}'.");
+            _logger.LogInformation($"Skipping '{nameof(FindChannel)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-name: '{channelName}'.");
             return;
         }
         var channelsListRequest = _youTubeService.Search.List("snippet");
@@ -128,18 +128,18 @@ public class YouTubeSearchService : IYouTubeSearchService
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Failed to use {nameof(_youTubeService)}.");
-            indexOptions.SkipYouTubeUrlResolving = true;
+            indexingContext.SkipYouTubeUrlResolving = true;
             return;
         }
 
         throw new NotImplementedException("method not fully implemented");
     }
 
-    public async Task<Channel?> GetChannel(YouTubeChannelId channelId, IndexOptions indexOptions)
+    public async Task<Channel?> GetChannel(YouTubeChannelId channelId, IndexingContext indexingContext)
     {
-        if (indexOptions.SkipYouTubeUrlResolving)
+        if (indexingContext.SkipYouTubeUrlResolving)
         {
-            _logger.LogInformation($"Skipping '{nameof(GetChannel)}' as '{nameof(indexOptions.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
+            _logger.LogInformation($"Skipping '{nameof(GetChannel)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
             return null;
         }
 
@@ -153,24 +153,24 @@ public class YouTubeSearchService : IYouTubeSearchService
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Failed to use {nameof(_youTubeService)}.");
-            indexOptions.SkipYouTubeUrlResolving = true;
+            indexingContext.SkipYouTubeUrlResolving = true;
             return null;
         }
 
         return result.Items.SingleOrDefault();
     }
 
-    public async Task<IList<PlaylistItem>?> GetPlaylist(YouTubePlaylistId playlistId, IndexOptions indexOptions)
+    public async Task<IList<PlaylistItem>?> GetPlaylist(YouTubePlaylistId playlistId, IndexingContext indexingContext)
     {
-        if (indexOptions.SkipYouTubeUrlResolving)
+        if (indexingContext.SkipYouTubeUrlResolving)
         {
-            _logger.LogInformation($"Skipping '{nameof(GetPlaylist)}' as '{nameof(indexOptions.SkipYouTubeUrlResolving)}' is set. Channel-id: '{playlistId.PlaylistId}'.");
+            _logger.LogInformation($"Skipping '{nameof(GetPlaylist)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{playlistId.PlaylistId}'.");
             return null;
         }
         var result = new List<PlaylistItem>();
         var nextPageToken = "";
         while (nextPageToken != null &&
-               ReleasedSinceDate(result.LastOrDefault()?.Snippet.PublishedAtDateTimeOffset, indexOptions.ReleasedSince))
+               ReleasedSinceDate(result.LastOrDefault()?.Snippet.PublishedAtDateTimeOffset, indexingContext.ReleasedSince))
         {
             var playlistRequest = _youTubeService.PlaylistItems.List("snippet");
             playlistRequest.PlaylistId = playlistId.PlaylistId;
@@ -185,7 +185,7 @@ public class YouTubeSearchService : IYouTubeSearchService
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Failed to use {nameof(_youTubeService)}.");
-                indexOptions.SkipYouTubeUrlResolving = true;
+                indexingContext.SkipYouTubeUrlResolving = true;
                 return null;
             }
 

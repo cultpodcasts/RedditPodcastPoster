@@ -26,7 +26,7 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
         return url.Host.ToLower().Contains("youtube");
     }
 
-    public async Task<ResolvedYouTubeItem?> Resolve(List<Podcast> podcasts, Uri url, IndexOptions indexOptions)
+    public async Task<ResolvedYouTubeItem?> Resolve(List<Podcast> podcasts, Uri url, IndexingContext indexingContext)
     {
         var pair = podcasts
             .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new PodcastEpisodePair(podcast, episode))
@@ -43,7 +43,7 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
             throw new InvalidOperationException($"Unable to find video-id in url '{url}'.");
         }
 
-        var items = await _youTubeSearchService.GetVideoDetails(new[] {videoIdMatch.Value}, indexOptions);
+        var items = await _youTubeSearchService.GetVideoDetails(new[] {videoIdMatch.Value}, indexingContext);
         var item = items.FirstOrDefault();
         if (item == null)
         {
@@ -51,7 +51,7 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
         }
 
         var channel =
-            await _youTubeSearchService.GetChannel(new YouTubeChannelId(item.Snippet.ChannelId), indexOptions);
+            await _youTubeSearchService.GetChannel(new YouTubeChannelId(item.Snippet.ChannelId), indexingContext);
         if (channel != null)
         {
             return new ResolvedYouTubeItem(
@@ -73,7 +73,7 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
     }
 
     public Task<ResolvedYouTubeItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast,
-        IndexOptions indexOptions)
+        IndexingContext indexingContext)
     {
         return Task.FromResult((ResolvedYouTubeItem) null!)!;
     }

@@ -29,7 +29,7 @@ public class EnrichYouTubePodcastProcessor
 
     public async Task Run(EnrichYouTubePodcastRequest request)
     {
-        var indexOptions = new IndexOptions {ReleasedSince = DateTime.Today.AddDays(-1 * request.ReleasedSince)};
+        var indexOptions = new IndexingContext {ReleasedSince = DateTime.Today.AddDays(-1 * request.ReleasedSince)};
         var podcasts = await _podcastRepository.GetAll().ToListAsync();
         var podcast = podcasts.Single(x => x.Id == request.PodcastGuid);
         if (string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))

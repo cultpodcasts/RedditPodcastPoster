@@ -7,5 +7,5 @@ public interface IYouTubeChannelResolver
     Task<SearchResult?> FindChannel(
         string channelName, 
         string mostRecentlyUploadVideoTitle,
-        IndexOptions indexOptions);
+        IndexingContext indexingContext);
 }

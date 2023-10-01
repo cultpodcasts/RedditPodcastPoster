@@ -19,12 +19,12 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
     }
 
     public async Task<SearchResult?> FindChannel(string channelName, string mostRecentlyUploadVideoTitle,
-        IndexOptions indexOptions)
+        IndexingContext indexingContext)
     {
-        if (indexOptions.SkipYouTubeUrlResolving)
+        if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(
-                $"Skipping '{nameof(FindChannel)}' as '{nameof(indexOptions.SkipYouTubeUrlResolving)}' is set. Channel-name: '{channelName}'.");
+                $"Skipping '{nameof(FindChannel)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-name: '{channelName}'.");
             return null;
         }
 
@@ -42,7 +42,7 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Failed to use {nameof(_youTubeService)}.");
-            indexOptions.SkipYouTubeUrlResolving = true;
+            indexingContext.SkipYouTubeUrlResolving = true;
             return null;
         }
 
@@ -54,10 +54,10 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
             searchListRequest.PageToken = " "; // or searchListResponse.NextPageToken if paging
             searchListRequest.Type = "video";
             searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
-            if (indexOptions.ReleasedSince.HasValue)
+            if (indexingContext.ReleasedSince.HasValue)
             {
                 searchListRequest.PublishedAfter =
-                    string.Concat(indexOptions.ReleasedSince.Value.ToString("o", CultureInfo.InvariantCulture),
+                    string.Concat(indexingContext.ReleasedSince.Value.ToString("o", CultureInfo.InvariantCulture),
                         "Z");
             }
 
@@ -69,7 +69,7 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Failed to use {nameof(_youTubeService)}.");
-                indexOptions.SkipYouTubeUrlResolving = true;
+                indexingContext.SkipYouTubeUrlResolving = true;
                 return null;
             }
 

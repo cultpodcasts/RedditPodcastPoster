@@ -1,6 +1,6 @@
 ﻿namespace RedditPodcastPoster.Common;
 
-public record IndexOptions(
+public record IndexingContext(
     DateTime? ReleasedSince = null, 
     bool SkipYouTubeUrlResolving = false,
     bool SkipSpotifyUrlResolving = false)

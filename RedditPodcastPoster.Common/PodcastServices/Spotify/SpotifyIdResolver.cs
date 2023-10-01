@@ -16,15 +16,15 @@ public class SpotifyIdResolver : ISpotifyIdResolver
         _logger = logger;
     }
 
-    public async Task<string> FindPodcastId(Podcast podcast, IndexOptions indexOptions)
+    public async Task<string> FindPodcastId(Podcast podcast, IndexingContext indexingContext)
     {
-        var match = await _spotifyItemResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest(), indexOptions);
+        var match = await _spotifyItemResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest(), indexingContext);
         return match.Id;
     }
 
-    public async Task<string> FindEpisodeId(Podcast podcast, Episode episode, IndexOptions indexOptions)
+    public async Task<string> FindEpisodeId(Podcast podcast, Episode episode, IndexingContext indexingContext)
     {
-        var match = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode), indexOptions);
+        var match = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode), indexingContext);
         if (match == null)
         {
             return string.Empty;

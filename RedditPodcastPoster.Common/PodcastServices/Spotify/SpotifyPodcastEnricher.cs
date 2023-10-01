@@ -16,12 +16,12 @@ public class SpotifyPodcastEnricher : ISpotifyPodcastEnricher
         _logger = logger;
     }
 
-    public async Task<bool> AddIdAndUrls(Podcast podcast, IndexOptions indexOptions)
+    public async Task<bool> AddIdAndUrls(Podcast podcast, IndexingContext indexingContext)
     {
         var podcastShouldUpdate = false;
         if (string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
-            var matchedPodcast = await _spotifyItemResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest(), indexOptions);
+            var matchedPodcast = await _spotifyItemResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest(), indexingContext);
             if (!string.IsNullOrWhiteSpace(matchedPodcast.Id))
             {
                 podcast.SpotifyId = matchedPodcast.Id;
@@ -37,7 +37,7 @@ public class SpotifyPodcastEnricher : ISpotifyPodcastEnricher
                 {
                     var episode =
                         await _spotifyItemResolver.FindEpisode(
-                            FindSpotifyEpisodeRequestFactory.Create(podcast, podcastEpisode), indexOptions);
+                            FindSpotifyEpisodeRequestFactory.Create(podcast, podcastEpisode), indexingContext);
                     if (!string.IsNullOrWhiteSpace(episode?.Id))
                     {
                         podcastEpisode.SpotifyId = episode.Id;

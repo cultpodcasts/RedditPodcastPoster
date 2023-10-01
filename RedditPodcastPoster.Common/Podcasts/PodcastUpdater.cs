@@ -32,21 +32,21 @@ public class PodcastUpdater : IPodcastUpdater
         _logger = logger;
     }
 
-    public async Task<IndexPodcastResult> Update(Podcast podcast, IndexOptions indexOptions)
+    public async Task<IndexPodcastResult> Update(Podcast podcast, IndexingContext indexingContext)
     {
-        var initialSkipSpotify = indexOptions.SkipSpotifyUrlResolving;
-        var initialSkipYouTube = indexOptions.SkipYouTubeUrlResolving;
+        var initialSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
+        var initialSkipYouTube = indexingContext.SkipYouTubeUrlResolving;
         var newEpisodes = await _episodeProvider.GetEpisodes(
             podcast,
-            indexOptions);
+            indexingContext);
         var mergeResult = _podcastRepository.Merge(podcast, newEpisodes);
         var episodes = podcast.Episodes;
-        if (indexOptions.ReleasedSince.HasValue)
+        if (indexingContext.ReleasedSince.HasValue)
         {
-            episodes = episodes.Where(x => x.Release >= indexOptions.ReleasedSince.Value).ToList();
+            episodes = episodes.Where(x => x.Release >= indexingContext.ReleasedSince.Value).ToList();
         }
 
-        await _podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, episodes, indexOptions);
+        await _podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, episodes, indexingContext);
         var eliminationTerms = await _eliminationTermsRepository.Get();
         var filterResult = _podcastFilter.Filter(podcast, eliminationTerms.Terms);
         await _podcastRepository.Update(podcast);
@@ -54,7 +54,7 @@ public class PodcastUpdater : IPodcastUpdater
             podcast,
             mergeResult, 
             filterResult,
-            initialSkipSpotify != indexOptions.SkipSpotifyUrlResolving,
-            initialSkipYouTube != indexOptions.SkipYouTubeUrlResolving);
+            initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving,
+            initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving);
     }
 }

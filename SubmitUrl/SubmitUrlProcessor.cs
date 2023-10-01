@@ -18,7 +18,7 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
 
     public async Task Process(SubmitUrlRequest request)
     {
-        var indexOptions = new IndexOptions();
+        var indexOptions = new IndexingContext();
         if (!request.SubmitUrlsInFIle)
         {
             await _urlSubmitter.Submit(new Uri(request.UrlOrFile, UriKind.Absolute), indexOptions);

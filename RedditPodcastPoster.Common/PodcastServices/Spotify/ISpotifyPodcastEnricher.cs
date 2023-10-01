@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
 public interface ISpotifyPodcastEnricher
 {
-    Task<bool> AddIdAndUrls(Podcast podcast, IndexOptions indexOptions);
+    Task<bool> AddIdAndUrls(Podcast podcast, IndexingContext indexingContext);
 }

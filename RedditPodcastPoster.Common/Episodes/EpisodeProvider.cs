@@ -24,13 +24,13 @@ public class EpisodeProvider : IEpisodeProvider
 
     public async Task<IList<Episode>> GetEpisodes(
         Podcast podcast,
-        IndexOptions indexOptions)
+        IndexingContext indexingContext)
     {
         IList<Episode> episodes = new List<Episode>();
         if (podcast.ReleaseAuthority is null or Service.Spotify && !string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
             var foundEpisodes = await _spotifyEpisodeProvider.GetEpisodes(
-                new SpotifyPodcastId(podcast.SpotifyId), indexOptions);
+                new SpotifyPodcastId(podcast.SpotifyId), indexingContext);
             if (foundEpisodes != null)
             {
                 episodes = foundEpisodes;
@@ -41,7 +41,7 @@ public class EpisodeProvider : IEpisodeProvider
             if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
             {
                 var foundEpisodes = await _youTubeEpisodeProvider.GetPlaylistEpisodes(
-                    new YouTubePlaylistId(podcast.YouTubePlaylistId), indexOptions);
+                    new YouTubePlaylistId(podcast.YouTubePlaylistId), indexingContext);
                 if (foundEpisodes != null)
                 {
                     episodes = foundEpisodes;
@@ -50,7 +50,7 @@ public class EpisodeProvider : IEpisodeProvider
             else
             {
                 var foundEpisodes = await _youTubeEpisodeProvider.GetEpisodes(
-                    new YouTubeChannelId(podcast.YouTubeChannelId), indexOptions);
+                    new YouTubeChannelId(podcast.YouTubeChannelId), indexingContext);
                 if (foundEpisodes != null)
                 {
                     episodes = foundEpisodes;

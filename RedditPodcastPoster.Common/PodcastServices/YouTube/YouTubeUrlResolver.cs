@@ -20,12 +20,12 @@ public class YouTubeItemResolver : IYouTubeItemResolver
         _logger = logger;
     }
 
-    public async Task<SearchResult?> FindEpisode(EnrichmentRequest request, IndexOptions indexOptions)
+    public async Task<SearchResult?> FindEpisode(EnrichmentRequest request, IndexingContext indexingContext)
     {
         var youTubePublishingDelay = TimeSpan.Parse(request.Podcast.YouTubePublishingDelayTimeSpan);
         var searchListResponse =
             await _youTubeSearchService.GetLatestChannelVideos(
-                new YouTubeChannelId(request.Podcast.YouTubeChannelId), indexOptions);
+                new YouTubeChannelId(request.Podcast.YouTubeChannelId), indexingContext);
         if (request.ReleasedSince.HasValue)
         {
             _logger.LogInformation($"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube since '{request.ReleasedSince.Value:R}'");
