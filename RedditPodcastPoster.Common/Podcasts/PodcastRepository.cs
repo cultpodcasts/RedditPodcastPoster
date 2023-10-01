@@ -44,8 +44,11 @@ public class PodcastRepository : IPodcastRepository
                 }
                 else
                 {
-                    Merge(existingEpisode, episodeToMerge);
-                    mergedEpisodes.Add((Existing: existingEpisode, NewDetails: episodeToMerge));
+                    var updated = Merge(existingEpisode, episodeToMerge);
+                    if (updated)
+                    {
+                        mergedEpisodes.Add((Existing: existingEpisode, NewDetails: episodeToMerge));
+                    }
                 }
             }
             else
@@ -103,27 +106,42 @@ public class PodcastRepository : IPodcastRepository
         return false;
     }
 
-    private void Merge(Episode existingEpisode, Episode episodeToMerge)
+    private bool Merge(Episode existingEpisode, Episode episodeToMerge)
     {
-        existingEpisode.Urls.Spotify ??= episodeToMerge.Urls.Spotify;
-        existingEpisode.Urls.YouTube ??= episodeToMerge.Urls.YouTube;
+        var updated = false;
+        if (existingEpisode.Urls.Spotify == null && episodeToMerge.Urls.Spotify != null)
+        {
+            existingEpisode.Urls.Spotify ??= episodeToMerge.Urls.Spotify;
+            updated |= true;
+        }
+
+        if (existingEpisode.Urls.YouTube == null && episodeToMerge.Urls.YouTube != null)
+        {
+            existingEpisode.Urls.YouTube ??= episodeToMerge.Urls.YouTube;
+            updated |= true;
+        }
 
         if (string.IsNullOrWhiteSpace(existingEpisode.SpotifyId) &&
             !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
         {
             existingEpisode.SpotifyId = episodeToMerge.SpotifyId;
+            updated |= true;
         }
 
         if (string.IsNullOrWhiteSpace(existingEpisode.YouTubeId) &&
             !string.IsNullOrWhiteSpace(episodeToMerge.YouTubeId))
         {
             existingEpisode.YouTubeId = episodeToMerge.YouTubeId;
+            updated |= true;
         }
 
         if (existingEpisode.Description.EndsWith("...") &&
             existingEpisode.Description.Length < episodeToMerge.Description.Length)
         {
             existingEpisode.Description = episodeToMerge.Description;
+            updated |= true;
         }
+
+        return updated;
     }
 }

@@ -41,6 +41,6 @@ public class PodcastProcessor : IPodcastProcessor
             return await _episodeProcessor.PostEpisodesSinceReleaseDate(processRequest.ReleaseBaseline.Value);
         }
 
-        return ProcessResponse.Successful();
+        return ProcessResponse.Successful("Operation successful.");
     }
 }

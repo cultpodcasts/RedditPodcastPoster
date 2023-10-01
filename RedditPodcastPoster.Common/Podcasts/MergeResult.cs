@@ -8,4 +8,4 @@ public record MergeResult(
     string PodcastPublisher, 
     List<Episode> AddedEpisodes,
     List<(Episode Existing, Episode NewDetails)> MergedEpisodes, 
-    List<IEnumerable<Episode>> failedEpisodes);
+    List<IEnumerable<Episode>> FailedEpisodes);

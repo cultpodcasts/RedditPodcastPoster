@@ -22,13 +22,14 @@ public class PodcastsUpdater : IPodcastsUpdater
 
     public async Task<IndexPodcastsResult> UpdatePodcasts(IndexOptions indexOptions)
     {
-        var results= new List<IndexPodcastResult>();
+        var results = new List<IndexPodcastResult>();
+        _logger.LogInformation($"{nameof(UpdatePodcasts)} Retrieving podcasts.");
         IEnumerable<Podcast> podcasts = await _podcastRepository.GetAll().ToListAsync();
+        _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
         foreach (var podcast in podcasts)
         {
             if (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
             {
-                _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing '{podcast.Name}' ({podcast.Id}).");
                 results.Add(await _podcastUpdater.Update(podcast, indexOptions));
             }
         }

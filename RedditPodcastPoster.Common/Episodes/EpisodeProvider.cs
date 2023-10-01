@@ -34,8 +34,6 @@ public class EpisodeProvider : IEpisodeProvider
             if (foundEpisodes != null)
             {
                 episodes = foundEpisodes;
-                _logger.LogInformation(
-                    $"{nameof(GetEpisodes)} (Spotify) - Found '{episodes.Count}' episodes released since {indexOptions.ReleasedSince:R}");
             }
         }
         else if (podcast.ReleaseAuthority is Service.YouTube || !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
@@ -56,8 +54,6 @@ public class EpisodeProvider : IEpisodeProvider
                 if (foundEpisodes != null)
                 {
                     episodes = foundEpisodes;
-                    _logger.LogInformation(
-                        $"{nameof(GetEpisodes)} (YouTube) - Found '{episodes.Count}' episodes released since {indexOptions.ReleasedSince:R}");
                 }
             }
         }
@@ -69,10 +65,13 @@ public class EpisodeProvider : IEpisodeProvider
 
         if (!podcast.IndexAllEpisodes && !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
         {
-            _logger.LogInformation(
-                $"{nameof(GetEpisodes)} - Filtering episodes by '{nameof(podcast.EpisodeIncludeTitleRegex)}'='{podcast.EpisodeIncludeTitleRegex}'.");
             var includeEpisodeRegex = new Regex(podcast.EpisodeIncludeTitleRegex,
                 RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            var eliminatedEpisodes = episodes.Where(x => !includeEpisodeRegex.IsMatch(x.Title));
+            if (eliminatedEpisodes.Any())
+            {
+                _logger.LogInformation($"Eliminating episodes of podcast '{podcast.Name}' with id '{podcast.Id}' with titles '{string.Join(", ", eliminatedEpisodes)}' as they do not match {nameof(podcast.EpisodeIncludeTitleRegex)} of value '{podcast.EpisodeIncludeTitleRegex}'.");
+            }
             episodes = episodes.Where(x => includeEpisodeRegex.IsMatch(x.Title)).ToList();
         }
 

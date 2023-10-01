@@ -19,6 +19,10 @@ public record IndexPodcastsResult(IList<IndexPodcastResult> Results)
             report.Append(indexPodcastResult);
         }
 
+        if (report.Length == 0)
+        {
+            report.Append("Success.");
+        }
         return report.ToString();
     }
 }
