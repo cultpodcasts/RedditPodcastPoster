@@ -46,7 +46,7 @@ public record IndexPodcastResult(
                 foreach (var episode in MergeResult.FailedEpisodes.SelectMany(x => x))
                 {
                     report.AppendLine(
-                        $"Title: '{episode.Title}', SpotifyId: '{episode.SpotifyId}', YouTubeId: '{episode.SpotifyId}', AppleId: '{episode.SpotifyId}'.");
+                        $"Title: '{episode.Title}', SpotifyId: '{episode.SpotifyId}', YouTubeId: '{episode.YouTubeId}', AppleId: '{episode.AppleId}'.");
                 }
             }
 
@@ -56,7 +56,7 @@ public record IndexPodcastResult(
                 foreach (var episode in MergeResult.AddedEpisodes)
                 {
                     report.AppendLine(
-                        $"Title: '{episode.Title}', SpotifyId: '{episode.SpotifyId}', YouTubeId: '{episode.SpotifyId}', AppleId: '{episode.SpotifyId}'.");
+                        $"Title: '{episode.Title}', SpotifyId: '{episode.SpotifyId}', YouTubeId: '{episode.YouTubeId}', AppleId: '{episode.AppleId}'.");
                 }
             }
 
@@ -66,7 +66,7 @@ public record IndexPodcastResult(
                 foreach (var (episode, newEpisode) in MergeResult.MergedEpisodes)
                 {
                     report.AppendLine(
-                        $"Title: '{episode.Title} with Id '{episode.Id}' merged with Spotify '{newEpisode.SpotifyId}', Apple '{newEpisode.AppleId}', YouTube '{newEpisode.YouTubeId}'.");
+                        $"Title: '{episode.Title} with Id '{episode.Id}' merged with SpotifyId '{newEpisode.SpotifyId}', AppleId '{newEpisode.AppleId}', YouTubeId '{newEpisode.YouTubeId}'.");
                 }
             }
         }
