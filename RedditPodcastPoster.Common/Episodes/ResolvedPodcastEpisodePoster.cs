@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Common.Models;
 using RedditPodcastPoster.Models;
 
@@ -9,23 +10,19 @@ public class ResolvedPodcastEpisodePoster : IResolvedPodcastEpisodePoster
 {
     private readonly IEpisodePostManager _episodePostManager;
     private readonly ILogger<ResolvedPodcastEpisodePoster> _logger;
-    private readonly IResolvedPodcastEpisodeAdaptor _resolvedPodcastEpisodeAdaptor;
 
     public ResolvedPodcastEpisodePoster(
         IEpisodePostManager episodePostManager,
-        IResolvedPodcastEpisodeAdaptor resolvedPodcastEpisodeAdaptor,
         ILogger<ResolvedPodcastEpisodePoster> logger)
     {
         _episodePostManager = episodePostManager;
-        _resolvedPodcastEpisodeAdaptor = resolvedPodcastEpisodeAdaptor;
         _logger = logger;
     }
 
     public async Task<ProcessResponse> PostResolvedPodcastEpisode(ResolvedPodcastEpisode resolvedEpisode)
     {
         var episodes = GetEpisodes(resolvedEpisode);
-        var postModel =
-            _resolvedPodcastEpisodeAdaptor.ToPostModel(resolvedEpisode.Podcast!, episodes);
+        var postModel = (resolvedEpisode.Podcast!, episodes).ToPostModel();
 
         var result = await _episodePostManager.Post(postModel);
 

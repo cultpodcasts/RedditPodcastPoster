@@ -1,17 +1,16 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Drawing.Text;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using HtmlAgilityPack;
+using RedditPodcastPoster.Common.Models;
 
 namespace RedditPodcastPoster.Common.Text;
 
 public class TextSanitiser : ITextSanitiser
 {
-    public string Sanitise(string text)
-    {
-        var doc = new HtmlDocument();
-        doc.LoadHtml("<body>" + text + "</body>");
-        var innerText = doc.DocumentNode.SelectSingleNode("//body").InnerText;
-        return innerText.Trim();
-    }
+    private readonly Regex _invalidTitlePrefix = new(@"(?'prefix'^[^a-zA-Z\d""]+)(?'after'.*$)");
+    private readonly TextInfo _textInfo = new CultureInfo("en-GB", false).TextInfo;
+    private readonly Regex _withName = new(@"(?'before'\s)(?'with'[Ww]ith )(?'after'[A-Z])");
 
     public string ExtractBody(string body, Regex regex)
     {
@@ -24,7 +23,78 @@ public class TextSanitiser : ITextSanitiser
         return body;
     }
 
-    public string FixCharacters(string title)
+    public string ExtractTitle(string episodeTitle, Regex regex)
+    {
+        var match = regex.Match(episodeTitle);
+        var replacement = "${title}";
+        if (match.Groups["partsection"].Success)
+        {
+            replacement += " Pt.${partnumber}";
+        }
+
+        if (match.Success)
+        {
+            return match.Result(replacement);
+        }
+
+        return episodeTitle;
+    }
+
+    public string SanitiseTitle(PostModel postModel)
+    {
+        var episodeTitle = postModel.EpisodeTitle;
+        if (postModel.TitleRegex != null)
+        {
+            episodeTitle = ExtractTitle(episodeTitle, postModel.TitleRegex);
+        }
+
+        episodeTitle = FixCharacters(episodeTitle);
+        var withMatch = _withName.Match(episodeTitle).Groups["with"];
+        if (withMatch.Success)
+        {
+            episodeTitle = _withName.Replace(episodeTitle, "${before}w/${after}");
+        }
+
+        var invalidPrefixMatch = _invalidTitlePrefix.Match(episodeTitle).Groups["prefix"];
+        if (invalidPrefixMatch.Success)
+        {
+            episodeTitle = _invalidTitlePrefix.Replace(episodeTitle, "${after}");
+        }
+
+        episodeTitle = _textInfo.ToTitleCase(episodeTitle.ToLower());
+        episodeTitle = FixCasing(episodeTitle);
+        return episodeTitle;
+    }
+
+    public string SanitisePodcastName(PostModel postModel)
+    {
+        var podcastName = postModel.PodcastName;
+        podcastName = FixCharacters(podcastName);
+        podcastName = _textInfo.ToTitleCase(podcastName.ToLower());
+        return podcastName;
+    }
+
+    public string SanitiseDescription(PostModel postModel)
+    {
+        var description = Sanitise(postModel.EpisodeDescription);
+        if (postModel.DescriptionRegex != null)
+        {
+            description = ExtractBody(description, postModel.DescriptionRegex);
+        }
+
+        description = FixCharacters(description);
+        return description;
+    }
+
+    public string Sanitise(string text)
+    {
+        var doc = new HtmlDocument();
+        doc.LoadHtml("<body>" + text + "</body>");
+        var innerText = doc.DocumentNode.SelectSingleNode("//body").InnerText;
+        return innerText.Trim();
+    }
+
+    private string FixCharacters(string title)
     {
         title = title.Replace("&apos;", "'");
         title = title.Replace("&quot;", "'");
@@ -50,34 +120,11 @@ public class TextSanitiser : ITextSanitiser
         return title;
     }
 
-    public string FixCasing(string input)
+    private string FixCasing(string input)
     {
         input = input.Replace("W/", "w/");
-        input = input.Replace(" The ", " the ");
-        input = input.Replace(" Of ", " of ");
-        input = input.Replace(" In ", " in ");
-        input = input.Replace(" Bju ", " BJU ");
-        input = input.Replace(" Jw ", " JW ");
-        input = input.Replace(" Jws ", " JWs ");
-        input = input.Replace(" Pbcc ", " PBCC ");
-        input = input.Replace("Exjwhelp", "ExJWHelp");
-        input = input.Replace(" Etc ", " etc ");
+        input = KnownTerms.MaintainKnownTerms(input);
+        
         return input;
-    }
-
-    public string ExtractTitle(string episodeTitle, Regex regex)
-    {
-        var match = regex.Match(episodeTitle);
-        var replacement = "${title}";
-        if (match.Groups["partsection"].Success)
-        {
-            replacement += " Pt.${partnumber}";
-        }
-
-        if (match.Success)
-        {
-            return match.Result(replacement);
-        }
-        return episodeTitle;
     }
 }

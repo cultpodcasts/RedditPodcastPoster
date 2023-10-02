@@ -1,6 +1,9 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using FluentAssertions;
+using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Common.Text;
+using RedditPodcastPoster.Models;
 using Xunit;
 
 namespace RedditPodcastPoster.Common.Tests.Text;
@@ -72,6 +75,20 @@ public class TextSanitiserTests
         var regex = @"^Today's episode is sponsored by BetterHelp. (?'body'.*)$";
         // act
         var result = Sut.ExtractBody(content, new Regex(regex));
+        // assert
+        result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("Lorem Ipsum PBCC etc etc")]
+    [InlineData("Shiny Happy Warrior: Lindsey Williams on the IBLP")]
+    [InlineData("Understanding Extremist Authoritarian Aects - w/Christian Szurko")]
+    public void SanitiseTitle_WithKnownTerm_MaintainsTerm(string expected)
+    {
+        // arrange
+        (Podcast, IEnumerable<Episode>) podcastEpisode = (new Podcast(), new[] {new Episode {Title = expected}});
+        // act
+        var result = Sut.SanitiseTitle(podcastEpisode.ToPostModel());
         // assert
         result.Should().Be(expected);
     }
