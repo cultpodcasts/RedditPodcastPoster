@@ -28,7 +28,8 @@ builder.Services
     })
     .AddScoped<CosmosDbFixer>()
     .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
-    .AddScoped<IPodcastRepository, PodcastRepository>();
+    .AddScoped<IPodcastRepository, PodcastRepository>()
+    .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
 SpotifyClientFactory.AddSpotifyClient(builder.Services);

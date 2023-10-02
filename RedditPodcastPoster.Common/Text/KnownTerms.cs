@@ -6,10 +6,10 @@ public static class KnownTerms
 {
     private static readonly Dictionary<string, Regex> Terms = new()
     {
-        {"the", new Regex(@"\bthe\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"of", new Regex(@"\bof\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"on", new Regex(@"\bon\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"in", new Regex(@"\bin\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"the", new Regex(@"(?<!^)the\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"of", new Regex(@"(?<!^)of\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"on", new Regex(@"(?<!^)on\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"in", new Regex(@"(?<!^)in\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"JWs", new Regex(@"\bJWs\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"etc", new Regex(@"\betc\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"ABCs", new Regex(@"\bABCs\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},

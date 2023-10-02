@@ -5,7 +5,6 @@ using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Models;
-using SpotifyAPI.Web;
 
 namespace AddAudioPodcast;
 
@@ -17,11 +16,11 @@ public class AddAudioPodcastProcessor
     private readonly PodcastFactory _podcastFactory;
     private readonly IPodcastRepository _podcastRepository;
     private readonly IPodcastUpdater _podcastUpdater;
-    private readonly ISpotifyClient _spotifyClient;
+    private readonly ICachedSpotifyClient _spotifyClient;
 
     public AddAudioPodcastProcessor(
         IPodcastRepository podcastRepository,
-        ISpotifyClient spotifyClient,
+        ICachedSpotifyClient spotifyClient,
         PodcastFactory podcastFactory,
         IApplePodcastEnricher applePodcastEnricher,
         IPodcastUpdater podcastUpdater,
@@ -37,8 +36,9 @@ public class AddAudioPodcastProcessor
 
     public async Task Create(AddAudioPodcastRequest request)
     {
+        var indexingContext = new IndexingContext();
         var spotifyPodcast =
-            await _spotifyClient.Shows.Get(request.SpotifyId, new ShowRequest {Market = SpotifyItemResolver.Market});
+            await _spotifyClient.Shows.Get(request.SpotifyId, indexingContext);
         var existingPodcasts = await _podcastRepository.GetAll().ToListAsync();
 
         var podcast = existingPodcasts.SingleOrDefault(x => x.SpotifyId == request.SpotifyId);

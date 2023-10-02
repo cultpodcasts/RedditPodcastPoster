@@ -40,7 +40,7 @@ public class UrlCategoriser : IUrlCategoriser
 
         if (_spotifyUrlCategoriser.IsMatch(url))
         {
-            resolvedSpotifyItem = await _spotifyUrlCategoriser.Resolve(podcasts, url);
+            resolvedSpotifyItem = await _spotifyUrlCategoriser.Resolve(podcasts, url, indexingContext);
             matchingPodcast = podcasts.SingleOrDefault(podcast => IsMatchingPodcast(podcast, resolvedSpotifyItem));
             matchingEpisode = matchingPodcast?.Episodes.SingleOrDefault(x =>
                 x.Urls.Spotify == url || x.SpotifyId == resolvedSpotifyItem.EpisodeId);

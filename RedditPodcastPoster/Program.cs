@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.Common.Matching;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices;
@@ -41,6 +42,7 @@ builder.Services
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
+    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>()
     .AddScoped(s => new iTunesSearchManager())
     .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
@@ -68,6 +70,7 @@ builder.Services
     .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
     .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
     .AddScoped<IPodcastFilter, PodcastFilter>()
+    .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>()
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddSingleton(new JsonSerializerOptions
     {

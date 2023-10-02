@@ -7,14 +7,15 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.Common.Matching;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
-using PodcastFactory = RedditPodcastPoster.Common.Podcasts.PodcastFactory;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -46,6 +47,7 @@ builder.Services
     .AddScoped<IEpisodeProvider, EpisodeProvider>()
     .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
     .AddScoped<ISpotifyItemResolver, SpotifyItemResolver>()
+    .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>()
     .AddScoped<ISpotifySearcher, SpotifySearcher>()
     .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
     .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
@@ -55,6 +57,9 @@ builder.Services
     .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
     .AddScoped<IApplePodcastService, ApplePodcastService>()
     .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
+    .AddScoped<IPodcastFilter, PodcastFilter>()
+    .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
+    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
     {

@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Models;
-using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.Common.UrlCategorisation;
 
@@ -10,11 +9,11 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
 {
     private static readonly Regex SpotifyId = new(@"episode/(?'episodeId'\w+)");
     private readonly ILogger<SpotifyUrlCategoriser> _logger;
-    private readonly ISpotifyClient _spotifyClient;
+    private readonly ICachedSpotifyClient _spotifyClient;
     private readonly ISpotifyItemResolver _spotifyItemResolver;
 
     public SpotifyUrlCategoriser(
-        ISpotifyClient spotifyClient,
+        ICachedSpotifyClient spotifyClient,
         ISpotifyItemResolver spotifyItemResolver,
         ILogger<SpotifyUrlCategoriser> logger)
     {
@@ -28,7 +27,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
         return url.Host.ToLower().Contains("spotify");
     }
 
-    public async Task<ResolvedSpotifyItem> Resolve(List<Podcast> podcasts, Uri url)
+    public async Task<ResolvedSpotifyItem> Resolve(List<Podcast> podcasts, Uri url, IndexingContext indexingContext)
     {
         var pair = podcasts
             .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new PodcastEpisodePair(podcast, episode))
@@ -45,8 +44,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
             throw new InvalidOperationException($"Unable to find spotify-id in url '{url}'.");
         }
 
-        var item = await _spotifyClient.Episodes.Get(episodeId,
-            new EpisodeRequest {Market = SpotifyItemResolver.Market});
+        var item = await _spotifyClient.Episodes.Get(episodeId, indexingContext);
         if (item != null)
         {
             return new ResolvedSpotifyItem(

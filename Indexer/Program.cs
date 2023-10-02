@@ -13,6 +13,7 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.Common.Matching;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices;
@@ -40,6 +41,7 @@ var host = new HostBuilder()
             // Common
             .AddScoped<IDataRepository, CosmosDbRepository>()
             .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
+            .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
             .AddScoped<IPodcastRepository, PodcastRepository>()
             .AddSingleton(new JsonSerializerOptions
             {
@@ -59,6 +61,7 @@ var host = new HostBuilder()
             .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
             .AddScoped<IApplePodcastService, ApplePodcastService>()
             .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
+            .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>()
             .AddScoped<IRemoteClient, RemoteClient>()
             .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
             .AddScoped<IYouTubeSearchService, YouTubeSearchService>()

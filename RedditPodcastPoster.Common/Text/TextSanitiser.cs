@@ -1,5 +1,4 @@
-﻿using System.Drawing.Text;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 using RedditPodcastPoster.Common.Models;

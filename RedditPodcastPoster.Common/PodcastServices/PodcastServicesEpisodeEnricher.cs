@@ -37,7 +37,7 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
     {
         foreach (var episode in newEpisodes)
         {
-            var enrichmentRequest = new EnrichmentRequest(podcast, episode, indexingContext.ReleasedSince);
+            var enrichmentRequest = new EnrichmentRequest(podcast, episode);
             foreach (Service service in Enum.GetValues(typeof(Service)))
             {
                 switch (service)
@@ -47,7 +47,7 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
                         await EnrichFromSpotify(enrichmentRequest,indexingContext);
                         break;
                     case Service.Apple when episode.Urls.Apple == null || episode.AppleId == 0:
-                        await EnrichFromApple(enrichmentRequest);
+                        await EnrichFromApple(enrichmentRequest, indexingContext);
                         break;
                     case Service.YouTube when !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) && (episode.Urls.YouTube == null || string.IsNullOrWhiteSpace(episode.YouTubeId)):
                         await EnrichFromYouTube(enrichmentRequest, indexingContext);
@@ -74,7 +74,7 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
         }
     }
 
-    private async Task EnrichFromApple(EnrichmentRequest request)
+    private async Task EnrichFromApple(EnrichmentRequest request, IndexingContext indexingContext)
     {
         if (request.Podcast.AppleId == null)
         {
@@ -84,7 +84,7 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
         if (request.Podcast.AppleId != null)
         {
             var appleItem =
-                await _appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(request.Podcast, request.Episode));
+                await _appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(request.Podcast, request.Episode), indexingContext);
             if (appleItem != null)
             {
                 _logger.LogInformation($"{nameof(EnrichFromApple)} Found matching Apple episode: '{appleItem.Id}' with title '{appleItem.Title}' and release-date '{appleItem.Release:R}'.");

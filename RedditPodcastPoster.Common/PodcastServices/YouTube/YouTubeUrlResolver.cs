@@ -1,6 +1,5 @@
 ﻿using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
@@ -26,15 +25,22 @@ public class YouTubeItemResolver : IYouTubeItemResolver
         var searchListResponse =
             await _youTubeSearchService.GetLatestChannelVideos(
                 new YouTubeChannelId(request.Podcast.YouTubeChannelId), indexingContext);
-        if (request.ReleasedSince.HasValue)
+        if (searchListResponse == null)
         {
-            _logger.LogInformation($"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube since '{request.ReleasedSince.Value:R}'");
+            return null;
+        }
+
+        if (indexingContext.ReleasedSince.HasValue)
+        {
+            _logger.LogInformation(
+                $"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube since '{indexingContext.ReleasedSince.Value:R}'");
         }
         else
         {
-            _logger.LogInformation($"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube. {nameof(request.ReleasedSince)} is Null.");
-
+            _logger.LogInformation(
+                $"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube. {nameof(indexingContext.ReleasedSince)} is Null.");
         }
+
         var matchedYouTubeVideo =
             _youTubeSearcher.FindMatchingYouTubeVideo(request.Episode, searchListResponse, youTubePublishingDelay);
         return matchedYouTubeVideo;

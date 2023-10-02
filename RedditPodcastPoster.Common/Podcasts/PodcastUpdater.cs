@@ -52,7 +52,7 @@ public class PodcastUpdater : IPodcastUpdater
         await _podcastRepository.Update(podcast);
         return new IndexPodcastResult(
             podcast,
-            mergeResult, 
+            mergeResult,
             filterResult,
             initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving,
             initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving);

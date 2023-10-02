@@ -16,13 +16,13 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
         _logger = logger;
     }
 
-    public async Task<AppleEpisode?> FindEpisode(FindAppleEpisodeRequest request)
+    public async Task<AppleEpisode?> FindEpisode(FindAppleEpisodeRequest request, IndexingContext indexingContext)
     {
         AppleEpisode? matchingEpisode = null;
         IEnumerable<AppleEpisode> podcastEpisodes = new List<AppleEpisode>();
         if (request.PodcastAppleId.HasValue)
         {
-            podcastEpisodes = await _applePodcastService.GetEpisodes(request.PodcastAppleId.Value, request.Released.Date);
+            podcastEpisodes = await _applePodcastService.GetEpisodes(request.PodcastAppleId.Value, indexingContext);
         }
 
         if (request.EpisodeAppleId != null)

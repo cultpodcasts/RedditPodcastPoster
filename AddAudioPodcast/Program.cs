@@ -56,6 +56,7 @@ builder.Services
     .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
     .AddScoped<IApplePodcastService, ApplePodcastService>()
     .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
+    .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>()
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
     {

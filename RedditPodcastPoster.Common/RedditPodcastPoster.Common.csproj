@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <Folder Include="Extensions\" />
+    <Folder Include="Matching\" />
     <Folder Include="Text\" />
     <Folder Include="UrlSubmission\" />
   </ItemGroup>
