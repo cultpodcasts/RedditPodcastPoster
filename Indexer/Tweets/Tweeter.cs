@@ -49,9 +49,9 @@ public class Tweeter : ITweeter
                 x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
                 (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null || x.Episode.Urls.Apple != null))
             .MinBy(x => x.Episode.Release);
-        if (podcastEpisode?.Podcast==null)
+        if (podcastEpisode?.Podcast == null)
         {
-            _logger.LogInformation($"No Podcast-Episode found to Tweet.");
+            _logger.LogInformation("No Podcast-Episode found to Tweet.");
             return null;
         }
 
@@ -59,6 +59,25 @@ public class Tweeter : ITweeter
     }
 
     private async Task PostTweet(PodcastEpisode podcastEpisode)
+    {
+        var tweet = BuildTweet(podcastEpisode);
+        var tweeted = await _twitterClient.Send(tweet);
+        if (tweeted)
+        {
+            podcastEpisode.Episode.Tweeted = true;
+            await _repository.Update(podcastEpisode.Podcast);
+            _logger.LogInformation($"Tweeted '{tweet}'.");
+        }
+        else
+        {
+            var message =
+                $"Could not post tweet for podcast-episode: Podcast-id: '{podcastEpisode.Podcast.Id}', Episode-id: '{podcastEpisode.Episode.Id}'. Tweet: '{tweet}'.";
+            _logger.LogError(message);
+            throw new Exception(message);
+        }
+    }
+
+    private string BuildTweet(PodcastEpisode podcastEpisode)
     {
         var postModel = (podcastEpisode.Podcast, new[] {podcastEpisode.Episode}).ToPostModel();
         var episodeTitle = _textSanitiser.SanitiseTitle(postModel);
@@ -92,19 +111,6 @@ public class Tweeter : ITweeter
         }
 
         var tweet = tweetBuilder.ToString();
-        var tweeted = await _twitterClient.Send(tweet);
-        if (tweeted)
-        {
-            podcastEpisode.Episode.Tweeted = true;
-            await _repository.Update(podcastEpisode.Podcast);
-            _logger.LogInformation($"Tweeted '{tweet}'.");
-        }
-        else
-        {
-            var message =
-                $"Could not post tweet for candidate-podcast-episode: Podcast-id: '{podcastEpisode.Podcast.Id}', Episode-id: '{podcastEpisode.Episode.Id}'. Tweet: '{tweet}'.";
-            _logger.LogError(message);
-            throw new Exception(message);
-        }
+        return tweet;
     }
 }
