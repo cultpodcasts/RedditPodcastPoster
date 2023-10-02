@@ -72,7 +72,7 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
         return null;
     }
 
-    public async Task<ResolvedAppleItem> Resolve(List<Podcast> podcasts, Uri url, IndexingContext indexingContext)
+    public async Task<ResolvedAppleItem> Resolve(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext)
     {
         var pair = podcasts
             .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new PodcastEpisodePair(podcast, episode))

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.UrlSubmission;
 
 namespace SubmitUrl;
@@ -7,10 +8,15 @@ namespace SubmitUrl;
 public class SubmitUrlProcessor : ISubmitUrlProcessor
 {
     private readonly ILogger<SubmitUrlProcessor> _logger;
+    private readonly IPodcastRepository _podcastRepository;
     private readonly IUrlSubmitter _urlSubmitter;
 
-    public SubmitUrlProcessor(IUrlSubmitter urlSubmitter, ILogger<SubmitUrlProcessor> logger)
+    public SubmitUrlProcessor(
+        IPodcastRepository podcastRepository,
+        IUrlSubmitter urlSubmitter,
+        ILogger<SubmitUrlProcessor> logger)
     {
+        _podcastRepository = podcastRepository;
         _urlSubmitter = urlSubmitter;
         _logger = logger;
     }
@@ -19,16 +25,18 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
     public async Task Process(SubmitUrlRequest request)
     {
         var indexOptions = new IndexingContext();
-        if (!request.SubmitUrlsInFIle)
+        var podcasts = await _podcastRepository.GetAll().ToListAsync();
+
+        if (!request.SubmitUrlsInFile)
         {
-            await _urlSubmitter.Submit(new Uri(request.UrlOrFile, UriKind.Absolute), indexOptions);
+            await _urlSubmitter.Submit(podcasts, new Uri(request.UrlOrFile, UriKind.Absolute), indexOptions);
         }
         else
         {
             var urls = await File.ReadAllLinesAsync(request.UrlOrFile);
             foreach (var url in urls)
             {
-                await _urlSubmitter.Submit(new Uri(url, UriKind.Absolute), indexOptions);
+                await _urlSubmitter.Submit(podcasts, new Uri(url, UriKind.Absolute), indexOptions);
             }
         }
     }

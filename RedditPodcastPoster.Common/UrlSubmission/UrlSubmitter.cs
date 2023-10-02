@@ -12,18 +12,19 @@ public class UrlSubmitter : IUrlSubmitter
     private readonly IUrlCategoriser _urlCategoriser;
 
     public UrlSubmitter(
-        IUrlCategoriser urlCategoriser,
         IPodcastRepository podcastRepository,
+        IUrlCategoriser urlCategoriser,
         ILogger<UrlSubmitter> logger)
     {
-        _urlCategoriser = urlCategoriser;
         _podcastRepository = podcastRepository;
+        _urlCategoriser = urlCategoriser;
         _logger = logger;
     }
 
-    public async Task Submit(Uri url, IndexingContext indexingContext)
+    public async Task Submit(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext)
     {
-        var categorisedItem = await _urlCategoriser.Categorise(url, indexingContext);
+
+        var categorisedItem = await _urlCategoriser.Categorise(podcasts, url, indexingContext);
 
         if (categorisedItem.MatchingPodcast != null)
         {
@@ -34,7 +35,7 @@ public class UrlSubmitter : IUrlSubmitter
             if (matchingEpisode != null)
             {
                 ApplyResolvedPodcastServiceProperties(
-                    categorisedItem.MatchingPodcast, 
+                    categorisedItem.MatchingPodcast,
                     matchingEpisode,
                     categorisedItem);
             }

@@ -26,7 +26,7 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
         return url.Host.ToLower().Contains("youtube");
     }
 
-    public async Task<ResolvedYouTubeItem?> Resolve(List<Podcast> podcasts, Uri url, IndexingContext indexingContext)
+    public async Task<ResolvedYouTubeItem?> Resolve(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext)
     {
         var pair = podcasts
             .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new PodcastEpisodePair(podcast, episode))

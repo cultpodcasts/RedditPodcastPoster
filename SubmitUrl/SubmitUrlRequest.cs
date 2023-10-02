@@ -10,7 +10,7 @@ public class SubmitUrlRequest
 
     [Option('f', "submit-urls-in-file", Required = false, HelpText = "Use urls in provided file",
         Default = false)]
-    public bool SubmitUrlsInFIle { get; set; }
+    public bool SubmitUrlsInFile { get; set; }
 
     [Value(0, MetaName = "url of file", HelpText = "The Url or file containing Urls to submit")]
     public string UrlOrFile { get; set; } = "";

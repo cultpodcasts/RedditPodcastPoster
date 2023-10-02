@@ -1,6 +1,8 @@
-﻿namespace RedditPodcastPoster.Common.UrlSubmission;
+﻿using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.Common.UrlSubmission;
 
 public interface IUrlSubmitter
 {
-    Task Submit(Uri url, IndexingContext indexingContext);
+    Task Submit(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext);
 }

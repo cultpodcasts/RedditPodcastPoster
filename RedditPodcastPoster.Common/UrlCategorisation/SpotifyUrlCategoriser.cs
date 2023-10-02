@@ -27,7 +27,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
         return url.Host.ToLower().Contains("spotify");
     }
 
-    public async Task<ResolvedSpotifyItem> Resolve(List<Podcast> podcasts, Uri url, IndexingContext indexingContext)
+    public async Task<ResolvedSpotifyItem> Resolve(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext)
     {
         var pair = podcasts
             .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new PodcastEpisodePair(podcast, episode))
