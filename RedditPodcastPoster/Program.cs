@@ -62,7 +62,6 @@ builder.Services
     .AddScoped<IEpisodeProcessor, EpisodeProcessor>()
     .AddScoped<IRedditPostTitleFactory, RedditPostTitleFactory>()
     .AddScoped<IEpisodePostManager, EpisodePostManager>()
-    .AddScoped<IResolvedPodcastEpisodeAdaptor, ResolvedPodcastEpisodeAdaptor>()
     .AddScoped<IResolvedPodcastEpisodePoster, ResolvedPodcastEpisodePoster>()
     .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
     .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
