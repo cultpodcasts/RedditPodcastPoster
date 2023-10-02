@@ -13,12 +13,16 @@ public class Orchestration : TaskOrchestrator<object, bool>
 
         var success = await context.CallIndexerAsync(new object());
         logger.LogInformation($"{nameof(Indexer)} complete.");
+
         success |= await context.CallPublisherAsync(new object());
         logger.LogInformation($"{nameof(Publisher)} complete.");
+
         success |= await context.CallPosterAsync(new object());
         logger.LogInformation($"{nameof(Poster)} complete.");
+
         success |= await context.CallTweetAsync(new object());
         logger.LogInformation($"{nameof(Tweet)} complete. All tasks complete.");
+
         return success;
     }
 }

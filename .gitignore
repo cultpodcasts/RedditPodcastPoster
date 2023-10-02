@@ -363,3 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 /workdir
 /API/Properties/launchSettings.json
+/Indexer/Properties/ServiceDependencies/indexer-cultpodcasts - Zip Deploy1/appInsights2.arm.json
+/Indexer/Properties/ServiceDependencies/indexer-cultpodcasts - Zip Deploy1/profile.arm.json
+/Indexer/Properties/serviceDependencies.indexer-cultpodcasts - Zip Deploy1.json
+/Indexer/Properties/serviceDependencies.json
