@@ -1,26 +1,28 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Matching;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
+using RedditPodcastPoster.Models;
 
 namespace ApplePodcastEpisodeEnricher;
 
 public class MissingFilesProcessor
 {
-    private readonly IAppleEpisodeResolver _appleEpisodeResolver;
     private readonly IApplePodcastService _applePodcastService;
     private readonly ILogger<MissingFilesProcessor> _logger;
     private readonly IPodcastRepository _podcastsRepository;
+    private readonly IEpisodeMatcher _episodeMatcher;
 
     public MissingFilesProcessor(
         IApplePodcastService applePodcastService,
-        IAppleEpisodeResolver appleEpisodeResolver,
         IPodcastRepository podcastsRepository,
+        IEpisodeMatcher episodeMatcher,
         ILogger<MissingFilesProcessor> logger)
     {
         _applePodcastService = applePodcastService;
-        _appleEpisodeResolver = appleEpisodeResolver;
         _podcastsRepository = podcastsRepository;
+        _episodeMatcher = episodeMatcher;
         _logger = logger;
     }
 
@@ -42,45 +44,12 @@ public class MissingFilesProcessor
                 foreach (var episode in episodes)
                 {
                     var matchingApiRecord = appleApiRecords.SingleOrDefault(appleEpisode =>
-                    {
-                        if (episodeMatchRegex == null)
-                        {
-                            return appleEpisode.Title == episode.Title;
-                        }
-
-                        var appleEpisodeMatch = episodeMatchRegex.Match(appleEpisode.Title);
-                        var episodeMatch = episodeMatchRegex.Match(episode.Title);
-
-                        if (appleEpisodeMatch.Groups["episodematch"].Success &&
-                            episodeMatch.Groups["episodematch"].Success)
-                        {
-                            var appleEpisodeUniqueMatch = appleEpisodeMatch.Groups["episodematch"].Value;
-                            var episodeUniqueMatch = episodeMatch.Groups["episodematch"].Value;
-                            var isMatch = appleEpisodeUniqueMatch == episodeUniqueMatch;
-                            return isMatch;
-                        }
-
-                        if (appleEpisodeMatch.Groups["title"].Success && episodeMatch.Groups["title"].Success)
-                        {
-                            var appleEpisodeTitle = appleEpisodeMatch.Groups["title"].Value;
-                            var episodeTitle = episodeMatch.Groups["title"].Value;
-                            var isMatch = appleEpisodeTitle == episodeTitle;
-                            if (isMatch)
+                        _episodeMatcher.IsMatch(episode,
+                            new Episode()
                             {
-                                return true;
-                            }
-                        }
-
-                        var publishDifference = episode.Release - appleEpisode.Release;
-                        if (Math.Abs(publishDifference.Ticks) < TimeSpan.FromMinutes(5).Ticks && Math.Abs(
-                                (episode.Length -
-                                 appleEpisode.Duration).Ticks) < TimeSpan.FromMinutes(1).Ticks)
-                        {
-                            return true;
-                        }
-
-                        return false;
-                    });
+                                Title = appleEpisode.Title, Release = appleEpisode.Release,
+                                Length = appleEpisode.Duration
+                            }, episodeMatchRegex));
                     if (matchingApiRecord != null)
                     {
                         if (episode.AppleId == null)

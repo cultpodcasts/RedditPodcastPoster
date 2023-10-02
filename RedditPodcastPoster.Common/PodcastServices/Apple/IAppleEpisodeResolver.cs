@@ -2,5 +2,5 @@
 
 public interface IAppleEpisodeResolver
 {
-    Task<AppleEpisode?> FindEpisode(FindAppleEpisodeRequest request);
+    Task<AppleEpisode?> FindEpisode(FindAppleEpisodeRequest request, IndexingContext indexingContext);
 }

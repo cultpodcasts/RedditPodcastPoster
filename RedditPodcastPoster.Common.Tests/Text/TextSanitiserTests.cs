@@ -83,6 +83,7 @@ public class TextSanitiserTests
     [InlineData("Lorem Ipsum PBCC etc etc")]
     [InlineData("Shiny Happy Warrior: Lindsey Williams on the IBLP")]
     [InlineData("Understanding Extremist Authoritarian Aects - w/Christian Szurko")]
+    [InlineData("The Start of the Sentence")]
     public void SanitiseTitle_WithKnownTerm_MaintainsTerm(string expected)
     {
         // arrange
@@ -92,4 +93,6 @@ public class TextSanitiserTests
         // assert
         result.Should().Be(expected);
     }
+
+
 }

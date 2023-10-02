@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.Matching;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
@@ -36,6 +37,7 @@ builder.Services
     .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddScoped<UrlSubmitter>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
+    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddScoped<IUrlCategoriser, UrlCategoriser>()
     .AddScoped<IAppleUrlCategoriser, AppleUrlCategoriser>()
     .AddScoped<ISpotifyUrlCategoriser, SpotifyUrlCategoriser>()
@@ -48,6 +50,7 @@ builder.Services
     .AddScoped(s => new iTunesSearchManager())
     .AddScoped<IApplePodcastService, ApplePodcastService>()
     .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
+    .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>()
     .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddScoped<IUrlSubmitter, UrlSubmitter>()

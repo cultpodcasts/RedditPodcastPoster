@@ -2,7 +2,6 @@
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
-using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.CosmosDbFixer;
 

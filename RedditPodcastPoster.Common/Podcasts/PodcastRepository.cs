@@ -1,19 +1,24 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Models;
+using System.Text.RegularExpressions;
+using RedditPodcastPoster.Common.Matching;
 
 namespace RedditPodcastPoster.Common.Podcasts;
 
 public class PodcastRepository : IPodcastRepository
 {
     private readonly IDataRepository _dataRepository;
+    private readonly IEpisodeMatcher _episodeMatcher;
     private readonly ILogger<PodcastRepository> _logger;
 
     public PodcastRepository(
         IDataRepository dataRepository,
+        IEpisodeMatcher episodeMatcher,
         ILogger<PodcastRepository> logger)
     {
         _dataRepository = dataRepository;
+        _episodeMatcher = episodeMatcher;
         _logger = logger;
     }
 
@@ -25,12 +30,18 @@ public class PodcastRepository : IPodcastRepository
 
     public MergeResult Merge(Podcast podcast, IEnumerable<Episode> episodesToMerge)
     {
+        Regex? episodeMatchRegex = null;
+        if (!string.IsNullOrWhiteSpace(podcast.EpisodeMatchRegex))
+        {
+            episodeMatchRegex = new Regex(podcast.EpisodeMatchRegex, RegexOptions.Compiled);
+        }
+
         var addedEpisodes = new List<Episode>();
         var mergedEpisodes = new List<(Episode Existing, Episode NewDetails)>();
         var failedEpisodes = new List<IEnumerable<Episode>>();
         foreach (var episodeToMerge in episodesToMerge)
         {
-            var existingEpisodes = podcast.Episodes.Where(x => Match(x, episodeToMerge));
+            var existingEpisodes = podcast.Episodes.Where(x => Match(x, episodeToMerge, episodeMatchRegex));
 
             if (existingEpisodes.Count() <= 1)
             {
@@ -78,7 +89,7 @@ public class PodcastRepository : IPodcastRepository
         await Save(podcast);
     }
 
-    private bool Match(Episode episode, Episode episodeToMerge)
+    private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)
     {
         if (!string.IsNullOrWhiteSpace(episode.SpotifyId) && !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
         {
@@ -95,15 +106,7 @@ public class PodcastRepository : IPodcastRepository
             return episode.AppleId.Value == episodeToMerge.AppleId.Value;
         }
 
-
-        if (!string.IsNullOrWhiteSpace(episode.Title) && !string.IsNullOrWhiteSpace(episodeToMerge.Title))
-        {
-            return episode.Title == episodeToMerge.Title;
-        }
-
-        _logger.LogWarning(
-            $"Unable to determine likeness of incoming episode with spotify-url '{episodeToMerge.SpotifyId}' and youtube-url '{episodeToMerge.YouTubeId}'.");
-        return false;
+        return _episodeMatcher.IsMatch(episode, episodeToMerge, episodeMatchRegex);
     }
 
     private bool Merge(Episode existingEpisode, Episode episodeToMerge)

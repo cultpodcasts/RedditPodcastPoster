@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.EliminationTerms;
+using RedditPodcastPoster.Common.Matching;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using Sqllite3DatabasePublisher;
@@ -24,6 +25,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<IPodcastRepository, PodcastRepository>()
+    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
     .AddSingleton(new JsonSerializerOptions

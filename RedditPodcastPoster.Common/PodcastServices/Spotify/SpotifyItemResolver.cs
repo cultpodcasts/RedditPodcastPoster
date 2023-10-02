@@ -6,17 +6,17 @@ namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
 public class SpotifyItemResolver : ISpotifyItemResolver
 {
-    public const string Market = "GB";
+    private readonly ICachedSpotifyClient _cachedSpotifyClient;
     private readonly ILogger<SpotifyItemResolver> _logger;
-    private readonly ISpotifyClient _spotifyClient;
     private readonly ISpotifySearcher _spotifySearcher;
 
     public SpotifyItemResolver(
         ISpotifyClient spotifyClient,
+        ICachedSpotifyClient cachedSpotifyClient,
         ISpotifySearcher spotifySearcher,
         ILogger<SpotifyItemResolver> logger)
     {
-        _spotifyClient = spotifyClient;
+        _cachedSpotifyClient = cachedSpotifyClient;
         _spotifySearcher = spotifySearcher;
         _logger = logger;
     }
@@ -33,83 +33,50 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         FullEpisode? fullEpisode = null;
         if (!string.IsNullOrWhiteSpace(request.EpisodeSpotifyId))
         {
-            try
-            {
-                fullEpisode = await _spotifyClient.Episodes.Get(request.EpisodeSpotifyId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Failed using {nameof(_spotifyClient)}.");
-                indexingContext.SkipSpotifyUrlResolving = true;
-                return null;
-            }
+            fullEpisode = await _cachedSpotifyClient.Episodes.Get(request.EpisodeSpotifyId, indexingContext);
         }
 
         if (fullEpisode == null)
         {
-            Paging<SimpleEpisode>[] episodes;
+            (string, Paging<SimpleEpisode>)[]? episodes = null;
             if (!string.IsNullOrWhiteSpace(request.PodcastSpotifyId))
             {
-                FullShow fullShow;
-                try
+                var fullShow = await _cachedSpotifyClient.Shows.Get(request.PodcastSpotifyId, indexingContext);
+                if (fullShow != null)
                 {
-                    fullShow = await _spotifyClient.Shows.Get(request.PodcastSpotifyId,
-                        new ShowRequest {Market = Market});
+                    episodes = new[] {(request.PodcastSpotifyId, fullShow.Episodes)};
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, $"Failed using {nameof(_spotifyClient)}.");
-                    indexingContext.SkipSpotifyUrlResolving = true;
-                    return null;
-                }
-
-                episodes = new[] {fullShow.Episodes};
             }
             else
             {
-                SearchResponse podcastSearchResponse;
-                try
+                var podcastSearchResponse = await _cachedSpotifyClient.Search.Item(
+                    new SearchRequest(SearchRequest.Types.Show, request.PodcastName), indexingContext);
+                if (podcastSearchResponse != null)
                 {
-                    podcastSearchResponse = await _spotifyClient.Search.Item(
-                        new SearchRequest(SearchRequest.Types.Show, request.PodcastName)
-                            {Market = Market});
+                    var podcasts = podcastSearchResponse.Shows.Items;
+                    var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(request.PodcastName, podcasts);
+                    var episodesFetches = matchingPodcasts.Select(async x =>
+                        await _cachedSpotifyClient.Shows.GetEpisodes(x.Id, indexingContext).ContinueWith(y =>
+                            new ValueTuple<string, Paging<SimpleEpisode>>(x.Id, y.Result)));
+                    episodes = await Task.WhenAll(episodesFetches);
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, $"Failed using {nameof(_spotifyClient)}.");
-                    indexingContext.SkipSpotifyUrlResolving = true;
-                    return null;
-                }
-
-                var podcasts = podcastSearchResponse.Shows.Items;
-                var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(request.PodcastName, podcasts);
-                var episodesFetches = matchingPodcasts.Select(async x =>
-                    await _spotifyClient.Shows.GetEpisodes(x.Id,
-                        new ShowEpisodesRequest {Market = Market}));
-                episodes = await Task.WhenAll(episodesFetches);
             }
 
-            IList<IList<SimpleEpisode>> allEpisodes = new List<IList<SimpleEpisode>>();
-            foreach (var paging in episodes)
+            if (episodes != null)
             {
-                var simpleEpisodes = await PaginateEpisodes(paging, indexingContext);
-                allEpisodes.Add(simpleEpisodes);
-            }
-
-            var matchingEpisode =
-                _spotifySearcher.FindMatchingEpisode(request.EpisodeTitle, request.Released, allEpisodes);
-            if (matchingEpisode != null)
-            {
-                try
+                IList<IList<SimpleEpisode>> allEpisodes = new List<IList<SimpleEpisode>>();
+                foreach (var paging in episodes)
                 {
-                    fullEpisode = await _spotifyClient.Episodes.Get(matchingEpisode.Id,
-                        new EpisodeRequest {Market = Market});
+                    var simpleEpisodes =
+                        await PaginateEpisodes(paging.Item2, $"findepisode-{paging.Item1}", indexingContext);
+                    allEpisodes.Add(simpleEpisodes);
                 }
-                catch (Exception ex)
+
+                var matchingEpisode =
+                    _spotifySearcher.FindMatchingEpisode(request.EpisodeTitle, request.Released, allEpisodes);
+                if (matchingEpisode != null)
                 {
-                    _logger.LogError(ex, $"Failed using {nameof(_spotifyClient)}.");
-                    indexingContext.SkipSpotifyUrlResolving = true;
-                    return null;
+                    fullEpisode = await _cachedSpotifyClient.Episodes.Get(matchingEpisode.Id, indexingContext);
                 }
             }
         }
@@ -117,8 +84,8 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         return fullEpisode;
     }
 
-
-    public async Task<SpotifyPodcastWrapper?> FindPodcast(FindSpotifyPodcastRequest request, IndexingContext indexingContext)
+    public async Task<SpotifyPodcastWrapper?> FindPodcast(FindSpotifyPodcastRequest request,
+        IndexingContext indexingContext)
     {
         if (indexingContext.SkipSpotifyUrlResolving)
         {
@@ -131,77 +98,56 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         FullShow? matchingFullShow = null;
         if (!string.IsNullOrWhiteSpace(request.PodcastId))
         {
-            try
-            {
-                matchingFullShow = await _spotifyClient.Shows.Get(request.PodcastId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Failed using {nameof(_spotifyClient)}.");
-                indexingContext.SkipSpotifyUrlResolving = true;
-                return null;
-            }
+            matchingFullShow = await _cachedSpotifyClient.Shows.Get(request.PodcastId, indexingContext);
         }
 
         if (matchingFullShow == null)
         {
-            SearchResponse podcasts;
-            try
+            var podcasts = await _cachedSpotifyClient.Search.Item(
+                new SearchRequest(SearchRequest.Types.Show, request.Name), indexingContext);
+            if (podcasts != null)
             {
-                podcasts = await _spotifyClient.Search.Item(new SearchRequest(SearchRequest.Types.Show, request.Name)
-                    {Market = Market});
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Failed using {nameof(_spotifyClient)}.");
-                indexingContext.SkipSpotifyUrlResolving = true;
-                return null;
-            }
-
-            var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(request.Name, podcasts.Shows.Items);
-            if (request.Episodes.Any())
-            {
-                foreach (var candidatePodcast in matchingPodcasts)
+                var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(request.Name, podcasts.Shows.Items);
+                if (request.Episodes.Any())
                 {
-                    Paging<SimpleEpisode> pagedEpisodes;
-                    try
+                    foreach (var candidatePodcast in matchingPodcasts)
                     {
-                        pagedEpisodes = await _spotifyClient.Shows.GetEpisodes(candidatePodcast.Id,
-                            new ShowEpisodesRequest {Market = Market});
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, $"Failed using {nameof(_spotifyClient)}.");
-                        indexingContext.SkipSpotifyUrlResolving = true;
-                        return null;
-                    }
-
-                    var allEpisodes = await PaginateEpisodes(pagedEpisodes, indexingContext);
-
-                    var mostRecentEpisode = request.Episodes.OrderByDescending(x => x.Release).First();
-                    var matchingEpisode =
-                        _spotifySearcher.FindMatchingEpisode(
-                            mostRecentEpisode.Title,
-                            mostRecentEpisode.Release,
-                            new[] {allEpisodes});
-                    if (request.Episodes
-                        .Select(x => x.Url?.ToString())
-                        .Contains(matchingEpisode!.ExternalUrls.FirstOrDefault().Value))
-                    {
-                        matchingSimpleShow = candidatePodcast;
-                        break;
+                        var pagedEpisodes =
+                            await _cachedSpotifyClient.Shows.GetEpisodes(candidatePodcast.Id, indexingContext);
+                        if (pagedEpisodes != null)
+                        {
+                            var allEpisodes = await PaginateEpisodes(pagedEpisodes,
+                                $"findpodcast-{candidatePodcast.Id}", indexingContext);
+                            if (allEpisodes != null)
+                            {
+                                var mostRecentEpisode = request.Episodes.OrderByDescending(x => x.Release).First();
+                                var matchingEpisode =
+                                    _spotifySearcher.FindMatchingEpisode(
+                                        mostRecentEpisode.Title,
+                                        mostRecentEpisode.Release,
+                                        new[] {allEpisodes});
+                                if (request.Episodes
+                                    .Select(x => x.Url?.ToString())
+                                    .Contains(matchingEpisode!.ExternalUrls.FirstOrDefault().Value))
+                                {
+                                    matchingSimpleShow = candidatePodcast;
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
-            }
 
-            matchingSimpleShow ??= matchingPodcasts.MaxBy(x => Levenshtein.CalculateSimilarity(request.Name, x.Name));
+                matchingSimpleShow ??=
+                    matchingPodcasts.MaxBy(x => Levenshtein.CalculateSimilarity(request.Name, x.Name));
+            }
         }
 
         return new SpotifyPodcastWrapper(matchingFullShow, matchingSimpleShow);
     }
 
 
-    public async Task<IEnumerable<SimpleEpisode>> GetEpisodes(
+    public async Task<IEnumerable<SimpleEpisode>?> GetEpisodes(
         SpotifyPodcastId request,
         IndexingContext indexingContext)
     {
@@ -212,25 +158,19 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             return null;
         }
 
-        IPaginatable<SimpleEpisode> pagedEpisodes;
-        try
+        var pagedEpisodes = await _cachedSpotifyClient.Shows.GetEpisodes(request.PodcastId, indexingContext);
+
+        if (pagedEpisodes != null)
         {
-            pagedEpisodes =
-                await _spotifyClient.Shows.GetEpisodes(request.PodcastId,
-                    new ShowEpisodesRequest {Market = Market});
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, $"Failed using {nameof(_spotifyClient)}.");
-            indexingContext.SkipSpotifyUrlResolving = true;
-            return Enumerable.Empty<SimpleEpisode>();
+            return await PaginateEpisodes(pagedEpisodes, $"getpodcastepisodes-{request.PodcastId}", indexingContext);
         }
 
-        return await PaginateEpisodes(pagedEpisodes, indexingContext);
+        return null;
     }
 
-    private async Task<IList<SimpleEpisode>> PaginateEpisodes(
+    private async Task<IList<SimpleEpisode>?> PaginateEpisodes(
         IPaginatable<SimpleEpisode> pagedEpisodes,
+        string cacheKey,
         IndexingContext indexingContext)
     {
         if (indexingContext.SkipSpotifyUrlResolving)
@@ -240,41 +180,22 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             return new List<SimpleEpisode>();
         }
 
-        IList<SimpleEpisode> episodes;
+        List<SimpleEpisode> episodes = new();
 
         if (indexingContext.ReleasedSince == null)
         {
-            IList<SimpleEpisode> fetch;
-            try
-            {
-                fetch = await _spotifyClient.PaginateAll(pagedEpisodes);
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, $"Failed using {nameof(_spotifyClient)}.");
-                indexingContext.SkipSpotifyUrlResolving = true;
-                return new List<SimpleEpisode>();
-            }
-
+            var fetch = await _cachedSpotifyClient.PaginateAll(pagedEpisodes, cacheKey, indexingContext);
             episodes = fetch.ToList();
         }
         else
         {
+            var page = 1;
             while (pagedEpisodes.Items!.Last().GetReleaseDate() > indexingContext.ReleasedSince)
             {
-                try
-                {
-                    await _spotifyClient.Paginate(pagedEpisodes).ToListAsync();
-                }
-                catch (Exception e)
-                {
-                    _logger.LogError(e, $"Failed using {nameof(_spotifyClient)}.");
-                    indexingContext.SkipSpotifyUrlResolving = true;
-                    return new List<SimpleEpisode>();
-                }
+                var batchEpisodes =
+                    await _cachedSpotifyClient.Paginate(pagedEpisodes, $"{cacheKey}-{page++}", indexingContext);
+                episodes.AddRange(batchEpisodes);
             }
-
-            episodes = pagedEpisodes.Items!;
         }
 
         return episodes;

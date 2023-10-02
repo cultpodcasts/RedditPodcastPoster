@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.Matching;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
@@ -23,6 +24,7 @@ builder.Services
     .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>()
     .AddScoped<AddYouTubeChannelProcessor>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
+    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddSingleton<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddSingleton<PodcastFactory>()

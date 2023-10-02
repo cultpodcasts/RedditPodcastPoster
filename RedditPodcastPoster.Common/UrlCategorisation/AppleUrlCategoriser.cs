@@ -48,7 +48,8 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
                 null,
                 criteria.EpisodeTitle,
                 criteria.Release,
-                0));
+                0)
+            , indexingContext);
 
         if (episode != null)
         {
@@ -104,7 +105,8 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
                 episodeId,
                 string.Empty,
                 DateTime.MinValue,
-                0));
+                0)
+            , indexingContext);
 
         var podcast =
             await _applePodcastResolver.FindPodcast(new FindApplePodcastRequest(podcastId, string.Empty, string.Empty));

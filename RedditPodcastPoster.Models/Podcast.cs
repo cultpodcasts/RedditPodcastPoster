@@ -53,7 +53,7 @@ public class Podcast : CosmosSelector
     public string YouTubeChannelId { get; set; } = "";
 
     /// <summary>
-    /// This only works for Spotify-channels with YouTube where this is a side-podcast in a YouTube-playlist
+    ///     This only works for Spotify-channels with YouTube where this is a side-podcast in a YouTube-playlist
     /// </summary>
     [JsonPropertyName("youTubePlaylistId")]
     [JsonPropertyOrder(53)]
