@@ -8,32 +8,28 @@ public class UrlCategoriser : IUrlCategoriser
 {
     private readonly IAppleUrlCategoriser _appleUrlCategoriser;
     private readonly ILogger<UrlCategoriser> _logger;
-    private readonly IPodcastRepository _podcastRepository;
     private readonly ISpotifyUrlCategoriser _spotifyUrlCategoriser;
     private readonly IYouTubeUrlCategoriser _youTubeUrlCategoriser;
 
     public UrlCategoriser(
-        IPodcastRepository podcastRepository,
         ISpotifyUrlCategoriser spotifyUrlCategoriser,
         IAppleUrlCategoriser appleUrlCategoriser,
         IYouTubeUrlCategoriser youTubeUrlCategoriser,
         ILogger<UrlCategoriser> logger)
     {
-        _podcastRepository = podcastRepository;
         _spotifyUrlCategoriser = spotifyUrlCategoriser;
         _appleUrlCategoriser = appleUrlCategoriser;
         _youTubeUrlCategoriser = youTubeUrlCategoriser;
         _logger = logger;
     }
 
-    public async Task<CategorisedItem> Categorise(Uri url, IndexingContext indexingContext)
+    public async Task<CategorisedItem> Categorise(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext)
     {
         ResolvedSpotifyItem? resolvedSpotifyItem = null;
         ResolvedAppleItem? resolvedAppleItem = null;
         ResolvedYouTubeItem? resolvedYouTubeItem = null;
         PodcastServiceSearchCriteria? criteria = null;
 
-        var podcasts = await _podcastRepository.GetAll().ToListAsync();
         Podcast? matchingPodcast = null;
         Episode? matchingEpisode = null;
 
