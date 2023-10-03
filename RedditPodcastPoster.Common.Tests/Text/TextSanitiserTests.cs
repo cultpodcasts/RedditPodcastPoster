@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Xml.Serialization;
 using FluentAssertions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Common.Text;
@@ -94,5 +95,16 @@ public class TextSanitiserTests
         result.Should().Be(expected);
     }
 
-
+    [Theory]
+    [InlineData("I Was #Fairgamed! And I Love It!!! ;)", "I Was Fairgamed! And I Love It!!! ;)")]
+    [InlineData("25 How To Handle Trauma! Ex Cult Member Explains ", "25 How To Handle Trauma! Ex Cult Member Explains")]
+    public void SanitiseBody_WithKnownTerm_RemovesHashTags(string input, string expected)
+    {
+        // arrange
+        (Podcast, IEnumerable<Episode>) podcastEpisode = (new Podcast(), new[] { new Episode { Title = input } });
+        // act
+        var result = Sut.SanitiseTitle(podcastEpisode.ToPostModel());
+        // assert
+        result.Should().Be(expected);
+    }
 }

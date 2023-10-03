@@ -8,7 +8,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.Common.Matching;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices;
@@ -57,6 +59,9 @@ builder.Services
     .AddScoped<IApplePodcastService, ApplePodcastService>()
     .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
     .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>()
+    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
+    .AddScoped<IPodcastFilter, PodcastFilter>()
+    .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
     {

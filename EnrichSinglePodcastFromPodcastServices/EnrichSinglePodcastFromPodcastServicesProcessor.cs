@@ -28,7 +28,15 @@ public class EnrichSinglePodcastFromPodcastServicesProcessor
             throw new ArgumentException($"No podcast with Guid '{podcast}' found");
         }
 
-        await _podcastUpdater.Update(podcast, new IndexingContext(null, true));
+        var result= await _podcastUpdater.Update(podcast, new IndexingContext(null, false));
+        if (!result.Success)
+        {
+            _logger.LogError(result.ToString());
+        }
+        else
+        {
+            _logger.LogInformation(result.ToString());
+        }
         await _podcastRepository.Update(podcast);
     }
 }
