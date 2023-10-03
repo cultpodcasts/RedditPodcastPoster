@@ -62,6 +62,7 @@ public class TextSanitiser : ITextSanitiser
 
         episodeTitle = _textInfo.ToTitleCase(episodeTitle.ToLower());
         episodeTitle = FixCasing(episodeTitle);
+        episodeTitle = episodeTitle.Trim();
         return episodeTitle;
     }
 
@@ -116,6 +117,7 @@ public class TextSanitiser : ITextSanitiser
         title = title.Replace("“", "'");
         title = title.Replace("”", "'");
         title = title.Replace("’", "'");
+        title = title.Replace("#", "");
         return title;
     }
 
