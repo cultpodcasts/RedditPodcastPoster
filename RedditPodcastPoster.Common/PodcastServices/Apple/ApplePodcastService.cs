@@ -16,10 +16,21 @@ public class ApplePodcastService : IApplePodcastService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<AppleEpisode>> GetEpisodes(long podcastId, IndexingContext indexingContext)
+    public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
     {
-        var response =
-            await _httpClient.GetAsync($"/v1/catalog/us/podcasts/{podcastId}/episodes");
+        var requestUri = $"/v1/catalog/us/podcasts/{podcastId.PodcastId}/episodes";
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient.GetAsync(requestUri);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex,
+                $"Failed to request '{requestUri}'. Reason: '{ex.Message}', Status-Code: '{ex.StatusCode}'.");
+            return null;
+        }
+
         var podcastRecords = new List<Record>();
         if (response.IsSuccessStatusCode)
         {
@@ -27,7 +38,8 @@ public class ApplePodcastService : IApplePodcastService
             var appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
             podcastRecords.AddRange(appleObject!.Records);
             while (!string.IsNullOrWhiteSpace(appleObject.Next) &&
-                   (!indexingContext.ReleasedSince.HasValue || podcastRecords.Last().ToAppleEpisode().Release >= indexingContext.ReleasedSince))
+                   (!indexingContext.ReleasedSince.HasValue || podcastRecords.Last().ToAppleEpisode().Release >=
+                       indexingContext.ReleasedSince))
             {
                 response = await _httpClient.GetAsync(appleObject.Next);
                 if (response.IsSuccessStatusCode)

@@ -59,9 +59,15 @@ builder.Services
     .AddScoped<IApplePodcastService, ApplePodcastService>()
     .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
     .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>()
+    .AddScoped<ISpotifyPodcastEnricher, SpotifyPodcastEnricher>()
+    .AddScoped<IAppleEpisodeProvider, AppleEpisodeProvider>()
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddScoped<IPodcastFilter, PodcastFilter>()
     .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
+    .AddScoped<IEliminationTermsProviderFactory, EliminationTermsProviderFactory>()
+    .AddSingleton(s => s.GetService<IEliminationTermsProviderFactory>().Create().GetAwaiter().GetResult())
+    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
+    .AddScoped<iTunesSearchManager>()
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
     {

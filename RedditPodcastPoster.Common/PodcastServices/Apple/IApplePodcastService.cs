@@ -2,5 +2,5 @@
 
 public interface IApplePodcastService
 {
-    public Task<IEnumerable<AppleEpisode>> GetEpisodes(long podcastId, IndexingContext indexingContext);
+    public Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext);
 }

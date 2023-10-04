@@ -17,15 +17,15 @@ public class CachedApplePodcastService : ICachedApplePodcastService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<AppleEpisode>> GetEpisodes(long podcastId, IndexingContext indexingContext)
+    public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
     {
-        var cacheKey = GetCacheKey(podcastId, indexingContext.ReleasedSince);
+        var cacheKey = GetCacheKey(podcastId.PodcastId, indexingContext.ReleasedSince);
         if (!Cache.TryGetValue(cacheKey, out var podcastEpisodes))
         {
             podcastEpisodes = Cache[cacheKey] = await _applePodcastService.GetEpisodes(podcastId, indexingContext);
         }
 
-        return podcastEpisodes!;
+        return podcastEpisodes;
     }
 
     private string GetCacheKey(long podcastId, DateTime? releasedSince)
