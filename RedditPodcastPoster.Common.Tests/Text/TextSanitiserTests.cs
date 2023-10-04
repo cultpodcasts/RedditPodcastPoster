@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using System.Xml.Serialization;
 using FluentAssertions;
+using Moq.AutoMock;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Common.Text;
 using RedditPodcastPoster.Models;
@@ -11,7 +11,14 @@ namespace RedditPodcastPoster.Common.Tests.Text;
 
 public class TextSanitiserTests
 {
-    private TextSanitiser Sut => new();
+    private readonly AutoMocker _mocker;
+
+    public TextSanitiserTests()
+    {
+        _mocker = new AutoMocker();
+    }
+
+    private TextSanitiser Sut => _mocker.CreateInstance<TextSanitiser>();
 
     [Fact]
     public void Sanitise_PlainText_IsCorrect()
@@ -97,11 +104,12 @@ public class TextSanitiserTests
 
     [Theory]
     [InlineData("I Was #Fairgamed! And I Love It!!! ;)", "I Was Fairgamed! And I Love It!!! ;)")]
-    [InlineData("25 How To Handle Trauma! Ex Cult Member Explains ", "25 How To Handle Trauma! Ex Cult Member Explains")]
+    [InlineData("25 How To Handle Trauma! Ex Cult Member Explains ",
+        "25 How To Handle Trauma! Ex Cult Member Explains")]
     public void SanitiseBody_WithKnownTerm_RemovesHashTags(string input, string expected)
     {
         // arrange
-        (Podcast, IEnumerable<Episode>) podcastEpisode = (new Podcast(), new[] { new Episode { Title = input } });
+        (Podcast, IEnumerable<Episode>) podcastEpisode = (new Podcast(), new[] {new Episode {Title = input}});
         // act
         var result = Sut.SanitiseTitle(podcastEpisode.ToPostModel());
         // assert

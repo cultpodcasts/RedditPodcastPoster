@@ -1,17 +1,18 @@
 ﻿using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.KnownTerms;
+using RedditPodcastPoster.Common.Persistence;
 
-namespace RedditPodcastPoster.Common.Text;
+namespace SeedKnownTerms;
 
-public static class KnownTerms
+public class KnownTermsSeeder
 {
-    private static readonly Dictionary<string, Regex> Terms = new()
+    private readonly IKnownTermsRepository _knownTermsRepository;
+    private readonly ILogger<CosmosDbRepository> _logger;
+
+    private readonly Dictionary<string, Regex> KnownTerms = new Dictionary<string, Regex>()
     {
-        {"the", new Regex(@"(?<!^)the\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"of", new Regex(@"(?<!^)of\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"on", new Regex(@"(?<!^)on\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"in", new Regex(@"(?<!^)in\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"JWs", new Regex(@"\bJWs\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"etc", new Regex(@"\betc\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"ABCs", new Regex(@"\bABCs\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"ExJWHelp", new Regex(@"\bExJWHelp\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"PBCC", new Regex(@"\bPBCC\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
@@ -22,13 +23,23 @@ public static class KnownTerms
         {"NXIVM", new Regex(@"\bNXIVM\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
     };
 
-    public static string MaintainKnownTerms(string input)
+    public KnownTermsSeeder(
+        IKnownTermsRepository knownTermsRepository,
+        ILogger<CosmosDbRepository> logger)
     {
-        foreach (var term in Terms)
-        {
-            input = term.Value.Replace(input, term.Key);
-        }
+        _knownTermsRepository = knownTermsRepository;
+        _logger = logger;
+    }
 
-        return input;
+    public async Task Run()
+    {
+        var persisted = new KnownTerms();
+        foreach (var knownTerm in KnownTerms)
+        {
+            persisted.Terms.Add(knownTerm.Key, knownTerm.Value);
+        }
+        await _knownTermsRepository.Save(persisted);
+
+        persisted = await _knownTermsRepository.Get();
     }
 }

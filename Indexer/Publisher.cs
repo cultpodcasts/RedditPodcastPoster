@@ -20,6 +20,7 @@ public class Publisher : TaskActivity<object, bool>
 
     public override async Task<bool> RunAsync(TaskActivityContext context, object input)
     {
+        _logger.LogInformation($"{nameof(Publisher)} initiated.");
         await _contentPublisher.Publish();
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
         return true;

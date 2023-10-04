@@ -25,6 +25,7 @@ public class Poster : TaskActivity<object, bool>
 
     public override async Task<bool> RunAsync(TaskActivityContext context, object input)
     {
+        _logger.LogInformation($"{nameof(Poster)} initiated.");
         _logger.LogInformation(_posterOptions.ToString());
         var baselineDate = DateTimeHelper.DaysAgo(_posterOptions.ReleasedDaysAgo);
 

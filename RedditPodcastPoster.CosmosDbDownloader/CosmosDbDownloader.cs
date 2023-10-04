@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.EliminationTerms;
+using RedditPodcastPoster.Common.KnownTerms;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Models;
 
@@ -22,18 +23,25 @@ public class CosmosDbDownloader
 
     public async Task Run()
     {
-        var podcasts = await _cosmosDbRepository.GetAll<Podcast>().ToListAsync();
         string? key;
+        var podcasts = await _cosmosDbRepository.GetAll<Podcast>().ToListAsync();
         foreach (var podcast in podcasts)
         {
             key = _fileRepository.KeySelector.GetKey(podcast);
             await _fileRepository.Write(key, podcast);
         }
 
-        var eliminationTerms = 
+        var eliminationTerms =
             await _cosmosDbRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString(),
             _cosmosDbRepository.KeySelector.GetKey(new EliminationTerms()));
         key = _fileRepository.KeySelector.GetKey(eliminationTerms!);
         await _fileRepository.Write(key, eliminationTerms);
+
+        var knownTerms =
+            await _cosmosDbRepository.Read<KnownTerms>(KnownTerms._Id.ToString(),
+                _cosmosDbRepository.KeySelector.GetKey(new KnownTerms()));
+        key = _fileRepository.KeySelector.GetKey(knownTerms!);
+        await _fileRepository.Write(key, knownTerms);
+
     }
 }

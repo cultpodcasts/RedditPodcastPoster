@@ -19,7 +19,7 @@ public class RedditPostTitleFactoryTests
     {
         _fixture = new Fixture();
         _mocker = new AutoMocker();
-        _mocker.Use<ITextSanitiser>(new TextSanitiser());
+        _mocker.Use<ITextSanitiser>(_mocker.CreateInstance<TextSanitiser>());
         _mocker.Use(Options.Create(new SubredditSettings {SubredditTitleMaxLength = 300}));
     }
 
