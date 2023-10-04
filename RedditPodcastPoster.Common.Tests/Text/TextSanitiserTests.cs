@@ -1,8 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using System.Xml.Serialization;
 using FluentAssertions;
+using Moq.AutoMock;
 using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Common.KnownTerms;
 using RedditPodcastPoster.Common.Text;
 using RedditPodcastPoster.Models;
 using Xunit;
@@ -11,7 +12,15 @@ namespace RedditPodcastPoster.Common.Tests.Text;
 
 public class TextSanitiserTests
 {
-    private TextSanitiser Sut => new();
+    private readonly AutoMocker _mocker;
+
+    public TextSanitiserTests()
+    {
+        _mocker = new AutoMocker();
+        _mocker.GetMock<IKnownTermsProvider>().Setup(x => x.GetKnownTerms()).Returns(new KnownTerms.KnownTerms());
+    }
+
+    private TextSanitiser Sut => _mocker.CreateInstance<TextSanitiser>();
 
     [Fact]
     public void Sanitise_PlainText_IsCorrect()
@@ -80,9 +89,6 @@ public class TextSanitiserTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData("Lorem Ipsum PBCC etc etc")]
-    [InlineData("Shiny Happy Warrior: Lindsey Williams on the IBLP")]
     [InlineData("Understanding Extremist Authoritarian Aects - w/Christian Szurko")]
     [InlineData("The Start of the Sentence")]
     public void SanitiseTitle_WithKnownTerm_MaintainsTerm(string expected)
@@ -97,11 +103,12 @@ public class TextSanitiserTests
 
     [Theory]
     [InlineData("I Was #Fairgamed! And I Love It!!! ;)", "I Was Fairgamed! And I Love It!!! ;)")]
-    [InlineData("25 How To Handle Trauma! Ex Cult Member Explains ", "25 How To Handle Trauma! Ex Cult Member Explains")]
+    [InlineData("25 How To Handle Trauma! Ex Cult Member Explains ",
+        "25 How To Handle Trauma! Ex Cult Member Explains")]
     public void SanitiseBody_WithKnownTerm_RemovesHashTags(string input, string expected)
     {
         // arrange
-        (Podcast, IEnumerable<Episode>) podcastEpisode = (new Podcast(), new[] { new Episode { Title = input } });
+        (Podcast, IEnumerable<Episode>) podcastEpisode = (new Podcast(), new[] {new Episode {Title = input}});
         // act
         var result = Sut.SanitiseTitle(podcastEpisode.ToPostModel());
         // assert

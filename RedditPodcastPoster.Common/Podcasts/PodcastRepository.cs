@@ -69,8 +69,7 @@ public class PodcastRepository : IPodcastRepository
         }
 
         podcast.Episodes = new List<Episode>(podcast.Episodes.OrderByDescending(x => x.Release));
-        return new MergeResult(podcast.Id, podcast.Name, podcast.Publisher, addedEpisodes, mergedEpisodes,
-            failedEpisodes);
+        return new MergeResult(addedEpisodes, mergedEpisodes, failedEpisodes);
     }
 
     public IAsyncEnumerable<Podcast> GetAll()

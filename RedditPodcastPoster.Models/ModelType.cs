@@ -14,5 +14,8 @@ public enum ModelType
     EliminationTerms = 3,
 
     [JsonPropertyName(nameof(RedditPost))] 
-    RedditPost = 4
+    RedditPost = 4,
+
+    [JsonPropertyName(nameof(KnownTerms))]
+    KnownTerms = 5
 }

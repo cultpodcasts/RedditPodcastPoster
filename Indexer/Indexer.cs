@@ -24,6 +24,7 @@ public class Indexer : TaskActivity<Object, bool>
 
     public override async Task<bool> RunAsync(TaskActivityContext context, Object input)
     {
+        _logger.LogInformation($"{nameof(Indexer)} initiated.");
         _logger.LogInformation(_indexerOptions.ToString());
 
         var indexContext = _indexerOptions.ToIndexOptions();

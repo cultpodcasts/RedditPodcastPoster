@@ -4,8 +4,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.KnownTerms;
 using RedditPodcastPoster.Common.Persistence;
-using RedditPodcastPoster.CosmosDbUploader;
+using SeedKnownTerms;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -19,17 +20,14 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create("podcasts"))
-    .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
+    .AddScoped<IDataRepository, CosmosDbRepository>()
+    .AddScoped<IKnownTermsRepository, KnownTermsRepository>()
     .AddSingleton(new JsonSerializerOptions
     {
         WriteIndented = true
     })
-    .AddScoped<CosmosDbUploader>()
-    .AddScoped<IFilenameSelector, FilenameSelector>()
-    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
-    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>();
+    .AddScoped<KnownTermsSeeder>()
+    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
 builder.Services
@@ -37,5 +35,5 @@ builder.Services
 
 
 using var host = builder.Build();
-var processor = host.Services.GetService<CosmosDbUploader>();
+var processor = host.Services.GetService<KnownTermsSeeder>();
 await processor!.Run();

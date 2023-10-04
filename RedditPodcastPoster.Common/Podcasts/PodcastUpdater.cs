@@ -8,7 +8,7 @@ namespace RedditPodcastPoster.Common.Podcasts;
 
 public class PodcastUpdater : IPodcastUpdater
 {
-    private readonly IEliminationTermsRepository _eliminationTermsRepository;
+    private readonly IEliminationTermsProvider _eliminationTermsProvider;
     private readonly IEpisodeProvider _episodeProvider;
     private readonly ILogger<PodcastUpdater> _logger;
     private readonly IPodcastFilter _podcastFilter;
@@ -20,7 +20,7 @@ public class PodcastUpdater : IPodcastUpdater
         IEpisodeProvider episodeProvider,
         IPodcastServicesEpisodeEnricher podcastServicesEpisodeEnricher,
         IPodcastFilter podcastFilter,
-        IEliminationTermsRepository eliminationTermsRepository,
+        IEliminationTermsProvider eliminationTermsProvider,
         ILogger<PodcastUpdater> logger
     )
     {
@@ -28,7 +28,7 @@ public class PodcastUpdater : IPodcastUpdater
         _episodeProvider = episodeProvider;
         _podcastServicesEpisodeEnricher = podcastServicesEpisodeEnricher;
         _podcastFilter = podcastFilter;
-        _eliminationTermsRepository = eliminationTermsRepository;
+        _eliminationTermsProvider = eliminationTermsProvider;
         _logger = logger;
     }
 
@@ -47,9 +47,17 @@ public class PodcastUpdater : IPodcastUpdater
         }
 
         await _podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, episodes, indexingContext);
-        var eliminationTerms = await _eliminationTermsRepository.Get();
+        var eliminationTerms = _eliminationTermsProvider.GetEliminationTerms();
         var filterResult = _podcastFilter.Filter(podcast, eliminationTerms.Terms);
-        await _podcastRepository.Update(podcast);
+        if (mergeResult.MergedEpisodes.Any() || mergeResult.AddedEpisodes.Any() || filterResult.FilteredEpisodes.Any())
+        {
+            await _podcastRepository.Update(podcast);
+        }
+        else
+        {
+            _logger.LogInformation($"No update made to podcast '{podcast.Name}' with guid '{podcast.Id}'.");
+        }
+
         return new IndexPodcastResult(
             podcast,
             mergeResult,

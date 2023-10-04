@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.Common.KnownTerms;
 using RedditPodcastPoster.Common.Matching;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
@@ -68,9 +69,15 @@ builder.Services
     .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
     .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
     .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
-    .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
     .AddScoped<IPodcastFilter, PodcastFilter>()
     .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>()
+    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
+    .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
+    .AddScoped<IEliminationTermsProviderFactory, EliminationTermsProviderFactory>()
+    .AddSingleton(s => s.GetService<IEliminationTermsProviderFactory>().Create().GetAwaiter().GetResult())
+    .AddScoped<IKnownTermsProviderFactory, KnownTermsProviderFactory>()
+    .AddScoped<IKnownTermsRepository, KnownTermsRepository>()
+    .AddSingleton(s => s.GetService<IKnownTermsProviderFactory>().Create().GetAwaiter().GetResult())
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddSingleton(new JsonSerializerOptions
     {

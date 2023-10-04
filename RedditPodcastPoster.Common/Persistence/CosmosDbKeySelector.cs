@@ -13,4 +13,9 @@ public class CosmosDbKeySelector : ICosmosDbKeySelector
     {
         return nameof(ModelType.EliminationTerms);
     }
+
+    public string GetKey(KnownTerms.KnownTerms knownTerms)
+    {
+        return nameof(ModelType.KnownTerms);
+    }
 }

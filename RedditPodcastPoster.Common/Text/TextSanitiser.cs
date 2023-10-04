@@ -1,15 +1,36 @@
 ﻿using System.Globalization;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.KnownTerms;
 using RedditPodcastPoster.Common.Models;
 
 namespace RedditPodcastPoster.Common.Text;
 
 public class TextSanitiser : ITextSanitiser
 {
-    private readonly Regex _invalidTitlePrefix = new(@"(?'prefix'^[^a-zA-Z\d""]+)(?'after'.*$)");
-    private readonly TextInfo _textInfo = new CultureInfo("en-GB", false).TextInfo;
-    private readonly Regex _withName = new(@"(?'before'\s)(?'with'[Ww]ith )(?'after'[A-Z])");
+    private static readonly Dictionary<string, Regex> TitleCaseTerms = new()
+    {
+        {"the", new Regex(@"(?<!^)the\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"of", new Regex(@"(?<!^)of\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"on", new Regex(@"(?<!^)on\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"in", new Regex(@"(?<!^)in\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"etc", new Regex(@"\betc\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)}
+    };
+
+    private static readonly Regex _hashtag = new(@"\#(\w+)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex _invalidTitlePrefix = new(@"(?'prefix'^[^a-zA-Z\d""]+)(?'after'.*$)");
+    private static readonly TextInfo _textInfo = new CultureInfo("en-GB", false).TextInfo;
+    private static readonly Regex _withName = new(@"(?'before'\s)(?'with'[Ww]ith )(?'after'[A-Z])");
+    private readonly IKnownTermsProvider _knownTermsProvider;
+    private readonly ILogger<TextSanitiser> _logger;
+
+    public TextSanitiser(IKnownTermsProvider knownTermsProvider, ILogger<TextSanitiser> logger)
+    {
+        _knownTermsProvider = knownTermsProvider;
+        _logger = logger;
+    }
+
 
     public string ExtractBody(string body, Regex regex)
     {
@@ -62,6 +83,12 @@ public class TextSanitiser : ITextSanitiser
 
         episodeTitle = _textInfo.ToTitleCase(episodeTitle.ToLower());
         episodeTitle = FixCasing(episodeTitle);
+        episodeTitle = _hashtag.Replace(episodeTitle, "$1");
+        foreach (var term in TitleCaseTerms)
+        {
+            episodeTitle = term.Value.Replace(episodeTitle, term.Key);
+        }
+
         episodeTitle = episodeTitle.Trim();
         return episodeTitle;
     }
@@ -117,15 +144,14 @@ public class TextSanitiser : ITextSanitiser
         title = title.Replace("“", "'");
         title = title.Replace("”", "'");
         title = title.Replace("’", "'");
-        title = title.Replace("#", "");
         return title;
     }
 
     private string FixCasing(string input)
     {
         input = input.Replace("W/", "w/");
-        input = KnownTerms.MaintainKnownTerms(input);
-        
+        input = _knownTermsProvider.GetKnownTerms().MaintainKnownTerms(input);
+
         return input;
     }
 }
