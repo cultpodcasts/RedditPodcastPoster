@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using iTunesSearch.Library;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Podcasts;
@@ -11,7 +12,10 @@ namespace AddAudioPodcast;
 public class AddAudioPodcastProcessor
 {
     private readonly IApplePodcastEnricher _applePodcastEnricher;
+    private readonly ISpotifyPodcastEnricher _spotifyPodcastEnricher;
+    private readonly ICachedApplePodcastService _applePodcastService;
     private readonly IndexingContext _indexingContext = new(null, true);
+    private readonly iTunesSearchManager _iTunesSearchManager;
     private readonly ILogger<AddAudioPodcastProcessor> _logger;
     private readonly PodcastFactory _podcastFactory;
     private readonly IPodcastRepository _podcastRepository;
@@ -21,27 +25,87 @@ public class AddAudioPodcastProcessor
     public AddAudioPodcastProcessor(
         IPodcastRepository podcastRepository,
         ICachedSpotifyClient spotifyClient,
+        ICachedApplePodcastService applePodcastService,
         PodcastFactory podcastFactory,
         IApplePodcastEnricher applePodcastEnricher,
+        ISpotifyPodcastEnricher spotifyPodcastEnricher,
         IPodcastUpdater podcastUpdater,
+        iTunesSearchManager iTunesSearchManager,
         ILogger<AddAudioPodcastProcessor> logger)
     {
         _podcastRepository = podcastRepository;
         _spotifyClient = spotifyClient;
+        _applePodcastService = applePodcastService;
         _podcastFactory = podcastFactory;
         _applePodcastEnricher = applePodcastEnricher;
+        _spotifyPodcastEnricher = spotifyPodcastEnricher;
         _podcastUpdater = podcastUpdater;
+        _iTunesSearchManager = iTunesSearchManager;
         _logger = logger;
     }
 
     public async Task Create(AddAudioPodcastRequest request)
     {
         var indexingContext = new IndexingContext();
-        var spotifyPodcast =
-            await _spotifyClient.Shows.Get(request.SpotifyId, indexingContext);
         var existingPodcasts = await _podcastRepository.GetAll().ToListAsync();
+        Podcast? podcast = null;
+        if (!request.AppleReleaseAuthority)
+        {
+            podcast = await GetSpotifyPodcast(request, indexingContext, existingPodcasts);
+        }
+        else
+        {
+            podcast = await GetApplePodcast(request, indexingContext, existingPodcasts);
+        }
 
-        var podcast = existingPodcasts.SingleOrDefault(x => x.SpotifyId == request.SpotifyId);
+        if (podcast != null)
+        {
+            await _podcastUpdater.Update(podcast, _indexingContext);
+
+            if (!string.IsNullOrWhiteSpace(request.EpisodeTitleRegex))
+            {
+                var includeEpisodesRegex = new Regex(request.EpisodeTitleRegex,
+                    RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+                podcast.IndexAllEpisodes = false;
+                podcast.EpisodeIncludeTitleRegex = request.EpisodeTitleRegex;
+                List<Episode> episodesToRemove = new();
+                foreach (var episode in podcast.Episodes)
+                {
+                    var match = includeEpisodesRegex.Match(episode.Title);
+                    if (!match.Success)
+                    {
+                        episodesToRemove.Add(episode);
+                    }
+#if DEBUG
+                    else
+                    {
+                        var matchedTerm = match.Groups[0].Value;
+                    }
+#endif
+                }
+
+                foreach (var episode in episodesToRemove)
+                {
+                    podcast.Episodes.Remove(episode);
+                }
+            }
+
+            await _podcastRepository.Save(podcast);
+        }
+        else
+        {
+            var source = request.AppleReleaseAuthority ? "Apple" : "Spotify";
+            _logger.LogError($"Could not find podcast with id '{request.PodcastId}' using '{source}' as source.");
+        }
+    }
+
+    private async Task<Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext,
+        List<Podcast> existingPodcasts)
+    {
+        var spotifyPodcast = await _spotifyClient.Shows.Get(request.PodcastId, indexingContext);
+
+        var podcast = existingPodcasts.SingleOrDefault(x => x.SpotifyId == request.PodcastId);
         if (podcast == null)
         {
             podcast = _podcastFactory.Create(spotifyPodcast.Name);
@@ -53,37 +117,29 @@ public class AddAudioPodcastProcessor
             await _applePodcastEnricher.AddId(podcast);
         }
 
-        await _podcastUpdater.Update(podcast, _indexingContext);
+        return podcast;
+    }
 
-        if (!string.IsNullOrWhiteSpace(request.EpisodeTitleRegex))
+
+    private async Task<Podcast> GetApplePodcast(AddAudioPodcastRequest request, IndexingContext indexingContext,
+        List<Podcast> existingPodcasts)
+    {
+        var id = long.Parse(request.PodcastId);
+        var applePodcast = (await _iTunesSearchManager.GetPodcastById(id)).Podcasts.SingleOrDefault();
+
+        var podcast = existingPodcasts.SingleOrDefault(x => x.AppleId == id);
+        if (podcast == null)
         {
-            var includeEpisodesRegex = new Regex(request.EpisodeTitleRegex,
-                RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            podcast = _podcastFactory.Create(applePodcast.Name);
+            podcast.AppleId = applePodcast.Id;
+            podcast.ModelType = ModelType.Podcast;
+            podcast.Bundles = false;
+            podcast.Publisher = applePodcast.ArtistName.Trim();
+            podcast.ReleaseAuthority = Service.Apple;
 
-            podcast.IndexAllEpisodes = false;
-            podcast.EpisodeIncludeTitleRegex = request.EpisodeTitleRegex;
-            List<Episode> episodesToRemove = new();
-            foreach (var episode in podcast.Episodes)
-            {
-                var match = includeEpisodesRegex.Match(episode.Title);
-                if (!match.Success)
-                {
-                    episodesToRemove.Add(episode);
-                }
-#if DEBUG
-                else
-                {
-                    var matchedTerm = match.Groups[0].Value;
-                }
-#endif
-            }
-
-            foreach (var episode in episodesToRemove)
-            {
-                podcast.Episodes.Remove(episode);
-            }
+            await _spotifyPodcastEnricher.AddIdAndUrls(podcast, indexingContext);
         }
 
-        await _podcastRepository.Save(podcast);
+        return podcast;
     }
 }

@@ -7,7 +7,6 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
 {
     private readonly ILogger<SpotifyEpisodeProvider> _logger;
 
-
     private readonly ISpotifyItemResolver _spotifyItemResolver;
 
     public SpotifyEpisodeProvider(
@@ -26,7 +25,7 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
 
         if (indexingContext.ReleasedSince.HasValue)
         {
-            episodes = episodes.Where(x => x.GetReleaseDate() > indexingContext.ReleasedSince.Value);
+            episodes = episodes.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince.Value);
         }
 
         return episodes.Select(x =>

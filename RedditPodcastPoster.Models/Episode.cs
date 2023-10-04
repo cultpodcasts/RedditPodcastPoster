@@ -55,7 +55,7 @@ public class Episode
 
     [JsonPropertyName("appleId")]
     [JsonPropertyOrder(81)]
-    public long? AppleId { get; set; } = null;
+    public long? AppleId { get; set; }
 
     [JsonPropertyName("youTubeId")]
     [JsonPropertyOrder(82)]
@@ -87,10 +87,7 @@ public class Episode
             Length = length,
             Explicit = @explicit,
             Release = release,
-            Urls = new ServiceUrls
-            {
-                Spotify = spotifyUrl
-            }
+            Urls = new ServiceUrls {Spotify = spotifyUrl}
         };
     }
 
@@ -112,6 +109,27 @@ public class Episode
             Explicit = @explicit,
             Release = release,
             Urls = new ServiceUrls {YouTube = youTubeUrl}
+        };
+    }
+
+    public static Episode FromApple(
+        long appleId,
+        string title,
+        string description,
+        TimeSpan length,
+        bool @explicit,
+        DateTime release,
+        Uri url)
+    {
+        return new Episode
+        {
+            AppleId = appleId,
+            Title = title,
+            Description = description,
+            Length = length,
+            Explicit = @explicit,
+            Release = release,
+            Urls = new ServiceUrls {Apple = url}
         };
     }
 }

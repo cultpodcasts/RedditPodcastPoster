@@ -56,6 +56,7 @@ public static class Ioc
             .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
             .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
             .AddScoped<IApplePodcastService, ApplePodcastService>()
+            .AddScoped<IAppleEpisodeProvider, AppleEpisodeProvider>()
             .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
             .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>()
             .AddScoped<IRemoteClient, RemoteClient>()

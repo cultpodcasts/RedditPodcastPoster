@@ -1,9 +1,7 @@
 using System.Globalization;
-using System.Threading.Channels;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
-using Channel = Google.Apis.YouTube.v3.Data.Channel;
 
 namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
@@ -21,13 +19,16 @@ public class YouTubeSearchService : IYouTubeSearchService
         _logger = logger;
     }
 
-    public async Task<IList<SearchResult>?> GetLatestChannelVideos(YouTubeChannelId channelId, IndexingContext indexingContext)
+    public async Task<IList<SearchResult>?> GetLatestChannelVideos(YouTubeChannelId channelId,
+        IndexingContext indexingContext)
     {
         if (indexingContext.SkipYouTubeUrlResolving)
         {
-            _logger.LogInformation($"Skipping '{nameof(GetLatestChannelVideos)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
+            _logger.LogInformation(
+                $"Skipping '{nameof(GetLatestChannelVideos)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
             return null;
         }
+
         var result = new List<SearchResult>();
         var nextPageToken = "";
         while (nextPageToken != null)
@@ -73,6 +74,7 @@ public class YouTubeSearchService : IYouTubeSearchService
                 $"Skipping '{nameof(GetVideoDetails)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Video-ids: '{string.Join(",", videoIds)}'.");
             return null;
         }
+
         var result = new List<Video>();
         var nextPageToken = "";
         var batch = 0;
@@ -113,9 +115,11 @@ public class YouTubeSearchService : IYouTubeSearchService
     {
         if (indexingContext.SkipYouTubeUrlResolving)
         {
-            _logger.LogInformation($"Skipping '{nameof(FindChannel)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-name: '{channelName}'.");
+            _logger.LogInformation(
+                $"Skipping '{nameof(FindChannel)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-name: '{channelName}'.");
             return;
         }
+
         var channelsListRequest = _youTubeService.Search.List("snippet");
         channelsListRequest.Type = "channel";
         channelsListRequest.Fields = "items/snippet/channelId";
@@ -139,7 +143,8 @@ public class YouTubeSearchService : IYouTubeSearchService
     {
         if (indexingContext.SkipYouTubeUrlResolving)
         {
-            _logger.LogInformation($"Skipping '{nameof(GetChannel)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
+            _logger.LogInformation(
+                $"Skipping '{nameof(GetChannel)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
             return null;
         }
 
@@ -164,13 +169,16 @@ public class YouTubeSearchService : IYouTubeSearchService
     {
         if (indexingContext.SkipYouTubeUrlResolving)
         {
-            _logger.LogInformation($"Skipping '{nameof(GetPlaylist)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{playlistId.PlaylistId}'.");
+            _logger.LogInformation(
+                $"Skipping '{nameof(GetPlaylist)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{playlistId.PlaylistId}'.");
             return null;
         }
+
         var result = new List<PlaylistItem>();
         var nextPageToken = "";
         while (nextPageToken != null &&
-               ReleasedSinceDate(result.LastOrDefault()?.Snippet.PublishedAtDateTimeOffset, indexingContext.ReleasedSince))
+               ReleasedSinceDate(result.LastOrDefault()?.Snippet.PublishedAtDateTimeOffset,
+                   indexingContext.ReleasedSince))
         {
             var playlistRequest = _youTubeService.PlaylistItems.List("snippet");
             playlistRequest.PlaylistId = playlistId.PlaylistId;

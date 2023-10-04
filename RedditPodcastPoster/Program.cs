@@ -49,7 +49,7 @@ builder.Services
     .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
     .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
     .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
-//    .AddScoped<IApplePodcastService, RecentApplePodcastService>()
+    .AddScoped<IAppleEpisodeProvider, AppleEpisodeProvider>()
     .AddScoped<IApplePodcastService, ApplePodcastService>()
     .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
     .AddScoped<IRemoteClient, RemoteClient>()
