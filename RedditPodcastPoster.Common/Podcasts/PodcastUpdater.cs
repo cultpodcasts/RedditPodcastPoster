@@ -8,10 +8,10 @@ namespace RedditPodcastPoster.Common.Podcasts;
 
 public class PodcastUpdater : IPodcastUpdater
 {
+    private readonly IEliminationTermsProvider _eliminationTermsProvider;
     private readonly IEpisodeProvider _episodeProvider;
     private readonly ILogger<PodcastUpdater> _logger;
     private readonly IPodcastFilter _podcastFilter;
-    private readonly IEliminationTermsProvider _eliminationTermsProvider;
     private readonly IPodcastRepository _podcastRepository;
     private readonly IPodcastServicesEpisodeEnricher _podcastServicesEpisodeEnricher;
 
@@ -49,7 +49,15 @@ public class PodcastUpdater : IPodcastUpdater
         await _podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, episodes, indexingContext);
         var eliminationTerms = _eliminationTermsProvider.GetEliminationTerms();
         var filterResult = _podcastFilter.Filter(podcast, eliminationTerms.Terms);
-        await _podcastRepository.Update(podcast);
+        if (mergeResult.MergedEpisodes.Any() || mergeResult.AddedEpisodes.Any() || filterResult.FilteredEpisodes.Any())
+        {
+            await _podcastRepository.Update(podcast);
+        }
+        else
+        {
+            _logger.LogInformation($"No update made to podcast '{podcast.Name}' with guid '{podcast.Id}'.");
+        }
+
         return new IndexPodcastResult(
             podcast,
             mergeResult,
