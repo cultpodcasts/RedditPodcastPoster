@@ -1,6 +1,4 @@
-﻿using System.Globalization;
-using System.Text.RegularExpressions;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Models;
 using RedditPodcastPoster.Common.Text;

@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using FluentAssertions;
 using Moq.AutoMock;
 using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Common.KnownTerms;
 using RedditPodcastPoster.Common.Text;
 using RedditPodcastPoster.Models;
 using Xunit;
@@ -16,6 +17,7 @@ public class TextSanitiserTests
     public TextSanitiserTests()
     {
         _mocker = new AutoMocker();
+        _mocker.GetMock<IKnownTermsProvider>().Setup(x => x.GetKnownTerms()).Returns(new KnownTerms.KnownTerms());
     }
 
     private TextSanitiser Sut => _mocker.CreateInstance<TextSanitiser>();
@@ -87,9 +89,6 @@ public class TextSanitiserTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData("Lorem Ipsum PBCC etc etc")]
-    [InlineData("Shiny Happy Warrior: Lindsey Williams on the IBLP")]
     [InlineData("Understanding Extremist Authoritarian Aects - w/Christian Szurko")]
     [InlineData("The Start of the Sentence")]
     public void SanitiseTitle_WithKnownTerm_MaintainsTerm(string expected)

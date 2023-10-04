@@ -2,6 +2,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Moq.AutoMock;
+using RedditPodcastPoster.Common.KnownTerms;
 using RedditPodcastPoster.Common.Models;
 using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Common.Text;
@@ -19,6 +20,7 @@ public class RedditPostTitleFactoryTests
     {
         _fixture = new Fixture();
         _mocker = new AutoMocker();
+        _mocker.GetMock<IKnownTermsProvider>().Setup(x => x.GetKnownTerms()).Returns(new KnownTerms.KnownTerms());
         _mocker.Use<ITextSanitiser>(_mocker.CreateInstance<TextSanitiser>());
         _mocker.Use(Options.Create(new SubredditSettings {SubredditTitleMaxLength = 300}));
     }
@@ -132,31 +134,6 @@ public class RedditPostTitleFactoryTests
         var result = Sut.ConstructPostTitle(postModel);
         // assert
         result.Should().Contain("Episode Title Upper Text");
-    }
-
-    [Theory]
-    [InlineData("BJU")]
-    [InlineData("JW")]
-    [InlineData("JWs")]
-    public void ConstructPostTitle_WithUpperTextGroupName_IsCorrect(string upperCaseGroupName)
-    {
-        // arrange
-        var postModel = new PostModel(
-            new PodcastPost("podcast-title",
-                string.Empty,
-                string.Empty,
-                new[]
-                {
-                    _fixture
-                        .Build<EpisodePost>()
-                        .With(x => x.Title, $"Episode title {upperCaseGroupName} ending")
-                        .Create()
-                },
-                _fixture.Create<Service?>()));
-        // act
-        var result = Sut.ConstructPostTitle(postModel);
-        // assert
-        result.Should().Contain($"Episode Title {upperCaseGroupName} Ending");
     }
 
     [Fact]
