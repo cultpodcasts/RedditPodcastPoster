@@ -33,7 +33,8 @@ builder.Services
         WriteIndented = true
     })
     .AddScoped<Sqllite3DatabasePublisher.Sqllite3DatabasePublisher>()
-    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>();
+    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
+    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>();
 
 var databaseFileName = "podcasts.sqlite";
 string connectionString = $"Data Source={databaseFileName}";

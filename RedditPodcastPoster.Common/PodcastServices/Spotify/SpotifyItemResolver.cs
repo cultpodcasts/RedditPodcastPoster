@@ -180,7 +180,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             return new List<SimpleEpisode>();
         }
 
-        List<SimpleEpisode> episodes = new();
+        List<SimpleEpisode> episodes = pagedEpisodes.Items.ToList();
 
         if (indexingContext.ReleasedSince == null)
         {

@@ -55,10 +55,7 @@ builder.Services
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddScoped<IUrlSubmitter, UrlSubmitter>()
     .AddScoped<ISubmitUrlProcessor, SubmitUrlProcessor>()
-    .AddSingleton(new JsonSerializerOptions
-    {
-        WriteIndented = true
-    })
+    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
     .AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
     {
         var appleBearerTokenProvider = services.GetService<IAppleBearerTokenProvider>();
