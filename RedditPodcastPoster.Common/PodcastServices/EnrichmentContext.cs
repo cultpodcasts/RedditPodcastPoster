@@ -1,16 +1,20 @@
-﻿namespace RedditPodcastPoster.Common.PodcastServices;
+﻿using Microsoft.Azure.Cosmos.Core.Collections;
+
+namespace RedditPodcastPoster.Common.PodcastServices;
 
 public record EnrichmentContext
 {
     private Uri? _apple;
     private Uri? _spotify;
     private Uri? _youTube;
+    private DateTime _release;
 
-    public bool Updated => YouTubeUpdated || SpotifyUpdated || AppleUpdated;
+    public bool Updated => YouTubeUrlUpdated || SpotifyUrlUpdated || AppleUrlUpdated || AppleReleaseUpdated;
 
-    public bool YouTubeUpdated { get; private set; }
-    public bool SpotifyUpdated { get; private set; }
-    public bool AppleUpdated { get; private set; }
+    public bool YouTubeUrlUpdated { get; private set; }
+    public bool SpotifyUrlUpdated { get; private set; }
+    public bool AppleUrlUpdated { get; private set; }
+    public bool AppleReleaseUpdated { get; private set; }
 
     public Uri? YouTube
     {
@@ -18,7 +22,7 @@ public record EnrichmentContext
         set
         {
             _youTube = value;
-            YouTubeUpdated = true;
+            YouTubeUrlUpdated = true;
         }
     }
 
@@ -28,7 +32,7 @@ public record EnrichmentContext
         set
         {
             _spotify = value;
-            SpotifyUpdated = true;
+            SpotifyUrlUpdated = true;
         }
     }
 
@@ -38,7 +42,17 @@ public record EnrichmentContext
         set
         {
             _apple = value;
-            AppleUpdated = true;
+            AppleUrlUpdated = true;
+        }
+    }
+
+    public DateTime Release
+    {
+        get => _release;
+        set
+        {
+            _release = value;
+            AppleReleaseUpdated= true;
         }
     }
 }

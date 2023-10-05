@@ -113,6 +113,7 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
                 if (request.Episode.Release.TimeOfDay == TimeSpan.Zero)
                 {
                     request.Episode.Release = appleItem.Release;
+                    enrichmentContext.Release = appleItem.Release;
                 }
 
                 enrichmentContext.Apple = url;
