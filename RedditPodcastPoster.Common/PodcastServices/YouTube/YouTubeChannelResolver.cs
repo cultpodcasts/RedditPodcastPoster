@@ -21,6 +21,7 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
     public async Task<SearchResult?> FindChannel(string channelName, string mostRecentlyUploadVideoTitle,
         IndexingContext indexingContext)
     {
+        _logger.LogInformation($"YOUTUBE: Find-Channel for channel-name '{channelName}'.");
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(
@@ -76,6 +77,7 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
             var lastUpload = searchListResponse.Items.FirstOrDefault();
             if (lastUpload != null && AlphaNumericOnly(lastUpload.Snippet.Title) == mostRecentlyUploadVideoTitle)
             {
+                _logger.LogInformation($"YOUTUBE: {nameof(FindChannel)} - {System.Text.Json.JsonSerializer.Serialize(searchResult)}");
                 return searchResult;
             }
         }
