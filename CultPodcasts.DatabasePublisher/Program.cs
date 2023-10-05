@@ -23,10 +23,7 @@ builder.Services
     .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
     .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create("podcasts"))
     .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
-    .AddSingleton(new JsonSerializerOptions
-    {
-        WriteIndented = true
-    })
+    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
     .AddScoped<PublicDatabasePublisher>()
     .AddScoped<IFilenameSelector, FilenameSelector>()
     .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>();
