@@ -27,7 +27,7 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
         var indexOptions = new IndexingContext();
         var podcasts = await _podcastRepository.GetAll().ToListAsync();
 
-        if (!request.SubmitUrlsInFile)
+        if (!request.SubmitUrlsInFIle)
         {
             await _urlSubmitter.Submit(podcasts, new Uri(request.UrlOrFile, UriKind.Absolute), indexOptions);
         }

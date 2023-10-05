@@ -90,9 +90,14 @@ public class AddAudioPodcastProcessor
                     podcast.Episodes.Remove(episode);
                     _logger.LogInformation($"Removed episode '{episode.Title}' due to regex.");
                 }
+
+                if (episodesToRemove.Any())
+                {
+                    await _podcastRepository.Save(podcast);
+                }
             }
 
-            if (!result.Success)
+            if (result.Success)
             {
                 _logger.LogInformation(result.ToString());
             }
@@ -101,7 +106,6 @@ public class AddAudioPodcastProcessor
                 _logger.LogError(result.ToString());
             }
 
-            await _podcastRepository.Save(podcast);
         }
         else
         {
