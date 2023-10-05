@@ -54,15 +54,12 @@ public class PodcastUpdater : IPodcastUpdater
         {
             await _podcastRepository.Update(podcast);
         }
-        else
-        {
-            _logger.LogInformation($"No update made to podcast '{podcast.Name}' with guid '{podcast.Id}'.");
-        }
 
         return new IndexPodcastResult(
             podcast,
             mergeResult,
             filterResult,
+            enrichmentResult,
             initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving,
             initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving);
     }

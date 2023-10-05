@@ -46,6 +46,7 @@ builder.Services
     .AddScoped<IPodcastUpdater, PodcastUpdater>()
     .AddScoped<IEpisodeProvider, EpisodeProvider>()
     .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
+    .AddScoped<IAppleEpisodeProvider, AppleEpisodeProvider>()
     .AddScoped<ISpotifyItemResolver, SpotifyItemResolver>()
     .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>()
     .AddScoped<ISpotifySearcher, SpotifySearcher>()
@@ -65,6 +66,7 @@ builder.Services
     .AddSingleton(s => s.GetService<IEliminationTermsProviderFactory>().Create().GetAwaiter().GetResult())
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
+    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
     .AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
     {
         var appleBearerTokenProvider = services.GetService<IAppleBearerTokenProvider>();
