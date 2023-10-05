@@ -1,3 +1,5 @@
-﻿namespace RedditPodcastPoster.Common.PodcastServices;
+﻿using RedditPodcastPoster.Models;
 
-public record EnrichmentResult(bool Updated);
+namespace RedditPodcastPoster.Common.PodcastServices;
+
+public record EnrichmentResult(Podcast Podcast, Episode Episode, EnrichmentContext EnrichmentContext);
