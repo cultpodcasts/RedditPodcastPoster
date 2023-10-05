@@ -18,7 +18,8 @@ public record IndexPodcastResult(Podcast Podcast,
         var report = new StringBuilder();
 
         if (SpotifyBypassed || YouTubeBypassed || FilterResult.FilteredEpisodes.Any() ||
-            MergeResult.FailedEpisodes.Any() || MergeResult.MergedEpisodes.Any() || MergeResult.AddedEpisodes.Any())
+            MergeResult.FailedEpisodes.Any() || MergeResult.MergedEpisodes.Any() || MergeResult.AddedEpisodes.Any() ||
+            EnrichmentResult.UpdatedEpisodes.Any())
         {
             report.AppendLine($"Podcast: '{Podcast.Name}', PodcastId: '{Podcast.Id}'.");
 
@@ -54,7 +55,7 @@ public record IndexPodcastResult(Podcast Podcast,
 
             if (EnrichmentResult.UpdatedEpisodes.Any())
             {
-                report.Append(EnrichmentResult.UpdatedEpisodes);
+                report.Append(EnrichmentResult);
             }
         }
 

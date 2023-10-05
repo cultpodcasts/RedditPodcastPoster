@@ -11,7 +11,7 @@ public record IndexPodcastsResult(IList<IndexPodcastResult> Results)
         var report = new StringBuilder();
         foreach (var indexPodcastResult in Results.Where(x => !x.Success))
         {
-            report.Append(indexPodcastResult);
+            report.Append(indexPodcastResult.ToString());
         }
 
         foreach (var indexPodcastResult in Results.Where(x => x.Success))
