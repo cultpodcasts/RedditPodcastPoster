@@ -26,12 +26,12 @@ public class EnrichmentResults
             var appleReport = "";
             if (enrichmentResult.EnrichmentContext.AppleUrlUpdated)
             {
-                appleReport = $" AppleUrl: '{enrichmentResult.Episode.Urls.Apple}'";
+                appleReport+= $" AppleUrl: '{enrichmentResult.Episode.Urls.Apple}'";
             }
 
             if (enrichmentResult.EnrichmentContext.AppleReleaseUpdated)
             {
-                appleReport = $" Apple-ReleaseDate: {enrichmentResult.Episode.Release:R}";
+                appleReport+= $" Apple-ReleaseDate: {enrichmentResult.Episode.Release:R}";
             }
 
             report.AppendLine(
