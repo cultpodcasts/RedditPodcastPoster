@@ -4,7 +4,7 @@ namespace RedditPodcastPoster.Common.PodcastServices;
 
 public interface IPodcastServicesEpisodeEnricher
 {
-    Task EnrichEpisodes(
+    Task<EnrichmentResults> EnrichEpisodes(
         Podcast podcast,
         IList<Episode> newEpisodes,
         IndexingContext indexingContext);

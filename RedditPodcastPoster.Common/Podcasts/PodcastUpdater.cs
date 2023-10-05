@@ -46,10 +46,11 @@ public class PodcastUpdater : IPodcastUpdater
             episodes = episodes.Where(x => x.Release >= indexingContext.ReleasedSince.Value).ToList();
         }
 
-        await _podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, episodes, indexingContext);
+        var enrichmentResult = await _podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, episodes, indexingContext);
         var eliminationTerms = _eliminationTermsProvider.GetEliminationTerms();
         var filterResult = _podcastFilter.Filter(podcast, eliminationTerms.Terms);
-        if (mergeResult.MergedEpisodes.Any() || mergeResult.AddedEpisodes.Any() || filterResult.FilteredEpisodes.Any())
+        if (mergeResult.MergedEpisodes.Any() || mergeResult.AddedEpisodes.Any() ||
+            filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any())
         {
             await _podcastRepository.Update(podcast);
         }
