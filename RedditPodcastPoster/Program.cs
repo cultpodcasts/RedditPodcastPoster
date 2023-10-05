@@ -38,7 +38,7 @@ builder.Services
     .AddScoped<IEpisodeProvider, EpisodeProvider>()
     .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
     .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
-    .AddScoped<IPodcastProcessor, PodcastProcessor>()
+    .AddScoped<PodcastProcessor>()
     .AddScoped<IFilenameSelector, FilenameSelector>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
@@ -129,7 +129,7 @@ return await Parser.Default.ParseArguments<ProcessRequest>(args)
 async Task<int> Run(ProcessRequest request)
 {
     logger!.LogInformation($"{nameof(Run)} initiated.");
-    var podcastProcessor = host.Services.GetService<IPodcastProcessor>()!;
+    var podcastProcessor = host.Services.GetService<PodcastProcessor>()!;
     var result = await podcastProcessor.Process(request);
     logger!.LogInformation($"{nameof(Run)} Operation results: '{result}'.");
     logger!.LogInformation($"{nameof(Run)} complete.");
