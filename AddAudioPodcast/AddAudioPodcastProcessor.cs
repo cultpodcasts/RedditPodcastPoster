@@ -60,7 +60,7 @@ public class AddAudioPodcastProcessor
 
         if (podcast != null)
         {
-            await _podcastUpdater.Update(podcast, _indexingContext);
+            var result= await _podcastUpdater.Update(podcast, _indexingContext);
 
             if (!string.IsNullOrWhiteSpace(request.EpisodeTitleRegex))
             {
@@ -88,7 +88,17 @@ public class AddAudioPodcastProcessor
                 foreach (var episode in episodesToRemove)
                 {
                     podcast.Episodes.Remove(episode);
+                    _logger.LogInformation($"Removed episode '{episode.Title}' due to regex.");
                 }
+            }
+
+            if (!result.Success)
+            {
+                _logger.LogInformation(result.ToString());
+            }
+            else
+            {
+                _logger.LogError(result.ToString());
             }
 
             await _podcastRepository.Save(podcast);

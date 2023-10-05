@@ -105,8 +105,6 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
                     FindAppleEpisodeRequestFactory.Create(request.Podcast, request.Episode), indexingContext);
             if (appleItem != null)
             {
-                _logger.LogInformation(
-                    $"{nameof(EnrichFromApple)} Found matching Apple episode: '{appleItem.Id}' with title '{appleItem.Title}' and release-date '{appleItem.Release:R}'.");
                 var url = appleItem.Url.CleanAppleUrl();
                 request.Episode.Urls.Apple = url;
                 request.Episode.AppleId = appleItem.Id;
