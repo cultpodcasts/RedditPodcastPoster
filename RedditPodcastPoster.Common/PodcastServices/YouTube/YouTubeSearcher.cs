@@ -19,7 +19,6 @@ public class YouTubeSearcher : IYouTubeSearcher
         IList<SearchResult> searchResults,
         TimeSpan youTubePublishingDelay)
     {
-        _logger.LogInformation($"{nameof(FindMatchingYouTubeVideo)} Find matching episode for '{episode.Title}' released at '{episode.Release:R}'.");
         var withinPublishingDelayThreshold = searchResults.Where(searchResult =>
         {
             if (searchResult.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime < episode.Release)

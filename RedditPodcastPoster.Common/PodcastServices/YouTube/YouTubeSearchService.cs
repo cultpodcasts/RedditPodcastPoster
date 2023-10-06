@@ -24,8 +24,6 @@ public class YouTubeSearchService : IYouTubeSearchService
         YouTubeChannelId channelId,
         IndexingContext indexingContext)
     {
-        _logger.LogInformation(
-            $"YOUTUBE: Query for latest {IYouTubeSearchService.MaxSearchResults} videos channel-id {channelId}, published since {indexingContext.ReleasedSince:R}.");
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(
@@ -67,16 +65,18 @@ public class YouTubeSearchService : IYouTubeSearchService
             nextPageToken = response.NextPageToken;
         }
 
-        _logger.LogInformation(
-            $"YOUTUBE: {nameof(GetLatestChannelVideoSnippets)} - {JsonSerializer.Serialize(result)}");
+        if (result.Any())
+        {
+            _logger.LogInformation(
+                $"YOUTUBE: {nameof(GetLatestChannelVideoSnippets)} - {JsonSerializer.Serialize(result)}");
+        }
+
         return result;
     }
 
     public async Task<IList<Video>?> GetVideoContentDetails(IEnumerable<string> videoIds,
         IndexingContext indexingContext)
     {
-        _logger.LogInformation($"YOUTUBE: Get Video details for videos {string.Join(",", videoIds)}");
-
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(
@@ -117,7 +117,6 @@ public class YouTubeSearchService : IYouTubeSearchService
             batchVideoIds = videoIds.Skip(batch * IYouTubeSearchService.MaxSearchResults)
                 .Take(IYouTubeSearchService.MaxSearchResults);
         }
-
         _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {JsonSerializer.Serialize(result)}");
         return result;
     }
@@ -196,8 +195,6 @@ public class YouTubeSearchService : IYouTubeSearchService
     public async Task<IList<PlaylistItem>?> GetPlaylistVideoSnippets(YouTubePlaylistId playlistId,
         IndexingContext indexingContext)
     {
-        _logger.LogInformation(
-            $"YOUTUBE: Get playlist for playlist-id {playlistId} - items released since {indexingContext.ReleasedSince:R}");
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(

@@ -83,7 +83,7 @@ public class EpisodeProvider : IEpisodeProvider
             if (eliminatedEpisodes.Any())
             {
                 _logger.LogInformation(
-                    $"Eliminating episodes of podcast '{podcast.Name}' with id '{podcast.Id}' with titles '{string.Join(", ", eliminatedEpisodes)}' as they do not match {nameof(podcast.EpisodeIncludeTitleRegex)} of value '{podcast.EpisodeIncludeTitleRegex}'.");
+                    $"Eliminating episodes of podcast '{podcast.Name}' with id '{podcast.Id}' with titles '{string.Join(", ", eliminatedEpisodes.Select(x=>x.Title))}' as they do not match {nameof(podcast.EpisodeIncludeTitleRegex)} of value '{podcast.EpisodeIncludeTitleRegex}'.");
             }
 
             episodes = episodes.Where(x => includeEpisodeRegex.IsMatch(x.Title)).ToList();

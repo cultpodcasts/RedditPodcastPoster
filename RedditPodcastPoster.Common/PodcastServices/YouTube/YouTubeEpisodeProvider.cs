@@ -69,7 +69,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
     {
         var playlistVideos = await _youTubeSearchService.GetPlaylistVideoSnippets(new YouTubePlaylistId(
             youTubePlaylistId.PlaylistId), indexingContext);
-        if (playlistVideos != null)
+        if (playlistVideos != null && playlistVideos.Any())
         {
             if (indexingContext.ReleasedSince.HasValue)
             {
