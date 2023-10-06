@@ -1,14 +1,14 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.PodcastServices.Spotify;
+using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Podcasts;
 
 public class PodcastsUpdater : IPodcastsUpdater
 {
+    private readonly IFlushable _flushableCaches;
     private readonly ILogger<PodcastsUpdater> _logger;
     private readonly IPodcastRepository _podcastRepository;
-    private readonly IFlushable _flushableCaches;
     private readonly IPodcastUpdater _podcastUpdater;
 
     public PodcastsUpdater(

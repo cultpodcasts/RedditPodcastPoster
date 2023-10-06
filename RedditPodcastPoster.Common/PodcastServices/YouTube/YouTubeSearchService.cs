@@ -153,8 +153,8 @@ public class YouTubeSearchService : IYouTubeSearchService
     public async Task<Channel?> GetChannelContentDetails(
         YouTubeChannelId channelId,
         IndexingContext indexingContext,
-        bool withSnippets= false, 
-        bool withContentOwnerDetails= false)
+        bool withSnippets = false,
+        bool withContentOwnerDetails = false)
     {
         _logger.LogInformation($"YOUTUBE: Get channel for channel-id {channelId}.");
         if (indexingContext.SkipYouTubeUrlResolving)

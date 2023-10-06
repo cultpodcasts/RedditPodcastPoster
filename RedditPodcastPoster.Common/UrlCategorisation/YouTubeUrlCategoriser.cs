@@ -51,7 +51,8 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
         }
 
         var channel =
-            await _youTubeSearchService.GetChannelContentDetails(new YouTubeChannelId(item.Snippet.ChannelId), indexingContext, true, true);
+            await _youTubeSearchService.GetChannelContentDetails(new YouTubeChannelId(item.Snippet.ChannelId),
+                indexingContext, true, true);
         if (channel != null)
         {
             return new ResolvedYouTubeItem(
