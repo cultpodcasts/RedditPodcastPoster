@@ -32,16 +32,21 @@ public class PodcastsUpdater : IPodcastsUpdater
         _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
         foreach (var podcast in podcasts)
         {
+            IndexPodcastResult? result= null;
             if (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
             {
-                var result = await _podcastUpdater.Update(podcast, indexingContext);
+                result = await _podcastUpdater.Update(podcast, indexingContext);
+                var resultReport = result.ToString();
                 if (!result.Success)
                 {
-                    _logger.LogError(result.ToString());
+                    _logger.LogError(resultReport);
                 }
                 else
                 {
-                    _logger.LogInformation(result.ToString());
+                    if (!string.IsNullOrWhiteSpace(resultReport))
+                    {
+                        _logger.LogInformation(result.ToString());
+                    }
                 }
 
                 success &= result.Success;
