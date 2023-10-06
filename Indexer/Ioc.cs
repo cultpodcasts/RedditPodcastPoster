@@ -56,7 +56,6 @@ public static class Ioc
             .AddScoped<IApplePodcastService, ApplePodcastService>()
             .AddScoped<IAppleEpisodeProvider, AppleEpisodeProvider>()
             .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
-            .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>()
             .AddScoped<IRemoteClient, RemoteClient>()
             .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
             .AddScoped<IYouTubeSearchService, YouTubeSearchService>()

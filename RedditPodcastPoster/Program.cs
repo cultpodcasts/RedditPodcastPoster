@@ -70,7 +70,6 @@ builder.Services
     .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
     .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
     .AddScoped<IPodcastFilter, PodcastFilter>()
-    .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>()
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
     .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
     .AddScoped<IEliminationTermsProviderFactory, EliminationTermsProviderFactory>()

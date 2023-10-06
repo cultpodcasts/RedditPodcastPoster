@@ -35,17 +35,12 @@ public class Indexer : TaskActivity<object, bool>
                 : $"{nameof(RunAsync)} Indexing with options released-since: Null, bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}'.");
 
         var results = await _podcastsUpdater.UpdatePodcasts(indexContext);
-        if (results.Success)
-        {
-            _logger.LogInformation(results.ToString());
-        }
-        else
-        {
-            _logger.LogError(results.ToString());
+        if (!results){
+            _logger.LogError("Failure occurred");
         }
 
         _logger.LogInformation(
             $"{nameof(RunAsync)} Completed");
-        return results.Success;
+        return results;
     }
 }

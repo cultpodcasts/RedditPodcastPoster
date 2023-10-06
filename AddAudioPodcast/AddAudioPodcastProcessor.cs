@@ -6,26 +6,26 @@ using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Models;
+using SpotifyAPI.Web;
 
 namespace AddAudioPodcast;
 
 public class AddAudioPodcastProcessor
 {
+    private static string Market = "GB";
     private readonly IApplePodcastEnricher _applePodcastEnricher;
     private readonly ISpotifyPodcastEnricher _spotifyPodcastEnricher;
-    private readonly ICachedApplePodcastService _applePodcastService;
     private readonly IndexingContext _indexingContext = new(null, true);
     private readonly iTunesSearchManager _iTunesSearchManager;
     private readonly ILogger<AddAudioPodcastProcessor> _logger;
     private readonly PodcastFactory _podcastFactory;
     private readonly IPodcastRepository _podcastRepository;
     private readonly IPodcastUpdater _podcastUpdater;
-    private readonly ICachedSpotifyClient _spotifyClient;
+    private readonly ISpotifyClient _spotifyClient;
 
     public AddAudioPodcastProcessor(
         IPodcastRepository podcastRepository,
-        ICachedSpotifyClient spotifyClient,
-        ICachedApplePodcastService applePodcastService,
+        ISpotifyClient spotifyClient,
         PodcastFactory podcastFactory,
         IApplePodcastEnricher applePodcastEnricher,
         ISpotifyPodcastEnricher spotifyPodcastEnricher,
@@ -35,7 +35,6 @@ public class AddAudioPodcastProcessor
     {
         _podcastRepository = podcastRepository;
         _spotifyClient = spotifyClient;
-        _applePodcastService = applePodcastService;
         _podcastFactory = podcastFactory;
         _applePodcastEnricher = applePodcastEnricher;
         _spotifyPodcastEnricher = spotifyPodcastEnricher;
@@ -117,7 +116,7 @@ public class AddAudioPodcastProcessor
     private async Task<Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext,
         List<Podcast> existingPodcasts)
     {
-        var spotifyPodcast = await _spotifyClient.Shows.Get(request.PodcastId, indexingContext);
+        var spotifyPodcast = await _spotifyClient.Shows.Get(request.PodcastId, new ShowRequest(){Market = Market});
 
         var podcast = existingPodcasts.SingleOrDefault(x => x.SpotifyId == request.PodcastId);
         if (podcast == null)

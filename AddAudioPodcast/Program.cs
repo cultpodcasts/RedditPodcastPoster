@@ -58,7 +58,6 @@ builder.Services
     .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
     .AddScoped<IApplePodcastService, ApplePodcastService>()
     .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
-    .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>()
     .AddScoped<ISpotifyPodcastEnricher, SpotifyPodcastEnricher>()
     .AddScoped<IAppleEpisodeProvider, AppleEpisodeProvider>()
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()

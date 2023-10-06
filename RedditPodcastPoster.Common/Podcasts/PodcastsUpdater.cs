@@ -24,9 +24,9 @@ public class PodcastsUpdater : IPodcastsUpdater
         _logger = logger;
     }
 
-    public async Task<IndexPodcastsResult> UpdatePodcasts(IndexingContext indexingContext)
+    public async Task<bool> UpdatePodcasts(IndexingContext indexingContext)
     {
-        var results = new List<IndexPodcastResult>();
+        var success = true;
         _logger.LogInformation($"{nameof(UpdatePodcasts)} Retrieving podcasts.");
         IEnumerable<Podcast> podcasts = await _podcastRepository.GetAll().ToListAsync();
         _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
@@ -34,12 +34,22 @@ public class PodcastsUpdater : IPodcastsUpdater
         {
             if (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
             {
-                results.Add(await _podcastUpdater.Update(podcast, indexingContext));
+                var result = await _podcastUpdater.Update(podcast, indexingContext);
+                if (!result.Success)
+                {
+                    _logger.LogError(result.ToString());
+                }
+                else
+                {
+                    _logger.LogInformation(result.ToString());
+                }
+
+                success &= result.Success;
                 _flushableCaches.Flush();
             }
         }
 
         _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing complete.");
-        return new IndexPodcastsResult(results);
+        return success;
     }
 }
