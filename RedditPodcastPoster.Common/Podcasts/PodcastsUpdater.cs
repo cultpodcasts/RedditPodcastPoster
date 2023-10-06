@@ -1,10 +1,12 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Podcasts;
 
 public class PodcastsUpdater : IPodcastsUpdater
 {
+    private readonly IFlushable _flushableCaches;
     private readonly ILogger<PodcastsUpdater> _logger;
     private readonly IPodcastRepository _podcastRepository;
     private readonly IPodcastUpdater _podcastUpdater;
@@ -12,11 +14,13 @@ public class PodcastsUpdater : IPodcastsUpdater
     public PodcastsUpdater(
         IPodcastUpdater podcastUpdater,
         IPodcastRepository podcastRepository,
+        IFlushable flushableCaches,
         ILogger<PodcastsUpdater> logger
     )
     {
         _podcastUpdater = podcastUpdater;
         _podcastRepository = podcastRepository;
+        _flushableCaches = flushableCaches;
         _logger = logger;
     }
 
@@ -31,6 +35,7 @@ public class PodcastsUpdater : IPodcastsUpdater
             if (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
             {
                 results.Add(await _podcastUpdater.Update(podcast, indexingContext));
+                _flushableCaches.Flush();
             }
         }
 

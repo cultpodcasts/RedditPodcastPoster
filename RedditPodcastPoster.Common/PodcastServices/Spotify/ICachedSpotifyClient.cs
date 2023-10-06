@@ -2,7 +2,7 @@
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
-public interface ICachedSpotifyClient
+public interface ICachedSpotifyClient : IFlushable
 {
     CachedSpotifyClient.CachedEpisodesClient Episodes { get; }
     CachedSpotifyClient.CachedShowsClient Shows { get; }

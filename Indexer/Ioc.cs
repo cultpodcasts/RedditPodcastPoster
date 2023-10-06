@@ -39,10 +39,8 @@ public static class Ioc
             .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
             .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
             .AddScoped<IPodcastRepository, PodcastRepository>()
-            .AddSingleton(new JsonSerializerOptions
-            {
-                WriteIndented = true
-            })
+            .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
+
 
             // Indexer
             .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
@@ -69,13 +67,13 @@ public static class Ioc
             .AddScoped<ISpotifySearcher, SpotifySearcher>()
             .AddScoped<IPodcastFilter, PodcastFilter>()
             .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
-            .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
             .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
             .AddScoped<IEliminationTermsProviderFactory, EliminationTermsProviderFactory>()
             .AddSingleton(s => s.GetService<IEliminationTermsProviderFactory>().Create().GetAwaiter().GetResult())
             .AddScoped<IKnownTermsProviderFactory, KnownTermsProviderFactory>()
             .AddScoped<IKnownTermsRepository, KnownTermsRepository>()
             .AddSingleton(s => s.GetService<IKnownTermsProviderFactory>().Create().GetAwaiter().GetResult())
+            .AddScoped<IFlushable, CacheFlusher>()
 
             // Poster 
             .AddScoped<IEpisodeProcessor, EpisodeProcessor>()

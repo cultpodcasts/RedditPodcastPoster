@@ -48,7 +48,8 @@ public class EnrichYouTubePodcastProcessor
         if (string.IsNullOrWhiteSpace(request.PlaylistId))
         {
             var channel =
-                await _youTubeSearchService.GetChannel(new YouTubeChannelId(podcast.YouTubeChannelId), indexOptions);
+                await _youTubeSearchService.GetChannelContentDetails(new YouTubeChannelId(podcast.YouTubeChannelId),
+                    indexOptions);
             if (channel == null)
             {
                 throw new InvalidOperationException(
@@ -63,21 +64,22 @@ public class EnrichYouTubePodcastProcessor
         }
 
         var playlistItems =
-            await _youTubeSearchService.GetPlaylist(new YouTubePlaylistId(playlistId),
+            await _youTubeSearchService.GetPlaylistVideoSnippets(new YouTubePlaylistId(playlistId),
                 indexOptions);
 
         var missingPlaylistItems = playlistItems.Where(playlistItem =>
             podcast.Episodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();
         var missingVideoIds = missingPlaylistItems.Select(x => x.Snippet.ResourceId.VideoId).Distinct();
-        var missingPlaylistVideos = await _youTubeSearchService.GetVideoDetails(missingVideoIds, indexOptions);
+        var missingPlaylistVideos = await _youTubeSearchService.GetVideoContentDetails(missingVideoIds, indexOptions);
 
         foreach (var missingPlaylistItem in missingPlaylistItems)
         {
+            var missingPlaylistItemSnippet = playlistItems.SingleOrDefault(x => x.Id == missingPlaylistItem.Id).Snippet;
             var video = missingPlaylistVideos.SingleOrDefault(video =>
-                video.Id == missingPlaylistItem.Snippet.ResourceId.VideoId);
+                video.Id == missingPlaylistItemSnippet.ResourceId.VideoId);
             if (video != null)
             {
-                var episode = _youTubeEpisodeProvider.GetEpisode(missingPlaylistItem.Snippet, video);
+                var episode = _youTubeEpisodeProvider.GetEpisode(missingPlaylistItemSnippet, video);
                 episode.Id = Guid.NewGuid();
                 podcast.Episodes.Add(episode);
             }

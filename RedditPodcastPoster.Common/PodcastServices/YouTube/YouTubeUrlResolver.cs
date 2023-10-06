@@ -23,7 +23,7 @@ public class YouTubeItemResolver : IYouTubeItemResolver
     {
         var youTubePublishingDelay = TimeSpan.Parse(request.Podcast.YouTubePublishingDelayTimeSpan);
         var searchListResponse =
-            await _youTubeSearchService.GetLatestChannelVideos(
+            await _youTubeSearchService.GetLatestChannelVideoSnippets(
                 new YouTubeChannelId(request.Podcast.YouTubeChannelId), indexingContext);
         if (searchListResponse == null)
         {

@@ -28,6 +28,11 @@ public class CachedApplePodcastService : ICachedApplePodcastService
         return podcastEpisodes;
     }
 
+    public void Flush()
+    {
+        Cache.Clear();
+    }
+
     private string GetCacheKey(long podcastId, DateTime? releasedSince)
     {
         if (releasedSince.HasValue)

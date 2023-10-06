@@ -73,12 +73,16 @@ public class CachedSpotifyClient : ICachedSpotifyClient
         return results!;
     }
 
-
     public CachedEpisodesClient Episodes { get; }
 
     public CachedShowsClient Shows { get; }
 
     public CachedSearchClient Search { get; }
+
+    public void Flush()
+    {
+        Cache.Clear();
+    }
 
     public class CachedShowsClient
     {

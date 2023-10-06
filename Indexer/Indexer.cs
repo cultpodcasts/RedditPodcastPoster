@@ -6,7 +6,7 @@ using RedditPodcastPoster.Common.Podcasts;
 namespace Indexer;
 
 [DurableTask(nameof(Indexer))]
-public class Indexer : TaskActivity<Object, bool>
+public class Indexer : TaskActivity<object, bool>
 {
     private readonly IndexerOptions _indexerOptions;
     private readonly ILogger _logger;
@@ -22,7 +22,7 @@ public class Indexer : TaskActivity<Object, bool>
         _logger = logger;
     }
 
-    public override async Task<bool> RunAsync(TaskActivityContext context, Object input)
+    public override async Task<bool> RunAsync(TaskActivityContext context, object input)
     {
         _logger.LogInformation($"{nameof(Indexer)} initiated.");
         _logger.LogInformation(_indexerOptions.ToString());

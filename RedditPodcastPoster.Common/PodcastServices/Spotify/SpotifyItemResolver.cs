@@ -190,7 +190,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         else
         {
             var page = 1;
-            while (pagedEpisodes.Items!.Last().GetReleaseDate() > indexingContext.ReleasedSince)
+            while (pagedEpisodes.Items!.Last().GetReleaseDate() >= indexingContext.ReleasedSince)
             {
                 var batchEpisodes =
                     await _cachedSpotifyClient.Paginate(pagedEpisodes, $"{cacheKey}-{page++}", indexingContext);
