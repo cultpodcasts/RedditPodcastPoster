@@ -6,13 +6,13 @@ namespace RedditPodcastPoster.Common.PodcastServices;
 
 public class CacheFlusher : IFlushable
 {
-    private readonly ICachedSpotifyClient _cachedSpotifyClient;
     private readonly ICachedApplePodcastService _cachedApplePodcastService;
+    private readonly ICachedSpotifyClient _cachedSpotifyClient;
     private readonly ILogger<CacheFlusher> _logger;
 
     public CacheFlusher(
         ICachedSpotifyClient cachedSpotifyClient,
-        ICachedApplePodcastService cachedApplePodcastService,   
+        ICachedApplePodcastService cachedApplePodcastService,
         ILogger<CacheFlusher> logger)
     {
         _cachedSpotifyClient = cachedSpotifyClient;
@@ -22,7 +22,6 @@ public class CacheFlusher : IFlushable
 
     public void Flush()
     {
-        _logger.LogInformation($"{nameof(Flush)}");
         _cachedApplePodcastService.Flush();
         _cachedSpotifyClient.Flush();
     }

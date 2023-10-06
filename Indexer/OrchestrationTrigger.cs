@@ -1,4 +1,3 @@
-using Amazon.Runtime.Internal.Util;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
@@ -17,15 +16,15 @@ public class OrchestrationTrigger
     [Function("OrchestrationTrigger")]
     public async Task Run(
         [TimerTrigger("0 */1 * * *"
-#if DEBUG            
+#if DEBUG
             , RunOnStartup = true
-#endif        
-        )] TimerInfo info,
+#endif
+        )]
+        TimerInfo info,
         [DurableClient] DurableTaskClient client)
     {
         _logger.LogInformation($"{nameof(OrchestrationTrigger)} {nameof(Run)} initiated.");
-        string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(Orchestration));
+        var instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(Orchestration));
         _logger.LogInformation($"{nameof(OrchestrationTrigger)} {nameof(Run)} complete.");
-
     }
 }

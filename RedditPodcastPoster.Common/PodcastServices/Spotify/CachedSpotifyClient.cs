@@ -79,6 +79,11 @@ public class CachedSpotifyClient : ICachedSpotifyClient
 
     public CachedSearchClient Search { get; }
 
+    public void Flush()
+    {
+        Cache.Clear();
+    }
+
     public class CachedShowsClient
     {
         private static readonly ConcurrentDictionary<string, FullShow> FullShowCache = new();
@@ -264,11 +269,5 @@ public class CachedSpotifyClient : ICachedSpotifyClient
         {
             return $"{episodeId}-{request.Market}";
         }
-    }
-
-    public void Flush()
-    {
-        _logger.LogInformation($"{nameof(Flush)}");
-        Cache.Clear();
     }
 }
