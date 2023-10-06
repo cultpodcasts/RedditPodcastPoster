@@ -2,18 +2,20 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Models;
+using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.Common.UrlCategorisation;
 
 public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
 {
+    private static readonly string Market = "GB";
     private static readonly Regex SpotifyId = new(@"episode/(?'episodeId'\w+)");
     private readonly ILogger<SpotifyUrlCategoriser> _logger;
-    private readonly ICachedSpotifyClient _spotifyClient;
+    private readonly ISpotifyClient _spotifyClient;
     private readonly ISpotifyItemResolver _spotifyItemResolver;
 
     public SpotifyUrlCategoriser(
-        ICachedSpotifyClient spotifyClient,
+        ISpotifyClient spotifyClient,
         ISpotifyItemResolver spotifyItemResolver,
         ILogger<SpotifyUrlCategoriser> logger)
     {
@@ -44,7 +46,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
             throw new InvalidOperationException($"Unable to find spotify-id in url '{url}'.");
         }
 
-        var item = await _spotifyClient.Episodes.Get(episodeId, indexingContext);
+        var item = await _spotifyClient.Episodes.Get(episodeId, new EpisodeRequest {Market = Market});
         if (item != null)
         {
             return new ResolvedSpotifyItem(
@@ -64,7 +66,8 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
         throw new InvalidOperationException($"Could not find item with spotify-id '{SpotifyId}'.");
     }
 
-    public async Task<ResolvedSpotifyItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast, IndexingContext indexingContext)
+    public async Task<ResolvedSpotifyItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast,
+        IndexingContext indexingContext)
     {
         var request = new FindSpotifyEpisodeRequest(
             matchingPodcast?.SpotifyId ?? string.Empty,

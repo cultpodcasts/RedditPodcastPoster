@@ -50,7 +50,6 @@ builder.Services
     .AddScoped(s => new iTunesSearchManager())
     .AddScoped<IApplePodcastService, ApplePodcastService>()
     .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
-    .AddScoped<ICachedSpotifyClient, CachedSpotifyClient>()
     .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddScoped<IUrlSubmitter, UrlSubmitter>()

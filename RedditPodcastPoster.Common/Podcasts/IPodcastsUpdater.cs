@@ -2,5 +2,5 @@
 
 public interface IPodcastsUpdater
 {
-    Task<IndexPodcastsResult> UpdatePodcasts(IndexingContext indexingContext);
+    Task<bool> UpdatePodcasts(IndexingContext indexingContext);
 }
