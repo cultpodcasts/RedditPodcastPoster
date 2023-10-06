@@ -59,18 +59,20 @@ public class FileRepository : IFileRepository
         }
     }
 
-    public async IAsyncEnumerable<Guid> GetAllIds<T>() where T : CosmosSelector
+    public async Task<IEnumerable<Guid>> GetAllIds(string key)
     {
+        var guids = new List<Guid>();
         var filenames = Directory.GetFiles(_container, $"*{FileExtension}");
         var keys = filenames.Select(x =>
             x.Substring(_container.Length + 1, x.Length - (FileExtension.Length + _container.Length + 1)));
         foreach (var item in keys)
         {
-            var cosmosSelector = await Read<T>(item, string.Empty);
-            if (cosmosSelector!.IsOfType<T>())
+            var cosmosSelector = await Read<CosmosSelector>(item, string.Empty);
+            if (cosmosSelector.ModelType.ToString() == key)
             {
-                yield return cosmosSelector!.Id;
+                guids.Add(cosmosSelector.Id);
             }
         }
+        return guids;
     }
 }

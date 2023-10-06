@@ -77,9 +77,9 @@ public class PodcastRepository : IPodcastRepository
         return _dataRepository.GetAll<Podcast>();
     }
 
-    public IAsyncEnumerable<Guid> GetAllIds()
+    public Task<IEnumerable<Guid>> GetAllIds()
     {
-        return _dataRepository.GetAllIds<Podcast>();
+        return _dataRepository.GetAllIds(_dataRepository.KeySelector.GetKey(new Podcast()));
     }
 
     public async Task Save(Podcast podcast)

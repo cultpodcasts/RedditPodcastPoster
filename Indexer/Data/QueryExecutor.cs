@@ -132,7 +132,8 @@ public class QueryExecutor : IQueryExecutor
         using var feed = c.GetItemQueryIterator<PodcastResult>(lastWeeksEpisodes);
         while (feed.HasMoreResults)
         {
-            podcastResults.AddRange(await feed.ReadNextAsync(ct));
+            var readNextAsync = await feed.ReadNextAsync(ct);
+            podcastResults.AddRange(readNextAsync);
         }
 
         return podcastResults;
