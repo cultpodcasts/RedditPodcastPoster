@@ -24,8 +24,6 @@ public class YouTubeSearchService : IYouTubeSearchService
         YouTubeChannelId channelId,
         IndexingContext indexingContext)
     {
-        _logger.LogInformation(
-            $"YOUTUBE: Query for latest {IYouTubeSearchService.MaxSearchResults} videos channel-id {channelId}, published since {indexingContext.ReleasedSince:R}.");
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(
@@ -67,16 +65,18 @@ public class YouTubeSearchService : IYouTubeSearchService
             nextPageToken = response.NextPageToken;
         }
 
-        _logger.LogInformation(
-            $"YOUTUBE: {nameof(GetLatestChannelVideoSnippets)} - {JsonSerializer.Serialize(result)}");
+        if (result.Any())
+        {
+            _logger.LogInformation(
+                $"YOUTUBE: {nameof(GetLatestChannelVideoSnippets)} - {JsonSerializer.Serialize(result)}");
+        }
+
         return result;
     }
 
     public async Task<IList<Video>?> GetVideoContentDetails(IEnumerable<string> videoIds,
         IndexingContext indexingContext)
     {
-        _logger.LogInformation($"YOUTUBE: Get Video details for videos {string.Join(",", videoIds)}");
-
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(
@@ -118,7 +118,10 @@ public class YouTubeSearchService : IYouTubeSearchService
                 .Take(IYouTubeSearchService.MaxSearchResults);
         }
 
-        _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {JsonSerializer.Serialize(result)}");
+        if (result.Any())
+        {
+            _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {JsonSerializer.Serialize(result)}");
+        }
         return result;
     }
 
@@ -189,15 +192,17 @@ public class YouTubeSearchService : IYouTubeSearchService
             return null;
         }
 
-        _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {JsonSerializer.Serialize(result)}");
+        if (result.Items.Any())
+        {
+            _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {JsonSerializer.Serialize(result)}");
+        }
+
         return result.Items.SingleOrDefault();
     }
 
     public async Task<IList<PlaylistItem>?> GetPlaylistVideoSnippets(YouTubePlaylistId playlistId,
         IndexingContext indexingContext)
     {
-        _logger.LogInformation(
-            $"YOUTUBE: Get playlist for playlist-id {playlistId} - items released since {indexingContext.ReleasedSince:R}");
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(
@@ -237,7 +242,11 @@ public class YouTubeSearchService : IYouTubeSearchService
             nextPageToken = playlistItemsListResponse.NextPageToken;
         }
 
-        _logger.LogInformation($"YOUTUBE: {nameof(GetPlaylistVideoSnippets)} - {JsonSerializer.Serialize(result)}");
+        if (result.Any())
+        {
+            _logger.LogInformation($"YOUTUBE: {nameof(GetPlaylistVideoSnippets)} - {JsonSerializer.Serialize(result)}");
+        }
+
         return result;
     }
 }

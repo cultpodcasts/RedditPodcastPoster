@@ -13,10 +13,6 @@ public class KnownTerms : CosmosSelector
     {
     }
 
-    [JsonPropertyName("id")]
-    [JsonPropertyOrder(1)]
-    public Guid Id { get; private set; } = _Id;
-
     [JsonPropertyName("terms")]
     [JsonPropertyOrder(10)]
     public Dictionary<string, Regex> Terms { get; set; } = new();

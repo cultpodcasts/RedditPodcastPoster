@@ -70,8 +70,29 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                $"Error GetItemLinqQueryable on documents in Database with DatabaseId '{_cosmosDbSettings.DatabaseId}' and Container '{_cosmosDbSettings.Container}'.");
+                $"{nameof(GetAll)}: Error documents in Database with DatabaseId '{_cosmosDbSettings.DatabaseId}' and Container '{_cosmosDbSettings.Container}'.");
             throw;
         }
+    }
+
+    public IAsyncEnumerable<Guid> GetAllIds<T>() where T : CosmosSelector
+    {
+        var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
+        try
+        {
+            return c
+                .GetItemLinqQueryable<T>()
+                .ToFeedIterator()
+                .ToAsyncEnumerable()
+                .Where(x => x.IsOfType<T>())
+                .Select(x=>x.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                $"{nameof(GetAllIds)}: Error Ids of documents in Database with DatabaseId '{_cosmosDbSettings.DatabaseId}' and Container '{_cosmosDbSettings.Container}'.");
+            throw;
+        }
+
     }
 }

@@ -61,8 +61,19 @@ public class EpisodeProvider : IEpisodeProvider
             }
             else
             {
+                IEnumerable<string> knownIds;
+                if (indexingContext.ReleasedSince.HasValue)
+                {
+                    knownIds = podcast.Episodes.Where(x => x.Release >= indexingContext.ReleasedSince)
+                        .Select(x => x.YouTubeId);
+                }
+                else
+                { 
+                    knownIds = podcast.Episodes.Select(x => x.YouTubeId);
+
+                }
                 var foundEpisodes = await _youTubeEpisodeProvider.GetEpisodes(
-                    new YouTubeChannelId(podcast.YouTubeChannelId), indexingContext);
+                    new YouTubeChannelId(podcast.YouTubeChannelId), indexingContext, knownIds);
                 if (foundEpisodes != null)
                 {
                     episodes = foundEpisodes;
@@ -83,7 +94,7 @@ public class EpisodeProvider : IEpisodeProvider
             if (eliminatedEpisodes.Any())
             {
                 _logger.LogInformation(
-                    $"Eliminating episodes of podcast '{podcast.Name}' with id '{podcast.Id}' with titles '{string.Join(", ", eliminatedEpisodes)}' as they do not match {nameof(podcast.EpisodeIncludeTitleRegex)} of value '{podcast.EpisodeIncludeTitleRegex}'.");
+                    $"Eliminating episodes of podcast '{podcast.Name}' with id '{podcast.Id}' with titles '{string.Join(", ", eliminatedEpisodes.Select(x=>x.Title))}' as they do not match {nameof(podcast.EpisodeIncludeTitleRegex)} of value '{podcast.EpisodeIncludeTitleRegex}'.");
             }
 
             episodes = episodes.Where(x => includeEpisodeRegex.IsMatch(x.Title)).ToList();

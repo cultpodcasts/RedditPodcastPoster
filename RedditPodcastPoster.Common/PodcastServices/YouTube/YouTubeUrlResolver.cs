@@ -30,15 +30,18 @@ public class YouTubeItemResolver : IYouTubeItemResolver
             return null;
         }
 
-        if (indexingContext.ReleasedSince.HasValue)
+        if (searchListResponse.Any())
         {
-            _logger.LogInformation(
-                $"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube since '{indexingContext.ReleasedSince.Value:R}'");
-        }
-        else
-        {
-            _logger.LogInformation(
-                $"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube. {nameof(indexingContext.ReleasedSince)} is Null.");
+            if (indexingContext.ReleasedSince.HasValue)
+            {
+                _logger.LogInformation(
+                    $"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube since '{indexingContext.ReleasedSince.Value:R}'");
+            }
+            else
+            {
+                _logger.LogInformation(
+                    $"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube. {nameof(indexingContext.ReleasedSince)} is Null.");
+            }
         }
 
         var matchedYouTubeVideo =
