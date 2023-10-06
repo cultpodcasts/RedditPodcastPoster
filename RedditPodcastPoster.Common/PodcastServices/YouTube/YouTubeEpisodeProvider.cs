@@ -31,15 +31,18 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
             var youTubeVideoIds = youTubeVideos.Select(x => x.Id.VideoId);
             youTubeVideoIds = youTubeVideoIds.Where(x => !knownIds.Contains(x));
 
-            var videoDetails =
-                await _youTubeSearchService.GetVideoContentDetails(youTubeVideoIds, indexingContext);
-
-            if (videoDetails != null)
+            if (youTubeVideoIds.Any())
             {
-                return youTubeVideos.Select(searchResult => GetEpisode(
-                        searchResult,
-                        videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == searchResult.Id.VideoId)!))
-                    .ToList();
+                var videoDetails =
+                    await _youTubeSearchService.GetVideoContentDetails(youTubeVideoIds, indexingContext);
+
+                if (videoDetails != null)
+                {
+                    return youTubeVideos.Select(searchResult => GetEpisode(
+                            searchResult,
+                            videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == searchResult.Id.VideoId)!))
+                        .ToList();
+                }
             }
         }
 

@@ -27,7 +27,7 @@ public class PodcastsUpdater : IPodcastsUpdater
     {
         var success = true;
         _logger.LogInformation($"{nameof(UpdatePodcasts)} Retrieving podcasts.");
-        IEnumerable<Guid> podcastIds = await _podcastRepository.GetAllIds().ToListAsync();
+        IEnumerable<Guid> podcastIds = await _podcastRepository.GetAllIds();
         _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
         foreach (var podcastId in podcastIds)
         {

@@ -75,17 +75,23 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
         }
     }
 
-    public IAsyncEnumerable<Guid> GetAllIds<T>() where T : CosmosSelector
+    public async Task<IEnumerable<Guid>> GetAllIds(string key)
     {
         var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
         try
         {
-            return c
-                .GetItemLinqQueryable<T>()
-                .ToFeedIterator()
-                .ToAsyncEnumerable()
-                .Where(x => x.IsOfType<T>())
-                .Select(x=>x.Id);
+            var guids = new List<Guid>();
+            var query = new QueryDefinition(
+                $@"SELECT VALUE c.id FROM c WHERE c.type='{key}'");
+
+            using var guidFeed = c.GetItemQueryIterator<Guid>(query);
+            while (guidFeed.HasMoreResults)
+            {
+                var batch = await guidFeed.ReadNextAsync();
+                guids.AddRange(batch);
+            }
+
+            return guids;
         }
         catch (Exception ex)
         {
