@@ -11,7 +11,6 @@ public class SpotifyItemResolver : ISpotifyItemResolver
     private readonly ISpotifySearcher _spotifySearcher;
 
     public SpotifyItemResolver(
-        ISpotifyClient spotifyClient,
         ICachedSpotifyClient cachedSpotifyClient,
         ISpotifySearcher spotifySearcher,
         ILogger<SpotifyItemResolver> logger)

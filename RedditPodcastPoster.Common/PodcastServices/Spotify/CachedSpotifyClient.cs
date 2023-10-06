@@ -8,6 +8,7 @@ public class CachedSpotifyClient : ICachedSpotifyClient
 {
     private const string Market = "GB";
     private static readonly ConcurrentDictionary<string, IList<SimpleEpisode>> Cache = new();
+    private static readonly bool CacheEnabled = false;
     private readonly ILogger<CachedSpotifyClient> _logger;
     private readonly ISpotifyClient _spotifyClient;
 
@@ -32,11 +33,15 @@ public class CachedSpotifyClient : ICachedSpotifyClient
         IPaginator? paginator = null)
     {
         IList<SimpleEpisode>? results = null;
-        if (!Cache.TryGetValue(cacheKey, out results))
+        if (!CacheEnabled || !Cache.TryGetValue(cacheKey, out results))
         {
             try
             {
-                results = Cache[cacheKey] = await _spotifyClient.PaginateAll(firstPage, paginator);
+                results = await _spotifyClient.PaginateAll(firstPage, paginator);
+                if (CacheEnabled)
+                {
+                    Cache[cacheKey] = results;
+                }
             }
             catch (Exception ex)
             {
@@ -56,12 +61,15 @@ public class CachedSpotifyClient : ICachedSpotifyClient
         CancellationToken cancel = default)
     {
         IList<SimpleEpisode>? results = null;
-        if (!Cache.TryGetValue(cacheKey, out results))
+        if (!CacheEnabled || !Cache.TryGetValue(cacheKey, out results))
         {
             try
             {
-                results = Cache[cacheKey] =
-                    await _spotifyClient.Paginate(firstPage, paginator, cancel).ToListAsync(cancel);
+                results = await _spotifyClient.Paginate(firstPage, paginator, cancel).ToListAsync(cancel);
+                if (CacheEnabled)
+                {
+                    Cache[cacheKey] = results;
+                }
             }
             catch (Exception ex)
             {
@@ -106,11 +114,15 @@ public class CachedSpotifyClient : ICachedSpotifyClient
         {
             FullShow? fullShow = null;
             var cacheKey = GetCacheKey(showId, request);
-            if (!FullShowCache.TryGetValue(cacheKey, out fullShow))
+            if (!CacheEnabled || !FullShowCache.TryGetValue(cacheKey, out fullShow))
             {
                 try
                 {
-                    fullShow = FullShowCache[cacheKey] = await _showsClient.Get(showId, request, cancel);
+                    fullShow = await _showsClient.Get(showId, request, cancel);
+                    if (CacheEnabled)
+                    {
+                        FullShowCache[cacheKey] = fullShow;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -127,12 +139,15 @@ public class CachedSpotifyClient : ICachedSpotifyClient
         {
             FullShow? fullShow = null;
             var cacheKey = GetCacheKey(showId, nameof(Get));
-            if (!FullShowCache.TryGetValue(cacheKey, out fullShow))
+            if (!CacheEnabled || !FullShowCache.TryGetValue(cacheKey, out fullShow))
             {
                 try
                 {
-                    fullShow = FullShowCache[cacheKey] =
-                        await Get(showId, new ShowRequest {Market = Market}, indexingContext, cancel);
+                    fullShow = await Get(showId, new ShowRequest {Market = Market}, indexingContext, cancel);
+                    if (CacheEnabled && fullShow != null)
+                    {
+                        FullShowCache[cacheKey] = fullShow;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -150,12 +165,15 @@ public class CachedSpotifyClient : ICachedSpotifyClient
             var request = new ShowEpisodesRequest {Market = Market};
             Paging<SimpleEpisode>? episodes = null;
             var cacheKey = GetCacheKey(showId, nameof(GetEpisodes));
-            if (!PagingSimpleEpisodeCache.TryGetValue(cacheKey, out episodes))
+            if (!CacheEnabled || !PagingSimpleEpisodeCache.TryGetValue(cacheKey, out episodes))
             {
                 try
                 {
-                    episodes = PagingSimpleEpisodeCache[cacheKey] =
-                        await _showsClient.GetEpisodes(showId, request, cancel);
+                    episodes = await _showsClient.GetEpisodes(showId, request, cancel);
+                    if (CacheEnabled)
+                    {
+                        PagingSimpleEpisodeCache[cacheKey] = episodes;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -200,11 +218,15 @@ public class CachedSpotifyClient : ICachedSpotifyClient
             request.Market = Market;
             SearchResponse? searchResponse = null;
             var cacheKey = GetCacheKey(request);
-            if (!Cache.TryGetValue(cacheKey, out searchResponse))
+            if (!CacheEnabled || !Cache.TryGetValue(cacheKey, out searchResponse))
             {
                 try
                 {
-                    searchResponse = Cache[cacheKey] = await _searchClient.Item(request, cancel);
+                    searchResponse = await _searchClient.Item(request, cancel);
+                    if (CacheEnabled)
+                    {
+                        Cache[cacheKey] = searchResponse;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -249,11 +271,15 @@ public class CachedSpotifyClient : ICachedSpotifyClient
         {
             FullEpisode? fullEpisode = null;
             var cacheKey = GetCacheKey(episodeId, request);
-            if (!Cache.TryGetValue(cacheKey, out fullEpisode))
+            if (!CacheEnabled || !Cache.TryGetValue(cacheKey, out fullEpisode))
             {
                 try
                 {
-                    fullEpisode = Cache[cacheKey] = await _episodesClient.Get(episodeId, request, cancel);
+                    fullEpisode = await _episodesClient.Get(episodeId, request, cancel);
+                    if (CacheEnabled)
+                    {
+                        Cache[cacheKey] = fullEpisode;
+                    }
                 }
                 catch (Exception ex)
                 {
