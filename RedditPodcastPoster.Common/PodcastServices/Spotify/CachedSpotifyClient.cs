@@ -73,7 +73,6 @@ public class CachedSpotifyClient : ICachedSpotifyClient
         return results!;
     }
 
-
     public CachedEpisodesClient Episodes { get; }
 
     public CachedShowsClient Shows { get; }
@@ -265,5 +264,11 @@ public class CachedSpotifyClient : ICachedSpotifyClient
         {
             return $"{episodeId}-{request.Market}";
         }
+    }
+
+    public void Flush()
+    {
+        _logger.LogInformation($"{nameof(Flush)}");
+        Cache.Clear();
     }
 }

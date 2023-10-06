@@ -1,5 +1,7 @@
-﻿namespace RedditPodcastPoster.Common.PodcastServices.Apple;
+﻿using RedditPodcastPoster.Common.PodcastServices.Spotify;
 
-public interface ICachedApplePodcastService : IApplePodcastService
+namespace RedditPodcastPoster.Common.PodcastServices.Apple;
+
+public interface ICachedApplePodcastService : IApplePodcastService, IFlushable
 {
 }

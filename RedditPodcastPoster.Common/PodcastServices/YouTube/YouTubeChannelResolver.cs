@@ -18,14 +18,14 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
         _logger = logger;
     }
 
-    public async Task<SearchResult?> FindChannel(string channelName, string mostRecentlyUploadVideoTitle,
+    public async Task<SearchResult?> FindChannelsSnippets(string channelName, string mostRecentlyUploadVideoTitle,
         IndexingContext indexingContext)
     {
         _logger.LogInformation($"YOUTUBE: Find-Channel for channel-name '{channelName}'.");
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(
-                $"Skipping '{nameof(FindChannel)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-name: '{channelName}'.");
+                $"Skipping '{nameof(FindChannelsSnippets)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-name: '{channelName}'.");
             return null;
         }
 
@@ -77,7 +77,7 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
             var lastUpload = searchListResponse.Items.FirstOrDefault();
             if (lastUpload != null && AlphaNumericOnly(lastUpload.Snippet.Title) == mostRecentlyUploadVideoTitle)
             {
-                _logger.LogInformation($"YOUTUBE: {nameof(FindChannel)} - {System.Text.Json.JsonSerializer.Serialize(searchResult)}");
+                _logger.LogInformation($"YOUTUBE: {nameof(FindChannelsSnippets)} - {System.Text.Json.JsonSerializer.Serialize(searchResult)}");
                 return searchResult;
             }
         }

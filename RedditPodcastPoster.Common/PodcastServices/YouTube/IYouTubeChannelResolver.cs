@@ -4,7 +4,7 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public interface IYouTubeChannelResolver
 {
-    Task<SearchResult?> FindChannel(
+    Task<SearchResult?> FindChannelsSnippets(
         string channelName, 
         string mostRecentlyUploadVideoTitle,
         IndexingContext indexingContext);

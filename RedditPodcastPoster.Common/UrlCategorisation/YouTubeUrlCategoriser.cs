@@ -43,7 +43,7 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
             throw new InvalidOperationException($"Unable to find video-id in url '{url}'.");
         }
 
-        var items = await _youTubeSearchService.GetVideoDetails(new[] {videoIdMatch.Value}, indexingContext);
+        var items = await _youTubeSearchService.GetVideoContentDetails(new[] {videoIdMatch.Value}, indexingContext);
         var item = items.FirstOrDefault();
         if (item == null)
         {
@@ -51,7 +51,7 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
         }
 
         var channel =
-            await _youTubeSearchService.GetChannel(new YouTubeChannelId(item.Snippet.ChannelId), indexingContext);
+            await _youTubeSearchService.GetChannelSnippetsContentDetailsContentOwnerDetails(new YouTubeChannelId(item.Snippet.ChannelId), indexingContext);
         if (channel != null)
         {
             return new ResolvedYouTubeItem(

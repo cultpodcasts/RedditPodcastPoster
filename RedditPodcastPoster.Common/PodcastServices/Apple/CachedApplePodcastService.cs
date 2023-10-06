@@ -37,4 +37,10 @@ public class CachedApplePodcastService : ICachedApplePodcastService
 
         return $"{podcastId}";
     }
+
+    public void Flush()
+    {
+        _logger.LogInformation($"{nameof(Flush)}");
+        Cache.Clear();
+    }
 }

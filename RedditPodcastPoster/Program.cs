@@ -77,6 +77,7 @@ builder.Services
     .AddSingleton(s => s.GetService<IEliminationTermsProviderFactory>().Create().GetAwaiter().GetResult())
     .AddScoped<IKnownTermsProviderFactory, KnownTermsProviderFactory>()
     .AddScoped<IKnownTermsRepository, KnownTermsRepository>()
+    .AddScoped<IFlushable, CacheFlusher>()
     .AddSingleton(s => s.GetService<IKnownTermsProviderFactory>().Create().GetAwaiter().GetResult())
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddSingleton(new JsonSerializerOptions

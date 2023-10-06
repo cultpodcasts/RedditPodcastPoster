@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Podcasts;
@@ -7,16 +8,19 @@ public class PodcastsUpdater : IPodcastsUpdater
 {
     private readonly ILogger<PodcastsUpdater> _logger;
     private readonly IPodcastRepository _podcastRepository;
+    private readonly IFlushable _flushableCaches;
     private readonly IPodcastUpdater _podcastUpdater;
 
     public PodcastsUpdater(
         IPodcastUpdater podcastUpdater,
         IPodcastRepository podcastRepository,
+        IFlushable flushableCaches,
         ILogger<PodcastsUpdater> logger
     )
     {
         _podcastUpdater = podcastUpdater;
         _podcastRepository = podcastRepository;
+        _flushableCaches = flushableCaches;
         _logger = logger;
     }
 
@@ -28,6 +32,7 @@ public class PodcastsUpdater : IPodcastsUpdater
         _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
         foreach (var podcast in podcasts)
         {
+            _flushableCaches.Flush();
             if (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
             {
                 results.Add(await _podcastUpdater.Update(podcast, indexingContext));

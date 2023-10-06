@@ -8,28 +8,25 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
 {
     private readonly ILogger<YouTubeEpisodeProvider> _logger;
-    private readonly IYouTubeItemResolver _youTubeItemResolver;
     private readonly IYouTubeSearchService _youTubeSearchService;
 
     public YouTubeEpisodeProvider(
         IYouTubeSearchService youTubeSearchService,
-        IYouTubeItemResolver youTubeItemResolver,
         ILogger<YouTubeEpisodeProvider> logger)
     {
         _youTubeSearchService = youTubeSearchService;
-        _youTubeItemResolver = youTubeItemResolver;
         _logger = logger;
     }
 
     public async Task<IList<Episode>?> GetEpisodes(YouTubeChannelId request, IndexingContext indexingContext)
     {
         var youTubeVideos =
-            await _youTubeSearchService.GetLatestChannelVideos(
+            await _youTubeSearchService.GetLatestChannelVideoSnippets(
                 new YouTubeChannelId(request.ChannelId), indexingContext);
         if (youTubeVideos != null)
         {
             var videoDetails =
-                await _youTubeSearchService.GetVideoDetails(youTubeVideos.Select(x => x.Id.VideoId), indexingContext);
+                await _youTubeSearchService.GetVideoContentDetails(youTubeVideos.Select(x => x.Id.VideoId), indexingContext);
 
             if (videoDetails != null)
             {
@@ -70,12 +67,17 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
     public async Task<IList<Episode>?> GetPlaylistEpisodes(
         YouTubePlaylistId youTubePlaylistId, IndexingContext indexingContext)
     {
-        var playlistVideos = await _youTubeSearchService.GetPlaylist(new YouTubePlaylistId(
+        var playlistVideos = await _youTubeSearchService.GetPlaylistVideoSnippets(new YouTubePlaylistId(
             youTubePlaylistId.PlaylistId), indexingContext);
         if (playlistVideos != null)
         {
+            if (indexingContext.ReleasedSince.HasValue)
+            {
+                playlistVideos = playlistVideos.Where(x =>
+                    x.Snippet.PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
+            }
             var videoDetails =
-                await _youTubeSearchService.GetVideoDetails(playlistVideos.Select(x => x.Snippet.ResourceId.VideoId),
+                await _youTubeSearchService.GetVideoContentDetails(playlistVideos.Select(x => x.Snippet.ResourceId.VideoId),
                     indexingContext);
             if (videoDetails != null)
             {

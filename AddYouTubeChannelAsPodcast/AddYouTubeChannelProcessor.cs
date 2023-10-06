@@ -31,7 +31,7 @@ public class AddYouTubeChannelProcessor
     public async Task<bool> Run(Args request)
     {
         var indexOptions = new IndexingContext();
-        var match = await _youTubeChannelResolver.FindChannel(
+        var match = await _youTubeChannelResolver.FindChannelsSnippets(
             request.ChannelName,
             request.MostRecentUploadedVideoTitle,
             indexOptions);
@@ -47,7 +47,7 @@ public class AddYouTubeChannelProcessor
                 return false;
             }
 
-            var channel = await _youTubeSearchService.GetChannel(new YouTubeChannelId(match.Snippet.ChannelId), indexOptions);
+            var channel = await _youTubeSearchService.GetChannelSnippetsContentDetailsContentOwnerDetails(new YouTubeChannelId(match.Snippet.ChannelId), indexOptions);
 
             var newPodcast = _podcastFactory.Create(match.Snippet.ChannelTitle);
             newPodcast.Publisher = channel.ContentOwnerDetails.ContentOwner;
