@@ -175,10 +175,10 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         }
 
         var showEpisodesRequest = new ShowEpisodesRequest { Market = Market };
-        //if (indexingContext.ReleasedSince.HasValue)
-        //{
-        //    showEpisodesRequest.Limit = 1;
-        //}
+        if (indexingContext.ReleasedSince.HasValue)
+        {
+            showEpisodesRequest.Limit = 5;
+        }
 
         var pagedEpisodes = await _spotifyClient.Shows.GetEpisodes(request.PodcastId, showEpisodesRequest);
 
@@ -210,7 +210,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         }
         else
         {
-            while (pagedEpisodes.Items!.Last().GetReleaseDate() >= indexingContext.ReleasedSince)
+            while (episodes.OrderByDescending(x=>x.ReleaseDate).Last().GetReleaseDate() >= indexingContext.ReleasedSince)
             {
                 var batchEpisodes = await _spotifyClient.Paginate(pagedEpisodes).ToListAsync();
                 episodes.AddRange(batchEpisodes);
