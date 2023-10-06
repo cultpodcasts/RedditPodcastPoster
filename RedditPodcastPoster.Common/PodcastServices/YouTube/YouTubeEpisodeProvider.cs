@@ -38,10 +38,9 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
 
                 if (videoDetails != null)
                 {
-                    return youTubeVideos.Select(searchResult => GetEpisode(
-                            searchResult,
-                            videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == searchResult.Id.VideoId)!))
-                        .ToList();
+                    return videoDetails.Select(videoDetail =>
+                        GetEpisode(youTubeVideos.Single(searchResult => searchResult.Id.VideoId == videoDetail.Id),
+                            videoDetail)).ToList();
                 }
             }
         }
