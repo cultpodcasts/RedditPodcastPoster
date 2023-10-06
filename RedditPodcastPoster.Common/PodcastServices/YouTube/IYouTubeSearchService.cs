@@ -10,5 +10,5 @@ public interface IYouTubeSearchService
     Task FindChannel(string channelName, IndexingContext indexingContext);
     Task<IList<Video>?> GetVideoContentDetails(IEnumerable<string> videoIds, IndexingContext options);
     Task<IList<PlaylistItem>?> GetPlaylistVideoSnippets(YouTubePlaylistId playlistId, IndexingContext indexingContext);
-    Task<Channel?> GetChannelContentDetails(YouTubeChannelId channelId, IndexingContext indexingContext, bool withSnippets, bool withContentOwnerDetails);
+    Task<Channel?> GetChannelContentDetails(YouTubeChannelId channelId, IndexingContext indexingContext, bool withSnippets= false, bool withContentOwnerDetails = false);
 }

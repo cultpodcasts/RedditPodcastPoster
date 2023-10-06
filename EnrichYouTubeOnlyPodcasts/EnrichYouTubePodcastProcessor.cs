@@ -49,7 +49,7 @@ public class EnrichYouTubePodcastProcessor
         {
             var channel =
                 await _youTubeSearchService.GetChannelContentDetails(new YouTubeChannelId(podcast.YouTubeChannelId),
-                    indexOptions, false, false);
+                    indexOptions);
             if (channel == null)
             {
                 throw new InvalidOperationException(

@@ -49,7 +49,7 @@ public class AddYouTubeChannelProcessor
 
             var channel =
                 await _youTubeSearchService.GetChannelContentDetails(new YouTubeChannelId(match.Snippet.ChannelId),
-                    indexOptions, false, true);
+                    indexOptions, withContentOwnerDetails: true);
 
             var newPodcast = _podcastFactory.Create(match.Snippet.ChannelTitle);
             newPodcast.Publisher = channel.ContentOwnerDetails.ContentOwner;
