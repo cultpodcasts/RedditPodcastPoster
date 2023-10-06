@@ -10,11 +10,6 @@ public class OldPodcast : CosmosSelector
     {
     }
 
-    [JsonPropertyName("id")]
-    [JsonPropertyOrder(1)]
-    public Guid Id { get; set; }
-
-
     [JsonPropertyName("name")]
     [JsonPropertyOrder(3)]
     public string Name { get; set; } = "";

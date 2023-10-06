@@ -117,7 +117,11 @@ public class YouTubeSearchService : IYouTubeSearchService
             batchVideoIds = videoIds.Skip(batch * IYouTubeSearchService.MaxSearchResults)
                 .Take(IYouTubeSearchService.MaxSearchResults);
         }
-        _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {JsonSerializer.Serialize(result)}");
+
+        if (result.Any())
+        {
+            _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {JsonSerializer.Serialize(result)}");
+        }
         return result;
     }
 
@@ -188,7 +192,11 @@ public class YouTubeSearchService : IYouTubeSearchService
             return null;
         }
 
-        _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {JsonSerializer.Serialize(result)}");
+        if (result.Items.Any())
+        {
+            _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {JsonSerializer.Serialize(result)}");
+        }
+
         return result.Items.SingleOrDefault();
     }
 
@@ -234,7 +242,11 @@ public class YouTubeSearchService : IYouTubeSearchService
             nextPageToken = playlistItemsListResponse.NextPageToken;
         }
 
-        _logger.LogInformation($"YOUTUBE: {nameof(GetPlaylistVideoSnippets)} - {JsonSerializer.Serialize(result)}");
+        if (result.Any())
+        {
+            _logger.LogInformation($"YOUTUBE: {nameof(GetPlaylistVideoSnippets)} - {JsonSerializer.Serialize(result)}");
+        }
+
         return result;
     }
 }

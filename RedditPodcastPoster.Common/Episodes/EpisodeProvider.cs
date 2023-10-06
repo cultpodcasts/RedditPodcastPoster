@@ -61,8 +61,19 @@ public class EpisodeProvider : IEpisodeProvider
             }
             else
             {
+                IEnumerable<string> knownIds;
+                if (indexingContext.ReleasedSince.HasValue)
+                {
+                    knownIds = podcast.Episodes.Where(x => x.Release >= indexingContext.ReleasedSince)
+                        .Select(x => x.YouTubeId);
+                }
+                else
+                { 
+                    knownIds = podcast.Episodes.Select(x => x.YouTubeId);
+
+                }
                 var foundEpisodes = await _youTubeEpisodeProvider.GetEpisodes(
-                    new YouTubeChannelId(podcast.YouTubeChannelId), indexingContext);
+                    new YouTubeChannelId(podcast.YouTubeChannelId), indexingContext, knownIds);
                 if (foundEpisodes != null)
                 {
                     episodes = foundEpisodes;

@@ -12,10 +12,6 @@ public class EliminationTerms : CosmosSelector
     {
     }
 
-    [JsonPropertyName("id")]
-    [JsonPropertyOrder(1)]
-    public Guid Id { get; private set; } = _Id;
-
     [JsonPropertyName("terms")]
     [JsonPropertyOrder(10)]
     public List<string> Terms { get; set; } = new();

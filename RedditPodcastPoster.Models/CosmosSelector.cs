@@ -9,6 +9,10 @@ public class CosmosSelector
         ModelType = modelType;
     }
 
+    [JsonPropertyName("id")]
+    [JsonPropertyOrder(1)]
+    public Guid Id { get; set; }
+
     [JsonPropertyName("type")]
     [JsonPropertyOrder(2)]
     [JsonConverter(typeof(JsonStringEnumConverter))]

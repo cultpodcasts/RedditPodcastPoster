@@ -18,15 +18,21 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
         _logger = logger;
     }
 
-    public async Task<IList<Episode>?> GetEpisodes(YouTubeChannelId request, IndexingContext indexingContext)
+    public async Task<IList<Episode>?> GetEpisodes(
+        YouTubeChannelId request, 
+        IndexingContext indexingContext,
+        IEnumerable<string> knownIds)
     {
         var youTubeVideos =
             await _youTubeSearchService.GetLatestChannelVideoSnippets(
                 new YouTubeChannelId(request.ChannelId), indexingContext);
         if (youTubeVideos != null)
         {
+            var youTubeVideoIds = youTubeVideos.Select(x => x.Id.VideoId);
+            youTubeVideoIds = youTubeVideoIds.Where(x => !knownIds.Contains(x));
+
             var videoDetails =
-                await _youTubeSearchService.GetVideoContentDetails(youTubeVideos.Select(x => x.Id.VideoId), indexingContext);
+                await _youTubeSearchService.GetVideoContentDetails(youTubeVideoIds, indexingContext);
 
             if (videoDetails != null)
             {

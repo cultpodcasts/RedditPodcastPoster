@@ -58,4 +58,19 @@ public class FileRepository : IFileRepository
             }
         }
     }
+
+    public async IAsyncEnumerable<Guid> GetAllIds<T>() where T : CosmosSelector
+    {
+        var filenames = Directory.GetFiles(_container, $"*{FileExtension}");
+        var keys = filenames.Select(x =>
+            x.Substring(_container.Length + 1, x.Length - (FileExtension.Length + _container.Length + 1)));
+        foreach (var item in keys)
+        {
+            var cosmosSelector = await Read<T>(item, string.Empty);
+            if (cosmosSelector!.IsOfType<T>())
+            {
+                yield return cosmosSelector!.Id;
+            }
+        }
+    }
 }
