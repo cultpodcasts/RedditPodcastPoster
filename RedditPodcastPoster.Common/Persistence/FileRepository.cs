@@ -61,6 +61,7 @@ public class FileRepository : IFileRepository
 
     public async Task<IEnumerable<Guid>> GetAllIds(string key)
     {
+        throw new NotImplementedException("This is likely broken as key is file-key for file-repository.");
         var guids = new List<Guid>();
         var filenames = Directory.GetFiles(_container, $"*{FileExtension}");
         var keys = filenames.Select(x =>
