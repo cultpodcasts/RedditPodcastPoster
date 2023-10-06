@@ -1,5 +1,5 @@
-using System.Diagnostics;
 using System.Globalization;
+using System.Text.Json;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
@@ -24,7 +24,8 @@ public class YouTubeSearchService : IYouTubeSearchService
         YouTubeChannelId channelId,
         IndexingContext indexingContext)
     {
-        _logger.LogInformation($"YOUTUBE: Query for latest {IYouTubeSearchService.MaxSearchResults} videos channel-id {channelId}, published since {indexingContext.ReleasedSince:R}.");
+        _logger.LogInformation(
+            $"YOUTUBE: Query for latest {IYouTubeSearchService.MaxSearchResults} videos channel-id {channelId}, published since {indexingContext.ReleasedSince:R}.");
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(
@@ -65,13 +66,16 @@ public class YouTubeSearchService : IYouTubeSearchService
             result.AddRange(response.Items);
             nextPageToken = response.NextPageToken;
         }
-        _logger.LogInformation($"YOUTUBE: {nameof(GetLatestChannelVideoSnippets)} - {System.Text.Json.JsonSerializer.Serialize(result)}");
+
+        _logger.LogInformation(
+            $"YOUTUBE: {nameof(GetLatestChannelVideoSnippets)} - {JsonSerializer.Serialize(result)}");
         return result;
     }
 
-    public async Task<IList<Video>?> GetVideoContentDetails(IEnumerable<string> videoIds, IndexingContext indexingContext)
+    public async Task<IList<Video>?> GetVideoContentDetails(IEnumerable<string> videoIds,
+        IndexingContext indexingContext)
     {
-        _logger.LogInformation($"YOUTUBE: Get Video details for videos {String.Join(",", videoIds)}");
+        _logger.LogInformation($"YOUTUBE: Get Video details for videos {string.Join(",", videoIds)}");
 
         if (indexingContext.SkipYouTubeUrlResolving)
         {
@@ -113,7 +117,8 @@ public class YouTubeSearchService : IYouTubeSearchService
             batchVideoIds = videoIds.Skip(batch * IYouTubeSearchService.MaxSearchResults)
                 .Take(IYouTubeSearchService.MaxSearchResults);
         }
-        _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {System.Text.Json.JsonSerializer.Serialize(result)}");
+
+        _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {JsonSerializer.Serialize(result)}");
         return result;
     }
 
@@ -145,17 +150,32 @@ public class YouTubeSearchService : IYouTubeSearchService
         throw new NotImplementedException("method not fully implemented");
     }
 
-    public async Task<Channel?> GetChannelSnippetsContentDetailsContentOwnerDetails(YouTubeChannelId channelId, IndexingContext indexingContext)
+    public async Task<Channel?> GetChannelContentDetails(
+        YouTubeChannelId channelId,
+        IndexingContext indexingContext,
+        bool withSnippets, 
+        bool withContentOwnerDetails)
     {
         _logger.LogInformation($"YOUTUBE: Get channel for channel-id {channelId}.");
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(
-                $"Skipping '{nameof(GetChannelSnippetsContentDetailsContentOwnerDetails)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
+                $"Skipping '{nameof(GetChannelContentDetails)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
             return null;
         }
 
-        var listRequest = _youTubeService.Channels.List("snippet,contentDetails,contentOwnerDetails");
+        var requestScope = "contentDetails";
+        if (withSnippets)
+        {
+            requestScope = "snippet," + requestScope;
+        }
+
+        if (withContentOwnerDetails)
+        {
+            requestScope += ",contentOwnerDetails";
+        }
+
+        var listRequest = _youTubeService.Channels.List(requestScope);
         listRequest.Id = channelId.ChannelId;
         ChannelListResponse result;
         try
@@ -169,13 +189,15 @@ public class YouTubeSearchService : IYouTubeSearchService
             return null;
         }
 
-        _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {System.Text.Json.JsonSerializer.Serialize(result)}");
+        _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {JsonSerializer.Serialize(result)}");
         return result.Items.SingleOrDefault();
     }
 
-    public async Task<IList<PlaylistItem>?> GetPlaylistVideoSnippets(YouTubePlaylistId playlistId, IndexingContext indexingContext)
+    public async Task<IList<PlaylistItem>?> GetPlaylistVideoSnippets(YouTubePlaylistId playlistId,
+        IndexingContext indexingContext)
     {
-        _logger.LogInformation($"YOUTUBE: Get playlist for playlist-id {playlistId} - items released since {indexingContext.ReleasedSince:R}");
+        _logger.LogInformation(
+            $"YOUTUBE: Get playlist for playlist-id {playlistId} - items released since {indexingContext.ReleasedSince:R}");
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(
@@ -191,7 +213,8 @@ public class YouTubeSearchService : IYouTubeSearchService
 
         var result = new List<PlaylistItem>();
         var nextPageToken = "";
-        while (nextPageToken != null && result.LastOrDefault()!=null && result.Last().Snippet.PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince))
+        while (nextPageToken != null && result.LastOrDefault() != null && result.Last().Snippet
+                   .PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince))
         {
             var playlistRequest = _youTubeService.PlaylistItems.List("snippet");
             playlistRequest.PlaylistId = playlistId.PlaylistId;
@@ -213,11 +236,10 @@ public class YouTubeSearchService : IYouTubeSearchService
             result.AddRange(playlistItemsListResponse.Items);
             nextPageToken = playlistItemsListResponse.NextPageToken;
         }
-        _logger.LogInformation($"YOUTUBE: {nameof(GetPlaylistVideoSnippets)} - {System.Text.Json.JsonSerializer.Serialize(result)}");
+
+        _logger.LogInformation($"YOUTUBE: {nameof(GetPlaylistVideoSnippets)} - {JsonSerializer.Serialize(result)}");
         return result;
     }
-
-
 }
 
 public static class DateTimeOffsetExtensions

@@ -47,7 +47,9 @@ public class AddYouTubeChannelProcessor
                 return false;
             }
 
-            var channel = await _youTubeSearchService.GetChannelSnippetsContentDetailsContentOwnerDetails(new YouTubeChannelId(match.Snippet.ChannelId), indexOptions);
+            var channel =
+                await _youTubeSearchService.GetChannelContentDetails(new YouTubeChannelId(match.Snippet.ChannelId),
+                    indexOptions, false, true);
 
             var newPodcast = _podcastFactory.Create(match.Snippet.ChannelTitle);
             newPodcast.Publisher = channel.ContentOwnerDetails.ContentOwner;
