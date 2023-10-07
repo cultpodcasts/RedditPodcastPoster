@@ -27,15 +27,15 @@ public class PodcastsUpdater : IPodcastsUpdater
     {
         var success = true;
         _logger.LogInformation($"{nameof(UpdatePodcasts)} Retrieving podcasts.");
-        IEnumerable<Guid> podcastIds = await _podcastRepository.GetAllIds();
+        var podcastIds = await _podcastRepository.GetAllIds();
         _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
         foreach (var podcastId in podcastIds)
         {
-            IndexPodcastResult? result = null;
             var podcast = await _podcastRepository.GetPodcast(podcastId.ToString());
-            if (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
+            if (podcast != null &&
+                (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
             {
-                result = await _podcastUpdater.Update(podcast, indexingContext);
+                var result = await _podcastUpdater.Update(podcast, indexingContext);
                 var resultReport = result.ToString();
                 if (!result.Success)
                 {
