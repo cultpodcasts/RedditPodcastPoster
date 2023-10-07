@@ -29,13 +29,28 @@ public class EnrichYouTubePodcastProcessor
 
     public async Task Run(EnrichYouTubePodcastRequest request)
     {
-        var indexOptions = new IndexingContext {ReleasedSince = DateTime.Today.AddDays(-1 * request.ReleasedSince)};
-        var podcasts = await _podcastRepository.GetAll().ToListAsync();
-        var podcast = podcasts.Single(x => x.Id == request.PodcastGuid);
+        IndexingContext indexOptions;
+        if (request.ReleasedSince.HasValue)
+        {
+            indexOptions = new IndexingContext(DateTime.Today.AddDays(-1 * request.ReleasedSince.Value));
+        }
+        else
+        {
+            indexOptions = new IndexingContext();
+        }
+
+        var podcast = await _podcastRepository.GetPodcast(request.PodcastGuid.ToString());
+
+        if (podcast == null)
+        {
+            _logger.LogError($"Podcast with id '{request.PodcastGuid}' not found.");
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
-            throw new InvalidOperationException(
-                "Not appropriate to run this app against a podcast without a YouTube channel-id");
+            _logger.LogError("Not appropriate to run this app against a podcast without a YouTube channel-id.");
+            return;
         }
 
         Regex? episodeMatchRegex = null;
