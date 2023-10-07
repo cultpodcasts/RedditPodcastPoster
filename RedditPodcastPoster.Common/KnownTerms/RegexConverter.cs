@@ -11,7 +11,10 @@ public class RegexConverter : JsonConverter<Regex>
         if (reader.TokenType == JsonTokenType.String)
         {
             var pattern = reader.GetString();
-            return new Regex(pattern);
+            if (pattern != null)
+            {
+                return new Regex(pattern);
+            }
         }
 
         if (reader.TokenType == JsonTokenType.StartObject)
@@ -21,7 +24,10 @@ public class RegexConverter : JsonConverter<Regex>
                 var root = doc.RootElement;
                 var pattern = root.GetProperty("Pattern").GetString();
                 var regexOptions = root.GetProperty("Options").GetString();
-                return new Regex(pattern, (RegexOptions) Enum.Parse(typeof(RegexOptions), regexOptions));
+                if (pattern != null && regexOptions != null)
+                {
+                    return new Regex(pattern, (RegexOptions) Enum.Parse(typeof(RegexOptions), regexOptions));
+                }
             }
         }
 

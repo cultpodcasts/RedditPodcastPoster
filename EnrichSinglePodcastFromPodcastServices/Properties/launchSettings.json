@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "EnrichSinglePodcastFromPodcastServices": {
-      "commandName": "Project",
-      "commandLineArgs": "\"186529ba-43e3-497f-9770-9a9d46232333\""
-    }
-  }
-}

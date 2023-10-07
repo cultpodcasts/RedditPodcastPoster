@@ -26,10 +26,4 @@ public class KnownTerms : CosmosSelector
 
         return input;
     }
-
-    public class RegexSerializationData
-    {
-        public string Pattern { get; set; }
-        public RegexOptions Options { get; set; }
-    }
 }

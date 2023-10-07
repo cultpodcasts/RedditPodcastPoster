@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "ApplePodcastEpisodeEnricher": {
-      "commandName": "Project",
-      "commandLineArgs": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IkNSRjVITkJHUFEifQ.eyJpc3MiOiI4Q1UyNk1LTFM0IiwiaWF0IjoxNjkxNjI0MDgxLCJleHAiOjE2OTg4ODE2ODEsInJvb3RfaHR0cHNfb3JpZ2luIjpbImFwcGxlLmNvbSJdfQ.VVQhTrdPk3j-3L-Lq-g9DV1ceHeGu94iqlX_EC_xmsXV4BpHo1WUM2acsDtxtv0T1mdTSnZBtjLmpICSQF2UdA"
-    }
-  }
-}

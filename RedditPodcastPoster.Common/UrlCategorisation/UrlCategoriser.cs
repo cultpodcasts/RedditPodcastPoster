@@ -52,10 +52,13 @@ public class UrlCategoriser : IUrlCategoriser
         else if (_youTubeUrlCategoriser.IsMatch(url))
         {
             resolvedYouTubeItem = await _youTubeUrlCategoriser.Resolve(podcasts, url, indexingContext);
-            criteria = resolvedYouTubeItem.ToPodcastServiceSearchCriteria();
-            matchingPodcast = podcasts.SingleOrDefault(podcast => IsMatchingPodcast(podcast, resolvedYouTubeItem));
-            matchingEpisode = matchingPodcast?.Episodes.SingleOrDefault(x =>
-                x.Urls.YouTube == url || x.YouTubeId == resolvedYouTubeItem.EpisodeId);
+            if (resolvedYouTubeItem != null)
+            {
+                criteria = resolvedYouTubeItem.ToPodcastServiceSearchCriteria();
+                matchingPodcast = podcasts.SingleOrDefault(podcast => IsMatchingPodcast(podcast, resolvedYouTubeItem));
+                matchingEpisode = matchingPodcast?.Episodes.SingleOrDefault(x =>
+                    x.Urls.YouTube == url || x.YouTubeId == resolvedYouTubeItem.EpisodeId);
+            }
         }
 
 
