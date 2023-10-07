@@ -385,3 +385,9 @@ Console-Apps/EnrichSinglePodcastFromPodcastServices/Properties/launchSettings.js
 Console-Apps/EnrichYouTubeOnlyPodcasts/Properties/launchSettings.json
 Console-Apps/IndexPodcast/Properties/launchSettings.json
 Console-Apps/SubmitUrl/Properties/launchSettings.json
+Cloud/Indexer/Properties/serviceDependencies.indexer-cultpodcasts - Zip Deploy.json
+Cloud/Indexer/Properties/serviceDependencies.local.json
+Cloud/Indexer/Properties/ServiceDependencies/indexer-cultpodcasts - Zip Deploy/appInsights1.arm.json
+Cloud/Indexer/Properties/ServiceDependencies/indexer-cultpodcasts - Zip Deploy/profile.arm.json
+Cloud/Indexer/Properties/ServiceDependencies/indexer-cultpodcasts - Zip Deploy/storage1.arm.json
+Console-Apps/RedditPodcastPoster/Properties/launchSettings.json
