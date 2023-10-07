@@ -368,3 +368,10 @@ FodyWeavers.xsd
 /Indexer/Properties/serviceDependencies.indexer-cultpodcasts - Zip Deploy1.json
 /Indexer/Properties/serviceDependencies.json
 /Search-Index/index.json
+EnrichYouTubeOnlyPodcasts/Properties/launchSettings.json
+EnrichSinglePodcastFromPodcastServices/Properties/launchSettings.json
+ApplePodcastEpisodeEnricher/Properties/launchSettings.json
+AddYouTubeChannelAsPodcast/Properties/launchSettings.json
+AddAudioPodcast/Properties/launchSettings.json
+SubmitUrl/Properties/launchSettings.json
+IndexPodcast/Properties/launchSettings.json
