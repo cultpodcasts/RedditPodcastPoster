@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.6.33712.159
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster", "RedditPodcastPoster\RedditPodcastPoster.csproj", "{C39F980E-0FCC-4630-938A-9A1BAB5CF6A7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster", "Console-Apps\RedditPodcastPoster\RedditPodcastPoster.csproj", "{C39F980E-0FCC-4630-938A-9A1BAB5CF6A7}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Common", "RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj", "{9DABA17E-FEAD-4762-9295-49C125DCFAC9}"
 EndProject
@@ -14,47 +14,47 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentat
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Common.Tests", "RedditPodcastPoster.Common.Tests\RedditPodcastPoster.Common.Tests.csproj", "{577AD099-5D35-441E-B02F-06D2180EFE55}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AddYouTubeChannelAsPodcast", "AddYouTubeChannelAsPodcast\AddYouTubeChannelAsPodcast.csproj", "{62ED1991-2A45-4A71-9B6A-05829CBEE5F8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AddYouTubeChannelAsPodcast", "Console-Apps\AddYouTubeChannelAsPodcast\AddYouTubeChannelAsPodcast.csproj", "{62ED1991-2A45-4A71-9B6A-05829CBEE5F8}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApplePodcastEpisodeEnricher", "ApplePodcastEpisodeEnricher\ApplePodcastEpisodeEnricher.csproj", "{32C94732-069F-4D86-B527-6B9D78AFA2D0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApplePodcastEpisodeEnricher", "Console-Apps\ApplePodcastEpisodeEnricher\ApplePodcastEpisodeEnricher.csproj", "{32C94732-069F-4D86-B527-6B9D78AFA2D0}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Models", "RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj", "{75EC9016-D2E9-46D8-A474-58DFBA4135AE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.ModelTransformer", "RedditPodcastPoster.ModelTransformer\RedditPodcastPoster.ModelTransformer.csproj", "{C61F8632-0891-4900-9558-E0E8D3ADAE3E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModelTransformer", "Console-Apps\ModelTransformer\ModelTransformer.csproj", "{C61F8632-0891-4900-9558-E0E8D3ADAE3E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.CosmosDbUploader", "RedditPodcastPoster.CosmosDbUploader\RedditPodcastPoster.CosmosDbUploader.csproj", "{07233303-D86E-430A-A42A-A7519E2CC642}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CosmosDbUploader", "Console-Apps\CosmosDbUploader\CosmosDbUploader.csproj", "{07233303-D86E-430A-A42A-A7519E2CC642}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.CosmosDbDownloader", "RedditPodcastPoster.CosmosDbDownloader\RedditPodcastPoster.CosmosDbDownloader.csproj", "{40B5D8E9-5344-4608-8758-C685D1D0A0EC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CosmosDbDownloader", "Console-Apps\CosmosDbDownloader\CosmosDbDownloader.csproj", "{40B5D8E9-5344-4608-8758-C685D1D0A0EC}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.CosmosDbFixer", "RedditPodcastPoster.CosmosDbFixer\RedditPodcastPoster.CosmosDbFixer.csproj", "{4B886269-4580-40C0-84CD-4FC8C838B329}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CosmosDbFixer", "Console-Apps\CosmosDbFixer\CosmosDbFixer.csproj", "{4B886269-4580-40C0-84CD-4FC8C838B329}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Model Tools", "Model Tools", "{A0B7B88E-119E-4B41-A81D-E824392DD4D4}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Console-Apps", "Console-Apps", "{A0B7B88E-119E-4B41-A81D-E824392DD4D4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.EnrichEpisodesFromPostFlare", "RedditPodcastPoster.EnrichEpisodesFromPostFlare\RedditPodcastPoster.EnrichEpisodesFromPostFlare.csproj", "{F034BBB5-1BB3-4B4C-BA7C-06DFF68F4DA4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EnrichEpisodesFromPostFlare", "Console-Apps\EnrichEpisodesFromPostFlare\EnrichEpisodesFromPostFlare.csproj", "{F034BBB5-1BB3-4B4C-BA7C-06DFF68F4DA4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CultPodcasts.DatabasePublisher", "CultPodcasts.DatabasePublisher\CultPodcasts.DatabasePublisher.csproj", "{7962E4E6-87B2-48AC-B5E3-49E43878D630}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CultPodcasts.DatabasePublisher", "Console-Apps\CultPodcasts.DatabasePublisher\CultPodcasts.DatabasePublisher.csproj", "{7962E4E6-87B2-48AC-B5E3-49E43878D630}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AddAudioPodcast", "AddAudioPodcast\AddAudioPodcast.csproj", "{9718B0C0-99C0-490C-922E-93C9DA7CBCB9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AddAudioPodcast", "Console-Apps\AddAudioPodcast\AddAudioPodcast.csproj", "{9718B0C0-99C0-490C-922E-93C9DA7CBCB9}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EnrichYouTubeOnlyPodcasts", "EnrichYouTubeOnlyPodcasts\EnrichYouTubeOnlyPodcasts.csproj", "{747941FA-4A65-4696-952A-6274A233ED57}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EnrichYouTubeOnlyPodcasts", "Console-Apps\EnrichYouTubeOnlyPodcasts\EnrichYouTubeOnlyPodcasts.csproj", "{747941FA-4A65-4696-952A-6274A233ED57}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SeedEliminationTerms", "SeedEliminationTerms\SeedEliminationTerms.csproj", "{1D4DEFCB-9B03-4D50-9FDE-8035B5CC4310}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SeedEliminationTerms", "Console-Apps\SeedEliminationTerms\SeedEliminationTerms.csproj", "{1D4DEFCB-9B03-4D50-9FDE-8035B5CC4310}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SubmitUrl", "SubmitUrl\SubmitUrl.csproj", "{BE33D81B-1B31-4FA1-B7CB-B5E29D470728}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SubmitUrl", "Console-Apps\SubmitUrl\SubmitUrl.csproj", "{BE33D81B-1B31-4FA1-B7CB-B5E29D470728}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Cloud", "Cloud", "{8C39850E-EB98-4D1F-B961-FBF7FF98049E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sqllite3DatabasePublisher", "Sqllite3DatabasePublisher\Sqllite3DatabasePublisher.csproj", "{A2FE6676-BE6F-4EBC-9261-F27A7E8A8510}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sqllite3DatabasePublisher", "Console-Apps\Sqllite3DatabasePublisher\Sqllite3DatabasePublisher.csproj", "{A2FE6676-BE6F-4EBC-9261-F27A7E8A8510}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EnrichSinglePodcastFromPodcastServices", "EnrichSinglePodcastFromPodcastServices\EnrichSinglePodcastFromPodcastServices.csproj", "{F4C20096-1974-4C81-BED5-680C5DDA8AFA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EnrichSinglePodcastFromPodcastServices", "Console-Apps\EnrichSinglePodcastFromPodcastServices\EnrichSinglePodcastFromPodcastServices.csproj", "{F4C20096-1974-4C81-BED5-680C5DDA8AFA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indexer", "Indexer\Indexer.csproj", "{ACE43C6B-A006-4E01-8D90-CC566C83FFE3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indexer", "Cloud\Indexer\Indexer.csproj", "{ACE43C6B-A006-4E01-8D90-CC566C83FFE3}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Azure", "Azure\Azure.csproj", "{0AB24952-57D0-4772-A7C8-08F945BC9758}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Azure", "Cloud\Azure\Azure.csproj", "{0AB24952-57D0-4772-A7C8-08F945BC9758}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SeedKnownTerms", "SeedKnownTerms\SeedKnownTerms.csproj", "{F4443DD5-05C7-4DE0-9957-DF80225D806C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SeedKnownTerms", "Console-Apps\SeedKnownTerms\SeedKnownTerms.csproj", "{F4443DD5-05C7-4DE0-9957-DF80225D806C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IndexPodcast", "IndexPodcast\IndexPodcast.csproj", "{6AD8EB9C-EAD7-43EB-AD31-033FF126D16B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IndexPodcast", "Console-Apps\IndexPodcast\IndexPodcast.csproj", "{6AD8EB9C-EAD7-43EB-AD31-033FF126D16B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

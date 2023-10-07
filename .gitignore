@@ -375,3 +375,13 @@ AddYouTubeChannelAsPodcast/Properties/launchSettings.json
 AddAudioPodcast/Properties/launchSettings.json
 SubmitUrl/Properties/launchSettings.json
 IndexPodcast/Properties/launchSettings.json
+Cloud/Indexer/Properties/serviceDependencies.indexer-cultpodcasts - Zip Deploy1.json
+Cloud/Indexer/Properties/ServiceDependencies/indexer-cultpodcasts - Zip Deploy1/appInsights2.arm.json
+Cloud/Indexer/Properties/ServiceDependencies/indexer-cultpodcasts - Zip Deploy1/profile.arm.json
+Console-Apps/AddAudioPodcast/Properties/launchSettings.json
+Console-Apps/AddYouTubeChannelAsPodcast/Properties/launchSettings.json
+Console-Apps/ApplePodcastEpisodeEnricher/Properties/launchSettings.json
+Console-Apps/EnrichSinglePodcastFromPodcastServices/Properties/launchSettings.json
+Console-Apps/EnrichYouTubeOnlyPodcasts/Properties/launchSettings.json
+Console-Apps/IndexPodcast/Properties/launchSettings.json
+Console-Apps/SubmitUrl/Properties/launchSettings.json
