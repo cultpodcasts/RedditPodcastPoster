@@ -11,10 +11,6 @@ using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 
-if (args.Length < 1)
-{
-    throw new ArgumentNullException("Missing podcast-id and optional playlist-id");
-}
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -34,6 +30,7 @@ builder.Services
     })
     .AddScoped<EnrichYouTubePodcastProcessor>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
+    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddSingleton<ICosmosDbKeySelector, CosmosDbKeySelector>()

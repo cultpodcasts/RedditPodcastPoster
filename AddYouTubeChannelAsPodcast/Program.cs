@@ -28,7 +28,8 @@ builder.Services
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddSingleton<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddSingleton<PodcastFactory>()
-    .AddScoped<IYouTubeSearchService, YouTubeSearchService>();
+    .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
+    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>();
 
 YouTubeServiceFactory.AddYouTubeService(builder.Services);
 CosmosDbClientFactory.AddCosmosClient(builder.Services);

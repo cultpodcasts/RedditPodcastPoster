@@ -240,9 +240,11 @@ public class YouTubeSearchService : IYouTubeSearchService
 
         var result = new List<PlaylistItem>();
         var nextPageToken = "";
-        while (nextPageToken != null && result.LastOrDefault() != null && result.Last().Snippet
-                   .PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince))
+        var firstRun = true;
+        while (nextPageToken != null && (firstRun || ( result.LastOrDefault() != null && result.Last().Snippet
+                   .PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince))))
         {
+            firstRun = false;
             var playlistRequest = _youTubeService.PlaylistItems.List("snippet");
             playlistRequest.PlaylistId = playlistId.PlaylistId;
             playlistRequest.MaxResults = batchSize;
