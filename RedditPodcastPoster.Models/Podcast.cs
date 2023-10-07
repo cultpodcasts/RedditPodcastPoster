@@ -52,11 +52,11 @@ public class Podcast : CosmosSelector
     /// </summary>
     [JsonPropertyName("youTubePlaylistId")]
     [JsonPropertyOrder(53)]
-    public string YouTubePlaylistId { get; set; }
+    public string YouTubePlaylistId { get; set; } = "";
 
     [JsonPropertyName("twitterHandle")]
     [JsonPropertyOrder(53)]
-    public string TwitterHandle { get; set; }
+    public string TwitterHandle { get; set; } = "";
 
     [JsonPropertyName("youTubePublicationDelay")]
     [JsonPropertyOrder(60)]
