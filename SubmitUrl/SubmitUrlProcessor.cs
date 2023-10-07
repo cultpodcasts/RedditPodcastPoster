@@ -2,6 +2,7 @@
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.UrlSubmission;
+using RedditPodcastPoster.Models;
 
 namespace SubmitUrl;
 
@@ -25,7 +26,24 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
     public async Task Process(SubmitUrlRequest request)
     {
         var indexOptions = new IndexingContext();
-        var podcasts = await _podcastRepository.GetAll().ToListAsync();
+        List<Podcast> podcasts;
+        if (request.PodcastId != null)
+        {
+            var podcast = await _podcastRepository.GetPodcast(request.PodcastId.ToString()!);
+            if (podcast != null)
+            {
+                podcasts = new List<Podcast>() {podcast};
+            }
+            else
+            {
+                _logger.LogError($"No podcast found with id '{request.PodcastId}'.");
+                return;
+            }
+        }
+        else
+        {
+            podcasts = await _podcastRepository.GetAll().ToListAsync();
+        }
 
         if (!request.SubmitUrlsInFile)
         {
