@@ -1,8 +1,10 @@
 using System.Globalization;
-using System.Text.Json;
+using System.Text;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
@@ -74,8 +76,10 @@ public class YouTubeSearchService : IYouTubeSearchService
         return result;
     }
 
-    public async Task<IList<Video>?> GetVideoContentDetails(IEnumerable<string> videoIds,
-        IndexingContext indexingContext)
+    public async Task<IList<Video>?> GetVideoContentDetails(
+        IEnumerable<string> videoIds,
+        IndexingContext indexingContext,
+        bool withSnippets = false)
     {
         if (indexingContext.SkipYouTubeUrlResolving)
         {
@@ -93,7 +97,13 @@ public class YouTubeSearchService : IYouTubeSearchService
             while (nextPageToken != null)
             {
                 VideosResource.ListRequest request;
-                request = _youTubeService.Videos.List("contentDetails");
+                var contentdetails = "contentDetails";
+                if (withSnippets)
+                {
+                    contentdetails = "snippet," + contentdetails;
+                }
+
+                request = _youTubeService.Videos.List(contentdetails);
                 request.Id = string.Join(",", batchVideoIds);
                 request.MaxResults = IYouTubeSearchService.MaxSearchResults;
                 VideoListResponse response;
@@ -122,6 +132,7 @@ public class YouTubeSearchService : IYouTubeSearchService
         {
             _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {JsonSerializer.Serialize(result)}");
         }
+
         return result;
     }
 
@@ -180,7 +191,7 @@ public class YouTubeSearchService : IYouTubeSearchService
 
         var listRequest = _youTubeService.Channels.List(requestScope);
         listRequest.Id = channelId.ChannelId;
-        ChannelListResponse result;
+        ChannelListResponse result = null;
         try
         {
             result = await listRequest.ExecuteAsync();
@@ -194,7 +205,18 @@ public class YouTubeSearchService : IYouTubeSearchService
 
         if (result.Items.Any())
         {
-            _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {JsonSerializer.Serialize(result)}");
+            try
+            {
+                var sb = new StringBuilder();
+                var jsonSerialiser = new Newtonsoft.Json.JsonSerializer();
+                await using var jsonWriter = new JsonTextWriter(new StringWriter(sb));
+                jsonSerialiser.Serialize(jsonWriter, result);
+                _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {sb}");
+            }
+            catch
+            {
+                _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - Could not serialise response.");
+            }
         }
 
         return result.Items.SingleOrDefault();

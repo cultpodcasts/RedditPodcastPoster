@@ -10,7 +10,7 @@ public interface IYouTubeSearchService
         IndexingContext indexingContext);
 
     Task FindChannel(string channelName, IndexingContext indexingContext);
-    Task<IList<Video>?> GetVideoContentDetails(IEnumerable<string> videoIds, IndexingContext options);
+    Task<IList<Video>?> GetVideoContentDetails(IEnumerable<string> videoIds, IndexingContext options, bool withSnippets = false);
     Task<IList<PlaylistItem>?> GetPlaylistVideoSnippets(YouTubePlaylistId playlistId, IndexingContext indexingContext);
 
     Task<Channel?> GetChannelContentDetails(YouTubeChannelId channelId, IndexingContext indexingContext,
