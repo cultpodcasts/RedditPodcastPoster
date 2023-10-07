@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.UrlCategorisation;
@@ -107,7 +106,12 @@ public class UrlCategoriser : IUrlCategoriser
                 resolvedYouTubeItem);
         }
 
-        throw new InvalidOperationException($"Could not find episode with url '{url}'.");
+        if (!indexingContext.SkipYouTubeUrlResolving)
+        {
+            throw new InvalidOperationException($"Could not find episode with url '{url}'.");
+        }
+
+        throw new InvalidOperationException($"Unable to handle url '{url}'.");
     }
 
     private bool IsMatchingPodcast(Podcast podcast, ResolvedSpotifyItem? resolvedItem)

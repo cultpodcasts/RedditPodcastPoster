@@ -43,31 +43,41 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
             throw new InvalidOperationException($"Unable to find video-id in url '{url}'.");
         }
 
-        var items = await _youTubeSearchService.GetVideoContentDetails(new[] {videoIdMatch.Value}, indexingContext);
-        var item = items.FirstOrDefault();
-        if (item == null)
+        var items = await _youTubeSearchService.GetVideoContentDetails(new[] {videoIdMatch.Value}, indexingContext, true);
+        if (items != null)
         {
-            throw new InvalidOperationException($"Unable to find video with id '{videoIdMatch.Value}'.");
-        }
+            var item = items.FirstOrDefault();
+            if (item == null)
+            {
+                throw new InvalidOperationException($"Unable to find video with id '{videoIdMatch.Value}'.");
+            }
 
-        var channel =
-            await _youTubeSearchService.GetChannelContentDetails(new YouTubeChannelId(item.Snippet.ChannelId),
-                indexingContext, true, true);
-        if (channel != null)
+            var channel =
+                await _youTubeSearchService.GetChannelContentDetails(new YouTubeChannelId(item.Snippet.ChannelId),
+                    indexingContext, true, true);
+            if (channel != null)
+            {
+                return new ResolvedYouTubeItem(
+                    item.Snippet.ChannelId,
+                    item.Id,
+                    item.Snippet.ChannelTitle,
+                    channel!.Snippet.Description,
+                    channel.ContentOwnerDetails.ContentOwner,
+                    item.Snippet.Title,
+                    item.Snippet.Description,
+                    item.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
+                    XmlConvert.ToTimeSpan(item.ContentDetails.Duration),
+                    item.ToYouTubeUrl(),
+                    item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted"
+                );
+            }
+        }
+        else
         {
-            return new ResolvedYouTubeItem(
-                item.Snippet.ChannelId,
-                item.Id,
-                item.Snippet.ChannelTitle,
-                channel!.Snippet.Description,
-                channel.ContentOwnerDetails.ContentOwner,
-                item.Snippet.Title,
-                item.Snippet.Description,
-                item.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-                XmlConvert.ToTimeSpan(item.ContentDetails.Duration),
-                item.ToYouTubeUrl(),
-                item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted"
-            );
+            if (indexingContext.SkipYouTubeUrlResolving)
+            {
+                throw new InvalidOperationException($"Error: {nameof(indexingContext.SkipYouTubeUrlResolving)} be true.");
+            }
         }
 
         return null;

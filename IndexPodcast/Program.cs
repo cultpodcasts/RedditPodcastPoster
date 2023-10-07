@@ -1,24 +1,23 @@
 ﻿using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text.Json;
-using CommandLine;
+using IndexPodcast;
 using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.EliminationTerms;
+using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Matching;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
-using RedditPodcastPoster.Common.UrlCategorisation;
-using RedditPodcastPoster.Common.UrlSubmission;
-using SubmitUrl;
 
 var builder = Host.CreateApplicationBuilder(args);
-
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 
@@ -30,30 +29,42 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    //.AddScoped<IFilenameSelector, FilenameSelector>()
-    //.AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    //.AddScoped(services => (IDataRepository) services.GetService<IFileRepositoryFactory>()!.Create("podcasts"))
-    .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
-    .AddScoped<UrlSubmitter>()
+    .AddSingleton(new JsonSerializerOptions
+    {
+        WriteIndented = true
+    })
+    .AddScoped<IndexIndividualPodcastProcessor>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
-    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
-    .AddScoped<IUrlCategoriser, UrlCategoriser>()
-    .AddScoped<IAppleUrlCategoriser, AppleUrlCategoriser>()
-    .AddScoped<ISpotifyUrlCategoriser, SpotifyUrlCategoriser>()
-    .AddScoped<IYouTubeUrlCategoriser, YouTubeUrlCategoriser>()
-    .AddScoped<ISpotifyItemResolver, SpotifyItemResolver>()
-    .AddScoped<ISpotifySearcher, SpotifySearcher>()
-    .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
-    .AddScoped<IRemoteClient, RemoteClient>()
+    .AddScoped<IDataRepository, CosmosDbRepository>()
+    .AddSingleton<ICosmosDbKeySelector, CosmosDbKeySelector>()
+    .AddSingleton<PodcastFactory>()
+    .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
     .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
     .AddScoped(s => new iTunesSearchManager())
+    .AddScoped<IRemoteClient, RemoteClient>()
+    .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
+    .AddScoped<IPodcastUpdater, PodcastUpdater>()
+    .AddScoped<IEpisodeProvider, EpisodeProvider>()
+    .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
+    .AddScoped<IAppleEpisodeProvider, AppleEpisodeProvider>()
+    .AddScoped<ISpotifyItemResolver, SpotifyItemResolver>()
+    .AddScoped<ISpotifySearcher, SpotifySearcher>()
+    .AddScoped<IAppleEpisodeProvider, AppleEpisodeProvider>()
+    .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
+    .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
+    .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
+    .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
+    .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>()
+    .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
     .AddScoped<IApplePodcastService, ApplePodcastService>()
     .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
-    .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
+    .AddScoped<IPodcastFilter, PodcastFilter>()
+    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
+    .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
+    .AddScoped<IEliminationTermsProviderFactory, EliminationTermsProviderFactory>()
+    .AddSingleton(s => s.GetService<IEliminationTermsProviderFactory>().Create().GetAwaiter().GetResult())
+    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
-    .AddScoped<IUrlSubmitter, UrlSubmitter>()
-    .AddScoped<SubmitUrlProcessor>()
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
     .AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
     {
@@ -80,14 +91,10 @@ builder.Services
 builder.Services
     .AddOptions<YouTubeSettings>().Bind(builder.Configuration.GetSection("youtube"));
 
-
 using var host = builder.Build();
-return await Parser.Default.ParseArguments<SubmitUrlRequest>(args)
-    .MapResult(async submitUrlRequest => await Run(submitUrlRequest), errs => Task.FromResult(-1)); // Invalid arguments
 
-async Task<int> Run(SubmitUrlRequest request)
-{
-    var urlSubmitter = host.Services.GetService<SubmitUrlProcessor>()!;
-    await urlSubmitter.Process(request);
-    return 0;
-}
+
+var podcastProcessor = host.Services.GetService<IndexIndividualPodcastProcessor>()!;
+var baseline = DateTime.Today.AddDays(-1 * int.Parse(args[1]));
+await podcastProcessor.Run(Guid.Parse(args[0]), new IndexingContext(baseline));
+return 0;

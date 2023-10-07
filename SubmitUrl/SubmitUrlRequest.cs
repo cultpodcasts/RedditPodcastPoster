@@ -14,4 +14,8 @@ public class SubmitUrlRequest
 
     [Value(0, MetaName = "url of file", HelpText = "The Url or file containing Urls to submit")]
     public string UrlOrFile { get; set; } = "";
+
+    [Option('p', "podcastid", Required = false, HelpText = "The Id of the podcast to add this episode to")]
+    public Guid? PodcastId { get; set; }
+
 }
