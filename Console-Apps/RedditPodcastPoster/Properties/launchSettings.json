@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "RedditPodcastPoster": {
-      "commandName": "Project",
-      "commandLineArgs": "-e 3"
-    }
-  }
-}
