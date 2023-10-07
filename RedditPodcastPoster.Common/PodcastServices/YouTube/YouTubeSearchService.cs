@@ -191,7 +191,7 @@ public class YouTubeSearchService : IYouTubeSearchService
 
         var listRequest = _youTubeService.Channels.List(requestScope);
         listRequest.Id = channelId.ChannelId;
-        ChannelListResponse result = null;
+        ChannelListResponse result;
         try
         {
             result = await listRequest.ExecuteAsync();

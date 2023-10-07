@@ -46,7 +46,7 @@ return await Parser.Default.ParseArguments<Args>(args)
 async Task<int> Run(Args request)
 {
     var processor = host.Services.GetService<AddYouTubeChannelProcessor>();
-    var result = await processor.Run(request);
+    var result = await processor!.Run(request);
     if (result)
     {
         return 0;

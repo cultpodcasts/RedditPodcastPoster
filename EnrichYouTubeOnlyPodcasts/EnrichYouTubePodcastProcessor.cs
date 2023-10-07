@@ -66,15 +66,26 @@ public class EnrichYouTubePodcastProcessor
         var playlistItems =
             await _youTubeSearchService.GetPlaylistVideoSnippets(new YouTubePlaylistId(playlistId),
                 indexOptions);
+        if (playlistItems == null)
+        {
+            _logger.LogError($"Unable to retrieve playlist items from playlist '{playlistId}'.");
+            return;
+        }
 
         var missingPlaylistItems = playlistItems.Where(playlistItem =>
             podcast.Episodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();
         var missingVideoIds = missingPlaylistItems.Select(x => x.Snippet.ResourceId.VideoId).Distinct();
         var missingPlaylistVideos = await _youTubeSearchService.GetVideoContentDetails(missingVideoIds, indexOptions);
 
+        if (missingPlaylistVideos == null)
+        {
+            _logger.LogError($"Unable to retrieve details of videos with ids {string.Join(",", missingVideoIds)}.");
+            return;
+        }
+
         foreach (var missingPlaylistItem in missingPlaylistItems)
         {
-            var missingPlaylistItemSnippet = playlistItems.SingleOrDefault(x => x.Id == missingPlaylistItem.Id).Snippet;
+            var missingPlaylistItemSnippet = playlistItems.SingleOrDefault(x => x.Id == missingPlaylistItem.Id)!.Snippet;
             var video = missingPlaylistVideos.SingleOrDefault(video =>
                 video.Id == missingPlaylistItemSnippet.ResourceId.VideoId);
             if (video != null)
