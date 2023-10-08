@@ -38,17 +38,14 @@ public class Tweeter : ITweeter
     private async Task<PodcastEpisode?> GetPodcastEpisode()
     {
         var podcasts = await _repository.GetAll().ToListAsync();
-        var podcastEpisodes =
+        var podcastEpisode =
             podcasts
-                .Where(p => p.IndexAllEpisodes)
-                .SelectMany(p =>
-                    p.Episodes.Select(e => new {Podcast = p, Episode = e}));
-        var podcastEpisode = podcastEpisodes
-            .Where(x =>
-                x.Episode.Release >= DateTime.UtcNow.Date.AddDays(-1) &&
-                x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
-                (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null || x.Episode.Urls.Apple != null))
-            .MinBy(x => x.Episode.Release);
+                .SelectMany(p => p.Episodes.Select(e => new {Podcast = p, Episode = e}))
+                .Where(x =>
+                    x.Episode.Release >= DateTime.UtcNow.Date.AddDays(-1) &&
+                    x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
+                    (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null || x.Episode.Urls.Apple != null))
+                .MaxBy(x => x.Episode.Release);
         if (podcastEpisode?.Podcast == null)
         {
             _logger.LogInformation("No Podcast-Episode found to Tweet.");
