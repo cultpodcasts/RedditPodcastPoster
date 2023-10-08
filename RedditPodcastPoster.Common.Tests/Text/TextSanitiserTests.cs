@@ -89,6 +89,7 @@ public class TextSanitiserTests
         result.Should().Be(expected);
     }
 
+    [Theory]
     [InlineData("Understanding Extremist Authoritarian Aects - w/Christian Szurko")]
     [InlineData("The Start of the Sentence")]
     public void SanitiseTitle_WithKnownTerm_MaintainsTerm(string expected)
