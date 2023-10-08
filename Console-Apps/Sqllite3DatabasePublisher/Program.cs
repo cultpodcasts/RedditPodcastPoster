@@ -28,12 +28,8 @@ builder.Services
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
-    .AddSingleton(new JsonSerializerOptions
-    {
-        WriteIndented = true
-    })
     .AddScoped<Sqllite3DatabasePublisher.Sqllite3DatabasePublisher>()
-    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
+    .AddScoped<IPartitionKeySelector, PartitionKeySelector>()
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>();
 
 var databaseFileName = "podcasts.sqlite";

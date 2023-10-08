@@ -22,12 +22,9 @@ builder.Services
     .AddLogging()
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddScoped<IKnownTermsRepository, KnownTermsRepository>()
-    .AddSingleton(new JsonSerializerOptions
-    {
-        WriteIndented = true
-    })
+    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
     .AddScoped<KnownTermsSeeder>()
-    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>();
+    .AddScoped<IPartitionKeySelector, PartitionKeySelector>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
 builder.Services

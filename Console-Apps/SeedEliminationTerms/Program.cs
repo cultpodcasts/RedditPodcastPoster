@@ -27,7 +27,7 @@ builder.Services
         WriteIndented = true
     })
     .AddScoped<EliminationTermsSeeder>()
-    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>();
+    .AddScoped<IPartitionKeySelector, PartitionKeySelector>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
 builder.Services

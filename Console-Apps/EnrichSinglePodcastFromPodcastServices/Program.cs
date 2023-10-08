@@ -36,7 +36,7 @@ builder.Services
     .AddScoped<EnrichSinglePodcastFromPodcastServicesProcessor>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddSingleton<ICosmosDbKeySelector, CosmosDbKeySelector>()
+    .AddSingleton<IPartitionKeySelector, PartitionKeySelector>()
     .AddSingleton<PodcastFactory>()
     .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
     .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()

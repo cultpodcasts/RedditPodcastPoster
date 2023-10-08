@@ -1,54 +1,37 @@
-﻿using System.Text.Json;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Persistence;
+using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.ModelTransformer;
+namespace ModelTransformer;
 
 public class SplitFileRepository
 {
-    private const string FileExtension = ".json";
-    private readonly JsonSerializerOptions _jsonSerializerOptions;
+    private readonly IFileRepository _inputFileRepository;
     private readonly ILogger<SplitFileRepository> _logger;
+    private readonly IFileRepository _outputFileRepository;
 
     public SplitFileRepository(
-        JsonSerializerOptions jsonSerializerOptions,
-        IFilenameSelector filenameSelector,
+        IFileRepositoryFactory fileRepositoryFactory,
         ILogger<SplitFileRepository> logger)
     {
-        _jsonSerializerOptions = jsonSerializerOptions;
-        KeySelector = filenameSelector;
         _logger = logger;
+        _inputFileRepository = fileRepositoryFactory.Create("input");
+        _outputFileRepository = fileRepositoryFactory.Create("output");
     }
 
-    public IKeySelector KeySelector { get; }
-
-    public async Task Write<T>(string container, string key, T data)
+    public async Task Write<T>(string key, T data)
     {
-        await using var createStream = File.Create($"{container}\\{key}{FileExtension}");
-        await JsonSerializer.SerializeAsync(createStream, data, _jsonSerializerOptions);
+        await _outputFileRepository.Write(key, data);
     }
 
-    public async Task<T?> Read<T>(string container, string key) where T : class
+    public async Task<T?> Read<T>(string key, string partitionKey) where T : CosmosSelector
     {
-        try
-        {
-            await using var readStream = File.OpenRead($"{container}\\{key}{FileExtension}");
-            return await JsonSerializer.DeserializeAsync<T>(readStream);
-        }
-        catch (FileNotFoundException)
-        {
-            return null;
-        }
+        var result = await _inputFileRepository.Read<T>(key, partitionKey);
+        return result;
     }
 
-    public async IAsyncEnumerable<T> GetAll<T>(string container) where T : class
+    public IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector
     {
-        var filenames = Directory.GetFiles(container, $"*{FileExtension}");
-        var keys = filenames.Select(x =>
-            x.Substring(container.Length + 1, x.Length - (FileExtension.Length + container.Length + 1)));
-        foreach (var item in keys)
-        {
-            yield return (await Read<T>(container, item))!;
-        }
+        return _inputFileRepository.GetAll<T>();
     }
 }

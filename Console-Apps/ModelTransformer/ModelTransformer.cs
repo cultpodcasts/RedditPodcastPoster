@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.ModelTransformer.Models;
 
-namespace RedditPodcastPoster.ModelTransformer;
+namespace ModelTransformer;
 
 public class ModelTransformer
 {
@@ -19,7 +19,7 @@ public class ModelTransformer
 
     public async Task Run()
     {
-        var podcasts = await _splitFileRepository.GetAll<OldPodcast>("old").ToListAsync();
+        var podcasts = await _splitFileRepository.GetAll<OldPodcast>().ToListAsync();
         foreach (var oldPodcast in podcasts)
         {
             var newPodcast = new Podcast
@@ -63,10 +63,9 @@ public class ModelTransformer
                     },
                     Subjects = oldEpisode.Subjects,
                     Removed = oldEpisode.Removed
-            }
+                }
             ).ToList();
             await _splitFileRepository.Write(
-                "new",
                 oldPodcast.FileKey,
                 newPodcast);
         }

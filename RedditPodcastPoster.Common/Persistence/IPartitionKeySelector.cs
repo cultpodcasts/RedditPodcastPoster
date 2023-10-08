@@ -2,7 +2,7 @@
 
 namespace RedditPodcastPoster.Common.Persistence;
 
-public interface IKeySelector
+public interface IPartitionKeySelector
 {
     string GetKey(Podcast podcast);
 

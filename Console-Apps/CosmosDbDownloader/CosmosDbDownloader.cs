@@ -4,7 +4,7 @@ using RedditPodcastPoster.Common.KnownTerms;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.CosmosDbDownloader;
+namespace CosmosDbDownloader;
 
 public class CosmosDbDownloader
 {
@@ -23,25 +23,25 @@ public class CosmosDbDownloader
 
     public async Task Run()
     {
-        string? key;
-        var podcasts = await _cosmosDbRepository.GetAll<Podcast>().ToListAsync();
-        foreach (var podcast in podcasts)
+        var partitionKey = _cosmosDbRepository.PartitionKeySelector.GetKey(new Podcast());
+        var podcastIds =
+            await _cosmosDbRepository.GetAllIds<Podcast>(partitionKey);
+        foreach (var podcastId in podcastIds)
         {
-            key = _fileRepository.KeySelector.GetKey(podcast);
-            await _fileRepository.Write(key, podcast);
+            var podcast = await _cosmosDbRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
+            await _fileRepository.Write(podcast.FileKey, podcast);
         }
 
         var eliminationTerms =
             await _cosmosDbRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString(),
-            _cosmosDbRepository.KeySelector.GetKey(new EliminationTerms()));
-        key = _fileRepository.KeySelector.GetKey(eliminationTerms!);
-        await _fileRepository.Write(key, eliminationTerms);
+                _cosmosDbRepository.PartitionKeySelector.GetKey(new EliminationTerms()));
+        partitionKey = _fileRepository.PartitionKeySelector.GetKey(eliminationTerms!);
+        await _fileRepository.Write(partitionKey, eliminationTerms);
 
         var knownTerms =
             await _cosmosDbRepository.Read<KnownTerms>(KnownTerms._Id.ToString(),
-                _cosmosDbRepository.KeySelector.GetKey(new KnownTerms()));
-        key = _fileRepository.KeySelector.GetKey(knownTerms!);
-        await _fileRepository.Write(key, knownTerms);
-
+                _cosmosDbRepository.PartitionKeySelector.GetKey(new KnownTerms()));
+        partitionKey = _fileRepository.PartitionKeySelector.GetKey(knownTerms!);
+        await _fileRepository.Write(partitionKey, knownTerms);
     }
 }

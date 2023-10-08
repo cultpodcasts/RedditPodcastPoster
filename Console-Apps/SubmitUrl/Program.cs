@@ -30,11 +30,8 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    //.AddScoped<IFilenameSelector, FilenameSelector>()
-    //.AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    //.AddScoped(services => (IDataRepository) services.GetService<IFileRepositoryFactory>()!.Create("podcasts"))
     .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
+    .AddScoped<IPartitionKeySelector, PartitionKeySelector>()
     .AddScoped<UrlSubmitter>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()

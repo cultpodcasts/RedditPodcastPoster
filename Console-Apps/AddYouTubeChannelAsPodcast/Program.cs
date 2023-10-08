@@ -26,7 +26,7 @@ builder.Services
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddSingleton<ICosmosDbKeySelector, CosmosDbKeySelector>()
+    .AddSingleton<IPartitionKeySelector, PartitionKeySelector>()
     .AddSingleton<PodcastFactory>()
     .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>();

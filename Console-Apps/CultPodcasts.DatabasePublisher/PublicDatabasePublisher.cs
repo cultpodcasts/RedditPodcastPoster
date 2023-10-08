@@ -22,11 +22,12 @@ public class PublicDatabasePublisher
 
     public async Task Run()
     {
-        var podcasts = await _cosmosDbRepository.GetAll<Podcast>().ToListAsync();
-        foreach (var podcast in podcasts)
+        var partitionKey = _cosmosDbRepository.PartitionKeySelector.GetKey(new Podcast());
+        var podcastIds =
+            await _cosmosDbRepository.GetAllIds<Podcast>(partitionKey);
+        foreach (var podcastId in podcastIds)
         {
-            var key = _fileRepository.KeySelector.GetKey(podcast);
-
+            var podcast = await _cosmosDbRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
             var publicPodcast = new PublicPodcast
             {
                 Id = podcast.Id,
@@ -55,7 +56,7 @@ public class PublicDatabasePublisher
                 Subjects = oldEpisode.Subjects
             }).ToList();
 
-            await _fileRepository.Write(key, publicPodcast);
+            await _fileRepository.Write(podcast.FileKey, publicPodcast);
         }
     }
 }

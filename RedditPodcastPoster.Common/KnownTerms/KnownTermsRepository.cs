@@ -19,13 +19,13 @@ public class KnownTermsRepository : IKnownTermsRepository
 
     public async Task<KnownTerms> Get()
     {
-        var partitionKey = _dataRepository.KeySelector.GetKey(new KnownTerms());
+        var partitionKey = _dataRepository.PartitionKeySelector.GetKey(new KnownTerms());
         return (await _dataRepository.Read<KnownTerms>(KnownTerms._Id.ToString(), partitionKey))!;
     }
 
     public async Task Save(KnownTerms terms)
     {
-        var key = _dataRepository.KeySelector.GetKey(terms);
+        var key = _dataRepository.PartitionKeySelector.GetKey(terms);
         await _dataRepository.Write(key, terms);
     }
 }

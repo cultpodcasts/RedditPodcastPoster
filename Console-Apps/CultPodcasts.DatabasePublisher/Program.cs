@@ -1,5 +1,4 @@
 ﻿using System.Reflection;
-using System.Text.Json;
 using CultPodcasts.DatabasePublisher;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,12 +20,11 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create("podcasts"))
+    .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create())
     .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
     .AddScoped<PublicDatabasePublisher>()
-    .AddScoped<IFilenameSelector, FilenameSelector>()
-    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>();
+    .AddSingleton<IPartitionKeySelector, PartitionKeySelector>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
 builder.Services

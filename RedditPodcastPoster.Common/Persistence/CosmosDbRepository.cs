@@ -15,16 +15,16 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
     public CosmosDbRepository(
         CosmosClient cosmosClient,
         IOptions<CosmosDbSettings> cosmosDbSettings,
-        ICosmosDbKeySelector cosmosDbKeySelector,
+        IPartitionKeySelector partitionKeySelector,
         ILogger<CosmosDbRepository> logger)
     {
         _cosmosClient = cosmosClient;
         _cosmosDbSettings = cosmosDbSettings.Value;
-        KeySelector = cosmosDbKeySelector;
+        PartitionKeySelector = partitionKeySelector;
         _logger = logger;
     }
 
-    public IKeySelector KeySelector { get; }
+    public IPartitionKeySelector PartitionKeySelector { get; }
 
     public async Task Write<T>(string partitionKey, T data)
     {
@@ -41,7 +41,7 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
         }
     }
 
-    public async Task<T?> Read<T>(string key, string partitionKey) where T : class
+    public async Task<T?> Read<T>(string key, string partitionKey) where T : CosmosSelector
     {
         var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
         try
@@ -75,7 +75,7 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
         }
     }
 
-    public async Task<IEnumerable<Guid>> GetAllIds(string key)
+    public async Task<IEnumerable<Guid>> GetAllIds<T>(string key) where T : CosmosSelector
     {
         var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
         try

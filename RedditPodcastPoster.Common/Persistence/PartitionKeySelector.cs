@@ -2,20 +2,21 @@
 
 namespace RedditPodcastPoster.Common.Persistence;
 
-public class FilenameSelector : IFilenameSelector
+public class PartitionKeySelector : IPartitionKeySelector
 {
     public string GetKey(Podcast podcast)
     {
-        return podcast.FileKey;
+        return podcast.ModelType.ToString();
     }
 
     public string GetKey(EliminationTerms.EliminationTerms eliminationTerms)
     {
-        return nameof(ModelType.EliminationTerms);
+        return eliminationTerms.ModelType.ToString();
     }
 
     public string GetKey(KnownTerms.KnownTerms knownTerms)
     {
-        return nameof(ModelType.KnownTerms);
+        return knownTerms.ModelType.ToString();
     }
+
 }
