@@ -13,7 +13,6 @@ public class FileRepository : IFileRepository
 
     public FileRepository(
         JsonSerializerOptions jsonSerialiserOptions,
-        IPartitionKeySelector partitionKeySelector,
         string container,
         ILogger<IFileRepository> logger)
     {
@@ -28,11 +27,8 @@ public class FileRepository : IFileRepository
             _container = container;
         }
 
-        PartitionKeySelector = partitionKeySelector;
         _logger = logger;
     }
-
-    public IPartitionKeySelector PartitionKeySelector { get; }
 
     public async Task Write<T>(string fileKey, T data)
     {

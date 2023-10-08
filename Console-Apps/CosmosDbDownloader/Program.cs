@@ -24,7 +24,6 @@ builder.Services
     .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create())
     .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
     .AddScoped<CosmosDbDownloader.CosmosDbDownloader>()
-    .AddSingleton<IPartitionKeySelector, PartitionKeySelector>()
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);

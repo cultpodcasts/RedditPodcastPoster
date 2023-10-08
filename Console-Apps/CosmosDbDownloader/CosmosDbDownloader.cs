@@ -23,7 +23,7 @@ public class CosmosDbDownloader
 
     public async Task Run()
     {
-        var partitionKey = _cosmosDbRepository.PartitionKeySelector.GetKey(new Podcast());
+        var partitionKey = new Podcast().GetPartitionKey();
         var podcastIds =
             await _cosmosDbRepository.GetAllIds<Podcast>(partitionKey);
         foreach (var podcastId in podcastIds)
@@ -32,16 +32,14 @@ public class CosmosDbDownloader
             await _fileRepository.Write(podcast.FileKey, podcast);
         }
 
+        partitionKey = new EliminationTerms().GetPartitionKey();
         var eliminationTerms =
-            await _cosmosDbRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString(),
-                _cosmosDbRepository.PartitionKeySelector.GetKey(new EliminationTerms()));
-        partitionKey = _fileRepository.PartitionKeySelector.GetKey(eliminationTerms!);
+            await _cosmosDbRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString(), partitionKey);
         await _fileRepository.Write(partitionKey, eliminationTerms);
 
+        partitionKey = new KnownTerms()!.GetPartitionKey();
         var knownTerms =
-            await _cosmosDbRepository.Read<KnownTerms>(KnownTerms._Id.ToString(),
-                _cosmosDbRepository.PartitionKeySelector.GetKey(new KnownTerms()));
-        partitionKey = _fileRepository.PartitionKeySelector.GetKey(knownTerms!);
+            await _cosmosDbRepository.Read<KnownTerms>(KnownTerms._Id.ToString(), partitionKey);
         await _fileRepository.Write(partitionKey, knownTerms);
     }
 }

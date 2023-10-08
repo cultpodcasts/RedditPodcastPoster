@@ -29,7 +29,6 @@ builder.Services
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
     .AddScoped<Sqllite3DatabasePublisher.Sqllite3DatabasePublisher>()
-    .AddScoped<IPartitionKeySelector, PartitionKeySelector>()
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>();
 
 var databaseFileName = "podcasts.sqlite";

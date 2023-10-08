@@ -10,7 +10,6 @@ builder.Services
     .AddLogging()
     .AddScoped<SplitFileRepository>()
     .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    .AddScoped<IPartitionKeySelector, PartitionKeySelector>()
     .AddScoped<ModelTransformer.ModelTransformer>()
     .AddSingleton(new JsonSerializerOptions
     {

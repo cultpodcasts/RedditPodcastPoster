@@ -22,7 +22,7 @@ public class PublicDatabasePublisher
 
     public async Task Run()
     {
-        var partitionKey = _cosmosDbRepository.PartitionKeySelector.GetKey(new Podcast());
+        var partitionKey = new Podcast().GetPartitionKey();
         var podcastIds =
             await _cosmosDbRepository.GetAllIds<Podcast>(partitionKey);
         foreach (var podcastId in podcastIds)

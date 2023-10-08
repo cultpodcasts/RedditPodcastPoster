@@ -36,7 +36,6 @@ public static class Ioc
 
             // Common
             .AddScoped<IDataRepository, CosmosDbRepository>()
-            .AddSingleton<IPartitionKeySelector, PartitionKeySelector>()
             .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
             .AddScoped<IPodcastRepository, PodcastRepository>()
             .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()

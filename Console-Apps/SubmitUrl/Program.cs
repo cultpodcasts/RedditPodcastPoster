@@ -31,7 +31,6 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddScoped<IPartitionKeySelector, PartitionKeySelector>()
     .AddScoped<UrlSubmitter>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()

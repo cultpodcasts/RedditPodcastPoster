@@ -23,8 +23,7 @@ builder.Services
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddScoped<IKnownTermsRepository, KnownTermsRepository>()
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
-    .AddScoped<KnownTermsSeeder>()
-    .AddScoped<IPartitionKeySelector, PartitionKeySelector>();
+    .AddScoped<KnownTermsSeeder>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
 builder.Services

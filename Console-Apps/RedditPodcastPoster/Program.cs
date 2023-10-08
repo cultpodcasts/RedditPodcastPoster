@@ -39,7 +39,6 @@ builder.Services
     .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
     .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
     .AddScoped<PodcastProcessor>()
-    .AddScoped<IPartitionKeySelector, PartitionKeySelector>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()

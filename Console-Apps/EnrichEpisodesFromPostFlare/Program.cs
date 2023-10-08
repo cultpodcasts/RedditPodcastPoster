@@ -37,8 +37,7 @@ builder.Services
     })
     .AddScoped<SubredditPostFlareEnricher>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
-    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
-    .AddSingleton<IPartitionKeySelector, PartitionKeySelector>();
+    .AddScoped<IEpisodeMatcher, EpisodeMatcher>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
 RedditClientFactory.AddRedditClient(builder.Services);

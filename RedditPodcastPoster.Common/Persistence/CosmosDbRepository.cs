@@ -15,16 +15,13 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
     public CosmosDbRepository(
         CosmosClient cosmosClient,
         IOptions<CosmosDbSettings> cosmosDbSettings,
-        IPartitionKeySelector partitionKeySelector,
         ILogger<CosmosDbRepository> logger)
     {
         _cosmosClient = cosmosClient;
         _cosmosDbSettings = cosmosDbSettings.Value;
-        PartitionKeySelector = partitionKeySelector;
         _logger = logger;
     }
 
-    public IPartitionKeySelector PartitionKeySelector { get; }
 
     public async Task Write<T>(string partitionKey, T data)
     {

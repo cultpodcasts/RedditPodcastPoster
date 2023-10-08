@@ -37,7 +37,6 @@ builder.Services
     .AddScoped<AddAudioPodcastProcessor>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddSingleton<IPartitionKeySelector, PartitionKeySelector>()
     .AddSingleton<PodcastFactory>()
     .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
     .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()

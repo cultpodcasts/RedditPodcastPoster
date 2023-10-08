@@ -27,7 +27,6 @@ builder.Services
         WriteIndented = true
     })
     .AddScoped<CosmosDbFixer>()
-    .AddSingleton<IPartitionKeySelector, PartitionKeySelector>()
     .AddScoped<IPodcastRepository, PodcastRepository>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
