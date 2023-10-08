@@ -24,7 +24,7 @@ public class CosmosDbUploader
 
     public async Task Run()
     {
-//        throw new NotImplementedException("Changes made to the IFileRepository are untested. Do not use this app until correct behaviour verified.");
+        throw new NotImplementedException("Changes made to the IFileRepository are untested. Do not use this app until correct behaviour verified.");
         var podcasts = await _fileRepository.GetAll<Podcast>().ToListAsync();
         foreach (var podcast in podcasts)
         {
