@@ -62,7 +62,7 @@ builder.Services
     .AddScoped<IPodcastFilter, PodcastFilter>()
     .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
     .AddScoped<IEliminationTermsProviderFactory, EliminationTermsProviderFactory>()
-    .AddSingleton(s => s.GetService<IEliminationTermsProviderFactory>().Create().GetAwaiter().GetResult())
+    .AddSingleton(s => s.GetService<IEliminationTermsProviderFactory>()!.Create().GetAwaiter().GetResult())
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
     .AddScoped<iTunesSearchManager>()
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()

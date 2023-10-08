@@ -20,6 +20,11 @@ public class AppleEpisodeProvider : IAppleEpisodeProvider
     {
         var episodes = await _applePodcastService.GetEpisodes(podcastId, indexingContext);
 
+        if (episodes == null)
+        {
+            return null;
+        }
+
         if (indexingContext.ReleasedSince.HasValue)
         {
             episodes = episodes.Where(x => x.Release >= indexingContext.ReleasedSince.Value).ToList();

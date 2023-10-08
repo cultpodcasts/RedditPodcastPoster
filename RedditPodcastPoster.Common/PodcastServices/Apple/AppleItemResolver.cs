@@ -32,7 +32,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
             matchingEpisode = podcastEpisodes.FirstOrDefault(x => x.Id == request.EpisodeAppleId);
         }
 
-        if (matchingEpisode == null)
+        if (matchingEpisode == null && podcastEpisodes != null)
         {
             if (request.PodcastAppleId.HasValue)
             {

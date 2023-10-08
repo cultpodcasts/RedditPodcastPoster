@@ -61,7 +61,7 @@ builder.Services
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
     .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
     .AddScoped<IEliminationTermsProviderFactory, EliminationTermsProviderFactory>()
-    .AddSingleton(s => s.GetService<IEliminationTermsProviderFactory>().Create().GetAwaiter().GetResult())
+    .AddSingleton(s => s.GetService<IEliminationTermsProviderFactory>()!.Create().GetAwaiter().GetResult())
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()

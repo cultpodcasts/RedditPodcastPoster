@@ -28,9 +28,10 @@ public class PublicDatabasePublisher
         foreach (var podcastId in podcastIds)
         {
             var podcast = await _cosmosDbRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
+
             var publicPodcast = new PublicPodcast
             {
-                Id = podcast.Id,
+                Id = podcast!.Id,
                 AppleId = podcast.AppleId,
                 Name = podcast.Name,
                 SpotifyId = podcast.SpotifyId,

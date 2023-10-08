@@ -13,9 +13,8 @@ public class SubmitUrlRequest
     public bool SubmitUrlsInFile { get; set; }
 
     [Value(0, MetaName = "url of file", HelpText = "The Url or file containing Urls to submit", Required = true)]
-    public string UrlOrFile { get; set; }
+    public string UrlOrFile { get; set; } = "";
 
     [Option('p', "podcastid", Required = false, HelpText = "The Id of the podcast to add this episode to")]
     public Guid? PodcastId { get; set; }
-
 }

@@ -12,9 +12,8 @@ namespace AddAudioPodcast;
 
 public class AddAudioPodcastProcessor
 {
-    private static string Market = "GB";
+    private static readonly string Market = "GB";
     private readonly IApplePodcastEnricher _applePodcastEnricher;
-    private readonly ISpotifyPodcastEnricher _spotifyPodcastEnricher;
     private readonly IndexingContext _indexingContext = new(null, true);
     private readonly iTunesSearchManager _iTunesSearchManager;
     private readonly ILogger<AddAudioPodcastProcessor> _logger;
@@ -22,6 +21,7 @@ public class AddAudioPodcastProcessor
     private readonly IPodcastRepository _podcastRepository;
     private readonly IPodcastUpdater _podcastUpdater;
     private readonly ISpotifyClient _spotifyClient;
+    private readonly ISpotifyPodcastEnricher _spotifyPodcastEnricher;
 
     public AddAudioPodcastProcessor(
         IPodcastRepository podcastRepository,
@@ -59,7 +59,7 @@ public class AddAudioPodcastProcessor
 
         if (podcast != null)
         {
-            var result= await _podcastUpdater.Update(podcast, _indexingContext);
+            var result = await _podcastUpdater.Update(podcast, _indexingContext);
 
             if (!string.IsNullOrWhiteSpace(request.EpisodeTitleRegex))
             {
@@ -104,7 +104,6 @@ public class AddAudioPodcastProcessor
             {
                 _logger.LogError(result.ToString());
             }
-
         }
         else
         {
@@ -116,7 +115,7 @@ public class AddAudioPodcastProcessor
     private async Task<Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext,
         List<Podcast> existingPodcasts)
     {
-        var spotifyPodcast = await _spotifyClient.Shows.Get(request.PodcastId, new ShowRequest(){Market = Market});
+        var spotifyPodcast = await _spotifyClient.Shows.Get(request.PodcastId, new ShowRequest {Market = Market});
 
         var podcast = existingPodcasts.SingleOrDefault(x => x.SpotifyId == request.PodcastId);
         if (podcast == null)
@@ -139,6 +138,11 @@ public class AddAudioPodcastProcessor
     {
         var id = long.Parse(request.PodcastId);
         var applePodcast = (await _iTunesSearchManager.GetPodcastById(id)).Podcasts.SingleOrDefault();
+
+        if (applePodcast == null)
+        {
+            _logger.LogError($"No apple-podcast found for apple-id '{id}'.");
+        }
 
         var podcast = existingPodcasts.SingleOrDefault(x => x.AppleId == id);
         if (podcast == null)
