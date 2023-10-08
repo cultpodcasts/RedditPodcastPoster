@@ -7,7 +7,6 @@ using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
-using RedditPodcastPoster.CosmosDbFixer;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -26,7 +25,7 @@ builder.Services
     {
         WriteIndented = true
     })
-    .AddScoped<CosmosDbFixer>()
+    .AddScoped<CosmosDbFixer.CosmosDbFixer>()
     .AddScoped<IPodcastRepository, PodcastRepository>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
@@ -39,5 +38,5 @@ builder.Services
 
 
 using var host = builder.Build();
-var processor = host.Services.GetService<CosmosDbFixer>();
+var processor = host.Services.GetService<CosmosDbFixer.CosmosDbFixer>();
 await processor!.Run();

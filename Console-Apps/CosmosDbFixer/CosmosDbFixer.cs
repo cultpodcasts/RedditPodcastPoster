@@ -3,7 +3,7 @@ using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 
-namespace RedditPodcastPoster.CosmosDbFixer;
+namespace CosmosDbFixer;
 
 public class CosmosDbFixer
 {

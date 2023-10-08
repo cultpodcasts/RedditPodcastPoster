@@ -1,7 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.ModelTransformer.Models;
+namespace ModelTransformer.Models;
 
 [CosmosSelector(ModelType.Podcast)]
 public class OldPodcast : CosmosSelector

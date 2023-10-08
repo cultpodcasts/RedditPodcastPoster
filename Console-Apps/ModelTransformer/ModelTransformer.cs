@@ -1,7 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using ModelTransformer.Models;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.ModelTransformer.Models;
 
 namespace ModelTransformer;
 

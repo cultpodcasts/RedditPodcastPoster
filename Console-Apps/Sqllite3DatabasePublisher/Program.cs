@@ -1,6 +1,5 @@
 ﻿using System.Data.SQLite;
 using System.Reflection;
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,7 +31,7 @@ builder.Services
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>();
 
 var databaseFileName = "podcasts.sqlite";
-string connectionString = $"Data Source={databaseFileName}";
+var connectionString = $"Data Source={databaseFileName}";
 
 File.Delete(databaseFileName);
 SQLiteConnection.CreateFile(databaseFileName);
