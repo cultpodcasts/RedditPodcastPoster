@@ -133,7 +133,7 @@ public class AddAudioPodcastProcessor
     }
 
 
-    private async Task<Podcast> GetApplePodcast(AddAudioPodcastRequest request, IndexingContext indexingContext,
+    private async Task<Podcast?> GetApplePodcast(AddAudioPodcastRequest request, IndexingContext indexingContext,
         List<Podcast> existingPodcasts)
     {
         var id = long.Parse(request.PodcastId);
@@ -142,6 +142,7 @@ public class AddAudioPodcastProcessor
         if (applePodcast == null)
         {
             _logger.LogError($"No apple-podcast found for apple-id '{id}'.");
+            return null;
         }
 
         var podcast = existingPodcasts.SingleOrDefault(x => x.AppleId == id);
