@@ -164,7 +164,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
     }
 
 
-    public async Task<IEnumerable<SimpleEpisode>> GetEpisodes(
+    public async Task<IEnumerable<SimpleEpisode>?> GetEpisodes(
         SpotifyPodcastId request,
         IndexingContext indexingContext)
     {
