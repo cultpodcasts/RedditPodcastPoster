@@ -19,7 +19,7 @@ public class TextSanitiser : ITextSanitiser
     };
 
     private static readonly Regex _hashtag = new(@"\#(\w+)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex _invalidTitlePrefix = new(@"(?'prefix'^[^a-zA-Z\d""]+)(?'after'.*$)");
+    private static readonly Regex _invalidTitlePrefix = new(@"(?'prefix'^[^a-zA-Z\d""\$\£]+)(?'after'.*$)", RegexOptions.Compiled);
     private static readonly TextInfo _textInfo = new CultureInfo("en-GB", false).TextInfo;
     private static readonly Regex _withName = new(@"(?'before'\s)(?'with'[Ww]ith )(?'after'[A-Z])");
     private readonly IKnownTermsProvider _knownTermsProvider;
