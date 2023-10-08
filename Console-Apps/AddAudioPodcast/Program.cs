@@ -17,7 +17,6 @@ using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
-using PodcastFactory = RedditPodcastPoster.Common.Podcasts.PodcastFactory;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -35,10 +34,9 @@ builder.Services
     {
         WriteIndented = true
     })
-    .AddScoped<AddAudioPodcast.AddAudioPodcastProcessor>()
+    .AddScoped<AddAudioPodcastProcessor>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddSingleton<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddSingleton<PodcastFactory>()
     .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
     .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
@@ -96,9 +94,9 @@ builder.Services
 using var host = builder.Build();
 
 
-
 return await Parser.Default.ParseArguments<AddAudioPodcastRequest>(args)
-    .MapResult(async addAudioPodcastRequest => await Run(addAudioPodcastRequest), errs => Task.FromResult(-1)); // Invalid arguments
+    .MapResult(async addAudioPodcastRequest => await Run(addAudioPodcastRequest),
+        errs => Task.FromResult(-1)); // Invalid arguments
 
 async Task<int> Run(AddAudioPodcastRequest request)
 {

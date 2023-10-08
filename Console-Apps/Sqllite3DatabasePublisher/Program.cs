@@ -1,6 +1,5 @@
 ﻿using System.Data.SQLite;
 using System.Reflection;
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,16 +27,11 @@ builder.Services
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
-    .AddSingleton(new JsonSerializerOptions
-    {
-        WriteIndented = true
-    })
     .AddScoped<Sqllite3DatabasePublisher.Sqllite3DatabasePublisher>()
-    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>();
 
 var databaseFileName = "podcasts.sqlite";
-string connectionString = $"Data Source={databaseFileName}";
+var connectionString = $"Data Source={databaseFileName}";
 
 File.Delete(databaseFileName);
 SQLiteConnection.CreateFile(databaseFileName);

@@ -1,6 +1,5 @@
 ﻿using System.Net.Http.Headers;
 using System.Reflection;
-using System.Text.Json;
 using CommandLine;
 using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
@@ -30,11 +29,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    //.AddScoped<IFilenameSelector, FilenameSelector>()
-    //.AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    //.AddScoped(services => (IDataRepository) services.GetService<IFileRepositoryFactory>()!.Create("podcasts"))
     .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddScoped<UrlSubmitter>()
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()

@@ -1,5 +1,4 @@
 ﻿using System.Reflection;
-using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -22,12 +21,8 @@ builder.Services
     .AddLogging()
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddScoped<IKnownTermsRepository, KnownTermsRepository>()
-    .AddSingleton(new JsonSerializerOptions
-    {
-        WriteIndented = true
-    })
-    .AddScoped<KnownTermsSeeder>()
-    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>();
+    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
+    .AddScoped<KnownTermsSeeder>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
 builder.Services

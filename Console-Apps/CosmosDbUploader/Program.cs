@@ -27,8 +27,6 @@ builder.Services
         WriteIndented = true
     })
     .AddScoped<CosmosDbUploader>()
-    .AddScoped<IFilenameSelector, FilenameSelector>()
-    .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);

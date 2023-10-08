@@ -36,7 +36,6 @@ public static class Ioc
 
             // Common
             .AddScoped<IDataRepository, CosmosDbRepository>()
-            .AddScoped<ICosmosDbKeySelector, CosmosDbKeySelector>()
             .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
             .AddScoped<IPodcastRepository, PodcastRepository>()
             .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()

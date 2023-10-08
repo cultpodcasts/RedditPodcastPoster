@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.ModelTransformer.Models;
+namespace ModelTransformer.Models;
 
 public class OldServiceUrls
 {

@@ -29,7 +29,6 @@ builder.Services
     })
     .AddScoped<IPodcastRepository, PodcastRepository>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddSingleton<ICosmosDbKeySelector, CosmosDbKeySelector>()
     .AddScoped<MissingFilesProcessor>()
     .AddScoped<IApplePodcastService, ApplePodcastService>()
     .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()

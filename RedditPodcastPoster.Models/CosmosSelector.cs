@@ -9,6 +9,11 @@ public class CosmosSelector
         ModelType = modelType;
     }
 
+    public string GetPartitionKey()
+    {
+        return this.ModelType.ToString();
+    }
+
     [JsonPropertyName("id")]
     [JsonPropertyOrder(1)]
     public Guid Id { get; set; }
