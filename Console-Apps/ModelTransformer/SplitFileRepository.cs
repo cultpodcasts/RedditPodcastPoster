@@ -4,7 +4,7 @@ using RedditPodcastPoster.Models;
 
 namespace ModelTransformer;
 
-public class SplitFileRepository
+public class SplitFileRepository : ISplitFileRepository
 {
     private readonly IFileRepository _inputFileRepository;
     private readonly ILogger<SplitFileRepository> _logger;

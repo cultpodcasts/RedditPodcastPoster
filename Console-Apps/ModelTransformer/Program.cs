@@ -8,14 +8,14 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services
     .AddLogging()
-    .AddScoped<SplitFileRepository>()
+    .AddScoped<ISplitFileRepository, SplitFileRepository>()
     .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    .AddScoped<ModelTransformer.ModelTransformer>()
+    .AddScoped<ModelTransformProcessor>()
     .AddSingleton(new JsonSerializerOptions
     {
         WriteIndented = true
     });
 
 using var host = builder.Build();
-var processor = host.Services.GetService<ModelTransformer.ModelTransformer>();
+var processor = host.Services.GetService<ModelTransformProcessor>();
 await processor!.Run();
