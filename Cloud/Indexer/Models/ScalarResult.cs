@@ -5,6 +5,6 @@ namespace Indexer.Models;
 public class ScalarResult<T>
 {
     [JsonPropertyName("$1")]
-    public T item { get; set; }
+    public required T Item { get; set; }
 
 }

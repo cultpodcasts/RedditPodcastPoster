@@ -19,17 +19,14 @@ public class SpotifyIdResolver : ISpotifyIdResolver
     public async Task<string> FindPodcastId(Podcast podcast, IndexingContext indexingContext)
     {
         var match = await _spotifyItemResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest(), indexingContext);
-        return match.Id;
+        return match?.Id ?? string.Empty;
     }
 
     public async Task<string> FindEpisodeId(Podcast podcast, Episode episode, IndexingContext indexingContext)
     {
-        var match = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode), indexingContext);
-        if (match == null)
-        {
-            return string.Empty;
-        }
+        var match = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode),
+            indexingContext);
 
-        return match.Id ?? string.Empty;
+        return match?.Id ?? string.Empty;
     }
 }

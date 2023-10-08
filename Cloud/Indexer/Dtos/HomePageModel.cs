@@ -5,7 +5,7 @@ namespace Indexer.Dtos;
 public class HomePageModel
 {
     [JsonPropertyName("recentEpisodes")]
-    public IEnumerable<RecentEpisode> RecentEpisodes { get; set; }
+    public required IEnumerable<RecentEpisode> RecentEpisodes { get; set; }
 
     [JsonPropertyName("episodeCount")]
     public int? EpisodeCount { get; set; }

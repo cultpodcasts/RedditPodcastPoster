@@ -29,7 +29,7 @@ public class CosmosDbDownloader
         foreach (var podcastId in podcastIds)
         {
             var podcast = await _cosmosDbRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
-            await _fileRepository.Write(podcast.FileKey, podcast);
+            await _fileRepository.Write(podcast!.FileKey, podcast);
         }
 
         partitionKey = new EliminationTerms().GetPartitionKey();

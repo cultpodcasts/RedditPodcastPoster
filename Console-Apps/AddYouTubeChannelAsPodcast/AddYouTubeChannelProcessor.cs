@@ -50,9 +50,8 @@ public class AddYouTubeChannelProcessor
             var channel =
                 await _youTubeSearchService.GetChannelContentDetails(new YouTubeChannelId(match.Snippet.ChannelId),
                     indexOptions, withContentOwnerDetails: true);
-
             var newPodcast = _podcastFactory.Create(match.Snippet.ChannelTitle);
-            newPodcast.Publisher = channel.ContentOwnerDetails.ContentOwner;
+            newPodcast.Publisher = channel?.ContentOwnerDetails.ContentOwner ?? string.Empty;
             newPodcast.YouTubePublishingDelayTimeSpan = "1:00:00:00";
             newPodcast.YouTubeChannelId = match.Snippet.ChannelId;
             newPodcast.ReleaseAuthority = Service.YouTube;

@@ -2,8 +2,8 @@
 
 public class TwitterOptions
 {
-    public string ConsumerKey { get; set; }
-    public string ConsumerSecret { get; set; }
-    public string AccessToken { get; set; }
-    public string AccessTokenSecret { get; set; }
+    public required string ConsumerKey { get; set; }
+    public required string ConsumerSecret { get; set; }
+    public required string AccessToken { get; set; }
+    public required string AccessTokenSecret { get; set; }
 }

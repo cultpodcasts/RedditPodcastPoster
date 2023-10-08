@@ -5,13 +5,13 @@ namespace Indexer.Dtos;
 public class RecentEpisode
 {
     [JsonPropertyName("podcastName")]
-    public string PodcastName { get; set; }
+    public required string PodcastName { get; set; }
 
     [JsonPropertyName("episodeTitle")]
-    public string EpisodeTitle { get; set; }
+    public required string EpisodeTitle { get; set; }
 
     [JsonPropertyName("episodeDescription")]
-    public string EpisodeDescription { get; set; }
+    public required string EpisodeDescription { get; set; }
 
     [JsonPropertyName("length")]
     public TimeSpan Length { get; set; }

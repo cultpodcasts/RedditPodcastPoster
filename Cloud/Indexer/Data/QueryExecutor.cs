@@ -78,7 +78,7 @@ public class QueryExecutor : IQueryExecutor
         if (episodeCount.HasMoreResults)
         {
             var item = await episodeCount.ReadNextAsync(ct);
-            count = item.First().item;
+            count = item.First().Item;
         }
 
         return count;

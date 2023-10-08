@@ -1,5 +1,4 @@
 ﻿using System.Net.Http.Headers;
-using System.Text.Json;
 using Indexer.Data;
 using Indexer.Publishing;
 using Indexer.Tweets;
@@ -26,7 +25,7 @@ namespace Indexer;
 public static class Ioc
 {
     public static void ConfigureServices(
-        HostBuilderContext hostBuilderContext, 
+        HostBuilderContext hostBuilderContext,
         IServiceCollection serviceCollection)
     {
         serviceCollection
@@ -39,7 +38,6 @@ public static class Ioc
             .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
             .AddScoped<IPodcastRepository, PodcastRepository>()
             .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
-
 
             // Indexer
             .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
@@ -67,10 +65,10 @@ public static class Ioc
             .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
             .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
             .AddScoped<IEliminationTermsProviderFactory, EliminationTermsProviderFactory>()
-            .AddSingleton(s => s.GetService<IEliminationTermsProviderFactory>().Create().GetAwaiter().GetResult())
+            .AddSingleton(s => s.GetService<IEliminationTermsProviderFactory>()!.Create().GetAwaiter().GetResult())
             .AddScoped<IKnownTermsProviderFactory, KnownTermsProviderFactory>()
             .AddScoped<IKnownTermsRepository, KnownTermsRepository>()
-            .AddSingleton(s => s.GetService<IKnownTermsProviderFactory>().Create().GetAwaiter().GetResult())
+            .AddSingleton(s => s.GetService<IKnownTermsProviderFactory>()!.Create().GetAwaiter().GetResult())
             .AddScoped<IFlushable, CacheFlusher>()
 
             // Poster 
@@ -89,7 +87,7 @@ public static class Ioc
             .AddScoped<ITextSanitiser, TextSanitiser>()
             .AddScoped<IContentPublisher, ContentPublisher>()
             .AddScoped<IAmazonS3ClientFactory, AmazonS3ClientFactory>()
-            .AddScoped(s => s.GetService<IAmazonS3ClientFactory>().Create())
+            .AddScoped(s => s.GetService<IAmazonS3ClientFactory>()!.Create())
 
             // Tweet
             .AddScoped<ITwitterClient, TwitterClient>()
