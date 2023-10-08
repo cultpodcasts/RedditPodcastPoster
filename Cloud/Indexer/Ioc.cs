@@ -146,6 +146,9 @@ public static class Ioc
             .AddOptions<RedditSettings>().Bind(hostBuilderContext.Configuration.GetSection("reddit"));
         serviceCollection
             .AddOptions<SubredditSettings>().Bind(hostBuilderContext.Configuration.GetSection("subreddit"));
+        serviceCollection
+            .AddOptions<PostingCriteria>().Bind(hostBuilderContext.Configuration.GetSection("postingCriteria"));
+
 
         //Publisher
         serviceCollection
