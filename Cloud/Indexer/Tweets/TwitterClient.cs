@@ -32,7 +32,7 @@ public class TwitterClient : ITwitterClient
 
         using var httpClient = new HttpClient(oauth);
 
-        var response = await httpClient.SendAsync(createTweetRequest);
+        using var response = await httpClient.SendAsync(createTweetRequest);
         if (response.IsSuccessStatusCode)
         {
             _logger.LogInformation($"Tweet sent successfully! Tweet: '{tweet}'.");
@@ -41,6 +41,7 @@ public class TwitterClient : ITwitterClient
 
         _logger.LogError(
             $"Failed to send tweet. Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Body: '{await response.Content.ReadAsStringAsync()}'.");
+
         return false;
     }
 }

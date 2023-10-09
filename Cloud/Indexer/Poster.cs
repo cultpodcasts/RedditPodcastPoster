@@ -36,7 +36,17 @@ public class Poster : TaskActivity<object, bool>
         _logger.LogInformation(
             $"{nameof(RunAsync)} Posting with options released-since: '{baselineDate:dd/MM/yyyy HH:mm:ss}''.");
 
-        var result = await _episodeProcessor.PostEpisodesSinceReleaseDate(baselineDate);
+        ProcessResponse result;
+        try
+        {
+            result = await _episodeProcessor.PostEpisodesSinceReleaseDate(baselineDate);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failure executing {nameof(IEpisodeProcessor)}.{nameof(IEpisodeProcessor.PostEpisodesSinceReleaseDate)}.");
+            result= ProcessResponse.Fail(ex.Message);
+        }
+
         if (!result.Success)
         {
             _logger.LogError($"{nameof(RunAsync)} Failed to process posts. {result}");

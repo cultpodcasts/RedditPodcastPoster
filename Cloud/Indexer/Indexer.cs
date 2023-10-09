@@ -34,7 +34,17 @@ public class Indexer : TaskActivity<object, bool>
                 ? $"{nameof(RunAsync)} Indexing with options released-since: '{indexContext.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}'."
                 : $"{nameof(RunAsync)} Indexing with options released-since: Null, bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}'.");
 
-        var results = await _podcastsUpdater.UpdatePodcasts(indexContext);
+        bool results;
+        try
+        {
+            results = await _podcastsUpdater.UpdatePodcasts(indexContext);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failure to execute {nameof(IPodcastsUpdater)}.{nameof(IPodcastsUpdater.UpdatePodcasts)}.");
+            results = false;
+        }
+
         if (!results){
             _logger.LogError("Failure occurred");
         }
