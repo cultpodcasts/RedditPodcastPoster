@@ -10,7 +10,16 @@ public static class FindSpotifyEpisodeRequestFactory
             podcast.SpotifyId, 
             podcast.Name.Trim(), 
             episode.SpotifyId, 
-            episode.Title.Trim(),
-            episode.Release);
+            episode.Title.Trim());
     }
+
+    public static FindSpotifyEpisodeRequest Create(string episodeSpotifyId)
+    {
+        return new FindSpotifyEpisodeRequest(
+            string.Empty,
+            string.Empty,
+            episodeSpotifyId,
+            string.Empty);
+    }
+
 }

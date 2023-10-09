@@ -4,5 +4,4 @@ public record FindSpotifyEpisodeRequest(
     string PodcastSpotifyId, 
     string PodcastName, 
     string EpisodeSpotifyId,
-    string EpisodeTitle, 
-    DateTime Released);
+    string EpisodeTitle);

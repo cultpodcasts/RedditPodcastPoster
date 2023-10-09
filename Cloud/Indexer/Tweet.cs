@@ -21,7 +21,16 @@ public class Tweet : TaskActivity<object, bool>
     public override async Task<bool> RunAsync(TaskActivityContext context, object input)
     {
         _logger.LogInformation($"{nameof(Tweet)} initiated.");
-        await _tweeter.Tweet();
+        try
+        {
+            await _tweeter.Tweet();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failure to execute {nameof(ITweeter)}.{nameof(ITweeter.Tweet)}.");
+            return false;
+        }
+
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
         return true;
     }

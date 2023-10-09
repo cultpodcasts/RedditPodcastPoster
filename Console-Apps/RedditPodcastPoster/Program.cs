@@ -59,6 +59,7 @@ builder.Services
     .AddScoped<ISpotifyPodcastEnricher, SpotifyPodcastEnricher>()
     .AddScoped<ISpotifyIdResolver, SpotifyIdResolver>()
     .AddScoped<ISpotifyItemResolver, SpotifyItemResolver>()
+    .AddScoped<ISpotifyClientWrapper, SpotifyClientWrapper>()
     .AddScoped<ISpotifySearcher, SpotifySearcher>()
     .AddScoped<IEpisodeProcessor, EpisodeProcessor>()
     .AddScoped<IRedditPostTitleFactory, RedditPostTitleFactory>()

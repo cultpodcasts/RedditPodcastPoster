@@ -1,3 +1,4 @@
+using System.Drawing;
 using Indexer.Publishing;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
@@ -21,7 +22,16 @@ public class Publisher : TaskActivity<object, bool>
     public override async Task<bool> RunAsync(TaskActivityContext context, object input)
     {
         _logger.LogInformation($"{nameof(Publisher)} initiated.");
-        await _contentPublisher.Publish();
+        try
+        {
+            await _contentPublisher.Publish();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failure to execute {nameof(IContentPublisher)}.{nameof(IContentPublisher.Publish)}.");
+            return false;
+        }
+
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
         return true;
     }

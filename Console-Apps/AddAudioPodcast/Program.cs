@@ -47,6 +47,7 @@ builder.Services
     .AddScoped<IEpisodeProvider, EpisodeProvider>()
     .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
     .AddScoped<ISpotifyItemResolver, SpotifyItemResolver>()
+    .AddScoped<ISpotifyClientWrapper, SpotifyClientWrapper>()
     .AddScoped<ISpotifySearcher, SpotifySearcher>()
     .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
     .AddScoped<IYouTubeSearchService, YouTubeSearchService>()

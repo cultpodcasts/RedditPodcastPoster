@@ -22,16 +22,19 @@ public class SpotifySearcher : ISpotifySearcher
 
     public SimpleEpisode? FindMatchingEpisode(
         string episodeTitle,
-        DateTime episodeRelease,
+        DateTime? episodeRelease,
         IEnumerable<IEnumerable<SimpleEpisode>> episodeLists)
     {
         foreach (var episodeList in episodeLists)
         {
             var match = episodeList.SingleOrDefault(x => x.Name == episodeTitle);
-            if (match == null)
+            if (match == null && episodeRelease.HasValue)
             {
-                var sameDateMatches = 
-                    episodeList.Where(x =>x.ReleaseDate=="0000" || DateOnly.ParseExact(x.ReleaseDate, "yyyy-MM-dd") == DateOnly.FromDateTime(episodeRelease));
+                var sameDateMatches =
+                    episodeList.Where(x => x.ReleaseDate == "0000" ||
+                                           DateOnly.ParseExact(x.ReleaseDate,
+                                               "yyyy-MM-dd") ==
+                                           DateOnly.FromDateTime(episodeRelease.Value));
                 if (sameDateMatches.Count() > 1)
                 {
                     return sameDateMatches.MaxBy(x => Levenshtein.CalculateSimilarity(episodeTitle, x.Name));

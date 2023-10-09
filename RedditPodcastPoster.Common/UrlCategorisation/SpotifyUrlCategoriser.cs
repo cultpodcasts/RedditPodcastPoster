@@ -2,24 +2,19 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Models;
-using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.Common.UrlCategorisation;
 
 public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
 {
-    private static readonly string Market = "GB";
     private static readonly Regex SpotifyId = new(@"episode/(?'episodeId'\w+)");
     private readonly ILogger<SpotifyUrlCategoriser> _logger;
-    private readonly ISpotifyClient _spotifyClient;
     private readonly ISpotifyItemResolver _spotifyItemResolver;
 
     public SpotifyUrlCategoriser(
-        ISpotifyClient spotifyClient,
         ISpotifyItemResolver spotifyItemResolver,
         ILogger<SpotifyUrlCategoriser> logger)
     {
-        _spotifyClient = spotifyClient;
         _spotifyItemResolver = spotifyItemResolver;
         _logger = logger;
     }
@@ -46,7 +41,8 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
             throw new InvalidOperationException($"Unable to find spotify-id in url '{url}'.");
         }
 
-        var item = await _spotifyClient.Episodes.Get(episodeId, new EpisodeRequest {Market = Market});
+        var item = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(episodeId),
+            indexingContext);
         if (item != null)
         {
             return new ResolvedSpotifyItem(
@@ -73,8 +69,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
             matchingPodcast?.SpotifyId ?? string.Empty,
             (matchingPodcast?.Name ?? criteria.ShowName).Trim(),
             string.Empty,
-            criteria.EpisodeTitle.Trim(),
-            criteria.Release);
+            criteria.EpisodeTitle.Trim());
         var item = await _spotifyItemResolver.FindEpisode(request, indexingContext);
         if (item != null)
         {

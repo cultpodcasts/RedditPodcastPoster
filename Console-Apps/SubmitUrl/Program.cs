@@ -38,6 +38,7 @@ builder.Services
     .AddScoped<ISpotifyUrlCategoriser, SpotifyUrlCategoriser>()
     .AddScoped<IYouTubeUrlCategoriser, YouTubeUrlCategoriser>()
     .AddScoped<ISpotifyItemResolver, SpotifyItemResolver>()
+    .AddScoped<ISpotifyClientWrapper, SpotifyClientWrapper>()
     .AddScoped<ISpotifySearcher, SpotifySearcher>()
     .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
     .AddScoped<IRemoteClient, RemoteClient>()

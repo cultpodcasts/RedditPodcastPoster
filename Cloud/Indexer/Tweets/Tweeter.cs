@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.Text;
+using RedditPodcastPoster.Models;
 
 namespace Indexer.Tweets;
 
@@ -28,16 +29,44 @@ public class Tweeter : ITweeter
 
     public async Task Tweet()
     {
-        var podcastEpisode = await GetPodcastEpisode();
+        PodcastEpisode? podcastEpisode= null;
+        try
+        {
+            podcastEpisode = await GetPodcastEpisode();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failure to find podcast-episode.");
+            throw;
+        }
+
         if (podcastEpisode != null)
         {
-            await PostTweet(podcastEpisode);
+            try
+            {
+                await PostTweet(podcastEpisode);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failure to post-tweet for podcast with id '{podcastEpisode.Podcast.Id}' and episode-id '{podcastEpisode.Episode.Id}'.");
+                throw;
+            }
         }
     }
 
     private async Task<PodcastEpisode?> GetPodcastEpisode()
     {
-        var podcasts = await _repository.GetAll().ToListAsync();
+        List<Podcast> podcasts;
+        try
+        {
+            podcasts = await _repository.GetAll().ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failure to retrieve podcasts");
+            throw;
+        }
+
         var podcastEpisode =
             podcasts
                 .SelectMany(p => p.Episodes.Select(e => new {Podcast = p, Episode = e}))
@@ -58,11 +87,31 @@ public class Tweeter : ITweeter
     private async Task PostTweet(PodcastEpisode podcastEpisode)
     {
         var tweet = BuildTweet(podcastEpisode);
-        var tweeted = await _twitterClient.Send(tweet);
+        bool tweeted;
+        try
+        {
+            tweeted = await _twitterClient.Send(tweet);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failure to send tweet for podcast-id '{podcastEpisode.Podcast.Id}' episode-id '{podcastEpisode.Episode.Id}', tweet: '{tweet}'.");
+            throw;
+        }
+
         if (tweeted)
         {
             podcastEpisode.Episode.Tweeted = true;
-            await _repository.Update(podcastEpisode.Podcast);
+            try
+            {
+                await _repository.Update(podcastEpisode.Podcast);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failure to save podcast with podcast-id '{podcastEpisode.Podcast.Id}' to update episode with id '{podcastEpisode.Episode.Id}'.");
+                throw;
+            }
+
+
             _logger.LogInformation($"Tweeted '{tweet}'.");
         }
         else

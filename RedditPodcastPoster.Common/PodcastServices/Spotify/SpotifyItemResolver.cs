@@ -8,16 +8,15 @@ public class SpotifyItemResolver : ISpotifyItemResolver
 {
     private const string Market = "GB";
     private readonly ILogger<SpotifyItemResolver> _logger;
-
-    private readonly ISpotifyClient _spotifyClient;
+    private readonly ISpotifyClientWrapper _spotifyClientWrapper;
     private readonly ISpotifySearcher _spotifySearcher;
 
     public SpotifyItemResolver(
-        ISpotifyClient spotifyClient,
+        ISpotifyClientWrapper spotifyClientWrapper,
         ISpotifySearcher spotifySearcher,
         ILogger<SpotifyItemResolver> logger)
     {
-        _spotifyClient = spotifyClient;
+        _spotifyClientWrapper = spotifyClientWrapper;
         _spotifySearcher = spotifySearcher;
         _logger = logger;
     }
@@ -27,7 +26,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         if (indexingContext.SkipSpotifyUrlResolving)
         {
             _logger.LogInformation(
-                $"Skipping '{nameof(FindEpisode)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.PodcastSpotifyId}', Podcast-Name:'{request.PodcastName}', Episode-Id:'{request.EpisodeSpotifyId}', Episode-Name:'{request.EpisodeTitle}', Released:{request.Released:R}.");
+                $"Skipping '{nameof(FindEpisode)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.PodcastSpotifyId}', Podcast-Name:'{request.PodcastName}', Episode-Id:'{request.EpisodeSpotifyId}', Episode-Name:'{request.EpisodeTitle}'.");
             return null;
         }
 
@@ -35,25 +34,28 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         if (!string.IsNullOrWhiteSpace(request.EpisodeSpotifyId))
         {
             var episodeRequest = new EpisodeRequest {Market = Market};
-            fullEpisode = await _spotifyClient.Episodes.Get(request.EpisodeSpotifyId, episodeRequest);
+            fullEpisode =
+                await _spotifyClientWrapper.GetFullEpisode(request.EpisodeSpotifyId, episodeRequest, indexingContext);
         }
 
         if (fullEpisode == null)
         {
-            (string, Paging<SimpleEpisode>)[]? episodes = null;
+            (string, Paging<SimpleEpisode>?)[]? episodes = null;
             if (!string.IsNullOrWhiteSpace(request.PodcastSpotifyId))
             {
                 var showRequest = new ShowRequest {Market = Market};
-                var fullShow = await _spotifyClient.Shows.Get(request.PodcastSpotifyId, showRequest);
+                var fullShow =
+                    await _spotifyClientWrapper.GetFullShow(request.PodcastSpotifyId, showRequest, indexingContext);
                 if (fullShow != null)
                 {
-                    episodes = new[] {(request.PodcastSpotifyId, fullShow.Episodes)};
+                    episodes = new (string, Paging<SimpleEpisode>?)[] {(request.PodcastSpotifyId, fullShow.Episodes)};
                 }
             }
             else
             {
                 var searchRequest = new SearchRequest(SearchRequest.Types.Show, request.PodcastName) {Market = Market};
-                var podcastSearchResponse = await _spotifyClient.Search.Item(searchRequest);
+                var podcastSearchResponse =
+                    await _spotifyClientWrapper.GetSearchResponse(searchRequest, indexingContext);
                 if (podcastSearchResponse != null)
                 {
                     var podcasts = podcastSearchResponse.Shows.Items;
@@ -66,8 +68,9 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                     }
 
                     var episodesFetches = matchingPodcasts.Select(async x =>
-                        await _spotifyClient.Shows.GetEpisodes(x.Id, showEpisodesRequest).ContinueWith(y =>
-                            new ValueTuple<string, Paging<SimpleEpisode>>(x.Id, y.Result)));
+                        await _spotifyClientWrapper.GetShowEpisodes(x.Id, showEpisodesRequest, indexingContext)
+                            .ContinueWith(y =>
+                                new ValueTuple<string, Paging<SimpleEpisode>?>(x.Id, y.Result)));
                     episodes = await Task.WhenAll(episodesFetches);
                 }
             }
@@ -77,17 +80,22 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                 IList<IList<SimpleEpisode>> allEpisodes = new List<IList<SimpleEpisode>>();
                 foreach (var paging in episodes)
                 {
-                    var simpleEpisodes =
-                        await PaginateEpisodes(paging.Item2, indexingContext);
-                    allEpisodes.Add(simpleEpisodes);
+                    if (paging.Item2 != null)
+                    {
+                        var simpleEpisodes =
+                            await PaginateEpisodes(paging.Item2, indexingContext);
+                        allEpisodes.Add(simpleEpisodes);
+                    }
                 }
 
                 var matchingEpisode =
-                    _spotifySearcher.FindMatchingEpisode(request.EpisodeTitle, request.Released, allEpisodes);
+                    _spotifySearcher.FindMatchingEpisode(request.EpisodeTitle, indexingContext.ReleasedSince,
+                        allEpisodes);
                 if (matchingEpisode != null)
                 {
                     var showRequest = new EpisodeRequest {Market = Market};
-                    fullEpisode = await _spotifyClient.Episodes.Get(matchingEpisode.Id, showRequest);
+                    fullEpisode =
+                        await _spotifyClientWrapper.GetFullEpisode(matchingEpisode.Id, showRequest, indexingContext);
                 }
             }
         }
@@ -110,13 +118,13 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         if (!string.IsNullOrWhiteSpace(request.PodcastId))
         {
             var showRequest = new ShowRequest {Market = Market};
-            matchingFullShow = await _spotifyClient.Shows.Get(request.PodcastId, showRequest);
+            matchingFullShow = await _spotifyClientWrapper.GetFullShow(request.PodcastId, showRequest, indexingContext);
         }
 
         if (matchingFullShow == null)
         {
             var searchRequest = new SearchRequest(SearchRequest.Types.Show, request.Name);
-            var podcasts = await _spotifyClient.Search.Item(searchRequest);
+            var podcasts = await _spotifyClientWrapper.GetSearchResponse(searchRequest, indexingContext);
             if (podcasts != null)
             {
                 var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(request.Name, podcasts.Shows.Items);
@@ -131,11 +139,12 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                         }
 
                         var pagedEpisodes =
-                            await _spotifyClient.Shows.GetEpisodes(candidatePodcast.Id, showEpisodesRequest);
+                            await _spotifyClientWrapper.GetShowEpisodes(candidatePodcast.Id, showEpisodesRequest,
+                                indexingContext);
                         if (pagedEpisodes != null)
                         {
                             var allEpisodes = await PaginateEpisodes(pagedEpisodes, indexingContext);
-                            if (allEpisodes != null)
+                            if (allEpisodes.Any())
                             {
                                 var mostRecentEpisode = request.Episodes.OrderByDescending(x => x.Release).First();
                                 var matchingEpisode =
@@ -163,7 +172,6 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         return new SpotifyPodcastWrapper(matchingFullShow, matchingSimpleShow);
     }
 
-
     public async Task<IEnumerable<SimpleEpisode>?> GetEpisodes(
         SpotifyPodcastId request,
         IndexingContext indexingContext)
@@ -177,13 +185,19 @@ public class SpotifyItemResolver : ISpotifyItemResolver
 
         var showEpisodesRequest = new ShowEpisodesRequest {Market = Market};
 
-        var pagedEpisodes = await _spotifyClient.Shows.GetEpisodes(request.PodcastId, showEpisodesRequest);
+        if (indexingContext.ReleasedSince.HasValue)
+        {
+            showEpisodesRequest.Limit = 5;
+        }
+
+        var pagedEpisodes =
+            await _spotifyClientWrapper.GetShowEpisodes(request.PodcastId, showEpisodesRequest, indexingContext);
 
         return await PaginateEpisodes(pagedEpisodes, indexingContext);
     }
 
     private async Task<IList<SimpleEpisode>> PaginateEpisodes(
-        IPaginatable<SimpleEpisode> pagedEpisodes,
+        IPaginatable<SimpleEpisode>? pagedEpisodes,
         IndexingContext indexingContext)
     {
         if (indexingContext.SkipSpotifyUrlResolving)
@@ -193,8 +207,46 @@ public class SpotifyItemResolver : ISpotifyItemResolver
             return new List<SimpleEpisode>();
         }
 
-        var fetch = await _spotifyClient.PaginateAll(pagedEpisodes);
-        var episodes = fetch.ToList();
+        if (pagedEpisodes == null || pagedEpisodes.Items == null)
+        {
+            return new List<SimpleEpisode>();
+        }
+
+        var currentMoment = DateTime.Now;
+        var isInReverseTimeOrder = true;
+        var ctr = 0;
+        while (isInReverseTimeOrder && ctr < pagedEpisodes.Items.Count)
+        {
+            var releaseDate = pagedEpisodes.Items[ctr++].GetReleaseDate();
+            isInReverseTimeOrder = currentMoment >= releaseDate;
+            if (isInReverseTimeOrder)
+            {
+                currentMoment = releaseDate;
+            }
+        }
+
+        var episodes = pagedEpisodes.Items.ToList();
+
+        if (indexingContext.ReleasedSince == null || !isInReverseTimeOrder)
+        {
+            var fetch = await _spotifyClientWrapper.PaginateAll(pagedEpisodes, indexingContext);
+            if (fetch != null)
+            {
+                episodes = fetch.ToList();
+            }
+        }
+        else
+        {
+            while (episodes.OrderByDescending(x => x.ReleaseDate).Last().GetReleaseDate() >=
+                   indexingContext.ReleasedSince)
+            {
+                var batchEpisodes = await _spotifyClientWrapper.Paginate(pagedEpisodes, indexingContext);
+                if (batchEpisodes != null)
+                {
+                    episodes.AddRange(batchEpisodes);
+                }
+            }
+        }
 
         return episodes;
     }
