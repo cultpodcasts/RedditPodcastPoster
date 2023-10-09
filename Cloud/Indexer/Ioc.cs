@@ -60,6 +60,7 @@ public static class Ioc
             .AddScoped<ISpotifyPodcastEnricher, SpotifyPodcastEnricher>()
             .AddScoped<ISpotifyIdResolver, SpotifyIdResolver>()
             .AddScoped<ISpotifyItemResolver, SpotifyItemResolver>()
+            .AddScoped<ISpotifyClientWrapper, SpotifyClientWrapper>()
             .AddScoped<ISpotifySearcher, SpotifySearcher>()
             .AddScoped<IPodcastFilter, PodcastFilter>()
             .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()

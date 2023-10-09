@@ -170,7 +170,7 @@ public class YouTubeSearchService : IYouTubeSearchService
         bool withSnippets = false,
         bool withContentOwnerDetails = false)
     {
-        _logger.LogInformation($"YOUTUBE: Get channel for channel-id {channelId}.");
+        _logger.LogInformation($"YOUTUBE: GetFullEpisode channel for channel-id {channelId}.");
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(
