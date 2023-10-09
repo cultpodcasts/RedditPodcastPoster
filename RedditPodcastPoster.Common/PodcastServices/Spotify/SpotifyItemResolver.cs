@@ -144,7 +144,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                         if (pagedEpisodes != null)
                         {
                             var allEpisodes = await PaginateEpisodes(pagedEpisodes, indexingContext);
-                            if (allEpisodes != null)
+                            if (allEpisodes.Any())
                             {
                                 var mostRecentEpisode = request.Episodes.OrderByDescending(x => x.Release).First();
                                 var matchingEpisode =
@@ -172,7 +172,6 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         return new SpotifyPodcastWrapper(matchingFullShow, matchingSimpleShow);
     }
 
-
     public async Task<IEnumerable<SimpleEpisode>?> GetEpisodes(
         SpotifyPodcastId request,
         IndexingContext indexingContext)
@@ -198,13 +197,18 @@ public class SpotifyItemResolver : ISpotifyItemResolver
     }
 
     private async Task<IList<SimpleEpisode>> PaginateEpisodes(
-        IPaginatable<SimpleEpisode> pagedEpisodes,
+        IPaginatable<SimpleEpisode>? pagedEpisodes,
         IndexingContext indexingContext)
     {
         if (indexingContext.SkipSpotifyUrlResolving)
         {
             _logger.LogInformation(
                 $"Skipping '{nameof(PaginateEpisodes)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set.");
+            return new List<SimpleEpisode>();
+        }
+
+        if (pagedEpisodes == null || pagedEpisodes.Items == null)
+        {
             return new List<SimpleEpisode>();
         }
 
@@ -226,7 +230,10 @@ public class SpotifyItemResolver : ISpotifyItemResolver
         if (indexingContext.ReleasedSince == null || !isInReverseTimeOrder)
         {
             var fetch = await _spotifyClientWrapper.PaginateAll(pagedEpisodes, indexingContext);
-            episodes = fetch.ToList();
+            if (fetch != null)
+            {
+                episodes = fetch.ToList();
+            }
         }
         else
         {
@@ -234,7 +241,10 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                    indexingContext.ReleasedSince)
             {
                 var batchEpisodes = await _spotifyClientWrapper.Paginate(pagedEpisodes, indexingContext);
-                episodes.AddRange(batchEpisodes);
+                if (batchEpisodes != null)
+                {
+                    episodes.AddRange(batchEpisodes);
+                }
             }
         }
 
