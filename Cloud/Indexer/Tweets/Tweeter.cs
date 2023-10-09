@@ -29,14 +29,14 @@ public class Tweeter : ITweeter
 
     public async Task Tweet()
     {
-        PodcastEpisode? podcastEpisode= null;
+        PodcastEpisode? podcastEpisode = null;
         try
         {
             podcastEpisode = await GetPodcastEpisode();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Failure to find podcast-episode.");
+            _logger.LogError(ex, "Failure to find podcast-episode.");
             throw;
         }
 
@@ -48,7 +48,8 @@ public class Tweeter : ITweeter
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Failure to post-tweet for podcast with id '{podcastEpisode.Podcast.Id}' and episode-id '{podcastEpisode.Episode.Id}'.");
+                _logger.LogError(ex,
+                    $"Failure to post-tweet for podcast with id '{podcastEpisode.Podcast.Id}' and episode-id '{podcastEpisode.Episode.Id}'.");
                 throw;
             }
         }
@@ -63,7 +64,7 @@ public class Tweeter : ITweeter
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Failure to retrieve podcasts");
+            _logger.LogError(ex, "Failure to retrieve podcasts");
             throw;
         }
 
@@ -71,9 +72,11 @@ public class Tweeter : ITweeter
             podcasts
                 .SelectMany(p => p.Episodes.Select(e => new {Podcast = p, Episode = e}))
                 .Where(x =>
-                    x.Episode.Release >= DateTime.UtcNow.Date.AddDays(-1) &&
+                    x.Episode.Release >= DateTime.UtcNow.Date.AddHours(-24) &&
                     x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
-                    (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null || x.Episode.Urls.Apple != null))
+                    (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null ||
+                     x.Episode.Urls.Apple != null) &&
+                    !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
                 .MaxBy(x => x.Episode.Release);
         if (podcastEpisode?.Podcast == null)
         {
@@ -94,7 +97,8 @@ public class Tweeter : ITweeter
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Failure to send tweet for podcast-id '{podcastEpisode.Podcast.Id}' episode-id '{podcastEpisode.Episode.Id}', tweet: '{tweet}'.");
+            _logger.LogError(ex,
+                $"Failure to send tweet for podcast-id '{podcastEpisode.Podcast.Id}' episode-id '{podcastEpisode.Episode.Id}', tweet: '{tweet}'.");
             throw;
         }
 
@@ -107,7 +111,8 @@ public class Tweeter : ITweeter
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Failure to save podcast with podcast-id '{podcastEpisode.Podcast.Id}' to update episode with id '{podcastEpisode.Episode.Id}'.");
+                _logger.LogError(ex,
+                    $"Failure to save podcast with podcast-id '{podcastEpisode.Podcast.Id}' to update episode with id '{podcastEpisode.Episode.Id}'.");
                 throw;
             }
 

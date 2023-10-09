@@ -39,7 +39,7 @@ public class EpisodeResolver : IEpisodeResolver
         {
             var matchingEpisodes = matchingPodcast?.Episodes
                 .Where(x => x.Release >= since);
-            if (matchingEpisodes != null)
+            if (matchingEpisodes != null && matchingEpisodes.Any())
             {
                 foreach (var matchingEpisode in matchingEpisodes)
                 {
