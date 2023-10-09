@@ -40,7 +40,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
 
         if (fullEpisode == null)
         {
-            (string, Paging<SimpleEpisode>)[]? episodes = null;
+            (string, Paging<SimpleEpisode>?)[]? episodes = null;
             if (!string.IsNullOrWhiteSpace(request.PodcastSpotifyId))
             {
                 var showRequest = new ShowRequest {Market = Market};
@@ -48,7 +48,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                     await _spotifyClientWrapper.GetFullShow(request.PodcastSpotifyId, showRequest, indexingContext);
                 if (fullShow != null)
                 {
-                    episodes = new[] {(request.PodcastSpotifyId, fullShow.Episodes)};
+                    episodes = new (string, Paging<SimpleEpisode>?)[] {(request.PodcastSpotifyId, fullShow.Episodes)};
                 }
             }
             else
@@ -70,7 +70,7 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                     var episodesFetches = matchingPodcasts.Select(async x =>
                         await _spotifyClientWrapper.GetShowEpisodes(x.Id, showEpisodesRequest, indexingContext)
                             .ContinueWith(y =>
-                                new ValueTuple<string, Paging<SimpleEpisode>>(x.Id, y.Result)));
+                                new ValueTuple<string, Paging<SimpleEpisode>?>(x.Id, y.Result)));
                     episodes = await Task.WhenAll(episodesFetches);
                 }
             }
@@ -80,9 +80,12 @@ public class SpotifyItemResolver : ISpotifyItemResolver
                 IList<IList<SimpleEpisode>> allEpisodes = new List<IList<SimpleEpisode>>();
                 foreach (var paging in episodes)
                 {
-                    var simpleEpisodes =
-                        await PaginateEpisodes(paging.Item2, indexingContext);
-                    allEpisodes.Add(simpleEpisodes);
+                    if (paging.Item2 != null)
+                    {
+                        var simpleEpisodes =
+                            await PaginateEpisodes(paging.Item2, indexingContext);
+                        allEpisodes.Add(simpleEpisodes);
+                    }
                 }
 
                 var matchingEpisode =
