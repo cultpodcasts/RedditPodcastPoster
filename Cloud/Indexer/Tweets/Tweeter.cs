@@ -92,7 +92,7 @@ public class Tweeter : ITweeter
         }
 
         tweetBuilder.AppendLine(
-            $"{podcastEpisode.Episode.Release.ToString("dd MMM yyyy")} {podcastEpisode.Episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture)}");
+            $"{podcastEpisode.Episode.Release.ToString("d MMM yyyy")} {podcastEpisode.Episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture)}");
         tweetBuilder.AppendLine("#CultPodcasts");
         if (podcastEpisode.Episode.Urls.YouTube != null)
         {

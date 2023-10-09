@@ -51,6 +51,7 @@ public class UrlSubmitter : IUrlSubmitter
             var newPodcast = CreatePodcastWithEpisode(categorisedItem);
 
             await _podcastRepository.Save(newPodcast);
+            podcasts.Add(newPodcast);
         }
     }
 
