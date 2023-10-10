@@ -6,7 +6,7 @@ public static class PodcastExtensions
 {
     public static bool IsDelayedYouTubePublishing(this Podcast podcast, Episode episode)
     {
-        if (IsAudioPodcastThatAwaitingYouTubeRelease(podcast, episode) ||
+        if (IsAudioPodcastAwaitingYouTubeRelease(podcast, episode) ||
             IsYouTubePodcastWithDelayedPosting(podcast))
         {
             var timeSpan = TimeSpan.Parse(podcast.YouTubePublishingDelayTimeSpan);
@@ -19,7 +19,7 @@ public static class PodcastExtensions
         return false;
     }
 
-    private static bool IsAudioPodcastThatAwaitingYouTubeRelease(Podcast podcast, Episode episode)
+    private static bool IsAudioPodcastAwaitingYouTubeRelease(Podcast podcast, Episode episode)
     {
         return episode.Urls.YouTube == null &&
                !string.IsNullOrWhiteSpace(podcast!.YouTubePublishingDelayTimeSpan);

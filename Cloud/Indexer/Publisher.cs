@@ -1,4 +1,3 @@
-using System.Drawing;
 using Indexer.Publishing;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
@@ -28,7 +27,8 @@ public class Publisher : TaskActivity<object, bool>
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Failure to execute {nameof(IContentPublisher)}.{nameof(IContentPublisher.Publish)}.");
+            _logger.LogError(ex,
+                $"Failure to execute {nameof(IContentPublisher)}.{nameof(IContentPublisher.Publish)}.");
             return false;
         }
 
