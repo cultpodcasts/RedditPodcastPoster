@@ -67,14 +67,23 @@ public class EpisodeProcessor : IEpisodeProcessor
 
     private ProcessResponse CreateResponse(List<ProcessResponse> matchingPodcastEpisodeResults)
     {
+        var messages = new List<string>();
+        var failures = false;
         if (matchingPodcastEpisodeResults.Any(x => !x.Success))
         {
-            var failureMessages = matchingPodcastEpisodeResults.Where(x => !x.Success).Select(x => x.Message);
-            return ProcessResponse.Fail(string.Join(", ", failureMessages));
+            failures = true;
+            messages.Add("Failures:");
+            messages.AddRange(matchingPodcastEpisodeResults.Where(x => !x.Success).Select(x => x.Message));
         }
 
-        var successMessages = matchingPodcastEpisodeResults.Select(x => x.Message);
-        return ProcessResponse.Successful(string.Join(", ", successMessages));
+        if (matchingPodcastEpisodeResults.Any(x => x.Success))
+        {
+            messages.Add("Success:");
+            messages.AddRange(matchingPodcastEpisodeResults.Select(x => x.Message));
+        }
+
+        var result = string.Join(", ", messages);
+        return failures ? ProcessResponse.Fail(result) : ProcessResponse.Successful(result);
     }
 
     public async Task<ProcessResponse?> PostEpisodeFromSpotifyUrl(Uri spotifyUri)

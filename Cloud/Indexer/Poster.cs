@@ -49,11 +49,11 @@ public class Poster : TaskActivity<object, bool>
 
         if (!result.Success)
         {
-            _logger.LogError($"{nameof(RunAsync)} Failed to process posts. {result}");
+            _logger.LogError($"{nameof(RunAsync)} Failed to process posts. {result.ToString()}");
         }
         else
         {
-            _logger.LogInformation($"{nameof(RunAsync)} Successfully processed posts. {result}");
+            _logger.LogInformation($"{nameof(RunAsync)} Successfully processed posts. {result.ToString()}");
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
