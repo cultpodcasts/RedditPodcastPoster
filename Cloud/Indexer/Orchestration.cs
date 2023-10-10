@@ -11,14 +11,15 @@ public class Orchestration : TaskOrchestrator<object, bool>
         var logger = context.CreateReplaySafeLogger<Orchestration>(); // orchestrations do NOT have access to DI.
         logger.LogInformation($"{nameof(Orchestration)}.{nameof(RunAsync)} initiated.");
 
-        var success = await context.CallIndexerAsync(new object());
+        bool success= true;
+        success = await context.CallIndexerAsync(new object());
         logger.LogInformation($"{nameof(Indexer)} complete.");
-
-        success |= await context.CallPublisherAsync(new object());
-        logger.LogInformation($"{nameof(Publisher)} complete.");
 
         success |= await context.CallPosterAsync(new object());
         logger.LogInformation($"{nameof(Poster)} complete.");
+
+        success |= await context.CallPublisherAsync(new object());
+        logger.LogInformation($"{nameof(Publisher)} complete.");
 
         success |= await context.CallTweetAsync(new object());
         logger.LogInformation($"{nameof(Tweet)} complete. All tasks complete.");
