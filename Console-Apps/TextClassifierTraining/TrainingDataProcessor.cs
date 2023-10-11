@@ -109,18 +109,34 @@ public class TrainingDataProcessor
         }
 
         _logger.LogInformation($"Podcast Episodes: {flairedEpisodes.Count}");
-        var flairedEpisodesWithFlair = flairedEpisodes.Where(x => !string.IsNullOrWhiteSpace(x.Item3));
+        var flairedEpisodesWithFlair =
+            flairedEpisodes.Where(x => !string.IsNullOrWhiteSpace(x.Item3) || x.Item2.Subjects.Any());
         _logger.LogInformation(
             $"Podcast Episodes with flair: {flairedEpisodesWithFlair.Count()}");
 
         foreach (var flairedEpisode in flairedEpisodesWithFlair)
         {
             var id = flairedEpisode.Item2.Id;
+
+            var podcastSubjects = flairedEpisode.Item2.Subjects;
+            var flair = flairedEpisode.Item3;
+
+            var subjects = new List<string>();
+            if (podcastSubjects.Any())
+            {
+                subjects.AddRange(podcastSubjects);
+            }
+
+            if (!string.IsNullOrWhiteSpace(flair))
+            {
+                subjects.Add(flair);
+            }
+
             var trainingData = new TrainingData(
                 id,
                 flairedEpisode.Item2.Title,
                 flairedEpisode.Item2.Description,
-                flairedEpisode.Item3 ?? string.Empty);
+                subjects.Distinct().ToArray());
             await trainingDataRepository.Save(id.ToString(), trainingData);
         }
     }
