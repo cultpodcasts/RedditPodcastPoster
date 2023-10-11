@@ -6,23 +6,23 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
-public class ResolvedPodcastEpisodePoster : IResolvedPodcastEpisodePoster
+public class PodcastEpisodePoster : IPodcastEpisodePoster
 {
     private readonly IEpisodePostManager _episodePostManager;
-    private readonly ILogger<ResolvedPodcastEpisodePoster> _logger;
+    private readonly ILogger<PodcastEpisodePoster> _logger;
 
-    public ResolvedPodcastEpisodePoster(
+    public PodcastEpisodePoster(
         IEpisodePostManager episodePostManager,
-        ILogger<ResolvedPodcastEpisodePoster> logger)
+        ILogger<PodcastEpisodePoster> logger)
     {
         _episodePostManager = episodePostManager;
         _logger = logger;
     }
 
-    public async Task<ProcessResponse> PostResolvedPodcastEpisode(ResolvedPodcastEpisode resolvedEpisode)
+    public async Task<ProcessResponse> PostPodcastEpisode(PodcastEpisode podcastEpisode)
     {
-        var episodes = GetEpisodes(resolvedEpisode);
-        var postModel = (resolvedEpisode.Podcast!, episodes).ToPostModel();
+        var episodes = GetEpisodes(podcastEpisode);
+        var postModel = (podcastEpisode.Podcast!, episodes).ToPostModel();
 
         var result = await _episodePostManager.Post(postModel);
 
@@ -37,7 +37,7 @@ public class ResolvedPodcastEpisodePoster : IResolvedPodcastEpisodePoster
         return result;
     }
 
-    private Episode[] GetEpisodes(ResolvedPodcastEpisode matchingPodcastEpisode)
+    private Episode[] GetEpisodes(PodcastEpisode matchingPodcastEpisode)
     {
         var orderedBundleEpisodes = Array.Empty<Episode>();
         if (matchingPodcastEpisode.Podcast!.Bundles &&
@@ -57,7 +57,7 @@ public class ResolvedPodcastEpisodePoster : IResolvedPodcastEpisodePoster
         return orderedBundleEpisodes;
     }
 
-    private IOrderedEnumerable<Episode> GetOrderedBundleEpisodes(ResolvedPodcastEpisode matchingPodcastEpisode)
+    private IOrderedEnumerable<Episode> GetOrderedBundleEpisodes(PodcastEpisode matchingPodcastEpisode)
     {
         if (string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast!.TitleRegex))
         {

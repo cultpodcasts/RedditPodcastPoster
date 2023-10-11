@@ -10,11 +10,11 @@ public class PublicPodcast
 
     [JsonPropertyName("name")]
     [JsonPropertyOrder(3)]
-    public string Name { get; set; } = "";
+    public string? Name { get; set; } 
 
     [JsonPropertyName("spotifyId")]
     [JsonPropertyOrder(5)]
-    public string SpotifyId { get; set; } = "";
+    public string? SpotifyId { get; set; }
 
     [JsonPropertyName("appleId")]
     [JsonPropertyOrder(6)]
@@ -22,9 +22,14 @@ public class PublicPodcast
 
     [JsonPropertyName("youTubeChannelId")]
     [JsonPropertyOrder(7)]
-    public string YouTubeChannelId { get; set; } = "";
+    public string? YouTubeChannelId { get; set; }
+
+    [JsonPropertyName("youTubePlaylistId")]
+    [JsonPropertyOrder(8)]
+    public string? YouTubePlaylistId { get; set; }
 
     [JsonPropertyName("episodes")]
     [JsonPropertyOrder(11)]
     public List<PublicEpisode> Episodes { get; set; } = new();
+
 }

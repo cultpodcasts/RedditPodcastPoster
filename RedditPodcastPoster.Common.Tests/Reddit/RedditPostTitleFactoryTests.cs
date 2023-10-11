@@ -140,8 +140,9 @@ public class RedditPostTitleFactoryTests
     public void ConstructPostTitle_LowerCasePodCastTitle_IsCorrect()
     {
         // arrange
+        var originalTitle = "podcast title";
         var postModel = new PostModel(
-            new PodcastPost("podcast title",
+            new PodcastPost(originalTitle,
                 string.Empty,
                 string.Empty,
                 new[]
@@ -155,7 +156,7 @@ public class RedditPostTitleFactoryTests
         // act
         var result = Sut.ConstructPostTitle(postModel);
         // assert
-        result.Should().Contain("Podcast Title");
+        result.Should().Contain(originalTitle);
     }
 
     [Theory]

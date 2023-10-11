@@ -30,8 +30,8 @@ public class SplitFileRepository : ISplitFileRepository
         return result;
     }
 
-    public IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector
+    public IAsyncEnumerable<T> GetAll<T>(string partitionKey) where T : CosmosSelector
     {
-        return _inputFileRepository.GetAll<T>();
+        return _inputFileRepository.GetAll<T>(partitionKey);
     }
 }

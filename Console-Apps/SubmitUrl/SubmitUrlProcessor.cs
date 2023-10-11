@@ -54,6 +54,7 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
             var urls = await File.ReadAllLinesAsync(request.UrlOrFile);
             foreach (var url in urls)
             {
+                _logger.LogInformation($"Ingesting '{url}'.");
                 await _urlSubmitter.Submit(podcasts, new Uri(url, UriKind.Absolute), indexOptions);
             }
         }

@@ -23,7 +23,7 @@ public class CosmosDbDownloader
 
     public async Task Run()
     {
-        var partitionKey = new Podcast().GetPartitionKey();
+        var partitionKey = Podcast.PartitionKey;
         var podcastIds =
             await _cosmosDbRepository.GetAllIds<Podcast>(partitionKey);
         foreach (var podcastId in podcastIds)

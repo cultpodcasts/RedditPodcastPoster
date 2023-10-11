@@ -22,7 +22,7 @@ public class PublicDatabasePublisher
 
     public async Task Run()
     {
-        var partitionKey = new Podcast().GetPartitionKey();
+        var partitionKey = Podcast.PartitionKey;
         var podcastIds =
             await _cosmosDbRepository.GetAllIds<Podcast>(partitionKey);
         foreach (var podcastId in podcastIds)
@@ -34,27 +34,31 @@ public class PublicDatabasePublisher
                 Id = podcast!.Id,
                 AppleId = podcast.AppleId,
                 Name = podcast.Name,
-                SpotifyId = podcast.SpotifyId,
-                YouTubeChannelId = podcast.YouTubeChannelId
+                SpotifyId = string.IsNullOrWhiteSpace(podcast.SpotifyId) ? null : podcast.SpotifyId,
+                YouTubeChannelId =
+                    string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) ? null : podcast.YouTubeChannelId,
+                YouTubePlaylistId = string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId)
+                    ? null
+                    : podcast.YouTubePlaylistId
             };
             publicPodcast.Episodes = podcast.Episodes.Where(x => !x.Removed).Select(oldEpisode => new PublicEpisode
             {
                 Id = oldEpisode.Id,
                 AppleId = oldEpisode.AppleId,
-                Description = oldEpisode.Description,
+                Description = string.IsNullOrWhiteSpace(oldEpisode.Description) ? null : oldEpisode.Description,
                 Explicit = oldEpisode.Explicit,
                 Length = oldEpisode.Length,
                 Release = oldEpisode.Release,
-                SpotifyId = oldEpisode.SpotifyId,
+                SpotifyId = string.IsNullOrWhiteSpace(oldEpisode.SpotifyId) ? null : oldEpisode.SpotifyId,
                 Title = oldEpisode.Title,
-                YouTubeId = oldEpisode.YouTubeId,
+                YouTubeId = string.IsNullOrWhiteSpace(oldEpisode.YouTubeId) ? null : oldEpisode.YouTubeId,
                 Urls = new PublicServiceUrls
                 {
                     Apple = oldEpisode.Urls.Apple,
                     Spotify = oldEpisode.Urls.Spotify,
                     YouTube = oldEpisode.Urls.YouTube
                 },
-                Subjects = oldEpisode.Subjects
+                Subjects = oldEpisode.Subjects.Any() ? oldEpisode.Subjects : null
             }).ToList();
 
             await _fileRepository.Write(podcast.FileKey, publicPodcast);

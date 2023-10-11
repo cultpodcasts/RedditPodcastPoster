@@ -5,7 +5,9 @@ namespace RedditPodcastPoster.Models;
 [CosmosSelector(ModelType.Podcast)]
 public class Podcast : CosmosSelector
 {
-    public Podcast() : base(ModelType.Podcast)
+    public static readonly string PartitionKey = ModelType.Podcast.ToString();
+
+    public Podcast(Guid id) : base(id, ModelType.Podcast)
     {
     }
 
@@ -85,10 +87,4 @@ public class Podcast : CosmosSelector
     [JsonPropertyName("fileKey")]
     [JsonPropertyOrder(100)]
     public string FileKey { get; set; } = "";
-
-
-    public Podcast FromName(string name)
-    {
-        return new Podcast {Name = name};
-    }
 }

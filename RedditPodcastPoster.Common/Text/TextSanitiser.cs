@@ -18,10 +18,13 @@ public class TextSanitiser : ITextSanitiser
         {"etc", new Regex(@"\betc\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)}
     };
 
-    private static readonly Regex _hashtag = new(@"\#(\w+)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex _invalidTitlePrefix = new(@"(?'prefix'^[^a-zA-Z\d""\$\£]+)(?'after'.*$)", RegexOptions.Compiled);
-    private static readonly TextInfo _textInfo = new CultureInfo("en-GB", false).TextInfo;
-    private static readonly Regex _withName = new(@"(?'before'\s)(?'with'[Ww]ith )(?'after'[A-Z])");
+    private static readonly Regex Hashtag = new(@"\#(\w+)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static readonly Regex InvalidTitlePrefix =
+        new(@"(?'prefix'^[^a-zA-Z\d""\$\£\']+)(?'after'.*$)", RegexOptions.Compiled);
+
+    private static readonly TextInfo TextInfo = new CultureInfo("en-GB", false).TextInfo;
+    private static readonly Regex WithName = new(@"(?'before'\s)(?'with'[Ww]ith )(?'after'[A-Z])");
     private readonly IKnownTermsProvider _knownTermsProvider;
     private readonly ILogger<TextSanitiser> _logger;
 
@@ -31,8 +34,75 @@ public class TextSanitiser : ITextSanitiser
         _logger = logger;
     }
 
+    public string SanitiseTitle(PostModel postModel)
+    {
+        return SanitiseTitle(postModel.EpisodeTitle, postModel.TitleRegex);
+    }
 
-    public string ExtractBody(string body, Regex regex)
+    public string SanitisePodcastName(PostModel postModel)
+    {
+        return SanitisePodcastName(postModel.PodcastName);
+    }
+
+    public string SanitiseDescription(PostModel postModel)
+    {
+        return SanitiseDescription(postModel.EpisodeDescription, postModel.DescriptionRegex);
+    }
+
+    public string SanitiseTitle(string episodeTitle, Regex? regex)
+    {
+        if (regex != null)
+        {
+            episodeTitle = ExtractTitle(episodeTitle, regex);
+        }
+
+        episodeTitle = FixCharacters(episodeTitle);
+        var withMatch = WithName.Match(episodeTitle).Groups["with"];
+        if (withMatch.Success)
+        {
+            episodeTitle = WithName.Replace(episodeTitle, "${before}w/${after}");
+        }
+
+        var invalidPrefixMatch = InvalidTitlePrefix.Match(episodeTitle).Groups["prefix"];
+        if (invalidPrefixMatch.Success)
+        {
+            episodeTitle = InvalidTitlePrefix.Replace(episodeTitle, "${after}");
+        }
+
+        episodeTitle = TextInfo.ToTitleCase(episodeTitle.ToLower());
+        episodeTitle = FixCasing(episodeTitle);
+        episodeTitle = Hashtag.Replace(episodeTitle, "$1");
+        foreach (var term in TitleCaseTerms)
+        {
+            episodeTitle = term.Value.Replace(episodeTitle, term.Key);
+        }
+
+        episodeTitle = episodeTitle.Trim();
+        return episodeTitle;
+    }
+
+    public string SanitisePodcastName(string podcastName)
+    {
+        podcastName = FixCharacters(podcastName);
+        //podcastName = TextInfo.ToTitleCase(podcastName.ToLower());
+        //podcastName = FixCasing(podcastName);
+        return podcastName;
+    }
+
+    public string SanitiseDescription(string episodeDescription, Regex? regex)
+    {
+        var description = Sanitise(episodeDescription);
+        if (regex != null)
+        {
+            description = ExtractBody(description, regex);
+        }
+
+        description = FixCharacters(description);
+        return description;
+    }
+
+
+    internal string ExtractBody(string body, Regex regex)
     {
         var match = regex.Match(body);
         if (match.Success)
@@ -43,7 +113,7 @@ public class TextSanitiser : ITextSanitiser
         return body;
     }
 
-    public string ExtractTitle(string episodeTitle, Regex regex)
+    internal string ExtractTitle(string episodeTitle, Regex regex)
     {
         var match = regex.Match(episodeTitle);
         var replacement = "${title}";
@@ -60,60 +130,7 @@ public class TextSanitiser : ITextSanitiser
         return episodeTitle;
     }
 
-    public string SanitiseTitle(PostModel postModel)
-    {
-        var episodeTitle = postModel.EpisodeTitle;
-        if (postModel.TitleRegex != null)
-        {
-            episodeTitle = ExtractTitle(episodeTitle, postModel.TitleRegex);
-        }
-
-        episodeTitle = FixCharacters(episodeTitle);
-        var withMatch = _withName.Match(episodeTitle).Groups["with"];
-        if (withMatch.Success)
-        {
-            episodeTitle = _withName.Replace(episodeTitle, "${before}w/${after}");
-        }
-
-        var invalidPrefixMatch = _invalidTitlePrefix.Match(episodeTitle).Groups["prefix"];
-        if (invalidPrefixMatch.Success)
-        {
-            episodeTitle = _invalidTitlePrefix.Replace(episodeTitle, "${after}");
-        }
-
-        episodeTitle = _textInfo.ToTitleCase(episodeTitle.ToLower());
-        episodeTitle = FixCasing(episodeTitle);
-        episodeTitle = _hashtag.Replace(episodeTitle, "$1");
-        foreach (var term in TitleCaseTerms)
-        {
-            episodeTitle = term.Value.Replace(episodeTitle, term.Key);
-        }
-
-        episodeTitle = episodeTitle.Trim();
-        return episodeTitle;
-    }
-
-    public string SanitisePodcastName(PostModel postModel)
-    {
-        var podcastName = postModel.PodcastName;
-        podcastName = FixCharacters(podcastName);
-        podcastName = _textInfo.ToTitleCase(podcastName.ToLower());
-        return podcastName;
-    }
-
-    public string SanitiseDescription(PostModel postModel)
-    {
-        var description = Sanitise(postModel.EpisodeDescription);
-        if (postModel.DescriptionRegex != null)
-        {
-            description = ExtractBody(description, postModel.DescriptionRegex);
-        }
-
-        description = FixCharacters(description);
-        return description;
-    }
-
-    public string Sanitise(string text)
+    internal string Sanitise(string text)
     {
         var doc = new HtmlDocument();
         doc.LoadHtml("<body>" + text + "</body>");
@@ -144,6 +161,7 @@ public class TextSanitiser : ITextSanitiser
         title = title.Replace("“", "'");
         title = title.Replace("”", "'");
         title = title.Replace("’", "'");
+        title = title.Replace(@"´", "'");
         return title;
     }
 

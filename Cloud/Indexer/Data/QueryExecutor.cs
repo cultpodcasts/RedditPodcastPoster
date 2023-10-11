@@ -13,8 +13,8 @@ public class QueryExecutor : IQueryExecutor
 {
     private readonly CosmosClient _cosmosClient;
     private readonly CosmosDbSettings _cosmosDbSettings;
-    private readonly ITextSanitiser _textSanitiser;
     private readonly ILogger<QueryExecutor> _logger;
+    private readonly ITextSanitiser _textSanitiser;
 
     public QueryExecutor(
         CosmosClient cosmosClient,
@@ -32,13 +32,13 @@ public class QueryExecutor : IQueryExecutor
     {
         var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
 
-        var podcastResults =  GetRecentPodcasts(ct, c);
+        var podcastResults = GetRecentPodcasts(ct, c);
 
-        var count =  GetEpisodeCount(ct, c);
+        var count = GetEpisodeCount(ct, c);
 
         var totalDuration = GetTotalDuration(ct, c);
 
-        IEnumerable<Task> tasks = new Task[] { podcastResults, count, totalDuration };
+        IEnumerable<Task> tasks = new Task[] {podcastResults, count, totalDuration};
 
         await Task.WhenAll(tasks);
 
@@ -57,7 +57,7 @@ public class QueryExecutor : IQueryExecutor
                     YouTube = x.YouTube,
                     Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds))
                 }),
-            TotalDuration= totalDuration.Result
+            TotalDuration = totalDuration.Result
         };
     }
 
@@ -101,6 +101,7 @@ public class QueryExecutor : IQueryExecutor
         {
             durationResults.AddRange(await feed.ReadNextAsync(ct));
         }
+
         return TimeSpan.FromTicks(durationResults.Sum(x => x.Duration.Ticks));
     }
 
@@ -141,17 +142,24 @@ public class QueryExecutor : IQueryExecutor
 
     private PodcastResult Santitise(PodcastResult podcastResult)
     {
+        Regex? titleRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.TitleRegex))
         {
-            var titleRegex = new Regex(podcastResult.TitleRegex);
-            podcastResult.EpisodeTitle = _textSanitiser.ExtractTitle(podcastResult.EpisodeTitle, titleRegex);
+            titleRegex = new Regex(podcastResult.TitleRegex);
         }
 
+        podcastResult.EpisodeTitle = _textSanitiser.SanitiseTitle(podcastResult.EpisodeTitle, titleRegex);
+
+        Regex? descRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.DescriptionRegex))
         {
-            var descRegex = new Regex(podcastResult.DescriptionRegex);
-            podcastResult.EpisodeDescription = _textSanitiser.ExtractBody(podcastResult.EpisodeDescription, descRegex);
+            descRegex = new Regex(podcastResult.DescriptionRegex);
         }
+
+        podcastResult.EpisodeDescription =
+            _textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
+
+        podcastResult.PodcastName = _textSanitiser.SanitisePodcastName(podcastResult.PodcastName);
 
         return podcastResult;
     }

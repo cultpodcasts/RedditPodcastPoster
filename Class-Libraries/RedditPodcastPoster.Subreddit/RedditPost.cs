@@ -1,12 +1,13 @@
 ﻿using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.EnrichEpisodesFromPostFlare;
+namespace RedditPodcastPoster.Subreddit;
 
 [CosmosSelector(ModelType.RedditPost)]
-
-public class RedditPost: CosmosSelector
+public class RedditPost : CosmosSelector
 {
-    public RedditPost() : base(ModelType.RedditPost)
+    public static readonly string PartitionKey = ModelType.RedditPost.ToString();
+
+    public RedditPost(Guid id) : base(id, ModelType.RedditPost)
     {
     }
 

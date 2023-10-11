@@ -36,7 +36,7 @@ public class ApplePodcastResolver : IApplePodcastResolver
                 podcasts = podcasts.Where(x => x.ArtistName.ToLower().Trim() == request.PodcastPublisher.ToLower());
             }
 
-            matchingPodcast = podcasts.SingleOrDefault(x => x.Name.ToLower() == request.PodcastName.ToLower());
+            matchingPodcast = podcasts.FirstOrDefault(x => x.Name.ToLower() == request.PodcastName.ToLower());
         }
 
         return matchingPodcast;

@@ -19,12 +19,11 @@ public class ModelTransformProcessor
 
     public async Task Run()
     {
-        var podcasts = await _splitFileRepository.GetAll<OldPodcast>().ToListAsync();
+        var podcasts = await _splitFileRepository.GetAll<OldPodcast>(Podcast.PartitionKey).ToListAsync();
         foreach (var oldPodcast in podcasts)
         {
-            var newPodcast = new Podcast
+            var newPodcast = new Podcast(oldPodcast.Id)
             {
-                Id = oldPodcast.Id,
                 ModelType = ModelType.Podcast,
                 AppleId = oldPodcast.AppleId,
                 Bundles = oldPodcast.Bundles,
