@@ -73,11 +73,6 @@ public class TrainingDataProcessor
             {
                 var candidates = redditPostMetaDatas.Where(x =>
                     x.AppleId.HasValue && x.AppleId == podcastEpisode.Episode.AppleId);
-                if (candidates.Count() > 1)
-                {
-                    var breakpoint = 1;
-                }
-
                 redditPostMetaData = candidates.FirstOrDefault();
             }
 
@@ -85,11 +80,6 @@ public class TrainingDataProcessor
             {
                 var candidates = redditPostMetaDatas.Where(x =>
                     !string.IsNullOrWhiteSpace(x.SpotifyId) && x.SpotifyId == podcastEpisode.Episode.SpotifyId);
-                if (candidates.Count() > 1)
-                {
-                    var breakpoint = 1;
-                }
-
                 redditPostMetaData = candidates.FirstOrDefault();
             }
 
@@ -97,11 +87,6 @@ public class TrainingDataProcessor
             {
                 var candidates = redditPostMetaDatas.Where(x =>
                     !string.IsNullOrWhiteSpace(x.YouTubeId) && x.YouTubeId == podcastEpisode.Episode.YouTubeId);
-                if (candidates.Count() > 1)
-                {
-                    var breakpoint = 1;
-                }
-
                 redditPostMetaData = candidates.FirstOrDefault();
             }
 
