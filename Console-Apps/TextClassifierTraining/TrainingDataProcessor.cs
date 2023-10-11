@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Subreddit;
@@ -72,6 +73,11 @@ public class TrainingDataProcessor
             {
                 var candidates = redditPostMetaDatas.Where(x =>
                     x.AppleId.HasValue && x.AppleId == podcastEpisode.Episode.AppleId);
+                if (candidates.Count() > 1)
+                {
+                    var breakpoint = 1;
+                }
+
                 redditPostMetaData = candidates.FirstOrDefault();
             }
 
@@ -79,6 +85,11 @@ public class TrainingDataProcessor
             {
                 var candidates = redditPostMetaDatas.Where(x =>
                     !string.IsNullOrWhiteSpace(x.SpotifyId) && x.SpotifyId == podcastEpisode.Episode.SpotifyId);
+                if (candidates.Count() > 1)
+                {
+                    var breakpoint = 1;
+                }
+
                 redditPostMetaData = candidates.FirstOrDefault();
             }
 
@@ -86,6 +97,11 @@ public class TrainingDataProcessor
             {
                 var candidates = redditPostMetaDatas.Where(x =>
                     !string.IsNullOrWhiteSpace(x.YouTubeId) && x.YouTubeId == podcastEpisode.Episode.YouTubeId);
+                if (candidates.Count() > 1)
+                {
+                    var breakpoint = 1;
+                }
+
                 redditPostMetaData = candidates.FirstOrDefault();
             }
 
@@ -94,8 +110,7 @@ public class TrainingDataProcessor
         }
 
         _logger.LogInformation($"Podcast Episodes: {flairedEpisodes.Count}");
-        var flairedEpisodesWithFlair =
-            flairedEpisodes.Where(x => !string.IsNullOrWhiteSpace(x.Item3) || x.Item2.Subjects.Any());
+        var flairedEpisodesWithFlair = flairedEpisodes.Where(x => !string.IsNullOrWhiteSpace(x.Item3));
         _logger.LogInformation(
             $"Podcast Episodes with flair: {flairedEpisodesWithFlair.Count()}");
 
@@ -121,7 +136,7 @@ public class TrainingDataProcessor
                 id,
                 flairedEpisode.Item2.Title,
                 flairedEpisode.Item2.Description,
-                subjects.Distinct().ToArray());
+                flairedEpisode.Item3 ?? string.Empty);
             await trainingDataRepository.Save(id.ToString(), trainingData);
         }
     }
