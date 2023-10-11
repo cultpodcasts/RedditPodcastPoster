@@ -11,18 +11,18 @@ public class EpisodeProcessor : IEpisodeProcessor
     private readonly ILogger<EpisodeProcessor> _logger;
     private readonly IPodcastRepository _podcastRepository;
     private readonly PostingCriteria _postingCriteria;
-    private readonly IResolvedPodcastEpisodePoster _resolvedPodcastEpisodePoster;
+    private readonly IPodcastEpisodePoster _podcastEpisodePoster;
 
     public EpisodeProcessor(
         IPodcastRepository podcastRepository,
         IEpisodeResolver episodeResolver,
-        IResolvedPodcastEpisodePoster resolvedPodcastEpisodePoster,
+        IPodcastEpisodePoster podcastEpisodePoster,
         IOptions<PostingCriteria> postingCriteria,
         ILogger<EpisodeProcessor> logger)
     {
         _podcastRepository = podcastRepository;
         _episodeResolver = episodeResolver;
-        _resolvedPodcastEpisodePoster = resolvedPodcastEpisodePoster;
+        _podcastEpisodePoster = podcastEpisodePoster;
         _postingCriteria = postingCriteria.Value;
         _logger = logger;
     }
@@ -45,7 +45,7 @@ public class EpisodeProcessor : IEpisodeProcessor
             {
                 if (matchingPodcastEpisode.Episode.Length >= _postingCriteria.MinimumDuration)
                 {
-                    var result = await _resolvedPodcastEpisodePoster.PostResolvedPodcastEpisode(matchingPodcastEpisode);
+                    var result = await _podcastEpisodePoster.PostPodcastEpisode(matchingPodcastEpisode);
                     matchingPodcastEpisodeResults.Add(result);
                 }
                 else
@@ -94,6 +94,6 @@ public class EpisodeProcessor : IEpisodeProcessor
             return ProcessResponse.Fail($"Could not find spotify-url {spotifyUri}");
         }
 
-        return await _resolvedPodcastEpisodePoster.PostResolvedPodcastEpisode(matchingPodcastEpisode);
+        return await _podcastEpisodePoster.PostPodcastEpisode(matchingPodcastEpisode);
     }
 }

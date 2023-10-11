@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using FluentAssertions;
 using Moq.AutoMock;
@@ -95,7 +96,8 @@ public class TextSanitiserTests
     public void SanitiseTitle_WithKnownTerm_MaintainsTerm(string expected)
     {
         // arrange
-        (Podcast, IEnumerable<Episode>) podcastEpisode = (new Podcast(), new[] {new Episode {Title = expected}});
+        (Podcast, IEnumerable<Episode>) podcastEpisode =
+            (new Podcast(Guid.NewGuid()), new[] {new Episode {Title = expected}});
         // act
         var result = Sut.SanitiseTitle(podcastEpisode.ToPostModel());
         // assert
@@ -109,7 +111,8 @@ public class TextSanitiserTests
     public void SanitiseBody_WithKnownTerm_RemovesHashTags(string input, string expected)
     {
         // arrange
-        (Podcast, IEnumerable<Episode>) podcastEpisode = (new Podcast(), new[] {new Episode {Title = input}});
+        (Podcast, IEnumerable<Episode>) podcastEpisode =
+            (new Podcast(Guid.NewGuid()), new[] {new Episode {Title = input}});
         // act
         var result = Sut.SanitiseTitle(podcastEpisode.ToPostModel());
         // assert

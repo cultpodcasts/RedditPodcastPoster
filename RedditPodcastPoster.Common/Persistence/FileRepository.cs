@@ -17,17 +17,32 @@ public class FileRepository : IFileRepository
         ILogger<IFileRepository> logger)
     {
         _jsonSerialiserOptions = jsonSerialiserOptions;
+        _logger = logger;
         if (!string.IsNullOrWhiteSpace(container))
         {
+            if (!Directory.Exists(container))
+            {
+                try
+                {
+                    Directory.CreateDirectory(container);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Could not create storage for {nameof(FileRepository)} named '{container}'.");
+                    throw;
+                }
+            }
+
             if (!container.EndsWith("\\"))
             {
                 container += "\\";
             }
 
             _container = container;
+
         }
 
-        _logger = logger;
+
     }
 
     public async Task Write<T>(string fileKey, T data)
@@ -49,14 +64,14 @@ public class FileRepository : IFileRepository
         return null;
     }
 
-    public async IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector
+    public async IAsyncEnumerable<T> GetAll<T>(string partitionKey) where T : CosmosSelector
     {
         var filenames = GetFilenames();
         var keys = filenames.Select(x =>
-            x.Substring(_container.Length + 1, x.Length - (FileExtension.Length + _container.Length + 1)));
+            x.Substring(_container.Length , x.Length - (FileExtension.Length + _container.Length)));
         foreach (var item in keys)
         {
-            var cosmosSelector = await Read<T>(item, string.Empty);
+            var cosmosSelector = await Read<T>(item, partitionKey);
             if (cosmosSelector!.IsOfType<T>())
             {
                 yield return cosmosSelector!;

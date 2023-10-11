@@ -9,7 +9,9 @@ public class KnownTerms : CosmosSelector
 {
     public static Guid _Id = Guid.Parse("4B550528-6848-4877-A768-0DA301754C7B");
 
-    public KnownTerms() : base(ModelType.KnownTerms)
+    public static readonly string PartitionKey = ModelType.KnownTerms.ToString();
+
+    public KnownTerms() : base(_Id, ModelType.KnownTerms)
     {
     }
 

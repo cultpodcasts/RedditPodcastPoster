@@ -14,7 +14,7 @@ public class PodcastFactory
         var removedSpacing = alphanumerics.Replace("  ", "");
         var fileKey= removedSpacing.Replace(" ", "_").ToLower();
 
-        return new Podcast {Name = podcastName, FileKey = fileKey, Id = Guid.NewGuid()};
+        return new Podcast(Guid.NewGuid()) {Name = podcastName, FileKey = fileKey};
 
     }
 }

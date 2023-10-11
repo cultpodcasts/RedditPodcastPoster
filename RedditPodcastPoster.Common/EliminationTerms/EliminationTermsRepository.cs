@@ -19,7 +19,7 @@ public class EliminationTermsRepository : IEliminationTermsRepository
 
     public async Task<EliminationTerms> Get()
     {
-        var partitionKey = new EliminationTerms().GetPartitionKey();
+        var partitionKey = EliminationTerms.PartitionKey;
         return (await _dataRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString(), partitionKey))!;
     }
 

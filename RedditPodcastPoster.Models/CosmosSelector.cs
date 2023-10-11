@@ -4,14 +4,15 @@ namespace RedditPodcastPoster.Models;
 
 public class CosmosSelector
 {
-    protected CosmosSelector(ModelType modelType)
+    protected CosmosSelector(Guid id, ModelType modelType)
     {
+        Id = id;
         ModelType = modelType;
     }
 
     public string GetPartitionKey()
     {
-        return this.ModelType.ToString();
+        return ModelType.ToString();
     }
 
     [JsonPropertyName("id")]

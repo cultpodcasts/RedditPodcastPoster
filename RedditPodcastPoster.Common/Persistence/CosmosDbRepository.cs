@@ -53,7 +53,7 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
         }
     }
 
-    public IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector
+    public IAsyncEnumerable<T> GetAll<T>(string partitionKey) where T : CosmosSelector
     {
         var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
         try

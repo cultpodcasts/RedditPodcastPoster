@@ -24,24 +24,25 @@ public class CosmosDbUploader
 
     public async Task Run()
     {
-        throw new NotImplementedException("Changes made to the IFileRepository are untested. Do not use this app until correct behaviour verified.");
-        var podcasts = await _fileRepository.GetAll<Podcast>().ToListAsync();
+        throw new NotImplementedException(
+            "Changes made to the IFileRepository are untested. Do not use this app until correct behaviour verified.");
+        var podcasts = await _fileRepository.GetAll<Podcast>(Podcast.PartitionKey).ToListAsync();
         foreach (var podcast in podcasts)
         {
             await _cosmosDbRepository.Write(podcast.GetPartitionKey(), podcast);
         }
 
-        var eliminationTerms = await _fileRepository.GetAll<EliminationTerms>().ToListAsync();
+        var eliminationTerms = await _fileRepository.GetAll<EliminationTerms>(EliminationTerms.PartitionKey)
+            .ToListAsync();
         foreach (var eliminationTermsDocument in eliminationTerms)
         {
             await _cosmosDbRepository.Write(eliminationTermsDocument.GetPartitionKey(), eliminationTermsDocument);
         }
 
-        var knownTerms = await _fileRepository.GetAll<KnownTerms>().ToListAsync();
+        var knownTerms = await _fileRepository.GetAll<KnownTerms>(KnownTerms.PartitionKey).ToListAsync();
         foreach (var knownTermsDocument in knownTerms)
         {
             await _cosmosDbRepository.Write(knownTermsDocument.GetPartitionKey(), knownTermsDocument);
         }
-
     }
 }

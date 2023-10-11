@@ -6,7 +6,7 @@ namespace ModelTransformer.Models;
 [CosmosSelector(ModelType.Podcast)]
 public class OldPodcast : CosmosSelector
 {
-    public OldPodcast() : base(ModelType.Podcast)
+    public OldPodcast(Guid id) : base(id, ModelType.Podcast)
     {
     }
 
@@ -75,9 +75,4 @@ public class OldPodcast : CosmosSelector
     [JsonPropertyName("fileKey")]
     [JsonPropertyOrder(100)]
     public string FileKey { get; set; } = "";
-
-    public OldPodcast FromName(string name)
-    {
-        return new OldPodcast { Name = name };
-    }
 }

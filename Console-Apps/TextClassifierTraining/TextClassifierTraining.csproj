@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -18,12 +18,5 @@
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Subreddit\RedditPodcastPoster.Subreddit.csproj" />
     <ProjectReference Include="..\..\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <None Update="appsettings.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 
 </Project>

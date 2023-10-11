@@ -241,7 +241,7 @@ public class YouTubeSearchService : IYouTubeSearchService
         var result = new List<PlaylistItem>();
         var nextPageToken = "";
         var firstRun = true;
-        while (nextPageToken != null && (firstRun || ( result.LastOrDefault() != null && result.Last().Snippet
+        while (nextPageToken != null && (firstRun || (result.LastOrDefault() != null && result.Last().Snippet
                    .PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince))))
         {
             firstRun = false;

@@ -15,7 +15,7 @@ public class EpisodeResolver : IEpisodeResolver
         _logger = logger;
     }
 
-    public async Task<ResolvedPodcastEpisode> ResolveServiceUrl(Uri url)
+    public async Task<PodcastEpisode> ResolveServiceUrl(Uri url)
     {
         var storedPodcasts = await _podcastRepository.GetAll().ToListAsync();
         var matchingPodcast = storedPodcasts.SingleOrDefault(x =>
@@ -24,17 +24,17 @@ public class EpisodeResolver : IEpisodeResolver
             x.Episodes.Select(y => y.Urls.YouTube).Contains(url));
         var matchingEpisode = matchingPodcast?.Episodes
             .SingleOrDefault(x => x.Urls.Spotify == url || x.Urls.Apple == url || x.Urls.YouTube == url);
-        return new ResolvedPodcastEpisode(
+        return new PodcastEpisode(
             matchingPodcast ?? throw new InvalidOperationException($"Missing matching podcast for '{url}'."),
             matchingEpisode ?? throw new InvalidOperationException($"Missing matching episode for '{url}'."));
     }
 
-    public async Task<IEnumerable<ResolvedPodcastEpisode>> ResolveSinceReleaseDate(DateTime since)
+    public async Task<IEnumerable<PodcastEpisode>> ResolveSinceReleaseDate(DateTime since)
     {
         var storedPodcasts = await _podcastRepository.GetAll().ToListAsync();
         var matchingPodcasts = storedPodcasts.Where(x =>
             x.Episodes.Any(y => y.Release >= since));
-        var resolvedPodcastEpisodeSince = new List<ResolvedPodcastEpisode>();
+        var resolvedPodcastEpisodeSince = new List<PodcastEpisode>();
         foreach (var matchingPodcast in matchingPodcasts)
         {
             var matchingEpisodes = matchingPodcast?.Episodes
@@ -50,7 +50,7 @@ public class EpisodeResolver : IEpisodeResolver
                         if (post)
                         {
                             resolvedPodcastEpisodeSince.Add(
-                                new ResolvedPodcastEpisode(matchingPodcast!, matchingEpisode));
+                                new PodcastEpisode(matchingPodcast!, matchingEpisode));
                         }
                     }
                 }

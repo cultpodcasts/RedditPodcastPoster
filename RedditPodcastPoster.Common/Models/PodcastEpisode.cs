@@ -2,4 +2,4 @@
 
 namespace RedditPodcastPoster.Common.Models;
 
-public record ResolvedPodcastEpisode(Podcast Podcast, Episode Episode);
+public record PodcastEpisode(Podcast Podcast, Episode Episode);

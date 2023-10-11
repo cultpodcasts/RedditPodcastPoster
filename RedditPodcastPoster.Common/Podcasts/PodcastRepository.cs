@@ -24,7 +24,7 @@ public class PodcastRepository : IPodcastRepository
 
     public async Task<Podcast?> GetPodcast(string key)
     {
-        var partitionKey = new Podcast().GetPartitionKey();
+        var partitionKey = Podcast.PartitionKey;
         return await _dataRepository.Read<Podcast>(key, partitionKey);
     }
 
@@ -74,12 +74,12 @@ public class PodcastRepository : IPodcastRepository
 
     public IAsyncEnumerable<Podcast> GetAll()
     {
-        return _dataRepository.GetAll<Podcast>();
+        return _dataRepository.GetAll<Podcast>(Podcast.PartitionKey);
     }
 
     public Task<IEnumerable<Guid>> GetAllIds()
     {
-        return _dataRepository.GetAllIds<Podcast>(new Podcast().GetPartitionKey());
+        return _dataRepository.GetAllIds<Podcast>(Podcast.PartitionKey);
     }
 
     public async Task Save(Podcast podcast)

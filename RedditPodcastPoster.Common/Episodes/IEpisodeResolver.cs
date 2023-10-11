@@ -4,6 +4,6 @@ namespace RedditPodcastPoster.Common.Episodes;
 
 public interface IEpisodeResolver
 {
-    Task<ResolvedPodcastEpisode> ResolveServiceUrl(Uri url);
-    Task<IEnumerable<ResolvedPodcastEpisode>> ResolveSinceReleaseDate(DateTime since);
+    Task<PodcastEpisode> ResolveServiceUrl(Uri url);
+    Task<IEnumerable<PodcastEpisode>> ResolveSinceReleaseDate(DateTime since);
 }
