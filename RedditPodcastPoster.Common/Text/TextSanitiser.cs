@@ -102,7 +102,7 @@ public class TextSanitiser : ITextSanitiser
     }
 
 
-    public string ExtractBody(string body, Regex regex)
+    internal string ExtractBody(string body, Regex regex)
     {
         var match = regex.Match(body);
         if (match.Success)
@@ -113,7 +113,7 @@ public class TextSanitiser : ITextSanitiser
         return body;
     }
 
-    public string ExtractTitle(string episodeTitle, Regex regex)
+    internal string ExtractTitle(string episodeTitle, Regex regex)
     {
         var match = regex.Match(episodeTitle);
         var replacement = "${title}";
@@ -130,7 +130,7 @@ public class TextSanitiser : ITextSanitiser
         return episodeTitle;
     }
 
-    public string Sanitise(string text)
+    internal string Sanitise(string text)
     {
         var doc = new HtmlDocument();
         doc.LoadHtml("<body>" + text + "</body>");
