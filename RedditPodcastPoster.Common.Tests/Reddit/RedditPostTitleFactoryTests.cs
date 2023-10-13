@@ -45,7 +45,7 @@ public class RedditPostTitleFactoryTests
         // act
         var result = Sut.ConstructPostTitle(postModel);
         // assert
-        result.Should().Contain(" With a ");
+        result.Should().Contain(" with a ");
     }
 
     [Fact]

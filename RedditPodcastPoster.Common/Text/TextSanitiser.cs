@@ -42,7 +42,6 @@ public class TextSanitiser : ITextSanitiser
         {"who", new Regex(@"(?<!^)who\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"made", new Regex(@"(?<!^)made\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"make", new Regex(@"(?<!^)make\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"by", new Regex(@"(?<!^)by\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"since", new Regex(@"(?<!^)since\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"for", new Regex(@"(?<!^)for\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"go", new Regex(@"(?<!^)go\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
@@ -54,7 +53,6 @@ public class TextSanitiser : ITextSanitiser
         {"with", new Regex(@"(?<!^)with\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"about", new Regex(@"(?<!^)about\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"how", new Regex(@"(?<!^)how\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"who", new Regex(@"(?<!^)who\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"here", new Regex(@"(?<!^)here\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
     };
 
