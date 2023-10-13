@@ -69,13 +69,13 @@ public class TextSanitiser : ITextSanitiser
             episodeTitle = InvalidTitlePrefix.Replace(episodeTitle, "${after}");
         }
 
-        episodeTitle = TextInfo.ToTitleCase(episodeTitle.ToLower());
-        episodeTitle = FixCasing(episodeTitle);
         episodeTitle = Hashtag.Replace(episodeTitle, "$1");
+        episodeTitle = TextInfo.ToTitleCase(episodeTitle.ToLower());
         foreach (var term in TitleCaseTerms)
         {
             episodeTitle = term.Value.Replace(episodeTitle, term.Key);
         }
+        episodeTitle = FixCasing(episodeTitle);
 
         episodeTitle = episodeTitle.Trim();
         return episodeTitle;
