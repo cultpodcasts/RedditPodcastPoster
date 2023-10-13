@@ -1,5 +1,5 @@
 {
-  "@odata.context": "https://XXXXXXXXXX.search.windows.net/$metadata#indexes/$entity",
+  "@odata.context": "https://cultpodcasts.search.windows.net/$metadata#indexes/$entity",
   "@odata.etag": "\"0x8DBC5CBE1F2B742\"",
   "name": "cosmosdb-index",
   "defaultScoringProfile": "",
