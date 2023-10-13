@@ -18,8 +18,4 @@ public enum ModelType
 
     [JsonPropertyName(nameof(KnownTerms))]
     KnownTerms = 5,
-
-    [JsonPropertyName(nameof(TrainingData))]
-    TrainingData = 6
-
 }

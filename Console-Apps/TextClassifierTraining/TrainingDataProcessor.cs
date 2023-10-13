@@ -1,15 +1,25 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Subreddit;
+using TextClassifierTraining.Models;
 
 namespace TextClassifierTraining;
 
 public class TrainingDataProcessor
 {
+    private const string TrainingDataLocation = "training-data";
+    private const string ContainerName = "training-data";
+    private const string DataSetName = "cultpodcasts";
+    private const string ProjectName = "cultpodcasts";
+    private const string LabelsFilename = "labels.json";
+
+
     private readonly ILogger<TrainingDataProcessor> _logger;
     private readonly IPodcastRepository _podcastRepository;
-    private readonly IRepositoryFactory _repositoryFactory;
+    private readonly ISubjectCleanser _subjectCleanser;
     private readonly ISubredditPostProvider _subredditPostProvider;
     private readonly ISubredditRepository _subredditRepository;
 
@@ -17,13 +27,13 @@ public class TrainingDataProcessor
         ISubredditPostProvider subredditPostProvider,
         ISubredditRepository subredditRepository,
         IPodcastRepository podcastRepository,
-        IRepositoryFactory repositoryFactory,
+        ISubjectCleanser subjectCleanser,
         ILogger<TrainingDataProcessor> logger)
     {
         _subredditPostProvider = subredditPostProvider;
         _subredditRepository = subredditRepository;
         _podcastRepository = podcastRepository;
-        _repositoryFactory = repositoryFactory;
+        _subjectCleanser = subjectCleanser;
         _logger = logger;
     }
 
@@ -38,7 +48,10 @@ public class TrainingDataProcessor
             }
         }
 
-        var trainingDataRepository = _repositoryFactory.Create<TrainingData>("training-data");
+        if (!Directory.Exists(TrainingDataLocation))
+        {
+            Directory.CreateDirectory(TrainingDataLocation);
+        }
 
         var redditPosts = await _subredditRepository.GetAll();
         _logger.LogInformation($"Total reddit posts: {redditPosts.Count()}");
@@ -99,6 +112,9 @@ public class TrainingDataProcessor
         _logger.LogInformation(
             $"Podcast Episodes with flair: {flairedEpisodesWithFlair.Count()}");
 
+        var labels = new Labels();
+        labels.MetaData.StorageInputContainerName = ContainerName;
+        labels.MetaData.ProjectName = ProjectName;
         foreach (var flairedEpisode in flairedEpisodesWithFlair)
         {
             var id = flairedEpisode.Item2.Id;
@@ -117,12 +133,46 @@ public class TrainingDataProcessor
                 subjects.Add(flair);
             }
 
-            var trainingData = new TrainingData(
-                id,
-                flairedEpisode.Item2.Title,
-                flairedEpisode.Item2.Description,
-                subjects.Distinct().ToArray());
-            await trainingDataRepository.Save(id.ToString(), trainingData);
+            subjects = _subjectCleanser.CleanSubjects(subjects);
+
+            if (subjects.Any())
+            {
+                var filename = $"{id}.txt";
+                await File.WriteAllTextAsync(Path.Combine(TrainingDataLocation, filename),
+                    $@"{flairedEpisode.Item2.Title}
+${flairedEpisode.Item2.Description}");
+
+                foreach (var subject in subjects.Distinct().Select(x => x.ToLower()))
+                {
+                    if (!labels.Assets.Classes.Select(x => x.Category.ToLower()).Contains(subject))
+                    {
+                        labels.Assets.Classes.Add(new Class {Category = subject});
+                    }
+                }
+
+                var documentSubjects = subjects.Distinct().Select(x => new Class {Category = x.ToLower()}).ToList();
+
+                if (documentSubjects.Count > 1)
+                {
+                    _logger.LogInformation(
+                        $"'{flairedEpisode.Item1.Name}' episode {flairedEpisode.Item2.Id} multiple-subjects: {string.Join(", ", subjects.Select(x => $"'{x}'"))}.");
+                }
+
+                labels.Assets.Documents.Add(new Document
+                {
+                    Location = filename,
+                    Class = documentSubjects.First()
+                });
+            }
+
+            var jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            };
+            var jsonString =
+                JsonSerializer.Serialize(labels, jsonOptions);
+            await File.WriteAllTextAsync(Path.Combine(TrainingDataLocation, LabelsFilename), jsonString);
         }
     }
 }
