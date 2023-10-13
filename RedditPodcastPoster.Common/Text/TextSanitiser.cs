@@ -56,6 +56,9 @@ public class TextSanitiser : ITextSanitiser
         {"here", new Regex(@"(?<!^)here\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"called", new Regex(@"(?<!^)called\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"call", new Regex(@"(?<!^)call\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"doing", new Regex(@"(?<!^)doing\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"do", new Regex(@"(?<!^)do\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"does", new Regex(@"(?<!^)does\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
     };
 
     private static readonly Regex Hashtag = new(@"\#(\w+)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
