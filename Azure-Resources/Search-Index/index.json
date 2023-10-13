@@ -1,6 +1,6 @@
 {
   "@odata.context": "https://cultpodcasts.search.windows.net/$metadata#indexes/$entity",
-  "@odata.etag": "\"0x8DBCC1B32FB3D97\"",
+  "@odata.etag": "\"0x8DBCC1E896F856F\"",
   "name": "cultpodcasts",
   "defaultScoringProfile": "",
   "fields": [
@@ -41,7 +41,7 @@
     {
       "name": "podcastName",
       "type": "Edm.String",
-      "searchable": false,
+      "searchable": true,
       "filterable": true,
       "retrievable": true,
       "sortable": false,
@@ -49,7 +49,7 @@
       "key": false,
       "indexAnalyzer": null,
       "searchAnalyzer": null,
-      "analyzer": null,
+      "analyzer": "en.lucene",
       "normalizer": null,
       "dimensions": null,
       "vectorSearchConfiguration": null,
@@ -91,7 +91,7 @@
     },
     {
       "name": "duration",
-      "type": "Edm.DateTimeOffset",
+      "type": "Edm.String",
       "searchable": false,
       "filterable": false,
       "retrievable": true,
@@ -178,10 +178,10 @@
       "name": "subjects",
       "type": "Edm.String",
       "searchable": true,
-      "filterable": true,
+      "filterable": false,
       "retrievable": true,
       "sortable": false,
-      "facetable": true,
+      "facetable": false,
       "key": false,
       "indexAnalyzer": null,
       "searchAnalyzer": null,
