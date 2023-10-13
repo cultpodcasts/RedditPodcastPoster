@@ -105,9 +105,9 @@ public class TextSanitiserTests
     }
 
     [Theory]
-    [InlineData("I Was #Fairgamed! And I Love It!!! ;)", "I Was Fairgamed! And I Love It!!! ;)")]
+    [InlineData("I Was #Fairgamed! And I Love It!!! ;)", "I was Fairgamed! And I Love it!!! ;)")]
     [InlineData("25 How To Handle Trauma! Ex Cult Member Explains ",
-        "25 How To Handle Trauma! Ex Cult Member Explains")]
+        "25 How to Handle Trauma! Ex Cult Member Explains")]
     public void SanitiseBody_WithKnownTerm_RemovesHashTags(string input, string expected)
     {
         // arrange

@@ -23,6 +23,7 @@ public class TextSanitiser : ITextSanitiser
         {"not", new Regex(@"(?<!^)not\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"your", new Regex(@"(?<!^)your\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"you", new Regex(@"(?<!^)you\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"was", new Regex(@"(?<!^)was\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
     };
 
     private static readonly Regex Hashtag = new(@"\#(\w+)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
