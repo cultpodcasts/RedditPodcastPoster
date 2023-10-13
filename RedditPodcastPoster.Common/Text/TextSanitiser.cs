@@ -15,7 +15,14 @@ public class TextSanitiser : ITextSanitiser
         {"of", new Regex(@"(?<!^)of\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"on", new Regex(@"(?<!^)on\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"in", new Regex(@"(?<!^)in\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"etc", new Regex(@"\betc\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)}
+        {"etc", new Regex(@"\betc\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"to", new Regex(@"(?<!^)to\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"a", new Regex(@"(?<!^)a\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"an", new Regex(@"(?<!^)an\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"it", new Regex(@"(?<!^)it\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"not", new Regex(@"(?<!^)not\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"your", new Regex(@"(?<!^)your\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"you", new Regex(@"(?<!^)you\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
     };
 
     private static readonly Regex Hashtag = new(@"\#(\w+)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
