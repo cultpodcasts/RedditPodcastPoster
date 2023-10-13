@@ -19,6 +19,7 @@ using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Common.Text;
+using RedditPodcastPoster.Common.UrlCategorisation;
 
 namespace Indexer;
 
@@ -55,8 +56,11 @@ public static class Ioc
             .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
             .AddScoped<IRemoteClient, RemoteClient>()
             .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
-            .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
+            .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
+            .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
+            .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
             .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
+            .AddSingleton<IYouTubeIdExtractor, YouTubeIdExtractor>()
             .AddScoped<ISpotifyPodcastEnricher, SpotifyPodcastEnricher>()
             .AddScoped<ISpotifyIdResolver, SpotifyIdResolver>()
             .AddScoped<ISpotifyItemResolver, SpotifyItemResolver>()

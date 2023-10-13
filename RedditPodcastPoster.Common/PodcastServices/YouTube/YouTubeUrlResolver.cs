@@ -6,15 +6,15 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 public class YouTubeItemResolver : IYouTubeItemResolver
 {
     private readonly ILogger _logger;
+    private readonly IYouTubeChannelVideoSnippetsService _youTubeChannelVideoSnippetsService;
     private readonly IYouTubeSearcher _youTubeSearcher;
-    private readonly IYouTubeSearchService _youTubeSearchService;
 
     public YouTubeItemResolver(
-        IYouTubeSearchService youTubeSearchService,
+        IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
         IYouTubeSearcher youTubeSearcher,
         ILogger<YouTubeItemResolver> logger)
     {
-        _youTubeSearchService = youTubeSearchService;
+        _youTubeChannelVideoSnippetsService = youTubeChannelVideoSnippetsService;
         _youTubeSearcher = youTubeSearcher;
         _logger = logger;
     }
@@ -23,7 +23,7 @@ public class YouTubeItemResolver : IYouTubeItemResolver
     {
         var youTubePublishingDelay = TimeSpan.Parse(request.Podcast.YouTubePublishingDelayTimeSpan);
         var searchListResponse =
-            await _youTubeSearchService.GetLatestChannelVideoSnippets(
+            await _youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(
                 new YouTubeChannelId(request.Podcast.YouTubeChannelId), indexingContext);
         if (searchListResponse == null)
         {

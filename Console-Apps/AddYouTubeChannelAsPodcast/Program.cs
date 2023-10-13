@@ -27,7 +27,8 @@ builder.Services
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddSingleton<PodcastFactory>()
-    .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
+    .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
+    .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>();
 
 YouTubeServiceFactory.AddYouTubeService(builder.Services);

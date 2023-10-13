@@ -3,6 +3,7 @@ using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
+using RedditPodcastPoster.Common.UrlCategorisation;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.PodcastServices;
@@ -13,6 +14,7 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
     private readonly IApplePodcastEnricher _applePodcastEnricher;
     private readonly ILogger<PodcastServicesEpisodeEnricher> _logger;
     private readonly ISpotifyItemResolver _spotifyItemResolver;
+    private readonly IYouTubeIdExtractor _youTubeIdExtractor;
     private readonly IYouTubeItemResolver _youTubeItemResolver;
 
     public PodcastServicesEpisodeEnricher(
@@ -20,12 +22,14 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
         IAppleEpisodeResolver appleEpisodeResolver,
         IYouTubeItemResolver youTubeItemResolver,
         IApplePodcastEnricher applePodcastEnricher,
+        IYouTubeIdExtractor youTubeIdExtractor,
         ILogger<PodcastServicesEpisodeEnricher> logger)
     {
         _spotifyItemResolver = spotifyItemResolver;
         _appleEpisodeResolver = appleEpisodeResolver;
         _youTubeItemResolver = youTubeItemResolver;
         _applePodcastEnricher = applePodcastEnricher;
+        _youTubeIdExtractor = youTubeIdExtractor;
         _logger = logger;
     }
 
@@ -76,6 +80,25 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
             _logger.LogInformation(
                 $"{nameof(EnrichFromYouTube)} Bypassing enriching of '{request.Episode.Title}' with release-date of '{request.Episode.Release:R}' from YouTube as is below the {nameof(request.Podcast.YouTubePublishingDelayTimeSpan)} which is '{request.Podcast.YouTubePublishingDelayTimeSpan}'.");
             return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Episode.YouTubeId) && request.Episode.Urls.YouTube == null)
+        {
+            var url = SearchResultExtensions.ToYouTubeUrl(request.Episode.YouTubeId);
+            request.Episode.Urls.YouTube = url;
+            enrichmentContext.YouTube = url;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Episode.YouTubeId) && request.Episode.Urls.YouTube != null)
+        {
+            var videoId = _youTubeIdExtractor.Extract(request.Episode.Urls.YouTube);
+            if (videoId != null)
+            {
+                request.Episode.YouTubeId = videoId;
+                enrichmentContext.YouTubeId = videoId;
+                return;
+            }
         }
 
         var youTubeItem = await _youTubeItemResolver.FindEpisode(request, indexingContext);

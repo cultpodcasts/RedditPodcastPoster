@@ -12,17 +12,17 @@ public class AddYouTubeChannelProcessor
     private readonly PodcastFactory _podcastFactory;
     private readonly IPodcastRepository _repository;
     private readonly IYouTubeChannelResolver _youTubeChannelResolver;
-    private readonly IYouTubeSearchService _youTubeSearchService;
+    private readonly IYouTubeChannelService _youTubeChannelService;
 
     public AddYouTubeChannelProcessor(
         IYouTubeChannelResolver youTubeChannelResolver,
-        IYouTubeSearchService youTubeSearchService,
+        IYouTubeChannelService youTubeChannelService,
         PodcastFactory podcastFactory,
         IPodcastRepository repository,
         ILogger<AddYouTubeChannelProcessor> logger)
     {
         _youTubeChannelResolver = youTubeChannelResolver;
-        _youTubeSearchService = youTubeSearchService;
+        _youTubeChannelService = youTubeChannelService;
         _podcastFactory = podcastFactory;
         _repository = repository;
         _logger = logger;
@@ -48,7 +48,7 @@ public class AddYouTubeChannelProcessor
             }
 
             var channel =
-                await _youTubeSearchService.GetChannelContentDetails(new YouTubeChannelId(match.Snippet.ChannelId),
+                await _youTubeChannelService.GetChannelContentDetails(new YouTubeChannelId(match.Snippet.ChannelId),
                     indexOptions, withContentOwnerDetails: true);
             var newPodcast = _podcastFactory.Create(match.Snippet.ChannelTitle);
             newPodcast.Publisher = channel?.ContentOwnerDetails.ContentOwner ?? string.Empty;

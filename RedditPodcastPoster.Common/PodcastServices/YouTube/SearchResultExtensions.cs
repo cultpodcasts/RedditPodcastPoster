@@ -4,7 +4,7 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public static class SearchResultExtensions
 {
-    private static Uri ToYouTubeUrl(string videoId)
+    public static Uri ToYouTubeUrl(string videoId)
     {
         return new Uri($"https://www.youtube.com/watch?v={videoId}");
     }

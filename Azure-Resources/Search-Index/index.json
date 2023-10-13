@@ -1,7 +1,7 @@
 {
-  "@odata.context": "https://cultpodcasts.search.windows.net/$metadata#indexes/$entity",
-  "@odata.etag": "\"0x8DBC5CBE1F2B742\"",
-  "name": "cosmosdb-index",
+  "@odata.context": "https://xxxxxx.search.windows.net/$metadata#indexes/$entity",
+  "@odata.etag": "\"0x8DBCC1E896F856F\"",
+  "name": "xxxxxxx",
   "defaultScoringProfile": "",
   "fields": [
     {
@@ -42,7 +42,7 @@
       "name": "podcastName",
       "type": "Edm.String",
       "searchable": true,
-      "filterable": false,
+      "filterable": true,
       "retrievable": true,
       "sortable": false,
       "facetable": true,
@@ -179,7 +179,7 @@
       "type": "Edm.String",
       "searchable": true,
       "filterable": false,
-      "retrievable": false,
+      "retrievable": true,
       "sortable": false,
       "facetable": false,
       "key": false,

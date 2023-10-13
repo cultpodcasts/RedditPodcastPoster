@@ -63,7 +63,7 @@ public class EpisodeProvider : IEpisodeProvider
             handled = true;
         }
 
-        if (podcast.ReleaseAuthority is Service.YouTube || !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
+        if (!handled && (podcast.ReleaseAuthority is Service.YouTube || !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId)))
         {
             if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
             {

@@ -26,8 +26,10 @@ public class Indexer : TaskActivity<object, bool>
     {
         _logger.LogInformation($"{nameof(Indexer)} initiated.");
         _logger.LogInformation(_indexerOptions.ToString());
-
         var indexContext = _indexerOptions.ToIndexOptions();
+
+        indexContext.SkipSpotifyUrlResolving = DateTime.UtcNow.Hour % 2 == 0;
+        indexContext.SkipYouTubeUrlResolving = DateTime.UtcNow.Hour % 3 > 0;
 
         _logger.LogInformation(
             indexContext.ReleasedSince.HasValue
@@ -41,11 +43,13 @@ public class Indexer : TaskActivity<object, bool>
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Failure to execute {nameof(IPodcastsUpdater)}.{nameof(IPodcastsUpdater.UpdatePodcasts)}.");
+            _logger.LogError(ex,
+                $"Failure to execute {nameof(IPodcastsUpdater)}.{nameof(IPodcastsUpdater.UpdatePodcasts)}.");
             results = false;
         }
 
-        if (!results){
+        if (!results)
+        {
             _logger.LogError("Failure occurred");
         }
 
