@@ -1,7 +1,7 @@
 {
-  "@odata.context": "https://XXXXXX/$metadata#indexes/$entity",
-  "@odata.etag": "\"0x8DBCBF7D4602352\"",
-  "name": "cosmosdb-index-2",
+  "@odata.context": "https://cultpodcasts.search.windows.net/$metadata#indexes/$entity",
+  "@odata.etag": "\"0x8DBCC1B32FB3D97\"",
+  "name": "cultpodcasts",
   "defaultScoringProfile": "",
   "fields": [
     {
@@ -41,7 +41,7 @@
     {
       "name": "podcastName",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "sortable": false,
@@ -49,7 +49,7 @@
       "key": false,
       "indexAnalyzer": null,
       "searchAnalyzer": null,
-      "analyzer": "en.lucene",
+      "analyzer": null,
       "normalizer": null,
       "dimensions": null,
       "vectorSearchConfiguration": null,
@@ -91,7 +91,7 @@
     },
     {
       "name": "duration",
-      "type": "Edm.String",
+      "type": "Edm.DateTimeOffset",
       "searchable": false,
       "filterable": false,
       "retrievable": true,
@@ -178,10 +178,10 @@
       "name": "subjects",
       "type": "Edm.String",
       "searchable": true,
-      "filterable": false,
-      "retrievable": false,
+      "filterable": true,
+      "retrievable": true,
       "sortable": false,
-      "facetable": false,
+      "facetable": true,
       "key": false,
       "indexAnalyzer": null,
       "searchAnalyzer": null,

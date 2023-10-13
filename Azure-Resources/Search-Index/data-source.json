@@ -1,0 +1,22 @@
+{
+  "@odata.context": "https://cultpodcasts.search.windows.net/$metadata#datasources/$entity",
+  "@odata.etag": "\"0x8DBCC1AD7B94805\"",
+  "name": "cultpodcasts-search",
+  "description": null,
+  "type": "cosmosdb",
+  "subtype": null,
+  "credentials": {
+    "connectionString": "AccountEndpoint=https://cultpodcasts.documents.azure.com;AccountKey=...;Database=cultpodcasts;"
+  },
+  "container": {
+    "name": "cultpodcasts",
+    "query": " SELECT e.id, e.title as episodeTitle, p.name as podcastName, e.description as episodeDescription, e.release, e.duration, e.explicit, e.urls.spotify, e.urls.apple, e.urls.youtube, udf.concatenateArray(e.subjects) as subjects, p._ts FROM podcasts p JOIN e IN p.episodes WHERE e.removed = false and e.ignored=false and p._ts >= @HighWaterMark ORDER BY p._ts"
+  },
+  "dataChangeDetectionPolicy": {
+    "@odata.type": "#Microsoft.Azure.Search.HighWaterMarkChangeDetectionPolicy",
+    "highWaterMarkColumnName": "_ts"
+  },
+  "dataDeletionDetectionPolicy": null,
+  "encryptionKey": null,
+  "identity": null
+}
