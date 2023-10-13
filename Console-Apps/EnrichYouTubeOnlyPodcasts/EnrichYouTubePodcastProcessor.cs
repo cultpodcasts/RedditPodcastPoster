@@ -13,16 +13,22 @@ public class EnrichYouTubePodcastProcessor
     private readonly ILogger<EnrichYouTubePodcastProcessor> _logger;
     private readonly IPodcastRepository _podcastRepository;
     private readonly IYouTubeEpisodeProvider _youTubeEpisodeProvider;
-    private readonly IYouTubeSearchService _youTubeSearchService;
+    private readonly IYouTubePlaylistService _youTubePlaylistService;
+    private readonly IYouTubeChannelService _youTubeChannelService;
+    private readonly IYouTubeVideoService _youTubeVideoService;
 
     public EnrichYouTubePodcastProcessor(
         IPodcastRepository podcastRepository,
-        IYouTubeSearchService youTubeSearchService,
+        IYouTubePlaylistService youTubePlaylistService,
+        IYouTubeChannelService youTubeChannelService,
+        IYouTubeVideoService youTubeVideoService,
         IYouTubeEpisodeProvider youTubeEpisodeProvider,
         ILogger<EnrichYouTubePodcastProcessor> logger)
     {
         _podcastRepository = podcastRepository;
-        _youTubeSearchService = youTubeSearchService;
+        _youTubePlaylistService = youTubePlaylistService;
+        _youTubeChannelService = youTubeChannelService;
+        _youTubeVideoService = youTubeVideoService;
         _youTubeEpisodeProvider = youTubeEpisodeProvider;
         _logger = logger;
     }
@@ -63,7 +69,7 @@ public class EnrichYouTubePodcastProcessor
         if (string.IsNullOrWhiteSpace(request.PlaylistId))
         {
             var channel =
-                await _youTubeSearchService.GetChannelContentDetails(new YouTubeChannelId(podcast.YouTubeChannelId),
+                await _youTubeChannelService.GetChannelContentDetails(new YouTubeChannelId(podcast.YouTubeChannelId),
                     indexOptions);
             if (channel == null)
             {
@@ -79,7 +85,7 @@ public class EnrichYouTubePodcastProcessor
         }
 
         var playlistItems =
-            await _youTubeSearchService.GetPlaylistVideoSnippets(new YouTubePlaylistId(playlistId),
+            await _youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(playlistId),
                 indexOptions);
         if (playlistItems == null)
         {
@@ -90,7 +96,7 @@ public class EnrichYouTubePodcastProcessor
         var missingPlaylistItems = playlistItems.Where(playlistItem =>
             podcast.Episodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();
         var missingVideoIds = missingPlaylistItems.Select(x => x.Snippet.ResourceId.VideoId).Distinct();
-        var missingPlaylistVideos = await _youTubeSearchService.GetVideoContentDetails(missingVideoIds, indexOptions);
+        var missingPlaylistVideos = await _youTubeVideoService.GetVideoContentDetails(missingVideoIds, indexOptions);
 
         if (missingPlaylistVideos == null)
         {

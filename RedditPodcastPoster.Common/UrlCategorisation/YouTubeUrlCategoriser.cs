@@ -1,5 +1,4 @@
-﻿using System.Text.RegularExpressions;
-using System.Xml;
+﻿using System.Xml;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Models;
@@ -8,16 +7,20 @@ namespace RedditPodcastPoster.Common.UrlCategorisation;
 
 public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
 {
-    private static readonly Regex VideoId = new(@"v=(?'videoId'[\-\w]+)", RegexOptions.Compiled);
     private readonly ILogger<YouTubeUrlCategoriser> _logger;
-
-    private readonly IYouTubeSearchService _youTubeSearchService;
+    private readonly IYouTubeChannelService _youTubeChannelService;
+    private readonly IYouTubeIdExtractor _youTubeIdExtractor;
+    private readonly IYouTubeVideoService _youTubeVideoService;
 
     public YouTubeUrlCategoriser(
-        IYouTubeSearchService youTubeSearchService,
+        IYouTubeChannelService youTubeChannelService,
+        IYouTubeVideoService youTubeVideoService,
+        IYouTubeIdExtractor youTubeIdExtractor,
         ILogger<YouTubeUrlCategoriser> logger)
     {
-        _youTubeSearchService = youTubeSearchService;
+        _youTubeChannelService = youTubeChannelService;
+        _youTubeVideoService = youTubeVideoService;
+        _youTubeIdExtractor = youTubeIdExtractor;
         _logger = logger;
     }
 
@@ -37,23 +40,23 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
             return new ResolvedYouTubeItem(pair);
         }
 
-        var videoIdMatch = VideoId.Match(url.ToString()).Groups["videoId"];
-        if (!videoIdMatch.Success)
+        var videoId = _youTubeIdExtractor.Extract(url);
+        if (videoId == null)
         {
             throw new InvalidOperationException($"Unable to find video-id in url '{url}'.");
         }
 
-        var items = await _youTubeSearchService.GetVideoContentDetails(new[] {videoIdMatch.Value}, indexingContext, true);
+        var items = await _youTubeVideoService.GetVideoContentDetails(new[] {videoId}, indexingContext, true);
         if (items != null)
         {
             var item = items.FirstOrDefault();
             if (item == null)
             {
-                throw new InvalidOperationException($"Unable to find video with id '{videoIdMatch.Value}'.");
+                throw new InvalidOperationException($"Unable to find video with id '{videoId}'.");
             }
 
             var channel =
-                await _youTubeSearchService.GetChannelContentDetails(new YouTubeChannelId(item.Snippet.ChannelId),
+                await _youTubeChannelService.GetChannelContentDetails(new YouTubeChannelId(item.Snippet.ChannelId),
                     indexingContext, true, true);
             if (channel != null)
             {
@@ -76,7 +79,8 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
         {
             if (indexingContext.SkipYouTubeUrlResolving)
             {
-                throw new InvalidOperationException($"Error: {nameof(indexingContext.SkipYouTubeUrlResolving)} be true.");
+                throw new InvalidOperationException(
+                    $"Error: {nameof(indexingContext.SkipYouTubeUrlResolving)} be true.");
             }
         }
 

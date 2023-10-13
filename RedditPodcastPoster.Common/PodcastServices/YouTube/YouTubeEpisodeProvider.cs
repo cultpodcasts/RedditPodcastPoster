@@ -8,13 +8,19 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
 {
     private readonly ILogger<YouTubeEpisodeProvider> _logger;
-    private readonly IYouTubeSearchService _youTubeSearchService;
+    private readonly IYouTubePlaylistService _youTubePlaylistService;
+    private readonly IYouTubeVideoService _youTubeVideoService;
+    private readonly IYouTubeChannelVideoSnippetsService _youTubeChannelVideoSnippetsService;
 
     public YouTubeEpisodeProvider(
-        IYouTubeSearchService youTubeSearchService,
+        IYouTubePlaylistService youTubePlaylistService,
+        IYouTubeVideoService youTubeVideoService,
+        IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
         ILogger<YouTubeEpisodeProvider> logger)
     {
-        _youTubeSearchService = youTubeSearchService;
+        _youTubePlaylistService = youTubePlaylistService;
+        _youTubeVideoService = youTubeVideoService;
+        _youTubeChannelVideoSnippetsService = youTubeChannelVideoSnippetsService;
         _logger = logger;
     }
 
@@ -24,7 +30,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
         IEnumerable<string> knownIds)
     {
         var youTubeVideos =
-            await _youTubeSearchService.GetLatestChannelVideoSnippets(
+            await _youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(
                 new YouTubeChannelId(request.ChannelId), indexingContext);
         if (youTubeVideos != null)
         {
@@ -34,7 +40,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
             if (youTubeVideoIds.Any())
             {
                 var videoDetails =
-                    await _youTubeSearchService.GetVideoContentDetails(youTubeVideoIds, indexingContext);
+                    await _youTubeVideoService.GetVideoContentDetails(youTubeVideoIds, indexingContext);
 
                 if (videoDetails != null)
                 {
@@ -75,7 +81,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
     public async Task<IList<Episode>?> GetPlaylistEpisodes(
         YouTubePlaylistId youTubePlaylistId, IndexingContext indexingContext)
     {
-        var playlistVideos = await _youTubeSearchService.GetPlaylistVideoSnippets(new YouTubePlaylistId(
+        var playlistVideos = await _youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(
             youTubePlaylistId.PlaylistId), indexingContext);
         if (playlistVideos != null && playlistVideos.Any())
         {
@@ -85,7 +91,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
                     x.Snippet.PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
             }
             var videoDetails =
-                await _youTubeSearchService.GetVideoContentDetails(playlistVideos.Select(x => x.Snippet.ResourceId.VideoId),
+                await _youTubeVideoService.GetVideoContentDetails(playlistVideos.Select(x => x.Snippet.ResourceId.VideoId),
                     indexingContext);
             if (videoDetails != null)
             {

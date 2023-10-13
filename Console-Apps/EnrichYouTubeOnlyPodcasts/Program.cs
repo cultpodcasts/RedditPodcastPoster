@@ -33,7 +33,10 @@ builder.Services
     .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
+    .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
+    .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
+    .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
+    .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
     .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
     .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
     .AddScoped<IYouTubeSearcher, YouTubeSearcher>();

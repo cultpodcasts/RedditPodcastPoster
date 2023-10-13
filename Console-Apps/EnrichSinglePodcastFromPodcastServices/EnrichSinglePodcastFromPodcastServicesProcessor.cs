@@ -37,6 +37,5 @@ public class EnrichSinglePodcastFromPodcastServicesProcessor
         {
             _logger.LogInformation(result.ToString());
         }
-        await _podcastRepository.Update(podcast);
     }
 }

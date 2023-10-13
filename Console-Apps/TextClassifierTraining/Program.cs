@@ -37,7 +37,7 @@ builder.Services
     .AddScoped<ISubredditPostProvider, SubredditPostProvider>()
     .AddScoped<ISubredditRepository, SubredditRepository>()
     .AddScoped<ISpotifyClientWrapper, SpotifyClientWrapper>()
-    .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
+    .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
     .AddScoped<IRepositoryFactory, RepositoryFactory>()
     .AddScoped<TrainingDataProcessor>();
 

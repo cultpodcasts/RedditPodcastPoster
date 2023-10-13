@@ -20,6 +20,7 @@ using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Common.Text;
+using RedditPodcastPoster.Common.UrlCategorisation;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -54,7 +55,10 @@ builder.Services
     .AddScoped<IEpisodeResolver, EpisodeResolver>()
     .AddSingleton<ITextSanitiser, TextSanitiser>()
     .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
-    .AddScoped<IYouTubeSearchService, YouTubeSearchService>()
+    .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
+    .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
+    .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
+    .AddSingleton<IYouTubeIdExtractor, YouTubeIdExtractor>()
     .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
     .AddScoped<ISpotifyPodcastEnricher, SpotifyPodcastEnricher>()
     .AddScoped<ISpotifyIdResolver, SpotifyIdResolver>()
