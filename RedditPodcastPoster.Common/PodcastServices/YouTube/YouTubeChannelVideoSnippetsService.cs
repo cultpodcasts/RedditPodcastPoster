@@ -9,8 +9,8 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public class YouTubeChannelVideoSnippetsService : IYouTubeChannelVideoSnippetsService
 {
+    private const int MaxSearchResults = 5;
     private static readonly ConcurrentDictionary<string, IList<SearchResult>> Cache = new();
-
     private readonly ILogger<YouTubeChannelVideoSnippetsService> _logger;
     private readonly YouTubeService _youTubeService;
 
@@ -44,7 +44,7 @@ public class YouTubeChannelVideoSnippetsService : IYouTubeChannelVideoSnippetsSe
         while (nextPageToken != null)
         {
             var searchListRequest = _youTubeService.Search.List("snippet");
-            searchListRequest.MaxResults = IYouTubePlaylistService.MaxSearchResults;
+            searchListRequest.MaxResults = MaxSearchResults;
             searchListRequest.ChannelId = channelId.ChannelId;
             searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
             searchListRequest.Type = "video";
