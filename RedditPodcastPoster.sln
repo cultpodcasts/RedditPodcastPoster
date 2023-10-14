@@ -56,11 +56,17 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SeedKnownTerms", "Console-A
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IndexPodcast", "Console-Apps\IndexPodcast\IndexPodcast.csproj", "{6AD8EB9C-EAD7-43EB-AD31-033FF126D16B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TextClassifierTraining", "Console-Apps\TextClassifierTraining\TextClassifierTraining.csproj", "{48C2582C-3A41-4765-BE41-ED6C0DE0FBD8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TextClassifierTraining", "Console-Apps\TextClassifierTraining\TextClassifierTraining.csproj", "{48C2582C-3A41-4765-BE41-ED6C0DE0FBD8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Subreddit", "Class-Libraries\RedditPodcastPoster.Subreddit\RedditPodcastPoster.Subreddit.csproj", "{D0C2E99C-BBD2-4C1F-B221-50EAF9756A68}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Subreddit", "Class-Libraries\RedditPodcastPoster.Subreddit\RedditPodcastPoster.Subreddit.csproj", "{D0C2E99C-BBD2-4C1F-B221-50EAF9756A68}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Class-Libraries", "Class-Libraries", "{EDA3626A-3E3A-433B-A4E9-4B68918F3036}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{A6E1AF4E-16F3-424B-844A-4576869047DF}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
+		.github\workflows\main_indexer-cultpodcasts.yml = .github\workflows\main_indexer-cultpodcasts.yml
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
