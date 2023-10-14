@@ -1,35 +1,27 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
-using RedditPodcastPoster.Common.UrlCategorisation;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.PodcastServices;
 
 public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
 {
-    private readonly IAppleEpisodeResolver _appleEpisodeResolver;
-    private readonly IApplePodcastEnricher _applePodcastEnricher;
+    private readonly IAppleEpisodeEnricher _appleEpisodeEnricher;
     private readonly ILogger<PodcastServicesEpisodeEnricher> _logger;
-    private readonly ISpotifyItemResolver _spotifyItemResolver;
-    private readonly IYouTubeIdExtractor _youTubeIdExtractor;
-    private readonly IYouTubeItemResolver _youTubeItemResolver;
+    private readonly ISpotifyEpisodeEnricher _spotifyEpisodeEnricher;
+    private readonly IYouTubeEpisodeEnricher _youTubeEpisodeEnricher;
 
     public PodcastServicesEpisodeEnricher(
-        ISpotifyItemResolver spotifyItemResolver,
-        IAppleEpisodeResolver appleEpisodeResolver,
-        IYouTubeItemResolver youTubeItemResolver,
-        IApplePodcastEnricher applePodcastEnricher,
-        IYouTubeIdExtractor youTubeIdExtractor,
+        IAppleEpisodeEnricher appleEpisodeEnricher,
+        ISpotifyEpisodeEnricher spotifyEpisodeEnricher,
+        IYouTubeEpisodeEnricher youTubeEpisodeEnricher,
         ILogger<PodcastServicesEpisodeEnricher> logger)
     {
-        _spotifyItemResolver = spotifyItemResolver;
-        _appleEpisodeResolver = appleEpisodeResolver;
-        _youTubeItemResolver = youTubeItemResolver;
-        _applePodcastEnricher = applePodcastEnricher;
-        _youTubeIdExtractor = youTubeIdExtractor;
+        _appleEpisodeEnricher = appleEpisodeEnricher;
+        _spotifyEpisodeEnricher = spotifyEpisodeEnricher;
+        _youTubeEpisodeEnricher = youTubeEpisodeEnricher;
         _logger = logger;
     }
 
@@ -50,15 +42,16 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
                 {
                     case Service.Spotify
                         when episode.Urls.Spotify == null || string.IsNullOrWhiteSpace(episode.SpotifyId):
-                        await EnrichFromSpotify(enrichmentRequest, indexingContext, enrichmentContext);
+                        await _spotifyEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
                         break;
-                    case Service.Apple when episode.Urls.Apple == null || episode.AppleId == 0:
-                        await EnrichFromApple(enrichmentRequest, indexingContext, enrichmentContext);
+                    case Service.Apple
+                        when episode.Urls.Apple == null || episode.AppleId == null || episode.AppleId == 0:
+                        await _appleEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
                         break;
                     case Service.YouTube when !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
                                               (episode.Urls.YouTube == null ||
                                                string.IsNullOrWhiteSpace(episode.YouTubeId)):
-                        await EnrichFromYouTube(enrichmentRequest, indexingContext, enrichmentContext);
+                        await _youTubeEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
                         break;
                 }
             }
@@ -70,92 +63,5 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
         }
 
         return new EnrichmentResults(results);
-    }
-
-    private async Task EnrichFromYouTube(EnrichmentRequest request, IndexingContext indexingContext,
-        EnrichmentContext enrichmentContext)
-    {
-        if (request.Podcast.IsDelayedYouTubePublishing(request.Episode))
-        {
-            _logger.LogInformation(
-                $"{nameof(EnrichFromYouTube)} Bypassing enriching of '{request.Episode.Title}' with release-date of '{request.Episode.Release:R}' from YouTube as is below the {nameof(request.Podcast.YouTubePublishingDelayTimeSpan)} which is '{request.Podcast.YouTubePublishingDelayTimeSpan}'.");
-            return;
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.Episode.YouTubeId) && request.Episode.Urls.YouTube == null)
-        {
-            var url = SearchResultExtensions.ToYouTubeUrl(request.Episode.YouTubeId);
-            request.Episode.Urls.YouTube = url;
-            enrichmentContext.YouTube = url;
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Episode.YouTubeId) && request.Episode.Urls.YouTube != null)
-        {
-            var videoId = _youTubeIdExtractor.Extract(request.Episode.Urls.YouTube);
-            if (videoId != null)
-            {
-                request.Episode.YouTubeId = videoId;
-                enrichmentContext.YouTubeId = videoId;
-                return;
-            }
-        }
-
-        var youTubeItem = await _youTubeItemResolver.FindEpisode(request, indexingContext);
-        if (!string.IsNullOrWhiteSpace(youTubeItem?.Id.VideoId))
-        {
-            _logger.LogInformation(
-                $"{nameof(EnrichFromApple)} Found matching YouTube episode: '{youTubeItem.Id.VideoId}' with title '{youTubeItem.Snippet.Title}' and release-date '{youTubeItem.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime:R}'.");
-            request.Episode.YouTubeId = youTubeItem.Id.VideoId;
-            var url = youTubeItem.ToYouTubeUrl();
-            request.Episode.Urls.YouTube = url;
-            enrichmentContext.YouTube = url;
-        }
-    }
-
-    private async Task EnrichFromApple(EnrichmentRequest request, IndexingContext indexingContext,
-        EnrichmentContext enrichmentContext)
-    {
-        if (request.Podcast.AppleId == null)
-        {
-            await _applePodcastEnricher.AddId(request.Podcast);
-        }
-
-        if (request.Podcast.AppleId != null)
-        {
-            var appleItem =
-                await _appleEpisodeResolver.FindEpisode(
-                    FindAppleEpisodeRequestFactory.Create(request.Podcast, request.Episode), indexingContext);
-            if (appleItem != null)
-            {
-                var url = appleItem.Url.CleanAppleUrl();
-                request.Episode.Urls.Apple = url;
-                request.Episode.AppleId = appleItem.Id;
-                if (request.Episode.Release.TimeOfDay == TimeSpan.Zero)
-                {
-                    request.Episode.Release = appleItem.Release;
-                    enrichmentContext.Release = appleItem.Release;
-                }
-
-                enrichmentContext.Apple = url;
-            }
-        }
-    }
-
-    private async Task EnrichFromSpotify(EnrichmentRequest request, IndexingContext indexingContext,
-        EnrichmentContext enrichmentContext)
-    {
-        var spotifyEpisode =
-            await _spotifyItemResolver.FindEpisode(
-                FindSpotifyEpisodeRequestFactory.Create(request.Podcast, request.Episode), indexingContext);
-        if (spotifyEpisode != null)
-        {
-            _logger.LogInformation(
-                $"{nameof(EnrichFromSpotify)} Found matching Spotify episode: '{spotifyEpisode.Id}' with title '{spotifyEpisode.Name}' and release-date '{spotifyEpisode.ReleaseDate}'.");
-            request.Episode.SpotifyId = spotifyEpisode.Id;
-            var url = spotifyEpisode.GetUrl();
-            request.Episode.Urls.Spotify = url;
-            enrichmentContext.Spotify = url;
-        }
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.Json;
 using Google.Apis.YouTube.v3;
@@ -8,8 +9,10 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public class YouTubeChannelVideoSnippetsService : IYouTubeChannelVideoSnippetsService
 {
-    private readonly YouTubeService _youTubeService;
+    private static readonly ConcurrentDictionary<string, IList<SearchResult>> Cache = new();
+
     private readonly ILogger<YouTubeChannelVideoSnippetsService> _logger;
+    private readonly YouTubeService _youTubeService;
 
     public YouTubeChannelVideoSnippetsService(YouTubeService youTubeService,
         ILogger<YouTubeChannelVideoSnippetsService> logger)
@@ -17,16 +20,25 @@ public class YouTubeChannelVideoSnippetsService : IYouTubeChannelVideoSnippetsSe
         _youTubeService = youTubeService;
         _logger = logger;
     }
+
     public async Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(
         YouTubeChannelId channelId,
         IndexingContext indexingContext)
     {
+        _logger.LogInformation($"YOUTUBE: {nameof(GetLatestChannelVideoSnippets)} channelId: '{channelId.ChannelId}'.");
+
+        if (Cache.TryGetValue(channelId.ChannelId, out var snippets))
+        {
+            return snippets;
+        }
+
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             _logger.LogInformation(
                 $"Skipping '{nameof(GetLatestChannelVideoSnippets)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
             return null;
         }
+
 
         var result = new List<SearchResult>();
         var nextPageToken = "";
@@ -68,6 +80,13 @@ public class YouTubeChannelVideoSnippetsService : IYouTubeChannelVideoSnippetsSe
                 $"YOUTUBE: {nameof(GetLatestChannelVideoSnippets)} - {JsonSerializer.Serialize(result)}");
         }
 
+        Cache[channelId.ChannelId] = result;
+
         return result;
+    }
+
+    public void Flush()
+    {
+        Cache.Clear();
     }
 }
