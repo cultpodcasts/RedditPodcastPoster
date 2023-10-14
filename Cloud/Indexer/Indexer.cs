@@ -36,6 +36,11 @@ public class Indexer : TaskActivity<object, bool>
                 ? $"{nameof(RunAsync)} Indexing with options released-since: '{indexContext.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-spotify: '{indexContext.SkipSpotifyUrlResolving}', bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}'."
                 : $"{nameof(RunAsync)} Indexing with options released-since: Null, bypass-spotify: '{indexContext.SkipSpotifyUrlResolving}', bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}'.");
 
+        if (DryRun.IsDryRun)
+        {
+            return true;
+        }
+
         bool results;
         try
         {

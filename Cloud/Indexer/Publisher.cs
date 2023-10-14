@@ -21,6 +21,12 @@ public class Publisher : TaskActivity<object, bool>
     public override async Task<bool> RunAsync(TaskActivityContext context, object input)
     {
         _logger.LogInformation($"{nameof(Publisher)} initiated.");
+
+        if (DryRun.IsDryRun)
+        {
+            return true;
+        }
+
         try
         {
             await _contentPublisher.Publish();
