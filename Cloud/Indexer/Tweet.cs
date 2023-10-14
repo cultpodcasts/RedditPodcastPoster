@@ -21,6 +21,12 @@ public class Tweet : TaskActivity<object, bool>
     public override async Task<bool> RunAsync(TaskActivityContext context, object input)
     {
         _logger.LogInformation($"{nameof(Tweet)} initiated.");
+
+        if (DryRun.IsDryRun)
+        {
+            return true;
+        }
+
         try
         {
             await _tweeter.Tweet();

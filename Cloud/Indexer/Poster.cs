@@ -10,9 +10,9 @@ namespace Indexer;
 public class Poster : TaskActivity<object, bool>
 {
     private readonly IEpisodeProcessor _episodeProcessor;
-    private readonly PostingCriteria _postingCriteria;
     private readonly ILogger _logger;
     private readonly PosterOptions _posterOptions;
+    private readonly PostingCriteria _postingCriteria;
 
     public Poster(
         IEpisodeProcessor episodeProcessor,
@@ -36,6 +36,11 @@ public class Poster : TaskActivity<object, bool>
         _logger.LogInformation(
             $"{nameof(RunAsync)} Posting with options released-since: '{baselineDate:dd/MM/yyyy HH:mm:ss}''.");
 
+        if (DryRun.IsDryRun)
+        {
+            return true;
+        }
+
         ProcessResponse result;
         try
         {
@@ -43,17 +48,18 @@ public class Poster : TaskActivity<object, bool>
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Failure executing {nameof(IEpisodeProcessor)}.{nameof(IEpisodeProcessor.PostEpisodesSinceReleaseDate)}.");
-            result= ProcessResponse.Fail(ex.Message);
+            _logger.LogError(ex,
+                $"Failure executing {nameof(IEpisodeProcessor)}.{nameof(IEpisodeProcessor.PostEpisodesSinceReleaseDate)}.");
+            result = ProcessResponse.Fail(ex.Message);
         }
 
         if (!result.Success)
         {
-            _logger.LogError($"{nameof(RunAsync)} Failed to process posts. {result.ToString()}");
+            _logger.LogError($"{nameof(RunAsync)} Failed to process posts. {result}");
         }
         else
         {
-            _logger.LogInformation($"{nameof(RunAsync)} Successfully processed posts. {result.ToString()}");
+            _logger.LogInformation($"{nameof(RunAsync)} Successfully processed posts. {result}");
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
