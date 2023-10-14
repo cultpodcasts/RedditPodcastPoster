@@ -33,8 +33,8 @@ public class Indexer : TaskActivity<object, bool>
 
         _logger.LogInformation(
             indexContext.ReleasedSince.HasValue
-                ? $"{nameof(RunAsync)} Indexing with options released-since: '{indexContext.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}'."
-                : $"{nameof(RunAsync)} Indexing with options released-since: Null, bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}'.");
+                ? $"{nameof(RunAsync)} Indexing with options released-since: '{indexContext.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-spotify: '{indexContext.SkipSpotifyUrlResolving}', bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}'."
+                : $"{nameof(RunAsync)} Indexing with options released-since: Null, bypass-spotify: '{indexContext.SkipSpotifyUrlResolving}', bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}'.");
 
         bool results;
         try
