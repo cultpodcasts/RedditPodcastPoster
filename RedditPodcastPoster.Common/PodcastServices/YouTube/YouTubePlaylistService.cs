@@ -86,6 +86,7 @@ public class YouTubePlaylistService : IYouTubePlaylistService
                 }
             }
 
+
             result.AddRange(playlistItemsListResponse.Items);
             nextPageToken = playlistItemsListResponse.NextPageToken;
         }
@@ -93,6 +94,12 @@ public class YouTubePlaylistService : IYouTubePlaylistService
         if (result.Any())
         {
             _logger.LogInformation($"YOUTUBE: {nameof(GetPlaylistVideoSnippets)} - {JsonSerializer.Serialize(result)}");
+
+            if (indexingContext.ReleasedSince != null)
+            {
+                result = result.Where(x =>
+                    x.Snippet.PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
+            }
         }
 
         return result;
