@@ -18,10 +18,15 @@ namespace Indexer
         public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequestData req)
         {
             _logger.LogInformation($"{nameof(YouTubeReceiver)}");
+            _logger.LogInformation($"Method: '{req.Method}', Url: '{req.Url}'.");
+            var queryString = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
             var body = await new StreamReader(req.Body).ReadToEndAsync();
             _logger.LogInformation(body);
 
-            var response = req.CreateResponse(HttpStatusCode.NoContent);
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            response.Headers.Add("Content-Type", "text/plain; charset=utf-8");
+
+            response.WriteString(queryString["hub.challenge"]);
             return response;
         }
     }
