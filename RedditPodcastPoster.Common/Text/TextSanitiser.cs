@@ -11,58 +11,58 @@ public class TextSanitiser : ITextSanitiser
 {
     private static readonly Dictionary<string, Regex> TitleCaseTerms = new()
     {
-        {"the", new Regex(@"(?<!^)the\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"of", new Regex(@"(?<!^)of\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"on", new Regex(@"(?<!^)on\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"in", new Regex(@"(?<!^)in\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"the", new Regex(@"(?<!^'?""?)the\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"of", new Regex(@"(?<!^'?""?)of\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"on", new Regex(@"(?<!^'?""?)on\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"in", new Regex(@"(?<!^'?""?)in\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"etc", new Regex(@"\betc\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"to", new Regex(@"(?<!^)to\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"a", new Regex(@"(?<!^)a\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"an", new Regex(@"(?<!^)an\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"it", new Regex(@"(?<!^)it\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"not", new Regex(@"(?<!^)not\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"your", new Regex(@"(?<!^)your\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"you", new Regex(@"(?<!^)you\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"was", new Regex(@"(?<!^)was\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"isn't", new Regex(@"(?<!^)isn't\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"is", new Regex(@"(?<!^)is\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"want", new Regex(@"(?<!^)want\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"wants", new Regex(@"(?<!^)wants\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"her", new Regex(@"(?<!^)her\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"his", new Regex(@"(?<!^)his\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"from", new Regex(@"(?<!^)from\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"their", new Regex(@"(?<!^)their\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"they", new Regex(@"(?<!^)they\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"out", new Regex(@"(?<!^)out\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"come", new Regex(@"(?<!^)come\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"coming", new Regex(@"(?<!^)coming\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"away", new Regex(@"(?<!^)away\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"by", new Regex(@"(?<!^)by\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"what", new Regex(@"(?<!^)what\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"who", new Regex(@"(?<!^)who\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"made", new Regex(@"(?<!^)made\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"make", new Regex(@"(?<!^)make\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"since", new Regex(@"(?<!^)since\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"for", new Regex(@"(?<!^)for\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"go", new Regex(@"(?<!^)go\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"gone", new Regex(@"(?<!^)gone\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"give", new Regex(@"(?<!^)give\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"gives", new Regex(@"(?<!^)gives\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"given", new Regex(@"(?<!^)given\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"next", new Regex(@"(?<!^)next\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"with", new Regex(@"(?<!^)with\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"about", new Regex(@"(?<!^)about\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"how", new Regex(@"(?<!^)how\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"here", new Regex(@"(?<!^)here\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"called", new Regex(@"(?<!^)called\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"call", new Regex(@"(?<!^)call\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"doing", new Regex(@"(?<!^)doing\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"do", new Regex(@"(?<!^)do\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"does", new Regex(@"(?<!^)does\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"to", new Regex(@"(?<!^'?""?)to\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"a", new Regex(@"(?<!^'?""?)a\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"an", new Regex(@"(?<!^'?""?)an\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"it", new Regex(@"(?<!^'?""?)it\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"not", new Regex(@"(?<!^'?""?)not\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"your", new Regex(@"(?<!^'?""?)your\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"you", new Regex(@"(?<!^'?""?)you\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"was", new Regex(@"(?<!^'?""?)was\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"isn't", new Regex(@"(?<!^'?""?)isn't\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"is", new Regex(@"(?<!^'?""?)is\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"want", new Regex(@"(?<!^'?""?)want\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"wants", new Regex(@"(?<!^'?""?)wants\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"her", new Regex(@"(?<!^'?""?)her\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"his", new Regex(@"(?<!^'?""?)his\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"from", new Regex(@"(?<!^'?""?)from\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"their", new Regex(@"(?<!^'?""?)their\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"they", new Regex(@"(?<!^'?""?)they\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"out", new Regex(@"(?<!^'?""?)out\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"come", new Regex(@"(?<!^'?""?)come\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"coming", new Regex(@"(?<!^'?""?)coming\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"away", new Regex(@"(?<!^'?""?)away\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"by", new Regex(@"(?<!^'?""?)by\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"what", new Regex(@"(?<!^'?""?)what\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"who", new Regex(@"(?<!^'?""?)who\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"made", new Regex(@"(?<!^'?""?)made\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"make", new Regex(@"(?<!^'?""?)make\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"since", new Regex(@"(?<!^'?""?)since\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"for", new Regex(@"(?<!^'?""?)for\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"go", new Regex(@"(?<!^'?""?)go\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"gone", new Regex(@"(?<!^'?""?)gone\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"give", new Regex(@"(?<!^'?""?)give\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"gives", new Regex(@"(?<!^'?""?)gives\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"given", new Regex(@"(?<!^'?""?)given\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"next", new Regex(@"(?<!^'?""?)next\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"with", new Regex(@"(?<!^'?""?)with\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"about", new Regex(@"(?<!^'?""?)about\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"how", new Regex(@"(?<!^'?""?)how\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"here", new Regex(@"(?<!^'?""?)here\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"called", new Regex(@"(?<!^'?""?)called\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"call", new Regex(@"(?<!^'?""?)call\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"doing", new Regex(@"(?<!^'?""?)doing\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"do", new Regex(@"(?<!^'?""?)do\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"does", new Regex(@"(?<!^'?""?)does\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
     };
 
     private static readonly Regex Hashtag = new(@"\#(\w+)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
+    private static readonly Regex InQuotes = new(@"^'(?'inquotes'.*)'$", RegexOptions.Compiled);
     private static readonly Regex InvalidTitlePrefix =
         new(@"(?'prefix'^[^a-zA-Z\d""\$\£\']+)(?'after'.*$)", RegexOptions.Compiled);
 
@@ -121,6 +121,11 @@ public class TextSanitiser : ITextSanitiser
         episodeTitle = FixCasing(episodeTitle);
 
         episodeTitle = episodeTitle.Trim();
+        var inQuotesMatch = InQuotes.Match(episodeTitle);
+        if (inQuotesMatch.Success)
+        {
+            episodeTitle = inQuotesMatch.Groups["inquotes"].Value;
+        }
         return episodeTitle;
     }
 
