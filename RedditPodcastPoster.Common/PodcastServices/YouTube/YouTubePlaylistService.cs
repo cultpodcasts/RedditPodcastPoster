@@ -62,7 +62,7 @@ public class YouTubePlaylistService : IYouTubePlaylistService
             {
                 _logger.LogError(ex, $"Failed to use {nameof(_youTubeService)}.");
                 indexingContext.SkipYouTubeUrlResolving = true;
-                return null;
+                return new GetPlaylistVideoSnippetsResponse(null);
             }
 
             if (firstRun)
