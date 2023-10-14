@@ -67,11 +67,22 @@ public class EpisodeProvider : IEpisodeProvider
         {
             if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
             {
-                var foundEpisodes = await _youTubeEpisodeProvider.GetPlaylistEpisodes(
-                    new YouTubePlaylistId(podcast.YouTubePlaylistId), indexingContext);
-                if (foundEpisodes != null)
+                if (podcast.HasExpensiveQuery() && indexingContext.SkipExpensiveQueries)
                 {
-                    episodes = foundEpisodes;
+                    _logger.LogInformation($"Podcast '{podcast.Id}' has known expensive query and will not run this time.");
+                    return new List<Episode>();
+                }
+
+                var getPlaylistEpisodesResult = await _youTubeEpisodeProvider.GetPlaylistEpisodes(
+                    new YouTubePlaylistId(podcast.YouTubePlaylistId), indexingContext);
+                if (getPlaylistEpisodesResult.Results != null)
+                {
+                    episodes = getPlaylistEpisodesResult.Results;
+                }
+
+                if (getPlaylistEpisodesResult.IsExpensiveQuery)
+                {
+                    podcast.YouTubePlaylistQueryIsExpensive = true;
                 }
             }
             else

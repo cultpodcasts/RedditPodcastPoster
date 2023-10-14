@@ -78,31 +78,34 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
             playlistItemSnippet.ToYouTubeUrl());
     }
 
-    public async Task<IList<Episode>?> GetPlaylistEpisodes(
+    public async Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(
         YouTubePlaylistId youTubePlaylistId, IndexingContext indexingContext)
     {
-        var playlistVideos = await _youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(
+
+        var playlistQueryResponse = await _youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(
             youTubePlaylistId.PlaylistId), indexingContext);
-        if (playlistVideos != null && playlistVideos.Any())
+        var isExpensiveQuery = playlistQueryResponse.IsExpensiveQuery;
+        if (playlistQueryResponse.Result != null && playlistQueryResponse.Result.Any())
         {
+            var results = playlistQueryResponse.Result;
             if (indexingContext.ReleasedSince.HasValue)
             {
-                playlistVideos = playlistVideos.Where(x =>
+                results = results.Where(x =>
                     x.Snippet.PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
             }
             var videoDetails =
-                await _youTubeVideoService.GetVideoContentDetails(playlistVideos.Select(x => x.Snippet.ResourceId.VideoId),
+                await _youTubeVideoService.GetVideoContentDetails(results.Select(x => x.Snippet.ResourceId.VideoId),
                     indexingContext);
             if (videoDetails != null)
             {
-                return playlistVideos.Select(playlistItem => GetEpisode(
+                return new GetPlaylistEpisodesResponse(results.Select(playlistItem => GetEpisode(
                         playlistItem.Snippet,
                         videoDetails.SingleOrDefault(videoDetail =>
                             videoDetail.Id == playlistItem.Snippet.ResourceId.VideoId)!))
-                    .ToList();
+                    .ToList(), isExpensiveQuery);
             }
         }
 
-        return null;
+        return new GetPlaylistEpisodesResponse(null, isExpensiveQuery);
     }
 }

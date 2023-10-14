@@ -10,6 +10,6 @@ public interface IYouTubeEpisodeProvider
     Episode GetEpisode(SearchResult searchResult, Video videoDetails);
     Episode GetEpisode(PlaylistItemSnippet playlistItemSnippet, Video videoDetails);
 
-    Task<IList<Episode>?> GetPlaylistEpisodes(YouTubePlaylistId youTubePlaylistId,
+    Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(YouTubePlaylistId youTubePlaylistId,
         IndexingContext indexingContext);
 }

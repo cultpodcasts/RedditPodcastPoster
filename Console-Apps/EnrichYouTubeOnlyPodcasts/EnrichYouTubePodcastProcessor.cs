@@ -12,9 +12,9 @@ public class EnrichYouTubePodcastProcessor
 {
     private readonly ILogger<EnrichYouTubePodcastProcessor> _logger;
     private readonly IPodcastRepository _podcastRepository;
+    private readonly IYouTubeChannelService _youTubeChannelService;
     private readonly IYouTubeEpisodeProvider _youTubeEpisodeProvider;
     private readonly IYouTubePlaylistService _youTubePlaylistService;
-    private readonly IYouTubeChannelService _youTubeChannelService;
     private readonly IYouTubeVideoService _youTubeVideoService;
 
     public EnrichYouTubePodcastProcessor(
@@ -53,6 +53,12 @@ public class EnrichYouTubePodcastProcessor
             return;
         }
 
+        if (podcast.YouTubePlaylistQueryIsExpensive.HasValue && podcast.YouTubePlaylistQueryIsExpensive.Value && !request.AcknowledgeExpensiveYouTubePlaylistQuery)
+        {
+            _logger.LogError($"Query for playlist '{podcast.YouTubePlaylistId}' is expensive.");
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
             _logger.LogError("Not appropriate to run this app against a podcast without a YouTube channel-id.");
@@ -84,16 +90,23 @@ public class EnrichYouTubePodcastProcessor
             playlistId = request.PlaylistId;
         }
 
-        var playlistItems =
+        var playlistQueryResponse =
             await _youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(playlistId),
                 indexOptions);
-        if (playlistItems == null)
+        if (playlistQueryResponse.Result == null)
         {
             _logger.LogError($"Unable to retrieve playlist items from playlist '{playlistId}'.");
             return;
         }
 
-        var missingPlaylistItems = playlistItems.Where(playlistItem =>
+        if (playlistQueryResponse.IsExpensiveQuery && !request.AcknowledgeExpensiveYouTubePlaylistQuery)
+        {
+            _logger.LogError($"Querying '{playlistId}' is noted for being an expensive query.");
+            podcast.YouTubePlaylistQueryIsExpensive = true;
+            return;
+        }
+
+        var missingPlaylistItems = playlistQueryResponse.Result.Where(playlistItem =>
             podcast.Episodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();
         var missingVideoIds = missingPlaylistItems.Select(x => x.Snippet.ResourceId.VideoId).Distinct();
         var missingPlaylistVideos = await _youTubeVideoService.GetVideoContentDetails(missingVideoIds, indexOptions);
@@ -106,7 +119,8 @@ public class EnrichYouTubePodcastProcessor
 
         foreach (var missingPlaylistItem in missingPlaylistItems)
         {
-            var missingPlaylistItemSnippet = playlistItems.SingleOrDefault(x => x.Id == missingPlaylistItem.Id)!.Snippet;
+            var missingPlaylistItemSnippet =
+                playlistQueryResponse.Result.SingleOrDefault(x => x.Id == missingPlaylistItem.Id)!.Snippet;
             var video = missingPlaylistVideos.SingleOrDefault(video =>
                 video.Id == missingPlaylistItemSnippet.ResourceId.VideoId);
             if (video != null)
@@ -121,7 +135,7 @@ public class EnrichYouTubePodcastProcessor
         {
             if (string.IsNullOrWhiteSpace(podcastEpisode.YouTubeId) || podcastEpisode.Urls.YouTube == null)
             {
-                var youTubeItems = playlistItems.Where(x => Matches(podcastEpisode, x, episodeMatchRegex));
+                var youTubeItems = playlistQueryResponse.Result.Where(x => Matches(podcastEpisode, x, episodeMatchRegex));
 
                 var youTubeItem = youTubeItems.FirstOrDefault();
                 if (youTubeItem != null)

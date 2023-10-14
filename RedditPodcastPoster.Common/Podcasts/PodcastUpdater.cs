@@ -36,6 +36,7 @@ public class PodcastUpdater : IPodcastUpdater
     {
         var initialSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
         var initialSkipYouTube = indexingContext.SkipYouTubeUrlResolving;
+        var knownExpensiveQuery = podcast.HasExpensiveQuery();
         var newEpisodes = await _episodeProvider.GetEpisodes(
             podcast,
             indexingContext);
@@ -49,8 +50,10 @@ public class PodcastUpdater : IPodcastUpdater
         var enrichmentResult = await _podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, episodes, indexingContext);
         var eliminationTerms = _eliminationTermsProvider.GetEliminationTerms();
         var filterResult = _podcastFilter.Filter(podcast, eliminationTerms.Terms);
+
+        var discoveredExpensiveQuery = !knownExpensiveQuery && podcast.HasExpensiveQuery();
         if (mergeResult.MergedEpisodes.Any() || mergeResult.AddedEpisodes.Any() ||
-            filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any())
+            filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any() || discoveredExpensiveQuery)
         {
             await _podcastRepository.Update(podcast);
         }

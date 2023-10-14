@@ -7,8 +7,8 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public class YouTubePlaylistService : IYouTubePlaylistService
 {
+    private const int MaxSearchResults = 5;
     private readonly ILogger<YouTubePlaylistService> _logger;
-
     private readonly YouTubeService _youTubeService;
 
     public YouTubePlaylistService(
@@ -19,7 +19,7 @@ public class YouTubePlaylistService : IYouTubePlaylistService
         _logger = logger;
     }
 
-    public async Task<IList<PlaylistItem>?> GetPlaylistVideoSnippets(
+    public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
         YouTubePlaylistId playlistId,
         IndexingContext indexingContext)
     {
@@ -30,7 +30,7 @@ public class YouTubePlaylistService : IYouTubePlaylistService
             return null;
         }
 
-        var batchSize = IYouTubePlaylistService.MaxSearchResults;
+        var batchSize = MaxSearchResults;
         if (indexingContext.ReleasedSince.HasValue)
         {
             batchSize = 3;
@@ -62,7 +62,7 @@ public class YouTubePlaylistService : IYouTubePlaylistService
             {
                 _logger.LogError(ex, $"Failed to use {nameof(_youTubeService)}.");
                 indexingContext.SkipYouTubeUrlResolving = true;
-                return null;
+                return new GetPlaylistVideoSnippetsResponse(null);
             }
 
             if (firstRun)
@@ -86,7 +86,6 @@ public class YouTubePlaylistService : IYouTubePlaylistService
                 }
             }
 
-
             result.AddRange(playlistItemsListResponse.Items);
             nextPageToken = playlistItemsListResponse.NextPageToken;
         }
@@ -102,7 +101,7 @@ public class YouTubePlaylistService : IYouTubePlaylistService
             }
         }
 
-        return result;
+        return new GetPlaylistVideoSnippetsResponse(result, !knownToBeInReverseOrder);
     }
 
     private static bool IsReverseDateOrdered(IEnumerable<PlaylistItem> source)

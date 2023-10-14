@@ -7,6 +7,7 @@ namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public class YouTubeVideoService : IYouTubeVideoService
 {
+    private const int MaxSearchResults = 5;
     private readonly ILogger<YouTubeVideoService> _logger;
     private readonly YouTubeService _youTubeService;
 
@@ -32,7 +33,7 @@ public class YouTubeVideoService : IYouTubeVideoService
         var result = new List<Video>();
         var nextPageToken = "";
         var batch = 0;
-        var batchVideoIds = videoIds.Take(IYouTubePlaylistService.MaxSearchResults);
+        var batchVideoIds = videoIds.Take(MaxSearchResults);
         while (batchVideoIds.Any())
         {
             while (nextPageToken != null)
@@ -46,7 +47,7 @@ public class YouTubeVideoService : IYouTubeVideoService
 
                 request = _youTubeService.Videos.List(contentdetails);
                 request.Id = string.Join(",", batchVideoIds);
-                request.MaxResults = IYouTubePlaylistService.MaxSearchResults;
+                request.MaxResults = MaxSearchResults;
                 VideoListResponse response;
                 try
                 {
@@ -65,8 +66,8 @@ public class YouTubeVideoService : IYouTubeVideoService
 
             nextPageToken = "";
             batch++;
-            batchVideoIds = videoIds.Skip(batch * IYouTubePlaylistService.MaxSearchResults)
-                .Take(IYouTubePlaylistService.MaxSearchResults);
+            batchVideoIds = videoIds.Skip(batch * MaxSearchResults)
+                .Take(MaxSearchResults);
         }
 
         if (result.Any())

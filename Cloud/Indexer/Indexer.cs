@@ -30,11 +30,12 @@ public class Indexer : TaskActivity<object, bool>
 
         indexContext.SkipSpotifyUrlResolving = DateTime.UtcNow.Hour % 2 == 0;
         indexContext.SkipYouTubeUrlResolving = DateTime.UtcNow.Hour % 3 > 0;
+        indexContext.SkipExpensiveQueries = DateTime.UtcNow.Hour % 12 > 0;
 
         _logger.LogInformation(
             indexContext.ReleasedSince.HasValue
-                ? $"{nameof(RunAsync)} Indexing with options released-since: '{indexContext.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-spotify: '{indexContext.SkipSpotifyUrlResolving}', bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}'."
-                : $"{nameof(RunAsync)} Indexing with options released-since: Null, bypass-spotify: '{indexContext.SkipSpotifyUrlResolving}', bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}'.");
+                ? $"{nameof(RunAsync)} Indexing with options released-since: '{indexContext.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-spotify: '{indexContext.SkipSpotifyUrlResolving}', bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}', bypass-expensive-queries: '{indexContext.SkipExpensiveQueries}'."
+                : $"{nameof(RunAsync)} Indexing with options released-since: Null, bypass-spotify: '{indexContext.SkipSpotifyUrlResolving}', bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}', bypass-expensive-queries: '{indexContext.SkipExpensiveQueries}'.");
 
         if (DryRun.IsDryRun)
         {
