@@ -137,4 +137,17 @@ public class TextSanitiserTests
         // assert
         result.Should().Be(expected);
     }
+
+    [Theory]
+    [InlineData("Something 21st October")]
+    [InlineData("Something 23rd October")]
+    [InlineData("Something 14th October")]
+    public void SanitiseTitle_WithDate_IsCorrect(string expected)
+    {
+        // arrange
+        // act
+        var result = Sut.SanitiseTitle(expected, null);
+        // assert
+        result.Should().Be(expected);
+    }
 }
