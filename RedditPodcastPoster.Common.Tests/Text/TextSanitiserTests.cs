@@ -118,4 +118,23 @@ public class TextSanitiserTests
         // assert
         result.Should().Be(expected);
     }
+
+    [Theory]
+    [InlineData(@"""What is it?", "'What is it?")]
+    [InlineData("'What is it?", "'What is it?")]
+    [InlineData("What is it?", "What is it?")]
+    [InlineData(@"""What is it?""", "What is it?")]
+    [InlineData("'What is it?'", "What is it?")]
+    [InlineData(@"""What"" is it?", "'What' is it?")]
+    [InlineData("'What' is it?", "'What' is it?")]
+    [InlineData(@"""What's"" is it?", "'What's' is it?")]
+    [InlineData(@"'What's' is it?", "'What's' is it?")]
+    public void SanitiseTitle_WithLoweredTermAtStart_IsCorrect(string input, string expected)
+    {
+        // arrange
+        // act
+        var result = Sut.SanitiseTitle(input, null);
+        // assert
+        result.Should().Be(expected);
+    }
 }
