@@ -2,7 +2,7 @@ using Google.Apis.YouTube.v3.Data;
 
 namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
-public interface IYouTubeChannelService
+public interface IYouTubeChannelService : IFlushable
 {
     Task FindChannel(string channelName, IndexingContext indexingContext);
 

@@ -33,16 +33,21 @@ public class YouTubePlaylistService : IYouTubePlaylistService
         var batchSize = IYouTubePlaylistService.MaxSearchResults;
         if (indexingContext.ReleasedSince.HasValue)
         {
-            batchSize = 1;
+            batchSize = 3;
         }
 
         var result = new List<PlaylistItem>();
         var nextPageToken = "";
         var firstRun = true;
-        while (nextPageToken != null && (firstRun || (result.LastOrDefault() != null && result.Last().Snippet
-                   .PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince))))
+        var knownToBeInReverseOrder = false;
+        while (
+            nextPageToken != null &&
+            (firstRun ||
+             (knownToBeInReverseOrder && result.Last().Snippet.PublishedAtDateTimeOffset
+                 .ReleasedSinceDate(indexingContext.ReleasedSince)) ||
+             !knownToBeInReverseOrder
+            ))
         {
-            firstRun = false;
             var playlistRequest = _youTubeService.PlaylistItems.List("snippet");
             playlistRequest.PlaylistId = playlistId.PlaylistId;
             playlistRequest.MaxResults = batchSize;
@@ -60,6 +65,28 @@ public class YouTubePlaylistService : IYouTubePlaylistService
                 return null;
             }
 
+            if (firstRun)
+            {
+                firstRun = false;
+                if (indexingContext.ReleasedSince.HasValue)
+                {
+                    knownToBeInReverseOrder = IsReverseDateOrdered(playlistItemsListResponse.Items);
+                    if (knownToBeInReverseOrder)
+                    {
+                        batchSize = 1;
+                        _logger.LogInformation(
+                            $"Playlist '{playlistId.PlaylistId}' appears to be in reverse-date order. Setting batch-size to '{batchSize}'.");
+                    }
+                    else
+                    {
+                        batchSize = 10;
+                        _logger.LogInformation(
+                            $"Playlist '{playlistId.PlaylistId}' is not in reverse-date order. Setting batch-size to '{batchSize}'.");
+                    }
+                }
+            }
+
+
             result.AddRange(playlistItemsListResponse.Items);
             nextPageToken = playlistItemsListResponse.NextPageToken;
         }
@@ -67,8 +94,38 @@ public class YouTubePlaylistService : IYouTubePlaylistService
         if (result.Any())
         {
             _logger.LogInformation($"YOUTUBE: {nameof(GetPlaylistVideoSnippets)} - {JsonSerializer.Serialize(result)}");
+
+            if (indexingContext.ReleasedSince != null)
+            {
+                result = result.Where(x =>
+                    x.Snippet.PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
+            }
         }
 
         return result;
+    }
+
+    private static bool IsReverseDateOrdered(IEnumerable<PlaylistItem> source)
+    {
+        using var iterator = source.GetEnumerator();
+        if (!iterator.MoveNext())
+        {
+            return true;
+        }
+
+        var current = iterator.Current.Snippet.PublishedAtDateTimeOffset;
+
+        while (iterator.MoveNext())
+        {
+            var next = iterator.Current.Snippet.PublishedAtDateTimeOffset;
+            if (current < next)
+            {
+                return false;
+            }
+
+            current = next;
+        }
+
+        return true;
     }
 }
