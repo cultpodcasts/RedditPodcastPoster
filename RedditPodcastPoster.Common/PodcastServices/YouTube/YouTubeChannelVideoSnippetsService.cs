@@ -39,7 +39,6 @@ public class YouTubeChannelVideoSnippetsService : IYouTubeChannelVideoSnippetsSe
             return null;
         }
 
-
         var result = new List<SearchResult>();
         var nextPageToken = "";
         while (nextPageToken != null)
