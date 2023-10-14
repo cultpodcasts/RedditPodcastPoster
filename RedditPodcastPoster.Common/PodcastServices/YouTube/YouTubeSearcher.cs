@@ -21,7 +21,7 @@ public class YouTubeSearcher : IYouTubeSearcher
         IList<SearchResult> searchResults,
         TimeSpan youTubePublishingDelay)
     {
-        var withinPublishingDelayThreshold = searchResults.Where(searchResult =>
+        var candidates = searchResults.Where(searchResult =>
         {
             if (searchResult.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime < episode.Release)
             {
@@ -55,17 +55,23 @@ public class YouTubeSearcher : IYouTubeSearcher
                 var matchingSearchResult = searchResults.Where(x =>
                         NumberMatch.IsMatch(x.Snippet.Title) &&
                         int.TryParse(NumberMatch.Match(x.Snippet.Title).Value, out _))
-                    .SingleOrDefault(x =>
+                    .Where(x =>
                         int.Parse(NumberMatch.Match(x.Snippet.Title).Groups["number"].Value) == episodeNumber);
 
-                if (matchingSearchResult != null)
+                if (matchingSearchResult.Count() == 1)
                 {
-                    return matchingSearchResult;
+                    return matchingSearchResult.Single();
+                }
+
+                if (matchingSearchResult.Any())
+                {
+                    _logger.LogInformation(
+                        $"Could not match on number that appears in title '{episodeNumber}' as appears in multiple episode-titles: {string.Join(", ", matchingSearchResult.Select(x => $"'{x}'"))}.");
                 }
             }
         }
 
-        var order = withinPublishingDelayThreshold
+        var order = candidates
             .OrderByDescending(x => Levenshtein.CalculateSimilarity(episode.Title, x.Snippet.Title))
             .ToList();
 
