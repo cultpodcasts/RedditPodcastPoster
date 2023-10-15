@@ -28,15 +28,30 @@ public class EpisodeProvider : IEpisodeProvider
     public async Task<IList<Episode>> GetEpisodes(Podcast podcast, IndexingContext indexingContext)
     {
         var (episodes, handled) = await _spotifyEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
+        if (handled)
+        {
+            _logger.LogInformation(
+                $"Get Episodes for podcast '{podcast.Name}' handled by '{nameof(ISpotifyEpisodeRetrievalHandler)}'.");
+        }
 
         if (!handled)
         {
             (episodes, handled) = await _appleEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
+            if (handled)
+            {
+                _logger.LogInformation(
+                    $"Get Episodes for podcast '{podcast.Name}' handled by '{nameof(IAppleEpisodeRetrievalHandler)}'.");
+            }
         }
 
         if (!handled)
         {
             (episodes, handled) = await _youTubeEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
+            if (handled)
+            {
+                _logger.LogInformation(
+                    $"Get Episodes for podcast '{podcast.Name}' handled by '{nameof(IYouTubeEpisodeRetrievalHandler)}'.");
+            }
         }
 
         if (!handled)
