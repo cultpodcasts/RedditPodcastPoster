@@ -149,7 +149,7 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
         {
             _logger.LogInformation(
                 $"{nameof(GetEpisodes)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveQueries)} is set.");
-            return new PaginateEpisodesResponse(new List<SimpleEpisode>());
+            return new PaginateEpisodesResponse(pagedEpisodes?.Items ?? new List<SimpleEpisode>());
         }
 
         return await _spotifyQueryPaginator.PaginateEpisodes(pagedEpisodes, indexingContext);
