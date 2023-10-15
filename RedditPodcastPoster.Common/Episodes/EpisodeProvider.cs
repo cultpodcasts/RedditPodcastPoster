@@ -59,8 +59,8 @@ public class EpisodeProvider : IEpisodeProvider
 
         if (!handled)
         {
-            throw new InvalidOperationException(
-                $"Unable to handle podcast with id: {podcast.Id}, name: '{podcast.Name}'");
+            _logger.LogInformation(
+                $"Unable to handle podcast with name: '{podcast.Name}', id: {podcast.Id}. Spotify-Id: '{podcast.SpotifyId}', Apple-Id: '{podcast.AppleId}', YouTube-ChannelId: '{podcast.YouTubeChannelId}', YouTube-PlayListId: '{podcast.YouTubePlaylistId}'. Expensive-Queries? {nameof(podcast.SpotifyEpisodesQueryIsExpensive)}= '{podcast.SpotifyEpisodesQueryIsExpensive}', {nameof(podcast.YouTubePlaylistQueryIsExpensive)}= '{podcast.YouTubePlaylistQueryIsExpensive}'.");
         }
 
         if (!podcast.IndexAllEpisodes && !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
