@@ -1,33 +1,40 @@
 using System.Net;
+using System.Web;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 
-namespace Indexer
+namespace Indexer;
+
+public class YouTubeReceiver
 {
-    public class YouTubeReceiver
+    private const string HubChallenge = "hub.challenge";
+    private readonly ILogger _logger;
+
+    public YouTubeReceiver(ILoggerFactory loggerFactory)
     {
-        private readonly ILogger _logger;
+        _logger = loggerFactory.CreateLogger<YouTubeReceiver>();
+    }
 
-        public YouTubeReceiver(ILoggerFactory loggerFactory)
+    [Function("YouTubeReceiver")]
+    public async Task<HttpResponseData> Run(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequestData req)
+    {
+        _logger.LogInformation($"{nameof(YouTubeReceiver)}");
+        _logger.LogInformation($"Method: '{req.Method}', Url: '{req.Url}'.");
+        var queryString = HttpUtility.ParseQueryString(req.Url.Query);
+        var body = await new StreamReader(req.Body).ReadToEndAsync();
+        _logger.LogInformation(body);
+
+        if (queryString.AllKeys.Contains(HubChallenge))
         {
-            _logger = loggerFactory.CreateLogger<YouTubeReceiver>();
-        }
-
-        [Function("YouTubeReceiver")]
-        public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequestData req)
-        {
-            _logger.LogInformation($"{nameof(YouTubeReceiver)}");
-            _logger.LogInformation($"Method: '{req.Method}', Url: '{req.Url}'.");
-            var queryString = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
-            var body = await new StreamReader(req.Body).ReadToEndAsync();
-            _logger.LogInformation(body);
-
             var response = req.CreateResponse(HttpStatusCode.OK);
             response.Headers.Add("Content-Type", "text/plain; charset=utf-8");
 
-            response.WriteString(queryString["hub.challenge"]);
+            response.WriteString(queryString[HubChallenge]);
             return response;
         }
+
+        return req.CreateResponse(HttpStatusCode.NoContent);
     }
 }
