@@ -36,8 +36,8 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
         return episodes.Select(x =>
             Episode.FromSpotify(
                 x.Id,
-                x.Name,
-                x.Description,
+                x.Name.Trim(),
+                x.Description.Trim(),
                 TimeSpan.FromMilliseconds(x.DurationMs),
                 x.Explicit,
                 x.GetReleaseDate(),

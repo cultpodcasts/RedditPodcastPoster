@@ -35,7 +35,7 @@ public class EnrichmentResults
             }
 
             report.AppendLine(
-                $"Podcast '{enrichmentResult.Podcast.Name}' with id '{enrichmentResult.Podcast.Id}' episode '{enrichmentResult.Episode.Title} with Id '{enrichmentResult.Episode.Id}' updated.{youTubeReport}{appleReport}{spotifyReport}");
+                $"Title: '{enrichmentResult.Episode.Title}'.{youTubeReport}{appleReport}{spotifyReport} Episode-Id: '{enrichmentResult.Episode.Id}'.'");
         }
 
         return report.ToString();

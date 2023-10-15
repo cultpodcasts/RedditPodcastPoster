@@ -58,8 +58,8 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
     {
         return Episode.FromYouTube(
             searchResult.Id.VideoId,
-            searchResult.Snippet.Title,
-            searchResult.Snippet.Description,
+            searchResult.Snippet.Title.Trim(),
+            searchResult.Snippet.Description.Trim(),
             XmlConvert.ToTimeSpan(videoDetails.ContentDetails.Duration),
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
             searchResult.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
@@ -70,8 +70,8 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
     {
         return Episode.FromYouTube(
             playlistItemSnippet.ResourceId.VideoId,
-            playlistItemSnippet.Title,
-            playlistItemSnippet.Description,
+            playlistItemSnippet.Title.Trim(),
+            playlistItemSnippet.Description.Trim(),
             XmlConvert.ToTimeSpan(videoDetails.ContentDetails.Duration),
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
             playlistItemSnippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,

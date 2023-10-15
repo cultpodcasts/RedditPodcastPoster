@@ -38,7 +38,7 @@ public class MergeResult
         foreach (var episode in AddedEpisodes)
         {
             report.AppendLine(
-                $"Title: '{episode.Title}', SpotifyId: '{episode.SpotifyId}', YouTubeId: '{episode.YouTubeId}', AppleId: '{episode.AppleId}'.");
+                $"Title: '{episode.Title}', SpotifyId: '{episode.SpotifyId}', YouTubeId: '{episode.YouTubeId}', AppleId: '{episode.AppleId}', Episode-Id: '{episode.Id}'.");
         }
 
         return report.ToString();
