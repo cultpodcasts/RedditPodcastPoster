@@ -2,9 +2,8 @@
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
-public interface ISpotifyItemResolver
+public interface ISpotifyEpisodeResolver
 {
     Task<FullEpisode?> FindEpisode(FindSpotifyEpisodeRequest request, IndexingContext indexingContext);
-    Task<SpotifyPodcastWrapper?> FindPodcast(FindSpotifyPodcastRequest request, IndexingContext indexingContext);
     Task<IEnumerable<SimpleEpisode>?> GetEpisodes(SpotifyPodcastId request, IndexingContext indexingContext);
 }

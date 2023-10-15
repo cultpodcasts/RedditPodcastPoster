@@ -6,13 +6,16 @@ namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 public class SpotifyPodcastEnricher : ISpotifyPodcastEnricher
 {
     private readonly ILogger<SpotifyPodcastEnricher> _logger;
-    private readonly ISpotifyItemResolver _spotifyItemResolver;
+    private readonly ISpotifyEpisodeResolver _spotifyEpisodeResolver;
+    private readonly ISpotifyPodcastResolver _spotifyPodcastResolver;
 
     public SpotifyPodcastEnricher(
-        ISpotifyItemResolver spotifyIdResolver,
+        ISpotifyEpisodeResolver spotifyIdResolver,
+        ISpotifyPodcastResolver spotifyPodcastResolver,
         ILogger<SpotifyPodcastEnricher> logger)
     {
-        _spotifyItemResolver = spotifyIdResolver;
+        _spotifyEpisodeResolver = spotifyIdResolver;
+        _spotifyPodcastResolver = spotifyPodcastResolver;
         _logger = logger;
     }
 
@@ -22,7 +25,7 @@ public class SpotifyPodcastEnricher : ISpotifyPodcastEnricher
         if (string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
             var matchedPodcast =
-                await _spotifyItemResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest(), indexingContext);
+                await _spotifyPodcastResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest(), indexingContext);
             if (matchedPodcast != null && !string.IsNullOrWhiteSpace(matchedPodcast.Id))
             {
                 podcast.SpotifyId = matchedPodcast.Id;
@@ -37,7 +40,7 @@ public class SpotifyPodcastEnricher : ISpotifyPodcastEnricher
                 if (string.IsNullOrWhiteSpace(podcastEpisode.SpotifyId))
                 {
                     var episode =
-                        await _spotifyItemResolver.FindEpisode(
+                        await _spotifyEpisodeResolver.FindEpisode(
                             FindSpotifyEpisodeRequestFactory.Create(podcast, podcastEpisode), indexingContext);
                     if (!string.IsNullOrWhiteSpace(episode?.Id))
                     {

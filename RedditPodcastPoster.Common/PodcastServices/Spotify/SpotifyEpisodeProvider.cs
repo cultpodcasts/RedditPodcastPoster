@@ -7,20 +7,20 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
 {
     private readonly ILogger<SpotifyEpisodeProvider> _logger;
 
-    private readonly ISpotifyItemResolver _spotifyItemResolver;
+    private readonly ISpotifyEpisodeResolver _spotifyEpisodeResolver;
 
     public SpotifyEpisodeProvider(
-        ISpotifyItemResolver spotifyItemResolver,
+        ISpotifyEpisodeResolver spotifyEpisodeResolver,
         ILogger<SpotifyEpisodeProvider> logger)
     {
-        _spotifyItemResolver = spotifyItemResolver;
+        _spotifyEpisodeResolver = spotifyEpisodeResolver;
         _logger = logger;
     }
 
     public async Task<IList<Episode>?> GetEpisodes(SpotifyPodcastId podcastId, IndexingContext indexingContext)
     {
         var episodes =
-            await _spotifyItemResolver.GetEpisodes(
+            await _spotifyEpisodeResolver.GetEpisodes(
                 new SpotifyPodcastId(podcastId.PodcastId), indexingContext);
 
         if (episodes == null)

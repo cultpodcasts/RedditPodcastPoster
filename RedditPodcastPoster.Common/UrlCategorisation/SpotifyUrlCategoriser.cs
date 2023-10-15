@@ -9,13 +9,13 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
 {
     private static readonly Regex SpotifyId = new(@"episode/(?'episodeId'\w+)");
     private readonly ILogger<SpotifyUrlCategoriser> _logger;
-    private readonly ISpotifyItemResolver _spotifyItemResolver;
+    private readonly ISpotifyEpisodeResolver _spotifyEpisodeResolver;
 
     public SpotifyUrlCategoriser(
-        ISpotifyItemResolver spotifyItemResolver,
+        ISpotifyEpisodeResolver spotifyEpisodeResolver,
         ILogger<SpotifyUrlCategoriser> logger)
     {
-        _spotifyItemResolver = spotifyItemResolver;
+        _spotifyEpisodeResolver = spotifyEpisodeResolver;
         _logger = logger;
     }
 
@@ -41,7 +41,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
             throw new InvalidOperationException($"Unable to find spotify-id in url '{url}'.");
         }
 
-        var item = await _spotifyItemResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(episodeId),
+        var item = await _spotifyEpisodeResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(episodeId),
             indexingContext);
         if (item != null)
         {
@@ -70,7 +70,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
             (matchingPodcast?.Name ?? criteria.ShowName).Trim(),
             string.Empty,
             criteria.EpisodeTitle.Trim());
-        var item = await _spotifyItemResolver.FindEpisode(request, indexingContext);
+        var item = await _spotifyEpisodeResolver.FindEpisode(request, indexingContext);
         if (item != null)
         {
             return new ResolvedSpotifyItem(
