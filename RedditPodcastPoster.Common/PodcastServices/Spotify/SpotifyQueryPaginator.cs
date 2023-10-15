@@ -5,19 +5,18 @@ namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
 public class SpotifyQueryPaginator : ISpotifyQueryPaginator
 {
-    private readonly ISpotifyClientWrapper _spotifyClientWrapper;
     private readonly ILogger<SpotifyQueryPaginator> _logger;
+    private readonly ISpotifyClientWrapper _spotifyClientWrapper;
 
     public SpotifyQueryPaginator(
         ISpotifyClientWrapper spotifyClientWrapper,
-
         ILogger<SpotifyQueryPaginator> logger)
     {
         _spotifyClientWrapper = spotifyClientWrapper;
         _logger = logger;
     }
 
-    public async Task<IList<SimpleEpisode>> PaginateEpisodes(
+    public async Task<PaginateEpisodesResponse> PaginateEpisodes(
         IPaginatable<SimpleEpisode>? pagedEpisodes,
         IndexingContext indexingContext)
     {
@@ -25,12 +24,12 @@ public class SpotifyQueryPaginator : ISpotifyQueryPaginator
         {
             _logger.LogInformation(
                 $"Skipping '{nameof(PaginateEpisodes)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set.");
-            return new List<SimpleEpisode>();
+            return new PaginateEpisodesResponse(new List<SimpleEpisode>());
         }
 
         if (pagedEpisodes == null || pagedEpisodes.Items == null)
         {
-            return new List<SimpleEpisode>();
+            return new PaginateEpisodesResponse(new List<SimpleEpisode>());
         }
 
         var currentMoment = DateTime.Now;
@@ -45,6 +44,8 @@ public class SpotifyQueryPaginator : ISpotifyQueryPaginator
                 currentMoment = releaseDate;
             }
         }
+
+        var isExpensiveQueryFound = !isInReverseTimeOrder;
 
         var episodes = pagedEpisodes.Items.ToList();
 
@@ -69,6 +70,6 @@ public class SpotifyQueryPaginator : ISpotifyQueryPaginator
             }
         }
 
-        return episodes;
+        return new PaginateEpisodesResponse(episodes, isExpensiveQueryFound);
     }
 }

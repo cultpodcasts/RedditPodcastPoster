@@ -66,7 +66,6 @@ public static class Ioc
             .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
             .AddSingleton<IYouTubeIdExtractor, YouTubeIdExtractor>()
             .AddScoped<ISpotifyPodcastEnricher, SpotifyPodcastEnricher>()
-            .AddScoped<ISpotifyIdResolver, SpotifyIdResolver>()
             .AddScoped<ISpotifyEpisodeResolver, SpotifyEpisodeResolver>()
             .AddScoped<ISpotifyPodcastResolver, SpotifyPodcastResolver>()
             .AddScoped<ISpotifyQueryPaginator, SpotifyQueryPaginator>()

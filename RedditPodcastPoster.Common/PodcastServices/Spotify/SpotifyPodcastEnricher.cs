@@ -26,10 +26,18 @@ public class SpotifyPodcastEnricher : ISpotifyPodcastEnricher
         {
             var matchedPodcast =
                 await _spotifyPodcastResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest(), indexingContext);
-            if (matchedPodcast != null && !string.IsNullOrWhiteSpace(matchedPodcast.Id))
+            if (matchedPodcast != null)
             {
-                podcast.SpotifyId = matchedPodcast.Id;
-                podcastShouldUpdate = true;
+                if (!string.IsNullOrWhiteSpace(matchedPodcast.Id))
+                {
+                    podcast.SpotifyId = matchedPodcast.Id;
+                    podcastShouldUpdate = true;
+                }
+
+                if (matchedPodcast.ExpensiveQueryFound)
+                {
+                    podcast.SpotifyEpisodesQueryIsExpensive = true;
+                }
             }
         }
 
@@ -39,13 +47,17 @@ public class SpotifyPodcastEnricher : ISpotifyPodcastEnricher
             {
                 if (string.IsNullOrWhiteSpace(podcastEpisode.SpotifyId))
                 {
-                    var episode =
-                        await _spotifyEpisodeResolver.FindEpisode(
-                            FindSpotifyEpisodeRequestFactory.Create(podcast, podcastEpisode), indexingContext);
-                    if (!string.IsNullOrWhiteSpace(episode?.Id))
+                    var findEpisodeResponse = await _spotifyEpisodeResolver.FindEpisode(
+                        FindSpotifyEpisodeRequestFactory.Create(podcast, podcastEpisode), indexingContext);
+                    if (!string.IsNullOrWhiteSpace(findEpisodeResponse.FullEpisode?.Id))
                     {
-                        podcastEpisode.SpotifyId = episode.Id;
+                        podcastEpisode.SpotifyId = findEpisodeResponse.FullEpisode.Id;
                         podcastShouldUpdate = true;
+                    }
+
+                    if (findEpisodeResponse.IsExpensiveQuery)
+                    {
+                        podcast.SpotifyEpisodesQueryIsExpensive = true;
                     }
                 }
             }

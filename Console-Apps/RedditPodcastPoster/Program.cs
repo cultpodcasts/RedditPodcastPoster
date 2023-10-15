@@ -64,7 +64,6 @@ builder.Services
     .AddSingleton<IYouTubeIdExtractor, YouTubeIdExtractor>()
     .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
     .AddScoped<ISpotifyPodcastEnricher, SpotifyPodcastEnricher>()
-    .AddScoped<ISpotifyIdResolver, SpotifyIdResolver>()
     .AddScoped<ISpotifyEpisodeResolver, SpotifyEpisodeResolver>()
     .AddScoped<ISpotifyPodcastResolver, SpotifyPodcastResolver>()
     .AddScoped<ISpotifyQueryPaginator, SpotifyQueryPaginator>()

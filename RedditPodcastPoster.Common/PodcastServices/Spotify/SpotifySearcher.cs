@@ -27,7 +27,7 @@ public class SpotifySearcher : ISpotifySearcher
     {
         foreach (var episodeList in episodeLists)
         {
-            var match = episodeList.SingleOrDefault(x => x.Name == episodeTitle);
+            var match = episodeList.SingleOrDefault(x => x.Name.Trim() == episodeTitle.Trim());
             if (match == null && episodeRelease.HasValue)
             {
                 var sameDateMatches =

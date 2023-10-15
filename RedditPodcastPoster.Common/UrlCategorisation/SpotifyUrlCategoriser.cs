@@ -41,22 +41,28 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
             throw new InvalidOperationException($"Unable to find spotify-id in url '{url}'.");
         }
 
-        var item = await _spotifyEpisodeResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(episodeId),
-            indexingContext);
-        if (item != null)
+        if (!indexingContext.SkipExpensiveQueries)
         {
-            return new ResolvedSpotifyItem(
-                item.Show.Id,
-                item.Id,
-                item.Show.Name,
-                item.Show.Description,
-                item.Show.Publisher,
-                item.Name,
-                item.Description,
-                item.GetReleaseDate(),
-                item.GetDuration(),
-                new Uri(item.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute),
-                item.Explicit);
+            var findEpisodeResponse = await _spotifyEpisodeResolver.FindEpisode(
+                FindSpotifyEpisodeRequestFactory.Create(episodeId),
+                indexingContext);
+            if (findEpisodeResponse.FullEpisode != null)
+            {
+                return new ResolvedSpotifyItem(
+                    findEpisodeResponse.FullEpisode.Show.Id,
+                    findEpisodeResponse.FullEpisode.Id,
+                    findEpisodeResponse.FullEpisode.Show.Name,
+                    findEpisodeResponse.FullEpisode.Show.Description,
+                    findEpisodeResponse.FullEpisode.Show.Publisher,
+                    findEpisodeResponse.FullEpisode.Name,
+                    findEpisodeResponse.FullEpisode.Description,
+                    findEpisodeResponse.FullEpisode.GetReleaseDate(),
+                    findEpisodeResponse.FullEpisode.GetDuration(),
+                    new Uri(findEpisodeResponse.FullEpisode.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute),
+                    findEpisodeResponse.FullEpisode.Explicit);
+            }
+
+            _logger.LogError($"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveQueries)}' is set.");
         }
 
         throw new InvalidOperationException($"Could not find item with spotify-id '{SpotifyId}'.");
@@ -70,21 +76,28 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
             (matchingPodcast?.Name ?? criteria.ShowName).Trim(),
             string.Empty,
             criteria.EpisodeTitle.Trim());
-        var item = await _spotifyEpisodeResolver.FindEpisode(request, indexingContext);
-        if (item != null)
+        if (!indexingContext.SkipExpensiveQueries)
         {
-            return new ResolvedSpotifyItem(
-                item.Show.Id,
-                item.Id,
-                item.Show.Name,
-                item.Show.Description,
-                item.Show.Publisher,
-                item.Name,
-                item.Description,
-                item.GetReleaseDate(),
-                item.GetDuration(),
-                item.GetUrl(),
-                item.Explicit);
+            var findEpisodeResponse = await _spotifyEpisodeResolver.FindEpisode(request, indexingContext);
+            if (findEpisodeResponse.FullEpisode != null)
+            {
+                return new ResolvedSpotifyItem(
+                    findEpisodeResponse.FullEpisode.Show.Id,
+                    findEpisodeResponse.FullEpisode.Id,
+                    findEpisodeResponse.FullEpisode.Show.Name,
+                    findEpisodeResponse.FullEpisode.Show.Description,
+                    findEpisodeResponse.FullEpisode.Show.Publisher,
+                    findEpisodeResponse.FullEpisode.Name,
+                    findEpisodeResponse.FullEpisode.Description,
+                    findEpisodeResponse.FullEpisode.GetReleaseDate(),
+                    findEpisodeResponse.FullEpisode.GetDuration(),
+                    findEpisodeResponse.FullEpisode.GetUrl(),
+                    findEpisodeResponse.FullEpisode.Explicit);
+            }
+        }
+        else
+        {
+            _logger.LogError($"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveQueries)}' is set.");
         }
 
         _logger.LogWarning(

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
@@ -17,23 +18,21 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
         _logger = logger;
     }
 
-    public async Task<IList<Episode>?> GetEpisodes(SpotifyPodcastId podcastId, IndexingContext indexingContext)
+    public async Task<GetEpisodesResponse> GetEpisodes(SpotifyPodcastId podcastId, IndexingContext indexingContext)
     {
-        var episodes =
+        var getEpisodesResult =
             await _spotifyEpisodeResolver.GetEpisodes(
                 new SpotifyPodcastId(podcastId.PodcastId), indexingContext);
 
-        if (episodes == null)
-        {
-            return null;
-        }
+        var expensiveQueryFound = getEpisodesResult.IsExpensiveQuery;
 
+        IEnumerable<SimpleEpisode> episodes = getEpisodesResult.Results;
         if (indexingContext.ReleasedSince.HasValue)
         {
             episodes = episodes.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince.Value);
         }
 
-        return episodes.Select(x =>
+        return new GetEpisodesResponse(episodes.Select(x =>
             Episode.FromSpotify(
                 x.Id,
                 x.Name.Trim(),
@@ -42,6 +41,6 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
                 x.Explicit,
                 x.GetReleaseDate(),
                 new Uri(x.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute))
-        ).ToList();
+        ).ToList(), expensiveQueryFound);
     }
 }

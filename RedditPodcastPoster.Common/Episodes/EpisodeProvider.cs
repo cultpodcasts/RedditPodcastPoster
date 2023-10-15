@@ -35,11 +35,15 @@ public class EpisodeProvider : IEpisodeProvider
         if (!indexingContext.SkipSpotifyUrlResolving && podcast.ReleaseAuthority is null or Service.Spotify &&
             !string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
-            var foundEpisodes = await _spotifyEpisodeProvider.GetEpisodes(
-                new SpotifyPodcastId(podcast.SpotifyId), indexingContext);
-            if (foundEpisodes != null && foundEpisodes.Any())
+            var getEpisodesResult = await _spotifyEpisodeProvider.GetEpisodes(new SpotifyPodcastId(podcast.SpotifyId), indexingContext);
+            if (getEpisodesResult.Results != null && getEpisodesResult.Results.Any())
             {
-                episodes = foundEpisodes;
+                episodes = getEpisodesResult.Results;
+            }
+
+            if (getEpisodesResult.ExpensiveQueryFound)
+            {
+                podcast.SpotifyEpisodesQueryIsExpensive = true;
             }
 
             if (!indexingContext.SkipSpotifyUrlResolving)
@@ -67,7 +71,7 @@ public class EpisodeProvider : IEpisodeProvider
         {
             if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
             {
-                if (podcast.HasExpensiveQuery() && indexingContext.SkipExpensiveQueries)
+                if (podcast.HasExpensiveYouTubePlaylistQuery() && indexingContext.SkipExpensiveQueries)
                 {
                     _logger.LogInformation($"Podcast '{podcast.Id}' has known expensive query and will not run this time.");
                     return new List<Episode>();

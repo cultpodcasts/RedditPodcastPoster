@@ -36,6 +36,7 @@ public class SpotifyPodcastResolver : ISpotifyPodcastResolver
 
         SimpleShow? matchingSimpleShow = null;
         FullShow? matchingFullShow = null;
+        var expensiveSpotifyEpisodesQueryFound = false;
         if (!string.IsNullOrWhiteSpace(request.PodcastId))
         {
             var showRequest = new ShowRequest {Market = Market};
@@ -64,16 +65,21 @@ public class SpotifyPodcastResolver : ISpotifyPodcastResolver
                                 indexingContext);
                         if (pagedEpisodes != null)
                         {
-                            var allEpisodes =
+                            var paginateEpisodesResponse =
                                 await _spotifyQueryPaginator.PaginateEpisodes(pagedEpisodes, indexingContext);
-                            if (allEpisodes.Any())
+                            if (paginateEpisodesResponse.IsExpensiveQuery)
+                            {
+                                expensiveSpotifyEpisodesQueryFound = true;
+                            }
+
+                            if (paginateEpisodesResponse.Results.Any())
                             {
                                 var mostRecentEpisode = request.Episodes.OrderByDescending(x => x.Release).First();
                                 var matchingEpisode =
                                     _spotifySearcher.FindMatchingEpisode(
-                                        mostRecentEpisode.Title,
+                                        mostRecentEpisode.Title.Trim(),
                                         mostRecentEpisode.Release,
-                                        new[] {allEpisodes});
+                                        new[] {paginateEpisodesResponse.Results});
                                 if (request.Episodes
                                     .Select(x => x.Url?.ToString())
                                     .Contains(matchingEpisode!.ExternalUrls.FirstOrDefault().Value))
@@ -91,6 +97,6 @@ public class SpotifyPodcastResolver : ISpotifyPodcastResolver
             }
         }
 
-        return new SpotifyPodcastWrapper(matchingFullShow, matchingSimpleShow);
+        return new SpotifyPodcastWrapper(matchingFullShow, matchingSimpleShow, expensiveSpotifyEpisodesQueryFound);
     }
 }

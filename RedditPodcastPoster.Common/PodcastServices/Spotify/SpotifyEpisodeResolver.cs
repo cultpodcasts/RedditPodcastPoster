@@ -23,8 +23,9 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
         _logger = logger;
     }
 
-    public async Task<FullEpisode?> FindEpisode(FindSpotifyEpisodeRequest request, IndexingContext indexingContext)
+    public async Task<FindEpisodeResponse> FindEpisode(FindSpotifyEpisodeRequest request, IndexingContext indexingContext)
     {
+        var expensiveQueryFound = false;
         if (indexingContext.SkipSpotifyUrlResolving)
         {
             _logger.LogInformation(
@@ -82,11 +83,20 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
                 IList<IList<SimpleEpisode>> allEpisodes = new List<IList<SimpleEpisode>>();
                 foreach (var paging in episodes)
                 {
-                    if (paging.Item2 != null)
+                    if (paging.Item2 != null && !indexingContext.SkipExpensiveQueries)
                     {
-                        var simpleEpisodes =
+                        var paginateEpisodeResponse =
                             await _spotifyQueryPaginator.PaginateEpisodes(paging.Item2, indexingContext);
-                        allEpisodes.Add(simpleEpisodes);
+                        allEpisodes.Add(paginateEpisodeResponse.Results);
+                        if (paginateEpisodeResponse.IsExpensiveQuery)
+                        {
+                            expensiveQueryFound = true;
+                        }
+                    }
+
+                    if (indexingContext.SkipExpensiveQueries)
+                    {
+                        _logger.LogInformation("Skipping pagination of query results");
                     }
                 }
 
@@ -102,10 +112,10 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
             }
         }
 
-        return fullEpisode;
+        return new FindEpisodeResponse(fullEpisode, expensiveQueryFound);
     }
 
-    public async Task<IEnumerable<SimpleEpisode>?> GetEpisodes(
+    public async Task<PaginateEpisodesResponse> GetEpisodes(
         SpotifyPodcastId request,
         IndexingContext indexingContext)
     {
@@ -125,6 +135,12 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
 
         var pagedEpisodes =
             await _spotifyClientWrapper.GetShowEpisodes(request.PodcastId, showEpisodesRequest, indexingContext);
+
+        if (indexingContext.SkipExpensiveQueries)
+        {
+            _logger.LogInformation("Skipping pagination of query results");
+            return new PaginateEpisodesResponse(new List<SimpleEpisode>());
+        }
 
         return await _spotifyQueryPaginator.PaginateEpisodes(pagedEpisodes, indexingContext);
     }

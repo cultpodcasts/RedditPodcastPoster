@@ -18,6 +18,7 @@ public class SpotifyClientFactory : ISpotifyClientFactory
 
     public async Task<ISpotifyClient> Create()
     {
+        _logger.LogInformation($"{nameof(Create)} Creating new '{nameof(ISpotifyClient)}'.");
         var config = SpotifyClientConfig.CreateDefault();
 
         var request = new ClientCredentialsRequest(_settings.ClientId, _settings.ClientSecret);
