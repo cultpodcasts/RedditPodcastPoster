@@ -65,7 +65,7 @@ public class EpisodeProvider : IEpisodeProvider
         if (!handled)
         {
             _logger.LogInformation(
-                $"Unable to handle podcast with name: '{podcast.Name}', id: {podcast.Id}. Spotify-Id: '{podcast.SpotifyId}', Apple-Id: '{podcast.AppleId}', YouTube-ChannelId: '{podcast.YouTubeChannelId}', YouTube-PlayListId: '{podcast.YouTubePlaylistId}'. Expensive-Queries? {nameof(podcast.SpotifyEpisodesQueryIsExpensive)}= '{podcast.SpotifyEpisodesQueryIsExpensive}', {nameof(podcast.YouTubePlaylistQueryIsExpensive)}= '{podcast.YouTubePlaylistQueryIsExpensive}'.");
+                $"Unable to handle podcast with name: '{podcast.Name}', id: {podcast.Id}. Spotify-Id: '{podcast.SpotifyId}', Apple-Id: '{podcast.AppleId}', YouTube-ChannelId: '{podcast.YouTubeChannelId}', YouTube-PlayListId: '{podcast.YouTubePlaylistId}'. Expensive-Queries? {nameof(podcast.HasExpensiveSpotifyEpisodesQuery)}= '{podcast.HasExpensiveSpotifyEpisodesQuery()}', {nameof(podcast.HasExpensiveYouTubePlaylistQuery)}= '{podcast.HasExpensiveYouTubePlaylistQuery()}'.");
         }
 
         if (episodes != null && episodes.Any() && !podcast.IndexAllEpisodes &&

@@ -96,7 +96,7 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
 
                     if (indexingContext.SkipExpensiveQueries)
                     {
-                        _logger.LogInformation("Skipping pagination of query results");
+                        _logger.LogInformation($"{nameof(FindEpisode)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveQueries)} is set.");
                     }
                 }
 
@@ -138,7 +138,7 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
 
         if (indexingContext.SkipExpensiveQueries)
         {
-            _logger.LogInformation("Skipping pagination of query results");
+            _logger.LogInformation($"{nameof(GetEpisodes)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveQueries)} is set.");
             return new PaginateEpisodesResponse(new List<SimpleEpisode>());
         }
 
