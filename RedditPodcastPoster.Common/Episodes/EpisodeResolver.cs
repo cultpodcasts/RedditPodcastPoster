@@ -33,7 +33,7 @@ public class EpisodeResolver : IEpisodeResolver
     {
         var storedPodcasts = await _podcastRepository.GetAll().ToListAsync();
         var matchingPodcasts = storedPodcasts.Where(x =>
-            x.Episodes.Any(y => (y.Release >= since && y.Urls.Spotify != null) || y.Urls.YouTube != null));
+            x.Episodes.Any(y => y.Release >= since && (y.Urls.Spotify != null || y.Urls.YouTube != null)));
         var resolvedPodcastEpisodeSince = new List<PodcastEpisode>();
         foreach (var matchingPodcast in matchingPodcasts)
         {
