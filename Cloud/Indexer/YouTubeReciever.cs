@@ -35,6 +35,6 @@ public class YouTubeReceiver
             return response;
         }
 
-        return req.CreateResponse(HttpStatusCode.NoContent);
+        return req.CreateResponse(HttpStatusCode.Accepted);
     }
 }
