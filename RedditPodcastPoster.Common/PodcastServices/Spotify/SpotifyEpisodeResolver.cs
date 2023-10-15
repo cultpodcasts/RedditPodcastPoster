@@ -30,7 +30,7 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
         {
             _logger.LogInformation(
                 $"Skipping '{nameof(FindEpisode)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.PodcastSpotifyId}', Podcast-Name:'{request.PodcastName}', Episode-Id:'{request.EpisodeSpotifyId}', Episode-Name:'{request.EpisodeTitle}'.");
-            return null;
+            return new FindEpisodeResponse(null);
         }
 
         FullEpisode? fullEpisode = null;
@@ -123,7 +123,7 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
         {
             _logger.LogInformation(
                 $"Skipping '{nameof(GetEpisodes)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.PodcastId}'.");
-            return null;
+            return new PaginateEpisodesResponse(new List<SimpleEpisode>());
         }
 
         var showEpisodesRequest = new ShowEpisodesRequest {Market = Market};

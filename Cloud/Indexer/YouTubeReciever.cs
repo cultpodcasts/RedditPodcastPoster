@@ -31,7 +31,7 @@ public class YouTubeReceiver
             var response = req.CreateResponse(HttpStatusCode.OK);
             response.Headers.Add("Content-Type", "text/plain; charset=utf-8");
 
-            response.WriteString(queryString[HubChallenge]);
+            await response.WriteStringAsync(queryString[HubChallenge]!);
             return response;
         }
 

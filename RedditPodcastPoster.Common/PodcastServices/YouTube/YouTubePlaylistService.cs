@@ -28,7 +28,7 @@ public class YouTubePlaylistService : IYouTubePlaylistService
         {
             _logger.LogInformation(
                 $"Skipping '{nameof(GetPlaylistVideoSnippets)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{playlistId.PlaylistId}'.");
-            return null;
+            return new GetPlaylistVideoSnippetsResponse(null);
         }
 
         var batchSize = MaxSearchResults;

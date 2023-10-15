@@ -33,6 +33,10 @@ public class EnrichmentResults
             {
                 appleReport+= $" Apple-ReleaseDate: {enrichmentResult.Episode.Release:R}";
             }
+            if (enrichmentResult.EnrichmentContext.YouTubeIdUpdated)
+            {
+                youTubeReport += $" YouTube-Id: {enrichmentResult.Episode.YouTubeId}";
+            }
 
             report.AppendLine(
                 $"Title: '{enrichmentResult.Episode.Title}'.{youTubeReport}{appleReport}{spotifyReport} Episode-Id: '{enrichmentResult.Episode.Id}'.'");
