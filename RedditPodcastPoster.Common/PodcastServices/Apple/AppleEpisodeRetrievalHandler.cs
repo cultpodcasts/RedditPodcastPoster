@@ -21,9 +21,7 @@ public class AppleEpisodeRetrievalHandler : IAppleEpisodeRetrievalHandler
     {
         var handled = false;
         IList<Episode> episodes= new List<Episode>();
-        if (
-            podcast is {ReleaseAuthority: Service.Apple, AppleId: not null} && podcast.AppleId != null &&
-            podcast.ReleaseAuthority != Service.YouTube)
+        if (podcast.AppleId != null)
         {
             var foundEpisodes = await _appleEpisodeProvider.GetEpisodes(
                 new ApplePodcastId(podcast.AppleId.Value), indexingContext);

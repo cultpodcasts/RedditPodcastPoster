@@ -65,6 +65,7 @@ builder.Services
     .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
     .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
     .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
+    .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
     .AddSingleton<IYouTubeIdExtractor, YouTubeIdExtractor>()
     .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
     .AddScoped<ISpotifyPodcastEnricher, SpotifyPodcastEnricher>()

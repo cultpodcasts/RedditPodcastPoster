@@ -22,7 +22,7 @@ public class SpotifyEpisodeRetrievalHandler : ISpotifyEpisodeRetrievalHandler
         var handled = false;
 
         IList<Episode> episodes= new List<Episode>();
-        if (podcast.ReleaseAuthority is null or Service.Spotify && !string.IsNullOrWhiteSpace(podcast.SpotifyId))
+        if (!string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
             var getEpisodesResult =
                 await _spotifyEpisodeProvider.GetEpisodes(new SpotifyPodcastId(podcast.SpotifyId), indexingContext);

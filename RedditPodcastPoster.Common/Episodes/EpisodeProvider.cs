@@ -30,14 +30,19 @@ public class EpisodeProvider : IEpisodeProvider
 
     public async Task<IList<Episode>> GetEpisodes(Podcast podcast, IndexingContext indexingContext)
     {
-        var (episodes, handled) = await _spotifyEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
-        if (handled)
+        IList<Episode>? episodes = null;
+        var handled = false;
+        if (podcast.ReleaseAuthority is null or Service.Spotify)
         {
-            _logger.LogInformation(
-                $"Get Episodes for podcast '{podcast.Name}' handled by '{nameof(ISpotifyEpisodeRetrievalHandler)}'.");
+            (episodes, handled) = await _spotifyEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
+            if (handled)
+            {
+                _logger.LogInformation(
+                    $"Get Episodes for podcast '{podcast.Name}' handled by '{nameof(ISpotifyEpisodeRetrievalHandler)}'.");
+            }
         }
 
-        if (!handled)
+        if (!handled && podcast.ReleaseAuthority != Service.YouTube)
         {
             (episodes, handled) = await _appleEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
             if (handled)
@@ -47,7 +52,7 @@ public class EpisodeProvider : IEpisodeProvider
             }
         }
 
-        if (!handled)
+        if (!handled || podcast.ReleaseAuthority is Service.YouTube)
         {
             (episodes, handled) = await _youTubeEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
             if (handled)
@@ -63,11 +68,12 @@ public class EpisodeProvider : IEpisodeProvider
                 $"Unable to handle podcast with name: '{podcast.Name}', id: {podcast.Id}. Spotify-Id: '{podcast.SpotifyId}', Apple-Id: '{podcast.AppleId}', YouTube-ChannelId: '{podcast.YouTubeChannelId}', YouTube-PlayListId: '{podcast.YouTubePlaylistId}'. Expensive-Queries? {nameof(podcast.SpotifyEpisodesQueryIsExpensive)}= '{podcast.SpotifyEpisodesQueryIsExpensive}', {nameof(podcast.YouTubePlaylistQueryIsExpensive)}= '{podcast.YouTubePlaylistQueryIsExpensive}'.");
         }
 
-        if (!podcast.IndexAllEpisodes && !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
+        if (episodes != null && episodes.Any() && !podcast.IndexAllEpisodes &&
+            !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
         {
             episodes = _foundEpisodeFilter.ReduceEpisodes(podcast, episodes);
         }
 
-        return episodes;
+        return episodes ?? new List<Episode>();
     }
 }

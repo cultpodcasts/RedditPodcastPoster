@@ -24,8 +24,8 @@ public class PodcastProcessor : IPodcastProcessor
     {
         if (processRequest.RefreshEpisodes)
         {
-            IndexingContext indexingContext =
-                new(processRequest.ReleaseBaseline, processRequest.SkipYouTubeUrlResolving);
+            IndexingContext indexingContext = new(processRequest.ReleaseBaseline, processRequest.SkipYouTube,
+                processRequest.SkipSpotify, processRequest.SkipExpensiveQueries);
             var results = await _podcastsUpdater.UpdatePodcasts(indexingContext);
             if (!results)
             {

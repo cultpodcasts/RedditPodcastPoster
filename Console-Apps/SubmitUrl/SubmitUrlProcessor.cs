@@ -26,6 +26,10 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
     public async Task Process(SubmitUrlRequest request)
     {
         var indexOptions = new IndexingContext();
+        if (request.AllowExpensiveQueries)
+        {
+            indexOptions.SkipExpensiveQueries = false;
+        }
         List<Podcast> podcasts;
         if (request.PodcastId != null)
         {

@@ -21,7 +21,7 @@ public class YouTubeEpisodeRetrievalHandler : IYouTubeEpisodeRetrievalHandler
     {
         var handled = false;
         IList<Episode> episodes= new List<Episode>();
-        if (podcast.ReleaseAuthority is Service.YouTube || !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
+        if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
             if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
             {
