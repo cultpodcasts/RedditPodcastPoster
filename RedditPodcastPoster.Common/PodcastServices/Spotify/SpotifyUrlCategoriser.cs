@@ -1,9 +1,9 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.PodcastServices.Spotify;
+using RedditPodcastPoster.Common.UrlCategorisation;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Common.UrlCategorisation;
+namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
 public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
 {

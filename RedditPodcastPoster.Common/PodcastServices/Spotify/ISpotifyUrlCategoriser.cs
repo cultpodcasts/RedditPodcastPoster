@@ -1,6 +1,7 @@
-﻿using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Common.UrlCategorisation;
+using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Common.UrlCategorisation;
+namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
 public interface ISpotifyUrlCategoriser : IPodcastServiceUrlResolver
 {

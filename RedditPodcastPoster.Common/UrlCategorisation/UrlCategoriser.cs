@@ -1,4 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.PodcastServices.Apple;
+using RedditPodcastPoster.Common.PodcastServices.Spotify;
+using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.UrlCategorisation;

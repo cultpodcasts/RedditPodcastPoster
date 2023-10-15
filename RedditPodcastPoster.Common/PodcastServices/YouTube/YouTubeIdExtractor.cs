@@ -1,7 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
-namespace RedditPodcastPoster.Common.UrlCategorisation;
+namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public class YouTubeIdExtractor : IYouTubeIdExtractor
 {

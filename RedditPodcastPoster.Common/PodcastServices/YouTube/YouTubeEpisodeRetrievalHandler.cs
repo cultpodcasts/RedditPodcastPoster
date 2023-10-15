@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.PodcastServices.YouTube;
+using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Common.Episodes;
+namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public class YouTubeEpisodeRetrievalHandler : IYouTubeEpisodeRetrievalHandler
 {

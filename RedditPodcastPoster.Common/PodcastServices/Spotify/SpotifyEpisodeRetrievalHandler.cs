@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.PodcastServices.Spotify;
+using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Common.Episodes;
+namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
 public class SpotifyEpisodeRetrievalHandler : ISpotifyEpisodeRetrievalHandler
 {
