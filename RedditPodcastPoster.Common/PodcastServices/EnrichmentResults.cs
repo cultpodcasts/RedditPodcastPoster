@@ -33,9 +33,13 @@ public class EnrichmentResults
             {
                 appleReport+= $" Apple-ReleaseDate: {enrichmentResult.Episode.Release:R}";
             }
+            if (enrichmentResult.EnrichmentContext.YouTubeIdUpdated)
+            {
+                youTubeReport += $" YouTube-Id: {enrichmentResult.Episode.YouTubeId}";
+            }
 
             report.AppendLine(
-                $"Podcast '{enrichmentResult.Podcast.Name}' with id '{enrichmentResult.Podcast.Id}' episode '{enrichmentResult.Episode.Title} with Id '{enrichmentResult.Episode.Id}' updated.{youTubeReport}{appleReport}{spotifyReport}");
+                $"Title: '{enrichmentResult.Episode.Title}'.{youTubeReport}{appleReport}{spotifyReport} Episode-Id: '{enrichmentResult.Episode.Id}'.'");
         }
 
         return report.ToString();

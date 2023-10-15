@@ -53,44 +53,52 @@ public class Podcast : CosmosSelector
     [JsonPropertyOrder(53)]
     public string YouTubePlaylistId { get; set; } = "";
 
+    [JsonPropertyName("spotifyEpisodesQueryIsExpensive")]
+    [JsonPropertyOrder(60)]
+    public bool? SpotifyEpisodesQueryIsExpensive { get; set; }
+
     [JsonPropertyName("youTubePlaylistQueryIsExpensive")]
-    [JsonPropertyOrder(54)]
+    [JsonPropertyOrder(61)]
     public bool? YouTubePlaylistQueryIsExpensive { get; set; }
 
     [JsonPropertyName("twitterHandle")]
-    [JsonPropertyOrder(55)]
+    [JsonPropertyOrder(70)]
     public string TwitterHandle { get; set; } = "";
 
     [JsonPropertyName("youTubePublicationDelay")]
-    [JsonPropertyOrder(60)]
+    [JsonPropertyOrder(80)]
     public string YouTubePublishingDelayTimeSpan { get; set; } = "";
 
     [JsonPropertyName("titleRegex")]
-    [JsonPropertyOrder(70)]
+    [JsonPropertyOrder(90)]
     public string TitleRegex { get; set; } = "";
 
     [JsonPropertyName("descriptionRegex")]
-    [JsonPropertyOrder(71)]
+    [JsonPropertyOrder(91)]
     public string DescriptionRegex { get; set; } = "";
 
     [JsonPropertyName("episodeMatchRegex")]
-    [JsonPropertyOrder(72)]
+    [JsonPropertyOrder(92)]
     public string EpisodeMatchRegex { get; set; } = "";
 
     [JsonPropertyName("episodeIncludeTitleRegex")]
-    [JsonPropertyOrder(73)]
+    [JsonPropertyOrder(93)]
     public string EpisodeIncludeTitleRegex { get; set; } = "";
 
     [JsonPropertyName("episodes")]
-    [JsonPropertyOrder(80)]
+    [JsonPropertyOrder(100)]
     public List<Episode> Episodes { get; set; } = new();
 
     [JsonPropertyName("fileKey")]
-    [JsonPropertyOrder(100)]
+    [JsonPropertyOrder(110)]
     public string FileKey { get; set; } = "";
 
-    public bool HasExpensiveQuery()
+    public bool HasExpensiveYouTubePlaylistQuery()
     {
         return YouTubePlaylistQueryIsExpensive.HasValue && YouTubePlaylistQueryIsExpensive.Value;
+    }
+    public bool HasExpensiveSpotifyEpisodesQuery()
+    {
+        return SpotifyEpisodesQueryIsExpensive.HasValue && SpotifyEpisodesQueryIsExpensive.Value;
     }
 }

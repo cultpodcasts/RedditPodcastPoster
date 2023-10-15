@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
@@ -7,41 +8,38 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
 {
     private readonly ILogger<SpotifyEpisodeProvider> _logger;
 
-    private readonly ISpotifyItemResolver _spotifyItemResolver;
+    private readonly ISpotifyEpisodeResolver _spotifyEpisodeResolver;
 
     public SpotifyEpisodeProvider(
-        ISpotifyItemResolver spotifyItemResolver,
+        ISpotifyEpisodeResolver spotifyEpisodeResolver,
         ILogger<SpotifyEpisodeProvider> logger)
     {
-        _spotifyItemResolver = spotifyItemResolver;
+        _spotifyEpisodeResolver = spotifyEpisodeResolver;
         _logger = logger;
     }
 
-    public async Task<IList<Episode>?> GetEpisodes(SpotifyPodcastId podcastId, IndexingContext indexingContext)
+    public async Task<GetEpisodesResponse> GetEpisodes(GetEpisodesRequest request, IndexingContext indexingContext)
     {
-        var episodes =
-            await _spotifyItemResolver.GetEpisodes(
-                new SpotifyPodcastId(podcastId.PodcastId), indexingContext);
+        var getEpisodesResult =
+            await _spotifyEpisodeResolver.GetEpisodes(request, indexingContext);
 
-        if (episodes == null)
-        {
-            return null;
-        }
+        var expensiveQueryFound = getEpisodesResult.IsExpensiveQuery;
 
+        IEnumerable<SimpleEpisode> episodes = getEpisodesResult.Results;
         if (indexingContext.ReleasedSince.HasValue)
         {
             episodes = episodes.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince.Value);
         }
 
-        return episodes.Select(x =>
+        return new GetEpisodesResponse(episodes.Select(x =>
             Episode.FromSpotify(
                 x.Id,
-                x.Name,
-                x.Description,
+                x.Name.Trim(),
+                x.Description.Trim(),
                 TimeSpan.FromMilliseconds(x.DurationMs),
                 x.Explicit,
                 x.GetReleaseDate(),
                 new Uri(x.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute))
-        ).ToList();
+        ).ToList(), expensiveQueryFound);
     }
 }

@@ -1,9 +1,9 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.PodcastServices.Apple;
+using RedditPodcastPoster.Common.UrlCategorisation;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Common.UrlCategorisation;
+namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
 public class AppleUrlCategoriser : IAppleUrlCategoriser
 {

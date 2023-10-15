@@ -1,9 +1,9 @@
 ﻿using System.Xml;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.PodcastServices.YouTube;
+using RedditPodcastPoster.Common.UrlCategorisation;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Common.UrlCategorisation;
+namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
 {

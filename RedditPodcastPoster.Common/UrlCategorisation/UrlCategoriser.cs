@@ -1,4 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.PodcastServices.Apple;
+using RedditPodcastPoster.Common.PodcastServices.Spotify;
+using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.UrlCategorisation;
@@ -55,7 +58,21 @@ public class UrlCategoriser : IUrlCategoriser
             if (resolvedYouTubeItem != null)
             {
                 criteria = resolvedYouTubeItem.ToPodcastServiceSearchCriteria();
-                matchingPodcast = podcasts.SingleOrDefault(podcast => IsMatchingPodcast(podcast, resolvedYouTubeItem));
+                var matchingPodcasts = podcasts.Where(podcast => IsMatchingPodcast(podcast, resolvedYouTubeItem));
+                if (matchingPodcasts.Count() == 1)
+                {
+                    matchingPodcast = matchingPodcasts.Single();
+                }
+                else if (matchingPodcasts.Count() > 1)
+                {
+                    matchingPodcast =
+                        matchingPodcasts.SingleOrDefault(x => string.IsNullOrWhiteSpace(x.YouTubePlaylistId));
+                }
+                else
+                {
+                    throw new InvalidOperationException("No matching podcasts found");
+                }
+
                 matchingEpisode = matchingPodcast?.Episodes.SingleOrDefault(x =>
                     x.Urls.YouTube == url || x.YouTubeId == resolvedYouTubeItem.EpisodeId);
             }

@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Common.UrlCategorisation;
+﻿namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
 public interface IYouTubeIdExtractor
 {

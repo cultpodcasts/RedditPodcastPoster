@@ -19,6 +19,8 @@ public class YouTubeServiceFactory : IYouTubeServiceFactory
 
     public YouTubeService Create()
     {
+        _logger.LogInformation($"{nameof(Create)} Creating new '{nameof(YouTubeService)}'.");
+
         return new YouTubeService(new BaseClientService.Initializer
         {
             ApiKey = _settings.ApiKey,

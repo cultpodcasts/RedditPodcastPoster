@@ -17,4 +17,8 @@ public class SubmitUrlRequest
 
     [Option('p', "podcastid", Required = false, HelpText = "The Id of the podcast to add this episode to")]
     public Guid? PodcastId { get; set; }
+
+    [Option('a', "acknowledge-expensive-queries", Required = false, HelpText = "Allow expensive queries")]
+    public bool AllowExpensiveQueries { get; set; }
+
 }

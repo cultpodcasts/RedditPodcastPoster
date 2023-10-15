@@ -31,7 +31,7 @@ public class EpisodePostManager : IEpisodePostManager
         if (result is {Success: false, AlreadyPosted: false})
         {
             return ProcessResponse.Fail(
-                $"Could not post episode with id {postModel.Id}. Result-Message:{result.Message}");
+                $"Could not post episode with id {postModel.Id}. Results-Message:{result.Message}");
         }
 
         if (result.AlreadyPosted)

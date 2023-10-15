@@ -2,6 +2,7 @@ using System.Text.Json;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Extensions;
 
 namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 
@@ -27,7 +28,7 @@ public class YouTubePlaylistService : IYouTubePlaylistService
         {
             _logger.LogInformation(
                 $"Skipping '{nameof(GetPlaylistVideoSnippets)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{playlistId.PlaylistId}'.");
-            return null;
+            return new GetPlaylistVideoSnippetsResponse(null);
         }
 
         var batchSize = MaxSearchResults;

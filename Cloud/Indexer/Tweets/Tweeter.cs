@@ -74,8 +74,7 @@ public class Tweeter : ITweeter
                 .Where(x =>
                     x.Episode.Release >= DateTime.UtcNow.Date.AddHours(-24) &&
                     x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
-                    (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null ||
-                     x.Episode.Urls.Apple != null) &&
+                    (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
                     !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
                 .MaxBy(x => x.Episode.Release);
         if (podcastEpisode?.Podcast == null)

@@ -36,7 +36,8 @@ public class PodcastUpdater : IPodcastUpdater
     {
         var initialSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
         var initialSkipYouTube = indexingContext.SkipYouTubeUrlResolving;
-        var knownExpensiveQuery = podcast.HasExpensiveQuery();
+        var knownYouTubeExpensiveQuery = podcast.HasExpensiveYouTubePlaylistQuery();
+        var knownSpotifyExpensiveQuery = podcast.HasExpensiveSpotifyEpisodesQuery();
         var newEpisodes = await _episodeProvider.GetEpisodes(
             podcast,
             indexingContext);
@@ -51,9 +52,23 @@ public class PodcastUpdater : IPodcastUpdater
         var eliminationTerms = _eliminationTermsProvider.GetEliminationTerms();
         var filterResult = _podcastFilter.Filter(podcast, eliminationTerms.Terms);
 
-        var discoveredExpensiveQuery = !knownExpensiveQuery && podcast.HasExpensiveQuery();
+        var discoveredYouTubeExpensiveQuery = !knownYouTubeExpensiveQuery && podcast.HasExpensiveYouTubePlaylistQuery();
+        if (discoveredYouTubeExpensiveQuery)
+        {
+            _logger.LogInformation(
+                $"Expensive YouTube Query found processing '{podcast.Name}' with id '{podcast.Id}' and youtube-channel-id '{podcast.YouTubeChannelId}'.");
+        }
+
+        var discoveredSpotifyExpensiveQuery = !knownSpotifyExpensiveQuery && podcast.HasExpensiveSpotifyEpisodesQuery();
+        if (discoveredSpotifyExpensiveQuery)
+        {
+            _logger.LogInformation(
+                $"Expensive Spotify Query found processing '{podcast.Name}' with id '{podcast.Id}' and spotify-id '{podcast.SpotifyId}'.");
+        }
+
         if (mergeResult.MergedEpisodes.Any() || mergeResult.AddedEpisodes.Any() ||
-            filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any() || discoveredExpensiveQuery)
+            filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any() ||
+            discoveredYouTubeExpensiveQuery || discoveredSpotifyExpensiveQuery)
         {
             await _podcastRepository.Update(podcast);
         }

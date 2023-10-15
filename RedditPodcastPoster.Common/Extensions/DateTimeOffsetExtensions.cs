@@ -1,4 +1,4 @@
-namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
+namespace RedditPodcastPoster.Common.Extensions;
 
 public static class DateTimeOffsetExtensions
 {

@@ -33,8 +33,8 @@ public class AppleEpisodeProvider : IAppleEpisodeProvider
         return episodes.Select(x =>
             Episode.FromApple(
                 x.Id,
-                x.Title,
-                x.Description,
+                x.Title.Trim(),
+                x.Description.Trim(),
                 x.Duration,
                 x.Explicit,
                 x.Release,

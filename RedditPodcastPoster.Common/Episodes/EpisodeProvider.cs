@@ -1,5 +1,4 @@
-﻿using System.Text.RegularExpressions;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
@@ -9,126 +8,72 @@ namespace RedditPodcastPoster.Common.Episodes;
 
 public class EpisodeProvider : IEpisodeProvider
 {
-    private readonly IAppleEpisodeProvider _appleEpisodeProvider;
+    private readonly IAppleEpisodeRetrievalHandler _appleEpisodeRetrievalHandler;
+    private readonly IFoundEpisodeFilter _foundEpisodeFilter;
     private readonly ILogger<EpisodeProvider> _logger;
-    private readonly ISpotifyEpisodeProvider _spotifyEpisodeProvider;
-    private readonly IYouTubeEpisodeProvider _youTubeEpisodeProvider;
+    private readonly ISpotifyEpisodeRetrievalHandler _spotifyEpisodeRetrievalHandler;
+    private readonly IYouTubeEpisodeRetrievalHandler _youTubeEpisodeRetrievalHandler;
 
     public EpisodeProvider(
-        ISpotifyEpisodeProvider spotifyEpisodeProvider,
-        IAppleEpisodeProvider appleEpisodeProvider,
-        IYouTubeEpisodeProvider youTubeEpisodeProvider,
+        IAppleEpisodeRetrievalHandler appleEpisodeRetrievalHandler,
+        IYouTubeEpisodeRetrievalHandler youTubeEpisodeRetrievalHandler,
+        ISpotifyEpisodeRetrievalHandler spotifyEpisodeRetrievalHandler,
+        IFoundEpisodeFilter foundEpisodeFilter,
         ILogger<EpisodeProvider> logger)
     {
-        _spotifyEpisodeProvider = spotifyEpisodeProvider;
-        _appleEpisodeProvider = appleEpisodeProvider;
-        _youTubeEpisodeProvider = youTubeEpisodeProvider;
+        _appleEpisodeRetrievalHandler = appleEpisodeRetrievalHandler;
+        _youTubeEpisodeRetrievalHandler = youTubeEpisodeRetrievalHandler;
+        _spotifyEpisodeRetrievalHandler = spotifyEpisodeRetrievalHandler;
+        _foundEpisodeFilter = foundEpisodeFilter;
         _logger = logger;
     }
 
-    public async Task<IList<Episode>> GetEpisodes(
-        Podcast podcast,
-        IndexingContext indexingContext)
+    public async Task<IList<Episode>> GetEpisodes(Podcast podcast, IndexingContext indexingContext)
     {
-        IList<Episode> episodes = new List<Episode>();
+        IList<Episode>? episodes = null;
         var handled = false;
-        if (!indexingContext.SkipSpotifyUrlResolving && podcast.ReleaseAuthority is null or Service.Spotify &&
-            !string.IsNullOrWhiteSpace(podcast.SpotifyId))
+        if (podcast.ReleaseAuthority is null or Service.Spotify)
         {
-            var foundEpisodes = await _spotifyEpisodeProvider.GetEpisodes(
-                new SpotifyPodcastId(podcast.SpotifyId), indexingContext);
-            if (foundEpisodes != null && foundEpisodes.Any())
+            (episodes, handled) = await _spotifyEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
+            if (handled)
             {
-                episodes = foundEpisodes;
-            }
-
-            if (!indexingContext.SkipSpotifyUrlResolving)
-            {
-                handled = true;
+                _logger.LogInformation(
+                    $"Get Episodes for podcast '{podcast.Name}' handled by '{nameof(ISpotifyEpisodeRetrievalHandler)}'.");
             }
         }
 
-        if (!handled && (
-                podcast is {ReleaseAuthority: Service.Apple, AppleId: not null} ||
-                (indexingContext.SkipSpotifyUrlResolving && podcast.AppleId != null &&
-                 podcast.ReleaseAuthority != Service.YouTube)))
+        if (!handled && podcast.ReleaseAuthority != Service.YouTube)
         {
-            var foundEpisodes = await _appleEpisodeProvider.GetEpisodes(
-                new ApplePodcastId(podcast.AppleId.Value), indexingContext);
-            if (foundEpisodes != null)
+            (episodes, handled) = await _appleEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
+            if (handled)
             {
-                episodes = foundEpisodes;
+                _logger.LogInformation(
+                    $"Get Episodes for podcast '{podcast.Name}' handled by '{nameof(IAppleEpisodeRetrievalHandler)}'.");
             }
-
-            handled = true;
         }
 
-        if (!handled && (podcast.ReleaseAuthority is Service.YouTube || !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId)))
+        if (!handled || podcast.ReleaseAuthority is Service.YouTube)
         {
-            if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
+            (episodes, handled) = await _youTubeEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
+            if (handled)
             {
-                if (podcast.HasExpensiveQuery() && indexingContext.SkipExpensiveQueries)
-                {
-                    _logger.LogInformation($"Podcast '{podcast.Id}' has known expensive query and will not run this time.");
-                    return new List<Episode>();
-                }
-
-                var getPlaylistEpisodesResult = await _youTubeEpisodeProvider.GetPlaylistEpisodes(
-                    new YouTubePlaylistId(podcast.YouTubePlaylistId), indexingContext);
-                if (getPlaylistEpisodesResult.Results != null)
-                {
-                    episodes = getPlaylistEpisodesResult.Results;
-                }
-
-                if (getPlaylistEpisodesResult.IsExpensiveQuery)
-                {
-                    podcast.YouTubePlaylistQueryIsExpensive = true;
-                }
+                _logger.LogInformation(
+                    $"Get Episodes for podcast '{podcast.Name}' handled by '{nameof(IYouTubeEpisodeRetrievalHandler)}'.");
             }
-            else
-            {
-                IEnumerable<string> knownIds;
-                if (indexingContext.ReleasedSince.HasValue)
-                {
-                    knownIds = podcast.Episodes.Where(x => x.Release >= indexingContext.ReleasedSince)
-                        .Select(x => x.YouTubeId);
-                }
-                else
-                {
-                    knownIds = podcast.Episodes.Select(x => x.YouTubeId);
-                }
-
-                var foundEpisodes = await _youTubeEpisodeProvider.GetEpisodes(
-                    new YouTubeChannelId(podcast.YouTubeChannelId), indexingContext, knownIds);
-                if (foundEpisodes != null)
-                {
-                    episodes = foundEpisodes;
-                }
-            }
-
-            handled = true;
         }
 
         if (!handled)
         {
-            throw new InvalidOperationException(
-                $"Unable to handle podcast with id: {podcast.Id}, name: '{podcast.Name}'");
+            _logger.LogInformation(
+                $"Unable to handle podcast with name: '{podcast.Name}', id: {podcast.Id}. Spotify-Id: '{podcast.SpotifyId}', Apple-Id: '{podcast.AppleId}', YouTube-ChannelId: '{podcast.YouTubeChannelId}', YouTube-PlayListId: '{podcast.YouTubePlaylistId}'. Expensive-Queries? {nameof(podcast.HasExpensiveSpotifyEpisodesQuery)}= '{podcast.HasExpensiveSpotifyEpisodesQuery()}', {nameof(podcast.HasExpensiveYouTubePlaylistQuery)}= '{podcast.HasExpensiveYouTubePlaylistQuery()}'.");
         }
 
-        if (!podcast.IndexAllEpisodes && !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
+        if (episodes != null && episodes.Any() && !podcast.IndexAllEpisodes &&
+            !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
         {
-            var includeEpisodeRegex = new Regex(podcast.EpisodeIncludeTitleRegex,
-                RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            var eliminatedEpisodes = episodes.Where(x => !includeEpisodeRegex.IsMatch(x.Title));
-            if (eliminatedEpisodes.Any())
-            {
-                _logger.LogInformation(
-                    $"Eliminating episodes of podcast '{podcast.Name}' with id '{podcast.Id}' with titles '{string.Join(", ", eliminatedEpisodes.Select(x => x.Title))}' as they do not match {nameof(podcast.EpisodeIncludeTitleRegex)} of value '{podcast.EpisodeIncludeTitleRegex}'.");
-            }
-
-            episodes = episodes.Where(x => includeEpisodeRegex.IsMatch(x.Title)).ToList();
+            episodes = _foundEpisodeFilter.ReduceEpisodes(podcast, episodes);
         }
 
-        return episodes;
+        return episodes ?? new List<Episode>();
     }
 }
