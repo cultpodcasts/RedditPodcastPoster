@@ -17,27 +17,30 @@ public class SpotifyEpisodeRetrievalHandler : ISpotifyEpisodeRetrievalHandler
         _logger = logger;
     }
 
-    public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IndexingContext indexingContext,
-        IList<Episode> episodes)
+    public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IndexingContext indexingContext)
     {
         var handled = false;
-        var getEpisodesResult =
-            await _spotifyEpisodeProvider.GetEpisodes(new SpotifyPodcastId(podcast.SpotifyId), indexingContext);
-        if (getEpisodesResult.Results != null && getEpisodesResult.Results.Any())
-        {
-            episodes = getEpisodesResult.Results;
-        }
 
-        if (getEpisodesResult.ExpensiveQueryFound)
+        IList<Episode> episodes= new List<Episode>();
+        if (podcast.ReleaseAuthority is null or Service.Spotify && !string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
-            podcast.SpotifyEpisodesQueryIsExpensive = true;
-        }
+            var getEpisodesResult =
+                await _spotifyEpisodeProvider.GetEpisodes(new SpotifyPodcastId(podcast.SpotifyId), indexingContext);
+            if (getEpisodesResult.Results != null && getEpisodesResult.Results.Any())
+            {
+                episodes = getEpisodesResult.Results;
+            }
 
-        if (!indexingContext.SkipSpotifyUrlResolving)
-        {
-            handled = true;
-        }
+            if (getEpisodesResult.ExpensiveQueryFound)
+            {
+                podcast.SpotifyEpisodesQueryIsExpensive = true;
+            }
 
+            if (!indexingContext.SkipSpotifyUrlResolving)
+            {
+                handled = true;
+            }
+        }
         return new EpisodeRetrievalHandlerResponse(episodes, handled);
     }
 }

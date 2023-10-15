@@ -17,17 +17,24 @@ public class AppleEpisodeRetrievalHandler : IAppleEpisodeRetrievalHandler
         _logger = logger;
     }
 
-    public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IndexingContext indexingContext,
-        IList<Episode> episodes)
+    public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IndexingContext indexingContext)
     {
-        var foundEpisodes = await _appleEpisodeProvider.GetEpisodes(
-            new ApplePodcastId(podcast.AppleId.Value), indexingContext);
-        if (foundEpisodes != null)
+        var handled = false;
+        IList<Episode> episodes= new List<Episode>();
+        if (
+            podcast is {ReleaseAuthority: Service.Apple, AppleId: not null} && podcast.AppleId != null &&
+            podcast.ReleaseAuthority != Service.YouTube)
         {
-            episodes = foundEpisodes;
+            var foundEpisodes = await _appleEpisodeProvider.GetEpisodes(
+                new ApplePodcastId(podcast.AppleId.Value), indexingContext);
+            if (foundEpisodes != null)
+            {
+                episodes = foundEpisodes;
+            }
+
+            handled = true;
         }
 
-        var handled = true;
         return new EpisodeRetrievalHandlerResponse(episodes, handled);
     }
 }

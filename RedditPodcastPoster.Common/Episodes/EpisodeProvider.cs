@@ -25,34 +25,18 @@ public class EpisodeProvider : IEpisodeProvider
         _logger = logger;
     }
 
-    public async Task<IList<Episode>> GetEpisodes(
-        Podcast podcast,
-        IndexingContext indexingContext)
+    public async Task<IList<Episode>> GetEpisodes(Podcast podcast, IndexingContext indexingContext)
     {
-        IList<Episode> episodes = new List<Episode>();
-        var handled = false;
-        if (!indexingContext.SkipSpotifyUrlResolving && podcast.ReleaseAuthority is null or Service.Spotify &&
-            !string.IsNullOrWhiteSpace(podcast.SpotifyId))
+        var (episodes, handled) = await _spotifyEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
+
+        if (!handled)
         {
-            (episodes, handled) = await _spotifyEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext, episodes);
+            (episodes, handled) = await _appleEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
         }
 
-        if (!handled && (
-                podcast is {ReleaseAuthority: Service.Apple, AppleId: not null} ||
-                (indexingContext.SkipSpotifyUrlResolving && podcast.AppleId != null &&
-                 podcast.ReleaseAuthority != Service.YouTube)))
+        if (!handled)
         {
-            var response = await _appleEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext, episodes);
-            handled = response.Handled;
-            episodes = response.Episodes;
-        }
-
-        if (!handled && (podcast.ReleaseAuthority is Service.YouTube ||
-                         !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId)))
-        {
-            var response = await _youTubeEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext, episodes);
-            episodes = response.Episodes;
-            handled = response.Handled;
+            (episodes, handled) = await _youTubeEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
         }
 
         if (!handled)
