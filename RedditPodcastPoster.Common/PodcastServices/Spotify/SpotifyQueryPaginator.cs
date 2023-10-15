@@ -49,7 +49,7 @@ public class SpotifyQueryPaginator : ISpotifyQueryPaginator
 
         var episodes = pagedEpisodes.Items.ToList();
 
-        if (indexingContext.ReleasedSince == null || !isInReverseTimeOrder)
+        if (indexingContext.ReleasedSince == null || isExpensiveQueryFound)
         {
             var fetch = await _spotifyClientWrapper.PaginateAll(pagedEpisodes, indexingContext);
             if (fetch != null)
