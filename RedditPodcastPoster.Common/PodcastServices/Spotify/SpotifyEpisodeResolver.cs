@@ -23,7 +23,8 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
         _logger = logger;
     }
 
-    public async Task<FindEpisodeResponse> FindEpisode(FindSpotifyEpisodeRequest request, IndexingContext indexingContext)
+    public async Task<FindEpisodeResponse> FindEpisode(FindSpotifyEpisodeRequest request,
+        IndexingContext indexingContext)
     {
         var expensiveQueryFound = false;
         if (indexingContext.SkipSpotifyUrlResolving)
@@ -83,20 +84,27 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
                 IList<IList<SimpleEpisode>> allEpisodes = new List<IList<SimpleEpisode>>();
                 foreach (var paging in episodes)
                 {
-                    if (paging.Item2 != null && !indexingContext.SkipExpensiveQueries)
+                    if (paging.Item2 != null)
                     {
-                        var paginateEpisodeResponse =
-                            await _spotifyQueryPaginator.PaginateEpisodes(paging.Item2, indexingContext);
-                        allEpisodes.Add(paginateEpisodeResponse.Results);
-                        if (paginateEpisodeResponse.IsExpensiveQuery)
+                        if (indexingContext.SkipExpensiveQueries && request.HasExpensiveSpotifyEpisodesQuery)
                         {
-                            expensiveQueryFound = true;
+                            _logger.LogInformation(
+                                $"{nameof(FindEpisode)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveQueries)} is set.");
+                        }
+                        else
+                        {
+                            var paginateEpisodeResponse =
+                                await _spotifyQueryPaginator.PaginateEpisodes(paging.Item2, indexingContext);
+                            allEpisodes.Add(paginateEpisodeResponse.Results);
+                            if (paginateEpisodeResponse.IsExpensiveQuery)
+                            {
+                                expensiveQueryFound = true;
+                            }
                         }
                     }
-
-                    if (indexingContext.SkipExpensiveQueries)
+                    else
                     {
-                        _logger.LogInformation($"{nameof(FindEpisode)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveQueries)} is set.");
+                        _logger.LogWarning($"Null paged-list of episodes found for spotify-show-id '{paging.Item1}'.");
                     }
                 }
 
@@ -116,13 +124,13 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
     }
 
     public async Task<PaginateEpisodesResponse> GetEpisodes(
-        SpotifyPodcastId request,
+        GetEpisodesRequest request,
         IndexingContext indexingContext)
     {
         if (indexingContext.SkipSpotifyUrlResolving)
         {
             _logger.LogInformation(
-                $"Skipping '{nameof(GetEpisodes)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.PodcastId}'.");
+                $"Skipping '{nameof(GetEpisodes)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.SpotifyPodcastId.PodcastId}'.");
             return new PaginateEpisodesResponse(new List<SimpleEpisode>());
         }
 
@@ -134,11 +142,13 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
         }
 
         var pagedEpisodes =
-            await _spotifyClientWrapper.GetShowEpisodes(request.PodcastId, showEpisodesRequest, indexingContext);
+            await _spotifyClientWrapper.GetShowEpisodes(request.SpotifyPodcastId.PodcastId, showEpisodesRequest,
+                indexingContext);
 
-        if (indexingContext.SkipExpensiveQueries)
+        if (indexingContext.SkipExpensiveQueries && request.HasExpensiveSpotifyEpisodesQuery)
         {
-            _logger.LogInformation($"{nameof(GetEpisodes)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveQueries)} is set.");
+            _logger.LogInformation(
+                $"{nameof(GetEpisodes)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveQueries)} is set.");
             return new PaginateEpisodesResponse(new List<SimpleEpisode>());
         }
 

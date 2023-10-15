@@ -21,11 +21,13 @@ public class SpotifyEpisodeRetrievalHandler : ISpotifyEpisodeRetrievalHandler
     {
         var handled = false;
 
-        IList<Episode> episodes= new List<Episode>();
+        IList<Episode> episodes = new List<Episode>();
         if (!string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
             var getEpisodesResult =
-                await _spotifyEpisodeProvider.GetEpisodes(new SpotifyPodcastId(podcast.SpotifyId), indexingContext);
+                await _spotifyEpisodeProvider.GetEpisodes(
+                    new GetEpisodesRequest(new SpotifyPodcastId(podcast.SpotifyId),
+                        podcast.HasExpensiveSpotifyEpisodesQuery()), indexingContext);
             if (getEpisodesResult.Results != null && getEpisodesResult.Results.Any())
             {
                 episodes = getEpisodesResult.Results;
@@ -41,6 +43,7 @@ public class SpotifyEpisodeRetrievalHandler : ISpotifyEpisodeRetrievalHandler
                 handled = true;
             }
         }
+
         return new EpisodeRetrievalHandlerResponse(episodes, handled);
     }
 }

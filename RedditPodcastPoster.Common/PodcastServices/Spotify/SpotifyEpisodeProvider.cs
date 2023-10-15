@@ -18,11 +18,10 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
         _logger = logger;
     }
 
-    public async Task<GetEpisodesResponse> GetEpisodes(SpotifyPodcastId podcastId, IndexingContext indexingContext)
+    public async Task<GetEpisodesResponse> GetEpisodes(GetEpisodesRequest request, IndexingContext indexingContext)
     {
         var getEpisodesResult =
-            await _spotifyEpisodeResolver.GetEpisodes(
-                new SpotifyPodcastId(podcastId.PodcastId), indexingContext);
+            await _spotifyEpisodeResolver.GetEpisodes(request, indexingContext);
 
         var expensiveQueryFound = getEpisodesResult.IsExpensiveQuery;
 

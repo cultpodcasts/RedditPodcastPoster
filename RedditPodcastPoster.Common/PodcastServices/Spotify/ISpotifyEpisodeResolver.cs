@@ -3,5 +3,5 @@
 public interface ISpotifyEpisodeResolver
 {
     Task<FindEpisodeResponse> FindEpisode(FindSpotifyEpisodeRequest request, IndexingContext indexingContext);
-    Task<PaginateEpisodesResponse> GetEpisodes(SpotifyPodcastId request, IndexingContext indexingContext);
+    Task<PaginateEpisodesResponse> GetEpisodes(GetEpisodesRequest request, IndexingContext indexingContext);
 }

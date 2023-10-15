@@ -2,5 +2,5 @@
 
 public interface ISpotifyEpisodeProvider
 {
-    Task<GetEpisodesResponse> GetEpisodes(SpotifyPodcastId podcastId, IndexingContext indexingContext);
+    Task<GetEpisodesResponse> GetEpisodes(GetEpisodesRequest request, IndexingContext indexingContext);
 }
