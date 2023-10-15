@@ -66,9 +66,9 @@ public class PodcastUpdater : IPodcastUpdater
                 $"Expensive Spotify Query found processing '{podcast.Name}' with id '{podcast.Id}' and spotify-id '{podcast.SpotifyId}'.");
         }
 
-        if ((!mergeResult.MergedEpisodes.Any() && !mergeResult.AddedEpisodes.Any() &&
-             !filterResult.FilteredEpisodes.Any() && !enrichmentResult.UpdatedEpisodes.Any() &&
-             !discoveredYouTubeExpensiveQuery) || discoveredSpotifyExpensiveQuery)
+        if (mergeResult.MergedEpisodes.Any() || mergeResult.AddedEpisodes.Any() ||
+            filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any() ||
+            discoveredYouTubeExpensiveQuery || discoveredSpotifyExpensiveQuery)
         {
             await _podcastRepository.Update(podcast);
         }
