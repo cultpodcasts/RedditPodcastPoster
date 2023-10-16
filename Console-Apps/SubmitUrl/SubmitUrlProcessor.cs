@@ -31,8 +31,10 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
             indexOptions.SkipExpensiveQueries = false;
         }
         List<Podcast> podcasts;
+        var searchForPodcast = true;
         if (request.PodcastId != null)
         {
+            searchForPodcast = false;
             var podcast = await _podcastRepository.GetPodcast(request.PodcastId.ToString()!);
             if (podcast != null)
             {
@@ -51,7 +53,7 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
 
         if (!request.SubmitUrlsInFile)
         {
-            await _urlSubmitter.Submit(podcasts, new Uri(request.UrlOrFile, UriKind.Absolute), indexOptions);
+            await _urlSubmitter.Submit(podcasts, new Uri(request.UrlOrFile, UriKind.Absolute), indexOptions, searchForPodcast);
         }
         else
         {
@@ -59,7 +61,7 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
             foreach (var url in urls)
             {
                 _logger.LogInformation($"Ingesting '{url}'.");
-                await _urlSubmitter.Submit(podcasts, new Uri(url, UriKind.Absolute), indexOptions);
+                await _urlSubmitter.Submit(podcasts, new Uri(url, UriKind.Absolute), indexOptions, searchForPodcast);
             }
         }
     }
