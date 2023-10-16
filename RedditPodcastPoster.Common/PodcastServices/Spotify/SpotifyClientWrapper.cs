@@ -85,12 +85,12 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         try
         {
             results = await _spotifyClient.Search.Item(request, cancel);
-            indexingContext.SkipSpotifyUrlResolving = true;
-            return null;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"{nameof(GetSearchResponse)} Failure with Spotify-API.");
+            indexingContext.SkipSpotifyUrlResolving = true;
+            return null;
         }
 
         return results;
