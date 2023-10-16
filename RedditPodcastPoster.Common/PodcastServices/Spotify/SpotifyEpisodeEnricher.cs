@@ -4,8 +4,8 @@ namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
 public class SpotifyEpisodeEnricher : ISpotifyEpisodeEnricher
 {
-    private readonly ISpotifyEpisodeResolver _spotifyEpisodeResolver;
     private readonly ILogger<SpotifyEpisodeEnricher> _logger;
+    private readonly ISpotifyEpisodeResolver _spotifyEpisodeResolver;
 
     public SpotifyEpisodeEnricher(
         ISpotifyEpisodeResolver spotifyEpisodeResolver,
@@ -16,13 +16,12 @@ public class SpotifyEpisodeEnricher : ISpotifyEpisodeEnricher
     }
 
     public async Task Enrich(
-        EnrichmentRequest request, 
-        IndexingContext indexingContext, 
+        EnrichmentRequest request,
+        IndexingContext indexingContext,
         EnrichmentContext enrichmentContext)
     {
-        var findEpisodeResult =
-            await _spotifyEpisodeResolver.FindEpisode(
-                FindSpotifyEpisodeRequestFactory.Create(request.Podcast, request.Episode), indexingContext);
+        var findSpotifyEpisodeRequest = FindSpotifyEpisodeRequestFactory.Create(request.Podcast, request.Episode);
+        var findEpisodeResult = await _spotifyEpisodeResolver.FindEpisode(findSpotifyEpisodeRequest, indexingContext);
         if (findEpisodeResult.FullEpisode != null)
         {
             _logger.LogInformation(

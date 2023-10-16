@@ -22,9 +22,8 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
         IEnumerable<AppleEpisode>? podcastEpisodes = null;
         if (request.PodcastAppleId.HasValue)
         {
-            podcastEpisodes =
-                await _applePodcastService.GetEpisodes(new ApplePodcastId(request.PodcastAppleId.Value),
-                    indexingContext);
+            var applePodcastId = new ApplePodcastId(request.PodcastAppleId.Value);
+            podcastEpisodes = await _applePodcastService.GetEpisodes(applePodcastId, indexingContext);
         }
 
         if (request.EpisodeAppleId != null && podcastEpisodes != null)
