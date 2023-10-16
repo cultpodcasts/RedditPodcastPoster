@@ -41,11 +41,13 @@ public class UrlSubmitter : IUrlSubmitter
             else
             {
                 categorisedItem.MatchingPodcast.Episodes.Add(CreateEpisode(categorisedItem));
+                categorisedItem.MatchingPodcast.Episodes =
+                    categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
             }
 
             await _podcastRepository.Save(categorisedItem.MatchingPodcast);
         }
-        else
+        else 
         {
             var newPodcast = CreatePodcastWithEpisode(categorisedItem);
 
