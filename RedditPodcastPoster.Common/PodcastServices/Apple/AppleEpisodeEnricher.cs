@@ -4,8 +4,8 @@ namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
 public class AppleEpisodeEnricher : IAppleEpisodeEnricher
 {
-    private readonly IApplePodcastEnricher _applePodcastEnricher;
     private readonly IAppleEpisodeResolver _appleEpisodeResolver;
+    private readonly IApplePodcastEnricher _applePodcastEnricher;
     private readonly ILogger<AppleEpisodeEnricher> _logger;
 
     public AppleEpisodeEnricher(
@@ -18,7 +18,8 @@ public class AppleEpisodeEnricher : IAppleEpisodeEnricher
         _logger = logger;
     }
 
-    public async Task Enrich(EnrichmentRequest request, IndexingContext indexingContext, EnrichmentContext enrichmentContext)
+    public async Task Enrich(EnrichmentRequest request, IndexingContext indexingContext,
+        EnrichmentContext enrichmentContext)
     {
         if (request.Podcast.AppleId == null)
         {
@@ -27,9 +28,8 @@ public class AppleEpisodeEnricher : IAppleEpisodeEnricher
 
         if (request.Podcast.AppleId != null)
         {
-            var appleItem =
-                await _appleEpisodeResolver.FindEpisode(
-                    FindAppleEpisodeRequestFactory.Create(request.Podcast, request.Episode), indexingContext);
+            var findAppleEpisodeRequest = FindAppleEpisodeRequestFactory.Create(request.Podcast, request.Episode);
+            var appleItem = await _appleEpisodeResolver.FindEpisode(findAppleEpisodeRequest, indexingContext);
             if (appleItem != null)
             {
                 var url = appleItem.Url.CleanAppleUrl();

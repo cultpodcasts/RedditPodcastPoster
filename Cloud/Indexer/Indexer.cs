@@ -31,6 +31,7 @@ public class Indexer : TaskActivity<object, bool>
         indexContext.SkipSpotifyUrlResolving = false;
         indexContext.SkipYouTubeUrlResolving = false;
         indexContext.SkipExpensiveQueries = true;//DateTime.UtcNow.Hour % 12 > 0;
+        indexContext.SkipPodcastDiscovery = true;
 
         _logger.LogInformation(
             indexContext.ReleasedSince.HasValue

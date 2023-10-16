@@ -57,25 +57,29 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
             }
             else
             {
-                var searchRequest = new SearchRequest(SearchRequest.Types.Show, request.PodcastName) {Market = Market};
-                var podcastSearchResponse =
-                    await _spotifyClientWrapper.GetSearchResponse(searchRequest, indexingContext);
-                if (podcastSearchResponse != null)
+                if (!indexingContext.SkipPodcastDiscovery)
                 {
-                    var podcasts = podcastSearchResponse.Shows.Items;
-                    var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(request.PodcastName, podcasts);
-
-                    var showEpisodesRequest = new ShowEpisodesRequest {Market = Market};
-                    if (indexingContext.ReleasedSince.HasValue)
+                    var searchRequest = new SearchRequest(SearchRequest.Types.Show, request.PodcastName)
+                        {Market = Market};
+                    var podcastSearchResponse =
+                        await _spotifyClientWrapper.GetSearchResponse(searchRequest, indexingContext);
+                    if (podcastSearchResponse != null)
                     {
-                        showEpisodesRequest.Limit = 1;
-                    }
+                        var podcasts = podcastSearchResponse.Shows.Items;
+                        var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(request.PodcastName, podcasts);
 
-                    var episodesFetches = matchingPodcasts.Select(async x =>
-                        await _spotifyClientWrapper.GetShowEpisodes(x.Id, showEpisodesRequest, indexingContext)
-                            .ContinueWith(y =>
-                                new ValueTuple<string, Paging<SimpleEpisode>?>(x.Id, y.Result)));
-                    episodes = await Task.WhenAll(episodesFetches);
+                        var showEpisodesRequest = new ShowEpisodesRequest {Market = Market};
+                        if (indexingContext.ReleasedSince.HasValue)
+                        {
+                            showEpisodesRequest.Limit = 1;
+                        }
+
+                        var episodesFetches = matchingPodcasts.Select(async x =>
+                            await _spotifyClientWrapper.GetShowEpisodes(x.Id, showEpisodesRequest, indexingContext)
+                                .ContinueWith(y =>
+                                    new ValueTuple<string, Paging<SimpleEpisode>?>(x.Id, y.Result)));
+                        episodes = await Task.WhenAll(episodesFetches);
+                    }
                 }
             }
 
