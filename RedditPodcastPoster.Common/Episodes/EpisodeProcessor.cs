@@ -9,9 +9,9 @@ public class EpisodeProcessor : IEpisodeProcessor
 {
     private readonly IEpisodeResolver _episodeResolver;
     private readonly ILogger<EpisodeProcessor> _logger;
+    private readonly IPodcastEpisodePoster _podcastEpisodePoster;
     private readonly IPodcastRepository _podcastRepository;
     private readonly PostingCriteria _postingCriteria;
-    private readonly IPodcastEpisodePoster _podcastEpisodePoster;
 
     public EpisodeProcessor(
         IPodcastRepository podcastRepository,
@@ -41,19 +41,20 @@ public class EpisodeProcessor : IEpisodeProcessor
         var matchingPodcastEpisodeResults = new List<ProcessResponse>();
         foreach (var matchingPodcastEpisode in matchingPodcastEpisodes.OrderByDescending(x => x.Episode.Release))
         {
-            if (!matchingPodcastEpisode.Episode.Posted)
+            if (matchingPodcastEpisode.Episode.Length >= _postingCriteria.MinimumDuration)
             {
-                if (matchingPodcastEpisode.Episode.Length >= _postingCriteria.MinimumDuration)
+                if (matchingPodcastEpisode.Episode.Urls.Spotify != null ||
+                    matchingPodcastEpisode.Episode.Urls.YouTube != null)
                 {
                     var result = await _podcastEpisodePoster.PostPodcastEpisode(matchingPodcastEpisode);
                     matchingPodcastEpisodeResults.Add(result);
                 }
-                else
-                {
-                    matchingPodcastEpisode.Episode.Ignored = true;
-                    matchingPodcastEpisodeResults.Add(ProcessResponse.TooShort(
-                        $"Episode with id {matchingPodcastEpisode.Episode.Id} and title '{matchingPodcastEpisode.Episode.Title}' from podcast '{matchingPodcastEpisode.Podcast.Name}' was Ignored for being too short at '{matchingPodcastEpisode.Episode.Length}'."));
-                }
+            }
+            else
+            {
+                matchingPodcastEpisode.Episode.Ignored = true;
+                matchingPodcastEpisodeResults.Add(ProcessResponse.TooShort(
+                    $"Episode with id {matchingPodcastEpisode.Episode.Id} and title '{matchingPodcastEpisode.Episode.Title}' from podcast '{matchingPodcastEpisode.Podcast.Name}' was Ignored for being too short at '{matchingPodcastEpisode.Episode.Length}'."));
             }
         }
 

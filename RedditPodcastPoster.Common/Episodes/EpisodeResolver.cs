@@ -32,29 +32,22 @@ public class EpisodeResolver : IEpisodeResolver
     public async Task<IEnumerable<PodcastEpisode>> ResolveSinceReleaseDate(DateTime since)
     {
         var storedPodcasts = await _podcastRepository.GetAll().ToListAsync();
-        var matchingPodcasts = storedPodcasts.Where(x =>
-            x.Episodes.Any(y => y.Release >= since && (y.Urls.Spotify != null || y.Urls.YouTube != null)));
+        var matchingPodcasts = storedPodcasts.Where(podcast =>
+            podcast.Episodes.Any(episode =>
+                episode.Release >= since && episode is {Posted: false, Ignored: false, Removed: false}));
         var resolvedPodcastEpisodeSince = new List<PodcastEpisode>();
         foreach (var matchingPodcast in matchingPodcasts)
         {
-            var matchingEpisodes = matchingPodcast?.Episodes
-                .Where(x => x.Release >= since);
-            if (matchingEpisodes != null && matchingEpisodes.Any())
+            var matchingEpisodes = matchingPodcast.Episodes
+                .Where(episode =>
+                    episode.Release >= since && episode is {Posted: false, Ignored: false, Removed: false});
+            foreach (var matchingEpisode in matchingEpisodes)
             {
-                foreach (var matchingEpisode in matchingEpisodes)
+                var post = !matchingPodcast.IsDelayedYouTubePublishing(matchingEpisode);
+
+                if (post)
                 {
-                    if (matchingEpisode is {Posted: false, Ignored: false, Removed: false})
-                    {
-                        var post = !matchingPodcast!.IsDelayedYouTubePublishing(matchingEpisode);
-
-                        post = matchingEpisode.Urls.Spotify != null && matchingEpisode.Urls.YouTube != null;
-
-                        if (post)
-                        {
-                            resolvedPodcastEpisodeSince.Add(
-                                new PodcastEpisode(matchingPodcast!, matchingEpisode));
-                        }
-                    }
+                    resolvedPodcastEpisodeSince.Add(new PodcastEpisode(matchingPodcast, matchingEpisode));
                 }
             }
         }
