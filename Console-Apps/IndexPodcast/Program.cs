@@ -16,7 +16,6 @@ using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
-using RedditPodcastPoster.Common.UrlCategorisation;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -109,5 +108,5 @@ using var host = builder.Build();
 
 var podcastProcessor = host.Services.GetService<IndexIndividualPodcastProcessor>()!;
 var baseline = DateTime.Today.AddDays(-1 * int.Parse(args[1]));
-await podcastProcessor.Run(Guid.Parse(args[0]), new IndexingContext(baseline));
+await podcastProcessor.Run(Guid.Parse(args[0]), new IndexingContext(baseline) {SkipPodcastDiscovery = false});
 return 0;
