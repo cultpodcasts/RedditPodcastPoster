@@ -45,7 +45,7 @@ public class AddAudioPodcastProcessor
 
     public async Task Create(AddAudioPodcastRequest request)
     {
-        var indexingContext = new IndexingContext();
+        var indexingContext = new IndexingContext() {SkipPodcastDiscovery = false};
         var existingPodcasts = await _podcastRepository.GetAll().ToListAsync();
         Podcast? podcast = null;
         if (!request.AppleReleaseAuthority)

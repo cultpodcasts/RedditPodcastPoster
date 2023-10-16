@@ -25,11 +25,12 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
 
     public async Task Process(SubmitUrlRequest request)
     {
-        var indexOptions = new IndexingContext();
+        var indexOptions = new IndexingContext {SkipPodcastDiscovery = false};
         if (request.AllowExpensiveQueries)
         {
             indexOptions.SkipExpensiveQueries = false;
         }
+
         List<Podcast> podcasts;
         var searchForPodcast = true;
         if (request.PodcastId != null)
@@ -38,7 +39,7 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
             var podcast = await _podcastRepository.GetPodcast(request.PodcastId.ToString()!);
             if (podcast != null)
             {
-                podcasts = new List<Podcast>() {podcast};
+                podcasts = new List<Podcast> {podcast};
             }
             else
             {
@@ -53,7 +54,8 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
 
         if (!request.SubmitUrlsInFile)
         {
-            await _urlSubmitter.Submit(podcasts, new Uri(request.UrlOrFile, UriKind.Absolute), indexOptions, searchForPodcast);
+            await _urlSubmitter.Submit(podcasts, new Uri(request.UrlOrFile, UriKind.Absolute), indexOptions,
+                searchForPodcast);
         }
         else
         {
