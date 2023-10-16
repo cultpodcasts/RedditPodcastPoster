@@ -28,9 +28,9 @@ public class Indexer : TaskActivity<object, bool>
         _logger.LogInformation(_indexerOptions.ToString());
         var indexContext = _indexerOptions.ToIndexOptions();
 
-        indexContext.SkipSpotifyUrlResolving = DateTime.UtcNow.Hour % 2 == 0;
-        indexContext.SkipYouTubeUrlResolving = DateTime.UtcNow.Hour % 3 > 0;
-        indexContext.SkipExpensiveQueries = DateTime.UtcNow.Hour % 12 > 0;
+        indexContext.SkipSpotifyUrlResolving = false;
+        indexContext.SkipYouTubeUrlResolving = false;
+        indexContext.SkipExpensiveQueries = true;//DateTime.UtcNow.Hour % 12 > 0;
 
         _logger.LogInformation(
             indexContext.ReleasedSince.HasValue
