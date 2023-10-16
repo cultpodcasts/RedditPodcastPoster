@@ -7,4 +7,5 @@ public record CategorisedItem(
     Episode? MatchingEpisode,
     ResolvedSpotifyItem? ResolvedSpotifyItem, 
     ResolvedAppleItem? ResolvedAppleItem,
-    ResolvedYouTubeItem? ResolvedYouTubeItem);
+    ResolvedYouTubeItem? ResolvedYouTubeItem,
+    Service Authority);

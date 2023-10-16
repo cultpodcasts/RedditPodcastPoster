@@ -32,6 +32,7 @@ public class UrlCategoriser : IUrlCategoriser
         ResolvedAppleItem? resolvedAppleItem = null;
         ResolvedYouTubeItem? resolvedYouTubeItem = null;
         PodcastServiceSearchCriteria? criteria = null;
+        Service authority = (Service) 0;
 
         Podcast? matchingPodcast = null;
         Episode? matchingEpisode = null;
@@ -52,6 +53,7 @@ public class UrlCategoriser : IUrlCategoriser
             matchingEpisode = matchingPodcast?.Episodes.SingleOrDefault(x =>
                 x.Urls.Spotify == url || x.SpotifyId == resolvedSpotifyItem.EpisodeId);
             criteria = resolvedSpotifyItem.ToPodcastServiceSearchCriteria();
+            authority = Service.Spotify;
         }
         else if (_appleUrlCategoriser.IsMatch(url))
         {
@@ -66,9 +68,9 @@ public class UrlCategoriser : IUrlCategoriser
                 matchingPodcast = podcasts.Single();
             }
 
-
             matchingEpisode = matchingPodcast?.Episodes.SingleOrDefault(x =>
                 x.Urls.Apple == url || x.AppleId == resolvedAppleItem.EpisodeId);
+            authority = Service.Apple;
         }
         else if (_youTubeUrlCategoriser.IsMatch(url))
         {
@@ -102,7 +104,13 @@ public class UrlCategoriser : IUrlCategoriser
 
                 matchingEpisode = matchingPodcast?.Episodes.SingleOrDefault(x =>
                     x.Urls.YouTube == url || x.YouTubeId == resolvedYouTubeItem.EpisodeId);
+                authority = Service.YouTube;
+
             }
+        }
+        else
+        {
+            throw new InvalidOperationException($"Could not match url '{url}' to a service.");
         }
 
 
@@ -150,7 +158,8 @@ public class UrlCategoriser : IUrlCategoriser
                 matchingEpisode,
                 resolvedSpotifyItem,
                 resolvedAppleItem,
-                resolvedYouTubeItem);
+                resolvedYouTubeItem,
+                authority);
         }
 
         if (!indexingContext.SkipYouTubeUrlResolving)
