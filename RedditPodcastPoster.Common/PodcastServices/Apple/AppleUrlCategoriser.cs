@@ -27,7 +27,8 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
         return url.Host.ToLower().Contains("apple");
     }
 
-    public async Task<ResolvedAppleItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast, IndexingContext indexingContext)
+    public async Task<ResolvedAppleItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast,
+        IndexingContext indexingContext)
     {
         var podcast =
             await _applePodcastResolver.FindPodcast(new FindApplePodcastRequest(

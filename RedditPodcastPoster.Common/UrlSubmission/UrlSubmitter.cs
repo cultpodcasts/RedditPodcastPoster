@@ -21,9 +21,11 @@ public class UrlSubmitter : IUrlSubmitter
         _logger = logger;
     }
 
-    public async Task Submit(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext, bool searchForPodcast)
+    public async Task Submit(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext, bool searchForPodcast,
+        bool matchOtherServices)
     {
-        var categorisedItem = await _urlCategoriser.Categorise(podcasts, url, indexingContext, searchForPodcast);
+        var categorisedItem =
+            await _urlCategoriser.Categorise(podcasts, url, indexingContext, searchForPodcast, matchOtherServices);
 
         if (categorisedItem.MatchingPodcast != null)
         {
@@ -86,7 +88,7 @@ public class UrlSubmitter : IUrlSubmitter
 
         if (!string.IsNullOrWhiteSpace(newPodcast.YouTubeChannelId))
         {
-            newPodcast.YouTubePublishingDelayTimeSpan = "1:00:00:00";
+            newPodcast.YouTubePublishingDelayTimeSpan = "0:01:00:00";
         }
 
         newPodcast.Episodes.Add(CreateEpisode(categorisedItem));

@@ -26,13 +26,13 @@ public class UrlCategoriser : IUrlCategoriser
     }
 
     public async Task<CategorisedItem> Categorise(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext,
-        bool searchForPodcast)
+        bool searchForPodcast, bool matchOtherServices)
     {
         ResolvedSpotifyItem? resolvedSpotifyItem = null;
         ResolvedAppleItem? resolvedAppleItem = null;
         ResolvedYouTubeItem? resolvedYouTubeItem = null;
         PodcastServiceSearchCriteria? criteria = null;
-        Service authority = (Service) 0;
+        Service authority = 0;
 
         Podcast? matchingPodcast = null;
         Episode? matchingEpisode = null;
@@ -105,7 +105,6 @@ public class UrlCategoriser : IUrlCategoriser
                 matchingEpisode = matchingPodcast?.Episodes.SingleOrDefault(x =>
                     x.Urls.YouTube == url || x.YouTubeId == resolvedYouTubeItem.EpisodeId);
                 authority = Service.YouTube;
-
             }
         }
         else
@@ -116,40 +115,45 @@ public class UrlCategoriser : IUrlCategoriser
 
         if (criteria != null)
         {
-            if (resolvedSpotifyItem == null && !_spotifyUrlCategoriser.IsMatch(url) &&
-                (string.IsNullOrWhiteSpace(matchingEpisode?.SpotifyId) ||
-                 matchingEpisode?.Urls.Spotify == null ||
-                 string.IsNullOrWhiteSpace(matchingPodcast?.SpotifyId)))
+            if (matchOtherServices)
             {
-                resolvedSpotifyItem = await _spotifyUrlCategoriser.Resolve(criteria, matchingPodcast, indexingContext);
-                if (resolvedSpotifyItem != null)
+                if (resolvedSpotifyItem == null && !_spotifyUrlCategoriser.IsMatch(url) &&
+                    (string.IsNullOrWhiteSpace(matchingEpisode?.SpotifyId) ||
+                     matchingEpisode?.Urls.Spotify == null ||
+                     string.IsNullOrWhiteSpace(matchingPodcast?.SpotifyId)))
                 {
-                    criteria = criteria.Merge(resolvedSpotifyItem);
+                    resolvedSpotifyItem =
+                        await _spotifyUrlCategoriser.Resolve(criteria, matchingPodcast, indexingContext);
+                    if (resolvedSpotifyItem != null)
+                    {
+                        criteria = criteria.Merge(resolvedSpotifyItem);
+                    }
                 }
-            }
 
 
-            if (resolvedAppleItem == null && !_appleUrlCategoriser.IsMatch(url) &&
-                (matchingEpisode?.AppleId == null ||
-                 matchingEpisode?.Urls.Apple == null ||
-                 matchingPodcast?.AppleId == null))
-            {
-                resolvedAppleItem = await _appleUrlCategoriser.Resolve(criteria, matchingPodcast, indexingContext);
-                if (resolvedAppleItem != null)
+                if (resolvedAppleItem == null && !_appleUrlCategoriser.IsMatch(url) &&
+                    (matchingEpisode?.AppleId == null ||
+                     matchingEpisode?.Urls.Apple == null ||
+                     matchingPodcast?.AppleId == null))
                 {
-                    criteria = criteria.Merge(resolvedAppleItem);
+                    resolvedAppleItem = await _appleUrlCategoriser.Resolve(criteria, matchingPodcast, indexingContext);
+                    if (resolvedAppleItem != null)
+                    {
+                        criteria = criteria.Merge(resolvedAppleItem);
+                    }
                 }
-            }
 
-            if (resolvedYouTubeItem == null && !_youTubeUrlCategoriser.IsMatch(url) &&
-                (string.IsNullOrWhiteSpace(matchingEpisode?.YouTubeId) ||
-                 matchingEpisode?.Urls.YouTube == null ||
-                 string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId)))
-            {
-                resolvedYouTubeItem = await _youTubeUrlCategoriser.Resolve(criteria, matchingPodcast, indexingContext);
-                if (resolvedYouTubeItem != null)
+                if (resolvedYouTubeItem == null && !_youTubeUrlCategoriser.IsMatch(url) &&
+                    (string.IsNullOrWhiteSpace(matchingEpisode?.YouTubeId) ||
+                     matchingEpisode?.Urls.YouTube == null ||
+                     string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId)))
                 {
-                    criteria = criteria.Merge(resolvedYouTubeItem);
+                    resolvedYouTubeItem =
+                        await _youTubeUrlCategoriser.Resolve(criteria, matchingPodcast, indexingContext);
+                    if (resolvedYouTubeItem != null)
+                    {
+                        criteria = criteria.Merge(resolvedYouTubeItem);
+                    }
                 }
             }
 
