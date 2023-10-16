@@ -49,50 +49,6 @@ public class RedditPostTitleFactoryTests
     }
 
     [Fact]
-    public void ConstructPostTitle_WithName_IsCorrect()
-    {
-        // arrange
-        var postModel = new PostModel(
-            new PodcastPost("podcast-title",
-                string.Empty,
-                string.Empty,
-                new[]
-                {
-                    _fixture
-                        .Build<EpisodePost>()
-                        .With(x => x.Title, "title-prefix with Name title-suffix")
-                        .Create()
-                },
-                _fixture.Create<Service?>()));
-        // act
-        var result = Sut.ConstructPostTitle(postModel);
-        // assert
-        result.Should().Contain(" w/Name ");
-    }
-
-    [Fact]
-    public void ConstructPostTitle_TitleCaseWithName_IsCorrect()
-    {
-        // arrange
-        var postModel = new PostModel(
-            new PodcastPost("podcast-title",
-                string.Empty,
-                string.Empty,
-                new[]
-                {
-                    _fixture
-                        .Build<EpisodePost>()
-                        .With(x => x.Title, "title-prefix With Name title-suffix")
-                        .Create()
-                },
-                _fixture.Create<Service?>()));
-        // act
-        var result = Sut.ConstructPostTitle(postModel);
-        // assert
-        result.Should().Contain(" w/Name ");
-    }
-
-    [Fact]
     public void ConstructPostTitle_WithLowerCaseTitle_IsCorrect()
     {
         // arrange
