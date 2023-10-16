@@ -30,8 +30,7 @@ public class EpisodeProcessor : IEpisodeProcessor
     public async Task<ProcessResponse> PostEpisodesSinceReleaseDate(DateTime since)
     {
         _logger.LogInformation($"{nameof(PostEpisodesSinceReleaseDate)} Finding episodes released since '{since}'.");
-        var matchingPodcastEpisodes =
-            await _episodeResolver.ResolveSinceReleaseDate(since);
+        var matchingPodcastEpisodes = await _episodeResolver.ResolveSinceReleaseDate(since);
         if (!matchingPodcastEpisodes.Any())
         {
             return ProcessResponse.Successful(
@@ -49,12 +48,17 @@ public class EpisodeProcessor : IEpisodeProcessor
                     var result = await _podcastEpisodePoster.PostPodcastEpisode(matchingPodcastEpisode);
                     matchingPodcastEpisodeResults.Add(result);
                 }
+                else
+                {
+                    matchingPodcastEpisodeResults.Add(ProcessResponse.NoSuitableLink(
+                        $"Episode with id {matchingPodcastEpisode.Episode.Id} and title '{matchingPodcastEpisode.Episode.Title}' from podcast '{matchingPodcastEpisode.Podcast.Name}' with podcast-id '{matchingPodcastEpisode.Podcast.Id}' was Ignored as no Spotify or YouTube link."));
+                }
             }
             else
             {
                 matchingPodcastEpisode.Episode.Ignored = true;
                 matchingPodcastEpisodeResults.Add(ProcessResponse.TooShort(
-                    $"Episode with id {matchingPodcastEpisode.Episode.Id} and title '{matchingPodcastEpisode.Episode.Title}' from podcast '{matchingPodcastEpisode.Podcast.Name}' was Ignored for being too short at '{matchingPodcastEpisode.Episode.Length}'."));
+                    $"Episode with id {matchingPodcastEpisode.Episode.Id} and title '{matchingPodcastEpisode.Episode.Title}' from podcast '{matchingPodcastEpisode.Podcast.Name}' with podcast-id '{matchingPodcastEpisode.Podcast.Id}' was Ignored for being too short at '{matchingPodcastEpisode.Episode.Length}'."));
             }
         }
 

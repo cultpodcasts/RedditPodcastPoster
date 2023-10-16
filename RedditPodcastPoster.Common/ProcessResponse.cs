@@ -10,12 +10,18 @@ public class ProcessResponse : MessageResponseBase
     {
         return new ProcessResponse(true, s);
     }
+
     public static ProcessResponse AlreadyPosted(string s = "")
     {
         return new ProcessResponse(true, s);
     }
 
     public static ProcessResponse TooShort(string s = "")
+    {
+        return new ProcessResponse(true, s);
+    }
+
+    public static ProcessResponse NoSuitableLink(string s = "")
     {
         return new ProcessResponse(true, s);
     }
