@@ -16,7 +16,6 @@ public class TextSanitiser : ITextSanitiser
         new(@"(?'prefix'^[^a-zA-Z\d""\$\£\']+)(?'after'.*$)", RegexOptions.Compiled);
 
     private static readonly TextInfo TextInfo = new CultureInfo("en-GB", false).TextInfo;
-    private static readonly Regex WithName = new(@"(?'before'\s)(?'with'[Ww]ith )(?'after'[A-Z])");
     private readonly IKnownTermsProvider _knownTermsProvider;
     private readonly ILogger<TextSanitiser> _logger;
 
@@ -49,11 +48,6 @@ public class TextSanitiser : ITextSanitiser
         }
 
         episodeTitle = FixCharacters(episodeTitle);
-        var withMatch = WithName.Match(episodeTitle).Groups["with"];
-        if (withMatch.Success)
-        {
-            episodeTitle = WithName.Replace(episodeTitle, "${before}w/${after}");
-        }
 
         var invalidPrefixMatch = InvalidTitlePrefix.Match(episodeTitle).Groups["prefix"];
         if (invalidPrefixMatch.Success)
@@ -83,8 +77,6 @@ public class TextSanitiser : ITextSanitiser
     public string SanitisePodcastName(string podcastName)
     {
         podcastName = FixCharacters(podcastName);
-        //podcastName = TextInfo.ToTitleCase(podcastName.ToLower());
-        //podcastName = FixCasing(podcastName);
         return podcastName;
     }
 
