@@ -55,7 +55,7 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
         if (!request.SubmitUrlsInFile)
         {
             await _urlSubmitter.Submit(podcasts, new Uri(request.UrlOrFile, UriKind.Absolute), indexOptions,
-                searchForPodcast);
+                searchForPodcast, request.MatchOtherServices);
         }
         else
         {
@@ -63,7 +63,8 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
             foreach (var url in urls)
             {
                 _logger.LogInformation($"Ingesting '{url}'.");
-                await _urlSubmitter.Submit(podcasts, new Uri(url, UriKind.Absolute), indexOptions, searchForPodcast);
+                await _urlSubmitter.Submit(podcasts, new Uri(url, UriKind.Absolute), indexOptions, searchForPodcast,
+                    request.MatchOtherServices);
             }
         }
     }

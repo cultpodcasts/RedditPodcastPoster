@@ -41,25 +41,29 @@ public class PublicDatabasePublisher
                     ? null
                     : podcast.YouTubePlaylistId
             };
-            publicPodcast.Episodes = podcast.Episodes.Where(x => !x.Removed).Select(oldEpisode => new PublicEpisode
-            {
-                Id = oldEpisode.Id,
-                AppleId = oldEpisode.AppleId,
-                Description = string.IsNullOrWhiteSpace(oldEpisode.Description) ? null : oldEpisode.Description,
-                Explicit = oldEpisode.Explicit,
-                Length = oldEpisode.Length,
-                Release = oldEpisode.Release,
-                SpotifyId = string.IsNullOrWhiteSpace(oldEpisode.SpotifyId) ? null : oldEpisode.SpotifyId,
-                Title = oldEpisode.Title,
-                YouTubeId = string.IsNullOrWhiteSpace(oldEpisode.YouTubeId) ? null : oldEpisode.YouTubeId,
-                Urls = new PublicServiceUrls
+            publicPodcast.Episodes = podcast.Episodes
+                .Where(x => !x.Removed)
+                .Select(oldEpisode => new PublicEpisode
                 {
-                    Apple = oldEpisode.Urls.Apple,
-                    Spotify = oldEpisode.Urls.Spotify,
-                    YouTube = oldEpisode.Urls.YouTube
-                },
-                Subjects = oldEpisode.Subjects.Any() ? oldEpisode.Subjects : null
-            }).ToList();
+                    Id = oldEpisode.Id,
+                    AppleId = oldEpisode.AppleId,
+                    Description = string.IsNullOrWhiteSpace(oldEpisode.Description) ? null : oldEpisode.Description,
+                    Explicit = oldEpisode.Explicit,
+                    Length = oldEpisode.Length,
+                    Release = oldEpisode.Release,
+                    SpotifyId = string.IsNullOrWhiteSpace(oldEpisode.SpotifyId) ? null : oldEpisode.SpotifyId,
+                    Title = oldEpisode.Title,
+                    YouTubeId = string.IsNullOrWhiteSpace(oldEpisode.YouTubeId) ? null : oldEpisode.YouTubeId,
+                    Urls = new PublicServiceUrls
+                    {
+                        Apple = oldEpisode.Urls.Apple,
+                        Spotify = oldEpisode.Urls.Spotify,
+                        YouTube = oldEpisode.Urls.YouTube
+                    },
+                    Subjects = oldEpisode.Subjects.Any() ? oldEpisode.Subjects : null
+                })
+                .OrderByDescending(x => x.Release)
+                .ToList();
 
             await _fileRepository.Write(podcast.FileKey, publicPodcast);
         }

@@ -21,9 +21,11 @@ public class UrlSubmitter : IUrlSubmitter
         _logger = logger;
     }
 
-    public async Task Submit(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext, bool searchForPodcast)
+    public async Task Submit(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext, bool searchForPodcast,
+        bool matchOtherServices)
     {
-        var categorisedItem = await _urlCategoriser.Categorise(podcasts, url, indexingContext, searchForPodcast);
+        var categorisedItem =
+            await _urlCategoriser.Categorise(podcasts, url, indexingContext, searchForPodcast, matchOtherServices);
 
         if (categorisedItem.MatchingPodcast != null)
         {
@@ -41,6 +43,8 @@ public class UrlSubmitter : IUrlSubmitter
             else
             {
                 categorisedItem.MatchingPodcast.Episodes.Add(CreateEpisode(categorisedItem));
+                categorisedItem.MatchingPodcast.Episodes =
+                    categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
             }
 
             await _podcastRepository.Save(categorisedItem.MatchingPodcast);
@@ -56,21 +60,35 @@ public class UrlSubmitter : IUrlSubmitter
 
     private static Podcast CreatePodcastWithEpisode(CategorisedItem categorisedItem)
     {
-        var newPodcast = new PodcastFactory().Create(categorisedItem.ResolvedSpotifyItem?.ShowName ??
-                                                     categorisedItem.ResolvedAppleItem?.ShowName ??
-                                                     categorisedItem.ResolvedYouTubeItem?.ShowName ??
-                                                     string.Empty);
-        newPodcast.Publisher = categorisedItem.ResolvedSpotifyItem?.Publisher ??
-                               categorisedItem.ResolvedAppleItem?.Publisher ??
-                               categorisedItem.ResolvedYouTubeItem?.Publisher ??
-                               string.Empty;
+        string showName;
+        string publisher;
+        switch (categorisedItem.Authority)
+        {
+            case Service.Apple:
+                showName = categorisedItem.ResolvedAppleItem.ShowName;
+                publisher = categorisedItem.ResolvedAppleItem.Publisher;
+                break;
+            case Service.Spotify:
+                showName = categorisedItem.ResolvedSpotifyItem.ShowName;
+                publisher = categorisedItem.ResolvedSpotifyItem.Publisher;
+                break;
+            case Service.YouTube:
+                showName = categorisedItem.ResolvedYouTubeItem.ShowName;
+                publisher = categorisedItem.ResolvedYouTubeItem.Publisher;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
+        var newPodcast = new PodcastFactory().Create(showName);
+        newPodcast.Publisher = publisher;
         newPodcast.SpotifyId = categorisedItem.ResolvedSpotifyItem?.ShowId ?? string.Empty;
         newPodcast.AppleId = categorisedItem.ResolvedAppleItem?.ShowId;
         newPodcast.YouTubeChannelId = categorisedItem.ResolvedYouTubeItem?.ShowId ?? string.Empty;
 
         if (!string.IsNullOrWhiteSpace(newPodcast.YouTubeChannelId))
         {
-            newPodcast.YouTubePublishingDelayTimeSpan = "1:00:00:00";
+            newPodcast.YouTubePublishingDelayTimeSpan = "0:01:00:00";
         }
 
         newPodcast.Episodes.Add(CreateEpisode(categorisedItem));
@@ -79,32 +97,50 @@ public class UrlSubmitter : IUrlSubmitter
 
     private static Episode CreateEpisode(CategorisedItem categorisedItem)
     {
+        string title;
+        DateTime release;
+        TimeSpan length;
+        bool @explicit;
+        string description;
+
+        switch (categorisedItem.Authority)
+        {
+            case Service.Apple:
+                title = categorisedItem.ResolvedAppleItem.EpisodeTitle;
+                release = categorisedItem.ResolvedAppleItem.Release;
+                length = categorisedItem.ResolvedAppleItem.Duration;
+                @explicit = categorisedItem.ResolvedAppleItem.Explicit;
+                description = categorisedItem.ResolvedAppleItem.EpisodeDescription;
+                break;
+            case Service.Spotify:
+                title = categorisedItem.ResolvedSpotifyItem.EpisodeTitle;
+                release = categorisedItem.ResolvedSpotifyItem.Release;
+                length = categorisedItem.ResolvedSpotifyItem.Duration;
+                @explicit = categorisedItem.ResolvedSpotifyItem.Explicit;
+                description = categorisedItem.ResolvedSpotifyItem.EpisodeDescription;
+                break;
+            case Service.YouTube:
+                title = categorisedItem.ResolvedYouTubeItem.EpisodeTitle;
+                release = categorisedItem.ResolvedYouTubeItem.Release;
+                length = categorisedItem.ResolvedYouTubeItem.Duration;
+                @explicit = categorisedItem.ResolvedYouTubeItem.Explicit;
+                description = categorisedItem.ResolvedYouTubeItem.EpisodeDescription;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
         var newEpisode = new Episode
         {
             Id = Guid.NewGuid(),
-            Title = categorisedItem.ResolvedSpotifyItem?.EpisodeTitle ??
-                    categorisedItem.ResolvedAppleItem?.EpisodeTitle ??
-                    categorisedItem.ResolvedYouTubeItem?.EpisodeTitle ??
-                    string.Empty,
-            Release = categorisedItem.ResolvedSpotifyItem?.Release ??
-                      categorisedItem.ResolvedAppleItem?.Release ??
-                      categorisedItem.ResolvedYouTubeItem?.Release ??
-                      DateTime.MinValue,
-            Length = categorisedItem.ResolvedSpotifyItem?.Duration ??
-                     categorisedItem.ResolvedAppleItem?.Duration ??
-                     categorisedItem.ResolvedYouTubeItem?.Duration ??
-                     TimeSpan.MinValue,
-            Explicit = categorisedItem.ResolvedSpotifyItem?.Explicit ??
-                       categorisedItem.ResolvedAppleItem?.Explicit ??
-                       categorisedItem.ResolvedYouTubeItem?.Explicit ??
-                       false,
+            Title = title,
+            Release = release,
+            Length = length,
+            Explicit = @explicit,
             AppleId = categorisedItem.ResolvedAppleItem?.EpisodeId,
             SpotifyId = categorisedItem.ResolvedSpotifyItem?.EpisodeId ?? string.Empty,
             YouTubeId = categorisedItem.ResolvedYouTubeItem?.EpisodeId ?? string.Empty,
-            Description = categorisedItem.ResolvedSpotifyItem?.EpisodeDescription ??
-                          categorisedItem.ResolvedAppleItem?.EpisodeDescription ??
-                          categorisedItem.ResolvedYouTubeItem?.EpisodeDescription ??
-                          string.Empty,
+            Description = description,
             Urls = new ServiceUrls
             {
                 Spotify = categorisedItem.ResolvedSpotifyItem?.Url,

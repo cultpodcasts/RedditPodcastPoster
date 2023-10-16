@@ -21,4 +21,7 @@ public class SubmitUrlRequest
     [Option('a', "acknowledge-expensive-queries", Required = false, HelpText = "Allow expensive queries")]
     public bool AllowExpensiveQueries { get; set; }
 
+    [Option('m', "match-other-services", Required = false, HelpText = "Match other services")]
+    public bool MatchOtherServices { get; set; }
+
 }
