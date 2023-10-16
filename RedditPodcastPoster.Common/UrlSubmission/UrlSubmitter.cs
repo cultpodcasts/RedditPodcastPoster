@@ -21,10 +21,9 @@ public class UrlSubmitter : IUrlSubmitter
         _logger = logger;
     }
 
-    public async Task Submit(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext)
+    public async Task Submit(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext, bool searchForPodcast)
     {
-
-        var categorisedItem = await _urlCategoriser.Categorise(podcasts, url, indexingContext);
+        var categorisedItem = await _urlCategoriser.Categorise(podcasts, url, indexingContext, searchForPodcast);
 
         if (categorisedItem.MatchingPodcast != null)
         {
