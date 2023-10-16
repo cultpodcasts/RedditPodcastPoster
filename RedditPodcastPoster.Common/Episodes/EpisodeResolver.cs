@@ -47,6 +47,8 @@ public class EpisodeResolver : IEpisodeResolver
                     {
                         var post = !matchingPodcast!.IsDelayedYouTubePublishing(matchingEpisode);
 
+                        post = matchingEpisode.Urls.Spotify != null && matchingEpisode.Urls.YouTube != null;
+
                         if (post)
                         {
                             resolvedPodcastEpisodeSince.Add(
