@@ -75,10 +75,15 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
             }
 
             var lastUpload = searchListResponse.Items.FirstOrDefault();
-            if (lastUpload != null && AlphaNumericOnly(lastUpload.Snippet.Title) == mostRecentlyUploadVideoTitle)
+            if (lastUpload != null)
             {
-                _logger.LogInformation($"YOUTUBE: {nameof(FindChannelsSnippets)} - {System.Text.Json.JsonSerializer.Serialize(searchResult)}");
-                return searchResult;
+                var alphaNumericOnly = AlphaNumericOnly(lastUpload.Snippet.Title);
+                if (alphaNumericOnly == mostRecentlyUploadVideoTitle)
+                {
+                    _logger.LogInformation(
+                        $"YOUTUBE: {nameof(FindChannelsSnippets)} - {System.Text.Json.JsonSerializer.Serialize(searchResult)}");
+                    return searchResult;
+                }
             }
         }
 
