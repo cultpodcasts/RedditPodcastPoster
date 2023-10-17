@@ -34,7 +34,7 @@ public class UrlSubmitter : IUrlSubmitter
                                       IsMatchingEpisode(episode, categorisedItem));
 
             _logger.LogInformation(
-                $"Added to podcast with name '{categorisedItem.MatchingPodcast.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
+                $"Adding to podcast with name '{categorisedItem.MatchingPodcast.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
 
             if (matchingEpisode != null)
             {
