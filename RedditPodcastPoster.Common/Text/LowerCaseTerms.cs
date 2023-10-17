@@ -10,7 +10,8 @@ public static class LowerCaseTerms
         "the", "of", "on", "in", "to", "a", "an", "it", "not", "your", "you", "was", "isn't", "is", "want", "wants",
         "her", "his", "from", "their", "they", "out", "come", "coming", "away", "by", "what", "who", "made", "make",
         "since", "for", "go", "gone", "give", "gives", "given", "next", "with", "about", "how", "here", "called",
-        "call", "doing", "do", "does", "where", "each", "other", "this"
+        "call", "doing", "do", "does", "where", "each", "other", "this", "after", "before", "be", "own", "more", "start",
+        "my", "myself", "mine", "get", "gets", "up", "down", "meet", "met", "part", "parts"
     };
 
     private static readonly string[] AlwaysLowerCaseWords =
