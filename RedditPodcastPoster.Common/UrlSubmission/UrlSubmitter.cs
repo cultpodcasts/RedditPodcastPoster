@@ -33,6 +33,9 @@ public class UrlSubmitter : IUrlSubmitter
                                   categorisedItem.MatchingPodcast.Episodes.SingleOrDefault(episode =>
                                       IsMatchingEpisode(episode, categorisedItem));
 
+            _logger.LogInformation(
+                $"Modifying podcast with name '{categorisedItem.MatchingPodcast.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
+
             if (matchingEpisode != null)
             {
                 ApplyResolvedPodcastServiceProperties(
@@ -58,7 +61,7 @@ public class UrlSubmitter : IUrlSubmitter
         }
     }
 
-    private static Podcast CreatePodcastWithEpisode(CategorisedItem categorisedItem)
+    private Podcast CreatePodcastWithEpisode(CategorisedItem categorisedItem)
     {
         string showName;
         string publisher;
@@ -92,10 +95,12 @@ public class UrlSubmitter : IUrlSubmitter
         }
 
         newPodcast.Episodes.Add(CreateEpisode(categorisedItem));
+        _logger.LogInformation($"Created podcast with name '{showName}' with id '{newPodcast.Id}'.");
+
         return newPodcast;
     }
 
-    private static Episode CreateEpisode(CategorisedItem categorisedItem)
+    private Episode CreateEpisode(CategorisedItem categorisedItem)
     {
         string title;
         DateTime release;
@@ -148,29 +153,40 @@ public class UrlSubmitter : IUrlSubmitter
                 YouTube = categorisedItem.ResolvedYouTubeItem?.Url
             }
         };
+        _logger.LogInformation(
+            $"Created episode with spotify-id '{categorisedItem.ResolvedSpotifyItem?.EpisodeId}', apple-id '{categorisedItem.ResolvedAppleItem?.EpisodeId}', youtube-id '{categorisedItem.ResolvedYouTubeItem?.EpisodeId}'.");
         return newEpisode;
     }
 
-    private static void ApplyResolvedPodcastServiceProperties(
+    private void ApplyResolvedPodcastServiceProperties(
         Podcast matchingPodcast,
         Episode matchingEpisode,
         CategorisedItem categorisedItem)
     {
+        _logger.LogInformation(
+            $"Applying to episode with title '{matchingEpisode.Title}' and id '{matchingEpisode.Id}'.");
+
         if (categorisedItem.ResolvedAppleItem != null)
         {
             if (!matchingPodcast.AppleId.HasValue)
             {
                 matchingPodcast.AppleId = categorisedItem.ResolvedAppleItem.ShowId;
+                _logger.LogInformation(
+                    $"Enriched podcast with apple details with apple-id {categorisedItem.ResolvedAppleItem.ShowId}.");
             }
 
             if (!matchingEpisode.AppleId.HasValue)
             {
                 matchingEpisode.AppleId = categorisedItem.ResolvedAppleItem.EpisodeId;
+                _logger.LogInformation(
+                    $"Enriched episode with apple details with apple-id {categorisedItem.ResolvedAppleItem.EpisodeId}.");
             }
 
             if (matchingEpisode.Urls.Apple == null)
             {
                 matchingEpisode.Urls.Apple = categorisedItem.ResolvedAppleItem.Url;
+                _logger.LogInformation(
+                    $"Enriched episode with apple details with apple-url {categorisedItem.ResolvedAppleItem.Url}.");
             }
         }
 
@@ -179,16 +195,22 @@ public class UrlSubmitter : IUrlSubmitter
             if (string.IsNullOrWhiteSpace(matchingPodcast.SpotifyId))
             {
                 matchingPodcast.SpotifyId = categorisedItem.ResolvedSpotifyItem.ShowId;
+                _logger.LogInformation(
+                    $"Enriched podcast with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.ShowId}.");
             }
 
             if (string.IsNullOrWhiteSpace(matchingEpisode.SpotifyId))
             {
                 matchingEpisode.SpotifyId = categorisedItem.ResolvedSpotifyItem.EpisodeId;
+                _logger.LogInformation(
+                    $"Enriched episode with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.EpisodeId}.");
             }
 
             if (matchingEpisode.Urls.Spotify == null)
             {
                 matchingEpisode.Urls.Spotify = categorisedItem.ResolvedSpotifyItem.Url;
+                _logger.LogInformation(
+                    $"Enriched episode with spotify details with spotify-url {categorisedItem.ResolvedSpotifyItem.Url}.");
             }
         }
 
@@ -197,16 +219,22 @@ public class UrlSubmitter : IUrlSubmitter
             if (string.IsNullOrWhiteSpace(matchingPodcast.YouTubeChannelId))
             {
                 matchingPodcast.YouTubeChannelId = categorisedItem.ResolvedYouTubeItem.ShowId;
+                _logger.LogInformation(
+                    $"Enriched podcast with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.ShowId}.");
             }
 
             if (string.IsNullOrWhiteSpace(matchingEpisode.YouTubeId))
             {
                 matchingEpisode.YouTubeId = categorisedItem.ResolvedYouTubeItem.EpisodeId;
+                _logger.LogInformation(
+                    $"Enriched episode with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.EpisodeId}.");
             }
 
             if (matchingEpisode.Urls.YouTube == null)
             {
                 matchingEpisode.Urls.YouTube = categorisedItem.ResolvedYouTubeItem.Url;
+                _logger.LogInformation(
+                    $"Enriched episode with youtube details with youtube-url {categorisedItem.ResolvedYouTubeItem.Url}.");
             }
         }
     }

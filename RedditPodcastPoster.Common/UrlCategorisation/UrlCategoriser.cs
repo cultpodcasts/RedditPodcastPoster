@@ -25,8 +25,12 @@ public class UrlCategoriser : IUrlCategoriser
         _logger = logger;
     }
 
-    public async Task<CategorisedItem> Categorise(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext,
-        bool searchForPodcast, bool matchOtherServices)
+    public async Task<CategorisedItem> Categorise(
+        IList<Podcast> podcasts, 
+        Uri url, 
+        IndexingContext indexingContext,
+        bool searchForPodcast,
+        bool matchOtherServices)
     {
         ResolvedSpotifyItem? resolvedSpotifyItem = null;
         ResolvedAppleItem? resolvedAppleItem = null;
@@ -41,7 +45,7 @@ public class UrlCategoriser : IUrlCategoriser
         if (_spotifyUrlCategoriser.IsMatch(url))
         {
             resolvedSpotifyItem = await _spotifyUrlCategoriser.Resolve(podcasts, url, indexingContext);
-            if (!searchForPodcast)
+            if (searchForPodcast)
             {
                 matchingPodcast = podcasts.SingleOrDefault(podcast => IsMatchingPodcast(podcast, resolvedSpotifyItem));
             }
@@ -59,7 +63,7 @@ public class UrlCategoriser : IUrlCategoriser
         {
             resolvedAppleItem = await _appleUrlCategoriser.Resolve(podcasts, url, indexingContext);
             criteria = resolvedAppleItem.ToPodcastServiceSearchCriteria();
-            if (!searchForPodcast)
+            if (searchForPodcast)
             {
                 matchingPodcast = podcasts.SingleOrDefault(podcast => IsMatchingPodcast(podcast, resolvedAppleItem));
             }
@@ -90,10 +94,6 @@ public class UrlCategoriser : IUrlCategoriser
                     {
                         matchingPodcast =
                             matchingPodcasts.SingleOrDefault(x => string.IsNullOrWhiteSpace(x.YouTubePlaylistId));
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException("No matching podcasts found");
                     }
                 }
                 else

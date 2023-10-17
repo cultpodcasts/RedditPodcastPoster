@@ -91,8 +91,8 @@ public class TextSanitiserTests
     }
 
     [Theory]
-    [InlineData("Understanding Extremist Authoritarian Aects - w/Christian Szurko")]
-    [InlineData("The Start of the Sentence")]
+    [InlineData("Understanding Extremist Authoritarian Sects - w/Christian Szurko")]
+    [InlineData("The start of the Sentence")]
     public void SanitiseTitle_WithKnownTerm_MaintainsTerm(string expected)
     {
         // arrange
