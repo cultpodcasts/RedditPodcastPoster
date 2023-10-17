@@ -68,15 +68,15 @@ public class UrlSubmitter : IUrlSubmitter
         switch (categorisedItem.Authority)
         {
             case Service.Apple:
-                showName = categorisedItem.ResolvedAppleItem.ShowName;
+                showName = categorisedItem.ResolvedAppleItem!.ShowName;
                 publisher = categorisedItem.ResolvedAppleItem.Publisher;
                 break;
             case Service.Spotify:
-                showName = categorisedItem.ResolvedSpotifyItem.ShowName;
+                showName = categorisedItem.ResolvedSpotifyItem!.ShowName;
                 publisher = categorisedItem.ResolvedSpotifyItem.Publisher;
                 break;
             case Service.YouTube:
-                showName = categorisedItem.ResolvedYouTubeItem.ShowName;
+                showName = categorisedItem.ResolvedYouTubeItem!.ShowName;
                 publisher = categorisedItem.ResolvedYouTubeItem.Publisher;
                 break;
             default:
@@ -111,21 +111,21 @@ public class UrlSubmitter : IUrlSubmitter
         switch (categorisedItem.Authority)
         {
             case Service.Apple:
-                title = categorisedItem.ResolvedAppleItem.EpisodeTitle;
+                title = categorisedItem.ResolvedAppleItem!.EpisodeTitle;
                 release = categorisedItem.ResolvedAppleItem.Release;
                 length = categorisedItem.ResolvedAppleItem.Duration;
                 @explicit = categorisedItem.ResolvedAppleItem.Explicit;
                 description = categorisedItem.ResolvedAppleItem.EpisodeDescription;
                 break;
             case Service.Spotify:
-                title = categorisedItem.ResolvedSpotifyItem.EpisodeTitle;
+                title = categorisedItem.ResolvedSpotifyItem!.EpisodeTitle;
                 release = categorisedItem.ResolvedSpotifyItem.Release;
                 length = categorisedItem.ResolvedSpotifyItem.Duration;
                 @explicit = categorisedItem.ResolvedSpotifyItem.Explicit;
                 description = categorisedItem.ResolvedSpotifyItem.EpisodeDescription;
                 break;
             case Service.YouTube:
-                title = categorisedItem.ResolvedYouTubeItem.EpisodeTitle;
+                title = categorisedItem.ResolvedYouTubeItem!.EpisodeTitle;
                 release = categorisedItem.ResolvedYouTubeItem.Release;
                 length = categorisedItem.ResolvedYouTubeItem.Duration;
                 @explicit = categorisedItem.ResolvedYouTubeItem.Explicit;
