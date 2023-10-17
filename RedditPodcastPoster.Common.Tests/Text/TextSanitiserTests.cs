@@ -142,6 +142,9 @@ public class TextSanitiserTests
     [InlineData("Something 21st October")]
     [InlineData("Something 23rd October")]
     [InlineData("Something 14th October")]
+    [InlineData("The 90s")]
+    [InlineData("The 90's")]
+    [InlineData("The Objects's")]
     public void SanitiseTitle_WithDate_IsCorrect(string expected)
     {
         // arrange

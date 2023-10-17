@@ -21,7 +21,7 @@ public static class LowerCaseTerms
 
     private static readonly string[] Ordinals =
     {
-        "th", "st", "rd"
+        "th", "st", "rd", "s"
     };
 
     public static readonly IDictionary<string, Regex>
@@ -30,5 +30,5 @@ public static class LowerCaseTerms
             .AddRange(AlwaysLowerCaseWords.ToDictionary(x => x,
                 x => new Regex($@"\b{x}\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)))
             .AddRange(Ordinals.ToDictionary(x => x,
-                x => new Regex($@"(?<=\d){x}", RegexOptions.Compiled | RegexOptions.IgnoreCase)));
+                x => new Regex($@"(?<=\d'?){x}", RegexOptions.Compiled | RegexOptions.IgnoreCase)));
 }
