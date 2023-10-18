@@ -1,6 +1,6 @@
 ﻿using RedditPodcastPoster.Models;
 
-namespace TextClassifierTraining;
+namespace RedditPodcastPoster.Persistence;
 
 public interface IRepositoryFactory
 {

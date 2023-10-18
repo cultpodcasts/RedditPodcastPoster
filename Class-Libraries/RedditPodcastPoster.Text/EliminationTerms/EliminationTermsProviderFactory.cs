@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Persistence;
 
 namespace RedditPodcastPoster.Text.EliminationTerms;
 

@@ -1,8 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence;
 
-namespace TextClassifierTraining;
+namespace RedditPodcastPoster.Persistence;
 
 public class Repository<T> : IRepository<T> where T : CosmosSelector
 {

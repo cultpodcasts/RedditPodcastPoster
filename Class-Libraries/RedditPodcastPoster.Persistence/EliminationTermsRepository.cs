@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Persistence;
 
-namespace RedditPodcastPoster.Text.EliminationTerms;
+namespace RedditPodcastPoster.Persistence;
 
 public class EliminationTermsRepository : IEliminationTermsRepository
 {

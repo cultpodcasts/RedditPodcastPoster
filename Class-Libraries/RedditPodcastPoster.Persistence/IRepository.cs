@@ -1,4 +1,4 @@
-﻿namespace TextClassifierTraining;
+﻿namespace RedditPodcastPoster.Persistence;
 
 public interface IRepository<T> 
 {
