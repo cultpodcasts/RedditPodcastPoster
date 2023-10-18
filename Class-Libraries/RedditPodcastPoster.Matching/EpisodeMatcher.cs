@@ -7,8 +7,8 @@ namespace RedditPodcastPoster.Matching;
 
 public class EpisodeMatcher : IEpisodeMatcher
 {
-    private readonly ILogger<EpisodeMatcher> _logger;
     private readonly CompareInfo _compareInfo = CultureInfo.InvariantCulture.CompareInfo;
+    private readonly ILogger<EpisodeMatcher> _logger;
 
     public EpisodeMatcher(ILogger<EpisodeMatcher> logger)
     {
@@ -51,9 +51,9 @@ public class EpisodeMatcher : IEpisodeMatcher
         }
 
         var publishDifference = existingEpisode.Release - episodeToMerge.Release;
-        if (Math.Abs((long) publishDifference.Ticks) < TimeSpan.FromMinutes(5).Ticks && Math.Abs(
-                (long) (existingEpisode.Length -
-                        episodeToMerge.Length).Ticks) < TimeSpan.FromMinutes(1).Ticks)
+        if (Math.Abs(publishDifference.Ticks) < TimeSpan.FromMinutes(5).Ticks && Math.Abs(
+                (existingEpisode.Length -
+                 episodeToMerge.Length).Ticks) < TimeSpan.FromMinutes(1).Ticks)
         {
             return true;
         }
