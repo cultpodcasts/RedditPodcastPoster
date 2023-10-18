@@ -28,6 +28,7 @@ public class SpotifyEpisodeRetrievalHandler : ISpotifyEpisodeRetrievalHandler
             var getEpisodesResult =
                 await _spotifyEpisodeProvider.GetEpisodes(
                     new GetEpisodesRequest(new SpotifyPodcastId(podcast.SpotifyId),
+                        podcast.SpotifyMarket,
                         podcast.HasExpensiveSpotifyEpisodesQuery()), indexingContext);
             if (getEpisodesResult.Results != null && getEpisodesResult.Results.Any())
             {

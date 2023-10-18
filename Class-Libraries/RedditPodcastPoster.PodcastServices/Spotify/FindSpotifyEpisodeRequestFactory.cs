@@ -11,7 +11,8 @@ public static class FindSpotifyEpisodeRequestFactory
             podcast.Name.Trim(),
             episode.SpotifyId,
             episode.Title.Trim(),
-            podcast.HasExpensiveSpotifyEpisodesQuery());
+            podcast.HasExpensiveSpotifyEpisodesQuery(),
+            podcast.SpotifyMarket);
     }
 
     public static FindSpotifyEpisodeRequest Create(string episodeSpotifyId)

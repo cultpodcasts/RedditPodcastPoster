@@ -24,9 +24,11 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
         _logger = logger;
     }
 
-    public async Task<FindEpisodeResponse> FindEpisode(FindSpotifyEpisodeRequest request,
+    public async Task<FindEpisodeResponse> FindEpisode(
+        FindSpotifyEpisodeRequest request,
         IndexingContext indexingContext)
     {
+        var market = request.Market ?? Market;
         var expensiveQueryFound = false;
         if (indexingContext.SkipSpotifyUrlResolving)
         {
@@ -38,7 +40,8 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
         FullEpisode? fullEpisode = null;
         if (!string.IsNullOrWhiteSpace(request.EpisodeSpotifyId))
         {
-            var episodeRequest = new EpisodeRequest {Market = Market};
+            var episodeRequest = new EpisodeRequest
+                {Market = market };
             fullEpisode =
                 await _spotifyClientWrapper.GetFullEpisode(request.EpisodeSpotifyId, episodeRequest, indexingContext);
         }
@@ -48,7 +51,7 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
             (string, Paging<SimpleEpisode>?)[]? episodes = null;
             if (!string.IsNullOrWhiteSpace(request.PodcastSpotifyId))
             {
-                var showRequest = new ShowRequest {Market = Market};
+                var showRequest = new ShowRequest {Market = market};
                 var fullShow =
                     await _spotifyClientWrapper.GetFullShow(request.PodcastSpotifyId, showRequest, indexingContext);
                 if (fullShow != null)
@@ -61,7 +64,7 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
                 if (!indexingContext.SkipPodcastDiscovery)
                 {
                     var searchRequest = new SearchRequest(SearchRequest.Types.Show, request.PodcastName)
-                        {Market = Market};
+                        {Market = market};
                     var podcastSearchResponse =
                         await _spotifyClientWrapper.GetSearchResponse(searchRequest, indexingContext);
                     if (podcastSearchResponse != null)
@@ -69,7 +72,7 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
                         var podcasts = podcastSearchResponse.Shows.Items;
                         var matchingPodcasts = _spotifySearcher.FindMatchingPodcasts(request.PodcastName, podcasts);
 
-                        var showEpisodesRequest = new ShowEpisodesRequest {Market = Market};
+                        var showEpisodesRequest = new ShowEpisodesRequest {Market = market};
                         if (indexingContext.ReleasedSince.HasValue)
                         {
                             showEpisodesRequest.Limit = 1;
@@ -118,7 +121,7 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
                         allEpisodes);
                 if (matchingEpisode != null)
                 {
-                    var showRequest = new EpisodeRequest {Market = Market};
+                    var showRequest = new EpisodeRequest {Market = market};
                     fullEpisode =
                         await _spotifyClientWrapper.GetFullEpisode(matchingEpisode.Id, showRequest, indexingContext);
                 }
@@ -132,6 +135,7 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
         GetEpisodesRequest request,
         IndexingContext indexingContext)
     {
+        var market = request.Market ?? Market;
         if (indexingContext.SkipSpotifyUrlResolving)
         {
             _logger.LogInformation(
@@ -139,7 +143,7 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
             return new PaginateEpisodesResponse(new List<SimpleEpisode>());
         }
 
-        var showEpisodesRequest = new ShowEpisodesRequest {Market = Market};
+        var showEpisodesRequest = new ShowEpisodesRequest {Market = market};
 
         if (indexingContext.ReleasedSince.HasValue)
         {

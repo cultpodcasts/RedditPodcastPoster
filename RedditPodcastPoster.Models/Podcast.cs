@@ -41,33 +41,37 @@ public class Podcast : CosmosSelector
     [JsonPropertyOrder(50)]
     public string SpotifyId { get; set; } = "";
 
-    [JsonPropertyName("appleId")]
+    [JsonPropertyName("spotifyMarket")]
     [JsonPropertyOrder(51)]
+    public string? SpotifyMarket { get; set; }
+
+    [JsonPropertyName("spotifyEpisodesQueryIsExpensive")]
+    [JsonPropertyOrder(52)]
+    public bool? SpotifyEpisodesQueryIsExpensive { get; set; }
+
+    [JsonPropertyName("appleId")]
+    [JsonPropertyOrder(60)]
     public long? AppleId { get; set; } = null;
 
     [JsonPropertyName("youTubeChannelId")]
-    [JsonPropertyOrder(52)]
+    [JsonPropertyOrder(70)]
     public string YouTubeChannelId { get; set; } = "";
 
     [JsonPropertyName("youTubePlaylistId")]
-    [JsonPropertyOrder(53)]
+    [JsonPropertyOrder(71)]
     public string YouTubePlaylistId { get; set; } = "";
 
-    [JsonPropertyName("spotifyEpisodesQueryIsExpensive")]
-    [JsonPropertyOrder(60)]
-    public bool? SpotifyEpisodesQueryIsExpensive { get; set; }
+    [JsonPropertyName("youTubePublicationDelay")]
+    [JsonPropertyOrder(72)]
+    public string YouTubePublishingDelayTimeSpan { get; set; } = "";
 
     [JsonPropertyName("youTubePlaylistQueryIsExpensive")]
-    [JsonPropertyOrder(61)]
+    [JsonPropertyOrder(73)]
     public bool? YouTubePlaylistQueryIsExpensive { get; set; }
 
     [JsonPropertyName("twitterHandle")]
-    [JsonPropertyOrder(70)]
-    public string TwitterHandle { get; set; } = "";
-
-    [JsonPropertyName("youTubePublicationDelay")]
     [JsonPropertyOrder(80)]
-    public string YouTubePublishingDelayTimeSpan { get; set; } = "";
+    public string TwitterHandle { get; set; } = "";
 
     [JsonPropertyName("titleRegex")]
     [JsonPropertyOrder(90)]
