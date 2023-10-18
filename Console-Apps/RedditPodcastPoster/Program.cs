@@ -31,15 +31,15 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories(builder.Configuration)
+    .AddTextSanitiser()
     .AddYouTubeServices(builder.Configuration)
     .AddSpotifyServices(builder.Configuration)
     .AddAppleServices(builder.Configuration)
-    .AddTextSanitiser()
-    .AddRemoteClient()
-    .AddEliminationTerms()
     .AddPodcastServices(builder.Configuration)
-    .AddRedditServices(builder.Configuration)
+    .AddRemoteClient()
     .AddScoped(s => new iTunesSearchManager())
+    .AddEliminationTerms()
+    .AddRedditServices(builder.Configuration)
     .AddScoped<IFlushable, CacheFlusher>()
     .AddScoped<PodcastProcessor>();
 

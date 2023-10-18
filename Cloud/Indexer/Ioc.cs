@@ -10,6 +10,7 @@ using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
+using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
@@ -33,13 +34,13 @@ public static class Ioc
             .AddYouTubeServices(hostBuilderContext.Configuration)
             .AddSpotifyServices(hostBuilderContext.Configuration)
             .AddAppleServices(hostBuilderContext.Configuration)
-            .AddTextSanitiser()
             .AddPodcastServices(hostBuilderContext.Configuration)
+            .AddRemoteClient()
+            .AddScoped(s => new iTunesSearchManager())
             .AddEliminationTerms()
             .AddRedditServices(hostBuilderContext.Configuration)
-            .AddTwitterServices(hostBuilderContext.Configuration)
-            .AddScoped(s => new iTunesSearchManager())
             .AddScoped<IFlushable, CacheFlusher>()
+            .AddTwitterServices(hostBuilderContext.Configuration)
             .AddScoped<ITweeter, Tweeter>()
 
             // Content Publisher
