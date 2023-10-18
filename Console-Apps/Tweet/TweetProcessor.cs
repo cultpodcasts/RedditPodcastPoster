@@ -27,45 +27,55 @@ public class TweetProcessor
     public async Task Run(TweetRequest request)
     {
         var podcast = await _podcastRepository.GetPodcast(request.PodcastId);
-        var mostRecentEpisode = podcast.Episodes.MaxBy(x => x.Release);
-
-        if (mostRecentEpisode != null)
+        if (podcast == null)
         {
-            var podcastEpisode = new PodcastEpisode(podcast, mostRecentEpisode);
-            var tweet = _tweetBuilder.BuildTweet(podcastEpisode);
-            bool tweeted;
-            try
-            {
-                tweeted = await _twitterClient.Send(tweet);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    $"Failure to send tweet for podcast-id '{podcastEpisode.Podcast.Id}' episode-id '{podcastEpisode.Episode.Id}', tweet: '{tweet}'.");
-                throw;
-            }
+            var mostRecentEpisode = podcast.Episodes.MaxBy(x => x.Release);
 
-            if (tweeted)
+            if (mostRecentEpisode != null)
             {
-                podcastEpisode.Episode.Tweeted = true;
+                var podcastEpisode = new PodcastEpisode(podcast, mostRecentEpisode);
+                var tweet = _tweetBuilder.BuildTweet(podcastEpisode);
+                bool tweeted;
                 try
                 {
-                    await _podcastRepository.Update(podcastEpisode.Podcast);
+                    tweeted = await _twitterClient.Send(tweet);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex,
-                        $"Failure to save podcast with podcast-id '{podcastEpisode.Podcast.Id}' to update episode with id '{podcastEpisode.Episode.Id}'.");
+                        $"Failure to send tweet for podcast-id '{podcastEpisode.Podcast.Id}' episode-id '{podcastEpisode.Episode.Id}', tweet: '{tweet}'.");
                     throw;
                 }
 
+                if (tweeted)
+                {
+                    podcastEpisode.Episode.Tweeted = true;
+                    try
+                    {
+                        await _podcastRepository.Update(podcastEpisode.Podcast);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex,
+                            $"Failure to save podcast with podcast-id '{podcastEpisode.Podcast.Id}' to update episode with id '{podcastEpisode.Episode.Id}'.");
+                        throw;
+                    }
 
-                _logger.LogInformation($"Tweeted '{tweet}'.");
+
+                    _logger.LogInformation($"Tweeted '{tweet}'.");
+                }
+                else
+                {
+                    var message =
+                        $"Could not post tweet for podcast-episode: Podcast-id: '{podcastEpisode.Podcast.Id}', Episode-id: '{podcastEpisode.Episode.Id}'. Tweet: '{tweet}'.";
+                    _logger.LogError(message);
+                    throw new Exception(message);
+                }
             }
             else
             {
                 var message =
-                    $"Could not post tweet for podcast-episode: Podcast-id: '{podcastEpisode.Podcast.Id}', Episode-id: '{podcastEpisode.Episode.Id}'. Tweet: '{tweet}'.";
+                    $"Could not find an episode for podcast '{podcast.Name}' with id: '{podcast.Id}'.";
                 _logger.LogError(message);
                 throw new Exception(message);
             }
@@ -73,7 +83,7 @@ public class TweetProcessor
         else
         {
             var message =
-                $"Could not find an episode for podcast '{podcast.Name}' with id: '{podcast.Id}'.";
+                $"Could not find an podcast with id: '{podcast.Id}'.";
             _logger.LogError(message);
             throw new Exception(message);
         }
