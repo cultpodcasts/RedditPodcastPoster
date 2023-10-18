@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.PodcastServices.Abstractions;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
@@ -28,13 +28,13 @@ public interface ISpotifyClientWrapper
         CancellationToken cancel = default);
 
     Task<FullShow?> GetFullShow(
-        string showId, 
+        string showId,
         ShowRequest request,
         IndexingContext indexingContext,
         CancellationToken cancel = default);
 
     Task<FullEpisode?> GetFullEpisode(
-        string episodeId, 
+        string episodeId,
         EpisodeRequest request,
         IndexingContext indexingContext,
         CancellationToken cancel = default);

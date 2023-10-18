@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
@@ -19,7 +19,9 @@ public class AppleEpisodeEnricher : IAppleEpisodeEnricher
         _logger = logger;
     }
 
-    public async Task Enrich(EnrichmentRequest request, IndexingContext indexingContext,
+    public async Task Enrich(
+        EnrichmentRequest request,
+        IndexingContext indexingContext,
         EnrichmentContext enrichmentContext)
     {
         if (request.Podcast.AppleId == null)

@@ -1,10 +1,10 @@
-using RedditPodcastPoster.Models;
-using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public interface IYouTubePlaylistService
 {
-    Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(YouTubePlaylistId playlistId,
+    Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
+        YouTubePlaylistId playlistId,
         IndexingContext indexingContext);
 }

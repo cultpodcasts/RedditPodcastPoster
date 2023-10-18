@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 
@@ -82,7 +82,7 @@ public class SpotifyPodcastResolver : ISpotifyPodcastResolver
                                         mostRecentEpisode.Release,
                                         new[] {paginateEpisodesResponse.Results});
                                 if (Enumerable.Contains(request.Episodes
-                                        .Select(x => x.Url?.ToString()), matchingEpisode!.ExternalUrls.FirstOrDefault().Value))
+                                        .Select(x => x.Url?.ToString()), Enumerable.FirstOrDefault<KeyValuePair<string, string>>(matchingEpisode!.ExternalUrls).Value))
                                 {
                                     matchingSimpleShow = candidatePodcast;
                                     break;

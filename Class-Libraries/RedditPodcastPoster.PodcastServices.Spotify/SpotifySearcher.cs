@@ -32,7 +32,7 @@ public class SpotifySearcher : ISpotifySearcher
             {
                 var sameDateMatches =
                     episodeList.Where(x => x.ReleaseDate == "0000" ||
-                                           DateOnly.ParseExact(x.ReleaseDate,
+                                           DateOnly.ParseExact((string) x.ReleaseDate,
                                                "yyyy-MM-dd") ==
                                            DateOnly.FromDateTime(episodeRelease.Value));
                 if (sameDateMatches.Count() > 1)

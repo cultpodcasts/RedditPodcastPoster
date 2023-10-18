@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Models;
+﻿namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public record IndexingContext(
     DateTime? ReleasedSince = null,

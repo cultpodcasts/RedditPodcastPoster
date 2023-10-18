@@ -1,13 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeEpisodeEnricher : IYouTubeEpisodeEnricher
 {
-    private readonly IYouTubeItemResolver _youTubeItemResolver;
-    private readonly IYouTubeIdExtractor _youTubeIdExtractor;
     private readonly ILogger<YouTubeEpisodeEnricher> _logger;
+    private readonly IYouTubeIdExtractor _youTubeIdExtractor;
+    private readonly IYouTubeItemResolver _youTubeItemResolver;
 
     public YouTubeEpisodeEnricher(
         IYouTubeItemResolver youTubeItemResolver,
@@ -19,7 +19,8 @@ public class YouTubeEpisodeEnricher : IYouTubeEpisodeEnricher
         _logger = logger;
     }
 
-    public async Task Enrich(EnrichmentRequest request, IndexingContext indexingContext, EnrichmentContext enrichmentContext)
+    public async Task Enrich(EnrichmentRequest request, IndexingContext indexingContext,
+        EnrichmentContext enrichmentContext)
     {
         if (request.Podcast.IsDelayedYouTubePublishing(request.Episode))
         {

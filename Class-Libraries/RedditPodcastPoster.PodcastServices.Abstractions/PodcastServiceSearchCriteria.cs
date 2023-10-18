@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.PodcastServices;
+﻿namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public record PodcastServiceSearchCriteria(
     string ShowName,

@@ -1,6 +1,6 @@
 ﻿using iTunesSearch.Library;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
@@ -45,6 +45,6 @@ public class RecentApplePodcastService : IApplePodcastService
             return null;
         }
 
-        return Enumerable.Select<PodcastEpisode, AppleEpisode>(podcastEpisodeListResult.Episodes, x => AppleEpisodeExtensions.ToAppleEpisode((PodcastEpisode) x));
+        return podcastEpisodeListResult.Episodes.Select<PodcastEpisode, AppleEpisode>(x => x.ToAppleEpisode());
     }
 }

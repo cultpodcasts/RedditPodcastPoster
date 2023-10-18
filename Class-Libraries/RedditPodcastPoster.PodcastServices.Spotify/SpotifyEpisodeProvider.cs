@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
@@ -39,7 +40,7 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
                 TimeSpan.FromMilliseconds(x.DurationMs),
                 x.Explicit,
                 x.GetReleaseDate(),
-                new Uri(x.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute))
+                new Uri(Enumerable.FirstOrDefault<KeyValuePair<string, string>>(x.ExternalUrls).Value, UriKind.Absolute))
         ).ToList(), expensiveQueryFound);
     }
 }

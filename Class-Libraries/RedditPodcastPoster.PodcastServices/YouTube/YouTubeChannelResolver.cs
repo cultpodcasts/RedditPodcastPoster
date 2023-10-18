@@ -1,10 +1,11 @@
 ﻿using System.Globalization;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Web;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
@@ -82,7 +83,7 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
                 if (alphaNumericOnly == mostRecentlyUploadVideoTitle)
                 {
                     _logger.LogInformation(
-                        $"YOUTUBE: {nameof(FindChannelsSnippets)} - {System.Text.Json.JsonSerializer.Serialize(searchResult)}");
+                        $"YOUTUBE: {nameof(FindChannelsSnippets)} - {JsonSerializer.Serialize(searchResult)}");
                     return searchResult;
                 }
             }

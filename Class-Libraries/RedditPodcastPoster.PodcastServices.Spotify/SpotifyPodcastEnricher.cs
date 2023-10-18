@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
@@ -25,7 +26,7 @@ public class SpotifyPodcastEnricher : ISpotifyPodcastEnricher
         if (string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
             var matchedPodcast =
-                await _spotifyPodcastResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest(), indexingContext);
+                await _spotifyPodcastResolver.FindPodcast(PodcastExtensions.ToFindSpotifyPodcastRequest(podcast), indexingContext);
             if (matchedPodcast != null)
             {
                 if (!string.IsNullOrWhiteSpace(matchedPodcast.Id))

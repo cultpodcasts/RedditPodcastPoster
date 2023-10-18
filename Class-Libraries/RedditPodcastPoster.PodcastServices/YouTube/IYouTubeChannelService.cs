@@ -1,5 +1,5 @@
 using Google.Apis.YouTube.v3.Data;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 

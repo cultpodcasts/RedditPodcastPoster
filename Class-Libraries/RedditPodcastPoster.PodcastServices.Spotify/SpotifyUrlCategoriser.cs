@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
@@ -88,7 +89,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
                     findEpisodeResponse.FullEpisode.Description,
                     findEpisodeResponse.FullEpisode.GetReleaseDate(),
                     findEpisodeResponse.FullEpisode.GetDuration(),
-                    findEpisodeResponse.FullEpisode.GetUrl(),
+                    FullEpisodeExtensions.GetUrl(findEpisodeResponse.FullEpisode),
                     findEpisodeResponse.FullEpisode.Explicit);
             }
         }

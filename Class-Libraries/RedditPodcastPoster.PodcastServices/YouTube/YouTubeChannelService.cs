@@ -4,7 +4,7 @@ using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
@@ -23,6 +23,11 @@ public class YouTubeChannelService : IYouTubeChannelService
     {
         _youTubeService = youTubeService;
         _logger = logger;
+    }
+
+    public void Flush()
+    {
+        Cache.Clear();
     }
 
     public async Task FindChannel(string channelName, IndexingContext indexingContext)
@@ -122,11 +127,6 @@ public class YouTubeChannelService : IYouTubeChannelService
         }
 
         return channelContentDetails;
-    }
-
-    public void Flush()
-    {
-        Cache.Clear();
     }
 
     private string GetWriteCacheKey(string channelId, bool withSnippets, bool withContentOwnerDetails)
