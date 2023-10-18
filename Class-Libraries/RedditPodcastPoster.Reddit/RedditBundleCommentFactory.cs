@@ -16,13 +16,13 @@ public class RedditBundleCommentFactory : IRedditBundleCommentFactory
     public string Post(PostModel postModel)
     {
         var comment = new StringBuilder();
-        for (var i = 0; i < Enumerable.Count<int>(postModel.BundledPartNumbers); i++)
+        for (var i = 0; i < postModel.BundledPartNumbers.Count(); i++)
         {
             var episode = postModel.Episodes.Skip(i).First();
             if ((episode.Spotify != null && episode.Apple != null) || episode.YouTube != null)
             {
                 comment.AppendLine(
-                    $"**Part {Enumerable.Skip<int>(postModel.BundledPartNumbers, i).First()}, {episode.Release} {episode.Duration}**");
+                    $"**Part {postModel.BundledPartNumbers.Skip(i).First()}, {episode.Release} {episode.Duration}**");
                 comment.AppendLine();
             }
 
