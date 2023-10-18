@@ -22,7 +22,7 @@ public class YouTubeItemResolver : IYouTubeItemResolver
 
     public async Task<SearchResult?> FindEpisode(EnrichmentRequest request, IndexingContext indexingContext)
     {
-        var youTubePublishingDelay = TimeSpan.Parse((string) request.Podcast.YouTubePublishingDelayTimeSpan);
+        var youTubePublishingDelay = TimeSpan.Parse(request.Podcast.YouTubePublishingDelayTimeSpan);
         var searchListResponse =
             await _youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(
                 new YouTubeChannelId(request.Podcast.YouTubeChannelId), indexingContext);
