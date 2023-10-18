@@ -6,21 +6,21 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class AppleBearerTokenProvider : IAppleBearerTokenProvider
 {
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<AppleBearerTokenProvider> _logger;
 
     public AppleBearerTokenProvider(
-        HttpClient httpClient,
+        IHttpClientFactory httpClientFactory,
         ILogger<AppleBearerTokenProvider> logger)
     {
-        _httpClient = httpClient;
+        _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
     public async Task<AuthenticationHeaderValue> GetHeader()
     {
-        var podcastsHomepageContent =
-            _httpClient.GetAsync("https://www.apple.com/apple-podcasts/").GetAwaiter().GetResult();
+        var httpClient = _httpClientFactory.CreateClient();
+        var podcastsHomepageContent = await httpClient.GetAsync("https://www.apple.com/apple-podcasts/");
         podcastsHomepageContent.EnsureSuccessStatusCode();
 
         var document = new HtmlDocument();

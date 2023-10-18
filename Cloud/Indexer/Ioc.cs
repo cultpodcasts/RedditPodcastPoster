@@ -33,7 +33,7 @@ public static class Ioc
             .AddTextSanitiser()
             .AddYouTubeServices(hostBuilderContext.Configuration)
             .AddSpotifyServices(hostBuilderContext.Configuration)
-            .AddAppleServices(hostBuilderContext.Configuration)
+            .AddAppleServices()
             .AddPodcastServices(hostBuilderContext.Configuration)
             .AddRemoteClient()
             .AddScoped(s => new iTunesSearchManager())
@@ -42,12 +42,11 @@ public static class Ioc
             .AddScoped<IFlushable, CacheFlusher>()
             .AddTwitterServices(hostBuilderContext.Configuration)
             .AddScoped<ITweeter, Tweeter>()
-
-            // Content Publisher
             .AddScoped<IQueryExecutor, QueryExecutor>()
             .AddScoped<IContentPublisher, ContentPublisher>()
             .AddScoped<IAmazonS3ClientFactory, AmazonS3ClientFactory>()
-            .AddScoped(s => s.GetService<IAmazonS3ClientFactory>()!.Create());
+            .AddScoped(s => s.GetService<IAmazonS3ClientFactory>()!.Create())
+            .AddHttpClient();
 
 
         serviceCollection.AddOptions<IndexerOptions>().Bind(hostBuilderContext.Configuration.GetSection("indexer"));
