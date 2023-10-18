@@ -2,10 +2,10 @@
 using iTunesSearch.Library;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
-using RedditPodcastPoster.Common.PodcastServices.Apple;
-using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices.Spotify;
 using SpotifyAPI.Web;
 
 namespace AddAudioPodcast;
