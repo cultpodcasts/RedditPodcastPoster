@@ -6,14 +6,14 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class ApplePodcastService : IApplePodcastService
 {
-    private readonly HttpClient _httpClient;
+    private readonly IApplePodcastHttpClientFactory _httpClientFactory;
     private readonly ILogger<ApplePodcastService> _logger;
 
     public ApplePodcastService(
-        HttpClient httpClient,
+        IApplePodcastHttpClientFactory httpClientFactory,
         ILogger<ApplePodcastService> logger)
     {
-        _httpClient = httpClient;
+        _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
@@ -21,15 +21,22 @@ public class ApplePodcastService : IApplePodcastService
     {
         var requestUri = $"/v1/catalog/us/podcasts/{podcastId.PodcastId}/episodes";
         HttpResponseMessage response;
+        HttpClient httpClient;
         try
         {
-            response = await _httpClient.GetAsync(requestUri);
+            httpClient = await _httpClientFactory.Create();
+            response = await httpClient.GetAsync(requestUri);
         }
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex,
                 $"Failed to request '{requestUri}'. Reason: '{ex.Message}', Status-Code: '{ex.StatusCode}'.");
             return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failed to request from '{requestUri}'");
+            throw;
         }
 
         var podcastRecords = new List<Record>();
@@ -42,7 +49,7 @@ public class ApplePodcastService : IApplePodcastService
                    (!indexingContext.ReleasedSince.HasValue || podcastRecords.Last().ToAppleEpisode().Release >=
                        indexingContext.ReleasedSince))
             {
-                response = await _httpClient.GetAsync((string?) appleObject.Next);
+                response = await httpClient.GetAsync((string?) appleObject.Next);
                 if (response.IsSuccessStatusCode)
                 {
                     appleJson = await response.Content.ReadAsStringAsync();

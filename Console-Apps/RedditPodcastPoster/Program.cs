@@ -34,14 +34,15 @@ builder.Services
     .AddTextSanitiser()
     .AddYouTubeServices(builder.Configuration)
     .AddSpotifyServices(builder.Configuration)
-    .AddAppleServices(builder.Configuration)
+    .AddAppleServices()
     .AddPodcastServices(builder.Configuration)
     .AddRemoteClient()
     .AddScoped(s => new iTunesSearchManager())
     .AddEliminationTerms()
     .AddRedditServices(builder.Configuration)
     .AddScoped<IFlushable, CacheFlusher>()
-    .AddScoped<PodcastProcessor>();
+    .AddScoped<PodcastProcessor>()
+    .AddHttpClient();
 
 using var host = builder.Build();
 
