@@ -1,5 +1,5 @@
 ﻿using System.Text.RegularExpressions;
-using RedditPodcastPoster.Subreddit;
+using RedditPodcastPoster.Models;
 
 namespace TextClassifierTraining;
 

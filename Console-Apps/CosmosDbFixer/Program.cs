@@ -4,9 +4,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.Persistence;
-using RedditPodcastPoster.Common.Podcasts;
-using RedditPodcastPoster.Common.PodcastServices.Spotify;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices.Spotify;
 
 var builder = Host.CreateApplicationBuilder(args);
 

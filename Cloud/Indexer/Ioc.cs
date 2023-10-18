@@ -7,19 +7,23 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Episodes;
-using RedditPodcastPoster.Common.KnownTerms;
-using RedditPodcastPoster.Common.Matching;
-using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
-using RedditPodcastPoster.Common.Reddit;
-using RedditPodcastPoster.Common.Text;
-using RedditPodcastPoster.Common.UrlCategorisation;
+using RedditPodcastPoster.Matching;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices;
+using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.Reddit;
+using RedditPodcastPoster.Text;
+using RedditPodcastPoster.Text.EliminationTerms;
+using RedditPodcastPoster.Text.KnownTerms;
+using RedditPodcastPoster.Twitter;
 
 namespace Indexer;
 
@@ -105,7 +109,8 @@ public static class Ioc
 
             // Tweet
             .AddScoped<ITwitterClient, TwitterClient>()
-            .AddScoped<ITweeter, Tweeter>();
+            .AddScoped<ITweeter, Tweeter>()
+            .AddSingleton<ITweetBuilder, TweetBuilder>();
 
 
         // Indexer

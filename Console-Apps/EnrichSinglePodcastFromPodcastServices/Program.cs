@@ -7,16 +7,20 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Episodes;
-using RedditPodcastPoster.Common.Matching;
-using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
-using RedditPodcastPoster.Common.UrlCategorisation;
+using RedditPodcastPoster.Matching;
+using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices;
+using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.Text.EliminationTerms;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -108,5 +112,13 @@ using var host = builder.Build();
 
 
 var podcastProcessor = host.Services.GetService<EnrichSinglePodcastFromPodcastServicesProcessor>()!;
-await podcastProcessor.Run(args[0]);
+if (Guid.TryParse(args[0], out var podcastId))
+{
+    await podcastProcessor.Run(podcastId);
+}
+else
+{
+    throw new ArgumentException($"Could not parse guid '{args[0]}'.");
+}
+
 return 0;

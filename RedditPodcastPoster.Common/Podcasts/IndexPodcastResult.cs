@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence;
 
 namespace RedditPodcastPoster.Common.Podcasts;
 

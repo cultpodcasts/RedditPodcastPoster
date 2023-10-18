@@ -4,8 +4,8 @@ using Indexer.Models;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Common.Persistence;
-using RedditPodcastPoster.Common.Text;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Text;
 
 namespace Indexer.Data;
 

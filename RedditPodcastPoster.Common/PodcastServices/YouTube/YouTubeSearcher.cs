@@ -1,8 +1,8 @@
 ﻿using System.Text.RegularExpressions;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Text;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 

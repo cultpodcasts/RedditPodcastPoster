@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Options;
 using Reddit;
 using Reddit.Controllers;
-using RedditPodcastPoster.Common.Reddit;
+using RedditPodcastPoster.Reddit;
 
 namespace RedditPodcastPoster.Subreddit;
 

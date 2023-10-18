@@ -68,6 +68,26 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{
 		.github\workflows\main_indexer-cultpodcasts.yml = .github\workflows\main_indexer-cultpodcasts.yml
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tweet", "Console-Apps\Tweet\Tweet.csproj", "{8A239DE4-4F9D-4582-9899-40A5DC96846D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Twitter", "Class-Libraries\RedditPodcastPoster.Twitter\RedditPodcastPoster.Twitter.csproj", "{59081EC7-F79E-40BE-991B-62DCC88ACD29}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Text", "Class-Libraries\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj", "{26EBD1FC-D699-4928-B7A3-BE8734BB4EF1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Persistence", "Class-Libraries\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj", "{911F0CE8-3676-42F0-8CA1-BBF677732C82}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{C870AC3C-8261-4807-AC30-DBEC8C89DCB7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Text.Tests", "Class-Libraries\RedditPodcastPoster.Text.Tests\RedditPodcastPoster.Text.Tests.csproj", "{FCB5FAFB-3F8E-4772-A644-39A75705469F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Matching", "Class-Libraries\RedditPodcastPoster.Matching\RedditPodcastPoster.Matching.csproj", "{62AEF677-13D4-40D6-B22F-2DE0249E4377}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.UrlSubmission", "Class-Libraries\RedditPodcastPoster.UrlSubmission\RedditPodcastPoster.UrlSubmission.csproj", "{6D32026F-81E0-438A-916F-C75F288947C7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.PodcastServices", "Class-Libraries\RedditPodcastPoster.PodcastServices\RedditPodcastPoster.PodcastServices.csproj", "{E277E36D-3FA8-4EF1-B64F-132D2B88897A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Reddit", "Class-Libraries\RedditPodcastPoster.Reddit\RedditPodcastPoster.Reddit.csproj", "{CD60A2F0-2F2E-48EF-BD18-ABF33EED0E23}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -170,6 +190,42 @@ Global
 		{D0C2E99C-BBD2-4C1F-B221-50EAF9756A68}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D0C2E99C-BBD2-4C1F-B221-50EAF9756A68}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D0C2E99C-BBD2-4C1F-B221-50EAF9756A68}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A239DE4-4F9D-4582-9899-40A5DC96846D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A239DE4-4F9D-4582-9899-40A5DC96846D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A239DE4-4F9D-4582-9899-40A5DC96846D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A239DE4-4F9D-4582-9899-40A5DC96846D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{59081EC7-F79E-40BE-991B-62DCC88ACD29}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{59081EC7-F79E-40BE-991B-62DCC88ACD29}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{59081EC7-F79E-40BE-991B-62DCC88ACD29}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{59081EC7-F79E-40BE-991B-62DCC88ACD29}.Release|Any CPU.Build.0 = Release|Any CPU
+		{26EBD1FC-D699-4928-B7A3-BE8734BB4EF1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{26EBD1FC-D699-4928-B7A3-BE8734BB4EF1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{26EBD1FC-D699-4928-B7A3-BE8734BB4EF1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{26EBD1FC-D699-4928-B7A3-BE8734BB4EF1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{911F0CE8-3676-42F0-8CA1-BBF677732C82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{911F0CE8-3676-42F0-8CA1-BBF677732C82}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{911F0CE8-3676-42F0-8CA1-BBF677732C82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{911F0CE8-3676-42F0-8CA1-BBF677732C82}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FCB5FAFB-3F8E-4772-A644-39A75705469F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FCB5FAFB-3F8E-4772-A644-39A75705469F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FCB5FAFB-3F8E-4772-A644-39A75705469F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FCB5FAFB-3F8E-4772-A644-39A75705469F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{62AEF677-13D4-40D6-B22F-2DE0249E4377}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{62AEF677-13D4-40D6-B22F-2DE0249E4377}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{62AEF677-13D4-40D6-B22F-2DE0249E4377}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{62AEF677-13D4-40D6-B22F-2DE0249E4377}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6D32026F-81E0-438A-916F-C75F288947C7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D32026F-81E0-438A-916F-C75F288947C7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D32026F-81E0-438A-916F-C75F288947C7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D32026F-81E0-438A-916F-C75F288947C7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E277E36D-3FA8-4EF1-B64F-132D2B88897A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E277E36D-3FA8-4EF1-B64F-132D2B88897A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E277E36D-3FA8-4EF1-B64F-132D2B88897A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E277E36D-3FA8-4EF1-B64F-132D2B88897A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CD60A2F0-2F2E-48EF-BD18-ABF33EED0E23}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CD60A2F0-2F2E-48EF-BD18-ABF33EED0E23}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CD60A2F0-2F2E-48EF-BD18-ABF33EED0E23}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CD60A2F0-2F2E-48EF-BD18-ABF33EED0E23}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -195,6 +251,16 @@ Global
 		{6AD8EB9C-EAD7-43EB-AD31-033FF126D16B} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{48C2582C-3A41-4765-BE41-ED6C0DE0FBD8} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{D0C2E99C-BBD2-4C1F-B221-50EAF9756A68} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{8A239DE4-4F9D-4582-9899-40A5DC96846D} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
+		{59081EC7-F79E-40BE-991B-62DCC88ACD29} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{26EBD1FC-D699-4928-B7A3-BE8734BB4EF1} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{911F0CE8-3676-42F0-8CA1-BBF677732C82} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{C870AC3C-8261-4807-AC30-DBEC8C89DCB7} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{FCB5FAFB-3F8E-4772-A644-39A75705469F} = {C870AC3C-8261-4807-AC30-DBEC8C89DCB7}
+		{62AEF677-13D4-40D6-B22F-2DE0249E4377} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{6D32026F-81E0-438A-916F-C75F288947C7} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{E277E36D-3FA8-4EF1-B64F-132D2B88897A} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{CD60A2F0-2F2E-48EF-BD18-ABF33EED0E23} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

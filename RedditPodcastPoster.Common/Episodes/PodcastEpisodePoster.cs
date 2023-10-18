@@ -1,8 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Extensions;
-using RedditPodcastPoster.Common.Models;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Extensions;
 
 namespace RedditPodcastPoster.Common.Episodes;
 

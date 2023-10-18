@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.PodcastServices;
+using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices;
 
 namespace RedditPodcastPoster.Common.Podcasts;
 
@@ -31,7 +33,7 @@ public class PodcastsUpdater : IPodcastsUpdater
         _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
         foreach (var podcastId in podcastIds)
         {
-            var podcast = await _podcastRepository.GetPodcast(podcastId.ToString());
+            var podcast = await _podcastRepository.GetPodcast(podcastId);
             if (podcast != null &&
                 (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
             {

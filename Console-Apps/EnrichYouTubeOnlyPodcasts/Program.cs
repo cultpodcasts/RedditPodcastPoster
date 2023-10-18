@@ -6,11 +6,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.Matching;
-using RedditPodcastPoster.Common.Persistence;
-using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
-
+using RedditPodcastPoster.Matching;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices.YouTube;
 
 var builder = Host.CreateApplicationBuilder(args);
 

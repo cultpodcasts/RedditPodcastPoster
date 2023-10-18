@@ -1,10 +1,10 @@
 using System.Text.RegularExpressions;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices.YouTube;
 
 namespace EnrichYouTubeOnlyPodcasts;
 
@@ -45,7 +45,7 @@ public class EnrichYouTubePodcastProcessor
             indexOptions = new IndexingContext();
         }
 
-        var podcast = await _podcastRepository.GetPodcast(request.PodcastGuid.ToString());
+        var podcast = await _podcastRepository.GetPodcast(request.PodcastGuid);
 
         if (podcast == null)
         {
@@ -53,7 +53,8 @@ public class EnrichYouTubePodcastProcessor
             return;
         }
 
-        if (podcast.YouTubePlaylistQueryIsExpensive.HasValue && podcast.YouTubePlaylistQueryIsExpensive.Value && !request.AcknowledgeExpensiveYouTubePlaylistQuery)
+        if (podcast.YouTubePlaylistQueryIsExpensive.HasValue && podcast.YouTubePlaylistQueryIsExpensive.Value &&
+            !request.AcknowledgeExpensiveYouTubePlaylistQuery)
         {
             _logger.LogError($"Query for playlist '{podcast.YouTubePlaylistId}' is expensive.");
             return;
@@ -135,7 +136,8 @@ public class EnrichYouTubePodcastProcessor
         {
             if (string.IsNullOrWhiteSpace(podcastEpisode.YouTubeId) || podcastEpisode.Urls.YouTube == null)
             {
-                var youTubeItems = playlistQueryResponse.Result.Where(x => Matches(podcastEpisode, x, episodeMatchRegex));
+                var youTubeItems =
+                    playlistQueryResponse.Result.Where(x => Matches(podcastEpisode, x, episodeMatchRegex));
 
                 var youTubeItem = youTubeItems.FirstOrDefault();
                 if (youTubeItem != null)

@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.Persistence;
 
 namespace Sqllite3DatabasePublisher;
 

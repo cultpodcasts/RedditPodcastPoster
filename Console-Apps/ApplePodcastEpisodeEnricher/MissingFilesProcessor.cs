@@ -1,10 +1,9 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.Matching;
-using RedditPodcastPoster.Common.Podcasts;
-using RedditPodcastPoster.Common.PodcastServices.Apple;
+using RedditPodcastPoster.Matching;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices.Apple;
 
 namespace ApplePodcastEpisodeEnricher;
 
@@ -42,7 +41,8 @@ public class MissingFilesProcessor
             if (episodes.Any() && podcast.AppleId.HasValue)
             {
                 var appleApiRecords =
-                    await _applePodcastService.GetEpisodes(new ApplePodcastId(podcast.AppleId.Value), new IndexingContext());
+                    await _applePodcastService.GetEpisodes(new ApplePodcastId(podcast.AppleId.Value),
+                        new IndexingContext());
                 if (appleApiRecords == null)
                 {
                     throw new InvalidOperationException(
