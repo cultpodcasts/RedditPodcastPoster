@@ -6,6 +6,7 @@ using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence;
 using SpotifyAPI.Web;
 
 namespace AddAudioPodcast;

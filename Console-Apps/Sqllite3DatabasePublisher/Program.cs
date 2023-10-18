@@ -5,10 +5,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.EliminationTerms;
-using RedditPodcastPoster.Common.Matching;
-using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.Matching;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Text.EliminationTerms;
 using Sqllite3DatabasePublisher;
 
 var builder = Host.CreateApplicationBuilder(args);

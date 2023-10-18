@@ -2,6 +2,7 @@
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.UrlCategorisation;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence;
 
 namespace RedditPodcastPoster.Common.UrlSubmission;
 

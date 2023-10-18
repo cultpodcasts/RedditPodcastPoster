@@ -1,7 +1,6 @@
 ﻿using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Common.EliminationTerms;
+namespace RedditPodcastPoster.Models;
 
 [CosmosSelector(ModelType.EliminationTerms)]
 public class EliminationTerms : CosmosSelector

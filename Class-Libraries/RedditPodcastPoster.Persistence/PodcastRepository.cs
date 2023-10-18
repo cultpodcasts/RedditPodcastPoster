@@ -1,10 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Matching;
 using RedditPodcastPoster.Models;
-using System.Text.RegularExpressions;
-using RedditPodcastPoster.Common.Matching;
-using RedditPodcastPoster.Persistence;
 
-namespace RedditPodcastPoster.Common.Podcasts;
+namespace RedditPodcastPoster.Persistence;
 
 public class PodcastRepository : IPodcastRepository
 {

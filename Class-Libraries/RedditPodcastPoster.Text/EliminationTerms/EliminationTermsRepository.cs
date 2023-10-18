@@ -1,29 +1,28 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Persistence;
 
-namespace RedditPodcastPoster.Common.EliminationTerms;
+namespace RedditPodcastPoster.Text.EliminationTerms;
 
 public class EliminationTermsRepository : IEliminationTermsRepository
 {
     private readonly IDataRepository _dataRepository;
-    private readonly ILogger<PodcastRepository> _logger;
+    private readonly ILogger<EliminationTermsRepository> _logger;
 
     public EliminationTermsRepository(
         IDataRepository dataRepository,
-        ILogger<PodcastRepository> logger)
+        ILogger<EliminationTermsRepository> logger)
     {
         _dataRepository = dataRepository;
         _logger = logger;
     }
 
-    public async Task<EliminationTerms> Get()
+    public async Task<Models.EliminationTerms> Get()
     {
-        var partitionKey = EliminationTerms.PartitionKey;
-        return (await _dataRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString(), partitionKey))!;
+        var partitionKey = Models.EliminationTerms.PartitionKey;
+        return (await _dataRepository.Read<Models.EliminationTerms>(Models.EliminationTerms._Id.ToString(), partitionKey))!;
     }
 
-    public async Task Save(EliminationTerms terms)
+    public async Task Save(Models.EliminationTerms terms)
     {
         var key = terms.GetPartitionKey();
         await _dataRepository.Write(key, terms);

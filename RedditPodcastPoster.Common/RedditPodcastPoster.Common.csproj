@@ -19,16 +19,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="KnownTerms\" />
+    <Folder Include="EliminationTerms\" />
     <Folder Include="Matching\" />
-    <Folder Include="Models\" />
-    <Folder Include="Persistence\" />
-    <Folder Include="Text\" />
-    <Folder Include="Twitter\" />
     <Folder Include="UrlSubmission\" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Class-Libraries\RedditPodcastPoster.Matching\RedditPodcastPoster.Matching.csproj" />
     <ProjectReference Include="..\Class-Libraries\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
   </ItemGroup>

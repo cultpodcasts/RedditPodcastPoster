@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Common.EliminationTerms;
+﻿namespace RedditPodcastPoster.Text.EliminationTerms;
 
 public interface IEliminationTermsProviderFactory
 {

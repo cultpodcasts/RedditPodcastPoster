@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.Persistence;
 
 namespace IndexPodcast;
 

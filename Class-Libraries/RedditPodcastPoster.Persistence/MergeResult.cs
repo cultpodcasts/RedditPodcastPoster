@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Common.Podcasts;
+namespace RedditPodcastPoster.Persistence;
 
 public class MergeResult
 {

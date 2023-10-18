@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 
-namespace RedditPodcastPoster.Common.EliminationTerms;
+namespace RedditPodcastPoster.Text.EliminationTerms;
 
 public class EliminationTermsProviderFactory : IEliminationTermsProviderFactory
 {

@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Text.EliminationTerms;
 
 namespace SeedEliminationTerms;
 

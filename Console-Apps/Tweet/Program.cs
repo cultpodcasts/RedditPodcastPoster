@@ -4,9 +4,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.Matching;
-using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.UrlSubmission;
+using RedditPodcastPoster.Matching;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.Text.KnownTerms;
@@ -46,7 +45,6 @@ builder.Services
 
 builder.Services
     .AddOptions<TwitterOptions>().Bind(builder.Configuration.GetSection("twitter"));
-
 
 
 using var host = builder.Build();

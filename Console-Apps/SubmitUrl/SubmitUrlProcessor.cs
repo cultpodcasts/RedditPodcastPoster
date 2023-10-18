@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.UrlSubmission;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence;
 
 namespace SubmitUrl;
 

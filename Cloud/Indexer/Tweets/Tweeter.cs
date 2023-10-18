@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Twitter;
 
 namespace Indexer.Tweets;
