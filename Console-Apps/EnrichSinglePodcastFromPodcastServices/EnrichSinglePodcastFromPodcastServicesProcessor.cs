@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 
 namespace EnrichSinglePodcastFromPodcastServices;
@@ -29,7 +29,7 @@ public class EnrichSinglePodcastFromPodcastServicesProcessor
             throw new ArgumentException($"No podcast with Guid '{podcast}' found");
         }
 
-        var result = await _podcastUpdater.Update(podcast, new IndexingContext() {SkipPodcastDiscovery = false});
+        var result = await _podcastUpdater.Update(podcast, new IndexingContext {SkipPodcastDiscovery = false});
         if (!result.Success)
         {
             _logger.LogError(result.ToString());

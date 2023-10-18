@@ -4,13 +4,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Common.Reddit;
-using RedditPodcastPoster.Common.UrlSubmission;
 using RedditPodcastPoster.Matching;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.Subreddit;
+using RedditPodcastPoster.UrlSubmission;
 using TextClassifierTraining;
 
 var builder = Host.CreateApplicationBuilder(args);

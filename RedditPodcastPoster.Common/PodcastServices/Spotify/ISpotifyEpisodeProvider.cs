@@ -1,4 +1,7 @@
-﻿namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
+﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Spotify;
+
+namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
 public interface ISpotifyEpisodeProvider
 {

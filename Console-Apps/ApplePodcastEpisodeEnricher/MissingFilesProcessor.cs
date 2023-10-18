@@ -1,10 +1,9 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Matching;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices.Apple;
 
 namespace ApplePodcastEpisodeEnricher;
 

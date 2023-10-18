@@ -1,0 +1,10 @@
+using Google.Apis.YouTube.v3.Data;
+using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.PodcastServices.YouTube;
+
+public interface IYouTubeVideoService
+{
+    Task<IList<Video>?> GetVideoContentDetails(IEnumerable<string> videoIds, IndexingContext options,
+        bool withSnippets = false);
+}

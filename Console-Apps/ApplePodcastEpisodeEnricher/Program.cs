@@ -9,6 +9,7 @@ using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Matching;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices.Apple;
 
 var builder = Host.CreateApplicationBuilder(args);
 

@@ -1,5 +1,6 @@
 ﻿using Google.Apis.YouTube.v3.Data;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.YouTube;
 
 namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 

@@ -4,6 +4,7 @@ using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices.YouTube;
 
 namespace AddYouTubeChannelAsPodcast;
 

@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 

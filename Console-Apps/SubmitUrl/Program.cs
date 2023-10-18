@@ -9,10 +9,13 @@ using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
-using RedditPodcastPoster.Common.UrlCategorisation;
-using RedditPodcastPoster.Common.UrlSubmission;
 using RedditPodcastPoster.Matching;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.UrlSubmission;
+using RedditPodcastPoster.UrlSubmission.Categorisation;
 using SubmitUrl;
 
 var builder = Host.CreateApplicationBuilder(args);

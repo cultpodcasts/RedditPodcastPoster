@@ -3,6 +3,7 @@ using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.YouTube;
 
 namespace RedditPodcastPoster.Common.PodcastServices.YouTube;
 

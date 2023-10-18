@@ -1,4 +1,5 @@
 ﻿using System.Runtime.Serialization;
+using RedditPodcastPoster.PodcastServices.Apple;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 

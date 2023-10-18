@@ -9,6 +9,7 @@ using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Matching;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices.YouTube;
 
 var builder = Host.CreateApplicationBuilder(args);
 
