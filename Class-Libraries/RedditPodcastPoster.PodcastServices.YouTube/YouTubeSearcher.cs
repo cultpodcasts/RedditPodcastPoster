@@ -72,7 +72,7 @@ public class YouTubeSearcher : IYouTubeSearcher
         }
 
         var order = candidates
-            .OrderByDescending<SearchResult, double>(x => Levenshtein.CalculateSimilarity(episode.Title, x.Snippet.Title))
+            .OrderByDescending(x => Levenshtein.CalculateSimilarity(episode.Title, x.Snippet.Title))
             .ToList();
 
         var matchedYouTubeVideo = order.FirstOrDefault();
