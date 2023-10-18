@@ -14,6 +14,6 @@ public class AddAudioPodcastRequest
         HelpText = "Whether to use Apple Podcasts for release authority", Default = false)]
     public bool AppleReleaseAuthority { get; set; }
 
-    [Option('m', "spotify-marker", Default = null, Required = false, HelpText = "The Spotify-Market to search against")]
+    [Option('m', "spotify-market", Default = null, Required = false, HelpText = "The Spotify-Market to search against")]
     public string? SpotifyMarket { get; set; }
 }
