@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using Reddit.Exceptions;
-using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Reddit;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
@@ -49,7 +48,11 @@ public class EpisodePostManager : IEpisodePostManager
         try
         {
             var result = await _redditLinkPoster.Post(postModel);
-            if (result != null)
+            if (!result.Posted)
+            {
+                return RedditPostResult.FailAlreadyPosted();
+            }
+            if (result.LinkPost != null)
             {
                 string comments;
                 if (postModel.IsBundledPost)
@@ -63,17 +66,13 @@ public class EpisodePostManager : IEpisodePostManager
 
                 if (!string.IsNullOrWhiteSpace(comments.Trim()))
                 {
-                    await result.ReplyAsync(comments);
+                    await result.LinkPost.ReplyAsync(comments);
                 }
             }
             else
             {
-                return RedditPostResult.Fail("No Url to post");
+                return RedditPostResult.Fail("No post to reply to.");
             }
-        }
-        catch (RedditAlreadySubmittedException)
-        {
-            return RedditPostResult.FailAlreadyPosted();
         }
         catch (Exception ex)
         {

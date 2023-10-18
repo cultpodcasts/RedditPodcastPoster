@@ -1,7 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using iTunesSearch.Library;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
@@ -46,7 +45,7 @@ public class AddAudioPodcastProcessor
 
     public async Task Create(AddAudioPodcastRequest request)
     {
-        var indexingContext = new IndexingContext() {SkipPodcastDiscovery = false};
+        var indexingContext = new IndexingContext {SkipPodcastDiscovery = false};
         var existingPodcasts = await _podcastRepository.GetAll().ToListAsync();
         Podcast? podcast = null;
         if (!request.AppleReleaseAuthority)

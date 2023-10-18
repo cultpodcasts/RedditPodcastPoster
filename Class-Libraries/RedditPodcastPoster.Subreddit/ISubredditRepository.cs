@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.Subreddit;
+﻿using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.Subreddit;
 
 public interface ISubredditRepository
 {

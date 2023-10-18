@@ -86,6 +86,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.UrlSubm
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.PodcastServices", "Class-Libraries\RedditPodcastPoster.PodcastServices\RedditPodcastPoster.PodcastServices.csproj", "{E277E36D-3FA8-4EF1-B64F-132D2B88897A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Reddit", "Class-Libraries\RedditPodcastPoster.Reddit\RedditPodcastPoster.Reddit.csproj", "{CD60A2F0-2F2E-48EF-BD18-ABF33EED0E23}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -220,6 +222,10 @@ Global
 		{E277E36D-3FA8-4EF1-B64F-132D2B88897A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E277E36D-3FA8-4EF1-B64F-132D2B88897A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E277E36D-3FA8-4EF1-B64F-132D2B88897A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CD60A2F0-2F2E-48EF-BD18-ABF33EED0E23}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CD60A2F0-2F2E-48EF-BD18-ABF33EED0E23}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CD60A2F0-2F2E-48EF-BD18-ABF33EED0E23}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CD60A2F0-2F2E-48EF-BD18-ABF33EED0E23}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -254,6 +260,7 @@ Global
 		{62AEF677-13D4-40D6-B22F-2DE0249E4377} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{6D32026F-81E0-438A-916F-C75F288947C7} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{E277E36D-3FA8-4EF1-B64F-132D2B88897A} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{CD60A2F0-2F2E-48EF-BD18-ABF33EED0E23} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

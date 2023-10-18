@@ -2,8 +2,8 @@
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Moq.AutoMock;
-using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.Text.KnownTerms;
 using Xunit;

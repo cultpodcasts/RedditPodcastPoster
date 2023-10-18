@@ -17,6 +17,7 @@ using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Matching;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;

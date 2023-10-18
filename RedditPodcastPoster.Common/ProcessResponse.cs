@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.Common;
+﻿using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.Common;
 
 public class ProcessResponse : MessageResponseBase
 {
