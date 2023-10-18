@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Abstractions\RedditPodcastPoster.PodcastServices.Abstractions.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
   </ItemGroup>

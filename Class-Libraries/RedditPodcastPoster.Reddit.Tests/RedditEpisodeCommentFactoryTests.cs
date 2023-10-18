@@ -1,12 +1,9 @@
-﻿using System;
-using AutoFixture;
+﻿using AutoFixture;
 using FluentAssertions;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Reddit;
-using Xunit;
 
-namespace RedditPodcastPoster.Common.Tests.Reddit;
+namespace RedditPodcastPoster.Reddit.Tests;
 
 public class RedditEpisodeCommentFactoryTests
 {

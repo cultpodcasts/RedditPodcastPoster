@@ -3,12 +3,10 @@ using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.Text.KnownTerms;
-using Xunit;
 
-namespace RedditPodcastPoster.Common.Tests.Reddit;
+namespace RedditPodcastPoster.Reddit.Tests;
 
 public class RedditPostTitleFactoryTests
 {

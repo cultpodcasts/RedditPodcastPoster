@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
   </ItemGroup>
