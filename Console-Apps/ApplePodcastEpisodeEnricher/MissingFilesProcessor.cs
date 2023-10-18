@@ -1,6 +1,5 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Matching;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.PodcastServices.Abstractions;

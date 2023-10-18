@@ -11,10 +11,10 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="7.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="7.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RedditPodcastPoster.Matching\RedditPodcastPoster.Matching.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Reddit\RedditPodcastPoster.Reddit.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />

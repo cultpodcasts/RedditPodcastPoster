@@ -5,7 +5,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Matching;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.PodcastServices.YouTube;

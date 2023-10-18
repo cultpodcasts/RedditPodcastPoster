@@ -4,9 +4,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Matching;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Text;
+using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Text.KnownTerms;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.UrlSubmission;
@@ -33,10 +33,7 @@ builder.Services
     .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
     .AddSingleton<ITweetBuilder, TweetBuilder>()
     .AddScoped<ITwitterClient, TwitterClient>()
-    .AddScoped<ITextSanitiser, TextSanitiser>()
-    .AddScoped<IKnownTermsProviderFactory, KnownTermsProviderFactory>()
-    .AddScoped<IKnownTermsRepository, KnownTermsRepository>()
-    .AddSingleton(s => s.GetService<IKnownTermsProviderFactory>()!.Create().GetAwaiter().GetResult());
+    .AddTextSanitiser();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
 

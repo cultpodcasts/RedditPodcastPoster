@@ -1,7 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Matching;
+namespace RedditPodcastPoster.Persistence;
 
 public interface IEpisodeMatcher
 {
