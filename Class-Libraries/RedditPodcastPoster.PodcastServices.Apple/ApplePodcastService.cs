@@ -6,15 +6,17 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class ApplePodcastService : IApplePodcastService
 {
-    private readonly IApplePodcastHttpClientFactory _httpClientFactory;
+    private readonly HttpClient _httpClient;
     private readonly ILogger<ApplePodcastService> _logger;
 
     public ApplePodcastService(
         IApplePodcastHttpClientFactory httpClientFactory,
         ILogger<ApplePodcastService> logger)
     {
-        _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _logger.LogInformation($"Creating http-client");
+        _httpClient = httpClientFactory.Create().GetAwaiter().GetResult();
+        _logger.LogInformation($"Created http-client");
     }
 
     public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
@@ -24,8 +26,7 @@ public class ApplePodcastService : IApplePodcastService
         HttpClient httpClient;
         try
         {
-            httpClient = await _httpClientFactory.Create();
-            response = await httpClient.GetAsync(requestUri);
+            response = await _httpClient.GetAsync(requestUri);
         }
         catch (HttpRequestException ex)
         {
@@ -49,7 +50,7 @@ public class ApplePodcastService : IApplePodcastService
                    (!indexingContext.ReleasedSince.HasValue || podcastRecords.Last().ToAppleEpisode().Release >=
                        indexingContext.ReleasedSince))
             {
-                response = await httpClient.GetAsync((string?) appleObject.Next);
+                response = await _httpClient.GetAsync((string?) appleObject.Next);
                 if (response.IsSuccessStatusCode)
                 {
                     appleJson = await response.Content.ReadAsStringAsync();
