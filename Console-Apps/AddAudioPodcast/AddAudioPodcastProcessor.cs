@@ -126,6 +126,7 @@ public class AddAudioPodcastProcessor
             podcast.ModelType = ModelType.Podcast;
             podcast.Bundles = false;
             podcast.Publisher = spotifyPodcast.Publisher.Trim();
+            podcast.SpotifyMarket = request.SpotifyMarket;
 
             await _applePodcastEnricher.AddId(podcast);
         }
