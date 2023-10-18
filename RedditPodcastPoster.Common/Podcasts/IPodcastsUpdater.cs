@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.Common.Podcasts;
 

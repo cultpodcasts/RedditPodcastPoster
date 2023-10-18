@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.PodcastServices;
+﻿using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
@@ -23,7 +23,7 @@ public static class ResolvedItemExtensions
     {
         return new PodcastServiceSearchCriteria(
             item.ShowName.Trim(),
-            item.ShowDescription?.Trim()??string.Empty,
+            item.ShowDescription?.Trim() ?? string.Empty,
             item.Publisher,
             item.EpisodeTitle.Trim(),
             item.EpisodeDescription.Trim(),
@@ -35,8 +35,8 @@ public static class ResolvedItemExtensions
     {
         return new PodcastServiceSearchCriteria(
             item.ShowName.Trim(),
-            (item.ShowDescription??string.Empty).Trim(),
-            (item.Publisher??string.Empty).Trim(),
+            (item.ShowDescription ?? string.Empty).Trim(),
+            (item.Publisher ?? string.Empty).Trim(),
             item.EpisodeTitle.Trim(),
             item.EpisodeDescription.Trim(),
             item.Release,

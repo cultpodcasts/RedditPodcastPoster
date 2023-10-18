@@ -2,7 +2,7 @@
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Podcasts;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster;
 

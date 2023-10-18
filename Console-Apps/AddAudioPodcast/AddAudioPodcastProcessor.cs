@@ -2,10 +2,11 @@
 using iTunesSearch.Library;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
-using RedditPodcastPoster.Common.PodcastServices.Apple;
-using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices.Spotify;
 using SpotifyAPI.Web;
 
 namespace AddAudioPodcast;
@@ -125,6 +126,7 @@ public class AddAudioPodcastProcessor
             podcast.ModelType = ModelType.Podcast;
             podcast.Bundles = false;
             podcast.Publisher = spotifyPodcast.Publisher.Trim();
+            podcast.SpotifyMarket = request.SpotifyMarket;
 
             await _applePodcastEnricher.AddId(podcast);
         }

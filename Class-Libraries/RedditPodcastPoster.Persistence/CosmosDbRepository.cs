@@ -3,6 +3,7 @@ using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Extensions;
 
 namespace RedditPodcastPoster.Persistence;
 
