@@ -92,6 +92,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Podcast
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.PodcastServices.Abstractions", "Class-Libraries\RedditPodcastPoster.PodcastServices.Abstractions\RedditPodcastPoster.PodcastServices.Abstractions.csproj", "{B6CE0F57-27E4-4BD1-A3E9-1A9931D490CA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.PodcastServices.Apple", "Class-Libraries\RedditPodcastPoster.PodcastServices.Apple\RedditPodcastPoster.PodcastServices.Apple.csproj", "{9A23A983-8B7E-4721-9EC9-6163897EDD39}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.PodcastServices.YouTube", "Class-Libraries\RedditPodcastPoster.PodcastServices.YouTube\RedditPodcastPoster.PodcastServices.YouTube.csproj", "{A0BA74B4-9146-46AA-A438-C84F7E89D928}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -238,6 +242,14 @@ Global
 		{B6CE0F57-27E4-4BD1-A3E9-1A9931D490CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B6CE0F57-27E4-4BD1-A3E9-1A9931D490CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B6CE0F57-27E4-4BD1-A3E9-1A9931D490CA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9A23A983-8B7E-4721-9EC9-6163897EDD39}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9A23A983-8B7E-4721-9EC9-6163897EDD39}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9A23A983-8B7E-4721-9EC9-6163897EDD39}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9A23A983-8B7E-4721-9EC9-6163897EDD39}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A0BA74B4-9146-46AA-A438-C84F7E89D928}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A0BA74B4-9146-46AA-A438-C84F7E89D928}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A0BA74B4-9146-46AA-A438-C84F7E89D928}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A0BA74B4-9146-46AA-A438-C84F7E89D928}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -275,6 +287,8 @@ Global
 		{CD60A2F0-2F2E-48EF-BD18-ABF33EED0E23} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{1C16516C-6ED3-41F8-B9BC-7187A2427D17} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{B6CE0F57-27E4-4BD1-A3E9-1A9931D490CA} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{9A23A983-8B7E-4721-9EC9-6163897EDD39} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{A0BA74B4-9146-46AA-A438-C84F7E89D928} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

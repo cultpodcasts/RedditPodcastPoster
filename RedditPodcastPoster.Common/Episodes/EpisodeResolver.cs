@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
-using RedditPodcastPoster.PodcastServices;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.Common.Episodes;
 

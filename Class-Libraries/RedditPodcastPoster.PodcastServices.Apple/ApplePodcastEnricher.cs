@@ -20,7 +20,7 @@ public class ApplePodcastEnricher : IApplePodcastEnricher
     {
         if (podcast.AppleId == null)
         {
-            var matchedPodcast = await _applePodcastResolver.FindPodcast(podcast.ToFindApplePodcastRequest());
+            var matchedPodcast = await _applePodcastResolver.FindPodcast(PodcastExtensions.ToFindApplePodcastRequest(podcast));
             if (matchedPodcast != null)
             {
                 podcast.AppleId = matchedPodcast?.Id;

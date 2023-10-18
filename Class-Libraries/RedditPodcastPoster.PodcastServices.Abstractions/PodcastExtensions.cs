@@ -1,6 +1,6 @@
 ﻿using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.PodcastServices;
+namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public static class PodcastExtensions
 {

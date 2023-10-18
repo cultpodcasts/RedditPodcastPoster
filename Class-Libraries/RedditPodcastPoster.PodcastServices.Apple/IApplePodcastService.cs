@@ -1,5 +1,4 @@
-﻿using RedditPodcastPoster.Models;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+﻿using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 

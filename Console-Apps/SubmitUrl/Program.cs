@@ -9,6 +9,7 @@ using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Matching;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.PodcastServices;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;

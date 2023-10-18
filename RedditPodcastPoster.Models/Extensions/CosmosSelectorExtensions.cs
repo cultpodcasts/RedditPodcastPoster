@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Models;
+﻿namespace RedditPodcastPoster.Models.Extensions;
 
 public static class CosmosSelectorExtensions
 {

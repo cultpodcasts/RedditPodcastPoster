@@ -44,7 +44,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
                     if (sameDateMatches.Count() > 1)
                     {
                         var distances =
-                            sameDateMatches.OrderByDescending(x =>
+                            sameDateMatches.OrderByDescending<AppleEpisode, double>(x =>
                                 Levenshtein.CalculateSimilarity(request.EpisodeTitle, x.Title));
                         return distances.FirstOrDefault()!;
                     }

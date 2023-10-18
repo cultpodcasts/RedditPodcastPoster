@@ -2,6 +2,7 @@
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.PodcastServices;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Twitter;
 
 namespace Indexer.Tweets;
