@@ -1,6 +1,6 @@
 ﻿using System.Text;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Models;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Reddit;
 
@@ -19,7 +19,7 @@ public class RedditBundleCommentFactory : IRedditBundleCommentFactory
         for (var i = 0; i < postModel.BundledPartNumbers.Count(); i++)
         {
             var episode = postModel.Episodes.Skip(i).First();
-            if (episode.Spotify != null && episode.Apple != null || episode.YouTube != null)
+            if ((episode.Spotify != null && episode.Apple != null) || episode.YouTube != null)
             {
                 comment.AppendLine(
                     $"**Part {postModel.BundledPartNumbers.Skip(i).First()}, {episode.Release} {episode.Duration}**");

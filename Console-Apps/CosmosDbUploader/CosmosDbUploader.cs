@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.EliminationTerms;
-using RedditPodcastPoster.Common.KnownTerms;
-using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Text.KnownTerms;
 
 namespace RedditPodcastPoster.CosmosDbUploader;
 

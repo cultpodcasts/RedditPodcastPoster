@@ -1,5 +1,5 @@
 ﻿using Reddit.Controllers;
-using RedditPodcastPoster.Common.Models;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Reddit;
 

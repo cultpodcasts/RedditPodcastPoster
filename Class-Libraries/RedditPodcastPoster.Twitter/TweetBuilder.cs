@@ -1,9 +1,9 @@
 ﻿using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Extensions;
-using RedditPodcastPoster.Common.Text;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Extensions;
+using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.Twitter;
 

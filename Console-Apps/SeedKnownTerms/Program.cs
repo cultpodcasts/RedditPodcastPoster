@@ -3,8 +3,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.KnownTerms;
-using RedditPodcastPoster.Common.Persistence;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Text.KnownTerms;
 using SeedKnownTerms;
 
 var builder = Host.CreateApplicationBuilder(args);

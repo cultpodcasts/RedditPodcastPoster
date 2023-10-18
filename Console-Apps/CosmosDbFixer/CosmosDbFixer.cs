@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
+using RedditPodcastPoster.Persistence;
 
 namespace CosmosDbFixer;
 

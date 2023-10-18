@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Common.Models;
-using RedditPodcastPoster.Common.Text;
+using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.Common.Reddit;
 

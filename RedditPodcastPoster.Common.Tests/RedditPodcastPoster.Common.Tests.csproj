@@ -27,4 +27,8 @@
     <ProjectReference Include="..\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Text\" />
+  </ItemGroup>
+
 </Project>

@@ -1,7 +1,7 @@
 ﻿using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
 using OAuth;
 
 namespace RedditPodcastPoster.Twitter;
@@ -23,7 +23,7 @@ public class TwitterClient : ITwitterClient
             _options.AccessTokenSecret);
 
         var tweetData = new {text = tweet};
-        var jsonData = JsonConvert.SerializeObject(tweetData);
+        var jsonData = JsonSerializer.Serialize(tweetData);
 
         var createTweetRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.twitter.com/2/tweets")
         {

@@ -4,12 +4,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.KnownTerms;
 using RedditPodcastPoster.Common.Matching;
-using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
-using RedditPodcastPoster.Common.Text;
 using RedditPodcastPoster.Common.UrlSubmission;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Text;
+using RedditPodcastPoster.Text.KnownTerms;
 using RedditPodcastPoster.Twitter;
 using Tweet;
 

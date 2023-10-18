@@ -2,7 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ModelTransformer;
-using RedditPodcastPoster.Common.Persistence;
+using RedditPodcastPoster.Persistence;
 
 var builder = Host.CreateApplicationBuilder(args);
 

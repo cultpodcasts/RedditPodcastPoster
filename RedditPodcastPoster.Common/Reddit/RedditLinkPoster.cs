@@ -2,17 +2,16 @@
 using Microsoft.Extensions.Options;
 using Reddit;
 using Reddit.Controllers;
-using RedditPodcastPoster.Common.Episodes;
-using RedditPodcastPoster.Common.Models;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Reddit;
 
 public class RedditLinkPoster : IRedditLinkPoster
 {
-    private readonly IRedditPostTitleFactory _redditPostTitleFactory;
-    private readonly RedditClient _redditClient;
-    private readonly SubredditSettings _settings;
     private readonly ILogger<RedditLinkPoster> _logger;
+    private readonly RedditClient _redditClient;
+    private readonly IRedditPostTitleFactory _redditPostTitleFactory;
+    private readonly SubredditSettings _settings;
 
     public RedditLinkPoster(
         IRedditPostTitleFactory redditPostTitleFactory,
@@ -42,5 +41,4 @@ public class RedditLinkPoster : IRedditLinkPoster
                 link.ToString());
         return await post.SubmitAsync();
     }
-
 }

@@ -1,7 +1,7 @@
 ﻿using CultPodcasts.DatabasePublisher.PublicModels;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence;
 
 namespace CultPodcasts.DatabasePublisher;
 

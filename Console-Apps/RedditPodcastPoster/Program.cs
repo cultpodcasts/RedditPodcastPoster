@@ -10,17 +10,16 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Episodes;
-using RedditPodcastPoster.Common.KnownTerms;
 using RedditPodcastPoster.Common.Matching;
-using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Common.Reddit;
-using RedditPodcastPoster.Common.Text;
-using RedditPodcastPoster.Common.UrlCategorisation;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Text;
+using RedditPodcastPoster.Text.KnownTerms;
 
 var builder = Host.CreateApplicationBuilder(args);
 

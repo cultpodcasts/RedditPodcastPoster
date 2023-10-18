@@ -2,7 +2,6 @@
 using AutoFixture;
 using FluentAssertions;
 using Moq.AutoMock;
-using RedditPodcastPoster.Common.Models;
 using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Models;
 using Xunit;

@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Reddit.Exceptions;
-using RedditPodcastPoster.Common.Models;
 using RedditPodcastPoster.Common.Reddit;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
@@ -9,8 +9,8 @@ public class EpisodePostManager : IEpisodePostManager
 {
     private readonly ILogger<EpisodePostManager> _logger;
     private readonly IRedditBundleCommentFactory _redditBundleCommentFactory;
-    private readonly IRedditLinkPoster _redditLinkPoster;
     private readonly IRedditEpisodeCommentFactory _redditEpisodeCommentFactory;
+    private readonly IRedditLinkPoster _redditLinkPoster;
 
     public EpisodePostManager(
         IRedditLinkPoster redditLinkPoster,
@@ -26,7 +26,8 @@ public class EpisodePostManager : IEpisodePostManager
 
     public async Task<ProcessResponse> Post(PostModel postModel)
     {
-        _logger.LogInformation($"{nameof(Post)} Posting '{postModel.EpisodeTitle}' / '{postModel.PodcastName}' published '{postModel.Published:R}' bundled='{postModel.IsBundledPost}'.");
+        _logger.LogInformation(
+            $"{nameof(Post)} Posting '{postModel.EpisodeTitle}' / '{postModel.PodcastName}' published '{postModel.Published:R}' bundled='{postModel.IsBundledPost}'.");
         var result = await PostEpisode(postModel);
         if (result is {Success: false, AlreadyPosted: false})
         {
@@ -53,12 +54,13 @@ public class EpisodePostManager : IEpisodePostManager
                 string comments;
                 if (postModel.IsBundledPost)
                 {
-                    comments= _redditBundleCommentFactory.Post(postModel);
+                    comments = _redditBundleCommentFactory.Post(postModel);
                 }
                 else
                 {
-                    comments= _redditEpisodeCommentFactory.Post(postModel);
+                    comments = _redditEpisodeCommentFactory.Post(postModel);
                 }
+
                 if (!string.IsNullOrWhiteSpace(comments.Trim()))
                 {
                     await result.ReplyAsync(comments);

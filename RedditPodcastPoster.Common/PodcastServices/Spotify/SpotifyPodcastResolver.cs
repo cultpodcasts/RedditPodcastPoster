@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Text;
+using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.Common.PodcastServices.Spotify;

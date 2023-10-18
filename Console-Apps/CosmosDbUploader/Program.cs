@@ -4,8 +4,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.CosmosDbUploader;
+using RedditPodcastPoster.Persistence;
 
 var builder = Host.CreateApplicationBuilder(args);
 

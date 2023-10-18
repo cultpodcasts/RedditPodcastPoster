@@ -7,8 +7,8 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.EliminationTerms;
 using RedditPodcastPoster.Common.Matching;
-using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.Persistence;
 using Sqllite3DatabasePublisher;
 
 var builder = Host.CreateApplicationBuilder(args);

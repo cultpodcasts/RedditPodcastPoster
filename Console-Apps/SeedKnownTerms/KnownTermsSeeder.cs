@@ -1,7 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.KnownTerms;
-using RedditPodcastPoster.Common.Persistence;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Text.KnownTerms;
 
 namespace SeedKnownTerms;
 

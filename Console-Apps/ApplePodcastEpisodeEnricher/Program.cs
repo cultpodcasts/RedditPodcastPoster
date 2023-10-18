@@ -7,9 +7,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Matching;
-using RedditPodcastPoster.Common.Persistence;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices.Apple;
+using RedditPodcastPoster.Persistence;
 
 var builder = Host.CreateApplicationBuilder(args);
 

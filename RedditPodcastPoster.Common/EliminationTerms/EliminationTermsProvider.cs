@@ -1,6 +1,4 @@
-﻿using RedditPodcastPoster.Common.KnownTerms;
-
-namespace RedditPodcastPoster.Common.EliminationTerms;
+﻿namespace RedditPodcastPoster.Common.EliminationTerms;
 
 public class EliminationTermsProvider : IEliminationTermsProvider
 {
