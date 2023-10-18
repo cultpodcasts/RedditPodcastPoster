@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Persistence;
-using RedditPodcastPoster.Text.EliminationTerms;
 using SeedEliminationTerms;
 
 var builder = Host.CreateApplicationBuilder(args);
