@@ -26,11 +26,10 @@ public class SpotifyEpisodeRetrievalHandler : ISpotifyEpisodeRetrievalHandler
         IList<Episode> episodes = new List<Episode>();
         if (!string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
-            var getEpisodesResult =
-                await _spotifyEpisodeProvider.GetEpisodes(
-                    new GetEpisodesRequest(new SpotifyPodcastId(podcast.SpotifyId),
-                        podcast.SpotifyMarket,
-                        podcast.HasExpensiveSpotifyEpisodesQuery()), indexingContext);
+            var getEpisodesRequest = new GetEpisodesRequest(new SpotifyPodcastId(podcast.SpotifyId),
+                podcast.SpotifyMarket,
+                podcast.HasExpensiveSpotifyEpisodesQuery());
+            var getEpisodesResult = await _spotifyEpisodeProvider.GetEpisodes(getEpisodesRequest, indexingContext);
             if (getEpisodesResult.Results != null && getEpisodesResult.Results.Any())
             {
                 episodes = getEpisodesResult.Results;

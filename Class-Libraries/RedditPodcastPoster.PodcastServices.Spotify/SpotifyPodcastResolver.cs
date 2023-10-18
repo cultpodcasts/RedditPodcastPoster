@@ -25,7 +25,8 @@ public class SpotifyPodcastResolver : ISpotifyPodcastResolver
         _logger = logger;
     }
 
-    public async Task<SpotifyPodcastWrapper?> FindPodcast(FindSpotifyPodcastRequest request,
+    public async Task<SpotifyPodcastWrapper?> FindPodcast(
+        FindSpotifyPodcastRequest request,
         IndexingContext indexingContext)
     {
         if (indexingContext.SkipSpotifyUrlResolving)
