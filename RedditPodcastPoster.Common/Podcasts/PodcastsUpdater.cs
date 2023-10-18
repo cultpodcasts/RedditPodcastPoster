@@ -31,7 +31,7 @@ public class PodcastsUpdater : IPodcastsUpdater
         _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
         foreach (var podcastId in podcastIds)
         {
-            var podcast = await _podcastRepository.GetPodcast(podcastId.ToString());
+            var podcast = await _podcastRepository.GetPodcast(podcastId);
             if (podcast != null &&
                 (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
             {

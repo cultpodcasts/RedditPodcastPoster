@@ -45,7 +45,7 @@ public class EnrichYouTubePodcastProcessor
             indexOptions = new IndexingContext();
         }
 
-        var podcast = await _podcastRepository.GetPodcast(request.PodcastGuid.ToString());
+        var podcast = await _podcastRepository.GetPodcast(request.PodcastGuid);
 
         if (podcast == null)
         {

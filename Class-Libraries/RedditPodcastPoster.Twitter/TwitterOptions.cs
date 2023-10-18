@@ -1,4 +1,4 @@
-﻿namespace Indexer.Tweets;
+﻿namespace RedditPodcastPoster.Twitter;
 
 public class TwitterOptions
 {

@@ -19,7 +19,7 @@ using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Common.Reddit;
 using RedditPodcastPoster.Common.Text;
-using RedditPodcastPoster.Common.UrlCategorisation;
+using RedditPodcastPoster.Twitter;
 
 namespace Indexer;
 
@@ -105,7 +105,8 @@ public static class Ioc
 
             // Tweet
             .AddScoped<ITwitterClient, TwitterClient>()
-            .AddScoped<ITweeter, Tweeter>();
+            .AddScoped<ITweeter, Tweeter>()
+            .AddSingleton<ITweetBuilder, TweetBuilder>();
 
 
         // Indexer

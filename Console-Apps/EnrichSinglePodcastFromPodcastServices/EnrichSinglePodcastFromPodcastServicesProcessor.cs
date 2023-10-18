@@ -20,7 +20,7 @@ public class EnrichSinglePodcastFromPodcastServicesProcessor
         _logger = logger;
     }
 
-    public async Task Run(string podcastId)
+    public async Task Run(Guid podcastId)
     {
         var podcast = await _podcastRepository.GetPodcast(podcastId);
         if (podcast == null)

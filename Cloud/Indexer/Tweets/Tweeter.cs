@@ -1,10 +1,7 @@
-﻿using System.Globalization;
-using System.Text;
-using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Extensions;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
-using RedditPodcastPoster.Common.Text;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Twitter;
 
 namespace Indexer.Tweets;
 
@@ -12,18 +9,18 @@ public class Tweeter : ITweeter
 {
     private readonly ILogger<Tweeter> _logger;
     private readonly IPodcastRepository _repository;
-    private readonly ITextSanitiser _textSanitiser;
+    private readonly ITweetBuilder _tweetBuilder;
     private readonly ITwitterClient _twitterClient;
 
     public Tweeter(
+        ITweetBuilder tweetBuilder,
         ITwitterClient twitterClient,
         IPodcastRepository repository,
-        ITextSanitiser textSanitiser,
         ILogger<Tweeter> logger)
     {
+        _tweetBuilder = tweetBuilder;
         _twitterClient = twitterClient;
         _repository = repository;
-        _textSanitiser = textSanitiser;
         _logger = logger;
     }
 
@@ -88,7 +85,7 @@ public class Tweeter : ITweeter
 
     private async Task PostTweet(PodcastEpisode podcastEpisode)
     {
-        var tweet = BuildTweet(podcastEpisode);
+        var tweet = _tweetBuilder.BuildTweet(podcastEpisode);
         bool tweeted;
         try
         {
@@ -125,42 +122,5 @@ public class Tweeter : ITweeter
             _logger.LogError(message);
             throw new Exception(message);
         }
-    }
-
-    private string BuildTweet(PodcastEpisode podcastEpisode)
-    {
-        var postModel = (podcastEpisode.Podcast, new[] {podcastEpisode.Episode}).ToPostModel();
-        var episodeTitle = _textSanitiser.SanitiseTitle(postModel);
-        var podcastName = _textSanitiser.SanitisePodcastName(postModel);
-
-        var tweetBuilder = new StringBuilder();
-        tweetBuilder.AppendLine($"\"{episodeTitle}\"");
-        if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TwitterHandle))
-        {
-            tweetBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.TwitterHandle}");
-        }
-        else
-        {
-            tweetBuilder.AppendLine($"{podcastName}");
-        }
-
-        tweetBuilder.AppendLine(
-            $"{podcastEpisode.Episode.Release.ToString("d MMM yyyy")} {podcastEpisode.Episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture)}");
-        tweetBuilder.AppendLine("#CultPodcasts");
-        if (podcastEpisode.Episode.Urls.YouTube != null)
-        {
-            tweetBuilder.AppendLine(podcastEpisode.Episode.Urls.YouTube.ToString());
-        }
-        else if (podcastEpisode.Episode.Urls.Spotify != null)
-        {
-            tweetBuilder.AppendLine(podcastEpisode.Episode.Urls.Spotify.ToString());
-        }
-        else
-        {
-            tweetBuilder.AppendLine(podcastEpisode.Episode.Urls.Apple!.ToString());
-        }
-
-        var tweet = tweetBuilder.ToString();
-        return tweet;
     }
 }

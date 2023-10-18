@@ -1,5 +1,3 @@
-﻿using RedditPodcastPoster.Models;
-
-namespace Indexer.Tweets;
+﻿namespace RedditPodcastPoster.Models;
 
 public record PodcastEpisode(Podcast Podcast, Episode Episode);

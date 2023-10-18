@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using OAuth;
 
-namespace Indexer.Tweets;
+namespace RedditPodcastPoster.Twitter;
 
 public class TwitterClient : ITwitterClient
 {

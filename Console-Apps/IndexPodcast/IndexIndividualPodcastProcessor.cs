@@ -22,7 +22,7 @@ internal class IndexIndividualPodcastProcessor
 
     public async Task Run(Guid podcastId, IndexingContext indexingContext)
     {
-        var podcast = await _podcastRepository.GetPodcast(podcastId.ToString());
+        var podcast = await _podcastRepository.GetPodcast(podcastId);
         if (podcast == null)
         {
             _logger.LogError($"No podcast found with id {podcastId}");

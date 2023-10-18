@@ -68,6 +68,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{
 		.github\workflows\main_indexer-cultpodcasts.yml = .github\workflows\main_indexer-cultpodcasts.yml
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tweet", "Console-Apps\Tweet\Tweet.csproj", "{8A239DE4-4F9D-4582-9899-40A5DC96846D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Twitter", "Class-Libraries\RedditPodcastPoster.Twitter\RedditPodcastPoster.Twitter.csproj", "{59081EC7-F79E-40BE-991B-62DCC88ACD29}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -170,6 +174,14 @@ Global
 		{D0C2E99C-BBD2-4C1F-B221-50EAF9756A68}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D0C2E99C-BBD2-4C1F-B221-50EAF9756A68}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D0C2E99C-BBD2-4C1F-B221-50EAF9756A68}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A239DE4-4F9D-4582-9899-40A5DC96846D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A239DE4-4F9D-4582-9899-40A5DC96846D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A239DE4-4F9D-4582-9899-40A5DC96846D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A239DE4-4F9D-4582-9899-40A5DC96846D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{59081EC7-F79E-40BE-991B-62DCC88ACD29}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{59081EC7-F79E-40BE-991B-62DCC88ACD29}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{59081EC7-F79E-40BE-991B-62DCC88ACD29}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{59081EC7-F79E-40BE-991B-62DCC88ACD29}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -195,6 +207,8 @@ Global
 		{6AD8EB9C-EAD7-43EB-AD31-033FF126D16B} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{48C2582C-3A41-4765-BE41-ED6C0DE0FBD8} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{D0C2E99C-BBD2-4C1F-B221-50EAF9756A68} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{8A239DE4-4F9D-4582-9899-40A5DC96846D} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
+		{59081EC7-F79E-40BE-991B-62DCC88ACD29} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

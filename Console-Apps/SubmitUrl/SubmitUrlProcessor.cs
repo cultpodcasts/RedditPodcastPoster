@@ -36,7 +36,7 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
         if (request.PodcastId != null)
         {
             searchForPodcast = false;
-            var podcast = await _podcastRepository.GetPodcast(request.PodcastId.ToString()!);
+            var podcast = await _podcastRepository.GetPodcast(request.PodcastId.Value);
             if (podcast != null)
             {
                 podcasts = new List<Podcast> {podcast};

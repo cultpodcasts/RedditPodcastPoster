@@ -18,10 +18,10 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.2.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.14.1" />
     <PackageReference Include="Microsoft.DurableTask.Client" Version="1.0.4" />
-    <PackageReference Include="OAuth.Net" Version="1.7.0" />
     <PackageReference Include="Microsoft.DurableTask.Generators" Version="1.0.0-preview.1" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Twitter\RedditPodcastPoster.Twitter.csproj" />
     <ProjectReference Include="..\..\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
     <ProjectReference Include="..\Azure\Azure.csproj" />
   </ItemGroup>

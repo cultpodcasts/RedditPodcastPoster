@@ -22,10 +22,10 @@ public class PodcastRepository : IPodcastRepository
         _logger = logger;
     }
 
-    public async Task<Podcast?> GetPodcast(string key)
+    public async Task<Podcast?> GetPodcast(Guid podcastId)
     {
         var partitionKey = Podcast.PartitionKey;
-        return await _dataRepository.Read<Podcast>(key, partitionKey);
+        return await _dataRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
     }
 
     public MergeResult Merge(Podcast podcast, IEnumerable<Episode> episodesToMerge)

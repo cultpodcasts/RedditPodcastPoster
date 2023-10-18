@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <Folder Include="Matching\" />
+    <Folder Include="Twitter\" />
     <Folder Include="UrlSubmission\" />
   </ItemGroup>
 
