@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -16,19 +16,11 @@ builder.Configuration
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
 
-
 builder.Services
     .AddLogging()
-    .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create())
-    .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
-    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
+    .AddFileRepository()
+    .AddRepositories(builder.Configuration)
     .AddScoped<PublicDatabasePublisher>();
-
-CosmosDbClientFactory.AddCosmosClient(builder.Services);
-builder.Services
-    .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
-
 
 using var host = builder.Build();
 var processor = host.Services.GetService<PublicDatabasePublisher>();
