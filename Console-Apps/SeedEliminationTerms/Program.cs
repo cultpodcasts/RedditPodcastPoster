@@ -1,10 +1,11 @@
 ﻿using System.Reflection;
-using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.Text.Extensions;
 using SeedEliminationTerms;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -19,13 +20,9 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
-    .AddSingleton(new JsonSerializerOptions
-    {
-        WriteIndented = true
-    })
-    .AddScoped<EliminationTermsSeeder>();
+    .AddRepositories(builder.Configuration)
+    .AddEliminationTerms()
+    .AddSingleton<EliminationTermsSeeder>();
 
 CosmosDbClientFactory.AddCosmosClient(builder.Services);
 builder.Services
