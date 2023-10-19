@@ -5,11 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Persistence;
-using RedditPodcastPoster.PodcastServices.Spotify;
-using RedditPodcastPoster.PodcastServices.YouTube;
-using RedditPodcastPoster.Reddit;
-using RedditPodcastPoster.Subreddit;
-using RedditPodcastPoster.UrlSubmission;
+using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.Subreddit.Extensions;
 using TextClassifierTraining;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -25,37 +24,13 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create("reddit-posts"))
-    .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddScoped<UrlSubmitter>()
-    .AddScoped<IPodcastRepository, PodcastRepository>()
-    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
-    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
-    .AddScoped<ISubredditPostProvider, SubredditPostProvider>()
-    .AddScoped<ISubredditRepository, SubredditRepository>()
-    .AddScoped<ISpotifyClientWrapper, SpotifyClientWrapper>()
-    .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
+    .AddFileRepository()
+    .AddRepositories(builder.Configuration)
+    .AddSubredditServices(builder.Configuration)
+    .AddSpotifyServices(builder.Configuration)
+    .AddYouTubeServices(builder.Configuration)
     .AddScoped<IRepositoryFactory, RepositoryFactory>()
-    .AddScoped<TrainingDataProcessor>();
-
-CosmosDbClientFactory.AddCosmosClient(builder.Services);
-RedditClientFactory.AddRedditClient(builder.Services);
-SpotifyClientFactory.AddSpotifyClient(builder.Services);
-YouTubeServiceFactory.AddYouTubeService(builder.Services);
-
-
-builder.Services
-    .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
-builder.Services
-    .AddOptions<RedditSettings>().Bind(builder.Configuration.GetSection("reddit"));
-builder.Services
-    .AddOptions<SubredditSettings>().Bind(builder.Configuration.GetSection("subreddit"));
-builder.Services
-    .AddOptions<SpotifySettings>().Bind(builder.Configuration.GetSection("spotify"));
-builder.Services
-    .AddOptions<YouTubeSettings>().Bind(builder.Configuration.GetSection("youtube"));
-
+    .AddSingleton<TrainingDataProcessor>();
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<TrainingDataRequest>(args)

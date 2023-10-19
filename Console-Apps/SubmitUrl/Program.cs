@@ -39,7 +39,6 @@ builder.Services
     .AddScoped<SubmitUrlProcessor>()
     .AddHttpClient();
 
-
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<SubmitUrlRequest>(args)
     .MapResult(async submitUrlRequest => await Run(submitUrlRequest), errs => Task.FromResult(-1)); // Invalid arguments
