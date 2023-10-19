@@ -4,16 +4,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Persistence;
-using RedditPodcastPoster.Text;
+using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Text.Extensions;
-using RedditPodcastPoster.Text.KnownTerms;
-using RedditPodcastPoster.Twitter;
-using RedditPodcastPoster.UrlSubmission;
+using RedditPodcastPoster.Twitter.Extensions;
 using Tweet;
 
 var builder = Host.CreateApplicationBuilder(args);
-
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 
@@ -25,24 +21,10 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddScoped<UrlSubmitter>()
-    .AddScoped<IPodcastRepository, PodcastRepository>()
-    .AddScoped<TweetProcessor>()
-    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
-    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
-    .AddSingleton<ITweetBuilder, TweetBuilder>()
-    .AddScoped<ITwitterClient, TwitterClient>()
+    .AddRepositories(builder.Configuration)
+    .AddSingleton<TweetProcessor>()
+    .AddTwitterServices(builder.Configuration)
     .AddTextSanitiser();
-
-CosmosDbClientFactory.AddCosmosClient(builder.Services);
-
-builder.Services
-    .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
-
-builder.Services
-    .AddOptions<TwitterOptions>().Bind(builder.Configuration.GetSection("twitter"));
-
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<TweetRequest>(args)

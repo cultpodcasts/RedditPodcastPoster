@@ -1,11 +1,9 @@
 ﻿using System.Reflection;
-using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Persistence;
-using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.Persistence.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -19,21 +17,8 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddSingleton(new JsonSerializerOptions
-    {
-        WriteIndented = true
-    })
-    .AddScoped<CosmosDbFixer.CosmosDbFixer>()
-    .AddScoped<IPodcastRepository, PodcastRepository>();
-
-CosmosDbClientFactory.AddCosmosClient(builder.Services);
-SpotifyClientFactory.AddSpotifyClient(builder.Services);
-
-builder.Services
-    .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
-builder.Services
-    .AddOptions<SpotifySettings>().Bind(builder.Configuration.GetSection("spotify"));
+    .AddRepositories(builder.Configuration)
+    .AddScoped<CosmosDbFixer.CosmosDbFixer>();
 
 
 using var host = builder.Build();

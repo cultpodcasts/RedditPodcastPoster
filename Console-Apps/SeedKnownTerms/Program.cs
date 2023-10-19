@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Text.KnownTerms;
 using SeedKnownTerms;
 
@@ -19,15 +19,9 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<IDataRepository, CosmosDbRepository>()
+    .AddRepositories(builder.Configuration)
     .AddScoped<IKnownTermsRepository, KnownTermsRepository>()
-    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
-    .AddScoped<KnownTermsSeeder>();
-
-CosmosDbClientFactory.AddCosmosClient(builder.Services);
-builder.Services
-    .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
-
+    .AddSingleton<KnownTermsSeeder>();
 
 using var host = builder.Build();
 var processor = host.Services.GetService<KnownTermsSeeder>();

@@ -7,7 +7,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -21,30 +23,10 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddSingleton(new JsonSerializerOptions
-    {
-        WriteIndented = true
-    })
-    .AddScoped<EnrichYouTubePodcastProcessor>()
-    .AddScoped<IPodcastRepository, PodcastRepository>()
-    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
-    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
-    .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
-    .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
-    .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
-    .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
-    .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
-    .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
-    .AddScoped<IYouTubeSearcher, YouTubeSearcher>();
-
-CosmosDbClientFactory.AddCosmosClient(builder.Services);
-YouTubeServiceFactory.AddYouTubeService(builder.Services);
-
-builder.Services
-    .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
-builder.Services
-    .AddOptions<YouTubeSettings>().Bind(builder.Configuration.GetSection("youtube"));
+    .AddYouTubeServices(builder.Configuration)
+    .AddRepositories(builder.Configuration)
+    .AddYouTubeServices(builder.Configuration)
+    .AddSingleton<EnrichYouTubePodcastProcessor>();
 
 using var host = builder.Build();
 

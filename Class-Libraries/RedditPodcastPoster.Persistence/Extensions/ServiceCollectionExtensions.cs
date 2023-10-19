@@ -13,9 +13,17 @@ public static class ServiceCollectionExtensions
         CosmosDbClientFactory.AddCosmosClient(services);
 
         return services.AddScoped<IDataRepository, CosmosDbRepository>()
+            .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
             .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
             .AddScoped<IPodcastRepository, PodcastRepository>()
             .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
             .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>();
+    }
+
+    public static IServiceCollection AddFileRepository(this IServiceCollection services)
+    {
+        return services
+            .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
+            .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create());
     }
 }

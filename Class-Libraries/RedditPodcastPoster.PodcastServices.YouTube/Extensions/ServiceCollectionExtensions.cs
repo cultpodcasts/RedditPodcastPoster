@@ -20,6 +20,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
             .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
             .AddSingleton<IYouTubeIdExtractor, YouTubeIdExtractor>()
-            .AddScoped<IYouTubeSearcher, YouTubeSearcher>();
+            .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
+            .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>();
     }
 }
