@@ -14,9 +14,8 @@ public class ApplePodcastService : IApplePodcastService
         ILogger<ApplePodcastService> logger)
     {
         _logger = logger;
-        _logger.LogInformation($"Creating http-client");
+        _logger.LogInformation($"{nameof(ApplePodcastService)} Creating http-client");
         _httpClient = httpClientFactory.Create().GetAwaiter().GetResult();
-        _logger.LogInformation($"Created http-client");
     }
 
     public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)

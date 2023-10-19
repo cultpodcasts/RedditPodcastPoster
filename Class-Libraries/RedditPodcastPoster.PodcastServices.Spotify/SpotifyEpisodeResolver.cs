@@ -41,7 +41,7 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
         if (!string.IsNullOrWhiteSpace(request.EpisodeSpotifyId))
         {
             var episodeRequest = new EpisodeRequest
-                {Market = market };
+                {Market = market};
             fullEpisode =
                 await _spotifyClientWrapper.GetFullEpisode(request.EpisodeSpotifyId, episodeRequest, indexingContext);
         }
@@ -117,8 +117,7 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
                 }
 
                 var matchingEpisode =
-                    _spotifySearcher.FindMatchingEpisode(request.EpisodeTitle, indexingContext.ReleasedSince,
-                        allEpisodes);
+                    _spotifySearcher.FindMatchingEpisode(request.EpisodeTitle, request.Released, allEpisodes);
                 if (matchingEpisode != null)
                 {
                     var showRequest = new EpisodeRequest {Market = market};

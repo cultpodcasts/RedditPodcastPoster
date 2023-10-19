@@ -68,12 +68,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
     public async Task<ResolvedSpotifyItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast,
         IndexingContext indexingContext)
     {
-        var request = new FindSpotifyEpisodeRequest(
-            matchingPodcast?.SpotifyId ?? string.Empty,
-            (matchingPodcast?.Name ?? criteria.ShowName).Trim(),
-            string.Empty,
-            criteria.EpisodeTitle.Trim(),
-            matchingPodcast?.HasExpensiveSpotifyEpisodesQuery() ?? true);
+        var request = FindSpotifyEpisodeRequestFactory.Create(matchingPodcast, criteria);
         if (!indexingContext.SkipExpensiveQueries)
         {
             var findEpisodeResponse = await _spotifyEpisodeResolver.FindEpisode(request, indexingContext);

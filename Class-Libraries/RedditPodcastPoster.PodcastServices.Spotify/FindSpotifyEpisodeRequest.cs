@@ -5,5 +5,6 @@ public record FindSpotifyEpisodeRequest(
     string PodcastName, 
     string EpisodeSpotifyId,
     string EpisodeTitle,
+    DateTime? Released,
     bool HasExpensiveSpotifyEpisodesQuery,
     string? Market=null);

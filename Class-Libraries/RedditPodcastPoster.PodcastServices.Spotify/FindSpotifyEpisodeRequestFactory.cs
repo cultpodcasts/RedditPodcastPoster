@@ -1,9 +1,21 @@
 ﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public static class FindSpotifyEpisodeRequestFactory
 {
+    public static FindSpotifyEpisodeRequest Create(Podcast? podcast, PodcastServiceSearchCriteria criteria)
+    {
+        return new FindSpotifyEpisodeRequest(
+            podcast?.SpotifyId ?? string.Empty,
+            (podcast?.Name ?? criteria.ShowName).Trim(),
+            string.Empty,
+            criteria.EpisodeTitle.Trim(),
+            criteria.Release,
+            podcast?.HasExpensiveSpotifyEpisodesQuery() ?? true);
+    }
+
     public static FindSpotifyEpisodeRequest Create(Podcast podcast, Episode episode)
     {
         return new FindSpotifyEpisodeRequest(
@@ -11,6 +23,7 @@ public static class FindSpotifyEpisodeRequestFactory
             podcast.Name.Trim(),
             episode.SpotifyId,
             episode.Title.Trim(),
+            episode.Release,
             podcast.HasExpensiveSpotifyEpisodesQuery(),
             podcast.SpotifyMarket);
     }
@@ -22,6 +35,7 @@ public static class FindSpotifyEpisodeRequestFactory
             string.Empty,
             episodeSpotifyId,
             string.Empty,
+            null,
             true);
     }
 }
