@@ -44,10 +44,11 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         IList<T>? results = null;
         try
         {
-            if (firstPage.Next.Contains("/show/"))
+            if (firstPage.Next != null && firstPage.Next.Contains("/show/"))
             {
                 firstPage.Next = firstPage.Next.Replace("/show/", "/shows/");
             }
+
             results = await _spotifyClient.PaginateAll(firstPage);
         }
         catch (Exception ex)

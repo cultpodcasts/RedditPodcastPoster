@@ -22,7 +22,6 @@ public class ApplePodcastService : IApplePodcastService
     {
         var requestUri = $"/v1/catalog/us/podcasts/{podcastId.PodcastId}/episodes";
         HttpResponseMessage response;
-        HttpClient httpClient;
         try
         {
             response = await _httpClient.GetAsync(requestUri);
