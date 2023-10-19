@@ -33,7 +33,7 @@ builder.Services
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         IgnoreReadOnlyProperties = true
     })
-    .AddScoped<SubredditPostFlareEnricher>()
+    .AddSingleton<SubredditPostFlareEnricher>()
     .AddSubredditServices(builder.Configuration);
 
 using var host = builder.Build();

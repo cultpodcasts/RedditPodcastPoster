@@ -20,7 +20,7 @@ builder.Services
     .AddLogging()
     .AddFileRepository()
     .AddRepositories(builder.Configuration)
-    .AddScoped<CosmosDbUploader>();
+    .AddSingleton<CosmosDbUploader>();
 
 using var host = builder.Build();
 var processor = host.Services.GetService<CosmosDbUploader>();
