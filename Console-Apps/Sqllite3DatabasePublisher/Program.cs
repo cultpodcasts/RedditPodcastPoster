@@ -5,7 +5,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.Text.Extensions;
 using Sqllite3DatabasePublisher;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -20,12 +21,9 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<IPodcastRepository, PodcastRepository>()
-    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
-    .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
-    .AddScoped<Sqllite3DatabasePublisher.Sqllite3DatabasePublisher>()
-    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>();
+    .AddRepositories(builder.Configuration)
+    .AddEliminationTerms()
+    .AddSingleton<Sqllite3DatabasePublisher.Sqllite3DatabasePublisher>();
 
 var databaseFileName = "podcasts.sqlite";
 var connectionString = $"Data Source={databaseFileName}";
@@ -33,11 +31,6 @@ var connectionString = $"Data Source={databaseFileName}";
 File.Delete(databaseFileName);
 SQLiteConnection.CreateFile(databaseFileName);
 builder.Services.AddDbContext<PodcastContext>(options => options.UseSqlite(connectionString));
-
-CosmosDbClientFactory.AddCosmosClient(builder.Services);
-builder.Services
-    .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
-
 
 using var host = builder.Build();
 var processor = host.Services.GetService<Sqllite3DatabasePublisher.Sqllite3DatabasePublisher>();
