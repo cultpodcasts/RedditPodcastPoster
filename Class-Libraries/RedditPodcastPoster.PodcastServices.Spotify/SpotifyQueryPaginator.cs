@@ -52,6 +52,11 @@ public class SpotifyQueryPaginator : ISpotifyQueryPaginator
 
         if (indexingContext.ReleasedSince == null || isExpensiveQueryFound)
         {
+            if (pagedEpisodes.Next != null && pagedEpisodes.Next.Contains("/show/"))
+            {
+                pagedEpisodes.Next = pagedEpisodes.Next.Replace("/show/", "/shows/");
+            }
+
             var fetch = await _spotifyClientWrapper.PaginateAll(pagedEpisodes, indexingContext);
             if (fetch != null)
             {
