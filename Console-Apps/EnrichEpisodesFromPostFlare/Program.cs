@@ -7,8 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Persistence;
-using RedditPodcastPoster.Reddit;
-using RedditPodcastPoster.Subreddit;
+using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.Subreddit.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -22,8 +22,8 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-    .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create("reddit-posts"))
+    .AddFileRepository()
+    .AddRepositories(builder.Configuration)
     .AddScoped<IDataRepository, CosmosDbRepository>()
     .AddSingleton(new JsonSerializerOptions
     {
@@ -34,22 +34,7 @@ builder.Services
         IgnoreReadOnlyProperties = true
     })
     .AddScoped<SubredditPostFlareEnricher>()
-    .AddScoped<IPodcastRepository, PodcastRepository>()
-    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
-    .AddScoped<ISubredditPostProvider, SubredditPostProvider>()
-    .AddScoped<ISubredditRepository, SubredditRepository>();
-
-CosmosDbClientFactory.AddCosmosClient(builder.Services);
-RedditClientFactory.AddRedditClient(builder.Services);
-
-
-builder.Services
-    .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
-builder.Services
-    .AddOptions<RedditSettings>().Bind(builder.Configuration.GetSection("reddit"));
-builder.Services
-    .AddOptions<SubredditSettings>().Bind(builder.Configuration.GetSection("subreddit"));
-
+    .AddSubredditServices(builder.Configuration);
 
 using var host = builder.Build();
 var processor = host.Services.GetService<SubredditPostFlareEnricher>();

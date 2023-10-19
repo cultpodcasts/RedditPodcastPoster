@@ -9,8 +9,7 @@ public static class ServiceCollectionExtensions
     {
         services
             .AddOptions<RedditSettings>().Bind(config.GetSection("reddit"));
-        services
-            .AddOptions<SubredditSettings>().Bind(config.GetSection("subreddit"));
+        services.AddSubredditSettings(config);
 
         RedditClientFactory.AddRedditClient(services);
 
@@ -18,5 +17,11 @@ public static class ServiceCollectionExtensions
             .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
             .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
             .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>();
+    }
+
+    public static void AddSubredditSettings(this IServiceCollection services, IConfiguration config)
+    {
+        services
+            .AddOptions<SubredditSettings>().Bind(config.GetSection("subreddit"));
     }
 }
