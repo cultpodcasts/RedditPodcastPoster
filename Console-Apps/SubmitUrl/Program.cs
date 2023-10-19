@@ -1,19 +1,18 @@
-﻿using System.Net.Http.Headers;
-using System.Reflection;
+﻿using System.Reflection;
 using CommandLine;
 using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Apple;
-using RedditPodcastPoster.PodcastServices.Spotify;
-using RedditPodcastPoster.PodcastServices.YouTube;
-using RedditPodcastPoster.UrlSubmission;
-using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.PodcastServices.Apple.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.UrlSubmission.Extensions;
 using SubmitUrl;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -29,57 +28,16 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<IDataRepository, CosmosDbRepository>()
-    .AddScoped<UrlSubmitter>()
-    .AddScoped<IPodcastRepository, PodcastRepository>()
-    .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
-    .AddScoped<IUrlCategoriser, UrlCategoriser>()
-    .AddScoped<IAppleUrlCategoriser, AppleUrlCategoriser>()
-    .AddScoped<ISpotifyUrlCategoriser, SpotifyUrlCategoriser>()
-    .AddScoped<IYouTubeUrlCategoriser, YouTubeUrlCategoriser>()
-    .AddScoped<ISpotifyEpisodeResolver, SpotifyEpisodeResolver>()
-    .AddScoped<ISpotifyPodcastResolver, SpotifyPodcastResolver>()
-    .AddScoped<ISpotifyQueryPaginator, SpotifyQueryPaginator>()
-    .AddScoped<ISpotifyClientWrapper, SpotifyClientWrapper>()
-    .AddScoped<ISpotifySearcher, SpotifySearcher>()
-    .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
+    .AddRepositories(builder.Configuration)
+    .AddPodcastServices(builder.Configuration)
+    .AddSpotifyServices(builder.Configuration)
+    .AddAppleServices()
+    .AddYouTubeServices(builder.Configuration)
     .AddScoped<IRemoteClient, RemoteClient>()
-    .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
     .AddScoped(s => new iTunesSearchManager())
-    .AddScoped<IApplePodcastService, ApplePodcastService>()
-    .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
-    .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
-    .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
-    .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
-    .AddSingleton<IYouTubeIdExtractor, YouTubeIdExtractor>()
-    .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
-    .AddScoped<IUrlSubmitter, UrlSubmitter>()
+    .AddUrlSubmission()
     .AddScoped<SubmitUrlProcessor>()
-    .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
-    .AddHttpClient<IApplePodcastService, ApplePodcastService>((services, httpClient) =>
-    {
-        var appleBearerTokenProvider = services.GetService<IAppleBearerTokenProvider>();
-        httpClient.BaseAddress = new Uri("https://amp-api.podcasts.apple.com/");
-        httpClient.DefaultRequestHeaders.Authorization = appleBearerTokenProvider!.GetHeader().GetAwaiter().GetResult();
-        httpClient.DefaultRequestHeaders.Accept.Clear();
-        httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
-        httpClient.DefaultRequestHeaders.Referrer = new Uri("https://podcasts.apple.com/");
-        httpClient.DefaultRequestHeaders.Add("Origin", "https://podcasts.apple.com");
-        httpClient.DefaultRequestHeaders.UserAgent.Clear();
-        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0");
-    });
-
-CosmosDbClientFactory.AddCosmosClient(builder.Services);
-SpotifyClientFactory.AddSpotifyClient(builder.Services);
-YouTubeServiceFactory.AddYouTubeService(builder.Services);
-
-builder.Services
-    .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
-builder.Services
-    .AddOptions<SpotifySettings>().Bind(builder.Configuration.GetSection("spotify"));
-builder.Services
-    .AddOptions<YouTubeSettings>().Bind(builder.Configuration.GetSection("youtube"));
+    .AddHttpClient();
 
 
 using var host = builder.Build();
