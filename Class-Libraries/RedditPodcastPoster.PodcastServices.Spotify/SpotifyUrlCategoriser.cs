@@ -73,6 +73,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
             (matchingPodcast?.Name ?? criteria.ShowName).Trim(),
             string.Empty,
             criteria.EpisodeTitle.Trim(),
+            criteria.Release,
             matchingPodcast?.HasExpensiveSpotifyEpisodesQuery() ?? true);
         if (!indexingContext.SkipExpensiveQueries)
         {
