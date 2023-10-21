@@ -13,7 +13,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Reddit\RedditPodcastPoster.Reddit.csproj" />
   </ItemGroup>
 
