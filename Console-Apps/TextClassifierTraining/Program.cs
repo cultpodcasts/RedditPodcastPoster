@@ -29,7 +29,6 @@ builder.Services
     .AddSubredditServices(builder.Configuration)
     .AddSpotifyServices(builder.Configuration)
     .AddYouTubeServices(builder.Configuration)
-    .AddScoped<IRepositoryFactory, RepositoryFactory>()
     .AddSingleton<TrainingDataProcessor>();
 
 using var host = builder.Build();

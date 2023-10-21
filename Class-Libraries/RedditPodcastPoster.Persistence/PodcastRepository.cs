@@ -83,7 +83,7 @@ public class PodcastRepository : IPodcastRepository
     public async Task Save(Podcast podcast)
     {
         var key = podcast.GetPartitionKey();
-        await _dataRepository.Write(key, podcast);
+        await _dataRepository.Write(podcast);
     }
 
     public async Task Update(Podcast podcast)

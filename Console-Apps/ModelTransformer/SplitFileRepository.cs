@@ -6,9 +6,9 @@ namespace ModelTransformer;
 
 public class SplitFileRepository : ISplitFileRepository
 {
-    private readonly IFileRepository _inputFileRepository;
+    private readonly IDataRepository _inputFileRepository;
     private readonly ILogger<SplitFileRepository> _logger;
-    private readonly IFileRepository _outputFileRepository;
+    private readonly IDataRepository _outputFileRepository;
 
     public SplitFileRepository(
         IFileRepositoryFactory fileRepositoryFactory,
@@ -19,9 +19,9 @@ public class SplitFileRepository : ISplitFileRepository
         _outputFileRepository = fileRepositoryFactory.Create("output");
     }
 
-    public async Task Write<T>(string key, T data)
+    public async Task Write<T>(string key, T data) where T : CosmosSelector
     {
-        await _outputFileRepository.Write(key, data);
+        await _outputFileRepository.Write(data);
     }
 
     public async Task<T?> Read<T>(string key, string partitionKey) where T : CosmosSelector

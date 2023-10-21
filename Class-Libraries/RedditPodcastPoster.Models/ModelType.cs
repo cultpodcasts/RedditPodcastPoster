@@ -18,4 +18,7 @@ public enum ModelType
 
     [JsonPropertyName(nameof(KnownTerms))]
     KnownTerms = 5,
+
+    [JsonPropertyName(nameof(Subject))]
+    Subject = 6,
 }

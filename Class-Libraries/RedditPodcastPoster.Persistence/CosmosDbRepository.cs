@@ -7,7 +7,7 @@ using RedditPodcastPoster.Models.Extensions;
 
 namespace RedditPodcastPoster.Persistence;
 
-public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
+public class CosmosDbRepository : ICosmosDbRepository
 {
     private readonly CosmosClient _cosmosClient;
     private readonly CosmosDbSettings _cosmosDbSettings;
@@ -24,17 +24,17 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
     }
 
 
-    public async Task Write<T>(string partitionKey, T data)
+    public async Task Write<T>(T data) where T : CosmosSelector
     {
         var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
         try
         {
-            await c.UpsertItemAsync(data, new PartitionKey(partitionKey));
+            await c.UpsertItemAsync(data, new PartitionKey(data.GetPartitionKey()));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                $"Error UpsertItemAsync on document with partition-partitionKey '{partitionKey}' in Database with DatabaseId '{_cosmosDbSettings.DatabaseId}' and Container '{_cosmosDbSettings.Container}'.");
+                $"Error UpsertItemAsync on document with partition-partitionKey '{data.GetPartitionKey()}' in Database with DatabaseId '{_cosmosDbSettings.DatabaseId}' and Container '{_cosmosDbSettings.Container}'.");
             throw;
         }
     }
@@ -73,14 +73,14 @@ public class CosmosDbRepository : IDataRepository, ICosmosDbRepository
         }
     }
 
-    public async Task<IEnumerable<Guid>> GetAllIds<T>(string key) where T : CosmosSelector
+    public async Task<IEnumerable<Guid>> GetAllIds<T>(string partitionKey) where T : CosmosSelector
     {
         var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
         try
         {
             var guids = new List<Guid>();
             var query = new QueryDefinition(
-                $@"SELECT VALUE c.id FROM c WHERE c.type='{key}'");
+                $@"SELECT VALUE c.id FROM c WHERE c.type='{partitionKey}'");
 
             using var guidFeed = c.GetItemQueryIterator<Guid>(query);
             while (guidFeed.HasMoreResults)

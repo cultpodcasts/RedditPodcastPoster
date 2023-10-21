@@ -9,15 +9,16 @@ public class FileRepository : IFileRepository
 {
     private const string FileExtension = ".json";
     private readonly string _container = ".\\";
-    private readonly JsonSerializerOptions _jsonSerialiserOptions;
     private readonly ILogger<IFileRepository> _logger;
+    private readonly JsonSerializerOptions _jsonSerialiserOptions;
 
     public FileRepository(
-        JsonSerializerOptions jsonSerialiserOptions,
+        IJsonSerializerOptionsProvider jsonSerialiserOptionsProvider,
         string container,
         ILogger<IFileRepository> logger)
     {
-        _jsonSerialiserOptions = jsonSerialiserOptions;
+        _jsonSerialiserOptions = jsonSerialiserOptionsProvider.GetJsonSerializerOptions();
+        _jsonSerialiserOptions.WriteIndented = true;
         _logger = logger;
         if (!string.IsNullOrWhiteSpace(container))
         {
@@ -40,17 +41,16 @@ public class FileRepository : IFileRepository
             }
 
             _container = container;
-
         }
-
-
     }
 
-    public async Task Write<T>(string fileKey, T data)
+    public async Task Write<T>(T data) where T : CosmosSelector
     {
-        await using var createStream = File.Create(GetFilePath(fileKey));
+        var filePath = GetFilePath(data.FileKey);
+        await using var createStream = File.Create(filePath);
         await JsonSerializer.SerializeAsync(createStream, data, _jsonSerialiserOptions);
     }
+
 
     public async Task<T?> Read<T>(string fileKey, string partitionKey) where T : CosmosSelector
     {
@@ -69,7 +69,7 @@ public class FileRepository : IFileRepository
     {
         var filenames = GetFilenames();
         var keys = filenames.Select(x =>
-            x.Substring(_container.Length , x.Length - (FileExtension.Length + _container.Length)));
+            x.Substring(_container.Length, x.Length - (FileExtension.Length + _container.Length)));
         foreach (var item in keys)
         {
             var cosmosSelector = await Read<T>(item, partitionKey);

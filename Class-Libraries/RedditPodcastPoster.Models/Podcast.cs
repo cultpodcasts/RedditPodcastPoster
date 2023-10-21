@@ -93,10 +93,6 @@ public class Podcast : CosmosSelector
     [JsonPropertyOrder(100)]
     public List<Episode> Episodes { get; set; } = new();
 
-    [JsonPropertyName("fileKey")]
-    [JsonPropertyOrder(110)]
-    public string FileKey { get; set; } = "";
-
     public bool HasExpensiveYouTubePlaylistQuery()
     {
         return YouTubePlaylistQueryIsExpensive.HasValue && YouTubePlaylistQueryIsExpensive.Value;

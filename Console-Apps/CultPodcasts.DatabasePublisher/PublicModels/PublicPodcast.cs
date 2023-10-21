@@ -1,16 +1,27 @@
 ﻿using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models;
 
 namespace CultPodcasts.DatabasePublisher.PublicModels;
 
-public class PublicPodcast
+public class PublicPodcast : CosmosSelector
 {
-    [JsonPropertyName("id")]
-    [JsonPropertyOrder(1)]
-    public Guid Id { get; set; }
+    public static readonly string PartitionKey = ModelType.Podcast.ToString();
+
+    public PublicPodcast(Guid id) : base(id, ModelType.Podcast)
+    {
+    }
+
+
+    [JsonIgnore]
+    public override ModelType ModelType { get; set; }
+
+    [JsonIgnore]
+    public override string FileKey { get; set; }
+
 
     [JsonPropertyName("name")]
     [JsonPropertyOrder(3)]
-    public string? Name { get; set; } 
+    public string? Name { get; set; }
 
     [JsonPropertyName("spotifyId")]
     [JsonPropertyOrder(5)]
@@ -31,5 +42,4 @@ public class PublicPodcast
     [JsonPropertyName("episodes")]
     [JsonPropertyOrder(11)]
     public List<PublicEpisode> Episodes { get; set; } = new();
-
 }

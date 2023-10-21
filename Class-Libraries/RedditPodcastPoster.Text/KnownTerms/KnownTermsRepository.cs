@@ -25,6 +25,6 @@ public class KnownTermsRepository : IKnownTermsRepository
     public async Task Save(KnownTerms terms)
     {
         var key = terms.GetPartitionKey();
-        await _dataRepository.Write(key, terms);
+        await _dataRepository.Write(terms);
     }
 }

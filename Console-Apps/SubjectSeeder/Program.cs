@@ -3,9 +3,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.Text.Extensions;
-using SeedEliminationTerms;
+using SubjectSeeder;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -19,11 +19,14 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
+    //.AddSingleton<IFileRepositoryFactory, FileRepositoryFactory>()
+    //.AddScoped(s => (IDataRepository) s.GetService<IFileRepositoryFactory>().Create())
+    //.AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
     .AddRepositories(builder.Configuration)
-    .AddEliminationTerms()
-    .AddSingleton<EliminationTermsSeeder>();
+    .AddRepository<Subject>()
+    .AddSingleton<SubjectsSeeder>();
 
 
 using var host = builder.Build();
-var processor = host.Services.GetService<EliminationTermsSeeder>();
+var processor = host.Services.GetService<SubjectsSeeder>();
 await processor!.Run();

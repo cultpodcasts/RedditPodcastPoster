@@ -1,7 +1,11 @@
-﻿namespace RedditPodcastPoster.Persistence;
+﻿using RedditPodcastPoster.Models;
 
-public interface IRepository<T> 
+namespace RedditPodcastPoster.Persistence;
+
+public interface IRepository<T> where T : CosmosSelector
 {
     Task<IEnumerable<T>> GetAll(string partitionKey);
-    Task Save(string key, T data);
+
+    Task<T?> Get(string key, string partitionKey);
+    Task Save(T data);
 }
