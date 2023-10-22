@@ -30,7 +30,7 @@ public class PublicDatabasePublisher
         {
             var podcast = await _cosmosDbRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
 
-            if (podcast != null && podcast.Episodes.Any(x => x is {Removed: false}))
+            if (podcast != null && podcast.Episodes.Any(x => x is {Removed: false, Ignored:false}))
             {
                 var publicPodcast = new PublicPodcast(podcast.Id)
                 {
@@ -45,7 +45,7 @@ public class PublicDatabasePublisher
                         : podcast.YouTubePlaylistId
                 };
                 publicPodcast.Episodes = podcast.Episodes
-                    .Where(x => x is {Removed: false})
+                    .Where(x => x is {Removed: false, Ignored: false })
                     .Select(oldEpisode => new PublicEpisode
                     {
                         Id = oldEpisode.Id,
