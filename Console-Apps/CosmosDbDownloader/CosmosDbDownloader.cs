@@ -28,17 +28,26 @@ public class CosmosDbDownloader
         foreach (var podcastId in podcastIds)
         {
             var podcast = await _cosmosDbRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
-            await _fileRepository.Write(podcast);
+            if (podcast != null)
+            {
+                await _fileRepository.Write(podcast);
+            }
         }
 
         partitionKey = new EliminationTerms().GetPartitionKey();
         var eliminationTerms =
             await _cosmosDbRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString(), partitionKey);
-        await _fileRepository.Write(eliminationTerms);
+        if (eliminationTerms != null)
+        {
+            await _fileRepository.Write(eliminationTerms);
+        }
 
         partitionKey = new KnownTerms()!.GetPartitionKey();
         var knownTerms =
             await _cosmosDbRepository.Read<KnownTerms>(KnownTerms._Id.ToString(), partitionKey);
-        await _fileRepository.Write(knownTerms);
+        if (knownTerms != null)
+        {
+            await _fileRepository.Write(knownTerms);
+        }
     }
 }
