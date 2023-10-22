@@ -20,6 +20,8 @@ public enum ModelType
     KnownTerms = 5,
 
     [JsonPropertyName(nameof(TrainingData))]
-    TrainingData = 6
+    TrainingData = 6,
 
+    [JsonPropertyName(nameof(Subject))]
+    Subject = 7,
 }
