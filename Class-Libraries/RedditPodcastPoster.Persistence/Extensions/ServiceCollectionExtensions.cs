@@ -22,11 +22,11 @@ public static class ServiceCollectionExtensions
             .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>();
     }
 
-    public static IServiceCollection AddFileRepository(this IServiceCollection services)
+    public static IServiceCollection AddFileRepository(this IServiceCollection services, string containerName="")
     {
         return services
             .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-            .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create());
+            .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create(containerName));
     }
 
     public static IServiceCollection AddRepository<T>(this IServiceCollection services) where T : CosmosSelector

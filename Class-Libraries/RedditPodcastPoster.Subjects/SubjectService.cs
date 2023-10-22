@@ -112,4 +112,37 @@ public class SubjectService : ISubjectService
 
         return null;
     }
+
+    public async Task<Subject?> Match(string subject)
+    {
+        if (string.IsNullOrWhiteSpace(subject))
+        {
+            throw new ArgumentNullException(nameof(subject));
+        }
+
+        var subjects = await _subjectRepository.GetAll(Subject.PartitionKey);
+
+        var matchedSubject =
+            subjects.SingleOrDefault(x => x.Name.ToLowerInvariant() == subject.ToLowerInvariant());
+        if (matchedSubject != null)
+        {
+            return matchedSubject;
+        }
+
+        matchedSubject = subjects.Where(x => x.Aliases != null).FirstOrDefault(x =>
+            x.Aliases.Select(y => y.ToLowerInvariant()).Contains(subject.ToLowerInvariant()));
+        if (matchedSubject != null)
+        {
+            return matchedSubject;
+        }
+
+        matchedSubject = subjects.Where(x => x.AssociatedSubjects != null).FirstOrDefault(x =>
+            x.AssociatedSubjects.Select(y => y.ToLowerInvariant()).Contains(subject.ToLowerInvariant()));
+        if (matchedSubject != null)
+        {
+            return matchedSubject;
+        }
+
+        return null;
+    }
 }

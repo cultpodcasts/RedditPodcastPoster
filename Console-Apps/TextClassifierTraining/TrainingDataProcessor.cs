@@ -133,7 +133,7 @@ public class TrainingDataProcessor
                 subjects.Add(flair);
             }
 
-            subjects = _subjectCleanser.CleanSubjects(subjects);
+            subjects = await _subjectCleanser.CleanSubjects(subjects);
 
             if (subjects.Any())
             {

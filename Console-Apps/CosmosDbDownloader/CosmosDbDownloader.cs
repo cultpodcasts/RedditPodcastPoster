@@ -49,5 +49,23 @@ public class CosmosDbDownloader
         {
             await _fileRepository.Write(knownTerms);
         }
+
+        partitionKey = Subject.PartitionKey;
+        var subjectIds =
+            await _cosmosDbRepository.GetAllIds<Subject>(partitionKey);
+        foreach (var subjectId in subjectIds)
+        {
+            var subject = await _cosmosDbRepository.Read<Subject>(subjectId.ToString(), partitionKey);
+            if (subject != null)
+            {
+                if (string.IsNullOrWhiteSpace(subject.FileKey))
+                {
+                    _logger.LogInformation($"Subject with id '{subject.Id}' missing a file-key.");
+                    subject.FileKey = FileKeyFactory.GetFileKey(subject.Name);
+                    await _cosmosDbRepository.Write(subject);
+                }
+                await _fileRepository.Write(subject);
+            }
+        }
     }
 }

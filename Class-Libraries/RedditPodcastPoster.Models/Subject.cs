@@ -10,7 +10,6 @@ public sealed class Subject : CosmosSelector
     public Subject(string name)
         : base(Guid.NewGuid(), ModelType.Subject)
     {
-        FileKey = FileKeyFactory.GetFileKey(Name);
         Name = name;
     }
 

@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -16,6 +18,7 @@ public class EnrichYouTubePodcastProcessor
     private readonly IYouTubeEpisodeProvider _youTubeEpisodeProvider;
     private readonly IYouTubePlaylistService _youTubePlaylistService;
     private readonly IYouTubeVideoService _youTubeVideoService;
+    private readonly PostingCriteria _postingCriteria;
 
     public EnrichYouTubePodcastProcessor(
         IPodcastRepository podcastRepository,
@@ -23,6 +26,7 @@ public class EnrichYouTubePodcastProcessor
         IYouTubeChannelService youTubeChannelService,
         IYouTubeVideoService youTubeVideoService,
         IYouTubeEpisodeProvider youTubeEpisodeProvider,
+        IOptions<PostingCriteria> postingCriteria,
         ILogger<EnrichYouTubePodcastProcessor> logger)
     {
         _podcastRepository = podcastRepository;
@@ -30,6 +34,7 @@ public class EnrichYouTubePodcastProcessor
         _youTubeChannelService = youTubeChannelService;
         _youTubeVideoService = youTubeVideoService;
         _youTubeEpisodeProvider = youTubeEpisodeProvider;
+        _postingCriteria = postingCriteria.Value;
         _logger = logger;
     }
 
@@ -100,11 +105,11 @@ public class EnrichYouTubePodcastProcessor
             return;
         }
 
-        if (playlistQueryResponse.IsExpensiveQuery && !request.AcknowledgeExpensiveYouTubePlaylistQuery)
+        if (!string.IsNullOrWhiteSpace(request.PlaylistId) &&
+            playlistQueryResponse.IsExpensiveQuery && !request.AcknowledgeExpensiveYouTubePlaylistQuery)
         {
             _logger.LogError($"Querying '{playlistId}' is noted for being an expensive query.");
             podcast.YouTubePlaylistQueryIsExpensive = true;
-            return;
         }
 
         var missingPlaylistItems = playlistQueryResponse.Result.Where(playlistItem =>
@@ -127,8 +132,11 @@ public class EnrichYouTubePodcastProcessor
             if (video != null)
             {
                 var episode = _youTubeEpisodeProvider.GetEpisode(missingPlaylistItemSnippet, video);
-                episode.Id = Guid.NewGuid();
-                podcast.Episodes.Add(episode);
+                if (episode.Length > _postingCriteria.MinimumDuration)
+                {
+                    episode.Id = Guid.NewGuid();
+                    podcast.Episodes.Add(episode);
+                }
             }
         }
 

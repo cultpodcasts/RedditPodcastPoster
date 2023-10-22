@@ -51,5 +51,14 @@ public class CachedSubjectRepository : ICachedSubjectRepository
         var subjects = await _subjectRepository.GetAll(Subject.PartitionKey);
         Cache = subjects.ToList();
         requiresFetch = false;
+        if (Cache.Any(x => string.IsNullOrWhiteSpace(x.Name)))
+        {
+            foreach (var subject in Cache.Where(x=>string.IsNullOrWhiteSpace(x.Name)))
+            {
+                _logger.LogError($"Retrieved a subject with empty name, has id {subject.Id}");
+            }
+
+            throw new InvalidOperationException("Retrieved subjects with null/empty name");
+        }
     }
 }

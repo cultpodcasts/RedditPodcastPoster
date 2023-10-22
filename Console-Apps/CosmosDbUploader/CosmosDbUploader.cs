@@ -43,5 +43,11 @@ public class CosmosDbUploader
         {
             await _cosmosDbRepository.Write(knownTermsDocument);
         }
+
+        var subjects = await _fileRepository.GetAll<Subject>(Subject.PartitionKey).ToListAsync();
+        foreach (var subject in subjects)
+        {
+            await _cosmosDbRepository.Write(subject);
+        }
     }
 }

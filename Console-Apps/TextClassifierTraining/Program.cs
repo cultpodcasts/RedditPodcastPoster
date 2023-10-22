@@ -4,10 +4,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.Reddit.Extensions;
+using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Subreddit.Extensions;
 using TextClassifierTraining;
 
@@ -24,12 +25,17 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddFileRepository()
+    .AddFileRepository("subreddit-repository")
     .AddRepositories(builder.Configuration)
     .AddSubredditServices(builder.Configuration)
     .AddSpotifyServices(builder.Configuration)
     .AddYouTubeServices(builder.Configuration)
-    .AddSingleton<TrainingDataProcessor>();
+    .AddSingleton<TrainingDataProcessor>()
+    .AddSingleton<ISubjectCleanser, SubjectCleanser>()
+    .AddSubjectServices()
+    .AddRedditServices(builder.Configuration);
+
+
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<TrainingDataRequest>(args)

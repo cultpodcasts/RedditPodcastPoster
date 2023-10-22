@@ -9,8 +9,8 @@ public class FileRepository : IFileRepository
 {
     private const string FileExtension = ".json";
     private readonly string _container = ".\\";
-    private readonly ILogger<IFileRepository> _logger;
     private readonly JsonSerializerOptions _jsonSerialiserOptions;
+    private readonly ILogger<IFileRepository> _logger;
 
     public FileRepository(
         IJsonSerializerOptionsProvider jsonSerialiserOptionsProvider,
@@ -46,6 +46,11 @@ public class FileRepository : IFileRepository
 
     public async Task Write<T>(T data) where T : CosmosSelector
     {
+        if (string.IsNullOrWhiteSpace(data.FileKey))
+        {
+            throw new ArgumentException($"{nameof(data)} with id '{data.Id}' has a null/empty file-key.");
+        }
+
         var filePath = GetFilePath(data.FileKey);
         await using var createStream = File.Create(filePath);
         await JsonSerializer.SerializeAsync(createStream, data, _jsonSerialiserOptions);
