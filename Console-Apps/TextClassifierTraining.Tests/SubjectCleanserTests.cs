@@ -73,8 +73,8 @@ public class SubjectCleanserTests
     }
 
     [Theory]
-    [InlineData("Term 1 \u0026 Term 2", "Term 1 and Term 2")]
-    [InlineData("Term 1 & Term 2", "Term 1 and Term 2")]
+    [InlineData("Term 1 \u0026 Term 2", "term 1 and term 2")]
+    [InlineData("Term 1 & Term 2", "term 1 and term 2")]
     public void CleanseSubjects_WithAmpsersand_IsCorrect(string subject, string expected)
     {
         // arrange
