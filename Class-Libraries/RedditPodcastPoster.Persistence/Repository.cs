@@ -18,7 +18,6 @@ public class Repository<T> : IRepository<T> where T : CosmosSelector
 
     public async Task<IEnumerable<T>> GetAll(string partitionKey)
     {
-        var type = typeof(T);
         return await _dataRepository.GetAll<T>(partitionKey).ToListAsync();
     }
 

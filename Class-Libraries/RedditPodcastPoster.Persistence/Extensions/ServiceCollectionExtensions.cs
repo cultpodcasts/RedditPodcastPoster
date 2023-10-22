@@ -13,7 +13,8 @@ public static class ServiceCollectionExtensions
 
         CosmosDbClientFactory.AddCosmosClient(services);
 
-        return services.AddScoped<IDataRepository, CosmosDbRepository>()
+        return services
+            .AddScoped<IDataRepository, CosmosDbRepository>()
             .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
             .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
             .AddScoped<IPodcastRepository, PodcastRepository>()

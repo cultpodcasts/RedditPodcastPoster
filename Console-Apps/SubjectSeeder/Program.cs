@@ -3,8 +3,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.Subjects.Extensions;
 using SubjectSeeder;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -23,7 +23,7 @@ builder.Services
     //.AddScoped(s => (IDataRepository) s.GetService<IFileRepositoryFactory>().Create())
     //.AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
     .AddRepositories(builder.Configuration)
-    .AddRepository<Subject>()
+    .AddSubjectServices()
     .AddSingleton<SubjectsSeeder>();
 
 
