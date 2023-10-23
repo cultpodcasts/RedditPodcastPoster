@@ -18,7 +18,7 @@ public class SubjectCleanser : ISubjectCleanser
         _logger = logger;
     }
 
-    public async Task<List<string>> CleanSubjects(List<string> subjects)
+    public async Task<(bool, List<string>)> CleanSubjects(List<string> subjects)
     {
         var splitSubjects = new List<string>();
         foreach (var subject in subjects.Select(x => x.ToLower().Trim()).Distinct())
@@ -28,6 +28,10 @@ public class SubjectCleanser : ISubjectCleanser
             if (subject.Contains("/"))
             {
                 components.AddRange(subject.Split("/").Select(x => x.Trim()));
+            }
+            else if (subject.Contains(","))
+            {
+                components.AddRange(subject.Split(",").Select(x => x.Trim()));
             }
             else if (subject.Contains("\\"))
             {
@@ -59,18 +63,25 @@ public class SubjectCleanser : ISubjectCleanser
             }
         }
 
+        var unmatchedSubject = false;
         var cleansedSubjects = new List<string>();
         foreach (var subject in splitSubjects)
         {
             var cleansed = subject.Replace("\u0026", "and");
             cleansed = cleansed.Replace("!", string.Empty);
             cleansed = cleansed.Replace("- ", string.Empty);
-            if (await _subjectService.Match(cleansed) == null)
+            var matchedSubject = await _subjectService.Match(cleansed);
+            if (matchedSubject == null)
             {
-                cleansedSubjects.Add(cleansed);
+                unmatchedSubject = true;
+                _logger.LogError($"Unmatched subject '{cleansed}'.");
+            }
+            else
+            {
+                cleansedSubjects.Add(matchedSubject.Name);
             }
         }
 
-        return cleansedSubjects;
+        return (unmatchedSubject, cleansedSubjects.Distinct().ToList());
     }
 }

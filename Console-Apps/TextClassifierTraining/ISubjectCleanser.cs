@@ -2,5 +2,5 @@
 
 public interface ISubjectCleanser
 {
-    Task<List<string>> CleanSubjects(List<string> subjects);
+    Task<(bool, List<string>)> CleanSubjects(List<string> subjects);
 }

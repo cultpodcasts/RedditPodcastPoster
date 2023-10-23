@@ -133,7 +133,12 @@ public class TrainingDataProcessor
                 subjects.Add(flair);
             }
 
-            subjects = await _subjectCleanser.CleanSubjects(subjects);
+            (var unmatched, subjects) = await _subjectCleanser.CleanSubjects(subjects);
+            if (unmatched)
+            {
+                _logger.LogError(
+                    $"Podcast '{flairedEpisode.Item1.Name}' id:'{flairedEpisode.Item1.Id}' Episode-id:'{flairedEpisode.Item2.Id}'.");
+            }
 
             if (subjects.Any())
             {

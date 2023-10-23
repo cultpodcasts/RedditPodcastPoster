@@ -33,6 +33,10 @@ public class SubjectsSeeder
             {
                 await _subjectRepository.Save(subject);
             }
+            else
+            {
+                _logger.LogError($"Subject '{subject.Name}' matches subject '{match.Name}'.");
+            }
         }
     }
 }
