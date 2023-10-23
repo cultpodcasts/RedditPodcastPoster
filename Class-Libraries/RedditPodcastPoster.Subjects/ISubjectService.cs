@@ -6,4 +6,5 @@ public interface ISubjectService
 {
     Task<Subject?> Match(Subject subject);
     Task<Subject?> Match(string subject);
+    Task<string[]> Match(PodcastEpisode podcastEpisode);
 }

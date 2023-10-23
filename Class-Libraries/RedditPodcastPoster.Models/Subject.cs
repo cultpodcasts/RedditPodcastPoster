@@ -24,4 +24,13 @@ public sealed class Subject : CosmosSelector
     [JsonPropertyName("associatedSubjects")]
     [JsonPropertyOrder(10)]
     public string[]? AssociatedSubjects { get; set; }
+
+    public string[] GetTerms()
+    {
+        return
+            new[] {Name}
+                .Concat(Aliases ?? Array.Empty<string>())
+                .Concat(AssociatedSubjects ?? Array.Empty<string>())
+                .ToArray();
+    }
 }

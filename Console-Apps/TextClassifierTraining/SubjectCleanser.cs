@@ -74,7 +74,7 @@ public class SubjectCleanser : ISubjectCleanser
             if (matchedSubject == null)
             {
                 unmatchedSubject = true;
-                _logger.LogError($"Unmatched subject '{cleansed}'.");
+//                _logger.LogError($"Unmatched subject '{cleansed}'.");
             }
             else
             {

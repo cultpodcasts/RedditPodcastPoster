@@ -145,4 +145,28 @@ public class SubjectService : ISubjectService
 
         return null;
     }
+
+    public async Task<string[]> Match(PodcastEpisode podcastEpisode)
+    {
+        var subjects = await _subjectRepository.GetAll(Subject.PartitionKey);
+        var matchingSubjects = subjects.Where(x => Matches(podcastEpisode.Episode, x)).Select(x => x.Name);
+        return matchingSubjects.ToArray();
+    }
+
+    private bool Matches(Episode episode, Subject subject)
+    {
+        var match = false;
+        var terms = subject.GetTerms();
+        foreach (var term in terms)
+        {
+            match = episode.Title.Contains(term, StringComparison.InvariantCultureIgnoreCase) ||
+                    episode.Description.Contains(term, StringComparison.InvariantCultureIgnoreCase);
+            if (match)
+            {
+                return match;
+            }
+        }
+
+        return match;
+    }
 }

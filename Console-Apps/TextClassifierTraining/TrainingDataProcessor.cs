@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subreddit;
 using TextClassifierTraining.Models;
 
@@ -20,6 +21,7 @@ public class TrainingDataProcessor
     private readonly ILogger<TrainingDataProcessor> _logger;
     private readonly IPodcastRepository _podcastRepository;
     private readonly ISubjectCleanser _subjectCleanser;
+    private readonly ISubjectService _subjectService;
     private readonly ISubredditPostProvider _subredditPostProvider;
     private readonly ISubredditRepository _subredditRepository;
 
@@ -28,12 +30,14 @@ public class TrainingDataProcessor
         ISubredditRepository subredditRepository,
         IPodcastRepository podcastRepository,
         ISubjectCleanser subjectCleanser,
+        ISubjectService subjectService,
         ILogger<TrainingDataProcessor> logger)
     {
         _subredditPostProvider = subredditPostProvider;
         _subredditRepository = subredditRepository;
         _podcastRepository = podcastRepository;
         _subjectCleanser = subjectCleanser;
+        _subjectService = subjectService;
         _logger = logger;
     }
 
@@ -75,9 +79,12 @@ public class TrainingDataProcessor
         var podcasts = await _podcastRepository.GetAll().ToListAsync();
 
         var podcastEpisodes = podcasts.SelectMany(podcast => podcast.Episodes,
-            (podcast, episode) => new {Podcast = podcast, Episode = episode});
+            (podcast, episode) => new PodcastEpisode(podcast, episode));
 
-        var flairedEpisodes = new List<(Podcast, Episode, string?)>();
+        var labels = new Labels();
+        labels.MetaData.StorageInputContainerName = ContainerName;
+        labels.MetaData.ProjectName = ProjectName;
+
         foreach (var podcastEpisode in podcastEpisodes)
         {
             RedditPostMetaData? redditPostMetaData = null;
@@ -102,50 +109,45 @@ public class TrainingDataProcessor
                 redditPostMetaData = candidates.FirstOrDefault();
             }
 
-            flairedEpisodes.Add(new ValueTuple<Podcast, Episode, string?>(podcastEpisode.Podcast,
-                podcastEpisode.Episode, redditPostMetaData?.Flair));
-        }
-
-        _logger.LogInformation($"Podcast Episodes: {flairedEpisodes.Count}");
-        var flairedEpisodesWithFlair =
-            flairedEpisodes.Where(x => !string.IsNullOrWhiteSpace(x.Item3) || x.Item2.Subjects.Any());
-        _logger.LogInformation(
-            $"Podcast Episodes with flair: {flairedEpisodesWithFlair.Count()}");
-
-        var labels = new Labels();
-        labels.MetaData.StorageInputContainerName = ContainerName;
-        labels.MetaData.ProjectName = ProjectName;
-        foreach (var flairedEpisode in flairedEpisodesWithFlair)
-        {
-            var id = flairedEpisode.Item2.Id;
-
-            var podcastSubjects = flairedEpisode.Item2.Subjects;
-            var flair = flairedEpisode.Item3;
-
+            var flair = redditPostMetaData?.Flair;
+            var id = podcastEpisode.Episode.Id;
             var subjects = new List<string>();
-            if (podcastSubjects.Any())
+            if (!string.IsNullOrWhiteSpace(flair) || podcastEpisode.Episode.Subjects.Any())
             {
-                subjects.AddRange(podcastSubjects);
-            }
+                var podcastSubjects = podcastEpisode.Episode.Subjects;
 
-            if (!string.IsNullOrWhiteSpace(flair))
-            {
-                subjects.Add(flair);
-            }
+                if (podcastSubjects.Any())
+                {
+                    subjects.AddRange(podcastSubjects);
+                }
 
-            (var unmatched, subjects) = await _subjectCleanser.CleanSubjects(subjects);
-            if (unmatched)
+                if (!string.IsNullOrWhiteSpace(flair))
+                {
+                    subjects.Add(flair);
+                }
+
+                (var unmatched, subjects) = await _subjectCleanser.CleanSubjects(subjects);
+                if (unmatched)
+                {
+                    _logger.LogError(
+                        $"Podcast '{podcastEpisode.Podcast.Name}' id:'{podcastEpisode.Podcast.Id}' Episode-id:'{podcastEpisode.Episode.Id}'.");
+                }
+            }
+            else
             {
-                _logger.LogError(
-                    $"Podcast '{flairedEpisode.Item1.Name}' id:'{flairedEpisode.Item1.Id}' Episode-id:'{flairedEpisode.Item2.Id}'.");
+                subjects = (await _subjectService.Match(podcastEpisode)).ToList();
+                if (!subjects.Any())
+                {
+                    _logger.LogError($"MISSING: '{podcastEpisode.Episode.Title}' - '{podcastEpisode.Episode.Description}'.");
+                }
             }
 
             if (subjects.Any())
             {
                 var filename = $"{id}.txt";
                 await File.WriteAllTextAsync(Path.Combine(TrainingDataLocation, filename),
-                    $@"{flairedEpisode.Item2.Title}
-${flairedEpisode.Item2.Description}");
+                    $@"{podcastEpisode.Episode.Title}
+${podcastEpisode.Episode.Description}");
 
                 foreach (var subject in subjects.Distinct().Select(x => x.ToLower()))
                 {
@@ -157,11 +159,11 @@ ${flairedEpisode.Item2.Description}");
 
                 var documentSubjects = subjects.Distinct().Select(x => new Class {Category = x.ToLower()}).ToList();
 
-                if (documentSubjects.Count > 1)
-                {
-                    _logger.LogInformation(
-                        $"'{flairedEpisode.Item1.Name}' episode {flairedEpisode.Item2.Id} multiple-subjects: {string.Join(", ", subjects.Select(x => $"'{x}'"))}.");
-                }
+                //if (documentSubjects.Count > 1)
+                //{
+                //    _logger.LogInformation(
+                //        $"'{flairedEpisode.Item1.Name}' episode {flairedEpisode.Item2.Id} multiple-subjects: {string.Join(", ", subjects.Select(x => $"'{x}'"))}.");
+                //}
 
                 labels.Assets.Documents.Add(new Document
                 {
