@@ -24,6 +24,6 @@ public class SubredditRepository : ISubredditRepository
 
     public async Task Save(RedditPost post)
     {
-        await _fileRepository.Write(post.FullName, post);
+        await _fileRepository.Write(post);
     }
 }

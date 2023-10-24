@@ -17,4 +17,5 @@ public class EliminationTerms : CosmosSelector
     [JsonPropertyOrder(10)]
     public List<string> Terms { get; set; } = new();
 
+    public override string FileKey => nameof(EliminationTerms);
 }

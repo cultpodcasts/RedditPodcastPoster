@@ -24,7 +24,7 @@ builder.Services
     .AddLogging()
     .AddFileRepository()
     .AddRepositories(builder.Configuration)
-    .AddScoped<IDataRepository, CosmosDbRepository>()
+    .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
     .AddSingleton(new JsonSerializerOptions
     {
         WriteIndented = true,

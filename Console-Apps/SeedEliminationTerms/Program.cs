@@ -3,7 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using SeedEliminationTerms;
@@ -23,10 +22,6 @@ builder.Services
     .AddRepositories(builder.Configuration)
     .AddEliminationTerms()
     .AddSingleton<EliminationTermsSeeder>();
-
-CosmosDbClientFactory.AddCosmosClient(builder.Services);
-builder.Services
-    .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
 
 
 using var host = builder.Build();

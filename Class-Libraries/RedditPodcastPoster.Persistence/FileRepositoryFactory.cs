@@ -20,11 +20,10 @@ public class FileRepositoryFactory : IFileRepositoryFactory
 
     public IFileRepository Create(string container)
     {
-        var jsonSerializerOptions = _jsonSerializerOptionsProvider.GetJsonSerializerOptions();
-        jsonSerializerOptions.WriteIndented = true;
         return new FileRepository(
-            jsonSerializerOptions,
-            container, _fileRepositoryLogger);
+            _jsonSerializerOptionsProvider,
+            container, 
+            _fileRepositoryLogger);
     }
 
     public IFileRepository Create()

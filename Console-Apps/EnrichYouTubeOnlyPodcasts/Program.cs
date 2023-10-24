@@ -1,14 +1,11 @@
 ﻿using System.Reflection;
-using System.Text.Json;
 using CommandLine;
 using EnrichYouTubeOnlyPodcasts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -16,7 +13,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 
 builder.Configuration
-    .AddJsonFile("appsettings.json", true)
+    .AddJsonFile("appsettings.json", false)
     .AddEnvironmentVariables("RedditPodcastPoster_")
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
@@ -27,6 +24,10 @@ builder.Services
     .AddRepositories(builder.Configuration)
     .AddYouTubeServices(builder.Configuration)
     .AddSingleton<EnrichYouTubePodcastProcessor>();
+
+builder.Services
+    .AddOptions<PostingCriteria>().Bind(builder.Configuration.GetSection("postingCriteria"));
+
 
 using var host = builder.Build();
 

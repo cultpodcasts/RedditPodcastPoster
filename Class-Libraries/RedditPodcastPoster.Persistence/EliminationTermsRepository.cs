@@ -24,6 +24,6 @@ public class EliminationTermsRepository : IEliminationTermsRepository
     public async Task Save(Models.EliminationTerms terms)
     {
         var key = terms.GetPartitionKey();
-        await _dataRepository.Write(key, terms);
+        await _dataRepository.Write(terms);
     }
 }

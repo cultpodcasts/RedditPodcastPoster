@@ -26,4 +26,6 @@ public class RedditPost : CosmosSelector
     public bool IsVideo { get; set; }
     public string Text { get; set; } = "";
     public string Html { get; set; } = "";
+
+    public override string FileKey => FullName;
 }

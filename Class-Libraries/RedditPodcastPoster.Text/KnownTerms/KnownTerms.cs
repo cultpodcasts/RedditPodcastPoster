@@ -28,4 +28,6 @@ public class KnownTerms : CosmosSelector
 
         return input;
     }
+
+    public override string FileKey=>nameof(KnownTerms);
 }
