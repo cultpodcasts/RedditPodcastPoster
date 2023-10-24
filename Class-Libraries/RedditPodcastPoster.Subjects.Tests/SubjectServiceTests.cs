@@ -60,7 +60,7 @@ public class SubjectServiceTests
     public async Task Match_WithSubjectNameMatchingASubjectAlias_IsCorrect()
     {
         // arrange
-        var subject = _fixture.Build<Subject>().With(x => x.Name, _subjects.Last().Aliases.Last).Create();
+        var subject = _fixture.Build<Subject>().With(x => x.Name, _subjects.Last().Aliases!.Last).Create();
         // act
         var result = await Sut.Match(subject);
         // assert
@@ -82,7 +82,7 @@ public class SubjectServiceTests
     public async Task Match_WithSubjectAliasMatchingASubjectAlias_IsCorrect()
     {
         // arrange
-        var subject = _fixture.Build<Subject>().With(x => x.Aliases, new[] {_subjects.Last().Aliases.Last()}).Create();
+        var subject = _fixture.Build<Subject>().With(x => x.Aliases, new[] {_subjects.Last().Aliases!.Last()}).Create();
         // act
         var result = await Sut.Match(subject);
         // assert
@@ -94,7 +94,7 @@ public class SubjectServiceTests
     {
         // arrange
         var subject = _fixture.Create<Subject>();
-        _subjects.Append(_fixture.Build<Subject>().With(x => x.Aliases, new[] {subject.Aliases.First()}).Create());
+        _subjects.Append(_fixture.Build<Subject>().With(x => x.Aliases, new[] {subject.Aliases!.First()}).Create());
         _subjects.Append(_fixture.Build<Subject>().With(x => x.Aliases, new[] {subject.Aliases.Last()}).Create());
         // act
         Func<Task> act = () => Sut.Match(subject);
@@ -106,7 +106,7 @@ public class SubjectServiceTests
     public async Task Match_WithSubjectNameMatchingASubjectAssociatedSubject_IsCorrect()
     {
         // arrange
-        var subject = _fixture.Build<Subject>().With(x => x.Name, _subjects.Last().AssociatedSubjects.Last).Create();
+        var subject = _fixture.Build<Subject>().With(x => x.Name, _subjects.Last().AssociatedSubjects!.Last).Create();
         // act
         var result = await Sut.Match(subject);
         // assert
