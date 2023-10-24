@@ -94,10 +94,10 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
                 {
                     if (paging.Item2 != null)
                     {
-                        if (indexingContext.SkipExpensiveQueries && request.HasExpensiveSpotifyEpisodesQuery)
+                        if (indexingContext.SkipExpensiveSpotifyQueries && request.HasExpensiveSpotifyEpisodesQuery)
                         {
                             _logger.LogInformation(
-                                $"{nameof(FindEpisode)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveQueries)} is set.");
+                                $"{nameof(FindEpisode)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveSpotifyQueries)} is set.");
                         }
                         else
                         {
@@ -153,10 +153,10 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
             await _spotifyClientWrapper.GetShowEpisodes(request.SpotifyPodcastId.PodcastId, showEpisodesRequest,
                 indexingContext);
 
-        if (indexingContext.SkipExpensiveQueries && request.HasExpensiveSpotifyEpisodesQuery)
+        if (indexingContext.SkipExpensiveSpotifyQueries && request.HasExpensiveSpotifyEpisodesQuery)
         {
             _logger.LogInformation(
-                $"{nameof(GetEpisodes)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveQueries)} is set.");
+                $"{nameof(GetEpisodes)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveSpotifyQueries)} is set.");
             return new PaginateEpisodesResponse(pagedEpisodes?.Items ?? new List<SimpleEpisode>());
         }
 

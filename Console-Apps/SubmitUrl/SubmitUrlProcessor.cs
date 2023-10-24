@@ -28,7 +28,8 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
         var indexOptions = new IndexingContext {SkipPodcastDiscovery = false};
         if (request.AllowExpensiveQueries)
         {
-            indexOptions.SkipExpensiveQueries = false;
+            indexOptions.SkipExpensiveYouTubeQueries = false;
+            indexOptions.SkipExpensiveSpotifyQueries = false;
         }
 
         List<Podcast> podcasts;
