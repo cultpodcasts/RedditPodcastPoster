@@ -27,7 +27,7 @@ public class YouTubeEpisodeRetrievalHandler : IYouTubeEpisodeRetrievalHandler
         {
             if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
             {
-                if (podcast.HasExpensiveYouTubePlaylistQuery() && indexingContext.SkipExpensiveQueries)
+                if (podcast.HasExpensiveYouTubePlaylistQuery() && indexingContext.SkipExpensiveYouTubeQueries)
                 {
                     _logger.LogInformation(
                         $"Podcast '{podcast.Id}' has known expensive query and will not run this time.");

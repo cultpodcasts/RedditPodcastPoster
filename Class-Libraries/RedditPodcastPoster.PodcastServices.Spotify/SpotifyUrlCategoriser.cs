@@ -60,7 +60,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
                 findEpisodeResponse.FullEpisode.Explicit);
         }
 
-        _logger.LogError($"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveQueries)}' is set.");
+        _logger.LogError($"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveSpotifyQueries)}' is set.");
 
         throw new InvalidOperationException($"Could not find item with spotify-id '{SpotifyId}'.");
     }
@@ -69,7 +69,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
         IndexingContext indexingContext)
     {
         var request = FindSpotifyEpisodeRequestFactory.Create(matchingPodcast, criteria);
-        if (!indexingContext.SkipExpensiveQueries)
+        if (!indexingContext.SkipExpensiveSpotifyQueries)
         {
             var findEpisodeResponse = await _spotifyEpisodeResolver.FindEpisode(request, indexingContext);
             if (findEpisodeResponse.FullEpisode != null)
@@ -90,7 +90,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
         }
         else
         {
-            _logger.LogError($"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveQueries)}' is set.");
+            _logger.LogError($"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveSpotifyQueries)}' is set.");
         }
 
         _logger.LogWarning(
