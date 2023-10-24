@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 
-namespace RedditPodcastPoster.Persistence;
+namespace RedditPodcastPoster.Persistence.Abstractions;
 
 public interface IJsonSerializerOptionsProvider
 {

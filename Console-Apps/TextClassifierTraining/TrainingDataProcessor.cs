@@ -2,7 +2,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subreddit;
 using TextClassifierTraining.Models;
@@ -135,10 +135,11 @@ public class TrainingDataProcessor
             }
             else
             {
-                subjects = (await _subjectService.Match(podcastEpisode)).ToList();
+                subjects = (await _subjectService.Match(podcastEpisode.Episode, true)).ToList();
                 if (!subjects.Any())
                 {
-                    _logger.LogError($"MISSING: '{podcastEpisode.Episode.Title}' - '{podcastEpisode.Episode.Description}'.");
+                    _logger.LogError(
+                        $"MISSING: '{podcastEpisode.Episode.Title}' - '{podcastEpisode.Episode.Description}'.");
                 }
             }
 

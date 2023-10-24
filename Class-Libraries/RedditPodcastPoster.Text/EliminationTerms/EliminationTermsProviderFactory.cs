@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Text.EliminationTerms;
 
@@ -15,6 +15,7 @@ public class EliminationTermsProviderFactory : IEliminationTermsProviderFactory
         _eliminationTermsRepository = eliminationTermsRepository;
         _logger = logger;
     }
+
     public async Task<IEliminationTermsProvider> Create()
     {
         _logger.LogInformation($"{nameof(Create)} - Creating {nameof(EliminationTermsProvider)}");

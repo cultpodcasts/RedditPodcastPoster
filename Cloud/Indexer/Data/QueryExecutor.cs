@@ -1,9 +1,9 @@
 ﻿using System.Text.RegularExpressions;
-using Indexer.Dtos;
 using Indexer.Models;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Text;
 

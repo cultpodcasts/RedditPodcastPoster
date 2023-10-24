@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
 
 namespace RedditPodcastPoster.Subjects.Extensions;

@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Indexer.Dtos;
+namespace RedditPodcastPoster.Models;
 
 public class HomePageModel
 {

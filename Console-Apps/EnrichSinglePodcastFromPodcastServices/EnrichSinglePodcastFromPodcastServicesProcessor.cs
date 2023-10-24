@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace EnrichSinglePodcastFromPodcastServices;

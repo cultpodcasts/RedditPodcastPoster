@@ -100,9 +100,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TextClassifierTraining.Test
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SubjectSeeder", "Console-Apps\SubjectSeeder\SubjectSeeder.csproj", "{5AACE81D-DFC3-4B11-8F33-E004916DFC3D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Subjects", "Class-Libraries\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj", "{BD1FFE7D-24CE-4E88-AEA2-7C6B556A21BA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Subjects", "Class-Libraries\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj", "{BD1FFE7D-24CE-4E88-AEA2-7C6B556A21BA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Subjects.Tests", "Class-Libraries\RedditPodcastPoster.Subjects.Tests\RedditPodcastPoster.Subjects.Tests.csproj", "{C7A8AAB5-211C-4457-87BD-38D100904542}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Subjects.Tests", "Class-Libraries\RedditPodcastPoster.Subjects.Tests\RedditPodcastPoster.Subjects.Tests.csproj", "{C7A8AAB5-211C-4457-87BD-38D100904542}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.AI", "Class-Libraries\RedditPodcastPoster.AI\RedditPodcastPoster.AI.csproj", "{BF1BE2B8-1259-475A-A08C-02934BEB6472}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Persistence.Abstractions", "Class-Libraries\RedditPodcastPoster.Persistence.Abstractions\RedditPodcastPoster.Persistence.Abstractions.csproj", "{9DDD2B69-B7C8-4D8D-8C5B-AEA4C9334CCE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -270,6 +274,14 @@ Global
 		{C7A8AAB5-211C-4457-87BD-38D100904542}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C7A8AAB5-211C-4457-87BD-38D100904542}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C7A8AAB5-211C-4457-87BD-38D100904542}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF1BE2B8-1259-475A-A08C-02934BEB6472}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF1BE2B8-1259-475A-A08C-02934BEB6472}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF1BE2B8-1259-475A-A08C-02934BEB6472}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF1BE2B8-1259-475A-A08C-02934BEB6472}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9DDD2B69-B7C8-4D8D-8C5B-AEA4C9334CCE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9DDD2B69-B7C8-4D8D-8C5B-AEA4C9334CCE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9DDD2B69-B7C8-4D8D-8C5B-AEA4C9334CCE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9DDD2B69-B7C8-4D8D-8C5B-AEA4C9334CCE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -316,6 +328,8 @@ Global
 		{5AACE81D-DFC3-4B11-8F33-E004916DFC3D} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{BD1FFE7D-24CE-4E88-AEA2-7C6B556A21BA} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{C7A8AAB5-211C-4457-87BD-38D100904542} = {C870AC3C-8261-4807-AC30-DBEC8C89DCB7}
+		{BF1BE2B8-1259-475A-A08C-02934BEB6472} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{9DDD2B69-B7C8-4D8D-8C5B-AEA4C9334CCE} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

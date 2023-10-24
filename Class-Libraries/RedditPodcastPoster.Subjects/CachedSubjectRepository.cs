@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Subjects;
 
@@ -53,7 +53,7 @@ public class CachedSubjectRepository : ICachedSubjectRepository
         requiresFetch = false;
         if (Cache.Any(x => string.IsNullOrWhiteSpace(x.Name)))
         {
-            foreach (var subject in Cache.Where(x=>string.IsNullOrWhiteSpace(x.Name)))
+            foreach (var subject in Cache.Where(x => string.IsNullOrWhiteSpace(x.Name)))
             {
                 _logger.LogError($"Retrieved a subject with empty name, has id {subject.Id}");
             }

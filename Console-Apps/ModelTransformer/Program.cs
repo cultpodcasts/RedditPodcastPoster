@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Hosting;
 using ModelTransformer;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);

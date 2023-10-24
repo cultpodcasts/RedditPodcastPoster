@@ -38,8 +38,7 @@ public class RedditLinkPoster : IRedditLinkPoster
         var title = _redditPostTitleFactory.ConstructPostTitle(postModel);
         var post = _redditClient
             .Subreddit(_settings.SubredditName)
-            .LinkPost(title,
-                link.ToString());
+            .LinkPost(title, link.ToString());
         var posted = false;
         LinkPost? linkPost = null;
         try

@@ -21,9 +21,11 @@
     <PackageReference Include="Microsoft.DurableTask.Generators" Version="1.0.0-preview.1" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.AI\RedditPodcastPoster.AI.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Twitter\RedditPodcastPoster.Twitter.csproj" />
     <ProjectReference Include="..\Azure\Azure.csproj" />
@@ -39,5 +41,8 @@
   </ItemGroup>
   <ItemGroup>
     <Using Include="System.Threading.ExecutionContext" Alias="ExecutionContext" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Dtos\" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-﻿using Indexer.Dtos;
+﻿using RedditPodcastPoster.Models;
 
 namespace Indexer.Data;
 

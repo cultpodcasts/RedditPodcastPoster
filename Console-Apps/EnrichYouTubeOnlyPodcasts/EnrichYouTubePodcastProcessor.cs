@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube;
 
@@ -14,11 +14,11 @@ public class EnrichYouTubePodcastProcessor
 {
     private readonly ILogger<EnrichYouTubePodcastProcessor> _logger;
     private readonly IPodcastRepository _podcastRepository;
+    private readonly PostingCriteria _postingCriteria;
     private readonly IYouTubeChannelService _youTubeChannelService;
     private readonly IYouTubeEpisodeProvider _youTubeEpisodeProvider;
     private readonly IYouTubePlaylistService _youTubePlaylistService;
     private readonly IYouTubeVideoService _youTubeVideoService;
-    private readonly PostingCriteria _postingCriteria;
 
     public EnrichYouTubePodcastProcessor(
         IPodcastRepository podcastRepository,

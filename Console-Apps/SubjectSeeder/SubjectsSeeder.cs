@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subjects;
 
 namespace SubjectSeeder;
@@ -23,9 +23,7 @@ public class SubjectsSeeder
 
     public async Task Run()
     {
-        var newSubjects = new List<Subject>
-        {
-        };
+        var newSubjects = new List<Subject>();
         foreach (var subject in newSubjects)
         {
             var match = await _subjectService.Match(subject);

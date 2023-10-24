@@ -1,8 +1,8 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subreddit;
 
 namespace EnrichEpisodesFromPostFlare;

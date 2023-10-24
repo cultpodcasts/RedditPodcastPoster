@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text.KnownTerms;
 
 namespace CosmosDbDownloader;
@@ -64,6 +65,7 @@ public class CosmosDbDownloader
                     subject.FileKey = FileKeyFactory.GetFileKey(subject.Name);
                     await _cosmosDbRepository.Write(subject);
                 }
+
                 await _fileRepository.Write(subject);
             }
         }
