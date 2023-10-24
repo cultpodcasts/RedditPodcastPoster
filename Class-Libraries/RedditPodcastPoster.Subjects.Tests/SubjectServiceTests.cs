@@ -10,13 +10,13 @@ public class SubjectServiceTests
 {
     private readonly Fixture _fixture;
     private readonly AutoMocker _mocker;
-    private readonly IEnumerable<Subject> _subjects;
+    private IList<Subject> _subjects;
 
     public SubjectServiceTests()
     {
         _fixture = new Fixture();
         _mocker = new AutoMocker();
-        _subjects = _fixture.CreateMany<Subject>();
+        _subjects = _fixture.CreateMany<Subject>().ToList();
         _mocker.GetMock<ICachedSubjectRepository>().Setup(x => x.GetAll(It.IsAny<string>()))
             .ReturnsAsync(() => _subjects);
     }
@@ -94,12 +94,15 @@ public class SubjectServiceTests
     {
         // arrange
         var subject = _fixture.Create<Subject>();
-        _subjects.Append(_fixture.Build<Subject>().With(x => x.Aliases, new[] {subject.Aliases!.First()}).Create());
-        _subjects.Append(_fixture.Build<Subject>().With(x => x.Aliases, new[] {subject.Aliases.Last()}).Create());
+        var firstMatchingAlias =
+            _fixture.Build<Subject>().With(x => x.Aliases, new[] {subject.Aliases!.First()}).Create();
+        var secondMatchingAlias =
+            _fixture.Build<Subject>().With(x => x.Aliases, new[] {subject.Aliases!.Last()}).Create();
+        _subjects = _subjects.Append(firstMatchingAlias).Append(secondMatchingAlias).ToList();
         // act
         Func<Task> act = () => Sut.Match(subject);
         // assert
-        act.Should().ThrowAsync<InvalidOperationException>();
+        await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]

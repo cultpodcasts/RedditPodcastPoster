@@ -77,10 +77,16 @@ public class SubjectService : ISubjectService
             {
                 if (!string.IsNullOrWhiteSpace(subjectAlias))
                 {
+                    var subjectLower = subjectAlias.ToLowerInvariant();
                     var matchedSubjectsForAlias = subjects.Where(x =>
-                        x.Aliases != null && x.Aliases.Select(y => y.ToLowerInvariant())
-                            .Contains(subjectAlias.ToLowerInvariant()));
-                    matchedSubjects.AddRange(matchedSubjectsForAlias);
+                    {
+                        return x.Aliases != null && x.Aliases.Select(y => y.ToLowerInvariant())
+                            .Contains(subjectLower);
+                    });
+                    if (matchedSubjectsForAlias.Any())
+                    {
+                        matchedSubjects.AddRange(matchedSubjectsForAlias);
+                    }
                 }
             }
 
