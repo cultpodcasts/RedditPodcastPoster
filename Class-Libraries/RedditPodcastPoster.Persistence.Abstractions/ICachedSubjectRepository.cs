@@ -1,7 +1,6 @@
 ﻿using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence;
 
-namespace RedditPodcastPoster.Subjects;
+namespace RedditPodcastPoster.Persistence.Abstractions;
 
 public interface ICachedSubjectRepository : IRepository<Subject>
 {

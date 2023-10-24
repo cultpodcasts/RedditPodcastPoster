@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Persistence;
+﻿namespace RedditPodcastPoster.Persistence.Abstractions;
 
 public interface IEliminationTermsRepository
 {

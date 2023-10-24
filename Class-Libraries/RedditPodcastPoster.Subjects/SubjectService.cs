@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Subjects;
 
@@ -62,7 +64,7 @@ public class SubjectService : ISubjectService
         if (!string.IsNullOrWhiteSpace(subject.Name))
         {
             var matchedSubject = subjects.Where(x => x.Aliases != null).FirstOrDefault(x =>
-                x.Aliases.Select(y => y.ToLowerInvariant()).Contains(subject.Name.ToLowerInvariant()));
+                x.Aliases.Select(y => y).Contains(subject.Name.ToLowerInvariant()));
             if (matchedSubject != null)
             {
                 return matchedSubject;
@@ -152,21 +154,31 @@ public class SubjectService : ISubjectService
         return null;
     }
 
-    public async Task<string[]> Match(PodcastEpisode podcastEpisode)
+    public async Task<IEnumerable<string>> Match(Episode episode, bool withDescription)
     {
         var subjects = await _subjectRepository.GetAll(Subject.PartitionKey);
-        var matchingSubjects = subjects.Where(x => Matches(podcastEpisode.Episode, x)).Select(x => x.Name);
-        return matchingSubjects.ToArray();
+        var matches = subjects.Where(x => Matches(episode, x, withDescription)).Select(x => x.Name);
+        if (matches.Any())
+        {
+            return matches;
+        }
+
+        matches = subjects.Where(x => Matches(episode, x, withDescription)).Select(x => x.Name);
+        return matches;
     }
 
-    private bool Matches(Episode episode, Subject subject)
+    private bool Matches(Episode episode, Subject subject, bool withDescription)
     {
         var match = false;
         var terms = subject.GetTerms();
-        foreach (var term in terms)
+        foreach (var term in terms.Where(x => !string.IsNullOrWhiteSpace(x)))
         {
-            match = episode.Title.Contains(term, StringComparison.InvariantCultureIgnoreCase) ||
-                    episode.Description.Contains(term, StringComparison.InvariantCultureIgnoreCase);
+            match = IsMatch(term, episode.Title);
+            if (withDescription)
+            {
+                match |= IsMatch(term, episode.Description);
+            }
+
             if (match)
             {
                 return match;
@@ -174,5 +186,13 @@ public class SubjectService : ISubjectService
         }
 
         return match;
+    }
+
+    private bool IsMatch(string term, string sentence)
+    {
+        var pattern = @"\b" + Regex.Escape(term) + @"\b";
+        var re = new Regex(pattern, RegexOptions.IgnoreCase);
+
+        return re.IsMatch(sentence);
     }
 }

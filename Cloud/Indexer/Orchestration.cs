@@ -15,6 +15,9 @@ public class Orchestration : TaskOrchestrator<object, bool>
         success = await context.CallIndexerAsync(new object());
         logger.LogInformation($"{nameof(Indexer)} complete.");
 
+        success |= await context.CallCategoriserAsync(new object());
+        logger.LogInformation($"{nameof(Categoriser)} complete.");
+
         success |= await context.CallPosterAsync(new object());
         logger.LogInformation($"{nameof(Poster)} complete.");
 

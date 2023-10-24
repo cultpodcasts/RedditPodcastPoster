@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.Common.Episodes;
@@ -32,10 +32,9 @@ public class EpisodeResolver : IEpisodeResolver
 
     public async Task<IEnumerable<PodcastEpisode>> ResolveSinceReleaseDate(DateTime since)
     {
-        var storedPodcasts = await _podcastRepository.GetAll().ToListAsync();
-        var matchingPodcasts = storedPodcasts.Where(podcast =>
+        var matchingPodcasts = await _podcastRepository.GetAll().Where(podcast =>
             podcast.Episodes.Any(episode =>
-                episode.Release >= since && episode is {Posted: false, Ignored: false, Removed: false}));
+                episode.Release >= since && episode is {Posted: false, Ignored: false, Removed: false})).ToListAsync();
         var resolvedPodcastEpisodeSince = new List<PodcastEpisode>();
         foreach (var matchingPodcast in matchingPodcasts)
         {

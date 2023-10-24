@@ -1,10 +1,12 @@
-﻿using Indexer.Data;
+﻿using Indexer.Categorisation;
+using Indexer.Data;
 using Indexer.Publishing;
 using Indexer.Tweets;
 using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.AI.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
@@ -14,6 +16,7 @@ using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
+using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Twitter.Extensions;
 
@@ -46,6 +49,9 @@ public static class Ioc
             .AddScoped<IContentPublisher, ContentPublisher>()
             .AddScoped<IAmazonS3ClientFactory, AmazonS3ClientFactory>()
             .AddScoped(s => s.GetService<IAmazonS3ClientFactory>()!.Create())
+            .AddSubjectServices()
+            .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
+            .AddAIServices(hostBuilderContext.Configuration)
             .AddHttpClient();
 
 
