@@ -35,16 +35,23 @@ public class RecentPodcastEpisodeCategoriser : IRecentPodcastEpisodeCategoriser
                 var originalCategory = episode.Category;
                 var categorised = await _categoriser.Categorise(episode);
 
-                if (episode.Subject != originalSubject)
+                if (episode.Subject != originalCategory || episode.Category != originalCategory)
                 {
-                    _logger.LogInformation(
-                        $"Podcast '{podcast.Name}' with id '{podcast.Id}' and episode with id {episode.Id}, updated subject: '{episode.Subject}'.");
-                }
-
-                if (episode.Category != originalCategory)
-                {
-                    _logger.LogInformation(
-                        $"Podcast '{podcast.Name}' with id '{podcast.Id}' and episode with id {episode.Id}, updated category: '{episode.Category}'.");
+                    if (episode.Subject != originalCategory && episode.Category != originalCategory)
+                    {
+                        _logger.LogInformation(
+                            $"{nameof(RecentPodcastEpisodeCategoriser)}: Podcast '{podcast.Name}' with id '{podcast.Id}' and episode with id {episode.Id}, updated subject: '{episode.Subject}', updated category: '{episode.Category}'.");
+                    }
+                    else if (episode.Subject != originalSubject)
+                    {
+                        _logger.LogInformation(
+                            $"{nameof(RecentPodcastEpisodeCategoriser)}: Podcast '{podcast.Name}' with id '{podcast.Id}' and episode with id {episode.Id}, updated subject: '{episode.Subject}'.");
+                    }
+                    else if (episode.Category != originalCategory)
+                    {
+                        _logger.LogInformation(
+                            $"{nameof(RecentPodcastEpisodeCategoriser)}: Podcast '{podcast.Name}' with id '{podcast.Id}' and episode with id {episode.Id}, updated category: '{episode.Category}'.");
+                    }
                 }
 
                 updated |= categorised;

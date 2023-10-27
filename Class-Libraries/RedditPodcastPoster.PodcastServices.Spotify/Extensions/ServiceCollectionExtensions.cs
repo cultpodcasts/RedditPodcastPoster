@@ -5,23 +5,25 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 
 public static class ServiceCollectionExtensions
 {
+    public static IServiceCollection AddSpotifyClient(this IServiceCollection services, IConfiguration config)
+    {
+        services.AddOptions<SpotifySettings>().Bind(config.GetSection("spotify"));
+        return services
+            .AddScoped<ISpotifyClientWrapper, SpotifyClientWrapper>()
+            .AddScoped<ISpotifyClientFactory, SpotifyClientFactory>()
+            .AddScoped(s => s.GetService<ISpotifyClientFactory>()!.Create().GetAwaiter().GetResult());
+    }
+
     public static IServiceCollection AddSpotifyServices(this IServiceCollection services, IConfiguration config)
     {
-        SpotifyClientFactory.AddSpotifyClient(services);
-
-        services
-            .AddOptions<SpotifySettings>().Bind(config.GetSection("spotify"));
-
-
         return services
+            .AddSpotifyClient(config)
             .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
             .AddScoped<ISpotifyEpisodeEnricher, SpotifyEpisodeEnricher>()
             .AddScoped<ISpotifyPodcastEnricher, SpotifyPodcastEnricher>()
             .AddScoped<ISpotifyEpisodeResolver, SpotifyEpisodeResolver>()
             .AddScoped<ISpotifyPodcastResolver, SpotifyPodcastResolver>()
             .AddScoped<ISpotifyQueryPaginator, SpotifyQueryPaginator>()
-            .AddScoped<ISpotifyClientWrapper, SpotifyClientWrapper>()
             .AddScoped<ISpotifySearcher, SpotifySearcher>();
-
     }
 }

@@ -56,6 +56,29 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         return results;
     }
 
+    public async Task<IList<T>?> PaginateAll<T, T1>(
+        IPaginatable<T, T1> firstPage,
+        Func<T1, IPaginatable<T, T1>> mapper,
+        IndexingContext indexingContext,
+        IPaginator? paginator = null)
+    {
+        var results = firstPage.Items;
+        try
+        {
+            var batch = await _spotifyClient.PaginateAll(firstPage, mapper);
+            results.AddRange(batch);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"{nameof(PaginateAll)} Failure with Spotify-API.");
+            indexingContext.SkipSpotifyUrlResolving = true;
+            return null;
+        }
+
+        return results;
+    }
+
+
     public async Task<Paging<SimpleEpisode>?> GetShowEpisodes(
         string showId,
         ShowEpisodesRequest request,
@@ -132,6 +155,25 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         catch (Exception ex)
         {
             _logger.LogError(ex, $"{nameof(GetFullEpisode)} Failure with Spotify-API.");
+            indexingContext.SkipSpotifyUrlResolving = true;
+            return null;
+        }
+
+        return results;
+    }
+
+    public async Task<Paging<SimpleEpisode, SearchResponse>?> FindEpisodes(SearchRequest request, IndexingContext indexingContext,
+        CancellationToken cancel = default)
+    {
+        Paging<SimpleEpisode, SearchResponse> results;
+        try
+        {
+            var response = await _spotifyClient.Search.Item(request, cancel);
+            results = response.Episodes;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"{nameof(GetShowEpisodes)} Failure with Spotify-API.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
