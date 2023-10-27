@@ -110,8 +110,11 @@ public class SubjectService : ISubjectService
         // does subject match a subject with associatedSubjects
         if (!string.IsNullOrWhiteSpace(subject.Name))
         {
-            var matchedSubject = subjects.Where(x => x.AssociatedSubjects != null).FirstOrDefault(x =>
-                x.AssociatedSubjects.Select(y => y.ToLowerInvariant()).Contains(subject.Name.ToLowerInvariant()));
+            var matchedSubject = subjects
+                .Where(x => x.AssociatedSubjects != null)
+                .FirstOrDefault(x => 
+                    x.AssociatedSubjects!.Select(y => y.ToLowerInvariant())
+                    .Contains(subject.Name.ToLowerInvariant()));
             if (matchedSubject != null)
             {
                 return matchedSubject;
@@ -138,14 +141,14 @@ public class SubjectService : ISubjectService
         }
 
         matchedSubject = subjects.Where(x => x.Aliases != null).FirstOrDefault(x =>
-            x.Aliases.Select(y => y.ToLowerInvariant()).Contains(subject.ToLowerInvariant()));
+            x.Aliases!.Select(y => y.ToLowerInvariant()).Contains(subject.ToLowerInvariant()));
         if (matchedSubject != null)
         {
             return matchedSubject;
         }
 
         matchedSubject = subjects.Where(x => x.AssociatedSubjects != null).FirstOrDefault(x =>
-            x.AssociatedSubjects.Select(y => y.ToLowerInvariant()).Contains(subject.ToLowerInvariant()));
+            x.AssociatedSubjects!.Select(y => y.ToLowerInvariant()).Contains(subject.ToLowerInvariant()));
         if (matchedSubject != null)
         {
             return matchedSubject;
