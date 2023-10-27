@@ -25,7 +25,15 @@ public class ProcessResponsesAdaptor : IProcessResponsesAdaptor
         if (matchingPodcastEpisodeResults.Any(x => x.Success))
         {
             messages.Add("Success:");
-            messages.AddRange(matchingPodcastEpisodeResults.Select(x => x.Message));
+            var resultMessages = matchingPodcastEpisodeResults.Select(x => x.Message);
+            if (resultMessages.Any())
+            {
+                messages.AddRange(resultMessages);
+            }
+        }
+        else
+        {
+            messages.Add("No result messages");
         }
 
         var result = string.Join(", ", messages);

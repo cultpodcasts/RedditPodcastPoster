@@ -19,5 +19,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.ContentPublisher\RedditPodcastPoster.ContentPublisher.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Twitter\RedditPodcastPoster.Twitter.csproj" />
   </ItemGroup>
 </Project>

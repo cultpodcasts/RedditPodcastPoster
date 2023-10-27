@@ -5,11 +5,13 @@ using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Twitter;
 
 public class PostProcessor
 {
     private readonly IContentPublisher _contentPublisher;
     private readonly IPodcastEpisodeFilter _podcastEpisodeFilter;
+    private readonly ITweetPoster _tweetPoster;
     private readonly ILogger<PostProcessor> _logger;
     private readonly IPodcastEpisodesPoster _podcastEpisodesPoster;
     private readonly IProcessResponsesAdaptor _processResponsesAdaptor;
@@ -21,6 +23,7 @@ public class PostProcessor
         IProcessResponsesAdaptor processResponsesAdaptor,
         IContentPublisher contentPublisher,
         IPodcastEpisodeFilter podcastEpisodeFilter,
+        ITweetPoster tweetPoster,
         ILogger<PostProcessor> logger)
     {
         _repository = repository;
@@ -28,6 +31,7 @@ public class PostProcessor
         _processResponsesAdaptor = processResponsesAdaptor;
         _contentPublisher = contentPublisher;
         _podcastEpisodeFilter = podcastEpisodeFilter;
+        _tweetPoster = tweetPoster;
         _logger = logger;
     }
 
@@ -54,6 +58,10 @@ public class PostProcessor
         if (!request.SkipTweet)
         {
             var postToTweet = _podcastEpisodeFilter.GetMostRecentUntweetedEpisode(podcasts);
+            if (postToTweet != null)
+            {
+                await _tweetPoster.PostTweet(postToTweet);
+            }
         }
     }
 

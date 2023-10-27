@@ -5,7 +5,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Poster;
 using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
+using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.Reddit.Extensions;
+using RedditPodcastPoster.Text.Extensions;
+using RedditPodcastPoster.Twitter.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -20,7 +25,13 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddContentPublishing(builder.Configuration);
+    .AddScoped<PostProcessor>()
+    .AddRepositories(builder.Configuration)
+    .AddPodcastServices(builder.Configuration)
+    .AddContentPublishing(builder.Configuration)
+    .AddRedditServices(builder.Configuration)
+    .AddTwitterServices(builder.Configuration)
+    .AddTextSanitiser();
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<PostRequest>(args)
@@ -28,7 +39,7 @@ return await Parser.Default.ParseArguments<PostRequest>(args)
 
 async Task<int> Run(PostRequest request)
 {
-    var urlSubmitter = host.Services.GetService<PostProcessor>()!;
-    await urlSubmitter.Process(request);
+    var postProcessor = host.Services.GetService<PostProcessor>()!;
+    await postProcessor.Process(request);
     return 0;
 }
