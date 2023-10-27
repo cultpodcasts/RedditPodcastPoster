@@ -49,9 +49,10 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
                         when episode.Urls.Apple == null || episode.AppleId == null || episode.AppleId == 0:
                         await _appleEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
                         break;
-                    case Service.YouTube when !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
-                                              (episode.Urls.YouTube == null ||
-                                               string.IsNullOrWhiteSpace(episode.YouTubeId)):
+                    case Service.YouTube
+                        when podcast.SkipEnrichingFromYouTube is null or false &&
+                             !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) && (episode.Urls.YouTube == null ||
+                                 string.IsNullOrWhiteSpace(episode.YouTubeId)):
                         await _youTubeEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
                         break;
                 }
