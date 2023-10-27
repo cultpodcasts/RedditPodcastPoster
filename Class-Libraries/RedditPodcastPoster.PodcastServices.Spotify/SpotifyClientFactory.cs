@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SpotifyAPI.Web;
 
@@ -25,12 +24,5 @@ public class SpotifyClientFactory : ISpotifyClientFactory
         var response = await new OAuthClient(config).RequestToken(request);
 
         return new SpotifyClient(config.WithToken(response.AccessToken));
-    }
-
-    public static IServiceCollection AddSpotifyClient(IServiceCollection services)
-    {
-        return services
-            .AddScoped<ISpotifyClientFactory, SpotifyClientFactory>()
-            .AddScoped(s => s.GetService<ISpotifyClientFactory>()!.Create().GetAwaiter().GetResult());
     }
 }
