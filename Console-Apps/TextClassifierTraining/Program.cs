@@ -3,7 +3,6 @@ using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
@@ -35,7 +34,6 @@ builder.Services
     .AddSingleton<ISubjectCleanser, SubjectCleanser>()
     .AddSubjectServices()
     .AddRedditServices(builder.Configuration);
-
 
 
 using var host = builder.Build();

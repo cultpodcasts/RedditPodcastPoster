@@ -5,7 +5,6 @@ using EnrichEpisodesFromPostFlare;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Abstractions;
