@@ -104,9 +104,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Subject
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Subjects.Tests", "Class-Libraries\RedditPodcastPoster.Subjects.Tests\RedditPodcastPoster.Subjects.Tests.csproj", "{C7A8AAB5-211C-4457-87BD-38D100904542}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.AI", "Class-Libraries\RedditPodcastPoster.AI\RedditPodcastPoster.AI.csproj", "{BF1BE2B8-1259-475A-A08C-02934BEB6472}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.AI", "Class-Libraries\RedditPodcastPoster.AI\RedditPodcastPoster.AI.csproj", "{BF1BE2B8-1259-475A-A08C-02934BEB6472}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Persistence.Abstractions", "Class-Libraries\RedditPodcastPoster.Persistence.Abstractions\RedditPodcastPoster.Persistence.Abstractions.csproj", "{9DDD2B69-B7C8-4D8D-8C5B-AEA4C9334CCE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Persistence.Abstractions", "Class-Libraries\RedditPodcastPoster.Persistence.Abstractions\RedditPodcastPoster.Persistence.Abstractions.csproj", "{9DDD2B69-B7C8-4D8D-8C5B-AEA4C9334CCE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Poster", "Console-Apps\Poster\Poster.csproj", "{69784ECC-9439-4905-B964-46BEC3521595}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.ContentPublisher", "Class-Libraries\RedditPodcastPoster.ContentPublisher\RedditPodcastPoster.ContentPublisher.csproj", "{120787D5-7F73-4495-A620-32EC2E3D2CFC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -282,6 +286,14 @@ Global
 		{9DDD2B69-B7C8-4D8D-8C5B-AEA4C9334CCE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9DDD2B69-B7C8-4D8D-8C5B-AEA4C9334CCE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9DDD2B69-B7C8-4D8D-8C5B-AEA4C9334CCE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{69784ECC-9439-4905-B964-46BEC3521595}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69784ECC-9439-4905-B964-46BEC3521595}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69784ECC-9439-4905-B964-46BEC3521595}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69784ECC-9439-4905-B964-46BEC3521595}.Release|Any CPU.Build.0 = Release|Any CPU
+		{120787D5-7F73-4495-A620-32EC2E3D2CFC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{120787D5-7F73-4495-A620-32EC2E3D2CFC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{120787D5-7F73-4495-A620-32EC2E3D2CFC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{120787D5-7F73-4495-A620-32EC2E3D2CFC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -330,6 +342,8 @@ Global
 		{C7A8AAB5-211C-4457-87BD-38D100904542} = {C870AC3C-8261-4807-AC30-DBEC8C89DCB7}
 		{BF1BE2B8-1259-475A-A08C-02934BEB6472} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{9DDD2B69-B7C8-4D8D-8C5B-AEA4C9334CCE} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{69784ECC-9439-4905-B964-46BEC3521595} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
+		{120787D5-7F73-4495-A620-32EC2E3D2CFC} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

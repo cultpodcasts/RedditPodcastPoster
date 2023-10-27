@@ -3,13 +3,16 @@ using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Poster;
 using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Twitter.Extensions;
-using Tweet;
 
 var builder = Host.CreateApplicationBuilder(args);
+
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 
@@ -21,18 +24,21 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
+    .AddScoped<PostProcessor>()
     .AddRepositories(builder.Configuration)
-    .AddSingleton<TweetProcessor>()
+    .AddPodcastServices(builder.Configuration)
+    .AddContentPublishing(builder.Configuration)
+    .AddRedditServices(builder.Configuration)
     .AddTwitterServices(builder.Configuration)
     .AddTextSanitiser();
 
 using var host = builder.Build();
-return await Parser.Default.ParseArguments<TweetRequest>(args)
+return await Parser.Default.ParseArguments<PostRequest>(args)
     .MapResult(async submitUrlRequest => await Run(submitUrlRequest), errs => Task.FromResult(-1)); // Invalid arguments
 
-async Task<int> Run(TweetRequest request)
+async Task<int> Run(PostRequest request)
 {
-    var tweetProcessor = host.Services.GetService<TweetProcessor>()!;
-    await tweetProcessor.Run(request);
+    var postProcessor = host.Services.GetService<PostProcessor>()!;
+    await postProcessor.Process(request);
     return 0;
 }

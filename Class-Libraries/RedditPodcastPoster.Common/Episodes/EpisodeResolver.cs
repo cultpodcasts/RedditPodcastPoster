@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
@@ -28,30 +27,5 @@ public class EpisodeResolver : IEpisodeResolver
         return new PodcastEpisode(
             matchingPodcast ?? throw new InvalidOperationException($"Missing matching podcast for '{url}'."),
             matchingEpisode ?? throw new InvalidOperationException($"Missing matching episode for '{url}'."));
-    }
-
-    public async Task<IEnumerable<PodcastEpisode>> ResolveSinceReleaseDate(DateTime since)
-    {
-        var matchingPodcasts = await _podcastRepository.GetAll().Where(podcast =>
-            podcast.Episodes.Any(episode =>
-                episode.Release >= since && episode is {Posted: false, Ignored: false, Removed: false})).ToListAsync();
-        var resolvedPodcastEpisodeSince = new List<PodcastEpisode>();
-        foreach (var matchingPodcast in matchingPodcasts)
-        {
-            var matchingEpisodes = matchingPodcast.Episodes
-                .Where(episode =>
-                    episode.Release >= since && episode is {Posted: false, Ignored: false, Removed: false});
-            foreach (var matchingEpisode in matchingEpisodes)
-            {
-                var post = !matchingPodcast.IsDelayedYouTubePublishing(matchingEpisode);
-
-                if (post)
-                {
-                    resolvedPodcastEpisodeSince.Add(new PodcastEpisode(matchingPodcast, matchingEpisode));
-                }
-            }
-        }
-
-        return resolvedPodcastEpisodeSince;
     }
 }

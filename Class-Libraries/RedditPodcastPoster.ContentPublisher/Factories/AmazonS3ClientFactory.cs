@@ -2,8 +2,9 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.ContentPublisher.Configuration;
 
-namespace Indexer.Data;
+namespace RedditPodcastPoster.ContentPublisher.Factories;
 
 public class AmazonS3ClientFactory : IAmazonS3ClientFactory
 {

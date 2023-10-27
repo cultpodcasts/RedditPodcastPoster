@@ -1,4 +1,4 @@
-namespace Indexer.Publishing;
+namespace RedditPodcastPoster.ContentPublisher;
 
 public interface IContentPublisher
 {

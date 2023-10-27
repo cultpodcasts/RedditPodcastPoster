@@ -1,11 +1,11 @@
 using System.Text.Json;
 using Amazon.S3;
 using Amazon.S3.Model;
-using Indexer.Data;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.ContentPublisher.Configuration;
 
-namespace Indexer.Publishing;
+namespace RedditPodcastPoster.ContentPublisher;
 
 public class ContentPublisher : IContentPublisher
 {

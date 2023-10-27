@@ -1,6 +1,6 @@
 ﻿using RedditPodcastPoster.Models;
 
-namespace Indexer.Data;
+namespace RedditPodcastPoster.ContentPublisher;
 
 public interface IQueryExecutor
 {

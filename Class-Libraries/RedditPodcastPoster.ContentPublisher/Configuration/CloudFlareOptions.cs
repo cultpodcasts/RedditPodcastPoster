@@ -1,4 +1,4 @@
-namespace Indexer.Data;
+namespace RedditPodcastPoster.ContentPublisher.Configuration;
 
 public class CloudFlareOptions
 {

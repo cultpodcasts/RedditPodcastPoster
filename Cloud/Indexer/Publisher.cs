@@ -1,6 +1,6 @@
-using Indexer.Publishing;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.ContentPublisher;
 
 namespace Indexer;
 

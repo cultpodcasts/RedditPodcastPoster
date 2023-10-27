@@ -11,6 +11,7 @@ public static class ServiceCollectionExtensions
 
         return services
             .AddScoped<ITwitterClient, TwitterClient>()
-            .AddSingleton<ITweetBuilder, TweetBuilder>();
+            .AddSingleton<ITweetBuilder, TweetBuilder>()
+            .AddScoped<ITweetPoster, TweetPoster>();
     }
 }

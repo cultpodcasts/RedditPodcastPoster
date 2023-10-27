@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Common;
+﻿namespace RedditPodcastPoster.Common.Configuration;
 
 public class PostingCriteria
 {

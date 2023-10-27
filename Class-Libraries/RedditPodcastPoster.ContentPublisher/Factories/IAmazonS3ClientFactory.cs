@@ -1,6 +1,6 @@
 using Amazon.S3;
 
-namespace Indexer.Data;
+namespace RedditPodcastPoster.ContentPublisher.Factories;
 
 public interface IAmazonS3ClientFactory
 {

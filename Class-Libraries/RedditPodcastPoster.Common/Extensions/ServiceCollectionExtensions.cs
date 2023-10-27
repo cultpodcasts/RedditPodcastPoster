@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.Common.Adaptors;
+using RedditPodcastPoster.Common.Configuration;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices;
@@ -28,7 +30,10 @@ public static class ServiceCollectionExtensions
             .AddScoped<IEpisodeResolver, EpisodeResolver>()
             .AddScoped<IEpisodeProcessor, EpisodeProcessor>()
             .AddScoped<IEpisodePostManager, EpisodePostManager>()
+            .AddScoped<IPodcastEpisodesPoster, PodcastEpisodesPoster>()
             .AddScoped<IPodcastEpisodePoster, PodcastEpisodePoster>()
-            .AddScoped<IPodcastFilter, PodcastFilter>();
+            .AddSingleton<IPodcastFilter, PodcastFilter>()
+            .AddSingleton<IPodcastEpisodeFilter, PodcastEpisodeFilter>()
+            .AddSingleton<IProcessResponsesAdaptor, ProcessResponsesAdaptor>();
     }
 }

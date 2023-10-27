@@ -1,13 +1,13 @@
 ﻿using System.Text.RegularExpressions;
-using Indexer.Models;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Text;
 
-namespace Indexer.Data;
+namespace RedditPodcastPoster.ContentPublisher;
 
 public class QueryExecutor : IQueryExecutor
 {
