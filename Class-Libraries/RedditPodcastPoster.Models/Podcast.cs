@@ -69,6 +69,10 @@ public class Podcast : CosmosSelector
     [JsonPropertyOrder(73)]
     public bool? YouTubePlaylistQueryIsExpensive { get; set; }
 
+    [JsonPropertyName("skipEnrichingFromYouTube")]
+    [JsonPropertyOrder(74)]
+    public bool? SkipEnrichingFromYouTube { get; set; }
+
     [JsonPropertyName("twitterHandle")]
     [JsonPropertyOrder(80)]
     public string TwitterHandle { get; set; } = "";
