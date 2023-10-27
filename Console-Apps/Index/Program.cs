@@ -1,10 +1,11 @@
 ﻿using System.Reflection;
+using CommandLine;
+using Index;
 using IndexPodcast;
 using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Extensions;
@@ -27,7 +28,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddSingleton<IndexIndividualPodcastProcessor>()
+    .AddSingleton<IndexProcessor>()
     .AddRepositories(builder.Configuration)
     .AddSingleton<PodcastFactory>()
     .AddPodcastServices(builder.Configuration)
@@ -40,7 +41,12 @@ builder.Services
     .AddHttpClient();
 using var host = builder.Build();
 
-var podcastProcessor = host.Services.GetService<IndexIndividualPodcastProcessor>()!;
-var baseline = DateTime.Today.AddDays(-1 * int.Parse(args[1]));
-await podcastProcessor.Run(Guid.Parse(args[0]), new IndexingContext(baseline) {SkipPodcastDiscovery = false});
-return 0;
+return await Parser.Default.ParseArguments<IndexRequest>(args)
+    .MapResult(async indexRequest => await Run(indexRequest), errs => Task.FromResult(-1)); // Invalid arguments
+
+async Task<int> Run(IndexRequest request)
+{
+    var urlSubmitter = host.Services.GetService<IndexProcessor>()!;
+    await urlSubmitter.Run(request);
+    return 0;
+}

@@ -27,7 +27,7 @@ public class TweetProcessor
     public async Task Run(TweetRequest request)
     {
         var podcast = await _podcastRepository.GetPodcast(request.PodcastId);
-        if (podcast == null)
+        if (podcast != null)
         {
             var mostRecentEpisode = podcast.Episodes.MaxBy(x => x.Release);
 

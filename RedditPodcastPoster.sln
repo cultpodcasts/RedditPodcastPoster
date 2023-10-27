@@ -52,7 +52,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Azure", "Cloud\Azure\Azure.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SeedKnownTerms", "Console-Apps\SeedKnownTerms\SeedKnownTerms.csproj", "{F4443DD5-05C7-4DE0-9957-DF80225D806C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IndexPodcast", "Console-Apps\IndexPodcast\IndexPodcast.csproj", "{6AD8EB9C-EAD7-43EB-AD31-033FF126D16B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Index", "Console-Apps\Index\Index.csproj", "{6AD8EB9C-EAD7-43EB-AD31-033FF126D16B}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TextClassifierTraining", "Console-Apps\TextClassifierTraining\TextClassifierTraining.csproj", "{48C2582C-3A41-4765-BE41-ED6C0DE0FBD8}"
 EndProject
