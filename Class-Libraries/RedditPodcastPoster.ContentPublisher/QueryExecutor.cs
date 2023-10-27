@@ -2,6 +2,7 @@
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Text;
@@ -54,7 +55,7 @@ public class QueryExecutor : IQueryExecutor
                     Release = x.Release,
                     Spotify = x.Spotify,
                     YouTube = x.YouTube,
-                    Length = TimeSpan.FromSeconds(Math.Round((double) x.Length.TotalSeconds))
+                    Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds))
                 }),
             TotalDuration = totalDuration.Result
         };

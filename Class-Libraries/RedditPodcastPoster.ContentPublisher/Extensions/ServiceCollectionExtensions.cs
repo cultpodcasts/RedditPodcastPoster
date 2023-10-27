@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.ContentPublisher.Configuration;
+using RedditPodcastPoster.ContentPublisher.Factories;
 
 namespace RedditPodcastPoster.ContentPublisher.Extensions;
 

@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.ContentPublisher;
+namespace RedditPodcastPoster.ContentPublisher.Models;
 
 public class PodcastResult
 {
