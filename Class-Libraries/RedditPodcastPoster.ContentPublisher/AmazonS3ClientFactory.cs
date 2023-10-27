@@ -3,7 +3,7 @@ using Amazon.S3;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Indexer.Data;
+namespace RedditPodcastPoster.ContentPublisher;
 
 public class AmazonS3ClientFactory : IAmazonS3ClientFactory
 {

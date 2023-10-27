@@ -1,6 +1,4 @@
 ﻿using Indexer.Categorisation;
-using Indexer.Data;
-using Indexer.Publishing;
 using Indexer.Tweets;
 using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
@@ -8,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.AI.Extensions;
 using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -45,20 +44,15 @@ public static class Ioc
             .AddScoped<IFlushable, CacheFlusher>()
             .AddTwitterServices(hostBuilderContext.Configuration)
             .AddScoped<ITweeter, Tweeter>()
-            .AddScoped<IQueryExecutor, QueryExecutor>()
-            .AddScoped<IContentPublisher, ContentPublisher>()
-            .AddScoped<IAmazonS3ClientFactory, AmazonS3ClientFactory>()
-            .AddScoped(s => s.GetService<IAmazonS3ClientFactory>()!.Create())
             .AddSubjectServices()
             .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
             .AddAIServices(hostBuilderContext.Configuration)
+            .AddContentPublishing(hostBuilderContext.Configuration)
             .AddHttpClient();
 
 
         serviceCollection.AddOptions<IndexerOptions>().Bind(hostBuilderContext.Configuration.GetSection("indexer"));
         serviceCollection
             .AddOptions<PosterOptions>().Bind(hostBuilderContext.Configuration.GetSection("poster"));
-        serviceCollection
-            .AddOptions<CloudFlareOptions>().Bind(hostBuilderContext.Configuration.GetSection("cloudflare"));
     }
 }

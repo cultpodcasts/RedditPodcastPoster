@@ -7,13 +7,11 @@ using RedditPodcastPoster.Text.KnownTerms;
 
 namespace RedditPodcastPoster.Text;
 
-public class TextSanitiser : ITextSanitiser
+public partial class TextSanitiser : ITextSanitiser
 {
-    private static readonly Regex Hashtag = new(@"\#(\w+)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex InQuotes = new(@"^'(?'inquotes'.*)'$", RegexOptions.Compiled);
-
-    private static readonly Regex InvalidTitlePrefix =
-        new(@"(?'prefix'^[^a-zA-Z\d""\$\£\']+)(?'after'.*$)", RegexOptions.Compiled);
+    private static readonly Regex Hashtag = GenerateHashtag();
+    private static readonly Regex InQuotes = GenerateInQuotes();
+    private static readonly Regex InvalidTitlePrefix = GenerateInvalidTitlePrefix();
 
     private static readonly TextInfo TextInfo = new CultureInfo("en-GB", false).TextInfo;
     private readonly IKnownTermsProvider _knownTermsProvider;
@@ -32,7 +30,7 @@ public class TextSanitiser : ITextSanitiser
 
     public string SanitisePodcastName(PostModel postModel)
     {
-        return SanitisePodcastName((string) postModel.PodcastName);
+        return SanitisePodcastName(postModel.PodcastName);
     }
 
     public string SanitiseDescription(PostModel postModel)
@@ -163,4 +161,13 @@ public class TextSanitiser : ITextSanitiser
 
         return input;
     }
+
+    [GeneratedRegex("(?'prefix'^[^a-zA-Z\\d\"\\$\\£\\'\\(]+)(?'after'.*$)", RegexOptions.Compiled)]
+    private static partial Regex GenerateInvalidTitlePrefix();
+
+    [GeneratedRegex("\\#(\\w+)\\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-GB")]
+    private static partial Regex GenerateHashtag();
+
+    [GeneratedRegex("^'(?'inquotes'.*)'$", RegexOptions.Compiled)]
+    private static partial Regex GenerateInQuotes();
 }
