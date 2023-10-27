@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 using Microsoft.Extensions.Configuration;
 
-namespace RedditPodcastPoster.Common;
+namespace RedditPodcastPoster.Common.Extensions;
 
 public static class ConfigurationExtensions
 {
