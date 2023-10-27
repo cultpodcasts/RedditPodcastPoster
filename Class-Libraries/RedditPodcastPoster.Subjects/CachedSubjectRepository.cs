@@ -8,8 +8,8 @@ public class CachedSubjectRepository : ICachedSubjectRepository
 {
     private readonly ILogger<CachedSubjectRepository> _logger;
     private readonly IRepository<Subject> _subjectRepository;
-    private IList<Subject> Cache;
-    private bool requiresFetch = true;
+    private IList<Subject> _cache = new List<Subject>();
+    private bool _requiresFetch = true;
 
     public CachedSubjectRepository(
         IRepository<Subject> subjectRepository,
@@ -21,39 +21,39 @@ public class CachedSubjectRepository : ICachedSubjectRepository
 
     public async Task<IEnumerable<Subject>> GetAll(string partitionKey)
     {
-        if (requiresFetch)
+        if (_requiresFetch)
         {
             await Fetch();
         }
 
-        return Cache;
+        return _cache;
     }
 
     public async Task<Subject?> Get(string name, string partitionKey)
     {
-        if (requiresFetch)
+        if (_requiresFetch)
         {
             await Fetch();
         }
 
-        return Cache.SingleOrDefault(x => x.Name == name);
+        return _cache.SingleOrDefault(x => x.Name == name);
     }
 
     public async Task Save(Subject data)
     {
         await _subjectRepository.Save(data);
-        requiresFetch = true;
+        _requiresFetch = true;
     }
 
     private async Task Fetch()
     {
         _logger.LogInformation($"Fetching {nameof(CachedSubjectRepository)}.");
         var subjects = await _subjectRepository.GetAll(Subject.PartitionKey);
-        Cache = subjects.ToList();
-        requiresFetch = false;
-        if (Cache.Any(x => string.IsNullOrWhiteSpace(x.Name)))
+        _cache = subjects.ToList();
+        _requiresFetch = false;
+        if (_cache.Any(x => string.IsNullOrWhiteSpace(x.Name)))
         {
-            foreach (var subject in Cache.Where(x => string.IsNullOrWhiteSpace(x.Name)))
+            foreach (var subject in _cache.Where(x => string.IsNullOrWhiteSpace(x.Name)))
             {
                 _logger.LogError($"Retrieved a subject with empty name, has id {subject.Id}");
             }
