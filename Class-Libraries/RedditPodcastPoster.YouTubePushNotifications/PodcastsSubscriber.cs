@@ -28,26 +28,21 @@ public class PodcastsSubscriber : IPodcastsSubscriber
                 .ToListAsync();
         var podcastsToSubscribe =
             podcasts
-                .Where(x =>
-                    !x.YouTubeNotificationSubscriptionLeaseExpiry.HasValue || x.YouTubeNotificationSubscriptionLeaseExpiry.Value < DateTime.UtcNow.AddDays(1));
+                .Where(podcastToSubscribe => string.IsNullOrEmpty(podcastToSubscribe.YouTubePlaylistId) ||
+                                             (!string.IsNullOrEmpty(podcastToSubscribe.YouTubePlaylistId) &&
+                                              !podcasts.Any(x =>
+                                                  x.YouTubeChannelId == podcastToSubscribe.YouTubeChannelId &&
+                                                  string.IsNullOrEmpty(x.YouTubePlaylistId))))
+                .Where(x => !x.YouTubeNotificationSubscriptionLeaseExpiry.HasValue ||
+                            x.YouTubeNotificationSubscriptionLeaseExpiry.Value < DateTime.UtcNow.AddDays(1));
         if (podcastsToSubscribe.Any())
         {
             _logger.LogInformation(
                 $"Renewing leases for podcasts with ids {string.Join((string?) ",", (IEnumerable<string?>) podcastsToSubscribe.Select(x => $"'{x.Id}'"))}.");
             foreach (var podcastToSubscribe in podcastsToSubscribe)
             {
-                if (string.IsNullOrEmpty(podcastToSubscribe.YouTubePlaylistId) || (!string.IsNullOrEmpty(podcastToSubscribe.YouTubePlaylistId) && !podcasts.Any(x =>
-                        x.YouTubeChannelId == podcastToSubscribe.YouTubeChannelId &&
-                        string.IsNullOrEmpty(x.YouTubePlaylistId))))
-                {
-                    _logger.LogInformation($"Renewing lease for podcast with id '{podcastToSubscribe.Id}'.");
-                    await _subscriber.Renew(podcastToSubscribe);
-                }
-                else
-                {
-                    _logger.LogInformation(
-                        $"Skipping podcast with id '{podcastToSubscribe.Id}' and name '{podcastToSubscribe.Name}' as is a youtube-channel playlist-podcast.");
-                }
+                _logger.LogInformation($"Renewing lease for podcast with id '{podcastToSubscribe.Id}'.");
+                await _subscriber.Renew(podcastToSubscribe);
             }
         }
         else
