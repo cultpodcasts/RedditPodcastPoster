@@ -36,9 +36,9 @@ public class PodcastsSubscriber : IPodcastsSubscriber
                 $"Renewing leases for podcasts with ids {string.Join((string?) ",", (IEnumerable<string?>) podcastsToSubscribe.Select(x => $"'{x.Id}'"))}.");
             foreach (var podcastToSubscribe in podcastsToSubscribe)
             {
-                if (!string.IsNullOrEmpty(podcastToSubscribe.YouTubePlaylistId) && !podcasts.Any(x =>
+                if (string.IsNullOrEmpty(podcastToSubscribe.YouTubePlaylistId) || (!string.IsNullOrEmpty(podcastToSubscribe.YouTubePlaylistId) && !podcasts.Any(x =>
                         x.YouTubeChannelId == podcastToSubscribe.YouTubeChannelId &&
-                        string.IsNullOrEmpty(x.YouTubePlaylistId)))
+                        string.IsNullOrEmpty(x.YouTubePlaylistId))))
                 {
                     _logger.LogInformation($"Renewing lease for podcast with id '{podcastToSubscribe.Id}'.");
                     await _subscriber.Renew(podcastToSubscribe);
@@ -46,7 +46,7 @@ public class PodcastsSubscriber : IPodcastsSubscriber
                 else
                 {
                     _logger.LogInformation(
-                        $"Skipping podcast with id '{podcastToSubscribe.Id}' as is a youtube-channel playlist-podcast.");
+                        $"Skipping podcast with id '{podcastToSubscribe.Id}' and name '{podcastToSubscribe.Name}' as is a youtube-channel playlist-podcast.");
                 }
             }
         }
