@@ -79,20 +79,15 @@ public class YouTubePushNotificationHandler
     public async Task<HttpResponseData> YouTubePushNotification(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "youtubenotification/{podcastId}")]
         HttpRequestData req,
-        Guid podcastId)
+        Guid podcastId,
+        CancellationToken ct)
     {
         try
         {
             _logger.LogInformation(
                 $"{nameof(YouTubePushNotificationHandler)} - Podcast-Id: '{podcastId}', url: '{req.Url}'.");
-            var body = await new StreamReader(req.Body).ReadToEndAsync();
-            if (!string.IsNullOrEmpty(body))
-            {
-                _logger.LogInformation($"Body: '{body}'.");
-                var xml = XDocument.Parse(body);
-                await _pushNotificationHandler.Handle(podcastId, xml);
-            }
-
+            var xml = await XDocument.LoadAsync(req.Body, LoadOptions.None, ct);
+            await _pushNotificationHandler.Handle(podcastId, xml);
             return req.CreateResponse(HttpStatusCode.Accepted);
         }
         catch (Exception e)
