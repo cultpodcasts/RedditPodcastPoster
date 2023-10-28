@@ -26,15 +26,14 @@ public class PodcastsSubscriber : IPodcastsSubscriber
                 .GetAll()
                 .Where(x => !string.IsNullOrEmpty(x.YouTubeChannelId))
                 .ToListAsync();
-        var podcastsToSubscribe =
-            podcasts
-                .Where(podcastToSubscribe => string.IsNullOrEmpty(podcastToSubscribe.YouTubePlaylistId) ||
-                                             (!string.IsNullOrEmpty(podcastToSubscribe.YouTubePlaylistId) &&
-                                              !podcasts.Any(x =>
-                                                  x.YouTubeChannelId == podcastToSubscribe.YouTubeChannelId &&
-                                                  string.IsNullOrEmpty(x.YouTubePlaylistId))))
-                .Where(x => !x.YouTubeNotificationSubscriptionLeaseExpiry.HasValue ||
-                            x.YouTubeNotificationSubscriptionLeaseExpiry.Value < DateTime.UtcNow.AddDays(1));
+        var podcastsToSubscribe = podcasts
+            .Where(podcastToSubscribe => string.IsNullOrEmpty(podcastToSubscribe.YouTubePlaylistId) ||
+                                         (!string.IsNullOrEmpty(podcastToSubscribe.YouTubePlaylistId) &&
+                                          !podcasts.Any(x =>
+                                              x.YouTubeChannelId == podcastToSubscribe.YouTubeChannelId &&
+                                              string.IsNullOrEmpty(x.YouTubePlaylistId))))
+            .Where(x => !x.YouTubeNotificationSubscriptionLeaseExpiry.HasValue ||
+                        x.YouTubeNotificationSubscriptionLeaseExpiry.Value < DateTime.UtcNow.AddDays(1));
         if (podcastsToSubscribe.Any())
         {
             _logger.LogInformation(
