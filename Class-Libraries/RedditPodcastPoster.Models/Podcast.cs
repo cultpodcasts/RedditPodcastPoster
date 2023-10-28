@@ -73,6 +73,10 @@ public class Podcast : CosmosSelector
     [JsonPropertyOrder(74)]
     public bool? SkipEnrichingFromYouTube { get; set; }
 
+    [JsonPropertyName("youTubeNotificationSubscriptionLeaseExpiry")]
+    [JsonPropertyOrder(75)]
+    public DateTime? YouTubeNotificationSubscriptionLeaseExpiry { get; set; }
+
     [JsonPropertyName("twitterHandle")]
     [JsonPropertyOrder(80)]
     public string TwitterHandle { get; set; } = "";
@@ -97,10 +101,12 @@ public class Podcast : CosmosSelector
     [JsonPropertyOrder(100)]
     public List<Episode> Episodes { get; set; } = new();
 
+
     public bool HasExpensiveYouTubePlaylistQuery()
     {
         return YouTubePlaylistQueryIsExpensive.HasValue && YouTubePlaylistQueryIsExpensive.Value;
     }
+
     public bool HasExpensiveSpotifyEpisodesQuery()
     {
         return SpotifyEpisodesQueryIsExpensive.HasValue && SpotifyEpisodesQueryIsExpensive.Value;

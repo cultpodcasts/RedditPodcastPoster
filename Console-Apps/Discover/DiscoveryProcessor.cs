@@ -27,7 +27,7 @@ public class DiscoveryProcessor
             SkipPodcastDiscovery: false,
             SkipExpensiveSpotifyQueries: false);
         await Search("\"Cults\"", indexingContext);
-        //await Search("\"Cult\"", indexingContext);
+        await Search("\"Cult\"", indexingContext);
     }
 
     private async Task Search(string query, IndexingContext indexingContext)

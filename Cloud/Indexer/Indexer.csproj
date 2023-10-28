@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Twitter\RedditPodcastPoster.Twitter.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.YouTubePushNotifications\RedditPodcastPoster.YouTubePushNotifications.csproj" />
     <ProjectReference Include="..\Azure\Azure.csproj" />
   </ItemGroup>
   <ItemGroup>
@@ -46,5 +47,6 @@
     <Folder Include="Dtos\" />
     <Folder Include="Models\" />
     <Folder Include="Publishing\" />
+    <Folder Include="YouTubePushNotification\" />
   </ItemGroup>
 </Project>
