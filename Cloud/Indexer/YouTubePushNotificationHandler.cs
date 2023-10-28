@@ -96,24 +96,24 @@ public class YouTubePushNotificationHandler
         }
     }
 
-    [Function("YouTubeSubscriber")]
-    public async Task YouTubeSubscriber(
-        [TimerTrigger("0 12 * * *"
-#if DEBUG
-            , RunOnStartup = true
-#endif
-        )]
-        TimerInfo info)
-    {
-        try
-        {
-            _logger.LogInformation($"{nameof(YouTubePushNotificationHandler)} {nameof(YouTubeSubscriber)} initiated.");
-            await _podcastsSubscriber.SubscribePodcasts();
-            _logger.LogInformation($"{nameof(YouTubePushNotificationHandler)} {nameof(YouTubeSubscriber)} complete.");
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, $"Failed to execute {nameof(YouTubeSubscriber)}");
-        }
-    }
+//    [Function("YouTubeSubscriber")]
+//    public async Task YouTubeSubscriber(
+//        [TimerTrigger("0 12 * * *"
+////#if DEBUG
+////            , RunOnStartup = true
+////#endif
+//        )]
+//        TimerInfo info)
+//    {
+//        try
+//        {
+//            _logger.LogInformation($"{nameof(YouTubePushNotificationHandler)} {nameof(YouTubeSubscriber)} initiated.");
+//            await _podcastsSubscriber.SubscribePodcasts();
+//            _logger.LogInformation($"{nameof(YouTubePushNotificationHandler)} {nameof(YouTubeSubscriber)} complete.");
+//        }
+//        catch (Exception e)
+//        {
+//            _logger.LogError(e, $"Failed to execute {nameof(YouTubeSubscriber)}");
+//        }
+//    }
 }
