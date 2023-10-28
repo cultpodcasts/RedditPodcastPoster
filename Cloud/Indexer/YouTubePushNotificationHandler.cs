@@ -1,5 +1,6 @@
 using System.Net;
 using System.Web;
+using System.Xml.Linq;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -11,12 +12,15 @@ public class YouTubePushNotificationHandler
 {
     private readonly ILogger _logger;
     private readonly IPodcastsSubscriber _podcastsSubscriber;
+    private readonly IPushNotificationHandler _pushNotificationHandler;
 
     public YouTubePushNotificationHandler(
         IPodcastsSubscriber podcastsSubscriber,
+        IPushNotificationHandler pushNotificationHandler,
         ILoggerFactory loggerFactory)
     {
         _podcastsSubscriber = podcastsSubscriber;
+        _pushNotificationHandler = pushNotificationHandler;
         _logger = loggerFactory.CreateLogger<YouTubePushNotificationHandler>();
     }
 
@@ -85,6 +89,8 @@ public class YouTubePushNotificationHandler
             if (!string.IsNullOrEmpty(body))
             {
                 _logger.LogInformation($"Body: '{body}'.");
+                var xml = XDocument.Parse(body);
+                await _pushNotificationHandler.Handle(podcastId, xml);
             }
 
             return req.CreateResponse(HttpStatusCode.Accepted);
