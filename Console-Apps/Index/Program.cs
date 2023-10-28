@@ -1,7 +1,6 @@
 ﻿using System.Reflection;
 using CommandLine;
 using Index;
-using IndexPodcast;
 using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics;
+using System.Reflection;
 using CommandLine;
 using EnrichYouTubeOnlyPodcasts;
 using Microsoft.Extensions.Configuration;
@@ -12,6 +13,8 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
+
+builder.Configuration.SetBasePath(GetBasePath());
 
 builder.Configuration
     .AddJsonFile("appsettings.json", false)
@@ -40,4 +43,11 @@ async Task<int> Run(EnrichYouTubePodcastRequest request)
     var processor = host.Services.GetService<EnrichYouTubePodcastProcessor>();
     await processor!.Run(request);
     return 0;
+}
+
+
+string GetBasePath()
+{
+    using var processModule = Process.GetCurrentProcess().MainModule;
+    return Path.GetDirectoryName(processModule?.FileName) ?? throw new InvalidOperationException();
 }

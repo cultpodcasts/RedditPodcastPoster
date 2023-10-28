@@ -18,6 +18,7 @@ using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Twitter.Extensions;
+using RedditPodcastPoster.YouTubePushNotifications.Extensions;
 
 namespace Indexer;
 
@@ -48,8 +49,8 @@ public static class Ioc
             .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
             .AddAIServices(hostBuilderContext.Configuration)
             .AddContentPublishing(hostBuilderContext.Configuration)
+            .AddYouTubePushNotificationServices(hostBuilderContext.Configuration)
             .AddHttpClient();
-
 
         serviceCollection.AddOptions<IndexerOptions>().Bind(hostBuilderContext.Configuration.GetSection("indexer"));
         serviceCollection

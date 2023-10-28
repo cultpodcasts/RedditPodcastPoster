@@ -1,11 +1,10 @@
-﻿using Index;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
-namespace IndexPodcast;
+namespace Index;
 
 internal class IndexProcessor
 {
