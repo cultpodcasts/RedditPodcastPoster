@@ -22,7 +22,7 @@ public class YouTubePushNotificationHandler
 
     [Function("YouTubeSubscriptionChallenge")]
     public async Task<HttpResponseData> YouTubeSubscriptionChallenge(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "{podcastId}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "youtubenotification/{podcastId}")]
         HttpRequestData req,
         Guid podcastId)
     {
@@ -32,8 +32,6 @@ public class YouTubePushNotificationHandler
         _logger.LogInformation($"{nameof(YouTubePushNotificationHandler)}");
         _logger.LogInformation($"Method: '{req.Method}', Url: '{req.Url}'.");
         var queryString = HttpUtility.ParseQueryString(req.Url.Query);
-        var body = await new StreamReader(req.Body).ReadToEndAsync();
-        _logger.LogInformation(body);
 
         try
         {
@@ -75,7 +73,7 @@ public class YouTubePushNotificationHandler
 
     [Function("YouTubePushNotification")]
     public async Task<HttpResponseData> YouTubePushNotification(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "{podcastId}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "youtubenotification/{podcastId}")]
         HttpRequestData req,
         Guid podcastId)
     {
@@ -85,7 +83,10 @@ public class YouTubePushNotificationHandler
             _logger.LogInformation($"Method: '{req.Method}', Url: '{req.Url}'.");
             var queryString = HttpUtility.ParseQueryString(req.Url.Query);
             var body = await new StreamReader(req.Body).ReadToEndAsync();
-            _logger.LogInformation(body);
+            if (!string.IsNullOrEmpty(body))
+            {
+                _logger.LogInformation($"Body: '{body}'.");
+            }
 
             return req.CreateResponse(HttpStatusCode.Accepted);
         }
