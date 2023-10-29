@@ -7,7 +7,7 @@ on:
   push:
     branches:
       - main
-      - feature/youtube-push-notification-subscriber
+      - feature/multiple-notification-entries
   workflow_dispatch:
 
 env:
