@@ -32,6 +32,7 @@ public class YouTubePushNotificationHandler
     {
         const string hubChallenge = "hub.challenge";
         const string hubLeaseSeconds = "hub.lease_seconds";
+        const string mode = "mode";
 
         _logger.LogInformation(
             $"{nameof(YouTubeSubscriptionChallenge)} - Podcast-Id: '{podcastId}', url: '{req.Url}'.");
@@ -54,7 +55,15 @@ public class YouTubePushNotificationHandler
             }
             else
             {
-                _logger.LogError($"Missing url-param '{nameof(hubLeaseSeconds)}' from url '{req.Url}'.");
+                if (queryString.AllKeys.Contains(mode) && queryString[mode] == Constants.ModeUnsubscribe)
+                {
+                    await _podcastsSubscriber.RemoveLease(podcastId);
+                }
+                else
+                {
+                    _logger.LogError(
+                        $"Missing url-param '{nameof(mode)}' for presumed unsubscribe-message from url '{req.Url}'.");
+                }
             }
 
             if (queryString.AllKeys.Contains(hubChallenge))

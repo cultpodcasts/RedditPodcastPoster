@@ -32,8 +32,9 @@ public class PodcastsSubscriber : IPodcastsSubscriber
                                           !podcasts.Any(x =>
                                               x.YouTubeChannelId == podcastToSubscribe.YouTubeChannelId &&
                                               string.IsNullOrEmpty(x.YouTubePlaylistId))))
-            .Where(x => !x.YouTubeNotificationSubscriptionLeaseExpiry.HasValue ||
-                        x.YouTubeNotificationSubscriptionLeaseExpiry.Value < DateTime.UtcNow.AddDays(1));
+            .Where(x =>
+                x.YouTubeNotificationSubscriptionLeaseExpiry.HasValue &&
+                x.YouTubeNotificationSubscriptionLeaseExpiry.Value < DateTime.UtcNow.AddDays(1));
         if (podcastsToSubscribe.Any())
         {
             _logger.LogInformation(
@@ -65,6 +66,22 @@ public class PodcastsSubscriber : IPodcastsSubscriber
         }
 
         podcast.YouTubeNotificationSubscriptionLeaseExpiry = leaseExpiry;
+        await _podcastRepository.Save(podcast);
+    }
+
+    public async Task RemoveLease(Guid podcastId)
+    {
+        _logger.LogInformation(
+            $"Setting subscription-lease expiry for podcast with id '{podcastId}' to null.");
+        var podcast = await _podcastRepository.GetPodcast(podcastId);
+        if (podcast == null)
+        {
+            var message = $"Unable to find podcast with id '{podcastId}'.";
+            _logger.LogError(message);
+            throw new InvalidOperationException(message);
+        }
+
+        podcast.YouTubeNotificationSubscriptionLeaseExpiry = null;
         await _podcastRepository.Save(podcast);
     }
 }
