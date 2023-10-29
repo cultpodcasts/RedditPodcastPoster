@@ -10,12 +10,12 @@ using RedditPodcastPoster.Twitter;
 public class PostProcessor
 {
     private readonly IContentPublisher _contentPublisher;
-    private readonly IPodcastEpisodeFilter _podcastEpisodeFilter;
-    private readonly ITweetPoster _tweetPoster;
     private readonly ILogger<PostProcessor> _logger;
+    private readonly IPodcastEpisodeFilter _podcastEpisodeFilter;
     private readonly IPodcastEpisodesPoster _podcastEpisodesPoster;
     private readonly IProcessResponsesAdaptor _processResponsesAdaptor;
     private readonly IPodcastRepository _repository;
+    private readonly ITweetPoster _tweetPoster;
 
     public PostProcessor(
         IPodcastRepository repository,
@@ -54,7 +54,7 @@ public class PostProcessor
         }
 
         await PostNewEpisodes(request, podcasts);
-        await Publish(podcasts);
+        await _contentPublisher.Publish();
         if (!request.SkipTweet)
         {
             var postToTweet = _podcastEpisodeFilter.GetMostRecentUntweetedEpisode(podcasts);
@@ -63,11 +63,6 @@ public class PostProcessor
                 await _tweetPoster.PostTweet(postToTweet);
             }
         }
-    }
-
-    private async Task Publish(IList<Podcast> podcasts)
-    {
-        await _contentPublisher.Publish();
     }
 
     private async Task PostNewEpisodes(PostRequest request, IList<Podcast> podcasts)
