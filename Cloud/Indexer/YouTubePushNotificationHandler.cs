@@ -32,7 +32,7 @@ public class YouTubePushNotificationHandler
     {
         const string hubChallenge = "hub.challenge";
         const string hubLeaseSeconds = "hub.lease_seconds";
-        const string mode = "mode";
+        const string mode = "hub.mode";
 
         _logger.LogInformation(
             $"{nameof(YouTubeSubscriptionChallenge)} - Podcast-Id: '{podcastId}', url: '{req.Url}'.");
