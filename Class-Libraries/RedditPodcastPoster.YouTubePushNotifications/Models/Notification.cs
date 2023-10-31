@@ -10,7 +10,7 @@ public class Notification
     public Uri? AuthorUri { get; set; }
     public DateTime? Published { get; set; }
 
-    public required IEnumerable<EntryEntity> Entries { get; set; }
+    public IEnumerable<EntryEntity> Entries { get; set; } = new List<EntryEntity>();
 
     public class EntryEntity
     {
