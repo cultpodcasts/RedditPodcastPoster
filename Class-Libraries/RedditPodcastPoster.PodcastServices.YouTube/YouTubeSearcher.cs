@@ -12,6 +12,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube;
 public partial class YouTubeSearcher : IYouTubeSearcher
 {
     private static readonly Regex NumberMatch = CreateNumberMatch();
+    private static readonly TimeSpan VideoDurationTolerance = TimeSpan.FromMinutes(2);
     private readonly ILogger<YouTubeSearcher> _logger;
     private readonly IYouTubeVideoService _videoService;
 
@@ -77,8 +78,7 @@ public partial class YouTubeSearcher : IYouTubeSearcher
             var matchingVideo = videoDetails.MinBy(x => Math.Abs((episode.Length - x.GetLength()).Ticks));
             var matchingPair = new FindEpisodeResponse(searchResults.Single(x => x.Id.VideoId == matchingVideo!.Id),
                 matchingVideo);
-            if (Math.Abs((matchingPair.Video!.GetLength() - episode.Length).Ticks) <
-                TimeSpan.FromMinutes(2).Ticks)
+            if (Math.Abs((matchingPair.Video!.GetLength() - episode.Length).Ticks) < VideoDurationTolerance.Ticks)
             {
                 _logger.LogInformation(
                     $"Matched episode '{episode.Title}' and length: '{episode.Length:g}' with episode '{matchingPair.SearchResult.Snippet.Title}' having length: '{matchingPair.Video.GetLength():g}'.");
