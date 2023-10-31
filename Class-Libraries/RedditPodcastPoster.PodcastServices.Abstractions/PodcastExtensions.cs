@@ -9,8 +9,7 @@ public static class PodcastExtensions
         if (IsAudioPodcastAwaitingYouTubeRelease(podcast, episode) ||
             IsYouTubePodcastWithDelayedPosting(podcast))
         {
-            var timeSpan = TimeSpan.Parse(podcast.YouTubePublishingDelayTimeSpan);
-            if (episode.Release.Add(timeSpan) > DateTime.UtcNow)
+            if (episode.Release.Add(podcast.YouTubePublishingDelay()!.Value) > DateTime.UtcNow)
             {
                 return true;
             }
@@ -21,8 +20,7 @@ public static class PodcastExtensions
 
     private static bool IsAudioPodcastAwaitingYouTubeRelease(Podcast podcast, Episode episode)
     {
-        return episode.Urls.YouTube == null &&
-               !string.IsNullOrWhiteSpace(podcast!.YouTubePublishingDelayTimeSpan);
+        return episode.Urls.YouTube == null && podcast.YouTubePublishingDelay().HasValue;
     }
 
     private static bool IsYouTubePodcastWithDelayedPosting(Podcast podcast)
@@ -30,6 +28,6 @@ public static class PodcastExtensions
         return string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
                !podcast.AppleId.HasValue &&
                !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
-               !string.IsNullOrWhiteSpace(podcast!.YouTubePublishingDelayTimeSpan);
+               podcast.YouTubePublishingDelay().HasValue;
     }
 }

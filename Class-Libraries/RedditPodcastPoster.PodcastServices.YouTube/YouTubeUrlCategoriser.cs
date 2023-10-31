@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
@@ -69,7 +70,7 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
                     item.Snippet.Title,
                     item.Snippet.Description,
                     item.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-                    XmlConvert.ToTimeSpan(item.ContentDetails.Duration),
+                    item.GetLength(),
                     item.ToYouTubeUrl(),
                     item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted"
                 );

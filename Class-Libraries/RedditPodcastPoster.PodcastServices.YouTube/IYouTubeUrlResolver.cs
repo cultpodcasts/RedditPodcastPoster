@@ -5,5 +5,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public interface IYouTubeItemResolver
 {
-    Task<SearchResult?> FindEpisode(EnrichmentRequest request, IndexingContext indexingContext);
+    Task<FindEpisodeResponse?> FindEpisode(EnrichmentRequest request, IndexingContext indexingContext);
 }
+
+public record FindEpisodeResponse(SearchResult SearchResult, Video? Video= null);
