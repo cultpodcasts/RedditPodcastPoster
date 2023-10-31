@@ -7,10 +7,10 @@ namespace YouTubePushNotificationSubscribe;
 
 public class SubscribeProcessor
 {
-    private readonly IPodcastRepository _repository;
-    private readonly IPodcastsSubscriber _podcastsSubscriber;
-    private readonly IPodcastYouTubePushNotificationSubscriber _subscriber;
     private readonly ILogger<SubscribeProcessor> _logger;
+    private readonly IPodcastsSubscriber _podcastsSubscriber;
+    private readonly IPodcastRepository _repository;
+    private readonly IPodcastYouTubePushNotificationSubscriber _subscriber;
 
     public SubscribeProcessor(
         IPodcastRepository repository,
@@ -34,12 +34,28 @@ public class SubscribeProcessor
                 throw new ArgumentException($"Podcast with id '{request.PodcastId}' not found.");
             }
 
+            _logger.LogInformation($"Subscribing podcast with id '{request.PodcastId}'.");
             await _subscriber.Renew(podcast);
+        }
+        else if (request.UnsubscribePodcastId.HasValue)
+        {
+            var podcast = await _repository.GetPodcast(request.UnsubscribePodcastId.Value);
+            if (podcast == null)
+            {
+                throw new ArgumentException($"Podcast with id '{request.UnsubscribePodcastId}' not found.");
+            }
+
+            _logger.LogInformation($"Unsubscribing podcast with id '{request.UnsubscribePodcastId}'.");
+            await _subscriber.Unsubscribe(podcast);
+        }
+        else if (request.RenewAllLeases)
+        {
+            _logger.LogInformation($"Renewing all leases.");
+            await _podcastsSubscriber.SubscribePodcasts();
         }
         else
         {
-            await _podcastsSubscriber.SubscribePodcasts();
+            throw new ArgumentException("Unknown operation");
         }
-
     }
 }

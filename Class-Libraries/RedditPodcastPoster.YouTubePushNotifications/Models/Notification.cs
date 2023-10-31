@@ -2,24 +2,24 @@
 
 public class Notification
 {
-    public string Id { get; set; }
-    public string ChannelId { get; set; }
-    public string Title { get; set; }
+    public required string Id { get; set; }
+    public required string ChannelId { get; set; }
+    public required string Title { get; set; }
     public Uri? LinkAlternative { get; set; }
-    public string AuthorName { get; set; }
+    public required string AuthorName { get; set; }
     public Uri? AuthorUri { get; set; }
     public DateTime? Published { get; set; }
 
-    public EntryEntity? Entry { get; set; }
+    public IEnumerable<EntryEntity> Entries { get; set; } = new List<EntryEntity>();
 
     public class EntryEntity
     {
-        public string Id { get; set; }
-        public string VideoId { get; set; }
-        public string ChannelId { get; set; }
-        public string Title { get; set; }
+        public required string Id { get; set; }
+        public required string VideoId { get; set; }
+        public required string ChannelId { get; set; }
+        public required string Title { get; set; }
         public Uri? LinkAlternative { get; set; }
-        public string AuthorName { get; set; }
+        public required string AuthorName { get; set; }
         public Uri? AuthorUri { get; set; }
         public DateTime? Published { get; set; }
         public DateTime? Updated { get; set; }
@@ -27,14 +27,14 @@ public class Notification
 
         public class MediaGroup
         {
-            public string Title { get; set; }
+            public required string Title { get; set; }
             public Uri? ContentUrl { get; set; }
             public int? ContentWidth { get; set; }
             public int? ContentHeight { get; set; }
             public Uri? ThumbnailUrl { get; set; }
             public int? ThumbnailWidth { get; set; }
             public int? ThumbnailHeight { get; set; }
-            public string Description { get; set; }
+            public required string Description { get; set; }
 
             public MediaCommunity? Community { get; set; }
 

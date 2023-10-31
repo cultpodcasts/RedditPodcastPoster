@@ -32,6 +32,7 @@ public class YouTubePushNotificationHandler
     {
         const string hubChallenge = "hub.challenge";
         const string hubLeaseSeconds = "hub.lease_seconds";
+        const string mode = "hub.mode";
 
         _logger.LogInformation(
             $"{nameof(YouTubeSubscriptionChallenge)} - Podcast-Id: '{podcastId}', url: '{req.Url}'.");
@@ -54,7 +55,15 @@ public class YouTubePushNotificationHandler
             }
             else
             {
-                _logger.LogError($"Missing url-param '{nameof(hubLeaseSeconds)}' from url '{req.Url}'.");
+                if (queryString.AllKeys.Contains(mode) && queryString[mode] == Constants.ModeUnsubscribe)
+                {
+                    await _podcastsSubscriber.RemoveLease(podcastId);
+                }
+                else
+                {
+                    _logger.LogError(
+                        $"Missing url-param '{nameof(mode)}' for presumed unsubscribe-message from url '{req.Url}'.");
+                }
             }
 
             if (queryString.AllKeys.Contains(hubChallenge))
@@ -79,20 +88,15 @@ public class YouTubePushNotificationHandler
     public async Task<HttpResponseData> YouTubePushNotification(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "youtubenotification/{podcastId}")]
         HttpRequestData req,
-        Guid podcastId)
+        Guid podcastId,
+        CancellationToken ct)
     {
         try
         {
             _logger.LogInformation(
                 $"{nameof(YouTubePushNotificationHandler)} - Podcast-Id: '{podcastId}', url: '{req.Url}'.");
-            var body = await new StreamReader(req.Body).ReadToEndAsync();
-            if (!string.IsNullOrEmpty(body))
-            {
-                _logger.LogInformation($"Body: '{body}'.");
-                var xml = XDocument.Parse(body);
-                await _pushNotificationHandler.Handle(podcastId, xml);
-            }
-
+            var xml = await XDocument.LoadAsync(req.Body, LoadOptions.None, ct);
+            await _pushNotificationHandler.Handle(podcastId, xml);
             return req.CreateResponse(HttpStatusCode.Accepted);
         }
         catch (Exception e)

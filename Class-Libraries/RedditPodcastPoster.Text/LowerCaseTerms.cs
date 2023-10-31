@@ -10,8 +10,9 @@ public static class LowerCaseTerms
         "the", "of", "on", "in", "to", "a", "an", "it", "not", "your", "you", "was", "isn't", "is", "want", "wants",
         "her", "his", "from", "their", "they", "out", "come", "coming", "away", "by", "what", "who", "made", "make",
         "since", "for", "go", "gone", "give", "gives", "given", "next", "with", "about", "how", "here", "called",
-        "call", "doing", "do", "does", "where", "each", "other", "this", "after", "before", "be", "own", "more", "start",
-        "my", "myself", "mine", "get", "gets", "up", "down", "meet", "met", "part", "parts", "ft"
+        "call", "doing", "do", "does", "where", "each", "other", "this", "after", "before", "be", "own", "more",
+        "start", "my", "myself", "mine", "get", "gets", "up", "down", "meet", "met", "part", "parts", "ft", "at", 
+        "our", "us", "tell", "why", "don't", "tells", "when", "into", "vs", "only", "off", "end", "being"
     };
 
     private static readonly string[] AlwaysLowerCaseWords =
@@ -24,8 +25,8 @@ public static class LowerCaseTerms
         "th", "st", "rd", "s"
     };
 
-    public static readonly IDictionary<string, Regex>
-        Expressions = LesserWords.ToDictionary(x => x,
+    public static readonly IDictionary<string, Regex> Expressions =
+        LesserWords.ToDictionary(x => x,
                 x => new Regex($@"(?<!^'?""?\(?){x}\b", RegexOptions.Compiled | RegexOptions.IgnoreCase))
             .AddRange(AlwaysLowerCaseWords.ToDictionary(x => x,
                 x => new Regex($@"\b{x}\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)))
