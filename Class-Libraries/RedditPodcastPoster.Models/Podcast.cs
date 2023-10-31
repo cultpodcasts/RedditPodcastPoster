@@ -111,4 +111,11 @@ public class Podcast : CosmosSelector
     {
         return SpotifyEpisodesQueryIsExpensive.HasValue && SpotifyEpisodesQueryIsExpensive.Value;
     }
+
+    public TimeSpan? YouTubePublishingDelay()
+    {
+        if (string.IsNullOrEmpty(YouTubePublishingDelayTimeSpan))
+            return null;
+        return TimeSpan.Parse(YouTubePublishingDelayTimeSpan);
+    }
 }

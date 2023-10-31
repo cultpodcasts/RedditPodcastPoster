@@ -6,10 +6,10 @@ namespace RedditPodcastPoster.Twitter;
 
 public class TweetPoster : ITweetPoster
 {
+    private readonly ILogger<TweetPoster> _logger;
     private readonly IPodcastRepository _repository;
     private readonly ITweetBuilder _tweetBuilder;
     private readonly ITwitterClient _twitterClient;
-    private readonly ILogger<TweetPoster> _logger;
 
     public TweetPoster(
         IPodcastRepository repository,
@@ -22,6 +22,7 @@ public class TweetPoster : ITweetPoster
         _twitterClient = twitterClient;
         _logger = logger;
     }
+
     public async Task PostTweet(PodcastEpisode podcastEpisode)
     {
         var tweet = _tweetBuilder.BuildTweet(podcastEpisode);
@@ -50,9 +51,6 @@ public class TweetPoster : ITweetPoster
                     $"Failure to save podcast with podcast-id '{podcastEpisode.Podcast.Id}' to update episode with id '{podcastEpisode.Episode.Id}'.");
                 throw;
             }
-
-
-            _logger.LogInformation($"Tweeted '{tweet}'.");
         }
         else
         {

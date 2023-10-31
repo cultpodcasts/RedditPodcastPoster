@@ -7,6 +7,6 @@ public interface IYouTubeSearcher
 {
     SearchResult? FindMatchingYouTubeVideo(
         Episode episode,
-        IList<SearchResult> searchResults,
-        TimeSpan youTubePublishingDelay);
+        IList<SearchResult> searchResults, 
+        TimeSpan? youTubePublishDelay);
 }

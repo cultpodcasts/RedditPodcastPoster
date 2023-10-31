@@ -22,7 +22,6 @@ public class YouTubeItemResolver : IYouTubeItemResolver
 
     public async Task<SearchResult?> FindEpisode(EnrichmentRequest request, IndexingContext indexingContext)
     {
-        var youTubePublishingDelay = TimeSpan.Parse(request.Podcast.YouTubePublishingDelayTimeSpan);
         var searchListResponse =
             await _youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(
                 new YouTubeChannelId(request.Podcast.YouTubeChannelId), indexingContext);
@@ -45,8 +44,7 @@ public class YouTubeItemResolver : IYouTubeItemResolver
             }
         }
 
-        var matchedYouTubeVideo =
-            _youTubeSearcher.FindMatchingYouTubeVideo(request.Episode, searchListResponse, youTubePublishingDelay);
+        var matchedYouTubeVideo = _youTubeSearcher.FindMatchingYouTubeVideo(request.Episode, searchListResponse, request.Podcast.YouTubePublishingDelay());
         return matchedYouTubeVideo;
     }
 }

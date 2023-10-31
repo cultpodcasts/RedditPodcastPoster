@@ -19,7 +19,9 @@ public class YouTubeEpisodeEnricher : IYouTubeEpisodeEnricher
         _logger = logger;
     }
 
-    public async Task Enrich(EnrichmentRequest request, IndexingContext indexingContext,
+    public async Task Enrich(
+        EnrichmentRequest request,
+        IndexingContext indexingContext,
         EnrichmentContext enrichmentContext)
     {
         if (request.Podcast.IsDelayedYouTubePublishing(request.Episode))
@@ -47,6 +49,7 @@ public class YouTubeEpisodeEnricher : IYouTubeEpisodeEnricher
                 return;
             }
         }
+
 
         var youTubeItem = await _youTubeItemResolver.FindEpisode(request, indexingContext);
         if (!string.IsNullOrWhiteSpace(youTubeItem?.Id.VideoId))
