@@ -21,7 +21,7 @@ public class YouTubeVideoService : IYouTubeVideoService
 
     public async Task<IList<Video>?> GetVideoContentDetails(
         IEnumerable<string> videoIds,
-        IndexingContext indexingContext,
+        IndexingContext? indexingContext,
         bool withSnippets = false)
     {
         if (indexingContext.SkipYouTubeUrlResolving)

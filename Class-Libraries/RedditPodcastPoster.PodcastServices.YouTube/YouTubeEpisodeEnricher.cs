@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
@@ -50,16 +51,15 @@ public class YouTubeEpisodeEnricher : IYouTubeEpisodeEnricher
             }
         }
 
-
         var youTubeItem = await _youTubeItemResolver.FindEpisode(request, indexingContext);
-        if (!string.IsNullOrWhiteSpace(youTubeItem?.Id.VideoId))
+        if (!string.IsNullOrWhiteSpace(youTubeItem?.SearchResult?.Id.VideoId))
         {
-            var episodeYouTubeId = youTubeItem.Id.VideoId;
+            var episodeYouTubeId = youTubeItem.SearchResult.Id.VideoId;
             _logger.LogInformation(
-                $"{nameof(Enrich)} Found matching YouTube episode: '{episodeYouTubeId}' with title '{youTubeItem.Snippet.Title}' and release-date '{youTubeItem.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime:R}'.");
+                $"{nameof(Enrich)} Found matching YouTube episode: '{episodeYouTubeId}' with title '{youTubeItem.SearchResult.Snippet.Title}' and release-date '{youTubeItem.SearchResult.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime:R}''.");
             request.Episode.YouTubeId = episodeYouTubeId;
             enrichmentContext.YouTubeId = episodeYouTubeId;
-            var url = youTubeItem.ToYouTubeUrl();
+            var url = youTubeItem.SearchResult.ToYouTubeUrl();
             request.Episode.Urls.YouTube = url;
             enrichmentContext.YouTube = url;
         }

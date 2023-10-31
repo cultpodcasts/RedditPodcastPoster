@@ -3,6 +3,7 @@ using FluentAssertions;
 using Google.Apis.YouTube.v3.Data;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests;
 
@@ -24,7 +25,8 @@ public class YouTubeSearcherTests
     [InlineData(0)]
     [InlineData(6)]
     [InlineData(12)]
-    public void FindMatchingYouTubeVideo_WithInAccurateReleaseTimeAndUnmatchedVideoCloserToMidnight_IsCorrect(long youTubePublishDelayTicks)
+    public async Task FindMatchingYouTubeVideo_WithInAccurateReleaseTimeAndUnmatchedVideoCloserToMidnight_IsCorrect(
+        long youTubePublishDelayTicks)
     {
         // arrange
         var expectedTitle = "Matching Episode";
@@ -52,8 +54,11 @@ public class YouTubeSearcherTests
                 .Create())
             .Create();
         // act
-        var result = Sut.FindMatchingYouTubeVideo(episode,
-            new List<SearchResult> {expected, incorrectResult}, TimeSpan.FromTicks(youTubePublishDelayTicks));
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            new List<SearchResult> {expected, incorrectResult}, 
+            TimeSpan.FromTicks(youTubePublishDelayTicks),
+            new IndexingContext());
         // assert
         result.Should().Be(expected);
     }
@@ -62,7 +67,8 @@ public class YouTubeSearcherTests
     [InlineData(0)]
     [InlineData(6)]
     [InlineData(12)]
-    public void FindMatchingYouTubeVideo_WithAccurateReleaseTimeAndUnmatchedVideoCloserToMidnight_IsCorrect(long youTubePublishDelayTicks)
+    public async Task FindMatchingYouTubeVideo_WithAccurateReleaseTimeAndUnmatchedVideoCloserToMidnight_IsCorrect(
+        long youTubePublishDelayTicks)
     {
         // arrange
         var expectedTitle = "Matching Episode";
@@ -89,8 +95,11 @@ public class YouTubeSearcherTests
                 .Create())
             .Create();
         // act
-        var result = Sut.FindMatchingYouTubeVideo(episode,
-            new List<SearchResult> { expected, incorrectResult }, TimeSpan.FromTicks(youTubePublishDelayTicks));
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            new List<SearchResult> {expected, incorrectResult}, 
+            TimeSpan.FromTicks(youTubePublishDelayTicks),
+            new IndexingContext());
         // assert
         result.Should().Be(expected);
     }
@@ -100,7 +109,9 @@ public class YouTubeSearcherTests
     [InlineData(0)]
     [InlineData(6)]
     [InlineData(12)]
-    public void FindMatchingYouTubeVideo_WithAccurateReleaseTimeAndMatchingVideoReleasedOnYouTubeBeforeAudioAndUnmatchedVideoCloserToMidnight_IsCorrect(long youTubePublishDelayTicks)
+    public async Task
+        FindMatchingYouTubeVideo_WithAccurateReleaseTimeAndMatchingVideoReleasedOnYouTubeBeforeAudioAndUnmatchedVideoCloserToMidnight_IsCorrect(
+            long youTubePublishDelayTicks)
     {
         // arrange
         var expectedTitle = "Matching Episode";
@@ -127,8 +138,11 @@ public class YouTubeSearcherTests
                 .Create())
             .Create();
         // act
-        var result = Sut.FindMatchingYouTubeVideo(episode,
-            new List<SearchResult> { expected, incorrectResult }, TimeSpan.FromTicks(youTubePublishDelayTicks));
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            new List<SearchResult> {expected, incorrectResult}, 
+            TimeSpan.FromTicks(youTubePublishDelayTicks),
+            new IndexingContext());
         // assert
         result.Should().Be(expected);
     }
@@ -137,7 +151,7 @@ public class YouTubeSearcherTests
     [InlineData(0)]
     [InlineData(6)]
     [InlineData(12)]
-    public void FindMatchingYouTubeVideo_WithMatchingEpisodeNumber_IsCorrect(long youTubePublishDelayTicks)
+    public async Task FindMatchingYouTubeVideo_WithMatchingEpisodeNumber_IsCorrect(long youTubePublishDelayTicks)
     {
         // arrange
         var episodeNumber = _fixture.Create<int>();
@@ -164,8 +178,11 @@ public class YouTubeSearcherTests
                 .Create())
             .Create();
         // act
-        var result = Sut.FindMatchingYouTubeVideo(episode,
-            new List<SearchResult> { expected, incorrectResult }, TimeSpan.FromTicks(youTubePublishDelayTicks));
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            new List<SearchResult> {expected, incorrectResult}, 
+            TimeSpan.FromTicks(youTubePublishDelayTicks),
+            new IndexingContext());
         // assert
         result.Should().Be(expected);
     }

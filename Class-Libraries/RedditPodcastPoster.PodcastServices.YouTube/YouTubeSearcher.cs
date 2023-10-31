@@ -2,7 +2,9 @@
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
@@ -11,27 +13,38 @@ public partial class YouTubeSearcher : IYouTubeSearcher
 {
     private static readonly Regex NumberMatch = CreateNumberMatch();
     private readonly ILogger<YouTubeSearcher> _logger;
+    private readonly IYouTubeVideoService _videoService;
 
-    public YouTubeSearcher(ILogger<YouTubeSearcher> logger)
+    public YouTubeSearcher(
+        IYouTubeVideoService videoService,
+        ILogger<YouTubeSearcher> logger)
     {
+        _videoService = videoService;
         _logger = logger;
     }
 
-    public SearchResult? FindMatchingYouTubeVideo(
+    public async Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(
         Episode episode,
         IList<SearchResult> searchResults,
-        TimeSpan? youTubePublishDelay)
+        TimeSpan? youTubePublishDelay,
+        IndexingContext indexingContext)
     {
         var match = MatchOnExactTitle(episode, searchResults);
         if (match != null)
         {
-            return match;
+            return new FindEpisodeResponse(match);
         }
 
         match = MatchOnEpisodeNumber(episode, searchResults);
         if (match != null)
         {
-            return match;
+            return new FindEpisodeResponse(match);
+        }
+
+        var videoMatch = await MatchOnEpisodeDuration(episode, searchResults, indexingContext);
+        if (videoMatch != null)
+        {
+            return videoMatch;
         }
 
         if (episode.HasAccurateReleaseTime() && youTubePublishDelay.HasValue)
@@ -39,12 +52,41 @@ public partial class YouTubeSearcher : IYouTubeSearcher
             match = MatchOnPublishTimeComparedToPublishDelay(episode, searchResults, youTubePublishDelay.Value);
             if (match != null)
             {
-                return match;
+                return new FindEpisodeResponse(match);
             }
         }
 
         match = MatchOnTextCloseness(episode, searchResults);
-        return match;
+        if (match != null)
+        {
+            return new FindEpisodeResponse(match);
+        }
+
+        return null;
+    }
+
+    private async Task<FindEpisodeResponse?> MatchOnEpisodeDuration(Episode episode,
+        IList<SearchResult> searchResults,
+        IndexingContext indexingContext)
+    {
+        var videoDetails =
+            await _videoService.GetVideoContentDetails(searchResults.Select(x => x.Id.VideoId).ToList(),
+                indexingContext);
+        if (videoDetails != null)
+        {
+            var matchingVideo = videoDetails.MinBy(x => Math.Abs((episode.Length - x.GetLength()).Ticks));
+            var matchingPair = new FindEpisodeResponse(searchResults.Single(x => x.Id.VideoId == matchingVideo!.Id),
+                matchingVideo);
+            if (Math.Abs((matchingPair.Video!.GetLength() - episode.Length).Ticks) <
+                TimeSpan.FromMinutes(2).Ticks)
+            {
+                _logger.LogInformation(
+                    $"Matched episode '{episode.Title}' and length: '{episode.Length:g}' with episode '{matchingPair.SearchResult.Snippet.Title}' having length: '{matchingPair.Video.GetLength():g}'.");
+                return matchingPair;
+            }
+        }
+
+        return null;
     }
 
     private SearchResult? MatchOnTextCloseness(Episode episode, IList<SearchResult> searchResults)

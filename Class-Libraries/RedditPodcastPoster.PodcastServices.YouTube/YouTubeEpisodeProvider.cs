@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
@@ -62,7 +63,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
             searchResult.Id.VideoId,
             searchResult.Snippet.Title.Trim(),
             searchResult.Snippet.Description.Trim(),
-            XmlConvert.ToTimeSpan(videoDetails.ContentDetails.Duration),
+            videoDetails.GetLength(),
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
             searchResult.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
             searchResult.ToYouTubeUrl());
@@ -74,7 +75,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
             playlistItemSnippet.ResourceId.VideoId,
             playlistItemSnippet.Title.Trim(),
             playlistItemSnippet.Description.Trim(),
-            XmlConvert.ToTimeSpan(videoDetails.ContentDetails.Duration),
+            videoDetails.GetLength(),
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
             playlistItemSnippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
             playlistItemSnippet.ToYouTubeUrl());

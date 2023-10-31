@@ -20,7 +20,7 @@ public class YouTubeItemResolver : IYouTubeItemResolver
         _logger = logger;
     }
 
-    public async Task<SearchResult?> FindEpisode(EnrichmentRequest request, IndexingContext indexingContext)
+    public async Task<FindEpisodeResponse?> FindEpisode(EnrichmentRequest request, IndexingContext indexingContext)
     {
         var searchListResponse =
             await _youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(
@@ -44,7 +44,11 @@ public class YouTubeItemResolver : IYouTubeItemResolver
             }
         }
 
-        var matchedYouTubeVideo = _youTubeSearcher.FindMatchingYouTubeVideo(request.Episode, searchListResponse, request.Podcast.YouTubePublishingDelay());
+        var matchedYouTubeVideo = await _youTubeSearcher.FindMatchingYouTubeVideo(
+            request.Episode,
+            searchListResponse,
+            request.Podcast.YouTubePublishingDelay(),
+            indexingContext);
         return matchedYouTubeVideo;
     }
 }
