@@ -20,7 +20,6 @@ public class YouTubeSearcherTests
 
     private IYouTubeSearcher Sut => _mocker.CreateInstance<YouTubeSearcher>();
 
-
     [Theory]
     [InlineData(0)]
     [InlineData(6)]
@@ -56,11 +55,11 @@ public class YouTubeSearcherTests
         // act
         var result = await Sut.FindMatchingYouTubeVideo(
             episode,
-            new List<SearchResult> {expected, incorrectResult}, 
+            new List<SearchResult> {expected, incorrectResult},
             TimeSpan.FromTicks(youTubePublishDelayTicks),
             new IndexingContext());
         // assert
-        result.Should().Be(expected);
+        result.SearchResult.Should().Be(expected);
     }
 
     [Theory]
@@ -97,13 +96,12 @@ public class YouTubeSearcherTests
         // act
         var result = await Sut.FindMatchingYouTubeVideo(
             episode,
-            new List<SearchResult> {expected, incorrectResult}, 
+            new List<SearchResult> {expected, incorrectResult},
             TimeSpan.FromTicks(youTubePublishDelayTicks),
             new IndexingContext());
         // assert
-        result.Should().Be(expected);
+        result.SearchResult.Should().Be(expected);
     }
-
 
     [Theory]
     [InlineData(0)]
@@ -140,11 +138,11 @@ public class YouTubeSearcherTests
         // act
         var result = await Sut.FindMatchingYouTubeVideo(
             episode,
-            new List<SearchResult> {expected, incorrectResult}, 
+            new List<SearchResult> {expected, incorrectResult},
             TimeSpan.FromTicks(youTubePublishDelayTicks),
             new IndexingContext());
         // assert
-        result.Should().Be(expected);
+        result.SearchResult.Should().Be(expected);
     }
 
     [Theory]
@@ -180,10 +178,10 @@ public class YouTubeSearcherTests
         // act
         var result = await Sut.FindMatchingYouTubeVideo(
             episode,
-            new List<SearchResult> {expected, incorrectResult}, 
+            new List<SearchResult> {expected, incorrectResult},
             TimeSpan.FromTicks(youTubePublishDelayTicks),
             new IndexingContext());
         // assert
-        result.Should().Be(expected);
+        result.SearchResult.Should().Be(expected);
     }
 }
