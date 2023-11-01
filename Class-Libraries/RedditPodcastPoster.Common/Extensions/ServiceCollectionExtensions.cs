@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Common.Adaptors;
-using RedditPodcastPoster.Common.Configuration;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Common.PodcastServices;
@@ -15,9 +14,6 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddPodcastServices(this IServiceCollection services, IConfiguration config)
     {
-        services
-            .AddOptions<PostingCriteria>().Bind(config.GetSection("postingCriteria"));
-
         return services
             .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
             .AddScoped<IPodcastUpdater, PodcastUpdater>()

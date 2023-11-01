@@ -104,22 +104,6 @@ public class YouTubeChannelService : IYouTubeChannelService
             return null;
         }
 
-        if (result.Items.Any())
-        {
-            try
-            {
-                var sb = new StringBuilder();
-                var jsonSerialiser = new JsonSerializer();
-                await using var jsonWriter = new JsonTextWriter(new StringWriter(sb));
-                jsonSerialiser.Serialize(jsonWriter, result);
-                _logger.LogInformation($"YOUTUBE: {nameof(GetChannelContentDetails)} - {sb}");
-            }
-            catch
-            {
-                _logger.LogInformation($"YOUTUBE: {nameof(GetChannelContentDetails)} - Could not serialise response.");
-            }
-        }
-
         var channelContentDetails = result.Items.SingleOrDefault();
         if (channelContentDetails != null)
         {

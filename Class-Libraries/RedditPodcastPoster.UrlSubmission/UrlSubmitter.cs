@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -11,14 +13,17 @@ public class UrlSubmitter : IUrlSubmitter
     private readonly ILogger<UrlSubmitter> _logger;
     private readonly IPodcastRepository _podcastRepository;
     private readonly IUrlCategoriser _urlCategoriser;
+    private readonly PostingCriteria _postingCriteria;
 
     public UrlSubmitter(
         IPodcastRepository podcastRepository,
         IUrlCategoriser urlCategoriser,
+        IOptions<PostingCriteria> postingCriteria,
         ILogger<UrlSubmitter> logger)
     {
         _podcastRepository = podcastRepository;
         _urlCategoriser = urlCategoriser;
+        _postingCriteria = postingCriteria.Value;
         _logger = logger;
     }
 
@@ -152,7 +157,8 @@ public class UrlSubmitter : IUrlSubmitter
                 Spotify = categorisedItem.ResolvedSpotifyItem?.Url,
                 Apple = categorisedItem.ResolvedAppleItem?.Url,
                 YouTube = categorisedItem.ResolvedYouTubeItem?.Url
-            }
+            },
+            Ignored = length < _postingCriteria.MinimumDuration
         };
         _logger.LogInformation(
             $"Created episode with spotify-id '{categorisedItem.ResolvedSpotifyItem?.EpisodeId}', apple-id '{categorisedItem.ResolvedAppleItem?.EpisodeId}', youtube-id '{categorisedItem.ResolvedYouTubeItem?.EpisodeId}'.");

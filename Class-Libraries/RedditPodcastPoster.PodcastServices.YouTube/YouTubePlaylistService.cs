@@ -94,8 +94,6 @@ public class YouTubePlaylistService : IYouTubePlaylistService
 
         if (result.Any())
         {
-            _logger.LogInformation($"YOUTUBE: {nameof(GetPlaylistVideoSnippets)} - {JsonSerializer.Serialize(result)}");
-
             if (indexingContext.ReleasedSince != null)
             {
                 result = result.Where(x =>

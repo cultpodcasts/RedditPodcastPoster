@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.AI.Extensions;
 using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
@@ -55,5 +56,7 @@ public static class Ioc
         serviceCollection.AddOptions<IndexerOptions>().Bind(hostBuilderContext.Configuration.GetSection("indexer"));
         serviceCollection
             .AddOptions<PosterOptions>().Bind(hostBuilderContext.Configuration.GetSection("poster"));
+        serviceCollection.AddPostingCriteria(hostBuilderContext.Configuration);
+
     }
 }

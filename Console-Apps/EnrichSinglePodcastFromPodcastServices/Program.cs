@@ -1,11 +1,12 @@
 ﻿using System.Reflection;
+using CommandLine;
 using EnrichSinglePodcastFromPodcastServices;
 using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
@@ -39,16 +40,16 @@ builder.Services
     .AddEliminationTerms()
     .AddHttpClient();
 
+builder.Services.AddPostingCriteria(builder.Configuration);
+
 using var host = builder.Build();
 
-var podcastProcessor = host.Services.GetService<EnrichSinglePodcastFromPodcastServicesProcessor>()!;
-if (Guid.TryParse(args[0], out var podcastId))
-{
-    await podcastProcessor.Run(podcastId);
-}
-else
-{
-    throw new ArgumentException($"Could not parse guid '{args[0]}'.");
-}
+return await Parser.Default.ParseArguments<EnrichPodcastRequest>(args)
+    .MapResult(async enrichPodcastRequest => await Run(enrichPodcastRequest), errs => Task.FromResult(-1)); // Invalid arguments
 
-return 0;
+async Task<int> Run(EnrichPodcastRequest request)
+{
+    var urlSubmitter = host.Services.GetService<EnrichSinglePodcastFromPodcastServicesProcessor>()!;
+    await urlSubmitter.Run(request);
+    return 0;
+}

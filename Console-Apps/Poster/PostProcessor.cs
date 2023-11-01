@@ -68,7 +68,8 @@ public class PostProcessor
     private async Task PostNewEpisodes(PostRequest request, IList<Podcast> podcasts)
     {
         var results =
-            await _podcastEpisodesPoster.PostNewEpisodes(DateTime.UtcNow.AddDays(-1 * request.ReleasedWithin),
+            await _podcastEpisodesPoster.PostNewEpisodes(
+                DateTime.UtcNow.AddDays(-1 * request.ReleasedWithin),
                 podcasts);
         var result = _processResponsesAdaptor.CreateResponse(results);
         if (!result.Success)
