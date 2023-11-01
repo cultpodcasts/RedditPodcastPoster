@@ -26,8 +26,6 @@ public class YouTubeChannelVideoSnippetsService : IYouTubeChannelVideoSnippetsSe
         YouTubeChannelId channelId,
         IndexingContext indexingContext)
     {
-        _logger.LogInformation($"YOUTUBE: {nameof(GetLatestChannelVideoSnippets)} channelId: '{channelId.ChannelId}'.");
-
         if (Cache.TryGetValue(channelId.ChannelId, out var snippets))
         {
             return snippets;
@@ -72,12 +70,6 @@ public class YouTubeChannelVideoSnippetsService : IYouTubeChannelVideoSnippetsSe
 
             result.AddRange(response.Items);
             nextPageToken = response.NextPageToken;
-        }
-
-        if (result.Any())
-        {
-            _logger.LogInformation(
-                $"YOUTUBE: {nameof(GetLatestChannelVideoSnippets)} - {JsonSerializer.Serialize(result)}");
         }
 
         Cache[channelId.ChannelId] = result;

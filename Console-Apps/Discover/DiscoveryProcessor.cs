@@ -41,8 +41,9 @@ public class DiscoveryProcessor
             var recentResults = allResults.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince);
             foreach (var simpleEpisode in recentResults)
             {
+                var min = Math.Min(simpleEpisode.Description.Length, 200);
                 _logger.LogInformation($"{simpleEpisode.Id}: '{simpleEpisode.Name}'");
-                _logger.LogInformation($"{simpleEpisode.Description[..200]}");
+                _logger.LogInformation($"{simpleEpisode.Description[..min]}");
             }
         }
     }

@@ -52,7 +52,12 @@ internal class IndexProcessor
         foreach (var podcastId in podcastIds)
         {
             var podcast = await _podcastRepository.GetPodcast(podcastId);
-            await _podcastUpdater.Update(podcast, indexingContext);
+            if (podcast != null &&
+                (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
+
+            {
+                await _podcastUpdater.Update(podcast, indexingContext);
+            }
         }
     }
 }
