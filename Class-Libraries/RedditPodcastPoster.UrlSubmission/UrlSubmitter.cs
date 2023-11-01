@@ -158,7 +158,7 @@ public class UrlSubmitter : IUrlSubmitter
                 Apple = categorisedItem.ResolvedAppleItem?.Url,
                 YouTube = categorisedItem.ResolvedYouTubeItem?.Url
             },
-            Ignored = length >= _postingCriteria.MinimumDuration
+            Ignored = length < _postingCriteria.MinimumDuration
         };
         _logger.LogInformation(
             $"Created episode with spotify-id '{categorisedItem.ResolvedSpotifyItem?.EpisodeId}', apple-id '{categorisedItem.ResolvedAppleItem?.EpisodeId}', youtube-id '{categorisedItem.ResolvedYouTubeItem?.EpisodeId}'.");

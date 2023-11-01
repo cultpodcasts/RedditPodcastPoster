@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -21,15 +22,26 @@ public class EnrichSinglePodcastFromPodcastServicesProcessor
         _logger = logger;
     }
 
-    public async Task Run(Guid podcastId)
+    public async Task Run(EnrichPodcastRequest request)
     {
-        var podcast = await _podcastRepository.GetPodcast(podcastId);
+        var podcast = await _podcastRepository.GetPodcast(request.PodcastId);
         if (podcast == null)
         {
             throw new ArgumentException($"No podcast with Guid '{podcast}' found");
         }
 
-        var result = await _podcastUpdater.Update(podcast, new IndexingContext {SkipPodcastDiscovery = false});
+        IndexingContext indexingContent;
+        if (request.ReleasedSince.HasValue)
+        {
+            indexingContent = new IndexingContext(DateTimeHelper.DaysAgo(request.ReleasedSince.Value));
+        }
+        else
+        {
+            indexingContent = new IndexingContext();
+        }
+
+        indexingContent.SkipPodcastDiscovery = false;
+        var result = await _podcastUpdater.Update(podcast, indexingContent);
         if (!result.Success)
         {
             _logger.LogError(result.ToString());

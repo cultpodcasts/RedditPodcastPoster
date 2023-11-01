@@ -48,10 +48,17 @@ public class PodcastUpdater : IPodcastUpdater
         var newEpisodes = await _episodeProvider.GetEpisodes(
             podcast,
             indexingContext);
+
         foreach (var newEpisode in newEpisodes)
         {
-            newEpisode.Ignored = newEpisode.Length >= _postingCriteria.MinimumDuration;
+            newEpisode.Ignored = newEpisode.Length < _postingCriteria.MinimumDuration;
         }
+
+        if (indexingContext.SkipShortEpisodes)
+        {
+            EliminateShortEpisodes(newEpisodes);
+        }
+
         var mergeResult = _podcastRepository.Merge(podcast, newEpisodes);
         var episodes = podcast.Episodes;
         if (indexingContext.ReleasedSince.HasValue)
@@ -91,5 +98,23 @@ public class PodcastUpdater : IPodcastUpdater
             enrichmentResult,
             initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving,
             initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving);
+    }
+
+    private void EliminateShortEpisodes(IList<Episode> episodes)
+    {
+        List<Episode> shortEpisodes = new List<Episode>();
+
+        foreach (var newEpisode in episodes)
+        {
+            if (newEpisode.Ignored)
+            {
+                shortEpisodes.Add(newEpisode);
+            }
+        }
+
+        foreach (var shortEpisode in shortEpisodes)
+        {
+            episodes.Remove(shortEpisode);
+        }
     }
 }
