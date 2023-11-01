@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Poster;
 using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
@@ -31,6 +32,8 @@ builder.Services
     .AddRedditServices(builder.Configuration)
     .AddTwitterServices(builder.Configuration)
     .AddTextSanitiser();
+
+builder.Services.AddPostingCriteria(builder.Configuration);
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<PostRequest>(args)

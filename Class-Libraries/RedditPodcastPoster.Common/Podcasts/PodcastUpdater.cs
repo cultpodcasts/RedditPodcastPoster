@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.PodcastServices;
+using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -16,6 +18,7 @@ public class PodcastUpdater : IPodcastUpdater
     private readonly IPodcastFilter _podcastFilter;
     private readonly IPodcastRepository _podcastRepository;
     private readonly IPodcastServicesEpisodeEnricher _podcastServicesEpisodeEnricher;
+    private readonly PostingCriteria _postingCriteria;
 
     public PodcastUpdater(
         IPodcastRepository podcastRepository,
@@ -23,6 +26,7 @@ public class PodcastUpdater : IPodcastUpdater
         IPodcastServicesEpisodeEnricher podcastServicesEpisodeEnricher,
         IPodcastFilter podcastFilter,
         IEliminationTermsProvider eliminationTermsProvider,
+        IOptions<PostingCriteria> postingCriteria,
         ILogger<PodcastUpdater> logger
     )
     {
@@ -31,6 +35,7 @@ public class PodcastUpdater : IPodcastUpdater
         _podcastServicesEpisodeEnricher = podcastServicesEpisodeEnricher;
         _podcastFilter = podcastFilter;
         _eliminationTermsProvider = eliminationTermsProvider;
+        _postingCriteria = postingCriteria.Value;
         _logger = logger;
     }
 
@@ -43,6 +48,10 @@ public class PodcastUpdater : IPodcastUpdater
         var newEpisodes = await _episodeProvider.GetEpisodes(
             podcast,
             indexingContext);
+        foreach (var newEpisode in newEpisodes)
+        {
+            newEpisode.Ignored = newEpisode.Length >= _postingCriteria.MinimumDuration;
+        }
         var mergeResult = _podcastRepository.Merge(podcast, newEpisodes);
         var episodes = podcast.Episodes;
         if (indexingContext.ReleasedSince.HasValue)

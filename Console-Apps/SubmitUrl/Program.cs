@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -37,6 +38,8 @@ builder.Services
     .AddUrlSubmission()
     .AddScoped<SubmitUrlProcessor>()
     .AddHttpClient();
+
+builder.Services.AddPostingCriteria(builder.Configuration);
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<SubmitUrlRequest>(args)

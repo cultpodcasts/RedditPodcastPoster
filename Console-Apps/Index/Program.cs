@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
@@ -38,6 +39,9 @@ builder.Services
     .AddScoped<IRemoteClient, RemoteClient>()
     .AddEliminationTerms()
     .AddHttpClient();
+
+builder.Services.AddPostingCriteria(builder.Configuration);
+
 using var host = builder.Build();
 
 return await Parser.Default.ParseArguments<IndexRequest>(args)
