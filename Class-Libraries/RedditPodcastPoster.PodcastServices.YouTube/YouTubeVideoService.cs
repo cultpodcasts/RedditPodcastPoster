@@ -71,11 +71,6 @@ public class YouTubeVideoService : IYouTubeVideoService
                 .Take(MaxSearchResults);
         }
 
-        if (result.Any())
-        {
-            _logger.LogInformation($"YOUTUBE: {nameof(GetVideoContentDetails)} - {JsonSerializer.Serialize(result)}");
-        }
-
         return result;
     }
 }
