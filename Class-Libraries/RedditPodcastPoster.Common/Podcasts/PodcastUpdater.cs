@@ -13,6 +13,7 @@ namespace RedditPodcastPoster.Common.Podcasts;
 public class PodcastUpdater : IPodcastUpdater
 {
     private readonly IEliminationTermsProvider _eliminationTermsProvider;
+    private readonly IFileRepository _podcastFileRepository;
     private readonly IEpisodeProvider _episodeProvider;
     private readonly ILogger<PodcastUpdater> _logger;
     private readonly IPodcastFilter _podcastFilter;
@@ -27,6 +28,7 @@ public class PodcastUpdater : IPodcastUpdater
         IPodcastFilter podcastFilter,
         IEliminationTermsProvider eliminationTermsProvider,
         IOptions<PostingCriteria> postingCriteria,
+        IFileRepository podcastFileRepository,
         ILogger<PodcastUpdater> logger
     )
     {
@@ -35,6 +37,7 @@ public class PodcastUpdater : IPodcastUpdater
         _podcastServicesEpisodeEnricher = podcastServicesEpisodeEnricher;
         _podcastFilter = podcastFilter;
         _eliminationTermsProvider = eliminationTermsProvider;
+        _podcastFileRepository = podcastFileRepository;
         _postingCriteria = postingCriteria.Value;
         _logger = logger;
     }
@@ -88,7 +91,7 @@ public class PodcastUpdater : IPodcastUpdater
             filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any() ||
             discoveredYouTubeExpensiveQuery || discoveredSpotifyExpensiveQuery)
         {
-            await _podcastRepository.Update(podcast);
+            await _podcastFileRepository.Write(podcast);
         }
 
         return new IndexPodcastResult(

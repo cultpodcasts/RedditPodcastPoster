@@ -38,6 +38,7 @@ builder.Services
     .AddScoped(s => new iTunesSearchManager())
     .AddScoped<IRemoteClient, RemoteClient>()
     .AddEliminationTerms()
+    .AddFileRepository("podcast")
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria(builder.Configuration);
