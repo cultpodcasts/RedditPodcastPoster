@@ -11,4 +11,10 @@ public static class ServiceCollectionExtensions
             .AddOptions<PostingCriteria>().Bind(config.GetSection("postingCriteria"));
         return services;
     }
+    public static IServiceCollection AddDelayedYouTubePublication(this IServiceCollection services, IConfiguration config)
+    {
+        services
+            .AddOptions<DelayedYouTubePublication>().Bind(config.GetSection("delayedYouTubePublication"));
+        return services;
+    }
 }

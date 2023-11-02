@@ -41,6 +41,7 @@ builder.Services
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria(builder.Configuration);
+builder.Services.AddDelayedYouTubePublication(builder.Configuration);
 
 using var host = builder.Build();
 
