@@ -75,6 +75,7 @@ public class YouTubeSearcherTests
         var release = DateTime.UtcNow.Date.AddHours(17);
         var episode = _fixture
             .Build<Episode>()
+            .With(x => x.Title, "Episode-title")
             .With(x => x.Title, expectedTitle)
             .With(x => x.Release, release)
             .Create();
@@ -117,6 +118,7 @@ public class YouTubeSearcherTests
         var release = DateTime.UtcNow.Date.AddHours(17);
         var episode = _fixture
             .Build<Episode>()
+            .With(x => x.Title, "Episode-title")
             .With(x => x.Title, expectedTitle)
             .With(x => x.Release, release)
             .Create();
@@ -157,14 +159,14 @@ public class YouTubeSearcherTests
         var release = DateTime.UtcNow.Date.AddHours(17);
         var episode = _fixture
             .Build<Episode>()
-            .With(x => x.Title, $"Prefix-1 {episodeNumber} Suffix-1")
+            .With(x => x.Title, $"Prefix-A {episodeNumber} Suffix-A")
             .With(x => x.Release, release)
             .Create();
         var expected = _fixture
             .Build<SearchResult>()
             .With(x => x.Snippet, _fixture
                 .Build<SearchResultSnippet>()
-                .With(x => x.Title, $"Prefix-2 {episodeNumber} Suffix-2")
+                .With(x => x.Title, $"Prefix-B {episodeNumber} Suffix-B")
                 .With(x => x.PublishedAtDateTimeOffset, release.AddMinutes(-5))
                 .Create())
             .Create();
