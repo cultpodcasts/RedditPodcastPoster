@@ -66,14 +66,15 @@ public partial class YouTubeSearcher : IYouTubeSearcher
         return null;
     }
 
-    private async Task<FindEpisodeResponse?> MatchOnEpisodeDuration(Episode episode,
+    private async Task<FindEpisodeResponse?> MatchOnEpisodeDuration(
+        Episode episode,
         IList<SearchResult> searchResults,
         IndexingContext indexingContext)
     {
         var videoDetails =
             await _videoService.GetVideoContentDetails(searchResults.Select(x => x.Id.VideoId).ToList(),
                 indexingContext);
-        if (videoDetails != null)
+        if (videoDetails != null && videoDetails.Any())
         {
             var matchingVideo = videoDetails.MinBy(x => Math.Abs((episode.Length - x.GetLength()).Ticks));
             var matchingPair = new FindEpisodeResponse(searchResults.Single(x => x.Id.VideoId == matchingVideo!.Id),

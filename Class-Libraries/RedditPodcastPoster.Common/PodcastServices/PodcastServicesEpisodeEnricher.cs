@@ -9,6 +9,7 @@ namespace RedditPodcastPoster.Common.PodcastServices;
 
 public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
 {
+    private static readonly TimeSpan DelayExpiryThreshold = TimeSpan.FromHours(4);
     private readonly IAppleEpisodeEnricher _appleEpisodeEnricher;
     private readonly ILogger<PodcastServicesEpisodeEnricher> _logger;
     private readonly ISpotifyEpisodeEnricher _spotifyEpisodeEnricher;
@@ -61,6 +62,34 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
             if (enrichmentContext.Updated)
             {
                 results.Add(new EnrichmentResult(podcast, episode, enrichmentContext));
+            }
+        }
+
+        if (podcast.YouTubePublishingDelay() != null &&
+            podcast.SkipEnrichingFromYouTube == null &&
+            !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
+        {
+            var podcastYouTubePublishingDelay = podcast.YouTubePublishingDelay()!.Value;
+            if (podcastYouTubePublishingDelay > TimeSpan.Zero)
+            {
+                var delayedEpisodes = podcast.Episodes
+                    .Where(episode =>
+                        episode.Release.Add(podcastYouTubePublishingDelay) <= DateTime.UtcNow
+                        && episode.Release.Add(podcastYouTubePublishingDelay.Add(DelayExpiryThreshold)) >=
+                        DateTime.UtcNow)
+                    .Where(delayedEpisode => !newEpisodes.Contains(delayedEpisode))
+                    .Where(delayedEpisode => delayedEpisode.Urls.YouTube == null ||
+                                             string.IsNullOrWhiteSpace(delayedEpisode.YouTubeId));
+                foreach (var delayedEpisode in delayedEpisodes)
+                {
+                    var enrichmentContext = new EnrichmentContext();
+                    var enrichmentRequest = new EnrichmentRequest(podcast, delayedEpisode);
+                    await _youTubeEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
+                    if (enrichmentContext.Updated)
+                    {
+                        results.Add(new EnrichmentResult(podcast, delayedEpisode, enrichmentContext));
+                    }
+                }
             }
         }
 
