@@ -68,8 +68,7 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
             }
         }
 
-        if (podcast.YouTubePublishingDelay() != null &&
-            podcast.SkipEnrichingFromYouTube == null &&
+        if (podcast.SkipEnrichingFromYouTube == null &&
             !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
             if (podcast.YouTubePublishingDelay()!.Value > TimeSpan.Zero)

@@ -64,17 +64,17 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
 
     public bool IsRecentlyExpiredDelayedPublishing(Podcast podcast, Episode episode)
     {
-        var isRecentlyExpiredDelayedPublishing =
-            episode.Release.Add(podcast.YouTubePublishingDelay()!.Value) <= DateTime.UtcNow
-            && episode.Release.Add(
-                podcast.YouTubePublishingDelay()!.Value.Add(_delayedYouTubePublicationSettings
-                    .EvaluationThreshold)) >= DateTime.UtcNow;
-        if (isRecentlyExpiredDelayedPublishing)
+        if (podcast.YouTubePublishingDelay() != null && podcast.YouTubePublishingDelay()!.Value > TimeSpan.Zero)
         {
-            _logger.LogInformation($"Considering episode '{episode.Title}' to have expired it's delayed publishing.");
+            var isRecentlyExpiredDelayedPublishing =
+                episode.Release.Add(podcast.YouTubePublishingDelay()!.Value) <= DateTime.UtcNow
+                && episode.Release.Add(
+                    podcast.YouTubePublishingDelay()!.Value.Add(_delayedYouTubePublicationSettings
+                        .EvaluationThreshold)) >= DateTime.UtcNow;
+            return isRecentlyExpiredDelayedPublishing;
         }
 
-        return isRecentlyExpiredDelayedPublishing;
+        return false;
     }
 
     private bool IsReadyToPost(Podcast podcast, Episode episode, DateTime since)
