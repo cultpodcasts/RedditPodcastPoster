@@ -9,6 +9,7 @@ namespace RedditPodcastPoster.Common.PodcastServices;
 
 public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
 {
+    private static readonly TimeSpan DelayExpiryThreshold = TimeSpan.FromHours(4);
     private readonly IAppleEpisodeEnricher _appleEpisodeEnricher;
     private readonly ILogger<PodcastServicesEpisodeEnricher> _logger;
     private readonly ISpotifyEpisodeEnricher _spotifyEpisodeEnricher;
@@ -72,9 +73,11 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
             if (podcastYouTubePublishingDelay > TimeSpan.Zero)
             {
                 var delayedEpisodes = podcast.Episodes
+                    .Where(episode =>
+                        episode.Release.Add(podcastYouTubePublishingDelay) <= DateTime.UtcNow
+                        && episode.Release.Add(podcastYouTubePublishingDelay.Add(DelayExpiryThreshold)) >=
+                        DateTime.UtcNow)
                     .Where(delayedEpisode => !newEpisodes.Contains(delayedEpisode))
-                    .Where(delayedEpisode =>
-                        DateTime.UtcNow >= delayedEpisode.Release.Add(podcastYouTubePublishingDelay).ToUniversalTime())
                     .Where(delayedEpisode => delayedEpisode.Urls.YouTube == null ||
                                              string.IsNullOrWhiteSpace(delayedEpisode.YouTubeId));
                 foreach (var delayedEpisode in delayedEpisodes)
