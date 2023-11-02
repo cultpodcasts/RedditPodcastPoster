@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
@@ -9,9 +10,9 @@ namespace RedditPodcastPoster.Common.PodcastServices;
 
 public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
 {
-    private static readonly TimeSpan DelayExpiryThreshold = TimeSpan.FromHours(4);
     private readonly IAppleEpisodeEnricher _appleEpisodeEnricher;
     private readonly ILogger<PodcastServicesEpisodeEnricher> _logger;
+    private readonly IPodcastEpisodeFilter _podcastEpisodeFilter;
     private readonly ISpotifyEpisodeEnricher _spotifyEpisodeEnricher;
     private readonly IYouTubeEpisodeEnricher _youTubeEpisodeEnricher;
 
@@ -19,11 +20,13 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
         IAppleEpisodeEnricher appleEpisodeEnricher,
         ISpotifyEpisodeEnricher spotifyEpisodeEnricher,
         IYouTubeEpisodeEnricher youTubeEpisodeEnricher,
+        IPodcastEpisodeFilter podcastEpisodeFilter,
         ILogger<PodcastServicesEpisodeEnricher> logger)
     {
         _appleEpisodeEnricher = appleEpisodeEnricher;
         _spotifyEpisodeEnricher = spotifyEpisodeEnricher;
         _youTubeEpisodeEnricher = youTubeEpisodeEnricher;
+        _podcastEpisodeFilter = podcastEpisodeFilter;
         _logger = logger;
     }
 
@@ -69,14 +72,10 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
             podcast.SkipEnrichingFromYouTube == null &&
             !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
-            var podcastYouTubePublishingDelay = podcast.YouTubePublishingDelay()!.Value;
-            if (podcastYouTubePublishingDelay > TimeSpan.Zero)
+            if (podcast.YouTubePublishingDelay()!.Value > TimeSpan.Zero)
             {
                 var delayedEpisodes = podcast.Episodes
-                    .Where(episode =>
-                        episode.Release.Add(podcastYouTubePublishingDelay) <= DateTime.UtcNow
-                        && episode.Release.Add(podcastYouTubePublishingDelay.Add(DelayExpiryThreshold)) >=
-                        DateTime.UtcNow)
+                    .Where(episode => _podcastEpisodeFilter.IsRecentlyExpiredDelayedPublishing(podcast, episode))
                     .Where(delayedEpisode => !newEpisodes.Contains(delayedEpisode))
                     .Where(delayedEpisode => delayedEpisode.Urls.YouTube == null ||
                                              string.IsNullOrWhiteSpace(delayedEpisode.YouTubeId));

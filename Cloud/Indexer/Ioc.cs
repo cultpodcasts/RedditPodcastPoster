@@ -57,6 +57,8 @@ public static class Ioc
         serviceCollection
             .AddOptions<PosterOptions>().Bind(hostBuilderContext.Configuration.GetSection("poster"));
         serviceCollection.AddPostingCriteria(hostBuilderContext.Configuration);
+        serviceCollection.AddDelayedYouTubePublication(hostBuilderContext.Configuration);
+
 
     }
 }

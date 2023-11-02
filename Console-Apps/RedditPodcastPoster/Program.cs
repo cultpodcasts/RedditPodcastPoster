@@ -6,8 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster;
-using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -43,6 +43,8 @@ builder.Services
     .AddScoped<IFlushable, CacheFlusher>()
     .AddScoped<PodcastProcessor>()
     .AddHttpClient();
+
+builder.Services.AddDelayedYouTubePublication(builder.Configuration);
 
 using var host = builder.Build();
 

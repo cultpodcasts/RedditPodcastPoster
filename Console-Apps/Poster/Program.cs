@@ -34,6 +34,7 @@ builder.Services
     .AddTextSanitiser();
 
 builder.Services.AddPostingCriteria(builder.Configuration);
+builder.Services.AddDelayedYouTubePublication(builder.Configuration);
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<PostRequest>(args)
