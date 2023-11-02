@@ -1,13 +1,12 @@
-﻿using System.Data.SQLite;
-using System.Reflection;
-using Microsoft.EntityFrameworkCore;
+﻿using System.Reflection;
+using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.JsonSplitCosmosDbUploader;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.Text.Extensions;
-using Sqllite3DatabasePublisher;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -22,16 +21,19 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories(builder.Configuration)
-    .AddEliminationTerms()
-    .AddSingleton<Sqllite3DatabasePublisher.Sqllite3DatabasePublisher>();
+    .AddFileRepository("podcast")
+    .AddScoped<JsonSplitCosmosDbUploadProcessor>()
+    .AddSingleton<PodcastFactory>();
 
-var databaseFileName = "podcasts.sqlite";
-var connectionString = $"Data Source={databaseFileName}";
-
-File.Delete(databaseFileName);
-SQLiteConnection.CreateFile(databaseFileName);
-builder.Services.AddDbContext<PodcastContext>(options => options.UseSqlite(connectionString));
 
 using var host = builder.Build();
-var processor = host.Services.GetService<Sqllite3DatabasePublisher.Sqllite3DatabasePublisher>();
-await processor!.Run();
+
+return await Parser.Default.ParseArguments<JsonSplitCosmosDbUploadRequest>(args)
+    .MapResult(async request => await Run(request), errs => Task.FromResult(-1)); // Invalid arguments
+
+async Task<int> Run(JsonSplitCosmosDbUploadRequest request)
+{
+    var urlSubmitter = host.Services.GetService<JsonSplitCosmosDbUploadProcessor>()!;
+    await urlSubmitter.Run(request);
+    return 0;
+}
