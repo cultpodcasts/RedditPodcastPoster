@@ -44,7 +44,7 @@ public class JsonSplitCosmosDbUploadProcessor
         for (var i = 0; i < splitFiles; i++)
         {
             var podcast = _podcastFactory.Create(sourcePodcast.Name);
-            podcast.FileKey = $"{podcast.Name}_{i}";
+            podcast.FileKey = $"{podcast.FileKey}_{i}";
             podcast.AppleId = sourcePodcast.AppleId;
             podcast.Bundles = sourcePodcast.Bundles;
             podcast.DescriptionRegex = sourcePodcast.DescriptionRegex;
