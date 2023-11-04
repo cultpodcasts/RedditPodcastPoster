@@ -83,7 +83,10 @@ public class EnrichPodcastEpisodesProcessor
                 if (match != null)
                 {
                     episode.Urls.YouTube ??= match.Url;
-                    episode.YouTubeId ??= match.EpisodeId;
+                    if (string.IsNullOrWhiteSpace(episode.YouTubeId))
+                    {
+                        episode.YouTubeId = match.EpisodeId;
+                    }
                     _logger.LogInformation($"Enriched from youtube: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
                     updated = true;
                 }
@@ -96,7 +99,10 @@ public class EnrichPodcastEpisodesProcessor
                 if (match != null)
                 {
                     episode.Urls.Spotify ??= match.Url;
-                    episode.SpotifyId ??= match.EpisodeId;
+                    if (string.IsNullOrWhiteSpace(episode.SpotifyId))
+                    {
+                        episode.SpotifyId= match.EpisodeId;
+                    }
                     _logger.LogInformation($"Enriched from spotify: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
                     updated = true;
                 }
