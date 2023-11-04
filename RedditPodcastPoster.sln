@@ -14,7 +14,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentat
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AddYouTubeChannelAsPodcast", "Console-Apps\AddYouTubeChannelAsPodcast\AddYouTubeChannelAsPodcast.csproj", "{62ED1991-2A45-4A71-9B6A-05829CBEE5F8}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApplePodcastEpisodeEnricher", "Console-Apps\ApplePodcastEpisodeEnricher\ApplePodcastEpisodeEnricher.csproj", "{32C94732-069F-4D86-B527-6B9D78AFA2D0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EnrichExistingEpisodesFromPodcastServices", "Console-Apps\EnrichExistingEpisodesFromPodcastServices\EnrichExistingEpisodesFromPodcastServices.csproj", "{32C94732-069F-4D86-B527-6B9D78AFA2D0}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Models", "Class-Libraries\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj", "{75EC9016-D2E9-46D8-A474-58DFBA4135AE}"
 EndProject
@@ -122,7 +122,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Podcast
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Configuration", "Class-Libraries\RedditPodcastPoster.Configuration\RedditPodcastPoster.Configuration.csproj", "{F0A8B18C-0BAF-451A-AD1E-26A075BD8FE6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JsonSplitCosmosDbUploader", "Console-Apps\JsonSplitCosmosDbUploader\JsonSplitCosmosDbUploader.csproj", "{3A7AF675-BF76-4B10-8623-3E114DEB6C98}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "JsonSplitCosmosDbUploader", "Console-Apps\JsonSplitCosmosDbUploader\JsonSplitCosmosDbUploader.csproj", "{3A7AF675-BF76-4B10-8623-3E114DEB6C98}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
