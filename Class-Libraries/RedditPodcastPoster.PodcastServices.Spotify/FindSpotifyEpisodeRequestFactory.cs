@@ -13,7 +13,9 @@ public static class FindSpotifyEpisodeRequestFactory
             string.Empty,
             criteria.EpisodeTitle.Trim(),
             criteria.Release,
-            podcast?.HasExpensiveSpotifyEpisodesQuery() ?? true);
+            podcast?.HasExpensiveSpotifyEpisodesQuery() ?? true,
+            podcast?.ReleaseAuthority,
+            criteria.Duration);
     }
 
     public static FindSpotifyEpisodeRequest Create(Podcast podcast, Episode episode)
@@ -25,6 +27,8 @@ public static class FindSpotifyEpisodeRequestFactory
             episode.Title.Trim(),
             episode.Release,
             podcast.HasExpensiveSpotifyEpisodesQuery(),
+            podcast.ReleaseAuthority,
+            episode.Length,
             podcast.SpotifyMarket);
     }
 

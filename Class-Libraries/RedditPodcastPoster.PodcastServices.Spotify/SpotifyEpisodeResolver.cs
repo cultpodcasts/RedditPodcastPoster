@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using SpotifyAPI.Web;
 
@@ -116,8 +117,27 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
                     }
                 }
 
-                var matchingEpisode =
-                    _spotifySearcher.FindMatchingEpisode(request.EpisodeTitle, request.Released, allEpisodes);
+                SimpleEpisode? matchingEpisode;
+                if (request is {ReleaseAuthority: Service.YouTube, Length: not null} && request.Length.HasValue)
+                {
+                    matchingEpisode =
+                        _spotifySearcher.FindMatchingEpisodeByLength(request.EpisodeTitle, request.Length.Value,
+                            allEpisodes);
+                    if (request.Released.HasValue)
+                    {
+                        if (Math.Abs((matchingEpisode.GetReleaseDate() - request.Released.Value).Ticks) >
+                            TimeSpan.FromDays(14).Ticks)
+                        {
+                            matchingEpisode = null;
+                        }
+                    }
+                }
+                else
+                {
+                    matchingEpisode =
+                        _spotifySearcher.FindMatchingEpisodeByDate(request.EpisodeTitle, request.Released, allEpisodes);
+                }
+
                 if (matchingEpisode != null)
                 {
                     var showRequest = new EpisodeRequest {Market = market};

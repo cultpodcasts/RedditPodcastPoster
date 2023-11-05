@@ -26,7 +26,7 @@ public class SpotifyPodcastEnricher : ISpotifyPodcastEnricher
         if (string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
             var matchedPodcast =
-                await _spotifyPodcastResolver.FindPodcast(PodcastExtensions.ToFindSpotifyPodcastRequest(podcast), indexingContext);
+                await _spotifyPodcastResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest(), indexingContext);
             if (matchedPodcast != null)
             {
                 if (!string.IsNullOrWhiteSpace(matchedPodcast.Id))

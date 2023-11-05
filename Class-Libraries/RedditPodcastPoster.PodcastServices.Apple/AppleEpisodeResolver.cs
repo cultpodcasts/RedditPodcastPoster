@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text;
 
@@ -6,6 +7,7 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class AppleEpisodeResolver : IAppleEpisodeResolver
 {
+    private static readonly long TimeDifferenceThreshold = TimeSpan.FromMinutes(1).Ticks;
     private readonly ICachedApplePodcastService _applePodcastService;
     private readonly ILogger<AppleEpisodeResolver> _logger;
 
@@ -39,17 +41,37 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
                 var matchingEpisodes = podcastEpisodes.Where(x => x.Title == request.EpisodeTitle);
                 if (!matchingEpisodes.Any() || matchingEpisodes.Count() > 1)
                 {
-                    var sameDateMatches = podcastEpisodes.Where(x =>
-                        DateOnly.FromDateTime(x.Release) == DateOnly.FromDateTime(request.Released));
-                    if (sameDateMatches.Count() > 1)
+                    IEnumerable<AppleEpisode> matches;
+                    if (request is {ReleaseAuthority: Service.YouTube, EpisodeLength: not null} ||
+                        !request.Released.HasValue)
+                    {
+                        matches = podcastEpisodes.Where(x =>
+                            Math.Abs((x.Duration - request.EpisodeLength!.Value).Ticks) < TimeDifferenceThreshold);
+                    }
+                    else
+                    {
+                        matches = podcastEpisodes.Where(x =>
+                            DateOnly.FromDateTime(x.Release) == DateOnly.FromDateTime(request.Released.Value));
+                    }
+
+                    if (matches.Count() > 1)
                     {
                         var distances =
-                            sameDateMatches.OrderByDescending<AppleEpisode, double>(x =>
+                            matches.OrderByDescending(x =>
                                 Levenshtein.CalculateSimilarity(request.EpisodeTitle, x.Title));
                         return distances.FirstOrDefault()!;
                     }
 
-                    matchingEpisode = sameDateMatches.SingleOrDefault();
+                    matchingEpisode = matches.SingleOrDefault();
+
+                    if (matchingEpisode != null && request.Released.HasValue)
+                    {
+                        if (Math.Abs((matchingEpisode.Release - request.Released.Value).Ticks) >
+                            TimeSpan.FromDays(14).Ticks)
+                        {
+                            matchingEpisode = null;
+                        }
+                    }
                 }
 
                 matchingEpisode ??= matchingEpisodes.FirstOrDefault();
