@@ -78,12 +78,13 @@ public class SpotifyPodcastResolver : ISpotifyPodcastResolver
                             {
                                 var mostRecentEpisode = request.Episodes.OrderByDescending(x => x.Release).First();
                                 var matchingEpisode =
-                                    _spotifySearcher.FindMatchingEpisode(
+                                    _spotifySearcher.FindMatchingEpisodeByDate(
                                         mostRecentEpisode.Title.Trim(),
                                         mostRecentEpisode.Release,
                                         new[] {paginateEpisodesResponse.Results});
-                                if (Enumerable.Contains(request.Episodes
-                                        .Select(x => x.Url?.ToString()), Enumerable.FirstOrDefault<KeyValuePair<string, string>>(matchingEpisode!.ExternalUrls).Value))
+                                if (request.Episodes
+                                    .Select(x => x.Url?.ToString())
+                                    .Contains(matchingEpisode!.ExternalUrls.FirstOrDefault().Value))
                                 {
                                     matchingSimpleShow = candidatePodcast;
                                     break;

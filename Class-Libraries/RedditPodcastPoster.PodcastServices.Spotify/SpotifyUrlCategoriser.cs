@@ -56,11 +56,12 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
                 findEpisodeResponse.FullEpisode.Description,
                 findEpisodeResponse.FullEpisode.GetReleaseDate(),
                 findEpisodeResponse.FullEpisode.GetDuration(),
-                new Uri(Enumerable.FirstOrDefault<KeyValuePair<string, string>>(findEpisodeResponse.FullEpisode.ExternalUrls).Value, UriKind.Absolute),
+                new Uri(findEpisodeResponse.FullEpisode.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute),
                 findEpisodeResponse.FullEpisode.Explicit);
         }
 
-        _logger.LogError($"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveSpotifyQueries)}' is set.");
+        _logger.LogError(
+            $"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveSpotifyQueries)}' is set.");
 
         throw new InvalidOperationException($"Could not find item with spotify-id '{SpotifyId}'.");
     }
@@ -84,13 +85,14 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
                     findEpisodeResponse.FullEpisode.Description,
                     findEpisodeResponse.FullEpisode.GetReleaseDate(),
                     findEpisodeResponse.FullEpisode.GetDuration(),
-                    FullEpisodeExtensions.GetUrl(findEpisodeResponse.FullEpisode),
+                    findEpisodeResponse.FullEpisode.GetUrl(),
                     findEpisodeResponse.FullEpisode.Explicit);
             }
         }
         else
         {
-            _logger.LogError($"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveSpotifyQueries)}' is set.");
+            _logger.LogError(
+                $"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveSpotifyQueries)}' is set.");
         }
 
         _logger.LogWarning(

@@ -27,7 +27,9 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
         return url.Host.ToLower().Contains("apple");
     }
 
-    public async Task<ResolvedAppleItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast,
+    public async Task<ResolvedAppleItem?> Resolve(
+        PodcastServiceSearchCriteria criteria,
+        Podcast? matchingPodcast,
         IndexingContext indexingContext)
     {
         var podcast =
@@ -42,15 +44,9 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
             return null;
         }
 
-        var episode = await _appleEpisodeResolver.FindEpisode(
-            new FindAppleEpisodeRequest(
-                podcast.Id,
-                podcast.Name,
-                null,
-                criteria.EpisodeTitle,
-                criteria.Release,
-                0)
-            , indexingContext);
+        var findEpisodeRequest = FindAppleEpisodeRequestFactory.Create(podcast, criteria);
+
+        var episode = await _appleEpisodeResolver.FindEpisode(findEpisodeRequest, indexingContext);
 
         if (episode != null)
         {
@@ -99,15 +95,9 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
         var podcastId = long.Parse(podcastIdMatch.Value);
         var episodeId = long.Parse(episodeIdMatch.Value);
 
-        var episode = await _appleEpisodeResolver.FindEpisode(
-            new FindAppleEpisodeRequest(
-                podcastId,
-                string.Empty,
-                episodeId,
-                string.Empty,
-                DateTime.MinValue,
-                0)
-            , indexingContext);
+        var findAppleEpisodeRequest = FindAppleEpisodeRequestFactory.Create(podcastId, episodeId);
+
+        var episode = await _appleEpisodeResolver.FindEpisode(findAppleEpisodeRequest, indexingContext);
 
         var podcast =
             await _applePodcastResolver.FindPodcast(new FindApplePodcastRequest(podcastId, string.Empty, string.Empty));
