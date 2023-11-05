@@ -46,7 +46,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
                         !request.Released.HasValue)
                     {
                         matches = podcastEpisodes.Where(x =>
-                            Math.Abs((x.Duration - request.EpisodeLength.Value).Ticks) < TimeDifferenceThreshold);
+                            Math.Abs((x.Duration - request.EpisodeLength!.Value).Ticks) < TimeDifferenceThreshold);
                     }
                     else
                     {
