@@ -123,7 +123,7 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
                     matchingEpisode =
                         _spotifySearcher.FindMatchingEpisodeByLength(request.EpisodeTitle, request.Length.Value,
                             allEpisodes);
-                    if (request.Released.HasValue)
+                    if (matchingEpisode !=null && request.Released.HasValue)
                     {
                         if (Math.Abs((matchingEpisode.GetReleaseDate() - request.Released.Value).Ticks) >
                             TimeSpan.FromDays(14).Ticks)

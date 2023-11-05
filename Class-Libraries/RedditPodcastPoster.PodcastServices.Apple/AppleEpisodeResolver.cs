@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class AppleEpisodeResolver : IAppleEpisodeResolver
 {
-    private static readonly long TimeDifferenceThreshold = TimeSpan.FromMinutes(1).Ticks;
+    private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(5).Ticks;
     private readonly ICachedApplePodcastService _applePodcastService;
     private readonly ILogger<AppleEpisodeResolver> _logger;
 
@@ -47,6 +47,14 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
                     {
                         matches = podcastEpisodes.Where(x =>
                             Math.Abs((x.Duration - request.EpisodeLength!.Value).Ticks) < TimeDifferenceThreshold);
+
+                        if (request.Released.HasValue)
+                        {
+                            matches = matches.Where(x =>
+                                Math.Abs((x.Release - request.Released.Value).Ticks) >
+                                TimeSpan.FromDays(14).Ticks
+                            );
+                        }
                     }
                     else
                     {
@@ -63,15 +71,6 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
                     }
 
                     matchingEpisode = matches.SingleOrDefault();
-
-                    if (matchingEpisode != null && request.Released.HasValue)
-                    {
-                        if (Math.Abs((matchingEpisode.Release - request.Released.Value).Ticks) >
-                            TimeSpan.FromDays(14).Ticks)
-                        {
-                            matchingEpisode = null;
-                        }
-                    }
                 }
 
                 matchingEpisode ??= matchingEpisodes.FirstOrDefault();
