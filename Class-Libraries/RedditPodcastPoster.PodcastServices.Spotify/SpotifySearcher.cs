@@ -6,7 +6,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public class SpotifySearcher : ISpotifySearcher
 {
-    private static readonly long TimeDifferenceThreshold = TimeSpan.FromMinutes(1).Ticks;
+    private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(5).Ticks;
     private readonly ILogger<SpotifySearcher> _logger;
 
     public SpotifySearcher(ILogger<SpotifySearcher> logger)
