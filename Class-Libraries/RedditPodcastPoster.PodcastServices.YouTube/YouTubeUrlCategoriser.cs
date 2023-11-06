@@ -1,5 +1,4 @@
-﻿using System.Xml;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
@@ -36,7 +35,7 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
             .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new PodcastEpisode(podcast, episode))
             .FirstOrDefault(pair => pair.Episode.Urls.YouTube == url);
 
-        if (pair != null)
+        if (pair != null && !string.IsNullOrWhiteSpace(pair.Podcast.YouTubeChannelId))
         {
             return new ResolvedYouTubeItem(pair);
         }
@@ -61,19 +60,28 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
                     indexingContext, true, true);
             if (channel != null)
             {
-                return new ResolvedYouTubeItem(
-                    item.Snippet.ChannelId,
-                    item.Id,
-                    item.Snippet.ChannelTitle,
-                    channel!.Snippet.Description,
-                    channel.ContentOwnerDetails.ContentOwner,
-                    item.Snippet.Title,
-                    item.Snippet.Description,
-                    item.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-                    item.GetLength(),
-                    item.ToYouTubeUrl(),
-                    item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted"
-                );
+                if (pair == null)
+                {
+                    return new ResolvedYouTubeItem(
+                        item.Snippet.ChannelId,
+                        item.Id,
+                        item.Snippet.ChannelTitle,
+                        channel!.Snippet.Description,
+                        channel.ContentOwnerDetails.ContentOwner,
+                        item.Snippet.Title,
+                        item.Snippet.Description,
+                        item.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
+                        item.GetLength(),
+                        item.ToYouTubeUrl(),
+                        item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted"
+                    );
+                }
+
+                if (string.IsNullOrWhiteSpace(pair.Podcast.YouTubeChannelId))
+                {
+                    pair.Podcast.YouTubeChannelId = item.Snippet.ChannelId;
+                    return new ResolvedYouTubeItem(pair);
+                }
             }
         }
         else
