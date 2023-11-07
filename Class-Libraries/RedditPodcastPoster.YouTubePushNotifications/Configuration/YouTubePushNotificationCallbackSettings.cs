@@ -2,5 +2,5 @@
 
 public class YouTubePushNotificationCallbackSettings
 {
-    public Uri CallbackBaseUrl { get; set; }
+    public required Uri CallbackBaseUrl { get; set; }
 }
