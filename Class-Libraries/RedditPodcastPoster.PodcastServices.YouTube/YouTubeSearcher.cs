@@ -92,7 +92,7 @@ public partial class YouTubeSearcher : IYouTubeSearcher
 
     private SearchResult? MatchOnTextCloseness(Episode episode, IList<SearchResult> searchResults)
     {
-        return searchResults.MaxBy(x => Levenshtein.CalculateSimilarity(episode.Title, x.Snippet.Title));
+        return FuzzyMatcher.Match(episode.Title, searchResults, x => x.Snippet.Title);
     }
 
     private SearchResult? MatchOnEpisodeNumber(Episode episode, IList<SearchResult> searchResults)

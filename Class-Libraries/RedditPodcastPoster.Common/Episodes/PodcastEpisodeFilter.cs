@@ -42,26 +42,6 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
         return resolvedPodcastEpisodeSince;
     }
 
-    public PodcastEpisode? GetMostRecentUntweetedEpisode(IList<Podcast> podcasts)
-    {
-        var podcastEpisode =
-            podcasts
-                .SelectMany(p => p.Episodes.Select(e => new PodcastEpisode(p, e)))
-                .Where(x =>
-                    x.Episode.Release >= DateTime.UtcNow.Date.AddHours(-24) &&
-                    x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
-                    (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
-                    !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
-                .MaxBy(x => x.Episode.Release);
-        if (podcastEpisode?.Podcast == null)
-        {
-            _logger.LogInformation("No Podcast-Episode found to Tweet.");
-            return null;
-        }
-
-        return podcastEpisode;
-    }
-
     public bool IsRecentlyExpiredDelayedPublishing(Podcast podcast, Episode episode)
     {
         if (podcast.YouTubePublishingDelay() != null && podcast.YouTubePublishingDelay()!.Value > TimeSpan.Zero)
@@ -75,6 +55,27 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
         }
 
         return false;
+    }
+
+    public PodcastEpisode? GetMostRecentUntweetedEpisode(IList<Podcast> podcasts, int? numberOfDays = null)
+    {
+        numberOfDays ??= 1;
+        var podcastEpisode =
+            podcasts
+                .SelectMany(p => p.Episodes.Select(e => new PodcastEpisode(p, e)))
+                .Where(x =>
+                    x.Episode.Release >= DateTime.UtcNow.Date.AddDays(-1 * numberOfDays.Value) &&
+                    x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
+                    (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
+                    !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
+                .MaxBy(x => x.Episode.Release);
+        if (podcastEpisode?.Podcast == null)
+        {
+            _logger.LogInformation("No Podcast-Episode found to Tweet.");
+            return null;
+        }
+
+        return podcastEpisode;
     }
 
     private bool IsReadyToPost(Podcast podcast, Episode episode, DateTime since)
