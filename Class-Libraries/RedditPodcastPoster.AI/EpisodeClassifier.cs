@@ -47,7 +47,7 @@ public class EpisodeClassifier : IEpisodeClassifier
                 }
 
                 var page =
-                    result.FirstOrDefault()
+                    result.First()
                         .Values.First()
                         .SingleLabelClassifyResults.First()
                         .DocumentsResults.First()
@@ -59,7 +59,7 @@ public class EpisodeClassifier : IEpisodeClassifier
                     var matchingSubject =
                         (await _subjectRepository.GetAll(Subject.PartitionKey)).SingleOrDefault(x =>
                             x.Name.ToLower() == label.ToLower());
-                    episode.Category = matchingSubject.Name;
+                    episode.Category = matchingSubject?.Name;
                 }
             }
             else
