@@ -6,9 +6,9 @@ namespace RedditPodcastPoster.YouTubePushNotifications;
 
 public class NotificationAdaptor : INotificationAdaptor
 {
-    private static readonly XNamespace _namespace = "http://www.w3.org/2005/Atom";
-    private static readonly XNamespace _youTube = "http://www.youtube.com/xml/schemas/2015";
-    private static readonly XNamespace _media = "http://search.yahoo.com/mrss/";
+    private static readonly XNamespace Namespace = "http://www.w3.org/2005/Atom";
+    private static readonly XNamespace YouTube = "http://www.youtube.com/xml/schemas/2015";
+    private static readonly XNamespace Media = "http://search.yahoo.com/mrss/";
     private readonly ILogger<NotificationAdaptor> _logger;
 
     public NotificationAdaptor(ILogger<NotificationAdaptor> logger)
@@ -20,25 +20,25 @@ public class NotificationAdaptor : INotificationAdaptor
     {
         var root = xml.Root;
 
-        var linkAlternative = xml.Root.Elements(_namespace + "link")
+        var linkAlternative = xml.Root!.Elements(Namespace + "link")
             .SingleOrDefault(x => x.Attribute("rel")?.Value == "alternate");
         var notification = new Notification
         {
-            Id = xml.Root.Element(_namespace + "id")?.Value ?? string.Empty,
-            ChannelId = xml.Root.Element(_youTube + "channelId")?.Value ?? string.Empty,
-            Title = xml.Root.Element(_namespace + "title")?.Value ?? string.Empty,
+            Id = xml.Root.Element(Namespace + "id")?.Value ?? string.Empty,
+            ChannelId = xml.Root.Element(YouTube + "channelId")?.Value ?? string.Empty,
+            Title = xml.Root.Element(Namespace + "title")?.Value ?? string.Empty,
             LinkAlternative = linkAlternative != null && linkAlternative.Attribute("href") != null
                 ? new Uri(linkAlternative.Attribute("href")!.Value)
                 : null,
-            AuthorName = xml.Root.Element(_namespace + "author")?.Element(_namespace + "name")?.Value ?? string.Empty,
-            AuthorUri = xml.Root.Element(_namespace + "author")?.Element(_namespace + "uri") != null
-                ? new Uri(xml.Root.Element(_namespace + "author")!.Element(_namespace + "uri")!.Value, UriKind.Absolute)
+            AuthorName = xml.Root.Element(Namespace + "author")?.Element(Namespace + "name")?.Value ?? string.Empty,
+            AuthorUri = xml.Root.Element(Namespace + "author")?.Element(Namespace + "uri") != null
+                ? new Uri(xml.Root.Element(Namespace + "author")!.Element(Namespace + "uri")!.Value, UriKind.Absolute)
                 : null,
-            Published = xml.Root.Element(_namespace + "published") != null
-                ? DateTime.Parse(xml.Root.Element(_namespace + "published")!.Value)
+            Published = xml.Root.Element(Namespace + "published") != null
+                ? DateTime.Parse(xml.Root.Element(Namespace + "published")!.Value)
                 : null
         };
-        var entries = xml.Root.Elements(_namespace + "entry");
+        var entries = xml.Root.Elements(Namespace + "entry");
         notification.Entries = entries.Select(x => CreateEntry(x));
 
         return notification;
@@ -46,39 +46,39 @@ public class NotificationAdaptor : INotificationAdaptor
 
     private Notification.EntryEntity CreateEntry(XElement entry)
     {
-        var linkAlternative = entry.Elements(_namespace + "link")
+        var linkAlternative = entry.Elements(Namespace + "link")
             .SingleOrDefault(x => x.Attribute("rel")?.Value == "alternate");
         var entryEntity = new Notification.EntryEntity
         {
-            Id = entry.Element(_namespace + "id")?.Value ?? string.Empty,
-            VideoId = entry.Element(_youTube + "videoId")?.Value ?? string.Empty,
-            ChannelId = entry.Element(_youTube + "channelId")?.Value ?? string.Empty,
-            Title = entry.Element(_namespace + "title")?.Value ?? string.Empty,
+            Id = entry.Element(Namespace + "id")?.Value ?? string.Empty,
+            VideoId = entry.Element(YouTube + "videoId")?.Value ?? string.Empty,
+            ChannelId = entry.Element(YouTube + "channelId")?.Value ?? string.Empty,
+            Title = entry.Element(Namespace + "title")?.Value ?? string.Empty,
             LinkAlternative = linkAlternative != null && linkAlternative.Attribute("href") != null
                 ? new Uri(linkAlternative.Attribute("href")!.Value)
                 : null,
-            AuthorName = entry.Element(_namespace + "author")?.Element(_namespace + "name")?.Value ?? string.Empty,
-            AuthorUri = entry.Element(_namespace + "author")?.Element(_namespace + "uri") != null
-                ? new Uri(entry.Element(_namespace + "author")!.Element(_namespace + "uri")!.Value,
+            AuthorName = entry.Element(Namespace + "author")?.Element(Namespace + "name")?.Value ?? string.Empty,
+            AuthorUri = entry.Element(Namespace + "author")?.Element(Namespace + "uri") != null
+                ? new Uri(entry.Element(Namespace + "author")!.Element(Namespace + "uri")!.Value,
                     UriKind.Absolute)
                 : null,
-            Published = entry.Element(_namespace + "published") != null
-                ? DateTime.Parse(entry.Element(_namespace + "published")!.Value)
+            Published = entry.Element(Namespace + "published") != null
+                ? DateTime.Parse(entry.Element(Namespace + "published")!.Value)
                 : null,
-            Updated = entry.Element(_namespace + "updated") != null
-                ? DateTime.Parse(entry.Element(_namespace + "updated")!.Value)
+            Updated = entry.Element(Namespace + "updated") != null
+                ? DateTime.Parse(entry.Element(Namespace + "updated")!.Value)
                 : null
         };
 
-        var group = entry.Element(_media + "group");
+        var group = entry.Element(Media + "group");
         if (group != null)
         {
-            var content = group.Element(_media + "content");
-            var thumbnail = group.Element(_media + "thumbnail");
-            var community = group.Element(_media + "community");
+            var content = group.Element(Media + "content");
+            var thumbnail = group.Element(Media + "thumbnail");
+            var community = group.Element(Media + "community");
             entryEntity.Group = new Notification.EntryEntity.MediaGroup
             {
-                Title = group.Element(_media + "title")?.Value ?? string.Empty,
+                Title = group.Element(Media + "title")?.Value ?? string.Empty,
                 ContentUrl = content?.Attribute("url") != null
                     ? new Uri(content.Attribute("url")!.Value, UriKind.Absolute)
                     : null,
@@ -101,12 +101,12 @@ public class NotificationAdaptor : INotificationAdaptor
                                   int.TryParse(thumbnail?.Attribute("height")!.Value, out var thumbnailHeight)
                     ? thumbnailHeight
                     : null,
-                Description = group.Element(_media + "description")?.Value ?? string.Empty
+                Description = group.Element(Media + "description")?.Value ?? string.Empty
             };
             if (community != null)
             {
-                var starRating = community.Element(_media + "starRating");
-                var statistics = community.Element(_media + "statistics");
+                var starRating = community.Element(Media + "starRating");
+                var statistics = community.Element(Media + "statistics");
                 entryEntity.Group.Community = new Notification.EntryEntity.MediaGroup.MediaCommunity
                 {
                     StarRatingCount = starRating?.Attribute("count") != null &&

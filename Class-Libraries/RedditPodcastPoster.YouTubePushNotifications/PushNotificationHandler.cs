@@ -17,7 +17,7 @@ public class PushNotificationHandler : IPushNotificationHandler
         _logger = logger;
     }
 
-    public async Task Handle(Guid podcastId, XDocument xml)
+    public Task Handle(Guid podcastId, XDocument xml)
     {
         try
         {
@@ -29,5 +29,7 @@ public class PushNotificationHandler : IPushNotificationHandler
         {
             _logger.LogError(e, $"Failure to handle notification for podcast with id '{podcastId}'.");
         }
+
+        return Task.CompletedTask;
     }
 }
