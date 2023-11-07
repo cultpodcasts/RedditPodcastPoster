@@ -5,6 +5,6 @@ namespace RedditPodcastPoster.Common.Episodes;
 public interface IPodcastEpisodeFilter
 {
     IEnumerable<PodcastEpisode> GetNewEpisodesReleasedSince(IList<Podcast> podcasts, DateTime since);
-    PodcastEpisode? GetMostRecentUntweetedEpisode(IList<Podcast> podcasts);
+    PodcastEpisode? GetMostRecentUntweetedEpisode(IList<Podcast> podcasts, int? numberOfDays = null);
     bool IsRecentlyExpiredDelayedPublishing(Podcast podcast, Episode episode);
 }

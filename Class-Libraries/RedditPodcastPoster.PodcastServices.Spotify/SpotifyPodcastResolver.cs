@@ -95,7 +95,7 @@ public class SpotifyPodcastResolver : ISpotifyPodcastResolver
                 }
 
                 matchingSimpleShow ??=
-                    matchingPodcasts.MaxBy(x => Levenshtein.CalculateSimilarity(request.Name, x.Name));
+                    FuzzyMatcher.Match(request.Name, matchingPodcasts, x => x.Name);
             }
         }
 

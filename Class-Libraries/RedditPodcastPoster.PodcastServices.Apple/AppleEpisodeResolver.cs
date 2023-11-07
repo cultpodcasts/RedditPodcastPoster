@@ -64,10 +64,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
 
                     if (matches.Count() > 1)
                     {
-                        var distances =
-                            matches.OrderByDescending(x =>
-                                Levenshtein.CalculateSimilarity(request.EpisodeTitle, x.Title));
-                        return distances.FirstOrDefault()!;
+                        return FuzzyMatcher.Match(request.EpisodeTitle, matches, x => x.Title);
                     }
 
                     matchingEpisode = matches.SingleOrDefault();

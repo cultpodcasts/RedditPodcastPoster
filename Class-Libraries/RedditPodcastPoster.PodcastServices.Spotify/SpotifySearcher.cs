@@ -6,7 +6,9 @@ namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public class SpotifySearcher : ISpotifySearcher
 {
-    private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(5).Ticks;
+    private const int MinFuzzyScore = 70;
+    private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(10).Ticks;
+    private static readonly long BroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
     private readonly ILogger<SpotifySearcher> _logger;
 
     public SpotifySearcher(ILogger<SpotifySearcher> logger)
@@ -34,10 +36,17 @@ public class SpotifySearcher : ISpotifySearcher
                     .Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < TimeDifferenceThreshold);
                 if (sameLength.Count() > 1)
                 {
-                    return sameLength.MaxBy(x => Levenshtein.CalculateSimilarity(episodeTitle, x.Name));
+                    return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name);
                 }
 
                 match = sameLength.SingleOrDefault();
+
+                if (match == null)
+                {
+                    sameLength = episodeList
+                        .Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < BroaderTimeDifferenceThreshold);
+                    return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name, MinFuzzyScore);
+                }
             }
 
             return match;
@@ -62,7 +71,7 @@ public class SpotifySearcher : ISpotifySearcher
                         DateOnly.FromDateTime(episodeRelease.Value));
                 if (sameDateMatches.Count() > 1)
                 {
-                    return sameDateMatches.MaxBy(x => Levenshtein.CalculateSimilarity(episodeTitle, x.Name));
+                    return FuzzyMatcher.Match(episodeTitle, sameDateMatches, x => x.Name, MinFuzzyScore);
                 }
 
                 match = sameDateMatches.SingleOrDefault();
