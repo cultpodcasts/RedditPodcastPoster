@@ -64,7 +64,7 @@ public class SubjectService : ISubjectService
         if (!string.IsNullOrWhiteSpace(subject.Name))
         {
             var matchedSubject = subjects.Where(x => x.Aliases != null).FirstOrDefault(x =>
-                x.Aliases.Select(y => y).Contains(subject.Name.ToLowerInvariant()));
+                x.Aliases!.Select(y => y).Contains(subject.Name.ToLowerInvariant()));
             if (matchedSubject != null)
             {
                 return matchedSubject;

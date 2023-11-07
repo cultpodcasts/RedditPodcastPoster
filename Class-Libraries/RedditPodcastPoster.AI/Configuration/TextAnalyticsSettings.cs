@@ -2,6 +2,6 @@
 
 public class TextAnalyticsSettings
 {
-    public string EndPoint { get; set; }
-    public string ApiKey { get; set; }
+    public required string EndPoint { get; set; }
+    public required string ApiKey { get; set; }
 }

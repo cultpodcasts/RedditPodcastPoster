@@ -2,6 +2,6 @@
 
 public class PodcastSubjectAIModelSettings
 {
-    public string Project { get; set; }
-    public string Deployment { get; set; }
+    public required string Project { get; set; }
+    public required string Deployment { get; set; }
 }
