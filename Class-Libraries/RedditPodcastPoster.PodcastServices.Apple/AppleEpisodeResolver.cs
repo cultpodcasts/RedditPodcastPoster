@@ -8,6 +8,7 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 public class AppleEpisodeResolver : IAppleEpisodeResolver
 {
     private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(5).Ticks;
+    private static readonly int FuzzyMatchThreshold = 70;
     private readonly ICachedApplePodcastService _applePodcastService;
     private readonly ILogger<AppleEpisodeResolver> _logger;
 
@@ -51,7 +52,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
                         if (request.Released.HasValue)
                         {
                             matches = matches.Where(x =>
-                                Math.Abs((x.Release - request.Released.Value).Ticks) >
+                                Math.Abs((x.Release - request.Released.Value).Ticks) <=
                                 TimeSpan.FromDays(14).Ticks
                             );
                         }
