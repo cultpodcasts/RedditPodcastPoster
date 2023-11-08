@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using CommandLine;
+using JsonSplitCosmosDbUploader;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
