@@ -19,16 +19,18 @@ public static class FindAppleEpisodeRequestFactory
         );
     }
 
-    public static FindAppleEpisodeRequest Create(iTunesSearch.Library.Models.Podcast podcast,
+    public static FindAppleEpisodeRequest Create(
+        Podcast podcast,
+        iTunesSearch.Library.Models.Podcast applePodcast,
         PodcastServiceSearchCriteria criteria)
     {
         return new FindAppleEpisodeRequest(
-            podcast.Id,
-            podcast.Name,
+            podcast.AppleId,
+            applePodcast.Name,
             null,
             criteria.EpisodeTitle,
             criteria.Release,
-            null,
+            podcast.ReleaseAuthority,
             criteria.Duration,
             0);
     }

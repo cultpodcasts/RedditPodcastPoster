@@ -44,7 +44,12 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
             return null;
         }
 
-        var findEpisodeRequest = FindAppleEpisodeRequestFactory.Create(podcast, criteria);
+        if (matchingPodcast.AppleId == null)
+        {
+            matchingPodcast.AppleId = podcast.Id;
+        }
+
+        var findEpisodeRequest = FindAppleEpisodeRequestFactory.Create(matchingPodcast, podcast, criteria);
 
         var episode = await _appleEpisodeResolver.FindEpisode(findEpisodeRequest, indexingContext);
 

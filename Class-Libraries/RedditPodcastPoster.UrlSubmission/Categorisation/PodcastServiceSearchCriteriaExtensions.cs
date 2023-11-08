@@ -7,7 +7,8 @@ namespace RedditPodcastPoster.UrlSubmission.Categorisation;
 
 public static class PodcastServiceSearchCriteriaExtensions
 {
-    public static PodcastServiceSearchCriteria Merge(this PodcastServiceSearchCriteria criteria,
+    public static PodcastServiceSearchCriteria Merge(
+        this PodcastServiceSearchCriteria criteria,
         ResolvedSpotifyItem item)
     {
         return new PodcastServiceSearchCriteria(
@@ -23,7 +24,8 @@ public static class PodcastServiceSearchCriteriaExtensions
         );
     }
 
-    public static PodcastServiceSearchCriteria Merge(this PodcastServiceSearchCriteria criteria,
+    public static PodcastServiceSearchCriteria Merge(
+        this PodcastServiceSearchCriteria criteria,
         ResolvedYouTubeItem item)
     {
         return new PodcastServiceSearchCriteria(
@@ -39,7 +41,9 @@ public static class PodcastServiceSearchCriteriaExtensions
         );
     }
 
-    public static PodcastServiceSearchCriteria Merge(this PodcastServiceSearchCriteria criteria, ResolvedAppleItem item)
+    public static PodcastServiceSearchCriteria Merge(
+        this PodcastServiceSearchCriteria criteria,
+        ResolvedAppleItem item)
     {
         return new PodcastServiceSearchCriteria(
             !string.IsNullOrWhiteSpace(criteria.ShowName) ? criteria.ShowName : item.ShowName,

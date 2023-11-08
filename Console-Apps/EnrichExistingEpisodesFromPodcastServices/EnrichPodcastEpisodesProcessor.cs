@@ -11,9 +11,11 @@ namespace EnrichExistingEpisodesFromPodcastServices;
 
 public class EnrichPodcastEpisodesProcessor
 {
+    private readonly IAppleEpisodeResolver _appleEpisodeResolver;
     private readonly IAppleUrlCategoriser _appleUrlCategoriser;
     private readonly ILogger<EnrichPodcastEpisodesProcessor> _logger;
     private readonly IPodcastRepository _podcastsRepository;
+    private readonly ISpotifyEpisodeResolver _spotifyEpisodeResolver;
     private readonly ISpotifyUrlCategoriser _spotifyUrlCategoriser;
     private readonly IYouTubeUrlCategoriser _youTubeUrlCategoriser;
 
@@ -22,12 +24,16 @@ public class EnrichPodcastEpisodesProcessor
         ISpotifyUrlCategoriser spotifyUrlCategoriser,
         IAppleUrlCategoriser appleUrlCategoriser,
         IYouTubeUrlCategoriser youTubeUrlCategoriser,
+        ISpotifyEpisodeResolver spotifyEpisodeResolver,
+        IAppleEpisodeResolver appleEpisodeResolver,
         ILogger<EnrichPodcastEpisodesProcessor> logger)
     {
         _podcastsRepository = podcastsRepository;
         _spotifyUrlCategoriser = spotifyUrlCategoriser;
         _appleUrlCategoriser = appleUrlCategoriser;
         _youTubeUrlCategoriser = youTubeUrlCategoriser;
+        _spotifyEpisodeResolver = spotifyEpisodeResolver;
+        _appleEpisodeResolver = appleEpisodeResolver;
         _logger = logger;
     }
 
@@ -74,6 +80,32 @@ public class EnrichPodcastEpisodesProcessor
                     _logger.LogInformation($"Enriched from apple: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
                     updated = true;
                 }
+                else
+                {
+                    if ((!string.IsNullOrWhiteSpace(episode.SpotifyId) || episode.Urls.Spotify != null) &&
+                        podcast.ReleaseAuthority == Service.YouTube)
+                    {
+                        var spotifyEpisode =
+                            await _spotifyEpisodeResolver.FindEpisode(
+                                FindSpotifyEpisodeRequestFactory.Create(podcast, episode), indexingContext);
+                        if (spotifyEpisode != null)
+                        {
+                            var refinedCriteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty,
+                                podcast.Publisher, spotifyEpisode.FullEpisode.Name,
+                                spotifyEpisode.FullEpisode.Description, spotifyEpisode.FullEpisode.GetReleaseDate(),
+                                spotifyEpisode.FullEpisode.GetDuration());
+                            match = await _appleUrlCategoriser.Resolve(refinedCriteria, podcast, indexingContext);
+                            if (match != null)
+                            {
+                                episode.Urls.Apple ??= match.Url;
+                                episode.AppleId ??= match.EpisodeId;
+                                _logger.LogInformation(
+                                    $"Enriched from apple: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
+                                updated = true;
+                            }
+                        }
+                    }
+                }
             }
 
             if (podcast.YouTubeChannelId != null &&
@@ -87,6 +119,7 @@ public class EnrichPodcastEpisodesProcessor
                     {
                         episode.YouTubeId = match.EpisodeId;
                     }
+
                     _logger.LogInformation($"Enriched from youtube: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
                     updated = true;
                 }
@@ -101,16 +134,43 @@ public class EnrichPodcastEpisodesProcessor
                     episode.Urls.Spotify ??= match.Url;
                     if (string.IsNullOrWhiteSpace(episode.SpotifyId))
                     {
-                        episode.SpotifyId= match.EpisodeId;
+                        episode.SpotifyId = match.EpisodeId;
                     }
+
                     _logger.LogInformation($"Enriched from spotify: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
                     updated = true;
+                }
+                else
+                {
+                    if ((episode.AppleId != null || episode.Urls.Apple != null) &&
+                        podcast.ReleaseAuthority == Service.YouTube)
+                    {
+                        var appleEpisode =
+                            await _appleEpisodeResolver.FindEpisode(
+                                FindAppleEpisodeRequestFactory.Create(podcast, episode), indexingContext);
+                        if (appleEpisode != null)
+                        {
+                            var refinedCriteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty,
+                                podcast.Publisher, appleEpisode.Title, appleEpisode.Description, appleEpisode.Release,
+                                appleEpisode.Duration);
+                            match = await _spotifyUrlCategoriser.Resolve(refinedCriteria, podcast, indexingContext);
+                            if (match != null)
+                            {
+                                episode.Urls.Spotify ??= match.Url;
+                                episode.SpotifyId = match.EpisodeId;
+                                _logger.LogInformation(
+                                    $"Enriched from spotify: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
+                                updated = true;
+                            }
+                        }
+                    }
                 }
             }
         }
 
         if (updated)
         {
+            podcast.Episodes = podcast.Episodes.OrderByDescending(x => x.Release).ToList();
             await _podcastsRepository.Save(podcast);
         }
     }
