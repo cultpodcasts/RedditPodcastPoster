@@ -44,7 +44,7 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
             return null;
         }
 
-        if (matchingPodcast.AppleId == null)
+        if (matchingPodcast is {AppleId: null})
         {
             matchingPodcast.AppleId = podcast.Id;
         }

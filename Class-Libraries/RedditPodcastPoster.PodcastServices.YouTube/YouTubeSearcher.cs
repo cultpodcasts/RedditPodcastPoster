@@ -82,7 +82,7 @@ public partial class YouTubeSearcher : IYouTubeSearcher
             if (Math.Abs((matchingPair.Video!.GetLength() - episode.Length).Ticks) < VideoDurationTolerance.Ticks)
             {
                 _logger.LogInformation(
-                    $"Matched episode '{episode.Title}' and length: '{episode.Length:g}' with episode '{matchingPair.SearchResult.Snippet.Title}' having length: '{matchingPair.Video.GetLength():g}'.");
+                    $"Matched episode '{episode.Title}' and length: '{episode.Length:g}' with episode '{matchingPair.SearchResult.Snippet.Title}' having length: '{matchingPair.Video?.GetLength():g}'.");
                 return matchingPair;
             }
         }
@@ -131,9 +131,11 @@ public partial class YouTubeSearcher : IYouTubeSearcher
         TimeSpan youTubePublishDelay)
     {
         var expectedPublish = episode.Release.Add(youTubePublishDelay);
-        var closestEpisode = searchResults.MinBy(x =>
-            Math.Abs(x.Snippet.PublishedAtDateTimeOffset.Value.Subtract(expectedPublish).Ticks));
-        if (closestEpisode.Snippet.PublishedAtDateTimeOffset.Value.Subtract(expectedPublish) < TimeSpan.FromDays(1))
+        var closestEpisode = searchResults
+            .Where(x => x.Snippet.PublishedAtDateTimeOffset.HasValue)
+            .MinBy(x => Math.Abs(x.Snippet.PublishedAtDateTimeOffset!.Value.Subtract(expectedPublish).Ticks));
+        if (closestEpisode?.Snippet.PublishedAtDateTimeOffset != null &&
+            closestEpisode.Snippet.PublishedAtDateTimeOffset.Value.Subtract(expectedPublish) < TimeSpan.FromDays(1))
         {
             return closestEpisode;
         }

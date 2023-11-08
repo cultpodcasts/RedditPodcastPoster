@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
@@ -24,7 +23,7 @@ public class YouTubeVideoService : IYouTubeVideoService
         IndexingContext? indexingContext,
         bool withSnippets = false)
     {
-        if (indexingContext.SkipYouTubeUrlResolving)
+        if (indexingContext is {SkipYouTubeUrlResolving: true})
         {
             _logger.LogInformation(
                 $"Skipping '{nameof(GetVideoContentDetails)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Video-ids: '{string.Join(",", videoIds)}'.");
