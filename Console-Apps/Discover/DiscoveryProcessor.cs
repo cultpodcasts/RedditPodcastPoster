@@ -38,12 +38,15 @@ public class DiscoveryProcessor
         if (results != null)
         {
             var allResults = await _spotifyClient.PaginateAll(results, response => response.Episodes, indexingContext);
-            var recentResults = allResults.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince);
-            foreach (var simpleEpisode in recentResults)
+            if (allResults != null)
             {
-                var min = Math.Min(simpleEpisode.Description.Length, 200);
-                _logger.LogInformation($"{simpleEpisode.Id}: '{simpleEpisode.Name}'");
-                _logger.LogInformation($"{simpleEpisode.Description[..min]}");
+                var recentResults = allResults.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince);
+                foreach (var simpleEpisode in recentResults)
+                {
+                    var min = Math.Min(simpleEpisode.Description.Length, 200);
+                    _logger.LogInformation($"{simpleEpisode.Id}: '{simpleEpisode.Name}'");
+                    _logger.LogInformation($"{simpleEpisode.Description[..min]}");
+                }
             }
         }
     }
