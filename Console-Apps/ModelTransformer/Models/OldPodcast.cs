@@ -71,8 +71,4 @@ public class OldPodcast : CosmosSelector
     [JsonPropertyName("episodes")]
     [JsonPropertyOrder(80)]
     public List<OldEpisode> Episodes { get; set; } = new();
-
-    [JsonPropertyName("fileKey")]
-    [JsonPropertyOrder(100)]
-    public string FileKey { get; set; } = "";
 }
