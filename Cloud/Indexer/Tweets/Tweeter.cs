@@ -25,12 +25,12 @@ public class Tweeter : ITweeter
         _logger = logger;
     }
 
-    public async Task Tweet()
+    public async Task Tweet(bool youTubeRefreshed, bool spotifyRefreshed)
     {
         PodcastEpisode? podcastEpisode = null;
         try
         {
-            podcastEpisode = await GetPodcastEpisode();
+            podcastEpisode = await GetPodcastEpisode(youTubeRefreshed, spotifyRefreshed);
         }
         catch (Exception ex)
         {
@@ -53,7 +53,7 @@ public class Tweeter : ITweeter
         }
     }
 
-    private async Task<PodcastEpisode?> GetPodcastEpisode()
+    private async Task<PodcastEpisode?> GetPodcastEpisode(bool youTubeRefreshed, bool spotifyRefreshed)
     {
         List<Podcast> podcasts;
         try
@@ -66,6 +66,6 @@ public class Tweeter : ITweeter
             throw;
         }
 
-        return _podcastEpisodeFilter.GetMostRecentUntweetedEpisode(podcasts);
+        return _podcastEpisodeFilter.GetMostRecentUntweetedEpisode(podcasts, youTubeRefreshed, spotifyRefreshed);
     }
 }

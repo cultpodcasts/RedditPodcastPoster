@@ -8,7 +8,7 @@ using RedditPodcastPoster.Configuration;
 namespace Indexer;
 
 [DurableTask(nameof(Poster))]
-public class Poster : TaskActivity<object, bool>
+public class Poster : TaskActivity<IndexerResponse, IndexerResponse>
 {
     private readonly IEpisodeProcessor _episodeProcessor;
     private readonly ILogger _logger;
@@ -27,7 +27,7 @@ public class Poster : TaskActivity<object, bool>
         _logger = logger;
     }
 
-    public override async Task<bool> RunAsync(TaskActivityContext context, object input)
+    public override async Task<IndexerResponse> RunAsync(TaskActivityContext context, IndexerResponse indexerResponse)
     {
         _logger.LogInformation($"{nameof(Poster)} initiated.");
         _logger.LogInformation(_posterOptions.ToString());
@@ -39,13 +39,16 @@ public class Poster : TaskActivity<object, bool>
 
         if (DryRun.IsDryRun)
         {
-            return true;
+            return indexerResponse with {Success = true};
         }
 
         ProcessResponse result;
         try
         {
-            result = await _episodeProcessor.PostEpisodesSinceReleaseDate(baselineDate);
+            result = await _episodeProcessor.PostEpisodesSinceReleaseDate(
+                baselineDate,
+                indexerResponse is {SkipYouTubeUrlResolving: false, YouTubeError: false},
+                indexerResponse is {SkipSpotifyUrlResolving: false, SpotifyError: false});
         }
         catch (Exception ex)
         {
@@ -64,6 +67,6 @@ public class Poster : TaskActivity<object, bool>
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return result.Success;
+        return indexerResponse with {Success = result.Success};
     }
 }

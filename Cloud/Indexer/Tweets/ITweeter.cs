@@ -2,6 +2,6 @@
 {
     public interface ITweeter
     {
-        Task Tweet();
+        Task Tweet(bool youTubeRefreshed, bool spotifyRefreshed);
     }
 }

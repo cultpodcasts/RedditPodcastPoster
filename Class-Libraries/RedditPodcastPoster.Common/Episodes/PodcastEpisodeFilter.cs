@@ -19,7 +19,11 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
         _delayedYouTubePublicationSettings = delayedYouTubePublicationSettings.Value;
     }
 
-    public IEnumerable<PodcastEpisode> GetNewEpisodesReleasedSince(IList<Podcast> podcasts, DateTime since)
+    public IEnumerable<PodcastEpisode> GetNewEpisodesReleasedSince(
+        IList<Podcast> podcasts,
+        DateTime since,
+        bool youTubeRefreshed,
+        bool spotifyRefreshed)
     {
         var matchingPodcasts = podcasts.Where(podcast =>
             podcast.Episodes.Any(episode => IsReadyToPost(podcast, episode, since)));
@@ -39,7 +43,8 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
             }
         }
 
-        return resolvedPodcastEpisodeSince;
+        return resolvedPodcastEpisodeSince.Where(x =>
+            EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed));
     }
 
     public bool IsRecentlyExpiredDelayedPublishing(Podcast podcast, Episode episode)
@@ -57,7 +62,11 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
         return false;
     }
 
-    public PodcastEpisode? GetMostRecentUntweetedEpisode(IList<Podcast> podcasts, int? numberOfDays = null)
+    public PodcastEpisode? GetMostRecentUntweetedEpisode(
+        IList<Podcast> podcasts,
+        bool youTubeRefreshed = true,
+        bool spotifyRefreshed = true,
+        int? numberOfDays = null)
     {
         numberOfDays ??= 1;
         var podcastEpisode =
@@ -68,6 +77,8 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
                     x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
                     (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
                     !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
+                .Where(x =>
+                    EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed))
                 .MaxBy(x => x.Episode.Release);
         if (podcastEpisode?.Podcast == null)
         {
@@ -82,5 +93,19 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
     {
         return (episode.Release >= since || IsRecentlyExpiredDelayedPublishing(podcast, episode)) &&
                episode is {Posted: false, Ignored: false, Removed: false};
+    }
+
+    private bool EliminateItemsDueToIndexingErrors(
+        PodcastEpisode podcastEpisode,
+        bool youTubeRefreshed,
+        bool spotifyRefreshed)
+    {
+        if (IsRecentlyExpiredDelayedPublishing(podcastEpisode.Podcast, podcastEpisode.Episode) &&
+            !youTubeRefreshed)
+        {
+            return false;
+        }
+
+        return true;
     }
 }

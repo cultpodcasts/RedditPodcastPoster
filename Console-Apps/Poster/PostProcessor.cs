@@ -57,7 +57,8 @@ public class PostProcessor
         await _contentPublisher.Publish();
         if (!request.SkipTweet)
         {
-            var postToTweet = _podcastEpisodeFilter.GetMostRecentUntweetedEpisode(podcasts, request.ReleasedWithin);
+            var postToTweet =
+                _podcastEpisodeFilter.GetMostRecentUntweetedEpisode(podcasts, numberOfDays: request.ReleasedWithin);
             if (postToTweet != null)
             {
                 await _tweetPoster.PostTweet(postToTweet);
