@@ -88,7 +88,7 @@ public class EnrichPodcastEpisodesProcessor
                         var spotifyEpisode =
                             await _spotifyEpisodeResolver.FindEpisode(
                                 FindSpotifyEpisodeRequestFactory.Create(podcast, episode), indexingContext);
-                        if (spotifyEpisode != null)
+                        if (spotifyEpisode.FullEpisode != null)
                         {
                             var refinedCriteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty,
                                 podcast.Publisher, spotifyEpisode.FullEpisode.Name,

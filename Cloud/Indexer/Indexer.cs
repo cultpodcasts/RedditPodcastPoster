@@ -6,7 +6,7 @@ using RedditPodcastPoster.Common.Podcasts;
 namespace Indexer;
 
 [DurableTask(nameof(Indexer))]
-public class Indexer : TaskActivity<object, bool>
+public class Indexer : TaskActivity<object, IndexerResponse>
 {
     private readonly IndexerOptions _indexerOptions;
     private readonly ILogger _logger;
@@ -22,32 +22,38 @@ public class Indexer : TaskActivity<object, bool>
         _logger = logger;
     }
 
-    public override async Task<bool> RunAsync(TaskActivityContext context, object input)
+    public override async Task<IndexerResponse> RunAsync(TaskActivityContext context, object input)
     {
         _logger.LogInformation($"{nameof(Indexer)} initiated.");
         _logger.LogInformation(_indexerOptions.ToString());
-        var indexContext = _indexerOptions.ToIndexOptions();
+        var indexingContext = _indexerOptions.ToIndexingContext();
 
-        indexContext.SkipSpotifyUrlResolving = false;
-        indexContext.SkipYouTubeUrlResolving = DateTime.UtcNow.Hour % 2 > 0;
-        indexContext.SkipExpensiveYouTubeQueries = DateTime.UtcNow.Hour % 12 > 0;
-        indexContext.SkipExpensiveSpotifyQueries = DateTime.UtcNow.Hour % 3 > 1;
-        indexContext.SkipPodcastDiscovery = true;
+        indexingContext.SkipSpotifyUrlResolving = false;
+        indexingContext.SkipYouTubeUrlResolving = DateTime.UtcNow.Hour % 2 > 0;
+        indexingContext.SkipExpensiveYouTubeQueries = DateTime.UtcNow.Hour % 12 > 0;
+        indexingContext.SkipExpensiveSpotifyQueries = DateTime.UtcNow.Hour % 3 > 1;
+        indexingContext.SkipPodcastDiscovery = true;
+
+        var originalSkipYouTubeUrlResolving = indexingContext.SkipYouTubeUrlResolving;
+        var originalSkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving;
 
         _logger.LogInformation(
-            indexContext.ReleasedSince.HasValue
-                ? $"{nameof(RunAsync)} Indexing with options released-since: '{indexContext.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-spotify: '{indexContext.SkipSpotifyUrlResolving}', bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}', bypass-expensive-spotify-queries: '{indexContext.SkipExpensiveSpotifyQueries}', bypass-expensive-youtube-queries: '{indexContext.SkipExpensiveYouTubeQueries}'."
-                : $"{nameof(RunAsync)} Indexing with options released-since: Null, bypass-spotify: '{indexContext.SkipSpotifyUrlResolving}', bypass-youtube: '{indexContext.SkipYouTubeUrlResolving}', bypass-expensive-spotify-queries: '{indexContext.SkipExpensiveSpotifyQueries}', bypass-expensive-youtube-queries: '{indexContext.SkipExpensiveYouTubeQueries}'.");
+            indexingContext.ReleasedSince.HasValue
+                ? $"{nameof(RunAsync)} Indexing with options released-since: '{indexingContext.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-spotify: '{indexingContext.SkipSpotifyUrlResolving}', bypass-youtube: '{indexingContext.SkipYouTubeUrlResolving}', bypass-expensive-spotify-queries: '{indexingContext.SkipExpensiveSpotifyQueries}', bypass-expensive-youtube-queries: '{indexingContext.SkipExpensiveYouTubeQueries}'."
+                : $"{nameof(RunAsync)} Indexing with options released-since: Null, bypass-spotify: '{indexingContext.SkipSpotifyUrlResolving}', bypass-youtube: '{indexingContext.SkipYouTubeUrlResolving}', bypass-expensive-spotify-queries: '{indexingContext.SkipExpensiveSpotifyQueries}', bypass-expensive-youtube-queries: '{indexingContext.SkipExpensiveYouTubeQueries}'.");
 
         if (DryRun.IsDryRun)
         {
-            return true;
+            return new IndexerResponse(true, indexingContext.SkipYouTubeUrlResolving,
+                indexingContext.SkipYouTubeUrlResolving != originalSkipYouTubeUrlResolving,
+                indexingContext.SkipSpotifyUrlResolving,
+                indexingContext.SkipSpotifyUrlResolving != originalSkipSpotifyUrlResolving);
         }
 
         bool results;
         try
         {
-            results = await _podcastsUpdater.UpdatePodcasts(indexContext);
+            results = await _podcastsUpdater.UpdatePodcasts(indexingContext);
         }
         catch (Exception ex)
         {
@@ -63,6 +69,10 @@ public class Indexer : TaskActivity<object, bool>
 
         _logger.LogInformation(
             $"{nameof(RunAsync)} Completed");
-        return results;
+        return new IndexerResponse(
+            results, indexingContext.SkipYouTubeUrlResolving,
+            indexingContext.SkipYouTubeUrlResolving != originalSkipYouTubeUrlResolving,
+            indexingContext.SkipSpotifyUrlResolving,
+            indexingContext.SkipSpotifyUrlResolving != originalSkipSpotifyUrlResolving);
     }
 }

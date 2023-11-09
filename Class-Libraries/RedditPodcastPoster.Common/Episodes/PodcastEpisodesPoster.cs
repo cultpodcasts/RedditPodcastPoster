@@ -9,9 +9,9 @@ namespace RedditPodcastPoster.Common.Episodes;
 public class PodcastEpisodesPoster : IPodcastEpisodesPoster
 {
     private readonly ILogger<PodcastEpisodesPoster> _logger;
+    private readonly IPodcastEpisodeFilter _podcastEpisodeFilter;
     private readonly IPodcastEpisodePoster _podcastEpisodePoster;
     private readonly IPodcastRepository _podcastRepository;
-    private readonly IPodcastEpisodeFilter _podcastEpisodeFilter;
     private readonly PostingCriteria _postingCriteria;
 
     public PodcastEpisodesPoster(
@@ -30,9 +30,13 @@ public class PodcastEpisodesPoster : IPodcastEpisodesPoster
 
     public async Task<IList<ProcessResponse>> PostNewEpisodes(
         DateTime since,
-        IList<Podcast> podcasts)
+        IList<Podcast> podcasts,
+        bool youTubeRefreshed = true,
+        bool spotifyRefreshed = true)
     {
-        var matchingPodcastEpisodes = _podcastEpisodeFilter.GetNewEpisodesReleasedSince(podcasts, since);
+        var matchingPodcastEpisodes =
+            _podcastEpisodeFilter.GetNewEpisodesReleasedSince(podcasts, since, youTubeRefreshed, spotifyRefreshed);
+
         if (!matchingPodcastEpisodes.Any())
         {
             return Array.Empty<ProcessResponse>();

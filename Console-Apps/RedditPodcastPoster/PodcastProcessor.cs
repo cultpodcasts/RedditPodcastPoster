@@ -24,20 +24,38 @@ public class PodcastProcessor
 
     public async Task<ProcessResponse> Process(ProcessRequest processRequest)
     {
+        var youTubeRefreshed = true;
+        var spotifyRefreshed = false;
+
         if (processRequest.RefreshEpisodes)
         {
-            IndexingContext indexingContext = new(processRequest.ReleaseBaseline, processRequest.SkipYouTube,
-                processRequest.SkipSpotify, processRequest.SkipExpensiveQueries);
+            IndexingContext indexingContext = new(
+                processRequest.ReleaseBaseline,
+                processRequest.SkipYouTube,
+                processRequest.SkipSpotify,
+                processRequest.SkipExpensiveQueries);
+
+            var originalSkipYouTubeUrlResolving = indexingContext.SkipYouTubeUrlResolving;
+            var originalSkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving;
+
             var results = await _podcastsUpdater.UpdatePodcasts(indexingContext);
             if (!results)
             {
                 _logger.LogError("Failure occurred.");
             }
+
+            youTubeRefreshed = originalSkipYouTubeUrlResolving == false &&
+                               originalSkipYouTubeUrlResolving == indexingContext.SkipYouTubeUrlResolving;
+            spotifyRefreshed = originalSkipSpotifyUrlResolving == false &&
+                               originalSkipSpotifyUrlResolving == indexingContext.SkipSpotifyUrlResolving;
         }
 
         if (processRequest.ReleaseBaseline != null)
         {
-            return await _episodeProcessor.PostEpisodesSinceReleaseDate(processRequest.ReleaseBaseline.Value);
+            return await _episodeProcessor.PostEpisodesSinceReleaseDate(
+                processRequest.ReleaseBaseline.Value,
+                youTubeRefreshed,
+                spotifyRefreshed);
         }
 
         return ProcessResponse.Successful("Operation successful.");

@@ -14,7 +14,7 @@ public class IndexerOptions
             $"{nameof(IndexerOptions)} {{ {nameof(ReleasedDaysAgo)}: '{ReleasedDaysAgo}', {nameof(ByPassYouTube)}: '{ByPassYouTube}'}}.";
     }
 
-    public IndexingContext ToIndexOptions()
+    public IndexingContext ToIndexingContext()
     {
         DateTime? releasedSince = null;
         if (ReleasedDaysAgo != null)

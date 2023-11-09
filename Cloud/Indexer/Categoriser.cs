@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace Indexer;
 
 [DurableTask(nameof(Categoriser))]
-public class Categoriser : TaskActivity<object, bool>
+public class Categoriser : TaskActivity<IndexerResponse, IndexerResponse>
 {
     private readonly ILogger<Categoriser> _logger;
     private readonly IRecentPodcastEpisodeCategoriser _recentEpisodeCategoriser;
@@ -18,13 +18,13 @@ public class Categoriser : TaskActivity<object, bool>
         _logger = logger;
     }
 
-    public override async Task<bool> RunAsync(TaskActivityContext context, object input)
+    public override async Task<IndexerResponse> RunAsync(TaskActivityContext context, IndexerResponse indexerResponse)
     {
         _logger.LogInformation($"{nameof(Categoriser)} initiated.");
 
         if (DryRun.IsDryRun)
         {
-            return true;
+            return indexerResponse with {Success = true};
         }
 
         try
@@ -35,10 +35,10 @@ public class Categoriser : TaskActivity<object, bool>
         {
             _logger.LogError(ex,
                 $"Failure to execute {nameof(IRecentPodcastEpisodeCategoriser)}.{nameof(IRecentPodcastEpisodeCategoriser.Categorise)}.");
-            return false;
+            return indexerResponse with {Success = false};
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return true;
+        return indexerResponse with {Success = true};
     }
 }
