@@ -39,13 +39,13 @@ public class YouTubeVideoService : IYouTubeVideoService
             while (nextPageToken != null)
             {
                 VideosResource.ListRequest request;
-                var contentdetails = "contentDetails";
+                var contentDetails = "contentDetails";
                 if (withSnippets)
                 {
-                    contentdetails = "snippet," + contentdetails;
+                    contentDetails = "snippet," + contentDetails;
                 }
 
-                request = _youTubeService.Videos.List(contentdetails);
+                request = _youTubeService.Videos.List(contentDetails);
                 request.Id = string.Join(",", batchVideoIds);
                 request.MaxResults = MaxSearchResults;
                 VideoListResponse response;
@@ -56,7 +56,11 @@ public class YouTubeVideoService : IYouTubeVideoService
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, $"Failed to use {nameof(_youTubeService)}.");
-                    indexingContext.SkipYouTubeUrlResolving = true;
+                    if (indexingContext != null)
+                    {
+                        indexingContext.SkipYouTubeUrlResolving = true;
+                    }
+
                     return null;
                 }
 

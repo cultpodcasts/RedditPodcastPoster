@@ -258,7 +258,7 @@ public class NotificationAdaptorTests
         // act
         var result = Sut.Adapt(xml);
         // assert
-        result.Entries.Single().Group.Title.Should()
+        result.Entries.SingleOrDefault()?.Group?.Title.Should()
             .Be("Your dream job has a game plan | Karen Crisostomo | TEDxEDHECBusinessSchool");
     }
 
@@ -270,7 +270,7 @@ public class NotificationAdaptorTests
         // act
         var result = Sut.Adapt(xml);
         // assert
-        result.Entries.Single().Group.ContentUrl.Should()
+        result.Entries.SingleOrDefault()?.Group?.ContentUrl.Should()
             .Be(new Uri("https://www.youtube.com/v/SdcFlRBp-Vc?version=3", UriKind.Absolute));
     }
 
@@ -282,7 +282,7 @@ public class NotificationAdaptorTests
         // act
         var result = Sut.Adapt(xml);
         // assert
-        result.Entries.Single().Group.ContentWidth.Should().Be(640);
+        result.Entries.SingleOrDefault()?.Group?.ContentWidth.Should().Be(640);
     }
 
     [Fact]
@@ -293,7 +293,7 @@ public class NotificationAdaptorTests
         // act
         var result = Sut.Adapt(xml);
         // assert
-        result.Entries.Single().Group.ContentHeight.Should().Be(390);
+        result.Entries.SingleOrDefault()?.Group?.ContentHeight.Should().Be(390);
     }
 
     [Fact]
@@ -304,7 +304,7 @@ public class NotificationAdaptorTests
         // act
         var result = Sut.Adapt(xml);
         // assert
-        result.Entries.Single().Group.ThumbnailUrl.Should()
+        result.Entries.SingleOrDefault()?.Group?.ThumbnailUrl.Should()
             .Be(new Uri("https://i4.ytimg.com/vi/SdcFlRBp-Vc/hqdefault.jpg", UriKind.Absolute));
     }
 
@@ -316,7 +316,7 @@ public class NotificationAdaptorTests
         // act
         var result = Sut.Adapt(xml);
         // assert
-        result.Entries.Single().Group.ThumbnailWidth.Should().Be(480);
+        result.Entries.SingleOrDefault()?.Group?.ThumbnailWidth.Should().Be(480);
     }
 
     [Fact]
@@ -327,7 +327,7 @@ public class NotificationAdaptorTests
         // act
         var result = Sut.Adapt(xml);
         // assert
-        result.Entries.Single().Group.ThumbnailHeight.Should().Be(360);
+        result.Entries.SingleOrDefault()?.Group?.ThumbnailHeight.Should().Be(360);
     }
 
 
@@ -339,7 +339,7 @@ public class NotificationAdaptorTests
         // act
         var result = Sut.Adapt(xml);
         // assert
-        result.Entries.Single().Group.Description.Should().StartWith("Through her engaging storytelling,");
+        result.Entries.SingleOrDefault()?.Group?.Description.Should().StartWith("Through her engaging storytelling,");
     }
 
 
@@ -351,7 +351,7 @@ public class NotificationAdaptorTests
         // act
         var result = Sut.Adapt(xml);
         // assert
-        result.Entries.Single().Group.Community.Should().NotBeNull();
+        result.Entries.SingleOrDefault()?.Group?.Community.Should().NotBeNull();
     }
 
     [Fact]
@@ -362,7 +362,7 @@ public class NotificationAdaptorTests
         // act
         var result = Sut.Adapt(xml);
         // assert
-        result.Entries.Single().Group.Community.StarRatingCount.Should().Be(598);
+        result.Entries.SingleOrDefault()?.Group?.Community?.StarRatingCount.Should().Be(598);
     }
 
     [Fact]
@@ -373,7 +373,7 @@ public class NotificationAdaptorTests
         // act
         var result = Sut.Adapt(xml);
         // assert
-        result.Entries.Single().Group.Community.StarRatingAverage.Should().Be(5.00m);
+        result.Entries.SingleOrDefault()?.Group?.Community?.StarRatingAverage.Should().Be(5.00m);
     }
 
     [Fact]
@@ -384,7 +384,7 @@ public class NotificationAdaptorTests
         // act
         var result = Sut.Adapt(xml);
         // assert
-        result.Entries.Single().Group.Community.StarRatingMin.Should().Be(1);
+        result.Entries.SingleOrDefault()?.Group?.Community?.StarRatingMin.Should().Be(1);
     }
 
     [Fact]
@@ -395,7 +395,7 @@ public class NotificationAdaptorTests
         // act
         var result = Sut.Adapt(xml);
         // assert
-        result.Entries.Single().Group.Community.StarRatingMax.Should().Be(5);
+        result.Entries.SingleOrDefault()?.Group?.Community?.StarRatingMax.Should().Be(5);
     }
 
     [Fact]
@@ -406,6 +406,6 @@ public class NotificationAdaptorTests
         // act
         var result = Sut.Adapt(xml);
         // assert
-        result.Entries.Single().Group.Community.StatisticsViews.Should().Be(11808);
+        result.Entries.SingleOrDefault()?.Group?.Community?.StatisticsViews.Should().Be(11808);
     }
 }
