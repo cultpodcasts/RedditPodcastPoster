@@ -8,7 +8,6 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 public class AppleEpisodeResolver : IAppleEpisodeResolver
 {
     private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(5).Ticks;
-    private static readonly int FuzzyMatchThreshold = 70;
     private readonly ICachedApplePodcastService _applePodcastService;
     private readonly ILogger<AppleEpisodeResolver> _logger;
 
