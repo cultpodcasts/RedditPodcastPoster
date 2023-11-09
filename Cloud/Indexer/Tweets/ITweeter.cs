@@ -1,7 +1,6 @@
-﻿namespace Indexer.Tweets
+﻿namespace Indexer.Tweets;
+
+public interface ITweeter
 {
-    public interface ITweeter
-    {
-        Task Tweet(bool youTubeRefreshed, bool spotifyRefreshed);
-    }
+    Task Tweet(bool youTubeRefreshed, bool spotifyRefreshed);
 }

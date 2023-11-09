@@ -41,5 +41,4 @@ public class Categoriser : TaskActivity<IndexerResponse, IndexerResponse>
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
         return indexerResponse with {Success = true};
     }
-
 }

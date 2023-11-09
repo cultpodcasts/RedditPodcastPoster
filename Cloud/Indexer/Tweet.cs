@@ -30,8 +30,8 @@ public class Tweet : TaskActivity<IndexerResponse, IndexerResponse>
         try
         {
             await _tweeter.Tweet(
-                indexerResponse is { SkipYouTubeUrlResolving: false, YouTubeError: false },
-                indexerResponse is { SkipSpotifyUrlResolving: false, SpotifyError: false });
+                indexerResponse is {SkipYouTubeUrlResolving: false, YouTubeError: false},
+                indexerResponse is {SkipSpotifyUrlResolving: false, SpotifyError: false});
         }
         catch (Exception ex)
         {

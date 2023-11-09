@@ -34,7 +34,8 @@ public class PodcastEpisodesPoster : IPodcastEpisodesPoster
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true)
     {
-        var matchingPodcastEpisodes = _podcastEpisodeFilter.GetNewEpisodesReleasedSince(podcasts, since, youTubeRefreshed, spotifyRefreshed);
+        var matchingPodcastEpisodes =
+            _podcastEpisodeFilter.GetNewEpisodesReleasedSince(podcasts, since, youTubeRefreshed, spotifyRefreshed);
 
         if (!matchingPodcastEpisodes.Any())
         {

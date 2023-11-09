@@ -5,8 +5,8 @@ namespace RedditPodcastPoster.Common.Episodes;
 public interface IPodcastEpisodesPoster
 {
     Task<IList<ProcessResponse>> PostNewEpisodes(
-        DateTime since, 
+        DateTime since,
         IList<Podcast> podcasts,
-        bool youTubeRefreshed= true,
-        bool spotifyRefreshed= true);
+        bool youTubeRefreshed = true,
+        bool spotifyRefreshed = true);
 }

@@ -24,7 +24,7 @@ public class EpisodeProcessor : IEpisodeProcessor
     }
 
     public async Task<ProcessResponse> PostEpisodesSinceReleaseDate(
-        DateTime since, 
+        DateTime since,
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
