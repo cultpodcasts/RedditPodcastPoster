@@ -48,7 +48,7 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         IndexingContext indexingContext,
         IPaginator? paginator = null)
     {
-        IList<T>? results = null;
+        IList<T>? results;
         try
         {
             results = await _spotifyClient.PaginateAll(firstPage);
@@ -76,7 +76,7 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         IndexingContext indexingContext,
         IPaginator? paginator = null)
     {
-        var results = firstPage.Items;
+        var results = firstPage.Items ?? new List<T>();
         try
         {
             var batch = await _spotifyClient.PaginateAll(firstPage, mapper);
