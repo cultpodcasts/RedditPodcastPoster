@@ -20,17 +20,17 @@ public static class FindAppleEpisodeRequestFactory
     }
 
     public static FindAppleEpisodeRequest Create(
-        Podcast podcast,
+        Podcast? podcast,
         iTunesSearch.Library.Models.Podcast applePodcast,
         PodcastServiceSearchCriteria criteria)
     {
         return new FindAppleEpisodeRequest(
-            podcast.AppleId,
+            podcast?.AppleId ?? applePodcast.Id,
             applePodcast.Name,
             null,
             criteria.EpisodeTitle,
             criteria.Release,
-            podcast.ReleaseAuthority,
+            podcast?.ReleaseAuthority,
             criteria.Duration,
             0);
     }

@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Globalization;
-using System.Text.Json;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
@@ -51,9 +50,13 @@ public class YouTubeChannelVideoSnippetsService : IYouTubeChannelVideoSnippetsSe
             searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
             if (indexingContext.ReleasedSince.HasValue)
             {
-                searchListRequest.PublishedAfter =
-                    string.Concat(indexingContext.ReleasedSince.Value.ToString("o", CultureInfo.InvariantCulture),
-                        "Z");
+                var utcDateTime = indexingContext.ReleasedSince.Value.ToString("o", CultureInfo.InvariantCulture);
+                if (!utcDateTime.EndsWith("Z"))
+                {
+                    utcDateTime = string.Concat(utcDateTime, "Z");
+                }
+
+                searchListRequest.PublishedAfter = utcDateTime;
             }
 
             SearchListResponse response;
