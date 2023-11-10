@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - main
-      - feature/improve-flair-tagging
   workflow_dispatch:
 
 env:
