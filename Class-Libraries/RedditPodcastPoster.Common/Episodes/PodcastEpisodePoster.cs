@@ -50,7 +50,7 @@ public class PodcastEpisodePoster : IPodcastEpisodePoster
 
         if (!orderedBundleEpisodes.Any())
         {
-            orderedBundleEpisodes = new[] {matchingPodcastEpisode.Episode}!;
+            orderedBundleEpisodes = new[] {matchingPodcastEpisode.Episode};
         }
 
         return orderedBundleEpisodes;

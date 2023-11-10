@@ -83,7 +83,7 @@ public class TweetProcessor
         else
         {
             var message =
-                $"Could not find an podcast with id: '{podcast.Id}'.";
+                $"Could not find an podcast with id: '{request.PodcastId}'.";
             _logger.LogError(message);
             throw new Exception(message);
         }

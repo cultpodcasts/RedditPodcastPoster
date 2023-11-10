@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Reddit;
 
 namespace RedditPodcastPoster.Common.Episodes;
@@ -8,6 +10,7 @@ public class EpisodePostManager : IEpisodePostManager
 {
     private readonly ILogger<EpisodePostManager> _logger;
     private readonly IRedditBundleCommentFactory _redditBundleCommentFactory;
+    private readonly ICachedSubjectRepository _subjectRepository;
     private readonly IRedditEpisodeCommentFactory _redditEpisodeCommentFactory;
     private readonly IRedditLinkPoster _redditLinkPoster;
 
@@ -15,11 +18,13 @@ public class EpisodePostManager : IEpisodePostManager
         IRedditLinkPoster redditLinkPoster,
         IRedditEpisodeCommentFactory redditEpisodeCommentFactory,
         IRedditBundleCommentFactory redditBundleCommentFactory,
+        ICachedSubjectRepository subjectRepository,
         ILogger<EpisodePostManager> logger)
     {
         _redditLinkPoster = redditLinkPoster;
         _redditEpisodeCommentFactory = redditEpisodeCommentFactory;
         _redditBundleCommentFactory = redditBundleCommentFactory;
+        _subjectRepository = subjectRepository;
         _logger = logger;
     }
 
@@ -54,6 +59,19 @@ public class EpisodePostManager : IEpisodePostManager
             }
             if (result.LinkPost != null)
             {
+                if (postModel.Subject != null)
+                {
+                    var subject =
+                        (await _subjectRepository.GetAll(Subject.PartitionKey)).SingleOrDefault(x =>
+                            x.Name == postModel.Subject);
+                    var flairTemplateId = string.Empty;
+                    if (subject is {RedditFlairTemplateId: not null})
+                    {
+                        flairTemplateId= subject.RedditFlairTemplateId.ToString();
+                    }
+                    result.LinkPost.SetFlair(postModel.Subject, flairTemplateId);
+                }
+
                 string comments;
                 if (postModel.IsBundledPost)
                 {
