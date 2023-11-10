@@ -1,4 +1,4 @@
-﻿namespace TextClassifierTraining;
+﻿namespace RedditPodcastPoster.Subjects;
 
 public interface ISubjectCleanser
 {

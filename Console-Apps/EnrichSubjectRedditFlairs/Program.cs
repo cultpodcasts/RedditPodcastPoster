@@ -1,20 +1,18 @@
 ﻿using System.Reflection;
-using CommandLine;
+using EnrichSubjectRedditFlairs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Subreddit.Extensions;
-using TextClassifierTraining;
 
 var builder = Host.CreateApplicationBuilder(args);
-
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 
@@ -26,25 +24,15 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddFileRepository("subreddit-repository")
+    .AddFileRepository()
     .AddRepositories(builder.Configuration)
+    .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
+    .AddSingleton<RedditFlairsProcessor>()
+    .AddRedditServices(builder.Configuration)
     .AddSubredditServices(builder.Configuration)
-    .AddSpotifyServices(builder.Configuration)
-    .AddYouTubeServices(builder.Configuration)
-    .AddSingleton<TrainingDataProcessor>()
-    .AddSingleton<ISubjectCleanser, SubjectCleanser>()
     .AddSubjectServices()
-    .AddRedditServices(builder.Configuration);
-
+    .AddScoped<ISubjectCleanser, SubjectCleanser>();
 
 using var host = builder.Build();
-return await Parser.Default.ParseArguments<TrainingDataRequest>(args)
-    .MapResult(async trainingDataRequest => await Run(trainingDataRequest),
-        errs => Task.FromResult(-1)); // Invalid arguments
-
-async Task<int> Run(TrainingDataRequest request)
-{
-    var processor = host.Services.GetService<TrainingDataProcessor>()!;
-    await processor.Process(request);
-    return 0;
-}
+var processor = host.Services.GetService<RedditFlairsProcessor>();
+await processor!.Run();

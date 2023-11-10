@@ -124,6 +124,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Configu
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "JsonSplitCosmosDbUploader", "Console-Apps\JsonSplitCosmosDbUploader\JsonSplitCosmosDbUploader.csproj", "{3A7AF675-BF76-4B10-8623-3E114DEB6C98}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnrichSubjectRedditFlairs", "Console-Apps\EnrichSubjectRedditFlairs\EnrichSubjectRedditFlairs.csproj", "{EF6DCDC1-04BE-4F52-8BF6-E65048E9B093}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -330,6 +332,10 @@ Global
 		{3A7AF675-BF76-4B10-8623-3E114DEB6C98}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3A7AF675-BF76-4B10-8623-3E114DEB6C98}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3A7AF675-BF76-4B10-8623-3E114DEB6C98}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EF6DCDC1-04BE-4F52-8BF6-E65048E9B093}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF6DCDC1-04BE-4F52-8BF6-E65048E9B093}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF6DCDC1-04BE-4F52-8BF6-E65048E9B093}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF6DCDC1-04BE-4F52-8BF6-E65048E9B093}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -386,6 +392,7 @@ Global
 		{3EFCED33-0CAF-4020-B21C-19AAB20911D7} = {C870AC3C-8261-4807-AC30-DBEC8C89DCB7}
 		{F0A8B18C-0BAF-451A-AD1E-26A075BD8FE6} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{3A7AF675-BF76-4B10-8623-3E114DEB6C98} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
+		{EF6DCDC1-04BE-4F52-8BF6-E65048E9B093} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

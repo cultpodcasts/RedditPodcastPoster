@@ -1,5 +1,4 @@
-﻿using System.Security.Cryptography.X509Certificates;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Reddit;
@@ -10,9 +9,9 @@ public class EpisodePostManager : IEpisodePostManager
 {
     private readonly ILogger<EpisodePostManager> _logger;
     private readonly IRedditBundleCommentFactory _redditBundleCommentFactory;
-    private readonly ICachedSubjectRepository _subjectRepository;
     private readonly IRedditEpisodeCommentFactory _redditEpisodeCommentFactory;
     private readonly IRedditLinkPoster _redditLinkPoster;
+    private readonly ICachedSubjectRepository _subjectRepository;
 
     public EpisodePostManager(
         IRedditLinkPoster redditLinkPoster,
@@ -57,6 +56,7 @@ public class EpisodePostManager : IEpisodePostManager
             {
                 return RedditPostResult.FailAlreadyPosted();
             }
+
             if (result.LinkPost != null)
             {
                 if (postModel.Subject != null)
@@ -64,12 +64,25 @@ public class EpisodePostManager : IEpisodePostManager
                     var subject =
                         (await _subjectRepository.GetAll(Subject.PartitionKey)).SingleOrDefault(x =>
                             x.Name == postModel.Subject);
-                    var flairTemplateId = string.Empty;
                     if (subject is {RedditFlairTemplateId: not null})
                     {
-                        flairTemplateId= subject.RedditFlairTemplateId.ToString();
+                        var flairTemplateId = subject.RedditFlairTemplateId.ToString();
+                        result.LinkPost.SetFlair(postModel.Subject, flairTemplateId);
                     }
-                    result.LinkPost.SetFlair(postModel.Subject, flairTemplateId);
+                    else
+                    {
+                        if (subject != null)
+                        {
+                            _logger.LogError(
+                                $"No flair-id for subject '{postModel.Subject}' with subject-id '{subject.Id}'.");
+                        }
+                        else
+                        {
+                            _logger.LogError($"No persisted subject for '{postModel.Subject}'.");
+                        }
+
+                        result.LinkPost.SetFlair(postModel.Subject);
+                    }
                 }
 
                 string comments;
