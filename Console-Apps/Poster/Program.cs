@@ -9,6 +9,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
+using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Twitter.Extensions;
 
@@ -31,6 +32,7 @@ builder.Services
     .AddContentPublishing(builder.Configuration)
     .AddRedditServices(builder.Configuration)
     .AddTwitterServices(builder.Configuration)
+    .AddSubjectServices()
     .AddTextSanitiser();
 
 builder.Services.AddPostingCriteria(builder.Configuration);
