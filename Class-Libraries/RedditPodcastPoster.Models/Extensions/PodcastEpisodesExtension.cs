@@ -14,8 +14,8 @@ public static class PodcastEpisodesExtension
             podcastEpisodes.Podcast.PrimaryPostService
         ));
         return postModel;
-
     }
+
     private static EpisodePost ToBasicEpisode(Episode episode)
     {
         var id = "unknown";
@@ -41,6 +41,7 @@ public static class PodcastEpisodesExtension
             episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture),
             episode.Description,
             id,
-            episode.Release);
+            episode.Release,
+            string.IsNullOrWhiteSpace(episode.Subject) ? null : episode.Subject);
     }
 }

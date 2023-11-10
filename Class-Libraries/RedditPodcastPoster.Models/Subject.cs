@@ -18,12 +18,16 @@ public sealed class Subject : CosmosSelector
     public string Name { get; set; } = "";
 
     [JsonPropertyName("aliases")]
-    [JsonPropertyOrder(10)]
+    [JsonPropertyOrder(20)]
     public string[]? Aliases { get; set; }
 
     [JsonPropertyName("associatedSubjects")]
-    [JsonPropertyOrder(10)]
+    [JsonPropertyOrder(30)]
     public string[]? AssociatedSubjects { get; set; }
+
+    [JsonPropertyName("redditFlairTemplateId")]
+    [JsonPropertyOrder(40)]
+    public Guid? RedditFlairTemplateId { get; set; }
 
     public string[] GetTerms()
     {

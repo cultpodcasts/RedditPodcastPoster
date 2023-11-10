@@ -9,4 +9,5 @@ public record EpisodePost(
     string Duration, 
     string Description, 
     string Id,
-    DateTime Published);
+    DateTime Published,
+    string? Subject= null);
