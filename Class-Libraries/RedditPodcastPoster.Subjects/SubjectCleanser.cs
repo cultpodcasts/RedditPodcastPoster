@@ -1,8 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Subjects;
 
-namespace TextClassifierTraining;
+namespace RedditPodcastPoster.Subjects;
 
 public class SubjectCleanser : ISubjectCleanser
 {
