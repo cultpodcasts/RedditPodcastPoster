@@ -1,5 +1,4 @@
-﻿using System.Xml;
-using Google.Apis.YouTube.v3.Data;
+﻿using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
@@ -11,9 +10,9 @@ namespace RedditPodcastPoster.PodcastServices.YouTube;
 public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
 {
     private readonly ILogger<YouTubeEpisodeProvider> _logger;
+    private readonly IYouTubeChannelVideoSnippetsService _youTubeChannelVideoSnippetsService;
     private readonly IYouTubePlaylistService _youTubePlaylistService;
     private readonly IYouTubeVideoService _youTubeVideoService;
-    private readonly IYouTubeChannelVideoSnippetsService _youTubeChannelVideoSnippetsService;
 
     public YouTubeEpisodeProvider(
         IYouTubePlaylistService youTubePlaylistService,
@@ -28,7 +27,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
     }
 
     public async Task<IList<Episode>?> GetEpisodes(
-        YouTubeChannelId request, 
+        YouTubeChannelId request,
         IndexingContext indexingContext,
         IEnumerable<string> knownIds)
     {
@@ -43,7 +42,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
             if (youTubeVideoIds.Any())
             {
                 var videoDetails =
-                    await _youTubeVideoService.GetVideoContentDetails(youTubeVideoIds, indexingContext);
+                    await _youTubeVideoService.GetVideoContentDetails(youTubeVideoIds, indexingContext, true);
 
                 if (videoDetails != null)
                 {
@@ -62,7 +61,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
         return Episode.FromYouTube(
             searchResult.Id.VideoId,
             searchResult.Snippet.Title.Trim(),
-            searchResult.Snippet.Description.Trim(),
+            videoDetails.Snippet.Description.Trim(),
             videoDetails.GetLength(),
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
             searchResult.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
@@ -74,7 +73,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
         return Episode.FromYouTube(
             playlistItemSnippet.ResourceId.VideoId,
             playlistItemSnippet.Title.Trim(),
-            playlistItemSnippet.Description.Trim(),
+            videoDetails.Snippet.Description.Trim(),
             videoDetails.GetLength(),
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
             playlistItemSnippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
@@ -84,7 +83,6 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
     public async Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(
         YouTubePlaylistId youTubePlaylistId, IndexingContext indexingContext)
     {
-
         var playlistQueryResponse = await _youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(
             youTubePlaylistId.PlaylistId), indexingContext);
         var isExpensiveQuery = playlistQueryResponse.IsExpensiveQuery;
@@ -96,9 +94,10 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
                 results = results.Where(x =>
                     x.Snippet.PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
             }
+
             var videoDetails =
                 await _youTubeVideoService.GetVideoContentDetails(results.Select(x => x.Snippet.ResourceId.VideoId),
-                    indexingContext);
+                    indexingContext, true);
             if (videoDetails != null)
             {
                 return new GetPlaylistEpisodesResponse(results.Select(playlistItem => GetEpisode(
