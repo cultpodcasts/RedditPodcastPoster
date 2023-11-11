@@ -73,7 +73,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
         return Episode.FromYouTube(
             playlistItemSnippet.ResourceId.VideoId,
             playlistItemSnippet.Title.Trim(),
-            playlistItemSnippet.Description.Trim(),
+            videoDetails.Snippet.Description.Trim(),
             videoDetails.GetLength(),
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
             playlistItemSnippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
