@@ -144,7 +144,7 @@ public class YouTubeSearcherTests
             TimeSpan.FromTicks(youTubePublishDelayTicks),
             new IndexingContext());
         // assert
-        result.SearchResult.Should().Be(expected);
+        result?.SearchResult.Should().Be(expected);
     }
 
     [Theory]
