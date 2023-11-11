@@ -115,7 +115,8 @@ public class EnrichYouTubePodcastProcessor
         var missingPlaylistItems = playlistQueryResponse.Result.Where(playlistItem =>
             podcast.Episodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();
         var missingVideoIds = missingPlaylistItems.Select(x => x.Snippet.ResourceId.VideoId).Distinct();
-        var missingPlaylistVideos = await _youTubeVideoService.GetVideoContentDetails(missingVideoIds, indexOptions);
+        var missingPlaylistVideos =
+            await _youTubeVideoService.GetVideoContentDetails(missingVideoIds, indexOptions, true);
 
         if (missingPlaylistVideos == null)
         {

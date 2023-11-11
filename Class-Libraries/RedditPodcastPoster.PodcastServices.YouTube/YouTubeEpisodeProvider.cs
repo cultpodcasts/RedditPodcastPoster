@@ -97,7 +97,7 @@ public class YouTubeEpisodeProvider : IYouTubeEpisodeProvider
 
             var videoDetails =
                 await _youTubeVideoService.GetVideoContentDetails(results.Select(x => x.Snippet.ResourceId.VideoId),
-                    indexingContext);
+                    indexingContext, true);
             if (videoDetails != null)
             {
                 return new GetPlaylistEpisodesResponse(results.Select(playlistItem => GetEpisode(
