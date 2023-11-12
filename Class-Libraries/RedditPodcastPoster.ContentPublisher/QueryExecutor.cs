@@ -55,7 +55,8 @@ public class QueryExecutor : IQueryExecutor
                     Release = x.Release,
                     Spotify = x.Spotify,
                     YouTube = x.YouTube,
-                    Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds))
+                    Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
+                    Subject= x.Subject,
                 }),
             TotalDuration = totalDuration.Result
         };
