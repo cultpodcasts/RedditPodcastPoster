@@ -120,7 +120,8 @@ public class QueryExecutor : IQueryExecutor
                            e.urls.spotify as spotify,
                            e.urls.apple as apple,
                            e.urls.youtube as youtube,
-                           e.duration as length
+                           e.duration as length,
+                           e.subject as subject
                            FROM
                            podcasts p
                            JOIN
