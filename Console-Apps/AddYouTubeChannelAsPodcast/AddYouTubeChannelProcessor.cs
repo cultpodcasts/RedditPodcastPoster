@@ -52,11 +52,12 @@ public class AddYouTubeChannelProcessor
                     indexOptions, withContentOwnerDetails: true);
             var newPodcast = _podcastFactory.Create(match.Snippet.ChannelTitle);
             newPodcast.Publisher = channel?.ContentOwnerDetails.ContentOwner ?? string.Empty;
-            newPodcast.YouTubePublishingDelayTimeSpan = "1:00:00:00";
+            newPodcast.YouTubePublishingDelayTimeSpan = "0:00:00:00";
             newPodcast.YouTubeChannelId = match.Snippet.ChannelId;
             newPodcast.ReleaseAuthority = Service.YouTube;
             newPodcast.PrimaryPostService = Service.YouTube;
             await _repository.Save(newPodcast);
+            _logger.LogInformation($"Created podcast with name '{newPodcast.Name}' and id '{newPodcast.Id}'.");
             return true;
         }
 
