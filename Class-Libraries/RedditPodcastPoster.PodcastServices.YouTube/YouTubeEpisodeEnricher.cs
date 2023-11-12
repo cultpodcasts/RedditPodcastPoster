@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
@@ -62,6 +61,14 @@ public class YouTubeEpisodeEnricher : IYouTubeEpisodeEnricher
             var url = youTubeItem.SearchResult.ToYouTubeUrl();
             request.Episode.Urls.YouTube = url;
             enrichmentContext.YouTube = url;
+
+            if (request.Podcast.AppleId == null &&
+                request.Episode.Release.TimeOfDay == TimeSpan.Zero &&
+                youTubeItem.SearchResult.Snippet.PublishedAtDateTimeOffset.HasValue)
+            {
+                enrichmentContext.Release =
+                    youTubeItem.SearchResult.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime;
+            }
         }
     }
 }

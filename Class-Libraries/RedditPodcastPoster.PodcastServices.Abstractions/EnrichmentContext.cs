@@ -2,16 +2,16 @@
 
 public record EnrichmentContext
 {
-    public bool Updated => YouTubeUrlUpdated || 
-                           SpotifyUrlUpdated || 
-                           AppleUrlUpdated || 
-                           AppleReleaseUpdated ||
+    public bool Updated => YouTubeUrlUpdated ||
+                           SpotifyUrlUpdated ||
+                           AppleUrlUpdated ||
+                           ReleaseUpdated ||
                            YouTubeIdUpdated;
 
     public bool YouTubeUrlUpdated { get; private set; }
     public bool SpotifyUrlUpdated { get; private set; }
     public bool AppleUrlUpdated { get; private set; }
-    public bool AppleReleaseUpdated { get; private set; }
+    public bool ReleaseUpdated { get; private set; }
     public bool YouTubeIdUpdated { get; private set; }
 
     public Uri? YouTube
@@ -36,6 +36,6 @@ public record EnrichmentContext
 
     public DateTime Release
     {
-        set => AppleReleaseUpdated = true;
+        set => ReleaseUpdated = true;
     }
 }
