@@ -27,4 +27,7 @@ public class RecentEpisode
 
     [JsonPropertyName("youtube")]
     public Uri? YouTube { get; set; }
+
+    [JsonPropertyName("subject")]
+    public string? Subject { get; set; }
 }
