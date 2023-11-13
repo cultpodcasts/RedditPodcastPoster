@@ -55,9 +55,16 @@ public class YouTubeEpisodeEnricher : IYouTubeEpisodeEnricher
         {
             var episodeYouTubeId = youTubeItem.SearchResult.Id.VideoId;
             var release = youTubeItem.SearchResult.Snippet.PublishedAtDateTimeOffset;
-
-            _logger.LogInformation(
-                $"{nameof(Enrich)} Found matching YouTube episode: '{episodeYouTubeId}' with title '{youTubeItem.SearchResult.Snippet.Title}' and release-date '{release!.Value.UtcDateTime:R}''.");
+            if (release != null)
+            {
+                _logger.LogInformation(
+                    $"{nameof(Enrich)} Found matching YouTube episode: '{episodeYouTubeId}' with title '{youTubeItem.SearchResult.Snippet.Title}' and release-date '{release.Value.UtcDateTime:R}'.");
+            }
+            else
+            {
+                _logger.LogInformation(
+                    $"{nameof(Enrich)} Found matching YouTube episode: '{episodeYouTubeId}' with title '{youTubeItem.SearchResult.Snippet.Title}'.");
+            }
 
             request.Episode.YouTubeId = enrichmentContext.YouTubeId = episodeYouTubeId;
             request.Episode.Urls.YouTube = enrichmentContext.YouTube = youTubeItem.SearchResult.ToYouTubeUrl();
