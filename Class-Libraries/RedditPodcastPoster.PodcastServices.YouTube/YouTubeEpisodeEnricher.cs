@@ -54,20 +54,19 @@ public class YouTubeEpisodeEnricher : IYouTubeEpisodeEnricher
         if (!string.IsNullOrWhiteSpace(youTubeItem?.SearchResult?.Id.VideoId))
         {
             var episodeYouTubeId = youTubeItem.SearchResult.Id.VideoId;
+            var release = youTubeItem.SearchResult.Snippet.PublishedAtDateTimeOffset;
+
             _logger.LogInformation(
-                $"{nameof(Enrich)} Found matching YouTube episode: '{episodeYouTubeId}' with title '{youTubeItem.SearchResult.Snippet.Title}' and release-date '{youTubeItem.SearchResult.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime:R}''.");
-            request.Episode.YouTubeId = episodeYouTubeId;
-            enrichmentContext.YouTubeId = episodeYouTubeId;
-            var url = youTubeItem.SearchResult.ToYouTubeUrl();
-            request.Episode.Urls.YouTube = url;
-            enrichmentContext.YouTube = url;
+                $"{nameof(Enrich)} Found matching YouTube episode: '{episodeYouTubeId}' with title '{youTubeItem.SearchResult.Snippet.Title}' and release-date '{release!.Value.UtcDateTime:R}''.");
+
+            request.Episode.YouTubeId = enrichmentContext.YouTubeId = episodeYouTubeId;
+            request.Episode.Urls.YouTube = enrichmentContext.YouTube = youTubeItem.SearchResult.ToYouTubeUrl();
 
             if (request.Podcast.AppleId == null &&
                 request.Episode.Release.TimeOfDay == TimeSpan.Zero &&
-                youTubeItem.SearchResult.Snippet.PublishedAtDateTimeOffset.HasValue)
+                release.HasValue)
             {
-                enrichmentContext.Release =
-                    youTubeItem.SearchResult.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime;
+                request.Episode.Release = enrichmentContext.Release = release!.Value.UtcDateTime;
             }
         }
     }
