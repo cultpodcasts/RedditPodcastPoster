@@ -4,8 +4,8 @@ using RedditPodcastPoster.Subjects;
 
 public class SubjectMatcher : ISubjectMatcher
 {
-    private readonly ISubjectService _subjectService;
     private readonly ILogger<ISubjectMatcher> _logger;
+    private readonly ISubjectService _subjectService;
 
     public SubjectMatcher(
         ISubjectService subjectService,
@@ -18,25 +18,17 @@ public class SubjectMatcher : ISubjectMatcher
     public async Task MatchSubject(Episode episode, string? originalSubject)
     {
         var subjects = await _subjectService.Match(episode, false);
-        var subject =
-            subjects
-                .GroupBy(y => y)
-                .OrderByDescending(g => g.Count())
-                .SelectMany(g => g).ToList()
-                .FirstOrDefault();
-        episode.Subject = subject;
+        var subject = subjects.MaxBy(x => x.MatchResults.Sum(y => y.Matches));
+
+        episode.Subject = subject?.Subject.Name;
 
         var updated = episode.Subject != originalSubject;
         if (!updated)
         {
             var descriptionSubjects = await _subjectService.Match(episode, true);
-            var descriptionSubject =
-                descriptionSubjects
-                    .GroupBy(y => y)
-                    .OrderByDescending(g => g.Count())
-                    .SelectMany(g => g).ToList()
-                    .FirstOrDefault();
-            episode.Subject = descriptionSubject;
+            var matchedSubjects = descriptionSubjects.GroupBy(x => x.MatchResults.Sum(y => y.Matches))
+                .OrderByDescending(x => x.Key);
+            episode.Subject = string.Join(",", matchedSubjects);
         }
     }
 }

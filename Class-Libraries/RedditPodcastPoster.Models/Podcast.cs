@@ -97,10 +97,13 @@ public class Podcast : CosmosSelector
     [JsonPropertyOrder(93)]
     public string EpisodeIncludeTitleRegex { get; set; } = "";
 
-    [JsonPropertyName("episodes")]
-    [JsonPropertyOrder(100)]
-    public List<Episode> Episodes { get; set; } = new();
+    [JsonPropertyName("ignoredAssociatedSubjects")]
+    [JsonPropertyOrder(93)]
+    public string[]? IgnoredAssociatedSubjects { get; set; }
 
+    [JsonPropertyName("episodes")]
+    [JsonPropertyOrder(200)]
+    public List<Episode> Episodes { get; set; } = new();
 
     public bool HasExpensiveYouTubePlaylistQuery()
     {
@@ -115,7 +118,10 @@ public class Podcast : CosmosSelector
     public TimeSpan? YouTubePublishingDelay()
     {
         if (string.IsNullOrEmpty(YouTubePublishingDelayTimeSpan))
+        {
             return null;
+        }
+
         return TimeSpan.Parse(YouTubePublishingDelayTimeSpan);
     }
 }
