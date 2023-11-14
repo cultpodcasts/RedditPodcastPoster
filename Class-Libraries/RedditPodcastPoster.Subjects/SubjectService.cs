@@ -159,7 +159,6 @@ public class SubjectService : ISubjectService
 
     public async Task<IEnumerable<SubjectMatch>> Match(
         Episode episode,
-        bool withDescription,
         string[]? ignoredTerms = null)
     {
         if (ignoredTerms != null)

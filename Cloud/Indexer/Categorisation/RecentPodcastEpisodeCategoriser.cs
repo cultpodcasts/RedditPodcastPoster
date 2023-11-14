@@ -33,7 +33,7 @@ public class RecentPodcastEpisodeCategoriser : IRecentPodcastEpisodeCategoriser
             {
                 var originalSubject = episode.Subject;
                 var originalCategory = episode.Category;
-                var categorised = await _categoriser.Categorise(episode);
+                var categorised = await _categoriser.Categorise(episode, podcast.IgnoredAssociatedSubjects);
 
                 if (episode.Subject != originalCategory || episode.Category != originalCategory)
                 {

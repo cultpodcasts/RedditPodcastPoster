@@ -30,7 +30,7 @@ public class CategorisePodcastEpisodesProcessor
 
         foreach (var podcastEpisode in podcast.Episodes)
         {
-            var subjectMatches = await _subjectService.Match(podcastEpisode, true, podcast.IgnoredAssociatedSubjects);
+            var subjectMatches = await _subjectService.Match(podcastEpisode, podcast.IgnoredAssociatedSubjects);
             var subjectMatch = subjectMatches.GroupBy(x => x.MatchResults.Sum(y => y.Matches)).MaxBy(x => x.Key);
             if (subjectMatch != null)
             {

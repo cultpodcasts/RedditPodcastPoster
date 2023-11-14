@@ -135,7 +135,8 @@ public class TrainingDataProcessor
             }
             else
             {
-                subjects = (await _subjectService.Match(podcastEpisode.Episode, true))
+                subjects = (await _subjectService.Match(podcastEpisode.Episode,
+                        podcastEpisode.Podcast.IgnoredAssociatedSubjects))
                     .OrderByDescending(x => x.MatchResults.Sum(y => y.Matches)).Select(x => x.Subject.Name).ToList();
                 if (!subjects.Any())
                 {

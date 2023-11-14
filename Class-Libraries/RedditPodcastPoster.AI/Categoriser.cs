@@ -18,12 +18,12 @@ public class Categoriser : ICategoriser
         _logger = logger;
     }
 
-    public async Task<bool> Categorise(Episode episode)
+    public async Task<bool> Categorise(Episode episode, string[]? ignoredTerms = null)
     {
         var originalSubject = episode.Subject;
         var originalCategory = episode.Category;
 
-        await _subjectMatcher.MatchSubject(episode, originalSubject);
+        await _subjectMatcher.MatchSubject(episode, ignoredTerms);
 
         var updated = episode.Subject != originalSubject;
 

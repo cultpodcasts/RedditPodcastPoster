@@ -2,5 +2,5 @@
 
 public interface ISubjectMatcher
 {
-    Task MatchSubject(Episode episode, string? originalSubject);
+    Task MatchSubject(Episode episode, string[]? ignoredTerms = null);
 }

@@ -15,9 +15,10 @@ public class SubjectMatcher : ISubjectMatcher
         _logger = logger;
     }
 
-    public async Task MatchSubject(Episode episode, string? originalSubject)
+    public async Task MatchSubject(Episode episode, string[]? ignoredTerms = null)
     {
-        var subjects = await _subjectService.Match(episode, false);
+        var originalSubject = episode.Subject;
+        var subjects = await _subjectService.Match(episode, ignoredTerms);
         var subject = subjects.MaxBy(x => x.MatchResults.Sum(y => y.Matches));
 
         episode.Subject = subject?.Subject.Name;
@@ -25,7 +26,7 @@ public class SubjectMatcher : ISubjectMatcher
         var updated = episode.Subject != originalSubject;
         if (!updated)
         {
-            var descriptionSubjects = await _subjectService.Match(episode, true);
+            var descriptionSubjects = await _subjectService.Match(episode, ignoredTerms);
             var matchedSubjects = descriptionSubjects.GroupBy(x => x.MatchResults.Sum(y => y.Matches))
                 .OrderByDescending(x => x.Key);
             episode.Subject = string.Join(",", matchedSubjects);

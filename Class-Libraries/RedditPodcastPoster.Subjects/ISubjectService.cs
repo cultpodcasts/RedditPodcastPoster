@@ -6,5 +6,5 @@ public interface ISubjectService
 {
     Task<Subject?> Match(Subject subject);
     Task<Subject?> Match(string subject);
-    Task<IEnumerable<SubjectMatch>> Match(Episode episode, bool withDescription, string[]? ignoredTerms = null);
+    Task<IEnumerable<SubjectMatch>> Match(Episode episode, string[]? ignoredTerms = null);
 }
