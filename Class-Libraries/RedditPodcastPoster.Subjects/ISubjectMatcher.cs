@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Subjects;
 
 public interface ISubjectMatcher
 {
-    Task MatchSubject(Episode episode, string[]? ignoredTerms = null);
+    Task MatchSubject(Episode episode, string[]? ignoredTerms = null, string? defaultSubject = null);
 }

@@ -56,7 +56,10 @@ public class UrlSubmitter : IUrlSubmitter
             else
             {
                 var episode = CreateEpisode(categorisedItem);
-                await _subjectMatcher.MatchSubject(episode, categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects);
+                await _subjectMatcher.MatchSubject(
+                    episode,
+                    categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
+                    categorisedItem.MatchingPodcast.DefaultSubject);
                 categorisedItem.MatchingPodcast.Episodes.Add(episode);
                 categorisedItem.MatchingPodcast.Episodes =
                     categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();

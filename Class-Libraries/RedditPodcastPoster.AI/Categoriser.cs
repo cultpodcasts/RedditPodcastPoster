@@ -19,10 +19,10 @@ public class Categoriser : ICategoriser
         _logger = logger;
     }
 
-    public async Task<bool> Categorise(Episode episode, string[]? ignoredTerms = null)
+    public async Task<bool> Categorise(Episode episode, string[]? ignoredTerms = null, string? defaultSubject = null)
     {
         var originalSubject = episode.Subjects.ToArray();
-        await _subjectMatcher.MatchSubject(episode, ignoredTerms);
+        await _subjectMatcher.MatchSubject(episode, ignoredTerms, defaultSubject);
         var updated = !originalSubject.SequenceEqual(episode.Subjects);
         return updated;
     }

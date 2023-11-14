@@ -98,7 +98,7 @@ public class AddAudioPodcastProcessor
 
             foreach (var episode in podcast.Episodes)
             {
-                await _subjectMatcher.MatchSubject(episode);
+                await _subjectMatcher.MatchSubject(episode, podcast.IgnoredAssociatedSubjects, podcast.DefaultSubject);
             }
 
             await _podcastRepository.Save(podcast);

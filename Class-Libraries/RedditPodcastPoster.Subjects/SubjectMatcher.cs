@@ -16,7 +16,7 @@ public class SubjectMatcher : ISubjectMatcher
         _logger = logger;
     }
 
-    public async Task MatchSubject(Episode episode, string[]? ignoredTerms = null)
+    public async Task MatchSubject(Episode episode, string[]? ignoredTerms = null, string? defaultSubject = null)
     {
         var subjectMatches = await _subjectService.Match(episode, ignoredTerms);
         var subjectMatch = subjectMatches.GroupBy(x => x.MatchResults.Sum(y => y.Matches)).MaxBy(x => x.Key);
@@ -37,7 +37,16 @@ public class SubjectMatcher : ISubjectMatcher
         }
         else
         {
-            _logger.LogError($"'No match: '{episode.Title}'.");
+            if (!string.IsNullOrWhiteSpace(defaultSubject))
+            {
+                episode.Subjects = new[] {defaultSubject}.ToList();
+                _logger.LogWarning(
+                    $"Applying default-subject '{defaultSubject}' to episode with title: '{episode.Title}'.");
+            }
+            else
+            {
+                _logger.LogError($"'No match: '{episode.Title}'.");
+            }
         }
     }
 }

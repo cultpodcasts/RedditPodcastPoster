@@ -30,7 +30,8 @@ public class CategorisePodcastEpisodesProcessor
 
         foreach (var podcastEpisode in podcast.Episodes)
         {
-            await _subjectMatcher.MatchSubject(podcastEpisode, podcast.IgnoredAssociatedSubjects);
+            await _subjectMatcher.MatchSubject(podcastEpisode, podcast.IgnoredAssociatedSubjects,
+                podcast.DefaultSubject);
         }
 
         if (request.Commit)

@@ -23,16 +23,19 @@ public class RecentPodcastEpisodeCategoriser : IRecentPodcastEpisodeCategoriser
     public async Task Categorise()
     {
         var since = DateTime.UtcNow.AddDays(-7);
-        var podcasts = await _podcastRepository.GetAll()
-            .Where(x => x.Episodes.Any(y => y.Release > since && !y.Subjects.Any())).ToListAsync();
+        var podcasts = await _podcastRepository
+            .GetAll()
+            .Where(x => x.Episodes.Any(y => y.Release > since && !y.Subjects.Any()))
+            .ToListAsync();
         foreach (var podcast in podcasts)
         {
             var updated = false;
-            foreach (var episode in podcast.Episodes.Where(x =>
-                         x.Release > since && !x.Subjects.Any()))
+            foreach (var episode in podcast.Episodes.Where(x => x.Release > since && !x.Subjects.Any()))
             {
-                var originalSubjects = episode.Subjects.ToArray();
-                var updatedEpisode = await _categoriser.Categorise(episode, podcast.IgnoredAssociatedSubjects);
+                var updatedEpisode = await _categoriser.Categorise(
+                    episode,
+                    podcast.IgnoredAssociatedSubjects,
+                    podcast.DefaultSubject);
 
                 if (updatedEpisode)
                 {
