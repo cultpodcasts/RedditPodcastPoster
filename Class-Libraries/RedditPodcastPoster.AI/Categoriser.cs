@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.AI;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Subjects;
 
 public class Categoriser : ICategoriser
 {

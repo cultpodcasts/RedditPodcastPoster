@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.AI.Configuration;
-using RedditPodcastPoster.AI.Factories;
+using RedditPodcastPoster.Subjects;
 
 namespace RedditPodcastPoster.AI.Extensions;
 

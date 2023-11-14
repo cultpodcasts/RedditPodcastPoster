@@ -8,15 +8,15 @@ public class CategorisePodcastEpisodesProcessor
 {
     private readonly ILogger<CategorisePodcastEpisodesProcessor> _logger;
     private readonly IPodcastRepository _repository;
-    private readonly ISubjectService _subjectService;
+    private readonly ISubjectMatcher _subjectMatcher;
 
     public CategorisePodcastEpisodesProcessor(
         IPodcastRepository repository,
-        ISubjectService subjectService,
+        ISubjectMatcher subjectMatcher,
         ILogger<CategorisePodcastEpisodesProcessor> logger)
     {
         _repository = repository;
-        _subjectService = subjectService;
+        _subjectMatcher = subjectMatcher;
         _logger = logger;
     }
 
@@ -30,18 +30,7 @@ public class CategorisePodcastEpisodesProcessor
 
         foreach (var podcastEpisode in podcast.Episodes)
         {
-            var subjectMatches = await _subjectService.Match(podcastEpisode, podcast.IgnoredAssociatedSubjects);
-            var subjectMatch = subjectMatches.GroupBy(x => x.MatchResults.Sum(y => y.Matches)).MaxBy(x => x.Key);
-            if (subjectMatch != null)
-            {
-                _logger.LogInformation(
-                    $"{subjectMatch.Count()} - {string.Join(",", subjectMatch.Select(x => "'" + x.Subject.Name + "' (" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"))} : '{podcastEpisode.Title}'.");
-                podcastEpisode.Subject = string.Join(", ", subjectMatch.Select(x => x.Subject.Name));
-            }
-            else
-            {
-                _logger.LogInformation($"'No match: '{podcastEpisode.Title}'.");
-            }
+            await _subjectMatcher.MatchSubject(podcastEpisode, podcast.IgnoredAssociatedSubjects);
         }
 
         await _repository.Save(podcast);
