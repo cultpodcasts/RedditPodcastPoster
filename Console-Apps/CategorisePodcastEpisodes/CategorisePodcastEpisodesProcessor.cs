@@ -33,6 +33,6 @@ public class CategorisePodcastEpisodesProcessor
             await _subjectMatcher.MatchSubject(podcastEpisode, podcast.IgnoredAssociatedSubjects);
         }
 
-        await _repository.Save(podcast);
+        //await _repository.Save(podcast);
     }
 }

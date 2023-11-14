@@ -12,6 +12,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.UrlSubmission.Extensions;
 using SubmitUrl;
 
@@ -36,6 +37,7 @@ builder.Services
     .AddScoped<IRemoteClient, RemoteClient>()
     .AddScoped(s => new iTunesSearchManager())
     .AddUrlSubmission()
+    .AddSubjectServices()
     .AddScoped<SubmitUrlProcessor>()
     .AddHttpClient();
 

@@ -23,7 +23,7 @@ public class SubjectMatcher : ISubjectMatcher
         if (subjectMatch != null)
         {
             _logger.LogInformation(
-                $"{subjectMatch.Count()} - {string.Join(",", subjectMatch.Select(x => "'" + x.Subject.Name + "' (" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"))}.");
+                $"{subjectMatch.Count()} - {string.Join(",", subjectMatch.Select(x => "'" + x.Subject.Name + "' (" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"))} : '{episode.Title}'.");
             episode.Subject = string.Join(", ", subjectMatch.Select(x => x.Subject.Name));
         }
         else

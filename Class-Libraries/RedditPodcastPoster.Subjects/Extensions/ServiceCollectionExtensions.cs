@@ -12,6 +12,7 @@ public static class ServiceCollectionExtensions
         return services
             .AddSingleton<ICachedSubjectRepository, CachedSubjectRepository>()
             .AddRepository<Subject>()
-            .AddScoped<ISubjectService, SubjectService>();
+            .AddScoped<ISubjectService, SubjectService>()
+            .AddScoped<ISubjectMatcher, SubjectMatcher>();
     }
 }

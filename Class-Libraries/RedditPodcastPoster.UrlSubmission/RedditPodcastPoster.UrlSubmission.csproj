@@ -17,6 +17,7 @@
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Apple\RedditPodcastPoster.PodcastServices.Apple.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Spotify\RedditPodcastPoster.PodcastServices.Spotify.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices\RedditPodcastPoster.PodcastServices.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj" />
   </ItemGroup>
 
   <ItemGroup>
