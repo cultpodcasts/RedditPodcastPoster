@@ -24,7 +24,7 @@ public class SubjectMatcher : ISubjectMatcher
         {
             _logger.LogInformation(
                 $"{subjectMatch.Count()} - {string.Join(",", subjectMatch.Select(x => "'" + x.Subject.Name + "' (" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"))} : '{episode.Title}'.");
-            episode.Subject = string.Join(", ", subjectMatch.Select(x => x.Subject.Name));
+            episode.Subjects = subjectMatch.Select(x => x.Subject.Name).ToList();
         }
         else
         {

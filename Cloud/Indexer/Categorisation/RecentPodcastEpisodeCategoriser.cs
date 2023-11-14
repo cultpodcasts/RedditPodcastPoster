@@ -24,37 +24,23 @@ public class RecentPodcastEpisodeCategoriser : IRecentPodcastEpisodeCategoriser
     {
         var since = DateTime.UtcNow.AddDays(-7);
         var podcasts = await _podcastRepository.GetAll()
-            .Where(x => x.Episodes.Any(y => y.Release > since && string.IsNullOrWhiteSpace(y.Subject))).ToListAsync();
+            .Where(x => x.Episodes.Any(y => y.Release > since && !y.Subjects.Any())).ToListAsync();
         foreach (var podcast in podcasts)
         {
             var updated = false;
             foreach (var episode in podcast.Episodes.Where(x =>
-                         x.Release > since && string.IsNullOrWhiteSpace(x.Subject)))
+                         x.Release > since && !x.Subjects.Any()))
             {
-                var originalSubject = episode.Subject;
-                var originalCategory = episode.Category;
-                var categorised = await _categoriser.Categorise(episode, podcast.IgnoredAssociatedSubjects);
+                var originalSubjects = episode.Subjects.ToArray();
+                var updatedEpisode = await _categoriser.Categorise(episode, podcast.IgnoredAssociatedSubjects);
 
-                if (episode.Subject != originalCategory || episode.Category != originalCategory)
+                if (updatedEpisode)
                 {
-                    if (episode.Subject != originalCategory && episode.Category != originalCategory)
-                    {
-                        _logger.LogInformation(
-                            $"{nameof(RecentPodcastEpisodeCategoriser)}: Podcast '{podcast.Name}' with id '{podcast.Id}' and episode with id {episode.Id}, updated subject: '{episode.Subject}', updated category: '{episode.Category}'.");
-                    }
-                    else if (episode.Subject != originalSubject)
-                    {
-                        _logger.LogInformation(
-                            $"{nameof(RecentPodcastEpisodeCategoriser)}: Podcast '{podcast.Name}' with id '{podcast.Id}' and episode with id {episode.Id}, updated subject: '{episode.Subject}'.");
-                    }
-                    else if (episode.Category != originalCategory)
-                    {
-                        _logger.LogInformation(
-                            $"{nameof(RecentPodcastEpisodeCategoriser)}: Podcast '{podcast.Name}' with id '{podcast.Id}' and episode with id {episode.Id}, updated category: '{episode.Category}'.");
-                    }
+                    _logger.LogInformation(
+                        $"{nameof(RecentPodcastEpisodeCategoriser)}: Podcast '{podcast.Name}' with id '{podcast.Id}' and episode with id {episode.Id}, updated subjects: '{string.Join(",", episode.Subjects.Select(x => $"'{x}'"))}'.");
                 }
 
-                updated |= categorised;
+                updated |= updatedEpisode;
             }
 
             if (updated)

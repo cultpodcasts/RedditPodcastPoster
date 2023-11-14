@@ -21,16 +21,9 @@ public class Categoriser : ICategoriser
 
     public async Task<bool> Categorise(Episode episode, string[]? ignoredTerms = null)
     {
-        var originalSubject = episode.Subject;
-        var originalCategory = episode.Category;
-
+        var originalSubject = episode.Subjects.ToArray();
         await _subjectMatcher.MatchSubject(episode, ignoredTerms);
-
-        var updated = episode.Subject != originalSubject;
-
-        //await _episodeClassifier.CategoriseEpisode(episode);
-        var updatedCategory = episode.Category != originalCategory;
-
-        return updated || updatedCategory;
+        var updated = !originalSubject.SequenceEqual(episode.Subjects);
+        return updated;
     }
 }
