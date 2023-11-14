@@ -56,7 +56,7 @@ public class QueryExecutor : IQueryExecutor
                     Spotify = x.Spotify,
                     YouTube = x.YouTube,
                     Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
-                    Subject= x.Subject,
+                    Subjects = x.Subjects.Any() ? x.Subjects : null
                 }),
             TotalDuration = totalDuration.Result
         };
@@ -122,7 +122,7 @@ public class QueryExecutor : IQueryExecutor
                            e.urls.apple as apple,
                            e.urls.youtube as youtube,
                            e.duration as length,
-                           e.subject as subject
+                           e.subjects as subjects
                            FROM
                            podcasts p
                            JOIN
