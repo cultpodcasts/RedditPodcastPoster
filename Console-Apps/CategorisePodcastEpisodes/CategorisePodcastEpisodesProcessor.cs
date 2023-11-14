@@ -34,14 +34,16 @@ public class CategorisePodcastEpisodesProcessor
             var subjectMatch = subjectMatches.GroupBy(x => x.MatchResults.Sum(y => y.Matches)).MaxBy(x => x.Key);
             if (subjectMatch != null)
             {
-                var matchCount = subjectMatch.Key;
                 _logger.LogInformation(
-                    $"{subjectMatch.Count()} - {string.Join(",", subjectMatch.Select(x => x.Subject.Name + "(" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"))} : '{podcastEpisode.Title}'.");
+                    $"{subjectMatch.Count()} - {string.Join(",", subjectMatch.Select(x => "'" + x.Subject.Name + "' (" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"))} : '{podcastEpisode.Title}'.");
+                podcastEpisode.Subject = string.Join(", ", subjectMatch.Select(x => x.Subject.Name));
             }
             else
             {
                 _logger.LogInformation($"'No match: '{podcastEpisode.Title}'.");
             }
         }
+
+        await _repository.Save(podcast);
     }
 }

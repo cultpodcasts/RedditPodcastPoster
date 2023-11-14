@@ -157,7 +157,9 @@ public class SubjectService : ISubjectService
         return null;
     }
 
-    public async Task<IEnumerable<SubjectMatch>> Match(Episode episode, bool withDescription,
+    public async Task<IEnumerable<SubjectMatch>> Match(
+        Episode episode,
+        bool withDescription,
         string[]? ignoredTerms = null)
     {
         if (ignoredTerms != null)
@@ -167,20 +169,30 @@ public class SubjectService : ISubjectService
 
         var subjects = await _subjectRepository.GetAll(Subject.PartitionKey);
         var matches = subjects
-            .Select(x => new SubjectMatch(x, Matches(episode, x, true, ignoredTerms))).Where(x => x.MatchResults.Any());
+            .Select(subject => new SubjectMatch(subject, Matches(episode, subject, false, ignoredTerms)))
+            .Where(x => x.MatchResults.Any());
+        if (!matches.Any())
+        {
+            matches = subjects
+                .Select(subject => new SubjectMatch(subject, Matches(episode, subject, true, ignoredTerms)))
+                .Where(x => x.MatchResults.Any());
+        }
+
         return matches;
     }
 
     private MatchResult[] Matches(Episode episode, Subject subject, bool withDescription, string[]? ignoredTerms = null)
     {
         var matches = new List<MatchResult>();
-        var terms = subject.GetTerms();
-        foreach (var term in terms.Where(x => !string.IsNullOrWhiteSpace(x)))
+        var subjectTerm = subject.GetSubjectTerms();
+        foreach (var term in subjectTerm.Where(x => !string.IsNullOrWhiteSpace(x.Term)))
         {
-            if (ignoredTerms == null || !ignoredTerms.Contains(term.ToLowerInvariant()))
+            if (ignoredTerms == null ||
+                term.SubjectTermType != SubjectTermType.AssociatedSubject ||
+                !ignoredTerms.Contains(term.Term.ToLowerInvariant()))
             {
                 var matchCtr = 0;
-                var match = GetMatches(term, episode.Title);
+                var match = GetMatches(term.Term, episode.Title);
                 if (match > 0)
                 {
                     matchCtr += match;
@@ -188,7 +200,7 @@ public class SubjectService : ISubjectService
 
                 if (withDescription)
                 {
-                    var descMatch = GetMatches(term, episode.Description);
+                    var descMatch = GetMatches(term.Term, episode.Description);
                     if (descMatch > 0)
                     {
                         matchCtr += descMatch;
@@ -197,7 +209,7 @@ public class SubjectService : ISubjectService
 
                 if (matchCtr > 0)
                 {
-                    matches.Add(new MatchResult(term, matchCtr));
+                    matches.Add(new MatchResult(term.Term, matchCtr));
                 }
             }
         }
@@ -207,6 +219,9 @@ public class SubjectService : ISubjectService
 
     private int GetMatches(string term, string sentence)
     {
+        sentence = sentence
+            .Replace("’", "'")
+            .Replace("´", "'");
         var pattern = @"\b" + Regex.Escape(term) + @"\b";
         var re = new Regex(pattern, RegexOptions.IgnoreCase);
 

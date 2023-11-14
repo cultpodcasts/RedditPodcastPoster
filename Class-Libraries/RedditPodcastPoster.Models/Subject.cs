@@ -29,12 +29,16 @@ public sealed class Subject : CosmosSelector
     [JsonPropertyOrder(40)]
     public Guid? RedditFlairTemplateId { get; set; }
 
-    public string[] GetTerms()
+    public SubjectTerm[] GetSubjectTerms()
     {
         return
-            new[] {Name}
-                .Concat(Aliases ?? Array.Empty<string>())
-                .Concat(AssociatedSubjects ?? Array.Empty<string>())
+            new[] {new SubjectTerm(Name, SubjectTermType.Name)}
+                .Concat(Aliases != null
+                    ? Aliases.Select(term => new SubjectTerm(term, SubjectTermType.Alias))
+                    : Array.Empty<SubjectTerm>())
+                .Concat(AssociatedSubjects != null
+                    ? AssociatedSubjects.Select(term => new SubjectTerm(term, SubjectTermType.AssociatedSubject))
+                    : Array.Empty<SubjectTerm>())
                 .ToArray();
     }
 }

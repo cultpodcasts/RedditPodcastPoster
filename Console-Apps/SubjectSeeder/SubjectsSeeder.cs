@@ -25,7 +25,9 @@ public class SubjectsSeeder
     {
         var newSubjects = new List<Subject>
         {
-            SubjectFactory.Create("Colonia Dignidad", associatedSubjects: "Paul Schäfer Schneider")
+            SubjectFactory.Create("Fourth International Posadist",
+                "Posadism",
+                "J. Posadas, J Posadas")
         };
         foreach (var subject in newSubjects)
         {
