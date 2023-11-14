@@ -101,6 +101,10 @@ public class Podcast : CosmosSelector
     [JsonPropertyOrder(93)]
     public string[]? IgnoredAssociatedSubjects { get; set; }
 
+    [JsonPropertyName("defaultSubject")]
+    [JsonPropertyOrder(94)]
+    public string? DefaultSubject { get; set; }
+
     [JsonPropertyName("episodes")]
     [JsonPropertyOrder(200)]
     public List<Episode> Episodes { get; set; } = new();

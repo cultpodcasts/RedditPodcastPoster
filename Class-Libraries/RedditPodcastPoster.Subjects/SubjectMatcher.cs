@@ -20,15 +20,24 @@ public class SubjectMatcher : ISubjectMatcher
     {
         var subjectMatches = await _subjectService.Match(episode, ignoredTerms);
         var subjectMatch = subjectMatches.GroupBy(x => x.MatchResults.Sum(y => y.Matches)).MaxBy(x => x.Key);
-        if (subjectMatch != null)
+        if (subjectMatch != null && subjectMatch.Any())
         {
-            _logger.LogInformation(
-                $"{subjectMatch.Count()} - {string.Join(",", subjectMatch.Select(x => "'" + x.Subject.Name + "' (" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"))} : '{episode.Title}'.");
+            var message =
+                $"{subjectMatch.Count()} - {string.Join(",", subjectMatch.Select(x => "'" + x.Subject.Name + "' (" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"))} : '{episode.Title}'.";
+            if (subjectMatch.Count() > 1)
+            {
+                _logger.LogWarning(message);
+            }
+            else
+            {
+                _logger.LogInformation(message);
+            }
+
             episode.Subjects = subjectMatch.Select(x => x.Subject.Name).ToList();
         }
         else
         {
-            _logger.LogInformation($"'No match: '{episode.Title}'.");
+            _logger.LogError($"'No match: '{episode.Title}'.");
         }
     }
 }
