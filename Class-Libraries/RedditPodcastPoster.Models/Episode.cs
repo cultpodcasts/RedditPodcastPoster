@@ -70,15 +70,6 @@ public class Episode
     [JsonPropertyOrder(90)]
     public List<string> Subjects { get; set; } = new();
 
-    [JsonPropertyName("subject")]
-    [JsonPropertyOrder(91)]
-    public string? Subject { get; set; }
-
-    [JsonPropertyName("category")]
-    [JsonPropertyOrder(92)]
-    public string? Category { get; set; }
-
-
     public static Episode FromSpotify(string spotifyId,
         string title,
         string description,

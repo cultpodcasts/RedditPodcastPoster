@@ -7,6 +7,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.Subjects;
 using SpotifyAPI.Web;
 
 namespace AddAudioPodcast;
@@ -23,6 +24,7 @@ public class AddAudioPodcastProcessor
     private readonly IPodcastUpdater _podcastUpdater;
     private readonly ISpotifyClient _spotifyClient;
     private readonly ISpotifyPodcastEnricher _spotifyPodcastEnricher;
+    private readonly ISubjectMatcher _subjectMatcher;
 
     public AddAudioPodcastProcessor(
         IPodcastRepository podcastRepository,
@@ -32,6 +34,7 @@ public class AddAudioPodcastProcessor
         ISpotifyPodcastEnricher spotifyPodcastEnricher,
         IPodcastUpdater podcastUpdater,
         iTunesSearchManager iTunesSearchManager,
+        ISubjectMatcher subjectMatcher,
         ILogger<AddAudioPodcastProcessor> logger)
     {
         _podcastRepository = podcastRepository;
@@ -41,6 +44,7 @@ public class AddAudioPodcastProcessor
         _spotifyPodcastEnricher = spotifyPodcastEnricher;
         _podcastUpdater = podcastUpdater;
         _iTunesSearchManager = iTunesSearchManager;
+        _subjectMatcher = subjectMatcher;
         _logger = logger;
     }
 
@@ -90,12 +94,14 @@ public class AddAudioPodcastProcessor
                     podcast.Episodes.Remove(episode);
                     _logger.LogInformation($"Removed episode '{episode.Title}' due to regex.");
                 }
-
-                if (episodesToRemove.Any())
-                {
-                    await _podcastRepository.Save(podcast);
-                }
             }
+
+            foreach (var episode in podcast.Episodes)
+            {
+                await _subjectMatcher.MatchSubject(episode, podcast.IgnoredAssociatedSubjects, podcast.DefaultSubject);
+            }
+
+            await _podcastRepository.Save(podcast);
 
             if (result.Success)
             {

@@ -4,6 +4,7 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 
 namespace RedditPodcastPoster.UrlSubmission;
@@ -12,17 +13,20 @@ public class UrlSubmitter : IUrlSubmitter
 {
     private readonly ILogger<UrlSubmitter> _logger;
     private readonly IPodcastRepository _podcastRepository;
-    private readonly IUrlCategoriser _urlCategoriser;
     private readonly PostingCriteria _postingCriteria;
+    private readonly ISubjectMatcher _subjectMatcher;
+    private readonly IUrlCategoriser _urlCategoriser;
 
     public UrlSubmitter(
         IPodcastRepository podcastRepository,
         IUrlCategoriser urlCategoriser,
+        ISubjectMatcher subjectMatcher,
         IOptions<PostingCriteria> postingCriteria,
         ILogger<UrlSubmitter> logger)
     {
         _podcastRepository = podcastRepository;
         _urlCategoriser = urlCategoriser;
+        _subjectMatcher = subjectMatcher;
         _postingCriteria = postingCriteria.Value;
         _logger = logger;
     }
@@ -51,7 +55,12 @@ public class UrlSubmitter : IUrlSubmitter
             }
             else
             {
-                categorisedItem.MatchingPodcast.Episodes.Add(CreateEpisode(categorisedItem));
+                var episode = CreateEpisode(categorisedItem);
+                await _subjectMatcher.MatchSubject(
+                    episode,
+                    categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
+                    categorisedItem.MatchingPodcast.DefaultSubject);
+                categorisedItem.MatchingPodcast.Episodes.Add(episode);
                 categorisedItem.MatchingPodcast.Episodes =
                     categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
             }
@@ -60,14 +69,14 @@ public class UrlSubmitter : IUrlSubmitter
         }
         else
         {
-            var newPodcast = CreatePodcastWithEpisode(categorisedItem);
+            var newPodcast = await CreatePodcastWithEpisode(categorisedItem);
 
             await _podcastRepository.Save(newPodcast);
             podcasts.Add(newPodcast);
         }
     }
 
-    private Podcast CreatePodcastWithEpisode(CategorisedItem categorisedItem)
+    private async Task<Podcast> CreatePodcastWithEpisode(CategorisedItem categorisedItem)
     {
         string showName;
         string publisher;
@@ -100,7 +109,9 @@ public class UrlSubmitter : IUrlSubmitter
             newPodcast.YouTubePublishingDelayTimeSpan = "0:01:00:00";
         }
 
-        newPodcast.Episodes.Add(CreateEpisode(categorisedItem));
+        var episode = CreateEpisode(categorisedItem);
+        await _subjectMatcher.MatchSubject(episode);
+        newPodcast.Episodes.Add(episode);
         _logger.LogInformation($"Created podcast with name '{showName}' with id '{newPodcast.Id}'.");
 
         return newPodcast;

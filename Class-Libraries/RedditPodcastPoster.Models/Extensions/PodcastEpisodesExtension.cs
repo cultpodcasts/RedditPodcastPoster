@@ -42,6 +42,6 @@ public static class PodcastEpisodesExtension
             episode.Description,
             id,
             episode.Release,
-            string.IsNullOrWhiteSpace(episode.Subject) ? null : episode.Subject);
+            episode.Subjects.FirstOrDefault());
     }
 }

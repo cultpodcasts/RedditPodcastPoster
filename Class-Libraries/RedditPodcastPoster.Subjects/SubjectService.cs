@@ -112,9 +112,9 @@ public class SubjectService : ISubjectService
         {
             var matchedSubject = subjects
                 .Where(x => x.AssociatedSubjects != null)
-                .FirstOrDefault(x => 
+                .FirstOrDefault(x =>
                     x.AssociatedSubjects!.Select(y => y.ToLowerInvariant())
-                    .Contains(subject.Name.ToLowerInvariant()));
+                        .Contains(subject.Name.ToLowerInvariant()));
             if (matchedSubject != null)
             {
                 return matchedSubject;
@@ -157,45 +157,73 @@ public class SubjectService : ISubjectService
         return null;
     }
 
-    public async Task<IEnumerable<string>> Match(Episode episode, bool withDescription)
+    public async Task<IEnumerable<SubjectMatch>> Match(
+        Episode episode,
+        string[]? ignoredTerms = null)
     {
-        var subjects = await _subjectRepository.GetAll(Subject.PartitionKey);
-        var matches = subjects.Where(x => Matches(episode, x, withDescription)).Select(x => x.Name);
-        if (matches.Any())
+        if (ignoredTerms != null)
         {
-            return matches;
+            ignoredTerms = ignoredTerms.Select(x => x.ToLowerInvariant()).ToArray();
         }
 
-        matches = subjects.Where(x => Matches(episode, x, withDescription)).Select(x => x.Name);
+        var subjects = await _subjectRepository.GetAll(Subject.PartitionKey);
+        var matches = subjects
+            .Select(subject => new SubjectMatch(subject, Matches(episode, subject, false, ignoredTerms)))
+            .Where(x => x.MatchResults.Any());
+        if (!matches.Any())
+        {
+            matches = subjects
+                .Select(subject => new SubjectMatch(subject, Matches(episode, subject, true, ignoredTerms)))
+                .Where(x => x.MatchResults.Any());
+        }
+
         return matches;
     }
 
-    private bool Matches(Episode episode, Subject subject, bool withDescription)
+    private MatchResult[] Matches(Episode episode, Subject subject, bool withDescription, string[]? ignoredTerms = null)
     {
-        var match = false;
-        var terms = subject.GetTerms();
-        foreach (var term in terms.Where(x => !string.IsNullOrWhiteSpace(x)))
+        var matches = new List<MatchResult>();
+        var subjectTerm = subject.GetSubjectTerms();
+        foreach (var term in subjectTerm.Where(x => !string.IsNullOrWhiteSpace(x.Term)))
         {
-            match = IsMatch(term, episode.Title);
-            if (withDescription)
+            if (ignoredTerms == null ||
+                term.SubjectTermType != SubjectTermType.AssociatedSubject ||
+                !ignoredTerms.Contains(term.Term.ToLowerInvariant()))
             {
-                match |= IsMatch(term, episode.Description);
-            }
+                var matchCtr = 0;
+                var match = GetMatches(term.Term, episode.Title);
+                if (match > 0)
+                {
+                    matchCtr += match;
+                }
 
-            if (match)
-            {
-                return match;
+                if (withDescription)
+                {
+                    var descMatch = GetMatches(term.Term, episode.Description);
+                    if (descMatch > 0)
+                    {
+                        matchCtr += descMatch;
+                    }
+                }
+
+                if (matchCtr > 0)
+                {
+                    matches.Add(new MatchResult(term.Term, matchCtr));
+                }
             }
         }
 
-        return match;
+        return matches.ToArray();
     }
 
-    private bool IsMatch(string term, string sentence)
+    private int GetMatches(string term, string sentence)
     {
+        sentence = sentence
+            .Replace("’", "'")
+            .Replace("´", "'");
         var pattern = @"\b" + Regex.Escape(term) + @"\b";
         var re = new Regex(pattern, RegexOptions.IgnoreCase);
 
-        return re.IsMatch(sentence);
+        return re.Matches(sentence).Count;
     }
 }

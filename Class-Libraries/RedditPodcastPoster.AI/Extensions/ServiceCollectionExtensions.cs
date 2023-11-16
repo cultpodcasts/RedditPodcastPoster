@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.AI.Configuration;
-using RedditPodcastPoster.AI.Factories;
 
 namespace RedditPodcastPoster.AI.Extensions;
 
@@ -19,12 +18,12 @@ public static class ServiceCollectionExtensions
             .AddOptions<ClassificationSettings>().Bind(config.GetSection("classification"));
 
         return services
-            //.AddSingleton<ITextAnalyticsClientFactory, TextAnalyticsClientFactory>()
-            //.AddSingleton<IClassifyActionFactory, ClassifyActionFactory>()
-            //.AddScoped(s => s.GetService<ITextAnalyticsClientFactory>()!.Create())
-            //.AddScoped(s => s.GetService<IClassifyActionFactory>()!.Create())
-            .AddScoped<ICategoriser, Categoriser>()
+                //.AddSingleton<ITextAnalyticsClientFactory, TextAnalyticsClientFactory>()
+                //.AddSingleton<IClassifyActionFactory, ClassifyActionFactory>()
+                //.AddScoped(s => s.GetService<ITextAnalyticsClientFactory>()!.Create())
+                //.AddScoped(s => s.GetService<IClassifyActionFactory>()!.Create())
+                .AddScoped<ICategoriser, Categoriser>()
             //.AddScoped<IEpisodeClassifier, EpisodeClassifier>()
-            .AddScoped<ISubjectMatcher, SubjectMatcher>();
+            ;
     }
 }
