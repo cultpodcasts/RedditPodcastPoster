@@ -19,7 +19,7 @@ public class SubjectMatcher : ISubjectMatcher
     public async Task MatchSubject(Episode episode, string[]? ignoredTerms = null, string? defaultSubject = null)
     {
         var subjectMatches = await _subjectService.Match(episode, ignoredTerms);
-        var subjectMatch = subjectMatches.GroupBy(x => x.MatchResults.Sum(y => y.Matches)).MaxBy(x => x.Key);
+        var subjectMatch = subjectMatches.OrderByDescending(x => x.MatchResults.Sum(y => y.Matches));
         if (subjectMatch != null && subjectMatch.Any())
         {
             var message =

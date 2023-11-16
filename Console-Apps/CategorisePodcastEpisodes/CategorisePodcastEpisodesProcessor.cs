@@ -22,21 +22,28 @@ public class CategorisePodcastEpisodesProcessor
 
     public async Task Run(CategorisePodcastEpisodesRequest request)
     {
-        var podcast = await _repository.GetPodcast(request.PodcastId);
-        if (podcast == null)
+        var podcastIds = request.PodcastIds.Split(",");
+        foreach (var podcastId in podcastIds)
         {
-            throw new ArgumentException($"No podcast with id '{request.PodcastId}' found.");
-        }
+            var podcast = await _repository.GetPodcast(Guid.Parse(podcastId));
+            _logger.LogInformation($"Processing '{podcastId}' : '{podcast.Name}'.");
+            if (podcast == null)
+            {
+                throw new ArgumentException($"No podcast with id '{podcastId}' found.");
+            }
 
-        foreach (var podcastEpisode in podcast.Episodes)
-        {
-            await _subjectMatcher.MatchSubject(podcastEpisode, podcast.IgnoredAssociatedSubjects,
-                podcast.DefaultSubject);
-        }
+            foreach (var podcastEpisode in podcast.Episodes)
+            {
+                await _subjectMatcher.MatchSubject(
+                    podcastEpisode,
+                    podcast.IgnoredAssociatedSubjects,
+                    podcast.DefaultSubject);
+            }
 
-        if (request.Commit)
-        {
-            await _repository.Save(podcast);
+            if (request.Commit)
+            {
+                await _repository.Save(podcast);
+            }
         }
     }
 }
