@@ -20,6 +20,7 @@ public class ApplePodcastService : IApplePodcastService
 
     public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
     {
+        var inDescendingDateOrder = true;
         var requestUri = $"/v1/catalog/us/podcasts/{podcastId.PodcastId}/episodes";
         HttpResponseMessage response;
         try
@@ -43,10 +44,23 @@ public class ApplePodcastService : IApplePodcastService
         {
             var appleJson = await response.Content.ReadAsStringAsync();
             var appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
+            var lastReleased = DateTime.UtcNow;
+            foreach (var appleObjectRecord in appleObject.Records)
+            {
+                inDescendingDateOrder = lastReleased > appleObjectRecord.Attributes.Released;
+                lastReleased = appleObjectRecord.Attributes.Released;
+                if (!inDescendingDateOrder)
+                {
+                    inDescendingDateOrder = false;
+                    break;
+                }
+            }
+
             podcastRecords.AddRange(appleObject!.Records);
-            while (!string.IsNullOrWhiteSpace(appleObject.Next) &&
-                   (!indexingContext.ReleasedSince.HasValue || podcastRecords.Last().ToAppleEpisode().Release >=
-                       indexingContext.ReleasedSince))
+            while (response.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(appleObject.Next) &&
+                   (!indexingContext.ReleasedSince.HasValue ||
+                    podcastRecords.Last().ToAppleEpisode().Release >= indexingContext.ReleasedSince ||
+                    !inDescendingDateOrder))
             {
                 response = await _httpClient.GetAsync((string?) appleObject.Next);
                 if (response.IsSuccessStatusCode)
