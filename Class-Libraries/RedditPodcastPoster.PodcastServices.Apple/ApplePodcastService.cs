@@ -44,30 +44,33 @@ public class ApplePodcastService : IApplePodcastService
         {
             var appleJson = await response.Content.ReadAsStringAsync();
             var appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
-            var lastReleased = DateTime.UtcNow;
-            foreach (var appleObjectRecord in appleObject.Records)
+            if (appleObject != null)
             {
-                inDescendingDateOrder = lastReleased > appleObjectRecord.Attributes.Released;
-                lastReleased = appleObjectRecord.Attributes.Released;
-                if (!inDescendingDateOrder)
+                var lastReleased = DateTime.UtcNow;
+                foreach (var appleObjectRecord in appleObject.Records)
                 {
-                    inDescendingDateOrder = false;
-                    break;
+                    inDescendingDateOrder = lastReleased > appleObjectRecord.Attributes.Released;
+                    lastReleased = appleObjectRecord.Attributes.Released;
+                    if (!inDescendingDateOrder)
+                    {
+                        inDescendingDateOrder = false;
+                        break;
+                    }
                 }
-            }
 
-            podcastRecords.AddRange(appleObject!.Records);
-            while (response.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(appleObject.Next) &&
-                   (!indexingContext.ReleasedSince.HasValue ||
-                    podcastRecords.Last().ToAppleEpisode().Release >= indexingContext.ReleasedSince ||
-                    !inDescendingDateOrder))
-            {
-                response = await _httpClient.GetAsync((string?) appleObject.Next);
-                if (response.IsSuccessStatusCode)
+                podcastRecords.AddRange(appleObject!.Records);
+                while (response.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(appleObject.Next) &&
+                       (!indexingContext.ReleasedSince.HasValue ||
+                        podcastRecords.Last().ToAppleEpisode().Release >= indexingContext.ReleasedSince ||
+                        !inDescendingDateOrder))
                 {
-                    appleJson = await response.Content.ReadAsStringAsync();
-                    appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
-                    podcastRecords.AddRange(appleObject!.Records);
+                    response = await _httpClient.GetAsync((string?) appleObject.Next);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        appleJson = await response.Content.ReadAsStringAsync();
+                        appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
+                        podcastRecords.AddRange(appleObject!.Records);
+                    }
                 }
             }
         }
