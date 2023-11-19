@@ -8,15 +8,15 @@ public class CategorisePodcastEpisodesProcessor
 {
     private readonly ILogger<CategorisePodcastEpisodesProcessor> _logger;
     private readonly IPodcastRepository _repository;
-    private readonly ISubjectMatcher _subjectMatcher;
+    private readonly ISubjectEnricher _subjectEnricher;
 
     public CategorisePodcastEpisodesProcessor(
         IPodcastRepository repository,
-        ISubjectMatcher subjectMatcher,
+        ISubjectEnricher subjectEnricher,
         ILogger<CategorisePodcastEpisodesProcessor> logger)
     {
         _repository = repository;
-        _subjectMatcher = subjectMatcher;
+        _subjectEnricher = subjectEnricher;
         _logger = logger;
     }
 
@@ -26,6 +26,11 @@ public class CategorisePodcastEpisodesProcessor
         foreach (var podcastId in podcastIds)
         {
             var podcast = await _repository.GetPodcast(Guid.Parse(podcastId));
+            if (podcast == null)
+            {
+                throw new ArgumentException($"Podcast with id '{podcastId}' not found.");
+            }
+
             _logger.LogInformation($"Processing '{podcastId}' : '{podcast.Name}'.");
             if (podcast == null)
             {
@@ -34,10 +39,16 @@ public class CategorisePodcastEpisodesProcessor
 
             foreach (var podcastEpisode in podcast.Episodes)
             {
-                await _subjectMatcher.MatchSubject(
+                if (request.ResetSubjects)
+                {
+                    podcastEpisode.Subjects = new List<string>();
+                }
+
+                await _subjectEnricher.EnrichSubjects(
                     podcastEpisode,
-                    podcast.IgnoredAssociatedSubjects,
-                    podcast.DefaultSubject);
+                    new SubjectEnrichmentOptions(
+                        podcast.IgnoredAssociatedSubjects,
+                        podcast.DefaultSubject));
             }
 
             if (request.Commit)

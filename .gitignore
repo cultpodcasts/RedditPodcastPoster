@@ -399,3 +399,4 @@ Console-Apps/RedditPodcastPoster/Properties/launchSettings.json
 /Console-Apps/Poster/Properties/launchSettings.json
 /Console-Apps/EnrichExistingEpisodesFromPodcastServices/Properties/launchSettings.json
 /Console-Apps/CategorisePodcastEpisodes/Properties/launchSettings.json
+/Console-Apps/EnrichYouTubeOnlyPodcasts/appsettings.json

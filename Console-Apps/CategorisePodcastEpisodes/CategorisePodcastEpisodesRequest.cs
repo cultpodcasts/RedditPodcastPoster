@@ -11,4 +11,7 @@ public class CategorisePodcastEpisodesRequest
 
     [Option('c', "Commit", Default = false, Required = false)]
     public bool Commit { get; set; }
+
+    [Option('r', "Reset-Subject", Default = false, Required = false)]
+    public bool ResetSubjects { get; set; }
 }
