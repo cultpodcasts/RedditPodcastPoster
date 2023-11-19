@@ -7,6 +7,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.Subjects;
 
 namespace EnrichYouTubeOnlyPodcasts;
 
@@ -15,6 +16,7 @@ public class EnrichYouTubePodcastProcessor
     private readonly ILogger<EnrichYouTubePodcastProcessor> _logger;
     private readonly IPodcastRepository _podcastRepository;
     private readonly PostingCriteria _postingCriteria;
+    private readonly ISubjectEnricher _subjectEnricher;
     private readonly IYouTubeChannelService _youTubeChannelService;
     private readonly IYouTubeEpisodeProvider _youTubeEpisodeProvider;
     private readonly IYouTubePlaylistService _youTubePlaylistService;
@@ -26,6 +28,7 @@ public class EnrichYouTubePodcastProcessor
         IYouTubeChannelService youTubeChannelService,
         IYouTubeVideoService youTubeVideoService,
         IYouTubeEpisodeProvider youTubeEpisodeProvider,
+        ISubjectEnricher subjectEnricher,
         IOptions<PostingCriteria> postingCriteria,
         ILogger<EnrichYouTubePodcastProcessor> logger)
     {
@@ -34,6 +37,7 @@ public class EnrichYouTubePodcastProcessor
         _youTubeChannelService = youTubeChannelService;
         _youTubeVideoService = youTubeVideoService;
         _youTubeEpisodeProvider = youTubeEpisodeProvider;
+        _subjectEnricher = subjectEnricher;
         _postingCriteria = postingCriteria.Value;
         _logger = logger;
     }
@@ -136,6 +140,10 @@ public class EnrichYouTubePodcastProcessor
                 if (episode.Length > _postingCriteria.MinimumDuration)
                 {
                     episode.Id = Guid.NewGuid();
+
+                    await _subjectEnricher.EnrichSubjects(episode,
+                        new SubjectEnrichmentOptions(podcast.IgnoredAssociatedSubjects, podcast.DefaultSubject));
+
                     podcast.Episodes.Add(episode);
                 }
             }

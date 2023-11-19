@@ -24,7 +24,7 @@ public class AddAudioPodcastProcessor
     private readonly IPodcastUpdater _podcastUpdater;
     private readonly ISpotifyClient _spotifyClient;
     private readonly ISpotifyPodcastEnricher _spotifyPodcastEnricher;
-    private readonly ISubjectMatcher _subjectMatcher;
+    private readonly ISubjectEnricher _subjectEnricher;
 
     public AddAudioPodcastProcessor(
         IPodcastRepository podcastRepository,
@@ -34,7 +34,7 @@ public class AddAudioPodcastProcessor
         ISpotifyPodcastEnricher spotifyPodcastEnricher,
         IPodcastUpdater podcastUpdater,
         iTunesSearchManager iTunesSearchManager,
-        ISubjectMatcher subjectMatcher,
+        ISubjectEnricher subjectEnricher,
         ILogger<AddAudioPodcastProcessor> logger)
     {
         _podcastRepository = podcastRepository;
@@ -44,7 +44,7 @@ public class AddAudioPodcastProcessor
         _spotifyPodcastEnricher = spotifyPodcastEnricher;
         _podcastUpdater = podcastUpdater;
         _iTunesSearchManager = iTunesSearchManager;
-        _subjectMatcher = subjectMatcher;
+        _subjectEnricher = subjectEnricher;
         _logger = logger;
     }
 
@@ -98,7 +98,8 @@ public class AddAudioPodcastProcessor
 
             foreach (var episode in podcast.Episodes)
             {
-                await _subjectMatcher.MatchSubject(episode, podcast.IgnoredAssociatedSubjects, podcast.DefaultSubject);
+                await _subjectEnricher.EnrichSubjects(episode,
+                    new SubjectEnrichmentOptions(podcast.IgnoredAssociatedSubjects, podcast.DefaultSubject));
             }
 
             await _podcastRepository.Save(podcast);

@@ -7,14 +7,14 @@ public class Categoriser : ICategoriser
 {
     //private readonly IEpisodeClassifier _episodeClassifier;
     private readonly ILogger<Categoriser> _logger;
-    private readonly ISubjectMatcher _subjectMatcher;
+    private readonly ISubjectEnricher _subjectEnricher;
 
     public Categoriser(
-        ISubjectMatcher subjectMatcher,
+        ISubjectEnricher subjectEnricher,
         //IEpisodeClassifier episodeClassifier,
         ILogger<Categoriser> logger)
     {
-        _subjectMatcher = subjectMatcher;
+        _subjectEnricher = subjectEnricher;
         //_episodeClassifier = episodeClassifier;
         _logger = logger;
     }
@@ -22,7 +22,7 @@ public class Categoriser : ICategoriser
     public async Task<bool> Categorise(Episode episode, string[]? ignoredTerms = null, string? defaultSubject = null)
     {
         var originalSubject = episode.Subjects.ToArray();
-        await _subjectMatcher.MatchSubject(episode, ignoredTerms, defaultSubject);
+        await _subjectEnricher.EnrichSubjects(episode, new SubjectEnrichmentOptions(ignoredTerms, defaultSubject));
         var updated = !originalSubject.SequenceEqual(episode.Subjects);
         return updated;
     }

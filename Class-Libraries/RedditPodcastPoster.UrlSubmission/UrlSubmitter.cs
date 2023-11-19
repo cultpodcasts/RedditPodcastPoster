@@ -14,19 +14,19 @@ public class UrlSubmitter : IUrlSubmitter
     private readonly ILogger<UrlSubmitter> _logger;
     private readonly IPodcastRepository _podcastRepository;
     private readonly PostingCriteria _postingCriteria;
-    private readonly ISubjectMatcher _subjectMatcher;
+    private readonly ISubjectEnricher _subjectEnricher;
     private readonly IUrlCategoriser _urlCategoriser;
 
     public UrlSubmitter(
         IPodcastRepository podcastRepository,
         IUrlCategoriser urlCategoriser,
-        ISubjectMatcher subjectMatcher,
+        ISubjectEnricher subjectEnricher,
         IOptions<PostingCriteria> postingCriteria,
         ILogger<UrlSubmitter> logger)
     {
         _podcastRepository = podcastRepository;
         _urlCategoriser = urlCategoriser;
-        _subjectMatcher = subjectMatcher;
+        _subjectEnricher = subjectEnricher;
         _postingCriteria = postingCriteria.Value;
         _logger = logger;
     }
@@ -56,10 +56,11 @@ public class UrlSubmitter : IUrlSubmitter
             else
             {
                 var episode = CreateEpisode(categorisedItem);
-                await _subjectMatcher.MatchSubject(
+                await _subjectEnricher.EnrichSubjects(
                     episode,
-                    categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
-                    categorisedItem.MatchingPodcast.DefaultSubject);
+                    new SubjectEnrichmentOptions(
+                        categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
+                        categorisedItem.MatchingPodcast.DefaultSubject));
                 categorisedItem.MatchingPodcast.Episodes.Add(episode);
                 categorisedItem.MatchingPodcast.Episodes =
                     categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
@@ -110,7 +111,7 @@ public class UrlSubmitter : IUrlSubmitter
         }
 
         var episode = CreateEpisode(categorisedItem);
-        await _subjectMatcher.MatchSubject(episode);
+        await _subjectEnricher.EnrichSubjects(episode);
         newPodcast.Episodes.Add(episode);
         _logger.LogInformation($"Created podcast with name '{showName}' with id '{newPodcast.Id}'.");
 
