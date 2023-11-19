@@ -26,6 +26,11 @@ public class CategorisePodcastEpisodesProcessor
         foreach (var podcastId in podcastIds)
         {
             var podcast = await _repository.GetPodcast(Guid.Parse(podcastId));
+            if (podcast == null)
+            {
+                throw new ArgumentException($"Podcast with id '{podcastId}' not found.");
+            }
+
             _logger.LogInformation($"Processing '{podcastId}' : '{podcast.Name}'.");
             if (podcast == null)
             {
