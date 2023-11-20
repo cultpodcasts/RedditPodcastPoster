@@ -29,12 +29,29 @@ public class Publisher : TaskActivity<IndexerResponse, IndexerResponse>
 
         try
         {
-            await _contentPublisher.Publish();
+            Task[] publishingTasks;
+            if (DateTime.UtcNow.Hour == 12)
+            {
+                publishingTasks = new[]
+                {
+                    _contentPublisher.PublishHomepage(),
+                    _contentPublisher.PublishSubjects()
+                };
+            }
+            else
+            {
+                publishingTasks = new[]
+                {
+                    _contentPublisher.PublishHomepage()
+                };
+            }
+
+            await Task.WhenAll(publishingTasks);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                $"Failure to execute {nameof(IContentPublisher)}.{nameof(IContentPublisher.Publish)}.");
+                $"Failure to execute {nameof(IContentPublisher)}.{nameof(IContentPublisher.PublishHomepage)}.");
             return indexerResponse with {Success = false};
         }
 

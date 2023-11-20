@@ -54,7 +54,24 @@ public class PostProcessor
         }
 
         await PostNewEpisodes(request, podcasts);
-        await _contentPublisher.Publish();
+        Task[] publishingTasks;
+        if (request.PublishSubjects)
+        {
+            publishingTasks = new[]
+            {
+                _contentPublisher.PublishHomepage(),
+                _contentPublisher.PublishSubjects()
+            };
+        }
+        else
+        {
+            publishingTasks = new[]
+            {
+                _contentPublisher.PublishHomepage()
+            };
+        }
+
+        await Task.WhenAll(publishingTasks);
         if (!request.SkipTweet)
         {
             var postToTweet =

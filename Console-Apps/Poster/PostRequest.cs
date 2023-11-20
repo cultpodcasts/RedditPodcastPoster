@@ -4,6 +4,9 @@ namespace Poster;
 
 public class PostRequest
 {
+    [Option('s', "publish-subjects", Required = false, HelpText = "Skip Tweet", Default = false)]
+    public bool PublishSubjects { get; set; }
+
     [Option('t', "skip-tweet", Required = false, HelpText = "Skip Tweet", Default = false)]
     public bool SkipTweet { get; set; }
 

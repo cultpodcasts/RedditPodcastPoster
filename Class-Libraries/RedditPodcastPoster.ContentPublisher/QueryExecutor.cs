@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.ContentPublisher;
@@ -14,16 +15,19 @@ public class QueryExecutor : IQueryExecutor
     private readonly CosmosClient _cosmosClient;
     private readonly CosmosDbSettings _cosmosDbSettings;
     private readonly ILogger<QueryExecutor> _logger;
+    private readonly IRepository<Subject> _subjectRepository;
     private readonly ITextSanitiser _textSanitiser;
 
     public QueryExecutor(
         CosmosClient cosmosClient,
         ITextSanitiser textSanitiser,
         IOptions<CosmosDbSettings> cosmosDbSettings,
+        IRepository<Subject> subjectRepository,
         ILogger<QueryExecutor> logger)
     {
         _cosmosClient = cosmosClient;
         _textSanitiser = textSanitiser;
+        _subjectRepository = subjectRepository;
         _logger = logger;
         _cosmosDbSettings = cosmosDbSettings.Value;
     }
@@ -60,6 +64,50 @@ public class QueryExecutor : IQueryExecutor
                 }),
             TotalDuration = totalDuration.Result
         };
+    }
+
+    public async Task<SubjectModel> GetSubjects(CancellationToken ct)
+    {
+        var termSubjects = new Dictionary<string, List<string>>();
+        var subjects = await _subjectRepository.GetAll(Subject.PartitionKey);
+        foreach (var subject in subjects)
+        {
+            AddTerm(termSubjects, subject.Name, subject.Name);
+            if (subject.Aliases != null)
+            {
+                foreach (var term in subject.Aliases)
+                {
+                    AddTerm(termSubjects, term, subject.Name);
+                }
+            }
+
+            if (subject.AssociatedSubjects != null)
+            {
+                foreach (var term in subject.AssociatedSubjects)
+                {
+                    AddTerm(termSubjects, term, subject.Name);
+                }
+            }
+        }
+
+        var subjectModel = new SubjectModel
+        {
+            TermSubjects = termSubjects
+                .ToDictionary(
+                    x => x.Key,
+                    x => x.Value.DistinctBy(y => y.ToLowerInvariant()).ToArray())
+        };
+        return subjectModel;
+    }
+
+    private void AddTerm(Dictionary<string, List<string>> dict, string term, string subject)
+    {
+        if (!dict.ContainsKey(term))
+        {
+            dict[term] = new List<string>();
+        }
+
+        dict[term].Add(subject);
     }
 
     private static async Task<int?> GetEpisodeCount(CancellationToken ct, Container c)

@@ -26,7 +26,7 @@ public class ContentPublisher : IContentPublisher
         _logger = logger;
     }
 
-    public async Task Publish()
+    public async Task PublishHomepage()
     {
         var homepageContent = await _queryExecutor.GetHomePage(CancellationToken.None);
         var homepageContentAsJson = JsonSerializer.Serialize(homepageContent);
@@ -34,7 +34,7 @@ public class ContentPublisher : IContentPublisher
         var request = new PutObjectRequest
         {
             BucketName = _options.BucketName,
-            Key = _options.ObjectKey,
+            Key = _options.HomepageKey,
             ContentBody = homepageContentAsJson,
             ContentType = "application/json",
             DisablePayloadSigning = true
@@ -44,10 +44,37 @@ public class ContentPublisher : IContentPublisher
         try
         {
             result = await _client.PutObjectAsync(request);
+            _logger.LogInformation($"Completed '{nameof(PublishHomepage)}'.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to upload homepage-content to R2");
+            _logger.LogError(ex, $"{nameof(PublishHomepage)} - Failed to upload homepage-content to R2");
+        }
+    }
+
+    public async Task PublishSubjects()
+    {
+        var subjectContent = await _queryExecutor.GetSubjects(CancellationToken.None);
+        var subjectContentAsJson = JsonSerializer.Serialize(subjectContent);
+
+        var request = new PutObjectRequest
+        {
+            BucketName = _options.BucketName,
+            Key = _options.SubjectsKey,
+            ContentBody = subjectContentAsJson,
+            ContentType = "application/json",
+            DisablePayloadSigning = true
+        };
+
+        PutObjectResponse result;
+        try
+        {
+            result = await _client.PutObjectAsync(request);
+            _logger.LogInformation($"Completed '{nameof(PublishSubjects)}'.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"{nameof(PublishSubjects)} - Failed to upload subject-content to R2");
         }
     }
 }

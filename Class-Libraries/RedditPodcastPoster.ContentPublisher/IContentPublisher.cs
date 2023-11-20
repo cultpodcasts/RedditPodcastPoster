@@ -2,5 +2,6 @@ namespace RedditPodcastPoster.ContentPublisher;
 
 public interface IContentPublisher
 {
-    Task Publish();
+    Task PublishHomepage();
+    Task PublishSubjects();
 }

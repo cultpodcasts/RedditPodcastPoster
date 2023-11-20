@@ -6,5 +6,6 @@ public class CloudFlareOptions
     public required string R2AccessKey { get; set; }
     public required string R2SecretKey { get; set; }
     public required string BucketName { get; set; }
-    public required string ObjectKey { get; set; }
+    public required string HomepageKey { get; set; }
+    public required string SubjectsKey { get; set; }
 }
