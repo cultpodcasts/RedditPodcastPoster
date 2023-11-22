@@ -1,16 +1,16 @@
 {
-  "@odata.context": "https://xxxxxx.search.windows.net/$metadata#datasources/$entity",
-  "@odata.etag": "\"0x8DBCC1E4F16B48C\"",
+  "@odata.context": "https://xxxxxxxx.search.windows.net/$metadata#datasources/$entity",
+  "@odata.etag": "\"0x8DBE7B31BEE862F\"",
   "name": "xxxxxx",
   "description": null,
   "type": "cosmosdb",
   "subtype": null,
   "credentials": {
-    "connectionString": "AccountEndpoint=https://xxxxxx.documents.azure.com;AccountKey=...;Database=cultpodcasts;"
+    "connectionString": "AccountEndpoint=https://xxxxxxx.documents.azure.com;AccountKey=...;Database=xxxxxx;"
   },
   "container": {
     "name": "xxxxxx",
-    "query": "SELECT e.id, e.title as episodeTitle, p.name as podcastName, e.description as episodeDescription, e.release, e.duration, e.explicit, e.urls.spotify, e.urls.apple, e.urls.youtube, udf.concatenateArray(e.subjects) as subjects, p._ts FROM podcasts p JOIN e IN p.episodes WHERE e.removed = false and e.ignored=false and p._ts >= @HighWaterMark ORDER BY p._ts"
+    "query": "SELECT e.id, e.title as episodeTitle, p.name as podcastName, e.description as episodeDescription, e.release, e.duration, e.explicit, e.urls.spotify, e.urls.apple, e.urls.youtube, e.subjects as subjects, p._ts FROM podcasts p JOIN e IN p.episodes WHERE e.removed = false and e.ignored=false and p._ts >= @HighWaterMark ORDER BY p._ts"
   },
   "dataChangeDetectionPolicy": {
     "@odata.type": "#Microsoft.Azure.Search.HighWaterMarkChangeDetectionPolicy",
