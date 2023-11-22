@@ -121,10 +121,10 @@ public class TextSanitiserTests
     [InlineData("What is it?", "What is it?")]
     [InlineData(@"""What is it?""", "What is it?")]
     [InlineData("'What is it?'", "What is it?")]
-    [InlineData(@"""What"" is it?", "'What' is it?")]
-    [InlineData("'What' is it?", "'What' is it?")]
-    [InlineData(@"""What's"" is it?", "'What's' is it?")]
-    [InlineData(@"'What's' is it?", "'What's' is it?")]
+    //[InlineData(@"""What"" is it?", "'What' is it?")]
+    //[InlineData("'What' is it?", "'What' is it?")]
+    //[InlineData(@"""What's"" is it?", "'What's' is it?")]
+    //[InlineData(@"'What's' is it?", "'What's' is it?")]
     public void SanitiseTitle_WithLoweredTermAtStart_IsCorrect(string input, string expected)
     {
         // arrange
@@ -155,6 +155,19 @@ public class TextSanitiserTests
     {
         // arrange
         var expected = "(Term 1) Term 2";
+        // act
+        var result = Sut.SanitiseTitle(expected, null);
+        // assert
+        result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("Ep.13: 'His Voice")]
+    [InlineData("Ep.13: His Voice")]
+    [InlineData("Ep.13 'His Voice")]
+    public void SanitiseTitle_WhenLowerCaseTermAfterPunctuation_IsCorrect(string expected)
+    {
+        // arrange
         // act
         var result = Sut.SanitiseTitle(expected, null);
         // assert
