@@ -1,6 +1,6 @@
 {
   "@odata.context": "https://xxxxxx.search.windows.net/$metadata#indexes/$entity",
-  "@odata.etag": "\"0x8DBCC1E896F856F\"",
+  "@odata.etag": "\"0x8DBE7B22740BB56\"",
   "name": "xxxxxxx",
   "defaultScoringProfile": "",
   "fields": [
@@ -18,7 +18,7 @@
       "analyzer": null,
       "normalizer": null,
       "dimensions": null,
-      "vectorSearchConfiguration": null,
+      "vectorSearchProfile": null,
       "synonymMaps": []
     },
     {
@@ -35,7 +35,7 @@
       "analyzer": "en.lucene",
       "normalizer": null,
       "dimensions": null,
-      "vectorSearchConfiguration": null,
+      "vectorSearchProfile": null,
       "synonymMaps": []
     },
     {
@@ -52,7 +52,7 @@
       "analyzer": "en.lucene",
       "normalizer": null,
       "dimensions": null,
-      "vectorSearchConfiguration": null,
+      "vectorSearchProfile": null,
       "synonymMaps": []
     },
     {
@@ -69,7 +69,7 @@
       "analyzer": "en.lucene",
       "normalizer": null,
       "dimensions": null,
-      "vectorSearchConfiguration": null,
+      "vectorSearchProfile": null,
       "synonymMaps": []
     },
     {
@@ -86,7 +86,7 @@
       "analyzer": null,
       "normalizer": null,
       "dimensions": null,
-      "vectorSearchConfiguration": null,
+      "vectorSearchProfile": null,
       "synonymMaps": []
     },
     {
@@ -103,7 +103,7 @@
       "analyzer": null,
       "normalizer": null,
       "dimensions": null,
-      "vectorSearchConfiguration": null,
+      "vectorSearchProfile": null,
       "synonymMaps": []
     },
     {
@@ -120,7 +120,7 @@
       "analyzer": null,
       "normalizer": null,
       "dimensions": null,
-      "vectorSearchConfiguration": null,
+      "vectorSearchProfile": null,
       "synonymMaps": []
     },
     {
@@ -137,7 +137,7 @@
       "analyzer": null,
       "normalizer": null,
       "dimensions": null,
-      "vectorSearchConfiguration": null,
+      "vectorSearchProfile": null,
       "synonymMaps": []
     },
     {
@@ -154,7 +154,7 @@
       "analyzer": null,
       "normalizer": null,
       "dimensions": null,
-      "vectorSearchConfiguration": null,
+      "vectorSearchProfile": null,
       "synonymMaps": []
     },
     {
@@ -171,24 +171,24 @@
       "analyzer": null,
       "normalizer": null,
       "dimensions": null,
-      "vectorSearchConfiguration": null,
+      "vectorSearchProfile": null,
       "synonymMaps": []
     },
     {
       "name": "subjects",
-      "type": "Edm.String",
+      "type": "Collection(Edm.String)",
       "searchable": true,
-      "filterable": false,
+      "filterable": true,
       "retrievable": true,
       "sortable": false,
-      "facetable": false,
+      "facetable": true,
       "key": false,
       "indexAnalyzer": null,
       "searchAnalyzer": null,
       "analyzer": "en.lucene",
       "normalizer": null,
       "dimensions": null,
-      "vectorSearchConfiguration": null,
+      "vectorSearchProfile": null,
       "synonymMaps": []
     }
   ],
