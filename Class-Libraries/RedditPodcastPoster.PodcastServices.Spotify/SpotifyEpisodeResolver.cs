@@ -8,6 +8,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify;
 public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
 {
     private const string Market = "GB";
+    private static readonly TimeSpan YouTubeAuthorityToAudioReleaseConsiderationThreshold = TimeSpan.FromDays(14);
     private readonly ILogger<SpotifyEpisodeResolver> _logger;
     private readonly ISpotifyClientWrapper _spotifyClientWrapper;
     private readonly ISpotifyQueryPaginator _spotifyQueryPaginator;
@@ -118,19 +119,18 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
                 }
 
                 SimpleEpisode? matchingEpisode;
-                if (request is {ReleaseAuthority: Service.YouTube, Length: not null} && request.Length.HasValue)
+                if (request is {ReleaseAuthority: Service.YouTube, Length: not null})
                 {
                     matchingEpisode =
-                        _spotifySearcher.FindMatchingEpisodeByLength(request.EpisodeTitle, request.Length.Value,
-                            allEpisodes);
-                    if (matchingEpisode !=null && request.Released.HasValue)
-                    {
-                        if (Math.Abs((matchingEpisode.GetReleaseDate() - request.Released.Value).Ticks) >
-                            TimeSpan.FromDays(14).Ticks)
-                        {
-                            matchingEpisode = null;
-                        }
-                    }
+                        _spotifySearcher.FindMatchingEpisodeByLength(
+                            request.EpisodeTitle,
+                            request.Length.Value,
+                            allEpisodes,
+                            y =>
+                            {
+                                return Math.Abs((y.GetReleaseDate() - request.Released.Value).Ticks) <
+                                       YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
+                            });
                 }
                 else
                 {
