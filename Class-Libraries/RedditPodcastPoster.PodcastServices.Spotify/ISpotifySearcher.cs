@@ -16,5 +16,6 @@ public interface ISpotifySearcher
     SimpleEpisode? FindMatchingEpisodeByLength(
         string episodeTitle,
         TimeSpan episodeLength,
-        IList<IList<SimpleEpisode>> episodeLists);
+        IList<IList<SimpleEpisode>> episodeLists,
+        Func<SimpleEpisode, bool>? reducer = null);
 }

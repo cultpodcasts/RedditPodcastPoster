@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify;
 public class SpotifySearcher : ISpotifySearcher
 {
     private const int MinFuzzyScore = 70;
-    private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(10).Ticks;
+    private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(30).Ticks;
     private static readonly long BroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
     private readonly ILogger<SpotifySearcher> _logger;
 
@@ -25,14 +25,25 @@ public class SpotifySearcher : ISpotifySearcher
     public SimpleEpisode? FindMatchingEpisodeByLength(
         string episodeTitle,
         TimeSpan episodeLength,
-        IList<IList<SimpleEpisode>> episodeLists)
+        IList<IList<SimpleEpisode>> episodeLists,
+        Func<SimpleEpisode, bool>? reducer=null)
     {
         foreach (var episodeList in episodeLists)
         {
             var match = episodeList.SingleOrDefault(x => x.Name.Trim() == episodeTitle.Trim());
             if (match == null)
             {
-                var sameLength = episodeList
+                IEnumerable<SimpleEpisode> sampleList;
+                if (reducer != null)
+                {
+                    sampleList = episodeList.Where(reducer);
+                }
+                else
+                {
+                    sampleList = episodeList;
+                }
+
+                var sameLength = sampleList
                     .Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < TimeDifferenceThreshold);
                 if (sameLength.Count() > 1)
                 {
@@ -43,7 +54,7 @@ public class SpotifySearcher : ISpotifySearcher
 
                 if (match == null)
                 {
-                    sameLength = episodeList
+                    sameLength = sampleList
                         .Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < BroaderTimeDifferenceThreshold);
                     return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name, MinFuzzyScore);
                 }
