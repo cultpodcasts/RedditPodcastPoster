@@ -137,7 +137,11 @@ public class UrlSubmitter : IUrlSubmitter
                 break;
             case Service.Spotify:
                 title = categorisedItem.ResolvedSpotifyItem!.EpisodeTitle;
-                release = categorisedItem.ResolvedSpotifyItem.Release;
+                release =
+                    categorisedItem.ResolvedSpotifyItem.Release.TimeOfDay == TimeSpan.Zero &&
+                    categorisedItem.ResolvedAppleItem != null
+                        ? categorisedItem.ResolvedAppleItem.Release
+                        : categorisedItem.ResolvedSpotifyItem.Release;
                 length = categorisedItem.ResolvedSpotifyItem.Duration;
                 @explicit = categorisedItem.ResolvedSpotifyItem.Explicit;
                 description = categorisedItem.ResolvedSpotifyItem.EpisodeDescription;
