@@ -11,6 +11,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public partial class YouTubeSearcher : IYouTubeSearcher
 {
+    private const int MinFuzzyScore = 70;
     private static readonly Regex NumberMatch = CreateNumberMatch();
     private static readonly TimeSpan VideoDurationTolerance = TimeSpan.FromMinutes(2);
     private readonly ILogger<YouTubeSearcher> _logger;
@@ -92,7 +93,7 @@ public partial class YouTubeSearcher : IYouTubeSearcher
 
     private SearchResult? MatchOnTextCloseness(Episode episode, IList<SearchResult> searchResults)
     {
-        return FuzzyMatcher.Match(episode.Title, searchResults, x => x.Snippet.Title);
+        return FuzzyMatcher.Match(episode.Title, searchResults, x => x.Snippet.Title, MinFuzzyScore);
     }
 
     private SearchResult? MatchOnEpisodeNumber(Episode episode, IList<SearchResult> searchResults)
