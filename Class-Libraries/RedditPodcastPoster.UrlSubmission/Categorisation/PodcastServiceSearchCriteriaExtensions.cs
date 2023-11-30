@@ -53,7 +53,7 @@ public static class PodcastServiceSearchCriteriaExtensions
             !string.IsNullOrWhiteSpace(criteria.EpisodeDescription)
                 ? criteria.EpisodeDescription
                 : item.EpisodeDescription,
-            criteria.Release.TimeOfDay > TimeSpan.MinValue ? criteria.Release : item.Release,
+            criteria.Release.TimeOfDay > TimeSpan.Zero ? criteria.Release : item.Release,
             criteria.Duration > TimeSpan.MinValue ? criteria.Duration : item.Duration
         );
     }
