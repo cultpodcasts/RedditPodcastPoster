@@ -126,7 +126,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "JsonSplitCosmosDbUploader",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EnrichSubjectRedditFlairs", "Console-Apps\EnrichSubjectRedditFlairs\EnrichSubjectRedditFlairs.csproj", "{EF6DCDC1-04BE-4F52-8BF6-E65048E9B093}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CategorisePodcastEpisodes", "Console-Apps\CategorisePodcastEpisodes\CategorisePodcastEpisodes.csproj", "{97744164-BFA8-40F0-9EE4-557699163B3C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CategorisePodcastEpisodes", "Console-Apps\CategorisePodcastEpisodes\CategorisePodcastEpisodes.csproj", "{97744164-BFA8-40F0-9EE4-557699163B3C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeleteSearchDocument", "Console-Apps\DeleteSearchDocument\DeleteSearchDocument.csproj", "{A58E9AE2-CE6F-4384-8F93-782E0AE338AB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -342,6 +344,10 @@ Global
 		{97744164-BFA8-40F0-9EE4-557699163B3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{97744164-BFA8-40F0-9EE4-557699163B3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{97744164-BFA8-40F0-9EE4-557699163B3C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A58E9AE2-CE6F-4384-8F93-782E0AE338AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A58E9AE2-CE6F-4384-8F93-782E0AE338AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A58E9AE2-CE6F-4384-8F93-782E0AE338AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A58E9AE2-CE6F-4384-8F93-782E0AE338AB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -400,6 +406,7 @@ Global
 		{3A7AF675-BF76-4B10-8623-3E114DEB6C98} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{EF6DCDC1-04BE-4F52-8BF6-E65048E9B093} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{97744164-BFA8-40F0-9EE4-557699163B3C} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
+		{A58E9AE2-CE6F-4384-8F93-782E0AE338AB} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}
