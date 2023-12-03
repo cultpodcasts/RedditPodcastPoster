@@ -4,14 +4,16 @@ namespace RedditPodcastPoster.Models.Extensions;
 
 public static class PodcastEpisodesExtension
 {
-    public static PostModel ToPostModel(this (Podcast Podcast, IEnumerable<Episode> Episodes) podcastEpisodes)
+    public static PostModel ToPostModel(
+        this (Podcast Podcast, IEnumerable<Episode> Episodes) podcastEpisodes,
+        bool preferYouTube = false)
     {
         var postModel = new PostModel(new PodcastPost(
             podcastEpisodes.Podcast.Name,
             podcastEpisodes.Podcast.TitleRegex,
             podcastEpisodes.Podcast.DescriptionRegex,
             podcastEpisodes.Episodes.Select(ToBasicEpisode),
-            podcastEpisodes.Podcast.PrimaryPostService
+            preferYouTube ? Service.YouTube : podcastEpisodes.Podcast.PrimaryPostService
         ));
         return postModel;
     }

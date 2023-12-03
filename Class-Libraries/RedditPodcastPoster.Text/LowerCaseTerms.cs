@@ -14,7 +14,7 @@ public static class LowerCaseTerms
         "start", "my", "myself", "mine", "get", "gets", "up", "down", "meet", "met", "part", "parts", "ft", "at",
         "our", "us", "tell", "why", "don't", "tells", "when", "into", "vs", "only", "off", "end", "being", "re", "that",
         "talk", "are", "most", "we", "day", "or", "didn't", "know", "were", "as", "over", "its", "use", "one", "really",
-        "work", "works", "worked"
+        "work", "works", "worked", "did", "goes", "used", "has"
     };
 
     private static readonly string[] AlwaysLowerCaseWords =
@@ -29,7 +29,8 @@ public static class LowerCaseTerms
 
     public static readonly IDictionary<string, Regex> Expressions =
         LesserWords.ToDictionary(x => x,
-                x => new Regex($@"(?<!^\s?)(?<!'\s?)(?<!""\s?)(?<!\(\s?)(?<!\-\s?)(?<!:\s?){x}\b", RegexOptions.Compiled | RegexOptions.IgnoreCase))
+                x => new Regex($@"(?<!^\s?)(?<!'\s?)(?<!""\s?)(?<!\(\s?)(?<!\-\s?)(?<!:\s?){x}\b",
+                    RegexOptions.Compiled | RegexOptions.IgnoreCase))
             .AddRange(AlwaysLowerCaseWords.ToDictionary(x => x,
                 x => new Regex($@"\b{x}\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)))
             .AddRange(Ordinals.ToDictionary(x => x,

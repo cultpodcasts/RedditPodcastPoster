@@ -32,7 +32,8 @@ public class PodcastEpisodesPoster : IPodcastEpisodesPoster
         DateTime since,
         IList<Podcast> podcasts,
         bool youTubeRefreshed = true,
-        bool spotifyRefreshed = true)
+        bool spotifyRefreshed = true,
+        bool preferYouTube = false)
     {
         var matchingPodcastEpisodes =
             _podcastEpisodeFilter.GetNewEpisodesReleasedSince(podcasts, since, youTubeRefreshed, spotifyRefreshed);
@@ -50,7 +51,8 @@ public class PodcastEpisodesPoster : IPodcastEpisodesPoster
                 if (matchingPodcastEpisode.Episode.Urls.Spotify != null ||
                     matchingPodcastEpisode.Episode.Urls.YouTube != null)
                 {
-                    var result = await _podcastEpisodePoster.PostPodcastEpisode(matchingPodcastEpisode);
+                    var result = await _podcastEpisodePoster.PostPodcastEpisode(
+                        matchingPodcastEpisode, preferYouTube);
                     matchingPodcastEpisodeResults.Add(result);
                 }
                 else

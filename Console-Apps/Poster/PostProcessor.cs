@@ -88,7 +88,8 @@ public class PostProcessor
         var results =
             await _podcastEpisodesPoster.PostNewEpisodes(
                 DateTime.UtcNow.AddDays(-1 * request.ReleasedWithin),
-                podcasts);
+                podcasts,
+                preferYouTube: request.YouTubePrimaryPostService);
         var result = _processResponsesAdaptor.CreateResponse(results);
         if (!result.Success)
         {
