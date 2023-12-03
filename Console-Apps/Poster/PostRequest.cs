@@ -4,6 +4,11 @@ namespace Poster;
 
 public class PostRequest
 {
+    [Option('y', "youtube-primary-post-service", Required = false,
+        HelpText = "Post YouTube link where available regardless of podcast primary-post-service setting",
+        Default = false)]
+    public bool YouTubePrimaryPostService { get; set; }
+
     [Option('s', "publish-subjects", Required = false, HelpText = "Skip Tweet", Default = false)]
     public bool PublishSubjects { get; set; }
 

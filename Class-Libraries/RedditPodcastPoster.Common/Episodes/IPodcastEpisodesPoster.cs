@@ -8,5 +8,6 @@ public interface IPodcastEpisodesPoster
         DateTime since,
         IList<Podcast> podcasts,
         bool youTubeRefreshed = true,
-        bool spotifyRefreshed = true);
+        bool spotifyRefreshed = true,
+        bool preferYouTube = false);
 }

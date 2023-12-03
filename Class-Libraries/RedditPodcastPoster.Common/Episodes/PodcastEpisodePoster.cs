@@ -18,10 +18,12 @@ public class PodcastEpisodePoster : IPodcastEpisodePoster
         _logger = logger;
     }
 
-    public async Task<ProcessResponse> PostPodcastEpisode(PodcastEpisode podcastEpisode)
+    public async Task<ProcessResponse> PostPodcastEpisode(
+        PodcastEpisode podcastEpisode,
+        bool preferYouTube = false)
     {
         var episodes = GetEpisodes(podcastEpisode);
-        var postModel = (podcastEpisode.Podcast!, episodes).ToPostModel();
+        var postModel = (podcastEpisode.Podcast!, episodes).ToPostModel(preferYouTube);
 
         var result = await _episodePostManager.Post(postModel);
 
