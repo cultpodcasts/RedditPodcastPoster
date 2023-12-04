@@ -1,5 +1,4 @@
 ﻿using Microsoft.Azure.Cosmos;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -34,12 +33,5 @@ public class CosmosDbClientFactory : ICosmosDbClientFactory
             }
         );
         return client;
-    }
-
-    public static IServiceCollection AddCosmosClient(IServiceCollection services)
-    {
-        return services
-            .AddScoped<ICosmosDbClientFactory, CosmosDbClientFactory>()
-            .AddScoped(s => s.GetService<ICosmosDbClientFactory>()!.Create());
     }
 }

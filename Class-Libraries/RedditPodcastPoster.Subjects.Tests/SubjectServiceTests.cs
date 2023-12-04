@@ -18,7 +18,7 @@ public class SubjectServiceTests
         _fixture = new Fixture();
         _mocker = new AutoMocker();
         _subjects = _fixture.CreateMany<Subject>().ToList();
-        _mocker.GetMock<ICachedSubjectRepository>().Setup(x => x.GetAll(It.IsAny<string>()))
+        _mocker.GetMock<ICachedSubjectRepository>().Setup(x => x.GetAll())
             .ReturnsAsync(() => _subjects);
     }
 

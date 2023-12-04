@@ -10,11 +10,11 @@ public class EpisodeClassifier : IEpisodeClassifier
     private readonly ClassificationSettings _classificationOptions;
     private readonly ILogger<EpisodeClassifier> _logger;
     private readonly SingleLabelClassifyAction _singleLabelClassifyAction;
-    private readonly ICachedSubjectRepository _subjectRepository;
+    private readonly ISubjectRepository _subjectRepository;
     private readonly TextAnalyticsClient _textAnalyticsClient;
 
     public EpisodeClassifier(
-        ICachedSubjectRepository subjectRepository,
+        ISubjectRepository subjectRepository,
         TextAnalyticsClient textAnalyticsClient,
         SingleLabelClassifyAction singleLabelClassifyAction,
         IOptions<ClassificationSettings> classificationOptions,
@@ -56,9 +56,7 @@ public class EpisodeClassifier : IEpisodeClassifier
             var confidence = page.ConfidenceScore;
             if (confidence >= _classificationOptions.MinimumConfidence)
             {
-                var matchingSubject =
-                    (await _subjectRepository.GetAll(Subject.PartitionKey)).SingleOrDefault(x =>
-                        x.Name.ToLower() == label.ToLower());
+                var matchingSubject = await _subjectRepository.GetByName(label);
                 //episode.Category = matchingSubject?.Name;
             }
         }

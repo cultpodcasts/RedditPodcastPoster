@@ -11,13 +11,13 @@ public class EpisodePostManager : IEpisodePostManager
     private readonly IRedditBundleCommentFactory _redditBundleCommentFactory;
     private readonly IRedditEpisodeCommentFactory _redditEpisodeCommentFactory;
     private readonly IRedditLinkPoster _redditLinkPoster;
-    private readonly ICachedSubjectRepository _subjectRepository;
+    private readonly ISubjectRepository _subjectRepository;
 
     public EpisodePostManager(
         IRedditLinkPoster redditLinkPoster,
         IRedditEpisodeCommentFactory redditEpisodeCommentFactory,
         IRedditBundleCommentFactory redditBundleCommentFactory,
-        ICachedSubjectRepository subjectRepository,
+        ISubjectRepository subjectRepository,
         ILogger<EpisodePostManager> logger)
     {
         _redditLinkPoster = redditLinkPoster;
@@ -61,9 +61,7 @@ public class EpisodePostManager : IEpisodePostManager
             {
                 if (postModel.Subject != null)
                 {
-                    var subject =
-                        (await _subjectRepository.GetAll(Subject.PartitionKey)).SingleOrDefault(x =>
-                            x.Name == postModel.Subject);
+                    var subject = await _subjectRepository.GetByName(postModel.Subject);
                     if (subject is {RedditFlairTemplateId: not null})
                     {
                         var flairTemplateId = subject.RedditFlairTemplateId.ToString();
