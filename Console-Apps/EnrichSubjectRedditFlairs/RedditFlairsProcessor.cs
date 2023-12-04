@@ -10,11 +10,11 @@ namespace EnrichSubjectRedditFlairs;
 
 public class RedditFlairsProcessor
 {
-    private readonly ICachedSubjectRepository _cachedSubjectRepository;
     private readonly ILogger<RedditFlairsProcessor> _logger;
     private readonly RedditClient _redditClient;
     private readonly IRepository<Subject> _repository;
     private readonly ISubjectCleanser _subjectCleanser;
+    private readonly ISubjectRepository _subjectRepository;
     private readonly SubredditSettings _subredditSettings;
 
     public RedditFlairsProcessor(
@@ -22,20 +22,19 @@ public class RedditFlairsProcessor
         IRepository<Subject> repository,
         ISubjectCleanser subjectCleanser,
         IOptions<SubredditSettings> subredditSettings,
-        ICachedSubjectRepository cachedSubjectRepository,
+        ISubjectRepository subjectRepository,
         ILogger<RedditFlairsProcessor> logger)
     {
         _redditClient = redditClient;
         _repository = repository;
         _subjectCleanser = subjectCleanser;
-        _cachedSubjectRepository = cachedSubjectRepository;
+        _subjectRepository = subjectRepository;
         _subredditSettings = subredditSettings.Value;
         _logger = logger;
     }
 
     public async Task Run()
     {
-        var subjects = await _cachedSubjectRepository.GetAll(Subject.PartitionKey);
         var subreddit = _redditClient.Subreddit(_subredditSettings.SubredditName);
         var linkFlairs = subreddit.Flairs.LinkFlairV2;
         foreach (var flair in linkFlairs)
@@ -62,7 +61,7 @@ public class RedditFlairsProcessor
                     }
                 }
 
-                var subject = subjects.SingleOrDefault(x => x.Name == cleansedFlair.Single());
+                var subject = await _subjectRepository.GetByName(cleansedFlair.Single());
                 if (subject != null)
                 {
                     if (subject.RedditFlairTemplateId == null)

@@ -7,19 +7,19 @@ namespace RedditPodcastPoster.Subjects;
 public class CachedSubjectRepository : ICachedSubjectRepository
 {
     private readonly ILogger<CachedSubjectRepository> _logger;
-    private readonly IRepository<Subject> _subjectRepository;
+    private readonly ISubjectRepository _subjectRepository;
     private IList<Subject> _cache = new List<Subject>();
     private bool _requiresFetch = true;
 
     public CachedSubjectRepository(
-        IRepository<Subject> subjectRepository,
+        ISubjectRepository subjectRepository,
         ILogger<CachedSubjectRepository> logger)
     {
         _subjectRepository = subjectRepository;
         _logger = logger;
     }
 
-    public async Task<IEnumerable<Subject>> GetAll(string partitionKey)
+    public async Task<IEnumerable<Subject>> GetAll()
     {
         if (_requiresFetch)
         {
@@ -29,26 +29,10 @@ public class CachedSubjectRepository : ICachedSubjectRepository
         return _cache;
     }
 
-    public async Task<Subject?> Get(string name, string partitionKey)
-    {
-        if (_requiresFetch)
-        {
-            await Fetch();
-        }
-
-        return _cache.SingleOrDefault(x => x.Name == name);
-    }
-
-    public async Task Save(Subject data)
-    {
-        await _subjectRepository.Save(data);
-        _requiresFetch = true;
-    }
-
     private async Task Fetch()
     {
         _logger.LogInformation($"Fetching {nameof(CachedSubjectRepository)}.");
-        var subjects = await _subjectRepository.GetAll(Subject.PartitionKey);
+        var subjects = await _subjectRepository.GetAll();
         _cache = subjects.ToList();
         _requiresFetch = false;
         if (_cache.Any(x => string.IsNullOrWhiteSpace(x.Name)))

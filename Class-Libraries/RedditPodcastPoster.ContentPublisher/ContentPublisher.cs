@@ -10,8 +10,8 @@ namespace RedditPodcastPoster.ContentPublisher;
 public class ContentPublisher : IContentPublisher
 {
     private readonly IAmazonS3 _client;
-    private readonly CloudFlareOptions _options;
     private readonly ILogger<ContentPublisher> _logger;
+    private readonly CloudFlareOptions _options;
     private readonly IQueryExecutor _queryExecutor;
 
     public ContentPublisher(
@@ -49,32 +49,6 @@ public class ContentPublisher : IContentPublisher
         catch (Exception ex)
         {
             _logger.LogError(ex, $"{nameof(PublishHomepage)} - Failed to upload homepage-content to R2");
-        }
-    }
-
-    public async Task PublishSubjects()
-    {
-        var subjectContent = await _queryExecutor.GetSubjects(CancellationToken.None);
-        var subjectContentAsJson = JsonSerializer.Serialize(subjectContent);
-
-        var request = new PutObjectRequest
-        {
-            BucketName = _options.BucketName,
-            Key = _options.SubjectsKey,
-            ContentBody = subjectContentAsJson,
-            ContentType = "application/json",
-            DisablePayloadSigning = true
-        };
-
-        PutObjectResponse result;
-        try
-        {
-            result = await _client.PutObjectAsync(request);
-            _logger.LogInformation($"Completed '{nameof(PublishSubjects)}'.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"{nameof(PublishSubjects)} - Failed to upload subject-content to R2");
         }
     }
 }

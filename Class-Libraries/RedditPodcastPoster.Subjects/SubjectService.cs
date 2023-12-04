@@ -18,7 +18,7 @@ public class SubjectService : ISubjectService
 
     public async Task<Subject?> Match(Subject subject)
     {
-        var subjects = await _subjectRepository.GetAll(Subject.PartitionKey);
+        var subjects = await _subjectRepository.GetAll();
         if (!subjects.Any())
         {
             return null;
@@ -131,7 +131,7 @@ public class SubjectService : ISubjectService
             throw new ArgumentNullException(nameof(subject));
         }
 
-        var subjects = await _subjectRepository.GetAll(Subject.PartitionKey);
+        var subjects = await _subjectRepository.GetAll();
 
         var matchedSubject =
             subjects.SingleOrDefault(x => x.Name.ToLowerInvariant() == subject.ToLowerInvariant());
@@ -166,7 +166,7 @@ public class SubjectService : ISubjectService
             ignoredTerms = ignoredTerms.Select(x => x.ToLowerInvariant()).ToArray();
         }
 
-        var subjects = await _subjectRepository.GetAll(Subject.PartitionKey);
+        var subjects = await _subjectRepository.GetAll();
         var matches = subjects
             .Select(subject => new SubjectMatch(subject, Matches(episode, subject, false, ignoredTerms)))
             .Where(x => x.MatchResults.Any());

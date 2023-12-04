@@ -59,8 +59,7 @@ public class PostProcessor
         {
             publishingTasks = new[]
             {
-                _contentPublisher.PublishHomepage(),
-                _contentPublisher.PublishSubjects()
+                _contentPublisher.PublishHomepage()
             };
         }
         else

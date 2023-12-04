@@ -1,10 +1,8 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text;
 
@@ -12,35 +10,30 @@ namespace RedditPodcastPoster.ContentPublisher;
 
 public class QueryExecutor : IQueryExecutor
 {
-    private readonly CosmosClient _cosmosClient;
-    private readonly CosmosDbSettings _cosmosDbSettings;
+    private readonly Container _container;
     private readonly ILogger<QueryExecutor> _logger;
     private readonly IRepository<Subject> _subjectRepository;
     private readonly ITextSanitiser _textSanitiser;
 
     public QueryExecutor(
-        CosmosClient cosmosClient,
+        Container container,
         ITextSanitiser textSanitiser,
-        IOptions<CosmosDbSettings> cosmosDbSettings,
         IRepository<Subject> subjectRepository,
         ILogger<QueryExecutor> logger)
     {
-        _cosmosClient = cosmosClient;
+        _container = container;
         _textSanitiser = textSanitiser;
         _subjectRepository = subjectRepository;
         _logger = logger;
-        _cosmosDbSettings = cosmosDbSettings.Value;
     }
 
     public async Task<HomePageModel> GetHomePage(CancellationToken ct)
     {
-        var c = _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
+        var podcastResults = GetRecentPodcasts(_container, ct);
 
-        var podcastResults = GetRecentPodcasts(ct, c);
+        var count = GetEpisodeCount(_container, ct);
 
-        var count = GetEpisodeCount(ct, c);
-
-        var totalDuration = GetTotalDuration(ct, c);
+        var totalDuration = GetTotalDuration(_container, ct);
 
         IEnumerable<Task> tasks = new Task[] {podcastResults, count, totalDuration};
 
@@ -110,7 +103,7 @@ public class QueryExecutor : IQueryExecutor
         dict[term].Add(subject);
     }
 
-    private static async Task<int?> GetEpisodeCount(CancellationToken ct, Container c)
+    private static async Task<int?> GetEpisodeCount(Container c, CancellationToken ct)
     {
         var numberOfEpisodes = new QueryDefinition(@"
                 SELECT Count(p.episodes)
@@ -133,7 +126,7 @@ public class QueryExecutor : IQueryExecutor
         return count;
     }
 
-    private static async Task<TimeSpan> GetTotalDuration(CancellationToken ct, Container c)
+    private static async Task<TimeSpan> GetTotalDuration(Container c, CancellationToken ct)
     {
         var durationResults = new List<DurationResult>();
 
@@ -154,7 +147,7 @@ public class QueryExecutor : IQueryExecutor
         return TimeSpan.FromTicks(durationResults.Sum(x => x.Duration.Ticks));
     }
 
-    private static async Task<List<PodcastResult>> GetRecentPodcasts(CancellationToken ct, Container c)
+    private static async Task<List<PodcastResult>> GetRecentPodcasts(Container c, CancellationToken ct)
     {
         var podcastResults = new List<PodcastResult>();
         var lastWeeksEpisodes = new QueryDefinition(
