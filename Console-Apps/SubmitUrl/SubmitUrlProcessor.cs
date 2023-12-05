@@ -64,7 +64,11 @@ public class SubmitUrlProcessor : ISubmitUrlProcessor
             foreach (var url in urls)
             {
                 _logger.LogInformation($"Ingesting '{url}'.");
-                await _urlSubmitter.Submit(podcasts, new Uri(url, UriKind.Absolute), indexOptions, searchForPodcast,
+                await _urlSubmitter.Submit(
+                    podcasts,
+                    new Uri(url, UriKind.Absolute),
+                    indexOptions,
+                    searchForPodcast,
                     request.MatchOtherServices);
             }
         }

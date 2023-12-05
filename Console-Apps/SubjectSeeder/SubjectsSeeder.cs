@@ -23,10 +23,7 @@ public class SubjectsSeeder
 
     public async Task Run()
     {
-        var newSubjects = new List<Subject>()
-        {
-            SubjectFactory.Create("Anthroposophy", "Rudolf Steiner", "Waldorf Education, Waldorf School, Waldorf Schools")
-        };
+        var newSubjects = new List<Subject>();
         foreach (var subject in newSubjects)
         {
             var match = await _subjectService.Match(subject);
