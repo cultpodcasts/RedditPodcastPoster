@@ -26,7 +26,9 @@ public class RedditPostTitleFactory : IRedditPostTitleFactory
         var title = ConstructBasePostTitle(postModel);
         var bundleSuffix = CreateBundleSuffix(postModel.BundledPartNumbers);
         var audioLinksSuffix = "";
-        if (postModel.HasYouTubeUrl && (postModel.Spotify != null || postModel.Apple != null))
+        if (postModel.Link != postModel.Spotify && 
+            postModel.HasYouTubeUrl &&
+            (postModel.Spotify != null || postModel.Apple != null))
         {
             audioLinksSuffix = "(Audio links in comments)";
         }
