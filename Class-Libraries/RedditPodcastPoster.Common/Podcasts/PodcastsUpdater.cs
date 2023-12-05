@@ -36,22 +36,33 @@ public class PodcastsUpdater : IPodcastsUpdater
             if (podcast != null &&
                 (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
             {
-                var result = await _podcastUpdater.Update(podcast, indexingContext);
-                var resultReport = result.ToString();
-                if (!result.Success)
+                try
                 {
-                    _logger.LogError(resultReport);
-                }
-                else
-                {
-                    if (!string.IsNullOrWhiteSpace(resultReport))
+                    var result = await _podcastUpdater.Update(podcast, indexingContext);
+                    var resultReport = result.ToString();
+                    if (!result.Success)
                     {
-                        _logger.LogInformation(result.ToString());
+                        _logger.LogError(resultReport);
                     }
-                }
+                    else
+                    {
+                        if (!string.IsNullOrWhiteSpace(resultReport))
+                        {
+                            _logger.LogInformation(result.ToString());
+                        }
+                    }
 
-                success &= result.Success;
-                _flushableCaches.Flush();
+                    success &= result.Success;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Failure updating podcast with id '{podcast.Id}' and name '{podcast.Name}'.");
+                    success = false;
+                }
+                finally
+                {
+                    _flushableCaches.Flush();
+                }
             }
         }
 
