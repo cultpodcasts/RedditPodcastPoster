@@ -3,6 +3,7 @@ using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.Subjects;
 
 namespace Index;
 
@@ -11,14 +12,17 @@ internal class IndexProcessor
     private readonly ILogger<IndexProcessor> _logger;
     private readonly IPodcastRepository _podcastRepository;
     private readonly IPodcastUpdater _podcastUpdater;
+    private readonly ISubjectEnricher _subjectEnricher;
 
     public IndexProcessor(
         IPodcastRepository podcastRepository,
         IPodcastUpdater podcastUpdater,
+        ISubjectEnricher subjectEnricher,
         ILogger<IndexProcessor> logger)
     {
         _podcastRepository = podcastRepository;
         _podcastUpdater = podcastUpdater;
+        _subjectEnricher = subjectEnricher;
         _logger = logger;
     }
 
@@ -57,6 +61,15 @@ internal class IndexProcessor
 
             {
                 await _podcastUpdater.Update(podcast, indexingContext);
+                var episodes = podcast.Episodes.Where(x => x.Release >= indexingContext.ReleasedSince);
+                foreach (var episode in episodes)
+                {
+                    await _subjectEnricher.EnrichSubjects(episode, new SubjectEnrichmentOptions(
+                        podcast.IgnoredAssociatedSubjects,
+                        podcast.DefaultSubject));
+                }
+
+                await _podcastRepository.Save(podcast);
             }
         }
     }
