@@ -49,12 +49,13 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
 
     public bool IsRecentlyExpiredDelayedPublishing(Podcast podcast, Episode episode)
     {
-        if (podcast.YouTubePublishingDelay() != null && podcast.YouTubePublishingDelay()!.Value > TimeSpan.Zero)
+        var youTubePublishingDelay = podcast.YouTubePublishingDelay();
+        if (youTubePublishingDelay > TimeSpan.Zero)
         {
             var isRecentlyExpiredDelayedPublishing =
-                episode.Release.Add(podcast.YouTubePublishingDelay()!.Value) <= DateTime.UtcNow
+                episode.Release.Add(youTubePublishingDelay) <= DateTime.UtcNow
                 && episode.Release.Add(
-                    podcast.YouTubePublishingDelay()!.Value.Add(_delayedYouTubePublicationSettings
+                    youTubePublishingDelay.Add(_delayedYouTubePublicationSettings
                         .EvaluationThreshold)) >= DateTime.UtcNow;
             return isRecentlyExpiredDelayedPublishing;
         }

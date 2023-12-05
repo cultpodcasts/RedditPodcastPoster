@@ -71,7 +71,7 @@ public class PodcastServicesEpisodeEnricher : IPodcastServicesEpisodeEnricher
         if (podcast.SkipEnrichingFromYouTube == null &&
             !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
-            if (podcast.YouTubePublishingDelay()!.Value > TimeSpan.Zero)
+            if (podcast.YouTubePublishingDelay() > TimeSpan.Zero)
             {
                 var delayedEpisodes = podcast.Episodes
                     .Where(episode => _podcastEpisodeFilter.IsRecentlyExpiredDelayedPublishing(podcast, episode))
