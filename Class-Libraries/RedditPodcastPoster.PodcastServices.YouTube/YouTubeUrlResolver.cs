@@ -22,17 +22,18 @@ public class YouTubeItemResolver : IYouTubeItemResolver
     public async Task<FindEpisodeResponse?> FindEpisode(EnrichmentRequest request, IndexingContext indexingContext)
     {
         var youTubePublishingDelay = request.Podcast.YouTubePublishingDelay();
-        if (youTubePublishingDelay != null && youTubePublishingDelay < TimeSpan.Zero)
+        if (youTubePublishingDelay < TimeSpan.Zero)
         {
             indexingContext = new IndexingContext(
-                DateTime.UtcNow.Add(youTubePublishingDelay!.Value),
-                indexingContext.SkipYouTubeUrlResolving, 
+                DateTime.UtcNow.Add(youTubePublishingDelay),
+                indexingContext.SkipYouTubeUrlResolving,
                 indexingContext.SkipSpotifyUrlResolving,
-                indexingContext.SkipExpensiveYouTubeQueries, 
+                indexingContext.SkipExpensiveYouTubeQueries,
                 indexingContext.SkipPodcastDiscovery,
-                indexingContext.SkipExpensiveSpotifyQueries, 
+                indexingContext.SkipExpensiveSpotifyQueries,
                 indexingContext.SkipShortEpisodes);
         }
+
         var searchListResponse =
             await _youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(
                 new YouTubeChannelId(request.Podcast.YouTubeChannelId), indexingContext);
