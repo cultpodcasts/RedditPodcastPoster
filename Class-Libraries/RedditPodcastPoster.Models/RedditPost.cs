@@ -1,12 +1,14 @@
 ﻿namespace RedditPodcastPoster.Models;
 
 [CosmosSelector(ModelType.RedditPost)]
-public class RedditPost : CosmosSelector
+public sealed class RedditPost : CosmosSelector
 {
     public static readonly string PartitionKey = ModelType.RedditPost.ToString();
 
-    public RedditPost(Guid id) : base(id, ModelType.RedditPost)
+    public RedditPost(Guid id)
     {
+        Id = id;
+        ModelType = ModelType.RedditPost;
     }
 
     public string FullName { get; set; } = "";

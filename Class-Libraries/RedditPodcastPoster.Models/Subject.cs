@@ -8,9 +8,10 @@ public sealed class Subject : CosmosSelector
     public static readonly string PartitionKey = ModelType.Subject.ToString();
 
     public Subject(string name)
-        : base(Guid.NewGuid(), ModelType.Subject)
     {
         Name = name;
+        Id = Guid.NewGuid();
+        ModelType = ModelType.Subject;
     }
 
     [JsonPropertyName("name")]

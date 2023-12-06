@@ -126,11 +126,9 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
                             request.EpisodeTitle,
                             request.Length.Value,
                             allEpisodes,
-                            y =>
-                            {
-                                return Math.Abs((y.GetReleaseDate() - request.Released.Value).Ticks) <
-                                       YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
-                            });
+                            y => request.Released.HasValue &&
+                                 Math.Abs((y.GetReleaseDate() - request.Released.Value).Ticks) <
+                                 YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks);
                 }
                 else
                 {

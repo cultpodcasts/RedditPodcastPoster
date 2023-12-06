@@ -4,10 +4,12 @@ using RedditPodcastPoster.Models;
 namespace ModelTransformer.Models;
 
 [CosmosSelector(ModelType.Podcast)]
-public class OldPodcast : CosmosSelector
+public sealed class OldPodcast : CosmosSelector
 {
-    public OldPodcast(Guid id) : base(id, ModelType.Podcast)
+    public OldPodcast(Guid id)
     {
+        Id = id;
+        ModelType = ModelType.Podcast;
     }
 
     [JsonPropertyName("name")]

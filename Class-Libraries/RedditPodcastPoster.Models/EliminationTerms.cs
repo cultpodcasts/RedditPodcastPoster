@@ -3,14 +3,16 @@
 namespace RedditPodcastPoster.Models;
 
 [CosmosSelector(ModelType.EliminationTerms)]
-public class EliminationTerms : CosmosSelector
+public sealed class EliminationTerms : CosmosSelector
 {
     public static readonly string PartitionKey = ModelType.EliminationTerms.ToString();
 
-    public static Guid _Id = Guid.Parse("D7B683EC-4948-44C4-B7BD-FB382CD3B1B6");
+    public static readonly Guid _Id = Guid.Parse("D7B683EC-4948-44C4-B7BD-FB382CD3B1B6");
 
-    public EliminationTerms() : base(_Id, ModelType.EliminationTerms)
+    public EliminationTerms()
     {
+        Id = _Id;
+        ModelType = ModelType.EliminationTerms;
     }
 
     [JsonPropertyName("terms")]

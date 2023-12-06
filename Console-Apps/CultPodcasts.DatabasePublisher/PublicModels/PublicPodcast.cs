@@ -3,21 +3,22 @@ using RedditPodcastPoster.Models;
 
 namespace CultPodcasts.DatabasePublisher.PublicModels;
 
-public class PublicPodcast : CosmosSelector
+public sealed class PublicPodcast : CosmosSelector
 {
     public static readonly string PartitionKey = ModelType.Podcast.ToString();
 
-    public PublicPodcast(Guid id) : base(id, ModelType.Podcast)
+    public PublicPodcast(Guid id)
     {
-    }
+        Id = id;
+        ModelType = ModelType.Podcast;
 
+    }
 
     [JsonIgnore]
     public override ModelType ModelType { get; set; }
 
     [JsonIgnore]
-    public override string FileKey { get; set; }
-
+    public override string FileKey { get; set; } = "";
 
     [JsonPropertyName("name")]
     [JsonPropertyOrder(3)]

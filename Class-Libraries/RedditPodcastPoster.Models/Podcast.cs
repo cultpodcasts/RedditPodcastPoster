@@ -3,12 +3,14 @@
 namespace RedditPodcastPoster.Models;
 
 [CosmosSelector(ModelType.Podcast)]
-public class Podcast : CosmosSelector
+public sealed class Podcast : CosmosSelector
 {
     public static readonly string PartitionKey = ModelType.Podcast.ToString();
 
-    public Podcast(Guid id) : base(id, ModelType.Podcast)
+    public Podcast(Guid id)
     {
+        Id = id;
+        ModelType = ModelType.Podcast;
     }
 
     [JsonPropertyName("name")]
