@@ -115,8 +115,8 @@ public class SubjectCleanserTests
     }
 
     [Theory]
-    [InlineData("Term 1 & Term 2", "term 1 and term 2")]
-    public async Task CleanseSubjects_WithAmpsersand_IsCorrect(string subject, string expected)
+    [InlineData("Term 1 & Term 2", new[]{"term 1", "term 2"})]
+    public async Task CleanseSubjects_WithAmpsersand_IsCorrect(string subject, string[] expected)
     {
         // arrange
         _mocker
@@ -130,6 +130,6 @@ public class SubjectCleanserTests
         // act
         var (unmatched, result) = await Sut.CleanSubjects(new List<string> {subject});
         // assert
-        result.Should().BeEquivalentTo("term 1", "term 2");
+        result.Should().BeEquivalentTo(expected);
     }
 }
