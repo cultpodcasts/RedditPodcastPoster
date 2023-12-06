@@ -2,5 +2,5 @@
 
 public class Class
 {
-    public string Category { get; set; }
+    public required string Category { get; set; }
 }

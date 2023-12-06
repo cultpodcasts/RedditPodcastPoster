@@ -2,10 +2,10 @@
 
 public class RedditPostMetaData
 {
-    public string SpotifyId { get; set; }
-    public string YouTubeId { get; set; }
+    public string? SpotifyId { get; set; }
+    public string? YouTubeId { get; set; }
     public long? AppleId { get; set; }
-    public string Flair { get; set; }
+    public required string Flair { get; set; }
 
     public override string ToString()
     {
