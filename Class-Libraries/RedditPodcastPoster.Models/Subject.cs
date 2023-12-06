@@ -8,9 +8,10 @@ public sealed class Subject : CosmosSelector
     public static readonly string PartitionKey = ModelType.Subject.ToString();
 
     public Subject(string name)
-        : base(Guid.NewGuid(), ModelType.Subject)
     {
         Name = name;
+        Id = Guid.NewGuid();
+        ModelType = ModelType.Subject;
     }
 
     [JsonPropertyName("name")]
@@ -28,6 +29,10 @@ public sealed class Subject : CosmosSelector
     [JsonPropertyName("redditFlairTemplateId")]
     [JsonPropertyOrder(40)]
     public Guid? RedditFlairTemplateId { get; set; }
+
+    [JsonPropertyName("hashtag")]
+    [JsonPropertyOrder(50)]
+    public string? HashTag { get; set; }
 
     public SubjectTerm[] GetSubjectTerms()
     {

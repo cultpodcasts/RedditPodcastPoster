@@ -27,10 +27,10 @@ public class Tweeter : ITweeter
 
     public async Task Tweet(bool youTubeRefreshed, bool spotifyRefreshed)
     {
-        PodcastEpisode? podcastEpisode = null;
+        IEnumerable<PodcastEpisode> untweeted;
         try
         {
-            podcastEpisode = await GetPodcastEpisode(youTubeRefreshed, spotifyRefreshed);
+            untweeted = await GetUntweetedPodcastEpisodes(youTubeRefreshed, spotifyRefreshed);
         }
         catch (Exception ex)
         {
@@ -38,22 +38,32 @@ public class Tweeter : ITweeter
             throw;
         }
 
-        if (podcastEpisode != null)
+        if (untweeted.Any())
         {
-            try
+            var tweeted = false;
+            foreach (var podcastEpisode in untweeted)
             {
-                await _tweetPoster.PostTweet(podcastEpisode);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    $"Failure to post-tweet for podcast with id '{podcastEpisode.Podcast.Id}' and episode-id '{podcastEpisode.Episode.Id}'.");
-                throw;
+                if (tweeted)
+                {
+                    break;
+                }
+
+                try
+                {
+                    await _tweetPoster.PostTweet(podcastEpisode);
+                    tweeted = true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex,
+                        $"Unable to tweet episode with id '{podcastEpisode.Episode.Id}' with title '{podcastEpisode.Episode.Title}' from podcast with id '{podcastEpisode.Podcast.Id}' and name '{podcastEpisode.Podcast.Name}'.");
+                }
             }
         }
     }
 
-    private async Task<PodcastEpisode?> GetPodcastEpisode(bool youTubeRefreshed, bool spotifyRefreshed)
+    private async Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(bool youTubeRefreshed,
+        bool spotifyRefreshed)
     {
         List<Podcast> podcasts;
         try
@@ -66,6 +76,6 @@ public class Tweeter : ITweeter
             throw;
         }
 
-        return _podcastEpisodeFilter.GetMostRecentUntweetedEpisode(podcasts, youTubeRefreshed, spotifyRefreshed);
+        return _podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(podcasts, youTubeRefreshed, spotifyRefreshed);
     }
 }

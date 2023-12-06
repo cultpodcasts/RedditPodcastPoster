@@ -2,7 +2,7 @@
 
 public class SearchIndexConfig
 {
-    public Uri Url { get; set; }
-    public string IndexName { get; set; }
-    public string Key { get; set; }
+    public required Uri Url { get; set; }
+    public required string IndexName { get; set; }
+    public required string Key { get; set; }
 }

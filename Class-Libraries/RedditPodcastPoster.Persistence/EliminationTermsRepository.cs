@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
@@ -16,13 +17,13 @@ public class EliminationTermsRepository : IEliminationTermsRepository
         _logger = logger;
     }
 
-    public async Task<Models.EliminationTerms> Get()
+    public async Task<EliminationTerms> Get()
     {
-        var partitionKey = Models.EliminationTerms.PartitionKey;
-        return (await _dataRepository.Read<Models.EliminationTerms>(Models.EliminationTerms._Id.ToString(), partitionKey))!;
+        var partitionKey = EliminationTerms.PartitionKey;
+        return (await _dataRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString(), partitionKey))!;
     }
 
-    public async Task Save(Models.EliminationTerms terms)
+    public async Task Save(EliminationTerms terms)
     {
         var key = terms.GetPartitionKey();
         await _dataRepository.Write(terms);

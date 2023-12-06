@@ -25,7 +25,7 @@ public class TweetPoster : ITweetPoster
 
     public async Task PostTweet(PodcastEpisode podcastEpisode)
     {
-        var tweet = _tweetBuilder.BuildTweet(podcastEpisode);
+        var tweet = await _tweetBuilder.BuildTweet(podcastEpisode);
         bool tweeted;
         try
         {

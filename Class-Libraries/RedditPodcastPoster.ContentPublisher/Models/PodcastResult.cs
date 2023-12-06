@@ -29,7 +29,7 @@ public class PodcastResult
     public Uri? YouTube { get; set; }
 
     [JsonPropertyName("subjects")]
-    public string[] Subjects { get; set; }
+    public string[]? Subjects { get; set; }
 
     [JsonPropertyName("titleRegex")]
     public string TitleRegex { get; set; } = "";

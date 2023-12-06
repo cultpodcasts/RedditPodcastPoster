@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.Twitter;
@@ -10,17 +11,20 @@ namespace RedditPodcastPoster.Twitter;
 public class TweetBuilder : ITweetBuilder
 {
     private readonly ILogger<TweetBuilder> _logger;
+    private readonly ISubjectRepository _subjectRepository;
     private readonly ITextSanitiser _textSanitiser;
 
     public TweetBuilder(
         ITextSanitiser textSanitiser,
+        ISubjectRepository subjectRepository,
         ILogger<TweetBuilder> logger)
     {
         _textSanitiser = textSanitiser;
+        _subjectRepository = subjectRepository;
         _logger = logger;
     }
 
-    public string BuildTweet(PodcastEpisode podcastEpisode)
+    public async Task<string> BuildTweet(PodcastEpisode podcastEpisode)
     {
         var postModel = (podcastEpisode.Podcast, new[] {podcastEpisode.Episode}).ToPostModel();
         var episodeTitle = _textSanitiser.SanitiseTitle(postModel);
@@ -39,7 +43,9 @@ public class TweetBuilder : ITweetBuilder
 
         tweetBuilder.AppendLine(
             $"{podcastEpisode.Episode.Release.ToString("d MMM yyyy")} {podcastEpisode.Episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture)}");
-        tweetBuilder.AppendLine("#CultPodcasts");
+
+        tweetBuilder.AppendLine(await GetHashTags(podcastEpisode.Episode.Subjects));
+
         if (podcastEpisode.Episode.Urls.YouTube != null)
         {
             tweetBuilder.AppendLine(podcastEpisode.Episode.Urls.YouTube.ToString());
@@ -55,5 +61,19 @@ public class TweetBuilder : ITweetBuilder
 
         var tweet = tweetBuilder.ToString();
         return tweet;
+    }
+
+    private async Task<string?> GetHashTags(List<string> episodeSubjects)
+    {
+        var subjectRetrieval = episodeSubjects.Select(x => _subjectRepository.GetByName(x)).ToArray();
+        var subjects = await Task.WhenAll(subjectRetrieval);
+        IEnumerable<string> hashTags = subjects.Where(x => !string.IsNullOrWhiteSpace(x?.HashTag))
+            .Select(x => x!.HashTag).Distinct()!;
+        if (hashTags.Any())
+        {
+            return string.Join(" ", hashTags);
+        }
+
+        return null;
     }
 }

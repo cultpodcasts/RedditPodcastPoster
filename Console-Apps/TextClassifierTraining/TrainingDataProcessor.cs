@@ -81,9 +81,14 @@ public class TrainingDataProcessor
         var podcastEpisodes = podcasts.SelectMany(podcast => podcast.Episodes,
             (podcast, episode) => new PodcastEpisode(podcast, episode));
 
-        var labels = new Labels();
-        labels.MetaData.StorageInputContainerName = ContainerName;
-        labels.MetaData.ProjectName = ProjectName;
+        var labels = new Labels
+        {
+            MetaData =
+            {
+                StorageInputContainerName = ContainerName,
+                ProjectName = ProjectName
+            }
+        };
 
         foreach (var podcastEpisode in podcastEpisodes)
         {
