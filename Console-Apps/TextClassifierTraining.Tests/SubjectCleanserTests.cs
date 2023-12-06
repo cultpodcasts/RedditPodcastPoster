@@ -115,7 +115,6 @@ public class SubjectCleanserTests
     }
 
     [Theory]
-    [InlineData("Term 1 \u0026 Term 2", "term 1 and term 2")]
     [InlineData("Term 1 & Term 2", "term 1 and term 2")]
     public async Task CleanseSubjects_WithAmpsersand_IsCorrect(string subject, string expected)
     {
