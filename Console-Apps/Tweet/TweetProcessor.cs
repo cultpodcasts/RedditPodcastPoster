@@ -34,7 +34,7 @@ public class TweetProcessor
             if (mostRecentEpisode != null)
             {
                 var podcastEpisode = new PodcastEpisode(podcast, mostRecentEpisode);
-                var tweet = _tweetBuilder.BuildTweet(podcastEpisode);
+                var tweet = await _tweetBuilder.BuildTweet(podcastEpisode);
                 bool tweeted;
                 try
                 {
@@ -60,9 +60,6 @@ public class TweetProcessor
                             $"Failure to save podcast with podcast-id '{podcastEpisode.Podcast.Id}' to update episode with id '{podcastEpisode.Episode.Id}'.");
                         throw;
                     }
-
-
-                    _logger.LogInformation($"Tweeted '{tweet}'.");
                 }
                 else
                 {

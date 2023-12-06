@@ -10,7 +10,7 @@ public interface IPodcastEpisodeFilter
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true);
 
-    PodcastEpisode? GetMostRecentUntweetedEpisode(
+    IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(
         IList<Podcast> podcasts,
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true,

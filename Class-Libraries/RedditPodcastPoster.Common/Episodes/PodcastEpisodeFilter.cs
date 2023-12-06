@@ -63,14 +63,14 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
         return false;
     }
 
-    public PodcastEpisode? GetMostRecentUntweetedEpisode(
+    public IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(
         IList<Podcast> podcasts,
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true,
         int? numberOfDays = null)
     {
         numberOfDays ??= 1;
-        var podcastEpisode =
+        var podcastEpisodes =
             podcasts
                 .SelectMany(p => p.Episodes.Select(e => new PodcastEpisode(p, e)))
                 .Where(x =>
@@ -80,14 +80,13 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
                     !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
                 .Where(x =>
                     EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed))
-                .MaxBy(x => x.Episode.Release);
-        if (podcastEpisode?.Podcast == null)
+                .OrderByDescending(x => x.Episode.Release);
+        if (!podcastEpisodes.Any())
         {
             _logger.LogInformation("No Podcast-Episode found to Tweet.");
-            return null;
         }
 
-        return podcastEpisode;
+        return podcastEpisodes;
     }
 
     private bool IsReadyToPost(Podcast podcast, Episode episode, DateTime since)

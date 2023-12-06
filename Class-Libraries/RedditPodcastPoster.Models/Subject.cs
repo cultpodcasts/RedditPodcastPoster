@@ -29,6 +29,10 @@ public sealed class Subject : CosmosSelector
     [JsonPropertyOrder(40)]
     public Guid? RedditFlairTemplateId { get; set; }
 
+    [JsonPropertyName("hashtag")]
+    [JsonPropertyOrder(50)]
+    public string? HashTag { get; set; }
+
     public SubjectTerm[] GetSubjectTerms()
     {
         return

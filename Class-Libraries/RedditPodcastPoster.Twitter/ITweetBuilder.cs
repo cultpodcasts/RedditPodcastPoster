@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Twitter;
 
 public interface ITweetBuilder
 {
-    string BuildTweet(PodcastEpisode podcastEpisode);
+    Task<string> BuildTweet(PodcastEpisode podcastEpisode);
 }

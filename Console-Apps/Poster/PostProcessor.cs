@@ -73,11 +73,27 @@ public class PostProcessor
         await Task.WhenAll(publishingTasks);
         if (!request.SkipTweet)
         {
-            var postToTweet =
-                _podcastEpisodeFilter.GetMostRecentUntweetedEpisode(podcasts, numberOfDays: request.ReleasedWithin);
-            if (postToTweet != null)
+            var untweeted =
+                _podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(podcasts, numberOfDays: request.ReleasedWithin);
+
+            var tweeted = false;
+            foreach (var podcastEpisode in untweeted)
             {
-                await _tweetPoster.PostTweet(postToTweet);
+                if (tweeted)
+                {
+                    break;
+                }
+
+                try
+                {
+                    await _tweetPoster.PostTweet(podcastEpisode);
+                    tweeted = true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex,
+                        $"Unable to tweet episode with id '{podcastEpisode.Episode.Id}' with title '{podcastEpisode.Episode.Title}' from podcast with id '{podcastEpisode.Podcast.Id}' and name '{podcastEpisode.Podcast.Name}'.");
+                }
             }
         }
     }
