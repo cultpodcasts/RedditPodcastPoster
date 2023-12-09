@@ -2,5 +2,5 @@
 
 internal static class DryRun
 {
-    public const bool IsDryRun = true;
+    public const bool IsDryRun = false;
 }
