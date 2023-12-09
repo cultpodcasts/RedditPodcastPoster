@@ -6,4 +6,5 @@ public class CosmosDbSettings
     public string AuthKeyOrResourceToken { get; set; } = "";
     public string DatabaseId { get; set; } = "";
     public string Container { get; set; } = "";
+    public bool? UseGateway { get; set; }
 }

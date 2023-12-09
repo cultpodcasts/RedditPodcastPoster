@@ -23,14 +23,20 @@ public class CosmosDbClientFactory : ICosmosDbClientFactory
 
     public CosmosClient Create()
     {
+        var cosmosClientOptions = new CosmosClientOptions
+        {
+            Serializer =
+                new CosmosSystemTextJsonSerializer(_jsonSerializerOptionsProvider.GetJsonSerializerOptions())
+        };
+        if (_settings.UseGateway.HasValue && _settings.UseGateway.Value)
+        {
+            cosmosClientOptions.ConnectionMode = ConnectionMode.Gateway;
+        }
+
         CosmosClient client = new(
             _settings.Endpoint,
             _settings.AuthKeyOrResourceToken,
-            new CosmosClientOptions
-            {
-                Serializer =
-                    new CosmosSystemTextJsonSerializer(_jsonSerializerOptionsProvider.GetJsonSerializerOptions())
-            }
+            cosmosClientOptions
         );
         return client;
     }
