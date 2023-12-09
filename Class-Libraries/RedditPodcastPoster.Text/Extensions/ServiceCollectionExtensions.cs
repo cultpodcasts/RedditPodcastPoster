@@ -12,6 +12,7 @@ public static class ServiceCollectionExtensions
             .AddSingleton<ITextSanitiser, TextSanitiser>()
             .AddSingleton<IKnownTermsProviderFactory, KnownTermsProviderFactory>()
             .AddSingleton<IKnownTermsRepository, KnownTermsRepository>()
+            .AddSingleton<IHashTagEnricher, HashTagEnricher>()
             .AddSingleton(s => s.GetService<IKnownTermsProviderFactory>()!.Create().GetAwaiter().GetResult());
     }
 
