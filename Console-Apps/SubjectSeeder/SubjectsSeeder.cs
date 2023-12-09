@@ -23,10 +23,7 @@ public class SubjectsSeeder
 
     public async Task Run()
     {
-        var newSubjects = new List<Subject>
-        {
-            SubjectFactory.Create("Harmony Society", "Harmonist Rappites", "Johann Georg Rapp")
-        };
+        var newSubjects = new List<Subject>();
         foreach (var subject in newSubjects)
         {
             var match = await _subjectService.Match(subject);
