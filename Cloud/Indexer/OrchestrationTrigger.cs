@@ -24,7 +24,23 @@ public class OrchestrationTrigger
         [DurableClient] DurableTaskClient client)
     {
         _logger.LogInformation($"{nameof(OrchestrationTrigger)} {nameof(Run)} initiated.");
-        var instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(Orchestration));
+        try
+        {
+            var instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(Orchestration));
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            _logger.LogCritical(ex,
+                $"Failure to execute '{nameof(client.ScheduleNewOrchestrationInstanceAsync)}' for '{nameof(Orchestration)}'. Status-Code: '{ex.StatusCode}', Status: '{ex.Status}'.");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogCritical(ex,
+                $"Failure to execute '{nameof(client.ScheduleNewOrchestrationInstanceAsync)}' for '{nameof(Orchestration)}'.");
+            throw;
+        }
+
         _logger.LogInformation($"{nameof(OrchestrationTrigger)} {nameof(Run)} complete.");
     }
 }

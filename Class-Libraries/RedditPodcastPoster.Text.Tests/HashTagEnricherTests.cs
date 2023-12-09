@@ -46,6 +46,18 @@ public class HashTagEnricherTests
     }
 
     [Fact]
+    public void AddHashTag_WithMatchWithApostropheOfSameCase_StringIsCorrect()
+    {
+        // arrange
+        var hashTag = "Term";
+        var input = "Prefix Term's Suffix";
+        // act
+        var (result, _) = Sut.AddHashTag(input, hashTag);
+        // assert
+        result.Should().Be("Prefix #Term's Suffix");
+    }
+
+    [Fact]
     public void AddHashTag_WithMatchOfSameCase_StatusIsCorrect()
     {
         // arrange
