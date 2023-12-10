@@ -20,7 +20,7 @@ public class Categoriser : TaskActivity<IndexerResponse, IndexerResponse>
 
     public override async Task<IndexerResponse> RunAsync(TaskActivityContext context, IndexerResponse indexerResponse)
     {
-        _logger.LogInformation($"{nameof(Categoriser)} initiated.");
+        _logger.LogInformation($"{nameof(Categoriser)} initiated. Instance-id: '{context.InstanceId}'.");
 
         if (DryRun.IsDryRun)
         {

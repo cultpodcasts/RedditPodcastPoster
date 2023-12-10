@@ -29,7 +29,7 @@ public class Poster : TaskActivity<IndexerResponse, IndexerResponse>
 
     public override async Task<IndexerResponse> RunAsync(TaskActivityContext context, IndexerResponse indexerResponse)
     {
-        _logger.LogInformation($"{nameof(Poster)} initiated.");
+        _logger.LogInformation($"{nameof(Poster)} initiated. Instance-id: '{context.InstanceId}'.");
         _logger.LogInformation(_posterOptions.ToString());
         _logger.LogInformation(_postingCriteria.ToString());
         var baselineDate = DateTimeHelper.DaysAgo(_posterOptions.ReleasedDaysAgo);

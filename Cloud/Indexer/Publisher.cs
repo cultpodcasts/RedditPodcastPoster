@@ -20,7 +20,7 @@ public class Publisher : TaskActivity<IndexerResponse, IndexerResponse>
 
     public override async Task<IndexerResponse> RunAsync(TaskActivityContext context, IndexerResponse indexerResponse)
     {
-        _logger.LogInformation($"{nameof(Publisher)} initiated.");
+        _logger.LogInformation($"{nameof(Publisher)} initiated. Instance-id: '{context.InstanceId}'.");
 
         if (DryRun.IsDryRun)
         {

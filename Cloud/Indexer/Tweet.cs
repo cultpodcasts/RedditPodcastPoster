@@ -20,7 +20,7 @@ public class Tweet : TaskActivity<IndexerResponse, IndexerResponse>
 
     public override async Task<IndexerResponse> RunAsync(TaskActivityContext context, IndexerResponse indexerResponse)
     {
-        _logger.LogInformation($"{nameof(Tweet)} initiated.");
+        _logger.LogInformation($"{nameof(Tweet)} initiated. Instance-id: '{context.InstanceId}'.");
 
         if (DryRun.IsDryRun)
         {
