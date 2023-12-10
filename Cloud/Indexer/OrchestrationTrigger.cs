@@ -8,7 +8,7 @@ namespace Indexer;
 
 public class OrchestrationTrigger
 {
-    private const string OrchestrationInstanceId = "SingletonOrchestrationInstance";
+    private const string OrchestrationInstanceId = "A0A0A0631BA04709960DBCD188AA7D9C";
     private static readonly TimeSpan OrchestrationDelay = TimeSpan.FromSeconds(10);
     private readonly ILogger<OrchestrationTrigger> _logger;
 
