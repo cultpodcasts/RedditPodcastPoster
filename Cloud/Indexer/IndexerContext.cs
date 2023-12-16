@@ -27,7 +27,7 @@ public class IndexerContext
     public Guid? PosterOperationId { get; private set; }
     public Guid? PublisherOperationId { get; private set; }
     public Guid? TweetOperationId { get; private set; }
-    public bool? Success { get; set; }
+    public bool? Success { get; private set; }
     public bool? SkipYouTubeUrlResolving { get; private set; }
     public bool? YouTubeError { get; private set; }
     public bool? SkipSpotifyUrlResolving { get; private set; }
