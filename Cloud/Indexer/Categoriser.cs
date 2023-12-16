@@ -22,7 +22,7 @@ public class Categoriser : TaskActivity<IndexerContext, IndexerContext>
     {
         _logger.LogInformation($"{nameof(Categoriser)} initiated. Instance-id: '{context.InstanceId}', Categoriser-Operation-Id: '{indexerContext.CategoriserOperationId}'.");
 
-        if (DryRun.IsDryRun)
+        if (DryRun.IsCategoriserDryRun)
         {
             return indexerContext.WithSuccess(true);
         }
