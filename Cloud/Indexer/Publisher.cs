@@ -20,11 +20,12 @@ public class Publisher : TaskActivity<IndexerContext, IndexerContext>
 
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        _logger.LogInformation($"{nameof(Publisher)} initiated. Instance-id: '{context.InstanceId}', Publisher-Operation-Id: '{indexerContext.PublisherOperationId}'.");
+        _logger.LogInformation(
+            $"{nameof(Publisher)} initiated. Instance-id: '{context.InstanceId}', Publisher-Operation-Id: '{indexerContext.PublisherOperationId}'.");
 
         if (DryRun.IsDryRun)
         {
-            return indexerContext with {Success = true};
+            return indexerContext.WithSuccess(true);
         }
 
         try
@@ -51,10 +52,10 @@ public class Publisher : TaskActivity<IndexerContext, IndexerContext>
         {
             _logger.LogError(ex,
                 $"Failure to execute {nameof(IContentPublisher)}.{nameof(IContentPublisher.PublishHomepage)}.");
-            return indexerContext with {Success = false};
+            return indexerContext.WithSuccess(false);
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerContext with {Success = true};
+        return indexerContext.WithSuccess(true);
     }
 }

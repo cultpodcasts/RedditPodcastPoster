@@ -25,7 +25,7 @@ public class Tweet : TaskActivity<IndexerContext, IndexerContext>
 
         if (DryRun.IsDryRun)
         {
-            return indexerContext with {Success = true};
+            return indexerContext.WithSuccess(true);
         }
 
         try
@@ -37,10 +37,10 @@ public class Tweet : TaskActivity<IndexerContext, IndexerContext>
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Failure to execute {nameof(ITweeter)}.{nameof(ITweeter.Tweet)}.");
-            return indexerContext with {Success = false};
+            return indexerContext.WithSuccess(false);
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerContext with {Success = true};
+        return indexerContext.WithSuccess(true);
     }
 }

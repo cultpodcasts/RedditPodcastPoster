@@ -39,7 +39,7 @@ public class Poster : TaskActivity<IndexerContext, IndexerContext>
 
         if (DryRun.IsDryRun)
         {
-            return indexerContext with {Success = true};
+            return indexerContext.WithSuccess(true);
         }
 
         ProcessResponse result;
@@ -67,6 +67,6 @@ public class Poster : TaskActivity<IndexerContext, IndexerContext>
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerContext with {Success = result.Success};
+        return indexerContext.WithSuccess(result.Success);
     }
 }
