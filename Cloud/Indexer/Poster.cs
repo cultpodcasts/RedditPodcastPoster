@@ -8,7 +8,7 @@ using RedditPodcastPoster.Configuration;
 namespace Indexer;
 
 [DurableTask(nameof(Poster))]
-public class Poster : TaskActivity<IndexerResponse, IndexerResponse>
+public class Poster : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly IEpisodeProcessor _episodeProcessor;
     private readonly ILogger _logger;
@@ -27,9 +27,9 @@ public class Poster : TaskActivity<IndexerResponse, IndexerResponse>
         _logger = logger;
     }
 
-    public override async Task<IndexerResponse> RunAsync(TaskActivityContext context, IndexerResponse indexerResponse)
+    public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        _logger.LogInformation($"{nameof(Poster)} initiated. Instance-id: '{context.InstanceId}'.");
+        _logger.LogInformation($"{nameof(Poster)} initiated. Instance-id: '{context.InstanceId}', Poster-Operation-Id: '{indexerContext.PosterOperationId}'.");
         _logger.LogInformation(_posterOptions.ToString());
         _logger.LogInformation(_postingCriteria.ToString());
         var baselineDate = DateTimeHelper.DaysAgo(_posterOptions.ReleasedDaysAgo);
@@ -39,7 +39,7 @@ public class Poster : TaskActivity<IndexerResponse, IndexerResponse>
 
         if (DryRun.IsDryRun)
         {
-            return indexerResponse with {Success = true};
+            return indexerContext with {Success = true};
         }
 
         ProcessResponse result;
@@ -47,8 +47,8 @@ public class Poster : TaskActivity<IndexerResponse, IndexerResponse>
         {
             result = await _episodeProcessor.PostEpisodesSinceReleaseDate(
                 baselineDate,
-                indexerResponse is {SkipYouTubeUrlResolving: false, YouTubeError: false},
-                indexerResponse is {SkipSpotifyUrlResolving: false, SpotifyError: false});
+                indexerContext is {SkipYouTubeUrlResolving: false, YouTubeError: false},
+                indexerContext is {SkipSpotifyUrlResolving: false, SpotifyError: false});
         }
         catch (Exception ex)
         {
@@ -67,6 +67,6 @@ public class Poster : TaskActivity<IndexerResponse, IndexerResponse>
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerResponse with {Success = result.Success};
+        return indexerContext with {Success = result.Success};
     }
 }

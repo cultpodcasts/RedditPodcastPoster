@@ -6,7 +6,7 @@ using RedditPodcastPoster.Common.Podcasts;
 namespace Indexer;
 
 [DurableTask(nameof(Indexer))]
-public class Indexer : TaskActivity<object, IndexerResponse>
+public class Indexer : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly IndexerOptions _indexerOptions;
     private readonly ILogger _logger;
@@ -22,9 +22,9 @@ public class Indexer : TaskActivity<object, IndexerResponse>
         _logger = logger;
     }
 
-    public override async Task<IndexerResponse> RunAsync(TaskActivityContext context, object input)
+    public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        _logger.LogInformation($"{nameof(Indexer)} initiated. Instance-id: '{context.InstanceId}'.");
+        _logger.LogInformation($"{nameof(Indexer)} initiated. Instance-id: '{context.InstanceId}', Indexer-Operation-Id: '{indexerContext.IndexerOperationId}'.");
         _logger.LogInformation(_indexerOptions.ToString());
         var indexingContext = _indexerOptions.ToIndexingContext();
 
@@ -44,7 +44,9 @@ public class Indexer : TaskActivity<object, IndexerResponse>
 
         if (DryRun.IsDryRun)
         {
-            return new IndexerResponse(true, indexingContext.SkipYouTubeUrlResolving,
+            return indexerContext.CompleteIndexerOperation(
+                true, 
+                indexingContext.SkipYouTubeUrlResolving,
                 indexingContext.SkipYouTubeUrlResolving != originalSkipYouTubeUrlResolving,
                 indexingContext.SkipSpotifyUrlResolving,
                 indexingContext.SkipSpotifyUrlResolving != originalSkipSpotifyUrlResolving);
@@ -69,7 +71,7 @@ public class Indexer : TaskActivity<object, IndexerResponse>
 
         _logger.LogInformation(
             $"{nameof(RunAsync)} Completed");
-        return new IndexerResponse(
+        return indexerContext.CompleteIndexerOperation(
             results, indexingContext.SkipYouTubeUrlResolving,
             indexingContext.SkipYouTubeUrlResolving != originalSkipYouTubeUrlResolving,
             indexingContext.SkipSpotifyUrlResolving,

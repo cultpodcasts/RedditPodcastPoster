@@ -8,7 +8,6 @@ namespace Indexer;
 
 public class OrchestrationTrigger
 {
-    private const string OrchestrationInstanceId = "A0A0A0631BA04709960DBCD188AA7D9C";
     private static readonly TimeSpan OrchestrationDelay = TimeSpan.FromSeconds(10);
     private readonly ILogger<OrchestrationTrigger> _logger;
 
@@ -31,12 +30,7 @@ public class OrchestrationTrigger
         string instanceId;
         try
         {
-            var startOrchestrationOptions = new StartOrchestrationOptions(OrchestrationInstanceId,
-                DateTimeOffset.UtcNow.Add(OrchestrationDelay));
-            instanceId = await client.ScheduleNewOrchestrationInstanceAsync(
-                nameof(Orchestration),
-                null,
-                startOrchestrationOptions);
+            instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(Orchestration));
         }
         catch (RpcException ex)
         {

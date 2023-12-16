@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace Indexer;
 
 [DurableTask(nameof(Categoriser))]
-public class Categoriser : TaskActivity<IndexerResponse, IndexerResponse>
+public class Categoriser : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly ILogger<Categoriser> _logger;
     private readonly IRecentPodcastEpisodeCategoriser _recentEpisodeCategoriser;
@@ -18,13 +18,13 @@ public class Categoriser : TaskActivity<IndexerResponse, IndexerResponse>
         _logger = logger;
     }
 
-    public override async Task<IndexerResponse> RunAsync(TaskActivityContext context, IndexerResponse indexerResponse)
+    public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        _logger.LogInformation($"{nameof(Categoriser)} initiated. Instance-id: '{context.InstanceId}'.");
+        _logger.LogInformation($"{nameof(Categoriser)} initiated. Instance-id: '{context.InstanceId}', Categoriser-Operation-Id: '{indexerContext.CategoriserOperationId}'.");
 
         if (DryRun.IsDryRun)
         {
-            return indexerResponse with {Success = true};
+            return indexerContext with {Success = true};
         }
 
         try
@@ -35,10 +35,10 @@ public class Categoriser : TaskActivity<IndexerResponse, IndexerResponse>
         {
             _logger.LogError(ex,
                 $"Failure to execute {nameof(IRecentPodcastEpisodeCategoriser)}.{nameof(IRecentPodcastEpisodeCategoriser.Categorise)}.");
-            return indexerResponse with {Success = false};
+            return indexerContext with {Success = false};
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerResponse with {Success = true};
+        return indexerContext with {Success = true};
     }
 }

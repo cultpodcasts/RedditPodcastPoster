@@ -4,29 +4,31 @@ using Microsoft.Extensions.Logging;
 namespace Indexer;
 
 [DurableTask(nameof(Orchestration))]
-public class Orchestration : TaskOrchestrator<object, IndexerResponse>
+public class Orchestration : TaskOrchestrator<object, IndexerContext>
 {
-    public override async Task<IndexerResponse> RunAsync(TaskOrchestrationContext context, object input)
+    public override async Task<IndexerContext> RunAsync(TaskOrchestrationContext context, object input)
     {
         var logger = context.CreateReplaySafeLogger<Orchestration>(); // orchestrations do NOT have access to DI.
-        logger.LogInformation($"{nameof(Orchestration)}.{nameof(RunAsync)} initiated. Instance-id: '{context.InstanceId}'.");
+        logger.LogInformation(
+            $"{nameof(Orchestration)}.{nameof(RunAsync)} initiated. Instance-id: '{context.InstanceId}'.");
 
-        IndexerResponse response;
-        response = await context.CallIndexerAsync(new object());
+        var indexerContext = new IndexerContext(context.NewGuid());
+        indexerContext = await context.CallIndexerAsync(indexerContext);
         logger.LogInformation($"{nameof(Indexer)} complete.");
 
-        response = await context.CallCategoriserAsync(response);
+        indexerContext =
+            await context.CallCategoriserAsync(indexerContext.WithCategoriserOperationId(context.NewGuid()));
         logger.LogInformation($"{nameof(Categoriser)} complete.");
 
-        response = await context.CallPosterAsync(response);
+        indexerContext = await context.CallPosterAsync(indexerContext.WithPosterOperationId(context.NewGuid()));
         logger.LogInformation($"{nameof(Poster)} complete.");
 
-        response = await context.CallPublisherAsync(response);
+        indexerContext = await context.CallPublisherAsync(indexerContext.WithPublisherOperationId(context.NewGuid()));
         logger.LogInformation($"{nameof(Publisher)} complete.");
 
-        response = await context.CallTweetAsync(response);
+        indexerContext = await context.CallTweetAsync(indexerContext.WithTweetOperationId(context.NewGuid()));
         logger.LogInformation($"{nameof(Tweet)} complete. All tasks complete.");
 
-        return response;
+        return indexerContext;
     }
 }

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace Indexer;
 
 [DurableTask(nameof(Tweet))]
-public class Tweet : TaskActivity<IndexerResponse, IndexerResponse>
+public class Tweet : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly ILogger<Tweet> _logger;
     private readonly ITweeter _tweeter;
@@ -18,28 +18,29 @@ public class Tweet : TaskActivity<IndexerResponse, IndexerResponse>
         _logger = logger;
     }
 
-    public override async Task<IndexerResponse> RunAsync(TaskActivityContext context, IndexerResponse indexerResponse)
+    public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        _logger.LogInformation($"{nameof(Tweet)} initiated. Instance-id: '{context.InstanceId}'.");
+        _logger.LogInformation(
+            $"{nameof(Tweet)} initiated. Instance-id: '{context.InstanceId}', Tweeter-Operation-Id: '{indexerContext.TweetOperationId}'.");
 
         if (DryRun.IsDryRun)
         {
-            return indexerResponse with {Success = true};
+            return indexerContext with {Success = true};
         }
 
         try
         {
             await _tweeter.Tweet(
-                indexerResponse is {SkipYouTubeUrlResolving: false, YouTubeError: false},
-                indexerResponse is {SkipSpotifyUrlResolving: false, SpotifyError: false});
+                indexerContext is {SkipYouTubeUrlResolving: false, YouTubeError: false},
+                indexerContext is {SkipSpotifyUrlResolving: false, SpotifyError: false});
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Failure to execute {nameof(ITweeter)}.{nameof(ITweeter.Tweet)}.");
-            return indexerResponse with {Success = false};
+            return indexerContext with {Success = false};
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerResponse with {Success = true};
+        return indexerContext with {Success = true};
     }
 }
