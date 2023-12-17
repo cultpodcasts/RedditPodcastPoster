@@ -1,3 +1,4 @@
+using Azure;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher;
@@ -7,14 +8,17 @@ namespace Indexer;
 [DurableTask(nameof(Publisher))]
 public class Publisher : TaskActivity<IndexerContext, IndexerContext>
 {
+    private readonly IActivityMarshaller _activityMarshaller;
     private readonly IContentPublisher _contentPublisher;
     private readonly ILogger _logger;
 
     public Publisher(
         IContentPublisher contentPublisher,
+        IActivityMarshaller activityMarshaller,
         ILoggerFactory loggerFactory)
     {
         _contentPublisher = contentPublisher;
+        _activityMarshaller = activityMarshaller;
         _logger = loggerFactory.CreateLogger<Publisher>();
     }
 
@@ -26,6 +30,21 @@ public class Publisher : TaskActivity<IndexerContext, IndexerContext>
         if (DryRun.IsDryRun)
         {
             return indexerContext with {Success = true};
+        }
+
+        if (indexerContext.PublisherOperationId == null)
+        {
+            throw new ArgumentNullException(nameof(indexerContext.PublisherOperationId));
+        }
+
+        var activityBooked =
+            await _activityMarshaller.Initiate(indexerContext.PublisherOperationId.Value, nameof(Publisher));
+        if (activityBooked != ActivityStatus.Initiated)
+        {
+            return indexerContext with
+            {
+                DuplicatePublisherOperation = true
+            };
         }
 
         try
@@ -53,6 +72,22 @@ public class Publisher : TaskActivity<IndexerContext, IndexerContext>
             _logger.LogError(ex,
                 $"Failure to execute {nameof(IContentPublisher)}.{nameof(IContentPublisher.PublishHomepage)}.");
             return indexerContext with {Success = false};
+        }
+        finally
+        {
+            try
+            {
+                activityBooked =
+                    await _activityMarshaller.Complete(indexerContext.PublisherOperationId.Value, nameof(Publisher));
+                if (activityBooked != ActivityStatus.Completed)
+                {
+                    _logger.LogError("Failure to complete activity");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failure to complete activity.");
+            }
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");

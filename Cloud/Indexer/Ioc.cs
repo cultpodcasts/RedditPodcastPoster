@@ -1,10 +1,10 @@
-﻿using Indexer.Categorisation;
+﻿using Azure;
+using Indexer.Categorisation;
 using Indexer.Tweets;
 using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RedditPodcastPoster.AI.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
@@ -48,7 +48,8 @@ public static class Ioc
             .AddScoped<ITweeter, Tweeter>()
             .AddSubjectServices()
             .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
-            .AddAIServices(hostBuilderContext.Configuration)
+            //.AddAIServices(hostBuilderContext.Configuration)
+            .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddContentPublishing(hostBuilderContext.Configuration)
             .AddYouTubePushNotificationServices(hostBuilderContext.Configuration)
             .AddHttpClient();
@@ -58,7 +59,5 @@ public static class Ioc
             .AddOptions<PosterOptions>().Bind(hostBuilderContext.Configuration.GetSection("poster"));
         serviceCollection.AddPostingCriteria(hostBuilderContext.Configuration);
         serviceCollection.AddDelayedYouTubePublication(hostBuilderContext.Configuration);
-
-
     }
 }

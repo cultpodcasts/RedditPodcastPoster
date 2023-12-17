@@ -1,4 +1,5 @@
-﻿using Microsoft.DurableTask;
+﻿using Azure;
+using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common;
@@ -10,6 +11,7 @@ namespace Indexer;
 [DurableTask(nameof(Poster))]
 public class Poster : TaskActivity<IndexerContext, IndexerContext>
 {
+    private readonly IActivityMarshaller _activityMarshaller;
     private readonly IEpisodeProcessor _episodeProcessor;
     private readonly ILogger _logger;
     private readonly PosterOptions _posterOptions;
@@ -17,11 +19,13 @@ public class Poster : TaskActivity<IndexerContext, IndexerContext>
 
     public Poster(
         IEpisodeProcessor episodeProcessor,
+        IActivityMarshaller activityMarshaller,
         IOptions<PosterOptions> posterOptions,
         IOptions<PostingCriteria> postingCriteria,
         ILogger<Poster> logger)
     {
         _episodeProcessor = episodeProcessor;
+        _activityMarshaller = activityMarshaller;
         _posterOptions = posterOptions.Value;
         _postingCriteria = postingCriteria.Value;
         _logger = logger;
@@ -43,6 +47,20 @@ public class Poster : TaskActivity<IndexerContext, IndexerContext>
             return indexerContext with {Success = true};
         }
 
+        if (indexerContext.PosterOperationId == null)
+        {
+            throw new ArgumentNullException(nameof(indexerContext.PosterOperationId));
+        }
+
+        var activityBooked = await _activityMarshaller.Initiate(indexerContext.PosterOperationId.Value, nameof(Poster));
+        if (activityBooked != ActivityStatus.Initiated)
+        {
+            return indexerContext with
+            {
+                DuplicatePosterOperation = true
+            };
+        }
+
         ProcessResponse result;
         try
         {
@@ -56,6 +74,22 @@ public class Poster : TaskActivity<IndexerContext, IndexerContext>
             _logger.LogError(ex,
                 $"Failure executing {nameof(IEpisodeProcessor)}.{nameof(IEpisodeProcessor.PostEpisodesSinceReleaseDate)}.");
             result = ProcessResponse.Fail(ex.Message);
+        }
+        finally
+        {
+            try
+            {
+                activityBooked =
+                    await _activityMarshaller.Complete(indexerContext.PosterOperationId.Value, nameof(Poster));
+                if (activityBooked != ActivityStatus.Completed)
+                {
+                    _logger.LogError("Failure to complete activity");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failure to complete activity.");
+            }
         }
 
         if (!result.Success)

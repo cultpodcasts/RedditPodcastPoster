@@ -1,3 +1,4 @@
+using Azure;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -8,23 +9,27 @@ namespace Indexer;
 [DurableTask(nameof(Indexer))]
 public class Indexer : TaskActivity<IndexerContext, IndexerContext>
 {
+    private readonly IActivityMarshaller _activityMarshaller;
     private readonly IndexerOptions _indexerOptions;
     private readonly ILogger _logger;
     private readonly IPodcastsUpdater _podcastsUpdater;
 
     public Indexer(
         IPodcastsUpdater podcastsUpdater,
+        IActivityMarshaller activityMarshaller,
         IOptions<IndexerOptions> indexerOptions,
         ILogger<Indexer> logger)
     {
         _podcastsUpdater = podcastsUpdater;
+        _activityMarshaller = activityMarshaller;
         _indexerOptions = indexerOptions.Value;
         _logger = logger;
     }
 
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        _logger.LogInformation($"{nameof(Indexer)} initiated. Instance-id: '{context.InstanceId}', Indexer-Operation-Id: '{indexerContext.IndexerOperationId}'.");
+        _logger.LogInformation(
+            $"{nameof(Indexer)} initiated. Instance-id: '{context.InstanceId}', Indexer-Operation-Id: '{indexerContext.IndexerOperationId}'.");
         _logger.LogInformation(_indexerOptions.ToString());
         var indexingContext = _indexerOptions.ToIndexingContext();
 
@@ -46,11 +51,20 @@ public class Indexer : TaskActivity<IndexerContext, IndexerContext>
         {
             return indexerContext with
             {
-                Success= true,
+                Success = true,
                 SkipYouTubeUrlResolving = indexerContext.SkipYouTubeUrlResolving,
                 YouTubeError = indexingContext.SkipYouTubeUrlResolving != originalSkipYouTubeUrlResolving,
                 SkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving,
                 SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalSkipSpotifyUrlResolving
+            };
+        }
+
+        var activityBooked = await _activityMarshaller.Initiate(indexerContext.IndexerOperationId, nameof(Indexer));
+        if (activityBooked != ActivityStatus.Initiated)
+        {
+            return indexerContext with
+            {
+                DuplicateIndexerOperation = true
             };
         }
 
@@ -64,6 +78,21 @@ public class Indexer : TaskActivity<IndexerContext, IndexerContext>
             _logger.LogError(ex,
                 $"Failure to execute {nameof(IPodcastsUpdater)}.{nameof(IPodcastsUpdater.UpdatePodcasts)}.");
             results = false;
+        }
+        finally
+        {
+            try
+            {
+                activityBooked = await _activityMarshaller.Complete(indexerContext.IndexerOperationId, nameof(Indexer));
+                if (activityBooked != ActivityStatus.Completed)
+                {
+                    _logger.LogError("Failure to complete activity");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failure to complete activity.");
+            }
         }
 
         if (!results)

@@ -12,4 +12,9 @@ public record IndexerContext
     public bool? SkipSpotifyUrlResolving { get; set; }
     public bool? SpotifyError { get; set; }
     public Guid IndexerOperationId { get; set; }
+    public bool? DuplicateIndexerOperation { get; set; }
+    public bool? DuplicateCategoriserOperation { get; set; }
+    public bool? DuplicatePosterOperation { get; set; }
+    public bool? DuplicatePublisherOperation { get; set; }
+    public bool? DuplicateTweetOperation { get; set; }
 }

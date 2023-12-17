@@ -1,3 +1,4 @@
+using Azure;
 using Indexer.Tweets;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
@@ -7,14 +8,17 @@ namespace Indexer;
 [DurableTask(nameof(Tweet))]
 public class Tweet : TaskActivity<IndexerContext, IndexerContext>
 {
+    private readonly IActivityMarshaller _activityMarshaller;
     private readonly ILogger<Tweet> _logger;
     private readonly ITweeter _tweeter;
 
     public Tweet(
         ITweeter tweeter,
+        IActivityMarshaller activityMarshaller,
         ILogger<Tweet> logger)
     {
         _tweeter = tweeter;
+        _activityMarshaller = activityMarshaller;
         _logger = logger;
     }
 
@@ -28,6 +32,20 @@ public class Tweet : TaskActivity<IndexerContext, IndexerContext>
             return indexerContext with {Success = true};
         }
 
+        if (indexerContext.TweetOperationId == null)
+        {
+            throw new ArgumentNullException(nameof(indexerContext.TweetOperationId));
+        }
+
+        var activityBooked = await _activityMarshaller.Initiate(indexerContext.TweetOperationId.Value, nameof(Tweet));
+        if (activityBooked != ActivityStatus.Initiated)
+        {
+            return indexerContext with
+            {
+                DuplicateTweetOperation = true
+            };
+        }
+
         try
         {
             await _tweeter.Tweet(
@@ -37,10 +55,26 @@ public class Tweet : TaskActivity<IndexerContext, IndexerContext>
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Failure to execute {nameof(ITweeter)}.{nameof(ITweeter.Tweet)}.");
-            return indexerContext with { Success = false };
+            return indexerContext with {Success = false};
+        }
+        finally
+        {
+            try
+            {
+                activityBooked =
+                    await _activityMarshaller.Complete(indexerContext.TweetOperationId.Value, nameof(Tweet));
+                if (activityBooked != ActivityStatus.Completed)
+                {
+                    _logger.LogError("Failure to complete activity");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failure to complete activity.");
+            }
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerContext with { Success = true };
+        return indexerContext with {Success = true};
     }
 }
