@@ -3,7 +3,7 @@ function bookActivity(req) {
 	var context= getContext();
     var collection = context.getCollection();
 	var collectionLink = collection.getSelfLink();	
-	const initiate= 'initiate', complete= 'complete', type= 'activity';
+	const initiate= 'initiate', complete= 'complete', type= 'Activity';
 
     var isAccepted = collection.queryDocuments(
         collection.getSelfLink(),
