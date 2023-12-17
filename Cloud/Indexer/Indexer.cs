@@ -44,12 +44,14 @@ public class Indexer : TaskActivity<IndexerContext, IndexerContext>
 
         if (DryRun.IsIndexDryRun)
         {
-            return indexerContext.CompleteIndexerOperation(
-                true, 
-                indexingContext.SkipYouTubeUrlResolving,
-                indexingContext.SkipYouTubeUrlResolving != originalSkipYouTubeUrlResolving,
-                indexingContext.SkipSpotifyUrlResolving,
-                indexingContext.SkipSpotifyUrlResolving != originalSkipSpotifyUrlResolving);
+            return indexerContext with
+            {
+                Success= true,
+                SkipYouTubeUrlResolving = indexerContext.SkipYouTubeUrlResolving,
+                YouTubeError = indexingContext.SkipYouTubeUrlResolving != originalSkipYouTubeUrlResolving,
+                SkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving,
+                SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalSkipSpotifyUrlResolving
+            };
         }
 
         bool results;
@@ -71,10 +73,13 @@ public class Indexer : TaskActivity<IndexerContext, IndexerContext>
 
         _logger.LogInformation(
             $"{nameof(RunAsync)} Completed");
-        return indexerContext.CompleteIndexerOperation(
-            results, indexingContext.SkipYouTubeUrlResolving,
-            indexingContext.SkipYouTubeUrlResolving != originalSkipYouTubeUrlResolving,
-            indexingContext.SkipSpotifyUrlResolving,
-            indexingContext.SkipSpotifyUrlResolving != originalSkipSpotifyUrlResolving);
+        return indexerContext with
+        {
+            Success = results,
+            SkipYouTubeUrlResolving = indexerContext.SkipYouTubeUrlResolving,
+            YouTubeError = indexingContext.SkipYouTubeUrlResolving != originalSkipYouTubeUrlResolving,
+            SkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving,
+            SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalSkipSpotifyUrlResolving
+        };
     }
 }

@@ -25,7 +25,7 @@ public class Publisher : TaskActivity<IndexerContext, IndexerContext>
 
         if (DryRun.IsDryRun)
         {
-            return indexerContext.WithSuccess(true);
+            return indexerContext with {Success = true};
         }
 
         try
@@ -52,10 +52,10 @@ public class Publisher : TaskActivity<IndexerContext, IndexerContext>
         {
             _logger.LogError(ex,
                 $"Failure to execute {nameof(IContentPublisher)}.{nameof(IContentPublisher.PublishHomepage)}.");
-            return indexerContext.WithSuccess(false);
+            return indexerContext with {Success = false};
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerContext.WithSuccess(true);
+        return indexerContext with {Success = true};
     }
 }

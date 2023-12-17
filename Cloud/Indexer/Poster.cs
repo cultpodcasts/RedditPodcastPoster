@@ -29,7 +29,8 @@ public class Poster : TaskActivity<IndexerContext, IndexerContext>
 
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        _logger.LogInformation($"{nameof(Poster)} initiated. Instance-id: '{context.InstanceId}', Poster-Operation-Id: '{indexerContext.PosterOperationId}'.");
+        _logger.LogInformation(
+            $"{nameof(Poster)} initiated. Instance-id: '{context.InstanceId}', Poster-Operation-Id: '{indexerContext.PosterOperationId}'.");
         _logger.LogInformation(_posterOptions.ToString());
         _logger.LogInformation(_postingCriteria.ToString());
         var baselineDate = DateTimeHelper.DaysAgo(_posterOptions.ReleasedDaysAgo);
@@ -39,7 +40,7 @@ public class Poster : TaskActivity<IndexerContext, IndexerContext>
 
         if (DryRun.IsDryRun)
         {
-            return indexerContext.WithSuccess(true);
+            return indexerContext with {Success = true};
         }
 
         ProcessResponse result;
@@ -67,6 +68,6 @@ public class Poster : TaskActivity<IndexerContext, IndexerContext>
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerContext.WithSuccess(result.Success);
+        return indexerContext with {Success = result.Success};
     }
 }

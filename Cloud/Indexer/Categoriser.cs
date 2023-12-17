@@ -20,11 +20,12 @@ public class Categoriser : TaskActivity<IndexerContext, IndexerContext>
 
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        _logger.LogInformation($"{nameof(Categoriser)} initiated. Instance-id: '{context.InstanceId}', Categoriser-Operation-Id: '{indexerContext.CategoriserOperationId}'.");
+        _logger.LogInformation(
+            $"{nameof(Categoriser)} initiated. Instance-id: '{context.InstanceId}', Categoriser-Operation-Id: '{indexerContext.CategoriserOperationId}'.");
 
         if (DryRun.IsCategoriserDryRun)
         {
-            return indexerContext.WithSuccess(true);
+            return indexerContext with {Success = true};
         }
 
         try
@@ -35,10 +36,10 @@ public class Categoriser : TaskActivity<IndexerContext, IndexerContext>
         {
             _logger.LogError(ex,
                 $"Failure to execute {nameof(IRecentPodcastEpisodeCategoriser)}.{nameof(IRecentPodcastEpisodeCategoriser.Categorise)}.");
-            return indexerContext.WithSuccess(false);
+            return indexerContext with {Success = false};
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerContext.WithSuccess(true);
+        return indexerContext with {Success = true};
     }
 }

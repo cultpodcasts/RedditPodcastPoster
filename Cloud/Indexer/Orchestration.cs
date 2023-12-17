@@ -12,21 +12,21 @@ public class Orchestration : TaskOrchestrator<object, IndexerContext>
         logger.LogInformation(
             $"{nameof(Orchestration)}.{nameof(RunAsync)} initiated. Instance-id: '{context.InstanceId}'.");
 
-        var indexerContext = new IndexerContext(context.NewGuid());
+        var indexerContext = new IndexerContext(){IndexerOperationId = context.NewGuid() };
         indexerContext = await context.CallIndexerAsync(indexerContext);
         logger.LogInformation($"{nameof(Indexer)} complete.");
 
         indexerContext =
-            await context.CallCategoriserAsync(indexerContext.WithCategoriserOperationId(context.NewGuid()));
+            await context.CallCategoriserAsync(indexerContext with {CategoriserOperationId = context.NewGuid() });
         logger.LogInformation($"{nameof(Categoriser)} complete.");
 
-        indexerContext = await context.CallPosterAsync(indexerContext.WithPosterOperationId(context.NewGuid()));
+        indexerContext = await context.CallPosterAsync(indexerContext with {PosterOperationId = context.NewGuid()});
         logger.LogInformation($"{nameof(Poster)} complete.");
 
-        indexerContext = await context.CallPublisherAsync(indexerContext.WithPublisherOperationId(context.NewGuid()));
+        indexerContext = await context.CallPublisherAsync(indexerContext with {PublisherOperationId=context.NewGuid()});
         logger.LogInformation($"{nameof(Publisher)} complete.");
 
-        indexerContext = await context.CallTweetAsync(indexerContext.WithTweetOperationId(context.NewGuid()));
+        indexerContext = await context.CallTweetAsync(indexerContext with {TweetOperationId=context.NewGuid()});
         logger.LogInformation($"{nameof(Tweet)} complete. All tasks complete.");
 
         return indexerContext;
