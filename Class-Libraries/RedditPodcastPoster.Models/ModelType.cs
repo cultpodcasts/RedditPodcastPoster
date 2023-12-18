@@ -25,6 +25,6 @@ public enum ModelType
     [JsonPropertyName(nameof(Subject))]
     Subject = 7,
 
-    [JsonPropertyName("Activity")]
+    [JsonPropertyName(nameof(Activity))]
     Activity = 8,
 }

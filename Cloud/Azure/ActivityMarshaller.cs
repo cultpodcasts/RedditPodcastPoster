@@ -7,6 +7,7 @@ namespace Azure;
 
 public class ActivityMarshaller : IActivityMarshaller
 {
+    private const string ActivityBookingProcedureId = "bookActivity";
     private readonly Container _container;
     private readonly ILogger<ActivityMarshaller> _logger;
 
@@ -24,8 +25,8 @@ public class ActivityMarshaller : IActivityMarshaller
         {
             dynamic activity = new {Id = id, Status = "initiate", OperationType = operationType};
             var result = await _container.Scripts.ExecuteStoredProcedureAsync<Activity>(
-                "bookActivity",
-                new PartitionKey("Activity"),
+                ActivityBookingProcedureId,
+                new PartitionKey(Activity.PartitionKey),
                 new[] {activity});
             if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == "initiate")
             {
@@ -41,6 +42,17 @@ public class ActivityMarshaller : IActivityMarshaller
                 if (ex.Message.Contains("Activity Already Complete"))
                 {
                     _logger.LogInformation("Activity is already complete.");
+                    try
+                    {
+                        await _container.DeleteItemAsync<Activity>(
+                            id.ToString(),
+                            new PartitionKey(Activity.PartitionKey));
+                    }
+                    catch (Exception ex2)
+                    {
+                        _logger.LogError(ex2, $"Failure to clean-up activity with id '{id}'.");
+                    }
+
                     return ActivityStatus.Completed;
                 }
 
@@ -67,8 +79,8 @@ public class ActivityMarshaller : IActivityMarshaller
         {
             dynamic activity = new {Id = id, Status = "complete", OperationType = operationType};
             var result = await _container.Scripts.ExecuteStoredProcedureAsync<Activity>(
-                "bookActivity",
-                new PartitionKey("Activity"),
+                ActivityBookingProcedureId,
+                new PartitionKey(Activity.PartitionKey),
                 new[] {activity},
                 new StoredProcedureRequestOptions());
             if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == "complete")

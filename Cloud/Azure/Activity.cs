@@ -4,6 +4,8 @@ namespace Azure;
 
 public sealed class Activity
 {
+    public static string PartitionKey = nameof(Activity);
+
     [JsonPropertyName("id")]
     public Guid Id { get; set; }
 
