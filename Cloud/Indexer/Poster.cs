@@ -42,7 +42,7 @@ public class Poster : TaskActivity<IndexerContext, IndexerContext>
         _logger.LogInformation(
             $"{nameof(RunAsync)} Posting with options released-since: '{baselineDate:dd/MM/yyyy HH:mm:ss}''.");
 
-        if (DryRun.IsDryRun)
+        if (DryRun.IsPosterDryRun)
         {
             return indexerContext with {Success = true};
         }

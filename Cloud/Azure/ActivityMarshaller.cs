@@ -34,6 +34,16 @@ public class ActivityMarshaller : IActivityMarshaller
 
             return ActivityStatus.Failed;
         }
+        catch (CosmosException ex)
+        {
+            if (ex.StatusCode == HttpStatusCode.BadRequest && ex.Message.Contains("Activity Already Complete"))
+            {
+                _logger.LogInformation("Activity is already complete.");
+                return ActivityStatus.Completed;
+            }
+
+            return ActivityStatus.Failed;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex,
@@ -54,6 +64,16 @@ public class ActivityMarshaller : IActivityMarshaller
                 new StoredProcedureRequestOptions());
             if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == "complete")
             {
+                return ActivityStatus.Completed;
+            }
+
+            return ActivityStatus.Failed;
+        }
+        catch (CosmosException ex)
+        {
+            if (ex.StatusCode == HttpStatusCode.BadRequest && ex.Message.Contains("Activity Already Complete"))
+            {
+                _logger.LogInformation("Activity is already complete.");
                 return ActivityStatus.Completed;
             }
 

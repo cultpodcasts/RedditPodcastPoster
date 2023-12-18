@@ -27,7 +27,7 @@ public class Tweet : TaskActivity<IndexerContext, IndexerContext>
         _logger.LogInformation(
             $"{nameof(Tweet)} initiated. Instance-id: '{context.InstanceId}', Tweeter-Operation-Id: '{indexerContext.TweetOperationId}'.");
 
-        if (DryRun.IsDryRun)
+        if (DryRun.IsTweetDryRun)
         {
             return indexerContext with {Success = true};
         }

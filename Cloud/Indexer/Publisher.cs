@@ -27,7 +27,7 @@ public class Publisher : TaskActivity<IndexerContext, IndexerContext>
         _logger.LogInformation(
             $"{nameof(Publisher)} initiated. Instance-id: '{context.InstanceId}', Publisher-Operation-Id: '{indexerContext.PublisherOperationId}'.");
 
-        if (DryRun.IsDryRun)
+        if (DryRun.IsPublisherDryRun)
         {
             return indexerContext with {Success = true};
         }
