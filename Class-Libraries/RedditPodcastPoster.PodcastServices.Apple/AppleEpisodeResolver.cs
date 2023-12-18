@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text;
 
@@ -7,7 +6,9 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class AppleEpisodeResolver : IAppleEpisodeResolver
 {
-    private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(5).Ticks;
+    private const int MinFuzzyScore = 70;
+    private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(30).Ticks;
+    private static readonly long BroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
     private readonly ICachedApplePodcastService _applePodcastService;
     private readonly ILogger<AppleEpisodeResolver> _logger;
 
@@ -19,7 +20,10 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
         _logger = logger;
     }
 
-    public async Task<AppleEpisode?> FindEpisode(FindAppleEpisodeRequest request, IndexingContext indexingContext)
+    public async Task<AppleEpisode?> FindEpisode(
+        FindAppleEpisodeRequest request,
+        IndexingContext indexingContext,
+        Func<AppleEpisode, bool>? reducer = null)
     {
         AppleEpisode? matchingEpisode = null;
         IEnumerable<AppleEpisode>? podcastEpisodes = null;
@@ -38,45 +42,43 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
         {
             if (request.PodcastAppleId.HasValue)
             {
-                var matchingEpisodes = podcastEpisodes.Where(x => x.Title == request.EpisodeTitle);
-                if (!matchingEpisodes.Any() || matchingEpisodes.Count() > 1)
+                var match = podcastEpisodes.SingleOrDefault(x => x.Title.Trim() == request.EpisodeTitle.Trim());
+                if (match == null)
                 {
-                    IEnumerable<AppleEpisode> matches;
-                    if (request is {ReleaseAuthority: Service.YouTube, EpisodeLength: not null} ||
-                        !request.Released.HasValue)
+                    IEnumerable<AppleEpisode> sampleList;
+                    if (reducer != null)
                     {
-                        matches = podcastEpisodes.Where(x =>
-                            Math.Abs((x.Duration - request.EpisodeLength!.Value).Ticks) < TimeDifferenceThreshold);
-
-                        if (request.Released.HasValue)
-                        {
-                            matches = matches.Where(x =>
-                                Math.Abs((x.Release - request.Released.Value).Ticks) <=
-                                TimeSpan.FromDays(14).Ticks
-                            );
-                        }
+                        sampleList = podcastEpisodes.Where(reducer);
                     }
                     else
                     {
-                        matches = podcastEpisodes.Where(x =>
-                            DateOnly.FromDateTime(x.Release) == DateOnly.FromDateTime(request.Released.Value));
+                        sampleList = podcastEpisodes;
                     }
 
-                    if (matches.Count() > 1)
+                    var sameLength = sampleList
+                        .Where(x => Math.Abs((x.Duration - request.EpisodeLength!.Value).Ticks) <
+                                    TimeDifferenceThreshold);
+                    if (sameLength.Count() > 1)
                     {
-                        return FuzzyMatcher.Match(request.EpisodeTitle, matches, x => x.Title);
+                        return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title);
                     }
 
-                    matchingEpisode = matches.SingleOrDefault();
+                    match = sameLength.SingleOrDefault();
+
+                    if (match == null)
+                    {
+                        sameLength = sampleList
+                            .Where(x => Math.Abs((x.Duration - request.EpisodeLength!.Value).Ticks) <
+                                        BroaderTimeDifferenceThreshold);
+                        return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title, MinFuzzyScore);
+                    }
                 }
 
-                matchingEpisode ??= matchingEpisodes.FirstOrDefault();
+                return match;
             }
-            else
-            {
-                _logger.LogInformation(
-                    $"Podcast '{request.PodcastName}' cannot be found on Apple Podcasts.");
-            }
+
+            _logger.LogInformation(
+                $"Podcast '{request.PodcastName}' cannot be found on Apple Podcasts.");
         }
 
         return matchingEpisode;

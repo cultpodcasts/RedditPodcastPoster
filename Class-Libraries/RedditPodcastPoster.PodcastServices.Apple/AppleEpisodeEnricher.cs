@@ -5,6 +5,7 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class AppleEpisodeEnricher : IAppleEpisodeEnricher
 {
+    private static readonly TimeSpan YouTubeAuthorityToAudioReleaseConsiderationThreshold = TimeSpan.FromDays(14);
     private readonly IAppleEpisodeResolver _appleEpisodeResolver;
     private readonly IApplePodcastEnricher _applePodcastEnricher;
     private readonly ILogger<AppleEpisodeEnricher> _logger;
@@ -32,7 +33,13 @@ public class AppleEpisodeEnricher : IAppleEpisodeEnricher
         if (request.Podcast.AppleId != null)
         {
             var findAppleEpisodeRequest = FindAppleEpisodeRequestFactory.Create(request.Podcast, request.Episode);
-            var appleItem = await _appleEpisodeResolver.FindEpisode(findAppleEpisodeRequest, indexingContext);
+            var appleItem = await _appleEpisodeResolver.FindEpisode(
+                findAppleEpisodeRequest,
+                indexingContext,
+                y =>
+                    Math.Abs((y.Release - request.Episode.Release).Ticks) <
+                    YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks
+            );
             if (appleItem != null)
             {
                 var url = appleItem.Url.CleanAppleUrl();

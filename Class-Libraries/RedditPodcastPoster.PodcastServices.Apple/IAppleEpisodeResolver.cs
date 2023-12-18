@@ -6,5 +6,6 @@ public interface IAppleEpisodeResolver
 {
     Task<AppleEpisode?> FindEpisode(
         FindAppleEpisodeRequest request,
-        IndexingContext indexingContext);
+        IndexingContext indexingContext,
+        Func<AppleEpisode, bool>? reducer = null);
 }
