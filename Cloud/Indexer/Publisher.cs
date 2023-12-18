@@ -37,15 +37,6 @@ public class Publisher : TaskActivity<IndexerContext, IndexerContext>
             throw new ArgumentNullException(nameof(indexerContext.PublisherOperationId));
         }
 
-        var activityBooked =
-            await _activityMarshaller.Initiate(indexerContext.PublisherOperationId.Value, nameof(Publisher));
-        if (activityBooked != ActivityStatus.Initiated)
-        {
-            return indexerContext with
-            {
-                DuplicatePublisherOperation = true
-            };
-        }
 
         try
         {
@@ -72,22 +63,6 @@ public class Publisher : TaskActivity<IndexerContext, IndexerContext>
             _logger.LogError(ex,
                 $"Failure to execute {nameof(IContentPublisher)}.{nameof(IContentPublisher.PublishHomepage)}.");
             return indexerContext with {Success = false};
-        }
-        finally
-        {
-            try
-            {
-                activityBooked =
-                    await _activityMarshaller.Complete(indexerContext.PublisherOperationId.Value, nameof(Publisher));
-                if (activityBooked != ActivityStatus.Completed)
-                {
-                    _logger.LogError("Failure to complete activity");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failure to complete activity.");
-            }
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
