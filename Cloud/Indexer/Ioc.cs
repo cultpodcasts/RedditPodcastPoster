@@ -5,6 +5,7 @@ using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.AI.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
@@ -48,7 +49,7 @@ public static class Ioc
             .AddScoped<ITweeter, Tweeter>()
             .AddSubjectServices()
             .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
-            //.AddAIServices(hostBuilderContext.Configuration)
+            .AddAIServices(hostBuilderContext.Configuration)
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddContentPublishing(hostBuilderContext.Configuration)
             .AddYouTubePushNotificationServices(hostBuilderContext.Configuration)

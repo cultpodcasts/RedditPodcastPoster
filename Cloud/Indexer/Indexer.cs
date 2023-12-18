@@ -100,8 +100,8 @@ public class Indexer : TaskActivity<IndexerContext, IndexerContext>
             _logger.LogError("Failure occurred");
         }
 
-        _logger.LogInformation(
-            $"{nameof(RunAsync)} Completed");
+        _logger.LogInformation($"{nameof(RunAsync)} Completed");
+
         return indexerContext with
         {
             Success = results,
