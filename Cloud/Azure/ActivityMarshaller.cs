@@ -62,7 +62,7 @@ public class ActivityMarshaller : IActivityMarshaller
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                $"Failure to initialise activity with id '{id}' for operation-type '{operationType}'.");
+                $"Failure to complete activity with id '{id}' for operation-type '{operationType}'.");
             return ActivityStatus.Failed;
         }
     }
