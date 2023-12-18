@@ -25,7 +25,7 @@ public class ActivityMarshaller : IActivityMarshaller
             dynamic activity = new {Id = id, Status = "initiate", OperationType = operationType};
             var result = await _container.Scripts.ExecuteStoredProcedureAsync<Activity>(
                 "bookActivity",
-                new PartitionKey("activity"),
+                new PartitionKey("Activity"),
                 new[] {activity});
             if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == "initiate")
             {
@@ -49,7 +49,7 @@ public class ActivityMarshaller : IActivityMarshaller
             dynamic activity = new {Id = id, Status = "complete", OperationType = operationType};
             var result = await _container.Scripts.ExecuteStoredProcedureAsync<Activity>(
                 "bookActivity",
-                new PartitionKey("activity"),
+                new PartitionKey("Activity"),
                 new[] {activity},
                 new StoredProcedureRequestOptions());
             if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == "complete")
