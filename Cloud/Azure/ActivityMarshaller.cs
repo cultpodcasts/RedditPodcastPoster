@@ -8,6 +8,10 @@ namespace Azure;
 public class ActivityMarshaller : IActivityMarshaller
 {
     private const string ActivityBookingProcedureId = "bookActivity";
+    private const string CompleteStatus = "complete";
+    private const string InitiateActionStatus = "initiate";
+    private const string CompletedStatusMessage = "Activity Already Complete";
+    private const string InitiatedStatusMessage = "Activity Already Initiate";
     private readonly Container _container;
     private readonly ILogger<ActivityMarshaller> _logger;
 
@@ -23,12 +27,12 @@ public class ActivityMarshaller : IActivityMarshaller
     {
         try
         {
-            dynamic activity = new {Id = id, Status = "initiate", OperationType = operationType};
+            dynamic activity = new {Id = id, Status = InitiateActionStatus, OperationType = operationType};
             var result = await _container.Scripts.ExecuteStoredProcedureAsync<Activity>(
                 ActivityBookingProcedureId,
                 new PartitionKey(Activity.PartitionKey),
                 new[] {activity});
-            if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == "initiate")
+            if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == InitiateActionStatus)
             {
                 return ActivityStatus.Initiated;
             }
@@ -39,7 +43,7 @@ public class ActivityMarshaller : IActivityMarshaller
         {
             if (ex.StatusCode == HttpStatusCode.BadRequest)
             {
-                if (ex.Message.Contains("Activity Already Complete"))
+                if (ex.Message.Contains(CompletedStatusMessage))
                 {
                     _logger.LogInformation("Activity is already complete.");
                     try
@@ -56,7 +60,7 @@ public class ActivityMarshaller : IActivityMarshaller
                     return ActivityStatus.Completed;
                 }
 
-                if (ex.Message.Contains("Activity Already Initiate"))
+                if (ex.Message.Contains(InitiatedStatusMessage))
                 {
                     _logger.LogInformation("Activity is already initiated.");
                     return ActivityStatus.AlreadyInitiated;
@@ -77,13 +81,13 @@ public class ActivityMarshaller : IActivityMarshaller
     {
         try
         {
-            dynamic activity = new {Id = id, Status = "complete", OperationType = operationType};
+            dynamic activity = new {Id = id, Status = CompleteStatus, OperationType = operationType};
             var result = await _container.Scripts.ExecuteStoredProcedureAsync<Activity>(
                 ActivityBookingProcedureId,
                 new PartitionKey(Activity.PartitionKey),
                 new[] {activity},
                 new StoredProcedureRequestOptions());
-            if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == "complete")
+            if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == CompleteStatus)
             {
                 return ActivityStatus.Completed;
             }
@@ -94,13 +98,13 @@ public class ActivityMarshaller : IActivityMarshaller
         {
             if (ex.StatusCode == HttpStatusCode.BadRequest)
             {
-                if (ex.Message.Contains("Activity Already Complete"))
+                if (ex.Message.Contains(CompletedStatusMessage))
                 {
                     _logger.LogInformation("Activity is already complete.");
                     return ActivityStatus.Completed;
                 }
 
-                if (ex.Message.Contains("Activity Already Initiate"))
+                if (ex.Message.Contains(InitiatedStatusMessage))
                 {
                     _logger.LogInformation("Activity is already initiated.");
                     return ActivityStatus.AlreadyInitiated;
