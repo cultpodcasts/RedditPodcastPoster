@@ -1,3 +1,4 @@
+using Azure;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher;
@@ -5,27 +6,37 @@ using RedditPodcastPoster.ContentPublisher;
 namespace Indexer;
 
 [DurableTask(nameof(Publisher))]
-public class Publisher : TaskActivity<IndexerResponse, IndexerResponse>
+public class Publisher : TaskActivity<IndexerContext, IndexerContext>
 {
+    private readonly IActivityMarshaller _activityMarshaller;
     private readonly IContentPublisher _contentPublisher;
     private readonly ILogger _logger;
 
     public Publisher(
         IContentPublisher contentPublisher,
+        IActivityMarshaller activityMarshaller,
         ILoggerFactory loggerFactory)
     {
         _contentPublisher = contentPublisher;
+        _activityMarshaller = activityMarshaller;
         _logger = loggerFactory.CreateLogger<Publisher>();
     }
 
-    public override async Task<IndexerResponse> RunAsync(TaskActivityContext context, IndexerResponse indexerResponse)
+    public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        _logger.LogInformation($"{nameof(Publisher)} initiated.");
+        _logger.LogInformation(
+            $"{nameof(Publisher)} initiated. Instance-id: '{context.InstanceId}', Publisher-Operation-Id: '{indexerContext.PublisherOperationId}'.");
 
-        if (DryRun.IsDryRun)
+        if (DryRun.IsPublisherDryRun)
         {
-            return indexerResponse with {Success = true};
+            return indexerContext with {Success = true};
         }
+
+        if (indexerContext.PublisherOperationId == null)
+        {
+            throw new ArgumentNullException(nameof(indexerContext.PublisherOperationId));
+        }
+
 
         try
         {
@@ -51,10 +62,10 @@ public class Publisher : TaskActivity<IndexerResponse, IndexerResponse>
         {
             _logger.LogError(ex,
                 $"Failure to execute {nameof(IContentPublisher)}.{nameof(IContentPublisher.PublishHomepage)}.");
-            return indexerResponse with {Success = false};
+            return indexerContext with {Success = false};
         }
 
         _logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerResponse with {Success = true};
+        return indexerContext with {Success = true};
     }
 }

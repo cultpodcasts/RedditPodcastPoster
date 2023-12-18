@@ -2,10 +2,10 @@
 
 public class CosmosSelectorAttribute : Attribute
 {
-    public  ModelType ModelType { get; init; }
-
     public CosmosSelectorAttribute(ModelType modelType)
     {
         ModelType = modelType;
     }
+
+    public ModelType ModelType { get; init; }
 }

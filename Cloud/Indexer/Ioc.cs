@@ -1,4 +1,5 @@
-﻿using Indexer.Categorisation;
+﻿using Azure;
+using Indexer.Categorisation;
 using Indexer.Tweets;
 using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
@@ -49,6 +50,7 @@ public static class Ioc
             .AddSubjectServices()
             .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
             .AddAIServices(hostBuilderContext.Configuration)
+            .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddContentPublishing(hostBuilderContext.Configuration)
             .AddYouTubePushNotificationServices(hostBuilderContext.Configuration)
             .AddHttpClient();
@@ -58,7 +60,5 @@ public static class Ioc
             .AddOptions<PosterOptions>().Bind(hostBuilderContext.Configuration.GetSection("poster"));
         serviceCollection.AddPostingCriteria(hostBuilderContext.Configuration);
         serviceCollection.AddDelayedYouTubePublication(hostBuilderContext.Configuration);
-
-
     }
 }

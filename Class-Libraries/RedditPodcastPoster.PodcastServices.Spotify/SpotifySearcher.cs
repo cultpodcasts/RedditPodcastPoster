@@ -26,7 +26,7 @@ public class SpotifySearcher : ISpotifySearcher
         string episodeTitle,
         TimeSpan episodeLength,
         IList<IList<SimpleEpisode>> episodeLists,
-        Func<SimpleEpisode, bool>? reducer=null)
+        Func<SimpleEpisode, bool>? reducer = null)
     {
         foreach (var episodeList in episodeLists)
         {

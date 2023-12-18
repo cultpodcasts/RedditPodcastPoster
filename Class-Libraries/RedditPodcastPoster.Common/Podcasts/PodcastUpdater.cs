@@ -102,7 +102,7 @@ public class PodcastUpdater : IPodcastUpdater
 
     private void EliminateShortEpisodes(IList<Episode> episodes)
     {
-        List<Episode> shortEpisodes = new List<Episode>();
+        var shortEpisodes = new List<Episode>();
 
         foreach (var newEpisode in episodes)
         {
