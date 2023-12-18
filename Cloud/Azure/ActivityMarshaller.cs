@@ -36,10 +36,19 @@ public class ActivityMarshaller : IActivityMarshaller
         }
         catch (CosmosException ex)
         {
-            if (ex.StatusCode == HttpStatusCode.BadRequest && ex.Message.Contains("Activity Already Complete"))
+            if (ex.StatusCode == HttpStatusCode.BadRequest)
             {
-                _logger.LogInformation("Activity is already complete.");
-                return ActivityStatus.Completed;
+                if (ex.Message.Contains("Activity Already Complete"))
+                {
+                    _logger.LogInformation("Activity is already complete.");
+                    return ActivityStatus.Completed;
+                }
+
+                if (ex.Message.Contains("Activity Already Initiate"))
+                {
+                    _logger.LogInformation("Activity is already initiated.");
+                    return ActivityStatus.AlreadyInitiated;
+                }
             }
 
             return ActivityStatus.Failed;
@@ -71,10 +80,19 @@ public class ActivityMarshaller : IActivityMarshaller
         }
         catch (CosmosException ex)
         {
-            if (ex.StatusCode == HttpStatusCode.BadRequest && ex.Message.Contains("Activity Already Complete"))
+            if (ex.StatusCode == HttpStatusCode.BadRequest)
             {
-                _logger.LogInformation("Activity is already complete.");
-                return ActivityStatus.Completed;
+                if (ex.Message.Contains("Activity Already Complete"))
+                {
+                    _logger.LogInformation("Activity is already complete.");
+                    return ActivityStatus.Completed;
+                }
+
+                if (ex.Message.Contains("Activity Already Initiate"))
+                {
+                    _logger.LogInformation("Activity is already initiated.");
+                    return ActivityStatus.AlreadyInitiated;
+                }
             }
 
             return ActivityStatus.Failed;
