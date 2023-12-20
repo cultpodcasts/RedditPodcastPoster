@@ -91,7 +91,15 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
 
     private bool IsReadyToPost(Podcast podcast, Episode episode, DateTime since)
     {
-        return (episode.Release >= since || IsRecentlyExpiredDelayedPublishing(podcast, episode)) &&
+        var youTubePublishingDelay = podcast.YouTubePublishingDelay();
+        if (podcast.ReleaseAuthority == Service.YouTube)
+        {
+            since += youTubePublishingDelay;
+        }
+
+        var releasedSince = episode.Release >= since && episode.Release - DateTime.UtcNow < youTubePublishingDelay;
+
+        return (releasedSince || IsRecentlyExpiredDelayedPublishing(podcast, episode)) &&
                episode is {Posted: false, Ignored: false, Removed: false};
     }
 
