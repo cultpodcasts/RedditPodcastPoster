@@ -25,4 +25,10 @@ public static class FuzzyMatcher
 
         return null;
     }
+
+    public static bool IsMatch<T>(string query, T item, Func<T, string> selector, int min) where T : class
+    {
+        var weightedRatio = Fuzz.WeightedRatio(query, selector(item));
+        return weightedRatio >= min;
+    }
 }

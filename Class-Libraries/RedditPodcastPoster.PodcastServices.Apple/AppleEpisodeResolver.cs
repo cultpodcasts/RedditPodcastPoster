@@ -63,7 +63,8 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
                         return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title);
                     }
 
-                    match = sameLength.SingleOrDefault();
+                    match = sameLength.SingleOrDefault(x =>
+                        FuzzyMatcher.IsMatch(request.EpisodeTitle, x, y => y.Title, MinFuzzyScore));
 
                     if (match == null)
                     {
