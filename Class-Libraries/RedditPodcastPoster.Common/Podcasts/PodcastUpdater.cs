@@ -64,12 +64,13 @@ public class PodcastUpdater : IPodcastUpdater
         if (indexingContext.ReleasedSince.HasValue)
         {
             var releasedSince = indexingContext.ReleasedSince.Value;
-            if (podcast.ReleaseAuthority == Service.YouTube && podcast.YouTubePublishingDelay() < TimeSpan.Zero)
+            var youTubePublishingDelay = podcast.YouTubePublishingDelay();
+            if (podcast.ReleaseAuthority == Service.YouTube)
             {
-                releasedSince += podcast.YouTubePublishingDelay();
+                releasedSince += youTubePublishingDelay;
             }
 
-            episodes = episodes.Where(x => x.Release >= releasedSince).ToList();
+            episodes = episodes.Where(x => x.Release >= releasedSince && x.Release- DateTime.UtcNow < youTubePublishingDelay).ToList();
         }
 
         var enrichmentResult = await _podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, episodes, indexingContext);
