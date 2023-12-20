@@ -50,7 +50,8 @@ public class SpotifySearcher : ISpotifySearcher
                     return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name);
                 }
 
-                match = sameLength.SingleOrDefault();
+                match = sameLength.SingleOrDefault(x =>
+                    FuzzyMatcher.IsMatch(episodeTitle, x, y => y.Name, MinFuzzyScore));
 
                 if (match == null)
                 {
