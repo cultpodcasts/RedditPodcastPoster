@@ -176,11 +176,12 @@ public class TextSanitiserTests
         result.Should().Be(expected);
     }
 
-//    [Fact]
-    public void SanitiseTitle_WithAsteriskedTerms_IsCorrect()
+    [Theory]
+    [InlineData("Te*ms")]
+    [InlineData("Te**ms")]
+    public void SanitiseTitle_WithAsteriskedTerms_IsCorrect(string expected)
     {
         // arrange
-        var expected = "Te*ms";
         // act
         var result = Sut.SanitiseTitle(expected, null);
         // assert

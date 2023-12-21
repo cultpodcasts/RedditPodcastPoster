@@ -59,9 +59,7 @@ public class YouTubeChannelResolver : IYouTubeChannelResolver
             searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
             if (indexingContext.ReleasedSince.HasValue)
             {
-                searchListRequest.PublishedAfter =
-                    string.Concat(indexingContext.ReleasedSince.Value.ToString("o", CultureInfo.InvariantCulture),
-                        "Z");
+                searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
             }
 
             SearchListResponse searchListResponse;

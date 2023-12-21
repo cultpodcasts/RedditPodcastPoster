@@ -14,6 +14,7 @@ public partial class TextSanitiser : ITextSanitiser
     private static readonly Regex InvalidTitlePrefix = GenerateInvalidTitlePrefix();
 
     private static readonly TextInfo TextInfo = new CultureInfo("en-GB", false).TextInfo;
+    private static readonly Regex PostAsteriskLetters = GeneratePostAsteriskLetters();
     private readonly IKnownTermsProvider _knownTermsProvider;
     private readonly ILogger<TextSanitiser> _logger;
 
@@ -55,6 +56,7 @@ public partial class TextSanitiser : ITextSanitiser
 
         episodeTitle = Hashtag.Replace(episodeTitle, "$1");
         episodeTitle = TextInfo.ToTitleCase(episodeTitle.ToLower());
+        episodeTitle = LowerPostAsteriskLetters(episodeTitle);
         foreach (var term in LowerCaseTerms.Expressions)
         {
             episodeTitle = term.Value.Replace(episodeTitle, term.Key);
@@ -88,6 +90,21 @@ public partial class TextSanitiser : ITextSanitiser
 
         description = FixCharacters(description);
         return description;
+    }
+
+    private string LowerPostAsteriskLetters(string text)
+    {
+        var matches = PostAsteriskLetters.Matches(text);
+        foreach (Match match in matches)
+        {
+            var index = match.Index;
+            var length = match.Length;
+            var asterisks = new string('*', length - 1);
+            var character = match.Groups["letter"].Value;
+            text = text.Substring(0, index) + asterisks + character.ToLower() + text.Substring(index + length);
+        }
+
+        return text;
     }
 
 
@@ -134,7 +151,6 @@ public partial class TextSanitiser : ITextSanitiser
         title = title.Replace("&amp;", "&");
         title = title.Replace("&#8217;", "'");
         title = title.Replace("&#39;", "'");
-        title = title.Replace("**", "*");
         title = title.Replace(@"""", "'");
         title = title.Replace(" and ", " & ");
         title = title.Replace(" one ", " 1 ");
@@ -170,4 +186,7 @@ public partial class TextSanitiser : ITextSanitiser
 
     [GeneratedRegex("^'(?'inquotes'.*)'$", RegexOptions.Compiled)]
     private static partial Regex GenerateInQuotes();
+
+    [GeneratedRegex(@"\*(?'letter'[A-Z])", RegexOptions.Compiled)]
+    private static partial Regex GeneratePostAsteriskLetters();
 }
