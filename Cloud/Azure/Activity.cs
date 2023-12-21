@@ -10,11 +10,11 @@ public sealed class Activity
     public Guid Id { get; set; }
 
     [JsonPropertyName("status")]
-    public string Status { get; set; }
+    public required string Status { get; set; }
 
     [JsonPropertyName("type")]
-    public string Type { get; set; }
+    public required string Type { get; set; }
 
     [JsonPropertyName("operationType")]
-    public string OperationType { get; set; }
+    public required string OperationType { get; set; }
 }
