@@ -179,6 +179,7 @@ public class TextSanitiserTests
     [Theory]
     [InlineData("Te*ms")]
     [InlineData("Te**ms")]
+    [InlineData("Te**ms Te***ms")]
     public void SanitiseTitle_WithAsteriskedTerms_IsCorrect(string expected)
     {
         // arrange
@@ -186,6 +187,5 @@ public class TextSanitiserTests
         var result = Sut.SanitiseTitle(expected, null);
         // assert
         result.Should().Be(expected);
-
     }
 }
