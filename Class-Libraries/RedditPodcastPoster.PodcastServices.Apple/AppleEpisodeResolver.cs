@@ -42,7 +42,8 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
         {
             if (request.PodcastAppleId.HasValue)
             {
-                var match = podcastEpisodes.SingleOrDefault(x => x.Title.Trim() == request.EpisodeTitle.Trim());
+                var matches = podcastEpisodes.Where(x => x.Title.Trim() == request.EpisodeTitle.Trim());
+                var match = matches.SingleOrDefault();
                 if (match == null)
                 {
                     IEnumerable<AppleEpisode> sampleList;

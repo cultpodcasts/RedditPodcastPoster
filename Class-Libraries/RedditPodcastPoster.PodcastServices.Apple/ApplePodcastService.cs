@@ -75,6 +75,6 @@ public class ApplePodcastService : IApplePodcastService
             }
         }
 
-        return podcastRecords.Select(x => x.ToAppleEpisode());
+        return podcastRecords.Where(x => x.Attributes.Duration > TimeSpan.Zero).Select(x => x.ToAppleEpisode());
     }
 }

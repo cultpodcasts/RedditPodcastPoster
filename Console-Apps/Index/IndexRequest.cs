@@ -7,7 +7,7 @@ public class IndexRequest
     [Option('p', "podcast-id", Required = false, HelpText = "The id of the podcast to index")]
     public Guid? PodcastId { get; set; }
 
-    [Option('r', "released-since", Default = 7, HelpText = "Will index episodes released within this many days")]
+    [Option('r', "released-since", Default = 2, HelpText = "Will index episodes released within this many days")]
     public int ReleasedSince { get; set; }
 
     [Option('y', "skip-expensive-youtube-queries", Default = false, HelpText = "Skip expensive YouTube queries")]
