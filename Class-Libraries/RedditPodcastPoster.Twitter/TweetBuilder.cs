@@ -35,10 +35,24 @@ public class TweetBuilder : ITweetBuilder
     {
         var postModel = (podcastEpisode.Podcast, new[] {podcastEpisode.Episode}).ToPostModel();
         var episodeTitle = _textSanitiser.SanitiseTitle(postModel);
-        var addedHashTag = false;
-        if (!string.IsNullOrWhiteSpace(_twitterOptions.HashTag))
+
+        IEnumerable<string> hashtags = (
+            (await GetHashTags(podcastEpisode.Episode.Subjects))?
+            .Split(' ')
+            .Append(_twitterOptions.HashTag)
+            .Where(x => !string.IsNullOrWhiteSpace(x)
+            )
+            ?? Enumerable.Empty<string>()
+        )!;
+
+        var hashtagsAdded = new List<string>();
+        foreach (var hashtag in hashtags)
         {
-            (episodeTitle, addedHashTag) = _hashTagEnricher.AddHashTag(episodeTitle, _twitterOptions.HashTag);
+            (episodeTitle, var addedHashTag) = _hashTagEnricher.AddHashTag(episodeTitle, hashtag.TrimStart('#'));
+            if (addedHashTag)
+            {
+                hashtagsAdded.Add(hashtag);
+            }
         }
 
         var podcastName = _textSanitiser.SanitisePodcastName(postModel);
@@ -57,20 +71,9 @@ public class TweetBuilder : ITweetBuilder
         tweetBuilder.AppendLine(
             $"{podcastEpisode.Episode.Release.ToString("d MMM yyyy")} {podcastEpisode.Episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture)}");
 
-        var hashTags = await GetHashTags(podcastEpisode.Episode.Subjects);
-        if (!addedHashTag && !string.IsNullOrWhiteSpace(_twitterOptions.HashTag))
-        {
-            if (hashTags != null)
-            {
-                hashTags += $" #{_twitterOptions.HashTag}";
-            }
-            else
-            {
-                hashTags = $"#{_twitterOptions.HashTag}";
-            }
-        }
-
-        tweetBuilder.AppendLine(hashTags);
+        var endHashTags = string.Join(" ",
+            hashtags.Where(x => !hashtagsAdded.Contains(x)).Select(x => $"#{x.TrimStart(('#'))}"));
+        tweetBuilder.AppendLine(endHashTags);
 
         if (podcastEpisode.Episode.Urls.YouTube != null)
         {
