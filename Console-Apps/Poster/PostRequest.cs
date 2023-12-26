@@ -19,6 +19,6 @@ public class PostRequest
     public Guid? PodcastId { get; set; }
 
     [Value(0, MetaName = "released-within-days", HelpText = "The number of days episodes to post have been released in",
-        Required = false, Default = 3)]
+        Required = false, Default = 2)]
     public int ReleasedWithin { get; set; }
 }

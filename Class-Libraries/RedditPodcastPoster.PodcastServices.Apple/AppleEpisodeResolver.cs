@@ -42,7 +42,16 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
         {
             if (request.PodcastAppleId.HasValue)
             {
-                var matches = podcastEpisodes.Where(x => x.Title.Trim() == request.EpisodeTitle.Trim());
+                var requestEpisodeTitle = request.EpisodeTitle.Trim();
+
+                var matches = podcastEpisodes.Where(
+                    x =>
+                    {
+                        var trimmedEpisodeTitle = x.Title.Trim();
+                        return trimmedEpisodeTitle == requestEpisodeTitle ||
+                               trimmedEpisodeTitle.Contains(requestEpisodeTitle) ||
+                               requestEpisodeTitle.Contains(trimmedEpisodeTitle);
+                    });
                 var match = matches.SingleOrDefault();
                 if (match == null)
                 {
