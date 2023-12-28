@@ -91,16 +91,34 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
 
     private bool IsReadyToPost(Podcast podcast, Episode episode, DateTime since)
     {
+        if (episode.Posted || episode.Ignored || episode.Removed)
+        {
+            return false;
+        }
+
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
         if (podcast.ReleaseAuthority == Service.YouTube)
         {
             since += youTubePublishingDelay;
         }
 
+        if (episode.Release >= since)
+        {
+            if ((!string.IsNullOrWhiteSpace(podcast.SpotifyId) && episode.Urls.Spotify != null) ||
+                (string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
+                 podcast.AppleId != null && episode.Urls.Apple != null) || (podcast.AppleId == null &&
+                                                                            !string.IsNullOrWhiteSpace(
+                                                                                podcast.YouTubeChannelId) &&
+                                                                            episode.Urls.YouTube != null) ||
+                string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
+            {
+                return true;
+            }
+        }
+
         var releasedSince = episode.Release >= since && episode.Release - DateTime.UtcNow < youTubePublishingDelay;
 
-        return (releasedSince || IsRecentlyExpiredDelayedPublishing(podcast, episode)) &&
-               episode is {Posted: false, Ignored: false, Removed: false};
+        return releasedSince || IsRecentlyExpiredDelayedPublishing(podcast, episode);
     }
 
     private bool EliminateItemsDueToIndexingErrors(
