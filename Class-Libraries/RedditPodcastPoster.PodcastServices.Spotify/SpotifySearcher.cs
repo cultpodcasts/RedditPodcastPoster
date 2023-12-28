@@ -30,7 +30,15 @@ public class SpotifySearcher : ISpotifySearcher
     {
         foreach (var episodeList in episodeLists)
         {
-            var match = episodeList.SingleOrDefault(x => x.Name.Trim() == episodeTitle.Trim());
+            var requestEpisodeTitle = episodeTitle.Trim();
+
+            var match = episodeList.SingleOrDefault(x =>
+            {
+                var trimmedEpisodeTitle = x.Name.Trim();
+                return trimmedEpisodeTitle == requestEpisodeTitle ||
+                       trimmedEpisodeTitle.Contains(requestEpisodeTitle) ||
+                       requestEpisodeTitle.Contains(trimmedEpisodeTitle);
+            });
             if (match == null)
             {
                 IEnumerable<SimpleEpisode> sampleList;

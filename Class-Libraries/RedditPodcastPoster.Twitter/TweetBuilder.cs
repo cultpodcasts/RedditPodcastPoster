@@ -36,14 +36,14 @@ public class TweetBuilder : ITweetBuilder
         var postModel = (podcastEpisode.Podcast, new[] {podcastEpisode.Episode}).ToPostModel();
         var episodeTitle = _textSanitiser.SanitiseTitle(postModel);
 
-        IEnumerable<string> hashtags = (
-            (await GetHashTags(podcastEpisode.Episode.Subjects))?
-            .Split(' ')
-            .Append(_twitterOptions.HashTag)
-            .Where(x => !string.IsNullOrWhiteSpace(x)
-            )
-            ?? Enumerable.Empty<string>()
-        )!;
+        var episodeHashtags = await GetHashTags(podcastEpisode.Episode.Subjects) ?? string.Empty;
+        var hashtags = episodeHashtags.Split(' ').AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(_twitterOptions.HashTag))
+        {
+            hashtags = hashtags.Append(_twitterOptions.HashTag);
+        }
+
+        hashtags = hashtags.Where(x => !string.IsNullOrWhiteSpace(x));
 
         var hashtagsAdded = new List<string>();
         foreach (var hashtag in hashtags)
@@ -72,7 +72,7 @@ public class TweetBuilder : ITweetBuilder
             $"{podcastEpisode.Episode.Release.ToString("d MMM yyyy")} {podcastEpisode.Episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture)}");
 
         var endHashTags = string.Join(" ",
-            hashtags.Where(x => !hashtagsAdded.Contains(x)).Select(x => $"#{x.TrimStart(('#'))}"));
+            hashtags.Where(x => !hashtagsAdded.Contains(x)).Select(x => $"#{x.TrimStart('#')}"));
         tweetBuilder.AppendLine(endHashTags);
 
         if (podcastEpisode.Episode.Urls.YouTube != null)
