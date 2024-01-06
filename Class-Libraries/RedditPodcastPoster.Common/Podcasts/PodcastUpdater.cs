@@ -49,14 +49,17 @@ public class PodcastUpdater : IPodcastUpdater
             podcast,
             indexingContext);
 
-        foreach (var newEpisode in newEpisodes)
+        if (!podcast.BypassShortEpisodeChecking.HasValue || !podcast.BypassShortEpisodeChecking.Value)
         {
-            newEpisode.Ignored = newEpisode.Length < _postingCriteria.MinimumDuration;
-        }
+            foreach (var newEpisode in newEpisodes)
+            {
+                newEpisode.Ignored = newEpisode.Length < _postingCriteria.MinimumDuration;
+            }
 
-        if (indexingContext.SkipShortEpisodes)
-        {
-            EliminateShortEpisodes(newEpisodes);
+            if (indexingContext.SkipShortEpisodes)
+            {
+                EliminateShortEpisodes(newEpisodes);
+            }
         }
 
         var mergeResult = _podcastRepository.Merge(podcast, newEpisodes);
@@ -70,7 +73,9 @@ public class PodcastUpdater : IPodcastUpdater
                 releasedSince += youTubePublishingDelay;
             }
 
-            episodes = episodes.Where(x => x.Release >= releasedSince && x.Release- DateTime.UtcNow < youTubePublishingDelay).ToList();
+            episodes = episodes
+                .Where(x => x.Release >= releasedSince && x.Release - DateTime.UtcNow < youTubePublishingDelay)
+                .ToList();
         }
 
         var enrichmentResult = await _podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, episodes, indexingContext);

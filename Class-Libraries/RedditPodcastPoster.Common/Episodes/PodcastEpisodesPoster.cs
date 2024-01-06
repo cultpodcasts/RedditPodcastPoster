@@ -46,7 +46,9 @@ public class PodcastEpisodesPoster : IPodcastEpisodesPoster
         var matchingPodcastEpisodeResults = new List<ProcessResponse>();
         foreach (var matchingPodcastEpisode in matchingPodcastEpisodes.OrderByDescending(x => x.Episode.Release))
         {
-            if (matchingPodcastEpisode.Episode.Length >= _postingCriteria.MinimumDuration)
+            if (matchingPodcastEpisode.Episode.Length >= _postingCriteria.MinimumDuration ||
+                (matchingPodcastEpisode.Podcast.BypassShortEpisodeChecking.HasValue &&
+                 matchingPodcastEpisode.Podcast.BypassShortEpisodeChecking.Value))
             {
                 if (matchingPodcastEpisode.Episode.Urls.Spotify != null ||
                     matchingPodcastEpisode.Episode.Urls.YouTube != null)
