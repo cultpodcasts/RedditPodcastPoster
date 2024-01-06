@@ -137,7 +137,8 @@ public class EnrichYouTubePodcastProcessor
             if (video != null)
             {
                 var episode = _youTubeEpisodeProvider.GetEpisode(missingPlaylistItemSnippet, video);
-                if (episode.Length > _postingCriteria.MinimumDuration)
+                if ((podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value) ||
+                    episode.Length > _postingCriteria.MinimumDuration)
                 {
                     episode.Id = Guid.NewGuid();
 

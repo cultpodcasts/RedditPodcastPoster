@@ -29,7 +29,10 @@ public class TweetProcessor
         var podcast = await _podcastRepository.GetPodcast(request.PodcastId);
         if (podcast != null)
         {
-            var mostRecentEpisode = podcast.Episodes.Where(x => !x.Tweeted).MaxBy(x => x.Release);
+            var mostRecentEpisode =
+                podcast.Episodes
+                    .Where(x => x is {Tweeted: false, Ignored: false, Removed: false})
+                    .MaxBy(x => x.Release);
 
             if (mostRecentEpisode != null)
             {

@@ -171,9 +171,25 @@ public class UrlSubmitter : IUrlSubmitter
                 Spotify = categorisedItem.ResolvedSpotifyItem?.Url,
                 Apple = categorisedItem.ResolvedAppleItem?.Url,
                 YouTube = categorisedItem.ResolvedYouTubeItem?.Url
-            },
-            Ignored = length < _postingCriteria.MinimumDuration
+            }
         };
+        if (categorisedItem.MatchingPodcast != null)
+        {
+            if (categorisedItem.MatchingPodcast.BypassShortEpisodeChecking.HasValue &&
+                categorisedItem.MatchingPodcast.BypassShortEpisodeChecking.Value)
+            {
+                newEpisode.Ignored = false;
+            }
+            else
+            {
+                newEpisode.Ignored = length < _postingCriteria.MinimumDuration;
+            }
+        }
+        else
+        {
+            newEpisode.Ignored = length < _postingCriteria.MinimumDuration;
+        }
+
         _logger.LogInformation(
             $"Created episode with spotify-id '{categorisedItem.ResolvedSpotifyItem?.EpisodeId}', apple-id '{categorisedItem.ResolvedAppleItem?.EpisodeId}', youtube-id '{categorisedItem.ResolvedYouTubeItem?.EpisodeId}' and episode-id '{newEpisode.Id}'.");
         return newEpisode;

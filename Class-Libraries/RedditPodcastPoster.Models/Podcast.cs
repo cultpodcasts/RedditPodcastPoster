@@ -29,6 +29,10 @@ public sealed class Podcast : CosmosSelector
     [JsonPropertyOrder(31)]
     public bool IndexAllEpisodes { get; set; } = false;
 
+    [JsonPropertyName("bypassShortEpisodeChecking")]
+    [JsonPropertyOrder(32)]
+    public bool? BypassShortEpisodeChecking { get; set; }
+
     [JsonPropertyName("releaseAuthority")]
     [JsonPropertyOrder(40)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
