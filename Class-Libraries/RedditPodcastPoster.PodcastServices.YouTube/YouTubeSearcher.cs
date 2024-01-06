@@ -52,7 +52,7 @@ public partial class YouTubeSearcher : IYouTubeSearcher
         if (episode.HasAccurateReleaseTime() && youTubePublishDelay.HasValue)
         {
             match = MatchOnPublishTimeComparedToPublishDelay(episode, searchResults, youTubePublishDelay.Value);
-            if (match != null)
+            if (match != null && FuzzyMatcher.IsMatch(episode.Title, match, s => s.Snippet.Title, MinFuzzyScore))
             {
                 return new FindEpisodeResponse(match);
             }
