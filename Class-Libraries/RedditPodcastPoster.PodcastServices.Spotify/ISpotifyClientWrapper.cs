@@ -16,7 +16,7 @@ public interface ISpotifyClientWrapper
         IndexingContext indexingContext,
         IPaginator? paginator = null);
 
-    Task<IList<T>?> PaginateAll<T,T1>(
+    Task<IList<T>?> PaginateAll<T, T1>(
         IPaginatable<T, T1> firstPage,
         Func<T1, IPaginatable<T, T1>> mapper,
         IndexingContext indexingContext,
@@ -42,6 +42,11 @@ public interface ISpotifyClientWrapper
     Task<FullEpisode?> GetFullEpisode(
         string episodeId,
         EpisodeRequest request,
+        IndexingContext indexingContext,
+        CancellationToken cancel = default);
+
+    Task<EpisodesResponse?> GetSeveral(
+        EpisodesRequest request,
         IndexingContext indexingContext,
         CancellationToken cancel = default);
 
