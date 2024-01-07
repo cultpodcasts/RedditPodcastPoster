@@ -8,6 +8,7 @@ namespace Discover;
 
 public class DiscoveryProcessor
 {
+    private const string? Market = "GB";
     private readonly ILogger<DiscoveryProcessor> _logger;
     private readonly ISpotifyClientWrapper _spotifyClient;
 
@@ -26,28 +27,42 @@ public class DiscoveryProcessor
             SkipSpotifyUrlResolving: false,
             SkipPodcastDiscovery: false,
             SkipExpensiveSpotifyQueries: false);
-        await Search("\"Cults\"", indexingContext);
-        await Search("\"Cult\"", indexingContext);
+        var results = await Search("\"Cults\"", indexingContext);
+        results = results.Concat(await Search("\"Cult\"", indexingContext));
+        results = results.Concat(await Search("\"Scientology\"", indexingContext));
+        results = results.Concat(await Search("\"NXIVM\"", indexingContext));
+        results = results.Concat(await Search("\"FLDS\"", indexingContext));
+
+        foreach (var episode in results.GroupBy(x => x.Id).Select(x => x.First()).OrderBy(x => x.GetReleaseDate()))
+        {
+            var min = Math.Min(episode.Description.Length, 200);
+            Console.WriteLine($"https://open.spotify.com/episode/{episode.Id}");
+            Console.WriteLine(episode.Name);
+            Console.WriteLine(episode.Show.Name);
+            Console.WriteLine(episode.Description[..min]);
+            Console.WriteLine(episode.GetReleaseDate().ToString("g"));
+            Console.WriteLine();
+        }
     }
 
-    private async Task Search(string query, IndexingContext indexingContext)
+    private async Task<IEnumerable<FullEpisode>> Search(string query, IndexingContext indexingContext)
     {
         var results = await _spotifyClient.FindEpisodes(
-            new SearchRequest(SearchRequest.Types.Episode, query) {Market = "GB"},
+            new SearchRequest(SearchRequest.Types.Episode, query) {Market = Market},
             indexingContext);
-        if (results != null)
+        var allResults = await _spotifyClient.PaginateAll(results, response => response.Episodes, indexingContext);
+        var recentResults = allResults?.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince) ??
+                            Enumerable.Empty<SimpleEpisode>();
+
+        if (recentResults.Any())
         {
-            var allResults = await _spotifyClient.PaginateAll(results, response => response.Episodes, indexingContext);
-            if (allResults != null)
-            {
-                var recentResults = allResults.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince);
-                foreach (var simpleEpisode in recentResults)
-                {
-                    var min = Math.Min(simpleEpisode.Description.Length, 200);
-                    _logger.LogInformation($"{simpleEpisode.Id}: '{simpleEpisode.Name}'");
-                    _logger.LogInformation($"{simpleEpisode.Description[..min]}");
-                }
-            }
+            var fullShows =
+                await _spotifyClient.GetSeveral(
+                    new EpisodesRequest(recentResults.Select(x => x.Id).ToArray()) {Market = Market}, indexingContext);
+
+            return fullShows?.Episodes ?? Enumerable.Empty<FullEpisode>();
         }
+
+        return Enumerable.Empty<FullEpisode>();
     }
 }

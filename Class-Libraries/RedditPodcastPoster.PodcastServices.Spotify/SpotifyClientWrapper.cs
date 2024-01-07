@@ -211,6 +211,31 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         return results;
     }
 
+    public async Task<EpisodesResponse?> GetSeveral(EpisodesRequest request, IndexingContext indexingContext,
+        CancellationToken cancel = default)
+    {
+        EpisodesResponse? results = null;
+        try
+        {
+            results = await _spotifyClient.Episodes.GetSeveral(request, cancel);
+        }
+        catch (APIException ex)
+        {
+            _logger.LogError(ex,
+                $"{nameof(GetSeveral)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
+            indexingContext.SkipSpotifyUrlResolving = true;
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"{nameof(GetSeveral)} Failure with Spotify-API.");
+            indexingContext.SkipSpotifyUrlResolving = true;
+            return null;
+        }
+
+        return results;
+    }
+
     public async Task<Paging<SimpleEpisode, SearchResponse>?> FindEpisodes(SearchRequest request,
         IndexingContext indexingContext,
         CancellationToken cancel = default)
