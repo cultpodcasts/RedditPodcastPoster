@@ -29,7 +29,10 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
         return url.Host.ToLower().Contains("youtube");
     }
 
-    public async Task<ResolvedYouTubeItem?> Resolve(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext)
+    public async Task<ResolvedYouTubeItem?> Resolve(
+        IList<Podcast> podcasts,
+        Uri url, IndexingContext
+            indexingContext)
     {
         var pair = podcasts
             .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new PodcastEpisode(podcast, episode))
@@ -96,7 +99,9 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
         return null;
     }
 
-    public Task<ResolvedYouTubeItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast,
+    public Task<ResolvedYouTubeItem?> Resolve(
+        PodcastServiceSearchCriteria criteria,
+        Podcast? matchingPodcast,
         IndexingContext indexingContext)
     {
         return Task.FromResult((ResolvedYouTubeItem) null!)!;
