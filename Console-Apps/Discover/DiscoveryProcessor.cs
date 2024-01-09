@@ -50,17 +50,21 @@ public class DiscoveryProcessor
         var results = await _spotifyClient.FindEpisodes(
             new SearchRequest(SearchRequest.Types.Episode, query) {Market = Market},
             indexingContext);
-        var allResults = await _spotifyClient.PaginateAll(results, response => response.Episodes, indexingContext);
-        var recentResults = allResults?.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince) ??
-                            Enumerable.Empty<SimpleEpisode>();
-
-        if (recentResults.Any())
+        if (results != null)
         {
-            var fullShows =
-                await _spotifyClient.GetSeveral(
-                    new EpisodesRequest(recentResults.Select(x => x.Id).ToArray()) {Market = Market}, indexingContext);
+            var allResults = await _spotifyClient.PaginateAll(results, response => response.Episodes, indexingContext);
+            var recentResults = allResults?.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince) ??
+                                Enumerable.Empty<SimpleEpisode>();
 
-            return fullShows?.Episodes ?? Enumerable.Empty<FullEpisode>();
+            if (recentResults.Any())
+            {
+                var fullShows =
+                    await _spotifyClient.GetSeveral(
+                        new EpisodesRequest(recentResults.Select(x => x.Id).ToArray()) {Market = Market},
+                        indexingContext);
+
+                return fullShows?.Episodes ?? Enumerable.Empty<FullEpisode>();
+            }
         }
 
         return Enumerable.Empty<FullEpisode>();

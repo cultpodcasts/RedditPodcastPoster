@@ -105,7 +105,8 @@ public class SpotifyEpisodeResolver : ISpotifyEpisodeResolver
                         {
                             var paginateEpisodeResponse =
                                 await _spotifyQueryPaginator.PaginateEpisodes(paging.Item2, indexingContext);
-                            allEpisodes.Add(paginateEpisodeResponse.Results);
+                            var result = paginateEpisodeResponse.Results.GroupBy(x => x.Id).Select(x => x.First());
+                            allEpisodes.Add(result.ToList());
                             if (paginateEpisodeResponse.IsExpensiveQuery)
                             {
                                 expensiveQueryFound = true;
