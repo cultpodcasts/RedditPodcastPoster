@@ -58,7 +58,6 @@ public class TweetBuilder : ITweetBuilder
         var podcastName = _textSanitiser.SanitisePodcastName(postModel);
 
         var tweetBuilder = new StringBuilder();
-        tweetBuilder.AppendLine($"\"{episodeTitle}\"");
         if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TwitterHandle))
         {
             tweetBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.TwitterHandle}");
@@ -75,17 +74,25 @@ public class TweetBuilder : ITweetBuilder
             hashtags.Where(x => !hashtagsAdded.Contains(x)).Select(x => $"#{x.TrimStart('#')}"));
         tweetBuilder.AppendLine(endHashTags);
 
+        var permittedTitleLength = 257 - tweetBuilder.Length;
+
+        if (episodeTitle.Length > permittedTitleLength)
+        {
+            episodeTitle = episodeTitle[..Math.Min(episodeTitle.Length, permittedTitleLength - 3)] + "...";
+        }
+
+        tweetBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");
         if (podcastEpisode.Episode.Urls.YouTube != null)
         {
-            tweetBuilder.AppendLine(podcastEpisode.Episode.Urls.YouTube.ToString());
+            tweetBuilder.Append(podcastEpisode.Episode.Urls.YouTube);
         }
         else if (podcastEpisode.Episode.Urls.Spotify != null)
         {
-            tweetBuilder.AppendLine(podcastEpisode.Episode.Urls.Spotify.ToString());
+            tweetBuilder.Append(podcastEpisode.Episode.Urls.Spotify);
         }
         else
         {
-            tweetBuilder.AppendLine(podcastEpisode.Episode.Urls.Apple!.ToString());
+            tweetBuilder.Append(podcastEpisode.Episode.Urls.Apple!);
         }
 
         var tweet = tweetBuilder.ToString();
