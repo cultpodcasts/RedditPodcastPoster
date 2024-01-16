@@ -52,7 +52,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
                                trimmedEpisodeTitle.Contains(requestEpisodeTitle) ||
                                requestEpisodeTitle.Contains(trimmedEpisodeTitle);
                     });
-                var match = matches.SingleOrDefault();
+                var match = matches.MaxBy(x=>x.Title);
                 if (match == null)
                 {
                     IEnumerable<AppleEpisode> sampleList;
