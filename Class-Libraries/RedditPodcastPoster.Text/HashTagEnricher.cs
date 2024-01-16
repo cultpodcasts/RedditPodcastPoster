@@ -11,9 +11,7 @@ public class HashTagEnricher : IHashTagEnricher
         {
             return (regex.Replace(input, $"#{hashTagText}", 1, 0), true);
         }
-        else
-        {
-            return (input, false);
-        }
+
+        return (input, false);
     }
 }
