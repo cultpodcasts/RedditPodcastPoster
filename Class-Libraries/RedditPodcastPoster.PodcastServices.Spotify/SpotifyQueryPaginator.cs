@@ -67,7 +67,8 @@ public class SpotifyQueryPaginator : ISpotifyQueryPaginator
         {
             IList<SimpleEpisode>? batchEpisodes = new List<SimpleEpisode>();
             var seenGrowth = true;
-            while (seenGrowth && episodes.OrderByDescending(x => x.ReleaseDate).Last().GetReleaseDate() >=
+            while (batchEpisodes != null && seenGrowth &&
+                   episodes.OrderByDescending(x => x.ReleaseDate).Last().GetReleaseDate() >=
                    indexingContext.ReleasedSince)
             {
                 var preCount = batchEpisodes.Count;
