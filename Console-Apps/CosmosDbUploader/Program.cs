@@ -3,7 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.CosmosDbUploader;
 using RedditPodcastPoster.Persistence.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -20,8 +19,8 @@ builder.Services
     .AddLogging()
     .AddFileRepository()
     .AddRepositories(builder.Configuration)
-    .AddSingleton<CosmosDbUploader>();
+    .AddSingleton<CosmosDbUploader.CosmosDbUploader>();
 
 using var host = builder.Build();
-var processor = host.Services.GetService<CosmosDbUploader>();
+var processor = host.Services.GetService<CosmosDbUploader.CosmosDbUploader>();
 await processor!.Run();
