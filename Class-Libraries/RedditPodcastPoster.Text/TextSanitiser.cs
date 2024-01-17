@@ -9,7 +9,7 @@ namespace RedditPodcastPoster.Text;
 
 public partial class TextSanitiser : ITextSanitiser
 {
-    private static readonly Regex Hashtag = GenerateHashtag();
+    private static readonly Regex HashtagOrAtSymbols = GenerateHashTagAtSymbolPatter();
     private static readonly Regex InQuotes = GenerateInQuotes();
     private static readonly Regex InvalidTitlePrefix = GenerateInvalidTitlePrefix();
 
@@ -54,7 +54,7 @@ public partial class TextSanitiser : ITextSanitiser
             episodeTitle = InvalidTitlePrefix.Replace(episodeTitle, "${after}");
         }
 
-        episodeTitle = Hashtag.Replace(episodeTitle, "$1");
+        episodeTitle = HashtagOrAtSymbols.Replace(episodeTitle, "$1");
         episodeTitle = TextInfo.ToTitleCase(episodeTitle.ToLower());
         episodeTitle = LowerPostAsteriskLetters(episodeTitle);
         foreach (var term in LowerCaseTerms.Expressions)
@@ -181,8 +181,8 @@ public partial class TextSanitiser : ITextSanitiser
     [GeneratedRegex("(?'prefix'^[^a-zA-Z\\d\"\\$\\£\\'\\(]+)(?'after'.*$)", RegexOptions.Compiled)]
     private static partial Regex GenerateInvalidTitlePrefix();
 
-    [GeneratedRegex("\\#(\\w+)\\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-GB")]
-    private static partial Regex GenerateHashtag();
+    [GeneratedRegex("[#@](\\w+)\\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-GB")]
+    private static partial Regex GenerateHashTagAtSymbolPatter();
 
     [GeneratedRegex("^'(?'inquotes'.*)'$", RegexOptions.Compiled)]
     private static partial Regex GenerateInQuotes();

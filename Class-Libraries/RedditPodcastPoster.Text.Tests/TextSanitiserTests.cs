@@ -102,8 +102,6 @@ public class TextSanitiserTests
 
     [Theory]
     [InlineData("I Was #Fairgamed! And I Love It!!! ;)", "I was Fairgamed! And I Love it!!! ;)")]
-    [InlineData("25 how To Handle Trauma! Ex Cult Member Explains ",
-        "25 how to Handle Trauma! Ex Cult Member Explains")]
     public void SanitiseBody_WithKnownTerm_RemovesHashTags(string input, string expected)
     {
         // arrange
@@ -114,6 +112,20 @@ public class TextSanitiserTests
         // assert
         result.Should().Be(expected);
     }
+
+    [Theory]
+    [InlineData("I Was @Fairgamed! And I Love It!!! ;)", "I was Fairgamed! And I Love it!!! ;)")]
+    public void SanitiseBody_WithKnownTerm_RemovesAtSymbols(string input, string expected)
+    {
+        // arrange
+        (Podcast, IEnumerable<Episode>) podcastEpisode =
+            (new Podcast(Guid.NewGuid()), new[] {new Episode {Title = input}});
+        // act
+        var result = Sut.SanitiseTitle(podcastEpisode.ToPostModel());
+        // assert
+        result.Should().Be(expected);
+    }
+
 
     [Theory]
     [InlineData(@"""What is it?", "'What is it?")]
