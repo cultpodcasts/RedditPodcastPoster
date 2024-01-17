@@ -217,14 +217,16 @@ public class UrlSubmitter : IUrlSubmitter
 
             if (matchingEpisode != null)
             {
-                if (!matchingEpisode.AppleId.HasValue)
+                if (!matchingEpisode.AppleId.HasValue ||
+                    matchingEpisode.AppleId != categorisedItem.ResolvedAppleItem.EpisodeId)
                 {
                     matchingEpisode.AppleId = categorisedItem.ResolvedAppleItem.EpisodeId;
                     _logger.LogInformation(
                         $"Enriched episode with apple details with apple-id {categorisedItem.ResolvedAppleItem.EpisodeId}.");
                 }
 
-                if (matchingEpisode.Urls.Apple == null)
+                if (matchingEpisode.Urls.Apple == null ||
+                    matchingEpisode.Urls.Apple != categorisedItem.ResolvedAppleItem.Url)
                 {
                     matchingEpisode.Urls.Apple = categorisedItem.ResolvedAppleItem.Url;
                     _logger.LogInformation(
@@ -244,14 +246,16 @@ public class UrlSubmitter : IUrlSubmitter
 
             if (matchingEpisode != null)
             {
-                if (string.IsNullOrWhiteSpace(matchingEpisode.SpotifyId))
+                if (string.IsNullOrWhiteSpace(matchingEpisode.SpotifyId) ||
+                    matchingEpisode.SpotifyId != categorisedItem.ResolvedSpotifyItem.EpisodeId)
                 {
                     matchingEpisode.SpotifyId = categorisedItem.ResolvedSpotifyItem.EpisodeId;
                     _logger.LogInformation(
                         $"Enriched episode with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.EpisodeId}.");
                 }
 
-                if (matchingEpisode.Urls.Spotify == null)
+                if (matchingEpisode.Urls.Spotify == null ||
+                    matchingEpisode.Urls.Spotify != categorisedItem.ResolvedSpotifyItem.Url)
                 {
                     matchingEpisode.Urls.Spotify = categorisedItem.ResolvedSpotifyItem.Url;
                     _logger.LogInformation(
@@ -271,14 +275,16 @@ public class UrlSubmitter : IUrlSubmitter
 
             if (matchingEpisode != null)
             {
-                if (string.IsNullOrWhiteSpace(matchingEpisode.YouTubeId))
+                if (string.IsNullOrWhiteSpace(matchingEpisode.YouTubeId) ||
+                    matchingEpisode.YouTubeId != categorisedItem.ResolvedYouTubeItem.EpisodeId)
                 {
                     matchingEpisode.YouTubeId = categorisedItem.ResolvedYouTubeItem.EpisodeId;
                     _logger.LogInformation(
                         $"Enriched episode with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.EpisodeId}.");
                 }
 
-                if (matchingEpisode.Urls.YouTube == null)
+                if (matchingEpisode.Urls.YouTube == null ||
+                    matchingEpisode.Urls.YouTube != categorisedItem.ResolvedYouTubeItem.Url)
                 {
                     matchingEpisode.Urls.YouTube = categorisedItem.ResolvedYouTubeItem.Url;
                     _logger.LogInformation(
