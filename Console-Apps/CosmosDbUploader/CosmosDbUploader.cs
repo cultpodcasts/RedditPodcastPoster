@@ -4,51 +4,44 @@ using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text.KnownTerms;
 
-namespace RedditPodcastPoster.CosmosDbUploader;
+namespace CosmosDbUploader;
 
-public class CosmosDbUploader
+public class CosmosDbUploader(
+    IFileRepository fileRepository,
+    ICosmosDbRepository cosmosDbRepository,
+    ILogger<CosmosDbRepository> logger)
 {
-    private readonly ICosmosDbRepository _cosmosDbRepository;
-    private readonly IFileRepository _fileRepository;
-    private readonly ILogger<CosmosDbRepository> _logger;
-
-    public CosmosDbUploader(
-        IFileRepository fileRepository,
-        ICosmosDbRepository cosmosDbRepository,
-        ILogger<CosmosDbRepository> logger)
-    {
-        _fileRepository = fileRepository;
-        _cosmosDbRepository = cosmosDbRepository;
-        _logger = logger;
-    }
+    private readonly ILogger<CosmosDbRepository> _logger = logger;
 
     public async Task Run()
     {
         throw new NotImplementedException(
             "Changes made to the IFileRepository are untested. Do not use this app until correct behaviour verified.");
-        var podcasts = await _fileRepository.GetAll<Podcast>(Podcast.PartitionKey).ToListAsync();
+#pragma warning disable CS0162 // Unreachable code detected
+        var podcasts = await fileRepository.GetAll<Podcast>(Podcast.PartitionKey).ToListAsync();
         foreach (var podcast in podcasts)
         {
-            await _cosmosDbRepository.Write(podcast);
+            await cosmosDbRepository.Write(podcast);
         }
 
-        var eliminationTerms = await _fileRepository.GetAll<EliminationTerms>(EliminationTerms.PartitionKey)
+        var eliminationTerms = await fileRepository.GetAll<EliminationTerms>(EliminationTerms.PartitionKey)
             .ToListAsync();
         foreach (var eliminationTermsDocument in eliminationTerms)
         {
-            await _cosmosDbRepository.Write(eliminationTermsDocument);
+            await cosmosDbRepository.Write(eliminationTermsDocument);
         }
 
-        var knownTerms = await _fileRepository.GetAll<KnownTerms>(KnownTerms.PartitionKey).ToListAsync();
+        var knownTerms = await fileRepository.GetAll<KnownTerms>(KnownTerms.PartitionKey).ToListAsync();
         foreach (var knownTermsDocument in knownTerms)
         {
-            await _cosmosDbRepository.Write(knownTermsDocument);
+            await cosmosDbRepository.Write(knownTermsDocument);
         }
 
-        var subjects = await _fileRepository.GetAll<Subject>(Subject.PartitionKey).ToListAsync();
+        var subjects = await fileRepository.GetAll<Subject>(Subject.PartitionKey).ToListAsync();
         foreach (var subject in subjects)
         {
-            await _cosmosDbRepository.Write(subject);
+            await cosmosDbRepository.Write(subject);
         }
+#pragma warning restore CS0162 // Unreachable code detected
     }
 }

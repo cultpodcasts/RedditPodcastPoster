@@ -105,7 +105,7 @@ public class Indexer : TaskActivity<IndexerContext, IndexerContext>
         return indexerContext with
         {
             Success = results,
-            SkipYouTubeUrlResolving = indexerContext.SkipYouTubeUrlResolving,
+            SkipYouTubeUrlResolving = indexingContext.SkipYouTubeUrlResolving,
             YouTubeError = indexingContext.SkipYouTubeUrlResolving != originalSkipYouTubeUrlResolving,
             SkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving,
             SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalSkipSpotifyUrlResolving
