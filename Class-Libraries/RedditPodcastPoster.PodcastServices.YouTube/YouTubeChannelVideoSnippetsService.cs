@@ -6,19 +6,13 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
-public class YouTubeChannelVideoSnippetsService : IYouTubeChannelVideoSnippetsService
+public class YouTubeChannelVideoSnippetsService(
+    YouTubeService youTubeService,
+    ILogger<YouTubeChannelVideoSnippetsService> logger)
+    : IYouTubeChannelVideoSnippetsService
 {
     private const int MaxSearchResults = 5;
     private static readonly ConcurrentDictionary<string, IList<SearchResult>> Cache = new();
-    private readonly ILogger<YouTubeChannelVideoSnippetsService> _logger;
-    private readonly YouTubeService _youTubeService;
-
-    public YouTubeChannelVideoSnippetsService(YouTubeService youTubeService,
-        ILogger<YouTubeChannelVideoSnippetsService> logger)
-    {
-        _youTubeService = youTubeService;
-        _logger = logger;
-    }
 
     public async Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(
         YouTubeChannelId channelId,
@@ -31,7 +25,7 @@ public class YouTubeChannelVideoSnippetsService : IYouTubeChannelVideoSnippetsSe
 
         if (indexingContext.SkipYouTubeUrlResolving)
         {
-            _logger.LogInformation(
+            logger.LogInformation(
                 $"Skipping '{nameof(GetLatestChannelVideoSnippets)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
             return null;
         }
@@ -40,7 +34,7 @@ public class YouTubeChannelVideoSnippetsService : IYouTubeChannelVideoSnippetsSe
         var nextPageToken = "";
         while (nextPageToken != null)
         {
-            var searchListRequest = _youTubeService.Search.List("snippet");
+            var searchListRequest = youTubeService.Search.List("snippet");
             searchListRequest.MaxResults = MaxSearchResults;
             searchListRequest.ChannelId = channelId.ChannelId;
             searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
@@ -59,7 +53,7 @@ public class YouTubeChannelVideoSnippetsService : IYouTubeChannelVideoSnippetsSe
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Failed to use {nameof(_youTubeService)}.");
+                logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return null;
             }

@@ -5,18 +5,12 @@ using RedditPodcastPoster.AI.Configuration;
 
 namespace RedditPodcastPoster.AI.Factories;
 
-public class ClassifyActionFactory : IClassifyActionFactory
+public class ClassifyActionFactory(
+    IOptions<PodcastSubjectAIModelSettings> options,
+    ILogger<ClassifyActionFactory> logger)
+    : IClassifyActionFactory
 {
-    private readonly ILogger<ClassifyActionFactory> _logger;
-    private readonly PodcastSubjectAIModelSettings _options;
-
-    public ClassifyActionFactory(
-        IOptions<PodcastSubjectAIModelSettings> options,
-        ILogger<ClassifyActionFactory> logger)
-    {
-        _options = options.Value;
-        _logger = logger;
-    }
+    private readonly PodcastSubjectAIModelSettings _options = options.Value;
 
     public SingleLabelClassifyAction Create()
     {

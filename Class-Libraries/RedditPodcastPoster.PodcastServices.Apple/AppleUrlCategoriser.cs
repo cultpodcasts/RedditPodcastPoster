@@ -5,22 +5,13 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
-public class AppleUrlCategoriser : IAppleUrlCategoriser
+public class AppleUrlCategoriser(
+    IAppleEpisodeResolver appleEpisodeResolver,
+    IApplePodcastResolver applePodcastResolver,
+    ILogger<AppleUrlCategoriser> logger)
+    : IAppleUrlCategoriser
 {
     private static readonly Regex AppleIds = new(@"podcast/[\w\-]+/id(?'podcastId'\d+)\?i=(?'episodeId'\d+)");
-    private readonly IAppleEpisodeResolver _appleEpisodeResolver;
-    private readonly IApplePodcastResolver _applePodcastResolver;
-    private readonly ILogger<AppleUrlCategoriser> _logger;
-
-    public AppleUrlCategoriser(
-        IAppleEpisodeResolver appleEpisodeResolver,
-        IApplePodcastResolver applePodcastResolver,
-        ILogger<AppleUrlCategoriser> logger)
-    {
-        _appleEpisodeResolver = appleEpisodeResolver;
-        _applePodcastResolver = applePodcastResolver;
-        _logger = logger;
-    }
 
     public bool IsMatch(Uri url)
     {
@@ -33,14 +24,14 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
         IndexingContext indexingContext)
     {
         var podcast =
-            await _applePodcastResolver.FindPodcast(new FindApplePodcastRequest(
+            await applePodcastResolver.FindPodcast(new FindApplePodcastRequest(
                 matchingPodcast?.AppleId,
                 matchingPodcast?.Name ?? criteria.ShowName,
                 matchingPodcast?.Publisher ?? criteria.Publisher));
 
         if (podcast == null)
         {
-            _logger.LogWarning($"Could not find podcast with name '{criteria.ShowName}'.");
+            logger.LogWarning($"Could not find podcast with name '{criteria.ShowName}'.");
             return null;
         }
 
@@ -51,7 +42,7 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
 
         var findEpisodeRequest = FindAppleEpisodeRequestFactory.Create(matchingPodcast, podcast, criteria);
 
-        var episode = await _appleEpisodeResolver.FindEpisode(findEpisodeRequest, indexingContext);
+        var episode = await appleEpisodeResolver.FindEpisode(findEpisodeRequest, indexingContext);
 
         if (episode != null)
         {
@@ -69,7 +60,7 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
                 episode.Explicit);
         }
 
-        _logger.LogWarning(
+        logger.LogWarning(
             $"Could not find item with episode-title '{criteria.EpisodeTitle}' and for podcast with name '{criteria.ShowName}'.");
         return null;
     }
@@ -102,10 +93,10 @@ public class AppleUrlCategoriser : IAppleUrlCategoriser
 
         var findAppleEpisodeRequest = FindAppleEpisodeRequestFactory.Create(podcastId, episodeId);
 
-        var episode = await _appleEpisodeResolver.FindEpisode(findAppleEpisodeRequest, indexingContext);
+        var episode = await appleEpisodeResolver.FindEpisode(findAppleEpisodeRequest, indexingContext);
 
         var podcast =
-            await _applePodcastResolver.FindPodcast(new FindApplePodcastRequest(podcastId, string.Empty, string.Empty));
+            await applePodcastResolver.FindPodcast(new FindApplePodcastRequest(podcastId, string.Empty, string.Empty));
 
         if (episode != null && podcast != null)
         {

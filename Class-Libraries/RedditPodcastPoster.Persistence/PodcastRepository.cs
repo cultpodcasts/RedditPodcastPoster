@@ -5,26 +5,16 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
 
-public class PodcastRepository : IPodcastRepository
+public class PodcastRepository(
+    IDataRepository dataRepository,
+    IEpisodeMatcher episodeMatcher,
+    ILogger<PodcastRepository> logger)
+    : IPodcastRepository
 {
-    private readonly IDataRepository _dataRepository;
-    private readonly IEpisodeMatcher _episodeMatcher;
-    private readonly ILogger<PodcastRepository> _logger;
-
-    public PodcastRepository(
-        IDataRepository dataRepository,
-        IEpisodeMatcher episodeMatcher,
-        ILogger<PodcastRepository> logger)
-    {
-        _dataRepository = dataRepository;
-        _episodeMatcher = episodeMatcher;
-        _logger = logger;
-    }
-
     public async Task<Podcast?> GetPodcast(Guid podcastId)
     {
         var partitionKey = Podcast.PartitionKey;
-        return await _dataRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
+        return await dataRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
     }
 
     public MergeResult Merge(Podcast podcast, IEnumerable<Episode> episodesToMerge)
@@ -73,18 +63,18 @@ public class PodcastRepository : IPodcastRepository
 
     public IAsyncEnumerable<Podcast> GetAll()
     {
-        return _dataRepository.GetAll<Podcast>(Podcast.PartitionKey);
+        return dataRepository.GetAll<Podcast>(Podcast.PartitionKey);
     }
 
     public Task<IEnumerable<Guid>> GetAllIds()
     {
-        return _dataRepository.GetAllIds<Podcast>(Podcast.PartitionKey);
+        return dataRepository.GetAllIds<Podcast>(Podcast.PartitionKey);
     }
 
     public async Task Save(Podcast podcast)
     {
         var key = podcast.GetPartitionKey();
-        await _dataRepository.Write(podcast);
+        await dataRepository.Write(podcast);
     }
 
     public async Task Update(Podcast podcast)
@@ -109,7 +99,7 @@ public class PodcastRepository : IPodcastRepository
             return episode.AppleId.Value == episodeToMerge.AppleId.Value;
         }
 
-        return _episodeMatcher.IsMatch(episode, episodeToMerge, episodeMatchRegex);
+        return episodeMatcher.IsMatch(episode, episodeToMerge, episodeMatchRegex);
     }
 
     private bool Merge(Episode existingEpisode, Episode episodeToMerge)

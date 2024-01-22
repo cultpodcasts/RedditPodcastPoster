@@ -5,27 +5,15 @@ using RedditPodcastPoster.AI.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
-public class EpisodeClassifier : IEpisodeClassifier
+public class EpisodeClassifier(
+    ISubjectRepository subjectRepository,
+    TextAnalyticsClient textAnalyticsClient,
+    SingleLabelClassifyAction singleLabelClassifyAction,
+    IOptions<ClassificationSettings> classificationOptions,
+    ILogger<EpisodeClassifier> logger)
+    : IEpisodeClassifier
 {
-    private readonly ClassificationSettings _classificationOptions;
-    private readonly ILogger<EpisodeClassifier> _logger;
-    private readonly SingleLabelClassifyAction _singleLabelClassifyAction;
-    private readonly ISubjectRepository _subjectRepository;
-    private readonly TextAnalyticsClient _textAnalyticsClient;
-
-    public EpisodeClassifier(
-        ISubjectRepository subjectRepository,
-        TextAnalyticsClient textAnalyticsClient,
-        SingleLabelClassifyAction singleLabelClassifyAction,
-        IOptions<ClassificationSettings> classificationOptions,
-        ILogger<EpisodeClassifier> logger)
-    {
-        _subjectRepository = subjectRepository;
-        _textAnalyticsClient = textAnalyticsClient;
-        _singleLabelClassifyAction = singleLabelClassifyAction;
-        _classificationOptions = classificationOptions.Value;
-        _logger = logger;
-    }
+    private readonly ClassificationSettings _classificationOptions = classificationOptions.Value;
 
     public async Task CategoriseEpisode(Episode episode)
     {
@@ -33,9 +21,9 @@ public class EpisodeClassifier : IEpisodeClassifier
         //{
         var episodeText = $"{episode.Title}\n\r{episode.Description}";
         var operation =
-            await _textAnalyticsClient.StartAnalyzeActionsAsync(
+            await textAnalyticsClient.StartAnalyzeActionsAsync(
                 new[] {episodeText},
-                new TextAnalyticsActions {SingleLabelClassifyActions = new[] {_singleLabelClassifyAction}});
+                new TextAnalyticsActions {SingleLabelClassifyActions = new[] {singleLabelClassifyAction}});
         await operation.WaitForCompletionAsync();
 
         if (operation is {ActionsFailed: 0, ActionsSucceeded: 1})
@@ -43,7 +31,7 @@ public class EpisodeClassifier : IEpisodeClassifier
             var result = await operation.Value.AsPages().ToListAsync();
             if (result.Count > 1)
             {
-                _logger.LogInformation($"Multiple-results: '{result.Count}'.");
+                logger.LogInformation($"Multiple-results: '{result.Count}'.");
             }
 
             var page =
@@ -56,13 +44,13 @@ public class EpisodeClassifier : IEpisodeClassifier
             var confidence = page.ConfidenceScore;
             if (confidence >= _classificationOptions.MinimumConfidence)
             {
-                var matchingSubject = await _subjectRepository.GetByName(label);
+                var matchingSubject = await subjectRepository.GetByName(label);
                 //episode.Category = matchingSubject?.Name;
             }
         }
         else
         {
-            _logger.LogError($"Failure to classify logger with title '{episode.Title}' and id '{episode.Id}'.");
+            logger.LogError($"Failure to classify logger with title '{episode.Title}' and id '{episode.Id}'.");
         }
         //}
     }

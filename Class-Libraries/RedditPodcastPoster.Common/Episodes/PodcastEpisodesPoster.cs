@@ -6,27 +6,15 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
-public class PodcastEpisodesPoster : IPodcastEpisodesPoster
+public class PodcastEpisodesPoster(
+    IPodcastRepository podcastRepository,
+    IPodcastEpisodeFilter podcastEpisodeFilter,
+    IPodcastEpisodePoster podcastEpisodePoster,
+    IOptions<PostingCriteria> postingCriteria,
+    ILogger<PodcastEpisodesPoster> logger)
+    : IPodcastEpisodesPoster
 {
-    private readonly ILogger<PodcastEpisodesPoster> _logger;
-    private readonly IPodcastEpisodeFilter _podcastEpisodeFilter;
-    private readonly IPodcastEpisodePoster _podcastEpisodePoster;
-    private readonly IPodcastRepository _podcastRepository;
-    private readonly PostingCriteria _postingCriteria;
-
-    public PodcastEpisodesPoster(
-        IPodcastRepository podcastRepository,
-        IPodcastEpisodeFilter podcastEpisodeFilter,
-        IPodcastEpisodePoster podcastEpisodePoster,
-        IOptions<PostingCriteria> postingCriteria,
-        ILogger<PodcastEpisodesPoster> logger)
-    {
-        _podcastRepository = podcastRepository;
-        _podcastEpisodeFilter = podcastEpisodeFilter;
-        _podcastEpisodePoster = podcastEpisodePoster;
-        _postingCriteria = postingCriteria.Value;
-        _logger = logger;
-    }
+    private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
     public async Task<IList<ProcessResponse>> PostNewEpisodes(
         DateTime since,
@@ -36,7 +24,7 @@ public class PodcastEpisodesPoster : IPodcastEpisodesPoster
         bool preferYouTube = false)
     {
         var matchingPodcastEpisodes =
-            _podcastEpisodeFilter.GetNewEpisodesReleasedSince(podcasts, since, youTubeRefreshed, spotifyRefreshed);
+            podcastEpisodeFilter.GetNewEpisodesReleasedSince(podcasts, since, youTubeRefreshed, spotifyRefreshed);
 
         if (!matchingPodcastEpisodes.Any())
         {
@@ -53,7 +41,7 @@ public class PodcastEpisodesPoster : IPodcastEpisodesPoster
                 if (matchingPodcastEpisode.Episode.Urls.Spotify != null ||
                     matchingPodcastEpisode.Episode.Urls.YouTube != null)
                 {
-                    var result = await _podcastEpisodePoster.PostPodcastEpisode(
+                    var result = await podcastEpisodePoster.PostPodcastEpisode(
                         matchingPodcastEpisode, preferYouTube);
                     matchingPodcastEpisodeResults.Add(result);
                 }
@@ -73,7 +61,7 @@ public class PodcastEpisodesPoster : IPodcastEpisodesPoster
 
         foreach (var podcast in matchingPodcastEpisodes.Select(x => x.Podcast).Distinct())
         {
-            await _podcastRepository.Save(podcast);
+            await podcastRepository.Save(podcast);
         }
 
         return matchingPodcastEpisodeResults;

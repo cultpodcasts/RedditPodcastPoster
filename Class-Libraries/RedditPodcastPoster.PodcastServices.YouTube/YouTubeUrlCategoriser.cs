@@ -5,25 +5,13 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
-public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
+public class YouTubeUrlCategoriser(
+    IYouTubeChannelService youTubeChannelService,
+    IYouTubeVideoService youTubeVideoService,
+    IYouTubeIdExtractor youTubeIdExtractor,
+    ILogger<YouTubeUrlCategoriser> logger)
+    : IYouTubeUrlCategoriser
 {
-    private readonly ILogger<YouTubeUrlCategoriser> _logger;
-    private readonly IYouTubeChannelService _youTubeChannelService;
-    private readonly IYouTubeIdExtractor _youTubeIdExtractor;
-    private readonly IYouTubeVideoService _youTubeVideoService;
-
-    public YouTubeUrlCategoriser(
-        IYouTubeChannelService youTubeChannelService,
-        IYouTubeVideoService youTubeVideoService,
-        IYouTubeIdExtractor youTubeIdExtractor,
-        ILogger<YouTubeUrlCategoriser> logger)
-    {
-        _youTubeChannelService = youTubeChannelService;
-        _youTubeVideoService = youTubeVideoService;
-        _youTubeIdExtractor = youTubeIdExtractor;
-        _logger = logger;
-    }
-
     public bool IsMatch(Uri url)
     {
         return url.Host.ToLower().Contains("youtube");
@@ -43,13 +31,13 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
             return new ResolvedYouTubeItem(pair);
         }
 
-        var videoId = _youTubeIdExtractor.Extract(url);
+        var videoId = youTubeIdExtractor.Extract(url);
         if (videoId == null)
         {
             throw new InvalidOperationException($"Unable to find video-id in url '{url}'.");
         }
 
-        var items = await _youTubeVideoService.GetVideoContentDetails(new[] {videoId}, indexingContext, true);
+        var items = await youTubeVideoService.GetVideoContentDetails(new[] {videoId}, indexingContext, true);
         if (items != null)
         {
             var item = items.FirstOrDefault();
@@ -59,7 +47,7 @@ public class YouTubeUrlCategoriser : IYouTubeUrlCategoriser
             }
 
             var channel =
-                await _youTubeChannelService.GetChannelContentDetails(new YouTubeChannelId(item.Snippet.ChannelId),
+                await youTubeChannelService.GetChannelContentDetails(new YouTubeChannelId(item.Snippet.ChannelId),
                     indexingContext, true, true);
             if (channel != null)
             {

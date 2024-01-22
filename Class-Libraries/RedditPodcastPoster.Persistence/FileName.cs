@@ -7,14 +7,9 @@ namespace RedditPodcastPoster.Persistence;
 /// <remarks>
 // See: https://github.com/Azure/azure-cosmos-dotnet-v3/blob/master/Microsoft.Azure.Cosmos.Samples/Usage/SystemTextJson/CosmosSystemTextJsonSerializer.cs
 /// </remarks>
-public sealed class CosmosSystemTextJsonSerializer : CosmosSerializer
+public sealed class CosmosSystemTextJsonSerializer(JsonSerializerOptions jsonSerializerOptions) : CosmosSerializer
 {
-    private readonly JsonObjectSerializer _systemTextJsonSerializer;
-
-    public CosmosSystemTextJsonSerializer(JsonSerializerOptions jsonSerializerOptions)
-    {
-        _systemTextJsonSerializer = new JsonObjectSerializer(jsonSerializerOptions);
-    }
+    private readonly JsonObjectSerializer _systemTextJsonSerializer = new(jsonSerializerOptions);
 
     public override T FromStream<T>(Stream stream)
     {

@@ -6,18 +6,12 @@ using RedditPodcastPoster.AI.Configuration;
 
 namespace RedditPodcastPoster.AI.Factories;
 
-public class TextAnalyticsClientFactory : ITextAnalyticsClientFactory
+public class TextAnalyticsClientFactory(
+    IOptions<TextAnalyticsSettings> options,
+    ILogger<TextAnalyticsClientFactory> logger)
+    : ITextAnalyticsClientFactory
 {
-    private readonly ILogger<TextAnalyticsClientFactory> _logger;
-    private readonly TextAnalyticsSettings _options;
-
-    public TextAnalyticsClientFactory(
-        IOptions<TextAnalyticsSettings> options,
-        ILogger<TextAnalyticsClientFactory> logger)
-    {
-        _options = options.Value;
-        _logger = logger;
-    }
+    private readonly TextAnalyticsSettings _options = options.Value;
 
     public TextAnalyticsClient Create()
     {

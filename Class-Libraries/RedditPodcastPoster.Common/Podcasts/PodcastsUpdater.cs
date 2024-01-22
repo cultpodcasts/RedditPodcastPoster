@@ -4,51 +4,38 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.Common.Podcasts;
 
-public class PodcastsUpdater : IPodcastsUpdater
+public class PodcastsUpdater(
+    IPodcastUpdater podcastUpdater,
+    IPodcastRepository podcastRepository,
+    IFlushable flushableCaches,
+    ILogger<PodcastsUpdater> logger)
+    : IPodcastsUpdater
 {
-    private readonly IFlushable _flushableCaches;
-    private readonly ILogger<PodcastsUpdater> _logger;
-    private readonly IPodcastRepository _podcastRepository;
-    private readonly IPodcastUpdater _podcastUpdater;
-
-    public PodcastsUpdater(
-        IPodcastUpdater podcastUpdater,
-        IPodcastRepository podcastRepository,
-        IFlushable flushableCaches,
-        ILogger<PodcastsUpdater> logger
-    )
-    {
-        _podcastUpdater = podcastUpdater;
-        _podcastRepository = podcastRepository;
-        _flushableCaches = flushableCaches;
-        _logger = logger;
-    }
-
     public async Task<bool> UpdatePodcasts(IndexingContext indexingContext)
     {
         var success = true;
-        _logger.LogInformation($"{nameof(UpdatePodcasts)} Retrieving podcasts.");
-        var podcastIds = await _podcastRepository.GetAllIds();
-        _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
+        logger.LogInformation($"{nameof(UpdatePodcasts)} Retrieving podcasts.");
+        var podcastIds = await podcastRepository.GetAllIds();
+        logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
         foreach (var podcastId in podcastIds)
         {
-            var podcast = await _podcastRepository.GetPodcast(podcastId);
+            var podcast = await podcastRepository.GetPodcast(podcastId);
             if (podcast != null &&
                 (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
             {
                 try
                 {
-                    var result = await _podcastUpdater.Update(podcast, indexingContext);
+                    var result = await podcastUpdater.Update(podcast, indexingContext);
                     var resultReport = result.ToString();
                     if (!result.Success)
                     {
-                        _logger.LogError(resultReport);
+                        logger.LogError(resultReport);
                     }
                     else
                     {
                         if (!string.IsNullOrWhiteSpace(resultReport))
                         {
-                            _logger.LogInformation(result.ToString());
+                            logger.LogInformation(result.ToString());
                         }
                     }
 
@@ -56,17 +43,17 @@ public class PodcastsUpdater : IPodcastsUpdater
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"Failure updating podcast with id '{podcast.Id}' and name '{podcast.Name}'.");
+                    logger.LogError(ex, $"Failure updating podcast with id '{podcast.Id}' and name '{podcast.Name}'.");
                     success = false;
                 }
                 finally
                 {
-                    _flushableCaches.Flush();
+                    flushableCaches.Flush();
                 }
             }
         }
 
-        _logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing complete.");
+        logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing complete.");
         return success;
     }
 }

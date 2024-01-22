@@ -4,15 +4,8 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Reddit;
 
-public class RedditBundleCommentFactory : IRedditBundleCommentFactory
+public class RedditBundleCommentFactory(ILogger<RedditBundleCommentFactory> logger) : IRedditBundleCommentFactory
 {
-    private readonly ILogger<RedditBundleCommentFactory> _logger;
-
-    public RedditBundleCommentFactory(ILogger<RedditBundleCommentFactory> logger)
-    {
-        _logger = logger;
-    }
-
     public string Post(PostModel postModel)
     {
         var comment = new StringBuilder();

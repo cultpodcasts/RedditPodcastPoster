@@ -4,21 +4,14 @@ using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
-public class AppleEpisodeResolver : IAppleEpisodeResolver
+public class AppleEpisodeResolver(
+    ICachedApplePodcastService applePodcastService,
+    ILogger<AppleEpisodeResolver> logger)
+    : IAppleEpisodeResolver
 {
     private const int MinFuzzyScore = 70;
     private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(30).Ticks;
     private static readonly long BroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
-    private readonly ICachedApplePodcastService _applePodcastService;
-    private readonly ILogger<AppleEpisodeResolver> _logger;
-
-    public AppleEpisodeResolver(
-        ICachedApplePodcastService applePodcastService,
-        ILogger<AppleEpisodeResolver> logger)
-    {
-        _applePodcastService = applePodcastService;
-        _logger = logger;
-    }
 
     public async Task<AppleEpisode?> FindEpisode(
         FindAppleEpisodeRequest request,
@@ -30,7 +23,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
         if (request.PodcastAppleId.HasValue)
         {
             var applePodcastId = new ApplePodcastId(request.PodcastAppleId.Value);
-            podcastEpisodes = await _applePodcastService.GetEpisodes(applePodcastId, indexingContext);
+            podcastEpisodes = await applePodcastService.GetEpisodes(applePodcastId, indexingContext);
         }
 
         if (request.EpisodeAppleId != null && podcastEpisodes != null)
@@ -88,7 +81,7 @@ public class AppleEpisodeResolver : IAppleEpisodeResolver
                 return match;
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 $"Podcast '{request.PodcastName}' cannot be found on Apple Podcasts.");
         }
 

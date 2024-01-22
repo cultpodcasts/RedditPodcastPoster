@@ -9,21 +9,14 @@ using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
-public partial class YouTubeSearcher : IYouTubeSearcher
+public partial class YouTubeSearcher(
+    IYouTubeVideoService videoService,
+    ILogger<YouTubeSearcher> logger)
+    : IYouTubeSearcher
 {
     private const int MinFuzzyScore = 70;
     private static readonly Regex NumberMatch = CreateNumberMatch();
     private static readonly TimeSpan VideoDurationTolerance = TimeSpan.FromMinutes(2);
-    private readonly ILogger<YouTubeSearcher> _logger;
-    private readonly IYouTubeVideoService _videoService;
-
-    public YouTubeSearcher(
-        IYouTubeVideoService videoService,
-        ILogger<YouTubeSearcher> logger)
-    {
-        _videoService = videoService;
-        _logger = logger;
-    }
 
     public async Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(
         Episode episode,
@@ -73,7 +66,7 @@ public partial class YouTubeSearcher : IYouTubeSearcher
         IndexingContext indexingContext)
     {
         var videoDetails =
-            await _videoService.GetVideoContentDetails(searchResults.Select(x => x.Id.VideoId).ToList(),
+            await videoService.GetVideoContentDetails(searchResults.Select(x => x.Id.VideoId).ToList(),
                 indexingContext);
         if (videoDetails != null && videoDetails.Any())
         {
@@ -84,7 +77,7 @@ public partial class YouTubeSearcher : IYouTubeSearcher
                 var matchingPair = new FindEpisodeResponse(searchResult, matchingVideo);
                 if (Math.Abs((matchingPair.Video!.GetLength() - episode.Length).Ticks) < VideoDurationTolerance.Ticks)
                 {
-                    _logger.LogInformation(
+                    logger.LogInformation(
                         $"Matched episode '{episode.Title}' and length: '{episode.Length:g}' with episode '{matchingPair.SearchResult.Snippet.Title}' having length: '{matchingPair.Video?.GetLength():g}'.");
                     return matchingPair;
                 }
@@ -114,13 +107,13 @@ public partial class YouTubeSearcher : IYouTubeSearcher
 
                 if (matchingSearchResult.Count() == 1)
                 {
-                    _logger.LogInformation($"Matched on episode-number '{episodeNumber}'.");
+                    logger.LogInformation($"Matched on episode-number '{episodeNumber}'.");
                     return matchingSearchResult.Single();
                 }
 
                 if (matchingSearchResult.Any())
                 {
-                    _logger.LogInformation(
+                    logger.LogInformation(
                         $"Could not match on number that appears in title '{episodeNumber}' as appears in multiple episode-titles: {string.Join(", ", matchingSearchResult.Select(x => $"'{x}'"))}.");
                 }
             }
@@ -155,13 +148,13 @@ public partial class YouTubeSearcher : IYouTubeSearcher
 
         if (matchingSearchResult.Count() == 1)
         {
-            _logger.LogInformation($"Matched on episode-number '{episode.Title}'.");
+            logger.LogInformation($"Matched on episode-number '{episode.Title}'.");
             return matchingSearchResult.Single();
         }
 
         if (matchingSearchResult.Any())
         {
-            _logger.LogInformation(
+            logger.LogInformation(
                 $"Matched multiple items on episode-title '{episode.Title}'.");
         }
 

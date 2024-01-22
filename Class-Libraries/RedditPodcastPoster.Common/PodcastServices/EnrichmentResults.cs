@@ -2,14 +2,9 @@
 
 namespace RedditPodcastPoster.Common.PodcastServices;
 
-public class EnrichmentResults
+public class EnrichmentResults(IList<EnrichmentResult> updatedEpisodes)
 {
-    public EnrichmentResults(IList<EnrichmentResult> updatedEpisodes)
-    {
-        UpdatedEpisodes = updatedEpisodes;
-    }
-
-    public IList<EnrichmentResult> UpdatedEpisodes { get; init; }
+    public IList<EnrichmentResult> UpdatedEpisodes { get; init; } = updatedEpisodes;
 
     public override string ToString()
     {

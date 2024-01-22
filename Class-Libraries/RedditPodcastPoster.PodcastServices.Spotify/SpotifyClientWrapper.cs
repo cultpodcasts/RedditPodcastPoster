@@ -4,17 +4,9 @@ using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
-public class SpotifyClientWrapper : ISpotifyClientWrapper
+public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyClientWrapper> logger)
+    : ISpotifyClientWrapper
 {
-    private readonly ILogger<SpotifyClientWrapper> _logger;
-    private readonly ISpotifyClient _spotifyClient;
-
-    public SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyClientWrapper> logger)
-    {
-        _spotifyClient = spotifyClient;
-        _logger = logger;
-    }
-
     public async Task<IList<T>?> Paginate<T>(
         IPaginatable<T> firstPage,
         IndexingContext indexingContext,
@@ -24,18 +16,18 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         IList<T>? results = null;
         try
         {
-            results = await _spotifyClient.Paginate(firstPage, paginator, cancel).ToListAsync(cancel);
+            results = await spotifyClient.Paginate(firstPage, paginator, cancel).ToListAsync(cancel);
         }
         catch (APIException ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"{nameof(Paginate)} Failure with Spotify-API.");
+            logger.LogError(ex, $"{nameof(Paginate)} Failure with Spotify-API.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
@@ -51,18 +43,18 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         IList<T>? results;
         try
         {
-            results = await _spotifyClient.PaginateAll(firstPage);
+            results = await spotifyClient.PaginateAll(firstPage);
         }
         catch (APIException ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"{nameof(PaginateAll)} Failure with Spotify-API.");
+            logger.LogError(ex, $"{nameof(PaginateAll)} Failure with Spotify-API.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
@@ -79,19 +71,19 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         var results = firstPage.Items ?? new List<T>();
         try
         {
-            var batch = await _spotifyClient.PaginateAll(firstPage, mapper);
+            var batch = await spotifyClient.PaginateAll(firstPage, mapper);
             results.AddRange(batch);
         }
         catch (APIException ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"{nameof(PaginateAll)} Failure with Spotify-API.");
+            logger.LogError(ex, $"{nameof(PaginateAll)} Failure with Spotify-API.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
@@ -109,18 +101,18 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         Paging<SimpleEpisode>? results = null;
         try
         {
-            results = await _spotifyClient.Shows.GetEpisodes(showId, request, cancel);
+            results = await spotifyClient.Shows.GetEpisodes(showId, request, cancel);
         }
         catch (APIException ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"{nameof(GetShowEpisodes)} Failure with Spotify-API.");
+            logger.LogError(ex, $"{nameof(GetShowEpisodes)} Failure with Spotify-API.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
@@ -136,18 +128,18 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         SearchResponse? results = null;
         try
         {
-            results = await _spotifyClient.Search.Item(request, cancel);
+            results = await spotifyClient.Search.Item(request, cancel);
         }
         catch (APIException ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"{nameof(GetSearchResponse)} Failure with Spotify-API.");
+            logger.LogError(ex, $"{nameof(GetSearchResponse)} Failure with Spotify-API.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
@@ -164,18 +156,18 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         FullShow? results = null;
         try
         {
-            results = await _spotifyClient.Shows.Get(showId, request, cancel);
+            results = await spotifyClient.Shows.Get(showId, request, cancel);
         }
         catch (APIException ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"{nameof(GetFullEpisode)} Failure with Spotify-API.");
+            logger.LogError(ex, $"{nameof(GetFullEpisode)} Failure with Spotify-API.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
@@ -192,18 +184,18 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         FullEpisode? results = null;
         try
         {
-            results = await _spotifyClient.Episodes.Get(episodeId, request, cancel);
+            results = await spotifyClient.Episodes.Get(episodeId, request, cancel);
         }
         catch (APIException ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"{nameof(GetFullEpisode)} Failure with Spotify-API.");
+            logger.LogError(ex, $"{nameof(GetFullEpisode)} Failure with Spotify-API.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
@@ -217,18 +209,18 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         EpisodesResponse? results = null;
         try
         {
-            results = await _spotifyClient.Episodes.GetSeveral(request, cancel);
+            results = await spotifyClient.Episodes.GetSeveral(request, cancel);
         }
         catch (APIException ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"{nameof(GetSeveral)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"{nameof(GetSeveral)} Failure with Spotify-API.");
+            logger.LogError(ex, $"{nameof(GetSeveral)} Failure with Spotify-API.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
@@ -243,19 +235,19 @@ public class SpotifyClientWrapper : ISpotifyClientWrapper
         Paging<SimpleEpisode, SearchResponse> results;
         try
         {
-            var response = await _spotifyClient.Search.Item(request, cancel);
+            var response = await spotifyClient.Search.Item(request, cancel);
             results = response.Episodes;
         }
         catch (APIException ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"{nameof(GetShowEpisodes)} Failure with Spotify-API.");
+            logger.LogError(ex, $"{nameof(GetShowEpisodes)} Failure with Spotify-API.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }

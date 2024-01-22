@@ -7,24 +7,14 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Reddit;
 
-public class RedditLinkPoster : IRedditLinkPoster
+public class RedditLinkPoster(
+    IRedditPostTitleFactory redditPostTitleFactory,
+    RedditClient redditClient,
+    IOptions<SubredditSettings> settings,
+    ILogger<RedditLinkPoster> logger)
+    : IRedditLinkPoster
 {
-    private readonly ILogger<RedditLinkPoster> _logger;
-    private readonly RedditClient _redditClient;
-    private readonly IRedditPostTitleFactory _redditPostTitleFactory;
-    private readonly SubredditSettings _settings;
-
-    public RedditLinkPoster(
-        IRedditPostTitleFactory redditPostTitleFactory,
-        RedditClient redditClient,
-        IOptions<SubredditSettings> settings,
-        ILogger<RedditLinkPoster> logger)
-    {
-        _redditPostTitleFactory = redditPostTitleFactory;
-        _redditClient = redditClient;
-        _settings = settings.Value;
-        _logger = logger;
-    }
+    private readonly SubredditSettings _settings = settings.Value;
 
     public async Task<PostResponse> Post(PostModel postModel)
     {
@@ -35,8 +25,8 @@ public class RedditLinkPoster : IRedditLinkPoster
             return new PostResponse(null, false);
         }
 
-        var title = _redditPostTitleFactory.ConstructPostTitle(postModel);
-        var post = _redditClient
+        var title = redditPostTitleFactory.ConstructPostTitle(postModel);
+        var post = redditClient
             .Subreddit(_settings.SubredditName)
             .LinkPost(title, link.ToString());
         var posted = false;
@@ -48,11 +38,11 @@ public class RedditLinkPoster : IRedditLinkPoster
         }
         catch (RedditAlreadySubmittedException ex)
         {
-            _logger.LogError(ex, $"Post already submitted. Link: '{link}'.");
+            logger.LogError(ex, $"Post already submitted. Link: '{link}'.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error posting link '{link}' and title '{title}'.");
+            logger.LogError(ex, $"Error posting link '{link}' and title '{title}'.");
             throw;
         }
 

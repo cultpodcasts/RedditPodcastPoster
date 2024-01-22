@@ -3,16 +3,9 @@ using Microsoft.Extensions.Logging;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
-public class YouTubeIdExtractor : IYouTubeIdExtractor
+public partial class YouTubeIdExtractor(ILogger<YouTubeIdExtractor> logger) : IYouTubeIdExtractor
 {
-    private static readonly Regex VideoId = new(@"v=(?'videoId'[\-\w]+)", RegexOptions.Compiled);
-
-    private readonly ILogger<YouTubeIdExtractor> _logger;
-
-    public YouTubeIdExtractor(ILogger<YouTubeIdExtractor> logger)
-    {
-        _logger = logger;
-    }
+    private static readonly Regex VideoId = GenerateYouTubeIdRegex();
 
     public string? Extract(Uri youTubeUrl)
     {
@@ -24,4 +17,7 @@ public class YouTubeIdExtractor : IYouTubeIdExtractor
 
         return null;
     }
+
+    [GeneratedRegex(@"v=(?'videoId'[\-\w]+)", RegexOptions.Compiled)]
+    private static partial Regex GenerateYouTubeIdRegex();
 }

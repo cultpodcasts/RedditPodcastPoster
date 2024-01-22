@@ -6,21 +6,14 @@ using RedditPodcastPoster.ContentPublisher;
 namespace Indexer;
 
 [DurableTask(nameof(Publisher))]
-public class Publisher : TaskActivity<IndexerContext, IndexerContext>
+public class Publisher(
+    IContentPublisher contentPublisher,
+    IActivityMarshaller activityMarshaller,
+    ILoggerFactory loggerFactory)
+    : TaskActivity<IndexerContext, IndexerContext>
 {
-    private readonly IActivityMarshaller _activityMarshaller;
-    private readonly IContentPublisher _contentPublisher;
-    private readonly ILogger _logger;
-
-    public Publisher(
-        IContentPublisher contentPublisher,
-        IActivityMarshaller activityMarshaller,
-        ILoggerFactory loggerFactory)
-    {
-        _contentPublisher = contentPublisher;
-        _activityMarshaller = activityMarshaller;
-        _logger = loggerFactory.CreateLogger<Publisher>();
-    }
+    private readonly IActivityMarshaller _activityMarshaller = activityMarshaller;
+    private readonly ILogger _logger = loggerFactory.CreateLogger<Publisher>();
 
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
@@ -45,14 +38,14 @@ public class Publisher : TaskActivity<IndexerContext, IndexerContext>
             {
                 publishingTasks = new[]
                 {
-                    _contentPublisher.PublishHomepage()
+                    contentPublisher.PublishHomepage()
                 };
             }
             else
             {
                 publishingTasks = new[]
                 {
-                    _contentPublisher.PublishHomepage()
+                    contentPublisher.PublishHomepage()
                 };
             }
 

@@ -6,16 +6,10 @@ using OAuth;
 
 namespace RedditPodcastPoster.Twitter;
 
-public class TwitterClient : ITwitterClient
+public class TwitterClient(IOptions<TwitterOptions> options, ILogger<TwitterClient> logger)
+    : ITwitterClient
 {
-    private readonly ILogger<TwitterClient> _logger;
-    private readonly TwitterOptions _options;
-
-    public TwitterClient(IOptions<TwitterOptions> options, ILogger<TwitterClient> logger)
-    {
-        _options = options.Value;
-        _logger = logger;
-    }
+    private readonly TwitterOptions _options = options.Value;
 
     public async Task<bool> Send(string tweet)
     {
@@ -35,11 +29,11 @@ public class TwitterClient : ITwitterClient
         using var response = await httpClient.SendAsync(createTweetRequest);
         if (response.IsSuccessStatusCode)
         {
-            _logger.LogInformation($"Tweet sent successfully! Tweet: '{tweet}'.");
+            logger.LogInformation($"Tweet sent successfully! Tweet: '{tweet}'.");
             return true;
         }
 
-        _logger.LogError(
+        logger.LogError(
             $"Failed to send tweet. Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Body: '{await response.Content.ReadAsStringAsync()}'.");
 
         return false;

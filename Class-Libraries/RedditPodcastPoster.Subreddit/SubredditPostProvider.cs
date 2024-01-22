@@ -6,28 +6,20 @@ using RedditPodcastPoster.Reddit;
 
 namespace RedditPodcastPoster.Subreddit;
 
-public class SubredditPostProvider : ISubredditPostProvider
+public class SubredditPostProvider(
+    RedditClient redditClient,
+    IOptions<SubredditSettings> subredditSettings,
+    ILogger<SubredditPostProvider> logger)
+    : ISubredditPostProvider
 {
-    private readonly ILogger<SubredditPostProvider> _logger;
-    private readonly RedditClient _redditClient;
-    private readonly SubredditSettings _subredditSettings;
-
-    public SubredditPostProvider(
-        RedditClient redditClient,
-        IOptions<SubredditSettings> subredditSettings,
-        ILogger<SubredditPostProvider> logger)
-    {
-        _redditClient = redditClient;
-        _subredditSettings = subredditSettings.Value;
-        _logger = logger;
-    }
+    private readonly SubredditSettings _subredditSettings = subredditSettings.Value;
 
     public IEnumerable<Post> GetPosts()
     {
         var posts = new List<Post>();
         var after = string.Empty;
         var redditPostBatch =
-            _redditClient
+            redditClient
                 .Subreddit(_subredditSettings.SubredditName).Posts
                 .GetNew(after, limit: 10)
                 .ToList();
@@ -35,7 +27,7 @@ public class SubredditPostProvider : ISubredditPostProvider
         {
             posts.AddRange(redditPostBatch);
             after = redditPostBatch.Last().Fullname;
-            redditPostBatch = _redditClient.Subreddit(_subredditSettings.SubredditName).Posts
+            redditPostBatch = redditClient.Subreddit(_subredditSettings.SubredditName).Posts
                 .GetNew(limit: 10, after: after);
         }
 

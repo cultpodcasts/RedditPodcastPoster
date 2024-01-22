@@ -6,18 +6,13 @@ using RedditPodcastPoster.ContentPublisher.Configuration;
 
 namespace RedditPodcastPoster.ContentPublisher.Factories;
 
-public class AmazonS3ClientFactory : IAmazonS3ClientFactory
+public class AmazonS3ClientFactory(
+    IOptions<CloudFlareOptions> r2Options,
+    ILogger<AmazonS3ClientFactory> logger)
+    : IAmazonS3ClientFactory
 {
-    private readonly CloudFlareOptions _cloudFlareOptions;
-    private readonly ILogger<AmazonS3ClientFactory> _logger;
-
-    public AmazonS3ClientFactory(
-        IOptions<CloudFlareOptions> r2Options,
-        ILogger<AmazonS3ClientFactory> logger)
-    {
-        _cloudFlareOptions = r2Options.Value;
-        _logger = logger;
-    }
+    private readonly CloudFlareOptions _cloudFlareOptions = r2Options.Value;
+    private readonly ILogger<AmazonS3ClientFactory> _logger = logger;
 
     public IAmazonS3 Create()
     {
@@ -27,7 +22,8 @@ public class AmazonS3ClientFactory : IAmazonS3ClientFactory
             ForcePathStyle = true
         };
 
-        AWSCredentials credentials = new BasicAWSCredentials(_cloudFlareOptions.R2AccessKey, _cloudFlareOptions.R2SecretKey);
+        AWSCredentials credentials =
+            new BasicAWSCredentials(_cloudFlareOptions.R2AccessKey, _cloudFlareOptions.R2SecretKey);
         var s3Client = new AmazonS3Client(credentials, config);
 
         return s3Client;

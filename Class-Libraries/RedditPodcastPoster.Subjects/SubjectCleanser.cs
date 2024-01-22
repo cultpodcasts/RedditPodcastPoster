@@ -3,19 +3,12 @@ using Microsoft.Extensions.Logging;
 
 namespace RedditPodcastPoster.Subjects;
 
-public class SubjectCleanser : ISubjectCleanser
+public class SubjectCleanser(
+    ISubjectService subjectService,
+    ILogger<SubjectCleanser> logger)
+    : ISubjectCleanser
 {
     private static readonly Regex BracketedTerm = new(@"\((?'bracketedterm'.*)\)", RegexOptions.Compiled);
-    private readonly ILogger<SubjectCleanser> _logger;
-    private readonly ISubjectService _subjectService;
-
-    public SubjectCleanser(
-        ISubjectService subjectService,
-        ILogger<SubjectCleanser> logger)
-    {
-        _subjectService = subjectService;
-        _logger = logger;
-    }
 
     public async Task<(bool, List<string>)> CleanSubjects(List<string> subjects)
     {
@@ -69,7 +62,7 @@ public class SubjectCleanser : ISubjectCleanser
             var cleansed = subject.Replace("\u0026", "and");
             cleansed = cleansed.Replace("!", string.Empty);
             cleansed = cleansed.Replace("- ", string.Empty);
-            var matchedSubject = await _subjectService.Match(cleansed);
+            var matchedSubject = await subjectService.Match(cleansed);
             if (matchedSubject == null)
             {
                 unmatchedSubject = true;

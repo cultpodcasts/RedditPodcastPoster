@@ -3,14 +3,9 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Podcasts;
 
-public class FilterResult
+public class FilterResult(IList<(Episode, string[])> filteredEpisodes)
 {
-    public FilterResult(IList<(Episode, string[])> filteredEpisodes)
-    {
-        FilteredEpisodes = filteredEpisodes;
-    }
-
-    public IList<(Episode, string[])> FilteredEpisodes { get; init; }
+    public IList<(Episode, string[])> FilteredEpisodes { get; init; } = filteredEpisodes;
 
     public override string ToString()
     {

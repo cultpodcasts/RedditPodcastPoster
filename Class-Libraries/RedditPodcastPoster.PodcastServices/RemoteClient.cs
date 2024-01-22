@@ -5,17 +5,8 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices;
 
-public class RemoteClient : IRemoteClient
+public class RemoteClient(ILogger<RemoteClient> logger) : IRemoteClient
 {
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<RemoteClient> _logger;
-
-    public RemoteClient(HttpClient httpClient, ILogger<RemoteClient> logger)
-    {
-        _httpClient = httpClient;
-        _logger = logger;
-    }
-
     public async Task<T> InvokeGet<T>(string apiCall)
     {
         var httpClient = new HttpClient();
@@ -27,7 +18,7 @@ public class RemoteClient : IRemoteClient
     private T DeserializeObject<T>(string objString)
     {
         using var memoryStream = new MemoryStream(Encoding.Unicode.GetBytes(objString));
-        var responseObject = (T)new DataContractJsonSerializer(typeof(T)).ReadObject(memoryStream)!;
+        var responseObject = (T) new DataContractJsonSerializer(typeof(T)).ReadObject(memoryStream)!;
         return responseObject;
     }
 }

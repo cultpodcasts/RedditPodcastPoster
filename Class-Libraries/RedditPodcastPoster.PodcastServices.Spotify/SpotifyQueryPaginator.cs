@@ -4,26 +4,18 @@ using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
-public class SpotifyQueryPaginator : ISpotifyQueryPaginator
+public class SpotifyQueryPaginator(
+    ISpotifyClientWrapper spotifyClientWrapper,
+    ILogger<SpotifyQueryPaginator> logger)
+    : ISpotifyQueryPaginator
 {
-    private readonly ILogger<SpotifyQueryPaginator> _logger;
-    private readonly ISpotifyClientWrapper _spotifyClientWrapper;
-
-    public SpotifyQueryPaginator(
-        ISpotifyClientWrapper spotifyClientWrapper,
-        ILogger<SpotifyQueryPaginator> logger)
-    {
-        _spotifyClientWrapper = spotifyClientWrapper;
-        _logger = logger;
-    }
-
     public async Task<PaginateEpisodesResponse> PaginateEpisodes(
         IPaginatable<SimpleEpisode>? pagedEpisodes,
         IndexingContext indexingContext)
     {
         if (indexingContext.SkipSpotifyUrlResolving)
         {
-            _logger.LogInformation(
+            logger.LogInformation(
                 $"Skipping '{nameof(PaginateEpisodes)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set.");
             return new PaginateEpisodesResponse(new List<SimpleEpisode>());
         }
@@ -57,7 +49,7 @@ public class SpotifyQueryPaginator : ISpotifyQueryPaginator
                 pagedEpisodes.Next = pagedEpisodes.Next.Replace("/show/", "/shows/");
             }
 
-            var fetch = await _spotifyClientWrapper.PaginateAll(pagedEpisodes, indexingContext);
+            var fetch = await spotifyClientWrapper.PaginateAll(pagedEpisodes, indexingContext);
             if (fetch != null)
             {
                 episodes = fetch.ToList();
@@ -72,7 +64,7 @@ public class SpotifyQueryPaginator : ISpotifyQueryPaginator
                    indexingContext.ReleasedSince)
             {
                 var preCount = batchEpisodes.Count;
-                var items = await _spotifyClientWrapper.Paginate(pagedEpisodes, indexingContext);
+                var items = await spotifyClientWrapper.Paginate(pagedEpisodes, indexingContext);
                 if (items != null)
                 {
                     batchEpisodes = items;

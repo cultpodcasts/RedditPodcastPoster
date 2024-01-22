@@ -5,24 +5,16 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
 
-public class CosmosDbContainerFactory : ICosmosDbContainerFactory
+public class CosmosDbContainerFactory(
+    CosmosClient cosmosClient,
+    IOptions<CosmosDbSettings> cosmosDbSettings,
+    ILogger<CosmosDbContainerFactory> logger)
+    : ICosmosDbContainerFactory
 {
-    private readonly CosmosClient _cosmosClient;
-    private readonly CosmosDbSettings _cosmosDbSettings;
-    private readonly ILogger<CosmosDbContainerFactory> _logger;
-
-    public CosmosDbContainerFactory(
-        CosmosClient cosmosClient,
-        IOptions<CosmosDbSettings> cosmosDbSettings,
-        ILogger<CosmosDbContainerFactory> logger)
-    {
-        _cosmosClient = cosmosClient;
-        _cosmosDbSettings = cosmosDbSettings.Value;
-        _logger = logger;
-    }
+    private readonly CosmosDbSettings _cosmosDbSettings = cosmosDbSettings.Value;
 
     public Container Create()
     {
-        return _cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
+        return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
     }
 }

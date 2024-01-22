@@ -57,7 +57,6 @@ public class FileRepository : IFileRepository
         await JsonSerializer.SerializeAsync(createStream, data, _jsonSerialiserOptions);
     }
 
-
     public async Task<T?> Read<T>(string fileKey, string partitionKey) where T : CosmosSelector
     {
         var file = GetFilePath(fileKey);

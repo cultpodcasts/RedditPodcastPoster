@@ -1,15 +1,9 @@
 ﻿namespace RedditPodcastPoster.Models;
 
-public class MessageResponseBase
+public class MessageResponseBase(bool success, string message = "")
 {
-    public MessageResponseBase(bool success, string message = "")
-    {
-        Success = success;
-        Message = message;
-    }
-
-    public bool Success { get; }
-    public string Message { get; }
+    public bool Success { get; } = success;
+    public string Message { get; } = message;
 
 
     public override string ToString()

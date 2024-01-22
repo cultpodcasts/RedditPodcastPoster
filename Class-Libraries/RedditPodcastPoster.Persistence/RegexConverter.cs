@@ -19,15 +19,13 @@ public class RegexConverter : JsonConverter<Regex>
 
         if (reader.TokenType == JsonTokenType.StartObject)
         {
-            using (var doc = JsonDocument.ParseValue(ref reader))
+            using var doc = JsonDocument.ParseValue(ref reader);
+            var root = doc.RootElement;
+            var pattern = root.GetProperty("Pattern").GetString();
+            var regexOptions = root.GetProperty("Options").GetString();
+            if (pattern != null && regexOptions != null)
             {
-                var root = doc.RootElement;
-                var pattern = root.GetProperty("Pattern").GetString();
-                var regexOptions = root.GetProperty("Options").GetString();
-                if (pattern != null && regexOptions != null)
-                {
-                    return new Regex(pattern, (RegexOptions) Enum.Parse(typeof(RegexOptions), regexOptions));
-                }
+                return new Regex(pattern, (RegexOptions) Enum.Parse(typeof(RegexOptions), regexOptions));
             }
         }
 

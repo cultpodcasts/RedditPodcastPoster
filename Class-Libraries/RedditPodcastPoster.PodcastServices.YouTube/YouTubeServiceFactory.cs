@@ -6,16 +6,10 @@ using Microsoft.Extensions.Options;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
-public class YouTubeServiceFactory : IYouTubeServiceFactory
+public class YouTubeServiceFactory(IOptions<YouTubeSettings> settings, ILogger<YouTubeServiceFactory> logger)
+    : IYouTubeServiceFactory
 {
-    private readonly ILogger<YouTubeServiceFactory> _logger;
-    private readonly YouTubeSettings _settings;
-
-    public YouTubeServiceFactory(IOptions<YouTubeSettings> settings, ILogger<YouTubeServiceFactory> logger)
-    {
-        _settings = settings.Value;
-        _logger = logger;
-    }
+    private readonly YouTubeSettings _settings = settings.Value;
 
     public YouTubeService Create()
     {

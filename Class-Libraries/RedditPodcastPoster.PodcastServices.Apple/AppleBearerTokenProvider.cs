@@ -4,22 +4,14 @@ using Microsoft.Extensions.Logging;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
-public class AppleBearerTokenProvider : IAppleBearerTokenProvider
+public class AppleBearerTokenProvider(
+    IHttpClientFactory httpClientFactory,
+    ILogger<AppleBearerTokenProvider> logger)
+    : IAppleBearerTokenProvider
 {
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ILogger<AppleBearerTokenProvider> _logger;
-
-    public AppleBearerTokenProvider(
-        IHttpClientFactory httpClientFactory,
-        ILogger<AppleBearerTokenProvider> logger)
-    {
-        _httpClientFactory = httpClientFactory;
-        _logger = logger;
-    }
-
     public async Task<AuthenticationHeaderValue> GetHeader()
     {
-        var httpClient = _httpClientFactory.CreateClient();
+        var httpClient = httpClientFactory.CreateClient();
         var podcastsHomepageContent = await httpClient.GetAsync("https://www.apple.com/apple-podcasts/");
         podcastsHomepageContent.EnsureSuccessStatusCode();
 

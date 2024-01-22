@@ -7,24 +7,15 @@ using RedditPodcastPoster.Common.Podcasts;
 namespace Indexer;
 
 [DurableTask(nameof(Indexer))]
-public class Indexer : TaskActivity<IndexerContext, IndexerContext>
+public class Indexer(
+    IPodcastsUpdater podcastsUpdater,
+    IActivityMarshaller activityMarshaller,
+    IOptions<IndexerOptions> indexerOptions,
+    ILogger<Indexer> logger)
+    : TaskActivity<IndexerContext, IndexerContext>
 {
-    private readonly IActivityMarshaller _activityMarshaller;
-    private readonly IndexerOptions _indexerOptions;
-    private readonly ILogger _logger;
-    private readonly IPodcastsUpdater _podcastsUpdater;
-
-    public Indexer(
-        IPodcastsUpdater podcastsUpdater,
-        IActivityMarshaller activityMarshaller,
-        IOptions<IndexerOptions> indexerOptions,
-        ILogger<Indexer> logger)
-    {
-        _podcastsUpdater = podcastsUpdater;
-        _activityMarshaller = activityMarshaller;
-        _indexerOptions = indexerOptions.Value;
-        _logger = logger;
-    }
+    private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
+    private readonly ILogger _logger = logger;
 
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
@@ -59,7 +50,7 @@ public class Indexer : TaskActivity<IndexerContext, IndexerContext>
             };
         }
 
-        var activityBooked = await _activityMarshaller.Initiate(indexerContext.IndexerOperationId, nameof(Indexer));
+        var activityBooked = await activityMarshaller.Initiate(indexerContext.IndexerOperationId, nameof(Indexer));
         if (activityBooked != ActivityStatus.Initiated)
         {
             return indexerContext with
@@ -71,7 +62,7 @@ public class Indexer : TaskActivity<IndexerContext, IndexerContext>
         bool results;
         try
         {
-            results = await _podcastsUpdater.UpdatePodcasts(indexingContext);
+            results = await podcastsUpdater.UpdatePodcasts(indexingContext);
         }
         catch (Exception ex)
         {
@@ -83,7 +74,7 @@ public class Indexer : TaskActivity<IndexerContext, IndexerContext>
         {
             try
             {
-                activityBooked = await _activityMarshaller.Complete(indexerContext.IndexerOperationId, nameof(Indexer));
+                activityBooked = await activityMarshaller.Complete(indexerContext.IndexerOperationId, nameof(Indexer));
                 if (activityBooked != ActivityStatus.Completed)
                 {
                     _logger.LogError("Failure to complete activity");

@@ -4,16 +4,10 @@ using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
-public class SpotifyClientFactory : ISpotifyClientFactory
+public class SpotifyClientFactory(IOptions<SpotifySettings> settings, ILogger<SpotifyClientFactory> logger)
+    : ISpotifyClientFactory
 {
-    private readonly ILogger<SpotifyClientFactory> _logger;
-    private readonly SpotifySettings _settings;
-
-    public SpotifyClientFactory(IOptions<SpotifySettings> settings, ILogger<SpotifyClientFactory> logger)
-    {
-        _logger = logger;
-        _settings = settings.Value;
-    }
+    private readonly SpotifySettings _settings = settings.Value;
 
     public async Task<ISpotifyClient> Create()
     {

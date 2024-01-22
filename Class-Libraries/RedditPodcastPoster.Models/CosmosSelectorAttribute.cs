@@ -1,11 +1,6 @@
 ﻿namespace RedditPodcastPoster.Models;
 
-public class CosmosSelectorAttribute : Attribute
+public class CosmosSelectorAttribute(ModelType modelType) : Attribute
 {
-    public CosmosSelectorAttribute(ModelType modelType)
-    {
-        ModelType = modelType;
-    }
-
-    public ModelType ModelType { get; init; }
+    public ModelType ModelType { get; init; } = modelType;
 }

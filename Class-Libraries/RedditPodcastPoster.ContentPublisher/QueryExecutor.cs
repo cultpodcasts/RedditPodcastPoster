@@ -8,32 +8,20 @@ using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.ContentPublisher;
 
-public class QueryExecutor : IQueryExecutor
+public class QueryExecutor(
+    Container container,
+    ITextSanitiser textSanitiser,
+    IRepository<Subject> subjectRepository,
+    ILogger<QueryExecutor> logger)
+    : IQueryExecutor
 {
-    private readonly Container _container;
-    private readonly ILogger<QueryExecutor> _logger;
-    private readonly IRepository<Subject> _subjectRepository;
-    private readonly ITextSanitiser _textSanitiser;
-
-    public QueryExecutor(
-        Container container,
-        ITextSanitiser textSanitiser,
-        IRepository<Subject> subjectRepository,
-        ILogger<QueryExecutor> logger)
-    {
-        _container = container;
-        _textSanitiser = textSanitiser;
-        _subjectRepository = subjectRepository;
-        _logger = logger;
-    }
-
     public async Task<HomePageModel> GetHomePage(CancellationToken ct)
     {
-        var podcastResults = GetRecentPodcasts(_container, ct);
+        var podcastResults = GetRecentPodcasts(container, ct);
 
-        var count = GetEpisodeCount(_container, ct);
+        var count = GetEpisodeCount(container, ct);
 
-        var totalDuration = GetTotalDuration(_container, ct);
+        var totalDuration = GetTotalDuration(container, ct);
 
         IEnumerable<Task> tasks = new Task[] {podcastResults, count, totalDuration};
 
@@ -62,7 +50,7 @@ public class QueryExecutor : IQueryExecutor
     public async Task<SubjectModel> GetSubjects(CancellationToken ct)
     {
         var termSubjects = new Dictionary<string, List<string>>();
-        var subjects = await _subjectRepository.GetAll(Subject.PartitionKey);
+        var subjects = await subjectRepository.GetAll(Subject.PartitionKey);
         foreach (var subject in subjects)
         {
             AddTerm(termSubjects, subject.Name, subject.Name);
@@ -191,7 +179,7 @@ public class QueryExecutor : IQueryExecutor
             titleRegex = new Regex(podcastResult.TitleRegex);
         }
 
-        podcastResult.EpisodeTitle = _textSanitiser.SanitiseTitle(podcastResult.EpisodeTitle, titleRegex);
+        podcastResult.EpisodeTitle = textSanitiser.SanitiseTitle(podcastResult.EpisodeTitle, titleRegex);
 
         Regex? descRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.DescriptionRegex))
@@ -200,9 +188,9 @@ public class QueryExecutor : IQueryExecutor
         }
 
         podcastResult.EpisodeDescription =
-            _textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
+            textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
 
-        podcastResult.PodcastName = _textSanitiser.SanitisePodcastName(podcastResult.PodcastName);
+        podcastResult.PodcastName = textSanitiser.SanitisePodcastName(podcastResult.PodcastName);
 
         return podcastResult;
     }

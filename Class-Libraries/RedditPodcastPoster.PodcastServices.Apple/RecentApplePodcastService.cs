@@ -4,20 +4,13 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
-public class RecentApplePodcastService : IApplePodcastService
+public class RecentApplePodcastService(
+    IRemoteClient remoteClient,
+    ILogger<ApplePodcastService> logger)
+    : IApplePodcastService
 {
     private const int PodcastEpisodeSearchLimit = 10;
     private const string Country = "US";
-    private readonly ILogger<ApplePodcastService> _logger;
-    private readonly IRemoteClient _remoteClient;
-
-    public RecentApplePodcastService(
-        IRemoteClient remoteClient,
-        ILogger<ApplePodcastService> logger)
-    {
-        _remoteClient = remoteClient;
-        _logger = logger;
-    }
 
     public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
     {
@@ -30,7 +23,7 @@ public class RecentApplePodcastService : IApplePodcastService
         PodcastEpisodeListResult podcastEpisodeListResult;
         try
         {
-            podcastEpisodeListResult = await _remoteClient.InvokeGet<PodcastEpisodeListResult>(
+            podcastEpisodeListResult = await remoteClient.InvokeGet<PodcastEpisodeListResult>(
                 string.Format(
                     "https://itunes.apple.com/lookup?{0}",
                     new object[1]
@@ -40,7 +33,7 @@ public class RecentApplePodcastService : IApplePodcastService
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"Failed to request episodes for podcast with apple-id '{podcastId.PodcastId}'. Reason: '{ex.Message}', Status-Code: '{ex.StatusCode}'.");
             return null;
         }

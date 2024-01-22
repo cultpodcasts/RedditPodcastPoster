@@ -5,21 +5,15 @@ using Reddit;
 
 namespace RedditPodcastPoster.Reddit;
 
-public class RedditClientFactory  : IRedditClientFactory
+public class RedditClientFactory(IOptions<RedditSettings> redditSettings, ILogger<RedditClientFactory> logger)
+    : IRedditClientFactory
 {
-    private readonly RedditSettings _redditSettings;
-    private readonly ILogger<RedditClientFactory> _logger;
-
-    public RedditClientFactory(IOptions<RedditSettings> redditSettings, ILogger<RedditClientFactory> logger)
-    {
-        _redditSettings = redditSettings.Value;
-        _logger = logger;
-    }
+    private readonly RedditSettings _redditSettings = redditSettings.Value;
 
     public RedditClient Create()
     {
         return new RedditClient(
-            appId: _redditSettings.AppId, 
+            _redditSettings.AppId,
             appSecret: _redditSettings.AppSecret,
             refreshToken: _redditSettings.RefreshToken);
     }
@@ -30,5 +24,4 @@ public class RedditClientFactory  : IRedditClientFactory
             .AddScoped<IRedditClientFactory, RedditClientFactory>()
             .AddScoped(s => s.GetService<IRedditClientFactory>()!.Create());
     }
-    
 }

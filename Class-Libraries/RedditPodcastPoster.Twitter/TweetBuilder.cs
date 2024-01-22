@@ -9,32 +9,20 @@ using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.Twitter;
 
-public class TweetBuilder : ITweetBuilder
+public class TweetBuilder(
+    ITextSanitiser textSanitiser,
+    ISubjectRepository subjectRepository,
+    IHashTagEnricher hashTagEnricher,
+    IOptions<TwitterOptions> twitterOptions,
+    ILogger<TweetBuilder> logger)
+    : ITweetBuilder
 {
-    private readonly IHashTagEnricher _hashTagEnricher;
-    private readonly ILogger<TweetBuilder> _logger;
-    private readonly ISubjectRepository _subjectRepository;
-    private readonly ITextSanitiser _textSanitiser;
-    private readonly TwitterOptions _twitterOptions;
-
-    public TweetBuilder(
-        ITextSanitiser textSanitiser,
-        ISubjectRepository subjectRepository,
-        IHashTagEnricher hashTagEnricher,
-        IOptions<TwitterOptions> twitterOptions,
-        ILogger<TweetBuilder> logger)
-    {
-        _textSanitiser = textSanitiser;
-        _subjectRepository = subjectRepository;
-        _hashTagEnricher = hashTagEnricher;
-        _twitterOptions = twitterOptions.Value;
-        _logger = logger;
-    }
+    private readonly TwitterOptions _twitterOptions = twitterOptions.Value;
 
     public async Task<string> BuildTweet(PodcastEpisode podcastEpisode)
     {
         var postModel = (podcastEpisode.Podcast, new[] {podcastEpisode.Episode}).ToPostModel();
-        var episodeTitle = _textSanitiser.SanitiseTitle(postModel);
+        var episodeTitle = textSanitiser.SanitiseTitle(postModel);
 
         var episodeHashtags = await GetHashTags(podcastEpisode.Episode.Subjects) ?? string.Empty;
         var hashtags = episodeHashtags.Split(' ').AsEnumerable();
@@ -48,14 +36,14 @@ public class TweetBuilder : ITweetBuilder
         var hashtagsAdded = new List<string>();
         foreach (var hashtag in hashtags)
         {
-            (episodeTitle, var addedHashTag) = _hashTagEnricher.AddHashTag(episodeTitle, hashtag.TrimStart('#'));
+            (episodeTitle, var addedHashTag) = hashTagEnricher.AddHashTag(episodeTitle, hashtag.TrimStart('#'));
             if (addedHashTag)
             {
                 hashtagsAdded.Add(hashtag);
             }
         }
 
-        var podcastName = _textSanitiser.SanitisePodcastName(postModel);
+        var podcastName = textSanitiser.SanitisePodcastName(postModel);
 
         var tweetBuilder = new StringBuilder();
         if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TwitterHandle))
@@ -101,7 +89,7 @@ public class TweetBuilder : ITweetBuilder
 
     private async Task<string?> GetHashTags(List<string> episodeSubjects)
     {
-        var subjectRetrieval = episodeSubjects.Select(x => _subjectRepository.GetByName(x)).ToArray();
+        var subjectRetrieval = episodeSubjects.Select(x => subjectRepository.GetByName(x)).ToArray();
         var subjects = await Task.WhenAll(subjectRetrieval);
         IEnumerable<string> hashTags = subjects.Where(x => !string.IsNullOrWhiteSpace(x?.HashTag))
             .Select(x => x!.HashTag).Distinct()!;

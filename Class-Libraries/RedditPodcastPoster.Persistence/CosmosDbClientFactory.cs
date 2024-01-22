@@ -5,28 +5,20 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
 
-public class CosmosDbClientFactory : ICosmosDbClientFactory
+public class CosmosDbClientFactory(
+    IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
+    IOptions<CosmosDbSettings> settings,
+    ILogger<CosmosDbClientFactory> logger)
+    : ICosmosDbClientFactory
 {
-    private readonly IJsonSerializerOptionsProvider _jsonSerializerOptionsProvider;
-    private readonly ILogger<CosmosDbClientFactory> _logger;
-    private readonly CosmosDbSettings _settings;
-
-    public CosmosDbClientFactory(
-        IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
-        IOptions<CosmosDbSettings> settings,
-        ILogger<CosmosDbClientFactory> logger)
-    {
-        _settings = settings.Value;
-        _jsonSerializerOptionsProvider = jsonSerializerOptionsProvider;
-        _logger = logger;
-    }
+    private readonly CosmosDbSettings _settings = settings.Value;
 
     public CosmosClient Create()
     {
         var cosmosClientOptions = new CosmosClientOptions
         {
             Serializer =
-                new CosmosSystemTextJsonSerializer(_jsonSerializerOptionsProvider.GetJsonSerializerOptions())
+                new CosmosSystemTextJsonSerializer(jsonSerializerOptionsProvider.GetJsonSerializerOptions())
         };
         if (_settings.UseGateway.HasValue && _settings.UseGateway.Value)
         {

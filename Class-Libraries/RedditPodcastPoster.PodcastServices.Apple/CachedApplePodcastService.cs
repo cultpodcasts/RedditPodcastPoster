@@ -4,26 +4,19 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
-public class CachedApplePodcastService : ICachedApplePodcastService
+public class CachedApplePodcastService(
+    IApplePodcastService applePodcastService,
+    ILogger<CachedApplePodcastService> logger)
+    : ICachedApplePodcastService
 {
     private static readonly ConcurrentDictionary<string, IEnumerable<AppleEpisode>?> Cache = new();
-    private readonly IApplePodcastService _applePodcastService;
-    private readonly ILogger<CachedApplePodcastService> _logger;
-
-    public CachedApplePodcastService(
-        IApplePodcastService applePodcastService,
-        ILogger<CachedApplePodcastService> logger)
-    {
-        _applePodcastService = applePodcastService;
-        _logger = logger;
-    }
 
     public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
     {
         var cacheKey = GetCacheKey(podcastId.PodcastId, indexingContext.ReleasedSince);
         if (!Cache.TryGetValue(cacheKey, out var podcastEpisodes))
         {
-            podcastEpisodes = Cache[cacheKey] = await _applePodcastService.GetEpisodes(podcastId, indexingContext);
+            podcastEpisodes = Cache[cacheKey] = await applePodcastService.GetEpisodes(podcastId, indexingContext);
         }
 
         return podcastEpisodes;

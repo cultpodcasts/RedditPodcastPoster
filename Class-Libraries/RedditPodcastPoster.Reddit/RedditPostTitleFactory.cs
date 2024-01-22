@@ -5,28 +5,20 @@ using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.Reddit;
 
-public class RedditPostTitleFactory : IRedditPostTitleFactory
+public class RedditPostTitleFactory(
+    ITextSanitiser textSanitiser,
+    IOptions<SubredditSettings> settings,
+    ILogger<RedditPostTitleFactory> logger)
+    : IRedditPostTitleFactory
 {
-    private readonly ILogger<RedditPostTitleFactory> _logger;
-    private readonly SubredditSettings _settings;
-    private readonly ITextSanitiser _textSanitiser;
-
-    public RedditPostTitleFactory(
-        ITextSanitiser textSanitiser,
-        IOptions<SubredditSettings> settings,
-        ILogger<RedditPostTitleFactory> logger)
-    {
-        _textSanitiser = textSanitiser;
-        _settings = settings.Value;
-        _logger = logger;
-    }
+    private readonly SubredditSettings _settings = settings.Value;
 
     public string ConstructPostTitle(PostModel postModel)
     {
         var title = ConstructBasePostTitle(postModel);
         var bundleSuffix = CreateBundleSuffix(postModel.BundledPartNumbers);
         var audioLinksSuffix = "";
-        if (postModel.Link != postModel.Spotify && 
+        if (postModel.Link != postModel.Spotify &&
             postModel.HasYouTubeUrl &&
             (postModel.Spotify != null || postModel.Apple != null))
         {
@@ -61,9 +53,9 @@ public class RedditPostTitleFactory : IRedditPostTitleFactory
 
     private string ConstructBasePostTitle(PostModel postModel)
     {
-        var episodeTitle = _textSanitiser.SanitiseTitle(postModel);
-        var podcastName = _textSanitiser.SanitisePodcastName(postModel);
-        var description = _textSanitiser.SanitiseDescription(postModel);
+        var episodeTitle = textSanitiser.SanitiseTitle(postModel);
+        var podcastName = textSanitiser.SanitisePodcastName(postModel);
+        var description = textSanitiser.SanitiseDescription(postModel);
         var title = $"\"{episodeTitle}\", {podcastName}, {postModel.ReleaseDate} {postModel.EpisodeLength}";
         if (!string.IsNullOrWhiteSpace(description))
         {

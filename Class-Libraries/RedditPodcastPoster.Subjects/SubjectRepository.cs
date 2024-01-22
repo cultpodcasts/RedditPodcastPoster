@@ -6,30 +6,20 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Subjects;
 
-public class SubjectRepository : ISubjectRepository
+public class SubjectRepository(
+    IRepository<Subject> repository,
+    Container container,
+    ILogger<SubjectRepository> logger)
+    : ISubjectRepository
 {
-    private readonly Container _container;
-    private readonly ILogger<SubjectRepository> _logger;
-    private readonly IRepository<Subject> _repository;
-
-    public SubjectRepository(
-        IRepository<Subject> repository,
-        Container container,
-        ILogger<SubjectRepository> logger)
-    {
-        _repository = repository;
-        _container = container;
-        _logger = logger;
-    }
-
     public Task<IEnumerable<Subject>> GetAll()
     {
-        return _repository.GetAll(Subject.PartitionKey);
+        return repository.GetAll(Subject.PartitionKey);
     }
 
     public async Task<Subject?> GetByName(string name)
     {
-        using var query = _container
+        using var query = container
             .GetItemLinqQueryable<Subject>(
                 linqSerializerOptions: new CosmosLinqSerializerOptions
                 {

@@ -3,29 +3,21 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
-public class SpotifyEpisodeEnricher : ISpotifyEpisodeEnricher
+public class SpotifyEpisodeEnricher(
+    ISpotifyEpisodeResolver spotifyEpisodeResolver,
+    ILogger<SpotifyEpisodeEnricher> logger)
+    : ISpotifyEpisodeEnricher
 {
-    private readonly ILogger<SpotifyEpisodeEnricher> _logger;
-    private readonly ISpotifyEpisodeResolver _spotifyEpisodeResolver;
-
-    public SpotifyEpisodeEnricher(
-        ISpotifyEpisodeResolver spotifyEpisodeResolver,
-        ILogger<SpotifyEpisodeEnricher> logger)
-    {
-        _spotifyEpisodeResolver = spotifyEpisodeResolver;
-        _logger = logger;
-    }
-
     public async Task Enrich(
         EnrichmentRequest request,
         IndexingContext indexingContext,
         EnrichmentContext enrichmentContext)
     {
         var findSpotifyEpisodeRequest = FindSpotifyEpisodeRequestFactory.Create(request.Podcast, request.Episode);
-        var findEpisodeResult = await _spotifyEpisodeResolver.FindEpisode(findSpotifyEpisodeRequest, indexingContext);
+        var findEpisodeResult = await spotifyEpisodeResolver.FindEpisode(findSpotifyEpisodeRequest, indexingContext);
         if (findEpisodeResult.FullEpisode != null)
         {
-            _logger.LogInformation(
+            logger.LogInformation(
                 $"{nameof(Enrich)} Found matching Spotify episode: '{findEpisodeResult.FullEpisode.Id}' with title '{findEpisodeResult.FullEpisode.Name}' and release-date '{findEpisodeResult.FullEpisode.ReleaseDate}'.");
             request.Episode.SpotifyId = findEpisodeResult.FullEpisode.Id;
             var url = findEpisodeResult.FullEpisode.GetUrl();

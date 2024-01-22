@@ -5,15 +5,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Indexer;
 
-public class OrchestrationTrigger
+public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
 {
     private static readonly TimeSpan OrchestrationDelay = TimeSpan.FromSeconds(10);
-    private readonly ILogger<OrchestrationTrigger> _logger;
-
-    public OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
-    {
-        _logger = logger;
-    }
 
     [Function("OrchestrationTrigger")]
     public async Task Run(
@@ -25,7 +19,7 @@ public class OrchestrationTrigger
         TimerInfo info,
         [DurableClient] DurableTaskClient client)
     {
-        _logger.LogInformation($"{nameof(OrchestrationTrigger)} {nameof(Run)} initiated.");
+        logger.LogInformation($"{nameof(OrchestrationTrigger)} {nameof(Run)} initiated.");
         string instanceId;
         try
         {
@@ -33,17 +27,17 @@ public class OrchestrationTrigger
         }
         catch (RpcException ex)
         {
-            _logger.LogCritical(ex,
+            logger.LogCritical(ex,
                 $"Failure to execute '{nameof(client.ScheduleNewOrchestrationInstanceAsync)}' for '{nameof(Orchestration)}'. Status-Code: '{ex.StatusCode}', Status: '{ex.Status}'.");
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogCritical(ex,
+            logger.LogCritical(ex,
                 $"Failure to execute '{nameof(client.ScheduleNewOrchestrationInstanceAsync)}' for '{nameof(Orchestration)}'.");
             throw;
         }
 
-        _logger.LogInformation($"{nameof(OrchestrationTrigger)} {nameof(Run)} complete. Instance-id= '{instanceId}'.");
+        logger.LogInformation($"{nameof(OrchestrationTrigger)} {nameof(Run)} complete. Instance-id= '{instanceId}'.");
     }
 }
