@@ -1,30 +1,16 @@
 ﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.YouTubePushNotifications.Configuration;
-using RedditPodcastPoster.YouTubePushNotifications;
 
 namespace RedditPodcastPoster.YouTubePushNotifications;
 
-public class PodcastYouTubePushNotificationSubscriber : IPodcastYouTubePushNotificationSubscriber
+public class PodcastYouTubePushNotificationSubscriber(
+    HttpClient httpClient,
+    IPodcastYouTubePushNotificationUrlAdaptor podcastYouTubePushNotificationUrlAdaptor,
+    ILogger<PodcastYouTubePushNotificationSubscriber> logger)
+    : IPodcastYouTubePushNotificationSubscriber
 {
     private static readonly Uri NotificationSubscribeEndpoint =
         new("https://pubsubhubbub.appspot.com/subscribe", UriKind.Absolute);
-
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<PodcastYouTubePushNotificationSubscriber> _logger;
-    private readonly YouTubePushNotificationCallbackSettings _pushNotificationCallbackSettings;
-
-    public PodcastYouTubePushNotificationSubscriber(
-        HttpClient httpClient,
-        IOptions<YouTubePushNotificationCallbackSettings> pushNotificationCallbackSettings,
-        ILogger<PodcastYouTubePushNotificationSubscriber> logger
-    )
-    {
-        _httpClient = httpClient;
-        _logger = logger;
-        _pushNotificationCallbackSettings = pushNotificationCallbackSettings.Value;
-    }
 
     public async Task Renew(Podcast podcast)
     {
@@ -38,13 +24,12 @@ public class PodcastYouTubePushNotificationSubscriber : IPodcastYouTubePushNotif
 
     private async Task SendUpdate(Podcast podcast, string mode)
     {
-        var callbackUrl = new Uri(_pushNotificationCallbackSettings.CallbackBaseUrl, podcast.Id.ToString());
-        var topicUrl = $"https://www.youtube.com/feeds/videos.xml?channel_id={podcast.YouTubeChannelId}";
+        var (callbackUrl, topicUrl) = podcastYouTubePushNotificationUrlAdaptor.GetPodcastSubscriptionUrls(podcast);
 
         var formContent = new FormUrlEncodedContent(new[]
         {
             new KeyValuePair<string, string>("hub.callback", callbackUrl.ToString()),
-            new KeyValuePair<string, string>("hub.topic", topicUrl),
+            new KeyValuePair<string, string>("hub.topic", topicUrl.ToString()),
             new KeyValuePair<string, string>("hub.verify", "async"),
             new KeyValuePair<string, string>("hub.mode", mode),
             new KeyValuePair<string, string>("hub.verify_token", string.Empty),
@@ -52,11 +37,11 @@ public class PodcastYouTubePushNotificationSubscriber : IPodcastYouTubePushNotif
             new KeyValuePair<string, string>("hub.lease_numbers", string.Empty)
         });
 
-        var result = await _httpClient.PostAsync(NotificationSubscribeEndpoint, formContent);
+        var result = await httpClient.PostAsync(NotificationSubscribeEndpoint, formContent);
         if (!result.IsSuccessStatusCode)
         {
             var body = await result.Content.ReadAsStringAsync();
-            _logger.LogError(
+            logger.LogError(
                 $"Failure to subscribe podcast for youtube push notifications. Callback-url: '{callbackUrl}', topic-url:'{topicUrl}'. Result status-code: '{result.StatusCode.ToString()}', response-body: '{body}'.");
         }
     }

@@ -16,6 +16,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IPodcastsSubscriber, PodcastsSubscriber>()
             .AddScoped<IPodcastYouTubePushNotificationSubscriber, PodcastYouTubePushNotificationSubscriber>()
             .AddScoped<INotificationAdaptor, NotificationAdaptor>()
-            .AddScoped<IPushNotificationHandler, PushNotificationHandler>();
+            .AddScoped<IPushNotificationHandler, PushNotificationHandler>()
+            .AddSingleton<IPodcastYouTubePushNotificationUrlAdaptor, PodcastYouTubePushNotificationUrlAdaptor>();
     }
 }
