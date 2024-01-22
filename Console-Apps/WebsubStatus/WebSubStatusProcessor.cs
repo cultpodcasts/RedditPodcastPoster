@@ -13,9 +13,6 @@ public class WebSubStatusProcessor(
     ILogger<WebSubStatusProcessor> logger)
 {
     private const string WebSubEndpoint = "https://pubsubhubbub.appspot.com/subscription-details";
-    private readonly ILogger<WebSubStatusProcessor> _logger = logger;
-    private readonly IPodcastRepository _podcastRepository = podcastRepository;
-
 
     public async Task Process(WebSubStatusRequest request)
     {
