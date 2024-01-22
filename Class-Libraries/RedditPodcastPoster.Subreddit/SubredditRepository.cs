@@ -4,26 +4,18 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Subreddit;
 
-public class SubredditRepository : ISubredditRepository
+public class SubredditRepository(
+    IFileRepository fileRepository,
+    ILogger<SubredditRepository> logger)
+    : ISubredditRepository
 {
-    private readonly IFileRepository _fileRepository;
-    private readonly ILogger<SubredditRepository> _logger;
-
-    public SubredditRepository(
-        IFileRepository fileRepository,
-        ILogger<SubredditRepository> logger)
-    {
-        _fileRepository = fileRepository;
-        _logger = logger;
-    }
-
     public async Task<IEnumerable<RedditPost>> GetAll()
     {
-        return await _fileRepository.GetAll<RedditPost>(RedditPost.PartitionKey).ToArrayAsync();
+        return await fileRepository.GetAll<RedditPost>(RedditPost.PartitionKey).ToArrayAsync();
     }
 
     public async Task Save(RedditPost post)
     {
-        await _fileRepository.Write(post);
+        await fileRepository.Write(post);
     }
 }

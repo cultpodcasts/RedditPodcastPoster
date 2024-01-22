@@ -5,18 +5,12 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
-public class YouTubeVideoService : IYouTubeVideoService
+public class YouTubeVideoService(
+    YouTubeService youTubeService,
+    ILogger<YouTubeVideoService> logger)
+    : IYouTubeVideoService
 {
     private const int MaxSearchResults = 5;
-    private readonly ILogger<YouTubeVideoService> _logger;
-    private readonly YouTubeService _youTubeService;
-
-    public YouTubeVideoService(YouTubeService youTubeService,
-        ILogger<YouTubeVideoService> logger)
-    {
-        _youTubeService = youTubeService;
-        _logger = logger;
-    }
 
     public async Task<IList<Video>?> GetVideoContentDetails(
         IEnumerable<string> videoIds,
@@ -25,7 +19,7 @@ public class YouTubeVideoService : IYouTubeVideoService
     {
         if (indexingContext is {SkipYouTubeUrlResolving: true})
         {
-            _logger.LogInformation(
+            logger.LogInformation(
                 $"Skipping '{nameof(GetVideoContentDetails)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Video-ids: '{string.Join(",", videoIds)}'.");
             return null;
         }
@@ -45,7 +39,7 @@ public class YouTubeVideoService : IYouTubeVideoService
                     contentDetails = "snippet," + contentDetails;
                 }
 
-                request = _youTubeService.Videos.List(contentDetails);
+                request = youTubeService.Videos.List(contentDetails);
                 request.Id = string.Join(",", batchVideoIds);
                 request.MaxResults = MaxSearchResults;
                 VideoListResponse response;
@@ -55,7 +49,7 @@ public class YouTubeVideoService : IYouTubeVideoService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"Failed to use {nameof(_youTubeService)}.");
+                    logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
                     if (indexingContext != null)
                     {
                         indexingContext.SkipYouTubeUrlResolving = true;

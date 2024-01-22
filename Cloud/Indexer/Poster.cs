@@ -9,27 +9,17 @@ using RedditPodcastPoster.Configuration;
 namespace Indexer;
 
 [DurableTask(nameof(Poster))]
-public class Poster : TaskActivity<IndexerContext, IndexerContext>
+public class Poster(
+    IEpisodeProcessor episodeProcessor,
+    IActivityMarshaller activityMarshaller,
+    IOptions<PosterOptions> posterOptions,
+    IOptions<PostingCriteria> postingCriteria,
+    ILogger<Poster> logger)
+    : TaskActivity<IndexerContext, IndexerContext>
 {
-    private readonly IActivityMarshaller _activityMarshaller;
-    private readonly IEpisodeProcessor _episodeProcessor;
-    private readonly ILogger _logger;
-    private readonly PosterOptions _posterOptions;
-    private readonly PostingCriteria _postingCriteria;
-
-    public Poster(
-        IEpisodeProcessor episodeProcessor,
-        IActivityMarshaller activityMarshaller,
-        IOptions<PosterOptions> posterOptions,
-        IOptions<PostingCriteria> postingCriteria,
-        ILogger<Poster> logger)
-    {
-        _episodeProcessor = episodeProcessor;
-        _activityMarshaller = activityMarshaller;
-        _posterOptions = posterOptions.Value;
-        _postingCriteria = postingCriteria.Value;
-        _logger = logger;
-    }
+    private readonly ILogger _logger = logger;
+    private readonly PosterOptions _posterOptions = posterOptions.Value;
+    private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
@@ -52,7 +42,7 @@ public class Poster : TaskActivity<IndexerContext, IndexerContext>
             throw new ArgumentNullException(nameof(indexerContext.PosterOperationId));
         }
 
-        var activityBooked = await _activityMarshaller.Initiate(indexerContext.PosterOperationId.Value, nameof(Poster));
+        var activityBooked = await activityMarshaller.Initiate(indexerContext.PosterOperationId.Value, nameof(Poster));
         if (activityBooked != ActivityStatus.Initiated)
         {
             return indexerContext with
@@ -64,7 +54,7 @@ public class Poster : TaskActivity<IndexerContext, IndexerContext>
         ProcessResponse result;
         try
         {
-            result = await _episodeProcessor.PostEpisodesSinceReleaseDate(
+            result = await episodeProcessor.PostEpisodesSinceReleaseDate(
                 baselineDate,
                 indexerContext is {SkipYouTubeUrlResolving: false, YouTubeError: false},
                 indexerContext is {SkipSpotifyUrlResolving: false, SpotifyError: false});
@@ -80,7 +70,7 @@ public class Poster : TaskActivity<IndexerContext, IndexerContext>
             try
             {
                 activityBooked =
-                    await _activityMarshaller.Complete(indexerContext.PosterOperationId.Value, nameof(Poster));
+                    await activityMarshaller.Complete(indexerContext.PosterOperationId.Value, nameof(Poster));
                 if (activityBooked != ActivityStatus.Completed)
                 {
                     _logger.LogError("Failure to complete activity");

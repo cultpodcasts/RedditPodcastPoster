@@ -4,22 +4,14 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
-public class AppleEpisodeProvider : IAppleEpisodeProvider
+public class AppleEpisodeProvider(
+    ICachedApplePodcastService applePodcastService,
+    ILogger<AppleEpisodeProvider> logger)
+    : IAppleEpisodeProvider
 {
-    private readonly ICachedApplePodcastService _applePodcastService;
-    private readonly ILogger<AppleEpisodeProvider> _logger;
-
-    public AppleEpisodeProvider(
-        ICachedApplePodcastService applePodcastService,
-        ILogger<AppleEpisodeProvider> logger)
-    {
-        _applePodcastService = applePodcastService;
-        _logger = logger;
-    }
-
     public async Task<IList<Episode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
     {
-        var episodes = await _applePodcastService.GetEpisodes(podcastId, indexingContext);
+        var episodes = await applePodcastService.GetEpisodes(podcastId, indexingContext);
 
         if (episodes == null)
         {

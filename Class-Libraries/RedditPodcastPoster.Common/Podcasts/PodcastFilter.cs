@@ -3,15 +3,8 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Common.Podcasts;
 
-public class PodcastFilter : IPodcastFilter
+public class PodcastFilter(ILogger<PodcastFilter> logger) : IPodcastFilter
 {
-    private readonly ILogger<PodcastFilter> _logger;
-
-    public PodcastFilter(ILogger<PodcastFilter> logger)
-    {
-        _logger = logger;
-    }
-
     public FilterResult Filter(Podcast podcast, List<string> eliminationTerms)
     {
         IList<(Episode, string[])> filteredEpisodes = new List<(Episode, string[])>();
@@ -28,7 +21,7 @@ public class PodcastFilter : IPodcastFilter
                 if (remove)
                 {
                     matchedTerms.Add(eliminationTerm);
-                    _logger.LogInformation(
+                    logger.LogInformation(
                         $"Removing episode '{podcastEpisode.Title}' of podcast '{podcast.Name}' due to match with '{eliminationTerm}'.");
                 }
             }

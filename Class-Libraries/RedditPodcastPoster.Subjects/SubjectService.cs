@@ -5,20 +5,12 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Subjects;
 
-public class SubjectService : ISubjectService
+public class SubjectService(ICachedSubjectRepository subjectRepository, ILogger<SubjectService> logger)
+    : ISubjectService
 {
-    private readonly ILogger<SubjectService> _logger;
-    private readonly ICachedSubjectRepository _subjectRepository;
-
-    public SubjectService(ICachedSubjectRepository subjectRepository, ILogger<SubjectService> logger)
-    {
-        _subjectRepository = subjectRepository;
-        _logger = logger;
-    }
-
     public async Task<Subject?> Match(Subject subject)
     {
-        var subjects = await _subjectRepository.GetAll();
+        var subjects = await subjectRepository.GetAll();
         if (!subjects.Any())
         {
             return null;
@@ -97,7 +89,7 @@ public class SubjectService : ISubjectService
             {
                 var message =
                     $"Subject '{subject.Name}' with id '{subject.Id}' with aliases '{string.Join(",", subject.Aliases.Select(x => $"'{x}'"))}' matches multiple subjects: {string.Join(",", matchedSubjects.Select(x => $"'{x.Name}'"))}.";
-                _logger.LogError(message);
+                logger.LogError(message);
                 throw new InvalidOperationException(message);
             }
 
@@ -131,7 +123,7 @@ public class SubjectService : ISubjectService
             throw new ArgumentNullException(nameof(subject));
         }
 
-        var subjects = await _subjectRepository.GetAll();
+        var subjects = await subjectRepository.GetAll();
 
         var matchedSubject =
             subjects.SingleOrDefault(x => x.Name.ToLowerInvariant() == subject.ToLowerInvariant());
@@ -166,7 +158,7 @@ public class SubjectService : ISubjectService
             ignoredTerms = ignoredTerms.Select(x => x.ToLowerInvariant()).ToArray();
         }
 
-        var subjects = await _subjectRepository.GetAll();
+        var subjects = await subjectRepository.GetAll();
         var matches = subjects
             .Select(subject => new SubjectMatch(subject, Matches(episode, subject, false, ignoredTerms)))
             .Where(x => x.MatchResults.Any());

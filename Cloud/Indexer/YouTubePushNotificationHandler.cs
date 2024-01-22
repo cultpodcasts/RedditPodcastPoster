@@ -8,21 +8,12 @@ using RedditPodcastPoster.YouTubePushNotifications;
 
 namespace Indexer;
 
-public class YouTubePushNotificationHandler
+public class YouTubePushNotificationHandler(
+    IPodcastsSubscriber podcastsSubscriber,
+    IPushNotificationHandler pushNotificationHandler,
+    ILoggerFactory loggerFactory)
 {
-    private readonly ILogger _logger;
-    private readonly IPodcastsSubscriber _podcastsSubscriber;
-    private readonly IPushNotificationHandler _pushNotificationHandler;
-
-    public YouTubePushNotificationHandler(
-        IPodcastsSubscriber podcastsSubscriber,
-        IPushNotificationHandler pushNotificationHandler,
-        ILoggerFactory loggerFactory)
-    {
-        _podcastsSubscriber = podcastsSubscriber;
-        _pushNotificationHandler = pushNotificationHandler;
-        _logger = loggerFactory.CreateLogger<YouTubePushNotificationHandler>();
-    }
+    private readonly ILogger _logger = loggerFactory.CreateLogger<YouTubePushNotificationHandler>();
 
     [Function("YouTubeSubscriptionChallenge")]
     public async Task<HttpResponseData> YouTubeSubscriptionChallenge(
@@ -45,7 +36,7 @@ public class YouTubePushNotificationHandler
                 var leaseSecondsParam = queryString[hubLeaseSeconds];
                 if (long.TryParse(leaseSecondsParam, out var leaseSeconds))
                 {
-                    await _podcastsSubscriber.UpdateLease(podcastId, leaseSeconds);
+                    await podcastsSubscriber.UpdateLease(podcastId, leaseSeconds);
                 }
                 else
                 {
@@ -57,7 +48,7 @@ public class YouTubePushNotificationHandler
             {
                 if (queryString.AllKeys.Contains(mode) && queryString[mode] == Constants.ModeUnsubscribe)
                 {
-                    await _podcastsSubscriber.RemoveLease(podcastId);
+                    await podcastsSubscriber.RemoveLease(podcastId);
                 }
                 else
                 {
@@ -96,7 +87,7 @@ public class YouTubePushNotificationHandler
             _logger.LogInformation(
                 $"{nameof(YouTubePushNotificationHandler)} - Podcast-Id: '{podcastId}', url: '{req.Url}'.");
             var xml = await XDocument.LoadAsync(req.Body, LoadOptions.None, ct);
-            await _pushNotificationHandler.Handle(podcastId, xml);
+            await pushNotificationHandler.Handle(podcastId, xml);
             return req.CreateResponse(HttpStatusCode.Accepted);
         }
         catch (Exception e)
@@ -118,7 +109,7 @@ public class YouTubePushNotificationHandler
         try
         {
             _logger.LogInformation($"{nameof(YouTubePushNotificationHandler)} {nameof(YouTubeSubscriber)} initiated.");
-            await _podcastsSubscriber.SubscribePodcasts();
+            await podcastsSubscriber.SubscribePodcasts();
             _logger.LogInformation($"{nameof(YouTubePushNotificationHandler)} {nameof(YouTubeSubscriber)} complete.");
         }
         catch (Exception e)

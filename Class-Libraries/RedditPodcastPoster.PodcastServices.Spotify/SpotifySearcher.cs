@@ -4,17 +4,11 @@ using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
-public class SpotifySearcher : ISpotifySearcher
+public class SpotifySearcher(ILogger<SpotifySearcher> logger) : ISpotifySearcher
 {
     private const int MinFuzzyScore = 70;
     private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(30).Ticks;
     private static readonly long BroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
-    private readonly ILogger<SpotifySearcher> _logger;
-
-    public SpotifySearcher(ILogger<SpotifySearcher> logger)
-    {
-        _logger = logger;
-    }
 
     public IEnumerable<SimpleShow> FindMatchingPodcasts(string podcastName, List<SimpleShow>? podcasts)
     {

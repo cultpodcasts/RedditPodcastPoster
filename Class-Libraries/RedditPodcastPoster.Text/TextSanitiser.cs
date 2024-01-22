@@ -7,7 +7,8 @@ using RedditPodcastPoster.Text.KnownTerms;
 
 namespace RedditPodcastPoster.Text;
 
-public partial class TextSanitiser : ITextSanitiser
+public partial class TextSanitiser(IKnownTermsProvider knownTermsProvider, ILogger<TextSanitiser> logger)
+    : ITextSanitiser
 {
     private static readonly Regex HashtagOrAtSymbols = GenerateHashTagAtSymbolPatter();
     private static readonly Regex InQuotes = GenerateInQuotes();
@@ -15,14 +16,7 @@ public partial class TextSanitiser : ITextSanitiser
 
     private static readonly TextInfo TextInfo = new CultureInfo("en-GB", false).TextInfo;
     private static readonly Regex PostAsteriskLetters = GeneratePostAsteriskLetters();
-    private readonly IKnownTermsProvider _knownTermsProvider;
-    private readonly ILogger<TextSanitiser> _logger;
-
-    public TextSanitiser(IKnownTermsProvider knownTermsProvider, ILogger<TextSanitiser> logger)
-    {
-        _knownTermsProvider = knownTermsProvider;
-        _logger = logger;
-    }
+    private readonly ILogger<TextSanitiser> _logger = logger;
 
     public string SanitiseTitle(PostModel postModel)
     {
@@ -173,7 +167,7 @@ public partial class TextSanitiser : ITextSanitiser
     private string FixCasing(string input)
     {
         input = input.Replace("W/", "w/");
-        input = _knownTermsProvider.GetKnownTerms().MaintainKnownTerms(input);
+        input = knownTermsProvider.GetKnownTerms().MaintainKnownTerms(input);
 
         return input;
     }

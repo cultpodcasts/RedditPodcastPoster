@@ -3,20 +3,14 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Persistence.Abstractions;
 
-public class MergeResult
+public class MergeResult(
+    List<Episode> addedEpisodes,
+    List<(Episode Existing, Episode NewDetails)> mergedEpisodes,
+    List<IEnumerable<Episode>> failedEpisodes)
 {
-    public MergeResult(List<Episode> addedEpisodes,
-        List<(Episode Existing, Episode NewDetails)> mergedEpisodes,
-        List<IEnumerable<Episode>> failedEpisodes)
-    {
-        AddedEpisodes = addedEpisodes;
-        MergedEpisodes = mergedEpisodes;
-        FailedEpisodes = failedEpisodes;
-    }
-
-    public List<Episode> AddedEpisodes { get; init; }
-    public List<(Episode Existing, Episode NewDetails)> MergedEpisodes { get; init; }
-    public List<IEnumerable<Episode>> FailedEpisodes { get; init; }
+    public List<Episode> AddedEpisodes { get; init; } = addedEpisodes;
+    public List<(Episode Existing, Episode NewDetails)> MergedEpisodes { get; init; } = mergedEpisodes;
+    public List<IEnumerable<Episode>> FailedEpisodes { get; init; } = failedEpisodes;
 
     public string MergedEpisodesReport()
     {

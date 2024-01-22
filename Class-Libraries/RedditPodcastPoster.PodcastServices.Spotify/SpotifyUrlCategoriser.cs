@@ -5,19 +5,12 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
-public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
+public class SpotifyUrlCategoriser(
+    ISpotifyEpisodeResolver spotifyEpisodeResolver,
+    ILogger<SpotifyUrlCategoriser> logger)
+    : ISpotifyUrlCategoriser
 {
     private static readonly Regex SpotifyId = new(@"episode/(?'episodeId'\w+)");
-    private readonly ILogger<SpotifyUrlCategoriser> _logger;
-    private readonly ISpotifyEpisodeResolver _spotifyEpisodeResolver;
-
-    public SpotifyUrlCategoriser(
-        ISpotifyEpisodeResolver spotifyEpisodeResolver,
-        ILogger<SpotifyUrlCategoriser> logger)
-    {
-        _spotifyEpisodeResolver = spotifyEpisodeResolver;
-        _logger = logger;
-    }
 
     public bool IsMatch(Uri url)
     {
@@ -41,7 +34,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
             throw new InvalidOperationException($"Unable to find spotify-id in url '{url}'.");
         }
 
-        var findEpisodeResponse = await _spotifyEpisodeResolver.FindEpisode(
+        var findEpisodeResponse = await spotifyEpisodeResolver.FindEpisode(
             FindSpotifyEpisodeRequestFactory.Create(episodeId),
             indexingContext);
         if (findEpisodeResponse.FullEpisode != null)
@@ -60,7 +53,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
                 findEpisodeResponse.FullEpisode.Explicit);
         }
 
-        _logger.LogError(
+        logger.LogError(
             $"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveSpotifyQueries)}' is set.");
 
         throw new InvalidOperationException($"Could not find item with spotify-id '{SpotifyId}'.");
@@ -72,7 +65,7 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
         var request = FindSpotifyEpisodeRequestFactory.Create(matchingPodcast, criteria);
         if (!indexingContext.SkipExpensiveSpotifyQueries)
         {
-            var findEpisodeResponse = await _spotifyEpisodeResolver.FindEpisode(request, indexingContext);
+            var findEpisodeResponse = await spotifyEpisodeResolver.FindEpisode(request, indexingContext);
             if (findEpisodeResponse.FullEpisode != null)
             {
                 return new ResolvedSpotifyItem(
@@ -91,11 +84,11 @@ public class SpotifyUrlCategoriser : ISpotifyUrlCategoriser
         }
         else
         {
-            _logger.LogError(
+            logger.LogError(
                 $"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveSpotifyQueries)}' is set.");
         }
 
-        _logger.LogWarning(
+        logger.LogWarning(
             $"Could not find spotify episode for show named '{criteria.ShowName}' and episode-name '{criteria.EpisodeTitle}'.");
         return null;
     }

@@ -4,26 +4,16 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace Indexer.Categorisation;
 
-public class RecentPodcastEpisodeCategoriser : IRecentPodcastEpisodeCategoriser
+public class RecentPodcastEpisodeCategoriser(
+    IPodcastRepository podcastRepository,
+    ICategoriser categoriser,
+    ILogger<RecentPodcastEpisodeCategoriser> logger)
+    : IRecentPodcastEpisodeCategoriser
 {
-    private readonly ICategoriser _categoriser;
-    private readonly ILogger<RecentPodcastEpisodeCategoriser> _logger;
-    private readonly IPodcastRepository _podcastRepository;
-
-    public RecentPodcastEpisodeCategoriser(
-        IPodcastRepository podcastRepository,
-        ICategoriser categoriser,
-        ILogger<RecentPodcastEpisodeCategoriser> logger)
-    {
-        _podcastRepository = podcastRepository;
-        _categoriser = categoriser;
-        _logger = logger;
-    }
-
     public async Task Categorise()
     {
         var since = DateTime.UtcNow.AddDays(-7);
-        var podcasts = await _podcastRepository
+        var podcasts = await podcastRepository
             .GetAll()
             .Where(x => x.Episodes.Any(y => y.Release > since && !y.Subjects.Any()))
             .ToListAsync();
@@ -32,14 +22,14 @@ public class RecentPodcastEpisodeCategoriser : IRecentPodcastEpisodeCategoriser
             var updated = false;
             foreach (var episode in podcast.Episodes.Where(x => x.Release > since && !x.Subjects.Any()))
             {
-                var updatedEpisode = await _categoriser.Categorise(
+                var updatedEpisode = await categoriser.Categorise(
                     episode,
                     podcast.IgnoredAssociatedSubjects,
                     podcast.DefaultSubject);
 
                 if (updatedEpisode)
                 {
-                    _logger.LogInformation(
+                    logger.LogInformation(
                         $"{nameof(RecentPodcastEpisodeCategoriser)}: Podcast '{podcast.Name}' with id '{podcast.Id}' and episode with id {episode.Id}, updated subjects: '{string.Join(",", episode.Subjects.Select(x => $"'{x}'"))}'.");
                 }
 
@@ -48,7 +38,7 @@ public class RecentPodcastEpisodeCategoriser : IRecentPodcastEpisodeCategoriser
 
             if (updated)
             {
-                await _podcastRepository.Save(podcast);
+                await podcastRepository.Save(podcast);
             }
         }
     }

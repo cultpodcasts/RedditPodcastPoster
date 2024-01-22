@@ -3,22 +3,12 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
-public class YouTubeItemResolver : IYouTubeItemResolver
+public class YouTubeItemResolver(
+    IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
+    IYouTubeSearcher youTubeSearcher,
+    ILogger<YouTubeItemResolver> logger)
+    : IYouTubeItemResolver
 {
-    private readonly ILogger _logger;
-    private readonly IYouTubeChannelVideoSnippetsService _youTubeChannelVideoSnippetsService;
-    private readonly IYouTubeSearcher _youTubeSearcher;
-
-    public YouTubeItemResolver(
-        IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
-        IYouTubeSearcher youTubeSearcher,
-        ILogger<YouTubeItemResolver> logger)
-    {
-        _youTubeChannelVideoSnippetsService = youTubeChannelVideoSnippetsService;
-        _youTubeSearcher = youTubeSearcher;
-        _logger = logger;
-    }
-
     public async Task<FindEpisodeResponse?> FindEpisode(EnrichmentRequest request, IndexingContext indexingContext)
     {
         var youTubePublishingDelay = request.Podcast.YouTubePublishingDelay();
@@ -35,7 +25,7 @@ public class YouTubeItemResolver : IYouTubeItemResolver
         }
 
         var searchListResponse =
-            await _youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(
+            await youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(
                 new YouTubeChannelId(request.Podcast.YouTubeChannelId), indexingContext);
         if (searchListResponse == null)
         {
@@ -46,17 +36,17 @@ public class YouTubeItemResolver : IYouTubeItemResolver
         {
             if (indexingContext.ReleasedSince.HasValue)
             {
-                _logger.LogInformation(
+                logger.LogInformation(
                     $"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube since '{indexingContext.ReleasedSince.Value:R}'");
             }
             else
             {
-                _logger.LogInformation(
+                logger.LogInformation(
                     $"{nameof(FindEpisode)} Retrieved {searchListResponse.Count} items published on YouTube. {nameof(indexingContext.ReleasedSince)} is Null.");
             }
         }
 
-        var matchedYouTubeVideo = await _youTubeSearcher.FindMatchingYouTubeVideo(
+        var matchedYouTubeVideo = await youTubeSearcher.FindMatchingYouTubeVideo(
             request.Episode,
             searchListResponse,
             youTubePublishingDelay,

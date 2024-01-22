@@ -7,28 +7,18 @@ using RedditPodcastPoster.ContentPublisher.Configuration;
 
 namespace RedditPodcastPoster.ContentPublisher;
 
-public class ContentPublisher : IContentPublisher
+public class ContentPublisher(
+    IQueryExecutor queryExecutor,
+    IAmazonS3 client,
+    IOptions<CloudFlareOptions> options,
+    ILogger<ContentPublisher> logger)
+    : IContentPublisher
 {
-    private readonly IAmazonS3 _client;
-    private readonly ILogger<ContentPublisher> _logger;
-    private readonly CloudFlareOptions _options;
-    private readonly IQueryExecutor _queryExecutor;
-
-    public ContentPublisher(
-        IQueryExecutor queryExecutor,
-        IAmazonS3 client,
-        IOptions<CloudFlareOptions> options,
-        ILogger<ContentPublisher> logger)
-    {
-        _queryExecutor = queryExecutor;
-        _client = client;
-        _options = options.Value;
-        _logger = logger;
-    }
+    private readonly CloudFlareOptions _options = options.Value;
 
     public async Task PublishHomepage()
     {
-        var homepageContent = await _queryExecutor.GetHomePage(CancellationToken.None);
+        var homepageContent = await queryExecutor.GetHomePage(CancellationToken.None);
         var homepageContentAsJson = JsonSerializer.Serialize(homepageContent);
 
         var request = new PutObjectRequest
@@ -43,12 +33,12 @@ public class ContentPublisher : IContentPublisher
         PutObjectResponse result;
         try
         {
-            result = await _client.PutObjectAsync(request);
-            _logger.LogInformation($"Completed '{nameof(PublishHomepage)}'.");
+            result = await client.PutObjectAsync(request);
+            logger.LogInformation($"Completed '{nameof(PublishHomepage)}'.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"{nameof(PublishHomepage)} - Failed to upload homepage-content to R2");
+            logger.LogError(ex, $"{nameof(PublishHomepage)} - Failed to upload homepage-content to R2");
         }
     }
 }

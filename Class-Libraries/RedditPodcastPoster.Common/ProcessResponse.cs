@@ -2,12 +2,8 @@
 
 namespace RedditPodcastPoster.Common;
 
-public class ProcessResponse : MessageResponseBase
+public class ProcessResponse(bool success, string message = "") : MessageResponseBase(success, message)
 {
-    public ProcessResponse(bool success, string message = "") : base(success, message)
-    {
-    }
-
     public static ProcessResponse Successful(string s = "")
     {
         return new ProcessResponse(true, s);

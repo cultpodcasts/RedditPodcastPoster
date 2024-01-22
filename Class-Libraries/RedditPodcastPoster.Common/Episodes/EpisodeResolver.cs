@@ -4,20 +4,14 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
-public class EpisodeResolver : IEpisodeResolver
+public class EpisodeResolver(IPodcastRepository podcastRepository, ILogger<EpisodeResolver> logger)
+    : IEpisodeResolver
 {
-    private readonly ILogger<EpisodeResolver> _logger;
-    private readonly IPodcastRepository _podcastRepository;
-
-    public EpisodeResolver(IPodcastRepository podcastRepository, ILogger<EpisodeResolver> logger)
-    {
-        _podcastRepository = podcastRepository;
-        _logger = logger;
-    }
+    private readonly ILogger<EpisodeResolver> _logger = logger;
 
     public async Task<PodcastEpisode> ResolveServiceUrl(Uri url)
     {
-        var storedPodcasts = await _podcastRepository.GetAll().ToListAsync();
+        var storedPodcasts = await podcastRepository.GetAll().ToListAsync();
         var matchingPodcast = storedPodcasts.SingleOrDefault(x =>
             x.Episodes.Select(y => y.Urls.Spotify).Contains(url) ||
             x.Episodes.Select(y => y.Urls.Apple).Contains(url) ||

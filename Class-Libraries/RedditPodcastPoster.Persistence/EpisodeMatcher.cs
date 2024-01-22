@@ -6,15 +6,9 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
 
-public class EpisodeMatcher : IEpisodeMatcher
+public class EpisodeMatcher(ILogger<EpisodeMatcher> logger) : IEpisodeMatcher
 {
     private readonly CompareInfo _compareInfo = CultureInfo.InvariantCulture.CompareInfo;
-    private readonly ILogger<EpisodeMatcher> _logger;
-
-    public EpisodeMatcher(ILogger<EpisodeMatcher> logger)
-    {
-        _logger = logger;
-    }
 
     public bool IsMatch(Episode existingEpisode, Episode episodeToMerge, Regex? episodeMatchRegex)
     {

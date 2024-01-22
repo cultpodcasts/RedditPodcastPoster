@@ -4,7 +4,8 @@ namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class ResolvedYouTubeItem
 {
-    public ResolvedYouTubeItem(string showId,
+    public ResolvedYouTubeItem(
+        string showId,
         string episodeId,
         string showName,
         string showDescription,

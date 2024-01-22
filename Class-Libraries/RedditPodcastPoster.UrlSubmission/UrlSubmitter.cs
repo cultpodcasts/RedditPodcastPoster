@@ -9,33 +9,21 @@ using RedditPodcastPoster.UrlSubmission.Categorisation;
 
 namespace RedditPodcastPoster.UrlSubmission;
 
-public class UrlSubmitter : IUrlSubmitter
+public class UrlSubmitter(
+    IPodcastRepository podcastRepository,
+    IUrlCategoriser urlCategoriser,
+    ISubjectEnricher subjectEnricher,
+    IOptions<PostingCriteria> postingCriteria,
+    ILogger<UrlSubmitter> logger)
+    : IUrlSubmitter
 {
-    private readonly ILogger<UrlSubmitter> _logger;
-    private readonly IPodcastRepository _podcastRepository;
-    private readonly PostingCriteria _postingCriteria;
-    private readonly ISubjectEnricher _subjectEnricher;
-    private readonly IUrlCategoriser _urlCategoriser;
-
-    public UrlSubmitter(
-        IPodcastRepository podcastRepository,
-        IUrlCategoriser urlCategoriser,
-        ISubjectEnricher subjectEnricher,
-        IOptions<PostingCriteria> postingCriteria,
-        ILogger<UrlSubmitter> logger)
-    {
-        _podcastRepository = podcastRepository;
-        _urlCategoriser = urlCategoriser;
-        _subjectEnricher = subjectEnricher;
-        _postingCriteria = postingCriteria.Value;
-        _logger = logger;
-    }
+    private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
     public async Task Submit(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext, bool searchForPodcast,
         bool matchOtherServices)
     {
         var categorisedItem =
-            await _urlCategoriser.Categorise(podcasts, url, indexingContext, searchForPodcast, matchOtherServices);
+            await urlCategoriser.Categorise(podcasts, url, indexingContext, searchForPodcast, matchOtherServices);
 
         if (categorisedItem.MatchingPodcast != null)
         {
@@ -43,7 +31,7 @@ public class UrlSubmitter : IUrlSubmitter
                                   categorisedItem.MatchingPodcast.Episodes.SingleOrDefault(episode =>
                                       IsMatchingEpisode(episode, categorisedItem));
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 $"Modifying podcast with name '{categorisedItem.MatchingPodcast.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
 
 
@@ -54,7 +42,7 @@ public class UrlSubmitter : IUrlSubmitter
             if (matchingEpisode == null)
             {
                 var episode = CreateEpisode(categorisedItem);
-                await _subjectEnricher.EnrichSubjects(
+                await subjectEnricher.EnrichSubjects(
                     episode,
                     new SubjectEnrichmentOptions(
                         categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
@@ -64,13 +52,13 @@ public class UrlSubmitter : IUrlSubmitter
                     categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
             }
 
-            await _podcastRepository.Save(categorisedItem.MatchingPodcast);
+            await podcastRepository.Save(categorisedItem.MatchingPodcast);
         }
         else
         {
             var newPodcast = await CreatePodcastWithEpisode(categorisedItem);
 
-            await _podcastRepository.Save(newPodcast);
+            await podcastRepository.Save(newPodcast);
             podcasts.Add(newPodcast);
         }
     }
@@ -109,9 +97,9 @@ public class UrlSubmitter : IUrlSubmitter
         }
 
         var episode = CreateEpisode(categorisedItem);
-        await _subjectEnricher.EnrichSubjects(episode);
+        await subjectEnricher.EnrichSubjects(episode);
         newPodcast.Episodes.Add(episode);
-        _logger.LogInformation($"Created podcast with name '{showName}' with id '{newPodcast.Id}'.");
+        logger.LogInformation($"Created podcast with name '{showName}' with id '{newPodcast.Id}'.");
 
         return newPodcast;
     }
@@ -190,7 +178,7 @@ public class UrlSubmitter : IUrlSubmitter
             newEpisode.Ignored = length < _postingCriteria.MinimumDuration;
         }
 
-        _logger.LogInformation(
+        logger.LogInformation(
             $"Created episode with spotify-id '{categorisedItem.ResolvedSpotifyItem?.EpisodeId}', apple-id '{categorisedItem.ResolvedAppleItem?.EpisodeId}', youtube-id '{categorisedItem.ResolvedYouTubeItem?.EpisodeId}' and episode-id '{newEpisode.Id}'.");
         return newEpisode;
     }
@@ -202,7 +190,7 @@ public class UrlSubmitter : IUrlSubmitter
     {
         if (matchingEpisode != null)
         {
-            _logger.LogInformation(
+            logger.LogInformation(
                 $"Applying to episode with title '{matchingEpisode.Title}' and id '{matchingEpisode.Id}'.");
         }
 
@@ -211,7 +199,7 @@ public class UrlSubmitter : IUrlSubmitter
             if (!matchingPodcast.AppleId.HasValue)
             {
                 matchingPodcast.AppleId = categorisedItem.ResolvedAppleItem.ShowId;
-                _logger.LogInformation(
+                logger.LogInformation(
                     $"Enriched podcast with apple details with apple-id {categorisedItem.ResolvedAppleItem.ShowId}.");
             }
 
@@ -221,7 +209,7 @@ public class UrlSubmitter : IUrlSubmitter
                     matchingEpisode.AppleId != categorisedItem.ResolvedAppleItem.EpisodeId)
                 {
                     matchingEpisode.AppleId = categorisedItem.ResolvedAppleItem.EpisodeId;
-                    _logger.LogInformation(
+                    logger.LogInformation(
                         $"Enriched episode with apple details with apple-id {categorisedItem.ResolvedAppleItem.EpisodeId}.");
                 }
 
@@ -229,7 +217,7 @@ public class UrlSubmitter : IUrlSubmitter
                     matchingEpisode.Urls.Apple != categorisedItem.ResolvedAppleItem.Url)
                 {
                     matchingEpisode.Urls.Apple = categorisedItem.ResolvedAppleItem.Url;
-                    _logger.LogInformation(
+                    logger.LogInformation(
                         $"Enriched episode with apple details with apple-url {categorisedItem.ResolvedAppleItem.Url}.");
                 }
             }
@@ -240,7 +228,7 @@ public class UrlSubmitter : IUrlSubmitter
             if (string.IsNullOrWhiteSpace(matchingPodcast.SpotifyId))
             {
                 matchingPodcast.SpotifyId = categorisedItem.ResolvedSpotifyItem.ShowId;
-                _logger.LogInformation(
+                logger.LogInformation(
                     $"Enriched podcast with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.ShowId}.");
             }
 
@@ -250,7 +238,7 @@ public class UrlSubmitter : IUrlSubmitter
                     matchingEpisode.SpotifyId != categorisedItem.ResolvedSpotifyItem.EpisodeId)
                 {
                     matchingEpisode.SpotifyId = categorisedItem.ResolvedSpotifyItem.EpisodeId;
-                    _logger.LogInformation(
+                    logger.LogInformation(
                         $"Enriched episode with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.EpisodeId}.");
                 }
 
@@ -258,7 +246,7 @@ public class UrlSubmitter : IUrlSubmitter
                     matchingEpisode.Urls.Spotify != categorisedItem.ResolvedSpotifyItem.Url)
                 {
                     matchingEpisode.Urls.Spotify = categorisedItem.ResolvedSpotifyItem.Url;
-                    _logger.LogInformation(
+                    logger.LogInformation(
                         $"Enriched episode with spotify details with spotify-url {categorisedItem.ResolvedSpotifyItem.Url}.");
                 }
             }
@@ -269,7 +257,7 @@ public class UrlSubmitter : IUrlSubmitter
             if (string.IsNullOrWhiteSpace(matchingPodcast.YouTubeChannelId))
             {
                 matchingPodcast.YouTubeChannelId = categorisedItem.ResolvedYouTubeItem.ShowId;
-                _logger.LogInformation(
+                logger.LogInformation(
                     $"Enriched podcast with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.ShowId}.");
             }
 
@@ -279,7 +267,7 @@ public class UrlSubmitter : IUrlSubmitter
                     matchingEpisode.YouTubeId != categorisedItem.ResolvedYouTubeItem.EpisodeId)
                 {
                     matchingEpisode.YouTubeId = categorisedItem.ResolvedYouTubeItem.EpisodeId;
-                    _logger.LogInformation(
+                    logger.LogInformation(
                         $"Enriched episode with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.EpisodeId}.");
                 }
 
@@ -287,7 +275,7 @@ public class UrlSubmitter : IUrlSubmitter
                     matchingEpisode.Urls.YouTube != categorisedItem.ResolvedYouTubeItem.Url)
                 {
                     matchingEpisode.Urls.YouTube = categorisedItem.ResolvedYouTubeItem.Url;
-                    _logger.LogInformation(
+                    logger.LogInformation(
                         $"Enriched episode with youtube details with youtube-url {categorisedItem.ResolvedYouTubeItem.Url}.");
                 }
             }

@@ -7,25 +7,12 @@ using RedditPodcastPoster.Subjects;
 
 namespace Index;
 
-internal class IndexProcessor
+internal class IndexProcessor(
+    IPodcastRepository podcastRepository,
+    IPodcastUpdater podcastUpdater,
+    ISubjectEnricher subjectEnricher,
+    ILogger<IndexProcessor> logger)
 {
-    private readonly ILogger<IndexProcessor> _logger;
-    private readonly IPodcastRepository _podcastRepository;
-    private readonly IPodcastUpdater _podcastUpdater;
-    private readonly ISubjectEnricher _subjectEnricher;
-
-    public IndexProcessor(
-        IPodcastRepository podcastRepository,
-        IPodcastUpdater podcastUpdater,
-        ISubjectEnricher subjectEnricher,
-        ILogger<IndexProcessor> logger)
-    {
-        _podcastRepository = podcastRepository;
-        _podcastUpdater = podcastUpdater;
-        _subjectEnricher = subjectEnricher;
-        _logger = logger;
-    }
-
     public async Task Run(IndexRequest request)
     {
         DateTime? releasedSince = null;
@@ -50,26 +37,26 @@ internal class IndexProcessor
         }
         else
         {
-            podcastIds = await _podcastRepository.GetAllIds();
+            podcastIds = await podcastRepository.GetAllIds();
         }
 
         foreach (var podcastId in podcastIds)
         {
-            var podcast = await _podcastRepository.GetPodcast(podcastId);
+            var podcast = await podcastRepository.GetPodcast(podcastId);
             if (podcast != null &&
                 (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
 
             {
-                await _podcastUpdater.Update(podcast, indexingContext);
+                await podcastUpdater.Update(podcast, indexingContext);
                 var episodes = podcast.Episodes.Where(x => x.Release >= indexingContext.ReleasedSince);
                 foreach (var episode in episodes)
                 {
-                    await _subjectEnricher.EnrichSubjects(episode, new SubjectEnrichmentOptions(
+                    await subjectEnricher.EnrichSubjects(episode, new SubjectEnrichmentOptions(
                         podcast.IgnoredAssociatedSubjects,
                         podcast.DefaultSubject));
                 }
 
-                await _podcastRepository.Save(podcast);
+                await podcastRepository.Save(podcast);
             }
         }
     }

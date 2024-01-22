@@ -5,18 +5,12 @@ using RedditPodcastPoster.Models.Extensions;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
-public class PodcastEpisodePoster : IPodcastEpisodePoster
+public class PodcastEpisodePoster(
+    IEpisodePostManager episodePostManager,
+    ILogger<PodcastEpisodePoster> logger)
+    : IPodcastEpisodePoster
 {
-    private readonly IEpisodePostManager _episodePostManager;
-    private readonly ILogger<PodcastEpisodePoster> _logger;
-
-    public PodcastEpisodePoster(
-        IEpisodePostManager episodePostManager,
-        ILogger<PodcastEpisodePoster> logger)
-    {
-        _episodePostManager = episodePostManager;
-        _logger = logger;
-    }
+    private readonly ILogger<PodcastEpisodePoster> _logger = logger;
 
     public async Task<ProcessResponse> PostPodcastEpisode(
         PodcastEpisode podcastEpisode,
@@ -25,7 +19,7 @@ public class PodcastEpisodePoster : IPodcastEpisodePoster
         var episodes = GetEpisodes(podcastEpisode);
         var postModel = (podcastEpisode.Podcast!, episodes).ToPostModel(preferYouTube);
 
-        var result = await _episodePostManager.Post(postModel);
+        var result = await episodePostManager.Post(postModel);
 
         if (result.Success)
         {

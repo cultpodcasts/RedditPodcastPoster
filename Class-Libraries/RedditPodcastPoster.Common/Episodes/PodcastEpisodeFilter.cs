@@ -6,18 +6,12 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
-public class PodcastEpisodeFilter : IPodcastEpisodeFilter
+public class PodcastEpisodeFilter(
+    IOptions<DelayedYouTubePublication> delayedYouTubePublicationSettings,
+    ILogger<PodcastEpisodeFilter> logger)
+    : IPodcastEpisodeFilter
 {
-    private readonly DelayedYouTubePublication _delayedYouTubePublicationSettings;
-    private readonly ILogger<PodcastEpisodeFilter> _logger;
-
-    public PodcastEpisodeFilter(
-        IOptions<DelayedYouTubePublication> delayedYouTubePublicationSettings,
-        ILogger<PodcastEpisodeFilter> logger)
-    {
-        _logger = logger;
-        _delayedYouTubePublicationSettings = delayedYouTubePublicationSettings.Value;
-    }
+    private readonly DelayedYouTubePublication _delayedYouTubePublicationSettings = delayedYouTubePublicationSettings.Value;
 
     public IEnumerable<PodcastEpisode> GetNewEpisodesReleasedSince(
         IList<Podcast> podcasts,
@@ -83,7 +77,7 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
                 .OrderByDescending(x => x.Episode.Release);
         if (!podcastEpisodes.Any())
         {
-            _logger.LogInformation("No Podcast-Episode found to Tweet.");
+            logger.LogInformation("No Podcast-Episode found to Tweet.");
         }
 
         return podcastEpisodes;
@@ -129,7 +123,7 @@ public class PodcastEpisodeFilter : IPodcastEpisodeFilter
         if (IsRecentlyExpiredDelayedPublishing(podcastEpisode.Podcast, podcastEpisode.Episode) &&
             !youTubeRefreshed)
         {
-            _logger.LogInformation(
+            logger.LogInformation(
                 $"{nameof(EliminateItemsDueToIndexingErrors)} Eliminating episode with episode-id '{podcastEpisode.Episode.Id}' and episode-title '{podcastEpisode.Episode.Title}' from podcast with podcast-id '{podcastEpisode.Podcast.Id}' and podcast-name '{podcastEpisode.Podcast.Name}' due to '{nameof(youTubeRefreshed)}'='{youTubeRefreshed}'.");
             return false;
         }

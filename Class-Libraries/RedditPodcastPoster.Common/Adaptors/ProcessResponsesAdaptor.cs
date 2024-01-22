@@ -2,14 +2,9 @@
 
 namespace RedditPodcastPoster.Common.Adaptors;
 
-public class ProcessResponsesAdaptor : IProcessResponsesAdaptor
+public class ProcessResponsesAdaptor(ILogger<ProcessResponsesAdaptor> logger) : IProcessResponsesAdaptor
 {
-    private readonly ILogger<ProcessResponsesAdaptor> _logger;
-
-    public ProcessResponsesAdaptor(ILogger<ProcessResponsesAdaptor> logger)
-    {
-        _logger = logger;
-    }
+    private readonly ILogger<ProcessResponsesAdaptor> _logger = logger;
 
     public ProcessResponse CreateResponse(IList<ProcessResponse> matchingPodcastEpisodeResults)
     {

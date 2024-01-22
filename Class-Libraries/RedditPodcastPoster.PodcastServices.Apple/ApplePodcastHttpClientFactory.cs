@@ -3,27 +3,17 @@ using Microsoft.Extensions.Logging;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
-public class ApplePodcastHttpClientFactory : IApplePodcastHttpClientFactory
+public class ApplePodcastHttpClientFactory(
+    IHttpClientFactory httpClientFactory,
+    IAppleBearerTokenProvider appleBearerTokenProvider,
+    ILogger<ApplePodcastHttpClientFactory> logger)
+    : IApplePodcastHttpClientFactory
 {
-    private readonly IAppleBearerTokenProvider _appleBearerTokenProvider;
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ILogger<ApplePodcastHttpClientFactory> _logger;
-
-    public ApplePodcastHttpClientFactory(
-        IHttpClientFactory httpClientFactory,
-        IAppleBearerTokenProvider appleBearerTokenProvider,
-        ILogger<ApplePodcastHttpClientFactory> logger)
-    {
-        _httpClientFactory = httpClientFactory;
-        _appleBearerTokenProvider = appleBearerTokenProvider;
-        _logger = logger;
-    }
-
     public async Task<HttpClient> Create()
     {
-        var httpClient = _httpClientFactory.CreateClient();
+        var httpClient = httpClientFactory.CreateClient();
         httpClient.BaseAddress = new Uri("https://amp-api.podcasts.apple.com/");
-        var token = await _appleBearerTokenProvider!.GetHeader();
+        var token = await appleBearerTokenProvider!.GetHeader();
         httpClient.DefaultRequestHeaders.Authorization = token;
         httpClient.DefaultRequestHeaders.Accept.Clear();
         httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));

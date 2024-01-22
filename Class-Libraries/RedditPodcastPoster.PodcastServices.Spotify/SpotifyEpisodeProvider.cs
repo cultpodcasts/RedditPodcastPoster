@@ -5,24 +5,15 @@ using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
-public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
+public class SpotifyEpisodeProvider(
+    ISpotifyEpisodeResolver spotifyEpisodeResolver,
+    ILogger<SpotifyEpisodeProvider> logger)
+    : ISpotifyEpisodeProvider
 {
-    private readonly ILogger<SpotifyEpisodeProvider> _logger;
-
-    private readonly ISpotifyEpisodeResolver _spotifyEpisodeResolver;
-
-    public SpotifyEpisodeProvider(
-        ISpotifyEpisodeResolver spotifyEpisodeResolver,
-        ILogger<SpotifyEpisodeProvider> logger)
-    {
-        _spotifyEpisodeResolver = spotifyEpisodeResolver;
-        _logger = logger;
-    }
-
     public async Task<GetEpisodesResponse> GetEpisodes(GetEpisodesRequest request, IndexingContext indexingContext)
     {
         var getEpisodesResult =
-            await _spotifyEpisodeResolver.GetEpisodes(request, indexingContext);
+            await spotifyEpisodeResolver.GetEpisodes(request, indexingContext);
 
         var expensiveQueryFound = getEpisodesResult.IsExpensiveQuery;
 
@@ -40,7 +31,7 @@ public class SpotifyEpisodeProvider : ISpotifyEpisodeProvider
                 TimeSpan.FromMilliseconds(x.DurationMs),
                 x.Explicit,
                 x.GetReleaseDate(),
-                new Uri(Enumerable.FirstOrDefault<KeyValuePair<string, string>>(x.ExternalUrls).Value, UriKind.Absolute))
+                new Uri(x.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute))
         ).ToList(), expensiveQueryFound);
     }
 }

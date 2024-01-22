@@ -3,22 +3,14 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Subjects;
 
-public class SubjectEnricher : ISubjectEnricher
+public class SubjectEnricher(
+    ISubjectMatcher subjectMatcher,
+    ILogger<ISubjectEnricher> logger)
+    : ISubjectEnricher
 {
-    private readonly ILogger<ISubjectEnricher> _logger;
-    private readonly ISubjectMatcher _subjectMatcher;
-
-    public SubjectEnricher(
-        ISubjectMatcher subjectMatcher,
-        ILogger<ISubjectEnricher> logger)
-    {
-        _subjectMatcher = subjectMatcher;
-        _logger = logger;
-    }
-
     public async Task EnrichSubjects(Episode episode, SubjectEnrichmentOptions? options = null)
     {
-        var subjectMatches = await _subjectMatcher.MatchSubjects(episode, options);
+        var subjectMatches = await subjectMatcher.MatchSubjects(episode, options);
         var (additions, removals) = CompareSubjects(episode.Subjects, subjectMatches, options?.DefaultSubject);
 
         if (additions.Any())
@@ -27,11 +19,11 @@ public class SubjectEnricher : ISubjectEnricher
                 $"{additions.Count()} - {string.Join(",", additions.Select(x => "'" + x.Subject.Name + "' (" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"))} : '{episode.Title}'.";
             if (!episode.Subjects.Any() && additions.Count() > 1)
             {
-                _logger.LogWarning(message);
+                logger.LogWarning(message);
             }
             else
             {
-                _logger.LogInformation(message);
+                logger.LogInformation(message);
             }
 
             episode.Subjects.AddRange(additions.Select(x => x.Subject.Name));
@@ -42,18 +34,18 @@ public class SubjectEnricher : ISubjectEnricher
                     .Select(x => x.ToLowerInvariant()).Contains(options.DefaultSubject.ToLowerInvariant()))
             {
                 episode.Subjects = new[] {options.DefaultSubject}.ToList();
-                _logger.LogWarning(
+                logger.LogWarning(
                     $"Applying default-subject '{options.DefaultSubject}' to episode with title: '{episode.Title}'.");
             }
             else if (!episode.Subjects.Any())
             {
-                _logger.LogError($"'No updates: '{episode.Title}'.");
+                logger.LogError($"'No updates: '{episode.Title}'.");
             }
         }
 
         if (removals.Any())
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 $"Redundant: {string.Join(",", removals.Select(x => "'" + x + "'"))} : '{episode.Title}'.");
         }
     }

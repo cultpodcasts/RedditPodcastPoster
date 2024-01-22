@@ -4,15 +4,8 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Reddit;
 
-public class RedditEpisodeCommentFactory : IRedditEpisodeCommentFactory
+public class RedditEpisodeCommentFactory(ILogger<RedditEpisodeCommentFactory> logger) : IRedditEpisodeCommentFactory
 {
-    private readonly ILogger<RedditEpisodeCommentFactory> _logger;
-
-    public RedditEpisodeCommentFactory(ILogger<RedditEpisodeCommentFactory> logger)
-    {
-        _logger = logger;
-    }
-
     public string Post(PostModel postModel)
     {
         var body = new StringBuilder();
