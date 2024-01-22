@@ -23,10 +23,7 @@ public class SubjectsSeeder
 
     public async Task Run()
     {
-        var newSubjects = new List<Subject>()
-        {
-            SubjectFactory.Create("S. N. Goenka", "Satya Narayana Goenka, Goenka, Vipassana Meditation, Vipassana")
-        };
+        var newSubjects = new List<Subject>();
         foreach (var subject in newSubjects)
         {
             var match = await _subjectService.Match(subject);
