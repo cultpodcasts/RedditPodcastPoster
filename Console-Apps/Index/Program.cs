@@ -40,6 +40,7 @@ builder.Services
     .AddScoped<IRemoteClient, RemoteClient>()
     .AddEliminationTerms()
     .AddSubjectServices()
+    .AddTextSanitiser()
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria(builder.Configuration);

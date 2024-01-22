@@ -78,13 +78,16 @@ public partial class YouTubeSearcher : IYouTubeSearcher
         if (videoDetails != null && videoDetails.Any())
         {
             var matchingVideo = videoDetails.MinBy(x => Math.Abs((episode.Length - x.GetLength()).Ticks));
-            var matchingPair = new FindEpisodeResponse(searchResults.Single(x => x.Id.VideoId == matchingVideo!.Id),
-                matchingVideo);
-            if (Math.Abs((matchingPair.Video!.GetLength() - episode.Length).Ticks) < VideoDurationTolerance.Ticks)
+            var searchResult = searchResults.FirstOrDefault(x => x.Id.VideoId == matchingVideo!.Id);
+            if (searchResult != null)
             {
-                _logger.LogInformation(
-                    $"Matched episode '{episode.Title}' and length: '{episode.Length:g}' with episode '{matchingPair.SearchResult.Snippet.Title}' having length: '{matchingPair.Video?.GetLength():g}'.");
-                return matchingPair;
+                var matchingPair = new FindEpisodeResponse(searchResult, matchingVideo);
+                if (Math.Abs((matchingPair.Video!.GetLength() - episode.Length).Ticks) < VideoDurationTolerance.Ticks)
+                {
+                    _logger.LogInformation(
+                        $"Matched episode '{episode.Title}' and length: '{episode.Length:g}' with episode '{matchingPair.SearchResult.Snippet.Title}' having length: '{matchingPair.Video?.GetLength():g}'.");
+                    return matchingPair;
+                }
             }
         }
 
