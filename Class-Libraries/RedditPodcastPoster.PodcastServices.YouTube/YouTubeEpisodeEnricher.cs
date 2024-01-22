@@ -1,21 +1,26 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeEpisodeEnricher : IYouTubeEpisodeEnricher
 {
     private readonly ILogger<YouTubeEpisodeEnricher> _logger;
+    private readonly ITextSanitiser _textSanitiser;
     private readonly IYouTubeIdExtractor _youTubeIdExtractor;
     private readonly IYouTubeItemResolver _youTubeItemResolver;
 
     public YouTubeEpisodeEnricher(
         IYouTubeItemResolver youTubeItemResolver,
         IYouTubeIdExtractor youTubeIdExtractor,
+        ITextSanitiser textSanitiser,
         ILogger<YouTubeEpisodeEnricher> logger)
     {
         _youTubeItemResolver = youTubeItemResolver;
         _youTubeIdExtractor = youTubeIdExtractor;
+        _textSanitiser = textSanitiser;
         _logger = logger;
     }
 
@@ -68,6 +73,20 @@ public class YouTubeEpisodeEnricher : IYouTubeEpisodeEnricher
 
             request.Episode.YouTubeId = enrichmentContext.YouTubeId = episodeYouTubeId;
             request.Episode.Urls.YouTube = enrichmentContext.YouTube = youTubeItem.SearchResult.ToYouTubeUrl();
+
+            if (string.IsNullOrWhiteSpace(request.Episode.Description) &&
+                !string.IsNullOrWhiteSpace(youTubeItem.SearchResult.Snippet.Description))
+            {
+                if (!string.IsNullOrWhiteSpace(request.Podcast.DescriptionRegex))
+                {
+                    request.Episode.Description = _textSanitiser.SanitiseDescription(
+                        youTubeItem.SearchResult.Snippet.Description, new Regex(request.Podcast.DescriptionRegex));
+                }
+                else
+                {
+                    request.Episode.Description = youTubeItem.SearchResult.Snippet.Description;
+                }
+            }
 
             if (request.Podcast.AppleId == null &&
                 request.Episode.Release.TimeOfDay == TimeSpan.Zero &&
