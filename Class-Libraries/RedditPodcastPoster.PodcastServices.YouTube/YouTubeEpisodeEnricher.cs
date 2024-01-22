@@ -11,16 +11,19 @@ public class YouTubeEpisodeEnricher : IYouTubeEpisodeEnricher
     private readonly ITextSanitiser _textSanitiser;
     private readonly IYouTubeIdExtractor _youTubeIdExtractor;
     private readonly IYouTubeItemResolver _youTubeItemResolver;
+    private readonly IYouTubeVideoService _youTubeVideoService;
 
     public YouTubeEpisodeEnricher(
         IYouTubeItemResolver youTubeItemResolver,
         IYouTubeIdExtractor youTubeIdExtractor,
         ITextSanitiser textSanitiser,
+        IYouTubeVideoService youTubeVideoService,
         ILogger<YouTubeEpisodeEnricher> logger)
     {
         _youTubeItemResolver = youTubeItemResolver;
         _youTubeIdExtractor = youTubeIdExtractor;
         _textSanitiser = textSanitiser;
+        _youTubeVideoService = youTubeVideoService;
         _logger = logger;
     }
 
@@ -74,17 +77,22 @@ public class YouTubeEpisodeEnricher : IYouTubeEpisodeEnricher
             request.Episode.YouTubeId = enrichmentContext.YouTubeId = episodeYouTubeId;
             request.Episode.Urls.YouTube = enrichmentContext.YouTube = youTubeItem.SearchResult.ToYouTubeUrl();
 
-            if (string.IsNullOrWhiteSpace(request.Episode.Description) &&
-                !string.IsNullOrWhiteSpace(youTubeItem.SearchResult.Snippet.Description))
+            if (string.IsNullOrWhiteSpace(request.Episode.Description))
             {
-                if (!string.IsNullOrWhiteSpace(request.Podcast.DescriptionRegex))
+                var videoContentDetails =
+                    await _youTubeVideoService.GetVideoContentDetails(new[] {episodeYouTubeId}, indexingContext, true);
+                var description = videoContentDetails?.FirstOrDefault()?.Snippet.Description.Trim() ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(description))
                 {
-                    request.Episode.Description = _textSanitiser.SanitiseDescription(
-                        youTubeItem.SearchResult.Snippet.Description, new Regex(request.Podcast.DescriptionRegex));
-                }
-                else
-                {
-                    request.Episode.Description = youTubeItem.SearchResult.Snippet.Description;
+                    if (!string.IsNullOrWhiteSpace(request.Podcast.DescriptionRegex))
+                    {
+                        request.Episode.Description = _textSanitiser.SanitiseDescription(
+                            description, new Regex(request.Podcast.DescriptionRegex));
+                    }
+                    else
+                    {
+                        request.Episode.Description = description;
+                    }
                 }
             }
 
