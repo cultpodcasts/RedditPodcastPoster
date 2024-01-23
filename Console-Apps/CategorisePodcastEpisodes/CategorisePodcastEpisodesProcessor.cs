@@ -4,34 +4,23 @@ using RedditPodcastPoster.Subjects;
 
 namespace CategorisePodcastEpisodes;
 
-public class CategorisePodcastEpisodesProcessor
+public class CategorisePodcastEpisodesProcessor(
+    IPodcastRepository repository,
+    ISubjectEnricher subjectEnricher,
+    ILogger<CategorisePodcastEpisodesProcessor> logger)
 {
-    private readonly ILogger<CategorisePodcastEpisodesProcessor> _logger;
-    private readonly IPodcastRepository _repository;
-    private readonly ISubjectEnricher _subjectEnricher;
-
-    public CategorisePodcastEpisodesProcessor(
-        IPodcastRepository repository,
-        ISubjectEnricher subjectEnricher,
-        ILogger<CategorisePodcastEpisodesProcessor> logger)
-    {
-        _repository = repository;
-        _subjectEnricher = subjectEnricher;
-        _logger = logger;
-    }
-
     public async Task Run(CategorisePodcastEpisodesRequest request)
     {
         var podcastIds = request.PodcastIds.Split(",");
         foreach (var podcastId in podcastIds)
         {
-            var podcast = await _repository.GetPodcast(Guid.Parse(podcastId));
+            var podcast = await repository.GetPodcast(Guid.Parse(podcastId));
             if (podcast == null)
             {
                 throw new ArgumentException($"Podcast with id '{podcastId}' not found.");
             }
 
-            _logger.LogInformation($"Processing '{podcastId}' : '{podcast.Name}'.");
+            logger.LogInformation($"Processing '{podcastId}' : '{podcast.Name}'.");
             if (podcast == null)
             {
                 throw new ArgumentException($"No podcast with id '{podcastId}' found.");
@@ -44,7 +33,7 @@ public class CategorisePodcastEpisodesProcessor
                     podcastEpisode.Subjects = new List<string>();
                 }
 
-                await _subjectEnricher.EnrichSubjects(
+                await subjectEnricher.EnrichSubjects(
                     podcastEpisode,
                     new SubjectEnrichmentOptions(
                         podcast.IgnoredAssociatedSubjects,
@@ -53,7 +42,7 @@ public class CategorisePodcastEpisodesProcessor
 
             if (request.Commit)
             {
-                await _repository.Save(podcast);
+                await repository.Save(podcast);
             }
         }
     }

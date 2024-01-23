@@ -5,21 +5,14 @@ using RedditPodcastPoster.Models;
 
 namespace ModelTransformer;
 
-public class ModelTransformProcessor
+public class ModelTransformProcessor(ISplitFileRepository splitFileRepository, ILogger<ModelTransformProcessor> logger)
 {
     private static readonly Regex AlphaNumerics = new("[^a-zA-Z0-9 ]", RegexOptions.Compiled);
-    private readonly ILogger<ModelTransformProcessor> _logger;
-    private readonly ISplitFileRepository _splitFileRepository;
-
-    public ModelTransformProcessor(ISplitFileRepository splitFileRepository, ILogger<ModelTransformProcessor> logger)
-    {
-        _splitFileRepository = splitFileRepository;
-        _logger = logger;
-    }
+    private readonly ILogger<ModelTransformProcessor> _logger = logger;
 
     public async Task Run()
     {
-        var podcasts = await _splitFileRepository.GetAll<OldPodcast>(Podcast.PartitionKey).ToListAsync();
+        var podcasts = await splitFileRepository.GetAll<OldPodcast>(Podcast.PartitionKey).ToListAsync();
         foreach (var oldPodcast in podcasts)
         {
             var newPodcast = new Podcast(oldPodcast.Id)
@@ -64,7 +57,7 @@ public class ModelTransformProcessor
                     Removed = oldEpisode.Removed
                 }
             ).ToList();
-            await _splitFileRepository.Write(
+            await splitFileRepository.Write(
                 oldPodcast.FileKey,
                 newPodcast);
         }

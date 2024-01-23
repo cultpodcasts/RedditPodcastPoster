@@ -11,36 +11,17 @@ using RedditPodcastPoster.Subjects;
 
 namespace EnrichYouTubeOnlyPodcasts;
 
-public class EnrichYouTubePodcastProcessor
+public class EnrichYouTubePodcastProcessor(
+    IPodcastRepository podcastRepository,
+    IYouTubePlaylistService youTubePlaylistService,
+    IYouTubeChannelService youTubeChannelService,
+    IYouTubeVideoService youTubeVideoService,
+    IYouTubeEpisodeProvider youTubeEpisodeProvider,
+    ISubjectEnricher subjectEnricher,
+    IOptions<PostingCriteria> postingCriteria,
+    ILogger<EnrichYouTubePodcastProcessor> logger)
 {
-    private readonly ILogger<EnrichYouTubePodcastProcessor> _logger;
-    private readonly IPodcastRepository _podcastRepository;
-    private readonly PostingCriteria _postingCriteria;
-    private readonly ISubjectEnricher _subjectEnricher;
-    private readonly IYouTubeChannelService _youTubeChannelService;
-    private readonly IYouTubeEpisodeProvider _youTubeEpisodeProvider;
-    private readonly IYouTubePlaylistService _youTubePlaylistService;
-    private readonly IYouTubeVideoService _youTubeVideoService;
-
-    public EnrichYouTubePodcastProcessor(
-        IPodcastRepository podcastRepository,
-        IYouTubePlaylistService youTubePlaylistService,
-        IYouTubeChannelService youTubeChannelService,
-        IYouTubeVideoService youTubeVideoService,
-        IYouTubeEpisodeProvider youTubeEpisodeProvider,
-        ISubjectEnricher subjectEnricher,
-        IOptions<PostingCriteria> postingCriteria,
-        ILogger<EnrichYouTubePodcastProcessor> logger)
-    {
-        _podcastRepository = podcastRepository;
-        _youTubePlaylistService = youTubePlaylistService;
-        _youTubeChannelService = youTubeChannelService;
-        _youTubeVideoService = youTubeVideoService;
-        _youTubeEpisodeProvider = youTubeEpisodeProvider;
-        _subjectEnricher = subjectEnricher;
-        _postingCriteria = postingCriteria.Value;
-        _logger = logger;
-    }
+    private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
     public async Task Run(EnrichYouTubePodcastRequest request)
     {
@@ -54,24 +35,24 @@ public class EnrichYouTubePodcastProcessor
             indexOptions = new IndexingContext();
         }
 
-        var podcast = await _podcastRepository.GetPodcast(request.PodcastGuid);
+        var podcast = await podcastRepository.GetPodcast(request.PodcastGuid);
 
         if (podcast == null)
         {
-            _logger.LogError($"Podcast with id '{request.PodcastGuid}' not found.");
+            logger.LogError($"Podcast with id '{request.PodcastGuid}' not found.");
             return;
         }
 
         if (podcast.YouTubePlaylistQueryIsExpensive.HasValue && podcast.YouTubePlaylistQueryIsExpensive.Value &&
             !request.AcknowledgeExpensiveYouTubePlaylistQuery)
         {
-            _logger.LogError($"Query for playlist '{podcast.YouTubePlaylistId}' is expensive.");
+            logger.LogError($"Query for playlist '{podcast.YouTubePlaylistId}' is expensive.");
             return;
         }
 
         if (string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
-            _logger.LogError("Not appropriate to run this app against a podcast without a YouTube channel-id.");
+            logger.LogError("Not appropriate to run this app against a podcast without a YouTube channel-id.");
             return;
         }
 
@@ -85,7 +66,7 @@ public class EnrichYouTubePodcastProcessor
         if (string.IsNullOrWhiteSpace(request.PlaylistId))
         {
             var channel =
-                await _youTubeChannelService.GetChannelContentDetails(new YouTubeChannelId(podcast.YouTubeChannelId),
+                await youTubeChannelService.GetChannelContentDetails(new YouTubeChannelId(podcast.YouTubeChannelId),
                     indexOptions);
             if (channel == null)
             {
@@ -101,18 +82,18 @@ public class EnrichYouTubePodcastProcessor
         }
 
         var playlistQueryResponse =
-            await _youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(playlistId),
+            await youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(playlistId),
                 indexOptions);
         if (playlistQueryResponse.Result == null)
         {
-            _logger.LogError($"Unable to retrieve playlist items from playlist '{playlistId}'.");
+            logger.LogError($"Unable to retrieve playlist items from playlist '{playlistId}'.");
             return;
         }
 
         if (!string.IsNullOrWhiteSpace(request.PlaylistId) &&
             playlistQueryResponse.IsExpensiveQuery && !request.AcknowledgeExpensiveYouTubePlaylistQuery)
         {
-            _logger.LogError($"Querying '{playlistId}' is noted for being an expensive query.");
+            logger.LogError($"Querying '{playlistId}' is noted for being an expensive query.");
             podcast.YouTubePlaylistQueryIsExpensive = true;
         }
 
@@ -120,11 +101,11 @@ public class EnrichYouTubePodcastProcessor
             podcast.Episodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();
         var missingVideoIds = missingPlaylistItems.Select(x => x.Snippet.ResourceId.VideoId).Distinct();
         var missingPlaylistVideos =
-            await _youTubeVideoService.GetVideoContentDetails(missingVideoIds, indexOptions, true);
+            await youTubeVideoService.GetVideoContentDetails(missingVideoIds, indexOptions, true);
 
         if (missingPlaylistVideos == null)
         {
-            _logger.LogError($"Unable to retrieve details of videos with ids {string.Join(",", missingVideoIds)}.");
+            logger.LogError($"Unable to retrieve details of videos with ids {string.Join(",", missingVideoIds)}.");
             return;
         }
 
@@ -136,13 +117,13 @@ public class EnrichYouTubePodcastProcessor
                 video.Id == missingPlaylistItemSnippet.ResourceId.VideoId);
             if (video != null)
             {
-                var episode = _youTubeEpisodeProvider.GetEpisode(missingPlaylistItemSnippet, video);
+                var episode = youTubeEpisodeProvider.GetEpisode(missingPlaylistItemSnippet, video);
                 if ((podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value) ||
                     episode.Length > _postingCriteria.MinimumDuration)
                 {
                     episode.Id = Guid.NewGuid();
 
-                    await _subjectEnricher.EnrichSubjects(episode,
+                    await subjectEnricher.EnrichSubjects(episode,
                         new SubjectEnrichmentOptions(podcast.IgnoredAssociatedSubjects, podcast.DefaultSubject));
 
                     podcast.Episodes.Add(episode);
@@ -167,7 +148,7 @@ public class EnrichYouTubePodcastProcessor
         }
 
         podcast.Episodes = podcast.Episodes.OrderByDescending(x => x.Release).ToList();
-        await _podcastRepository.Save(podcast);
+        await podcastRepository.Save(podcast);
     }
 
     private static bool Matches(Episode episode, PlaylistItem playlistItem, Regex? episodeMatchRegex)

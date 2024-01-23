@@ -9,7 +9,13 @@ using TextClassifierTraining.Models;
 
 namespace TextClassifierTraining;
 
-public class TrainingDataProcessor
+public class TrainingDataProcessor(
+    ISubredditPostProvider subredditPostProvider,
+    ISubredditRepository subredditRepository,
+    IPodcastRepository podcastRepository,
+    ISubjectCleanser subjectCleanser,
+    ISubjectService subjectService,
+    ILogger<TrainingDataProcessor> logger)
 {
     private const string TrainingDataLocation = "training-data";
     private const string ContainerName = "training-data";
@@ -18,37 +24,14 @@ public class TrainingDataProcessor
     private const string LabelsFilename = "labels.json";
 
 
-    private readonly ILogger<TrainingDataProcessor> _logger;
-    private readonly IPodcastRepository _podcastRepository;
-    private readonly ISubjectCleanser _subjectCleanser;
-    private readonly ISubjectService _subjectService;
-    private readonly ISubredditPostProvider _subredditPostProvider;
-    private readonly ISubredditRepository _subredditRepository;
-
-    public TrainingDataProcessor(
-        ISubredditPostProvider subredditPostProvider,
-        ISubredditRepository subredditRepository,
-        IPodcastRepository podcastRepository,
-        ISubjectCleanser subjectCleanser,
-        ISubjectService subjectService,
-        ILogger<TrainingDataProcessor> logger)
-    {
-        _subredditPostProvider = subredditPostProvider;
-        _subredditRepository = subredditRepository;
-        _podcastRepository = podcastRepository;
-        _subjectCleanser = subjectCleanser;
-        _subjectService = subjectService;
-        _logger = logger;
-    }
-
     public async Task Process(TrainingDataRequest request)
     {
         if (request.CreateLocalSubredditPostsRepository)
         {
-            var posts = _subredditPostProvider.GetPosts().Select(x => x.ToRedditPost());
+            var posts = subredditPostProvider.GetPosts().Select(x => x.ToRedditPost());
             foreach (var post in posts)
             {
-                await _subredditRepository.Save(post);
+                await subredditRepository.Save(post);
             }
         }
 
@@ -57,9 +40,9 @@ public class TrainingDataProcessor
             Directory.CreateDirectory(TrainingDataLocation);
         }
 
-        var redditPosts = await _subredditRepository.GetAll();
-        _logger.LogInformation($"Total reddit posts: {redditPosts.Count()}");
-        _logger.LogInformation(
+        var redditPosts = await subredditRepository.GetAll();
+        logger.LogInformation($"Total reddit posts: {redditPosts.Count()}");
+        logger.LogInformation(
             $"Total reddit posts with links: {redditPosts.Where(x => !string.IsNullOrWhiteSpace(x.Url)).Count()}");
 
         var redditPostMetaDatas =
@@ -69,14 +52,14 @@ public class TrainingDataProcessor
                 .Where(x => x != null)
                 .Cast<RedditPostMetaData>();
 
-        _logger.LogInformation(
+        logger.LogInformation(
             $"Total reddit posts with understood links: {redditPostMetaDatas.Count()}");
 
-        _logger.LogInformation(
+        logger.LogInformation(
             $"Total reddit posts with flair: {redditPosts.Where(x => !string.IsNullOrWhiteSpace(x.LinkFlairText)).Count()}");
 
 
-        var podcasts = await _podcastRepository.GetAll().ToListAsync();
+        var podcasts = await podcastRepository.GetAll().ToListAsync();
 
         var podcastEpisodes = podcasts.SelectMany(podcast => podcast.Episodes,
             (podcast, episode) => new PodcastEpisode(podcast, episode));
@@ -131,21 +114,21 @@ public class TrainingDataProcessor
                     subjects.Add(flair);
                 }
 
-                (var unmatched, subjects) = await _subjectCleanser.CleanSubjects(subjects);
+                (var unmatched, subjects) = await subjectCleanser.CleanSubjects(subjects);
                 if (unmatched)
                 {
-                    _logger.LogError(
+                    logger.LogError(
                         $"Podcast '{podcastEpisode.Podcast.Name}' id:'{podcastEpisode.Podcast.Id}' Episode-id:'{podcastEpisode.Episode.Id}'.");
                 }
             }
             else
             {
-                subjects = (await _subjectService.Match(podcastEpisode.Episode,
+                subjects = (await subjectService.Match(podcastEpisode.Episode,
                         podcastEpisode.Podcast.IgnoredAssociatedSubjects))
                     .OrderByDescending(x => x.MatchResults.Sum(y => y.Matches)).Select(x => x.Subject.Name).ToList();
                 if (!subjects.Any())
                 {
-                    _logger.LogError(
+                    logger.LogError(
                         $"MISSING: '{podcastEpisode.Episode.Title}' - '{podcastEpisode.Episode.Description}'.");
                 }
             }

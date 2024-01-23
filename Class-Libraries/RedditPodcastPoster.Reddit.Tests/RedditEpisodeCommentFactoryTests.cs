@@ -7,14 +7,8 @@ namespace RedditPodcastPoster.Reddit.Tests;
 
 public class RedditEpisodeCommentFactoryTests
 {
-    private readonly Fixture _fixture;
-    private readonly AutoMocker _mocker;
-
-    public RedditEpisodeCommentFactoryTests()
-    {
-        _fixture = new Fixture();
-        _mocker = new AutoMocker();
-    }
+    private readonly Fixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
 
     private RedditEpisodeCommentFactory Sut => _mocker.CreateInstance<RedditEpisodeCommentFactory>();
 

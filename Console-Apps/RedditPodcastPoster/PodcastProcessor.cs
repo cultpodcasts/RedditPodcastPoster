@@ -6,22 +6,11 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster;
 
-public class PodcastProcessor
+public class PodcastProcessor(
+    IPodcastsUpdater podcastsUpdater,
+    IEpisodeProcessor episodeProcessor,
+    ILogger<PodcastProcessor> logger)
 {
-    private readonly IEpisodeProcessor _episodeProcessor;
-    private readonly ILogger<PodcastProcessor> _logger;
-    private readonly IPodcastsUpdater _podcastsUpdater;
-
-    public PodcastProcessor(
-        IPodcastsUpdater podcastsUpdater,
-        IEpisodeProcessor episodeProcessor,
-        ILogger<PodcastProcessor> logger)
-    {
-        _podcastsUpdater = podcastsUpdater;
-        _episodeProcessor = episodeProcessor;
-        _logger = logger;
-    }
-
     public async Task<ProcessResponse> Process(ProcessRequest processRequest)
     {
         var youTubeRefreshed = true;
@@ -38,10 +27,10 @@ public class PodcastProcessor
             var originalSkipYouTubeUrlResolving = indexingContext.SkipYouTubeUrlResolving;
             var originalSkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving;
 
-            var results = await _podcastsUpdater.UpdatePodcasts(indexingContext);
+            var results = await podcastsUpdater.UpdatePodcasts(indexingContext);
             if (!results)
             {
-                _logger.LogError("Failure occurred.");
+                logger.LogError("Failure occurred.");
             }
 
             youTubeRefreshed = originalSkipYouTubeUrlResolving == false &&
@@ -52,7 +41,7 @@ public class PodcastProcessor
 
         if (processRequest.ReleaseBaseline != null)
         {
-            return await _episodeProcessor.PostEpisodesSinceReleaseDate(
+            return await episodeProcessor.PostEpisodesSinceReleaseDate(
                 processRequest.ReleaseBaseline.Value,
                 youTubeRefreshed,
                 spotifyRefreshed);

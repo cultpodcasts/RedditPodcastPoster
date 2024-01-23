@@ -6,30 +6,20 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace CultPodcasts.DatabasePublisher;
 
-public class PublicDatabasePublisher
+public class PublicDatabasePublisher(
+    IFileRepository fileRepository,
+    ICosmosDbRepository cosmosDbRepository,
+    ILogger<CosmosDbRepository> logger)
 {
-    private readonly ICosmosDbRepository _cosmosDbRepository;
-    private readonly IFileRepository _fileRepository;
-    private readonly ILogger<CosmosDbRepository> _logger;
-
-    public PublicDatabasePublisher(IFileRepository fileRepository,
-        ICosmosDbRepository cosmosDbRepository,
-        ILogger<CosmosDbRepository> logger)
-    {
-        _fileRepository = fileRepository;
-        _cosmosDbRepository = cosmosDbRepository;
-        _logger = logger;
-    }
-
     public async Task Run()
     {
         var partitionKey = Podcast.PartitionKey;
         var podcastIds =
-            await _cosmosDbRepository.GetAllIds<Podcast>(partitionKey);
+            await cosmosDbRepository.GetAllIds<Podcast>(partitionKey);
 
         foreach (var podcastId in podcastIds)
         {
-            var podcast = await _cosmosDbRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
+            var podcast = await cosmosDbRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
 
             if (podcast != null && podcast.Episodes.Any(x => x is {Removed: false}))
             {
@@ -69,7 +59,7 @@ public class PublicDatabasePublisher
                     .OrderByDescending(x => x.Release)
                     .ToList();
 
-                await _fileRepository.Write(publicPodcast);
+                await fileRepository.Write(publicPodcast);
             }
         }
     }

@@ -5,30 +5,23 @@ using Microsoft.Extensions.Logging;
 
 namespace Azure;
 
-public class ActivityMarshaller : IActivityMarshaller
+public class ActivityMarshaller(
+    Container container,
+    ILogger<ActivityMarshaller> logger)
+    : IActivityMarshaller
 {
     private const string ActivityBookingProcedureId = "bookActivity";
     private const string CompleteStatus = "complete";
     private const string InitiateActionStatus = "initiate";
     private const string CompletedStatusMessage = "Activity Already Complete";
     private const string InitiatedStatusMessage = "Activity Already Initiate";
-    private readonly Container _container;
-    private readonly ILogger<ActivityMarshaller> _logger;
-
-    public ActivityMarshaller(
-        Container container,
-        ILogger<ActivityMarshaller> logger)
-    {
-        _container = container;
-        _logger = logger;
-    }
 
     public async Task<ActivityStatus> Initiate(Guid id, string operationType)
     {
         try
         {
             dynamic activity = new {Id = id, Status = InitiateActionStatus, OperationType = operationType};
-            var result = await _container.Scripts.ExecuteStoredProcedureAsync<Activity>(
+            var result = await container.Scripts.ExecuteStoredProcedureAsync<Activity>(
                 ActivityBookingProcedureId,
                 new PartitionKey(Activity.PartitionKey),
                 new[] {activity});
@@ -45,16 +38,16 @@ public class ActivityMarshaller : IActivityMarshaller
             {
                 if (ex.Message.Contains(CompletedStatusMessage))
                 {
-                    _logger.LogInformation("Activity is already complete.");
+                    logger.LogInformation("Activity is already complete.");
                     try
                     {
-                        await _container.DeleteItemAsync<Activity>(
+                        await container.DeleteItemAsync<Activity>(
                             id.ToString(),
                             new PartitionKey(Activity.PartitionKey));
                     }
                     catch (Exception ex2)
                     {
-                        _logger.LogError(ex2, $"Failure to clean-up activity with id '{id}'.");
+                        logger.LogError(ex2, $"Failure to clean-up activity with id '{id}'.");
                     }
 
                     return ActivityStatus.Completed;
@@ -62,7 +55,7 @@ public class ActivityMarshaller : IActivityMarshaller
 
                 if (ex.Message.Contains(InitiatedStatusMessage))
                 {
-                    _logger.LogInformation("Activity is already initiated.");
+                    logger.LogInformation("Activity is already initiated.");
                     return ActivityStatus.AlreadyInitiated;
                 }
             }
@@ -71,7 +64,7 @@ public class ActivityMarshaller : IActivityMarshaller
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"Failure to initialise activity with id '{id}' for operation-type '{operationType}'.");
             return ActivityStatus.Failed;
         }
@@ -82,7 +75,7 @@ public class ActivityMarshaller : IActivityMarshaller
         try
         {
             dynamic activity = new {Id = id, Status = CompleteStatus, OperationType = operationType};
-            var result = await _container.Scripts.ExecuteStoredProcedureAsync<Activity>(
+            var result = await container.Scripts.ExecuteStoredProcedureAsync<Activity>(
                 ActivityBookingProcedureId,
                 new PartitionKey(Activity.PartitionKey),
                 new[] {activity},
@@ -100,13 +93,13 @@ public class ActivityMarshaller : IActivityMarshaller
             {
                 if (ex.Message.Contains(CompletedStatusMessage))
                 {
-                    _logger.LogInformation("Activity is already complete.");
+                    logger.LogInformation("Activity is already complete.");
                     return ActivityStatus.Completed;
                 }
 
                 if (ex.Message.Contains(InitiatedStatusMessage))
                 {
-                    _logger.LogInformation("Activity is already initiated.");
+                    logger.LogInformation("Activity is already initiated.");
                     return ActivityStatus.AlreadyInitiated;
                 }
             }
@@ -115,7 +108,7 @@ public class ActivityMarshaller : IActivityMarshaller
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"Failure to complete activity with id '{id}' for operation-type '{operationType}'.");
             return ActivityStatus.Failed;
         }

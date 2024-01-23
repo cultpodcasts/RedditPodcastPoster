@@ -8,41 +8,26 @@ using RedditPodcastPoster.Subjects;
 
 namespace EnrichSubjectRedditFlairs;
 
-public class RedditFlairsProcessor
+public class RedditFlairsProcessor(
+    RedditClient redditClient,
+    IRepository<Subject> repository,
+    ISubjectCleanser subjectCleanser,
+    IOptions<SubredditSettings> subredditSettings,
+    ISubjectRepository subjectRepository,
+    ILogger<RedditFlairsProcessor> logger)
 {
-    private readonly ILogger<RedditFlairsProcessor> _logger;
-    private readonly RedditClient _redditClient;
-    private readonly IRepository<Subject> _repository;
-    private readonly ISubjectCleanser _subjectCleanser;
-    private readonly ISubjectRepository _subjectRepository;
-    private readonly SubredditSettings _subredditSettings;
-
-    public RedditFlairsProcessor(
-        RedditClient redditClient,
-        IRepository<Subject> repository,
-        ISubjectCleanser subjectCleanser,
-        IOptions<SubredditSettings> subredditSettings,
-        ISubjectRepository subjectRepository,
-        ILogger<RedditFlairsProcessor> logger)
-    {
-        _redditClient = redditClient;
-        _repository = repository;
-        _subjectCleanser = subjectCleanser;
-        _subjectRepository = subjectRepository;
-        _subredditSettings = subredditSettings.Value;
-        _logger = logger;
-    }
+    private readonly SubredditSettings _subredditSettings = subredditSettings.Value;
 
     public async Task Run()
     {
-        var subreddit = _redditClient.Subreddit(_subredditSettings.SubredditName);
+        var subreddit = redditClient.Subreddit(_subredditSettings.SubredditName);
         var linkFlairs = subreddit.Flairs.LinkFlairV2;
         foreach (var flair in linkFlairs)
         {
-            var (unmatched, cleansedFlair) = await _subjectCleanser.CleanSubjects(new List<string> {flair.Text});
+            var (unmatched, cleansedFlair) = await subjectCleanser.CleanSubjects(new List<string> {flair.Text});
             if (unmatched)
             {
-                _logger.LogError($"Unmatched flair '{flair.Text}'.");
+                logger.LogError($"Unmatched flair '{flair.Text}'.");
             }
             else
             {
@@ -50,31 +35,31 @@ public class RedditFlairsProcessor
                 {
                     if (!cleansedFlair.Any())
                     {
-                        _logger.LogError(
+                        logger.LogError(
                             $"Matched flair with subject, but no cleansed-subjects. Flair-text: '{flair.Text}'.");
                     }
                     else
                     {
-                        _logger.LogError(
+                        logger.LogError(
                             $"Multiple cleansed flairs for flair '{flair.Text}'. Cleansed-subjects: {string.Join(",", cleansedFlair.Select(x => $"'{x}'"))}. Taking first.");
                         cleansedFlair = cleansedFlair.Take(1).ToList();
                     }
                 }
 
-                var subject = await _subjectRepository.GetByName(cleansedFlair.Single());
+                var subject = await subjectRepository.GetByName(cleansedFlair.Single());
                 if (subject != null)
                 {
                     if (subject.RedditFlairTemplateId == null)
                     {
-                        _logger.LogInformation($"Updating '{subject.Name}' with template-id '{flair.Id}'.");
+                        logger.LogInformation($"Updating '{subject.Name}' with template-id '{flair.Id}'.");
                         var redditFlairTemplateId = Guid.Parse(flair.Id);
                         subject.RedditFlairTemplateId = redditFlairTemplateId;
-                        await _repository.Save(subject);
+                        await repository.Save(subject);
                     }
                 }
                 else
                 {
-                    _logger.LogError($"No subject found for cleansed-flair '{cleansedFlair.Single()}'.");
+                    logger.LogError($"No subject found for cleansed-flair '{cleansedFlair.Single()}'.");
                 }
             }
         }

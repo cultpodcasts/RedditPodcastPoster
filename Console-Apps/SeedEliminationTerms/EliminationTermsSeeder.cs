@@ -4,24 +4,15 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace SeedEliminationTerms;
 
-public class EliminationTermsSeeder
+public class EliminationTermsSeeder(
+    IEliminationTermsRepository eliminationTermsRepository,
+    ILogger<CosmosDbRepository> logger)
 {
-    private readonly IEliminationTermsRepository _eliminationTermsRepository;
-    private readonly ILogger<CosmosDbRepository> _logger;
-
-    public EliminationTermsSeeder(
-        IEliminationTermsRepository eliminationTermsRepository,
-        ILogger<CosmosDbRepository> logger)
-    {
-        _eliminationTermsRepository = eliminationTermsRepository;
-        _logger = logger;
-    }
-
     public async Task Run()
     {
-        var persisted = await _eliminationTermsRepository.Get();
+        var persisted = await eliminationTermsRepository.Get();
         //persisted.Terms.Add("Add Term Here");
         persisted.Terms = persisted.Terms.Select(x => x.ToLower()).Distinct().ToList();
-        await _eliminationTermsRepository.Save(persisted);
+        await eliminationTermsRepository.Save(persisted);
     }
 }
