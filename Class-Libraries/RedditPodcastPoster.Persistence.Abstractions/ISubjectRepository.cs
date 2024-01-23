@@ -6,4 +6,5 @@ public interface ISubjectRepository
 {
     Task<IEnumerable<Subject>> GetAll();
     Task<Subject?> GetByName(string name);
+    Task<List<Subject>> GetByNames(string[] names);
 }

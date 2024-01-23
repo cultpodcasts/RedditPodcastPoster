@@ -45,27 +45,20 @@ public class EpisodePostManager(
 
             if (result.LinkPost != null)
             {
-                if (postModel.Subject != null)
+                if (postModel.Subjects.Any())
                 {
-                    var subject = await subjectRepository.GetByName(postModel.Subject);
-                    if (subject is {RedditFlairTemplateId: not null})
+                    var subjects = await subjectRepository.GetByNames(postModel.Subjects);
+                    var subject = subjects.FirstOrDefault(x => x.RedditFlairTemplateId != null);
+                    if (subject != null)
                     {
                         var flairTemplateId = subject.RedditFlairTemplateId.ToString();
-                        result.LinkPost.SetFlair(postModel.Subject, flairTemplateId);
+                        result.LinkPost.SetFlair(subject.Name, flairTemplateId);
                     }
                     else
                     {
-                        if (subject != null)
-                        {
-                            logger.LogError(
-                                $"No flair-id for subject '{postModel.Subject}' with subject-id '{subject.Id}'.");
-                        }
-                        else
-                        {
-                            logger.LogError($"No persisted subject for '{postModel.Subject}'.");
-                        }
-
-                        result.LinkPost.SetFlair(postModel.Subject);
+                        logger.LogError(
+                            $"No subject with flair-id for episode with title '{postModel.EpisodeTitle}'.");
+                        result.LinkPost.SetFlair(postModel.Subjects.FirstOrDefault());
                     }
                 }
 
