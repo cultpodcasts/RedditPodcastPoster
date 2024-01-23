@@ -5,22 +5,15 @@ using RedditPodcastPoster.PodcastServices.Apple;
 
 namespace CosmosDbFixer;
 
-public class CosmosDbFixer
+public class CosmosDbFixer(
+    IPodcastRepository podcastRepository,
+    ILogger<CosmosDbRepository> logger)
 {
-    private readonly ILogger<CosmosDbRepository> _logger;
-    private readonly IPodcastRepository _podcastRepository;
-
-    public CosmosDbFixer(
-        IPodcastRepository podcastRepository,
-        ILogger<CosmosDbRepository> logger)
-    {
-        _podcastRepository = podcastRepository;
-        _logger = logger;
-    }
+    private readonly ILogger<CosmosDbRepository> _logger = logger;
 
     public async Task Run()
     {
-        var podcasts = await _podcastRepository.GetAll().ToListAsync();
+        var podcasts = await podcastRepository.GetAll().ToListAsync();
         foreach (var podcast in podcasts)
         {
             foreach (var episode in podcast.Episodes)
@@ -31,7 +24,7 @@ public class CosmosDbFixer
                 }
             }
 
-            await _podcastRepository.Save(podcast);
+            await podcastRepository.Save(podcast);
         }
     }
 }

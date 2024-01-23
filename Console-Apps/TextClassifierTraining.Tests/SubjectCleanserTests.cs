@@ -1,4 +1,3 @@
-using AutoFixture;
 using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
@@ -9,14 +8,7 @@ namespace TextClassifierTraining.Tests;
 
 public class SubjectCleanserTests
 {
-    private readonly Fixture _fixture;
-    private readonly AutoMocker _mocker;
-
-    public SubjectCleanserTests()
-    {
-        _fixture = new Fixture();
-        _mocker = new AutoMocker();
-    }
+    private readonly AutoMocker _mocker = new();
 
     private ISubjectCleanser Sut => _mocker.CreateInstance<SubjectCleanser>();
 
@@ -115,7 +107,7 @@ public class SubjectCleanserTests
     }
 
     [Theory]
-    [InlineData("Term 1 & Term 2", new[]{"term 1", "term 2"})]
+    [InlineData("Term 1 & Term 2", new[] {"term 1", "term 2"})]
     public async Task CleanseSubjects_WithAmpsersand_IsCorrect(string subject, string[] expected)
     {
         // arrange

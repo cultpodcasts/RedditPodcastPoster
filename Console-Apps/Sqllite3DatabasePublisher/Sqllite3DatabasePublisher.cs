@@ -3,26 +3,15 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace Sqllite3DatabasePublisher;
 
-public class Sqllite3DatabasePublisher
+public class Sqllite3DatabasePublisher(
+    IPodcastRepository podcastRepository,
+    PodcastContext podcastContext,
+    ILogger<Sqllite3DatabasePublisher> logger)
 {
-    private readonly ILogger<Sqllite3DatabasePublisher> _logger;
-    private readonly PodcastContext _podcastContext;
-    private readonly IPodcastRepository _podcastRepository;
-
-    public Sqllite3DatabasePublisher(
-        IPodcastRepository podcastRepository,
-        PodcastContext podcastContext,
-        ILogger<Sqllite3DatabasePublisher> logger)
-    {
-        _podcastRepository = podcastRepository;
-        _podcastContext = podcastContext;
-        _logger = logger;
-    }
-
     public async Task Run()
     {
-        await _podcastContext.Database.EnsureCreatedAsync();
-        var podcasts = await _podcastRepository.GetAll().ToListAsync();
+        await podcastContext.Database.EnsureCreatedAsync();
+        var podcasts = await podcastRepository.GetAll().ToListAsync();
 
         foreach (var podcast in podcasts)
         {
@@ -48,11 +37,11 @@ public class Sqllite3DatabasePublisher
                         Apple = episode.Urls.Apple
                     }).ToList()
             };
-            _podcastContext.Podcasts.Add(entity);
-            await _podcastContext.SaveChangesAsync();
+            podcastContext.Podcasts.Add(entity);
+            await podcastContext.SaveChangesAsync();
         }
 
-        var query = from b in _podcastContext.Podcasts
+        var query = from b in podcastContext.Podcasts
             select b;
 
         Console.WriteLine("All podcasts in the database:");

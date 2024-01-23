@@ -6,19 +6,11 @@ using SpotifyAPI.Web;
 
 namespace Discover;
 
-public class DiscoveryProcessor
+public class DiscoveryProcessor(
+    ISpotifyClientWrapper spotifyClient,
+    ILogger<DiscoveryProcessor> logger)
 {
     private const string? Market = "GB";
-    private readonly ILogger<DiscoveryProcessor> _logger;
-    private readonly ISpotifyClientWrapper _spotifyClient;
-
-    public DiscoveryProcessor(
-        ISpotifyClientWrapper spotifyClient,
-        ILogger<DiscoveryProcessor> logger)
-    {
-        _spotifyClient = spotifyClient;
-        _logger = logger;
-    }
 
     public async Task Process(DiscoveryRequest request)
     {
@@ -47,19 +39,19 @@ public class DiscoveryProcessor
 
     private async Task<IEnumerable<FullEpisode>> Search(string query, IndexingContext indexingContext)
     {
-        var results = await _spotifyClient.FindEpisodes(
+        var results = await spotifyClient.FindEpisodes(
             new SearchRequest(SearchRequest.Types.Episode, query) {Market = Market},
             indexingContext);
         if (results != null)
         {
-            var allResults = await _spotifyClient.PaginateAll(results, response => response.Episodes, indexingContext);
+            var allResults = await spotifyClient.PaginateAll(results, response => response.Episodes, indexingContext);
             var recentResults = allResults?.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince) ??
                                 Enumerable.Empty<SimpleEpisode>();
 
             if (recentResults.Any())
             {
                 var fullShows =
-                    await _spotifyClient.GetSeveral(
+                    await spotifyClient.GetSeveral(
                         new EpisodesRequest(recentResults.Select(x => x.Id).ToArray()) {Market = Market},
                         indexingContext);
 

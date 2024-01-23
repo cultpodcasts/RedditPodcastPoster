@@ -5,18 +5,12 @@ using Microsoft.Extensions.Options;
 
 namespace DeleteSearchDocument;
 
-public class SearchClientFactory : ISearchClientFactory
+public class SearchClientFactory(
+    IOptions<SearchIndexConfig> searchIndexConfig,
+    ILogger<SearchClientFactory> logger)
+    : ISearchClientFactory
 {
-    private readonly ILogger<SearchClientFactory> _logger;
-    private readonly SearchIndexConfig _searchIndexConfig;
-
-    public SearchClientFactory(
-        IOptions<SearchIndexConfig> searchIndexConfig,
-        ILogger<SearchClientFactory> logger)
-    {
-        _searchIndexConfig = searchIndexConfig.Value;
-        _logger = logger;
-    }
+    private readonly SearchIndexConfig _searchIndexConfig = searchIndexConfig.Value;
 
     public SearchClient Create()
     {

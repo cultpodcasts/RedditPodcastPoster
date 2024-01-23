@@ -28,14 +28,17 @@ public class SpotifyQueryPaginator(
         var currentMoment = DateTime.Now;
         var isInReverseTimeOrder = true;
         var ctr = 0;
-        while (isInReverseTimeOrder && ctr < pagedEpisodes.Items.Count)
+        var existingPagedEpisodes = pagedEpisodes.Items.Where(x => x != null).ToArray();
+        while (isInReverseTimeOrder && ctr < existingPagedEpisodes.Length)
         {
-            var releaseDate = pagedEpisodes.Items[ctr++].GetReleaseDate();
+            var releaseDate = existingPagedEpisodes[ctr].GetReleaseDate();
             isInReverseTimeOrder = currentMoment >= releaseDate;
             if (isInReverseTimeOrder)
             {
                 currentMoment = releaseDate;
             }
+
+            ctr++;
         }
 
         var isExpensiveQueryFound = !isInReverseTimeOrder;

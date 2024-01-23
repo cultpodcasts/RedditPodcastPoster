@@ -5,12 +5,11 @@ using RedditPodcastPoster.Text.KnownTerms;
 
 namespace SeedKnownTerms;
 
-public class KnownTermsSeeder
+public class KnownTermsSeeder(
+    IKnownTermsRepository knownTermsRepository,
+    ILogger<CosmosDbRepository> logger)
 {
-    private readonly IKnownTermsRepository _knownTermsRepository;
-    private readonly ILogger<CosmosDbRepository> _logger;
-
-    private readonly Dictionary<string, Regex> KnownTerms = new Dictionary<string, Regex>()
+    private readonly Dictionary<string, Regex> _knownTerms = new()
     {
         {"JWs", new Regex(@"\bJWs\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"ABCs", new Regex(@"\bABCs\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
@@ -20,26 +19,19 @@ public class KnownTermsSeeder
         {"JW", new Regex(@"\bJW\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"IBLP", new Regex(@"\bIBLP\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
         {"EDUCO", new Regex(@"\bEDUCO\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
-        {"NXIVM", new Regex(@"\bNXIVM\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)},
+        {"NXIVM", new Regex(@"\bNXIVM\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)}
     };
-
-    public KnownTermsSeeder(
-        IKnownTermsRepository knownTermsRepository,
-        ILogger<CosmosDbRepository> logger)
-    {
-        _knownTermsRepository = knownTermsRepository;
-        _logger = logger;
-    }
 
     public async Task Run()
     {
         var persisted = new KnownTerms();
-        foreach (var knownTerm in KnownTerms)
+        foreach (var knownTerm in _knownTerms)
         {
             persisted.Terms.Add(knownTerm.Key, knownTerm.Value);
         }
-        await _knownTermsRepository.Save(persisted);
 
-        persisted = await _knownTermsRepository.Get();
+        await knownTermsRepository.Save(persisted);
+
+        persisted = await knownTermsRepository.Get();
     }
 }

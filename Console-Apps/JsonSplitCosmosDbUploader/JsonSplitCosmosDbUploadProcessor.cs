@@ -6,47 +6,32 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace JsonSplitCosmosDbUploader;
 
-public class JsonSplitCosmosDbUploadProcessor
+public class JsonSplitCosmosDbUploadProcessor(
+    IFileRepository fileRepository,
+    IPodcastRepository podcastRepository,
+    IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
+    PodcastFactory podcastFactory,
+    ILogger<JsonSplitCosmosDbUploadProcessor> logger)
 {
-    private readonly IFileRepository _fileRepository;
-    private readonly IJsonSerializerOptionsProvider _jsonSerializerOptionsProvider;
-    private readonly ILogger<JsonSplitCosmosDbUploadProcessor> _logger;
-    private readonly PodcastFactory _podcastFactory;
-    private readonly IPodcastRepository _podcastRepository;
-
-    public JsonSplitCosmosDbUploadProcessor(
-        IFileRepository fileRepository,
-        IPodcastRepository podcastRepository,
-        IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
-        PodcastFactory podcastFactory,
-        ILogger<JsonSplitCosmosDbUploadProcessor> logger)
-    {
-        _fileRepository = fileRepository;
-        _podcastRepository = podcastRepository;
-        _jsonSerializerOptionsProvider = jsonSerializerOptionsProvider;
-        _podcastFactory = podcastFactory;
-        _logger = logger;
-    }
-
     public async Task Run(JsonSplitCosmosDbUploadRequest request)
     {
-        var sourcePodcast = await _fileRepository.Read<Podcast>(Path.GetFileNameWithoutExtension(request.FileName),
+        var sourcePodcast = await fileRepository.Read<Podcast>(Path.GetFileNameWithoutExtension(request.FileName),
             Podcast.PartitionKey);
         if (sourcePodcast != null)
         {
-            _logger.LogInformation($"'{sourcePodcast.Episodes.Count}' episodes.");
-            var jsonSerializerOptions = _jsonSerializerOptionsProvider.GetJsonSerializerOptions();
+            logger.LogInformation($"'{sourcePodcast.Episodes.Count}' episodes.");
+            var jsonSerializerOptions = jsonSerializerOptionsProvider.GetJsonSerializerOptions();
             var json = JsonSerializer.SerializeToUtf8Bytes(sourcePodcast, jsonSerializerOptions);
-            _logger.LogInformation($"'{json.Length}' utf-8 bytes.");
+            logger.LogInformation($"'{json.Length}' utf-8 bytes.");
             int splitFiles = Convert.ToInt16(Math.Ceiling(json.Length / 2000000f));
-            _logger.LogInformation($"Split into '{splitFiles}' files.");
+            logger.LogInformation($"Split into '{splitFiles}' files.");
             int episodesPerFile =
                 Convert.ToInt16(Math.Ceiling(sourcePodcast.Episodes.Count / Convert.ToDouble(splitFiles)));
-            _logger.LogInformation($"Episodes per file '{episodesPerFile}'.");
+            logger.LogInformation($"Episodes per file '{episodesPerFile}'.");
 
             for (var i = 0; i < splitFiles; i++)
             {
-                var podcast = _podcastFactory.Create(sourcePodcast.Name);
+                var podcast = podcastFactory.Create(sourcePodcast.Name);
                 podcast.FileKey = $"{podcast.FileKey}_{i}";
                 podcast.AppleId = sourcePodcast.AppleId;
                 podcast.Bundles = sourcePodcast.Bundles;
@@ -71,7 +56,7 @@ public class JsonSplitCosmosDbUploadProcessor
                 podcast.Episodes = sourcePodcast.Episodes.Skip((splitFiles - (i + 1)) * episodesPerFile)
                     .Take(episodesPerFile)
                     .OrderByDescending(x => x.Release).ToList();
-                await _podcastRepository.Save(podcast);
+                await podcastRepository.Save(podcast);
             }
         }
     }
