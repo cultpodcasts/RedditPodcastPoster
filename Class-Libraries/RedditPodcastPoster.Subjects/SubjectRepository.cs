@@ -43,4 +43,32 @@ public class SubjectRepository(
 
         return null;
     }
+
+    public async Task<List<Subject>> GetByNames(string[] names)
+    {
+        var subjects = new List<Subject>();
+        using var query = container
+            .GetItemLinqQueryable<Subject>(
+                linqSerializerOptions: new CosmosLinqSerializerOptions
+                {
+                    PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
+                },
+                requestOptions: new QueryRequestOptions
+                {
+                    PartitionKey = new PartitionKey(Subject.PartitionKey)
+                })
+            .Where(x => names.Contains(x.Name))
+            .ToFeedIterator();
+        if (query.HasMoreResults)
+        {
+            foreach (var item in await query.ReadNextAsync())
+            {
+                {
+                    subjects.Add(item);
+                }
+            }
+        }
+
+        return subjects;
+    }
 }

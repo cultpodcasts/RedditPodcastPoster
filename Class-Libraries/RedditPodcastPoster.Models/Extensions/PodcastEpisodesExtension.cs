@@ -44,6 +44,6 @@ public static class PodcastEpisodesExtension
             episode.Description,
             id,
             episode.Release,
-            episode.Subjects.FirstOrDefault());
+            episode.Subjects.ToArray());
     }
 }

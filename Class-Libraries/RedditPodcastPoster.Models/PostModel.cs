@@ -25,7 +25,7 @@ public class PostModel
         EpisodeDescription = firstEpisode.Description;
         EpisodeTitle = firstEpisode.Title;
         Id = firstEpisode.Id;
-        Subject = firstEpisode.Subject;
+        Subjects = firstEpisode.Subjects;
 
         if (!string.IsNullOrWhiteSpace(podcastPost.TitleRegex))
         {
@@ -82,7 +82,7 @@ public class PostModel
     public string EpisodeDescription { get; init; }
     public string PodcastName { get; init; }
     public string EpisodeTitle { get; init; }
-    public string? Subject { get; init; }
+    public string[] Subjects { get; init; }
     public string Id { get; init; }
     public Uri? Link { get; init; }
 }
