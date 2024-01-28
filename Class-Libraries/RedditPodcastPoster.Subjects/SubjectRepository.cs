@@ -3,6 +3,7 @@ using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using System.Linq.Expressions;
 
 namespace RedditPodcastPoster.Subjects;
 

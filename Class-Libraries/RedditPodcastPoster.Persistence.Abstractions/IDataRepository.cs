@@ -10,4 +10,5 @@ public interface IDataRepository
     IAsyncEnumerable<T> GetAll<T>(string partitionKey) where T : CosmosSelector;
     Task<IEnumerable<Guid>> GetAllIds<T>(string partitionKey) where T : CosmosSelector;
     Task<T?> GetBy<T>(string partitionKey, Expression<Func<T, bool>> selector) where T : CosmosSelector;
+    Task<IEnumerable<T>> GetAllBy<T>(string partitionKey, Expression<Func<T, bool>> selector) where T : CosmosSelector;
 }
