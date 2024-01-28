@@ -179,6 +179,9 @@ public class TextSanitiserTests
     [InlineData("Ep.13 'His Voice")]
     [InlineData("13. The Something Something")]
     [InlineData("13: The Something Something")]
+    [InlineData("Term1 Term2 | We Term3")]
+    [InlineData("Term1 Term2! We Term3")]
+    [InlineData("Term1 Term2? We Term3")]
     public void SanitiseTitle_WhenLowerCaseTermAfterPunctuation_IsCorrect(string expected)
     {
         // arrange

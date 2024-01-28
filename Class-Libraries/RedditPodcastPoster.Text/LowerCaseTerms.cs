@@ -29,7 +29,7 @@ public static class LowerCaseTerms
 
     public static readonly IDictionary<string, Regex> Expressions =
         LesserWords.ToDictionary(x => x,
-                x => new Regex($@"(?<!^\s?)(?<!'\s?)(?<!""\s?)(?<!\(\s?)(?<!\-\s?)(?<!:\s?)(?<!\.\s?){x}\b",
+                x => new Regex($@"(?<!^\s?)(?<!'\s?)(?<!""\s?)(?<!\(\s?)(?<!\-\s?)(?<!:\s?)(?<!\.\s?)(?<!|\s?){x}\b",
                     RegexOptions.Compiled | RegexOptions.IgnoreCase))
             .AddRange(AlwaysLowerCaseWords.ToDictionary(x => x,
                 x => new Regex($@"\b{x}\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)))
