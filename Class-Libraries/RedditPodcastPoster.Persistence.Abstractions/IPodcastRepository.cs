@@ -10,4 +10,5 @@ public interface IPodcastRepository
     MergeResult Merge(Podcast podcast, IEnumerable<Episode> episodesToMerge);
     IAsyncEnumerable<Podcast> GetAll();
     Task<IEnumerable<Guid>> GetAllIds();
+    Task<Podcast?> GetBy(Func<Podcast, bool> selector);
 }

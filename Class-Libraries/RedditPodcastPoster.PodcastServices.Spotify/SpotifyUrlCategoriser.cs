@@ -5,30 +5,27 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
-public class SpotifyUrlCategoriser(
+public partial class SpotifyUrlCategoriser(
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
     ILogger<SpotifyUrlCategoriser> logger)
     : ISpotifyUrlCategoriser
 {
-    private static readonly Regex SpotifyId = new(@"episode/(?'episodeId'\w+)");
+    private static readonly Regex SpotifyId = CreateEpisodeIdRegex();
 
     public bool IsMatch(Uri url)
     {
         return url.Host.ToLower().Contains("spotify");
     }
 
-    public async Task<ResolvedSpotifyItem> Resolve(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext)
+    public async Task<ResolvedSpotifyItem> Resolve(Podcast? podcast, Uri url, IndexingContext indexingContext)
     {
-        var pair = podcasts
-            .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new PodcastEpisode(podcast, episode))
-            .FirstOrDefault(pair => pair.Episode.Urls.Spotify == url);
-
-        if (pair != null)
+        if (podcast != null && podcast.Episodes.Any(x => x.Urls.Spotify == url))
         {
-            return new ResolvedSpotifyItem(pair);
+            return new ResolvedSpotifyItem(new Models.PodcastEpisode(podcast,
+                podcast.Episodes.Single(x => x.Urls.Spotify == url)));
         }
 
-        var episodeId = SpotifyId.Match(url.ToString()).Groups["episodeId"].Value;
+        var episodeId = GetEpisodeId(url);
         if (episodeId == null)
         {
             throw new InvalidOperationException($"Unable to find spotify-id in url '{url}'.");
@@ -56,7 +53,7 @@ public class SpotifyUrlCategoriser(
         logger.LogError(
             $"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveSpotifyQueries)}' is set.");
 
-        throw new InvalidOperationException($"Could not find item with spotify-id '{SpotifyId}'.");
+        throw new InvalidOperationException($"Could not find item with spotify-id '{episodeId}'.");
     }
 
     public async Task<ResolvedSpotifyItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast,
@@ -92,4 +89,12 @@ public class SpotifyUrlCategoriser(
             $"Could not find spotify episode for show named '{criteria.ShowName}' and episode-name '{criteria.EpisodeTitle}'.");
         return null;
     }
+
+    public string GetEpisodeId(Uri url)
+    {
+        return SpotifyId.Match(url.ToString()).Groups["episodeId"].Value;
+    }
+
+    [GeneratedRegex(@"episode/(?'episodeId'\w+)")]
+    private static partial Regex CreateEpisodeIdRegex();
 }

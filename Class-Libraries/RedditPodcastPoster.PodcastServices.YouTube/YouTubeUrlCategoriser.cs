@@ -18,17 +18,19 @@ public class YouTubeUrlCategoriser(
     }
 
     public async Task<ResolvedYouTubeItem?> Resolve(
-        IList<Podcast> podcasts,
-        Uri url, IndexingContext
-            indexingContext)
+        Podcast? podcast,
+        Uri url,
+        IndexingContext indexingContext)
     {
-        var pair = podcasts
-            .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new PodcastEpisode(podcast, episode))
-            .FirstOrDefault(pair => pair.Episode.Urls.YouTube == url);
-
-        if (pair != null && !string.IsNullOrWhiteSpace(pair.Podcast.YouTubeChannelId))
+        PodcastEpisode? pair = null;
+        if (podcast != null && podcast.Episodes.Any(x => x.Urls.YouTube == url))
         {
-            return new ResolvedYouTubeItem(pair);
+            pair = new PodcastEpisode(podcast,
+                podcast.Episodes.Single(x => x.Urls.YouTube == url));
+            if (!string.IsNullOrWhiteSpace(pair.Podcast.YouTubeChannelId))
+            {
+                return new ResolvedYouTubeItem(pair);
+            }
         }
 
         var videoId = youTubeIdExtractor.Extract(url);

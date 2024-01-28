@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -11,6 +12,7 @@ namespace RedditPodcastPoster.UrlSubmission;
 
 public class UrlSubmitter(
     IPodcastRepository podcastRepository,
+    IPodcastService podcastService,
     IUrlCategoriser urlCategoriser,
     ISubjectEnricher subjectEnricher,
     IOptions<PostingCriteria> postingCriteria,
@@ -19,11 +21,20 @@ public class UrlSubmitter(
 {
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
-    public async Task Submit(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext, bool searchForPodcast,
-        bool matchOtherServices)
+    public async Task Submit(Uri url, IndexingContext indexingContext, bool searchForPodcast, bool matchOtherServices,
+        Guid? podcastId)
     {
-        var categorisedItem =
-            await urlCategoriser.Categorise(podcasts, url, indexingContext, searchForPodcast, matchOtherServices);
+        Podcast? podcast;
+        if (podcastId != null)
+        {
+            podcast = await podcastRepository.GetPodcast(podcastId.Value);
+        }
+        else
+        {
+            podcast = await podcastService.GetPodcastFromEpisodeUrl(url, indexingContext);
+        }
+
+        var categorisedItem = await urlCategoriser.Categorise(podcast, url, indexingContext, matchOtherServices);
 
         if (categorisedItem.MatchingPodcast != null)
         {
@@ -57,9 +68,7 @@ public class UrlSubmitter(
         else
         {
             var newPodcast = await CreatePodcastWithEpisode(categorisedItem);
-
             await podcastRepository.Save(newPodcast);
-            podcasts.Add(newPodcast);
         }
     }
 

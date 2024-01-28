@@ -104,6 +104,13 @@ public class FileRepository : IFileRepository
         return guids;
     }
 
+    public async Task<T?> GetBy<T>(string partitionKey, Func<T, bool> selector) where T : CosmosSelector
+    {
+        var items = GetAll<T>(partitionKey);
+        var reduce = await items.FirstOrDefaultAsync(selector);
+        return reduce;
+    }
+
     private string GetFilePath(string fileKey)
     {
         return $"{_container}{fileKey}{FileExtension}";

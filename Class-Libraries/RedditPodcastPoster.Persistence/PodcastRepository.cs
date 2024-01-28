@@ -82,6 +82,11 @@ public class PodcastRepository(
         await Save(podcast);
     }
 
+    public Task<Podcast?> GetBy(Func<Podcast, bool> selector)
+    {
+        return dataRepository.GetBy(Podcast.PartitionKey, selector);
+    }
+
     private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)
     {
         if (!string.IsNullOrWhiteSpace(episode.SpotifyId) && !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))

@@ -81,4 +81,31 @@ public class CosmosDbRepository(
             throw;
         }
     }
+
+    public async Task<T?> GetBy<T>(string partitionKey, Func<T, bool> selector) where T : CosmosSelector
+    {
+        var query = container
+            .GetItemLinqQueryable<T>(
+                linqSerializerOptions: new CosmosLinqSerializerOptions
+                {
+                    PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
+                },
+                requestOptions: new QueryRequestOptions
+                {
+                    PartitionKey = new PartitionKey(partitionKey)
+                })
+            .Where(x => selector(x))
+            .ToFeedIterator();
+        if (query.HasMoreResults)
+        {
+            foreach (var item in await query.ReadNextAsync())
+            {
+                {
+                    return item;
+                }
+            }
+        }
+
+        return null;
+    }
 }
