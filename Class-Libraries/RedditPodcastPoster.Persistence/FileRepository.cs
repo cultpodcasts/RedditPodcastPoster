@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Linq.Expressions;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
@@ -104,10 +105,10 @@ public class FileRepository : IFileRepository
         return guids;
     }
 
-    public async Task<T?> GetBy<T>(string partitionKey, Func<T, bool> selector) where T : CosmosSelector
+    public async Task<T?> GetBy<T>(string partitionKey, Expression<Func<T, bool>> selector) where T : CosmosSelector
     {
-        var items = GetAll<T>(partitionKey);
-        var reduce = await items.FirstOrDefaultAsync(selector);
+        var items = await GetAll<T>(partitionKey).ToListAsync();
+        var reduce = items.FirstOrDefault(selector.Compile());
         return reduce;
     }
 

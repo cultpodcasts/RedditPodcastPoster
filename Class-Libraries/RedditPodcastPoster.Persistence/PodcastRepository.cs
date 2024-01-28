@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Linq.Expressions;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -82,7 +83,7 @@ public class PodcastRepository(
         await Save(podcast);
     }
 
-    public Task<Podcast?> GetBy(Func<Podcast, bool> selector)
+    public Task<Podcast?> GetBy(Expression<Func<Podcast, bool>> selector)
     {
         return dataRepository.GetBy(Podcast.PartitionKey, selector);
     }

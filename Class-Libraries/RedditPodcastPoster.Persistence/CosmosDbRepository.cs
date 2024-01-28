@@ -1,4 +1,5 @@
-﻿using Microsoft.Azure.Cosmos;
+﻿using System.Linq.Expressions;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
@@ -82,7 +83,7 @@ public class CosmosDbRepository(
         }
     }
 
-    public async Task<T?> GetBy<T>(string partitionKey, Func<T, bool> selector) where T : CosmosSelector
+    public async Task<T?> GetBy<T>(string partitionKey, Expression<Func<T, bool>> selector) where T : CosmosSelector
     {
         var query = container
             .GetItemLinqQueryable<T>(
@@ -94,7 +95,7 @@ public class CosmosDbRepository(
                 {
                     PartitionKey = new PartitionKey(partitionKey)
                 })
-            .Where(x => selector(x))
+            .Where(selector)
             .ToFeedIterator();
         if (query.HasMoreResults)
         {

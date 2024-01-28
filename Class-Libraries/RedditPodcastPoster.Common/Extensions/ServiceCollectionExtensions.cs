@@ -8,6 +8,7 @@ using RedditPodcastPoster.Common.PodcastServices.Apple;
 using RedditPodcastPoster.Common.PodcastServices.Spotify;
 using RedditPodcastPoster.Common.PodcastServices.YouTube;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.UrlSubmission;
 
 namespace RedditPodcastPoster.Common.Extensions;
 
@@ -18,6 +19,7 @@ public static class ServiceCollectionExtensions
         services.AddDelayedYouTubePublication(config);
 
         return services
+            .AddScoped<IPodcastService, PodcastService>()
             .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
             .AddScoped<IPodcastUpdater, PodcastUpdater>()
             .AddScoped<IEpisodeProvider, EpisodeProvider>()

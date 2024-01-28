@@ -6,7 +6,7 @@ using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using Podcast = RedditPodcastPoster.Models.Podcast;
 
-namespace RedditPodcastPoster.PodcastServices;
+namespace RedditPodcastPoster.UrlSubmission;
 
 public class PodcastService(
     IPodcastRepository podcastRepository,

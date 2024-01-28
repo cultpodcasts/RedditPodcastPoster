@@ -1,7 +1,7 @@
 ﻿using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
-namespace RedditPodcastPoster.PodcastServices;
+namespace RedditPodcastPoster.UrlSubmission;
 
 public interface IPodcastService
 {
