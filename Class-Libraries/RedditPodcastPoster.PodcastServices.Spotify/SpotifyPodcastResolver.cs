@@ -12,7 +12,6 @@ public class SpotifyPodcastResolver(
     ILogger<SpotifyPodcastResolver> logger)
     : ISpotifyPodcastResolver
 {
-    private const string Market = "GB";
 
     public async Task<SpotifyPodcastWrapper?> FindPodcast(
         FindSpotifyPodcastRequest request,
@@ -30,7 +29,7 @@ public class SpotifyPodcastResolver(
         var expensiveSpotifyEpisodesQueryFound = false;
         if (!string.IsNullOrWhiteSpace(request.PodcastId))
         {
-            var showRequest = new ShowRequest {Market = Market};
+            var showRequest = new ShowRequest {Market = Market.CountryCode};
             matchingFullShow = await spotifyClientWrapper.GetFullShow(request.PodcastId, showRequest, indexingContext);
         }
 
@@ -45,7 +44,7 @@ public class SpotifyPodcastResolver(
                 {
                     foreach (var candidatePodcast in matchingPodcasts)
                     {
-                        var showEpisodesRequest = new ShowEpisodesRequest {Market = Market};
+                        var showEpisodesRequest = new ShowEpisodesRequest {Market = Market.CountryCode };
                         if (indexingContext.ReleasedSince.HasValue)
                         {
                             showEpisodesRequest.Limit = 1;

@@ -12,14 +12,13 @@ public class SpotifyEpisodeResolver(
     ILogger<SpotifyEpisodeResolver> logger)
     : ISpotifyEpisodeResolver
 {
-    private const string Market = "GB";
     private static readonly TimeSpan YouTubeAuthorityToAudioReleaseConsiderationThreshold = TimeSpan.FromDays(14);
 
     public async Task<FindEpisodeResponse> FindEpisode(
         FindSpotifyEpisodeRequest request,
         IndexingContext indexingContext)
     {
-        var market = request.Market ?? Market;
+        var market = request.Market ?? Market.CountryCode;
         var expensiveQueryFound = false;
         if (indexingContext.SkipSpotifyUrlResolving)
         {
@@ -142,7 +141,7 @@ public class SpotifyEpisodeResolver(
         GetEpisodesRequest request,
         IndexingContext indexingContext)
     {
-        var market = request.Market ?? Market;
+        var market = request.Market ?? Market.CountryCode;
         if (indexingContext.SkipSpotifyUrlResolving)
         {
             logger.LogInformation(

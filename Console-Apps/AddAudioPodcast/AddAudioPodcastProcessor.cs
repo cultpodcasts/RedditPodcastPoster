@@ -23,7 +23,6 @@ public class AddAudioPodcastProcessor(
     ISubjectEnricher subjectEnricher,
     ILogger<AddAudioPodcastProcessor> logger)
 {
-    private static readonly string Market = "GB";
     private readonly IndexingContext _indexingContext = new(null, true);
 
     public async Task Create(AddAudioPodcastRequest request)
@@ -101,7 +100,8 @@ public class AddAudioPodcastProcessor(
     private async Task<Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext,
         List<Podcast> existingPodcasts)
     {
-        var spotifyPodcast = await spotifyClient.Shows.Get(request.PodcastId, new ShowRequest {Market = Market});
+        var spotifyPodcast =
+            await spotifyClient.Shows.Get(request.PodcastId, new ShowRequest {Market = Market.CountryCode});
 
         var podcast = existingPodcasts.SingleOrDefault(x => x.SpotifyId == request.PodcastId);
         if (podcast == null)

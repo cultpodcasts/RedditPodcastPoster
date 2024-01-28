@@ -1,4 +1,5 @@
-﻿using Microsoft.Azure.Cosmos;
+﻿using System.Linq.Expressions;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
@@ -80,5 +81,61 @@ public class CosmosDbRepository(
             logger.LogError(ex, $"{nameof(GetAllIds)}: Error Getting-All-Ids of documents.");
             throw;
         }
+    }
+
+    public async Task<T?> GetBy<T>(string partitionKey, Expression<Func<T, bool>> selector) where T : CosmosSelector
+    {
+        var query = container
+            .GetItemLinqQueryable<T>(
+                linqSerializerOptions: new CosmosLinqSerializerOptions
+                {
+                    PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
+                },
+                requestOptions: new QueryRequestOptions
+                {
+                    PartitionKey = new PartitionKey(partitionKey)
+                })
+            .Where(selector)
+            .ToFeedIterator();
+        if (query.HasMoreResults)
+        {
+            foreach (var item in await query.ReadNextAsync())
+            {
+                {
+                    return item;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public async Task<IEnumerable<T>> GetAllBy<T>(string partitionKey, Expression<Func<T, bool>> selector)
+        where T : CosmosSelector
+    {
+        var results = new List<T>();
+        var query = container
+            .GetItemLinqQueryable<T>(
+                linqSerializerOptions: new CosmosLinqSerializerOptions
+                {
+                    PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
+                },
+                requestOptions: new QueryRequestOptions
+                {
+                    PartitionKey = new PartitionKey(partitionKey)
+                })
+            .Where(selector)
+            .ToFeedIterator();
+        if (query.HasMoreResults)
+        {
+            foreach (var item in await query.ReadNextAsync())
+            {
+                {
+                    results.Add(item);
+                }
+            }
+        }
+
+        return results;
     }
 }

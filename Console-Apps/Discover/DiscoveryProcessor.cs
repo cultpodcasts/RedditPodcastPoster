@@ -10,8 +10,6 @@ public class DiscoveryProcessor(
     ISpotifyClientWrapper spotifyClient,
     ILogger<DiscoveryProcessor> logger)
 {
-    private const string? Market = "GB";
-
     public async Task Process(DiscoveryRequest request)
     {
         var indexingContext = new IndexingContext(
@@ -40,7 +38,7 @@ public class DiscoveryProcessor(
     private async Task<IEnumerable<FullEpisode>> Search(string query, IndexingContext indexingContext)
     {
         var results = await spotifyClient.FindEpisodes(
-            new SearchRequest(SearchRequest.Types.Episode, query) {Market = Market},
+            new SearchRequest(SearchRequest.Types.Episode, query) {Market = Market.CountryCode},
             indexingContext);
         if (results != null)
         {
@@ -52,7 +50,7 @@ public class DiscoveryProcessor(
             {
                 var fullShows =
                     await spotifyClient.GetSeveral(
-                        new EpisodesRequest(recentResults.Select(x => x.Id).ToArray()) {Market = Market},
+                        new EpisodesRequest(recentResults.Select(x => x.Id).ToArray()) {Market = Market.CountryCode},
                         indexingContext);
 
                 return fullShows?.Episodes ?? Enumerable.Empty<FullEpisode>();

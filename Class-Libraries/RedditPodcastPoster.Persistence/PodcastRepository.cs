@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Linq.Expressions;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -80,6 +81,16 @@ public class PodcastRepository(
     public async Task Update(Podcast podcast)
     {
         await Save(podcast);
+    }
+
+    public Task<Podcast?> GetBy(Expression<Func<Podcast, bool>> selector)
+    {
+        return dataRepository.GetBy(Podcast.PartitionKey, selector);
+    }
+
+    public Task<IEnumerable<Podcast>> GetAllBy(Expression<Func<Podcast, bool>> selector)
+    {
+        return dataRepository.GetAllBy(Podcast.PartitionKey, selector);
     }
 
     private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)

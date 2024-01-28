@@ -65,47 +65,42 @@ public class AppleUrlCategoriser(
         return null;
     }
 
-    public async Task<ResolvedAppleItem> Resolve(IList<Podcast> podcasts, Uri url, IndexingContext indexingContext)
+    public async Task<ResolvedAppleItem> Resolve(Podcast? podcast, Uri url, IndexingContext indexingContext)
     {
-        var pair = podcasts
-            .SelectMany(podcast => podcast.Episodes, (podcast, episode) => new Models.PodcastEpisode(podcast, episode))
-            .FirstOrDefault(pair => pair.Episode.Urls.Apple == url);
-        if (pair != null)
+        if (podcast != null && podcast.Episodes.Any(x => x.Urls.Apple == url))
         {
-            return new ResolvedAppleItem(pair);
+            return new ResolvedAppleItem(new Models.PodcastEpisode(podcast,
+                podcast.Episodes.Single(x => x.Urls.Apple == url)));
         }
 
-        var podcastIdMatch = AppleIds.Match(url.ToString()).Groups["podcastId"];
-        var episodeIdMatch = AppleIds.Match(url.ToString()).Groups["episodeId"];
+        var podcastId = GetPodcastId(url);
+        var episodeId = GetEpisodeId(url);
 
-        if (!episodeIdMatch.Success)
+        if (episodeId == null)
         {
             throw new InvalidOperationException($"Unable to find apple-episode-id in url '{url}'.");
         }
 
-        if (!podcastIdMatch.Success)
+        if (podcastId == null)
         {
             throw new InvalidOperationException($"Unable to find apple-podcast-id in url '{url}'.");
         }
 
-        var podcastId = long.Parse(podcastIdMatch.Value);
-        var episodeId = long.Parse(episodeIdMatch.Value);
-
-        var findAppleEpisodeRequest = FindAppleEpisodeRequestFactory.Create(podcastId, episodeId);
+        var findAppleEpisodeRequest = FindAppleEpisodeRequestFactory.Create(podcastId.Value, episodeId.Value);
 
         var episode = await appleEpisodeResolver.FindEpisode(findAppleEpisodeRequest, indexingContext);
 
-        var podcast =
+        var foundPodcast =
             await applePodcastResolver.FindPodcast(new FindApplePodcastRequest(podcastId, string.Empty, string.Empty));
 
-        if (episode != null && podcast != null)
+        if (episode != null && foundPodcast != null)
         {
             return new ResolvedAppleItem(
                 podcastId,
                 episode.Id,
-                podcast.Name,
-                podcast.Description,
-                podcast.ArtistName,
+                foundPodcast.Name,
+                foundPodcast.Description,
+                foundPodcast.ArtistName,
                 episode.Title,
                 episode.Description,
                 episode.Release,
@@ -116,5 +111,17 @@ public class AppleUrlCategoriser(
 
         throw new InvalidOperationException(
             $"Could not find item with apple-episode-id '{episodeId}' and apple-podcast-id '{podcastId}'.");
+    }
+
+    public long? GetEpisodeId(Uri url)
+    {
+        var match = AppleIds.Match(url.ToString()).Groups["episodeId"];
+        return match.Success ? long.Parse(match.Value) : null;
+    }
+
+    public long? GetPodcastId(Uri url)
+    {
+        var match = AppleIds.Match(url.ToString()).Groups["podcastId"];
+        return match.Success ? long.Parse(match.Value) : null;
     }
 }

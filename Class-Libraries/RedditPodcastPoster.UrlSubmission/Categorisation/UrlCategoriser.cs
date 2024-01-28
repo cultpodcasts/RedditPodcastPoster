@@ -15,10 +15,9 @@ public class UrlCategoriser(
     : IUrlCategoriser
 {
     public async Task<CategorisedItem> Categorise(
-        IList<Podcast> podcasts,
+        Podcast? podcast,
         Uri url,
         IndexingContext indexingContext,
-        bool searchForPodcast,
         bool matchOtherServices)
     {
         ResolvedSpotifyItem? resolvedSpotifyItem = null;
@@ -27,71 +26,31 @@ public class UrlCategoriser(
         PodcastServiceSearchCriteria? criteria = null;
         Service authority = 0;
 
-        Podcast? matchingPodcast = null;
         Episode? matchingEpisode = null;
-
 
         if (spotifyUrlCategoriser.IsMatch(url))
         {
-            resolvedSpotifyItem = await spotifyUrlCategoriser.Resolve(podcasts, url, indexingContext);
-            if (searchForPodcast)
-            {
-                matchingPodcast = podcasts.SingleOrDefault(podcast => IsMatchingPodcast(podcast, resolvedSpotifyItem));
-            }
-            else
-            {
-                matchingPodcast = podcasts.Single();
-            }
-
-            matchingEpisode = matchingPodcast?.Episodes.SingleOrDefault(x =>
+            resolvedSpotifyItem = await spotifyUrlCategoriser.Resolve(podcast, url, indexingContext);
+            matchingEpisode = podcast?.Episodes.SingleOrDefault(x =>
                 x.Urls.Spotify == url || x.SpotifyId == resolvedSpotifyItem.EpisodeId);
             criteria = resolvedSpotifyItem.ToPodcastServiceSearchCriteria();
             authority = Service.Spotify;
         }
         else if (appleUrlCategoriser.IsMatch(url))
         {
-            resolvedAppleItem = await appleUrlCategoriser.Resolve(podcasts, url, indexingContext);
+            resolvedAppleItem = await appleUrlCategoriser.Resolve(podcast, url, indexingContext);
             criteria = resolvedAppleItem.ToPodcastServiceSearchCriteria();
-            if (searchForPodcast)
-            {
-                matchingPodcast = podcasts.SingleOrDefault(podcast => IsMatchingPodcast(podcast, resolvedAppleItem));
-            }
-            else
-            {
-                matchingPodcast = podcasts.Single();
-            }
-
-            matchingEpisode = matchingPodcast?.Episodes.SingleOrDefault(x =>
-                x.Urls.Apple == url || x.AppleId == resolvedAppleItem.EpisodeId);
+            matchingEpisode =
+                podcast?.Episodes.SingleOrDefault(x => x.Urls.Apple == url || x.AppleId == resolvedAppleItem.EpisodeId);
             authority = Service.Apple;
         }
         else if (youTubeUrlCategoriser.IsMatch(url))
         {
-            resolvedYouTubeItem = await youTubeUrlCategoriser.Resolve(podcasts, url, indexingContext);
+            resolvedYouTubeItem = await youTubeUrlCategoriser.Resolve(podcast, url, indexingContext);
             if (resolvedYouTubeItem != null)
             {
                 criteria = resolvedYouTubeItem.ToPodcastServiceSearchCriteria();
-
-                if (searchForPodcast)
-                {
-                    var matchingPodcasts = podcasts.Where(podcast => IsMatchingPodcast(podcast, resolvedYouTubeItem));
-                    if (matchingPodcasts.Count() == 1)
-                    {
-                        matchingPodcast = matchingPodcasts.Single();
-                    }
-                    else if (matchingPodcasts.Count() > 1)
-                    {
-                        matchingPodcast =
-                            matchingPodcasts.SingleOrDefault(x => string.IsNullOrWhiteSpace(x.YouTubePlaylistId));
-                    }
-                }
-                else
-                {
-                    matchingPodcast = podcasts.Single();
-                }
-
-
-                matchingEpisode = matchingPodcast?.Episodes.SingleOrDefault(x =>
+                matchingEpisode = podcast?.Episodes.SingleOrDefault(x =>
                     x.Urls.YouTube == url || x.YouTubeId == resolvedYouTubeItem.EpisodeId);
                 authority = Service.YouTube;
             }
@@ -101,7 +60,6 @@ public class UrlCategoriser(
             throw new InvalidOperationException($"Could not match url '{url}' to a service.");
         }
 
-
         if (criteria != null)
         {
             if (matchOtherServices)
@@ -109,22 +67,22 @@ public class UrlCategoriser(
                 if (resolvedSpotifyItem == null && !spotifyUrlCategoriser.IsMatch(url) &&
                     (string.IsNullOrWhiteSpace(matchingEpisode?.SpotifyId) ||
                      matchingEpisode?.Urls.Spotify == null ||
-                     string.IsNullOrWhiteSpace(matchingPodcast?.SpotifyId)))
+                     string.IsNullOrWhiteSpace(podcast?.SpotifyId)))
                 {
                     if (authority == Service.Apple)
                     {
                         indexingContext = indexingContext with {ReleasedSince = criteria.Release.AddDays(-1)};
                     }
-                    else if (authority == Service.YouTube && matchingPodcast != null)
+                    else if (authority == Service.YouTube && podcast != null)
                     {
                         indexingContext = indexingContext with
                         {
-                            ReleasedSince = criteria.Release.Subtract(matchingPodcast.YouTubePublishingDelay())
+                            ReleasedSince = criteria.Release.Subtract(podcast.YouTubePublishingDelay())
                         };
                     }
 
                     resolvedSpotifyItem =
-                        await spotifyUrlCategoriser.Resolve(criteria, matchingPodcast, indexingContext);
+                        await spotifyUrlCategoriser.Resolve(criteria, podcast, indexingContext);
                     if (resolvedSpotifyItem != null)
                     {
                         criteria = criteria.Merge(resolvedSpotifyItem);
@@ -135,21 +93,21 @@ public class UrlCategoriser(
                 if (resolvedAppleItem == null && !appleUrlCategoriser.IsMatch(url) &&
                     (matchingEpisode?.AppleId == null ||
                      matchingEpisode?.Urls.Apple == null ||
-                     matchingPodcast?.AppleId == null))
+                     podcast?.AppleId == null))
                 {
                     if (authority == Service.Spotify)
                     {
                         indexingContext = indexingContext with {ReleasedSince = criteria.Release.AddDays(-1)};
                     }
-                    else if (authority == Service.YouTube && matchingPodcast != null)
+                    else if (authority == Service.YouTube && podcast != null)
                     {
                         indexingContext = indexingContext with
                         {
-                            ReleasedSince = criteria.Release.Subtract(matchingPodcast.YouTubePublishingDelay())
+                            ReleasedSince = criteria.Release.Subtract(podcast.YouTubePublishingDelay())
                         };
                     }
 
-                    resolvedAppleItem = await appleUrlCategoriser.Resolve(criteria, matchingPodcast, indexingContext);
+                    resolvedAppleItem = await appleUrlCategoriser.Resolve(criteria, podcast, indexingContext);
                     if (resolvedAppleItem != null)
                     {
                         criteria = criteria.Merge(resolvedAppleItem);
@@ -159,18 +117,18 @@ public class UrlCategoriser(
                 if (resolvedYouTubeItem == null && !youTubeUrlCategoriser.IsMatch(url) &&
                     (string.IsNullOrWhiteSpace(matchingEpisode?.YouTubeId) ||
                      matchingEpisode?.Urls.YouTube == null ||
-                     string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId)))
+                     string.IsNullOrWhiteSpace(podcast?.YouTubeChannelId)))
                 {
-                    if ((authority == Service.Spotify || authority == Service.Apple) && matchingPodcast != null)
+                    if ((authority == Service.Spotify || authority == Service.Apple) && podcast != null)
                     {
                         indexingContext = indexingContext with
                         {
-                            ReleasedSince = criteria.Release.Add(matchingPodcast.YouTubePublishingDelay())
+                            ReleasedSince = criteria.Release.Add(podcast.YouTubePublishingDelay())
                         };
                     }
 
                     resolvedYouTubeItem =
-                        await youTubeUrlCategoriser.Resolve(criteria, matchingPodcast, indexingContext);
+                        await youTubeUrlCategoriser.Resolve(criteria, podcast, indexingContext);
                     if (resolvedYouTubeItem != null)
                     {
                         criteria = criteria.Merge(resolvedYouTubeItem);
@@ -179,7 +137,7 @@ public class UrlCategoriser(
             }
 
             return new CategorisedItem(
-                matchingPodcast,
+                podcast,
                 matchingEpisode,
                 resolvedSpotifyItem,
                 resolvedAppleItem,
