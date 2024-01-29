@@ -30,9 +30,12 @@ public class EnrichPodcastEpisodesProcessor(
             indexingContext = new IndexingContext();
         }
 
-        indexingContext.SkipExpensiveSpotifyQueries = !request.AllowExpensiveQueries;
-        indexingContext.SkipExpensiveYouTubeQueries = !request.AllowExpensiveQueries;
-        indexingContext.SkipYouTubeUrlResolving = request.SkipYouTubeUrlResolving;
+        indexingContext = indexingContext with
+        {
+            SkipExpensiveSpotifyQueries = !request.AllowExpensiveQueries,
+            SkipExpensiveYouTubeQueries = !request.AllowExpensiveQueries,
+            SkipYouTubeUrlResolving = request.SkipYouTubeUrlResolving
+        };
 
         var podcast = await podcastsRepository.GetPodcast(request.PodcastId);
         if (podcast == null)

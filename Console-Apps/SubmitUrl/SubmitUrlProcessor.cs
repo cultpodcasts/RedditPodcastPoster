@@ -14,8 +14,11 @@ public class SubmitUrlProcessor(
         var indexOptions = new IndexingContext {SkipPodcastDiscovery = false};
         if (request.AllowExpensiveQueries)
         {
-            indexOptions.SkipExpensiveYouTubeQueries = false;
-            indexOptions.SkipExpensiveSpotifyQueries = false;
+            indexOptions = indexOptions with
+            {
+                SkipExpensiveYouTubeQueries = false,
+                SkipExpensiveSpotifyQueries = false
+            };
         }
 
         var searchForPodcast = true;
