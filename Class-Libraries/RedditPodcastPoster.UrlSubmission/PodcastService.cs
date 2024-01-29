@@ -57,9 +57,15 @@ public class PodcastService(
 
             var snippetChannelId = episodes.FirstOrDefault()!.Snippet.ChannelId;
 
-            return await podcastRepository.GetBy(podcast =>
-                podcast.YouTubeChannelId == snippetChannelId &&
-                podcast.YouTubePlaylistId == string.Empty);
+
+            var podcasts = await podcastRepository.GetAllBy(podcast =>
+                podcast.YouTubeChannelId == snippetChannelId);
+            if (podcasts.Count() > 1)
+            {
+                return podcasts.FirstOrDefault(x => x.YouTubePlaylistId == string.Empty);
+            }
+
+            return podcasts.SingleOrDefault();
         }
 
         if (appleUrlCategoriser.IsMatch(url))
