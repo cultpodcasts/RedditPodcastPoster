@@ -14,8 +14,7 @@ public class YouTubeItemResolver(
         var youTubePublishingDelay = request.Podcast.YouTubePublishingDelay();
         if (youTubePublishingDelay < TimeSpan.Zero)
         {
-            indexingContext = new IndexingContext(
-                DateTime.UtcNow.Add(youTubePublishingDelay),
+            indexingContext = new IndexingContext(DateTime.UtcNow.Add(youTubePublishingDelay),
                 indexingContext.SkipYouTubeUrlResolving,
                 indexingContext.SkipSpotifyUrlResolving,
                 indexingContext.SkipExpensiveYouTubeQueries,
