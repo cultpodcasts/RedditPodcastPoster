@@ -15,13 +15,14 @@ public class Indexer(
     : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
-    private readonly ILogger _logger = logger;
 
-    public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
+    public override async Task<IndexerContext> RunAsync(
+        TaskActivityContext context, IndexerContext indexerContext)
     {
-        _logger.LogInformation(
-            $"{nameof(Indexer)} initiated. Instance-id: '{context.InstanceId}', Indexer-Operation-Id: '{indexerContext.IndexerOperationId}'.");
-        _logger.LogInformation(_indexerOptions.ToString());
+        logger.LogInformation(
+            $"{nameof(Indexer)} initiated. task-activity-context-instance-id: '{context.InstanceId}'.");
+        logger.LogInformation(indexerContext.ToString());
+        logger.LogInformation(_indexerOptions.ToString());
         var indexingContext = _indexerOptions.ToIndexingContext();
 
         indexingContext.SkipSpotifyUrlResolving = false;
@@ -33,10 +34,7 @@ public class Indexer(
         var originalSkipYouTubeUrlResolving = indexingContext.SkipYouTubeUrlResolving;
         var originalSkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving;
 
-        _logger.LogInformation(
-            indexingContext.ReleasedSince.HasValue
-                ? $"{nameof(RunAsync)} Indexing with options released-since: '{indexingContext.ReleasedSince:dd/MM/yyyy HH:mm:ss}', bypass-spotify: '{indexingContext.SkipSpotifyUrlResolving}', bypass-youtube: '{indexingContext.SkipYouTubeUrlResolving}', bypass-expensive-spotify-queries: '{indexingContext.SkipExpensiveSpotifyQueries}', bypass-expensive-youtube-queries: '{indexingContext.SkipExpensiveYouTubeQueries}'."
-                : $"{nameof(RunAsync)} Indexing with options released-since: Null, bypass-spotify: '{indexingContext.SkipSpotifyUrlResolving}', bypass-youtube: '{indexingContext.SkipYouTubeUrlResolving}', bypass-expensive-spotify-queries: '{indexingContext.SkipExpensiveSpotifyQueries}', bypass-expensive-youtube-queries: '{indexingContext.SkipExpensiveYouTubeQueries}'.");
+        logger.LogInformation(indexingContext.ToString());
 
         if (DryRun.IsIndexDryRun)
         {
@@ -66,7 +64,7 @@ public class Indexer(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"Failure to execute {nameof(IPodcastsUpdater)}.{nameof(IPodcastsUpdater.UpdatePodcasts)}.");
             results = false;
         }
@@ -77,21 +75,21 @@ public class Indexer(
                 activityBooked = await activityMarshaller.Complete(indexerContext.IndexerOperationId, nameof(Indexer));
                 if (activityBooked != ActivityStatus.Completed)
                 {
-                    _logger.LogError("Failure to complete activity");
+                    logger.LogError("Failure to complete activity");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failure to complete activity.");
+                logger.LogError(ex, "Failure to complete activity.");
             }
         }
 
         if (!results)
         {
-            _logger.LogError("Failure occurred");
+            logger.LogError("Failure occurred");
         }
 
-        _logger.LogInformation($"{nameof(RunAsync)} Completed");
+        logger.LogInformation($"{nameof(RunAsync)} Completed");
 
         return indexerContext with
         {

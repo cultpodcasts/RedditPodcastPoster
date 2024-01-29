@@ -17,19 +17,19 @@ public class Poster(
     ILogger<Poster> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {
-    private readonly ILogger _logger = logger;
     private readonly PosterOptions _posterOptions = posterOptions.Value;
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        _logger.LogInformation(
-            $"{nameof(Poster)} initiated. Instance-id: '{context.InstanceId}', Poster-Operation-Id: '{indexerContext.PosterOperationId}'.");
-        _logger.LogInformation(_posterOptions.ToString());
-        _logger.LogInformation(_postingCriteria.ToString());
+        logger.LogInformation(
+            $"{nameof(Poster)} initiated. task-activity-context-instance-id: '{context.InstanceId}'.");
+        logger.LogInformation(indexerContext.ToString());
+        logger.LogInformation(_posterOptions.ToString());
+        logger.LogInformation(_postingCriteria.ToString());
         var baselineDate = DateTimeHelper.DaysAgo(_posterOptions.ReleasedDaysAgo);
 
-        _logger.LogInformation(
+        logger.LogInformation(
             $"{nameof(RunAsync)} Posting with options released-since: '{baselineDate:dd/MM/yyyy HH:mm:ss}''.");
 
         if (DryRun.IsPosterDryRun)
@@ -61,7 +61,7 @@ public class Poster(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"Failure executing {nameof(IEpisodeProcessor)}.{nameof(IEpisodeProcessor.PostEpisodesSinceReleaseDate)}.");
             result = ProcessResponse.Fail(ex.Message);
         }
@@ -73,25 +73,25 @@ public class Poster(
                     await activityMarshaller.Complete(indexerContext.PosterOperationId.Value, nameof(Poster));
                 if (activityBooked != ActivityStatus.Completed)
                 {
-                    _logger.LogError("Failure to complete activity");
+                    logger.LogError("Failure to complete activity");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failure to complete activity.");
+                logger.LogError(ex, "Failure to complete activity.");
             }
         }
 
         if (!result.Success)
         {
-            _logger.LogError($"{nameof(RunAsync)} Failed to process posts. {result}");
+            logger.LogError($"{nameof(RunAsync)} Failed to process posts. {result}");
         }
         else
         {
-            _logger.LogInformation($"{nameof(RunAsync)} Successfully processed posts. {result}");
+            logger.LogInformation($"{nameof(RunAsync)} Successfully processed posts. {result}");
         }
 
-        _logger.LogInformation($"{nameof(RunAsync)} Completed");
+        logger.LogInformation($"{nameof(RunAsync)} Completed");
         return indexerContext with {Success = result.Success};
     }
 }

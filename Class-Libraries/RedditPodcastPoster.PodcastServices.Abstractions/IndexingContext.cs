@@ -15,4 +15,19 @@ public record IndexingContext(
     public bool SkipPodcastDiscovery { get; set; } = SkipPodcastDiscovery;
     public bool SkipExpensiveSpotifyQueries { get; set; } = SkipExpensiveSpotifyQueries;
     public bool SkipShortEpisodes { get; set; } = SkipShortEpisodes;
+
+    public override string ToString()
+    {
+        var releasedSince = ReleasedSince.HasValue
+            ? $"released-since: '{ReleasedSince:dd/MM/yyyy HH:mm:ss}', "
+            : "released-since: Null";
+        var bypassSpotify = $"bypass-spotify: '{SkipSpotifyUrlResolving}'";
+        var bypassYouTube = $"bypass-youtube: '{SkipYouTubeUrlResolving}'";
+        var bypassExpensiveSpotify = $"bypass-expensive-spotify-queries: '{SkipExpensiveSpotifyQueries}'";
+        var bypassExpensiveYouTube = $"bypass-expensive-youtube-queries: '{SkipExpensiveYouTubeQueries}'";
+        var skipPodcastDiscovery = $"skip-podcast-discovery: '{SkipPodcastDiscovery}'";
+        var skipShortEpisodes = $"skip-short-episodes: '{SkipShortEpisodes}'";
+        return
+            $"{nameof(IndexingContext)} Indexing with options {string.Join(", ", releasedSince, bypassSpotify, bypassYouTube, bypassExpensiveSpotify, bypassExpensiveYouTube, skipPodcastDiscovery, skipShortEpisodes)}.";
+    }
 }

@@ -15,7 +15,8 @@ public class Categoriser(
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
         logger.LogInformation(
-            $"{nameof(Categoriser)} initiated. Instance-id: '{context.InstanceId}', Categoriser-Operation-Id: '{indexerContext.CategoriserOperationId}'.");
+            $"{nameof(Categoriser)} initiated. task-activity-context-instance-id: '{context.InstanceId}'.");
+        logger.LogInformation(indexerContext.ToString());
 
         if (DryRun.IsCategoriserDryRun)
         {
