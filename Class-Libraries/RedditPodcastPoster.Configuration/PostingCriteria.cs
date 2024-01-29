@@ -6,6 +6,6 @@ public class PostingCriteria
 
     public override string ToString()
     {
-        return $"{nameof(PostingCriteria)}: {{Minimum-duration: {MinimumDuration.ToString()}}}";
+        return $"{nameof(PostingCriteria)}: minimum-duration: {MinimumDuration.ToString()}";
     }
 }

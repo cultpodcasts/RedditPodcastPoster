@@ -9,16 +9,14 @@ namespace Indexer;
 public class Publisher(
     IContentPublisher contentPublisher,
     IActivityMarshaller activityMarshaller,
-    ILoggerFactory loggerFactory)
+    ILogger<Publisher> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {
-    private readonly IActivityMarshaller _activityMarshaller = activityMarshaller;
-    private readonly ILogger _logger = loggerFactory.CreateLogger<Publisher>();
-
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        _logger.LogInformation(
-            $"{nameof(Publisher)} initiated. Instance-id: '{context.InstanceId}', Publisher-Operation-Id: '{indexerContext.PublisherOperationId}'.");
+        logger.LogInformation(
+            $"{nameof(Publisher)} initiated. task-activity-context-instance-id: '{context.InstanceId}'.");
+        logger.LogInformation(indexerContext.ToString());
 
         if (DryRun.IsPublisherDryRun)
         {
@@ -29,7 +27,6 @@ public class Publisher(
         {
             throw new ArgumentNullException(nameof(indexerContext.PublisherOperationId));
         }
-
 
         try
         {
@@ -53,12 +50,12 @@ public class Publisher(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"Failure to execute {nameof(IContentPublisher)}.{nameof(IContentPublisher.PublishHomepage)}.");
             return indexerContext with {Success = false};
         }
 
-        _logger.LogInformation($"{nameof(RunAsync)} Completed");
+        logger.LogInformation($"{nameof(RunAsync)} Completed");
         return indexerContext with {Success = true};
     }
 }

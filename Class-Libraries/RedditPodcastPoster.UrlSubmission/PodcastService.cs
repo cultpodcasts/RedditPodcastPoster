@@ -55,8 +55,10 @@ public class PodcastService(
                 throw new InvalidOperationException($"Unable to find youtube-video for youtube-video-id '{videoId}'.");
             }
 
+            var snippetChannelId = episodes.FirstOrDefault()!.Snippet.ChannelId;
+
             return await podcastRepository.GetBy(podcast =>
-                podcast.YouTubeChannelId == episodes.FirstOrDefault()!.Snippet.ChannelId &&
+                podcast.YouTubeChannelId == snippetChannelId &&
                 podcast.YouTubePlaylistId == string.Empty);
         }
 

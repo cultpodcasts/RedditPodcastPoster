@@ -15,7 +15,8 @@ public class Tweet(
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
         logger.LogInformation(
-            $"{nameof(Tweet)} initiated. Instance-id: '{context.InstanceId}', Tweeter-Operation-Id: '{indexerContext.TweetOperationId}'.");
+            $"{nameof(Tweet)} initiated. task-activity-context-instance-id: '{context.InstanceId}'.");
+        logger.LogInformation(indexerContext.ToString());
 
         if (DryRun.IsTweetDryRun)
         {
