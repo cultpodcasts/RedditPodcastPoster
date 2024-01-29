@@ -19,7 +19,7 @@ public record IndexingContext(
     public override string ToString()
     {
         var releasedSince = ReleasedSince.HasValue
-            ? $"released-since: '{ReleasedSince:dd/MM/yyyy HH:mm:ss}', "
+            ? $"released-since: '{ReleasedSince:dd/MM/yyyy HH:mm:ss}'"
             : "released-since: Null";
         var bypassSpotify = $"bypass-spotify: '{SkipSpotifyUrlResolving}'";
         var bypassYouTube = $"bypass-youtube: '{SkipYouTubeUrlResolving}'";
