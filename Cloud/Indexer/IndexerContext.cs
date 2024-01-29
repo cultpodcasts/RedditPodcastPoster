@@ -43,8 +43,8 @@ public record IndexerContext
             ? $"youtube-error: '{YouTubeError}'"
             : "youtube-error: Null";
         var skipSpotifyUrlResolving = SkipSpotifyUrlResolving.HasValue
-            ? $"youtube-error: '{SkipSpotifyUrlResolving}'"
-            : "youtube-error: Null";
+            ? $"skip-spotify-url-resolving: '{SkipSpotifyUrlResolving}'"
+            : "skip-spotify-url-resolving: Null";
         var spotifyError = SpotifyError.HasValue
             ? $"spotify-error: '{SpotifyError}'"
             : "spotify-error: Null";
