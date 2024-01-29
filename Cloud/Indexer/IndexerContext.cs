@@ -23,48 +23,48 @@ public record IndexerContext
         var indexerOperationId = $"indexer-operation-id: '{IndexerOperationId}'";
         var categoriserOperationId = CategoriserOperationId.HasValue
             ? $"categoriser-operation-id: '{CategoriserOperationId}'"
-            : "categoriser-operation-id: Null";
+            : string.Empty;
         var posterOperationId = PosterOperationId.HasValue
             ? $"poster-operation-id: '{PosterOperationId}'"
-            : "poster-operation-id: Null";
+            : string.Empty;
         var publisherOperationId = PublisherOperationId.HasValue
             ? $"publisher-operation-id: '{PublisherOperationId}'"
-            : "publisher-operation-id: Null";
+            : string.Empty;
         var tweetOperationId = TweetOperationId.HasValue
             ? $"tweet-operation-id: '{TweetOperationId}'"
-            : "tweet-operation-id: Null";
+            : string.Empty;
         var success = Success.HasValue
             ? $"success: '{Success}'"
-            : "success: Null";
+            : string.Empty;
         var skipYouTubeUrlResolving = SkipYouTubeUrlResolving.HasValue
             ? $"skip-youtube-url-resolving: '{SkipYouTubeUrlResolving}'"
-            : "tweet-operation-id: Null";
+            : string.Empty;
         var youTubeError = YouTubeError.HasValue
             ? $"youtube-error: '{YouTubeError}'"
-            : "youtube-error: Null";
+            : string.Empty;
         var skipSpotifyUrlResolving = SkipSpotifyUrlResolving.HasValue
             ? $"skip-spotify-url-resolving: '{SkipSpotifyUrlResolving}'"
-            : "skip-spotify-url-resolving: Null";
+            : string.Empty;
         var spotifyError = SpotifyError.HasValue
             ? $"spotify-error: '{SpotifyError}'"
-            : "spotify-error: Null";
+            : string.Empty;
         var duplicateIndexerOperation = DuplicateIndexerOperation.HasValue
             ? $"duplicate-indexer-operation: '{DuplicateIndexerOperation}'"
-            : "duplicate-indexer-operation: Null";
+            : string.Empty;
         var duplicateCategoriserOperation = DuplicateCategoriserOperation.HasValue
             ? $"duplicate-categoriser-operation: '{DuplicateCategoriserOperation}'"
-            : "duplicate-categoriser-operation: Null";
+            : string.Empty;
         var duplicatePosterOperation = DuplicatePosterOperation.HasValue
             ? $"duplicate-poster-operation: '{DuplicatePosterOperation}'"
-            : "duplicate-poster-operation: Null";
+            : string.Empty;
         var duplicatePublisherOperation = DuplicatePublisherOperation.HasValue
             ? $"duplicate-publisher-operation: '{DuplicatePublisherOperation}'"
-            : "duplicate-publisher-operation: Null";
+            : string.Empty;
         var duplicateTweetOperation = DuplicateTweetOperation.HasValue
             ? $"duplicate-tweet-operation: '{DuplicateTweetOperation}'"
-            : "duplicate-tweet-operation: Null";
+            : string.Empty;
 
         return
-            $"{nameof(IndexerContext)} Indexer-options {string.Join(", ", indexerOperationId, categoriserOperationId, posterOperationId, publisherOperationId, tweetOperationId, success, skipYouTubeUrlResolving, youTubeError, skipSpotifyUrlResolving, spotifyError, duplicateIndexerOperation, duplicateCategoriserOperation, duplicatePosterOperation, duplicatePublisherOperation, duplicateTweetOperation)}.";
+            $"{nameof(IndexerContext)} Indexer-options {string.Join(", ", new[] {indexerOperationId, categoriserOperationId, posterOperationId, publisherOperationId, tweetOperationId, success, skipYouTubeUrlResolving, youTubeError, skipSpotifyUrlResolving, spotifyError, duplicateIndexerOperation, duplicateCategoriserOperation, duplicatePosterOperation, duplicatePublisherOperation, duplicateTweetOperation}.Where(x => !string.IsNullOrWhiteSpace(x)))}.";
     }
 }
