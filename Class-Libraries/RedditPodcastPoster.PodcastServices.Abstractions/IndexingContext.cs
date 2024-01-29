@@ -9,13 +9,6 @@ public record IndexingContext(
     bool SkipExpensiveSpotifyQueries = true,
     bool SkipShortEpisodes = true)
 {
-    public bool SkipYouTubeUrlResolving { get; set; } = SkipYouTubeUrlResolving;
-    public bool SkipSpotifyUrlResolving { get; set; } = SkipSpotifyUrlResolving;
-    public bool SkipExpensiveYouTubeQueries { get; set; } = SkipExpensiveYouTubeQueries;
-    public bool SkipPodcastDiscovery { get; set; } = SkipPodcastDiscovery;
-    public bool SkipExpensiveSpotifyQueries { get; set; } = SkipExpensiveSpotifyQueries;
-    public bool SkipShortEpisodes { get; set; } = SkipShortEpisodes;
-
     public override string ToString()
     {
         var releasedSince = ReleasedSince.HasValue

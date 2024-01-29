@@ -12,7 +12,7 @@ public class Orchestration : TaskOrchestrator<object, IndexerContext>
         logger.LogInformation(
             $"{nameof(Orchestration)}.{nameof(RunAsync)} initiated. Instance-id: '{context.InstanceId}'.");
 
-        var indexerContext = new IndexerContext {IndexerOperationId = context.NewGuid()};
+        var indexerContext = new IndexerContext(context.NewGuid());
         indexerContext = await context.CallIndexerAsync(indexerContext);
         logger.LogInformation($"{nameof(Indexer)} complete.");
 

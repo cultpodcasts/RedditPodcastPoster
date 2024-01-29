@@ -11,7 +11,7 @@ public class IndexerOptions
     public override string ToString()
     {
         return
-            $"{nameof(IndexerOptions)} {{ {nameof(ReleasedDaysAgo)}: '{ReleasedDaysAgo}', {nameof(ByPassYouTube)}: '{ByPassYouTube}'}}.";
+            $"{nameof(IndexerOptions)} released-days-ago: '{ReleasedDaysAgo}', bypass-youtube: '{ByPassYouTube}'.";
     }
 
     public IndexingContext ToIndexingContext()

@@ -23,13 +23,14 @@ public class Indexer(
             $"{nameof(Indexer)} initiated. task-activity-context-instance-id: '{context.InstanceId}'.");
         logger.LogInformation(indexerContext.ToString());
         logger.LogInformation(_indexerOptions.ToString());
-        var indexingContext = _indexerOptions.ToIndexingContext();
-
-        indexingContext.SkipSpotifyUrlResolving = false;
-        indexingContext.SkipYouTubeUrlResolving = DateTime.UtcNow.Hour % 2 > 0;
-        indexingContext.SkipExpensiveYouTubeQueries = DateTime.UtcNow.Hour % 12 > 0;
-        indexingContext.SkipExpensiveSpotifyQueries = DateTime.UtcNow.Hour % 3 > 1;
-        indexingContext.SkipPodcastDiscovery = true;
+        var indexingContext = _indexerOptions.ToIndexingContext() with
+        {
+            SkipSpotifyUrlResolving = false,
+            SkipYouTubeUrlResolving = DateTime.UtcNow.Hour % 2 > 0,
+            SkipExpensiveYouTubeQueries = DateTime.UtcNow.Hour % 12 > 0,
+            SkipExpensiveSpotifyQueries = DateTime.UtcNow.Hour % 3 > 1,
+            SkipPodcastDiscovery = true
+        };
 
         var originalSkipYouTubeUrlResolving = indexingContext.SkipYouTubeUrlResolving;
         var originalSkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving;
