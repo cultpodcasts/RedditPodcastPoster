@@ -53,10 +53,15 @@ public class Tweeter(
     private async Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        List<Podcast> podcasts;
+        const int numberOfDays = 1;
+        IEnumerable<Podcast> podcasts;
         try
         {
-            podcasts = await repository.GetAll().ToListAsync();
+            podcasts = await repository.GetAllBy(x => x.Episodes.Any(episode =>
+                episode.Release >= DateTime.UtcNow.Date.AddDays(-1 * numberOfDays) &&
+                episode.Removed == false && episode.Ignored == false && episode.Tweeted == false &&
+                (episode.Urls.YouTube != null || episode.Urls.Spotify != null)
+            ));
         }
         catch (Exception ex)
         {
@@ -64,6 +69,7 @@ public class Tweeter(
             throw;
         }
 
-        return podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(podcasts, youTubeRefreshed, spotifyRefreshed);
+        return podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
+            podcasts, youTubeRefreshed, spotifyRefreshed);
     }
 }

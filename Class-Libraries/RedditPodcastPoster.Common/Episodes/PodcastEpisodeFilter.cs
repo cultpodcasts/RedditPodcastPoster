@@ -11,7 +11,8 @@ public class PodcastEpisodeFilter(
     ILogger<PodcastEpisodeFilter> logger)
     : IPodcastEpisodeFilter
 {
-    private readonly DelayedYouTubePublication _delayedYouTubePublicationSettings = delayedYouTubePublicationSettings.Value;
+    private readonly DelayedYouTubePublication _delayedYouTubePublicationSettings =
+        delayedYouTubePublicationSettings.Value;
 
     public IEnumerable<PodcastEpisode> GetNewEpisodesReleasedSince(
         IList<Podcast> podcasts,
@@ -58,17 +59,16 @@ public class PodcastEpisodeFilter(
     }
 
     public IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(
-        IList<Podcast> podcasts,
+        IEnumerable<Podcast> podcasts,
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true,
-        int? numberOfDays = null)
+        int numberOfDays = 1)
     {
-        numberOfDays ??= 1;
         var podcastEpisodes =
             podcasts
                 .SelectMany(p => p.Episodes.Select(e => new PodcastEpisode(p, e)))
                 .Where(x =>
-                    x.Episode.Release >= DateTime.UtcNow.Date.AddDays(-1 * numberOfDays.Value) &&
+                    x.Episode.Release >= DateTime.UtcNow.Date.AddDays(-1 * numberOfDays) &&
                     x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
                     (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
                     !x.Podcast.IsDelayedYouTubePublishing(x.Episode))

@@ -11,10 +11,10 @@ public interface IPodcastEpisodeFilter
         bool spotifyRefreshed = true);
 
     IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(
-        IList<Podcast> podcasts,
+        IEnumerable<Podcast> podcasts,
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true,
-        int? numberOfDays = null);
+        int numberOfDays = 1);
 
     bool IsRecentlyExpiredDelayedPublishing(
         Podcast podcast,
