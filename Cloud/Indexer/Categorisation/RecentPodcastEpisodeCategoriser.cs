@@ -13,10 +13,9 @@ public class RecentPodcastEpisodeCategoriser(
     public async Task Categorise()
     {
         var since = DateTime.UtcNow.AddDays(-7);
-        var podcasts = await podcastRepository
-            .GetAll()
-            .Where(x => x.Episodes.Any(y => y.Release > since && !y.Subjects.Any()))
-            .ToListAsync();
+
+        var podcasts =
+            await podcastRepository.GetAllBy(x => x.Episodes.Any(y => y.Release > since && !y.Subjects.Any()));
         foreach (var podcast in podcasts)
         {
             var updated = false;
