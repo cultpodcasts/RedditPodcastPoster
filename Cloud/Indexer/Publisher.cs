@@ -30,23 +30,7 @@ public class Publisher(
 
         try
         {
-            Task[] publishingTasks;
-            if (DateTime.UtcNow.Hour == 12)
-            {
-                publishingTasks = new[]
-                {
-                    contentPublisher.PublishHomepage()
-                };
-            }
-            else
-            {
-                publishingTasks = new[]
-                {
-                    contentPublisher.PublishHomepage()
-                };
-            }
-
-            await Task.WhenAll(publishingTasks);
+            await contentPublisher.PublishHomepage();
         }
         catch (Exception ex)
         {
