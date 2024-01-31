@@ -93,6 +93,11 @@ public class PodcastRepository(
         return dataRepository.GetAllBy(Podcast.PartitionKey, selector);
     }
 
+    public Task<IEnumerable<T>> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item)
+    {
+        return dataRepository.GetAllBy(Podcast.PartitionKey, selector, item);
+    }
+
     private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)
     {
         if (!string.IsNullOrWhiteSpace(episode.SpotifyId) && !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))

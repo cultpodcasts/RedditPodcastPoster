@@ -138,4 +138,36 @@ public class CosmosDbRepository(
 
         return results;
     }
+
+    public async Task<IEnumerable<T2>> GetAllBy<T, T2>(
+        string partitionKey, Expression<Func<T, bool>> selector,
+        Expression<Func<T, T2>> expr)
+        where T : CosmosSelector
+    {
+        var results = new List<T2>();
+        var query = container
+            .GetItemLinqQueryable<T>(
+                linqSerializerOptions: new CosmosLinqSerializerOptions
+                {
+                    PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
+                },
+                requestOptions: new QueryRequestOptions
+                {
+                    PartitionKey = new PartitionKey(partitionKey)
+                })
+            .Where(selector)
+            .Select(expr)
+            .ToFeedIterator();
+        if (query.HasMoreResults)
+        {
+            foreach (var item in await query.ReadNextAsync())
+            {
+                {
+                    results.Add(item);
+                }
+            }
+        }
+
+        return results;
+    }
 }
