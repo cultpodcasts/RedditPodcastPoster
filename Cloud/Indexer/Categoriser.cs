@@ -38,7 +38,6 @@ public class Categoriser(
             };
         }
 
-
         try
         {
             await recentEpisodeCategoriser.Categorise();
