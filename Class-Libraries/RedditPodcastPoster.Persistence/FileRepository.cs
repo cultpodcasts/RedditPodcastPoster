@@ -120,6 +120,14 @@ public class FileRepository : IFileRepository
         return reduce;
     }
 
+    public async Task<IEnumerable<T2>> GetAllBy<T, T2>(string partitionKey, Expression<Func<T, bool>> selector,
+        Expression<Func<T, T2>> expr) where T : CosmosSelector
+    {
+        var items = await GetAll<T>(partitionKey).ToListAsync();
+        var reduce = items.Where(selector.Compile()).Select(expr.Compile());
+        return reduce;
+    }
+
 
     private string GetFilePath(string fileKey)
     {

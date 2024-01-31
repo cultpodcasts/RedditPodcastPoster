@@ -15,7 +15,9 @@ public class PodcastsUpdater(
     {
         var success = true;
         logger.LogInformation($"{nameof(UpdatePodcasts)} Retrieving podcasts.");
-        var podcastIds = await podcastRepository.GetAllIds();
+        var podcastIds = await podcastRepository.GetAllBy(podcast =>
+            podcast.IndexAllEpisodes ||
+            (podcast.EpisodeIncludeTitleRegex != null && podcast.EpisodeIncludeTitleRegex != ""), x => x.Id);
         logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
         foreach (var podcastId in podcastIds)
         {
