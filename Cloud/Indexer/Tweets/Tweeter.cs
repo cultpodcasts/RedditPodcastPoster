@@ -53,15 +53,20 @@ public class Tweeter(
     private async Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        const int numberOfDays = 1;
+        const int numberOfDays = 2;
         IEnumerable<Podcast> podcasts;
         try
         {
-            podcasts = await repository.GetAllBy(x => x.Episodes.Any(episode =>
-                episode.Release >= DateTime.UtcNow.Date.AddDays(-1 * numberOfDays) &&
-                episode.Removed == false && episode.Ignored == false && episode.Tweeted == false &&
-                (episode.Urls.YouTube != null || episode.Urls.Spotify != null)
-            ));
+            var since = DateTime.UtcNow.Date.AddDays(-1 * numberOfDays);
+
+            podcasts = await repository.GetAllBy(x =>
+                x.Episodes.Any(episode =>
+                    episode.Release >= since &&
+                    episode.Removed == false &&
+                    episode.Ignored == false &&
+                    episode.Tweeted == false
+                )
+            );
         }
         catch (Exception ex)
         {
