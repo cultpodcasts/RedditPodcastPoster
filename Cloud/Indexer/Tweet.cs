@@ -28,15 +28,6 @@ public class Tweet(
             throw new ArgumentNullException(nameof(indexerContext.TweetOperationId));
         }
 
-        var activityBooked = await activityMarshaller.Initiate(indexerContext.TweetOperationId.Value, nameof(Tweet));
-        if (activityBooked != ActivityStatus.Initiated)
-        {
-            return indexerContext with
-            {
-                DuplicateTweetOperation = true
-            };
-        }
-
         try
         {
             await tweeter.Tweet(
@@ -47,22 +38,6 @@ public class Tweet(
         {
             logger.LogError(ex, $"Failure to execute {nameof(ITweeter)}.{nameof(ITweeter.Tweet)}.");
             return indexerContext with {Success = false};
-        }
-        finally
-        {
-            try
-            {
-                activityBooked =
-                    await activityMarshaller.Complete(indexerContext.TweetOperationId.Value, nameof(Tweet));
-                if (activityBooked != ActivityStatus.Completed)
-                {
-                    logger.LogError("Failure to complete activity");
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failure to complete activity.");
-            }
         }
 
         logger.LogInformation($"{nameof(RunAsync)} Completed");
