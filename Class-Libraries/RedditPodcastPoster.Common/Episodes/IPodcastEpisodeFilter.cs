@@ -5,7 +5,7 @@ namespace RedditPodcastPoster.Common.Episodes;
 public interface IPodcastEpisodeFilter
 {
     IEnumerable<PodcastEpisode> GetNewEpisodesReleasedSince(
-        IList<Podcast> podcasts,
+        IEnumerable<Podcast> podcasts,
         DateTime since,
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true);

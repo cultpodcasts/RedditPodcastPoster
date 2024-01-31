@@ -6,7 +6,7 @@ public interface IPodcastEpisodesPoster
 {
     Task<IList<ProcessResponse>> PostNewEpisodes(
         DateTime since,
-        IList<Podcast> podcasts,
+        IEnumerable<Podcast> podcasts,
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true,
         bool preferYouTube = false);

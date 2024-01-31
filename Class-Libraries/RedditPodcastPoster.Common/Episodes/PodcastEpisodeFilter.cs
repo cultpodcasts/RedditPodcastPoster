@@ -15,7 +15,7 @@ public class PodcastEpisodeFilter(
         delayedYouTubePublicationSettings.Value;
 
     public IEnumerable<PodcastEpisode> GetNewEpisodesReleasedSince(
-        IList<Podcast> podcasts,
+        IEnumerable<Podcast> podcasts,
         DateTime since,
         bool youTubeRefreshed,
         bool spotifyRefreshed)
