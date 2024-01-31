@@ -8,7 +8,6 @@ namespace Indexer;
 [DurableTask(nameof(Tweet))]
 public class Tweet(
     ITweeter tweeter,
-    IActivityMarshaller activityMarshaller,
     ILogger<Tweet> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {
