@@ -11,7 +11,6 @@ namespace Indexer;
 [DurableTask(nameof(Poster))]
 public class Poster(
     IEpisodeProcessor episodeProcessor,
-    IActivityMarshaller activityMarshaller,
     IOptions<PosterOptions> posterOptions,
     IOptions<PostingCriteria> postingCriteria,
     ILogger<Poster> logger)
@@ -42,15 +41,6 @@ public class Poster(
             throw new ArgumentNullException(nameof(indexerContext.PosterOperationId));
         }
 
-        var activityBooked = await activityMarshaller.Initiate(indexerContext.PosterOperationId.Value, nameof(Poster));
-        if (activityBooked != ActivityStatus.Initiated)
-        {
-            return indexerContext with
-            {
-                DuplicatePosterOperation = true
-            };
-        }
-
         ProcessResponse result;
         try
         {
@@ -64,22 +54,6 @@ public class Poster(
             logger.LogError(ex,
                 $"Failure executing {nameof(IEpisodeProcessor)}.{nameof(IEpisodeProcessor.PostEpisodesSinceReleaseDate)}.");
             result = ProcessResponse.Fail(ex.Message);
-        }
-        finally
-        {
-            try
-            {
-                activityBooked =
-                    await activityMarshaller.Complete(indexerContext.PosterOperationId.Value, nameof(Poster));
-                if (activityBooked != ActivityStatus.Completed)
-                {
-                    logger.LogError("Failure to complete activity");
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failure to complete activity.");
-            }
         }
 
         if (!result.Success)
