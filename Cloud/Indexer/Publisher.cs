@@ -8,7 +8,6 @@ namespace Indexer;
 [DurableTask(nameof(Publisher))]
 public class Publisher(
     IContentPublisher contentPublisher,
-    IActivityMarshaller activityMarshaller,
     ILogger<Publisher> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {

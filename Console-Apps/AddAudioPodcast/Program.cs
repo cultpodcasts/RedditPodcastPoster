@@ -40,6 +40,7 @@ builder.Services
     .AddScoped<IRemoteClient, RemoteClient>()
     .AddSingleton<PodcastFactory>()
     .AddSubjectServices()
+    .AddTextSanitiser()
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria(builder.Configuration);
