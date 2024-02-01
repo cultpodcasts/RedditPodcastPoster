@@ -8,7 +8,7 @@ namespace RedditPodcastPoster.PodcastServices;
 public class CacheFlusher(
     ICachedApplePodcastService cachedApplePodcastService,
     ICachedYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
-    IYouTubeChannelService youTubeChannelService,
+    ICachedYouTubeChannelService youTubeChannelService,
     ILogger<CacheFlusher> logger)
     : IFlushable
 {

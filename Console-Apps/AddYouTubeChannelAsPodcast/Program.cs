@@ -7,7 +7,6 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -25,8 +24,6 @@ builder.Services
     .AddYouTubeServices(builder.Configuration)
     .AddScoped<AddYouTubeChannelProcessor>()
     .AddSingleton<PodcastFactory>()
-    .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
-    .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
     .AddHttpClient();
 
 

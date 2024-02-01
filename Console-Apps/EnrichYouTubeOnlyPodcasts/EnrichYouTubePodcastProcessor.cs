@@ -14,7 +14,7 @@ namespace EnrichYouTubeOnlyPodcasts;
 public class EnrichYouTubePodcastProcessor(
     IPodcastRepository podcastRepository,
     IYouTubePlaylistService youTubePlaylistService,
-    IYouTubeChannelService youTubeChannelService,
+    ICachedYouTubeChannelService youTubeChannelService,
     IYouTubeVideoService youTubeVideoService,
     IYouTubeEpisodeProvider youTubeEpisodeProvider,
     ISubjectEnricher subjectEnricher,

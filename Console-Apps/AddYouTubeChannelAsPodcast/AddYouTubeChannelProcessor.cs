@@ -8,7 +8,7 @@ namespace AddYouTubeChannelAsPodcast;
 
 public class AddYouTubeChannelProcessor(
     IYouTubeChannelResolver youTubeChannelResolver,
-    IYouTubeChannelService youTubeChannelService,
+    ICachedYouTubeChannelService youTubeChannelService,
     PodcastFactory podcastFactory,
     IPodcastRepository repository,
     ILogger<AddYouTubeChannelProcessor> logger)

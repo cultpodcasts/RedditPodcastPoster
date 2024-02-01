@@ -6,7 +6,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeUrlCategoriser(
-    IYouTubeChannelService youTubeChannelService,
+    ICachedYouTubeChannelService youTubeChannelService,
     IYouTubeVideoService youTubeVideoService,
     IYouTubeIdExtractor youTubeIdExtractor,
     ILogger<YouTubeUrlCategoriser> logger)

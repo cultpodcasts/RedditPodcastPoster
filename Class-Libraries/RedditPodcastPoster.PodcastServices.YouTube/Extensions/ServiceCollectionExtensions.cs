@@ -21,6 +21,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
             .AddScoped<ICachedYouTubeChannelVideoSnippetsService, CachedYouTubeChannelVideoSnippetsService>()
             .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
+            .AddScoped<ICachedYouTubeChannelService, CachedYouTubeChannelService>()
             .AddSingleton<IYouTubeIdExtractor, YouTubeIdExtractor>()
             .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
             .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>();
