@@ -10,7 +10,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube;
 public class YouTubeEpisodeProvider(
     IYouTubePlaylistService youTubePlaylistService,
     IYouTubeVideoService youTubeVideoService,
-    IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
+    ICachedYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
     ILogger<YouTubeEpisodeProvider> logger)
     : IYouTubeEpisodeProvider
 {

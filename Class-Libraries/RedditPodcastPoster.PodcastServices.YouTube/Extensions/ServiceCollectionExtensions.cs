@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+
 namespace RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 public static class ServiceCollectionExtensions
@@ -18,6 +19,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
             .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
             .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
+            .AddScoped<ICachedYouTubeChannelVideoSnippetsService, CachedYouTubeChannelVideoSnippetsService>()
             .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
             .AddSingleton<IYouTubeIdExtractor, YouTubeIdExtractor>()
             .AddScoped<IYouTubeSearcher, YouTubeSearcher>()

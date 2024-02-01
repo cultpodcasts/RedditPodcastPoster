@@ -4,7 +4,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeItemResolver(
-    IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
+    ICachedYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
     IYouTubeSearcher youTubeSearcher,
     ILogger<YouTubeItemResolver> logger)
     : IYouTubeItemResolver

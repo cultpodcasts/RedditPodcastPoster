@@ -3,7 +3,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
-public interface IYouTubeChannelVideoSnippetsService
+public interface ICachedYouTubeChannelVideoSnippetsService : IFlushable
 {
     Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(
         YouTubeChannelId channelId,
