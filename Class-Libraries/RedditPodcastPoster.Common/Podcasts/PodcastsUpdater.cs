@@ -22,8 +22,7 @@ public class PodcastsUpdater(
         foreach (var podcastId in podcastIds)
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);
-            if (podcast != null &&
-                (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
+            if (podcast != null)
             {
                 try
                 {
