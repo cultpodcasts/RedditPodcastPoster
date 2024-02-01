@@ -3,10 +3,12 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
+public interface ICachedYouTubeChannelService : IFlushable
+{
+
+}
 public interface IYouTubeChannelService : IFlushable
 {
-    Task FindChannel(string channelName, IndexingContext indexingContext);
-
     Task<Channel?> GetChannelContentDetails(YouTubeChannelId channelId, IndexingContext indexingContext,
         bool withSnippets = false, bool withContentOwnerDetails = false);
 }

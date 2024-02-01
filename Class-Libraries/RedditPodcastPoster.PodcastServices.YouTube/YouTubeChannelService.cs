@@ -21,33 +21,7 @@ public class YouTubeChannelService(
         _cache.Clear();
     }
 
-    public async Task FindChannel(string channelName, IndexingContext indexingContext)
-    {
-        if (indexingContext.SkipYouTubeUrlResolving)
-        {
-            logger.LogInformation(
-                $"Skipping '{nameof(FindChannel)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-name: '{channelName}'.");
-            return;
-        }
-
-        var channelsListRequest = youTubeService.Search.List("snippet");
-        channelsListRequest.Type = "channel";
-        channelsListRequest.Fields = "items/snippet/channelId";
-        channelsListRequest.Q = channelName;
-        SearchListResponse channelsListResponse;
-        try
-        {
-            channelsListResponse = await channelsListRequest.ExecuteAsync();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
-            indexingContext.SkipYouTubeUrlResolving = true;
-            return;
-        }
-
-        throw new NotImplementedException("method not fully implemented");
-    }
+  
 
     public async Task<Channel?> GetChannelContentDetails(
         YouTubeChannelId channelId,
