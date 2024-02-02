@@ -6,7 +6,7 @@ using RedditPodcastPoster.Text;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeEpisodeEnricher(
-    IYouTubeItemResolver youTubeItemResolver,
+    IYouTubeEpisodeProvider youTubeEpisodeProvider,
     IYouTubeIdExtractor youTubeIdExtractor,
     ITextSanitiser textSanitiser,
     IYouTubeVideoService youTubeVideoService,
@@ -44,7 +44,7 @@ public class YouTubeEpisodeEnricher(
             }
         }
 
-        var youTubeItem = await youTubeItemResolver.FindEpisode(request, indexingContext);
+        var youTubeItem = await youTubeEpisodeProvider.FindEpisode(request, indexingContext);
         if (!string.IsNullOrWhiteSpace(youTubeItem?.SearchResult?.Id.VideoId))
         {
             var episodeYouTubeId = youTubeItem.SearchResult.Id.VideoId;

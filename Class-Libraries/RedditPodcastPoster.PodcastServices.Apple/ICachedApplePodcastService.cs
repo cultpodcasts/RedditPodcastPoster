@@ -1,7 +1,5 @@
-﻿using RedditPodcastPoster.PodcastServices.Abstractions;
+﻿namespace RedditPodcastPoster.PodcastServices.Apple;
 
-namespace RedditPodcastPoster.PodcastServices.Apple;
-
-public interface ICachedApplePodcastService : IApplePodcastService, IFlushable
+public interface ICachedApplePodcastService : IApplePodcastService
 {
 }

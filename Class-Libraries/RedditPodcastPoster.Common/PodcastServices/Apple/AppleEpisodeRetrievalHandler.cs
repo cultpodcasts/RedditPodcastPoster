@@ -7,7 +7,7 @@ using RedditPodcastPoster.PodcastServices.Apple;
 namespace RedditPodcastPoster.Common.PodcastServices.Apple;
 
 public class AppleEpisodeRetrievalHandler(
-    IAppleEpisodeProvider appleEpisodeProvider,
+    IAppleEpisodeResolver appleEpisodeResolver,
     ILogger<AppleEpisodeRetrievalHandler> logger)
     : IAppleEpisodeRetrievalHandler
 {
@@ -19,7 +19,7 @@ public class AppleEpisodeRetrievalHandler(
         IList<Episode> episodes = new List<Episode>();
         if (podcast.AppleId != null)
         {
-            var foundEpisodes = await appleEpisodeProvider.GetEpisodes(
+            var foundEpisodes = await appleEpisodeResolver.GetEpisodes(
                 new ApplePodcastId(podcast.AppleId.Value), indexingContext);
             if (foundEpisodes != null)
             {

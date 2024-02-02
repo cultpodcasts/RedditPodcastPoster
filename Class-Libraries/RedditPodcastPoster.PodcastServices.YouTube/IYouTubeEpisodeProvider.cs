@@ -13,4 +13,6 @@ public interface IYouTubeEpisodeProvider
 
     Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(YouTubePlaylistId youTubePlaylistId,
         IndexingContext indexingContext);
+
+    Task<FindEpisodeResponse?> FindEpisode(EnrichmentRequest request, IndexingContext indexingContext);
 }

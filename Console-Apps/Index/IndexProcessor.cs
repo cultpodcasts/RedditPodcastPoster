@@ -9,7 +9,7 @@ namespace Index;
 
 internal class IndexProcessor(
     IPodcastRepository podcastRepository,
-    IPodcastUpdater podcastUpdater,
+    IPodcastUpdaterFactory podcastUpdaterFactory,
     ISubjectEnricher subjectEnricher,
     ILogger<IndexProcessor> logger)
 {
@@ -37,16 +37,41 @@ internal class IndexProcessor(
         }
         else
         {
-            podcastIds = await podcastRepository.GetAllIds();
+            podcastIds = await podcastRepository.GetAllBy(podcast =>
+                podcast.IndexAllEpisodes ||
+                (podcast.EpisodeIncludeTitleRegex != null && podcast.EpisodeIncludeTitleRegex != ""), x => x.Id);
         }
 
-        foreach (var podcastId in podcastIds)
+        var throttler = new SemaphoreSlim(5);
+        var indexTasks = podcastIds.Select(async podcastId =>
         {
-            var podcast = await podcastRepository.GetPodcast(podcastId);
-            if (podcast != null &&
-                (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
-
+            await throttler.WaitAsync();
+            try
             {
+                await IndexPodcast(indexingContext, podcastId);
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(exception, $"Failure indexing podcast with podcast-id '{podcastId}'.");
+            }
+            finally
+            {
+                throttler.Release();
+            }
+
+            return false;
+        });
+        await Task.WhenAll(indexTasks);
+    }
+
+    private async Task IndexPodcast(IndexingContext indexingContext, Guid podcastId)
+    {
+        var podcast = await podcastRepository.GetPodcast(podcastId);
+        if (podcast != null)
+        {
+            try
+            {
+                var podcastUpdater = podcastUpdaterFactory.Create();
                 await podcastUpdater.Update(podcast, indexingContext);
                 var episodes = podcast.Episodes.Where(x => x.Release >= indexingContext.ReleasedSince);
                 foreach (var episode in episodes)
@@ -57,6 +82,10 @@ internal class IndexProcessor(
                 }
 
                 await podcastRepository.Save(podcast);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Failure updating podcast with id '{podcast.Id}' and name '{podcast.Name}'.");
             }
         }
     }

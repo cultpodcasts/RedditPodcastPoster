@@ -15,7 +15,6 @@ public static class ServiceCollectionExtensions
         return services
             .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
             .AddScoped<IYouTubeEpisodeEnricher, YouTubeEpisodeEnricher>()
-            .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
             .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
             .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
             .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()

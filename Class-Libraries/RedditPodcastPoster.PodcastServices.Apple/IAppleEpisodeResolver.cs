@@ -1,4 +1,5 @@
-﻿using RedditPodcastPoster.PodcastServices.Abstractions;
+﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
@@ -8,4 +9,6 @@ public interface IAppleEpisodeResolver
         FindAppleEpisodeRequest request,
         IndexingContext indexingContext,
         Func<AppleEpisode, bool>? reducer = null);
+
+    Task<IList<Episode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext);
 }

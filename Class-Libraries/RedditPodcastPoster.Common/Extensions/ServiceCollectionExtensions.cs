@@ -18,8 +18,8 @@ public static class ServiceCollectionExtensions
         services.AddDelayedYouTubePublication(config);
 
         return services
-            .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
-            .AddScoped<IPodcastUpdater, PodcastUpdater>()
+            .AddTransient<IPodcastUpdater, PodcastUpdater>()
+            .AddTransient<IPodcastUpdaterFactory, PodcastUpdaterFactory>()
             .AddScoped<IEpisodeProvider, EpisodeProvider>()
             .AddScoped<IAppleEpisodeRetrievalHandler, AppleEpisodeRetrievalHandler>()
             .AddScoped<IYouTubeEpisodeRetrievalHandler, YouTubeEpisodeRetrievalHandler>()

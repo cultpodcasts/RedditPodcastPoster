@@ -12,7 +12,6 @@ public static class ServiceCollectionExtensions
             .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
             .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
             .AddScoped<IApplePodcastService, ApplePodcastService>()
-            .AddScoped<IAppleEpisodeProvider, AppleEpisodeProvider>()
             .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
             .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
             .AddSingleton<IApplePodcastHttpClientFactory, ApplePodcastHttpClientFactory>();

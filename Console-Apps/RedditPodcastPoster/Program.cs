@@ -42,7 +42,6 @@ builder.Services
     .AddScoped(s => new iTunesSearchManager())
     .AddEliminationTerms()
     .AddRedditServices(builder.Configuration)
-    .AddScoped<IFlushable, CacheFlusher>()
     .AddScoped<PodcastProcessor>()
     .AddHttpClient();
 
