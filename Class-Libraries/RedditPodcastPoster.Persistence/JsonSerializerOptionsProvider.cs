@@ -12,7 +12,6 @@ public class JsonSerializerOptionsProvider : IJsonSerializerOptionsProvider
         {
             Converters = {new RegexConverter()},
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-            // Update your JSON Serializer options here.
             //PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             //Converters =
             //{

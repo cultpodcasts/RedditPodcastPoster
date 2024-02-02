@@ -45,16 +45,14 @@ public class CosmosDbRepository(
     {
         try
         {
-            return container
-                .GetItemLinqQueryable<T>()
-                .ToFeedIterator()
-                .ToAsyncEnumerable()
-                .Where(x => x.IsOfType<T>());
+            var typeName = CosmosSelectorExtensions.GetModelType<T>();
+            var query = $"SELECT VALUE root FROM root WHERE (root[\"type\"] = \"{typeName}\")";
+            var feedIterator = container.GetItemQueryIterator<T>(query);
+            return feedIterator.ToAsyncEnumerable();
         }
         catch (Exception ex)
         {
-            logger.LogError(ex,
-                $"{nameof(GetAll)}: Error retrieving all-documents.");
+            logger.LogError(ex, $"{nameof(GetAll)}: Error retrieving all-documents.");
             throw;
         }
     }
@@ -64,8 +62,7 @@ public class CosmosDbRepository(
         try
         {
             var guids = new List<Guid>();
-            var query = new QueryDefinition(
-                $@"SELECT VALUE c.id FROM c WHERE c.type='{partitionKey}'");
+            var query = new QueryDefinition($@"SELECT VALUE c.id FROM c WHERE c.type='{partitionKey}'");
 
             using var guidFeed = container.GetItemQueryIterator<Guid>(query);
             while (guidFeed.HasMoreResults)
