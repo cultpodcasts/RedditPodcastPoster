@@ -45,8 +45,8 @@ public class CosmosDbRepository(
     {
         try
         {
-            var typeName = CosmosSelectorExtensions.GetModelType<T>();
-            var query = $"SELECT VALUE root FROM root WHERE (root[\"type\"] = \"{typeName}\")";
+            var modelType = CosmosSelectorExtensions.GetModelType<T>();
+            var query = $"SELECT VALUE root FROM root WHERE (root[\"type\"] = \"{modelType}\")";
             var feedIterator = container.GetItemQueryIterator<T>(query);
             return feedIterator.ToAsyncEnumerable();
         }
