@@ -3,7 +3,6 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
@@ -45,9 +44,11 @@ public class CosmosDbRepository(
     {
         try
         {
-            var modelType = CosmosSelectorExtensions.GetModelType<T>();
-            var query = $"SELECT VALUE root FROM root WHERE (root[\"type\"] = \"{modelType}\")";
-            var feedIterator = container.GetItemQueryIterator<T>(query);
+            var feedIterator = container.GetItemQueryIterator<T>(
+                requestOptions: new QueryRequestOptions
+                {
+                    PartitionKey = new PartitionKey(partitionKey)
+                });
             return feedIterator.ToAsyncEnumerable();
         }
         catch (Exception ex)
@@ -62,9 +63,12 @@ public class CosmosDbRepository(
         try
         {
             var guids = new List<Guid>();
-            var query = new QueryDefinition($@"SELECT VALUE c.id FROM c WHERE c.type='{partitionKey}'");
-
-            using var guidFeed = container.GetItemQueryIterator<Guid>(query);
+            var guidFeed = container
+                .GetItemQueryIterator<Guid>(
+                    requestOptions: new QueryRequestOptions
+                    {
+                        PartitionKey = new PartitionKey(partitionKey)
+                    });
             while (guidFeed.HasMoreResults)
             {
                 var batch = await guidFeed.ReadNextAsync();
