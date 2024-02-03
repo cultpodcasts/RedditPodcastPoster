@@ -5,6 +5,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Text;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 
 namespace RedditPodcastPoster.UrlSubmission;
@@ -18,6 +19,7 @@ public class UrlSubmitter(
     ILogger<UrlSubmitter> logger)
     : IUrlSubmitter
 {
+    private const int MinFuzzyTitleMatch = 95;
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
     public async Task Submit(Uri url, IndexingContext indexingContext, bool searchForPodcast, bool matchOtherServices,
@@ -228,6 +230,12 @@ public class UrlSubmitter(
                     logger.LogInformation(
                         $"Enriched episode with apple details with apple-url {categorisedItem.ResolvedAppleItem.Url}.");
                 }
+
+                if (matchingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
+                    categorisedItem.ResolvedAppleItem.Release.TimeOfDay != TimeSpan.Zero)
+                {
+                    matchingEpisode.Release = categorisedItem.ResolvedAppleItem.Release;
+                }
             }
         }
 
@@ -286,6 +294,12 @@ public class UrlSubmitter(
                     logger.LogInformation(
                         $"Enriched episode with youtube details with youtube-url {categorisedItem.ResolvedYouTubeItem.Url}.");
                 }
+
+                if (matchingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
+                    categorisedItem.ResolvedYouTubeItem.Release.TimeOfDay != TimeSpan.Zero)
+                {
+                    matchingEpisode.Release = categorisedItem.ResolvedYouTubeItem.Release;
+                }
             }
         }
     }
@@ -293,20 +307,31 @@ public class UrlSubmitter(
     private bool IsMatchingEpisode(Episode episode, CategorisedItem categorisedItem)
     {
         var episodeTitle = episode.Title.Trim();
-        if (categorisedItem.ResolvedAppleItem != null &&
-            categorisedItem.ResolvedAppleItem.EpisodeTitle.Trim() == episodeTitle)
+        string resolvedTitle;
+        if (categorisedItem.ResolvedAppleItem != null)
+        {
+            resolvedTitle = categorisedItem.ResolvedAppleItem.EpisodeTitle;
+        }
+        else if (categorisedItem.ResolvedSpotifyItem != null)
+        {
+            resolvedTitle = categorisedItem.ResolvedSpotifyItem.EpisodeTitle;
+        }
+        else if (categorisedItem.ResolvedYouTubeItem != null)
+        {
+            resolvedTitle = categorisedItem.ResolvedYouTubeItem.EpisodeTitle;
+        }
+        else
+        {
+            return false;
+        }
+
+
+        if (resolvedTitle.Trim() == episodeTitle)
         {
             return true;
         }
 
-        if (categorisedItem.ResolvedSpotifyItem != null &&
-            categorisedItem.ResolvedSpotifyItem.EpisodeTitle.Trim() == episodeTitle)
-        {
-            return true;
-        }
-
-        if (categorisedItem.ResolvedYouTubeItem != null &&
-            categorisedItem.ResolvedYouTubeItem.EpisodeTitle.Trim() == episodeTitle)
+        if (FuzzyMatcher.IsMatch(resolvedTitle, episodeTitle, e => e, MinFuzzyTitleMatch))
         {
             return true;
         }
