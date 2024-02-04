@@ -29,10 +29,10 @@ public class SubredditPostFlareEnricher(
             }
         }
 
-        var redditPosts = await subredditRepository.GetAll();
+        var redditPosts = subredditRepository.GetAll();
         var podcasts = await podcastRepository.GetAll().ToListAsync();
 
-        foreach (var redditPost in redditPosts.Where(x => !string.IsNullOrWhiteSpace(x.LinkFlairText)))
+        await foreach (var redditPost in redditPosts.Where(x => !string.IsNullOrWhiteSpace(x.LinkFlairText)))
         {
             var postUrl = new Uri(redditPost.Url, UriKind.RelativeOrAbsolute);
             if (postUrl.IsAbsoluteUri)
