@@ -76,7 +76,10 @@ public class AddAudioPodcastProcessor(
             foreach (var episode in podcast.Episodes)
             {
                 await subjectEnricher.EnrichSubjects(episode,
-                    new SubjectEnrichmentOptions(podcast.IgnoredAssociatedSubjects, podcast.DefaultSubject));
+                    new SubjectEnrichmentOptions(
+                        podcast.IgnoredAssociatedSubjects, 
+                        podcast.IgnoredSubjects,
+                        podcast.DefaultSubject));
             }
 
             await podcastRepository.Save(podcast);

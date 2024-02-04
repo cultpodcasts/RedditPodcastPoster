@@ -58,6 +58,7 @@ public class UrlSubmitter(
                     episode,
                     new SubjectEnrichmentOptions(
                         categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
+                        categorisedItem.MatchingPodcast.IgnoredSubjects,
                         categorisedItem.MatchingPodcast.DefaultSubject));
                 categorisedItem.MatchingPodcast.Episodes.Add(episode);
                 categorisedItem.MatchingPodcast.Episodes =

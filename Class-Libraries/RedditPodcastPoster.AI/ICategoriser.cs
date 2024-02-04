@@ -6,6 +6,7 @@ public interface ICategoriser
 {
     public Task<bool> Categorise(
         Episode episode,
-        string[]? ignoredTerms = null,
+        string[]? ignoredAssociatedSubjects = null,
+        string[]? ignoredSubjects = null,
         string? defaultSubject = null);
 }

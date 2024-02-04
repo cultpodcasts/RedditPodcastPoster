@@ -14,7 +14,7 @@ public class SubjectsSeeder(
     {
         var newSubjects = new List<Subject>
         {
-            SubjectFactory.Create("TwinRay", "Shekinah Ma, Sanandaji, Twin Ray")
+            SubjectFactory.Create("Young Living", "Donald Gary Young, Donald Young, YoungLiving")
         };
         foreach (var subject in newSubjects)
         {

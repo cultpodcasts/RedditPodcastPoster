@@ -1,3 +1,6 @@
 ﻿namespace RedditPodcastPoster.Subjects;
 
-public record SubjectEnrichmentOptions(string[]? IgnoredTerms = null, string? DefaultSubject = null);
+public record SubjectEnrichmentOptions(
+    string[]? IgnoredAssociatedSubjects = null,
+    string[]? IgnoredSubjects = null,
+    string? DefaultSubject = null);
