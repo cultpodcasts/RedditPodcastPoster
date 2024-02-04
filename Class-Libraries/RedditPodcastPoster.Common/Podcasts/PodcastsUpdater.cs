@@ -15,11 +15,11 @@ public class PodcastsUpdater(
     {
         var success = true;
         logger.LogInformation($"{nameof(UpdatePodcasts)} Retrieving podcasts.");
-        var podcastIds = await podcastRepository.GetAllBy(podcast =>
+        var podcastIds = podcastRepository.GetAllBy(podcast =>
             podcast.IndexAllEpisodes ||
-            (podcast.EpisodeIncludeTitleRegex != null && podcast.EpisodeIncludeTitleRegex != ""), x => x.Id).ToArrayAsync();
+            podcast.EpisodeIncludeTitleRegex != "", x => x.Id);
         logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
-        foreach (var podcastId in podcastIds)
+        await foreach (var podcastId in podcastIds)
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);
             if (podcast != null &&

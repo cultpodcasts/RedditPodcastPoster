@@ -40,10 +40,10 @@ public class TrainingDataProcessor(
             Directory.CreateDirectory(TrainingDataLocation);
         }
 
-        var redditPosts = await subredditRepository.GetAll();
+        var redditPosts = await subredditRepository.GetAll().ToArrayAsync();
         logger.LogInformation($"Total reddit posts: {redditPosts.Count()}");
         logger.LogInformation(
-            $"Total reddit posts with links: {redditPosts.Where(x => !string.IsNullOrWhiteSpace(x.Url)).Count()}");
+            $"Total reddit posts with links: {redditPosts.Count(x => !string.IsNullOrWhiteSpace(x.Url))}");
 
         var redditPostMetaDatas =
             redditPosts
