@@ -5,8 +5,6 @@ namespace RedditPodcastPoster.Models;
 [CosmosSelector(ModelType.Subject)]
 public sealed class Subject : CosmosSelector
 {
-    public static readonly string PartitionKey = ModelType.Subject.ToString();
-
     public Subject(string name)
     {
         Name = name;

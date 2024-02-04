@@ -12,7 +12,7 @@ public class ModelTransformProcessor(ISplitFileRepository splitFileRepository, I
 
     public async Task Run()
     {
-        var podcasts = await splitFileRepository.GetAll<OldPodcast>(Podcast.PartitionKey).ToListAsync();
+        var podcasts = await splitFileRepository.GetAll<OldPodcast>().ToListAsync();
         foreach (var oldPodcast in podcasts)
         {
             var newPodcast = new Podcast(oldPodcast.Id)

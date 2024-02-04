@@ -4,11 +4,6 @@ namespace RedditPodcastPoster.Models;
 
 public class CosmosSelector
 {
-    public string GetPartitionKey()
-    {
-        return ModelType.ToString();
-    }
-
     [JsonPropertyName("id")]
     [JsonPropertyOrder(1)]
     public virtual Guid Id { get; set; }

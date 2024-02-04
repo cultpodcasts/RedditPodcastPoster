@@ -15,14 +15,15 @@ public class CosmosDbRepository(
 {
     public async Task Write<T>(T data) where T : CosmosSelector
     {
+        var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         try
         {
-            await container.UpsertItemAsync(data, new PartitionKey(data.GetPartitionKey()));
+            await container.UpsertItemAsync(data, new PartitionKey(partitionKey));
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Error UpsertItemAsync on document with partition-partitionKey '{data.GetPartitionKey()}' in Database.");
+                $"Error UpsertItemAsync on document with partition-partitionKey '{partitionKey}' in Database.");
             throw;
         }
     }

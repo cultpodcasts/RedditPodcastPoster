@@ -13,7 +13,6 @@ public class PublicDatabasePublisher(
 {
     public async Task Run()
     {
-        var partitionKey = Podcast.PartitionKey;
         var podcastIds = await cosmosDbRepository.GetAllIds<Podcast>().ToArrayAsync();
 
         foreach (var podcastId in podcastIds)
