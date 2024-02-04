@@ -15,8 +15,7 @@ public class JsonSplitCosmosDbUploadProcessor(
 {
     public async Task Run(JsonSplitCosmosDbUploadRequest request)
     {
-        var sourcePodcast = await fileRepository.Read<Podcast>(Path.GetFileNameWithoutExtension(request.FileName),
-            Podcast.PartitionKey);
+        var sourcePodcast = await fileRepository.Read<Podcast>(Path.GetFileNameWithoutExtension(request.FileName));
         if (sourcePodcast != null)
         {
             logger.LogInformation($"'{sourcePodcast.Episodes.Count}' episodes.");

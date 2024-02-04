@@ -11,11 +11,11 @@ public class SubredditRepository(
 {
     public async Task<IEnumerable<RedditPost>> GetAll()
     {
-        return await fileRepository.GetAll<RedditPost>(RedditPost.PartitionKey).ToArrayAsync();
+        return await fileRepository.GetAll<RedditPost>().ToArrayAsync();
     }
 
-    public async Task Save(RedditPost post)
+    public Task Save(RedditPost post)
     {
-        await fileRepository.Write(post);
+        return fileRepository.Write(post);
     }
 }

@@ -12,10 +12,9 @@ public class PodcastRepository(
     ILogger<PodcastRepository> logger)
     : IPodcastRepository
 {
-    public async Task<Podcast?> GetPodcast(Guid podcastId)
+    public Task<Podcast?> GetPodcast(Guid podcastId)
     {
-        var partitionKey = Podcast.PartitionKey;
-        return await dataRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
+        return dataRepository.Read<Podcast>(podcastId.ToString());
     }
 
     public MergeResult Merge(Podcast podcast, IEnumerable<Episode> episodesToMerge)
@@ -58,44 +57,43 @@ public class PodcastRepository(
             }
         }
 
-        podcast.Episodes = new List<Episode>(podcast.Episodes.OrderByDescending(x => x.Release));
+        podcast.Episodes = [..podcast.Episodes.OrderByDescending(x => x.Release)];
         return new MergeResult(addedEpisodes, mergedEpisodes, failedEpisodes);
     }
 
     public IAsyncEnumerable<Podcast> GetAll()
     {
-        return dataRepository.GetAll<Podcast>(Podcast.PartitionKey);
+        return dataRepository.GetAll<Podcast>();
     }
 
-    public Task<IEnumerable<Guid>> GetAllIds()
+    public IAsyncEnumerable<Guid> GetAllIds()
     {
-        return dataRepository.GetAllIds<Podcast>(Podcast.PartitionKey);
+        return dataRepository.GetAllIds<Podcast>();
     }
 
-    public async Task Save(Podcast podcast)
+    public Task Save(Podcast podcast)
     {
-        var key = podcast.GetPartitionKey();
-        await dataRepository.Write(podcast);
+        return dataRepository.Write(podcast);
     }
 
-    public async Task Update(Podcast podcast)
+    public Task Update(Podcast podcast)
     {
-        await Save(podcast);
+        return Save(podcast);
     }
 
     public Task<Podcast?> GetBy(Expression<Func<Podcast, bool>> selector)
     {
-        return dataRepository.GetBy(Podcast.PartitionKey, selector);
+        return dataRepository.GetBy(selector);
     }
 
-    public Task<IEnumerable<Podcast>> GetAllBy(Expression<Func<Podcast, bool>> selector)
+    public IAsyncEnumerable<Podcast> GetAllBy(Expression<Func<Podcast, bool>> selector)
     {
-        return dataRepository.GetAllBy(Podcast.PartitionKey, selector);
+        return dataRepository.GetAllBy( selector);
     }
 
-    public Task<IEnumerable<T>> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item)
+    public IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item)
     {
-        return dataRepository.GetAllBy(Podcast.PartitionKey, selector, item);
+        return dataRepository.GetAllBy(selector, item);
     }
 
     private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)
@@ -124,34 +122,34 @@ public class PodcastRepository(
         if (existingEpisode.Urls.Spotify == null && episodeToMerge.Urls.Spotify != null)
         {
             existingEpisode.Urls.Spotify ??= episodeToMerge.Urls.Spotify;
-            updated |= true;
+            updated = true;
         }
 
         if (existingEpisode.Urls.YouTube == null && episodeToMerge.Urls.YouTube != null)
         {
             existingEpisode.Urls.YouTube ??= episodeToMerge.Urls.YouTube;
-            updated |= true;
+            updated = true;
         }
 
         if (string.IsNullOrWhiteSpace(existingEpisode.SpotifyId) &&
             !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
         {
             existingEpisode.SpotifyId = episodeToMerge.SpotifyId;
-            updated |= true;
+            updated = true;
         }
 
         if (string.IsNullOrWhiteSpace(existingEpisode.YouTubeId) &&
             !string.IsNullOrWhiteSpace(episodeToMerge.YouTubeId))
         {
             existingEpisode.YouTubeId = episodeToMerge.YouTubeId;
-            updated |= true;
+            updated = true;
         }
 
         if (existingEpisode.Description.EndsWith("...") &&
             existingEpisode.Description.Length < episodeToMerge.Description.Length)
         {
             existingEpisode.Description = episodeToMerge.Description;
-            updated |= true;
+            updated = true;
         }
 
         return updated;

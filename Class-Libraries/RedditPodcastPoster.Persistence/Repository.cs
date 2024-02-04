@@ -14,12 +14,12 @@ public class Repository<T>(
 
     public async Task<IEnumerable<T>> GetAll(string partitionKey)
     {
-        return await dataRepository.GetAll<T>(partitionKey).ToListAsync();
+        return await dataRepository.GetAll<T>().ToListAsync();
     }
 
     public async Task<T?> Get(string key, string partitionKey)
     {
-        return await dataRepository.Read<T>(key, partitionKey);
+        return await dataRepository.Read<T>(key);
     }
 
     public async Task Save(T data)

@@ -13,40 +13,34 @@ public class CosmosDbDownloader(
 {
     public async Task Run()
     {
-        var partitionKey = Podcast.PartitionKey;
-        var podcastIds =
-            await cosmosDbRepository.GetAllIds<Podcast>(partitionKey);
-        foreach (var podcastId in podcastIds)
+        var podcastIds = cosmosDbRepository.GetAllIds<Podcast>();
+        foreach (var podcastId in await podcastIds.ToArrayAsync())
         {
-            var podcast = await cosmosDbRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
+            var podcast = await cosmosDbRepository.Read<Podcast>(podcastId.ToString());
             if (podcast != null)
             {
                 await fileRepository.Write(podcast);
             }
         }
 
-        partitionKey = new EliminationTerms().GetPartitionKey();
         var eliminationTerms =
-            await cosmosDbRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString(), partitionKey);
+            await cosmosDbRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString());
         if (eliminationTerms != null)
         {
             await fileRepository.Write(eliminationTerms);
         }
 
-        partitionKey = new KnownTerms()!.GetPartitionKey();
         var knownTerms =
-            await cosmosDbRepository.Read<KnownTerms>(KnownTerms._Id.ToString(), partitionKey);
+            await cosmosDbRepository.Read<KnownTerms>(KnownTerms._Id.ToString());
         if (knownTerms != null)
         {
             await fileRepository.Write(knownTerms);
         }
 
-        partitionKey = Subject.PartitionKey;
-        var subjectIds =
-            await cosmosDbRepository.GetAllIds<Subject>(partitionKey);
+        var subjectIds = await cosmosDbRepository.GetAllIds<Subject>().ToArrayAsync();
         foreach (var subjectId in subjectIds)
         {
-            var subject = await cosmosDbRepository.Read<Subject>(subjectId.ToString(), partitionKey);
+            var subject = await cosmosDbRepository.Read<Subject>(subjectId.ToString());
             if (subject != null)
             {
                 if (string.IsNullOrWhiteSpace(subject.FileKey))

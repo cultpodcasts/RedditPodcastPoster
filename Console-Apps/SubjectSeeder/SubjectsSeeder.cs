@@ -12,7 +12,10 @@ public class SubjectsSeeder(
 {
     public async Task Run()
     {
-        var newSubjects = new List<Subject>();
+        var newSubjects = new List<Subject>()
+        {
+            SubjectFactory.Create("TwinRay", "Shekinah Ma, Sanandaji, Twin Ray")
+        };
         foreach (var subject in newSubjects)
         {
             var match = await subjectService.Match(subject);

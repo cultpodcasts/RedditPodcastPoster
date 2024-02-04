@@ -16,7 +16,7 @@ public class WebSubStatusProcessor(
 
     public async Task Process(WebSubStatusRequest request)
     {
-        var podcastIds = await podcastRepository.GetAllIds();
+        var podcastIds = await podcastRepository.GetAllIds().ToArrayAsync();
         foreach (var podcastId in podcastIds)
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);

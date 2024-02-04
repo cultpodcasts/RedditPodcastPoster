@@ -66,7 +66,7 @@ public class Tweeter(
                     episode.Ignored == false &&
                     episode.Tweeted == false
                 )
-            );
+            ).ToArrayAsync();
         }
         catch (Exception ex)
         {

@@ -25,6 +25,9 @@ public sealed class CosmosSystemTextJsonSerializer(JsonSerializerOptions jsonSer
 
         using (stream)
         {
+            //var type = typeof(T);
+            //StreamReader reader = new StreamReader(stream);
+            //string text = reader.ReadToEnd();
             return ((T) _systemTextJsonSerializer.Deserialize(stream, typeof(T), default)!)!;
         }
     }

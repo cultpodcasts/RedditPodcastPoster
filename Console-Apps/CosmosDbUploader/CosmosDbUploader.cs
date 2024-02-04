@@ -18,26 +18,25 @@ public class CosmosDbUploader(
         throw new NotImplementedException(
             "Changes made to the IFileRepository are untested. Do not use this app until correct behaviour verified.");
 #pragma warning disable CS0162 // Unreachable code detected
-        var podcasts = await fileRepository.GetAll<Podcast>(Podcast.PartitionKey).ToListAsync();
+        var podcasts = await fileRepository.GetAll<Podcast>().ToListAsync();
         foreach (var podcast in podcasts)
         {
             await cosmosDbRepository.Write(podcast);
         }
 
-        var eliminationTerms = await fileRepository.GetAll<EliminationTerms>(EliminationTerms.PartitionKey)
-            .ToListAsync();
+        var eliminationTerms = await fileRepository.GetAll<EliminationTerms>().ToListAsync();
         foreach (var eliminationTermsDocument in eliminationTerms)
         {
             await cosmosDbRepository.Write(eliminationTermsDocument);
         }
 
-        var knownTerms = await fileRepository.GetAll<KnownTerms>(KnownTerms.PartitionKey).ToListAsync();
+        var knownTerms = await fileRepository.GetAll<KnownTerms>().ToListAsync();
         foreach (var knownTermsDocument in knownTerms)
         {
             await cosmosDbRepository.Write(knownTermsDocument);
         }
 
-        var subjects = await fileRepository.GetAll<Subject>(Subject.PartitionKey).ToListAsync();
+        var subjects = await fileRepository.GetAll<Subject>().ToListAsync();
         foreach (var subject in subjects)
         {
             await cosmosDbRepository.Write(subject);
