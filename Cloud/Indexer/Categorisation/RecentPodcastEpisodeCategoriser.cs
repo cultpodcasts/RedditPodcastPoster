@@ -15,7 +15,7 @@ public class RecentPodcastEpisodeCategoriser(
         var since = DateTime.UtcNow.AddDays(-7);
 
         var podcasts =
-            await podcastRepository.GetAllBy(x => x.Episodes.Any(y => y.Release > since && !y.Subjects.Any()));
+            await podcastRepository.GetAllBy(x => x.Episodes.Any(y => y.Release > since && !y.Subjects.Any())).ToArrayAsync();
         foreach (var podcast in podcasts)
         {
             var updated = false;

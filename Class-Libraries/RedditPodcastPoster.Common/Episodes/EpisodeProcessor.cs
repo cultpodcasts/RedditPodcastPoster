@@ -23,7 +23,7 @@ public class EpisodeProcessor(
                     episode.Release > DateTime.Now.AddDays(-30) &&
                     episode.Posted == false &&
                     episode.Ignored == false &&
-                    episode.Removed == false));
+                    episode.Removed == false)).ToArrayAsync();
 
         var matchingPodcastEpisodeResults =
             await podcastEpisodesPoster.PostNewEpisodes(since, podcasts, youTubeRefreshed, spotifyRefreshed);

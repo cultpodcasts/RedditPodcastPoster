@@ -59,7 +59,7 @@ public class PodcastService(
 
 
             var podcasts = await podcastRepository.GetAllBy(podcast =>
-                podcast.YouTubeChannelId == snippetChannelId);
+                podcast.YouTubeChannelId == snippetChannelId).ToArrayAsync();
             if (podcasts.Count() > 1)
             {
                 return podcasts.FirstOrDefault(x => x.YouTubePlaylistId == string.Empty);

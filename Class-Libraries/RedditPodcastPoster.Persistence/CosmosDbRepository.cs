@@ -91,11 +91,10 @@ public class CosmosDbRepository(
         return null;
     }
 
-    public async Task<IEnumerable<T>> GetAllBy<T>(Expression<Func<T, bool>> selector)
+    public async IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<T, bool>> selector)
         where T : CosmosSelector
     {
         var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
-        var results = new List<T>();
         var query = container
             .GetItemLinqQueryable<T>(
                 linqSerializerOptions: new CosmosLinqSerializerOptions
@@ -113,19 +112,16 @@ public class CosmosDbRepository(
             foreach (var item in await query.ReadNextAsync())
             {
                 {
-                    results.Add(item);
+                    yield return item;
                 }
             }
         }
-
-        return results;
     }
 
-    public async Task<IEnumerable<T2>> GetAllBy<T, T2>(Expression<Func<T, bool>> selector, Expression<Func<T, T2>> expr)
+    public async IAsyncEnumerable<T2> GetAllBy<T, T2>(Expression<Func<T, bool>> selector, Expression<Func<T, T2>> expr)
         where T : CosmosSelector
     {
         var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
-        var results = new List<T2>();
         var query = container
             .GetItemLinqQueryable<T>(
                 linqSerializerOptions: new CosmosLinqSerializerOptions
@@ -144,12 +140,10 @@ public class CosmosDbRepository(
             foreach (var item in await query.ReadNextAsync())
             {
                 {
-                    results.Add(item);
+                    yield return item;
                 }
             }
         }
-
-        return results;
     }
 
     public IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector

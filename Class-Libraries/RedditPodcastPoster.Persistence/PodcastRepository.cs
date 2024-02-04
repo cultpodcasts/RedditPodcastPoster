@@ -88,12 +88,12 @@ public class PodcastRepository(
         return dataRepository.GetBy(selector);
     }
 
-    public Task<IEnumerable<Podcast>> GetAllBy(Expression<Func<Podcast, bool>> selector)
+    public IAsyncEnumerable<Podcast> GetAllBy(Expression<Func<Podcast, bool>> selector)
     {
         return dataRepository.GetAllBy( selector);
     }
 
-    public Task<IEnumerable<T>> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item)
+    public IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item)
     {
         return dataRepository.GetAllBy(selector, item);
     }

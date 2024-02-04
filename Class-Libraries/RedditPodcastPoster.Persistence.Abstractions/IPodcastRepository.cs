@@ -12,6 +12,6 @@ public interface IPodcastRepository
     IAsyncEnumerable<Podcast> GetAll();
     IAsyncEnumerable<Guid> GetAllIds();
     Task<Podcast?> GetBy(Expression<Func<Podcast, bool>> selector);
-    Task<IEnumerable<Podcast>> GetAllBy(Expression<Func<Podcast, bool>> selector);
-    Task<IEnumerable<T>> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item);
+    IAsyncEnumerable<Podcast> GetAllBy(Expression<Func<Podcast, bool>> selector);
+    IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item);
 }

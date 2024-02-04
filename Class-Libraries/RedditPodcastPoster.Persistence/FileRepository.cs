@@ -74,7 +74,6 @@ public class FileRepository : IFileRepository
 
     public async IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector
     {
-        var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         var filenames = GetFilenames();
         var keys = filenames.Select(x =>
             x.Substring(_container.Length, x.Length - (FileExtension.Length + _container.Length)));
@@ -90,7 +89,6 @@ public class FileRepository : IFileRepository
 
     public async IAsyncEnumerable<Guid> GetAllIds<T>() where T : CosmosSelector
     {
-        var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         var filenames = GetFilenames();
 
         var keys = filenames.Select(x =>
@@ -112,18 +110,18 @@ public class FileRepository : IFileRepository
         return reduce;
     }
 
-    public async Task<IEnumerable<T>> GetAllBy<T>(Expression<Func<T, bool>> selector)
+    public IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<T, bool>> selector)
         where T : CosmosSelector
     {
-        var items = await GetAll<T>().ToListAsync();
+        var items = GetAll<T>();
         var reduce = items.Where(selector.Compile());
         return reduce;
     }
 
-    public async Task<IEnumerable<T2>> GetAllBy<T, T2>(Expression<Func<T, bool>> selector,
+    public IAsyncEnumerable<T2> GetAllBy<T, T2>(Expression<Func<T, bool>> selector,
         Expression<Func<T, T2>> expr) where T : CosmosSelector
     {
-        var items = await GetAll<T>().ToListAsync();
+        var items = GetAll<T>();
         var reduce = items.Where(selector.Compile()).Select(expr.Compile());
         return reduce;
     }
