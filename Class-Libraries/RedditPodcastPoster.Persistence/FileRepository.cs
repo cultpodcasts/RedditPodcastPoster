@@ -80,7 +80,7 @@ public class FileRepository : IFileRepository
         foreach (var item in keys)
         {
             var cosmosSelector = await Read<T>(item);
-            if (cosmosSelector!.IsOfType<T>())
+            if (cosmosSelector!.IsOfType())
             {
                 yield return cosmosSelector!;
             }
