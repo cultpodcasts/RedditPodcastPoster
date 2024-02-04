@@ -124,7 +124,10 @@ public class EnrichYouTubePodcastProcessor(
                     episode.Id = Guid.NewGuid();
 
                     await subjectEnricher.EnrichSubjects(episode,
-                        new SubjectEnrichmentOptions(podcast.IgnoredAssociatedSubjects, podcast.DefaultSubject));
+                        new SubjectEnrichmentOptions(
+                            podcast.IgnoredAssociatedSubjects,
+                            podcast.IgnoredSubjects,
+                            podcast.DefaultSubject));
 
                     podcast.Episodes.Add(episode);
                 }

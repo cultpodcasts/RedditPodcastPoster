@@ -105,6 +105,11 @@ public sealed class Podcast : CosmosSelector
     [JsonPropertyOrder(93)]
     public string[]? IgnoredAssociatedSubjects { get; set; }
 
+    [JsonPropertyName("ignoredSubjects")]
+    [JsonPropertyOrder(93)]
+    public string[]? IgnoredSubjects { get; set; }
+
+
     [JsonPropertyName("defaultSubject")]
     [JsonPropertyOrder(94)]
     public string? DefaultSubject { get; set; }

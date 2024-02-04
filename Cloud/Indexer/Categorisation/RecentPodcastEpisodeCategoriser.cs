@@ -24,6 +24,7 @@ public class RecentPodcastEpisodeCategoriser(
                 var updatedEpisode = await categoriser.Categorise(
                     episode,
                     podcast.IgnoredAssociatedSubjects,
+                    podcast.IgnoredSubjects,
                     podcast.DefaultSubject);
 
                 if (updatedEpisode)
