@@ -151,61 +151,77 @@ public class SubjectService(ICachedSubjectRepository subjectRepository, ILogger<
 
     public async Task<IEnumerable<SubjectMatch>> Match(
         Episode episode,
-        string[]? ignoredTerms = null)
+        string[]? ignoredAssociatedSubjects = null,
+        string[]? ignoredSubjects = null)
     {
-        if (ignoredTerms != null)
-        {
-            ignoredTerms = ignoredTerms.Select(x => x.ToLowerInvariant()).ToArray();
-        }
+        ignoredAssociatedSubjects = ignoredAssociatedSubjects?.Select(x => x.ToLowerInvariant()).ToArray();
+        ignoredSubjects = ignoredSubjects?.Select(x => x.ToLowerInvariant()).ToArray();
 
         var subjects = await subjectRepository.GetAll();
         var matches = subjects
-            .Select(subject => new SubjectMatch(subject, Matches(episode, subject, false, ignoredTerms)))
+            .Select(subject => new SubjectMatch(subject,
+                Matches(episode, subject, false, ignoredAssociatedSubjects, ignoredSubjects)))
             .Where(x => x.MatchResults.Any());
         if (!matches.Any())
         {
             matches = subjects
-                .Select(subject => new SubjectMatch(subject, Matches(episode, subject, true, ignoredTerms)))
+                .Select(subject => new SubjectMatch(subject,
+                    Matches(episode, subject, true, ignoredAssociatedSubjects, ignoredSubjects)))
                 .Where(x => x.MatchResults.Any());
         }
 
         return matches;
     }
 
-    private MatchResult[] Matches(Episode episode, Subject subject, bool withDescription, string[]? ignoredTerms = null)
+    private MatchResult[] Matches(
+        Episode episode,
+        Subject subject,
+        bool withDescription,
+        string[]? ignoredAssociatedSubjects = null,
+        string[]? ignoredSubjects = null)
     {
         var matches = new List<MatchResult>();
         var subjectTerm = subject.GetSubjectTerms();
-        foreach (var term in subjectTerm.Where(x => !string.IsNullOrWhiteSpace(x.Term)))
+        if (ignoredSubjects==null || !ignoredSubjects.Contains(subjectTerm.SingleOrDefault(x => x.SubjectTermType == SubjectTermType.Name).Term
+                .ToLowerInvariant()))
         {
-            if (ignoredTerms == null ||
-                term.SubjectTermType != SubjectTermType.AssociatedSubject ||
-                !ignoredTerms.Contains(term.Term.ToLowerInvariant()))
+            foreach (var term in subjectTerm.Where(x => !string.IsNullOrWhiteSpace(x.Term)))
             {
-                var matchCtr = 0;
-                var match = GetMatches(term.Term, episode.Title);
-                if (match > 0)
+                if (Include(ignoredAssociatedSubjects, term))
                 {
-                    matchCtr += match;
-                }
-
-                if (withDescription)
-                {
-                    var descMatch = GetMatches(term.Term, episode.Description);
-                    if (descMatch > 0)
+                    var matchCtr = 0;
+                    var match = GetMatches(term.Term, episode.Title);
+                    if (match > 0)
                     {
-                        matchCtr += descMatch;
+                        matchCtr += match;
                     }
-                }
 
-                if (matchCtr > 0)
-                {
-                    matches.Add(new MatchResult(term.Term, matchCtr));
+                    if (withDescription)
+                    {
+                        var descMatch = GetMatches(term.Term, episode.Description);
+                        if (descMatch > 0)
+                        {
+                            matchCtr += descMatch;
+                        }
+                    }
+
+                    if (matchCtr > 0)
+                    {
+                        matches.Add(new MatchResult(term.Term, matchCtr));
+                    }
                 }
             }
         }
 
         return matches.ToArray();
+    }
+
+    private static bool Include(string[]? ignoredAssociatedSubjects, SubjectTerm term)
+    {
+        var include = ignoredAssociatedSubjects == null ||
+                      term.SubjectTermType != SubjectTermType.AssociatedSubject ||
+                      !ignoredAssociatedSubjects.Contains(term.Term.ToLowerInvariant());
+        return include;
     }
 
     private int GetMatches(string term, string sentence)

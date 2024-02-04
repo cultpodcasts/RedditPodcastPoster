@@ -51,9 +51,12 @@ internal class IndexProcessor(
                 var episodes = podcast.Episodes.Where(x => x.Release >= indexingContext.ReleasedSince);
                 foreach (var episode in episodes)
                 {
-                    await subjectEnricher.EnrichSubjects(episode, new SubjectEnrichmentOptions(
-                        podcast.IgnoredAssociatedSubjects,
-                        podcast.DefaultSubject));
+                    await subjectEnricher.EnrichSubjects(
+                        episode,
+                        new SubjectEnrichmentOptions(
+                            podcast.IgnoredAssociatedSubjects,
+                            podcast.IgnoredSubjects,
+                            podcast.DefaultSubject));
                 }
 
                 await podcastRepository.Save(podcast);
