@@ -4,6 +4,6 @@ namespace RedditPodcastPoster.Subreddit;
 
 public interface ISubredditRepository
 {
-    Task<IEnumerable<RedditPost>> GetAll();
+    IAsyncEnumerable<RedditPost> GetAll();
     Task Save(RedditPost post);
 }

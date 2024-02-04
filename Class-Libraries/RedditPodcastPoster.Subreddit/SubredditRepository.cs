@@ -9,9 +9,9 @@ public class SubredditRepository(
     ILogger<SubredditRepository> logger)
     : ISubredditRepository
 {
-    public async Task<IEnumerable<RedditPost>> GetAll()
+    public IAsyncEnumerable<RedditPost> GetAll()
     {
-        return await fileRepository.GetAll<RedditPost>().ToArrayAsync();
+        return fileRepository.GetAll<RedditPost>();
     }
 
     public Task Save(RedditPost post)
