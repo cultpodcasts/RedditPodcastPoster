@@ -4,12 +4,10 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Text.KnownTerms;
 
-[CosmosSelector(ModelType.EliminationTerms)]
+[CosmosSelector(ModelType.KnownTerms)]
 public sealed class KnownTerms : CosmosSelector
 {
     public static Guid _Id = Guid.Parse("4B550528-6848-4877-A768-0DA301754C7B");
-
-    public static readonly string PartitionKey = ModelType.KnownTerms.ToString();
 
     public KnownTerms() 
     {

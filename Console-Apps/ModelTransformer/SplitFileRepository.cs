@@ -25,13 +25,13 @@ public class SplitFileRepository : ISplitFileRepository
         await _outputFileRepository.Write(data);
     }
 
-    public async Task<T?> Read<T>(string key, string partitionKey) where T : CosmosSelector
+    public async Task<T?> Read<T>(string key) where T : CosmosSelector
     {
         var result = await _inputFileRepository.Read<T>(key);
         return result;
     }
 
-    public IAsyncEnumerable<T> GetAll<T>(string partitionKey) where T : CosmosSelector
+    public IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector
     {
         return _inputFileRepository.GetAll<T>();
     }

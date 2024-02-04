@@ -3,8 +3,6 @@
 [CosmosSelector(ModelType.RedditPost)]
 public sealed class RedditPost : CosmosSelector
 {
-    public static readonly string PartitionKey = ModelType.RedditPost.ToString();
-
     public RedditPost(Guid id)
     {
         Id = id;
