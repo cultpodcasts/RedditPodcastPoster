@@ -47,7 +47,7 @@ public class EpisodePostManager(
             {
                 if (postModel.Subjects.Any())
                 {
-                    var subjects = await subjectRepository.GetByNames(postModel.Subjects);
+                    var subjects = await subjectRepository.GetByNames(postModel.Subjects).ToArrayAsync();
                     var subject = subjects.FirstOrDefault(x => x.RedditFlairTemplateId != null);
                     if (subject != null)
                     {

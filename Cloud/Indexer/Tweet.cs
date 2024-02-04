@@ -1,4 +1,3 @@
-using Azure;
 using Indexer.Tweets;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;

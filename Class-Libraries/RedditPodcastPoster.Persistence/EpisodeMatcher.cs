@@ -14,7 +14,12 @@ public class EpisodeMatcher(ILogger<EpisodeMatcher> logger) : IEpisodeMatcher
     {
         if (episodeMatchRegex == null)
         {
-            return episodeToMerge.Title == existingEpisode.Title;
+            if (episodeToMerge.Title == existingEpisode.Title)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         var episodeToMergeMatch = episodeMatchRegex.Match(episodeToMerge.Title);
@@ -26,7 +31,12 @@ public class EpisodeMatcher(ILogger<EpisodeMatcher> logger) : IEpisodeMatcher
             var episodeToMergeUniqueMatch = episodeToMergeMatch.Groups["episodematch"].Value;
             var episodeUniqueMatch = episodeMatch.Groups["episodematch"].Value;
             var isMatch = episodeToMergeUniqueMatch == episodeUniqueMatch;
-            return isMatch;
+            if (isMatch)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         if (episodeToMergeMatch.Groups["title"].Success && episodeMatch.Groups["title"].Success)
