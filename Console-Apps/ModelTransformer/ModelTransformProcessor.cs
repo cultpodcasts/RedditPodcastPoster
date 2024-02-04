@@ -17,7 +17,6 @@ public class ModelTransformProcessor(ISplitFileRepository splitFileRepository, I
         {
             var newPodcast = new Podcast(oldPodcast.Id)
             {
-                ModelType = ModelType.Podcast,
                 AppleId = oldPodcast.AppleId,
                 Bundles = oldPodcast.Bundles,
                 DescriptionRegex = oldPodcast.DescriptionRegex,
