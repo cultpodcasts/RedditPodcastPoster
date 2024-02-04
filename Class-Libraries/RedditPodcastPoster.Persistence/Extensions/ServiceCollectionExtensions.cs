@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence.Extensions;
@@ -29,11 +28,5 @@ public static class ServiceCollectionExtensions
         return services
             .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
             .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create(containerName));
-    }
-
-    public static IServiceCollection AddRepository<T>(this IServiceCollection services) where T : CosmosSelector
-    {
-        return services
-            .AddScoped<IRepository<T>, Repository<T>>();
     }
 }

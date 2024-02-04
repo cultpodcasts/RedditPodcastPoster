@@ -1,4 +1,3 @@
-using Azure;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher;

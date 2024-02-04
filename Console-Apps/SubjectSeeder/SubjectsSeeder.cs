@@ -6,13 +6,13 @@ using RedditPodcastPoster.Subjects;
 namespace SubjectSeeder;
 
 public class SubjectsSeeder(
-    IRepository<Subject> subjectRepository,
+    ISubjectRepository subjectRepository,
     ISubjectService subjectService,
     ILogger<SubjectsSeeder> logger)
 {
     public async Task Run()
     {
-        var newSubjects = new List<Subject>()
+        var newSubjects = new List<Subject>
         {
             SubjectFactory.Create("TwinRay", "Shekinah Ma, Sanandaji, Twin Ray")
         };

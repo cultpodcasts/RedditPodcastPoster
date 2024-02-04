@@ -89,7 +89,8 @@ public class SpotifySearcher(ILogger<SpotifySearcher> logger) : ISpotifySearcher
                     return FuzzyMatcher.Match(episodeTitle, sameDateMatches, x => x.Name, MinFuzzyScore);
                 }
 
-                match = sameDateMatches.SingleOrDefault();
+                match = sameDateMatches.SingleOrDefault(x =>
+                    FuzzyMatcher.IsMatch(episodeTitle, x, x => x.Name, MinFuzzyScore));
             }
 
             return match;
