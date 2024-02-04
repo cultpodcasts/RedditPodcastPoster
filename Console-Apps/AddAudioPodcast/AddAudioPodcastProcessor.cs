@@ -108,7 +108,6 @@ public class AddAudioPodcastProcessor(
         {
             podcast = podcastFactory.Create(spotifyPodcast.Name);
             podcast.SpotifyId = spotifyPodcast.Id;
-            podcast.ModelType = ModelType.Podcast;
             podcast.Bundles = false;
             podcast.Publisher = spotifyPodcast.Publisher.Trim();
             podcast.SpotifyMarket = request.SpotifyMarket;
@@ -137,7 +136,6 @@ public class AddAudioPodcastProcessor(
         {
             podcast = podcastFactory.Create(applePodcast.Name);
             podcast.AppleId = applePodcast.Id;
-            podcast.ModelType = ModelType.Podcast;
             podcast.Bundles = false;
             podcast.Publisher = applePodcast.ArtistName.Trim();
             podcast.ReleaseAuthority = Service.Apple;
