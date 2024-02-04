@@ -50,7 +50,7 @@ public class QueryExecutor(
     public async Task<SubjectModel> GetSubjects(CancellationToken ct)
     {
         var termSubjects = new Dictionary<string, List<string>>();
-        var subjects = await subjectRepository.GetAll(Subject.PartitionKey);
+        var subjects = await subjectRepository.GetAll();
         foreach (var subject in subjects)
         {
             AddTerm(termSubjects, subject.Name, subject.Name);

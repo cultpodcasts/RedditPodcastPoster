@@ -5,8 +5,6 @@ namespace CultPodcasts.DatabasePublisher.PublicModels;
 
 public sealed class PublicPodcast : CosmosSelector
 {
-    public static readonly string PartitionKey = ModelType.Podcast.ToString();
-
     public PublicPodcast(Guid id)
     {
         Id = id;

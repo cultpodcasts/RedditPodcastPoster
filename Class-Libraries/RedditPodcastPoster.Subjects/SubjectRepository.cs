@@ -2,6 +2,7 @@
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Subjects;
@@ -14,11 +15,12 @@ public class SubjectRepository(
 {
     public Task<IEnumerable<Subject>> GetAll()
     {
-        return repository.GetAll(Subject.PartitionKey);
+        return repository.GetAll();
     }
 
     public async Task<Subject?> GetByName(string name)
     {
+        var partitionKey = CosmosSelectorExtensions.GetModelType<Subject>().ToString();
         using var query = container
             .GetItemLinqQueryable<Subject>(
                 linqSerializerOptions: new CosmosLinqSerializerOptions
@@ -27,7 +29,7 @@ public class SubjectRepository(
                 },
                 requestOptions: new QueryRequestOptions
                 {
-                    PartitionKey = new PartitionKey(Subject.PartitionKey)
+                    PartitionKey = new PartitionKey(partitionKey)
                 })
             .Where(x => x.Name == name)
             .ToFeedIterator();
@@ -46,6 +48,7 @@ public class SubjectRepository(
 
     public async Task<List<Subject>> GetByNames(string[] names)
     {
+        var partitionKey = CosmosSelectorExtensions.GetModelType<Subject>().ToString();
         var subjects = new List<Subject>();
         using var query = container
             .GetItemLinqQueryable<Subject>(
@@ -55,7 +58,7 @@ public class SubjectRepository(
                 },
                 requestOptions: new QueryRequestOptions
                 {
-                    PartitionKey = new PartitionKey(Subject.PartitionKey)
+                    PartitionKey = new PartitionKey(partitionKey)
                 })
             .Where(x => names.Contains(x.Name))
             .ToFeedIterator();

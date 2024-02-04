@@ -1,5 +1,4 @@
-﻿using Azure;
-using Microsoft.DurableTask;
+﻿using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common;

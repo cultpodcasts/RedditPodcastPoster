@@ -12,12 +12,12 @@ public class Repository<T>(
 {
     private readonly ILogger<Repository<CosmosSelector>> _logger = logger;
 
-    public async Task<IEnumerable<T>> GetAll(string partitionKey)
+    public async Task<IEnumerable<T>> GetAll()
     {
         return await dataRepository.GetAll<T>().ToListAsync();
     }
 
-    public async Task<T?> Get(string key, string partitionKey)
+    public async Task<T?> Get(string key)
     {
         return await dataRepository.Read<T>(key);
     }
