@@ -14,12 +14,11 @@ public class PublicDatabasePublisher(
     public async Task Run()
     {
         var partitionKey = Podcast.PartitionKey;
-        var podcastIds =
-            await cosmosDbRepository.GetAllIds<Podcast>(partitionKey);
+        var podcastIds = await cosmosDbRepository.GetAllIds<Podcast>().ToArrayAsync();
 
         foreach (var podcastId in podcastIds)
         {
-            var podcast = await cosmosDbRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
+            var podcast = await cosmosDbRepository.Read<Podcast>(podcastId.ToString());
 
             if (podcast != null && podcast.Episodes.Any(x => x is {Removed: false}))
             {

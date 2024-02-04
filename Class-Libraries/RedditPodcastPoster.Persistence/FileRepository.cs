@@ -58,8 +58,9 @@ public class FileRepository : IFileRepository
         await JsonSerializer.SerializeAsync(createStream, data, _jsonSerialiserOptions);
     }
 
-    public async Task<T?> Read<T>(string fileKey, string partitionKey) where T : CosmosSelector
+    public async Task<T?> Read<T>(string fileKey) where T : CosmosSelector
     {
+        var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         var file = GetFilePath(fileKey);
         await using var readStream = File.OpenRead(file);
         var item = await JsonSerializer.DeserializeAsync<T>(readStream);
@@ -71,14 +72,15 @@ public class FileRepository : IFileRepository
         return null;
     }
 
-    public async IAsyncEnumerable<T> GetAll<T>(string partitionKey) where T : CosmosSelector
+    public async IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector
     {
+        var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         var filenames = GetFilenames();
         var keys = filenames.Select(x =>
             x.Substring(_container.Length, x.Length - (FileExtension.Length + _container.Length)));
         foreach (var item in keys)
         {
-            var cosmosSelector = await Read<T>(item, partitionKey);
+            var cosmosSelector = await Read<T>(item);
             if (cosmosSelector!.IsOfType<T>())
             {
                 yield return cosmosSelector!;
@@ -86,44 +88,42 @@ public class FileRepository : IFileRepository
         }
     }
 
-    public async Task<IEnumerable<Guid>> GetAllIds<T>(string partitionKey) where T : CosmosSelector
+    public async IAsyncEnumerable<Guid> GetAllIds<T>() where T : CosmosSelector
     {
-        var guids = new List<Guid>();
+        var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         var filenames = GetFilenames();
 
         var keys = filenames.Select(x =>
             x.Substring(_container.Length, x.Length - (FileExtension.Length + _container.Length)));
         foreach (var item in keys)
         {
-            var cosmosSelector = await Read<T>(item, partitionKey);
+            var cosmosSelector = await Read<T>(item);
             if (cosmosSelector != null)
             {
-                guids.Add(cosmosSelector.Id);
+                yield return cosmosSelector.Id;
             }
         }
-
-        return guids;
     }
 
-    public async Task<T?> GetBy<T>(string partitionKey, Expression<Func<T, bool>> selector) where T : CosmosSelector
+    public async Task<T?> GetBy<T>(Expression<Func<T, bool>> selector) where T : CosmosSelector
     {
-        var items = await GetAll<T>(partitionKey).ToListAsync();
+        var items = await GetAll<T>().ToListAsync();
         var reduce = items.FirstOrDefault(selector.Compile());
         return reduce;
     }
 
-    public async Task<IEnumerable<T>> GetAllBy<T>(string partitionKey, Expression<Func<T, bool>> selector)
+    public async Task<IEnumerable<T>> GetAllBy<T>(Expression<Func<T, bool>> selector)
         where T : CosmosSelector
     {
-        var items = await GetAll<T>(partitionKey).ToListAsync();
+        var items = await GetAll<T>().ToListAsync();
         var reduce = items.Where(selector.Compile());
         return reduce;
     }
 
-    public async Task<IEnumerable<T2>> GetAllBy<T, T2>(string partitionKey, Expression<Func<T, bool>> selector,
+    public async Task<IEnumerable<T2>> GetAllBy<T, T2>(Expression<Func<T, bool>> selector,
         Expression<Func<T, T2>> expr) where T : CosmosSelector
     {
-        var items = await GetAll<T>(partitionKey).ToListAsync();
+        var items = await GetAll<T>().ToListAsync();
         var reduce = items.Where(selector.Compile()).Select(expr.Compile());
         return reduce;
     }

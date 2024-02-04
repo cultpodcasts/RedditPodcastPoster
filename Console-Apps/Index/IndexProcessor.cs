@@ -37,7 +37,7 @@ internal class IndexProcessor(
         }
         else
         {
-            podcastIds = await podcastRepository.GetAllIds();
+            podcastIds = await podcastRepository.GetAllIds().ToArrayAsync();
         }
 
         foreach (var podcastId in podcastIds)

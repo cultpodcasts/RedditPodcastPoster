@@ -10,13 +10,11 @@ public class KnownTermsRepository(
 {
     public async Task<KnownTerms> Get()
     {
-        var partitionKey = new KnownTerms().GetPartitionKey();
-        return (await dataRepository.Read<KnownTerms>(KnownTerms._Id.ToString(), partitionKey))!;
+        return (await dataRepository.Read<KnownTerms>(KnownTerms._Id.ToString()))!;
     }
 
-    public async Task Save(KnownTerms terms)
+    public Task Save(KnownTerms terms)
     {
-        var key = terms.GetPartitionKey();
-        await dataRepository.Write(terms);
+        return dataRepository.Write(terms);
     }
 }

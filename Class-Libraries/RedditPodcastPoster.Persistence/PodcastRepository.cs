@@ -15,7 +15,7 @@ public class PodcastRepository(
     public async Task<Podcast?> GetPodcast(Guid podcastId)
     {
         var partitionKey = Podcast.PartitionKey;
-        return await dataRepository.Read<Podcast>(podcastId.ToString(), partitionKey);
+        return await dataRepository.Read<Podcast>(podcastId.ToString());
     }
 
     public MergeResult Merge(Podcast podcast, IEnumerable<Episode> episodesToMerge)
@@ -64,12 +64,12 @@ public class PodcastRepository(
 
     public IAsyncEnumerable<Podcast> GetAll()
     {
-        return dataRepository.GetAll<Podcast>(Podcast.PartitionKey);
+        return dataRepository.GetAll<Podcast>();
     }
 
-    public Task<IEnumerable<Guid>> GetAllIds()
+    public IAsyncEnumerable<Guid> GetAllIds()
     {
-        return dataRepository.GetAllIds<Podcast>(Podcast.PartitionKey);
+        return dataRepository.GetAllIds<Podcast>();
     }
 
     public async Task Save(Podcast podcast)
@@ -85,17 +85,17 @@ public class PodcastRepository(
 
     public Task<Podcast?> GetBy(Expression<Func<Podcast, bool>> selector)
     {
-        return dataRepository.GetBy(Podcast.PartitionKey, selector);
+        return dataRepository.GetBy(selector);
     }
 
     public Task<IEnumerable<Podcast>> GetAllBy(Expression<Func<Podcast, bool>> selector)
     {
-        return dataRepository.GetAllBy(Podcast.PartitionKey, selector);
+        return dataRepository.GetAllBy( selector);
     }
 
     public Task<IEnumerable<T>> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item)
     {
-        return dataRepository.GetAllBy(Podcast.PartitionKey, selector, item);
+        return dataRepository.GetAllBy(selector, item);
     }
 
     private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)

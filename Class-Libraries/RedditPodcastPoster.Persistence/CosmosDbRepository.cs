@@ -3,6 +3,7 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
@@ -26,25 +27,13 @@ public class CosmosDbRepository(
         }
     }
 
-    public async Task<T?> Read<T>(string key, string partitionKey) where T : CosmosSelector
+    public IAsyncEnumerable<Guid> GetAllIds<T>() where T : CosmosSelector
     {
         try
         {
-            return await container.ReadItemAsync<T>(key, new PartitionKey(partitionKey));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex,
-                $"Error ReadItemAsync on document with key '{key}', partition-partitionKey '{partitionKey}'.");
-            throw;
-        }
-    }
-
-    public IAsyncEnumerable<T> GetAll<T>(string partitionKey) where T : CosmosSelector
-    {
-        try
-        {
-            var feedIterator = container.GetItemQueryIterator<T>(
+            var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
+            var query = "SELECT VALUE root.id FROM root";
+            var feedIterator = container.GetItemQueryIterator<Guid>(query,
                 requestOptions: new QueryRequestOptions
                 {
                     PartitionKey = new PartitionKey(partitionKey)
@@ -58,34 +47,25 @@ public class CosmosDbRepository(
         }
     }
 
-    public async Task<IEnumerable<Guid>> GetAllIds<T>(string partitionKey) where T : CosmosSelector
+    public async Task<T?> Read<T>(string key) where T : CosmosSelector
     {
+        var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         try
         {
-            var guids = new List<Guid>();
-            var guidFeed = container
-                .GetItemQueryIterator<Guid>(
-                    requestOptions: new QueryRequestOptions
-                    {
-                        PartitionKey = new PartitionKey(partitionKey)
-                    });
-            while (guidFeed.HasMoreResults)
-            {
-                var batch = await guidFeed.ReadNextAsync();
-                guids.AddRange(batch);
-            }
-
-            return guids;
+            return await container.ReadItemAsync<T>(key, new PartitionKey(partitionKey));
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(GetAllIds)}: Error Getting-All-Ids of documents.");
+            logger.LogError(ex,
+                $"Error ReadItemAsync on document with key '{key}', partition-partitionKey '{partitionKey}'.");
             throw;
         }
     }
 
-    public async Task<T?> GetBy<T>(string partitionKey, Expression<Func<T, bool>> selector) where T : CosmosSelector
+    public async Task<T?> GetBy<T>(Expression<Func<T, bool>> selector) where T : CosmosSelector
     {
+        var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
+
         var query = container
             .GetItemLinqQueryable<T>(
                 linqSerializerOptions: new CosmosLinqSerializerOptions
@@ -111,9 +91,10 @@ public class CosmosDbRepository(
         return null;
     }
 
-    public async Task<IEnumerable<T>> GetAllBy<T>(string partitionKey, Expression<Func<T, bool>> selector)
+    public async Task<IEnumerable<T>> GetAllBy<T>(Expression<Func<T, bool>> selector)
         where T : CosmosSelector
     {
+        var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         var results = new List<T>();
         var query = container
             .GetItemLinqQueryable<T>(
@@ -140,11 +121,10 @@ public class CosmosDbRepository(
         return results;
     }
 
-    public async Task<IEnumerable<T2>> GetAllBy<T, T2>(
-        string partitionKey, Expression<Func<T, bool>> selector,
-        Expression<Func<T, T2>> expr)
+    public async Task<IEnumerable<T2>> GetAllBy<T, T2>(Expression<Func<T, bool>> selector, Expression<Func<T, T2>> expr)
         where T : CosmosSelector
     {
+        var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         var results = new List<T2>();
         var query = container
             .GetItemLinqQueryable<T>(
@@ -170,5 +150,23 @@ public class CosmosDbRepository(
         }
 
         return results;
+    }
+
+    public IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector
+    {
+        try
+        {
+            var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
+            var feedIterator = container.GetItemQueryIterator<T>(requestOptions: new QueryRequestOptions
+            {
+                PartitionKey = new PartitionKey(partitionKey)
+            });
+            return feedIterator.ToAsyncEnumerable();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"{nameof(GetAll)}: Error retrieving all-documents.");
+            throw;
+        }
     }
 }

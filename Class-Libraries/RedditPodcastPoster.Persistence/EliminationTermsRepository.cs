@@ -13,13 +13,11 @@ public class EliminationTermsRepository(
 
     public async Task<EliminationTerms> Get()
     {
-        var partitionKey = EliminationTerms.PartitionKey;
-        return (await dataRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString(), partitionKey))!;
+        return (await dataRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString()))!;
     }
 
     public async Task Save(EliminationTerms terms)
     {
-        var key = terms.GetPartitionKey();
         await dataRepository.Write(terms);
     }
 }

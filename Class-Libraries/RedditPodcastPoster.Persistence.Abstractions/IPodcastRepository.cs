@@ -10,7 +10,7 @@ public interface IPodcastRepository
     Task Update(Podcast podcast);
     MergeResult Merge(Podcast podcast, IEnumerable<Episode> episodesToMerge);
     IAsyncEnumerable<Podcast> GetAll();
-    Task<IEnumerable<Guid>> GetAllIds();
+    IAsyncEnumerable<Guid> GetAllIds();
     Task<Podcast?> GetBy(Expression<Func<Podcast, bool>> selector);
     Task<IEnumerable<Podcast>> GetAllBy(Expression<Func<Podcast, bool>> selector);
     Task<IEnumerable<T>> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item);
