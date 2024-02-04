@@ -25,7 +25,7 @@ public class CachedSubjectRepository(
     private async Task Fetch()
     {
         logger.LogInformation($"Fetching {nameof(CachedSubjectRepository)}.");
-        var subjects = await subjectRepository.GetAll();
+        var subjects = await subjectRepository.GetAll().ToArrayAsync();
         _cache = subjects.ToList();
         _requiresFetch = false;
         if (_cache.Any(x => string.IsNullOrWhiteSpace(x.Name)))

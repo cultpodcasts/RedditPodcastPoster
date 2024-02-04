@@ -4,7 +4,8 @@ namespace RedditPodcastPoster.Persistence.Abstractions;
 
 public interface ISubjectRepository
 {
-    Task<IEnumerable<Subject>> GetAll();
+    Task Save(Subject subject);
+    IAsyncEnumerable<Subject> GetAll();
     Task<Subject?> GetByName(string name);
-    Task<List<Subject>> GetByNames(string[] names);
+    IAsyncEnumerable<Subject> GetByNames(string[] names);
 }

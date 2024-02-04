@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Reddit;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Subjects;
@@ -10,7 +9,7 @@ namespace EnrichSubjectRedditFlairs;
 
 public class RedditFlairsProcessor(
     RedditClient redditClient,
-    IRepository<Subject> repository,
+    ISubjectRepository repository,
     ISubjectCleanser subjectCleanser,
     IOptions<SubredditSettings> subredditSettings,
     ISubjectRepository subjectRepository,

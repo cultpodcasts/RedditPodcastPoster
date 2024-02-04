@@ -1,7 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using RedditPodcastPoster.Persistence.Extensions;
 
 namespace RedditPodcastPoster.Subjects.Extensions;
 
@@ -12,7 +10,6 @@ public static class ServiceCollectionExtensions
         return services
             .AddSingleton<ICachedSubjectRepository, CachedSubjectRepository>()
             .AddSingleton<ISubjectRepository, SubjectRepository>()
-            .AddRepository<Subject>()
             .AddScoped<ISubjectService, SubjectService>()
             .AddScoped<ISubjectEnricher, SubjectEnricher>()
             .AddScoped<ISubjectMatcher, SubjectMatcher>();

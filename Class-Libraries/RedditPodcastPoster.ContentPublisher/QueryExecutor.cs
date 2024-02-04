@@ -11,7 +11,7 @@ namespace RedditPodcastPoster.ContentPublisher;
 public class QueryExecutor(
     Container container,
     ITextSanitiser textSanitiser,
-    IRepository<Subject> subjectRepository,
+    ISubjectRepository subjectRepository,
     ILogger<QueryExecutor> logger)
     : IQueryExecutor
 {
@@ -50,7 +50,7 @@ public class QueryExecutor(
     public async Task<SubjectModel> GetSubjects(CancellationToken ct)
     {
         var termSubjects = new Dictionary<string, List<string>>();
-        var subjects = await subjectRepository.GetAll();
+        var subjects = await subjectRepository.GetAll().ToArrayAsync(ct);
         foreach (var subject in subjects)
         {
             AddTerm(termSubjects, subject.Name, subject.Name);

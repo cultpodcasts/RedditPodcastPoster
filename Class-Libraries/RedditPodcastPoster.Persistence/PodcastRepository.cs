@@ -61,56 +61,50 @@ public class PodcastRepository(
         return new MergeResult(addedEpisodes, mergedEpisodes, failedEpisodes);
     }
 
-    public IAsyncEnumerable<Podcast> GetAll()
-    {
-        return dataRepository.GetAll<Podcast>();
-    }
+    public IAsyncEnumerable<Podcast> GetAll() => dataRepository.GetAll<Podcast>();
 
-    public IAsyncEnumerable<Guid> GetAllIds()
-    {
-        return dataRepository.GetAllIds<Podcast>();
-    }
+    public IAsyncEnumerable<Guid> GetAllIds() => dataRepository.GetAllIds<Podcast>();
 
-    public Task Save(Podcast podcast)
-    {
-        return dataRepository.Write(podcast);
-    }
+    public Task Save(Podcast podcast) => dataRepository.Write(podcast);
 
-    public Task Update(Podcast podcast)
-    {
-        return Save(podcast);
-    }
+    public Task Update(Podcast podcast) => Save(podcast);
 
-    public Task<Podcast?> GetBy(Expression<Func<Podcast, bool>> selector)
-    {
-        return dataRepository.GetBy(selector);
-    }
+    public Task<Podcast?> GetBy(Expression<Func<Podcast, bool>> selector) => dataRepository.GetBy(selector);
 
-    public IAsyncEnumerable<Podcast> GetAllBy(Expression<Func<Podcast, bool>> selector)
-    {
-        return dataRepository.GetAllBy( selector);
-    }
+    public IAsyncEnumerable<Podcast> GetAllBy(Expression<Func<Podcast, bool>> selector) => dataRepository.GetAllBy(selector);
 
-    public IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item)
-    {
-        return dataRepository.GetAllBy(selector, item);
-    }
+    public IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item) => dataRepository.GetAllBy(selector, item);
 
     private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)
     {
         if (!string.IsNullOrWhiteSpace(episode.SpotifyId) && !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
         {
-            return episode.SpotifyId == episodeToMerge.SpotifyId;
+            if (episode.SpotifyId == episodeToMerge.SpotifyId)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         if (!string.IsNullOrWhiteSpace(episode.YouTubeId) && !string.IsNullOrWhiteSpace(episodeToMerge.YouTubeId))
         {
-            return episode.YouTubeId == episodeToMerge.YouTubeId;
+            if (episode.YouTubeId == episodeToMerge.YouTubeId)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         if (episode.AppleId.HasValue && episodeToMerge.AppleId.HasValue)
         {
-            return episode.AppleId.Value == episodeToMerge.AppleId.Value;
+            if (episode.AppleId.Value == episodeToMerge.AppleId.Value)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         return episodeMatcher.IsMatch(episode, episodeToMerge, episodeMatchRegex);
