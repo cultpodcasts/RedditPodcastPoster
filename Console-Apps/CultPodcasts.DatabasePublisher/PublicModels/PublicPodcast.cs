@@ -9,7 +9,6 @@ public sealed class PublicPodcast : CosmosSelector
     {
         Id = id;
         ModelType = ModelType.Podcast;
-
     }
 
     [JsonIgnore]
