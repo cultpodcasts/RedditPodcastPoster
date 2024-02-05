@@ -14,6 +14,7 @@ public class PodcastEpisodesPoster(
     ILogger<PodcastEpisodesPoster> logger)
     : IPodcastEpisodesPoster
 {
+    private static readonly TimeSpan AppleDelay = TimeSpan.FromHours(1);
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
     public async Task<IList<ProcessResponse>> PostNewEpisodes(
@@ -41,9 +42,20 @@ public class PodcastEpisodesPoster(
                 if (matchingPodcastEpisode.Episode.Urls.Spotify != null ||
                     matchingPodcastEpisode.Episode.Urls.YouTube != null)
                 {
-                    var result = await podcastEpisodePoster.PostPodcastEpisode(
-                        matchingPodcastEpisode, preferYouTube);
-                    matchingPodcastEpisodeResults.Add(result);
+                    if (matchingPodcastEpisode.Podcast.AppleId == null ||
+                        matchingPodcastEpisode.Episode.AppleId != null ||
+                        matchingPodcastEpisode.Podcast.Timestamp <=
+                        DateTimeOffset.UtcNow.Subtract(AppleDelay).ToUnixTimeSeconds())
+                    {
+                        var result = await podcastEpisodePoster.PostPodcastEpisode(
+                            matchingPodcastEpisode, preferYouTube);
+                        matchingPodcastEpisodeResults.Add(result);
+                    }
+                    else
+                    {
+                        matchingPodcastEpisodeResults.Add(ProcessResponse.DelayedPosting(
+                            $"Episode with id {matchingPodcastEpisode.Episode.Id} and title '{matchingPodcastEpisode.Episode.Title}' from podcast '{matchingPodcastEpisode.Podcast.Name}' with podcast-id '{matchingPodcastEpisode.Podcast.Id}' was delayed posting as Apple-Id is null."));
+                    }
                 }
                 else
                 {
