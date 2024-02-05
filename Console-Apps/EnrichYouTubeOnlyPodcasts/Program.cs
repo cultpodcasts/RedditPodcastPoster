@@ -28,10 +28,8 @@ builder.Services
     .AddRepositories(builder.Configuration)
     .AddYouTubeServices(builder.Configuration)
     .AddSubjectServices()
-    .AddSingleton<EnrichYouTubePodcastProcessor>();
-
-builder.Services.AddPostingCriteria(builder.Configuration);
-
+    .AddSingleton<EnrichYouTubePodcastProcessor>()
+    .AddPostingCriteria(builder.Configuration);
 
 using var host = builder.Build();
 

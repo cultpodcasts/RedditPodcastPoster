@@ -24,6 +24,11 @@ public class ProcessResponse(bool success, string message = "") : MessageRespons
         return new ProcessResponse(true, s);
     }
 
+    public static ProcessResponse DelayedPosting(string s = "")
+    {
+        return new ProcessResponse(false, s);
+    }
+
     public static ProcessResponse Fail(string s)
     {
         return new ProcessResponse(false, s);

@@ -16,4 +16,7 @@ public class CosmosSelector
     [JsonPropertyName("fileKey")]
     [JsonPropertyOrder(1000)]
     public virtual string FileKey { get; set; } = "";
+
+    [JsonPropertyName("_ts")]
+    public virtual long Timestamp { get; internal set; }
 }
