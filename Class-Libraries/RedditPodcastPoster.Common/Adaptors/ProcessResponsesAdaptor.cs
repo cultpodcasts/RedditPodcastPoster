@@ -19,11 +19,15 @@ public class ProcessResponsesAdaptor(ILogger<ProcessResponsesAdaptor> logger) : 
 
         if (matchingPodcastEpisodeResults.Any(x => x.Success))
         {
-            messages.Add("Success:");
-            var resultMessages = matchingPodcastEpisodeResults.Select(x => x.Message);
-            if (resultMessages.Any())
+            if (matchingPodcastEpisodeResults.Any(x => x.Success && !string.IsNullOrWhiteSpace(x.Message)))
             {
-                messages.AddRange(resultMessages);
+                messages.Add("Success:");
+                var resultMessages = matchingPodcastEpisodeResults
+                    .Where(x => x.Success && !string.IsNullOrWhiteSpace(x.Message)).Select(x => x.Message);
+                if (resultMessages.Any())
+                {
+                    messages.AddRange(resultMessages);
+                }
             }
         }
         else

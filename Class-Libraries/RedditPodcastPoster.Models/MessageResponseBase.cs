@@ -10,7 +10,7 @@ public class MessageResponseBase(bool success, string message = "")
     {
         if (Success)
         {
-            return $"Success : {Message}";
+            return Message;
         }
 
         return $"FAILURE: {Message}";

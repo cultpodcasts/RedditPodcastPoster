@@ -2,7 +2,10 @@
 
 namespace RedditPodcastPoster.Reddit;
 
-public class RedditPostResult(bool success, string message = "", bool alreadyPosted = false)
+public class RedditPostResult(
+    bool success,
+    string message = "",
+    bool alreadyPosted = false)
     : MessageResponseBase(success, message)
 {
     public bool AlreadyPosted { init; get; } = alreadyPosted;
