@@ -47,8 +47,8 @@ public class PodcastEpisodesPoster(
                     var appleGracePeriodEnds = DateTimeOffset
                         .FromUnixTimeSeconds(matchingPodcastEpisode.Podcast.Timestamp).UtcDateTime.Add(AppleDelay);
                     if (matchingPodcastEpisode.Podcast.AppleId == null ||
-                        (matchingPodcastEpisode.Episode.AppleId != null &&
-                         DateTime.UtcNow >= appleGracePeriodEnds))
+                        matchingPodcastEpisode.Episode.AppleId != null ||
+                         DateTime.UtcNow >= appleGracePeriodEnds)
                     {
                         var result = await podcastEpisodePoster.PostPodcastEpisode(
                             matchingPodcastEpisode, preferYouTube);
