@@ -42,10 +42,11 @@ public class PodcastEpisodesPoster(
                 if (matchingPodcastEpisode.Episode.Urls.Spotify != null ||
                     matchingPodcastEpisode.Episode.Urls.YouTube != null)
                 {
+                    var appleGracePeriodEnds = DateTimeOffset
+                        .FromUnixTimeSeconds(matchingPodcastEpisode.Podcast.Timestamp).UtcDateTime.Add(AppleDelay);
                     if (matchingPodcastEpisode.Podcast.AppleId == null ||
-                        matchingPodcastEpisode.Episode.AppleId != null ||
-                        matchingPodcastEpisode.Podcast.Timestamp <=
-                        DateTimeOffset.UtcNow.Subtract(AppleDelay).ToUnixTimeSeconds())
+                        (matchingPodcastEpisode.Episode.AppleId != null &&
+                         DateTime.UtcNow >= appleGracePeriodEnds))
                     {
                         var result = await podcastEpisodePoster.PostPodcastEpisode(
                             matchingPodcastEpisode, preferYouTube);
@@ -54,7 +55,7 @@ public class PodcastEpisodesPoster(
                     else
                     {
                         matchingPodcastEpisodeResults.Add(ProcessResponse.DelayedPosting(
-                            $"Episode with id {matchingPodcastEpisode.Episode.Id} and title '{matchingPodcastEpisode.Episode.Title}' from podcast '{matchingPodcastEpisode.Podcast.Name}' with podcast-id '{matchingPodcastEpisode.Podcast.Id}' was delayed posting as Apple-Id is null."));
+                            $"Episode with id {matchingPodcastEpisode.Episode.Id} and title '{matchingPodcastEpisode.Episode.Title}' from podcast '{matchingPodcastEpisode.Podcast.Name}' with podcast-id '{matchingPodcastEpisode.Podcast.Id}' was delayed posting as Apple-Id is null. Podcast updated '{DateTimeOffset.FromUnixTimeSeconds(matchingPodcastEpisode.Podcast.Timestamp).UtcDateTime:g}', Grace-Period until '{appleGracePeriodEnds:g}'."));
                     }
                 }
                 else
