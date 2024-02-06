@@ -18,5 +18,5 @@ public class CosmosSelector
     public virtual string FileKey { get; set; } = "";
 
     [JsonPropertyName("_ts")]
-    public virtual long Timestamp { get; internal set; }
+    public virtual long Timestamp { get; set; }
 }
