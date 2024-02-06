@@ -88,13 +88,14 @@ public class PostProcessor(
                 podcasts,
                 preferYouTube: request.YouTubePrimaryPostService);
         var result = processResponsesAdaptor.CreateResponse(results);
-        if (!result.Success)
+        var message = result.ToString();
+        if (!result.Success && !string.IsNullOrWhiteSpace(message))
         {
-            logger.LogError(result.ToString());
+            logger.LogError(message);
         }
         else
         {
-            logger.LogInformation(result.ToString());
+            logger.LogInformation(message);
         }
     }
 }

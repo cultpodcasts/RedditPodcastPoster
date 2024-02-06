@@ -26,7 +26,7 @@ public class EpisodePostManager(
 
         if (result.AlreadyPosted)
         {
-            return ProcessResponse.Fail(
+            return ProcessResponse.AlreadyPosted(
                 $"Reddit reports episode {postModel.Id} already posted. Updated repository.");
         }
 
