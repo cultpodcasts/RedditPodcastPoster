@@ -32,6 +32,8 @@ public class PodcastEpisodesPoster(
             return Array.Empty<ProcessResponse>();
         }
 
+        List<Podcast> UpdatedPodcasts = new List<Podcast>();
+
         var matchingPodcastEpisodeResults = new List<ProcessResponse>();
         foreach (var matchingPodcastEpisode in matchingPodcastEpisodes.OrderByDescending(x => x.Episode.Release))
         {
@@ -51,6 +53,10 @@ public class PodcastEpisodesPoster(
                         var result = await podcastEpisodePoster.PostPodcastEpisode(
                             matchingPodcastEpisode, preferYouTube);
                         matchingPodcastEpisodeResults.Add(result);
+                        if (result.Success)
+                        {
+                            UpdatedPodcasts.Add(matchingPodcastEpisode.Podcast);
+                        }
                     }
                     else
                     {
@@ -67,12 +73,13 @@ public class PodcastEpisodesPoster(
             else
             {
                 matchingPodcastEpisode.Episode.Ignored = true;
+                UpdatedPodcasts.Add(matchingPodcastEpisode.Podcast);
                 matchingPodcastEpisodeResults.Add(ProcessResponse.TooShort(
                     $"Episode with id {matchingPodcastEpisode.Episode.Id} and title '{matchingPodcastEpisode.Episode.Title}' from podcast '{matchingPodcastEpisode.Podcast.Name}' with podcast-id '{matchingPodcastEpisode.Podcast.Id}' was Ignored for being too short at '{matchingPodcastEpisode.Episode.Length}'."));
             }
         }
 
-        foreach (var podcast in matchingPodcastEpisodes.Select(x => x.Podcast).Distinct())
+        foreach (var podcast in UpdatedPodcasts)
         {
             await podcastRepository.Save(podcast);
         }
