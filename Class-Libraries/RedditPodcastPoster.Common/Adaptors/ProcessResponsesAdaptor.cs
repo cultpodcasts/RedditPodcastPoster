@@ -20,7 +20,7 @@ public class ProcessResponsesAdaptor(ILogger<ProcessResponsesAdaptor> logger) : 
         if (matchingPodcastEpisodeResults.Any(x => x.Success))
         {
             messages.Add("Success:");
-            var resultMessages = matchingPodcastEpisodeResults.Select(x => x.Message);
+            var resultMessages = matchingPodcastEpisodeResults.Where(x => x.Success).Select(x => x.Message);
             if (resultMessages.Any())
             {
                 messages.AddRange(resultMessages);
