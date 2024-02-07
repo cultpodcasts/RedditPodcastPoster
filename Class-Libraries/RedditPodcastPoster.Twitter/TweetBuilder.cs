@@ -17,6 +17,7 @@ public class TweetBuilder(
     ILogger<TweetBuilder> logger)
     : ITweetBuilder
 {
+    private static readonly TextInfo TextInfo = new CultureInfo("en-GB", false).TextInfo;
     private readonly TwitterOptions _twitterOptions = twitterOptions.Value;
 
     public async Task<string> BuildTweet(PodcastEpisode podcastEpisode)
@@ -24,22 +25,20 @@ public class TweetBuilder(
         var postModel = (podcastEpisode.Podcast, new[] {podcastEpisode.Episode}).ToPostModel();
         var episodeTitle = textSanitiser.SanitiseTitle(postModel);
 
-        var episodeHashtags = await GetHashTags(podcastEpisode.Episode.Subjects) ?? string.Empty;
-        var hashtags = episodeHashtags.Split(' ').AsEnumerable();
+        var episodeHashtags = await GetHashTags(podcastEpisode.Episode.Subjects);
         if (!string.IsNullOrWhiteSpace(_twitterOptions.HashTag))
         {
-            hashtags = hashtags.Append(_twitterOptions.HashTag);
+            episodeHashtags.Add((_twitterOptions.HashTag, null));
         }
 
-        hashtags = hashtags.Where(x => !string.IsNullOrWhiteSpace(x));
-
         var hashtagsAdded = new List<string>();
-        foreach (var hashtag in hashtags)
+        foreach (var hashtag in episodeHashtags)
         {
-            (episodeTitle, var addedHashTag) = hashTagEnricher.AddHashTag(episodeTitle, hashtag.TrimStart('#'));
-            if (addedHashTag)
+            var hashTagText = hashtag.Item1.TrimStart('#');
+            (episodeTitle, var addedHashTag) = hashTagEnricher.AddHashTag(episodeTitle, hashTagText, hashtag.Item2);
+            if (addedHashTag && hashtag.Item2 == null)
             {
-                hashtagsAdded.Add(hashtag);
+                hashtagsAdded.Add(hashtag.Item1);
             }
         }
 
@@ -59,7 +58,8 @@ public class TweetBuilder(
             $"{podcastEpisode.Episode.Release.ToString("d MMM yyyy")} {podcastEpisode.Episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture)}");
 
         var endHashTags = string.Join(" ",
-            hashtags.Where(x => !hashtagsAdded.Contains(x)).Select(x => $"#{x.TrimStart('#')}"));
+            episodeHashtags.Where(x => x.Item2 == null).Select(x => x.Item1).Where(x => !hashtagsAdded.Contains(x))
+                .Select(x => $"#{x.TrimStart('#')}"));
         tweetBuilder.AppendLine(endHashTags);
 
         var permittedTitleLength = 257 - tweetBuilder.Length;
@@ -87,17 +87,23 @@ public class TweetBuilder(
         return tweet;
     }
 
-    private async Task<string?> GetHashTags(List<string> episodeSubjects)
+    private async Task<ICollection<(string, string?)>> GetHashTags(List<string> episodeSubjects)
     {
         var subjectRetrieval = episodeSubjects.Select(x => subjectRepository.GetByName(x)).ToArray();
         var subjects = await Task.WhenAll(subjectRetrieval);
-        IEnumerable<string> hashTags = subjects.Where(x => !string.IsNullOrWhiteSpace(x?.HashTag))
-            .Select(x => x!.HashTag).Distinct()!;
-        if (hashTags.Any())
-        {
-            return string.Join(" ", hashTags);
-        }
-
-        return null;
+        var hashTags =
+            subjects
+                .Where(x => !string.IsNullOrWhiteSpace(x?.HashTag))
+                .Select(x => x!.HashTag)
+                .Distinct()
+                .Select(x => (x!, (string?) null));
+        var enrichmentHashTags =
+            subjects
+                .Where(x => x?.EnrichmentHashTags != null && x.EnrichmentHashTags.Any())
+                .SelectMany(x => x!.EnrichmentHashTags!)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .Select(x => (x, (string?) TextInfo.ToTitleCase(x).Replace(" ", string.Empty)));
+        return hashTags.Union(enrichmentHashTags).ToList();
     }
 }
