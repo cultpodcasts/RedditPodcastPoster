@@ -161,7 +161,10 @@ public partial class TextSanitiser(IKnownTermsProvider knownTermsProvider, ILogg
         title = title.Replace("”", "'");
         title = title.Replace("’", "'");
         title = title.Replace(@"´", "'");
-        return title;
+        title = title.Replace("\n", " ");
+        title = title.Replace("\r", " ");
+        title = title.Replace("  ", " ");
+        return title.Trim();
     }
 
     private string FixCasing(string input)

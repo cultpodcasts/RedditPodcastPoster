@@ -89,13 +89,16 @@ public class PostProcessor(
                 preferYouTube: request.YouTubePrimaryPostService);
         var result = processResponsesAdaptor.CreateResponse(results);
         var message = result.ToString();
-        if (!result.Success && !string.IsNullOrWhiteSpace(message))
+        if (!string.IsNullOrWhiteSpace(message))
         {
-            logger.LogError(message);
-        }
-        else
-        {
-            logger.LogInformation(message);
+            if (!result.Success)
+            {
+                logger.LogError(message);
+            }
+            else
+            {
+                logger.LogInformation(message);
+            }
         }
     }
 }
