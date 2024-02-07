@@ -152,4 +152,37 @@ public class HashTagEnricherTests
         // assert
         changed.Should().BeTrue();
     }
+
+    [Fact]
+    public void AddHashTag_WithCompositeTerm_StatusIsCorrect()
+    {
+        // arrange
+        var input = "Prefix Composite Term Middle TeRm Suffix";
+        // act
+        var (_, changed) = Sut.AddHashTag(input, "Composite Term", "CompositeTerm");
+        // assert
+        changed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AddHashTag_WithCompositeTerm_StringIsCorrect()
+    {
+        // arrange
+        var input = "Prefix Composite Term Middle TeRm Suffix";
+        // act
+        var (result, _) = Sut.AddHashTag(input, "Composite Term", "CompositeTerm");
+        // assert
+        result.Should().Be("Prefix #CompositeTerm Middle TeRm Suffix");
+    }
+
+    [Fact]
+    public void AddHashTag_WithMultipleCompositeTerm_StringIsCorrect()
+    {
+        // arrange
+        var input = "Prefix Composite Term Middle TeRm Composite Term Suffix";
+        // act
+        var (result, _) = Sut.AddHashTag(input, "Composite Term", "CompositeTerm");
+        // assert
+        result.Should().Be("Prefix #CompositeTerm Middle TeRm Composite Term Suffix");
+    }
 }
