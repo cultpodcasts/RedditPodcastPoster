@@ -8,8 +8,10 @@ namespace Discover;
 
 public class DiscoveryProcessor(
     ISpotifyClientWrapper spotifyClient,
-    ILogger<DiscoveryProcessor> logger)
-{
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<DiscoveryProcessor> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) {
     public async Task Process(DiscoveryRequest request)
     {
         var indexingContext = new IndexingContext(

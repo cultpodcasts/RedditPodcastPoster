@@ -7,8 +7,10 @@ namespace RedditPodcastPoster.Common.Episodes;
 
 public class PodcastEpisodePoster(
     IEpisodePostManager episodePostManager,
-    ILogger<PodcastEpisodePoster> logger)
-    : IPodcastEpisodePoster
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<PodcastEpisodePoster> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) : IPodcastEpisodePoster
 {
     private readonly ILogger<PodcastEpisodePoster> _logger = logger;
 

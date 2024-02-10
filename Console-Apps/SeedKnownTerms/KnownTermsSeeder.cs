@@ -7,7 +7,10 @@ namespace SeedKnownTerms;
 
 public class KnownTermsSeeder(
     IKnownTermsRepository knownTermsRepository,
-    ILogger<CosmosDbRepository> logger)
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<CosmosDbRepository> logger
+#pragma warning restore CS9113 // Parameter is unread.
+)
 {
     private readonly Dictionary<string, Regex> _knownTerms = new()
     {
