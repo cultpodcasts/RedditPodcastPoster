@@ -4,7 +4,11 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Reddit;
 
-public class RedditBundleCommentFactory(ILogger<RedditBundleCommentFactory> logger) : IRedditBundleCommentFactory
+public class RedditBundleCommentFactory(
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<RedditBundleCommentFactory> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) : IRedditBundleCommentFactory
 {
     public string Post(PostModel postModel)
     {

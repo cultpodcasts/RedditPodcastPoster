@@ -12,7 +12,9 @@ public class QueryExecutor(
     Container container,
     ITextSanitiser textSanitiser,
     ISubjectRepository subjectRepository,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<QueryExecutor> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : IQueryExecutor
 {
     public async Task<HomePageModel> GetHomePage(CancellationToken ct)

@@ -4,7 +4,11 @@ using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
-public class SpotifyClientFactory(IOptions<SpotifySettings> settings, ILogger<SpotifyClientFactory> logger)
+public class SpotifyClientFactory(
+    IOptions<SpotifySettings> settings, 
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<SpotifyClientFactory> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : ISpotifyClientFactory
 {
     private readonly SpotifySettings _settings = settings.Value;

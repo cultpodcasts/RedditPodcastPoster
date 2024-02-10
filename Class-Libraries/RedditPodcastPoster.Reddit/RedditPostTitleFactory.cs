@@ -8,7 +8,9 @@ namespace RedditPodcastPoster.Reddit;
 public class RedditPostTitleFactory(
     ITextSanitiser textSanitiser,
     IOptions<SubredditSettings> settings,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<RedditPostTitleFactory> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : IRedditPostTitleFactory
 {
     private readonly SubredditSettings _settings = settings.Value;

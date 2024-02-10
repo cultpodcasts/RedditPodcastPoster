@@ -14,7 +14,9 @@ public class TweetBuilder(
     ISubjectRepository subjectRepository,
     IHashTagEnricher hashTagEnricher,
     IOptions<TwitterOptions> twitterOptions,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<TweetBuilder> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : ITweetBuilder
 {
     private static readonly TextInfo TextInfo = new CultureInfo("en-GB", false).TextInfo;
