@@ -9,7 +9,9 @@ namespace RedditPodcastPoster.Persistence;
 public class PodcastRepository(
     IDataRepository dataRepository,
     IEpisodeMatcher episodeMatcher,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<PodcastRepository> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : IPodcastRepository
 {
     public Task<Podcast?> GetPodcast(Guid podcastId)

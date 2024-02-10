@@ -6,7 +6,11 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
 
-public class EpisodeMatcher(ILogger<EpisodeMatcher> logger) : IEpisodeMatcher
+public class EpisodeMatcher(
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<EpisodeMatcher> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) : IEpisodeMatcher
 {
     private readonly CompareInfo _compareInfo = CultureInfo.InvariantCulture.CompareInfo;
 

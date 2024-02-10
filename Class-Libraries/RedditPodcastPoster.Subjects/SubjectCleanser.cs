@@ -5,7 +5,9 @@ namespace RedditPodcastPoster.Subjects;
 
 public class SubjectCleanser(
     ISubjectService subjectService,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<SubjectCleanser> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : ISubjectCleanser
 {
     private static readonly Regex BracketedTerm = new(@"\((?'bracketedterm'.*)\)", RegexOptions.Compiled);

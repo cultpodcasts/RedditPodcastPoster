@@ -7,7 +7,9 @@ namespace DeleteSearchDocument;
 
 public class SearchClientFactory(
     IOptions<SearchIndexConfig> searchIndexConfig,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<SearchClientFactory> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : ISearchClientFactory
 {
     private readonly SearchIndexConfig _searchIndexConfig = searchIndexConfig.Value;

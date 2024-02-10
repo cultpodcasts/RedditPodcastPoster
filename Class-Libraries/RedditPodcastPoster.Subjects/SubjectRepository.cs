@@ -6,7 +6,9 @@ namespace RedditPodcastPoster.Subjects;
 
 public class SubjectRepository(
     IDataRepository repository,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<SubjectRepository> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : ISubjectRepository
 {
     public Task Save(Subject subject)
