@@ -9,8 +9,6 @@ public class EliminationTermsRepository(
     ILogger<EliminationTermsRepository> logger)
     : IEliminationTermsRepository
 {
-    private readonly ILogger<EliminationTermsRepository> _logger = logger;
-
     public async Task<EliminationTerms> Get()
     {
         return (await dataRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString()))!;

@@ -10,8 +10,7 @@ public class KnownTermsRepository(
 {
     public async Task<KnownTerms> Get()
     {
-        var knownTerms = await dataRepository.Read<KnownTerms>(KnownTerms._Id.ToString());
-        return knownTerms!;
+        return (await dataRepository.Read<KnownTerms>(KnownTerms._Id.ToString()))!;
     }
 
     public Task Save(KnownTerms terms)

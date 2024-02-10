@@ -43,6 +43,12 @@ public class AppleEpisodeEnricher(
                 }
 
                 enrichmentContext.Apple = url;
+
+                if (string.IsNullOrWhiteSpace(request.Episode.Description) &&
+                    !string.IsNullOrWhiteSpace(appleItem.Description))
+                {
+                    request.Episode.Description = appleItem.Description;
+                }
             }
         }
     }
