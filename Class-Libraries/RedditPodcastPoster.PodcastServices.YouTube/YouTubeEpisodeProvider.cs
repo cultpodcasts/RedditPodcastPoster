@@ -11,7 +11,9 @@ public class YouTubeEpisodeProvider(
     IYouTubePlaylistService youTubePlaylistService,
     IYouTubeVideoService youTubeVideoService,
     IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<YouTubeEpisodeProvider> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : IYouTubeEpisodeProvider
 {
     public async Task<IList<Episode>?> GetEpisodes(

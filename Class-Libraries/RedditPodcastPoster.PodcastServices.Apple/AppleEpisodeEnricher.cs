@@ -6,7 +6,9 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 public class AppleEpisodeEnricher(
     IApplePodcastEnricher applePodcastEnricher,
     IAppleEpisodeResolver appleEpisodeResolver,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<AppleEpisodeEnricher> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : IAppleEpisodeEnricher
 {
     private static readonly TimeSpan YouTubeAuthorityToAudioReleaseConsiderationThreshold = TimeSpan.FromDays(14);
