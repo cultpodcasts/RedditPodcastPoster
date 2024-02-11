@@ -7,7 +7,9 @@ namespace RedditPodcastPoster.PodcastServices.Spotify;
 public class SpotifyPodcastEnricher(
     ISpotifyEpisodeResolver spotifyIdResolver,
     ISpotifyPodcastResolver spotifyPodcastResolver,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<SpotifyPodcastEnricher> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : ISpotifyPodcastEnricher
 {
     public async Task<bool> AddIdAndUrls(Podcast podcast, IndexingContext indexingContext)

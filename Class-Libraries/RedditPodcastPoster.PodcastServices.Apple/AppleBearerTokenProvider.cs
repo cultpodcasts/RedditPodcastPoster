@@ -6,7 +6,9 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class AppleBearerTokenProvider(
     IHttpClientFactory httpClientFactory,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<AppleBearerTokenProvider> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : IAppleBearerTokenProvider
 {
     public async Task<AuthenticationHeaderValue> GetHeader()

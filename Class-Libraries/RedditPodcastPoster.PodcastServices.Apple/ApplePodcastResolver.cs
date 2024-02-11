@@ -6,7 +6,9 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class ApplePodcastResolver(
     iTunesSearchManager iTunesSearchManager,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<AppleEpisodeResolver> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : IApplePodcastResolver
 {
     private const int PodcastSearchLimit = 200;

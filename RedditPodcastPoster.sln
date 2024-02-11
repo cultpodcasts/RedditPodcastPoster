@@ -130,7 +130,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CategorisePodcastEpisodes",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeleteSearchDocument", "Console-Apps\DeleteSearchDocument\DeleteSearchDocument.csproj", "{A58E9AE2-CE6F-4384-8F93-782E0AE338AB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebsubStatus", "Console-Apps\WebsubStatus\WebsubStatus.csproj", "{113714D2-3830-4B34-B978-0DC3DCD2258B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebsubStatus", "Console-Apps\WebsubStatus\WebsubStatus.csproj", "{113714D2-3830-4B34-B978-0DC3DCD2258B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.PodcastServices.Spotify.Tests", "Class-Libraries\RedditPodcastPoster.PodcastServices.Spotify.Tests\RedditPodcastPoster.PodcastServices.Spotify.Tests.csproj", "{6205D116-89D5-485D-B59E-D13FEE3316EB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -354,6 +356,10 @@ Global
 		{113714D2-3830-4B34-B978-0DC3DCD2258B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{113714D2-3830-4B34-B978-0DC3DCD2258B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{113714D2-3830-4B34-B978-0DC3DCD2258B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6205D116-89D5-485D-B59E-D13FEE3316EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6205D116-89D5-485D-B59E-D13FEE3316EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6205D116-89D5-485D-B59E-D13FEE3316EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6205D116-89D5-485D-B59E-D13FEE3316EB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -414,6 +420,7 @@ Global
 		{97744164-BFA8-40F0-9EE4-557699163B3C} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{A58E9AE2-CE6F-4384-8F93-782E0AE338AB} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{113714D2-3830-4B34-B978-0DC3DCD2258B} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
+		{6205D116-89D5-485D-B59E-D13FEE3316EB} = {C870AC3C-8261-4807-AC30-DBEC8C89DCB7}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

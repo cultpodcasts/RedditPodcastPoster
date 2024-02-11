@@ -5,7 +5,11 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices;
 
-public class RemoteClient(ILogger<RemoteClient> logger) : IRemoteClient
+public class RemoteClient(
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<RemoteClient> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) : IRemoteClient
 {
     public async Task<T> InvokeGet<T>(string apiCall)
     {

@@ -3,7 +3,11 @@ using Microsoft.Extensions.Logging;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
-public partial class YouTubeIdExtractor(ILogger<YouTubeIdExtractor> logger) : IYouTubeIdExtractor
+public partial class YouTubeIdExtractor(
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<YouTubeIdExtractor> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) : IYouTubeIdExtractor
 {
     private static readonly Regex VideoId = GenerateYouTubeIdRegex();
 

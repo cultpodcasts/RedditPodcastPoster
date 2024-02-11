@@ -4,7 +4,11 @@ using RedditPodcastPoster.YouTubePushNotifications.Models;
 
 namespace RedditPodcastPoster.YouTubePushNotifications;
 
-public class NotificationAdaptor(ILogger<NotificationAdaptor> logger) : INotificationAdaptor
+public class NotificationAdaptor(
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<NotificationAdaptor> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) : INotificationAdaptor
 {
     private static readonly XNamespace Namespace = "http://www.w3.org/2005/Atom";
     private static readonly XNamespace YouTube = "http://www.youtube.com/xml/schemas/2015";

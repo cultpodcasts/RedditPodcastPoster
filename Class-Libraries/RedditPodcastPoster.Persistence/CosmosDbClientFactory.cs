@@ -8,7 +8,9 @@ namespace RedditPodcastPoster.Persistence;
 public class CosmosDbClientFactory(
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
     IOptions<CosmosDbSettings> settings,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<CosmosDbClientFactory> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : ICosmosDbClientFactory
 {
     private readonly CosmosDbSettings _settings = settings.Value;

@@ -8,7 +8,9 @@ namespace RedditPodcastPoster.AI.Factories;
 
 public class TextAnalyticsClientFactory(
     IOptions<TextAnalyticsSettings> options,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<TextAnalyticsClientFactory> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : ITextAnalyticsClientFactory
 {
     private readonly TextAnalyticsSettings _options = options.Value;

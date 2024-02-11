@@ -6,8 +6,12 @@ using Microsoft.Extensions.Options;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
-public class YouTubeServiceFactory(IOptions<YouTubeSettings> settings, ILogger<YouTubeServiceFactory> logger)
-    : IYouTubeServiceFactory
+public class YouTubeServiceFactory(
+    IOptions<YouTubeSettings> settings,
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<YouTubeServiceFactory> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) : IYouTubeServiceFactory
 {
     private readonly YouTubeSettings _settings = settings.Value;
 

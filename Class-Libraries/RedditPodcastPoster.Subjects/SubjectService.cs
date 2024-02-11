@@ -182,7 +182,9 @@ public class SubjectService(ICachedSubjectRepository subjectRepository, ILogger<
     {
         var matches = new List<MatchResult>();
         var subjectTerm = subject.GetSubjectTerms();
-        if (ignoredSubjects==null || !ignoredSubjects.Contains(subjectTerm.SingleOrDefault(x => x.SubjectTermType == SubjectTermType.Name).Term
+        if (ignoredSubjects == null ||
+            !ignoredSubjects.Contains(subjectTerm
+                .SingleOrDefault(x => x.SubjectTermType == SubjectTermType.Name)?.Term
                 .ToLowerInvariant()))
         {
             foreach (var term in subjectTerm.Where(x => !string.IsNullOrWhiteSpace(x.Term)))

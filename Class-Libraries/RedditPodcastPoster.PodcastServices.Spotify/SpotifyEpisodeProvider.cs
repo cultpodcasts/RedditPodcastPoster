@@ -7,7 +7,9 @@ namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public class SpotifyEpisodeProvider(
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<SpotifyEpisodeProvider> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : ISpotifyEpisodeProvider
 {
     public async Task<GetEpisodesResponse> GetEpisodes(GetEpisodesRequest request, IndexingContext indexingContext)
@@ -27,7 +29,7 @@ public class SpotifyEpisodeProvider(
             Episode.FromSpotify(
                 x.Id,
                 x.Name.Trim(),
-                x.Description.Trim(),
+                x.GetDescription(),
                 TimeSpan.FromMilliseconds(x.DurationMs),
                 x.Explicit,
                 x.GetReleaseDate(),

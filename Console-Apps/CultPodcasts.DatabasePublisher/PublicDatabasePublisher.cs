@@ -9,8 +9,10 @@ namespace CultPodcasts.DatabasePublisher;
 public class PublicDatabasePublisher(
     IFileRepository fileRepository,
     ICosmosDbRepository cosmosDbRepository,
-    ILogger<CosmosDbRepository> logger)
-{
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<CosmosDbRepository> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) {
     public async Task Run()
     {
         var podcastIds = await cosmosDbRepository.GetAllIds<Podcast>().ToArrayAsync();

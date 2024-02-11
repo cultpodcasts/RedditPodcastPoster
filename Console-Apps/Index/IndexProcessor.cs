@@ -11,7 +11,10 @@ internal class IndexProcessor(
     IPodcastRepository podcastRepository,
     IPodcastUpdater podcastUpdater,
     ISubjectEnricher subjectEnricher,
-    ILogger<IndexProcessor> logger)
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<IndexProcessor> logger
+#pragma warning restore CS9113 // Parameter is unread.
+)
 {
     public async Task Run(IndexRequest request)
     {

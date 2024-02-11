@@ -13,8 +13,10 @@ public class PodcastServicesEpisodeEnricher(
     ISpotifyEpisodeEnricher spotifyEpisodeEnricher,
     IYouTubeEpisodeEnricher youTubeEpisodeEnricher,
     IPodcastEpisodeFilter podcastEpisodeFilter,
-    ILogger<PodcastServicesEpisodeEnricher> logger)
-    : IPodcastServicesEpisodeEnricher
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<PodcastServicesEpisodeEnricher> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) : IPodcastServicesEpisodeEnricher
 {
     public async Task<EnrichmentResults> EnrichEpisodes(
         Podcast podcast,

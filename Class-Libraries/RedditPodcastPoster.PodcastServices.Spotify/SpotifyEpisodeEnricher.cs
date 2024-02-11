@@ -23,6 +23,12 @@ public class SpotifyEpisodeEnricher(
             var url = findEpisodeResult.FullEpisode.GetUrl();
             request.Episode.Urls.Spotify = url;
             enrichmentContext.Spotify = url;
+            var description = findEpisodeResult.FullEpisode.GetDescription();
+            if (string.IsNullOrWhiteSpace(request.Episode.Description) &&
+                !string.IsNullOrWhiteSpace(description))
+            {
+                request.Episode.Description = description;
+            }
         }
 
         if (findEpisodeResult.IsExpensiveQuery)

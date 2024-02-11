@@ -16,7 +16,9 @@ public class PodcastService(
     IYouTubeUrlCategoriser youTubeUrlCategoriser,
     IYouTubeIdExtractor youTubeIdExtractor,
     IYouTubeVideoService youTubeVideoService,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<PodcastService> logger
+#pragma warning restore CS9113 // Parameter is unread.
 ) : IPodcastService
 {
     public async Task<Podcast?> GetPodcastFromEpisodeUrl(Uri url, IndexingContext indexingContext)

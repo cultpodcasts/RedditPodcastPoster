@@ -76,7 +76,7 @@ public class EnrichPodcastEpisodesProcessor(
                         {
                             var refinedCriteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty,
                                 podcast.Publisher, spotifyEpisode.FullEpisode.Name,
-                                spotifyEpisode.FullEpisode.Description, spotifyEpisode.FullEpisode.GetReleaseDate(),
+                                spotifyEpisode.FullEpisode.GetDescription(), spotifyEpisode.FullEpisode.GetReleaseDate(),
                                 spotifyEpisode.FullEpisode.GetDuration());
                             match = await appleUrlCategoriser.Resolve(refinedCriteria, podcast, indexingContext);
                             if (match != null)

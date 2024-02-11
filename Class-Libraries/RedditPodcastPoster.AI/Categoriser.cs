@@ -3,7 +3,11 @@ using RedditPodcastPoster.AI;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Subjects;
 
-public class Categoriser(ISubjectEnricher subjectEnricher, ILogger<Categoriser> logger)
+public class Categoriser(
+    ISubjectEnricher subjectEnricher,
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<Categoriser> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : ICategoriser
 {
     public async Task<bool> Categorise(

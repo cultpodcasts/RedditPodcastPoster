@@ -11,8 +11,10 @@ public class PodcastEpisodesPoster(
     IPodcastEpisodeFilter podcastEpisodeFilter,
     IPodcastEpisodePoster podcastEpisodePoster,
     IOptions<PostingCriteria> postingCriteria,
-    ILogger<PodcastEpisodesPoster> logger)
-    : IPodcastEpisodesPoster
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<PodcastEpisodesPoster> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) : IPodcastEpisodesPoster
 {
     private static readonly TimeSpan AppleDelay = TimeSpan.FromHours(1);
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
@@ -32,7 +34,7 @@ public class PodcastEpisodesPoster(
             return Array.Empty<ProcessResponse>();
         }
 
-        List<Podcast> UpdatedPodcasts = new List<Podcast>();
+        var UpdatedPodcasts = new List<Podcast>();
 
         var matchingPodcastEpisodeResults = new List<ProcessResponse>();
         foreach (var matchingPodcastEpisode in matchingPodcastEpisodes.OrderByDescending(x => x.Episode.Release))
@@ -48,7 +50,7 @@ public class PodcastEpisodesPoster(
                         .FromUnixTimeSeconds(matchingPodcastEpisode.Podcast.Timestamp).UtcDateTime.Add(AppleDelay);
                     if (matchingPodcastEpisode.Podcast.AppleId == null ||
                         matchingPodcastEpisode.Episode.AppleId != null ||
-                         DateTime.UtcNow >= appleGracePeriodEnds)
+                        DateTime.UtcNow >= appleGracePeriodEnds)
                     {
                         var result = await podcastEpisodePoster.PostPodcastEpisode(
                             matchingPodcastEpisode, preferYouTube);

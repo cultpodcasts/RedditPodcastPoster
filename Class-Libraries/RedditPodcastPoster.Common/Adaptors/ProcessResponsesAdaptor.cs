@@ -30,10 +30,6 @@ public class ProcessResponsesAdaptor(ILogger<ProcessResponsesAdaptor> logger) : 
                 }
             }
         }
-        else
-        {
-            messages.Add("No result messages");
-        }
 
         var result = string.Join(", ", messages);
         return failures ? ProcessResponse.Fail(result) : ProcessResponse.Successful(result);

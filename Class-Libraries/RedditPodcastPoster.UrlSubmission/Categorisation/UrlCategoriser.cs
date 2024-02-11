@@ -11,7 +11,9 @@ public class UrlCategoriser(
     ISpotifyUrlCategoriser spotifyUrlCategoriser,
     IAppleUrlCategoriser appleUrlCategoriser,
     IYouTubeUrlCategoriser youTubeUrlCategoriser,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<UrlCategoriser> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : IUrlCategoriser
 {
     public async Task<CategorisedItem> Categorise(

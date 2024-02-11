@@ -8,8 +8,10 @@ namespace Discover;
 
 public class DiscoveryProcessor(
     ISpotifyClientWrapper spotifyClient,
-    ILogger<DiscoveryProcessor> logger)
-{
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<DiscoveryProcessor> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) {
     public async Task Process(DiscoveryRequest request)
     {
         var indexingContext = new IndexingContext(
@@ -25,11 +27,12 @@ public class DiscoveryProcessor(
 
         foreach (var episode in results.GroupBy(x => x.Id).Select(x => x.First()).OrderBy(x => x.GetReleaseDate()))
         {
-            var min = Math.Min(episode.Description.Length, 200);
+            var description = episode.GetDescription();
+            var min = Math.Min(description.Length, 200);
             Console.WriteLine($"https://open.spotify.com/episode/{episode.Id}");
             Console.WriteLine(episode.Name);
             Console.WriteLine(episode.Show.Name);
-            Console.WriteLine(episode.Description[..min]);
+            Console.WriteLine(description[..min]);
             Console.WriteLine(episode.GetReleaseDate().ToString("g"));
             Console.WriteLine();
         }
