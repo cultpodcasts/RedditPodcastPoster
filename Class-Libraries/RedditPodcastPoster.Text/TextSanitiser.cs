@@ -7,7 +7,9 @@ using RedditPodcastPoster.Text.KnownTerms;
 
 namespace RedditPodcastPoster.Text;
 
-public partial class TextSanitiser(IKnownTermsProvider knownTermsProvider, ILogger<TextSanitiser> logger)
+public partial class TextSanitiser(
+    IKnownTermsProvider knownTermsProvider,
+    ILogger<TextSanitiser> logger)
     : ITextSanitiser
 {
     private static readonly Regex HashtagOrAtSymbols = GenerateHashTagAtSymbolPatter();
@@ -140,14 +142,9 @@ public partial class TextSanitiser(IKnownTermsProvider knownTermsProvider, ILogg
 
     private string FixCharacters(string title)
     {
-        title = title.Replace("&apos;", "'");
-        title = title.Replace("&quot;", "'");
-        title = title.Replace("&amp;", "&");
-        title = title.Replace("&#8217;", "'");
-        title = title.Replace("&#39;", "'");
+        title = title.FixEntitles();
         title = title.Replace(@"""", "'");
         title = title.Replace(" and ", " & ");
-        title = title.Replace(" one ", " 1 ");
         title = title.Replace(" two ", " 2 ");
         title = title.Replace(" three ", " 3 ");
         title = title.Replace(" four ", " 4 ");
@@ -161,8 +158,6 @@ public partial class TextSanitiser(IKnownTermsProvider knownTermsProvider, ILogg
         title = title.Replace("”", "'");
         title = title.Replace("’", "'");
         title = title.Replace(@"´", "'");
-        title = title.Replace("\n", " ");
-        title = title.Replace("\r", " ");
         title = title.Replace("  ", " ");
         return title.Trim();
     }
