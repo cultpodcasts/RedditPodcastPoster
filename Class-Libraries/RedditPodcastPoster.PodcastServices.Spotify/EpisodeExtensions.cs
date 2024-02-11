@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using HtmlAgilityPack;
+using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
@@ -29,6 +30,7 @@ public static partial class EpisodeExtensions
         doc.LoadHtml(htmlDescription);
         return _multipleSpaces
             .Replace(GetReadableText(doc.DocumentNode), " ")
+            .FixEntitles()
             .Trim();
     }
 
