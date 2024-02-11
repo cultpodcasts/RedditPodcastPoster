@@ -4,7 +4,11 @@ using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
-public class SpotifySearcher(ILogger<SpotifySearcher> logger) : ISpotifySearcher
+public class SpotifySearcher(
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<SpotifySearcher> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) : ISpotifySearcher
 {
     private const int MinFuzzyScore = 70;
     private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(30).Ticks;

@@ -9,7 +9,9 @@ public class YouTubeUrlCategoriser(
     IYouTubeChannelService youTubeChannelService,
     IYouTubeVideoService youTubeVideoService,
     IYouTubeIdExtractor youTubeIdExtractor,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<YouTubeUrlCategoriser> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : IYouTubeUrlCategoriser
 {
     public bool IsMatch(Uri url)

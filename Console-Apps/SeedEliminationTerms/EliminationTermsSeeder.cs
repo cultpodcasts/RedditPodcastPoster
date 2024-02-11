@@ -6,8 +6,10 @@ namespace SeedEliminationTerms;
 
 public class EliminationTermsSeeder(
     IEliminationTermsRepository eliminationTermsRepository,
-    ILogger<CosmosDbRepository> logger)
-{
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<CosmosDbRepository> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) {
     public async Task Run()
     {
         var persisted = await eliminationTermsRepository.Get();

@@ -5,7 +5,11 @@ using Reddit;
 
 namespace RedditPodcastPoster.Reddit;
 
-public class RedditClientFactory(IOptions<RedditSettings> redditSettings, ILogger<RedditClientFactory> logger)
+public class RedditClientFactory(
+    IOptions<RedditSettings> redditSettings,
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<RedditClientFactory> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : IRedditClientFactory
 {
     private readonly RedditSettings _redditSettings = redditSettings.Value;

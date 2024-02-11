@@ -6,11 +6,11 @@ namespace RedditPodcastPoster.Persistence;
 
 public class EliminationTermsRepository(
     IDataRepository dataRepository,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<EliminationTermsRepository> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : IEliminationTermsRepository
 {
-    private readonly ILogger<EliminationTermsRepository> _logger = logger;
-
     public async Task<EliminationTerms> Get()
     {
         return (await dataRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString()))!;

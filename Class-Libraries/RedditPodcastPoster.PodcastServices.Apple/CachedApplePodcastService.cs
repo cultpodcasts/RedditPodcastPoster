@@ -6,7 +6,9 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class CachedApplePodcastService(
     IApplePodcastService applePodcastService,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<CachedApplePodcastService> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : ICachedApplePodcastService
 {
     private static readonly ConcurrentDictionary<string, IEnumerable<AppleEpisode>?> Cache = new();

@@ -6,8 +6,10 @@ namespace Sqllite3DatabasePublisher;
 public class Sqllite3DatabasePublisher(
     IPodcastRepository podcastRepository,
     PodcastContext podcastContext,
-    ILogger<Sqllite3DatabasePublisher> logger)
-{
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<Sqllite3DatabasePublisher> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) {
     public async Task Run()
     {
         await podcastContext.Database.EnsureCreatedAsync();

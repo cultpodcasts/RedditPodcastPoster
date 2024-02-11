@@ -6,7 +6,9 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class AppleEpisodeProvider(
     ICachedApplePodcastService applePodcastService,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<AppleEpisodeProvider> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : IAppleEpisodeProvider
 {
     public async Task<IList<Episode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)

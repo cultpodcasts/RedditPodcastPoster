@@ -9,7 +9,9 @@ namespace RedditPodcastPoster.Subreddit;
 public class SubredditPostProvider(
     RedditClient redditClient,
     IOptions<SubredditSettings> subredditSettings,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<SubredditPostProvider> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : ISubredditPostProvider
 {
     private readonly SubredditSettings _subredditSettings = subredditSettings.Value;

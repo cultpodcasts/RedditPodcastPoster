@@ -8,8 +8,10 @@ namespace RedditPodcastPoster.Common.PodcastServices.Spotify;
 
 public class SpotifyEpisodeRetrievalHandler(
     ISpotifyEpisodeProvider spotifyEpisodeProvider,
-    ILogger<SpotifyEpisodeRetrievalHandler> logger)
-    : ISpotifyEpisodeRetrievalHandler
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<SpotifyEpisodeRetrievalHandler> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) : ISpotifyEpisodeRetrievalHandler
 {
     public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IndexingContext indexingContext)
     {

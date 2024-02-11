@@ -8,7 +8,7 @@ public class Orchestration : TaskOrchestrator<object, IndexerContext>
 {
     public override async Task<IndexerContext> RunAsync(TaskOrchestrationContext context, object input)
     {
-        var logger = context.CreateReplaySafeLogger<Orchestration>(); // orchestrations do NOT have access to DI.
+        var logger = context.CreateReplaySafeLogger<Orchestration>();
         logger.LogInformation(
             $"{nameof(Orchestration)}.{nameof(RunAsync)} initiated. Instance-id: '{context.InstanceId}'.");
 

@@ -4,7 +4,11 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Reddit;
 
-public class RedditEpisodeCommentFactory(ILogger<RedditEpisodeCommentFactory> logger) : IRedditEpisodeCommentFactory
+public class RedditEpisodeCommentFactory(
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<RedditEpisodeCommentFactory> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) : IRedditEpisodeCommentFactory
 {
     public string Post(PostModel postModel)
     {
