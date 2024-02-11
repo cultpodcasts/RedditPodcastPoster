@@ -29,6 +29,28 @@ public class YouTubeUrlCategoriser(
         {
             pair = new PodcastEpisode(podcast,
                 podcast.Episodes.Single(x => x.Urls.YouTube == url));
+
+            var episodes =
+                await youTubeVideoService.GetVideoContentDetails(
+                    new[] {youTubeIdExtractor.Extract(url)!},
+                    indexingContext,
+                    true);
+            if (episodes != null && episodes.Any())
+            {
+                if (episodes.Count > 1)
+                {
+                    throw new InvalidOperationException(
+                        $"Multiple episodes retrieved from youtube video with url '{url}'.");
+                }
+
+                var description = episodes.First().Snippet.Description;
+                if (pair.Episode.Description.Trim().EndsWith("...") &&
+                    description.Length > pair.Episode.Description.Length)
+                {
+                    pair.Episode.Description = description;
+                }
+            }
+
             if (!string.IsNullOrWhiteSpace(pair.Podcast.YouTubeChannelId))
             {
                 return new ResolvedYouTubeItem(pair);
