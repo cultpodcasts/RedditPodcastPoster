@@ -29,7 +29,7 @@ public class SpotifyEpisodeProvider(
             Episode.FromSpotify(
                 x.Id,
                 x.Name.Trim(),
-                x.Description.Trim(),
+                x.GetDescription(),
                 TimeSpan.FromMilliseconds(x.DurationMs),
                 x.Explicit,
                 x.GetReleaseDate(),
