@@ -237,6 +237,12 @@ public class UrlSubmitter(
                 {
                     matchingEpisode.Release = categorisedItem.ResolvedAppleItem.Release;
                 }
+
+                if (matchingEpisode.Description.EndsWith("...") &&
+                    categorisedItem.ResolvedAppleItem.EpisodeDescription.Length > matchingEpisode.Description.Length)
+                {
+                    matchingEpisode.Description = categorisedItem.ResolvedAppleItem.EpisodeDescription.Trim();
+                }
             }
         }
 
@@ -265,6 +271,12 @@ public class UrlSubmitter(
                     matchingEpisode.Urls.Spotify = categorisedItem.ResolvedSpotifyItem.Url;
                     logger.LogInformation(
                         $"Enriched episode with spotify details with spotify-url {categorisedItem.ResolvedSpotifyItem.Url}.");
+                }
+
+                if (matchingEpisode.Description.EndsWith("...") &&
+                    categorisedItem.ResolvedSpotifyItem.EpisodeDescription.Length > matchingEpisode.Description.Length)
+                {
+                    matchingEpisode.Description = categorisedItem.ResolvedSpotifyItem.EpisodeDescription.Trim();
                 }
             }
         }
@@ -300,6 +312,12 @@ public class UrlSubmitter(
                     categorisedItem.ResolvedYouTubeItem.Release.TimeOfDay != TimeSpan.Zero)
                 {
                     matchingEpisode.Release = categorisedItem.ResolvedYouTubeItem.Release;
+                }
+
+                if (matchingEpisode.Description.Trim().EndsWith("...") &&
+                    categorisedItem.ResolvedYouTubeItem.EpisodeDescription.Length > matchingEpisode.Description.Length)
+                {
+                    matchingEpisode.Description = categorisedItem.ResolvedYouTubeItem.EpisodeDescription.Trim();
                 }
             }
         }
