@@ -32,7 +32,7 @@ public class PodcastUpdater(
             podcast,
             indexingContext);
 
-        if (!podcast.BypassShortEpisodeChecking.HasValue || !podcast.BypassShortEpisodeChecking.Value)
+        if (!(podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value))
         {
             foreach (var newEpisode in newEpisodes)
             {
