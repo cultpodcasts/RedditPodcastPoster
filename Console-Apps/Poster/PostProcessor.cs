@@ -86,7 +86,8 @@ public class PostProcessor(
             await podcastEpisodesPoster.PostNewEpisodes(
                 DateTime.UtcNow.AddDays(-1 * request.ReleasedWithin),
                 podcasts,
-                preferYouTube: request.YouTubePrimaryPostService);
+                preferYouTube: request.YouTubePrimaryPostService,
+                ignoreAppleGracePeriod: request.IgnoreAppleGracePeriod);
         var result = processResponsesAdaptor.CreateResponse(results);
         var message = result.ToString();
         if (!string.IsNullOrWhiteSpace(message))
