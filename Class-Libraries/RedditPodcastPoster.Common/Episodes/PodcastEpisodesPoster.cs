@@ -24,7 +24,8 @@ public class PodcastEpisodesPoster(
         IEnumerable<Podcast> podcasts,
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true,
-        bool preferYouTube = false)
+        bool preferYouTube = false,
+        bool ignoreAppleGracePeriod = false)
     {
         var matchingPodcastEpisodes =
             podcastEpisodeFilter.GetNewEpisodesReleasedSince(podcasts, since, youTubeRefreshed, spotifyRefreshed);
@@ -48,7 +49,8 @@ public class PodcastEpisodesPoster(
                 {
                     var appleGracePeriodEnds = DateTimeOffset
                         .FromUnixTimeSeconds(matchingPodcastEpisode.Podcast.Timestamp).UtcDateTime.Add(AppleDelay);
-                    if (matchingPodcastEpisode.Podcast.AppleId == null ||
+                    if (ignoreAppleGracePeriod ||
+                        matchingPodcastEpisode.Podcast.AppleId == null ||
                         matchingPodcastEpisode.Episode.AppleId != null ||
                         DateTime.UtcNow >= appleGracePeriodEnds)
                     {

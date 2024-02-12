@@ -9,5 +9,6 @@ public interface IPodcastEpisodesPoster
         IEnumerable<Podcast> podcasts,
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true,
-        bool preferYouTube = false);
+        bool preferYouTube = false,
+        bool ignoreAppleGracePeriod = false);
 }
