@@ -14,6 +14,7 @@ public static class StringSanitizer
         title = title.Replace("&lt;", "<");
         title = title.Replace("&gt;", ">");
         title = title.Replace("&#34;", "\"");
+        title = title.Replace("&#64;", "@");
         return title;
     }
 }
