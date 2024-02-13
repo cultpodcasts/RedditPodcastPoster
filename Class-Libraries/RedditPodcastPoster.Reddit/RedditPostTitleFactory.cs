@@ -34,7 +34,7 @@ public class RedditPostTitleFactory(
     private string ConstructFinalPostTitle(string title, bool hasDescription, string bundleSuffix,
         string audioLinksSuffix)
     {
-        var ellipsisSuffix = hasDescription ? @"..""" : string.Empty;
+        var ellipsisSuffix = hasDescription ? @"…""" : string.Empty;
         var terminalSuffix = hasDescription ? @"""" : string.Empty;
         if ((title + bundleSuffix + audioLinksSuffix).Length >
             _settings.SubredditTitleMaxLength - terminalSuffix.Length)
