@@ -90,7 +90,7 @@ public class YouTubeEpisodeProvider(
                     indexingContext, true);
             if (videoDetails != null)
             {
-                return new GetPlaylistEpisodesResponse(results.Select(playlistItem => GetEpisode(
+                return new GetPlaylistEpisodesResponse(results.Where(x=>x.Snippet.Title!= "Deleted video").Select(playlistItem => GetEpisode(
                         playlistItem.Snippet,
                         videoDetails.SingleOrDefault(videoDetail =>
                             videoDetail.Id == playlistItem.Snippet.ResourceId.VideoId)!))
