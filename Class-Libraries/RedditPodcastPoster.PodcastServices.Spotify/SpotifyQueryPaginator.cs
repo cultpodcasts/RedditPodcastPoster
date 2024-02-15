@@ -25,7 +25,7 @@ public class SpotifyQueryPaginator(
             return new PaginateEpisodesResponse(new List<SimpleEpisode>());
         }
 
-        var currentMoment = DateTime.Now;
+        var currentMoment = DateTime.Now.AddDays(2);
         var isInReverseTimeOrder = true;
         var ctr = 0;
         var existingPagedEpisodes = pagedEpisodes.Items.Where(x => x != null).ToArray();

@@ -13,6 +13,7 @@ using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
+using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.UrlSubmission.Extensions;
 using SubmitUrl;
 
@@ -38,6 +39,7 @@ builder.Services
     .AddScoped(s => new iTunesSearchManager())
     .AddUrlSubmission()
     .AddSubjectServices()
+    .AddTextSanitiser()
     .AddScoped<SubmitUrlProcessor>()
     .AddHttpClient();
 

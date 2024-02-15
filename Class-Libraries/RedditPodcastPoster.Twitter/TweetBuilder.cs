@@ -103,7 +103,7 @@ public class TweetBuilder(
         var hashTags =
             subjects
                 .Where(x => !string.IsNullOrWhiteSpace(x?.HashTag))
-                .Select(x => x!.HashTag.Split(" "))
+                .Select(x => x!.HashTag!.Split(" "))
                 .SelectMany(x => x)
                 .Distinct()
                 .Select(x => (x!, (string?) null));

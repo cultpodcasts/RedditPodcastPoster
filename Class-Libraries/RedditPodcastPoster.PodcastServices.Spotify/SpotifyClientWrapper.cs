@@ -16,7 +16,8 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         IList<T>? results = null;
         try
         {
-            results = await spotifyClient.Paginate(firstPage, paginator, cancel).ToListAsync(cancel);
+            var items = spotifyClient.Paginate(firstPage, paginator, cancel);
+            results = await items.ToListAsync(cancel);
         }
         catch (APIException ex)
         {

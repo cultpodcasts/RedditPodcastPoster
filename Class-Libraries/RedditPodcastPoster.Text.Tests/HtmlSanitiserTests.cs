@@ -1,17 +1,21 @@
-using FluentAssertions;
-using SpotifyAPI.Web;
+﻿using FluentAssertions;
+using Moq.AutoMock;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify.Tests;
+namespace RedditPodcastPoster.Text.Tests;
 
-public class EpisodeExtensionsTests
+public class HtmlSanitiserTests
 {
+    private readonly AutoMocker _mocker = new();
+
+    private IHtmlSanitiser Sut => _mocker.CreateInstance<HtmlSanitiser>();
+
     [Fact]
     public void GetDescription_IsCorrect()
     {
         // arrange
-        var episode = new FullEpisode {HtmlDescription = "text"};
+        var html = "text";
         // act
-        var result = episode.GetDescription();
+        var result = Sut.Sanitise(html);
         // assert
         result.Should().Be("text");
     }
@@ -20,9 +24,9 @@ public class EpisodeExtensionsTests
     public void GetDescriptionWithParagraphs_IsCorrect()
     {
         // arrange
-        var episode = new FullEpisode {HtmlDescription = "<p>Para 1<p><p>Para 2</p>"};
+        var html = "<p>Para 1<p><p>Para 2</p>";
         // act
-        var result = episode.GetDescription();
+        var result = Sut.Sanitise(html);
         // assert
         result.Should().Be("Para 1 Para 2");
     }
@@ -31,9 +35,9 @@ public class EpisodeExtensionsTests
     public void GetDescriptionWithBreaks_IsCorrect()
     {
         // arrange
-        var episode = new FullEpisode {HtmlDescription = "Para 1<br />Para 2"};
+        var html = "Para 1<br />Para 2";
         // act
-        var result = episode.GetDescription();
+        var result = Sut.Sanitise(html);
         // assert
         result.Should().Be("Para 1 Para 2");
     }
@@ -42,9 +46,9 @@ public class EpisodeExtensionsTests
     public void GetDescriptionWithParagraphsAndBreaks_IsCorrect()
     {
         // arrange
-        var episode = new FullEpisode {HtmlDescription = "<p>Para 1<br />Para 2<p><p>Para 3</p>"};
+        var html = "<p>Para 1<br />Para 2<p><p>Para 3</p>";
         // act
-        var result = episode.GetDescription();
+        var result = Sut.Sanitise(html);
         // assert
         result.Should().Be("Para 1 Para 2 Para 3");
     }

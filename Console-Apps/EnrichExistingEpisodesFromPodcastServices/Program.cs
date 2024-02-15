@@ -12,6 +12,7 @@ using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.UrlSubmission.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -34,6 +35,7 @@ builder.Services
     .AddYouTubeServices(builder.Configuration)
     .AddAppleServices()
     .AddRemoteClient()
+    .AddTextSanitiser()
     .AddScoped(s => new iTunesSearchManager())
     .AddHttpClient();
 
