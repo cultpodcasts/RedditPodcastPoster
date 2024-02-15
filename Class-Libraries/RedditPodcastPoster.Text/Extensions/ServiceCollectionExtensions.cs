@@ -10,6 +10,7 @@ public static class ServiceCollectionExtensions
     {
         return services
             .AddSingleton<ITextSanitiser, TextSanitiser>()
+            .AddSingleton<IHtmlSanitiser, HtmlSanitiser>()
             .AddSingleton<IKnownTermsProviderFactory, KnownTermsProviderFactory>()
             .AddSingleton<IKnownTermsRepository, KnownTermsRepository>()
             .AddSingleton<IHashTagEnricher, HashTagEnricher>()

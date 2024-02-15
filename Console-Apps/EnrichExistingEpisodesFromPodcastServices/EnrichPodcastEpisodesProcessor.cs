@@ -6,6 +6,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.Text;
 
 namespace EnrichExistingEpisodesFromPodcastServices;
 
@@ -16,6 +17,7 @@ public class EnrichPodcastEpisodesProcessor(
     IYouTubeUrlCategoriser youTubeUrlCategoriser,
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
     IAppleEpisodeResolver appleEpisodeResolver,
+    IHtmlSanitiser htmlSanitiser,
     ILogger<EnrichPodcastEpisodesProcessor> logger)
 {
     public async Task Run(EnrichPodcastEpisodesRequest request)
@@ -76,7 +78,8 @@ public class EnrichPodcastEpisodesProcessor(
                         {
                             var refinedCriteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty,
                                 podcast.Publisher, spotifyEpisode.FullEpisode.Name,
-                                spotifyEpisode.FullEpisode.GetDescription(), spotifyEpisode.FullEpisode.GetReleaseDate(),
+                                htmlSanitiser.Sanitise(spotifyEpisode.FullEpisode.HtmlDescription),
+                                spotifyEpisode.FullEpisode.GetReleaseDate(),
                                 spotifyEpisode.FullEpisode.GetDuration());
                             match = await appleUrlCategoriser.Resolve(refinedCriteria, podcast, indexingContext);
                             if (match != null)

@@ -1,12 +1,14 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public class SpotifyEpisodeProvider(
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
+    IHtmlSanitiser htmlSanitiser,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<SpotifyEpisodeProvider> logger)
 #pragma warning restore CS9113 // Parameter is unread.
@@ -29,7 +31,7 @@ public class SpotifyEpisodeProvider(
             Episode.FromSpotify(
                 x.Id,
                 x.Name.Trim(),
-                x.GetDescription(),
+                htmlSanitiser.Sanitise(x.HtmlDescription),
                 TimeSpan.FromMilliseconds(x.DurationMs),
                 x.Explicit,
                 x.GetReleaseDate(),

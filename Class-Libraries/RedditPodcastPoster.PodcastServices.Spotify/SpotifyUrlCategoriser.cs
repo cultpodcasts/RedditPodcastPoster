@@ -2,11 +2,13 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public partial class SpotifyUrlCategoriser(
-    ISpotifyEpisodeResolver spotifyEpisodeResolver,
+    ISpotifyEpisodeResolver spotifyEpisodeResolver, 
+    IHtmlSanitiser htmlSanitiser,
     ILogger<SpotifyUrlCategoriser> logger)
     : ISpotifyUrlCategoriser
 {
@@ -43,7 +45,7 @@ public partial class SpotifyUrlCategoriser(
                 findEpisodeResponse.FullEpisode.Show.Description,
                 findEpisodeResponse.FullEpisode.Show.Publisher,
                 findEpisodeResponse.FullEpisode.Name,
-                findEpisodeResponse.FullEpisode.GetDescription(),
+                htmlSanitiser.Sanitise(findEpisodeResponse.FullEpisode.HtmlDescription),
                 findEpisodeResponse.FullEpisode.GetReleaseDate(),
                 findEpisodeResponse.FullEpisode.GetDuration(),
                 new Uri(findEpisodeResponse.FullEpisode.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute),
@@ -72,7 +74,7 @@ public partial class SpotifyUrlCategoriser(
                     findEpisodeResponse.FullEpisode.Show.Description,
                     findEpisodeResponse.FullEpisode.Show.Publisher,
                     findEpisodeResponse.FullEpisode.Name,
-                    findEpisodeResponse.FullEpisode.GetDescription(),
+                    htmlSanitiser.Sanitise(findEpisodeResponse.FullEpisode.HtmlDescription),
                     findEpisodeResponse.FullEpisode.GetReleaseDate(),
                     findEpisodeResponse.FullEpisode.GetDuration(),
                     findEpisodeResponse.FullEpisode.GetUrl(),

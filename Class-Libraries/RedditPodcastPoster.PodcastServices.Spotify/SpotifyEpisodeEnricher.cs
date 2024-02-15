@@ -1,10 +1,12 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public class SpotifyEpisodeEnricher(
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
+    IHtmlSanitiser htmlSanitiser,
     ILogger<SpotifyEpisodeEnricher> logger)
     : ISpotifyEpisodeEnricher
 {
@@ -23,7 +25,7 @@ public class SpotifyEpisodeEnricher(
             var url = findEpisodeResult.FullEpisode.GetUrl();
             request.Episode.Urls.Spotify = url;
             enrichmentContext.Spotify = url;
-            var description = findEpisodeResult.FullEpisode.GetDescription();
+            var description = htmlSanitiser.Sanitise(findEpisodeResult.FullEpisode.HtmlDescription);
             if (string.IsNullOrWhiteSpace(request.Episode.Description) &&
                 !string.IsNullOrWhiteSpace(description))
             {

@@ -5,10 +5,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.PodcastServices.ListenNotes.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.Text.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
-
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 
@@ -21,7 +22,11 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<DiscoveryProcessor>()
-    .AddSpotifyClient(builder.Configuration)
+    .AddListenNotesClient(builder.Configuration)
+    .AddScoped<ISpotifySearcher, SpotifySearcher>()
+    .AddScoped<IListenNotesSearcher, ListenNotesSearcher>()
+    .AddSpotifyServices(builder.Configuration)
+    .AddTextSanitiser()
     .AddHttpClient();
 
 using var host = builder.Build();

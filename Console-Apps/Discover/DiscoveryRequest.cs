@@ -11,4 +11,7 @@ public class DiscoveryRequest
     [Value(0, MetaName = "number-of-days", HelpText = "The number of days to search within", Required = false,
         Default = 1)]
     public int NumberOfDays { get; set; }
+
+    [Option('l', "listen-notes", Default = false, HelpText = "Also search Listen Notes")]
+    public bool IncludeListenNotes { get; set; }
 }

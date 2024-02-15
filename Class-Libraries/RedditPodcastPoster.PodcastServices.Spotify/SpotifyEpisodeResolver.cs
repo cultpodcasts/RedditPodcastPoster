@@ -68,8 +68,9 @@ public class SpotifyEpisodeResolver(
                             showEpisodesRequest.Limit = 1;
                         }
 
-                        var episodesFetches = matchingPodcasts.Select(async x =>
-                            await spotifyClientWrapper.GetShowEpisodes(x.Id, showEpisodesRequest, indexingContext)
+                        var episodesFetches = matchingPodcasts
+                            .Select(async x => await spotifyClientWrapper
+                                .GetShowEpisodes(x.Id, showEpisodesRequest, indexingContext)
                                 .ContinueWith(y =>
                                     new ValueTuple<string, Paging<SimpleEpisode>?>(x.Id, y.Result)));
                         episodes = await Task.WhenAll(episodesFetches);
