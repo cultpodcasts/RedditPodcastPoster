@@ -24,6 +24,7 @@ public class ListenNotesSearcher(
         var results = new List<EpisodeResult>();
         var offset = 0;
         var error = false;
+        var @break = false;
         var parameters = new Dictionary<string, string>
         {
             {QueryKey, term},
@@ -31,7 +32,7 @@ public class ListenNotesSearcher(
             {"sort_by_date", "1"}
         };
         var first = true;
-        while ((first || results.Last().Released > indexingContext.ReleasedSince) && !error)
+        while ((first || results.Last().Released > indexingContext.ReleasedSince) && !error && !@break)
         {
             first = false;
             parameters[OffsetKey] = offset.ToString();
@@ -42,31 +43,34 @@ public class ListenNotesSearcher(
                 var episodeResults = response.Results.Select(ToEpisodeResult);
                 foreach (var episodeResult in episodeResults)
                 {
-                    //var episodeRequest = new FindSpotifyEpisodeRequest(
-                    //    string.Empty,
-                    //    episodeResult.ShowName,
-                    //    string.Empty,
-                    //    episodeResult.EpisodeName,
-                    //    episodeResult.Released,
-                    //    true);
-                    //var spotifyResult = await spotifyEpisodeResolver.FindEpisode(
-                    //    episodeRequest, indexingContext);
-                    //if (spotifyResult.FullEpisode != null)
-                    //{
-                    //    var enrichedResult = episodeResult with {Url = spotifyResult.FullEpisode.GetUrl()};
-                    //    results.Add(enrichedResult);
-                    //}
-                    //else
-                    //{
-                    results.Add(episodeResult);
-                    //}
+                    var episodeRequest = new FindSpotifyEpisodeRequest(
+                        string.Empty,
+                        episodeResult.ShowName,
+                        string.Empty,
+                        episodeResult.EpisodeName,
+                        episodeResult.Released,
+                        true);
+
+                    var spotifyResult = await spotifyEpisodeResolver.FindEpisode(
+                        episodeRequest, indexingContext);
+                    if (spotifyResult.FullEpisode != null)
+                    {
+                        var enrichedResult = episodeResult with {Url = spotifyResult.FullEpisode.GetUrl()};
+                        results.Add(enrichedResult);
+                    }
+                    else
+                    {
+                        results.Add(episodeResult);
+                    }
                 }
 
                 offset = response.NextOffset;
+                @break = offset == 0;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error calling ListenNotes-api with parameters: query:'{parameters[QueryKey]}', offset:'{parameters[OffsetKey]}'.");
+                logger.LogError(ex,
+                    $"Error calling ListenNotes-api with parameters: query:'{parameters[QueryKey]}', offset:'{parameters[OffsetKey]}'.");
                 error = true;
             }
         }

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Discover": {
+      "commandName": "Project",
+      "commandLineArgs": "-l"
+    }
+  }
+}

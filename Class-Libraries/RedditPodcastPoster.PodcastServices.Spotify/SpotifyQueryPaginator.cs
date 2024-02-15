@@ -67,7 +67,11 @@ public class SpotifyQueryPaginator(
                    indexingContext.ReleasedSince)
             {
                 var preCount = batchEpisodes.Count;
-                var items = await spotifyClientWrapper.Paginate(pagedEpisodes, indexingContext);
+                var items = await spotifyClientWrapper.Paginate(
+                    pagedEpisodes,
+                    indexingContext,
+                    new SimpleEpisodePaginator(indexingContext.ReleasedSince, isInReverseTimeOrder)
+                );
                 if (items != null)
                 {
                     batchEpisodes = items;
