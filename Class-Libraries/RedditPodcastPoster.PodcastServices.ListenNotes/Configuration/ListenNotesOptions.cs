@@ -2,5 +2,5 @@
 
 public class ListenNotesOptions
 {
-    public string Key { get; set; }
+    public required string Key { get; set; }
 }
