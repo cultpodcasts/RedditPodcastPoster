@@ -6,7 +6,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public class SimpleEpisodePaginator(DateTime? releasedSince, bool isInReverseOrder) : IPaginator
 {
-    public async Task<IList<T>> PaginateAll<T>(IPaginatable<T> firstPage, IAPIConnector connector,
+    public Task<IList<T>> PaginateAll<T>(IPaginatable<T> firstPage, IAPIConnector connector,
         CancellationToken cancel = new())
     {
         throw new NotImplementedException();
