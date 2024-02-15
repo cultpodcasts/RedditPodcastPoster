@@ -22,7 +22,6 @@ public partial class HtmlSanitiser(
             .Trim();
     }
 
-
     private static string GetReadableText(HtmlNode node)
     {
         if (node.NodeType == HtmlNodeType.Text)
