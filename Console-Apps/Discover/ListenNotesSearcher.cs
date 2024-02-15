@@ -15,6 +15,8 @@ public class ListenNotesSearcher(
     ILogger<ListenNotesSearcher> logger
 ) : IListenNotesSearcher
 {
+    private const string QueryKey = "q";
+    private const string OffsetKey = "offset";
     private readonly Client _client = clientFactory.Create();
 
     public async Task<IEnumerable<EpisodeResult>> Search(string term, IndexingContext indexingContext)
@@ -24,7 +26,7 @@ public class ListenNotesSearcher(
         var error = false;
         var parameters = new Dictionary<string, string>
         {
-            {"q", term},
+            {QueryKey, term},
             {"type", "episode"},
             {"sort_by_date", "1"}
         };
@@ -32,7 +34,7 @@ public class ListenNotesSearcher(
         while ((first || results.Last().Released > indexingContext.ReleasedSince) && !error)
         {
             first = false;
-            parameters["offset"] = offset.ToString();
+            parameters[OffsetKey] = offset.ToString();
             try
             {
                 var apiResponse = await _client.Search(parameters);
@@ -40,13 +42,13 @@ public class ListenNotesSearcher(
                 var episodeResults = response.Results.Select(ToEpisodeResult);
                 foreach (var episodeResult in episodeResults)
                 {
-                    var episodeRequest = new FindSpotifyEpisodeRequest(
-                        string.Empty,
-                        episodeResult.ShowName,
-                        string.Empty,
-                        episodeResult.EpisodeName,
-                        episodeResult.Released,
-                        true);
+                    //var episodeRequest = new FindSpotifyEpisodeRequest(
+                    //    string.Empty,
+                    //    episodeResult.ShowName,
+                    //    string.Empty,
+                    //    episodeResult.EpisodeName,
+                    //    episodeResult.Released,
+                    //    true);
                     //var spotifyResult = await spotifyEpisodeResolver.FindEpisode(
                     //    episodeRequest, indexingContext);
                     //if (spotifyResult.FullEpisode != null)
@@ -64,7 +66,7 @@ public class ListenNotesSearcher(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error calling ListenNotes-api with parameters: {parameters}.");
+                logger.LogError(ex, $"Error calling ListenNotes-api with parameters: query:'{parameters[QueryKey]}', offset:'{parameters[OffsetKey]}'.");
                 error = true;
             }
         }
