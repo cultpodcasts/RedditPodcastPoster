@@ -192,7 +192,7 @@ public class QueryExecutor(
         podcastResult.EpisodeDescription =
             textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
 
-        podcastResult.PodcastName = textSanitiser.SanitisePodcastName(podcastResult.PodcastName);
+        //podcastResult.PodcastName = textSanitiser.SanitisePodcastName(podcastResult.PodcastName);
 
         return podcastResult;
     }
