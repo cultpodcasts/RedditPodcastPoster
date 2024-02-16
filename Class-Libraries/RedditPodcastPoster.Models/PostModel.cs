@@ -34,7 +34,7 @@ public class PostModel
 
         if (!string.IsNullOrWhiteSpace(podcastPost.DescriptionRegex))
         {
-            DescriptionRegex = new Regex(podcastPost.DescriptionRegex);
+            DescriptionRegex = new Regex(podcastPost.DescriptionRegex, RegexOptions.Singleline);
         }
 
         if (TitleRegex != null)

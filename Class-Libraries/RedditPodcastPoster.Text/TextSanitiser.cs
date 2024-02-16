@@ -15,6 +15,7 @@ public partial class TextSanitiser(
     private static readonly Regex HashtagOrAtSymbols = GenerateHashTagAtSymbolPatter();
     private static readonly Regex InQuotes = GenerateInQuotes();
     private static readonly Regex InvalidTitlePrefix = GenerateInvalidTitlePrefix();
+    private static readonly Regex MultipleSpaces = GenerateMultipleSpaces();
 
     private static readonly TextInfo TextInfo = new CultureInfo("en-GB", false).TextInfo;
     private static readonly Regex PostAsteriskLetters = GeneratePostAsteriskLetters();
@@ -158,7 +159,7 @@ public partial class TextSanitiser(
         title = title.Replace("”", "'");
         title = title.Replace("’", "'");
         title = title.Replace(@"´", "'");
-        title = title.Replace("  ", " ");
+        title = MultipleSpaces.Replace(title, " ");
         return title.Trim();
     }
 
@@ -181,4 +182,7 @@ public partial class TextSanitiser(
 
     [GeneratedRegex(@"\*(?'letter'[A-Z])", RegexOptions.Compiled)]
     private static partial Regex GeneratePostAsteriskLetters();
+
+    [GeneratedRegex(@"\s+", RegexOptions.Compiled)]
+    private static partial Regex GenerateMultipleSpaces();
 }

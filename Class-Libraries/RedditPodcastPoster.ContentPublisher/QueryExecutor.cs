@@ -186,7 +186,7 @@ public class QueryExecutor(
         Regex? descRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.DescriptionRegex))
         {
-            descRegex = new Regex(podcastResult.DescriptionRegex);
+            descRegex = new Regex(podcastResult.DescriptionRegex, RegexOptions.Singleline);
         }
 
         podcastResult.EpisodeDescription =
