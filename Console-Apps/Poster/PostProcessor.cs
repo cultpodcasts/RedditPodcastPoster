@@ -20,6 +20,7 @@ public class PostProcessor(
     public async Task Process(PostRequest request)
     {
         IList<Podcast> podcasts;
+
         if (request.PodcastId.HasValue)
         {
             var podcast = await repository.GetPodcast(request.PodcastId.Value);
@@ -36,21 +37,10 @@ public class PostProcessor(
         }
 
         await PostNewEpisodes(request, podcasts);
-        Task[] publishingTasks;
-        if (request.PublishSubjects)
+        Task[] publishingTasks =
         {
-            publishingTasks = new[]
-            {
-                contentPublisher.PublishHomepage()
-            };
-        }
-        else
-        {
-            publishingTasks = new[]
-            {
-                contentPublisher.PublishHomepage()
-            };
-        }
+            contentPublisher.PublishHomepage()
+        };
 
         await Task.WhenAll(publishingTasks);
         if (!request.SkipTweet)
