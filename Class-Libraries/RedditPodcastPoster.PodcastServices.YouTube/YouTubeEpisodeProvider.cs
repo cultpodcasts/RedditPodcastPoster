@@ -88,12 +88,13 @@ public class YouTubeEpisodeProvider(
             var videoDetails =
                 await youTubeVideoService.GetVideoContentDetails(results.Select(x => x.Snippet.ResourceId.VideoId),
                     indexingContext, true);
-            if (videoDetails != null)
+            if (videoDetails != null && videoDetails.Any())
             {
-                return new GetPlaylistEpisodesResponse(results.Where(x=>x.Snippet.Title!= "Deleted video").Select(playlistItem => GetEpisode(
-                        playlistItem.Snippet,
-                        videoDetails.SingleOrDefault(videoDetail =>
-                            videoDetail.Id == playlistItem.Snippet.ResourceId.VideoId)!))
+                return new GetPlaylistEpisodesResponse(results.Where(x => x.Snippet.Title != "Deleted video").Select(
+                        playlistItem => GetEpisode(
+                            playlistItem.Snippet,
+                            videoDetails.SingleOrDefault(videoDetail =>
+                                videoDetail.Id == playlistItem.Snippet.ResourceId.VideoId)!))
                     .ToList(), isExpensiveQuery);
             }
         }
