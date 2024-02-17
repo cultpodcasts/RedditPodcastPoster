@@ -37,11 +37,12 @@ public class PodcastEpisodePoster(
     private Episode[] GetEpisodes(PodcastEpisode matchingPodcastEpisode)
     {
         var orderedBundleEpisodes = Array.Empty<Episode>();
+        var titleRegex = new Regex(matchingPodcastEpisode.Podcast.TitleRegex);
+        var titleMatch = titleRegex.Match(matchingPodcastEpisode.Episode.Title);
+        var partNumber = titleMatch.Result("${partnumber}");
         if (matchingPodcastEpisode.Podcast!.Bundles &&
             !string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex) &&
-            int.TryParse(
-                new Regex(matchingPodcastEpisode.Podcast.TitleRegex).Match(matchingPodcastEpisode.Episode.Title)
-                    .Result("${partnumber}"), out _))
+            int.TryParse(partNumber, out _))
         {
             orderedBundleEpisodes = GetOrderedBundleEpisodes(matchingPodcastEpisode).ToArray();
         }
