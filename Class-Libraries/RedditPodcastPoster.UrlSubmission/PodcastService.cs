@@ -23,6 +23,7 @@ public class PodcastService(
 {
     public async Task<Podcast?> GetPodcastFromEpisodeUrl(Uri url, IndexingContext indexingContext)
     {
+        IEnumerable<Podcast> podcasts;
         if (spotifyUrlCategoriser.IsMatch(url))
         {
             var episodeId = spotifyUrlCategoriser.GetEpisodeId(url);
@@ -40,10 +41,10 @@ public class PodcastService(
                     $"Unable to find spotify-full-show for spotify-episode with spotify-episode-id '{episodeId}'.");
             }
 
-            return await podcastRepository.GetBy(podcast => podcast.SpotifyId == episode.FullEpisode.Show.Id);
+            podcasts = await podcastRepository.GetAllBy(podcast => podcast.SpotifyId == episode.FullEpisode.Show.Id)
+                .ToArrayAsync();
         }
-
-        if (youTubeUrlCategoriser.IsMatch(url))
+        else if (youTubeUrlCategoriser.IsMatch(url))
         {
             var videoId = youTubeIdExtractor.Extract(url);
             if (string.IsNullOrWhiteSpace(videoId))
@@ -60,17 +61,14 @@ public class PodcastService(
             var snippetChannelId = episodes.FirstOrDefault()!.Snippet.ChannelId;
 
 
-            var podcasts = await podcastRepository.GetAllBy(podcast =>
+            podcasts = await podcastRepository.GetAllBy(podcast =>
                 podcast.YouTubeChannelId == snippetChannelId).ToArrayAsync();
             if (podcasts.Count() > 1)
             {
-                return podcasts.FirstOrDefault(x => x.YouTubePlaylistId == string.Empty);
+                podcasts = podcasts.Where(x => x.YouTubePlaylistId == string.Empty);
             }
-
-            return podcasts.SingleOrDefault();
         }
-
-        if (appleUrlCategoriser.IsMatch(url))
+        else if (appleUrlCategoriser.IsMatch(url))
         {
             var podcastId = appleUrlCategoriser.GetPodcastId(url);
             if (podcastId == null)
@@ -79,9 +77,18 @@ public class PodcastService(
             }
 
 
-            return await podcastRepository.GetBy(podcast => podcast.AppleId == podcastId);
+            podcasts = await podcastRepository.GetAllBy(podcast => podcast.AppleId == podcastId).ToArrayAsync();
+        }
+        else
+        {
+            throw new ArgumentException($"Unable to determine service for url '{url}'.", nameof(url));
         }
 
-        throw new ArgumentException($"Unable to determine service for url '{url}'.", nameof(url));
+        if (podcasts.Count() > 1)
+        {
+            podcasts = podcasts.Where(x => x.IndexAllEpisodes);
+        }
+
+        return podcasts.SingleOrDefault();
     }
 }

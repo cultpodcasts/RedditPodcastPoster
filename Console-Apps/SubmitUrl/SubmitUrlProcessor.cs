@@ -7,7 +7,6 @@ namespace SubmitUrl;
 public class SubmitUrlProcessor(
     IUrlSubmitter urlSubmitter,
     ILogger<SubmitUrlProcessor> logger)
-    : ISubmitUrlProcessor
 {
     public async Task Process(SubmitUrlRequest request)
     {
