@@ -22,8 +22,7 @@ public class YouTubeEpisodeProvider(
         IEnumerable<string> knownIds)
     {
         var youTubeVideos =
-            await youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(
-                new YouTubeChannelId(request.ChannelId), indexingContext);
+            await youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(request, indexingContext);
         if (youTubeVideos != null)
         {
             var youTubeVideoIds = youTubeVideos.Select(x => x.Id.VideoId);

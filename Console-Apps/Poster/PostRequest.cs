@@ -20,8 +20,11 @@ public class PostRequest
     [Option('t', "skip-tweet", Required = false, HelpText = "Skip Tweet", Default = false)]
     public bool SkipTweet { get; set; }
 
-    [Option('p', "podcastid", Required = false, HelpText = "The Id of the podcast to add this episode to")]
+    [Option('p', "podcastid", Required = false, HelpText = "The Id of the podcast post")]
     public Guid? PodcastId { get; set; }
+
+    [Option('e', "episodeid", Required = false, HelpText = "The Id of the episode to post")]
+    public Guid? EpisodeId { get; set; }
 
     [Value(0, MetaName = "released-within-days", HelpText = "The number of days episodes to post have been released in",
         Required = false, Default = 2)]

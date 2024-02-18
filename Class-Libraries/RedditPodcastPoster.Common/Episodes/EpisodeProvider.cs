@@ -19,7 +19,7 @@ public class EpisodeProvider(
     {
         IList<Episode>? episodes = null;
         var handled = false;
-        if (podcast.ReleaseAuthority is null or Service.Spotify)
+        if (podcast.ReleaseAuthority is null or Service.Spotify && !string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
             (episodes, handled) = await spotifyEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
             if (handled)
@@ -29,7 +29,7 @@ public class EpisodeProvider(
             }
         }
 
-        if (!handled && podcast.ReleaseAuthority != Service.YouTube)
+        if (!handled && podcast.ReleaseAuthority != Service.YouTube && podcast.AppleId != null)
         {
             (episodes, handled) = await appleEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
             if (handled)
@@ -39,7 +39,8 @@ public class EpisodeProvider(
             }
         }
 
-        if (!handled || podcast.ReleaseAuthority is Service.YouTube)
+        if (!handled || (podcast.ReleaseAuthority is Service.YouTube &&
+                         !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId)))
         {
             (episodes, handled) = await youTubeEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
             if (handled)

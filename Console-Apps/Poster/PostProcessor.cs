@@ -14,6 +14,7 @@ public class PostProcessor(
     IProcessResponsesAdaptor processResponsesAdaptor,
     IContentPublisher contentPublisher,
     IPodcastEpisodeFilter podcastEpisodeFilter,
+    IPodcastEpisodePoster podcastEpisodePoster,
     ITweetPoster tweetPoster,
     ILogger<PostProcessor> logger)
 {
@@ -21,7 +22,17 @@ public class PostProcessor(
     {
         IList<Podcast> podcasts;
 
-        if (request.PodcastId.HasValue)
+        if (request.EpisodeId.HasValue)
+        {
+            var podcast = await repository.GetBy(x => x.Episodes.Any(ep => ep.Id == request.EpisodeId));
+            if (podcast == null)
+            {
+                throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
+            }
+
+            podcasts = new[] {podcast};
+        }
+        else if (request.PodcastId.HasValue)
         {
             var podcast = await repository.GetPodcast(request.PodcastId.Value);
             if (podcast == null)
@@ -45,26 +56,36 @@ public class PostProcessor(
         await Task.WhenAll(publishingTasks);
         if (!request.SkipTweet)
         {
-            var untweeted =
-                podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(podcasts, numberOfDays: request.ReleasedWithin);
-
-            var tweeted = false;
-            foreach (var podcastEpisode in untweeted)
+            if (request.EpisodeId.HasValue)
             {
-                if (tweeted)
-                {
-                    break;
-                }
+                var selectedPodcast = podcasts.Single(x => x.Episodes.Any(e => e.Id == request.EpisodeId));
+                var selectedEpisode = selectedPodcast.Episodes.Single(x => x.Id == request.EpisodeId);
+                var podcastEpisode = new PodcastEpisode(selectedPodcast, selectedEpisode);
+                await tweetPoster.PostTweet(podcastEpisode);
+            }
+            else
+            {
+                var untweeted =
+                    podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(podcasts, numberOfDays: request.ReleasedWithin);
 
-                try
+                var tweeted = false;
+                foreach (var podcastEpisode in untweeted)
                 {
-                    await tweetPoster.PostTweet(podcastEpisode);
-                    tweeted = true;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex,
-                        $"Unable to tweet episode with id '{podcastEpisode.Episode.Id}' with title '{podcastEpisode.Episode.Title}' from podcast with id '{podcastEpisode.Podcast.Id}' and name '{podcastEpisode.Podcast.Name}'.");
+                    if (tweeted)
+                    {
+                        break;
+                    }
+
+                    try
+                    {
+                        await tweetPoster.PostTweet(podcastEpisode);
+                        tweeted = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex,
+                            $"Unable to tweet episode with id '{podcastEpisode.Episode.Id}' with title '{podcastEpisode.Episode.Title}' from podcast with id '{podcastEpisode.Podcast.Id}' and name '{podcastEpisode.Podcast.Name}'.");
+                    }
                 }
             }
         }
@@ -72,23 +93,48 @@ public class PostProcessor(
 
     private async Task PostNewEpisodes(PostRequest request, IList<Podcast> podcasts)
     {
-        var results =
-            await podcastEpisodesPoster.PostNewEpisodes(
-                DateTime.UtcNow.AddDays(-1 * request.ReleasedWithin),
-                podcasts,
-                preferYouTube: request.YouTubePrimaryPostService,
-                ignoreAppleGracePeriod: request.IgnoreAppleGracePeriod);
-        var result = processResponsesAdaptor.CreateResponse(results);
-        var message = result.ToString();
-        if (!string.IsNullOrWhiteSpace(message))
+        if (request.EpisodeId.HasValue)
         {
-            if (!result.Success)
+            var selectedPodcast = podcasts.Single(x => x.Episodes.Any(e => e.Id == request.EpisodeId));
+            var selectedEpisode = selectedPodcast.Episodes.Single(x => x.Id == request.EpisodeId);
+            if (selectedEpisode.Posted || selectedEpisode.Ignored || selectedEpisode.Removed)
             {
-                logger.LogError(message);
+                logger.LogWarning(
+                    $"Not posting episode with id '{request.EpisodeId}'. Posted: '{selectedEpisode.Posted}', Ignored: '{selectedEpisode.Ignored}', Removed: '{selectedEpisode.Removed}'.");
             }
             else
             {
-                logger.LogInformation(message);
+                var podcastEpisode = new PodcastEpisode(selectedPodcast, selectedEpisode);
+                var result = await podcastEpisodePoster.PostPodcastEpisode(
+                    podcastEpisode, request.YouTubePrimaryPostService);
+                if (!result.Success)
+                {
+                    logger.LogError(result.ToString());
+                }
+
+                await repository.Save(selectedPodcast);
+            }
+        }
+        else
+        {
+            var results =
+                await podcastEpisodesPoster.PostNewEpisodes(
+                    DateTime.UtcNow.AddDays(-1 * request.ReleasedWithin),
+                    podcasts,
+                    preferYouTube: request.YouTubePrimaryPostService,
+                    ignoreAppleGracePeriod: request.IgnoreAppleGracePeriod);
+            var result = processResponsesAdaptor.CreateResponse(results);
+            var message = result.ToString();
+            if (!string.IsNullOrWhiteSpace(message))
+            {
+                if (!result.Success)
+                {
+                    logger.LogError(message);
+                }
+                else
+                {
+                    logger.LogInformation(message);
+                }
             }
         }
     }
