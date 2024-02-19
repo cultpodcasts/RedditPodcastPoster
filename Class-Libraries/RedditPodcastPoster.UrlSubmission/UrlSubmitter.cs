@@ -327,15 +327,15 @@ public class UrlSubmitter(
     {
         var episodeTitle = episode.Title.Trim();
         string resolvedTitle;
-        if (categorisedItem.ResolvedAppleItem != null)
+        if (categorisedItem is {Authority: Service.Apple, ResolvedAppleItem: not null})
         {
             resolvedTitle = categorisedItem.ResolvedAppleItem.EpisodeTitle;
         }
-        else if (categorisedItem.ResolvedSpotifyItem != null)
+        else if (categorisedItem is {Authority: Service.Spotify, ResolvedSpotifyItem: not null})
         {
             resolvedTitle = categorisedItem.ResolvedSpotifyItem.EpisodeTitle;
         }
-        else if (categorisedItem.ResolvedYouTubeItem != null)
+        else if (categorisedItem is {Authority: Service.YouTube, ResolvedYouTubeItem: not null})
         {
             resolvedTitle = categorisedItem.ResolvedYouTubeItem.EpisodeTitle;
         }
