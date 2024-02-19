@@ -27,11 +27,16 @@ public class DiscoveryProcessor(
             results = results.Concat(await listenNotesSearcher.Search("\"Cult\"", indexingContext));
         }
 
-        results = results.Concat(await spotifySearcher.Search("\"Cults\"", indexingContext));
-        results = results.Concat(await spotifySearcher.Search("\"Cult\"", indexingContext));
-        results = results.Concat(await spotifySearcher.Search("\"Scientology\"", indexingContext));
-        results = results.Concat(await spotifySearcher.Search("\"NXIVM\"", indexingContext));
-        results = results.Concat(await spotifySearcher.Search("\"FLDS\"", indexingContext));
+        var cults = await spotifySearcher.Search("\"Cults\"", indexingContext);
+        var cult = await spotifySearcher.Search("\"Cult\"", indexingContext);
+        var scientology = await spotifySearcher.Search("\"Scientology\"", indexingContext);
+        var nxivm = await spotifySearcher.Search("\"NXIVM\"", indexingContext);
+        var flds = await spotifySearcher.Search("\"FLDS\"", indexingContext);
+        results = results.Concat(cults);
+        results = results.Concat(cult);
+        results = results.Concat(scientology);
+        results = results.Concat(nxivm);
+        results = results.Concat(flds);
 
         var individualResults = results
             .GroupBy(x => x.EpisodeName)
