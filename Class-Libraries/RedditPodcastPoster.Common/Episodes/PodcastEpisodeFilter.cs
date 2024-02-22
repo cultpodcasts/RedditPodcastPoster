@@ -120,11 +120,17 @@ public class PodcastEpisodeFilter(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        if (IsRecentlyExpiredDelayedPublishing(podcastEpisode.Podcast, podcastEpisode.Episode) ||
-            !youTubeRefreshed)
+        if (!youTubeRefreshed)
         {
             logger.LogInformation(
                 $"{nameof(EliminateItemsDueToIndexingErrors)} Eliminating episode with episode-id '{podcastEpisode.Episode.Id}' and episode-title '{podcastEpisode.Episode.Title}' from podcast with podcast-id '{podcastEpisode.Podcast.Id}' and podcast-name '{podcastEpisode.Podcast.Name}' due to '{nameof(youTubeRefreshed)}'='{youTubeRefreshed}'.");
+            return false;
+
+        }
+        if (IsRecentlyExpiredDelayedPublishing(podcastEpisode.Podcast, podcastEpisode.Episode))
+        {
+            logger.LogInformation(
+                $"{nameof(EliminateItemsDueToIndexingErrors)} Eliminating episode with episode-id '{podcastEpisode.Episode.Id}' and episode-title '{podcastEpisode.Episode.Title}' from podcast with podcast-id '{podcastEpisode.Podcast.Id}' and podcast-name '{podcastEpisode.Podcast.Name}' due to Recently-Expired Delayed Publishing.");
             return false;
         }
 
