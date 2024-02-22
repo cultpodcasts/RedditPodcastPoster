@@ -120,7 +120,9 @@ public class PodcastEpisodeFilter(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        if (!youTubeRefreshed)
+        if (!youTubeRefreshed && 
+            string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId) && 
+            string.IsNullOrWhiteSpace(podcastEpisode.Episode.YouTubeId))
         {
             logger.LogInformation(
                 $"{nameof(EliminateItemsDueToIndexingErrors)} Eliminating episode with episode-id '{podcastEpisode.Episode.Id}' and episode-title '{podcastEpisode.Episode.Title}' from podcast with podcast-id '{podcastEpisode.Podcast.Id}' and podcast-name '{podcastEpisode.Podcast.Name}' due to '{nameof(youTubeRefreshed)}'='{youTubeRefreshed}'.");
