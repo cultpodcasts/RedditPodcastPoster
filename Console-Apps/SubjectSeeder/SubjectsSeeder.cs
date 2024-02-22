@@ -12,10 +12,7 @@ public class SubjectsSeeder(
 {
     public async Task Run()
     {
-        var newSubjects = new List<Subject>
-        {
-            SubjectFactory.Create("Avatar", "Harry Palmer", "Enlightened Planetary Consciousness")
-        };
+        var newSubjects = new List<Subject>();
         foreach (var subject in newSubjects)
         {
             var match = await subjectService.Match(subject);

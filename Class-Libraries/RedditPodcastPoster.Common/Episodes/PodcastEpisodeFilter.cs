@@ -120,7 +120,7 @@ public class PodcastEpisodeFilter(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        if (IsRecentlyExpiredDelayedPublishing(podcastEpisode.Podcast, podcastEpisode.Episode) &&
+        if (IsRecentlyExpiredDelayedPublishing(podcastEpisode.Podcast, podcastEpisode.Episode) ||
             !youTubeRefreshed)
         {
             logger.LogInformation(
