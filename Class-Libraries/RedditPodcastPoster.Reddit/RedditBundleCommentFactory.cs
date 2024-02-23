@@ -10,7 +10,7 @@ public class RedditBundleCommentFactory(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : IRedditBundleCommentFactory
 {
-    public string Post(PostModel postModel)
+    public string ToComment(PostModel postModel)
     {
         var comment = new StringBuilder();
         for (var i = 0; i < postModel.BundledPartNumbers.Count(); i++)
@@ -26,21 +26,21 @@ public class RedditBundleCommentFactory(
             if (episode.Spotify != null)
             {
                 comment.AppendLine(
-                    $"Spotify: {episode.Spotify.ToString()}");
+                    $"\ud83d\udfe2 [Spotify]({episode.Spotify.ToString()})");
                 comment.AppendLine();
             }
 
             if (episode.Apple != null)
             {
                 comment.AppendLine(
-                    $"Apple Podcasts: {episode.Apple.ToString()}");
+                    $"\ud83d\udfe3 [Apple Podcasts]({episode.Apple.ToString()})");
                 comment.AppendLine();
             }
 
             if (episode.YouTube != null)
             {
                 comment.AppendLine(
-                    $"YouTube: {episode.YouTube.ToString()}");
+                    $"\ud83d\udfe5 [YouTube]({episode.YouTube.ToString()})");
                 comment.AppendLine();
             }
         }

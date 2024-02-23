@@ -10,20 +10,21 @@ public class RedditEpisodeCommentFactory(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : IRedditEpisodeCommentFactory
 {
-    public string Post(PostModel postModel)
+    public string ToComment(PostModel postModel)
     {
         var body = new StringBuilder();
-
-        var links = new Dictionary<string, Uri?>
+        var links = new Dictionary<string, (string Prefix, Uri? Url)>
         {
-            {"YouTube", postModel.YouTube},
-            {"Spotify", postModel.Spotify},
-            {"Apple Podcasts", postModel.Apple}
+            {"YouTube", ("\ud83d\udfe5", postModel.YouTube)},
+            {"Spotify", ("\ud83d\udfe2", postModel.Spotify)},
+            {"Apple Podcasts", ("\ud83d\udfe3", postModel.Apple)}
         };
-        var availableKeys = links.Where(x => x.Value != null && x.Value != postModel.Link).Select(x => x.Key);
+        var availableKeys = links
+            .Where(x => x.Value.Url != null)
+            .Select(x => x.Key);
         foreach (var availableKey in availableKeys)
         {
-            body.AppendLine($"{availableKey}: {links[availableKey]}");
+            body.AppendLine($"{links[availableKey].Prefix} [{availableKey}]({links[availableKey].Url})");
             body.AppendLine("");
         }
 
