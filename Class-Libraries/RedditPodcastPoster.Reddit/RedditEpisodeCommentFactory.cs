@@ -22,6 +22,17 @@ public class RedditEpisodeCommentFactory(
         var availableKeys = links
             .Where(x => x.Value.Url != null)
             .Select(x => x.Key);
+        if (availableKeys.Any())
+        {
+            body.AppendLine("Links:");
+            body.AppendLine("");
+        }
+        else if (availableKeys.Count() == 1)
+        {
+            body.AppendLine("Link:");
+            body.AppendLine("");
+        }
+
         foreach (var availableKey in availableKeys)
         {
             body.AppendLine($"{links[availableKey].Prefix} [{availableKey}]({links[availableKey].Url})");
