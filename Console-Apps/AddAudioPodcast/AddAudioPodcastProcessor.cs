@@ -121,7 +121,6 @@ public class AddAudioPodcastProcessor(
         return podcast;
     }
 
-
     private async Task<Podcast?> GetApplePodcast(AddAudioPodcastRequest request, IndexingContext indexingContext,
         List<Podcast> existingPodcasts)
     {
