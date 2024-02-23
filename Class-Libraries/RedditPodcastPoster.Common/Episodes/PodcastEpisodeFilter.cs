@@ -121,7 +121,7 @@ public class PodcastEpisodeFilter(
         bool spotifyRefreshed)
     {
         if (!youTubeRefreshed && 
-            string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId) && 
+            !string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId) && 
             string.IsNullOrWhiteSpace(podcastEpisode.Episode.YouTubeId))
         {
             logger.LogInformation(
