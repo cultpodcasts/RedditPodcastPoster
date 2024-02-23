@@ -82,7 +82,7 @@ public class RedditEpisodeCommentFactoryTests
         // act
         var comments = Sut.ToComment(postModel);
         // assert
-        comments.Should().NotContain("YouTube").And.NotContain("Spotify").And.Contain("Apple Podcasts");
+        comments.Should().BeEmpty();
     }
 
     [Fact]
