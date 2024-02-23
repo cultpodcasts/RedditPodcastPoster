@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Reddit;
 
 public interface IRedditCommentFactory
 {
-    string Post(PostModel postModel);
+    string ToComment(PostModel postModel);
 }

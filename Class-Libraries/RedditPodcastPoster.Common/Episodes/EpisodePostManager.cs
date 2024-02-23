@@ -65,11 +65,11 @@ public class EpisodePostManager(
                 string comments;
                 if (postModel.IsBundledPost)
                 {
-                    comments = redditBundleCommentFactory.Post(postModel);
+                    comments = redditBundleCommentFactory.ToComment(postModel);
                 }
                 else
                 {
-                    comments = redditEpisodeCommentFactory.Post(postModel);
+                    comments = redditEpisodeCommentFactory.ToComment(postModel);
                 }
 
                 if (!string.IsNullOrWhiteSpace(comments.Trim()))

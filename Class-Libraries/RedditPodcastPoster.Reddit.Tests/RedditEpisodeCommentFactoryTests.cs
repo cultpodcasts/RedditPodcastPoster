@@ -31,7 +31,7 @@ public class RedditEpisodeCommentFactoryTests
                 },
                 Service.YouTube));
         // act
-        var comments = Sut.Post(postModel);
+        var comments = Sut.ToComment(postModel);
         // assert
         comments.Should().NotContain("YouTube:").And.Contain("Spotify:").And.Contain("Apple Podcasts:");
     }
@@ -56,7 +56,7 @@ public class RedditEpisodeCommentFactoryTests
                 },
                 Service.YouTube));
         // act
-        var comments = Sut.Post(postModel);
+        var comments = Sut.ToComment(postModel);
         // assert
         comments.Should().NotContain("YouTube:").And.NotContain("Spotify:").And.Contain("Apple Podcasts:");
     }
@@ -80,7 +80,7 @@ public class RedditEpisodeCommentFactoryTests
                 },
                 Service.YouTube));
         // act
-        var comments = Sut.Post(postModel);
+        var comments = Sut.ToComment(postModel);
         // assert
         comments.Should().BeEmpty();
     }
@@ -104,7 +104,7 @@ public class RedditEpisodeCommentFactoryTests
                 },
                 Service.Spotify));
         // act
-        var comments = Sut.Post(postModel);
+        var comments = Sut.ToComment(postModel);
         // assert
         comments.Should().Contain("YouTube:").And.NotContain("Spotify:").And.Contain("Apple Podcasts:");
     }
@@ -128,7 +128,7 @@ public class RedditEpisodeCommentFactoryTests
                 },
                 Service.Apple));
         // act
-        var comments = Sut.Post(postModel);
+        var comments = Sut.ToComment(postModel);
         // assert
         comments.Should().Contain("YouTube:").And.Contain("Spotify:").And.NotContain("Apple Podcasts:");
     }
