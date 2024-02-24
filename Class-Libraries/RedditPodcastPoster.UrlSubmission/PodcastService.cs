@@ -73,7 +73,7 @@ public class PodcastService(
             var podcastId = appleUrlCategoriser.GetPodcastId(url);
             if (podcastId == null)
             {
-                throw new ArgumentException($"Unable to extract spotify-episode-id from '{url}'.", nameof(url));
+                throw new ArgumentException($"Unable to extract apple-episode-id from '{url}'.", nameof(url));
             }
 
 

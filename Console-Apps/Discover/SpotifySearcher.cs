@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.Text;
@@ -14,7 +15,7 @@ public class SpotifySearcher(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : ISpotifySearcher
 {
-    private readonly Uri SpotifyEpisodeBase = new("https://open.spotify.com/episode/");
+    private readonly Uri _spotifyEpisodeBase = new("https://open.spotify.com/episode/");
 
     public async Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext)
     {
@@ -23,9 +24,14 @@ public class SpotifySearcher(
             indexingContext);
         if (results != null)
         {
+            var queryRegexPattern = $@"\b{query}\b";
+            var termRegex = new Regex(queryRegexPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
             var allResults = await spotifyClient.PaginateAll(results, response => response.Episodes, indexingContext);
-            var recentResults = allResults?.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince) ??
-                                Enumerable.Empty<SimpleEpisode>();
+            var recentResults =
+                allResults?
+                    .Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince &&
+                                (termRegex.IsMatch(x.Name) || termRegex.IsMatch(x.Description))) ??
+                Enumerable.Empty<SimpleEpisode>();
 
             if (recentResults.Any())
             {
@@ -49,6 +55,6 @@ public class SpotifySearcher(
             htmlSanitiser.Sanitise(episode.HtmlDescription).Trim(),
             episode.Name.Trim(),
             episode.Show.Name.Trim(),
-            new Uri(SpotifyEpisodeBase, episode.Id));
+            new Uri(_spotifyEpisodeBase, episode.Id));
     }
 }

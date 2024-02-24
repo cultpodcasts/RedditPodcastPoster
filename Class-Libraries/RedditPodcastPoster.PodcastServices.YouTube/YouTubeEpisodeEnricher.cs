@@ -82,11 +82,12 @@ public class YouTubeEpisodeEnricher(
                 }
             }
 
-            if (request.Podcast.AppleId == null &&
+            if ((request.Podcast.AppleId == null || request.Episode.AppleId == null) &&
                 request.Episode.Release.TimeOfDay == TimeSpan.Zero &&
                 release.HasValue)
             {
                 request.Episode.Release = enrichmentContext.Release = release!.Value.UtcDateTime;
+                enrichmentContext.Release = release!.Value.UtcDateTime;
             }
         }
     }

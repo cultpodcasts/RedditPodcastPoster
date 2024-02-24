@@ -24,14 +24,14 @@ public class DiscoveryProcessor(
 
         if (request.IncludeListenNotes)
         {
-            results = results.Concat(await listenNotesSearcher.Search("\"Cult\"", indexingContext));
+            results = results.Concat(await listenNotesSearcher.Search("Cult", indexingContext));
         }
 
-        var cults = await spotifySearcher.Search("\"Cults\"", indexingContext);
-        var cult = await spotifySearcher.Search("\"Cult\"", indexingContext);
-        var scientology = await spotifySearcher.Search("\"Scientology\"", indexingContext);
-        var nxivm = await spotifySearcher.Search("\"NXIVM\"", indexingContext);
-        var flds = await spotifySearcher.Search("\"FLDS\"", indexingContext);
+        var cults = await spotifySearcher.Search("Cults", indexingContext);
+        var cult = await spotifySearcher.Search("Cult", indexingContext);
+        var scientology = await spotifySearcher.Search("Scientology", indexingContext);
+        var nxivm = await spotifySearcher.Search("NXIVM", indexingContext);
+        var flds = await spotifySearcher.Search("FLDS", indexingContext);
         results = results.Concat(cults);
         results = results.Concat(cult);
         results = results.Concat(scientology);
