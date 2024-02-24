@@ -27,7 +27,7 @@ public class ListenNotesSearcher(
         var @break = false;
         var parameters = new Dictionary<string, string>
         {
-            {QueryKey, term},
+            {QueryKey, $@"""{term}"""},
             {"type", "episode"},
             {"sort_by_date", "1"}
         };
