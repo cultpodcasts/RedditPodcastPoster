@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Net;
+using System.Text.RegularExpressions;
 
 namespace RedditPodcastPoster.Models;
 
@@ -22,8 +23,8 @@ public class PostModel
         ReleaseDate = firstEpisode.Release;
         Published = firstEpisode.Published;
         EpisodeLength = firstEpisode.Duration;
-        EpisodeDescription = firstEpisode.Description;
-        EpisodeTitle = firstEpisode.Title;
+        EpisodeDescription = WebUtility.HtmlDecode(firstEpisode.Description);
+        EpisodeTitle = WebUtility.HtmlDecode(firstEpisode.Title);
         Id = firstEpisode.Id;
         Subjects = firstEpisode.Subjects;
 

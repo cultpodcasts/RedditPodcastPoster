@@ -47,7 +47,11 @@ public class PostProcessor(
             podcasts = await repository.GetAll().ToListAsync();
         }
 
-        await PostNewEpisodes(request, podcasts);
+        if (!request.SkipReddit)
+        {
+            await PostNewEpisodes(request, podcasts);
+        }
+
         Task[] publishingTasks =
         {
             contentPublisher.PublishHomepage()

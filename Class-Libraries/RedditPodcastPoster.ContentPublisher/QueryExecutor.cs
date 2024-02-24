@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Net;
+using System.Text.RegularExpressions;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher.Models;
@@ -36,8 +37,8 @@ public class QueryExecutor(
                 new RecentEpisode
                 {
                     Apple = x.Apple,
-                    EpisodeDescription = x.EpisodeDescription,
-                    EpisodeTitle = x.EpisodeTitle,
+                    EpisodeDescription = WebUtility.HtmlDecode(x.EpisodeDescription),
+                    EpisodeTitle = WebUtility.HtmlDecode(x.EpisodeTitle),
                     PodcastName = x.PodcastName,
                     Release = x.Release,
                     Spotify = x.Spotify,
