@@ -39,13 +39,26 @@ public class UrlSubmitter(
 
         if (categorisedItem.MatchingPodcast != null)
         {
-            var matchingEpisode = categorisedItem.MatchingEpisode ??
-                                  categorisedItem.MatchingPodcast.Episodes.SingleOrDefault(episode =>
-                                      IsMatchingEpisode(episode, categorisedItem));
+            var matchingEpisodes = categorisedItem.MatchingEpisode != null
+                ? new[] {categorisedItem.MatchingEpisode}
+                : categorisedItem.MatchingPodcast.Episodes.Where(episode =>
+                    IsMatchingEpisode(episode, categorisedItem));
+
+            Episode matchingEpisode;
+            if (matchingEpisodes!.Count() > 1)
+            {
+                var title = categorisedItem.ResolvedAppleItem?.EpisodeTitle ??
+                            categorisedItem.ResolvedSpotifyItem?.EpisodeTitle ??
+                            categorisedItem.ResolvedYouTubeItem?.EpisodeTitle;
+                matchingEpisode = FuzzyMatcher.Match(title, matchingEpisodes, x => x.Title);
+            }
+            else
+            {
+                matchingEpisode = matchingEpisodes.SingleOrDefault();
+            }
 
             logger.LogInformation(
                 $"Modifying podcast with name '{categorisedItem.MatchingPodcast.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
-
 
             ApplyResolvedPodcastServiceProperties(
                 categorisedItem.MatchingPodcast,
@@ -329,15 +342,15 @@ public class UrlSubmitter(
         string resolvedTitle;
         if (categorisedItem is {Authority: Service.Apple, ResolvedAppleItem: not null})
         {
-            resolvedTitle = categorisedItem.ResolvedAppleItem.EpisodeTitle;
+            resolvedTitle = categorisedItem.ResolvedAppleItem.EpisodeTitle.Trim();
         }
         else if (categorisedItem is {Authority: Service.Spotify, ResolvedSpotifyItem: not null})
         {
-            resolvedTitle = categorisedItem.ResolvedSpotifyItem.EpisodeTitle;
+            resolvedTitle = categorisedItem.ResolvedSpotifyItem.EpisodeTitle.Trim();
         }
         else if (categorisedItem is {Authority: Service.YouTube, ResolvedYouTubeItem: not null})
         {
-            resolvedTitle = categorisedItem.ResolvedYouTubeItem.EpisodeTitle;
+            resolvedTitle = categorisedItem.ResolvedYouTubeItem.EpisodeTitle.Trim();
         }
         else
         {
@@ -345,7 +358,9 @@ public class UrlSubmitter(
         }
 
 
-        if (resolvedTitle.Trim() == episodeTitle)
+        if (resolvedTitle == episodeTitle ||
+            resolvedTitle.Contains(episodeTitle) ||
+            episodeTitle.Contains(resolvedTitle))
         {
             return true;
         }
