@@ -17,7 +17,7 @@ public class RedditPostTitleFactory(
 
     public string ConstructPostTitle(PostModel postModel)
     {
-        var title = ConstructBasePostTitle(postModel);
+        var (title, hasDescription) = ConstructBasePostTitle(postModel);
         var bundleSuffix = CreateBundleSuffix(postModel.BundledPartNumbers);
         var audioLinksSuffix = "";
         if (postModel.Link != postModel.Spotify &&
@@ -27,8 +27,7 @@ public class RedditPostTitleFactory(
             audioLinksSuffix = "(Audio links in comments)";
         }
 
-        return ConstructFinalPostTitle(title, !string.IsNullOrWhiteSpace(postModel.EpisodeDescription), bundleSuffix,
-            audioLinksSuffix);
+        return ConstructFinalPostTitle(title, hasDescription, bundleSuffix, audioLinksSuffix);
     }
 
     private string ConstructFinalPostTitle(string title, bool hasDescription, string bundleSuffix,
@@ -53,7 +52,7 @@ public class RedditPostTitleFactory(
         return title;
     }
 
-    private string ConstructBasePostTitle(PostModel postModel)
+    private (string title, bool hasDescription) ConstructBasePostTitle(PostModel postModel)
     {
         var episodeTitle = textSanitiser.SanitiseTitle(postModel);
         var podcastName = textSanitiser.SanitisePodcastName(postModel);
@@ -64,7 +63,7 @@ public class RedditPostTitleFactory(
             title += $" \"{description}";
         }
 
-        return title;
+        return (title, !string.IsNullOrWhiteSpace(description));
     }
 
     private static string CreateBundleSuffix(IEnumerable<int>? partNumbers)
