@@ -113,7 +113,7 @@ public class TweetBuilder(
                 .SelectMany(x => x!.EnrichmentHashTags!)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Distinct()
-                .Select(x => (x, (string?) TextInfo.ToTitleCase(x).Replace(" ", string.Empty)));
+                .Select(x => (x, (string?) x.Replace(" ", string.Empty)));
         return hashTags.Union(enrichmentHashTags).ToList();
     }
 }
