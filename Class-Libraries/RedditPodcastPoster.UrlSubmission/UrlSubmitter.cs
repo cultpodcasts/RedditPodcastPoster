@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Net;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
@@ -338,25 +339,24 @@ public class UrlSubmitter(
 
     private bool IsMatchingEpisode(Episode episode, CategorisedItem categorisedItem)
     {
-        var episodeTitle = episode.Title.Trim();
+        var episodeTitle = WebUtility.HtmlDecode(episode.Title.Trim());
         string resolvedTitle;
         if (categorisedItem is {Authority: Service.Apple, ResolvedAppleItem: not null})
         {
-            resolvedTitle = categorisedItem.ResolvedAppleItem.EpisodeTitle.Trim();
+            resolvedTitle = WebUtility.HtmlDecode(categorisedItem.ResolvedAppleItem.EpisodeTitle.Trim());
         }
         else if (categorisedItem is {Authority: Service.Spotify, ResolvedSpotifyItem: not null})
         {
-            resolvedTitle = categorisedItem.ResolvedSpotifyItem.EpisodeTitle.Trim();
+            resolvedTitle = WebUtility.HtmlDecode(categorisedItem.ResolvedSpotifyItem.EpisodeTitle.Trim());
         }
         else if (categorisedItem is {Authority: Service.YouTube, ResolvedYouTubeItem: not null})
         {
-            resolvedTitle = categorisedItem.ResolvedYouTubeItem.EpisodeTitle.Trim();
+            resolvedTitle = WebUtility.HtmlDecode(categorisedItem.ResolvedYouTubeItem.EpisodeTitle.Trim());
         }
         else
         {
             return false;
         }
-
 
         if (resolvedTitle == episodeTitle ||
             resolvedTitle.Contains(episodeTitle) ||
