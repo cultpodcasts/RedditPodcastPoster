@@ -5,7 +5,7 @@ namespace SubjectSeeder;
 public class SubjectRequest
 {
     [Value(0, MetaName = "subject-name", HelpText = "The name of the subject", Required = true)]
-    public string Name { get; set; }
+    public required string Name { get; set; }
 
     [Option('a', "aliases", Required = false, HelpText = "Aliases for the Subject", Default = false)]
     public string? Aliases { get; set; }

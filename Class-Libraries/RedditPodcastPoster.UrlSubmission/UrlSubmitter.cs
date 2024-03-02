@@ -51,7 +51,7 @@ public class UrlSubmitter(
                 var title = categorisedItem.ResolvedAppleItem?.EpisodeTitle ??
                             categorisedItem.ResolvedSpotifyItem?.EpisodeTitle ??
                             categorisedItem.ResolvedYouTubeItem?.EpisodeTitle;
-                matchingEpisode = FuzzyMatcher.Match(title, matchingEpisodes, x => x.Title);
+                matchingEpisode = FuzzyMatcher.Match(title!, matchingEpisodes, x => x.Title);
             }
             else
             {
