@@ -45,13 +45,13 @@ public class UrlSubmitter(
                 : categorisedItem.MatchingPodcast.Episodes.Where(episode =>
                     IsMatchingEpisode(episode, categorisedItem));
 
-            Episode matchingEpisode;
+            Episode? matchingEpisode;
             if (matchingEpisodes!.Count() > 1)
             {
                 var title = categorisedItem.ResolvedAppleItem?.EpisodeTitle ??
                             categorisedItem.ResolvedSpotifyItem?.EpisodeTitle ??
                             categorisedItem.ResolvedYouTubeItem?.EpisodeTitle;
-                matchingEpisode = FuzzyMatcher.Match(title, matchingEpisodes, x => x.Title);
+                matchingEpisode = FuzzyMatcher.Match(title!, matchingEpisodes, x => x.Title);
             }
             else
             {

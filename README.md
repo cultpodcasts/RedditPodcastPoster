@@ -9,22 +9,32 @@ This code is licensed under the MIT license.
 ## Settings
 This project depends on the follow user-secrets:
 
-    {
-      "spotify:ClientId": "xxxxx",
-      "spotify:ClientSecret": "xxxx",
-      "reddit:AppId": "xxxxx",
-      "reddit:AppSecret": "xxxx",
-      "reddit:RefreshToken": "xxxx",
-      "youtube:ApiKey": "xxxx",
-      "cosmosdb:Endpoint": "https:/xxxxx.documents.azure.com:443/",
-      "cosmosdb:AuthKeyOrResourceToken": "xxxx",
-      "cosmosdb:Container": "xxxxx",
-      "cosmosdb:DatabaseId": "xxxx",
-      "subreddit:SubredditName": "Name of the subreddit to post to",
-      "subreddit:SubredditTitleMaxLength": 300 // the max-length of a title
-    }
-
-A Reddit.com refresh-key, to apply to the reddit:RefreshToken setting, can be generated using the source located here: https://github.com/sirkris/Reddit.NET
+	{
+	  "spotify:ClientId": "xxxxxxx",
+	  "spotify:ClientSecret": "xxxxxxx",
+	  "reddit:AppId": "xxxxxxx",
+	  "reddit:AppSecret": "xxxxxxx",
+	  "reddit:RefreshToken": "xxxxxxx",
+	  "youtube:ApiKey": "xxxxxxx",
+	  "cosmosdb:Endpoint": "https://xxxxxxx.documents.azure.com:443/",
+	  "cosmosdb:AuthKeyOrResourceToken": "xxxxxxx",
+	  "cosmosdb:Container": "xxxxxxx",
+	  "cosmosdb:DatabaseId": "xxxxxxx",
+	  "cosmosdb:UseGateWay": true,
+	  "subreddit:SubredditName": "xxxxxxx",
+	  "subreddit:SubredditTitleMaxLength": 300,
+	  "cloudflare:AccountId": "xxxxxxx",
+	  "cloudflare:R2AccessKey": "xxxxxxx",
+	  "cloudflare:R2SecretKey": "xxxxxxx",
+	  "cloudflare:BucketName": "xxxxxxx",
+	  "cloudflare:HomepageKey": "xxxxxxx",
+	  "twitter:ConsumerKey": "xxxxxxx",
+	  "twitter:ConsumerSecret": "xxxxxxx",
+	  "twitter:AccessToken": "xxxxxxx",
+	  "twitter:AccessTokenSecret": "xxxxxxxx",
+	  "delayedYouTubePublication:EvaluationThreshold": "4:00:00",
+	}
+A Reddit.com refresh-key, to apply to the reddit:RefreshToken setting, can be generated using the source located here: https://github.com/sirkris/Reddit.NET and the dotnetcore app demonstrated here: https://www.youtube.com/watch?v=xlWhLyVgN2s
 
 ## Libraries used
 
