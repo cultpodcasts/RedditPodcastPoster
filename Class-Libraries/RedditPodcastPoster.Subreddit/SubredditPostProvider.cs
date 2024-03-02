@@ -22,15 +22,19 @@ public class SubredditPostProvider(
         var after = string.Empty;
         var redditPostBatch =
             redditClient
-                .Subreddit(_subredditSettings.SubredditName).Posts
+                .Subreddit(_subredditSettings.SubredditName)
+                .Posts
                 .GetNew(after, limit: 10)
                 .ToList();
         while (redditPostBatch.Any())
         {
             posts.AddRange(redditPostBatch);
             after = redditPostBatch.Last().Fullname;
-            redditPostBatch = redditClient.Subreddit(_subredditSettings.SubredditName).Posts
-                .GetNew(limit: 10, after: after);
+            redditPostBatch =
+                redditClient
+                    .Subreddit(_subredditSettings.SubredditName)
+                    .Posts
+                    .GetNew(limit: 10, after: after);
         }
 
         return posts;

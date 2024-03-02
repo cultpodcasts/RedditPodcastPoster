@@ -2,19 +2,40 @@
 
 public static class SubjectFactory
 {
-    public static Subject Create(string name, string? aliases = null, string? associatedSubjects = null)
+    public static Subject Create(string name, string? aliases = null, string? associatedSubjects = null,
+        string? hashTags = null)
     {
-        var subject = new Subject(name);
-        subject.FileKey = FileKeyFactory.GetFileKey(name);
-
-        if (aliases != null)
+        if (string.IsNullOrWhiteSpace(name))
         {
-            subject.Aliases = aliases.Split(",").Select(x => x.Trim()).ToArray();
+            throw new ArgumentNullException(nameof(name));
         }
 
-        if (associatedSubjects != null)
+        var subject = new Subject(name)
         {
-            subject.AssociatedSubjects = associatedSubjects.Split(",").Select(x => x.Trim()).ToArray();
+            FileKey = FileKeyFactory.GetFileKey(name)
+        };
+
+        if (!string.IsNullOrWhiteSpace(aliases))
+        {
+            subject.Aliases = aliases
+                .Split(",")
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .ToArray();
+        }
+
+        if (!string.IsNullOrWhiteSpace(associatedSubjects))
+        {
+            subject.AssociatedSubjects = associatedSubjects
+                .Split(",")
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .ToArray();
+        }
+
+        if (!string.IsNullOrWhiteSpace(hashTags))
+        {
+            subject.HashTag = hashTags;
         }
 
         return subject;

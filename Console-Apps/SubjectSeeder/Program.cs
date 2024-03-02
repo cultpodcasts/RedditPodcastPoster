@@ -1,9 +1,12 @@
 ﻿using System.Reflection;
+using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.Reddit;
+using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using SubjectSeeder;
 
@@ -19,14 +22,22 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    //.AddSingleton<IFileRepositoryFactory, FileRepositoryFactory>()
-    //.AddScoped(s => (IDataRepository) s.GetService<IFileRepositoryFactory>().Create())
-    //.AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
     .AddRepositories(builder.Configuration)
     .AddSubjectServices()
-    .AddSingleton<SubjectsSeeder>();
+    .AddSingleton<SubjectsSeeder>()
+    .AddSubredditSettings(builder.Configuration);
+RedditClientFactory.AddRedditClient(builder.Services);
 
+builder.Services
+    .AddOptions<RedditSettings>().Bind(builder.Configuration.GetSection("reddit-moderator"));
 
 using var host = builder.Build();
-var processor = host.Services.GetService<SubjectsSeeder>();
-await processor!.Run();
+return await Parser.Default.ParseArguments<SubjectRequest>(args)
+    .MapResult(async subjectRequest => await Run(subjectRequest), errs => Task.FromResult(-1)); // Invalid arguments
+
+async Task<int> Run(SubjectRequest request)
+{
+    var urlSubmitter = host.Services.GetService<SubjectsSeeder>()!;
+    await urlSubmitter.Run(request);
+    return 0;
+}
