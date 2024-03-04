@@ -36,13 +36,16 @@ public class TweetBuilder(
         var hashtagsAdded = new List<string>();
         foreach (var hashtag in episodeHashtags)
         {
-            if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Item1.ToLowerInvariant()))
+            if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.HashTag.ToLowerInvariant()))
             {
-                var hashTagText = hashtag.Item1.TrimStart('#');
-                (episodeTitle, var addedHashTag) = hashTagEnricher.AddHashTag(episodeTitle, hashTagText, hashtag.Item2);
-                if (addedHashTag && hashtag.Item2 == null)
+                (episodeTitle, var addedHashTag) =
+                    hashTagEnricher.AddHashTag(
+                        episodeTitle,
+                        hashtag.HashTag.TrimStart('#'),
+                        hashtag.EnrichmentHashTag?.TrimStart('#'));
+                if (addedHashTag)
                 {
-                    hashtagsAdded.Add(hashtag.Item1);
+                    hashtagsAdded.Add(hashtag.EnrichmentHashTag ?? hashtag.HashTag);
                 }
             }
         }
@@ -64,8 +67,8 @@ public class TweetBuilder(
 
         var endHashTags = string.Join(" ",
             episodeHashtags
-                .Where(x => x.Item2 == null)
-                .Select(x => x.Item1)
+                .Where(x => x.EnrichmentHashTag == null)
+                .Select(x => x.HashTag)
                 .Distinct()
                 .Where(x => !hashtagsAdded.Contains(x))
                 .Select(x => $"#{x.TrimStart('#')}"));
@@ -96,7 +99,8 @@ public class TweetBuilder(
         return tweet;
     }
 
-    private async Task<ICollection<(string, string?)>> GetHashTags(List<string> episodeSubjects)
+    private async Task<ICollection<(string HashTag, string? EnrichmentHashTag)>> GetHashTags(
+        List<string> episodeSubjects)
     {
         var subjectRetrieval = episodeSubjects.Select(x => subjectRepository.GetByName(x)).ToArray();
         var subjects = await Task.WhenAll(subjectRetrieval);
@@ -113,7 +117,7 @@ public class TweetBuilder(
                 .SelectMany(x => x!.EnrichmentHashTags!)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Distinct()
-                .Select(x => (x, (string?) x.Replace(" ", string.Empty)));
+                .Select(x => (x, (string?) $"#{x.Replace(" ", string.Empty)}"));
         return hashTags.Union(enrichmentHashTags).ToList();
     }
 }

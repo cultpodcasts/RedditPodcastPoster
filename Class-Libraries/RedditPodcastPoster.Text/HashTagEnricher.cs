@@ -4,7 +4,7 @@ namespace RedditPodcastPoster.Text;
 
 public class HashTagEnricher : IHashTagEnricher
 {
-    public (string, bool) AddHashTag(string input, string match, string? replacement = null)
+    public (string Title, bool HashTagAdded) AddHashTag(string input, string match, string? replacement = null)
     {
         var regex = new Regex($"\\b{match}\\b", RegexOptions.IgnoreCase);
         if (regex.IsMatch(input))

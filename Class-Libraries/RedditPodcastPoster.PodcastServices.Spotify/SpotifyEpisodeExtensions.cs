@@ -9,11 +9,21 @@ public static class SpotifyEpisodeExtensions
 
     public static DateTime GetReleaseDate(this SimpleEpisode episode)
     {
+        if (episode.ReleaseDate == "0000")
+        {
+            return DateTime.MinValue;
+        }
+
         return DateTime.ParseExact(episode.ReleaseDate, SpotifyDateFormat, CultureInfo.InvariantCulture);
     }
 
     public static DateTime GetReleaseDate(this FullEpisode episode)
     {
+        if (episode.ReleaseDate == "0000")
+        {
+            return DateTime.MinValue;
+        }
+
         return DateTime.ParseExact(episode.ReleaseDate, SpotifyDateFormat, CultureInfo.InvariantCulture);
     }
 
