@@ -75,6 +75,15 @@ public class ApplePodcastService : IApplePodcastService
             }
         }
 
-        return podcastRecords.Where(x => x.Attributes.Duration > TimeSpan.Zero).Select(x => x.ToAppleEpisode());
+        var appleEpisodes = podcastRecords
+            .Where(x => x.Attributes.Duration > TimeSpan.Zero)
+            .Select(x => x.ToAppleEpisode());
+        if (podcastRecords.Any() && !appleEpisodes.Any())
+        {
+            _logger.LogError(
+                $"Unable to cast apple-podcast-record (count:'{podcastRecords.Count}') to apple-episodes (count:'{appleEpisodes.Count()}').");
+        }
+
+        return appleEpisodes;
     }
 }
