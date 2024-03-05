@@ -16,107 +16,110 @@ public sealed class Podcast : CosmosSelector
     public string Name { get; set; } = "";
 
     [JsonPropertyName("publisher")]
-    [JsonPropertyOrder(21)]
+    [JsonPropertyOrder(30)]
     public string Publisher { get; set; } = "";
 
     [JsonPropertyName("hasBundledEpisodes")]
-    [JsonPropertyOrder(30)]
+    [JsonPropertyOrder(40)]
     public bool Bundles { get; set; } = false;
 
     [JsonPropertyName("indexAllEpisodes")]
-    [JsonPropertyOrder(31)]
+    [JsonPropertyOrder(50)]
     public bool IndexAllEpisodes { get; set; } = false;
 
     [JsonPropertyName("bypassShortEpisodeChecking")]
-    [JsonPropertyOrder(32)]
+    [JsonPropertyOrder(60)]
     public bool? BypassShortEpisodeChecking { get; set; }
 
     [JsonPropertyName("releaseAuthority")]
-    [JsonPropertyOrder(40)]
+    [JsonPropertyOrder(70)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public Service? ReleaseAuthority { get; set; }
 
     [JsonPropertyName("primaryPostService")]
-    [JsonPropertyOrder(41)]
+    [JsonPropertyOrder(80)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public Service? PrimaryPostService { get; set; }
 
     [JsonPropertyName("spotifyId")]
-    [JsonPropertyOrder(50)]
+    [JsonPropertyOrder(90)]
     public string SpotifyId { get; set; } = "";
 
     [JsonPropertyName("spotifyMarket")]
-    [JsonPropertyOrder(51)]
+    [JsonPropertyOrder(100)]
     public string? SpotifyMarket { get; set; }
 
     [JsonPropertyName("spotifyEpisodesQueryIsExpensive")]
-    [JsonPropertyOrder(52)]
+    [JsonPropertyOrder(110)]
     public bool? SpotifyEpisodesQueryIsExpensive { get; set; }
 
     [JsonPropertyName("appleId")]
-    [JsonPropertyOrder(60)]
+    [JsonPropertyOrder(120)]
     public long? AppleId { get; set; } = null;
 
     [JsonPropertyName("youTubeChannelId")]
-    [JsonPropertyOrder(70)]
+    [JsonPropertyOrder(130)]
     public string YouTubeChannelId { get; set; } = "";
 
     [JsonPropertyName("youTubePlaylistId")]
-    [JsonPropertyOrder(71)]
+    [JsonPropertyOrder(140)]
     public string YouTubePlaylistId { get; set; } = "";
 
     [JsonPropertyName("youTubePublicationDelay")]
-    [JsonPropertyOrder(72)]
+    [JsonPropertyOrder(150)]
     public string YouTubePublishingDelayTimeSpan { get; set; } = "";
 
     [JsonPropertyName("youTubePlaylistQueryIsExpensive")]
-    [JsonPropertyOrder(73)]
+    [JsonPropertyOrder(160)]
     public bool? YouTubePlaylistQueryIsExpensive { get; set; }
 
     [JsonPropertyName("skipEnrichingFromYouTube")]
-    [JsonPropertyOrder(74)]
+    [JsonPropertyOrder(170)]
     public bool? SkipEnrichingFromYouTube { get; set; }
 
     [JsonPropertyName("youTubeNotificationSubscriptionLeaseExpiry")]
-    [JsonPropertyOrder(75)]
+    [JsonPropertyOrder(180)]
     public DateTime? YouTubeNotificationSubscriptionLeaseExpiry { get; set; }
 
     [JsonPropertyName("twitterHandle")]
-    [JsonPropertyOrder(80)]
+    [JsonPropertyOrder(190)]
     public string TwitterHandle { get; set; } = "";
 
     [JsonPropertyName("titleRegex")]
-    [JsonPropertyOrder(90)]
+    [JsonPropertyOrder(200)]
     public string TitleRegex { get; set; } = "";
 
     [JsonPropertyName("descriptionRegex")]
-    [JsonPropertyOrder(91)]
+    [JsonPropertyOrder(210)]
     public string DescriptionRegex { get; set; } = "";
 
     [JsonPropertyName("episodeMatchRegex")]
-    [JsonPropertyOrder(92)]
+    [JsonPropertyOrder(220)]
     public string EpisodeMatchRegex { get; set; } = "";
 
     [JsonPropertyName("episodeIncludeTitleRegex")]
-    [JsonPropertyOrder(93)]
+    [JsonPropertyOrder(230)]
     public string EpisodeIncludeTitleRegex { get; set; } = "";
 
     [JsonPropertyName("ignoredAssociatedSubjects")]
-    [JsonPropertyOrder(93)]
+    [JsonPropertyOrder(240)]
     public string[]? IgnoredAssociatedSubjects { get; set; }
 
     [JsonPropertyName("ignoredSubjects")]
-    [JsonPropertyOrder(93)]
+    [JsonPropertyOrder(250)]
     public string[]? IgnoredSubjects { get; set; }
 
-
     [JsonPropertyName("defaultSubject")]
-    [JsonPropertyOrder(94)]
+    [JsonPropertyOrder(260)]
     public string? DefaultSubject { get; set; }
 
+    [JsonPropertyName("searchTerms")]
+    [JsonPropertyOrder(270)]
+    public string? SearchTerms { get; set; }
+
     [JsonPropertyName("episodes")]
-    [JsonPropertyOrder(200)]
-    public List<Episode> Episodes { get; set; } = new();
+    [JsonPropertyOrder(280)]
+    public List<Episode> Episodes { get; set; } = [];
 
     public bool HasExpensiveYouTubePlaylistQuery()
     {
