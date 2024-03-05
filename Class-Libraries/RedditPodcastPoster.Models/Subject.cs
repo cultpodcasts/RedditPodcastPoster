@@ -14,7 +14,7 @@ public sealed class Subject : CosmosSelector
 
     [JsonPropertyName("name")]
     [JsonPropertyOrder(10)]
-    public string Name { get; set; } = "";
+    public string Name { get; set; }
 
     [JsonPropertyName("aliases")]
     [JsonPropertyOrder(20)]
@@ -24,16 +24,20 @@ public sealed class Subject : CosmosSelector
     [JsonPropertyOrder(30)]
     public string[]? AssociatedSubjects { get; set; }
 
-    [JsonPropertyName("redditFlairTemplateId")]
+    [JsonPropertyName("searchTerms")]
     [JsonPropertyOrder(40)]
+    public string? SearchTerms { get; set; }
+
+    [JsonPropertyName("redditFlairTemplateId")]
+    [JsonPropertyOrder(50)]
     public Guid? RedditFlairTemplateId { get; set; }
 
     [JsonPropertyName("hashtag")]
-    [JsonPropertyOrder(50)]
+    [JsonPropertyOrder(60)]
     public string? HashTag { get; set; }
 
     [JsonPropertyName("enrichmentHashTags")]
-    [JsonPropertyOrder(51)]
+    [JsonPropertyOrder(70)]
     public string[]? EnrichmentHashTags { get; set; }
 
     public SubjectTerm[] GetSubjectTerms()
