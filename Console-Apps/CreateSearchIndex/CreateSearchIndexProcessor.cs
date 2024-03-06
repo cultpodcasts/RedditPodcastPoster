@@ -80,6 +80,16 @@ public class CreateSearchIndexProcessor(
                     {
                         IsSearchable = true, IsFilterable = true, IsFacetable = true,
                         AnalyzerName = LexicalAnalyzerName.EnLucene
+                    },
+                    new("podcastSearchTerms", SearchFieldDataType.String)
+                    {
+                        IsSearchable = true, AnalyzerName = LexicalAnalyzerName.EnLucene, IsFilterable = false,
+                        IsFacetable = false, IsSortable = false, IsHidden = true
+                    },
+                    new("episodeSearchTerms", SearchFieldDataType.String)
+                    {
+                        IsSearchable = true, AnalyzerName = LexicalAnalyzerName.EnLucene, IsFilterable = false,
+                        IsFacetable = false, IsSortable = false, IsHidden = true
                     }
                 },
                 DefaultScoringProfile = string.Empty,
@@ -104,6 +114,8 @@ public class CreateSearchIndexProcessor(
                             e.urls.apple,
                             e.urls.youtube,
                             e.subjects as subjects,
+                            p.searchTerms as podcastSearchTerms,
+                            e.searchTerms as episodeSearchTerms,
                             p._ts
                             FROM podcasts p
                             JOIN e IN p.episodes
