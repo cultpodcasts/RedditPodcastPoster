@@ -134,7 +134,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebsubStatus", "Console-App
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.PodcastServices.Spotify.Tests", "Class-Libraries\RedditPodcastPoster.PodcastServices.Spotify.Tests\RedditPodcastPoster.PodcastServices.Spotify.Tests.csproj", "{6205D116-89D5-485D-B59E-D13FEE3316EB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.PodcastServices.ListenNotes", "Class-Libraries\RedditPodcastPoster.PodcastServices.ListenNotes\RedditPodcastPoster.PodcastServices.ListenNotes.csproj", "{64053DD9-F462-43AD-A2B3-624E9BB82A4A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.PodcastServices.ListenNotes", "Class-Libraries\RedditPodcastPoster.PodcastServices.ListenNotes\RedditPodcastPoster.PodcastServices.ListenNotes.csproj", "{64053DD9-F462-43AD-A2B3-624E9BB82A4A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CreateSearchIndex", "Console-Apps\CreateSearchIndex\CreateSearchIndex.csproj", "{9C87F6A7-CBEA-4673-8FBA-C7A73F3E09CE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -366,6 +368,10 @@ Global
 		{64053DD9-F462-43AD-A2B3-624E9BB82A4A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{64053DD9-F462-43AD-A2B3-624E9BB82A4A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{64053DD9-F462-43AD-A2B3-624E9BB82A4A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C87F6A7-CBEA-4673-8FBA-C7A73F3E09CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C87F6A7-CBEA-4673-8FBA-C7A73F3E09CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C87F6A7-CBEA-4673-8FBA-C7A73F3E09CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C87F6A7-CBEA-4673-8FBA-C7A73F3E09CE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -428,6 +434,7 @@ Global
 		{113714D2-3830-4B34-B978-0DC3DCD2258B} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{6205D116-89D5-485D-B59E-D13FEE3316EB} = {C870AC3C-8261-4807-AC30-DBEC8C89DCB7}
 		{64053DD9-F462-43AD-A2B3-624E9BB82A4A} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{9C87F6A7-CBEA-4673-8FBA-C7A73F3E09CE} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

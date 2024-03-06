@@ -24,20 +24,16 @@ public sealed class Subject : CosmosSelector
     [JsonPropertyOrder(30)]
     public string[]? AssociatedSubjects { get; set; }
 
-    [JsonPropertyName("searchTerms")]
-    [JsonPropertyOrder(40)]
-    public string? SearchTerms { get; set; }
-
     [JsonPropertyName("redditFlairTemplateId")]
-    [JsonPropertyOrder(50)]
+    [JsonPropertyOrder(40)]
     public Guid? RedditFlairTemplateId { get; set; }
 
     [JsonPropertyName("hashtag")]
-    [JsonPropertyOrder(60)]
+    [JsonPropertyOrder(50)]
     public string? HashTag { get; set; }
 
     [JsonPropertyName("enrichmentHashTags")]
-    [JsonPropertyOrder(70)]
+    [JsonPropertyOrder(60)]
     public string[]? EnrichmentHashTags { get; set; }
 
     public SubjectTerm[] GetSubjectTerms()

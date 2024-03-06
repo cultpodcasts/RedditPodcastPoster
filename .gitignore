@@ -403,3 +403,4 @@ Console-Apps/RedditPodcastPoster/Properties/launchSettings.json
 /Console-Apps/DeleteSearchDocument/Properties/launchSettings.json
 /Console-Apps/Discover/Properties/launchSettings.json
 /Console-Apps/SubjectSeeder/Properties/launchSettings.json
+/Console-Apps/CreateSearchIndex/Properties/launchSettings.json
