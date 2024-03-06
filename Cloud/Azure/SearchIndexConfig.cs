@@ -1,4 +1,4 @@
-﻿namespace DeleteSearchDocument;
+﻿namespace Azure;
 
 public class SearchIndexConfig
 {

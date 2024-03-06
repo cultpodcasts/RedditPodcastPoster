@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Configuration\RedditPodcastPoster.Configuration.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj" />
     <ProjectReference Include="..\..\Cloud\Azure\Azure.csproj" />
   </ItemGroup>
 
