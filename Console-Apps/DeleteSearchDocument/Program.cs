@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Persistence.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -19,6 +20,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
+    .AddRepositories(builder.Configuration)
     .AddScoped<ISearchClientFactory, SearchClientFactory>()
     .AddScoped(s => s.GetService<ISearchClientFactory>()!.Create())
     .AddScoped<DeleteSearchDocumentProcessor>();

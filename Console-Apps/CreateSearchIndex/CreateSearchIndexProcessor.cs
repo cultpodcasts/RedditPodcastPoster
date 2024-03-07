@@ -7,7 +7,7 @@ using RedditPodcastPoster.Persistence;
 
 namespace CreateSearchIndex;
 
-public class CreateSearchIndexProcessor(
+public partial class CreateSearchIndexProcessor(
     SearchIndexClient searchIndexClient,
     SearchIndexerClient searchIndexerClient,
     IOptions<CosmosDbSettings> cosmosDbSettings,
@@ -16,9 +16,10 @@ public class CreateSearchIndexProcessor(
 #pragma warning restore CS9113 // Parameter is unread.
 )
 {
-    private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Multiline | RegexOptions.Compiled);
+    private static readonly Regex Whitespace = CreateWhitespaceRegex();
     private readonly CosmosDbSettings _cosmosDbSettings = cosmosDbSettings.Value;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Used once.")]
     public async Task Process(CreateSearchIndexRequest request)
     {
         if (!string.IsNullOrWhiteSpace(request.IndexName))
@@ -159,4 +160,7 @@ public class CreateSearchIndexProcessor(
             await searchIndexerClient.CreateOrUpdateIndexerAsync(searchIndexer);
         }
     }
+
+    [GeneratedRegex(@"\s+", RegexOptions.Multiline | RegexOptions.Compiled)]
+    private static partial Regex CreateWhitespaceRegex();
 }

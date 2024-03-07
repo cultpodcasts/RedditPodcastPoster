@@ -17,6 +17,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Configuration\RedditPodcastPoster.Configuration.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Persistence.Abstractions\RedditPodcastPoster.Persistence.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj" />
     <ProjectReference Include="..\..\Cloud\Azure\Azure.csproj" />
   </ItemGroup>
 

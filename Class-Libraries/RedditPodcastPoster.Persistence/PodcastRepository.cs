@@ -63,19 +63,40 @@ public class PodcastRepository(
         return new MergeResult(addedEpisodes, mergedEpisodes, failedEpisodes);
     }
 
-    public IAsyncEnumerable<Podcast> GetAll() => dataRepository.GetAll<Podcast>();
+    public IAsyncEnumerable<Podcast> GetAll()
+    {
+        return dataRepository.GetAll<Podcast>();
+    }
 
-    public IAsyncEnumerable<Guid> GetAllIds() => dataRepository.GetAllIds<Podcast>();
+    public IAsyncEnumerable<Guid> GetAllIds()
+    {
+        return dataRepository.GetAllIds<Podcast>();
+    }
 
-    public Task Save(Podcast podcast) => dataRepository.Write(podcast);
+    public Task Save(Podcast podcast)
+    {
+        return dataRepository.Write(podcast);
+    }
 
-    public Task Update(Podcast podcast) => Save(podcast);
+    public Task Update(Podcast podcast)
+    {
+        return Save(podcast);
+    }
 
-    public Task<Podcast?> GetBy(Expression<Func<Podcast, bool>> selector) => dataRepository.GetBy(selector);
+    public Task<Podcast?> GetBy(Expression<Func<Podcast, bool>> selector)
+    {
+        return dataRepository.GetBy(selector);
+    }
 
-    public IAsyncEnumerable<Podcast> GetAllBy(Expression<Func<Podcast, bool>> selector) => dataRepository.GetAllBy(selector);
+    public IAsyncEnumerable<Podcast> GetAllBy(Expression<Func<Podcast, bool>> selector)
+    {
+        return dataRepository.GetAllBy(selector);
+    }
 
-    public IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item) => dataRepository.GetAllBy(selector, item);
+    public IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item)
+    {
+        return dataRepository.GetAllBy(selector, item);
+    }
 
     private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)
     {
