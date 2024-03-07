@@ -27,7 +27,9 @@ public class AppleUrlCategoriser(
             await applePodcastResolver.FindPodcast(new FindApplePodcastRequest(
                 matchingPodcast?.AppleId,
                 matchingPodcast?.Name ?? criteria.ShowName,
-                matchingPodcast?.Publisher ?? criteria.Publisher));
+                !string.IsNullOrWhiteSpace(matchingPodcast?.Publisher)
+                    ? matchingPodcast.Publisher
+                    : criteria.Publisher));
 
         if (podcast == null)
         {

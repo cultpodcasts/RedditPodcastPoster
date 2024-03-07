@@ -99,7 +99,17 @@ public class UrlCategoriser(
                 {
                     if (authority == Service.Spotify)
                     {
-                        indexingContext = indexingContext with {ReleasedSince = criteria.Release.AddDays(-1)};
+                        indexingContext = indexingContext with
+                        {
+                            ReleasedSince = criteria.Release.AddDays(-1)
+                        };
+                        if (resolvedSpotifyItem != null)
+                        {
+                            criteria = criteria with
+                            {
+                                Publisher = resolvedSpotifyItem.Publisher
+                            };
+                        }
                     }
                     else if (authority == Service.YouTube && podcast != null)
                     {
