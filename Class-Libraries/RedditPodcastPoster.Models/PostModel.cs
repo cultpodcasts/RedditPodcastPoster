@@ -43,10 +43,14 @@ public class PostModel
             var bundledPartNumbers = new List<int>();
             foreach (var episode in episodes)
             {
-                var parsed = int.TryParse(TitleRegex.Match(episode.Title)?.Result("${partnumber}"), out var partNumber);
-                if (parsed)
+                var match = TitleRegex.Match(episode.Title);
+                if (match.Success)
                 {
-                    bundledPartNumbers.Add(partNumber);
+                    var parsed = int.TryParse(match?.Result("${partnumber}"), out var partNumber);
+                    if (parsed)
+                    {
+                        bundledPartNumbers.Add(partNumber);
+                    }
                 }
             }
 
