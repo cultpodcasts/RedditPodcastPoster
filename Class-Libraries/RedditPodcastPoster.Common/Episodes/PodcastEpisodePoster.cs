@@ -18,20 +18,31 @@ public class PodcastEpisodePoster(
         PodcastEpisode podcastEpisode,
         bool preferYouTube = false)
     {
-        var episodes = GetEpisodes(podcastEpisode);
-        var postModel = (podcastEpisode.Podcast!, episodes).ToPostModel(preferYouTube);
-
-        var result = await episodePostManager.Post(postModel);
-
-        if (result.Success)
+        try
         {
-            foreach (var episode in episodes)
-            {
-                episode.Posted = true;
-            }
-        }
+            var episodes = GetEpisodes(podcastEpisode);
 
-        return result;
+            var postModel = (podcastEpisode.Podcast!, episodes).ToPostModel(preferYouTube);
+
+            var result = await episodePostManager.Post(postModel);
+
+            if (result.Success)
+            {
+                foreach (var episode in episodes)
+                {
+                    episode.Posted = true;
+                }
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            var message =
+                $"Failure to post episode '{podcastEpisode.Episode.Title}' and episode-id '{podcastEpisode.Episode.Id}' for podcast '{podcastEpisode.Podcast.Name}' with podcast-id '{podcastEpisode.Podcast.Id}'";
+            _logger.LogError(ex, $"{message}.");
+            return ProcessResponse.Fail($"{message} - Exception: '{ex.Message}'.");
+        }
     }
 
     private Episode[] GetEpisodes(PodcastEpisode matchingPodcastEpisode)
@@ -39,12 +50,15 @@ public class PodcastEpisodePoster(
         var orderedBundleEpisodes = Array.Empty<Episode>();
         var titleRegex = new Regex(matchingPodcastEpisode.Podcast.TitleRegex);
         var titleMatch = titleRegex.Match(matchingPodcastEpisode.Episode.Title);
-        var partNumber = titleMatch.Result("${partnumber}");
-        if (matchingPodcastEpisode.Podcast!.Bundles &&
-            !string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex) &&
-            int.TryParse(partNumber, out _))
+        if (titleMatch.Success)
         {
-            orderedBundleEpisodes = GetOrderedBundleEpisodes(matchingPodcastEpisode).ToArray();
+            var partNumber = titleMatch.Result("${partnumber}");
+            if (matchingPodcastEpisode.Podcast!.Bundles &&
+                !string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex) &&
+                int.TryParse(partNumber, out _))
+            {
+                orderedBundleEpisodes = GetOrderedBundleEpisodes(matchingPodcastEpisode).ToArray();
+            }
         }
 
         if (!orderedBundleEpisodes.Any())
