@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public class SpotifyEpisodeResolver(
     ISpotifyClientWrapper spotifyClientWrapper,
-    ISpotifySearcher spotifySearcher,
+    ISearchResultFinder searchResultFinder,
     ISpotifyQueryPaginator spotifyQueryPaginator,
     ILogger<SpotifyEpisodeResolver> logger)
     : ISpotifyEpisodeResolver
@@ -60,7 +60,7 @@ public class SpotifyEpisodeResolver(
                     if (podcastSearchResponse != null)
                     {
                         var podcasts = podcastSearchResponse.Shows.Items;
-                        var matchingPodcasts = spotifySearcher.FindMatchingPodcasts(request.PodcastName, podcasts);
+                        var matchingPodcasts = searchResultFinder.FindMatchingPodcasts(request.PodcastName, podcasts);
 
                         var showEpisodesRequest = new ShowEpisodesRequest {Market = market};
                         if (indexingContext.ReleasedSince.HasValue)
@@ -112,7 +112,7 @@ public class SpotifyEpisodeResolver(
                 if (request is {ReleaseAuthority: Service.YouTube, Length: not null})
                 {
                     matchingEpisode =
-                        spotifySearcher.FindMatchingEpisodeByLength(
+                        searchResultFinder.FindMatchingEpisodeByLength(
                             request.EpisodeTitle,
                             request.Length.Value,
                             allEpisodes,
@@ -123,7 +123,7 @@ public class SpotifyEpisodeResolver(
                 else
                 {
                     matchingEpisode =
-                        spotifySearcher.FindMatchingEpisodeByDate(request.EpisodeTitle, request.Released, allEpisodes);
+                        searchResultFinder.FindMatchingEpisodeByDate(request.EpisodeTitle, request.Released, allEpisodes);
                 }
 
                 if (matchingEpisode != null)

@@ -1,4 +1,4 @@
-﻿namespace Discover;
+﻿namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public record EpisodeResult(
     string Id,

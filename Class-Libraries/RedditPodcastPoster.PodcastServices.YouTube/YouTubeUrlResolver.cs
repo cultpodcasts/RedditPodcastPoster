@@ -5,7 +5,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeItemResolver(
     IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
-    IYouTubeSearcher youTubeSearcher,
+    ISearchResultFinder searchResultFinder,
     ILogger<YouTubeItemResolver> logger)
     : IYouTubeItemResolver
 {
@@ -45,7 +45,7 @@ public class YouTubeItemResolver(
             }
         }
 
-        var matchedYouTubeVideo = await youTubeSearcher.FindMatchingYouTubeVideo(
+        var matchedYouTubeVideo = await searchResultFinder.FindMatchingYouTubeVideo(
             request.Episode,
             searchListResponse,
             youTubePublishingDelay,

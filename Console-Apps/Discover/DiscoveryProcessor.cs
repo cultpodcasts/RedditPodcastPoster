@@ -1,12 +1,12 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace Discover;
 
 public class DiscoveryProcessor(
-    ISpotifySearcher spotifySearcher,
-    IListenNotesSearcher listenNotesSearcher,
+    ISearchProvider searchProvider,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<DiscoveryProcessor> logger
 #pragma warning restore CS9113 // Parameter is unread.
@@ -14,36 +14,30 @@ public class DiscoveryProcessor(
 {
     public async Task Process(DiscoveryRequest request)
     {
-        var indexingContext = new IndexingContext(
-            DateTimeHelper.DaysAgo(request.NumberOfDays),
+        var indexingContext = new IndexingContext(DateTimeHelper.DaysAgo(request.NumberOfDays),
             SkipSpotifyUrlResolving: false,
             SkipPodcastDiscovery: false,
             SkipExpensiveSpotifyQueries: false);
 
-        IEnumerable<EpisodeResult> results = new EpisodeResult[] { };
-
+        var serviceConfigs = new List<DiscoveryConfig.ServiceConfig>
+        {
+//            new("Cult", DiscoveryService.YouTube),
+            new("Cults", DiscoveryService.Spotify),
+            new("Cult", DiscoveryService.Spotify),
+            new("Scientology", DiscoveryService.Spotify),
+            new("NXIVM", DiscoveryService.Spotify),
+            new("FLDS", DiscoveryService.Spotify)
+        };
         if (request.IncludeListenNotes)
         {
-            results = results.Concat(await listenNotesSearcher.Search("Cult", indexingContext));
+            serviceConfigs.Insert(0, new DiscoveryConfig.ServiceConfig("Cult", DiscoveryService.ListenNotes));
         }
 
-        var cults = await spotifySearcher.Search("Cults", indexingContext);
-        var cult = await spotifySearcher.Search("Cult", indexingContext);
-        var scientology = await spotifySearcher.Search("Scientology", indexingContext);
-        var nxivm = await spotifySearcher.Search("NXIVM", indexingContext);
-        var flds = await spotifySearcher.Search("FLDS", indexingContext);
-        results = results.Concat(cults);
-        results = results.Concat(cult);
-        results = results.Concat(scientology);
-        results = results.Concat(nxivm);
-        results = results.Concat(flds);
+        var discoveryConfig = new DiscoveryConfig(serviceConfigs);
 
-        var individualResults = results
-            .GroupBy(x => x.EpisodeName)
-            .Select(x => x.FirstOrDefault(y => y.Url != null) ?? x.First())
-            .OrderBy(x => x.Released);
+        var results = await searchProvider.GetEpisodes(indexingContext, discoveryConfig);
 
-        foreach (var episode in individualResults)
+        foreach (var episode in results)
         {
             var description = episode.Description;
             var min = Math.Min(description.Length, 200);

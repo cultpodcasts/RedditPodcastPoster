@@ -1,8 +1,8 @@
 ﻿using RedditPodcastPoster.PodcastServices.Abstractions;
 
-namespace Discover;
+namespace RedditPodcastPoster.PodcastServices.ListenNotes;
 
-public interface ISpotifySearcher
+public interface IListenNotesSearcher
 {
     Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext);
 }

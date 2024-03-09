@@ -5,8 +5,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -22,10 +24,10 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<DiscoveryProcessor>()
-    .AddListenNotesClient(builder.Configuration)
-    .AddScoped<ISpotifySearcher, SpotifySearcher>()
-    .AddScoped<IListenNotesSearcher, ListenNotesSearcher>()
+    .AddDiscovery(builder.Configuration)
     .AddSpotifyServices(builder.Configuration)
+    .AddYouTubeServices(builder.Configuration)
+    .AddListenNotes(builder.Configuration)
     .AddTextSanitiser()
     .AddHttpClient();
 

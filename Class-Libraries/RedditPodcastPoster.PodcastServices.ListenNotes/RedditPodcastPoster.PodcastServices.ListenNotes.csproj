@@ -13,4 +13,9 @@
     <PackageReference Include="PodcastAPI" Version="1.1.6" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Abstractions\RedditPodcastPoster.PodcastServices.Abstractions.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
+  </ItemGroup>
+
 </Project>

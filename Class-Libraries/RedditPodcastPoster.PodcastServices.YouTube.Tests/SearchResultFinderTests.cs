@@ -7,12 +7,12 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests;
 
-public class YouTubeSearcherTests
+public class SearchResultFinderTests
 {
     private readonly Fixture _fixture = new();
     private readonly AutoMocker _mocker = new();
 
-    private IYouTubeSearcher Sut => _mocker.CreateInstance<YouTubeSearcher>();
+    private ISearchResultFinder Sut => _mocker.CreateInstance<SearchResultFinder>();
 
     [Theory]
     [InlineData(0)]
