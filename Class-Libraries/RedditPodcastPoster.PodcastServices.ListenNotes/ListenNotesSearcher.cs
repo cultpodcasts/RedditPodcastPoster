@@ -62,6 +62,7 @@ public class ListenNotesSearcher(
             DateTimeOffset.FromUnixTimeMilliseconds(episode.ReleasedMilliseconds).DateTime,
             htmlSanitiser.Sanitise(episode.Description).Trim(),
             episode.Title.Trim(),
-            episode.Podcast.ShowName.Trim());
+            episode.Podcast.ShowName.Trim(),
+            DiscoveryService.ListenNotes);
     }
 }

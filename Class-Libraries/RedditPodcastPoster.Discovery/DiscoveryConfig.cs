@@ -1,4 +1,5 @@
-﻿using static RedditPodcastPoster.Discovery.DiscoveryConfig;
+﻿using RedditPodcastPoster.PodcastServices.Abstractions;
+using static RedditPodcastPoster.Discovery.DiscoveryConfig;
 
 namespace RedditPodcastPoster.Discovery;
 

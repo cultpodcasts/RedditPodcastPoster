@@ -55,7 +55,7 @@ public class YouTubeChannelVideoSnippetsService(
             {
                 logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
                 indexingContext.SkipYouTubeUrlResolving = true;
-                return null;
+                return result;
             }
 
             result.AddRange(response.Items);

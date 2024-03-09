@@ -21,7 +21,7 @@ public class DiscoveryProcessor(
 
         var serviceConfigs = new List<DiscoveryConfig.ServiceConfig>
         {
-//            new("Cult", DiscoveryService.YouTube),
+            new("Cult", DiscoveryService.YouTube),
             new("Cults", DiscoveryService.Spotify),
             new("Cult", DiscoveryService.Spotify),
             new("Scientology", DiscoveryService.Spotify),

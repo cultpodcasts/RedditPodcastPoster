@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.ListenNotes;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
 
@@ -8,7 +7,7 @@ namespace RedditPodcastPoster.Discovery;
 
 public class SearchProvider(
     ISpotifySearcher spotifySearcher,
-    IListenNotesSearcher listenNotesSearcher,
+    ISpotifyEnrichingListenNotesSearcher listenNotesSearcher,
     IYouTubeSearcher youTubeSearcher,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<SearchProvider> logger

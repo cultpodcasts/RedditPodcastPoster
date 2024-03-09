@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Discovery;
+﻿namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public enum DiscoveryService
 {
