@@ -15,21 +15,23 @@ public class YouTubeSearcher(
     {
         var result = new List<SearchResult>();
         var nextPageToken = "";
-        while (nextPageToken != null)
+        var searchListRequest = youTubeService.Search.List("snippet");
+        searchListRequest.MaxResults = MaxSearchResults;
+        searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
+        searchListRequest.Type = "video";
+        searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
+        searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
+        searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
+        searchListRequest.Q = query;
+        if (indexingContext.ReleasedSince.HasValue)
         {
-            var searchListRequest = youTubeService.Search.List("snippet");
-            searchListRequest.MaxResults = MaxSearchResults;
-            searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
-            searchListRequest.Type = "video";
-            searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
-            searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
-            searchListRequest.PublishedAfterDateTimeOffset = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromDays(1));
-            searchListRequest.Q = query;
-            if (indexingContext.ReleasedSince.HasValue)
-            {
-                searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
-            }
+            searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
+        }
 
+        while (nextPageToken != null && (!result.Any() ||
+                                         result.Last().Snippet.PublishedAtDateTimeOffset >=
+                                         indexingContext.ReleasedSince))
+        {
             SearchListResponse response;
             try
             {
@@ -42,8 +44,10 @@ public class YouTubeSearcher(
                 return result.Select(ToEpisodeResult);
             }
 
-            result.AddRange(response.Items);
+            result.AddRange(response.Items.Where(x =>
+                x.Snippet.PublishedAtDateTimeOffset >= indexingContext.ReleasedSince));
             nextPageToken = response.NextPageToken;
+            searchListRequest.PageToken = nextPageToken;
         }
 
         return result.Select(ToEpisodeResult);

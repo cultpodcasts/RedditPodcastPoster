@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -16,13 +15,14 @@ public class DiscoveryProcessor(
 {
     public async Task Process(DiscoveryRequest request)
     {
-        var indexingContext = new IndexingContext(DateTimeHelper.DaysAgo(request.NumberOfDays),
+        var indexingContext = new IndexingContext(
+            DateTime.UtcNow.Subtract(TimeSpan.FromHours(request.NumberOfHours)),
             SkipSpotifyUrlResolving: false,
             SkipPodcastDiscovery: false,
             SkipExpensiveSpotifyQueries: false);
 
         var serviceConfigs = new List<DiscoveryConfig.ServiceConfig>();
-        if (request.IncludeSpotify)
+        if (!request.ExcludeSpotify)
         {
             serviceConfigs.AddRange(new DiscoveryConfig.ServiceConfig[]
             {
@@ -47,7 +47,7 @@ public class DiscoveryProcessor(
             serviceConfigs.Insert(0, new DiscoveryConfig.ServiceConfig("Cult", DiscoveryService.ListenNotes));
         }
 
-        var discoveryConfig = new DiscoveryConfig(serviceConfigs, request.IncludeSpotify);
+        var discoveryConfig = new DiscoveryConfig(serviceConfigs, request.ExcludeSpotify);
 
         var results = await searchProvider.GetEpisodes(indexingContext, discoveryConfig);
         var podcastIds = podcastRepository.GetAllBy(podcast =>
