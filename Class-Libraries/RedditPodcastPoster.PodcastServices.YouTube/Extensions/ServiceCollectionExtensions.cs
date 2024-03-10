@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
             .AddSingleton<IYouTubeIdExtractor, YouTubeIdExtractor>()
             .AddScoped<ISearchResultFinder, SearchResultFinder>()
             .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>()
-            .AddScoped<IYouTubeSearcher, YouTubeSearcher>();
+            .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
+            .AddSingleton<INoRedirectHttpClientFactory, NoRedirectHttpClientFactory>();
     }
 }

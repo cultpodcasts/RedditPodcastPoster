@@ -13,6 +13,8 @@ public class DiscoveryProcessor(
 #pragma warning restore CS9113 // Parameter is unread.
 )
 {
+    private readonly IList<string> _ignoreTerms = new[] {"cult of the lamb".ToLower()};
+
     public async Task Process(DiscoveryRequest request)
     {
         var indexingContext = new IndexingContext(
@@ -70,24 +72,31 @@ public class DiscoveryProcessor(
                 continue;
             }
 
-            if (episode.Description.ToLower().Contains("cult of the lamb") ||
-                episode.EpisodeName.ToLower().Contains("cult of the lamb"))
+            var ignored = false;
+            foreach (var ignoreTerm in _ignoreTerms)
             {
-                continue;
+                if (episode.Description.ToLower().Contains(ignoreTerm) ||
+                    episode.EpisodeName.ToLower().Contains(ignoreTerm))
+                {
+                    ignored = true;
+                }
             }
 
-            var description = episode.Description;
-            var min = Math.Min(description.Length, 200);
-            if (episode.Url != null)
+            if (!ignored)
             {
-                Console.WriteLine(episode.Url);
-            }
+                var description = episode.Description;
+                var min = Math.Min(description.Length, 200);
+                if (episode.Url != null)
+                {
+                    Console.WriteLine(episode.Url);
+                }
 
-            Console.WriteLine(episode.EpisodeName);
-            Console.WriteLine(episode.ShowName);
-            Console.WriteLine(description[..min]);
-            Console.WriteLine(episode.Released.ToString("g"));
-            Console.WriteLine();
+                Console.WriteLine(episode.EpisodeName);
+                Console.WriteLine(episode.ShowName);
+                Console.WriteLine(description[..min]);
+                Console.WriteLine(episode.Released.ToString("g"));
+                Console.WriteLine();
+            }
         }
     }
 }
