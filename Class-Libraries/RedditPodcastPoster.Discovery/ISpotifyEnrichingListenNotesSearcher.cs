@@ -1,7 +1,11 @@
-﻿using RedditPodcastPoster.PodcastServices.ListenNotes;
+﻿using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.Discovery;
 
-public interface ISpotifyEnrichingListenNotesSearcher : IListenNotesSearcher
+public interface ISpotifyEnrichingListenNotesSearcher
 {
+    Task<IEnumerable<EpisodeResult>> Search(
+        string query,
+        IndexingContext indexingContext,
+        bool enrichFromSpotify);
 }

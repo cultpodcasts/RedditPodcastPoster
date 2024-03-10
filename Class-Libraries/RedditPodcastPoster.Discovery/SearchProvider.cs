@@ -25,7 +25,10 @@ public class SearchProvider(
             switch (config.DiscoveryService)
             {
                 case DiscoveryService.ListenNotes:
-                    serviceResults = await listenNotesSearcher.Search(config.Term, indexingContext);
+                    serviceResults = await listenNotesSearcher.Search(
+                        config.Term,
+                        indexingContext,
+                        discoveryConfig.EnrichFromSpotify);
                     break;
                 case DiscoveryService.Spotify:
                     serviceResults = await spotifySearcher.Search(config.Term, indexingContext);

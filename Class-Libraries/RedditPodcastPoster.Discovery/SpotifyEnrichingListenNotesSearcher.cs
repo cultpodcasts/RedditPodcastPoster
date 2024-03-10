@@ -13,38 +13,46 @@ public class SpotifyEnrichingListenNotesSearcher(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : ISpotifyEnrichingListenNotesSearcher
 {
-    public async Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext)
+    public async Task<IEnumerable<EpisodeResult>> Search(
+        string query,
+        IndexingContext indexingContext,
+        bool enrichFromSpotify)
     {
         var results = new List<EpisodeResult>();
         var episodeResults = await listenNotesSearcher.Search(query, indexingContext);
-        foreach (var episodeResult in episodeResults)
+        if (enrichFromSpotify)
         {
-            var episodeRequest = new FindSpotifyEpisodeRequest(
-                string.Empty,
-                episodeResult.ShowName,
-                string.Empty,
-                episodeResult.EpisodeName,
-                episodeResult.Released,
-                true);
+            foreach (var episodeResult in episodeResults)
+            {
+                var episodeRequest = new FindSpotifyEpisodeRequest(
+                    string.Empty,
+                    episodeResult.ShowName,
+                    string.Empty,
+                    episodeResult.EpisodeName,
+                    episodeResult.Released,
+                    true);
 
-            var spotifyResult = await spotifyEpisodeResolver.FindEpisode(
-                episodeRequest, indexingContext);
-            if (spotifyResult.FullEpisode != null)
-            {
-                var enrichedResult = episodeResult with
+                var spotifyResult = await spotifyEpisodeResolver.FindEpisode(
+                    episodeRequest, indexingContext);
+                if (spotifyResult.FullEpisode != null)
                 {
-                    Url = spotifyResult.FullEpisode.GetUrl(),
-                    DiscoveryService = DiscoveryService.Spotify,
-                    ServicePodcastId = spotifyResult.FullEpisode.Show.Id
-                };
-                results.Add(enrichedResult);
+                    var enrichedResult = episodeResult with
+                    {
+                        Url = spotifyResult.FullEpisode.GetUrl(),
+                        DiscoveryService = DiscoveryService.Spotify,
+                        ServicePodcastId = spotifyResult.FullEpisode.Show.Id
+                    };
+                    results.Add(enrichedResult);
+                }
+                else
+                {
+                    results.Add(episodeResult);
+                }
             }
-            else
-            {
-                results.Add(episodeResult);
-            }
+
+            return results;
         }
 
-        return results;
+        return episodeResults;
     }
 }

@@ -1,12 +1,14 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Discovery;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace Discover;
 
 public class DiscoveryProcessor(
     ISearchProvider searchProvider,
+    IPodcastRepository podcastRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<DiscoveryProcessor> logger
 #pragma warning restore CS9113 // Parameter is unread.
@@ -19,26 +21,61 @@ public class DiscoveryProcessor(
             SkipPodcastDiscovery: false,
             SkipExpensiveSpotifyQueries: false);
 
-        var serviceConfigs = new List<DiscoveryConfig.ServiceConfig>
+        var serviceConfigs = new List<DiscoveryConfig.ServiceConfig>();
+        if (request.IncludeSpotify)
         {
-            new("Cult", DiscoveryService.YouTube),
-            new("Cults", DiscoveryService.Spotify),
-            new("Cult", DiscoveryService.Spotify),
-            new("Scientology", DiscoveryService.Spotify),
-            new("NXIVM", DiscoveryService.Spotify),
-            new("FLDS", DiscoveryService.Spotify)
-        };
+            serviceConfigs.AddRange(new DiscoveryConfig.ServiceConfig[]
+            {
+                new("Cults", DiscoveryService.Spotify),
+                new("Cult", DiscoveryService.Spotify),
+                new("Scientology", DiscoveryService.Spotify),
+                new("NXIVM", DiscoveryService.Spotify),
+                new("FLDS", DiscoveryService.Spotify)
+            });
+        }
+
+        if (request.IncludeYouTube)
+        {
+            serviceConfigs.AddRange(new DiscoveryConfig.ServiceConfig[]
+            {
+                new("Cult", DiscoveryService.YouTube)
+            });
+        }
+
         if (request.IncludeListenNotes)
         {
             serviceConfigs.Insert(0, new DiscoveryConfig.ServiceConfig("Cult", DiscoveryService.ListenNotes));
         }
 
-        var discoveryConfig = new DiscoveryConfig(serviceConfigs);
+        var discoveryConfig = new DiscoveryConfig(serviceConfigs, request.IncludeSpotify);
 
         var results = await searchProvider.GetEpisodes(indexingContext, discoveryConfig);
+        var podcastIds = podcastRepository.GetAllBy(podcast =>
+            podcast.IndexAllEpisodes ||
+            podcast.EpisodeIncludeTitleRegex != "", x => new
+        {
+            x.YouTubeChannelId,
+            SpotifyShowId = x.SpotifyId
+        });
+        var indexedYouTubeChannelIds = await podcastIds.Select(x => x.YouTubeChannelId).Distinct().ToListAsync();
+        var indexedSpotifyChannelIds = await podcastIds.Select(x => x.SpotifyShowId).Distinct().ToListAsync();
 
         foreach (var episode in results)
         {
+            if ((episode.DiscoveryService == DiscoveryService.YouTube &&
+                 indexedYouTubeChannelIds.Contains(episode.ServicePodcastId!)) ||
+                (episode.DiscoveryService == DiscoveryService.Spotify &&
+                 indexedSpotifyChannelIds.Contains(episode.ServicePodcastId!)))
+            {
+                continue;
+            }
+
+            if (episode.Description.ToLower().Contains("cult of the lamb") ||
+                episode.EpisodeName.ToLower().Contains("cult of the lamb"))
+            {
+                continue;
+            }
+
             var description = episode.Description;
             var min = Math.Min(description.Length, 200);
             if (episode.Url != null)
