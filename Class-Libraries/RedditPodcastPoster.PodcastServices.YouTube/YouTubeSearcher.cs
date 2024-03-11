@@ -1,166 +1,110 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Net;
+using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.Text;
+using static Google.Apis.YouTube.v3.SearchResource.ListRequest;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
-public partial class YouTubeSearcher(
-    IYouTubeVideoService videoService,
-    ILogger<YouTubeSearcher> logger)
-    : IYouTubeSearcher
+public class YouTubeSearcher(
+    YouTubeService youTubeService,
+    INoRedirectHttpClientFactory httpClientFactory,
+    ILogger<YouTubeSearcher> logger) : IYouTubeSearcher
 {
-    private const int MinFuzzyScore = 70;
-    private static readonly Regex NumberMatch = CreateNumberMatch();
-    private static readonly TimeSpan VideoDurationTolerance = TimeSpan.FromMinutes(2);
+    private const long MaxSearchResults = 25;
+    private const string ShortUrlPrefix = "https://www.youtube.com/shorts/";
 
-    public async Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(
-        Episode episode,
-        IList<SearchResult> searchResults,
-        TimeSpan? youTubePublishDelay,
-        IndexingContext indexingContext)
+    private const string ShortsConsentPrefix =
+        "https://consent.youtube.com/m?continue=https%3A%2F%2Fwww.youtube.com%2Fshorts%2F";
+
+    private readonly HttpClient _httpClient = httpClientFactory.Create();
+
+    public async Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext)
     {
-        var match = MatchOnExactTitle(episode, searchResults);
-        if (match != null)
-        {
-            return new FindEpisodeResponse(match);
-        }
-
-        match = MatchOnEpisodeNumber(episode, searchResults);
-        if (match != null)
-        {
-            return new FindEpisodeResponse(match);
-        }
-
-        var videoMatch = await MatchOnEpisodeDuration(episode, searchResults, indexingContext);
-        if (videoMatch != null)
-        {
-            return videoMatch;
-        }
-
-        if (episode.HasAccurateReleaseTime() && youTubePublishDelay.HasValue)
-        {
-            match = MatchOnPublishTimeComparedToPublishDelay(episode, searchResults, youTubePublishDelay.Value);
-            if (match != null && FuzzyMatcher.IsMatch(episode.Title, match, s => s.Snippet.Title, MinFuzzyScore))
-            {
-                return new FindEpisodeResponse(match);
-            }
-        }
-
-        match = MatchOnTextCloseness(episode, searchResults);
-        if (match != null)
-        {
-            return new FindEpisodeResponse(match);
-        }
-
-        return null;
+        var medium = await Search(query, indexingContext, VideoDurationEnum.Medium);
+        var @long = await Search(query, indexingContext, VideoDurationEnum.Long__);
+        return medium.Union(@long).Distinct();
     }
 
-    private async Task<FindEpisodeResponse?> MatchOnEpisodeDuration(
-        Episode episode,
-        IList<SearchResult> searchResults,
-        IndexingContext indexingContext)
+    private async Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext,
+        VideoDurationEnum duration)
     {
-        var videoDetails =
-            await videoService.GetVideoContentDetails(searchResults.Select(x => x.Id.VideoId).ToList(),
-                indexingContext);
-        if (videoDetails != null && videoDetails.Any())
+        var results = new List<SearchResult>();
+        var nextPageToken = "";
+        var searchListRequest = youTubeService.Search.List("snippet");
+        searchListRequest.MaxResults = MaxSearchResults;
+        searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
+        searchListRequest.Type = "video";
+        searchListRequest.SafeSearch = SafeSearchEnum.None;
+        searchListRequest.Order = OrderEnum.Date;
+        searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
+        searchListRequest.Q = query;
+        searchListRequest.VideoDuration = duration;
+        if (indexingContext.ReleasedSince.HasValue)
         {
-            var matchingVideo = videoDetails.MinBy(x => Math.Abs((episode.Length - x.GetLength()).Ticks));
-            var searchResult = searchResults.FirstOrDefault(x => x.Id.VideoId == matchingVideo!.Id);
-            if (searchResult != null)
+            searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
+        }
+
+        while (nextPageToken != null && (!results.Any() ||
+                                         results.Last().Snippet.PublishedAtDateTimeOffset >=
+                                         indexingContext.ReleasedSince))
+        {
+            SearchListResponse response;
+            try
             {
-                var matchingPair = new FindEpisodeResponse(searchResult, matchingVideo);
-                if (Math.Abs((matchingPair.Video!.GetLength() - episode.Length).Ticks) < VideoDurationTolerance.Ticks)
+                response = await searchListRequest.ExecuteAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
+                indexingContext.SkipYouTubeUrlResolving = true;
+                return results.Select(ToEpisodeResult);
+            }
+
+            var releasedInTimeFrame = response.Items.Where(x =>
+                x.Snippet.PublishedAtDateTimeOffset >= indexingContext.ReleasedSince);
+
+
+            results.AddRange(releasedInTimeFrame);
+            nextPageToken = response.NextPageToken;
+            searchListRequest.PageToken = nextPageToken;
+        }
+
+        return results.Select(ToEpisodeResult);
+    }
+
+    private async Task<IEnumerable<SearchResult>> NonShortItems(IEnumerable<SearchResult> results)
+    {
+        var nonShortResults = new List<SearchResult>();
+        foreach (var result in results)
+        {
+            var id = result.Id.VideoId;
+            var url = $"{ShortUrlPrefix}{id}";
+            var head = await _httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Head, url));
+            if (head.StatusCode == HttpStatusCode.Found)
+            {
+                var location = head.Headers.GetValues("Location").FirstOrDefault();
+                if (!location!.StartsWith(ShortsConsentPrefix))
                 {
-                    logger.LogInformation(
-                        $"Matched episode '{episode.Title}' and length: '{episode.Length:g}' with episode '{matchingPair.SearchResult.Snippet.Title}' having length: '{matchingPair.Video?.GetLength():g}'.");
-                    return matchingPair;
+                    nonShortResults.Add(result);
                 }
             }
         }
 
-        return null;
+        return nonShortResults;
     }
 
-    private SearchResult? MatchOnTextCloseness(Episode episode, IList<SearchResult> searchResults)
+    private EpisodeResult ToEpisodeResult(SearchResult episode)
     {
-        return FuzzyMatcher.Match(episode.Title, searchResults, x => x.Snippet.Title, MinFuzzyScore);
+        return new EpisodeResult(
+            episode.Id.VideoId,
+            episode.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
+            episode.Snippet.Description.Trim(),
+            episode.Snippet.Title.Trim(),
+            episode.Snippet.ChannelTitle.Trim(),
+            DiscoveryService.YouTube,
+            episode.ToYouTubeUrl(),
+            episode.Snippet.ChannelId);
     }
-
-    private SearchResult? MatchOnEpisodeNumber(Episode episode, IList<SearchResult> searchResults)
-    {
-        var episodeNumberMatch = NumberMatch.Match(episode.Title);
-        if (episodeNumberMatch.Success)
-        {
-            if (int.TryParse(episodeNumberMatch.Groups["number"].Value, out var episodeNumber))
-            {
-                var matchingSearchResult = searchResults.Where(x =>
-                        NumberMatch.IsMatch(x.Snippet.Title) &&
-                        int.TryParse(NumberMatch.Match(x.Snippet.Title).Value, out _))
-                    .Where(x =>
-                        int.Parse(NumberMatch.Match(x.Snippet.Title).Groups["number"].Value) == episodeNumber);
-
-                if (matchingSearchResult.Count() == 1)
-                {
-                    logger.LogInformation($"Matched on episode-number '{episodeNumber}'.");
-                    return matchingSearchResult.Single();
-                }
-
-                if (matchingSearchResult.Any())
-                {
-                    logger.LogInformation(
-                        $"Could not match on number that appears in title '{episodeNumber}' as appears in multiple episode-titles: {string.Join(", ", matchingSearchResult.Select(x => $"'{x}'"))}.");
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private SearchResult? MatchOnPublishTimeComparedToPublishDelay(
-        Episode episode,
-        IList<SearchResult> searchResults,
-        TimeSpan youTubePublishDelay)
-    {
-        var expectedPublish = episode.Release.Add(youTubePublishDelay);
-        var closestEpisode = searchResults
-            .Where(x => x.Snippet.PublishedAtDateTimeOffset.HasValue)
-            .MinBy(x => Math.Abs(x.Snippet.PublishedAtDateTimeOffset!.Value.Subtract(expectedPublish).Ticks));
-        if (closestEpisode?.Snippet.PublishedAtDateTimeOffset != null &&
-            closestEpisode.Snippet.PublishedAtDateTimeOffset.Value.Subtract(expectedPublish) < TimeSpan.FromDays(1))
-        {
-            return closestEpisode;
-        }
-
-        return null;
-    }
-
-    private SearchResult? MatchOnExactTitle(Episode episode, IList<SearchResult> searchResults)
-    {
-        var episodeTitle = episode.Title.Trim().ToLower();
-        var matchingSearchResult = searchResults.Where(x =>
-            x.Snippet.Title.Trim().ToLower() == episodeTitle);
-
-        if (matchingSearchResult.Count() == 1)
-        {
-            logger.LogInformation($"Matched on episode-number '{episode.Title}'.");
-            return matchingSearchResult.Single();
-        }
-
-        if (matchingSearchResult.Any())
-        {
-            logger.LogInformation(
-                $"Matched multiple items on episode-title '{episode.Title}'.");
-        }
-
-        return null;
-    }
-
-    [GeneratedRegex("(?'number'\\d+)", RegexOptions.Compiled)]
-    private static partial Regex CreateNumberMatch();
 }

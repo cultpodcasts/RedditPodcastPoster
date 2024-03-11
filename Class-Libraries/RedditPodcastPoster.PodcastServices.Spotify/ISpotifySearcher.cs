@@ -1,21 +1,8 @@
-﻿using SpotifyAPI.Web;
+﻿using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public interface ISpotifySearcher
 {
-    SimpleEpisode? FindMatchingEpisodeByDate(
-        string episodeTitle,
-        DateTime? episodeRelease,
-        IEnumerable<IEnumerable<SimpleEpisode>> episodeLists);
-
-    IEnumerable<SimpleShow> FindMatchingPodcasts(
-        string podcastName,
-        List<SimpleShow>? podcasts);
-
-    SimpleEpisode? FindMatchingEpisodeByLength(
-        string episodeTitle,
-        TimeSpan episodeLength,
-        IList<IList<SimpleEpisode>> episodeLists,
-        Func<SimpleEpisode, bool>? reducer = null);
+    Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext);
 }

@@ -1,105 +1,60 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public class SpotifySearcher(
+    ISpotifyClientWrapper spotifyClient,
+    IHtmlSanitiser htmlSanitiser,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<SpotifySearcher> logger
 #pragma warning restore CS9113 // Parameter is unread.
 ) : ISpotifySearcher
 {
-    private const int MinFuzzyScore = 70;
-    private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(30).Ticks;
-    private static readonly long BroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
+    private readonly Uri _spotifyEpisodeBase = new("https://open.spotify.com/episode/");
 
-    public IEnumerable<SimpleShow> FindMatchingPodcasts(string podcastName, List<SimpleShow>? podcasts)
+    public async Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext)
     {
-        var matches = podcasts!.Where(x => x.Name.ToLower().Trim() == podcastName.ToLower());
-        return matches;
-    }
-
-    public SimpleEpisode? FindMatchingEpisodeByLength(
-        string episodeTitle,
-        TimeSpan episodeLength,
-        IList<IList<SimpleEpisode>> episodeLists,
-        Func<SimpleEpisode, bool>? reducer = null)
-    {
-        foreach (var episodeList in episodeLists)
+        var results = await spotifyClient.FindEpisodes(
+            new SearchRequest(SearchRequest.Types.Episode, query) {Market = Market.CountryCode},
+            indexingContext);
+        if (results != null)
         {
-            var requestEpisodeTitle = episodeTitle.Trim();
+            var queryRegexPattern = $@"\b{query}\b";
+            var termRegex = new Regex(queryRegexPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            var allResults = await spotifyClient.PaginateAll(results, response => response.Episodes, indexingContext);
+            var recentResults =
+                allResults?
+                    .Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince &&
+                                (termRegex.IsMatch(x.Name) || termRegex.IsMatch(x.Description))) ??
+                Enumerable.Empty<SimpleEpisode>();
 
-            var match = episodeList.SingleOrDefault(x =>
+            if (recentResults.Any())
             {
-                var trimmedEpisodeTitle = x.Name.Trim();
-                return trimmedEpisodeTitle == requestEpisodeTitle ||
-                       trimmedEpisodeTitle.Contains(requestEpisodeTitle) ||
-                       requestEpisodeTitle.Contains(trimmedEpisodeTitle);
-            });
-            if (match == null)
-            {
-                IEnumerable<SimpleEpisode> sampleList;
-                if (reducer != null)
-                {
-                    sampleList = episodeList.Where(reducer);
-                }
-                else
-                {
-                    sampleList = episodeList;
-                }
+                var fullShows =
+                    await spotifyClient.GetSeveral(
+                        new EpisodesRequest(recentResults.Select(x => x.Id).ToArray()) {Market = Market.CountryCode},
+                        indexingContext);
 
-                var sameLength = sampleList
-                    .Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < TimeDifferenceThreshold);
-                if (sameLength.Count() > 1)
-                {
-                    return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name);
-                }
-
-                match = sameLength.SingleOrDefault(x =>
-                    FuzzyMatcher.IsMatch(episodeTitle, x, y => y.Name, MinFuzzyScore));
-
-                if (match == null)
-                {
-                    sameLength = sampleList
-                        .Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < BroaderTimeDifferenceThreshold);
-                    return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name, MinFuzzyScore);
-                }
+                return fullShows?.Episodes.Select(ToEpisodeResult) ?? Enumerable.Empty<EpisodeResult>();
             }
-
-            return match;
         }
 
-        return null;
+        return Enumerable.Empty<EpisodeResult>();
     }
 
-    public SimpleEpisode? FindMatchingEpisodeByDate(
-        string episodeTitle,
-        DateTime? episodeRelease,
-        IEnumerable<IEnumerable<SimpleEpisode>> episodeLists)
+    private EpisodeResult ToEpisodeResult(FullEpisode episode)
     {
-        foreach (var episodeList in episodeLists)
-        {
-            var matches = episodeList.Where(x => x.Name.Trim() == episodeTitle.Trim());
-            var match = matches.FirstOrDefault();
-            if (match == null && episodeRelease.HasValue)
-            {
-                var sameDateMatches =
-                    episodeList.Where(x =>
-                        x.ReleaseDate == "0000" || DateOnly.ParseExact(x.ReleaseDate, "yyyy-MM-dd") ==
-                        DateOnly.FromDateTime(episodeRelease.Value));
-                if (sameDateMatches.Count() > 1)
-                {
-                    return FuzzyMatcher.Match(episodeTitle, sameDateMatches, x => x.Name, MinFuzzyScore);
-                }
-
-                match = sameDateMatches.SingleOrDefault(x =>
-                    FuzzyMatcher.IsMatch(episodeTitle, x, x => x.Name, MinFuzzyScore));
-            }
-
-            return match;
-        }
-
-        return null;
+        return new EpisodeResult(
+            episode.Id,
+            episode.GetReleaseDate(),
+            htmlSanitiser.Sanitise(episode.HtmlDescription).Trim(),
+            episode.Name.Trim(),
+            episode.Show.Name.Trim(), DiscoveryService.Spotify,
+            new Uri(_spotifyEpisodeBase, episode.Id),
+            episode.Show.Id);
     }
 }

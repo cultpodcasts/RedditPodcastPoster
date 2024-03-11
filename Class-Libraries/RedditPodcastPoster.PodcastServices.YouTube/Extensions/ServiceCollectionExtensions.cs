@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+
 namespace RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 public static class ServiceCollectionExtensions
@@ -20,7 +21,9 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
             .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
             .AddSingleton<IYouTubeIdExtractor, YouTubeIdExtractor>()
+            .AddScoped<ISearchResultFinder, SearchResultFinder>()
+            .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>()
             .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
-            .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>();
+            .AddSingleton<INoRedirectHttpClientFactory, NoRedirectHttpClientFactory>();
     }
 }

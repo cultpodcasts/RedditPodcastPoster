@@ -7,13 +7,14 @@ namespace RedditPodcastPoster.PodcastServices.ListenNotes.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddListenNotesClient(
+    public static IServiceCollection AddListenNotes(
         this IServiceCollection services,
         IConfiguration config)
     {
         services.AddOptions<ListenNotesOptions>().Bind(config.GetSection("listenNotes"));
 
         return services
-            .AddScoped<IClientFactory, ClientFactory>();
+            .AddScoped<IClientFactory, ClientFactory>()
+            .AddScoped<IListenNotesSearcher, ListenNotesSearcher>();
     }
 }

@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public class SpotifyPodcastResolver(
     ISpotifyClientWrapper spotifyClientWrapper,
-    ISpotifySearcher spotifySearcher,
+    ISearchResultFinder searchResultFinder,
     ISpotifyQueryPaginator spotifyQueryPaginator,
     ILogger<SpotifyPodcastResolver> logger)
     : ISpotifyPodcastResolver
@@ -39,7 +39,7 @@ public class SpotifyPodcastResolver(
             var podcasts = await spotifyClientWrapper.GetSearchResponse(searchRequest, indexingContext);
             if (podcasts != null)
             {
-                var matchingPodcasts = spotifySearcher.FindMatchingPodcasts(request.Name, podcasts.Shows.Items);
+                var matchingPodcasts = searchResultFinder.FindMatchingPodcasts(request.Name, podcasts.Shows.Items);
                 if (request.Episodes.Any())
                 {
                     foreach (var candidatePodcast in matchingPodcasts)
@@ -66,7 +66,7 @@ public class SpotifyPodcastResolver(
                             {
                                 var mostRecentEpisode = request.Episodes.OrderByDescending(x => x.Release).First();
                                 var matchingEpisode =
-                                    spotifySearcher.FindMatchingEpisodeByDate(
+                                    searchResultFinder.FindMatchingEpisodeByDate(
                                         mostRecentEpisode.Title.Trim(),
                                         mostRecentEpisode.Release,
                                         new[] {paginateEpisodesResponse.Results});
