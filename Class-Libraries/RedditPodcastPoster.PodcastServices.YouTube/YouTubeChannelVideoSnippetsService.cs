@@ -32,19 +32,21 @@ public class YouTubeChannelVideoSnippetsService(
 
         var result = new List<SearchResult>();
         var nextPageToken = "";
+        var searchListRequest = youTubeService.Search.List("snippet");
+        searchListRequest.MaxResults = MaxSearchResults;
+        searchListRequest.ChannelId = channelId.ChannelId;
+        searchListRequest.Type = "video";
+        searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
+        searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
+        if (indexingContext.ReleasedSince.HasValue)
+        {
+            searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
+        }
+
+        //upcoming
         while (nextPageToken != null)
         {
-            var searchListRequest = youTubeService.Search.List("snippet");
-            searchListRequest.MaxResults = MaxSearchResults;
-            searchListRequest.ChannelId = channelId.ChannelId;
             searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
-            searchListRequest.Type = "video";
-            searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
-            searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
-            if (indexingContext.ReleasedSince.HasValue)
-            {
-                searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
-            }
 
             SearchListResponse response;
             try
@@ -58,7 +60,9 @@ public class YouTubeChannelVideoSnippetsService(
                 return result;
             }
 
-            result.AddRange(response.Items);
+            var responseItems = response.Items.Where(x =>
+                x.Snippet.LiveBroadcastContent != "upcoming" && x.Snippet.LiveBroadcastContent != "live");
+            result.AddRange(responseItems);
             nextPageToken = response.NextPageToken;
         }
 
