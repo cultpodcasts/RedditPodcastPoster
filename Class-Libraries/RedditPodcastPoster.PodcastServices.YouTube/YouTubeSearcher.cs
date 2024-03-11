@@ -3,6 +3,7 @@ using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using static Google.Apis.YouTube.v3.SearchResource.ListRequest;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
@@ -13,9 +14,21 @@ public class YouTubeSearcher(
 {
     private const long MaxSearchResults = 25;
     private const string ShortUrlPrefix = "https://www.youtube.com/shorts/";
+
+    private const string ShortsConsentPrefix =
+        "https://consent.youtube.com/m?continue=https%3A%2F%2Fwww.youtube.com%2Fshorts%2F";
+
     private readonly HttpClient _httpClient = httpClientFactory.Create();
 
     public async Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext)
+    {
+        var medium = await Search(query, indexingContext, VideoDurationEnum.Medium);
+        var @long = await Search(query, indexingContext, VideoDurationEnum.Long__);
+        return medium.Union(@long).Distinct();
+    }
+
+    private async Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext,
+        VideoDurationEnum duration)
     {
         var results = new List<SearchResult>();
         var nextPageToken = "";
@@ -23,10 +36,11 @@ public class YouTubeSearcher(
         searchListRequest.MaxResults = MaxSearchResults;
         searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
         searchListRequest.Type = "video";
-        searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
-        searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
+        searchListRequest.SafeSearch = SafeSearchEnum.None;
+        searchListRequest.Order = OrderEnum.Date;
         searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
         searchListRequest.Q = query;
+        searchListRequest.VideoDuration = duration;
         if (indexingContext.ReleasedSince.HasValue)
         {
             searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
@@ -48,11 +62,11 @@ public class YouTubeSearcher(
                 return results.Select(ToEpisodeResult);
             }
 
-            var nonShortItems = await NonShortItems(response.Items.Where(x =>
-                x.Snippet.PublishedAtDateTimeOffset >= indexingContext.ReleasedSince));
+            var releasedInTimeFrame = response.Items.Where(x =>
+                x.Snippet.PublishedAtDateTimeOffset >= indexingContext.ReleasedSince);
 
 
-            results.AddRange(nonShortItems);
+            results.AddRange(releasedInTimeFrame);
             nextPageToken = response.NextPageToken;
             searchListRequest.PageToken = nextPageToken;
         }
@@ -70,7 +84,11 @@ public class YouTubeSearcher(
             var head = await _httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Head, url));
             if (head.StatusCode == HttpStatusCode.Found)
             {
-                nonShortResults.Add(result);
+                var location = head.Headers.GetValues("Location").FirstOrDefault();
+                if (!location!.StartsWith(ShortsConsentPrefix))
+                {
+                    nonShortResults.Add(result);
+                }
             }
         }
 

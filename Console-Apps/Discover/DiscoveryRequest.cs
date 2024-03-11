@@ -8,12 +8,12 @@ public class DiscoveryRequest
         Default = 12)]
     public int NumberOfHours { get; set; }
 
-    [Option('l', "listen-notes", Default = false, HelpText = "Search Listen Notes")]
+    [Option('l', "include-listen-notes", Default = false, HelpText = "Search Listen Notes")]
     public bool IncludeListenNotes { get; set; }
 
-    [Option('s', "spotify", Default = false, HelpText = "Search Spotify")]
+    [Option('s', "exclude-spotify", Default = false, HelpText = "Exclude Spotify")]
     public bool ExcludeSpotify { get; set; }
 
-    [Option('y', "youtube", Default = false, HelpText = "Search Listen Notes")]
+    [Option('y', "include-youtube", Default = false, HelpText = "Search Listen Notes")]
     public bool IncludeYouTube { get; set; }
 }

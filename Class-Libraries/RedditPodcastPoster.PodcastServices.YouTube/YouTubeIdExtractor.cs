@@ -10,10 +10,17 @@ public partial class YouTubeIdExtractor(
 ) : IYouTubeIdExtractor
 {
     private static readonly Regex VideoId = GenerateYouTubeIdRegex();
+    private static readonly Regex ShortId = GenerateShortId();
 
     public string? Extract(Uri youTubeUrl)
     {
         var videoIdMatch = VideoId.Match(youTubeUrl.ToString()).Groups["videoId"];
+        if (videoIdMatch.Success)
+        {
+            return videoIdMatch.Value;
+        }
+
+        videoIdMatch = ShortId.Match(youTubeUrl.ToString()).Groups["videoId"];
         if (videoIdMatch.Success)
         {
             return videoIdMatch.Value;
@@ -24,4 +31,7 @@ public partial class YouTubeIdExtractor(
 
     [GeneratedRegex(@"v=(?'videoId'[\-\w]+)", RegexOptions.Compiled)]
     private static partial Regex GenerateYouTubeIdRegex();
+
+    [GeneratedRegex(@"shorts/(?'videoId'[\-\w]+)", RegexOptions.Compiled)]
+    private static partial Regex GenerateShortId();
 }
