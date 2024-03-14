@@ -13,7 +13,11 @@ public class DiscoveryProcessor(
 #pragma warning restore CS9113 // Parameter is unread.
 )
 {
-    private readonly IList<string> _ignoreTerms = new[] {"cult of the lamb".ToLower()};
+    private readonly IList<string> _ignoreTerms = new[]
+    {
+        "cult of the lamb".ToLower(), 
+        "Blue Oyster Cult".ToLower()
+    };
 
     public async Task Process(DiscoveryRequest request)
     {
