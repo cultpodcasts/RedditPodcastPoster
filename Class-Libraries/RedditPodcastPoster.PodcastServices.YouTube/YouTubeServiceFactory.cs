@@ -26,6 +26,7 @@ public class YouTubeServiceFactory(
     {
         return services
             .AddScoped<IYouTubeServiceFactory, YouTubeServiceFactory>()
+            .AddScoped<IYouTubeApiKeyStrategy, YouTubeApiKeyStrategy>()
             .AddScoped(s => s.GetService<IYouTubeServiceFactory>()!.Create());
     }
 }
