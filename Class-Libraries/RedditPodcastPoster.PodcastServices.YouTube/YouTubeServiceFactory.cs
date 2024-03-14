@@ -19,8 +19,8 @@ public class YouTubeServiceFactory(
     {
         return new YouTubeService(new BaseClientService.Initializer
         {
-            ApiKey = _settings.ApiKey,
-            ApplicationName = "CultPodcasts"
+            ApiKey = _settings.Applications.First().ApiKey,
+            ApplicationName = _settings.Applications.First().Name
         });
     }
 
