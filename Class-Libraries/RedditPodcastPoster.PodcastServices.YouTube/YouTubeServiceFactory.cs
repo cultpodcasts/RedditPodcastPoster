@@ -2,25 +2,23 @@
 using Google.Apis.YouTube.v3;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeServiceFactory(
-    IOptions<YouTubeSettings> settings,
+    IYouTubeApiKeyStrategy youTubeApiKeyStrategy,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<YouTubeServiceFactory> logger
 #pragma warning restore CS9113 // Parameter is unread.
 ) : IYouTubeServiceFactory
 {
-    private readonly YouTubeSettings _settings = settings.Value;
-
     public YouTubeService Create()
     {
+        var application = youTubeApiKeyStrategy.GetApplication();
         return new YouTubeService(new BaseClientService.Initializer
         {
-            ApiKey = _settings.Applications.First().ApiKey,
-            ApplicationName = _settings.Applications.First().Name
+            ApiKey = application.ApiKey,
+            ApplicationName = application.Name
         });
     }
 
