@@ -45,6 +45,7 @@ public class SearchProvider(
         }
 
         return results
+            .Where(x => x.Released >= indexingContext.ReleasedSince)
             .GroupBy(x => x.EpisodeName)
             .Select(x => x.FirstOrDefault(y => y.Url != null) ?? x.First())
             .OrderBy(x => x.Released);

@@ -38,7 +38,7 @@ public class SpotifyEpisodeResolver(
 
         if (fullEpisode == null)
         {
-            (string, Paging<SimpleEpisode>?)[]? episodes = null;
+            EpisodeFetchResults[]? episodes = null;
             if (!string.IsNullOrWhiteSpace(request.PodcastSpotifyId))
             {
                 var showRequest = new ShowRequest {Market = market};
@@ -46,7 +46,7 @@ public class SpotifyEpisodeResolver(
                     await spotifyClientWrapper.GetFullShow(request.PodcastSpotifyId, showRequest, indexingContext);
                 if (fullShow != null)
                 {
-                    episodes = new (string, Paging<SimpleEpisode>?)[] {(request.PodcastSpotifyId, fullShow.Episodes)};
+                    episodes = [new EpisodeFetchResults(request.PodcastSpotifyId, fullShow.Episodes)];
                 }
             }
             else
@@ -72,7 +72,7 @@ public class SpotifyEpisodeResolver(
                             .Select(async x => await spotifyClientWrapper
                                 .GetShowEpisodes(x.Id, showEpisodesRequest, indexingContext)
                                 .ContinueWith(y =>
-                                    new ValueTuple<string, Paging<SimpleEpisode>?>(x.Id, y.Result)));
+                                    new EpisodeFetchResults(x.Id, y.Result)));
                         episodes = await Task.WhenAll(episodesFetches);
                     }
                 }
@@ -83,7 +83,7 @@ public class SpotifyEpisodeResolver(
                 IList<IList<SimpleEpisode>> allEpisodes = new List<IList<SimpleEpisode>>();
                 foreach (var paging in episodes)
                 {
-                    if (paging.Item2 != null)
+                    if (paging.Episodes != null)
                     {
                         if (indexingContext.SkipExpensiveSpotifyQueries && request.HasExpensiveSpotifyEpisodesQuery)
                         {
@@ -93,7 +93,7 @@ public class SpotifyEpisodeResolver(
                         else
                         {
                             var paginateEpisodeResponse =
-                                await spotifyQueryPaginator.PaginateEpisodes(paging.Item2, indexingContext);
+                                await spotifyQueryPaginator.PaginateEpisodes(paging.Episodes, indexingContext);
                             var result = paginateEpisodeResponse.Results.GroupBy(x => x.Id).Select(x => x.First());
                             allEpisodes.Add(result.ToList());
                             if (paginateEpisodeResponse.IsExpensiveQuery)
@@ -104,7 +104,8 @@ public class SpotifyEpisodeResolver(
                     }
                     else
                     {
-                        logger.LogWarning($"Null paged-list of episodes found for spotify-show-id '{paging.Item1}'.");
+                        logger.LogWarning(
+                            $"Null paged-list of episodes found for spotify-show-id '{paging.SpotifyPodcastId}'.");
                     }
                 }
 
@@ -123,7 +124,8 @@ public class SpotifyEpisodeResolver(
                 else
                 {
                     matchingEpisode =
-                        searchResultFinder.FindMatchingEpisodeByDate(request.EpisodeTitle, request.Released, allEpisodes);
+                        searchResultFinder.FindMatchingEpisodeByDate(request.EpisodeTitle, request.Released,
+                            allEpisodes);
                 }
 
                 if (matchingEpisode != null)

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Net;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 
@@ -28,11 +29,11 @@ public class SearchResultFinder(
     {
         foreach (var episodeList in episodeLists)
         {
-            var requestEpisodeTitle = episodeTitle.Trim();
+            var requestEpisodeTitle = WebUtility.HtmlDecode(episodeTitle.Trim());
 
             var match = episodeList.SingleOrDefault(x =>
             {
-                var trimmedEpisodeTitle = x.Name.Trim();
+                var trimmedEpisodeTitle = WebUtility.HtmlDecode(x.Name.Trim());
                 return trimmedEpisodeTitle == requestEpisodeTitle ||
                        trimmedEpisodeTitle.Contains(requestEpisodeTitle) ||
                        requestEpisodeTitle.Contains(trimmedEpisodeTitle);

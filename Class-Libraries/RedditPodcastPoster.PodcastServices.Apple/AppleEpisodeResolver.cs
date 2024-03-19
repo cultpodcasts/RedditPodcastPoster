@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Net;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text;
 
@@ -35,17 +36,17 @@ public class AppleEpisodeResolver(
         {
             if (request.PodcastAppleId.HasValue)
             {
-                var requestEpisodeTitle = request.EpisodeTitle.Trim();
+                var requestEpisodeTitle = WebUtility.HtmlDecode(request.EpisodeTitle.Trim());
 
                 var matches = podcastEpisodes.Where(
                     x =>
                     {
-                        var trimmedEpisodeTitle = x.Title.Trim();
+                        var trimmedEpisodeTitle = WebUtility.HtmlDecode(x.Title.Trim());
                         return trimmedEpisodeTitle == requestEpisodeTitle ||
                                trimmedEpisodeTitle.Contains(requestEpisodeTitle) ||
                                requestEpisodeTitle.Contains(trimmedEpisodeTitle);
                     });
-                var match = matches.MaxBy(x=>x.Title);
+                var match = matches.MaxBy(x => x.Title);
                 if (match == null)
                 {
                     IEnumerable<AppleEpisode> sampleList;
