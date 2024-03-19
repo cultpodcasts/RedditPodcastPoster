@@ -53,6 +53,7 @@ public class SpotifySearcher(
             episode.GetReleaseDate(),
             htmlSanitiser.Sanitise(episode.HtmlDescription).Trim(),
             episode.Name.Trim(),
+            episode.GetDuration(),
             episode.Show.Name.Trim(), DiscoveryService.Spotify,
             new Uri(_spotifyEpisodeBase, episode.Id),
             episode.Show.Id);

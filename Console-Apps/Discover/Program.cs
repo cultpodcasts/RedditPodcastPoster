@@ -4,10 +4,10 @@ using Discover;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.Subjects.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -23,6 +23,7 @@ builder.Services
     .AddLogging()
     .AddScoped<DiscoveryProcessor>()
     .AddRepositories(builder.Configuration)
+    .AddSubjectServices()
     .AddDiscovery(builder.Configuration)
     .AddHttpClient();
 
