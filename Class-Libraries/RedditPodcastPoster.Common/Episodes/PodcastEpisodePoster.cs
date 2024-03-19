@@ -81,7 +81,12 @@ public class PodcastEpisodePoster(
         var rawTitle = podcastTitleRegex.Match(matchingPodcastEpisode.Episode!.Title).Result("${title}");
         var bundleEpisodes = matchingPodcastEpisode.Podcast.Episodes.Where(x => x.Title.Contains(rawTitle));
         var orderedBundleEpisodes = bundleEpisodes.OrderBy(x =>
-            int.Parse(podcastTitleRegex.Match(x.Title).Result("${partnumber}")));
+            {
+                var match = podcastTitleRegex.Match(x.Title);
+                var partNumber = match.Result("${partnumber}");
+                return int.Parse(partNumber);
+            }
+            );
         return orderedBundleEpisodes;
     }
 }

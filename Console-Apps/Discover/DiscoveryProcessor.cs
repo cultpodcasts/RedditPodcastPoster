@@ -15,8 +15,13 @@ public class DiscoveryProcessor(
 {
     private readonly IList<string> _ignoreTerms = new[]
     {
-        "cult of the lamb".ToLower(), 
-        "Blue Oyster Cult".ToLower()
+        "cult of the lamb".ToLower(),
+        "cult of lamb".ToLower(),
+        "Blue Oyster Cult".ToLower(),
+        "Blue Öyster Cult".ToLower(),
+        "Living Colour".ToLower(),
+        "She Sells Sanctuary".ToLower(),
+        "Far Cry".ToLower()
     };
 
     public async Task Process(DiscoveryRequest request)
@@ -57,12 +62,12 @@ public class DiscoveryProcessor(
 
         var results = await searchProvider.GetEpisodes(indexingContext, discoveryConfig);
         var podcastIds = podcastRepository.GetAllBy(podcast =>
-            podcast.IndexAllEpisodes ||
-            podcast.EpisodeIncludeTitleRegex != "", x => new
-        {
-            x.YouTubeChannelId,
-            SpotifyShowId = x.SpotifyId
-        });
+                podcast.IndexAllEpisodes || podcast.EpisodeIncludeTitleRegex != "",
+            x => new
+            {
+                x.YouTubeChannelId,
+                SpotifyShowId = x.SpotifyId
+            });
         var indexedYouTubeChannelIds = await podcastIds.Select(x => x.YouTubeChannelId).Distinct().ToListAsync();
         var indexedSpotifyChannelIds = await podcastIds.Select(x => x.SpotifyShowId).Distinct().ToListAsync();
 
