@@ -33,7 +33,7 @@ public class PodcastService(
             }
 
             var findSpotifyEpisodeRequest = new FindSpotifyEpisodeRequest(string.Empty, string.Empty,
-                episodeId, string.Empty, null, false, null, null, Market.CountryCode);
+                episodeId, string.Empty, null, false, Market: Market.CountryCode);
             var episode = await spotifyEpisodeResolver.FindEpisode(findSpotifyEpisodeRequest, indexingContext);
             if (episode.FullEpisode == null)
             {
