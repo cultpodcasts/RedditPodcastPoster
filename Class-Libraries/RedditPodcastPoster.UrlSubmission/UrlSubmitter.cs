@@ -339,6 +339,21 @@ public class UrlSubmitter(
 
     private bool IsMatchingEpisode(Episode episode, CategorisedItem categorisedItem)
     {
+        var alreadyCategorised =
+            ((categorisedItem.ResolvedSpotifyItem != null && !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
+              episode.SpotifyId != categorisedItem.ResolvedSpotifyItem.EpisodeId) ||
+             categorisedItem.ResolvedSpotifyItem == null) &&
+            ((categorisedItem.ResolvedAppleItem != null && episode.AppleId != null &&
+              episode.AppleId != categorisedItem.ResolvedAppleItem.EpisodeId) ||
+             categorisedItem.ResolvedAppleItem == null) &&
+            ((categorisedItem.ResolvedYouTubeItem != null && !string.IsNullOrWhiteSpace(episode.YouTubeId) &&
+              episode.YouTubeId != categorisedItem.ResolvedYouTubeItem.EpisodeId) ||
+             categorisedItem.ResolvedYouTubeItem == null);
+        if (alreadyCategorised)
+        {
+            return false;
+        }
+
         var episodeTitle = WebUtility.HtmlDecode(episode.Title.Trim());
         string resolvedTitle;
         if (categorisedItem is {Authority: Service.Apple, ResolvedAppleItem: not null})
