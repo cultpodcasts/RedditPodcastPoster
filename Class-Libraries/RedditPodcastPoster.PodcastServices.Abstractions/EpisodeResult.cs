@@ -5,6 +5,7 @@ public record EpisodeResult(
     DateTime Released,
     string Description,
     string EpisodeName,
+    TimeSpan? Length,
     string ShowName,
     DiscoveryService DiscoveryService,
     Uri? Url = null,

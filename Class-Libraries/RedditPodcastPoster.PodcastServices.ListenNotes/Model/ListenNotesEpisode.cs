@@ -16,6 +16,9 @@ public class ListenNotesEpisode
     [JsonProperty("pub_date_ms")]
     public long ReleasedMilliseconds { get; set; }
 
+    [JsonProperty("audio_length_sec")]
+    public long AudioLengthSeconds { get; set; }
+
     [JsonProperty("podcast")]
     public required ListenNotesPodcast Podcast { get; set; }
 }

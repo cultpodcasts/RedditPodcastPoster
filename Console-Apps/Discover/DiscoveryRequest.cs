@@ -4,9 +4,13 @@ namespace Discover;
 
 public class DiscoveryRequest
 {
-    [Value(0, MetaName = "number-of-hours", HelpText = "The number of hours to search within", Required = false,
-        Default = 12)]
-    public int NumberOfHours { get; set; }
+    [Option('r', "number-of-hours", HelpText = "The number of hours to search within", Required = false,
+        SetName = "since")]
+    public int? NumberOfHours { get; set; }
+
+    [Option('t', "time-since", HelpText = "Discover items released sine this time", Required = false,
+        SetName = "since")]
+    public DateTime? Since { get; set; }
 
     [Option('l', "include-listen-notes", Default = false, HelpText = "Search Listen Notes")]
     public bool IncludeListenNotes { get; set; }

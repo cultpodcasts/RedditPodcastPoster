@@ -3,6 +3,7 @@ using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using static Google.Apis.YouTube.v3.SearchResource.ListRequest;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
@@ -10,6 +11,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube;
 public class YouTubeSearcher(
     YouTubeService youTubeService,
     INoRedirectHttpClientFactory httpClientFactory,
+    IYouTubeVideoService youTubeVideoService,
     ILogger<YouTubeSearcher> logger) : IYouTubeSearcher
 {
     private const long MaxSearchResults = 25;
@@ -30,7 +32,7 @@ public class YouTubeSearcher(
     private async Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext,
         VideoDurationEnum duration)
     {
-        var results = new List<SearchResult>();
+        var results = new List<(SearchResult SearchResult, Video? Video)>();
         var nextPageToken = "";
         var searchListRequest = youTubeService.Search.List("snippet");
         searchListRequest.MaxResults = MaxSearchResults;
@@ -47,7 +49,7 @@ public class YouTubeSearcher(
         }
 
         while (nextPageToken != null && (!results.Any() ||
-                                         results.Last().Snippet.PublishedAtDateTimeOffset >=
+                                         results.Last().SearchResult.Snippet.PublishedAtDateTimeOffset >=
                                          indexingContext.ReleasedSince))
         {
             SearchListResponse response;
@@ -59,19 +61,37 @@ public class YouTubeSearcher(
             {
                 logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
                 indexingContext.SkipYouTubeUrlResolving = true;
-                return results.Select(ToEpisodeResult);
+                return results.Select(x => ToEpisodeResult(x.SearchResult, x.Video));
             }
 
             var releasedInTimeFrame = response.Items.Where(x =>
                 x.Snippet.PublishedAtDateTimeOffset >= indexingContext.ReleasedSince);
 
 
-            results.AddRange(releasedInTimeFrame);
+            results.AddRange(releasedInTimeFrame.Select(x => (x, (Video?) null)));
             nextPageToken = response.NextPageToken;
             searchListRequest.PageToken = nextPageToken;
         }
 
-        return results.Select(ToEpisodeResult);
+        results = await EnrichWithVideo(results, indexingContext);
+
+        return results.Select(x => ToEpisodeResult(x.SearchResult, x.Video));
+    }
+
+    private async Task<List<(SearchResult SearchResult, Video? Video)>> EnrichWithVideo(
+        List<(SearchResult SearchResult, Video? Video)> results,
+        IndexingContext indexingContext)
+    {
+        var enriched = new List<(SearchResult SearchResult, Video? Video)>();
+        var videoIds = results.Select(x => x.SearchResult.Id.VideoId);
+        var videos = await youTubeVideoService.GetVideoContentDetails(videoIds, indexingContext, true);
+        foreach (var result in results)
+        {
+            var video = videos?.SingleOrDefault(x => x.Id == result.SearchResult.Id.VideoId);
+            enriched.Add((result.SearchResult, video));
+        }
+
+        return enriched;
     }
 
     private async Task<IEnumerable<SearchResult>> NonShortItems(IEnumerable<SearchResult> results)
@@ -95,13 +115,14 @@ public class YouTubeSearcher(
         return nonShortResults;
     }
 
-    private EpisodeResult ToEpisodeResult(SearchResult episode)
+    private EpisodeResult ToEpisodeResult(SearchResult episode, Video? video)
     {
         return new EpisodeResult(
             episode.Id.VideoId,
             episode.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-            episode.Snippet.Description.Trim(),
+            video?.Snippet.Description ?? episode.Snippet.Description.Trim(),
             episode.Snippet.Title.Trim(),
+            video?.GetLength(),
             episode.Snippet.ChannelTitle.Trim(),
             DiscoveryService.YouTube,
             episode.ToYouTubeUrl(),
