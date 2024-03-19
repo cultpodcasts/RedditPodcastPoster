@@ -62,7 +62,7 @@ public class DiscoveryProcessor(
 
         var results = await searchProvider.GetEpisodes(indexingContext, discoveryConfig);
         var podcastIds = podcastRepository.GetAllBy(podcast =>
-                podcast.IndexAllEpisodes || podcast.EpisodeIncludeTitleRegex != "",
+                podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex),
             x => new
             {
                 x.YouTubeChannelId,
