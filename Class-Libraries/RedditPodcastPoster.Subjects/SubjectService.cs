@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Net;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -192,7 +193,7 @@ public class SubjectService(ICachedSubjectRepository subjectRepository, ILogger<
                 if (Include(ignoredAssociatedSubjects, term))
                 {
                     var matchCtr = 0;
-                    var match = GetMatches(term.Term, episode.Title);
+                    var match = GetMatches(term.Term, WebUtility.HtmlDecode(episode.Title));
                     if (match > 0)
                     {
                         matchCtr += match;
@@ -200,7 +201,7 @@ public class SubjectService(ICachedSubjectRepository subjectRepository, ILogger<
 
                     if (withDescription)
                     {
-                        var descMatch = GetMatches(term.Term, episode.Description);
+                        var descMatch = GetMatches(term.Term, WebUtility.HtmlDecode(episode.Description));
                         if (descMatch > 0)
                         {
                             matchCtr += descMatch;

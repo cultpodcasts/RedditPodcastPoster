@@ -23,6 +23,7 @@ public class DiscoveryProcessor(
         "COTL".ToLower(),
         "cult of the lab".ToLower(),
         "Cult of the Lamp".ToLower(),
+        "Cult of the Lumb".ToLower(),
         "Blue Oyster Cult".ToLower(),
         "Blue Öyster Cult".ToLower(),
         "Living Colour".ToLower(),
