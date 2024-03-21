@@ -2,5 +2,5 @@
 
 public interface IHashTagProvider
 {
-    Task<ICollection<(string HashTag, string? EnrichmentHashTag)>> GetHashTags(List<string> episodeSubjects);
+    Task<ICollection<HashTag>> GetHashTags(List<string> episodeSubjects);
 }

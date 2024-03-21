@@ -29,22 +29,22 @@ public class TweetBuilder(
         var episodeHashtags = await hashTagProvider.GetHashTags(podcastEpisode.Episode.Subjects);
         if (!string.IsNullOrWhiteSpace(_twitterOptions.HashTag))
         {
-            episodeHashtags.Add((_twitterOptions.HashTag, null));
+            episodeHashtags.Add(new HashTag(_twitterOptions.HashTag, null));
         }
 
         var hashtagsAdded = new List<string>();
         foreach (var hashtag in episodeHashtags)
         {
-            if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.HashTag.ToLowerInvariant()))
+            if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
             {
                 (episodeTitle, var addedHashTag) =
                     hashTagEnricher.AddHashTag(
                         episodeTitle,
-                        hashtag.HashTag.TrimStart('#'),
-                        hashtag.EnrichmentHashTag?.TrimStart('#'));
+                        hashtag.Tag.TrimStart('#'),
+                        hashtag.MatchingText?.TrimStart('#'));
                 if (addedHashTag)
                 {
-                    hashtagsAdded.Add(hashtag.EnrichmentHashTag ?? hashtag.HashTag);
+                    hashtagsAdded.Add(hashtag.MatchingText ?? hashtag.Tag);
                 }
             }
         }
@@ -66,8 +66,8 @@ public class TweetBuilder(
 
         var endHashTags = string.Join(" ",
             episodeHashtags
-                .Where(x => x.EnrichmentHashTag == null)
-                .Select(x => x.HashTag)
+                .Where(x => x.MatchingText == null)
+                .Select(x => x.Tag)
                 .Distinct()
                 .Where(x => !hashtagsAdded.Contains(x))
                 .Select(x => $"#{x.TrimStart('#')}"));

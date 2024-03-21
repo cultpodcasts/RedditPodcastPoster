@@ -10,7 +10,7 @@ public class HashTagProvider(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : IHashTagProvider
 {
-    public async Task<ICollection<(string HashTag, string? EnrichmentHashTag)>> GetHashTags(
+    public async Task<ICollection<HashTag>> GetHashTags(
         List<string> episodeSubjects)
     {
         var subjectRetrieval = episodeSubjects.Select(subjectRepository.GetByName).ToArray();
@@ -21,14 +21,14 @@ public class HashTagProvider(
                 .Select(x => x!.HashTag!.Split(" "))
                 .SelectMany(x => x)
                 .Distinct()
-                .Select(x => (x!, (string?) null));
+                .Select(x => new HashTag(x!, (string?) null));
         var enrichmentHashTags =
             subjects
                 .Where(x => x?.EnrichmentHashTags != null && x.EnrichmentHashTags.Any())
                 .SelectMany(x => x!.EnrichmentHashTags!)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Distinct()
-                .Select(x => (x, (string?)
+                .Select(x => new HashTag(x, (string?)
                     $"#{x
                         .Replace(" ", string.Empty)
                         .Replace("'", string.Empty)}"));
