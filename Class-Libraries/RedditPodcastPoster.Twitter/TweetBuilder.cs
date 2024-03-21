@@ -4,15 +4,14 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
-using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.Twitter;
 
 public class TweetBuilder(
     ITextSanitiser textSanitiser,
-    ISubjectRepository subjectRepository,
     IHashTagEnricher hashTagEnricher,
+    IHashTagProvider hashTagProvider,
     IOptions<TwitterOptions> twitterOptions,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<TweetBuilder> logger)
@@ -27,25 +26,25 @@ public class TweetBuilder(
         var postModel = (podcastEpisode.Podcast, new[] {podcastEpisode.Episode}).ToPostModel();
         var episodeTitle = textSanitiser.SanitiseTitle(postModel);
 
-        var episodeHashtags = await GetHashTags(podcastEpisode.Episode.Subjects);
+        var episodeHashtags = await hashTagProvider.GetHashTags(podcastEpisode.Episode.Subjects);
         if (!string.IsNullOrWhiteSpace(_twitterOptions.HashTag))
         {
-            episodeHashtags.Add((_twitterOptions.HashTag, null));
+            episodeHashtags.Add(new HashTag(_twitterOptions.HashTag, null));
         }
 
         var hashtagsAdded = new List<string>();
         foreach (var hashtag in episodeHashtags)
         {
-            if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.HashTag.ToLowerInvariant()))
+            if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
             {
                 (episodeTitle, var addedHashTag) =
                     hashTagEnricher.AddHashTag(
                         episodeTitle,
-                        hashtag.HashTag.TrimStart('#'),
-                        hashtag.EnrichmentHashTag?.TrimStart('#'));
+                        hashtag.Tag.TrimStart('#'),
+                        hashtag.MatchingText?.TrimStart('#'));
                 if (addedHashTag)
                 {
-                    hashtagsAdded.Add(hashtag.EnrichmentHashTag ?? hashtag.HashTag);
+                    hashtagsAdded.Add(hashtag.MatchingText ?? hashtag.Tag);
                 }
             }
         }
@@ -67,8 +66,8 @@ public class TweetBuilder(
 
         var endHashTags = string.Join(" ",
             episodeHashtags
-                .Where(x => x.EnrichmentHashTag == null)
-                .Select(x => x.HashTag)
+                .Where(x => x.MatchingText == null)
+                .Select(x => x.Tag)
                 .Distinct()
                 .Where(x => !hashtagsAdded.Contains(x))
                 .Select(x => $"#{x.TrimStart('#')}"));
@@ -97,27 +96,5 @@ public class TweetBuilder(
 
         var tweet = tweetBuilder.ToString();
         return tweet;
-    }
-
-    private async Task<ICollection<(string HashTag, string? EnrichmentHashTag)>> GetHashTags(
-        List<string> episodeSubjects)
-    {
-        var subjectRetrieval = episodeSubjects.Select(x => subjectRepository.GetByName(x)).ToArray();
-        var subjects = await Task.WhenAll(subjectRetrieval);
-        var hashTags =
-            subjects
-                .Where(x => !string.IsNullOrWhiteSpace(x?.HashTag))
-                .Select(x => x!.HashTag!.Split(" "))
-                .SelectMany(x => x)
-                .Distinct()
-                .Select(x => (x!, (string?) null));
-        var enrichmentHashTags =
-            subjects
-                .Where(x => x?.EnrichmentHashTags != null && x.EnrichmentHashTags.Any())
-                .SelectMany(x => x!.EnrichmentHashTags!)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct()
-                .Select(x => (x, (string?) $"#{x.Replace(" ", string.Empty)}"));
-        return hashTags.Union(enrichmentHashTags).ToList();
     }
 }
