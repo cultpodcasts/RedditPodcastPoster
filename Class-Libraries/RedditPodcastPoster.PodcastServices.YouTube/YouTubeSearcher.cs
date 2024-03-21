@@ -87,7 +87,7 @@ public class YouTubeSearcher(
         var videos = await youTubeVideoService.GetVideoContentDetails(videoIds, indexingContext, true);
         foreach (var result in results)
         {
-            var video = videos?.SingleOrDefault(x => x.Id == result.SearchResult.Id.VideoId);
+            var video = videos?.FirstOrDefault(x => x.Id == result.SearchResult.Id.VideoId);
             enriched.Add((result.SearchResult, video));
         }
 
