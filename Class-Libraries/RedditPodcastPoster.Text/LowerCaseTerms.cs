@@ -14,7 +14,7 @@ public static class LowerCaseTerms
         "start", "my", "myself", "mine", "get", "gets", "up", "down", "meet", "met", "part", "parts", "ft", "at",
         "our", "us", "tell", "why", "don't", "tells", "when", "into", "vs", "only", "off", "end", "being", "re", "that",
         "talk", "are", "most", "we", "day", "or", "didn't", "know", "were", "as", "over", "its", "use", "one", "really",
-        "work", "works", "worked", "did", "goes", "used", "has"
+        "work", "works", "worked", "did", "goes", "used", "has", "if", "just", "have", "all", "took", "no", "new", "old", "like"
     };
 
     private static readonly string[] AlwaysLowerCaseWords =
