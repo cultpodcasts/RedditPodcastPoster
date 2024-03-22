@@ -37,6 +37,11 @@ public class DiscoveryProcessor(
         DateTime since;
         if (request.Since.HasValue)
         {
+            if (request.Since > DateTime.UtcNow)
+            {
+                throw new InvalidOperationException($"'{nameof(request)}.{nameof(request.Since)}' is in the future. ");
+            }
+
             since = request.Since.Value;
         }
         else if (request.NumberOfHours.HasValue)

@@ -120,10 +120,12 @@ public class YouTubeSearcher(
         return new EpisodeResult(
             episode.Id.VideoId,
             episode.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-            video?.Snippet.Description ?? episode.Snippet.Description.Trim(),
-            episode.Snippet.Title.Trim(),
+            !string.IsNullOrWhiteSpace(video?.Snippet.Description)
+                ? WebUtility.HtmlDecode(video?.Snippet.Description!)
+                : WebUtility.HtmlDecode(episode.Snippet.Description.Trim()),
+            WebUtility.HtmlDecode(episode.Snippet.Title.Trim()),
             video?.GetLength(),
-            episode.Snippet.ChannelTitle.Trim(),
+            WebUtility.HtmlDecode(episode.Snippet.ChannelTitle.Trim()),
             DiscoveryService.YouTube,
             episode.ToYouTubeUrl(),
             episode.Snippet.ChannelId);
