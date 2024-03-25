@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
@@ -14,7 +15,9 @@ public class YouTubeItemResolver(
         var youTubePublishingDelay = request.Podcast.YouTubePublishingDelay();
         if (youTubePublishingDelay < TimeSpan.Zero)
         {
-            indexingContext = new IndexingContext(DateTime.UtcNow.Add(youTubePublishingDelay),
+            indexingContext = new IndexingContext(
+                request.Episode.HasAccurateReleaseTime()?request.Episode.Release.Add(youTubePublishingDelay):
+                DateTime.UtcNow.Add(youTubePublishingDelay),
                 indexingContext.SkipYouTubeUrlResolving,
                 indexingContext.SkipSpotifyUrlResolving,
                 indexingContext.SkipExpensiveYouTubeQueries,

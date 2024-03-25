@@ -57,8 +57,12 @@ public class PodcastUpdater(
             }
 
             episodes = episodes
-                .Where(x => x.Release >= releasedSince &&
-                            x.Release - DateTime.UtcNow < youTubePublishingDelay)
+                .Where(x =>
+                {
+                    var cutoff = x.Release + youTubePublishingDelay;
+                    var hasReleasedOnYouTube= DateTime.UtcNow >= cutoff;
+                    return x.Release >= releasedSince && hasReleasedOnYouTube;
+                })
                 .ToList();
         }
 

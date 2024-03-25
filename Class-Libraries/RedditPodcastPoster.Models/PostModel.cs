@@ -87,7 +87,7 @@ public class PostModel
     public string EpisodeDescription { get; init; }
     public string PodcastName { get; init; }
     public string EpisodeTitle { get; init; }
-    public string[] Subjects { get; init; }
+    public IList<string> Subjects { get; init; }
     public string Id { get; init; }
     public Uri? Link { get; init; }
 }
