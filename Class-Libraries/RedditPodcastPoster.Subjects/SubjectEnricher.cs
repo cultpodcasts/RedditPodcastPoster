@@ -15,6 +15,17 @@ public class SubjectEnricher(
 
         if (additions.Any())
         {
+            if (options != null)
+            {
+                var defaultSubjectItem = additions.SingleOrDefault(x => x.Subject.Name == options.DefaultSubject);
+                if (defaultSubjectItem != null)
+                {
+                    var defaultSubjectIndex = additions.IndexOf(defaultSubjectItem);
+                    additions.RemoveAt(defaultSubjectIndex);
+                    additions.Insert(0, defaultSubjectItem);
+                }
+            }
+
             var message =
                 $"{additions.Count()} - {string.Join(",", additions.Select(x => "'" + x.Subject.Name + "' (" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"))} : '{episode.Title}'.";
             if (!episode.Subjects.Any() && additions.Count() > 1)
@@ -25,6 +36,7 @@ public class SubjectEnricher(
             {
                 logger.LogInformation(message);
             }
+
 
             episode.Subjects.AddRange(additions.Select(x => x.Subject.Name));
         }

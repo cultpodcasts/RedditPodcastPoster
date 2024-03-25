@@ -26,7 +26,7 @@ public class SubjectRepository(
         return repository.GetBy<Subject>(x => x.Name == name);
     }
 
-    public IAsyncEnumerable<Subject> GetByNames(string[] names)
+    public IAsyncEnumerable<Subject> GetByNames(IList<string> names)
     {
         return repository.GetAllBy<Subject>(x => names.Contains(x.Name));
     }
