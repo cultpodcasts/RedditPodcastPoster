@@ -112,14 +112,23 @@ public class SpotifyEpisodeResolver(
                 SimpleEpisode? matchingEpisode;
                 if (request is {ReleaseAuthority: Service.YouTube, Length: not null})
                 {
+                    var ticks = YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
+                    if (!string.IsNullOrWhiteSpace(request.YouTubePublishingDelayTimeSpan))
+                    {
+                        var delayTicks = TimeSpan.Parse(request.YouTubePublishingDelayTimeSpan).Ticks;
+                        if (delayTicks < 0)
+                        {
+                            ticks = Math.Abs(delayTicks);
+                        }
+                    }
+
                     matchingEpisode =
                         searchResultFinder.FindMatchingEpisodeByLength(
                             request.EpisodeTitle,
                             request.Length.Value,
                             allEpisodes,
                             y => request.Released.HasValue &&
-                                 Math.Abs((y.GetReleaseDate() - request.Released.Value).Ticks) <
-                                 YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks);
+                                 Math.Abs((y.GetReleaseDate() - request.Released.Value).Ticks) < ticks);
                 }
                 else
                 {
