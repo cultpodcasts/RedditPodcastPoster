@@ -10,7 +10,7 @@ public class AppleEpisodeResolver(
     ILogger<AppleEpisodeResolver> logger)
     : IAppleEpisodeResolver
 {
-    private const int MinFuzzyScore = 70;
+    private const int MinFuzzyScore = 65;
     private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(30).Ticks;
     private static readonly long BroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
 

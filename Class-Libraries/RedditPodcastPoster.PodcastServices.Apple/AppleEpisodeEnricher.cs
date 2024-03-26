@@ -26,13 +26,20 @@ public class AppleEpisodeEnricher(
         if (request.Podcast.AppleId != null)
         {
             var findAppleEpisodeRequest = FindAppleEpisodeRequestFactory.Create(request.Podcast, request.Episode);
+            var ticks = YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
+            if (!string.IsNullOrWhiteSpace(request.Podcast.YouTubePublishingDelayTimeSpan))
+            {
+                var delay = TimeSpan.Parse(request.Podcast.YouTubePublishingDelayTimeSpan).Ticks;
+                if (delay < 0)
+                {
+                    ticks = Math.Abs(delay);
+                }
+            }
+
             var appleItem = await appleEpisodeResolver.FindEpisode(
                 findAppleEpisodeRequest,
                 indexingContext,
-                y =>
-                    Math.Abs((y.Release - request.Episode.Release).Ticks) <
-                    YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks
-            );
+                y => Math.Abs((y.Release - request.Episode.Release).Ticks) < ticks);
             if (appleItem != null)
             {
                 var url = appleItem.Url.CleanAppleUrl();

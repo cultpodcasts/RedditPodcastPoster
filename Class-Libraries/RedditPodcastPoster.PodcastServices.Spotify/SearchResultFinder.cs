@@ -11,7 +11,7 @@ public class SearchResultFinder(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : ISearchResultFinder
 {
-    private const int MinFuzzyScore = 70;
+    private const int MinFuzzyScore = 65;
     private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(30).Ticks;
     private static readonly long BroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
 
@@ -52,6 +52,7 @@ public class SearchResultFinder(
 
                 var sameLength = sampleList
                     .Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < TimeDifferenceThreshold);
+
                 if (sameLength.Count() > 1)
                 {
                     return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name);
