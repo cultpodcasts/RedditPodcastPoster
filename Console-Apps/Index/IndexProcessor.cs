@@ -50,7 +50,20 @@ internal class IndexProcessor(
                 (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
 
             {
-                await podcastUpdater.Update(podcast, indexingContext);
+                var results = await podcastUpdater.Update(podcast, indexingContext);
+                var resultsMessage = results.ToString();
+                if (results.MergeResult.FailedEpisodes.Any() ||
+                    (results.SpotifyBypassed && !request.SkipSpotifyUrlResolving) ||
+                    (results.YouTubeBypassed && !request.SkipYouTubeUrlResolving))
+                {
+                    logger.LogError(resultsMessage);
+                }
+                else
+                {
+                    logger.LogInformation(resultsMessage);
+                }
+
+
                 var episodes = podcast.Episodes.Where(x => x.Release >= indexingContext.ReleasedSince);
                 foreach (var episode in episodes)
                 {

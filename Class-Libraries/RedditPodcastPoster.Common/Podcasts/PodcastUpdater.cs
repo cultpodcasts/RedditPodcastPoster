@@ -65,8 +65,10 @@ public class PodcastUpdater(
                         var hasReleasedOnYouTube = DateTime.UtcNow >= cutoff;
                         return x.Release >= releasedSince && hasReleasedOnYouTube;
                     }
-                    return x.Release >= releasedSince &&
-                           x.Release - DateTime.UtcNow < youTubePublishingDelay;
+
+                    var inTimeframe = x.Release >= releasedSince &&
+                                      x.Release - DateTime.UtcNow < youTubePublishingDelay;
+                    return inTimeframe;
                 })
                 .ToList();
         }

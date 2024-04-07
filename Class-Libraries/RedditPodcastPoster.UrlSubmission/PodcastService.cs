@@ -66,6 +66,11 @@ public class PodcastService(
             if (podcasts.Count() > 1)
             {
                 podcasts = podcasts.Where(x => x.YouTubePlaylistId == string.Empty);
+                if (podcasts.Count() > 1)
+                {
+                    throw new InvalidOperationException(
+                        $"Multiple podcasts with youtube-channel-id '{snippetChannelId}' and empty youtube-playlist-id found");
+                }
             }
         }
         else if (appleUrlCategoriser.IsMatch(url))
