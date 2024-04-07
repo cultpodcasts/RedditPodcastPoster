@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Azure.Cosmos.Linq;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -60,6 +61,7 @@ public class Tweeter(
             var since = DateTime.UtcNow.Date.AddDays(-1 * numberOfDays);
 
             podcasts = await repository.GetAllBy(x =>
+                (!x.Removed.IsDefined() || x.Removed == false) &&
                 x.Episodes.Any(episode =>
                     episode.Release >= since &&
                     episode.Removed == false &&

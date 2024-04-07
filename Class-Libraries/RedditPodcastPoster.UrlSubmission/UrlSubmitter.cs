@@ -37,6 +37,12 @@ public class UrlSubmitter(
             podcast = await podcastService.GetPodcastFromEpisodeUrl(url, indexingContext);
         }
 
+        if (podcast != null && podcast.IsRemoved())
+        {
+            logger.LogWarning($"Podcast with id '{podcast.Id}' is removed.");
+            return;
+        }
+
         var categorisedItem = await urlCategoriser.Categorise(podcast, url, indexingContext, matchOtherServices);
 
         if (categorisedItem.MatchingPodcast != null)

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Azure.Cosmos.Linq;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Adaptors;
 using RedditPodcastPoster.Persistence.Abstractions;
 
@@ -18,12 +19,14 @@ public class EpisodeProcessor(
     {
         logger.LogInformation($"{nameof(PostEpisodesSinceReleaseDate)} Finding episodes released since '{since}'.");
         var podcasts = await podcastRepository.GetAllBy(
-            x => x.Episodes.Any(
-                episode =>
-                    episode.Release > DateTime.Now.AddDays(-30) &&
-                    episode.Posted == false &&
-                    episode.Ignored == false &&
-                    episode.Removed == false)).ToArrayAsync();
+            x =>
+                (!x.Removed.IsDefined() || x.Removed == false) &&
+                x.Episodes.Any(
+                    episode =>
+                        episode.Release > DateTime.Now.AddDays(-30) &&
+                        episode.Posted == false &&
+                        episode.Ignored == false &&
+                        episode.Removed == false)).ToArrayAsync();
 
         var matchingPodcastEpisodeResults =
             await podcastEpisodesPoster.PostNewEpisodes(since, podcasts, youTubeRefreshed, spotifyRefreshed);

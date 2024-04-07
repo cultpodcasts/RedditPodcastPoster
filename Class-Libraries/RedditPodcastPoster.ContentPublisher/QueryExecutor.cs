@@ -102,7 +102,8 @@ public class QueryExecutor(
                   podcasts p
                 JOIN
                 e IN p.episodes
-                WHERE e.ignored=false AND e.removed=false
+                WHERE ((NOT IS_DEFINED(p.removed)) OR p.removed=false)
+                AND   e.ignored=false AND e.removed=false
                 ");
         using var episodeCount = c.GetItemQueryIterator<ScalarResult<int>>(
             numberOfEpisodes
@@ -127,7 +128,8 @@ public class QueryExecutor(
                  podcasts p
                JOIN
                e IN p.episodes
-               WHERE e.ignored=false AND e.removed=false
+               WHERE ((NOT IS_DEFINED(p.removed)) OR p.removed=false)
+               AND   e.ignored=false AND e.removed=false
         ");
         using var feed = c.GetItemQueryIterator<DurationResult>(allDurations);
         while (feed.HasMoreResults)
@@ -159,7 +161,8 @@ public class QueryExecutor(
                            podcasts p
                            JOIN
                            e IN p.episodes
-                           WHERE e.removed=false
+                           WHERE ((NOT IS_DEFINED(p.removed)) OR p.removed=false)
+                           AND e.removed=false
                            AND e.ignored=false
                            AND DateTimeDiff('dd', e.release, GetCurrentDateTime()) < 7
             ");

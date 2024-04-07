@@ -120,7 +120,8 @@ public partial class CreateSearchIndexProcessor(
                             p._ts
                             FROM podcasts p
                             JOIN e IN p.episodes
-                            WHERE e.removed = false 
+                            WHERE ((NOT IS_DEFINED(p.removed)) OR p.removed=false)
+                              and e.removed = false 
                               and e.ignored=false
                               and p._ts >= @HighWaterMark
                             ORDER BY p._ts";

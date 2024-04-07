@@ -46,11 +46,24 @@ internal class IndexProcessor(
         foreach (var podcastId in podcastIds)
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);
-            if (podcast != null &&
+            if (podcast != null && !podcast.IsRemoved() &&
                 (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
 
             {
-                await podcastUpdater.Update(podcast, indexingContext);
+                var results = await podcastUpdater.Update(podcast, indexingContext);
+                var resultsMessage = results.ToString();
+                if (results.MergeResult.FailedEpisodes.Any() ||
+                    (results.SpotifyBypassed && !request.SkipSpotifyUrlResolving) ||
+                    (results.YouTubeBypassed && !request.SkipYouTubeUrlResolving))
+                {
+                    logger.LogError(resultsMessage);
+                }
+                else
+                {
+                    logger.LogInformation(resultsMessage);
+                }
+
+
                 var episodes = podcast.Episodes.Where(x => x.Release >= indexingContext.ReleasedSince);
                 foreach (var episode in episodes)
                 {
@@ -63,6 +76,13 @@ internal class IndexProcessor(
                 }
 
                 await podcastRepository.Save(podcast);
+            }
+            else
+            {
+                if (podcast != null && podcast.IsRemoved())
+                {
+                    logger.LogWarning($"Podcast with id '{podcast.Id}' is removed.");
+                }
             }
         }
     }
