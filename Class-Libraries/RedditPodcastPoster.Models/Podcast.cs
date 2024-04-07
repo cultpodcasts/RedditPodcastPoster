@@ -15,6 +15,10 @@ public sealed class Podcast : CosmosSelector
     [JsonPropertyOrder(20)]
     public string Name { get; set; } = "";
 
+    [JsonPropertyName("removed")]
+    [JsonPropertyOrder(21)]
+    public bool? Removed { get; set; }
+
     [JsonPropertyName("publisher")]
     [JsonPropertyOrder(30)]
     public string Publisher { get; set; } = "";
@@ -139,5 +143,10 @@ public sealed class Podcast : CosmosSelector
         }
 
         return TimeSpan.Parse(YouTubePublishingDelayTimeSpan);
+    }
+
+    public bool IsRemoved()
+    {
+        return Removed.HasValue && Removed.Value;
     }
 }

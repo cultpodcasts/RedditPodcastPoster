@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Azure.Cosmos.Linq;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.AI;
 using RedditPodcastPoster.Persistence.Abstractions;
 
@@ -15,8 +16,10 @@ public class RecentPodcastEpisodeCategoriser(
         var since = DateTime.UtcNow.AddDays(-7);
 
         var podcasts =
-            await podcastRepository.GetAllBy(x => x.Episodes.Any(y => y.Release > since && !y.Subjects.Any())).ToArrayAsync();
-        foreach (var podcast in podcasts)
+            podcastRepository.GetAllBy(x =>
+                (!x.Removed.IsDefined() || x.Removed == false) &&
+                x.Episodes.Any(y => y.Release > since && !y.Subjects.Any()));
+        await foreach (var podcast in podcasts)
         {
             var updated = false;
             foreach (var episode in podcast.Episodes.Where(x => x.Release > since && !x.Subjects.Any()))

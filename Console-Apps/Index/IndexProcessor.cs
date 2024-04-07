@@ -46,7 +46,7 @@ internal class IndexProcessor(
         foreach (var podcastId in podcastIds)
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);
-            if (podcast != null &&
+            if (podcast != null && !podcast.IsRemoved() &&
                 (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
 
             {
@@ -76,6 +76,13 @@ internal class IndexProcessor(
                 }
 
                 await podcastRepository.Save(podcast);
+            }
+            else
+            {
+                if (podcast != null && podcast.IsRemoved())
+                {
+                    logger.LogWarning($"Podcast with id '{podcast.Id}' is removed.");
+                }
             }
         }
     }
