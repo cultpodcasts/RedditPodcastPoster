@@ -108,7 +108,11 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
-            indexingContext.SkipSpotifyUrlResolving = true;
+            if (!ex.Message.StartsWith("Non existing id:"))
+            {
+                indexingContext.SkipSpotifyUrlResolving = true;
+            }
+
             return null;
         }
         catch (Exception ex)
@@ -163,7 +167,11 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
-            indexingContext.SkipSpotifyUrlResolving = true;
+            if (!ex.Message.StartsWith("Non existing id:"))
+            {
+                indexingContext.SkipSpotifyUrlResolving = true;
+            }
+
             return null;
         }
         catch (Exception ex)
@@ -191,7 +199,11 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
-            indexingContext.SkipSpotifyUrlResolving = true;
+            if (!ex.Message.StartsWith("Non existing id:"))
+            {
+                indexingContext.SkipSpotifyUrlResolving = true;
+            }
+
             return null;
         }
         catch (Exception ex)

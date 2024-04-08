@@ -12,6 +12,7 @@ public class PodcastEpisodePoster(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : IPodcastEpisodePoster
 {
+    private static readonly TimeSpan BundledEpisodeReleaseThreshold = TimeSpan.FromDays(7);
     private readonly ILogger<PodcastEpisodePoster> _logger = logger;
 
     public async Task<ProcessResponse> PostPodcastEpisode(
@@ -79,14 +80,17 @@ public class PodcastEpisodePoster(
 
         var podcastTitleRegex = new Regex(matchingPodcastEpisode.Podcast.TitleRegex);
         var rawTitle = podcastTitleRegex.Match(matchingPodcastEpisode.Episode!.Title).Result("${title}");
-        var bundleEpisodes = matchingPodcastEpisode.Podcast.Episodes.Where(x => x.Title.Contains(rawTitle));
+        var bundleEpisodes = matchingPodcastEpisode.Podcast.Episodes
+            .Where(x => Math.Abs((matchingPodcastEpisode.Episode.Release - x.Release).Ticks) <
+                        BundledEpisodeReleaseThreshold.Ticks)
+            .Where(x => x.Title.Contains(rawTitle) && podcastTitleRegex.Match(x.Title).Success);
         var orderedBundleEpisodes = bundleEpisodes.OrderBy(x =>
             {
                 var match = podcastTitleRegex.Match(x.Title);
                 var partNumber = match.Result("${partnumber}");
                 return int.Parse(partNumber);
             }
-            );
+        );
         return orderedBundleEpisodes;
     }
 }
