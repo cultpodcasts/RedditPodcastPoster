@@ -47,6 +47,8 @@ public class PostProcessor(
             podcasts = await repository.GetAll().ToListAsync();
         }
 
+        podcasts = podcasts.Where(x => !x.IsRemoved()).ToList();
+
         if (!request.SkipReddit)
         {
             await PostNewEpisodes(request, podcasts);
