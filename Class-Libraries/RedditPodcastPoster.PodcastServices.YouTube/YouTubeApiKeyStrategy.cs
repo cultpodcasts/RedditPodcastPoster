@@ -13,7 +13,8 @@ public class YouTubeApiKeyStrategy(
     public Application GetApplication()
     {
         var application = _settings.Applications.Skip(DateTime.UtcNow.Hour <= 11 ? 0 : 1).First();
-        logger.LogInformation($"{nameof(GetApplication)}: Using application '{application.Name}'.");
+        logger.LogInformation(
+            $"{nameof(GetApplication)}: Using application-key ending '{application.ApiKey.Substring(application.ApiKey.Length - 4)}'.");
         return application;
     }
 }
