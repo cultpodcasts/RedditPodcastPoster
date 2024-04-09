@@ -14,6 +14,8 @@ public class YouTubeApiKeyStrategy(
 
     public Application GetApplication()
     {
-        return _settings.Applications.Skip(DateTime.UtcNow.Hour <= 11 ? 0 : 1).First();
+        var application = _settings.Applications.Skip(DateTime.UtcNow.Hour <= 11 ? 0 : 1).First();
+        logger.LogInformation($"{nameof(GetApplication)}: Using application '{application.Name}'.");
+        return application;
     }
 }
