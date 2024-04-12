@@ -16,6 +16,11 @@ public sealed class Subject : CosmosSelector
     [JsonPropertyOrder(10)]
     public string Name { get; set; }
 
+    [JsonPropertyName("subjectType")]
+    [JsonPropertyOrder(15)]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public SubjectType? SubjectType { get; set; }
+
     [JsonPropertyName("aliases")]
     [JsonPropertyOrder(20)]
     public string[]? Aliases { get; set; }

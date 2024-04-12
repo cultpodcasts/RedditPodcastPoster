@@ -16,4 +16,7 @@ public class EnrichYouTubePodcastRequest
 
     [Option('a',"acknowledge-expensive-query", HelpText = "Acknowledges Playlist-Query is expensive")]
     public bool AcknowledgeExpensiveYouTubePlaylistQuery { get; set; }
+
+    [Option('s', "include-shorts", HelpText = "Include Short videos")]
+    public bool IncludeShort { get; set; }
 }
