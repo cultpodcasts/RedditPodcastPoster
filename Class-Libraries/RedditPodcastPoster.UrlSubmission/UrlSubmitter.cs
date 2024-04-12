@@ -232,7 +232,7 @@ public class UrlSubmitter(
             {
                 matchingPodcast.AppleId = categorisedItem.ResolvedAppleItem.ShowId;
                 logger.LogInformation(
-                    $"Enriched podcast with apple details with apple-id {categorisedItem.ResolvedAppleItem.ShowId}.");
+                    $"Enriched podcast '{matchingPodcast.Id}' with apple details with apple-id {categorisedItem.ResolvedAppleItem.ShowId}.");
             }
 
             if (matchingEpisode != null)
@@ -242,7 +242,7 @@ public class UrlSubmitter(
                 {
                     matchingEpisode.AppleId = categorisedItem.ResolvedAppleItem.EpisodeId;
                     logger.LogInformation(
-                        $"Enriched episode with apple details with apple-id {categorisedItem.ResolvedAppleItem.EpisodeId}.");
+                        $"Enriched episode '{matchingEpisode.Id}' with apple details with apple-id {categorisedItem.ResolvedAppleItem.EpisodeId}.");
                 }
 
                 if (matchingEpisode.Urls.Apple == null ||
@@ -250,7 +250,7 @@ public class UrlSubmitter(
                 {
                     matchingEpisode.Urls.Apple = categorisedItem.ResolvedAppleItem.Url;
                     logger.LogInformation(
-                        $"Enriched episode with apple details with apple-url {categorisedItem.ResolvedAppleItem.Url}.");
+                        $"Enriched episode '{matchingEpisode.Id}' with apple details with apple-url {categorisedItem.ResolvedAppleItem.Url}.");
                 }
 
                 if (matchingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
@@ -273,7 +273,7 @@ public class UrlSubmitter(
             {
                 matchingPodcast.SpotifyId = categorisedItem.ResolvedSpotifyItem.ShowId;
                 logger.LogInformation(
-                    $"Enriched podcast with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.ShowId}.");
+                    $"Enriched podcast '{matchingPodcast.Id}' with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.ShowId}.");
             }
 
             if (matchingEpisode != null)
@@ -283,7 +283,7 @@ public class UrlSubmitter(
                 {
                     matchingEpisode.SpotifyId = categorisedItem.ResolvedSpotifyItem.EpisodeId;
                     logger.LogInformation(
-                        $"Enriched episode with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.EpisodeId}.");
+                        $"Enriched episode '{matchingEpisode.Id}' with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.EpisodeId}.");
                 }
 
                 if (matchingEpisode.Urls.Spotify == null ||
@@ -291,7 +291,7 @@ public class UrlSubmitter(
                 {
                     matchingEpisode.Urls.Spotify = categorisedItem.ResolvedSpotifyItem.Url;
                     logger.LogInformation(
-                        $"Enriched episode with spotify details with spotify-url {categorisedItem.ResolvedSpotifyItem.Url}.");
+                        $"Enriched episode '{matchingEpisode.Id}' with spotify details with spotify-url {categorisedItem.ResolvedSpotifyItem.Url}.");
                 }
 
                 if (matchingEpisode.Description.EndsWith("...") &&
@@ -309,7 +309,7 @@ public class UrlSubmitter(
                 matchingPodcast.YouTubeChannelId = categorisedItem.ResolvedYouTubeItem.ShowId;
                 matchingPodcast.YouTubePublishingDelayTimeSpan = DefaultMatchingPodcastYouTubePublishingDelay;
                 logger.LogInformation(
-                    $"Enriched podcast with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.ShowId}.");
+                    $"Enriched podcast '{matchingPodcast.Id}' with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.ShowId}.");
             }
 
             if (matchingEpisode != null)
@@ -319,7 +319,7 @@ public class UrlSubmitter(
                 {
                     matchingEpisode.YouTubeId = categorisedItem.ResolvedYouTubeItem.EpisodeId;
                     logger.LogInformation(
-                        $"Enriched episode with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.EpisodeId}.");
+                        $"Enriched episode '{matchingEpisode.Id}' with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.EpisodeId}.");
                 }
 
                 if (matchingEpisode.Urls.YouTube == null ||
@@ -327,7 +327,7 @@ public class UrlSubmitter(
                 {
                     matchingEpisode.Urls.YouTube = categorisedItem.ResolvedYouTubeItem.Url;
                     logger.LogInformation(
-                        $"Enriched episode with youtube details with youtube-url {categorisedItem.ResolvedYouTubeItem.Url}.");
+                        $"Enriched episode '{matchingEpisode.Id}' with youtube details with youtube-url {categorisedItem.ResolvedYouTubeItem.Url}.");
                 }
 
                 if (matchingEpisode.Release.TimeOfDay == TimeSpan.Zero &&

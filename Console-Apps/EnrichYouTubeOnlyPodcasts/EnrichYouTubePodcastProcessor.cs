@@ -26,6 +26,7 @@ public class EnrichYouTubePodcastProcessor(
     public async Task Run(EnrichYouTubePodcastRequest request)
     {
         IndexingContext indexOptions;
+        logger.LogInformation(_postingCriteria.ToString());
         if (request.ReleasedSince.HasValue)
         {
             indexOptions = new IndexingContext(DateTime.Today.AddDays(-1 * request.ReleasedSince.Value));
@@ -118,11 +119,14 @@ public class EnrichYouTubePodcastProcessor(
             if (video != null)
             {
                 var episode = youTubeEpisodeProvider.GetEpisode(missingPlaylistItemSnippet, video);
-                if ((podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value) ||
+                if (request.IncludeShort ||
+                    (podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value) ||
                     episode.Length > _postingCriteria.MinimumDuration)
                 {
                     episode.Id = Guid.NewGuid();
-
+                    episode.Ignored = !((podcast.BypassShortEpisodeChecking.HasValue &&
+                                         podcast.BypassShortEpisodeChecking.Value) ||
+                                        episode.Length > _postingCriteria.MinimumDuration);
                     await subjectEnricher.EnrichSubjects(episode,
                         new SubjectEnrichmentOptions(
                             podcast.IgnoredAssociatedSubjects,

@@ -7,5 +7,5 @@ public interface ISubjectRepository
     Task Save(Subject subject);
     IAsyncEnumerable<Subject> GetAll();
     Task<Subject?> GetByName(string name);
-    IAsyncEnumerable<Subject> GetByNames(IList<string> names);
+    IAsyncEnumerable<Subject> GetByNames(string[] names);
 }
