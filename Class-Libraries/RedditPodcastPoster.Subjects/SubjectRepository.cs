@@ -28,6 +28,8 @@ public class SubjectRepository(
 
     public IAsyncEnumerable<Subject> GetByNames(string[] names)
     {
-        return repository.GetAllBy<Subject>(x => names.Contains(x.Name));
+        return repository
+            .GetAllBy<Subject>(x => names.Contains(x.Name))
+            .OrderBy(s => Array.IndexOf(names, s.Name));
     }
 }

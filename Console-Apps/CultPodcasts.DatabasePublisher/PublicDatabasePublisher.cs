@@ -21,7 +21,7 @@ public class PublicDatabasePublisher(
         {
             var podcast = await cosmosDbRepository.Read<Podcast>(podcastId.ToString());
 
-            if (podcast != null && podcast.Episodes.Any(x => x is {Removed: false}))
+            if (podcast != null && !podcast.IsRemoved() && podcast.Episodes.Any(x => x is {Removed: false}))
             {
                 var publicPodcast = new PublicPodcast(podcast.Id)
                 {
