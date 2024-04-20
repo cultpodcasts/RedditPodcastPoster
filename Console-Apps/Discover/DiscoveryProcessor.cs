@@ -31,7 +31,7 @@ public class DiscoveryProcessor(
         "Far Cry".ToLower()
     };
 
-    public async Task Process(DiscoveryRequest request)
+    public async Task<DiscoveryResponse> Process(DiscoveryRequest request)
     {
         var fg = Console.ForegroundColor;
         DateTime since;
@@ -148,7 +148,7 @@ public class DiscoveryProcessor(
                 Console.WriteLine(episode.Released.ToString("g"));
                 if (episode.Length != null)
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkBlue;
+                    Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine(episode.Length);
                 }
 
@@ -158,11 +158,19 @@ public class DiscoveryProcessor(
                     Console.WriteLine(subjectMatch.Subject.Name);
                 }
 
+                if (episode.ViewCount.HasValue || episode.MemberCount.HasValue)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGreen;
+                    const string unknown = "Unknown";
+                    Console.WriteLine(
+                        $"Views: {(episode.ViewCount.HasValue ? episode.ViewCount.Value : unknown)}, Members: {(episode.MemberCount.HasValue ? episode.MemberCount.Value : unknown)}");
+                }
+
                 Console.ForegroundColor = fg;
                 Console.WriteLine();
             }
         }
 
-        Console.WriteLine($"Discovery initiated at '{discoveryBegan:O}'.");
+        return new DiscoveryResponse(discoveryBegan);
     }
 }

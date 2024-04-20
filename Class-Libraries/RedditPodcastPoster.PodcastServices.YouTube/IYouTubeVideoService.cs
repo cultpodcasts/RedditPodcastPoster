@@ -6,7 +6,8 @@ namespace RedditPodcastPoster.PodcastServices.YouTube;
 public interface IYouTubeVideoService
 {
     Task<IList<Video>?> GetVideoContentDetails(
-        IEnumerable<string> videoIds, 
+        IEnumerable<string> videoIds,
         IndexingContext options,
-        bool withSnippets = false);
+        bool withSnippets = false,
+        bool withStatistics = false);
 }

@@ -33,7 +33,7 @@ public class AddYouTubeChannelProcessor(
             }
 
             var channel =
-                await youTubeChannelService.GetChannelContentDetails(new YouTubeChannelId(match.Snippet.ChannelId),
+                await youTubeChannelService.GetChannel(new YouTubeChannelId(match.Snippet.ChannelId),
                     indexOptions, withContentOwnerDetails: true);
             var newPodcast = podcastFactory.Create(match.Snippet.ChannelTitle);
             newPodcast.Publisher = channel?.ContentOwnerDetails.ContentOwner ?? string.Empty;

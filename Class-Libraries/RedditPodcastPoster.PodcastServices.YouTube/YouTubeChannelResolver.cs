@@ -8,7 +8,9 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
-public class YouTubeChannelResolver(YouTubeService youTubeService, ILogger<YouTubeChannelResolver> logger)
+public class YouTubeChannelResolver(
+    YouTubeService youTubeService,
+    ILogger<YouTubeChannelResolver> logger)
     : IYouTubeChannelResolver
 {
     public async Task<SearchResult?> FindChannelsSnippets(string channelName, string mostRecentlyUploadVideoTitle,
