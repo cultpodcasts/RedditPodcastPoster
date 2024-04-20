@@ -73,7 +73,7 @@ public class YouTubeUrlCategoriser(
             }
 
             var channel =
-                await youTubeChannelService.GetChannelContentDetails(new YouTubeChannelId(item.Snippet.ChannelId),
+                await youTubeChannelService.GetChannel(new YouTubeChannelId(item.Snippet.ChannelId),
                     indexingContext, true, true);
             if (channel != null)
             {

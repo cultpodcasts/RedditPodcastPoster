@@ -15,7 +15,8 @@ public class YouTubeVideoService(
     public async Task<IList<Video>?> GetVideoContentDetails(
         IEnumerable<string> videoIds,
         IndexingContext? indexingContext,
-        bool withSnippets = false)
+        bool withSnippets = false,
+        bool withStatistics = false)
     {
         if (indexingContext is {SkipYouTubeUrlResolving: true})
         {
@@ -32,14 +33,18 @@ public class YouTubeVideoService(
         {
             while (nextPageToken != null)
             {
-                VideosResource.ListRequest request;
                 var contentDetails = "contentDetails";
                 if (withSnippets)
                 {
                     contentDetails = "snippet," + contentDetails;
                 }
 
-                request = youTubeService.Videos.List(contentDetails);
+                if (withStatistics)
+                {
+                    contentDetails = "statistics," + contentDetails;
+                }
+
+                var request = youTubeService.Videos.List(contentDetails);
                 request.Id = string.Join(",", batchVideoIds);
                 request.MaxResults = MaxSearchResults;
                 VideoListResponse response;

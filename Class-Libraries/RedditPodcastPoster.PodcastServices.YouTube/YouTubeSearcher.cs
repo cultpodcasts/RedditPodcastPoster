@@ -12,6 +12,7 @@ public class YouTubeSearcher(
     YouTubeService youTubeService,
     INoRedirectHttpClientFactory httpClientFactory,
     IYouTubeVideoService youTubeVideoService,
+    IYouTubeChannelService youTubeChannelService,
     ILogger<YouTubeSearcher> logger) : IYouTubeSearcher
 {
     private const long MaxSearchResults = 25;
@@ -29,10 +30,12 @@ public class YouTubeSearcher(
         return medium.Union(@long).Distinct();
     }
 
-    private async Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext,
+    private async Task<IEnumerable<EpisodeResult>> Search(
+        string query,
+        IndexingContext indexingContext,
         VideoDurationEnum duration)
     {
-        var results = new List<(SearchResult SearchResult, Video? Video)>();
+        var results = new List<YouTubeItemDetails>();
         var nextPageToken = "";
         var searchListRequest = youTubeService.Search.List("snippet");
         searchListRequest.MaxResults = MaxSearchResults;
@@ -61,37 +64,48 @@ public class YouTubeSearcher(
             {
                 logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
                 indexingContext.SkipYouTubeUrlResolving = true;
-                return results.Select(x => ToEpisodeResult(x.SearchResult, x.Video));
+                return results.Select(x => ToEpisodeResult(x.SearchResult, x.Video, x.Channel));
             }
 
             var releasedInTimeFrame = response.Items.Where(x =>
                 x.Snippet.PublishedAtDateTimeOffset >= indexingContext.ReleasedSince);
 
 
-            results.AddRange(releasedInTimeFrame.Select(x => (x, (Video?) null)));
+            results.AddRange(releasedInTimeFrame.Select(x => new YouTubeItemDetails(x)));
             nextPageToken = response.NextPageToken;
             searchListRequest.PageToken = nextPageToken;
         }
 
-        results = await EnrichWithVideo(results, indexingContext);
+        await EnrichWithVideo(results, indexingContext);
+        await EnrichWithChannel(results, indexingContext);
 
-        return results.Select(x => ToEpisodeResult(x.SearchResult, x.Video));
+        return results.Select(x => ToEpisodeResult(x.SearchResult, x.Video, x.Channel));
     }
 
-    private async Task<List<(SearchResult SearchResult, Video? Video)>> EnrichWithVideo(
-        List<(SearchResult SearchResult, Video? Video)> results,
+    private async Task EnrichWithVideo(
+        List<YouTubeItemDetails> results,
         IndexingContext indexingContext)
     {
-        var enriched = new List<(SearchResult SearchResult, Video? Video)>();
         var videoIds = results.Select(x => x.SearchResult.Id.VideoId);
-        var videos = await youTubeVideoService.GetVideoContentDetails(videoIds, indexingContext, true);
+        var videos = await youTubeVideoService.GetVideoContentDetails(videoIds, indexingContext, true, true);
         foreach (var result in results)
         {
             var video = videos?.FirstOrDefault(x => x.Id == result.SearchResult.Id.VideoId);
-            enriched.Add((result.SearchResult, video));
+            result.Video = video;
         }
+    }
 
-        return enriched;
+    private async Task EnrichWithChannel(
+        List<YouTubeItemDetails> results,
+        IndexingContext indexingContext)
+    {
+        foreach (var result in results)
+        {
+            var channel = await youTubeChannelService.GetChannel(
+                new YouTubeChannelId(result.SearchResult.Snippet.ChannelId),
+                indexingContext, withStatistics: true);
+            result.Channel = channel;
+        }
     }
 
     private async Task<IEnumerable<SearchResult>> NonShortItems(IEnumerable<SearchResult> results)
@@ -115,7 +129,7 @@ public class YouTubeSearcher(
         return nonShortResults;
     }
 
-    private EpisodeResult ToEpisodeResult(SearchResult episode, Video? video)
+    private EpisodeResult ToEpisodeResult(SearchResult episode, Video? video, Channel? channel)
     {
         return new EpisodeResult(
             episode.Id.VideoId,
@@ -128,6 +142,15 @@ public class YouTubeSearcher(
             WebUtility.HtmlDecode(episode.Snippet.ChannelTitle.Trim()),
             DiscoveryService.YouTube,
             episode.ToYouTubeUrl(),
-            episode.Snippet.ChannelId);
+            episode.Snippet.ChannelId,
+            video?.Statistics.ViewCount,
+            channel?.Statistics.SubscriberCount);
+    }
+
+    private class YouTubeItemDetails(SearchResult searchResult)
+    {
+        public SearchResult SearchResult { get; } = searchResult;
+        public Video? Video { get; set; }
+        public Channel? Channel { get; set; }
     }
 }

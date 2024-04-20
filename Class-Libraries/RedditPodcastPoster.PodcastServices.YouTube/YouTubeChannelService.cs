@@ -13,6 +13,7 @@ public class YouTubeChannelService(
 {
     private const string Snippets = "-snippets";
     private const string ContentOwner = "-contentOwner";
+    private const string Statistics = "-statistics";
 
     private readonly ConcurrentDictionary<string, Channel> _cache = new();
 
@@ -23,6 +24,7 @@ public class YouTubeChannelService(
 
     public async Task FindChannel(string channelName, IndexingContext indexingContext)
     {
+        throw new NotImplementedException("method not fully implemented");
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             logger.LogInformation(
@@ -45,19 +47,16 @@ public class YouTubeChannelService(
             indexingContext.SkipYouTubeUrlResolving = true;
             return;
         }
-
-        throw new NotImplementedException("method not fully implemented");
     }
 
-    public async Task<Channel?> GetChannelContentDetails(
+    public async Task<Channel?> GetChannel(
         YouTubeChannelId channelId,
         IndexingContext indexingContext,
         bool withSnippets = false,
-        bool withContentOwnerDetails = false)
+        bool withContentOwnerDetails = false,
+        bool withStatistics = false)
     {
-        logger.LogInformation($"YOUTUBE: GetFullEpisode channel for channel-id {channelId}.");
-
-        var cachedResult = GetCachedChannel(channelId.ChannelId, withSnippets, withContentOwnerDetails);
+        var cachedResult = GetCachedChannel(channelId.ChannelId, withSnippets, withContentOwnerDetails, withStatistics);
         if (cachedResult != null)
         {
             return cachedResult;
@@ -66,7 +65,7 @@ public class YouTubeChannelService(
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             logger.LogInformation(
-                $"Skipping '{nameof(GetChannelContentDetails)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
+                $"Skipping '{nameof(GetChannel)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
             return null;
         }
 
@@ -79,6 +78,11 @@ public class YouTubeChannelService(
         if (withContentOwnerDetails)
         {
             requestScope += ",contentOwnerDetails";
+        }
+
+        if (withStatistics)
+        {
+            requestScope += ",statistics";
         }
 
         var listRequest = youTubeService.Channels.List(requestScope);
@@ -98,72 +102,140 @@ public class YouTubeChannelService(
         var channelContentDetails = result.Items.SingleOrDefault();
         if (channelContentDetails != null)
         {
-            _cache[GetWriteCacheKey(channelId.ChannelId, withSnippets, withContentOwnerDetails)] = channelContentDetails;
+            _cache[GetWriteCacheKey(channelId.ChannelId, withSnippets, withContentOwnerDetails, withStatistics)] =
+                channelContentDetails;
         }
 
         return channelContentDetails;
     }
 
-    private string GetWriteCacheKey(string channelId, bool withSnippets, bool withContentOwnerDetails)
+    private string GetWriteCacheKey(
+        string channelId,
+        bool withSnippets,
+        bool withContentOwnerDetails,
+        bool withStatistics)
     {
-        if (!withSnippets && !withContentOwnerDetails)
+        var key = channelId;
+        if (withSnippets)
         {
-            return channelId;
+            key += Snippets;
         }
 
-        if (withContentOwnerDetails && !withSnippets)
+        if (withContentOwnerDetails)
         {
-            return $"{channelId}{ContentOwner}";
+            key += ContentOwner;
         }
 
-        if (!withContentOwnerDetails && withSnippets)
+        if (withStatistics)
         {
-            return $"{channelId}{Snippets}";
+            key += Statistics;
         }
 
-        return $"{channelId}{Snippets}{ContentOwner}";
+        return key;
     }
 
-    private string[] GetReadCacheKeys(string channelId, bool withSnippets, bool withContentOwnerDetails)
+    private string[] GetReadCacheKeys(
+        string channelId,
+        bool withSnippets,
+        bool withContentOwnerDetails,
+        bool withStatistics)
     {
-        if (!withSnippets && !withContentOwnerDetails)
+        // 000
+        if (!withSnippets && !withContentOwnerDetails && !withStatistics)
         {
             return new[]
             {
                 channelId,
                 $"{channelId}{Snippets}",
                 $"{channelId}{ContentOwner}",
-                $"{channelId}{Snippets}{ContentOwner}"
+                $"{channelId}{Statistics}",
+                $"{channelId}{Snippets}{ContentOwner}",
+                $"{channelId}{Snippets}{Statistics}",
+                $"{channelId}{ContentOwner}{Statistics}",
+                $"{channelId}{Snippets}{ContentOwner}{Statistics}"
             };
         }
 
-        if (withContentOwnerDetails && !withSnippets)
+        // 001
+        if (!withContentOwnerDetails && !withSnippets && withStatistics)
         {
             return new[]
             {
-                $"{channelId}{ContentOwner}",
-                $"{channelId}{Snippets}{ContentOwner}"
+                $"{channelId}{Statistics}",
+                $"{channelId}{Snippets}{Statistics}",
+                $"{channelId}{ContentOwner}{Statistics}",
+                $"{channelId}{Snippets}{ContentOwner}{Statistics}"
             };
         }
 
-        if (!withContentOwnerDetails && withSnippets)
+        // 010
+        if (!withContentOwnerDetails && withSnippets && !withStatistics)
         {
             return new[]
             {
                 $"{channelId}{Snippets}",
-                $"{channelId}{Snippets}{ContentOwner}"
+                $"{channelId}{Snippets}{ContentOwner}",
+                $"{channelId}{Snippets}{Statistics}",
+                $"{channelId}{Snippets}{ContentOwner}{Statistics}"
             };
         }
 
+        // 011
+        if (!withContentOwnerDetails && withSnippets && withStatistics)
+        {
+            return new[]
+            {
+                $"{channelId}{Snippets}{Statistics}",
+                $"{channelId}{Snippets}{ContentOwner}{Statistics}"
+            };
+        }
+
+        // 100
+        if (withContentOwnerDetails && !withSnippets && !withStatistics)
+        {
+            return new[]
+            {
+                $"{channelId}{ContentOwner}",
+                $"{channelId}{Snippets}{ContentOwner}",
+                $"{channelId}{ContentOwner}{Statistics}",
+                $"{channelId}{Snippets}{ContentOwner}{Statistics}"
+            };
+        }
+
+        // 101
+        if (withContentOwnerDetails && !withSnippets && withStatistics)
+        {
+            return new[]
+            {
+                $"{channelId}{ContentOwner}{Statistics}",
+                $"{channelId}{Snippets}{ContentOwner}{Statistics}"
+            };
+        }
+
+        // 110
+        if (withContentOwnerDetails && withSnippets && !withStatistics)
+        {
+            return new[]
+            {
+                $"{channelId}{Snippets}{ContentOwner}",
+                $"{channelId}{Snippets}{ContentOwner}{Statistics}"
+            };
+        }
+
+        // 111
         return new[]
         {
-            $"{channelId}{Snippets}{ContentOwner}"
+            $"{channelId}{Snippets}{ContentOwner}{Statistics}"
         };
     }
 
-    private Channel? GetCachedChannel(string channelId, bool withSnippets, bool withContentOwnerDetails)
+    private Channel? GetCachedChannel(
+        string channelId,
+        bool withSnippets,
+        bool withContentOwnerDetails,
+        bool withStatistics)
     {
-        var cacheKeys = GetReadCacheKeys(channelId, withSnippets, withContentOwnerDetails);
+        var cacheKeys = GetReadCacheKeys(channelId, withSnippets, withContentOwnerDetails, withStatistics);
         foreach (var cacheKey in cacheKeys)
         {
             if (_cache.TryGetValue(cacheKey, out var channel))

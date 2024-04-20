@@ -7,6 +7,10 @@ public interface IYouTubeChannelService : IFlushable
 {
     Task FindChannel(string channelName, IndexingContext indexingContext);
 
-    Task<Channel?> GetChannelContentDetails(YouTubeChannelId channelId, IndexingContext indexingContext,
-        bool withSnippets = false, bool withContentOwnerDetails = false);
+    Task<Channel?> GetChannel(
+        YouTubeChannelId channelId,
+        IndexingContext indexingContext,
+        bool withSnippets = false,
+        bool withContentOwnerDetails = false,
+        bool withStatistics = false);
 }

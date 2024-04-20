@@ -9,4 +9,6 @@ public record EpisodeResult(
     string ShowName,
     DiscoveryService DiscoveryService,
     Uri? Url = null,
-    string? ServicePodcastId = null);
+    string? ServicePodcastId = null,
+    ulong? ViewCount = null,
+    ulong? MemberCount = null);

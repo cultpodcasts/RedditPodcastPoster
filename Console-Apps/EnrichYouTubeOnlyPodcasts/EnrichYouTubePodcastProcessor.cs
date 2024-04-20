@@ -67,7 +67,7 @@ public class EnrichYouTubePodcastProcessor(
         if (string.IsNullOrWhiteSpace(request.PlaylistId))
         {
             var channel =
-                await youTubeChannelService.GetChannelContentDetails(new YouTubeChannelId(podcast.YouTubeChannelId),
+                await youTubeChannelService.GetChannel(new YouTubeChannelId(podcast.YouTubeChannelId),
                     indexOptions);
             if (channel == null)
             {
