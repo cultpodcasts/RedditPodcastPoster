@@ -44,9 +44,9 @@ public class ApplePodcastService : IApplePodcastService
         {
             var appleJson = await response.Content.ReadAsStringAsync();
             var appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
-            if (appleObject != null)
+            if (appleObject != null && appleObject.Records.Any())
             {
-                var lastReleased = DateTime.UtcNow;
+                var lastReleased = appleObject.Records.First().Attributes.Released.Add(TimeSpan.FromSeconds(1));
                 foreach (var appleObjectRecord in appleObject.Records)
                 {
                     inDescendingDateOrder = lastReleased > appleObjectRecord.Attributes.Released;
