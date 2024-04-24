@@ -37,12 +37,12 @@ public class DiscoveryProcessor(
         DateTime since;
         if (request.Since.HasValue)
         {
-            if (request.Since > DateTime.UtcNow)
+            if (request.Since.Value.ToUniversalTime() > DateTime.UtcNow)
             {
                 throw new InvalidOperationException($"'{nameof(request)}.{nameof(request.Since)}' is in the future. ");
             }
 
-            since = request.Since.Value;
+            since = request.Since.Value.ToUniversalTime();
         }
         else if (request.NumberOfHours.HasValue)
         {
@@ -53,7 +53,7 @@ public class DiscoveryProcessor(
             throw new InvalidOperationException("Unable to determine baseline-time to discover from.");
         }
 
-        Console.WriteLine($"Discovering items released since '{since:O}'.");
+        Console.WriteLine($"Discovering items released since '{since.ToUniversalTime():O}' (local:'{since.ToLocalTime():O}').");
 
         var indexingContext = new IndexingContext(
             since,
@@ -88,8 +88,8 @@ public class DiscoveryProcessor(
         }
 
         var discoveryConfig = new DiscoveryConfig(serviceConfigs, request.ExcludeSpotify);
-        var discoveryBegan = DateTime.UtcNow;
-        Console.WriteLine($"Initiating discovery at '{discoveryBegan:O}'.");
+        var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
+        Console.WriteLine($"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}').");
 
         var results = await searchProvider.GetEpisodes(indexingContext, discoveryConfig);
         var podcastIds = podcastRepository.GetAllBy(podcast =>

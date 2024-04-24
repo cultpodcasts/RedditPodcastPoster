@@ -18,7 +18,6 @@ public class TweetBuilder(
 #pragma warning restore CS9113 // Parameter is unread.
     : ITweetBuilder
 {
-    private static readonly TextInfo TextInfo = new CultureInfo("en-GB", false).TextInfo;
     private readonly TwitterOptions _twitterOptions = twitterOptions.Value;
 
     public async Task<string> BuildTweet(PodcastEpisode podcastEpisode)
@@ -71,7 +70,10 @@ public class TweetBuilder(
                 .Distinct()
                 .Where(x => !hashtagsAdded.Contains(x))
                 .Select(x => $"#{x.TrimStart('#')}"));
-        tweetBuilder.AppendLine(endHashTags);
+        if (!string.IsNullOrWhiteSpace(endHashTags))
+        {
+            tweetBuilder.AppendLine(endHashTags);
+        }
 
         var permittedTitleLength = 257 - tweetBuilder.Length;
 
