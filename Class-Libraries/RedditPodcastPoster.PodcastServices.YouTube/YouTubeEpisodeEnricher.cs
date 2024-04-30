@@ -45,7 +45,7 @@ public class YouTubeEpisodeEnricher(
         }
 
         var youTubeItem = await youTubeItemResolver.FindEpisode(request, indexingContext);
-        if (!string.IsNullOrWhiteSpace(youTubeItem?.SearchResult?.Id.VideoId))
+        if (!string.IsNullOrWhiteSpace(youTubeItem?.SearchResult?.Id.VideoId) && request.Podcast.Episodes.All(x => x.YouTubeId != youTubeItem.SearchResult.Id.VideoId))
         {
             var episodeYouTubeId = youTubeItem.SearchResult.Id.VideoId;
             var release = youTubeItem.SearchResult.Snippet.PublishedAtDateTimeOffset;

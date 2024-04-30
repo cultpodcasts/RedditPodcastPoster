@@ -68,8 +68,13 @@ public class PodcastService(
                 podcasts = podcasts.Where(x => x.YouTubePlaylistId == string.Empty);
                 if (podcasts.Count() > 1)
                 {
+                    podcasts = podcasts.Where(x => x.IndexAllEpisodes);
+                }
+
+                if (podcasts.Count() > 1)
+                {
                     throw new InvalidOperationException(
-                        $"Multiple podcasts with youtube-channel-id '{snippetChannelId}' and empty youtube-playlist-id found");
+                        $"Multiple podcasts with youtube-channel-id '{snippetChannelId}' and empty youtube-playlist-id and index-all-episodes is true found");
                 }
             }
         }

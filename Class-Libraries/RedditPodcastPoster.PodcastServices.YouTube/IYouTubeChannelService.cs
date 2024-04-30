@@ -5,8 +5,6 @@ namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public interface IYouTubeChannelService : IFlushable
 {
-    Task FindChannel(string channelName, IndexingContext indexingContext);
-
     Task<Channel?> GetChannel(
         YouTubeChannelId channelId,
         IndexingContext indexingContext,

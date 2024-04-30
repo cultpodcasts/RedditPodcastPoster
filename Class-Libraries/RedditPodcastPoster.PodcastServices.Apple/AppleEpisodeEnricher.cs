@@ -40,7 +40,7 @@ public class AppleEpisodeEnricher(
                 findAppleEpisodeRequest,
                 indexingContext,
                 y => Math.Abs((y.Release - request.Episode.Release).Ticks) < ticks);
-            if (appleItem != null)
+            if (appleItem != null && request.Podcast.Episodes.All(x => x.AppleId != appleItem.Id))
             {
                 var url = appleItem.Url.CleanAppleUrl();
                 request.Episode.Urls.Apple = url;
