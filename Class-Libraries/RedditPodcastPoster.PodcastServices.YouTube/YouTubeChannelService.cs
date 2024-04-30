@@ -25,6 +25,7 @@ public class YouTubeChannelService(
     public async Task FindChannel(string channelName, IndexingContext indexingContext)
     {
         throw new NotImplementedException("method not fully implemented");
+#pragma warning disable CS0162 // Unreachable code detected
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             logger.LogInformation(
@@ -47,6 +48,7 @@ public class YouTubeChannelService(
             indexingContext.SkipYouTubeUrlResolving = true;
             return;
         }
+#pragma warning restore CS0162 // Unreachable code detected
     }
 
     public async Task<Channel?> GetChannel(
