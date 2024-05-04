@@ -15,9 +15,9 @@ public class YouTubePushNotificationHandler(
 {
     private readonly ILogger _logger = loggerFactory.CreateLogger<YouTubePushNotificationHandler>();
 
-    [Function("YouTubeSubscriptionChallenge")]
+//    [Function("YouTubeSubscriptionChallenge")]
     public async Task<HttpResponseData> YouTubeSubscriptionChallenge(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "youtubenotification/{podcastId}")]
+//        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "youtubenotification/{podcastId}")]
         HttpRequestData req,
         Guid podcastId)
     {
@@ -75,9 +75,9 @@ public class YouTubePushNotificationHandler(
         }
     }
 
-    [Function("YouTubePushNotification")]
+ //   [Function("YouTubePushNotification")]
     public async Task<HttpResponseData> YouTubePushNotification(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "youtubenotification/{podcastId}")]
+ //       [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "youtubenotification/{podcastId}")]
         HttpRequestData req,
         Guid podcastId,
         CancellationToken ct)
@@ -97,13 +97,13 @@ public class YouTubePushNotificationHandler(
         }
     }
 
-    [Function("YouTubeSubscriber")]
+//    [Function("YouTubeSubscriber")]
     public async Task YouTubeSubscriber(
-        [TimerTrigger("0 12 * * *"
+//        [TimerTrigger("0 12 * * *"
 //#if DEBUG
 //            , RunOnStartup = true
 //#endif
-        )]
+ //       )]
         TimerInfo info)
     {
         try
