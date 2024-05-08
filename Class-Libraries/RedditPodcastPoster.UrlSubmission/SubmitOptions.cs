@@ -1,3 +1,6 @@
 ﻿namespace RedditPodcastPoster.UrlSubmission;
 
-public record SubmitOptions(bool PersistToDatabase = true);
+public record SubmitOptions(
+    Guid? PodcastId,
+    bool MatchOtherServices,
+    bool PersistToDatabase = true);

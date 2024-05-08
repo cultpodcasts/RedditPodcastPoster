@@ -27,15 +27,12 @@ public class UrlSubmitter(
     public async Task Submit(
         Uri url,
         IndexingContext indexingContext,
-        bool searchForPodcast,
-        bool matchOtherServices,
-        Guid? podcastId,
         SubmitOptions submitOptions)
     {
         Podcast? podcast;
-        if (podcastId != null)
+        if (submitOptions.PodcastId != null)
         {
-            podcast = await podcastRepository.GetPodcast(podcastId.Value);
+            podcast = await podcastRepository.GetPodcast(submitOptions.PodcastId.Value);
         }
         else
         {
@@ -48,7 +45,7 @@ public class UrlSubmitter(
             return;
         }
 
-        var categorisedItem = await urlCategoriser.Categorise(podcast, url, indexingContext, matchOtherServices);
+        var categorisedItem = await urlCategoriser.Categorise(podcast, url, indexingContext, submitOptions.MatchOtherServices);
 
         if (categorisedItem.MatchingPodcast != null)
         {

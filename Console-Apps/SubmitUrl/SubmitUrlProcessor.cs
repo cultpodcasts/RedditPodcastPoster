@@ -20,17 +20,12 @@ public class SubmitUrlProcessor(
             };
         }
 
-        var searchForPodcast = true;
-
         if (!request.SubmitUrlsInFile)
         {
             await urlSubmitter.Submit(
-                new Uri(request.UrlOrFile, UriKind.Absolute), 
-                indexOptions, 
-                searchForPodcast,
-                request.MatchOtherServices, 
-                request.PodcastId,
-                new SubmitOptions(!request.DryRun));
+                new Uri(request.UrlOrFile, UriKind.Absolute),
+                indexOptions,
+                new SubmitOptions(request.PodcastId, request.MatchOtherServices, !request.DryRun));
         }
         else
         {
@@ -39,12 +34,9 @@ public class SubmitUrlProcessor(
             {
                 logger.LogInformation($"Ingesting '{url}'.");
                 await urlSubmitter.Submit(
-                    new Uri(url, UriKind.Absolute), 
-                    indexOptions, 
-                    searchForPodcast,
-                    request.MatchOtherServices, 
-                    request.PodcastId,
-                    new SubmitOptions(!request.DryRun));
+                    new Uri(url, UriKind.Absolute),
+                    indexOptions,
+                    new SubmitOptions(request.PodcastId, request.MatchOtherServices, !request.DryRun));
             }
         }
     }

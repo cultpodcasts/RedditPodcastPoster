@@ -21,22 +21,17 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
         SubmitUrlRequest request,
         HttpRequestData req)
     {
-        var indexOptions = new IndexingContext
-        {
-            SkipPodcastDiscovery = false,
-            SkipExpensiveYouTubeQueries = false,
-            SkipExpensiveSpotifyQueries = false
-        };
-
         try
         {
             await urlSubmitter.Submit(
                 request.Url,
-                indexOptions,
-                true,
-                true,
-                request.PodcastId,
-                new SubmitOptions());
+                new IndexingContext
+                {
+                    SkipPodcastDiscovery = false,
+                    SkipExpensiveYouTubeQueries = false,
+                    SkipExpensiveSpotifyQueries = false
+                },
+                new SubmitOptions(request.PodcastId, true));
             var success = req.CreateResponse(HttpStatusCode.OK);
             await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("success"));
             return success;
