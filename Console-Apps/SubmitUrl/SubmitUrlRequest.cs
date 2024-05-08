@@ -8,8 +8,7 @@ public class SubmitUrlRequest
         Default = false)]
     public bool SkipYouTubeUrlResolving { get; set; }
 
-    [Option('f', "submit-urls-in-file", Required = false, HelpText = "Use urls in provided file",
-        Default = false)]
+    [Option('f', "submit-urls-in-file", Required = false, Default = false, HelpText = "Use urls in provided file")]
     public bool SubmitUrlsInFile { get; set; }
 
     [Value(0, MetaName = "url or file", HelpText = "The Url or file containing Urls to submit", Required = true)]
@@ -18,10 +17,13 @@ public class SubmitUrlRequest
     [Option('p', "podcastid", Required = false, HelpText = "The Id of the podcast to add this episode to")]
     public Guid? PodcastId { get; set; }
 
-    [Option('a', "acknowledge-expensive-queries", Required = false, HelpText = "Allow expensive queries")]
+    [Option('a', "acknowledge-expensive-queries", Required = false, Default = false,
+        HelpText = "Allow expensive queries")]
     public bool AllowExpensiveQueries { get; set; }
 
-    [Option('m', "match-other-services", Required = false, HelpText = "Match other services")]
+    [Option('m', "match-other-services", Required = false, Default = false, HelpText = "Match other services")]
     public bool MatchOtherServices { get; set; }
 
+    [Option('d', "dry-run", Required = false, Default = false, HelpText = "Do not commit to database")]
+    public bool DryRun { get; set; }
 }

@@ -8,6 +8,7 @@
     <UserSecretsId>e4eaaf12-4507-4875-857d-a8d4032107f3</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="DarkLoop.Azure.Functions.Authorization.Isolated" Version="4.0.1" />
     <PackageReference Include="Microsoft.ApplicationInsights.WorkerService" Version="2.22.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.21.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.ApplicationInsights" Version="1.2.0" />
@@ -45,7 +46,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Data\" />
-    <Folder Include="Dtos\" />
     <Folder Include="Models\" />
     <Folder Include="Publishing\" />
     <Folder Include="YouTubePushNotification\" />

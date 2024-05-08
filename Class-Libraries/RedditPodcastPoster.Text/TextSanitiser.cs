@@ -104,7 +104,6 @@ public partial class TextSanitiser(
         return text;
     }
 
-
     internal string ExtractBody(string body, Regex regex)
     {
         var match = regex.Match(body);

@@ -138,7 +138,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Podcast
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CreateSearchIndex", "Console-Apps\CreateSearchIndex\CreateSearchIndex.csproj", "{9C87F6A7-CBEA-4673-8FBA-C7A73F3E09CE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Discovery", "Class-Libraries\RedditPodcastPoster.Discovery\RedditPodcastPoster.Discovery.csproj", "{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Discovery", "Class-Libraries\RedditPodcastPoster.Discovery\RedditPodcastPoster.Discovery.csproj", "{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -5,19 +5,21 @@ namespace RedditPodcastPoster.Reddit;
 public class RedditPostResult(
     bool success,
     string message = "",
-    bool alreadyPosted = false)
+    bool alreadyPosted = false,
+    string? title = null)
     : MessageResponseBase(success, message)
 {
     public bool AlreadyPosted { init; get; } = alreadyPosted;
+    public string? Title { init; get; } = title;
 
-    public static RedditPostResult Successful(string s = "")
+    public static RedditPostResult Successful(string title)
     {
-        return new RedditPostResult(true, s);
+        return new RedditPostResult(true, title: title);
     }
 
-    public static RedditPostResult Fail(string s)
+    public static RedditPostResult Fail(string failureMessage)
     {
-        return new RedditPostResult(false, s);
+        return new RedditPostResult(false, failureMessage);
     }
 
     public static RedditPostResult FailAlreadyPosted()

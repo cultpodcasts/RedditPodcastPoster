@@ -24,8 +24,13 @@ public class UrlSubmitter(
     private const string DefaultMatchingPodcastYouTubePublishingDelay = "0:01:00:00";
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
-    public async Task Submit(Uri url, IndexingContext indexingContext, bool searchForPodcast, bool matchOtherServices,
-        Guid? podcastId)
+    public async Task Submit(
+        Uri url,
+        IndexingContext indexingContext,
+        bool searchForPodcast,
+        bool matchOtherServices,
+        Guid? podcastId,
+        SubmitOptions submitOptions)
     {
         Podcast? podcast;
         if (podcastId != null)
@@ -86,12 +91,26 @@ public class UrlSubmitter(
                     categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
             }
 
-            await podcastRepository.Save(categorisedItem.MatchingPodcast);
+            if (submitOptions.PersistToDatabase)
+            {
+                await podcastRepository.Save(categorisedItem.MatchingPodcast);
+            }
+            else
+            {
+                logger.LogWarning("Bypassing persisting podcast.");
+            }
         }
         else
         {
             var newPodcast = await CreatePodcastWithEpisode(categorisedItem);
-            await podcastRepository.Save(newPodcast);
+            if (submitOptions.PersistToDatabase)
+            {
+                await podcastRepository.Save(newPodcast);
+            }
+            else
+            {
+                logger.LogWarning("Bypassing persisting new-podcast.");
+            }
         }
     }
 
