@@ -18,11 +18,12 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 //    [Authorize(Policies.Submit)]
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post")] [FromBody]
-        SubmitUrlRequest request,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post")] /*[FromBody]
+        SubmitUrlRequest request,*/
         HttpRequestData req)
     {
         logger.LogInformation("Headers: "+string.Join(",  ", req.Headers.Select(x => $"'{x.Key}':'{string.Join(", ", x.Value)}'")));
+        logger.LogInformation("Body: "+await req.ReadAsStringAsync());
         var success = req.CreateResponse(HttpStatusCode.OK);
         await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("headers-test"));
         return success;
