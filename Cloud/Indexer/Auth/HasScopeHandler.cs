@@ -20,7 +20,7 @@ public class HasScopeHandler : AuthorizationHandler<HasScopeRequirement>
         {
             var claims = context.User.Claims.Select(x => $"(type: '{x.Type}', issuer: '{x.Issuer}')");
             _logger.LogWarning(
-                $"{nameof(HandleRequirementAsync)}: No claim of type 'scope' and no issuer matching '{requirement.Issuer}'. Claims: <{string.Join(",", claims)}>.");
+                $"{nameof(HandleRequirementAsync)}: No claim of type 'scope' and no issuer matching '{requirement.Issuer}'. Claims: <{string.Join(",", claims)}>, identity-name: '{context.User.Identity?.Name}', auth-type: '{context.User.Identity?.AuthenticationType}'.");
             return Task.CompletedTask;
         }
 
