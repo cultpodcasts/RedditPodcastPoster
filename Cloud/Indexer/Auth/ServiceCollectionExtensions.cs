@@ -9,12 +9,16 @@ namespace Indexer.Auth;
 
 public static class ServiceCollectionExtensions
 {
+
     public static IServiceCollection AddAuth0(this IServiceCollection services, IConfiguration config)
     {
         var auth0Settings = config.GetSection("Auth0").Get<Auth0Settings>();
 
         if (auth0Settings != null)
         {
+            Console.Out.WriteLine($"{nameof(AddAuth0)}: Found {nameof(Auth0Settings)}.");
+            Console.Out.WriteLine($"{nameof(AddAuth0)}: Authority: '{auth0Settings.Authority}'.");
+            Console.Out.WriteLine($"{nameof(AddAuth0)}: Audience: '{auth0Settings.Audience}'.");
             services
                 .AddFunctionsAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
