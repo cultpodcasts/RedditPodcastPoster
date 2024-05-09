@@ -17,7 +17,8 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
     [Authorize(Policies.Submit)]
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger("post")] [FromBody] SubmitUrlRequest request,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post")] [FromBody]
+        SubmitUrlRequest request,
         HttpRequestData req)
     {
         try
