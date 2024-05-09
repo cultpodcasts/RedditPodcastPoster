@@ -9,7 +9,7 @@ public class HasScopeHandler : AuthorizationHandler<HasScopeRequirement>
 
     public HasScopeHandler(ILoggerFactory loggerFactory)
     {
-        _logger = loggerFactory.CreateLogger(GetType().FullName);
+        _logger = loggerFactory.CreateLogger(GetType().FullName ?? nameof(HasScopeHandler));
     }
 
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, HasScopeRequirement requirement)

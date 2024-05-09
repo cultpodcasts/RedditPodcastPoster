@@ -15,8 +15,7 @@ public static class ServiceCollectionExtensions
 
         if (auth0Settings != null)
         {
-            Console.Out.WriteLine(
-                $"{nameof(AddAuth0)}: Found {nameof(Auth0Settings)}. Authority: '{auth0Settings.Authority}', Audience: '{auth0Settings.Audience}'.");
+            Console.Out.WriteLine($"{nameof(AddAuth0)}: Found {nameof(Auth0Settings)}.");
             services
                 .AddFunctionsAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>

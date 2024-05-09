@@ -23,6 +23,8 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
     {
         try
         {
+            logger.LogInformation(
+                $"{nameof(Run)}: Handling url-submission: url: '{request.Url}', podcast-id: '{request.PodcastId}'.");
             await urlSubmitter.Submit(
                 request.Url,
                 new IndexingContext
