@@ -14,16 +14,11 @@ public class HasScopeHandler : AuthorizationHandler<HasScopeRequirement>
 
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, HasScopeRequirement requirement)
     {
-        _logger.LogInformation($"{nameof(HandleRequirementAsync)} initiated.");
-        // If user does not have the scope claim, get out of here
-        var claims = context.User.Claims.Select(x => $"(type: '{x.Type}', issuer: '{x.Issuer}')");
-        _logger.LogWarning(
-            $"{nameof(HandleRequirementAsync)}: Claims: <{string.Join(",", claims)}>, identity-name: '{context.User.Identity?.Name}', auth-type: '{context.User.Identity?.AuthenticationType}'.");
-
         if (!context.User.HasClaim(c => c.Type == "scope" && c.Issuer == requirement.Issuer))
         {
+            var claims = context.User.Claims.Select(x => $"(type: '{x.Type}', issuer: '{x.Issuer}')");
             _logger.LogWarning(
-                $"{nameof(HandleRequirementAsync)}: No claim of type 'scope' and no issuer matching '{requirement.Issuer}'.");
+                $"{nameof(HandleRequirementAsync)}: No claim of type 'scope' and no issuer matching '{requirement.Issuer}'. Claims: <{string.Join(",", claims)}>, identity-name: '{context.User.Identity?.Name}', auth-type: '{context.User.Identity?.AuthenticationType}'.");
             return Task.CompletedTask;
         }
 

@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Net;
 using DarkLoop.Azure.Functions.Authorization;
 using Indexer.Auth;
@@ -22,9 +21,6 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
         SubmitUrlRequest request,
         HttpRequestData req)
     {
-        logger.LogInformation("Headers: "+string.Join(",  ", req.Headers.Select(x => $"'{x.Key}':'{string.Join(", ", x.Value)}'")));
-        logger.LogInformation("Body: "+await req.ReadAsStringAsync());
-
         try
         {
             logger.LogInformation(
