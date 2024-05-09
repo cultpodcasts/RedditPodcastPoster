@@ -24,13 +24,15 @@ public class UrlSubmitter(
     private const string DefaultMatchingPodcastYouTubePublishingDelay = "0:01:00:00";
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
-    public async Task Submit(Uri url, IndexingContext indexingContext, bool searchForPodcast, bool matchOtherServices,
-        Guid? podcastId)
+    public async Task Submit(
+        Uri url,
+        IndexingContext indexingContext,
+        SubmitOptions submitOptions)
     {
         Podcast? podcast;
-        if (podcastId != null)
+        if (submitOptions.PodcastId != null)
         {
-            podcast = await podcastRepository.GetPodcast(podcastId.Value);
+            podcast = await podcastRepository.GetPodcast(submitOptions.PodcastId.Value);
         }
         else
         {
@@ -43,7 +45,7 @@ public class UrlSubmitter(
             return;
         }
 
-        var categorisedItem = await urlCategoriser.Categorise(podcast, url, indexingContext, matchOtherServices);
+        var categorisedItem = await urlCategoriser.Categorise(podcast, url, indexingContext, submitOptions.MatchOtherServices);
 
         if (categorisedItem.MatchingPodcast != null)
         {
@@ -86,12 +88,26 @@ public class UrlSubmitter(
                     categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
             }
 
-            await podcastRepository.Save(categorisedItem.MatchingPodcast);
+            if (submitOptions.PersistToDatabase)
+            {
+                await podcastRepository.Save(categorisedItem.MatchingPodcast);
+            }
+            else
+            {
+                logger.LogWarning("Bypassing persisting podcast.");
+            }
         }
         else
         {
             var newPodcast = await CreatePodcastWithEpisode(categorisedItem);
-            await podcastRepository.Save(newPodcast);
+            if (submitOptions.PersistToDatabase)
+            {
+                await podcastRepository.Save(newPodcast);
+            }
+            else
+            {
+                logger.LogWarning("Bypassing persisting new-podcast.");
+            }
         }
     }
 

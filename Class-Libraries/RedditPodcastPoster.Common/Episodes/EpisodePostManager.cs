@@ -15,8 +15,6 @@ public class EpisodePostManager(
 {
     public async Task<ProcessResponse> Post(PostModel postModel)
     {
-        logger.LogInformation(
-            $"{nameof(Post)} Posting '{postModel.EpisodeTitle}' / '{postModel.PodcastName}' published '{postModel.Published:R}' bundled='{postModel.IsBundledPost}'.");
         var result = await PostEpisode(postModel);
         if (result is {Success: false, AlreadyPosted: false})
         {
@@ -29,6 +27,8 @@ public class EpisodePostManager(
             return ProcessResponse.AlreadyPosted(
                 $"Reddit reports episode {postModel.Id} already posted. Updated repository.");
         }
+
+        logger.LogInformation($"{nameof(Post)} Posted '{result.Title}' bundled='{postModel.IsBundledPost}'.");
 
         return ProcessResponse.Successful();
     }
@@ -79,17 +79,15 @@ public class EpisodePostManager(
                 {
                     await result.LinkPost.ReplyAsync(comments);
                 }
+
+                return RedditPostResult.Successful(result.LinkPost.Title);
             }
-            else
-            {
-                return RedditPostResult.Fail("No post to reply to.");
-            }
+
+            return RedditPostResult.Fail("No post to reply to.");
         }
         catch (Exception ex)
         {
             return RedditPostResult.Fail(ex.Message);
         }
-
-        return RedditPostResult.Successful();
     }
 }

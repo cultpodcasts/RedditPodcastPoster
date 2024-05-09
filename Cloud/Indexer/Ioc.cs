@@ -1,4 +1,5 @@
 ﻿using Azure;
+using Indexer.Auth;
 using Indexer.Categorisation;
 using Indexer.Tweets;
 using iTunesSearch.Library;
@@ -20,6 +21,7 @@ using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Twitter.Extensions;
+using RedditPodcastPoster.UrlSubmission.Extensions;
 using RedditPodcastPoster.YouTubePushNotifications.Extensions;
 
 namespace Indexer;
@@ -34,6 +36,7 @@ public static class Ioc
             .AddLogging()
             .AddApplicationInsightsTelemetryWorkerService()
             .ConfigureFunctionsApplicationInsights()
+            .AddAuth0(hostBuilderContext.Configuration)
             .AddRepositories(hostBuilderContext.Configuration)
             .AddTextSanitiser()
             .AddYouTubeServices(hostBuilderContext.Configuration)
@@ -53,6 +56,7 @@ public static class Ioc
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddContentPublishing(hostBuilderContext.Configuration)
             .AddYouTubePushNotificationServices(hostBuilderContext.Configuration)
+            .AddUrlSubmission()
             .AddHttpClient();
 
         serviceCollection.AddOptions<IndexerOptions>().Bind(hostBuilderContext.Configuration.GetSection("indexer"));
