@@ -18,8 +18,9 @@ public class HasScopeHandler : AuthorizationHandler<HasScopeRequirement>
         // If user does not have the scope claim, get out of here
         if (!context.User.HasClaim(c => c.Type == "scope" && c.Issuer == requirement.Issuer))
         {
+            var claims = context.User.Claims.Select(x => $"(type: '{x.Type}', issuer: '{x.Issuer}')");
             _logger.LogWarning(
-                $"{nameof(HandleRequirementAsync)}: No claim of type 'scope' and no issuer matching '{requirement.Issuer}'.");
+                $"{nameof(HandleRequirementAsync)}: No claim of type 'scope' and no issuer matching '{requirement.Issuer}'. Claims: <{string.Join(",", claims)}>.");
             return Task.CompletedTask;
         }
 
