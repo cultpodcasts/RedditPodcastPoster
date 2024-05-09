@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Net;
 using DarkLoop.Azure.Functions.Authorization;
 using Indexer.Auth;
@@ -21,7 +22,7 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
         SubmitUrlRequest request,
         HttpRequestData req)
     {
-        logger.LogInformation("Headers: "+string.Join(",  ", req.Headers.Select(x => $"'{x.Key}':'{x.Value}'")));
+        logger.LogInformation("Headers: "+string.Join(",  ", req.Headers.Select(x => $"'{x.Key}':'{string.Join(", ", x.Value)}'")));
         var success = req.CreateResponse(HttpStatusCode.OK);
         await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("headers-test"));
         return success;
