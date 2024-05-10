@@ -15,28 +15,28 @@ public static class ServiceCollectionExtensions
 
         if (auth0Settings != null)
         {
-            //Console.Out.WriteLine($"{nameof(AddAuth0)}: Found {nameof(Auth0Settings)}.");
-            //services
-            //    .AddFunctionsAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            //    //.AddJwtBearer(options =>
-            //    //{
-            //    //    options.Authority = auth0Settings.Authority;
-            //    //    options.Audience = auth0Settings.Audience;
-            //    //    //options.TokenValidationParameters = new TokenValidationParameters
-            //    //    //{
-            //    //    //    NameClaimType = ClaimTypes.NameIdentifier
-            //    //    //};
-            //    //})
-            //    ;
+            Console.Out.WriteLine($"{nameof(AddAuth0)}: Found {nameof(Auth0Settings)}.");
+            services
+                .AddFunctionsAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.Authority = auth0Settings.Authority;
+                    options.Audience = auth0Settings.Audience;
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        NameClaimType = ClaimTypes.NameIdentifier
+                    };
+                })
+                ;
 
-            //services.AddFunctionsAuthorization(options =>
-            //{
-            //    options.AddPolicy(Policies.Submit,
-            //        policy => policy.Requirements.Add(new
-            //            HasScopeRequirement("submit", auth0Settings.Authority)));
-            //});
+            services.AddFunctionsAuthorization(options =>
+            {
+                options.AddPolicy(Policies.Submit,
+                    policy => policy.Requirements.Add(new
+                        HasScopeRequirement("submit", auth0Settings.Authority)));
+            });
 
-            //services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
+            services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
         }
 
         return services;

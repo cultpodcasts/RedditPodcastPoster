@@ -12,7 +12,7 @@ namespace Indexer;
 
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
-//    [Authorize(Policies.Submit)]
+    [Authorize(Policies.Submit)]
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post")] [FromBody]
