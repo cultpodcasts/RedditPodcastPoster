@@ -11,7 +11,6 @@ using RedditPodcastPoster.UrlSubmission;
 
 namespace Indexer;
 
-[FunctionAuthorize]
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
     [Authorize(Policies.Submit)]
