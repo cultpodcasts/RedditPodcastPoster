@@ -8,7 +8,6 @@
     <UserSecretsId>e4eaaf12-4507-4875-857d-a8d4032107f3</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="DarkLoop.Azure.Functions.Authorization.Isolated" Version="4.0.1" />
     <PackageReference Include="Microsoft.ApplicationInsights.WorkerService" Version="2.22.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.21.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.ApplicationInsights" Version="1.2.0" />
@@ -30,6 +29,7 @@
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Twitter\RedditPodcastPoster.Twitter.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.YouTubePushNotifications\RedditPodcastPoster.YouTubePushNotifications.csproj" />
+    <ProjectReference Include="..\..\third-party\darkloop\functions-authorize-4.0.1\src\isolated\DarkLoop.Azure.Functions.Authorization.Isolated.csproj" />
     <ProjectReference Include="..\Azure\Azure.csproj" />
   </ItemGroup>
   <ItemGroup>
