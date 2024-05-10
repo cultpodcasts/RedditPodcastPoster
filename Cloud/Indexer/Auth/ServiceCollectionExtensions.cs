@@ -22,10 +22,10 @@ public static class ServiceCollectionExtensions
                 {
                     options.Authority = auth0Settings.Authority;
                     options.Audience = auth0Settings.Audience;
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        NameClaimType = ClaimTypes.NameIdentifier
-                    };
+                    //options.TokenValidationParameters = new TokenValidationParameters
+                    //{
+                    //    NameClaimType = ClaimTypes.NameIdentifier
+                    //};
                 });
 
             services.AddFunctionsAuthorization(options =>
