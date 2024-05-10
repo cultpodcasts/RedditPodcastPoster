@@ -37,8 +37,10 @@ internal sealed class FunctionsAuthorizationMetadataMiddleware : IFunctionsWorke
     /// <inheritdoc />
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
+        _logger.LogInformation($"{nameof(Invoke)} initiated.");
         if (!_trackedHttp.GetOrAdd(context.FunctionId, static (_, c) => c.IsHttpTrigger(), context))
         {
+            _logger.LogInformation($"{nameof(Invoke)} Not Http-Trigger.");
             try
             {
                 await next(context);
@@ -58,9 +60,15 @@ internal sealed class FunctionsAuthorizationMetadataMiddleware : IFunctionsWorke
             return;
         }
 
+        _logger.LogInformation($"{nameof(Invoke)} Is Http-Trigger.");
         if (!_options.IsFunctionRegistered(context.FunctionDefinition.Name))
         {
+            _logger.LogInformation($"{nameof(Invoke)} Function not registered. Registering");
             RegisterHttpTriggerAuthorization(context);
+        }
+        else
+        {
+            _logger.LogInformation($"{nameof(Invoke)} Function registered.");
         }
 
         context.Features.Set<IFunctionsAuthorizationFeature>(
@@ -68,7 +76,9 @@ internal sealed class FunctionsAuthorizationMetadataMiddleware : IFunctionsWorke
 
         try
         {
+            _logger.LogInformation($"{nameof(Invoke)} Invoking next Name: '{context.FunctionDefinition.Name}', Entry-Point '{context.FunctionDefinition.EntryPoint}'.");
             await next(context);
+            _logger.LogInformation($"{nameof(Invoke)} Invoked complete Name: '{context.FunctionDefinition.Name}' Entry-Point '{context.FunctionDefinition.EntryPoint}'.");
         }
         catch (Exception ex)
         {
@@ -105,5 +115,6 @@ internal sealed class FunctionsAuthorizationMetadataMiddleware : IFunctionsWorke
 
         _options.RegisterFunctionAuthorizationAttributesMetadata<AuthorizeAttribute>(functionName, declaringType,
             method);
+        _logger.LogInformation($"{nameof(RegisterHttpTriggerAuthorization)} Function-name '{functionName}', Declaring-Type: '{declaringType}', Method: '{method}'.");
     }
 }
