@@ -17,8 +17,6 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
   </PropertyGroup>
 
-  <Import Project="..\..\.build\release.props" Condition=" '$(Configuration)' == 'Release' " />
-
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="3.0.3" />
