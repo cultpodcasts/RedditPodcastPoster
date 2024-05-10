@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.Json;
 using DarkLoop.Azure.Functions.Authorization;
 using Indexer.Auth;
 using Indexer.Dtos;
@@ -8,7 +7,6 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.UrlSubmission;
 
 namespace Indexer;
@@ -18,7 +16,7 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
     [Authorize(Policies.Submit)]
     [Function("SubmitUrl")]
-    public HttpResponseData Run(
+    public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post")] [FromBody]
         SubmitUrlRequest request,
         HttpRequestData req)
@@ -27,7 +25,7 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
         {
             logger.LogInformation(
                 $"{nameof(Run)}: Handling url-submission: url: '{request.Url}', podcast-id: '{request.PodcastId}'.");
-            var task= urlSubmitter.Submit(
+            await urlSubmitter.Submit(
                 request.Url,
                 new IndexingContext
                 {
@@ -36,9 +34,8 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
                     SkipExpensiveSpotifyQueries = false
                 },
                 new SubmitOptions(request.PodcastId, true));
-            task.GetAwaiter().GetResult();
             var success = req.CreateResponse(HttpStatusCode.OK);
-            success.WriteString(JsonSerializer.Serialize(SubmitUrlResponse.Successful("success")));
+            await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("success"));
             return success;
         }
         catch (Exception ex)
@@ -47,7 +44,7 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
         }
 
         var failure = req.CreateResponse(HttpStatusCode.BadRequest);
-        failure.WriteString(JsonSerializer.Serialize(SubmitUrlResponse.Failure("Unable to accept")));
+        await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
         return failure;
     }
 }
