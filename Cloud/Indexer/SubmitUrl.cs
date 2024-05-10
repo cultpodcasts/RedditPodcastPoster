@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using DarkLoop.Azure.Functions.Authorization;
 using Indexer.Auth;
 using Indexer.Dtos;
@@ -16,7 +17,7 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
     [Authorize(Policies.Submit)]
     [Function("SubmitUrl")]
-    public async Task<HttpResponseData> Run(
+    public HttpResponseData Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post")] [FromBody]
         SubmitUrlRequest request,
         HttpRequestData req)
@@ -35,7 +36,7 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
                 },
                 new SubmitOptions(request.PodcastId, true));
             var success = req.CreateResponse(HttpStatusCode.OK);
-            await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("success"));
+            success.WriteString(JsonSerializer.Serialize(SubmitUrlResponse.Successful("success")));
             return success;
         }
         catch (Exception ex)
@@ -44,7 +45,7 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
         }
 
         var failure = req.CreateResponse(HttpStatusCode.BadRequest);
-        await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
+        failure.WriteString(JsonSerializer.Serialize(SubmitUrlResponse.Failure("Unable to accept")));
         return failure;
     }
 }
