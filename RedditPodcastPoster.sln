@@ -140,12 +140,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CreateSearchIndex", "Consol
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Discovery", "Class-Libraries\RedditPodcastPoster.Discovery\RedditPodcastPoster.Discovery.csproj", "{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Third-Party", "Third-Party", "{7DC383A3-AB9A-4145-A616-A9A3BD66D112}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DarkLoop.Azure.Functions.Authorization.Isolated", "third-party\darkloop\functions-authorize-4.0.1\src\isolated\DarkLoop.Azure.Functions.Authorization.Isolated.csproj", "{9B527F7C-A496-4B10-B232-C2D22217B6D8}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DarkLoop.Azure.Functions.Authorization.Abstractions", "third-party\darkloop\functions-authorize-4.0.1\src\abstractions\DarkLoop.Azure.Functions.Authorization.Abstractions.csproj", "{E00BBE58-663C-45BE-8F68-B1B03D0565E6}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -384,14 +378,6 @@ Global
 		{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{9B527F7C-A496-4B10-B232-C2D22217B6D8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9B527F7C-A496-4B10-B232-C2D22217B6D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9B527F7C-A496-4B10-B232-C2D22217B6D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9B527F7C-A496-4B10-B232-C2D22217B6D8}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E00BBE58-663C-45BE-8F68-B1B03D0565E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E00BBE58-663C-45BE-8F68-B1B03D0565E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E00BBE58-663C-45BE-8F68-B1B03D0565E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E00BBE58-663C-45BE-8F68-B1B03D0565E6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -456,8 +442,6 @@ Global
 		{64053DD9-F462-43AD-A2B3-624E9BB82A4A} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{9C87F6A7-CBEA-4673-8FBA-C7A73F3E09CE} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
-		{9B527F7C-A496-4B10-B232-C2D22217B6D8} = {7DC383A3-AB9A-4145-A616-A9A3BD66D112}
-		{E00BBE58-663C-45BE-8F68-B1B03D0565E6} = {7DC383A3-AB9A-4145-A616-A9A3BD66D112}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}
