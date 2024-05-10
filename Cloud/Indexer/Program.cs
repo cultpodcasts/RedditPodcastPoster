@@ -5,12 +5,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
 var host = new HostBuilder()
-    .ConfigureFunctionsWebApplication(
-        builder =>
-        {
-            builder.Services.ConfigureFunctionsApplicationInsights();
-//            builder.UseFunctionsAuthorization();
-        })
+    .ConfigureFunctionsWorkerDefaults(builder =>
+    {
+        builder.Services.ConfigureFunctionsApplicationInsights();
+    })
+    .ConfigureFunctionsWebApplication(builder =>
+    {
+        builder.UseFunctionsAuthorization();
+    })
     .ConfigureAppConfiguration(builder =>
     {
 #if DEBUG
