@@ -12,10 +12,10 @@ using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
-[FunctionAuthorize(JwtBearerDefaults.AuthenticationScheme)]
+[FunctionAuthorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
-    [Authorize(Policies.Submit, AuthenticationSchemes = "TEST")]
+    [Authorize(Policies.Submit, AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post")] [FromBody]
