@@ -140,6 +140,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CreateSearchIndex", "Consol
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Discovery", "Class-Libraries\RedditPodcastPoster.Discovery\RedditPodcastPoster.Discovery.csproj", "{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Api", "Cloud\Api\Api.csproj", "{DB24B573-899C-40EB-99A6-92681230D39C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -378,6 +380,10 @@ Global
 		{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DB24B573-899C-40EB-99A6-92681230D39C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DB24B573-899C-40EB-99A6-92681230D39C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DB24B573-899C-40EB-99A6-92681230D39C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DB24B573-899C-40EB-99A6-92681230D39C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -442,6 +448,7 @@ Global
 		{64053DD9-F462-43AD-A2B3-624E9BB82A4A} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{9C87F6A7-CBEA-4673-8FBA-C7A73F3E09CE} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{DB24B573-899C-40EB-99A6-92681230D39C} = {8C39850E-EB98-4D1F-B961-FBF7FF98049E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}
