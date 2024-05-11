@@ -40,3 +40,4 @@ jobs:
           app-name: 'api-cultpodcasts'
           slot-name: 'Production'
           package: '${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/output'
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_API_PUBLISH_PROFILE }}
