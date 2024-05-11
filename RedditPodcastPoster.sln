@@ -61,7 +61,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{A6E1AF4E-16F3-424B-844A-4576869047DF}"
 	ProjectSection(SolutionItems) = preProject
 		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
-		main_api-cultpodcasts.yml = main_api-cultpodcasts.yml
+		.github\workflows\main_api-cultpodcasts.yml = .github\workflows\main_api-cultpodcasts.yml
 		.github\workflows\main_indexer-cultpodcasts.yml = .github\workflows\main_indexer-cultpodcasts.yml
 	EndProjectSection
 EndProject
