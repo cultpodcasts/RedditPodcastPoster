@@ -1,5 +1,4 @@
 using System.Net;
-using Api.Auth;
 using Api.Dtos;
 using DarkLoop.Azure.Functions.Authorization;
 using Microsoft.Azure.Functions.Worker;
@@ -10,7 +9,7 @@ using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
-[FunctionAuthorize(Policies.Submit)]
+[FunctionAuthorize()]
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
     [Function("SubmitUrl")]
