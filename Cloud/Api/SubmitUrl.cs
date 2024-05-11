@@ -15,7 +15,7 @@ namespace Api;
 [FunctionAuthorize(JwtBearerDefaults.AuthenticationScheme)]
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
-    [Authorize(Policies.Submit, AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    [Authorize(Policies.Submit, AuthenticationSchemes = "TEST")]
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post")] [FromBody]
