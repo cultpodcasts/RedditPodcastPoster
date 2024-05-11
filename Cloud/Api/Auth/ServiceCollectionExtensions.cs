@@ -20,7 +20,8 @@ public static class ServiceCollectionExtensions
                 .AddFunctionsAuthentication(options =>
                 {
                     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-//                    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
                 })
                 .AddJwtBearer(options =>
                 {
@@ -37,6 +38,9 @@ public static class ServiceCollectionExtensions
                 options.AddPolicy(Policies.Submit,
                     policy => policy.Requirements.Add(new
                         HasScopeRequirement("submit", auth0Settings.Authority)));
+                options.FallbackPolicy= new AuthorizationPolicyBuilder()
+                    .RequireClaim("submit")
+                    .Build();
             });
 
             services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
