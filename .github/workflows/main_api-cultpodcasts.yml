@@ -7,7 +7,7 @@ on:
   push:
     branches:
       - main
-      - feature/move-api-workflow
+      - feature/fix-api
   workflow_dispatch:
 
 env:
