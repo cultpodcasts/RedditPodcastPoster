@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.AI;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Subjects;
+
+namespace RedditPodcastPoster.Subjects;
 
 public class Categoriser(
     ISubjectEnricher subjectEnricher,

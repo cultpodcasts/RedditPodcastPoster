@@ -1,6 +1,6 @@
 ﻿using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.AI;
+namespace RedditPodcastPoster.Subjects;
 
 public interface ICategoriser
 {

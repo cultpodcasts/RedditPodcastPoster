@@ -5,17 +5,17 @@ using Microsoft.Extensions.Logging;
 
 namespace Api
 {
-    public class Function1
+    public class Test
     {
-        private readonly ILogger<Function1> _logger;
+        private readonly ILogger<Test> _logger;
 
-        public Function1(ILogger<Function1> logger)
+        public Test(ILogger<Test> logger)
         {
             _logger = logger;
         }
 
-        [Function("Function1")]
-        public IActionResult Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequest req)
+        [Function("Test")]
+        public IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequest req)
         {
             _logger.LogInformation("C# HTTP trigger function processed a request.");
             return new OkObjectResult("Welcome to Azure Functions!");

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.AI;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Subjects;
 
 namespace Indexer.Categorisation;
 

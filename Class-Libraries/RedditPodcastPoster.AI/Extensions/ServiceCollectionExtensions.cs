@@ -22,7 +22,7 @@ public static class ServiceCollectionExtensions
                 //.AddSingleton<IClassifyActionFactory, ClassifyActionFactory>()
                 //.AddScoped(s => s.GetService<ITextAnalyticsClientFactory>()!.Create())
                 //.AddScoped(s => s.GetService<IClassifyActionFactory>()!.Create())
-                .AddScoped<ICategoriser, Categoriser>()
+                
             //.AddScoped<IEpisodeClassifier, EpisodeClassifier>()
             ;
     }

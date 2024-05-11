@@ -61,7 +61,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{A6E1AF4E-16F3-424B-844A-4576869047DF}"
 	ProjectSection(SolutionItems) = preProject
 		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
-		main_api-cultpodcasts.yml = main_api-cultpodcasts.yml
+		.github\workflows\main_api-cultpodcasts.yml = .github\workflows\main_api-cultpodcasts.yml
 		.github\workflows\main_indexer-cultpodcasts.yml = .github\workflows\main_indexer-cultpodcasts.yml
 	EndProjectSection
 EndProject
@@ -141,7 +141,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CreateSearchIndex", "Consol
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Discovery", "Class-Libraries\RedditPodcastPoster.Discovery\RedditPodcastPoster.Discovery.csproj", "{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Api", "Cloud\Api\Api.csproj", "{DB24B573-899C-40EB-99A6-92681230D39C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Api", "Cloud\Api\Api.csproj", "{DB24B573-899C-40EB-99A6-92681230D39C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -26,8 +26,7 @@ public static class ServiceCollectionExtensions
                     {
                         NameClaimType = ClaimTypes.NameIdentifier
                     };
-                })
-                ;
+                });
 
             services.AddFunctionsAuthorization(options =>
             {

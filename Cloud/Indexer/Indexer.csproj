@@ -42,10 +42,4 @@
   <ItemGroup>
     <Using Include="System.Threading.ExecutionContext" Alias="ExecutionContext" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Data\" />
-    <Folder Include="Models\" />
-    <Folder Include="Publishing\" />
-    <Folder Include="YouTubePushNotification\" />
-  </ItemGroup>
 </Project>
