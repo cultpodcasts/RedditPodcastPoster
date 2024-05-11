@@ -1,4 +1,5 @@
 ﻿using System.Security.Claims;
+using AspNet.Security.OAuth.Validation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
@@ -16,6 +17,9 @@ public static class ServiceCollectionExtensions
         if (auth0Settings != null)
         {
             Console.Out.WriteLine($"{nameof(AddAuth0)}: Found {nameof(Auth0Settings)}.");
+
+            services.AddAuthentication(OAuthValidationDefaults.AuthenticationScheme)
+                .AddOAuthValidation();
             services
                 .AddFunctionsAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
@@ -28,12 +32,14 @@ public static class ServiceCollectionExtensions
                     };
                 });
 
-            services.AddFunctionsAuthorization(options =>
-            {
-                options.AddPolicy(Policies.Submit,
-                    policy => policy.Requirements.Add(new
-                        HasScopeRequirement("submit", auth0Settings.Authority)));
-            });
+            services.AddFunctionsAuthorization(
+            //    options =>
+            //{
+            //    options.AddPolicy(Policies.Submit,
+            //        policy => policy.Requirements.Add(new
+            //            HasScopeRequirement("submit", auth0Settings.Authority)));
+            //}
+                );
 
             services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
         }
