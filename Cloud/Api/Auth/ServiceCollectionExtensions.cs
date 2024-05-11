@@ -18,8 +18,11 @@ public static class ServiceCollectionExtensions
         {
             Console.Out.WriteLine($"{nameof(AddAuth0)}: Found {nameof(Auth0Settings)}.");
 
-            services.AddAuthentication(OAuthValidationDefaults.AuthenticationScheme)
-                .AddOAuthValidation();
+            services.AddAuthentication(option =>
+            {
+                option.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                option.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            });
             services
                 .AddFunctionsAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
