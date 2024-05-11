@@ -10,7 +10,8 @@
     },
     "logLevel": {
       "default": "Information",
-      "Function": "Trace"
+      "Function": "Trace",
+      "DarkLoop": "Information"
     }
   }
 }
