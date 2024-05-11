@@ -18,7 +18,7 @@ public static class ServiceCollectionExtensions
             Console.Out.WriteLine($"{nameof(AddAuth0)}: Found {nameof(Auth0Settings)}.");
             services
                 .AddFunctionsAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer(options =>
+                .AddJwtBearer("SomeScheme", options =>
                 {
                     options.Authority = auth0Settings.Authority;
                     options.Audience = auth0Settings.Audience;
@@ -26,8 +26,7 @@ public static class ServiceCollectionExtensions
                     {
                         NameClaimType = ClaimTypes.NameIdentifier
                     };
-                })
-                ;
+                });
 
             services.AddFunctionsAuthorization(options =>
             {

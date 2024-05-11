@@ -2,6 +2,7 @@ using System.Net;
 using Api.Auth;
 using Api.Dtos;
 using DarkLoop.Azure.Functions.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -11,7 +12,7 @@ using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
-[FunctionAuthorize(AuthenticationSchemes = "Bearer")]
+[FunctionAuthorize(JwtBearerDefaults.AuthenticationScheme)]
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
     [Authorize(Policies.Submit)]
