@@ -1,5 +1,4 @@
 ﻿using System.Security.Claims;
-using AspNet.Security.OAuth.Validation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
