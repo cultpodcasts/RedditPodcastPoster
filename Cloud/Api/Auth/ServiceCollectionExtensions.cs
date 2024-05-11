@@ -21,7 +21,7 @@ public static class ServiceCollectionExtensions
             {
                 option.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 option.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            });
+            }).AddBearerToken();
             services
                 .AddFunctionsAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
