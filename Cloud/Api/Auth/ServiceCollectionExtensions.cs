@@ -17,44 +17,24 @@ public static class ServiceCollectionExtensions
         if (auth0Settings != null)
         {
             Console.Out.WriteLine($"{nameof(AddAuth0)}: Found {nameof(Auth0Settings)}.");
-
             services
                 .AddFunctionsAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
                 {
                     options.Authority = auth0Settings.Authority;
                     options.Audience = auth0Settings.Audience;
-
                     options.TokenValidationParameters = new TokenValidationParameters
                     {
-                        ValidateIssuer = true,
-                        ValidateAudience = true,
-                        ValidateLifetime = true,
-                        ValidateIssuerSigningKey = true,
                         NameClaimType = ClaimTypes.NameIdentifier
-                    };
-
-                    options.Events = new JwtBearerEvents
-                    {
-                        // Log any authentication failures
-                        OnAuthenticationFailed = context =>
-                        {
-                            var logger = context.HttpContext.RequestServices
-                                .GetRequiredService<ILogger<JwtBearerHandler>>();
-                            logger.LogError(context.Exception, "Authentication failed.");
-                            return Task.CompletedTask;
-                        }
                     };
                 });
 
-            services.AddFunctionsAuthorization(
-                //    options =>
-                //{
-                //    options.AddPolicy(Policies.Submit,
-                //        policy => policy.Requirements.Add(new
-                //            HasScopeRequirement("submit", auth0Settings.Authority)));
-                //}
-            );
+            services.AddFunctionsAuthorization(options =>
+            {
+                options.AddPolicy(Policies.Submit,
+                    policy => policy.Requirements.Add(new
+                        HasScopeRequirement("submit", auth0Settings.Authority)));
+            });
 
             services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
         }
