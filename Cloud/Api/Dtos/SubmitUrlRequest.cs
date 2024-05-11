@@ -1,4 +1,4 @@
-namespace Indexer.Dtos;
+namespace Api.Dtos;
 
 public class SubmitUrlRequest
 {
