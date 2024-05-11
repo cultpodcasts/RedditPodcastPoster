@@ -9,12 +9,12 @@ using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
-[FunctionAuthorize()]
+[FunctionAuthorize]
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post")] [FromBody]
+        [HttpTrigger("post")] [FromBody]
         SubmitUrlRequest request,
         HttpRequestData req)
     {
