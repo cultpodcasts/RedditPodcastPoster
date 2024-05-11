@@ -11,7 +11,7 @@ using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
-[FunctionAuthorize]
+[FunctionAuthorize(AuthenticationSchemes = "Bearer")]
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
     [Authorize(Policies.Submit)]
