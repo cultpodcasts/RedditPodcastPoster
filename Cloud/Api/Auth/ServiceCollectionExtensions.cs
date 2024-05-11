@@ -24,7 +24,7 @@ public static class ServiceCollectionExtensions
                     option.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                     option.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
                 })
-                .AddJwtBearer(options =>
+                .AddJwtBearer("SomeScheme",options =>
                 {
                     options.Authority = auth0Settings.Authority;
                     options.Audience = auth0Settings.Audience;
