@@ -38,9 +38,9 @@ public static class ServiceCollectionExtensions
                 options.AddPolicy(Policies.Submit,
                     policy => policy.Requirements.Add(new
                         HasScopeRequirement("submit", auth0Settings.Authority)));
-                options.FallbackPolicy= new AuthorizationPolicyBuilder()
-                    .RequireClaim("submit")
-                    .Build();
+                //options.FallbackPolicy= new AuthorizationPolicyBuilder()
+                //    .RequireClaim("submit")
+                //    .Build();
             });
 
             services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
