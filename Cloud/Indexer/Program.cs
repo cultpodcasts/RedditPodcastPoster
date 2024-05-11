@@ -9,10 +9,10 @@ var host = new HostBuilder()
     {
         builder.Services.ConfigureFunctionsApplicationInsights();
     })
-    .ConfigureFunctionsWebApplication(builder =>
-    {
-        builder.UseFunctionsAuthorization();
-    })
+    //.ConfigureFunctionsWebApplication(builder =>
+    //{
+    //    builder.UseFunctionsAuthorization();
+    //})
     .ConfigureAppConfiguration(builder =>
     {
 #if DEBUG
