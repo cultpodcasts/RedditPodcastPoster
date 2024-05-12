@@ -9,7 +9,7 @@ namespace Api
     public class Test(ILogger<Test> logger)
     {
         [Function("Test")]
-        public async Task<HttpResponseData> Run([HttpTrigger("get", "post")] HttpRequestData req)
+        public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Anonymous,"get", "post")] HttpRequestData req)
         {
             logger.LogInformation("C# HTTP trigger function processed a request.");
             var success = req.CreateResponse(HttpStatusCode.OK);
