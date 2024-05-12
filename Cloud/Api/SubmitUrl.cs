@@ -3,20 +3,28 @@ using Api.Dtos;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
-public class SubmitUrl(/*IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger*/)
+public class SubmitUrl
 {
+    public SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
+    {
+        UrlSubmitter = urlSubmitter ?? throw new ArgumentNullException(nameof(urlSubmitter));
+        Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    public IUrlSubmitter UrlSubmitter { get; }
+    public ILogger<SubmitUrl> Logger { get; }
+
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post")] 
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post")]
         HttpRequestData req,
         FunctionContext executionContext,
         [FromBody] SubmitUrlRequest request
-        )
+    )
     {
         //try
         //{
