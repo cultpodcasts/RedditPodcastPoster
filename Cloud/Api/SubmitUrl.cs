@@ -9,7 +9,6 @@ using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
-[FunctionAuthorize]
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
     [Function("SubmitUrl")]
