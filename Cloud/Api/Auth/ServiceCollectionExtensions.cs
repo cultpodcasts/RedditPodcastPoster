@@ -19,11 +19,11 @@ public static class ServiceCollectionExtensions
             services
                 .AddFunctionsAuthentication(options =>
                 {
-                    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+//                    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
 //                    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
                     options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
                 })
-                .AddJwtBearer( options =>
+                .AddJwtBearer("XSCHEME", options =>
                 {
                     options.Authority = auth0Settings.Authority;
                     options.Audience = auth0Settings.Audience;
