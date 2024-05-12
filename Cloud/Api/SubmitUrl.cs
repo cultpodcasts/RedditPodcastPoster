@@ -1,6 +1,7 @@
 using System.Net;
 using Api.Dtos;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -12,8 +13,8 @@ namespace Api;
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
     [Function("SubmitUrl")]
-    public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post")] [FromBody]
+    public async Task<IActionResult> Run(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post")] [Microsoft.Azure.Functions.Worker.Http.FromBody]
         SubmitUrlRequest request,
         HttpRequest req)
     {
@@ -30,17 +31,13 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
                     SkipExpensiveSpotifyQueries = false
                 },
                 new SubmitOptions(request.PodcastId, true));
-            var success = req.CreateResponse(HttpStatusCode.OK);
-            await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("success"));
-            return success;
+            return new OkObjectResult(SubmitUrlResponse.Successful("success"));
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{request.Url}'.");
         }
 
-        var failure = req.CreateResponse(HttpStatusCode.BadRequest);
-        await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
-        return failure;
+        return new BadRequestObjectResult(SubmitUrlResponse.Failure("Unable to accept"));
     }
 }
