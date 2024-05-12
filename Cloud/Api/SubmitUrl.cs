@@ -12,7 +12,7 @@ public class SubmitUrl(/*IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger*/
     [Function("SubmitUrl")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post")]
-        //[Microsoft.Azure.Functions.Worker.Http.FromBody] SubmitUrlRequest request,
+        [Microsoft.Azure.Functions.Worker.Http.FromBody] SubmitUrlRequest request,
         HttpRequest req)
     {
         //try
