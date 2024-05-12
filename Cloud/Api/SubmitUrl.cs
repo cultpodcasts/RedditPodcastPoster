@@ -7,7 +7,7 @@ using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
-public class SubmitUrl(/*IUrlSubmitter urlSubmitter,*/ ILogger<SubmitUrl> logger)
+public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
     [Function("SubmitUrl")]
     public async Task<IActionResult> Run(
