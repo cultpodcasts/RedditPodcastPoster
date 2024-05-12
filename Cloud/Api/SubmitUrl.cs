@@ -12,9 +12,11 @@ public class SubmitUrl(/*IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger*/
 {
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post")] [FromBody]
-        SubmitUrlRequest request,
-        HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post")] 
+        HttpRequestData req,
+        FunctionContext executionContext,
+        [FromBody] SubmitUrlRequest request
+        )
     {
         //try
         //{
