@@ -13,7 +13,7 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.User,"post")] [FromBody]
+        [HttpTrigger(AuthorizationLevel.Function,"post")] [FromBody]
         SubmitUrlRequest request,
         HttpRequestData req)
     {
