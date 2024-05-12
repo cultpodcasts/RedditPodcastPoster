@@ -34,6 +34,7 @@ public class CosmosDbClientFactory : ICosmosDbClientFactory
         }
 
         _logger.LogInformation($"endpoint: '{_settings.Endpoint}', token: '{_settings.AuthKeyOrResourceToken.Substring(Math.Max(0, _settings.AuthKeyOrResourceToken.Length - 10))}'.");
+        _logger.LogInformation($"{nameof(IJsonSerializerOptionsProvider)}: '{_jsonSerializerOptionsProvider}'.");
 
         CosmosClient client = new(
             _settings.Endpoint,
