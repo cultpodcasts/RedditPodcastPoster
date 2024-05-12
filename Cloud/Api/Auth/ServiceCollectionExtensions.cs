@@ -25,8 +25,6 @@ public static class ServiceCollectionExtensions
                         HasScopeRequirement("submit", auth0Settings.Authority)));
             });
             services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
-
-
         }
 
         return services;
