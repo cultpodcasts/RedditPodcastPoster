@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
 var host = new HostBuilder()
-    .ConfigureFunctionsWebApplication(builder =>
+    .ConfigureFunctionsWorkerDefaults(builder =>
     {
         builder.Services.ConfigureFunctionsApplicationInsights();
     })
