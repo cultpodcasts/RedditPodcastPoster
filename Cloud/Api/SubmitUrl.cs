@@ -1,6 +1,6 @@
 using System.Net;
 using Api.Dtos;
-using DarkLoop.Azure.Functions.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -9,12 +9,12 @@ using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
-[FunctionAuthorize]
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
+    [Authorize]
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger("post")] [FromBody]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post")] [FromBody]
         SubmitUrlRequest request,
         HttpRequestData req)
     {

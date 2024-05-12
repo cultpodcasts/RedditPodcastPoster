@@ -8,6 +8,7 @@ on:
     branches:
       - main
       - feature/fix-api
+      - feature/alt-auth-1
   workflow_dispatch:
 
 env:

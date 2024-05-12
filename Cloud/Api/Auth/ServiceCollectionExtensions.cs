@@ -1,9 +1,7 @@
-﻿using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
+﻿using AzureFunctions.Extensions.OpenIDConnect.Configuration;
+using AzureFunctions.Extensions.OpenIDConnect.Isolated.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.IdentityModel.Tokens;
 
 namespace Api.Auth;
 
@@ -16,34 +14,12 @@ public static class ServiceCollectionExtensions
         if (auth0Settings != null)
         {
             Console.Out.WriteLine($"{nameof(AddAuth0)}: Found {nameof(Auth0Settings)}.");
-            services
-                .AddFunctionsAuthentication(options =>
-                {
-//                    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-//                    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-                    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-                })
-                .AddJwtBearer("XSCHEME", options =>
-                {
-                    options.Authority = auth0Settings.Authority;
-                    options.Audience = auth0Settings.Audience;
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        NameClaimType = ClaimTypes.NameIdentifier
-                    };
-                });
-
-            services.AddFunctionsAuthorization(options =>
+            services.AddOpenIDConnect(config =>
             {
-                options.AddPolicy(Policies.Submit,
-                    policy => policy.Requirements.Add(new
-                        HasScopeRequirement("submit", auth0Settings.Authority)));
-                //options.FallbackPolicy= new AuthorizationPolicyBuilder()
-                //    .RequireClaim("submit")
-                //    .Build();
+                config.SetTokenValidation(
+                    TokenValidationParametersHelpers.Default(auth0Settings.Audience, auth0Settings.Authority));
+                config.SetIssuerBaseUrlConfiguration(auth0Settings.Authority);
             });
-
-            services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
         }
 
         return services;
