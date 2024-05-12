@@ -1,5 +1,4 @@
 using System.Net;
-using Api.Auth;
 using Api.Dtos;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -13,49 +12,32 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger( "post")]
+        [HttpTrigger("post")] [FromBody] SubmitUrlRequest request,
         HttpRequestData req)
     {
-        SubmitUrlRequest? request;
-        HttpResponseData failure;
         try
         {
-            request = await req.ReadFromJsonAsync<SubmitUrlRequest>();
+            logger.LogInformation(
+                $"{nameof(Run)}: Handling url-submission: url: '{request.Url}', podcast-id: '{request.PodcastId}'.");
+            await urlSubmitter.Submit(
+                request.Url,
+                new IndexingContext
+                {
+                    SkipPodcastDiscovery = false,
+                    SkipExpensiveYouTubeQueries = false,
+                    SkipExpensiveSpotifyQueries = false
+                },
+                new SubmitOptions(request.PodcastId, true));
+            var success = req.CreateResponse(HttpStatusCode.OK);
+            await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("success"));
+            return success;
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            logger.LogError(e, $"Error deserialising in {nameof(Run)}");
-            failure = req.CreateResponse(HttpStatusCode.BadRequest);
-            await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
-            return failure;
+            logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{request.Url}'.");
         }
 
-        if (request != null)
-        {
-            try
-            {
-                logger.LogInformation(
-                    $"{nameof(Run)}: Handling url-submission: url: '{request.Url}', podcast-id: '{request.PodcastId}'.");
-                await urlSubmitter.Submit(
-                    request.Url,
-                    new IndexingContext
-                    {
-                        SkipPodcastDiscovery = false,
-                        SkipExpensiveYouTubeQueries = false,
-                        SkipExpensiveSpotifyQueries = false
-                    },
-                    new SubmitOptions(request.PodcastId, true));
-                var success = req.CreateResponse(HttpStatusCode.OK);
-                await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("success"));
-                return success;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{request.Url}'.");
-            }
-        }
-
-        failure = req.CreateResponse(HttpStatusCode.BadRequest);
+        var failure = req.CreateResponse(HttpStatusCode.BadRequest);
         await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
         return failure;
     }

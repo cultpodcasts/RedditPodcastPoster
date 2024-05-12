@@ -1,24 +1,20 @@
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+using Api.Dtos;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using System.Net;
 
 namespace Api
 {
-    public class Test
+    public class Test(ILogger<Test> logger)
     {
-        private readonly ILogger<Test> _logger;
-
-        public Test(ILogger<Test> logger)
-        {
-            _logger = logger;
-        }
-
         [Function("Test")]
-        public IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequest req)
+        public async Task<HttpResponseData> Run([HttpTrigger("get", "post")] HttpRequestData req)
         {
-            _logger.LogInformation("C# HTTP trigger function processed a request.");
-            return new OkObjectResult("Welcome to Azure Functions!");
+            logger.LogInformation("C# HTTP trigger function processed a request.");
+            var success = req.CreateResponse(HttpStatusCode.OK);
+            await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("success"));
+            return success;
         }
     }
 }
