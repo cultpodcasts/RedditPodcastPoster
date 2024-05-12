@@ -95,13 +95,14 @@ public class YouTubeEpisodeProvider(
             return new GetPlaylistEpisodesResponse(
                 results
                     .Where(x => x.Snippet.Title != "Deleted video")
-                    .Where(x => youTubeChannelId == null || x.Snippet.ChannelId == youTubeChannelId.ChannelId)
-                    .Select(playlistItem => GetEpisode(playlistItem.Snippet, videoDetails.SingleOrDefault(
-                        videoDetail =>
-                            videoDetail.Id == playlistItem.Snippet.ResourceId.VideoId)!))
+                    .Select(x=>new PlaylistItemVideo( x, videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == x.Snippet.ResourceId.VideoId)!))
+                    .Where(x => youTubeChannelId == null || x.VideoDetails.Snippet.ChannelId == youTubeChannelId.ChannelId)
+                    .Select(x => GetEpisode(x.PlaylistItem.Snippet, x.VideoDetails))
                     .ToList(), isExpensiveQuery);
         }
 
         return new GetPlaylistEpisodesResponse(null, isExpensiveQuery);
     }
+
+    public record PlaylistItemVideo(PlaylistItem PlaylistItem, Video VideoDetails);
 }

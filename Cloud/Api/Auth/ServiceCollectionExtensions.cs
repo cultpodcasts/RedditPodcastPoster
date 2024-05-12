@@ -1,5 +1,6 @@
 ﻿using AzureFunctions.Extensions.OpenIDConnect.Configuration;
 using AzureFunctions.Extensions.OpenIDConnect.Isolated.Configuration;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -19,7 +20,13 @@ public static class ServiceCollectionExtensions
                 config.SetTokenValidation(
                     TokenValidationParametersHelpers.Default(auth0Settings.Audience, auth0Settings.Authority));
                 config.SetIssuerBaseUrlConfiguration(auth0Settings.Authority);
+                config.AddPolicy(Policies.Submit,
+                    policy => policy.Requirements.Add(new
+                        HasScopeRequirement("submit", auth0Settings.Authority)));
             });
+            services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
+
+
         }
 
         return services;
