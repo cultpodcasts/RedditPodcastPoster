@@ -9,6 +9,9 @@ namespace Api;
 
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
+    private readonly IUrlSubmitter _urlSubmitter = urlSubmitter ?? throw new ArgumentNullException(nameof(urlSubmitter));
+    private readonly ILogger<SubmitUrl> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
     [Function("SubmitUrl")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post")]
