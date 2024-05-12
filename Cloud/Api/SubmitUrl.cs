@@ -1,5 +1,6 @@
 using System.Net;
 using Api.Dtos;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -14,7 +15,7 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post")] [FromBody]
         SubmitUrlRequest request,
-        HttpRequestData req)
+        HttpRequest req)
     {
         try
         {
