@@ -27,6 +27,8 @@ public class CosmosDbClientFactory(
             cosmosClientOptions.ConnectionMode = ConnectionMode.Gateway;
         }
 
+        logger.LogInformation($"endpoint: '{_settings.Endpoint}', token: '{_settings.AuthKeyOrResourceToken.Substring(Math.Max(0, _settings.AuthKeyOrResourceToken.Length - 10))}'.");
+
         CosmosClient client = new(
             _settings.Endpoint,
             _settings.AuthKeyOrResourceToken,
