@@ -8,7 +8,6 @@
     <UserSecretsId>e4eaaf12-4507-4875-857d-a8d4032107f3</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="AzureFunctions.Extensions.OpenIDConnect.Isolated" Version="0.9.1" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.21.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.1.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.15.1" />

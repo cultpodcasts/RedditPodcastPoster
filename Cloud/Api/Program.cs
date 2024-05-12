@@ -1,16 +1,13 @@
 using Api;
 using Azure;
-using AzureFunctions.Extensions.OpenIDConnect.Isolated.Configuration;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using ConfigurationBuilder = Microsoft.Extensions.Configuration.ConfigurationBuilder;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults(builder =>
     {
         builder.Services.ConfigureFunctionsApplicationInsights();
-        builder.UseAuthorization();
     })
     .ConfigureAppConfiguration(builder =>
     {

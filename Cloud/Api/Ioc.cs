@@ -25,7 +25,6 @@ public static class Ioc
             .AddLogging()
             .AddApplicationInsightsTelemetryWorkerService()
             .ConfigureFunctionsApplicationInsights()
-            .AddAuth0(hostBuilderContext.Configuration)
             .AddRepositories(hostBuilderContext.Configuration)
             .AddTextSanitiser()
             .AddYouTubeServices(hostBuilderContext.Configuration)

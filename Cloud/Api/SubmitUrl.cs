@@ -1,7 +1,6 @@
 using System.Net;
 using Api.Auth;
 using Api.Dtos;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -12,10 +11,9 @@ namespace Api;
 
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
-    [Authorize(Policies.Submit)]
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post")]
+        [HttpTrigger( "post")]
         HttpRequestData req)
     {
         SubmitUrlRequest? request;
