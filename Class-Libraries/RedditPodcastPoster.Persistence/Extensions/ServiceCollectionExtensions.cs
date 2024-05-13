@@ -18,10 +18,16 @@ public static class ServiceCollectionExtensions
             .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
             .AddScoped<IPodcastRepository, PodcastRepository>()
             .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
-            .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>();
+            .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
+//            .AddOptions<CosmosDbSettings>().Bind(config.GetSection("cosmosdb"))
+            ;
+        services.AddOptions<CosmosDbSettings>().Configure<IConfiguration>((settings, configuration) =>
 
-       // services.Configure<CosmosDbSettings>(settings => config.GetSection("cosmosdb").Bind(settings));
+        {
 
+            configuration.GetSection("cosmosdb").Bind(settings);
+
+        });
         return services;
     }
 
