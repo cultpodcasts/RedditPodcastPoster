@@ -31,4 +31,3 @@ public static class ServiceCollectionExtensions
             .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create(containerName));
     }
 }
-
