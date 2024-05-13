@@ -20,7 +20,7 @@ public static class ServiceCollectionExtensions
             .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
             .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>();
 
-        services.Configure<CosmosDbSettings>(settings => config.GetSection("cosmosdb").Bind(settings));
+       // services.Configure<CosmosDbSettings>(settings => config.GetSection("cosmosdb").Bind(settings));
 
         return services;
     }
