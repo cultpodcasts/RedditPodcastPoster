@@ -1,5 +1,4 @@
-﻿using Api.Auth;
-using iTunesSearch.Library;
+﻿using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
