@@ -17,7 +17,7 @@ public class Test(ILogger<Test> logger)
         if (req.HasScope("submit"))
         {
             var success = req.CreateResponse(HttpStatusCode.OK);
-            await success.WriteAsJsonAsync(SubmitUrlResponse.Failure("Has principle."));
+            await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("Has principle."));
             return success;
         }
 

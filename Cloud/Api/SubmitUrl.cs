@@ -19,28 +19,30 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
         [FromBody] SubmitUrlRequest request
     )
     {
-        try
+        if (req.HasScope("submit"))
         {
-            logger.LogInformation(
-                $"{nameof(Run)}: Handling url-submission: url: '{request.Url}', podcast-id: '{request.PodcastId}'.");
-            await urlSubmitter.Submit(
-                request.Url,
-                new IndexingContext
-                {
-                    SkipPodcastDiscovery = false,
-                    SkipExpensiveYouTubeQueries = false,
-                    SkipExpensiveSpotifyQueries = false
-                },
-                new SubmitOptions(request.PodcastId, true));
-            var success = req.CreateResponse(HttpStatusCode.OK);
-            await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("success"));
-            return success;
+            try
+            {
+                logger.LogInformation(
+                    $"{nameof(Run)}: Handling url-submission: url: '{request.Url}', podcast-id: '{request.PodcastId}'.");
+                await urlSubmitter.Submit(
+                    request.Url,
+                    new IndexingContext
+                    {
+                        SkipPodcastDiscovery = false,
+                        SkipExpensiveYouTubeQueries = false,
+                        SkipExpensiveSpotifyQueries = false
+                    },
+                    new SubmitOptions(request.PodcastId, true));
+                var success = req.CreateResponse(HttpStatusCode.OK);
+                await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("success"));
+                return success;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{request.Url}'.");
+            }
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{request.Url}'.");
-        }
-
         var failure = req.CreateResponse(HttpStatusCode.BadRequest);
         await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
         return failure;
