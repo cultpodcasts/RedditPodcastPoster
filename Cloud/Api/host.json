@@ -10,8 +10,7 @@
     },
     "logLevel": {
       "default": "Information",
-      "Function": "Trace",
-      "AzureFunctions": "Information"
+      "Function": "Trace"
     }
   }
 }
