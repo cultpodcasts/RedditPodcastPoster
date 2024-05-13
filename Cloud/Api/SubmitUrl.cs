@@ -8,16 +8,8 @@ using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
-public class SubmitUrl
+public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
-    private readonly IUrlSubmitter _urlSubmitter;
-    private readonly ILogger<SubmitUrl> _logger;
-
-    public SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
-    {
-        _urlSubmitter = urlSubmitter ?? throw new ArgumentNullException(nameof(urlSubmitter));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
 
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
@@ -29,9 +21,9 @@ public class SubmitUrl
     {
         try
         {
-            _logger.LogInformation(
+            logger.LogInformation(
                 $"{nameof(Run)}: Handling url-submission: url: '{request.Url}', podcast-id: '{request.PodcastId}'.");
-            await _urlSubmitter.Submit(
+            await urlSubmitter.Submit(
                 request.Url,
                 new IndexingContext
                 {
@@ -46,7 +38,7 @@ public class SubmitUrl
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{request.Url}'.");
+            logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{request.Url}'.");
         }
 
         var failure = req.CreateResponse(HttpStatusCode.BadRequest);
