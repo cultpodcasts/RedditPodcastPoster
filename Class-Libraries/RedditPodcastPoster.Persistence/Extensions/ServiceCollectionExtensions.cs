@@ -21,13 +21,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
 //            .AddOptions<CosmosDbSettings>().Bind(config.GetSection("cosmosdb"))
             ;
-        services.AddOptions<CosmosDbSettings>().Configure<IConfiguration>((settings, configuration) =>
-
-        {
-
-            configuration.GetSection("cosmosdb").Bind(settings);
-
-        });
+        services.BindConfiguration<CosmosDbSettings>("cosmosdb");
         return services;
     }
 
@@ -36,5 +30,23 @@ public static class ServiceCollectionExtensions
         return services
             .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
             .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create(containerName));
+    }
+}
+
+public static class ConfigExtensions
+{
+    public static void BindConfiguration<T>(this IServiceCollection services, IConfiguration config, string configSection) where T : class
+    {
+        services.AddOptions<T>().Bind(config.GetSection(configSection));
+    }
+    public static void BindConfiguration<T>(this IServiceCollection services, string configSection) where T : class
+    {
+        services.AddOptions<T>().Configure<IConfiguration>((settings, configuration) =>
+
+        {
+
+            configuration.GetSection(configSection).Bind(settings);
+
+        });
     }
 }
