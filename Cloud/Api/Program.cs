@@ -11,6 +11,7 @@ var host = new HostBuilder()
     })
     .ConfigureAppConfiguration(builder =>
     {
+        builder.AddEnvironmentVariables();
 #if DEBUG
         builder.AddJsonFile("local.settings.json", false);
         builder.AddConfiguration(new ConfigurationBuilder().AddToConfigurationBuilder<Program>());

@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence.Extensions;
@@ -20,7 +19,9 @@ public static class ServiceCollectionExtensions
             .AddScoped<IPodcastRepository, PodcastRepository>()
             .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
             .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>();
-        services.ConfigureOptions<CosmosDbSettingsSettingsSetup>();
+        services.AddOptions<CosmosDbSettings>().Configure<IConfiguration>((settings, configuration) =>
+            configuration.GetSection("cosmosdb").Bind(settings));
+
         return services;
     }
 
@@ -29,21 +30,5 @@ public static class ServiceCollectionExtensions
         return services
             .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
             .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create(containerName));
-    }
-}
-
-public class CosmosDbSettingsSettingsSetup : IConfigureOptions<CosmosDbSettings>
-{
-    private const string SectionName = "cosmosdb";
-    private readonly IConfiguration _configuration;
-    public CosmosDbSettingsSettingsSetup(IConfiguration configuration)
-    {
-        _configuration = configuration;
-    }
-    public void Configure(CosmosDbSettings options)
-    {
-        _configuration
-            .GetSection(SectionName)
-            .Bind(options);
     }
 }
