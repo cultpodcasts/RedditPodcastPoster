@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Api;
+namespace Api.Auth;
 
 public class ClientPrincipalClaim
 {

@@ -1,8 +1,9 @@
 using System.Text;
 using System.Text.Json;
+using Api.Auth;
 using Microsoft.Azure.Functions.Worker.Http;
 
-namespace Api;
+namespace Api.Extensions;
 
 public static class HttpRequestDataExtensions
 {
