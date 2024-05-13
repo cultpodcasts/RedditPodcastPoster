@@ -22,7 +22,7 @@ public static class HttpRequestDataExtensions
             var principal = JsonSerializer.Deserialize<ClientPrincipal>(json,
                 new JsonSerializerOptions {PropertyNameCaseInsensitive = true});
             var scopeClaim =
-                principal?.Claims.SingleOrDefault(x => x.Type == "scope" && x.Value.Split(" ").Contains(scope));
+                principal?.Claims.SingleOrDefault(x => x.Type == "permissions" && x.Value==scope);
             return scopeClaim != null;
         }
         catch (Exception)
