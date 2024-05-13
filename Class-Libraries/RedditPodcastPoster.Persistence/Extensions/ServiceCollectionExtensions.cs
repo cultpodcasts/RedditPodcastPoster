@@ -21,7 +21,6 @@ public static class ServiceCollectionExtensions
             .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
             .AddOptions<CosmosDbSettings>().Configure<IConfiguration>((settings, configuration) =>
                 configuration.GetSection("cosmosdb").Bind(settings));
-            );
         return services;
     }
 
