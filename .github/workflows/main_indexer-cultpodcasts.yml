@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - main
+      - feature/alt-auth-1
   workflow_dispatch:
 
 env:

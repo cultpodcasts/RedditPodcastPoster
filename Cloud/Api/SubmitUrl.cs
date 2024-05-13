@@ -19,7 +19,6 @@ public class SubmitUrl
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post")]
