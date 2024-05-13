@@ -14,5 +14,5 @@ public class ClientPrincipal
     public string RoleClaimType { get; set; } = "";
 
     [JsonPropertyName("claims")]
-    public IEnumerable<ClientPrincipalClaim> Claims { get; set; }
+    public IEnumerable<ClientPrincipalClaim> Claims { get; set; } = Enumerable.Empty<ClientPrincipalClaim>();
 }
