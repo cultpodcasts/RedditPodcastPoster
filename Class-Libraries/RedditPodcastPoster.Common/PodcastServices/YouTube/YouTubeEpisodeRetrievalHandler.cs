@@ -29,7 +29,7 @@ public class YouTubeEpisodeRetrievalHandler(
                 }
 
                 var getPlaylistEpisodesResult = await youTubeEpisodeProvider.GetPlaylistEpisodes(
-                    new YouTubePlaylistId(podcast.YouTubePlaylistId), indexingContext);
+                    new YouTubePlaylistId(podcast.YouTubePlaylistId), new YouTubeChannelId(podcast.YouTubeChannelId), indexingContext);
                 if (getPlaylistEpisodesResult.Results != null)
                 {
                     episodes = getPlaylistEpisodesResult.Results;

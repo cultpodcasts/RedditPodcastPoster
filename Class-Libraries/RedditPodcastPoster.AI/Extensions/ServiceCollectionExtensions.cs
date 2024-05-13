@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.AI.Configuration;
+using RedditPodcastPoster.Configuration.Extensions;
 
 namespace RedditPodcastPoster.AI.Extensions;
 
@@ -8,14 +9,11 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddAIServices(this IServiceCollection services, IConfiguration config)
     {
-        services
-            .AddOptions<TextAnalyticsSettings>().Bind(config.GetSection("textanalytics"));
+        services.BindConfiguration<TextAnalyticsSettings>("textanalytics");
 
-        services
-            .AddOptions<PodcastSubjectAIModelSettings>().Bind(config.GetSection("aipodcastsubjectcategorisation"));
+        services.BindConfiguration<PodcastSubjectAIModelSettings>("aipodcastsubjectcategorisation");
 
-        services
-            .AddOptions<ClassificationSettings>().Bind(config.GetSection("classification"));
+        services.BindConfiguration<ClassificationSettings>("classification");
 
         return services
                 //.AddSingleton<ITextAnalyticsClientFactory, TextAnalyticsClientFactory>()

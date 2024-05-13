@@ -1,7 +1,6 @@
 using System.Net;
-using Api.Auth;
 using Api.Dtos;
-using DarkLoop.Azure.Functions.Authorization;
+using Api.Extensions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -10,39 +9,49 @@ using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
-[FunctionAuthorize(Policies.Submit)]
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post")] [FromBody]
-        SubmitUrlRequest request,
-        HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post")]
+        HttpRequestData req,
+        FunctionContext executionContext,
+        [FromBody] SubmitUrlRequest request
+    )
     {
-        try
+        if (req.HasScope("submit"))
         {
-            logger.LogInformation(
-                $"{nameof(Run)}: Handling url-submission: url: '{request.Url}', podcast-id: '{request.PodcastId}'.");
-            await urlSubmitter.Submit(
-                request.Url,
-                new IndexingContext
-                {
-                    SkipPodcastDiscovery = false,
-                    SkipExpensiveYouTubeQueries = false,
-                    SkipExpensiveSpotifyQueries = false
-                },
-                new SubmitOptions(request.PodcastId, true));
-            var success = req.CreateResponse(HttpStatusCode.OK);
-            await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("success"));
-            return success;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{request.Url}'.");
-        }
+            try
+            {
+                logger.LogInformation(
+                    $"{nameof(Run)}: Handling url-submission: url: '{request.Url}', podcast-id: '{request.PodcastId}'.");
+                await urlSubmitter.Submit(
+                    request.Url,
+                    new IndexingContext
+                    {
+                        SkipPodcastDiscovery = false,
+                        SkipExpensiveYouTubeQueries = false,
+                        SkipExpensiveSpotifyQueries = false
+                    },
+                    new SubmitOptions(request.PodcastId, true));
+                var success = req.CreateResponse(HttpStatusCode.OK);
+                await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("success"));
+                return success;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{request.Url}'.");
+            }
 
-        var failure = req.CreateResponse(HttpStatusCode.BadRequest);
-        await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
-        return failure;
+            var failure = req.CreateResponse(HttpStatusCode.BadRequest);
+            await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
+            return failure;
+        }
+        else
+        {
+            var failure = req.CreateResponse(HttpStatusCode.Forbidden);
+            await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
+            return failure;
+        }
     }
 }

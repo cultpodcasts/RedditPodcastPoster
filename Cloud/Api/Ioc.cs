@@ -1,5 +1,4 @@
-﻿using Api.Auth;
-using iTunesSearch.Library;
+﻿using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -25,7 +24,6 @@ public static class Ioc
             .AddLogging()
             .AddApplicationInsightsTelemetryWorkerService()
             .ConfigureFunctionsApplicationInsights()
-            .AddAuth0(hostBuilderContext.Configuration)
             .AddRepositories(hostBuilderContext.Configuration)
             .AddTextSanitiser()
             .AddYouTubeServices(hostBuilderContext.Configuration)

@@ -28,8 +28,7 @@ builder.Services
     .AddSubredditSettings(builder.Configuration);
 RedditClientFactory.AddRedditClient(builder.Services);
 
-builder.Services
-    .AddOptions<RedditSettings>().Bind(builder.Configuration.GetSection("reddit-moderator"));
+builder.Services.BindConfiguration<RedditSettings>("reddit-moderator");
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<SubjectRequest>(args)

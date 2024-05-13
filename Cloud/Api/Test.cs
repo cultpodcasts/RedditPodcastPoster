@@ -1,24 +1,30 @@
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+using System.Net;
+using Api.Dtos;
+using Api.Extensions;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 
-namespace Api
+namespace Api;
+
+public class Test(ILogger<Test> logger)
 {
-    public class Test
+    [Function("Test")]
+    public async Task<HttpResponseData> Run(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")]
+        HttpRequestData req,
+        FunctionContext executionContext)
     {
-        private readonly ILogger<Test> _logger;
-
-        public Test(ILogger<Test> logger)
+        logger.LogInformation($"{nameof(Run)} initiated.");
+        if (req.HasScope("submit"))
         {
-            _logger = logger;
+            var success = req.CreateResponse(HttpStatusCode.OK);
+            await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("Has principle."));
+            return success;
         }
 
-        [Function("Test")]
-        public IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequest req)
-        {
-            _logger.LogInformation("C# HTTP trigger function processed a request.");
-            return new OkObjectResult("Welcome to Azure Functions!");
-        }
+        var failure = req.CreateResponse(HttpStatusCode.Forbidden);
+        await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("No principle."));
+        return failure;
     }
 }

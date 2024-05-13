@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence.Extensions;
@@ -18,8 +19,8 @@ public static class ServiceCollectionExtensions
             .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
             .AddScoped<IPodcastRepository, PodcastRepository>()
             .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
-            .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
-            .AddOptions<CosmosDbSettings>().Bind(config.GetSection("cosmosdb"));
+            .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>();
+        services.BindConfiguration<CosmosDbSettings>("cosmosdb");
         return services;
     }
 

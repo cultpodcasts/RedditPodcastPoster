@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.Configuration.Extensions;
 
 namespace RedditPodcastPoster.Reddit.Extensions;
 
@@ -7,8 +8,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddRedditServices(this IServiceCollection services, IConfiguration config)
     {
-        services
-            .AddOptions<RedditSettings>().Bind(config.GetSection("reddit"));
+        services.BindConfiguration<RedditSettings>("reddit");
         services.AddSubredditSettings(config);
 
         RedditClientFactory.AddRedditClient(services);
@@ -21,7 +21,6 @@ public static class ServiceCollectionExtensions
 
     public static void AddSubredditSettings(this IServiceCollection services, IConfiguration config)
     {
-        services
-            .AddOptions<SubredditSettings>().Bind(config.GetSection("subreddit"));
+        services.BindConfiguration<SubredditSettings>("subreddit");
     }
 }

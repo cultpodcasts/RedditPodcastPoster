@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Configuration;
 using RedditPodcastPoster.ContentPublisher.Factories;
 
@@ -9,8 +10,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddContentPublishing(this IServiceCollection services, IConfiguration config)
     {
-        services
-            .AddOptions<CloudFlareOptions>().Bind(config.GetSection("cloudflare"));
+        services.BindConfiguration<CloudFlareOptions>("cloudflare");
 
         return services
             .AddScoped<IQueryExecutor, QueryExecutor>()

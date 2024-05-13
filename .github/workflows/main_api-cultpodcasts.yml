@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - main
-      - feature/move-api-workflow
   workflow_dispatch:
 
 env:
