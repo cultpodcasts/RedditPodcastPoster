@@ -10,7 +10,6 @@ namespace Api;
 
 public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
 {
-
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post")]
@@ -42,6 +41,7 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
             {
                 logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{request.Url}'.");
             }
+
             var failure = req.CreateResponse(HttpStatusCode.BadRequest);
             await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
             return failure;

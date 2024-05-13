@@ -34,12 +34,6 @@ public static class ServiceCollectionExtensions
         return configuration;
     }
 
-    public static void BindConfiguration<T>(this IServiceCollection services, IConfiguration config,
-        string configSection) where T : class
-    {
-        services.AddOptions<T>().Bind(config.GetSection(configSection));
-    }
-
     public static void BindConfiguration<T>(this IServiceCollection services, string configSection) where T : class
     {
         services.AddOptions<T>().Configure<IConfiguration>((settings, configuration) =>
