@@ -1,6 +1,6 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using System.Reflection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System.Reflection;
 
 namespace RedditPodcastPoster.Configuration.Extensions;
 
@@ -8,14 +8,14 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddPostingCriteria(this IServiceCollection services, IConfiguration config)
     {
-        services
-            .AddOptions<PostingCriteria>().Bind(config.GetSection("postingCriteria"));
+        services.BindConfiguration<PostingCriteria>("postingCriteria");
         return services;
     }
-    public static IServiceCollection AddDelayedYouTubePublication(this IServiceCollection services, IConfiguration config)
+
+    public static IServiceCollection AddDelayedYouTubePublication(this IServiceCollection services,
+        IConfiguration config)
     {
-        services
-            .AddOptions<DelayedYouTubePublication>().Bind(config.GetSection("delayedYouTubePublication"));
+        services.BindConfiguration<DelayedYouTubePublication>("delayedYouTubePublication");
         return services;
     }
 
@@ -34,4 +34,17 @@ public static class ServiceCollectionExtensions
         return configuration;
     }
 
+    public static void BindConfiguration<T>(this IServiceCollection services, IConfiguration config,
+        string configSection) where T : class
+    {
+        services.AddOptions<T>().Bind(config.GetSection(configSection));
+    }
+
+    public static void BindConfiguration<T>(this IServiceCollection services, string configSection) where T : class
+    {
+        services.AddOptions<T>().Configure<IConfiguration>((settings, configuration) =>
+        {
+            configuration.GetSection(configSection).Bind(settings);
+        });
+    }
 }

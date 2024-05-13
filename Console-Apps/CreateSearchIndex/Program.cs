@@ -26,10 +26,8 @@ builder.Services
     .AddScoped(s => s.GetService<ISearchIndexerClientFactory>()!.Create())
     .AddScoped<CreateSearchIndexProcessor>();
 
-builder.Services
-    .AddOptions<SearchIndexConfig>().Bind(builder.Configuration.GetSection("searchIndex"));
-builder.Services
-    .AddOptions<CosmosDbSettings>().Bind(builder.Configuration.GetSection("cosmosdb"));
+builder.Services.BindConfiguration<SearchIndexConfig>("searchIndex");
+builder.Services.BindConfiguration<CosmosDbSettings>("cosmosdb");
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<CreateSearchIndexRequest>(args)

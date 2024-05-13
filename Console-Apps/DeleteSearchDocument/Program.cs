@@ -25,8 +25,7 @@ builder.Services
     .AddScoped(s => s.GetService<ISearchClientFactory>()!.Create())
     .AddScoped<DeleteSearchDocumentProcessor>();
 
-builder.Services
-    .AddOptions<SearchIndexConfig>().Bind(builder.Configuration.GetSection("searchIndex"));
+builder.Services.BindConfiguration<SearchIndexConfig>("searchIndex");
 
 using var host = builder.Build();
 

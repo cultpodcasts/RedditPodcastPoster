@@ -53,9 +53,8 @@ public static class Ioc
             .AddAIServices(hostBuilderContext.Configuration)
             .AddHttpClient();
 
-        serviceCollection.AddOptions<IndexerOptions>().Bind(hostBuilderContext.Configuration.GetSection("indexer"));
-        serviceCollection
-            .AddOptions<PosterOptions>().Bind(hostBuilderContext.Configuration.GetSection("poster"));
+        serviceCollection.BindConfiguration<IndexerOptions>("indexer");
+        serviceCollection.BindConfiguration<PosterOptions>("poster");
         serviceCollection.AddPostingCriteria(hostBuilderContext.Configuration);
         serviceCollection.AddDelayedYouTubePublication(hostBuilderContext.Configuration);
     }

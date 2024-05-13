@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Configuration;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Factories;
 
@@ -11,7 +12,7 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration config)
     {
-        services.AddOptions<ListenNotesOptions>().Bind(config.GetSection("listenNotes"));
+        services.BindConfiguration<ListenNotesOptions>("listenNotes");
 
         return services
             .AddScoped<IClientFactory, ClientFactory>()
