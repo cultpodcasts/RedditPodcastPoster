@@ -24,7 +24,7 @@ public static class HttpRequestDataExtensions
                 principal?.Claims.SingleOrDefault(x => x.Type == "scope" && x.Value.Split(" ").Contains(scope));
             return scopeClaim != null;
         }
-        catch (Exception e)
+        catch (Exception)
         {
             return false;
         }
