@@ -19,7 +19,9 @@ public static class ServiceCollectionExtensions
             .AddScoped<IPodcastRepository, PodcastRepository>()
             .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
             .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>()
-            .AddOptions<CosmosDbSettings>().Configure<IConfiguration>((settings, configuration) => configuration.GetSection("GetSection(\"cosmosdb").Bind(settings));
+            .AddOptions<CosmosDbSettings>().Configure<IConfiguration>((settings, configuration) =>
+                configuration.GetSection("cosmosdb").Bind(settings));
+            );
         return services;
     }
 
