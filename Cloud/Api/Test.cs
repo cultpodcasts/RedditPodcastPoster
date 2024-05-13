@@ -15,12 +15,14 @@ public class Test(ILogger<Test> logger)
         HttpRequestData req,
         FunctionContext executionContext)
     {
+        logger.LogInformation($"{nameof(Run)} initiated.");
         if (req.HasScope("submit"))
         {
             var success = req.CreateResponse(HttpStatusCode.OK);
             await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("Has principle."));
             return success;
         }
+
         var failure = req.CreateResponse(HttpStatusCode.Forbidden);
         await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("No principle."));
         return failure;
