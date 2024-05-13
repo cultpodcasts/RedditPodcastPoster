@@ -14,7 +14,7 @@ public class Test(ILogger<Test> logger)
         HttpRequestData req,
         FunctionContext executionContext)
     {
-        if (req.HasScope("x-submit"))
+        if (req.HasScope("submit"))
         {
             var success = req.CreateResponse(HttpStatusCode.OK);
             await success.WriteAsJsonAsync(SubmitUrlResponse.Failure("Has principle."));
