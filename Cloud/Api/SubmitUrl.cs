@@ -42,9 +42,15 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
             {
                 logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{request.Url}'.");
             }
+            var failure = req.CreateResponse(HttpStatusCode.BadRequest);
+            await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
+            return failure;
         }
-        var failure = req.CreateResponse(HttpStatusCode.BadRequest);
-        await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
-        return failure;
+        else
+        {
+            var failure = req.CreateResponse(HttpStatusCode.Forbidden);
+            await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
+            return failure;
+        }
     }
 }

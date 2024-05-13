@@ -20,8 +20,7 @@ public class Test(ILogger<Test> logger)
             await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("Has principle."));
             return success;
         }
-
-        var failure = req.CreateResponse(HttpStatusCode.OK);
+        var failure = req.CreateResponse(HttpStatusCode.Forbidden);
         await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("No principle."));
         return failure;
     }
