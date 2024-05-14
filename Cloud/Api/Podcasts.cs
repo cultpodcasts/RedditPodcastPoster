@@ -27,7 +27,6 @@ public class Podcasts(IPodcastRepository podcastRepository, ILogger<Podcasts> lo
                     podcast => !podcast.Removed.IsDefined() || podcast.Removed == false ,
                     podcast => new  {id= podcast.Id, name=podcast.Name});
 
-
                 var success = req.CreateResponse(HttpStatusCode.OK);
                 await success.WriteAsJsonAsync(await podcasts.ToListAsync(ct), ct);
                 return success;
@@ -44,7 +43,7 @@ public class Podcasts(IPodcastRepository podcastRepository, ILogger<Podcasts> lo
         else
         {
             var failure = req.CreateResponse(HttpStatusCode.Forbidden);
-            await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure(), ct);
+            await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unauthorised"), ct);
             return failure;
         }
     }
