@@ -19,7 +19,7 @@ public class Podcasts(IPodcastRepository podcastRepository, ILogger<Podcasts> lo
         CancellationToken ct
     )
     {
-        if (!req.HasScope("submit"))
+        if (req.HasScope("submit"))
         {
             try
             {
