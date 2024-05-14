@@ -5,7 +5,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
 var host = new HostBuilder()
+#pragma warning disable AZFW0014
     .ConfigureFunctionsWorkerDefaults(builder =>
+#pragma warning restore AZFW0014
     {
         builder.Services.ConfigureFunctionsApplicationInsights();
     })
