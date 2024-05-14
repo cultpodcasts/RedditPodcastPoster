@@ -24,8 +24,8 @@ public class Podcasts(IPodcastRepository podcastRepository, ILogger<Podcasts> lo
             try
             {
                 var podcasts = podcastRepository.GetAllBy(
-                    podcast => !podcast.Removed.IsDefined() || podcast.Removed == false ,
-                    podcast => new  {id= podcast.Id, name=podcast.Name});
+                    podcast => !podcast.Removed.IsDefined() || podcast.Removed == false,
+                    podcast => new {id = podcast.Id, name = podcast.Name});
 
                 var success = req.CreateResponse(HttpStatusCode.OK);
                 await success.WriteAsJsonAsync(await podcasts.ToListAsync(ct), ct);
@@ -36,7 +36,7 @@ public class Podcasts(IPodcastRepository podcastRepository, ILogger<Podcasts> lo
                 logger.LogError(ex, $"{nameof(Run)}: Failed to get-podcasts.");
             }
 
-            var failure = req.CreateResponse(HttpStatusCode.BadRequest);
+            var failure = req.CreateResponse(HttpStatusCode.InternalServerError);
             await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to retrieve podcasts"), ct);
             return failure;
         }
@@ -47,11 +47,4 @@ public class Podcasts(IPodcastRepository podcastRepository, ILogger<Podcasts> lo
             return failure;
         }
     }
-}
-
-public class SimplePodcast()
-{
-    public Guid PodcastId { get; set; }
-    public string Name { get; set; } 
-
 }
