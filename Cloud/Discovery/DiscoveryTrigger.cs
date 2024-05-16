@@ -1,25 +1,35 @@
+using Grpc.Core;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
 
 namespace Discovery;
 
-public class DiscoveryTrigger
+public class DiscoveryTrigger(ILogger<DiscoveryTrigger> logger)
 {
-    private readonly ILogger _logger;
-
-    public DiscoveryTrigger(ILoggerFactory loggerFactory)
-    {
-        _logger = loggerFactory.CreateLogger<DiscoveryTrigger>();
-    }
-
     [Function("DiscoveryTrigger")]
-    public void Run([TimerTrigger("0 */6 * * *")] TimerInfo myTimer)
+    public async Task Run([TimerTrigger("0 */6 * * *")] TimerInfo myTimer,
+        [DurableClient] DurableTaskClient client)
     {
-        _logger.LogInformation($"C# Timer trigger function executed at: {DateTime.Now}");
-
-        if (myTimer.ScheduleStatus is not null)
+        logger.LogInformation($"{nameof(DiscoveryTrigger)} {nameof(Run)} initiated.");
+        string instanceId;
+        try
         {
-            _logger.LogInformation($"Next timer schedule at: {myTimer.ScheduleStatus.Next}");
+            instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(Orchestration));
         }
+        catch (RpcException ex)
+        {
+            logger.LogCritical(ex,
+                $"Failure to execute '{nameof(client.ScheduleNewOrchestrationInstanceAsync)}' for '{nameof(Orchestration)}'. Status-Code: '{ex.StatusCode}', Status: '{ex.Status}'.");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogCritical(ex,
+                $"Failure to execute '{nameof(client.ScheduleNewOrchestrationInstanceAsync)}' for '{nameof(Orchestration)}'.");
+            throw;
+        }
+
+        logger.LogInformation($"{nameof(DiscoveryTrigger)} {nameof(Run)} complete. Instance-id= '{instanceId}'.");
     }
 }
