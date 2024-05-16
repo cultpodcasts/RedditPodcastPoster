@@ -8,7 +8,7 @@ namespace Discovery;
 public class DiscoveryTrigger(ILogger<DiscoveryTrigger> logger)
 {
     [Function("DiscoveryTrigger")]
-    public async Task Run([TimerTrigger("0 */6 * * *")] TimerInfo myTimer,
+    public async Task Run([TimerTrigger("30 */6 * * *")] TimerInfo myTimer,
         [DurableClient] DurableTaskClient client)
     {
         logger.LogInformation($"{nameof(DiscoveryTrigger)} {nameof(Run)} initiated.");
