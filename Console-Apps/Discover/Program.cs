@@ -21,10 +21,11 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
+    .AddDiscovery(builder.Configuration)
     .AddScoped<DiscoveryProcessor>()
+    .AddScoped<IDiscoveryResultConsoleLogger, DiscoveryResultConsoleLogger>()
     .AddRepositories()
     .AddSubjectServices()
-    .AddDiscovery(builder.Configuration)
     .AddHttpClient();
 
 using var host = builder.Build();
