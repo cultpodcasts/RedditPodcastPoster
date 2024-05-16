@@ -2,8 +2,8 @@
 
 public interface IDiscoveryServiceConfigProvider
 {
-    IEnumerable<DiscoveryConfig.ServiceConfig> GetServiceConfigs(
-        bool excludeSpotify, 
+    IEnumerable<ServiceConfig> GetServiceConfigs(
+        bool excludeSpotify,
         bool includeYouTube,
         bool includeListenNotes);
 }

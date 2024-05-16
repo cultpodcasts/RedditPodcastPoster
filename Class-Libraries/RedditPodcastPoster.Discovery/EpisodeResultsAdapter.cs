@@ -12,6 +12,7 @@ public class EpisodeResultsAdapter(
 {
     public async IAsyncEnumerable<DiscoveryResult> ToDiscoveryResults(IEnumerable<EpisodeResult> episodeResults)
     {
+        logger.LogInformation($"{nameof(ToDiscoveryResults)} initiated.");
         var podcastIds = podcastRepository.GetAllBy(podcast =>
                 podcast.IndexAllEpisodes || podcast.EpisodeIncludeTitleRegex != string.Empty,
             x => new

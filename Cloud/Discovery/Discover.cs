@@ -47,7 +47,7 @@ public class Discover(
                 _discoverOptions.IncludeYouTube, _discoverOptions.IncludeListenNotes);
 
             var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
-            Console.WriteLine(
+            logger.LogInformation(
                 $"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}').");
             var discoveryConfig = new DiscoveryConfig(serviceConfigs, _discoverOptions.ExcludeSpotify);
 
@@ -57,7 +57,7 @@ public class Discover(
             await discoveryResultsRepository.Save(discoveryResultsDocument);
 
             logger.LogInformation(
-                $"{nameof(RunAsync)} Complete. {nameof(discoveryBegan)}: '{discoveryBegan:G}', document-id: '{discoveryResultsDocument.Id}'.");
+                $"{nameof(RunAsync)} Complete. {nameof(discoveryBegan)}: '{discoveryBegan:O}', document-id: '{discoveryResultsDocument.Id}'.");
             results = true;
         }
         catch (Exception ex)
