@@ -30,7 +30,6 @@ public class Discover(
             SkipPodcastDiscovery: false,
             SkipExpensiveSpotifyQueries: false);
 
-
         var activityBooked = await activityMarshaller.Initiate(input.DiscoveryOperationId, nameof(Discover));
         if (activityBooked != ActivityStatus.Initiated)
         {
