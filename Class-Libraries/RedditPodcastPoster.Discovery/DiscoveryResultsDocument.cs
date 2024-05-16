@@ -3,13 +3,13 @@ using System.Text.Json.Serialization;
 
 namespace RedditPodcastPoster.Discovery;
 
-[CosmosSelector(ModelType.DiscoveryResultsDocument)]
+[CosmosSelector(ModelType.Discovery)]
 public sealed class DiscoveryResultsDocument : CosmosSelector
 {
     public DiscoveryResultsDocument(DateTime discoveryBegan, IEnumerable<DiscoveryResult> discoveryResults)
     {
         Id = Guid.NewGuid();
-        ModelType = ModelType.DiscoveryResultsDocument;
+        ModelType = ModelType.Discovery;
         DiscoveryBegan = discoveryBegan;
         DiscoveryResults = discoveryResults;
         State = DiscoveryResultState.Unprocessed;
