@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 
@@ -7,7 +6,7 @@ namespace RedditPodcastPoster.Persistence.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddRepositories(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddRepositories(this IServiceCollection services)
     {
         services
             .AddScoped<ICosmosDbClientFactory, CosmosDbClientFactory>()
@@ -28,6 +27,6 @@ public static class ServiceCollectionExtensions
     {
         return services
             .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-            .AddScoped(services => services.GetService<IFileRepositoryFactory>()!.Create(containerName));
+            .AddScoped(x => x.GetService<IFileRepositoryFactory>()!.Create(containerName));
     }
 }

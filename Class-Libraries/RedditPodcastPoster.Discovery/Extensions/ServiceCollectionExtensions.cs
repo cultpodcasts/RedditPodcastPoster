@@ -10,8 +10,7 @@ namespace RedditPodcastPoster.Discovery.Extensions;
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddDiscovery(
-        this IServiceCollection services,
-        ConfigurationManager config)
+        this IServiceCollection services, IConfiguration config)
     {
         return services
             .AddScoped<ISearchProvider, SearchProvider>()

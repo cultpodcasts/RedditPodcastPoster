@@ -21,7 +21,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddFileRepository("podcast")
     .AddScoped<JsonSplitCosmosDbUploadProcessor>()
     .AddSingleton<PodcastFactory>();

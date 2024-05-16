@@ -23,7 +23,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<WebSubStatusProcessor>()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddPodcastServices(builder.Configuration)
     .AddYouTubePushNotificationServices(builder.Configuration)
     .AddHttpClient();

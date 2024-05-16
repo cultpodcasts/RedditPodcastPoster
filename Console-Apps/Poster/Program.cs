@@ -27,7 +27,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<PostProcessor>()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddPodcastServices(builder.Configuration)
     .AddContentPublishing(builder.Configuration)
     .AddRedditServices(builder.Configuration)

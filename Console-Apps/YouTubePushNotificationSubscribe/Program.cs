@@ -23,7 +23,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<SubscribeProcessor>()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddYouTubePushNotificationServices(builder.Configuration)
     .AddHttpClient();
 

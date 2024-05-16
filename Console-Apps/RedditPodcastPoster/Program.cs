@@ -31,7 +31,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddTextSanitiser()
     .AddYouTubeServices(builder.Configuration)
     .AddSpotifyServices(builder.Configuration)

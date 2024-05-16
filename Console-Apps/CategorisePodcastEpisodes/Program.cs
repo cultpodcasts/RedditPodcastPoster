@@ -20,7 +20,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddScoped<CategorisePodcastEpisodesProcessor>()
     .AddSubjectServices();
 

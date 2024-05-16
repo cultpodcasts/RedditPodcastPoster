@@ -20,7 +20,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddScoped<ISearchClientFactory, SearchClientFactory>()
     .AddScoped(s => s.GetService<ISearchClientFactory>()!.Create())
     .AddScoped<DeleteSearchDocumentProcessor>();

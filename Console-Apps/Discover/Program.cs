@@ -22,7 +22,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<DiscoveryProcessor>()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddSubjectServices()
     .AddDiscovery(builder.Configuration)
     .AddHttpClient();

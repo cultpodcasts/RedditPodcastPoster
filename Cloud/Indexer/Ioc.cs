@@ -33,7 +33,7 @@ public static class Ioc
             .AddLogging()
             .AddApplicationInsightsTelemetryWorkerService()
             .ConfigureFunctionsApplicationInsights()
-            .AddRepositories(hostBuilderContext.Configuration)
+            .AddRepositories()
             .AddTextSanitiser()
             .AddYouTubeServices(hostBuilderContext.Configuration)
             .AddSpotifyServices(hostBuilderContext.Configuration)

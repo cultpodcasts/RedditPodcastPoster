@@ -19,7 +19,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddEliminationTerms()
     .AddSingleton<EliminationTermsSeeder>();
 
