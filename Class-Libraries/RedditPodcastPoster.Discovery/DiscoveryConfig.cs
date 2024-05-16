@@ -5,5 +5,5 @@ namespace RedditPodcastPoster.Discovery;
 
 public record DiscoveryConfig(IEnumerable<ServiceConfig> ServiceConfigs, bool EnrichFromSpotify)
 {
-    public record ServiceConfig(string Term, DiscoveryService DiscoveryService);
+    public record ServiceConfig(string Term, DiscoverService DiscoverService);
 }

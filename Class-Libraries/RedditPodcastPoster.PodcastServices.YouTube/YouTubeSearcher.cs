@@ -140,7 +140,7 @@ public class YouTubeSearcher(
             WebUtility.HtmlDecode(episode.Snippet.Title.Trim()),
             video?.GetLength(),
             WebUtility.HtmlDecode(episode.Snippet.ChannelTitle.Trim()),
-            DiscoveryService.YouTube,
+            DiscoverService.YouTube,
             episode.ToYouTubeUrl(),
             episode.Snippet.ChannelId,
             video?.Statistics.ViewCount,

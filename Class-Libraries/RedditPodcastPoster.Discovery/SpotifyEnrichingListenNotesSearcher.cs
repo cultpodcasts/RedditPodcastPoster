@@ -39,7 +39,7 @@ public class SpotifyEnrichingListenNotesSearcher(
                     var enrichedResult = episodeResult with
                     {
                         Url = spotifyResult.FullEpisode.GetUrl(),
-                        DiscoveryService = DiscoveryService.Spotify,
+                        DiscoverService = DiscoverService.Spotify,
                         ServicePodcastId = spotifyResult.FullEpisode.Show.Id
                     };
                     results.Add(enrichedResult);

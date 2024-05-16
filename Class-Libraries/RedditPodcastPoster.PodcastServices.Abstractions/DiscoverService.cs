@@ -1,6 +1,6 @@
 ﻿namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
-public enum DiscoveryService
+public enum DiscoverService
 {
     Spotify = 1,
     ListenNotes,

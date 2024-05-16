@@ -15,6 +15,11 @@ public static class ServiceCollectionExtensions
         return services
             .AddScoped<ISearchProvider, SearchProvider>()
             .AddScoped<ISpotifyEnrichingListenNotesSearcher, SpotifyEnrichingListenNotesSearcher>()
+            .AddScoped<IDiscoveryServiceConfigProvider, DiscoveryServiceConfigProvider>()
+            .AddScoped<IDiscoveryService, DiscoveryService>()
+            .AddScoped<IEpisodeResultsAdapter, EpisodeResultsAdapter>()
+            .AddScoped<IEpisodeResultAdapter, EpisodeResultAdapter>()
+            .AddScoped<IIgnoreTermsProvider, IgnoreTermsProvider>()
             .AddSpotifyServices(config)
             .AddYouTubeServices(config)
             .AddListenNotes(config)

@@ -1,39 +1,21 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery;
-using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.Subjects;
 
 namespace Discover;
 
 public class DiscoveryProcessor(
-    ISearchProvider searchProvider,
-    IPodcastRepository podcastRepository,
-    ISubjectMatcher subjectMatcher,
+    IDiscoveryServiceConfigProvider discoveryConfigProvider,
+    IDiscoveryService discoveryService,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<DiscoveryProcessor> logger
 #pragma warning restore CS9113 // Parameter is unread.
 )
 {
-    private readonly IList<string> _ignoreTerms = new[]
-    {
-        "cult of the lamb".ToLower(),
-        "cult of lamb".ToLower(),
-        "COTL".ToLower(),
-        "cult of the lab".ToLower(),
-        "Cult of the Lamp".ToLower(),
-        "Cult of the Lumb".ToLower(),
-        "Blue Oyster Cult".ToLower(),
-        "Blue Öyster Cult".ToLower(),
-        "Living Colour".ToLower(),
-        "She Sells Sanctuary".ToLower(),
-        "Far Cry".ToLower()
-    };
-
     public async Task<DiscoveryResponse> Process(DiscoveryRequest request)
     {
         var fg = Console.ForegroundColor;
+
         DateTime since;
         if (request.Since.HasValue)
         {
@@ -53,7 +35,8 @@ public class DiscoveryProcessor(
             throw new InvalidOperationException("Unable to determine baseline-time to discover from.");
         }
 
-        Console.WriteLine($"Discovering items released since '{since.ToUniversalTime():O}' (local:'{since.ToLocalTime():O}').");
+        Console.WriteLine(
+            $"Discovering items released since '{since.ToUniversalTime():O}' (local:'{since.ToLocalTime():O}').");
 
         var indexingContext = new IndexingContext(
             since,
@@ -61,114 +44,59 @@ public class DiscoveryProcessor(
             SkipPodcastDiscovery: false,
             SkipExpensiveSpotifyQueries: false);
 
-        var serviceConfigs = new List<DiscoveryConfig.ServiceConfig>();
-        if (!request.ExcludeSpotify)
-        {
-            serviceConfigs.AddRange(new DiscoveryConfig.ServiceConfig[]
-            {
-                new("Cults", DiscoveryService.Spotify),
-                new("Cult", DiscoveryService.Spotify),
-                new("Scientology", DiscoveryService.Spotify),
-                new("NXIVM", DiscoveryService.Spotify),
-                new("FLDS", DiscoveryService.Spotify)
-            });
-        }
+        var serviceConfigs = discoveryConfigProvider.GetServiceConfigs(request.ExcludeSpotify,
+            request.IncludeYouTube, request.IncludeListenNotes);
 
-        if (request.IncludeYouTube)
-        {
-            serviceConfigs.AddRange(new DiscoveryConfig.ServiceConfig[]
-            {
-                new("Cult", DiscoveryService.YouTube)
-            });
-        }
-
-        if (request.IncludeListenNotes)
-        {
-            serviceConfigs.Insert(0, new DiscoveryConfig.ServiceConfig("Cult", DiscoveryService.ListenNotes));
-        }
-
-        var discoveryConfig = new DiscoveryConfig(serviceConfigs, request.ExcludeSpotify);
         var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
-        Console.WriteLine($"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}').");
+        Console.WriteLine(
+            $"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}').");
+        var discoveryConfig = new DiscoveryConfig(serviceConfigs, request.ExcludeSpotify);
+        var discoveryResults = await discoveryService.GetDiscoveryResults(indexingContext, discoveryConfig);
 
-        var results = await searchProvider.GetEpisodes(indexingContext, discoveryConfig);
-        var podcastIds = podcastRepository.GetAllBy(podcast =>
-                podcast.IndexAllEpisodes || podcast.EpisodeIncludeTitleRegex != string.Empty,
-            x => new
-            {
-                x.YouTubeChannelId,
-                SpotifyShowId = x.SpotifyId
-            });
-        var indexedYouTubeChannelIds = await podcastIds.Select(x => x.YouTubeChannelId).Distinct().ToListAsync();
-        var indexedSpotifyChannelIds = await podcastIds.Select(x => x.SpotifyShowId).Distinct().ToListAsync();
-
-        foreach (var episode in results)
+        foreach (var episode in discoveryResults)
         {
-            if ((episode.DiscoveryService == DiscoveryService.YouTube &&
-                 indexedYouTubeChannelIds.Contains(episode.ServicePodcastId!)) ||
-                (episode.DiscoveryService == DiscoveryService.Spotify &&
-                 indexedSpotifyChannelIds.Contains(episode.ServicePodcastId!)))
+            Console.WriteLine(new string('-', 40));
+            if (episode.Url != null)
             {
-                continue;
+                Console.WriteLine(episode.Url);
             }
 
-            var ignored = false;
-            foreach (var ignoreTerm in _ignoreTerms)
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(episode.EpisodeName);
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(episode.ShowName);
+            if (!string.IsNullOrWhiteSpace(episode.Description))
             {
-                if (episode.Description.ToLower().Contains(ignoreTerm) ||
-                    episode.EpisodeName.ToLower().Contains(ignoreTerm))
-                {
-                    ignored = true;
-                }
-            }
-
-            if (!ignored)
-            {
-                var subjects = await subjectMatcher.MatchSubjects(new Episode
-                    {Title = episode.EpisodeName, Description = episode.Description});
-                Console.WriteLine(new string('-', 40));
                 var description = episode.Description;
                 var min = Math.Min(description.Length, 200);
-                if (episode.Url != null)
-                {
-                    Console.WriteLine(episode.Url);
-                }
-
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine(episode.EpisodeName);
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine(episode.ShowName);
-                if (!string.IsNullOrWhiteSpace(description))
-                {
-                    Console.ForegroundColor = fg;
-                    Console.WriteLine(description[..min]);
-                }
-
-                Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine(episode.Released.ToString("g"));
-                if (episode.Length != null)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(episode.Length);
-                }
-
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                foreach (var subjectMatch in subjects.OrderByDescending(x => x.MatchResults.Sum(y => y.Matches)))
-                {
-                    Console.WriteLine(subjectMatch.Subject.Name);
-                }
-
-                if (episode.ViewCount.HasValue || episode.MemberCount.HasValue)
-                {
-                    Console.ForegroundColor = ConsoleColor.DarkGreen;
-                    const string unknown = "Unknown";
-                    Console.WriteLine(
-                        $"Views: {(episode.ViewCount.HasValue ? episode.ViewCount.Value : unknown)}, Members: {(episode.MemberCount.HasValue ? episode.MemberCount.Value : unknown)}");
-                }
-
                 Console.ForegroundColor = fg;
-                Console.WriteLine();
+                Console.WriteLine(description[..min]);
             }
+
+            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+            Console.WriteLine(episode.Released.ToString("g"));
+            if (episode.Length != null)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(episode.Length);
+            }
+
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            foreach (var subject in episode.Subjects)
+            {
+                Console.WriteLine(subject);
+            }
+
+            if (episode.Views.HasValue || episode.MemberCount.HasValue)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkGreen;
+                const string unknown = "Unknown";
+                Console.WriteLine(
+                    $"Views: {(episode.Views.HasValue ? episode.Views.Value : unknown)}, Members: {(episode.MemberCount.HasValue ? episode.MemberCount.Value : unknown)}");
+            }
+
+            Console.ForegroundColor = fg;
+            Console.WriteLine();
         }
 
         return new DiscoveryResponse(discoveryBegan);

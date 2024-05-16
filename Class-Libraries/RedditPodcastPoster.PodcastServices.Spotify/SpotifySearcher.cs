@@ -54,7 +54,7 @@ public class SpotifySearcher(
             htmlSanitiser.Sanitise(episode.HtmlDescription).Trim(),
             episode.Name.Trim(),
             episode.GetDuration(),
-            episode.Show.Name.Trim(), DiscoveryService.Spotify,
+            episode.Show.Name.Trim(), DiscoverService.Spotify,
             new Uri(_spotifyEpisodeBase, episode.Id),
             episode.Show.Id);
     }
