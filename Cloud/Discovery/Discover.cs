@@ -22,7 +22,7 @@ public class Discover(
     {
         var since = DateTime.UtcNow.Subtract(TimeSpan.Parse(_discoverOptions.Since));
         logger.LogInformation(
-            $"Discovering items released since '{since.ToUniversalTime():O}' (local:'{since.ToLocalTime():O}').");
+            $"Discovering items released since '{since.ToUniversalTime():O}' (local:'{since.ToLocalTime():O}'). {_discoverOptions}");
 
         var indexingContext = new IndexingContext(
             since,
@@ -48,7 +48,7 @@ public class Discover(
 
             var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
             logger.LogInformation(
-                $"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}').");
+                $"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}'), indexing-context: {indexingContext}");
             var discoveryConfig = new DiscoveryConfig(serviceConfigs, _discoverOptions.ExcludeSpotify);
 
             var discoveryResults = await discoveryService.GetDiscoveryResults(indexingContext, discoveryConfig);
@@ -57,7 +57,7 @@ public class Discover(
             await discoveryResultsRepository.Save(discoveryResultsDocument);
 
             logger.LogInformation(
-                $"{nameof(RunAsync)} Complete. {nameof(discoveryBegan)}: '{discoveryBegan:O}', document-id: '{discoveryResultsDocument.Id}'.");
+                $"{nameof(RunAsync)} Complete. {nameof(discoveryBegan)}: '{discoveryBegan:O}', document-id: '{discoveryResultsDocument.Id}', no-results: '{discoveryResults.Count()}', indexing-context: {indexingContext}.");
             results = true;
         }
         catch (Exception ex)
