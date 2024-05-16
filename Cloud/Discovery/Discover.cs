@@ -1,4 +1,5 @@
-﻿using Microsoft.DurableTask;
+﻿using Azure;
+using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Discovery;
@@ -11,6 +12,8 @@ public class Discover(
     IOptions<DiscoverOptions> discoverOptions,
     IDiscoveryServiceConfigProvider discoveryConfigProvider,
     IDiscoveryService discoveryService,
+    IDiscoveryResultsRepository discoveryResultsRepository,
+    IActivityMarshaller activityMarshaller,
     ILogger<Discover> logger) : TaskActivity<DiscoveryContext, DiscoveryContext>
 {
     private readonly DiscoverOptions _discoverOptions = discoverOptions.Value;
@@ -27,23 +30,68 @@ public class Discover(
             SkipPodcastDiscovery: false,
             SkipExpensiveSpotifyQueries: false);
 
-        var serviceConfigs = discoveryConfigProvider.GetServiceConfigs(_discoverOptions.ExcludeSpotify,
-            _discoverOptions.IncludeYouTube, _discoverOptions.IncludeListenNotes);
 
-        var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
-        Console.WriteLine(
-            $"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}').");
-        var discoveryConfig = new DiscoveryConfig(serviceConfigs, _discoverOptions.ExcludeSpotify);
+        var activityBooked = await activityMarshaller.Initiate(input.DiscoveryOperationId, nameof(Discover));
+        if (activityBooked != ActivityStatus.Initiated)
+        {
+            return input with
+            {
+                DuplicateDiscoveryOperation = true
+            };
+        }
 
-        var discoveryResults = await discoveryService.GetDiscoveryResults(indexingContext, discoveryConfig);
+        bool results;
+        try
+        {
+            var serviceConfigs = discoveryConfigProvider.GetServiceConfigs(_discoverOptions.ExcludeSpotify,
+                _discoverOptions.IncludeYouTube, _discoverOptions.IncludeListenNotes);
 
+            var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
+            Console.WriteLine(
+                $"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}').");
+            var discoveryConfig = new DiscoveryConfig(serviceConfigs, _discoverOptions.ExcludeSpotify);
 
-        //PERSIST DISCOVERY RESULTS
+            var discoveryResults = await discoveryService.GetDiscoveryResults(indexingContext, discoveryConfig);
+            var discoveryResultsDocument = new DiscoveryResultsDocument(discoveryBegan, discoveryResults);
+
+            await discoveryResultsRepository.Save(discoveryResultsDocument);
+
+            logger.LogInformation(
+                $"{nameof(RunAsync)} Complete. {nameof(discoveryBegan)}: '{discoveryBegan:G}', document-id: '{discoveryResultsDocument.Id}'.");
+            results = true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                $"Failure to execute {nameof(Discover)}.{nameof(RunAsync)}.");
+            results = false;
+        }
+        finally
+        {
+            try
+            {
+                activityBooked = await activityMarshaller.Complete(input.DiscoveryOperationId, nameof(Discover));
+                if (activityBooked != ActivityStatus.Completed)
+                {
+                    logger.LogError("Failure to complete activity");
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failure to complete activity.");
+            }
+        }
+
+        if (!results)
+        {
+            logger.LogError("Failure occurred");
+        }
+
+        logger.LogInformation($"{nameof(RunAsync)} Completed");
 
         return input with
         {
-            DiscoveryBegan = discoveryBegan,
-            Completed = DateTime.UtcNow.ToUniversalTime()
+            Success = results
         };
     }
 }

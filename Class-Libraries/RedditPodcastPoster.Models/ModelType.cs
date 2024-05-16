@@ -27,4 +27,7 @@ public enum ModelType
 
     [JsonPropertyName(nameof(Activity))]
     Activity = 8,
+
+    [JsonPropertyName(nameof(DiscoveryResultsDocument))]
+    DiscoveryResultsDocument = 9
 }

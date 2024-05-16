@@ -42,8 +42,8 @@ public class EpisodeResultAdapter(
 
         if (episode.ViewCount.HasValue || episode.MemberCount.HasValue)
         {
-            discoveryResult.Views = episode.ViewCount;
-            discoveryResult.MemberCount = episode.MemberCount;
+            discoveryResult.YouTubeViews = episode.ViewCount;
+            discoveryResult.YouTubeChannelMembers = episode.MemberCount;
         }
 
         return discoveryResult;

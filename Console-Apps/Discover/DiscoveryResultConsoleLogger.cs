@@ -38,12 +38,12 @@ public class DiscoveryResultConsoleLogger : IDiscoveryResultConsoleLogger
             Console.WriteLine(subject);
         }
 
-        if (episode.Views.HasValue || episode.MemberCount.HasValue)
+        if (episode.YouTubeViews.HasValue || episode.YouTubeChannelMembers.HasValue)
         {
             Console.ForegroundColor = ConsoleColor.DarkGreen;
             const string unknown = "Unknown";
             Console.WriteLine(
-                $"Views: {(episode.Views.HasValue ? episode.Views.Value : unknown)}, Members: {(episode.MemberCount.HasValue ? episode.MemberCount.Value : unknown)}");
+                $"YouTubeViews: {(episode.YouTubeViews.HasValue ? episode.YouTubeViews.Value : unknown)}, Members: {(episode.YouTubeChannelMembers.HasValue ? episode.YouTubeChannelMembers.Value : unknown)}");
         }
 
         Console.ForegroundColor = defaultColor;
