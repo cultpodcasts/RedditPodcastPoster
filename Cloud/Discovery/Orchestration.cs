@@ -13,7 +13,9 @@ public class Orchestration : TaskOrchestrator<object, DiscoveryContext>
             $"{nameof(Orchestration)}.{nameof(RunAsync)} initiated. Instance-id: '{context.InstanceId}'.");
 
         var discoveryContext = new DiscoveryContext(context.NewGuid());
-        //indexerContext = await context.CallIndexerAsync(indexerContext);
+        logger.LogInformation($"{nameof(RunAsync)}: Pre: discovery-context: {discoveryContext}");
+        var result = await context.CallDiscoverAsync(discoveryContext);
+        logger.LogInformation($"{nameof(RunAsync)}: Post: discovery-context: {result}");
         logger.LogInformation($"{nameof(Discover)} complete.");
 
 
