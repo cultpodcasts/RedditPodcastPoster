@@ -20,6 +20,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IEpisodeResultsAdapter, EpisodeResultsAdapter>()
             .AddScoped<IEpisodeResultAdapter, EpisodeResultAdapter>()
             .AddScoped<IIgnoreTermsProvider, IgnoreTermsProvider>()
+            .AddScoped<IDiscoveryResultsRepository, DiscoveryResultsRepository>()
             .AddSpotifyServices(config)
             .AddYouTubeServices(config)
             .AddListenNotes(config)
