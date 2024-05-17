@@ -11,4 +11,8 @@
     <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.38.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
+  </ItemGroup>
+
   </Project>

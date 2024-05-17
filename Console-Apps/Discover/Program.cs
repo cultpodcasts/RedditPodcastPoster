@@ -36,7 +36,11 @@ async Task<int> Run(DiscoveryRequest request)
 {
     var urlSubmitter = host.Services.GetService<DiscoveryProcessor>()!;
     var result = await urlSubmitter.Process(request);
-    var initiation = $"{result.Initiation:O}";
-    Console.WriteLine($"Discovery initiated at '{initiation}'.");
+    if (result.Initiation.HasValue)
+    {
+        var initiation = $"{result.Initiation:O}";
+        Console.WriteLine($"Discovery initiated at '{initiation}'.");
+    }
+
     return 0;
 }

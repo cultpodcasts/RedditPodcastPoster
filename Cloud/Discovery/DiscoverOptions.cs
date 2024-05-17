@@ -6,6 +6,7 @@ public class DiscoverOptions
     public bool ExcludeSpotify { get; set; }
     public bool IncludeYouTube { get; set; }
     public bool IncludeListenNotes { get; set; }
+    public bool EnrichListenNotesFromSpotify { get; set; }
 
     public override string ToString()
     {

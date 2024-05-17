@@ -2,6 +2,7 @@
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Scripts;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Extensions;
 
 namespace Azure;
 
@@ -22,8 +23,8 @@ public class ActivityMarshaller(
         {
             dynamic activity = new {Id = id, Status = InitiateActionStatus, OperationType = operationType};
             var result = await container.Scripts.ExecuteStoredProcedureAsync<Activity>(
-                ActivityBookingProcedureId,
-                new PartitionKey(Activity.PartitionKey),
+            ActivityBookingProcedureId,
+                new PartitionKey(CosmosSelectorExtensions.GetModelType<Activity>().ToString()),
                 new[] {activity});
             if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == InitiateActionStatus)
             {
@@ -43,7 +44,7 @@ public class ActivityMarshaller(
                     {
                         await container.DeleteItemAsync<Activity>(
                             id.ToString(),
-                            new PartitionKey(Activity.PartitionKey));
+                            new PartitionKey(CosmosSelectorExtensions.GetModelType<Activity>().ToString()));
                     }
                     catch (Exception ex2)
                     {
@@ -77,7 +78,7 @@ public class ActivityMarshaller(
             dynamic activity = new {Id = id, Status = CompleteStatus, OperationType = operationType};
             var result = await container.Scripts.ExecuteStoredProcedureAsync<Activity>(
                 ActivityBookingProcedureId,
-                new PartitionKey(Activity.PartitionKey),
+                new PartitionKey(CosmosSelectorExtensions.GetModelType<Activity>().ToString()),
                 new[] {activity},
                 new StoredProcedureRequestOptions());
             if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == CompleteStatus)

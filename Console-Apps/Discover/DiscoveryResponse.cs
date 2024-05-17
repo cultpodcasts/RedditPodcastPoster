@@ -1,3 +1,3 @@
 ﻿namespace Discover;
 
-public record DiscoveryResponse(DateTime Initiation);
+public record DiscoveryResponse(DateTime? Initiation);
