@@ -20,7 +20,7 @@ public class Discover(
 
     public override async Task<DiscoveryContext> RunAsync(TaskActivityContext context, DiscoveryContext input)
     {
-        var since = DateTime.UtcNow.Subtract(TimeSpan.Parse(_discoverOptions.Since));
+        var since = DateTime.UtcNow.Subtract(TimeSpan.Parse(_discoverOptions.SearchSince));
         logger.LogInformation(
             $"Discovering items released since '{since.ToUniversalTime():O}' (local:'{since.ToLocalTime():O}'). {_discoverOptions}");
 
