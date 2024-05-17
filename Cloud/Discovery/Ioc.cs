@@ -1,4 +1,5 @@
-﻿using Microsoft.Azure.Functions.Worker;
+﻿using Azure;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
@@ -21,6 +22,7 @@ public static class Ioc
             .AddRepositories()
             .AddSubjectServices()
             .AddDiscovery(hostBuilderContext.Configuration)
+            .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddHttpClient();
 
         serviceCollection.BindConfiguration<DiscoverOptions>("discover");

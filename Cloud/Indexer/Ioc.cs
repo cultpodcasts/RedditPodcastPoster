@@ -5,7 +5,6 @@ using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RedditPodcastPoster.AI.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
@@ -50,7 +49,6 @@ public static class Ioc
             .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddContentPublishing(hostBuilderContext.Configuration)
-            .AddAIServices(hostBuilderContext.Configuration)
             .AddHttpClient();
 
         serviceCollection.BindConfiguration<IndexerOptions>("indexer");

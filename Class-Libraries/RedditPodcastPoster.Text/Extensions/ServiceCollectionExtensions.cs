@@ -20,7 +20,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddEliminationTerms(this IServiceCollection services)
     {
         return services
-            .AddScoped<IEliminationTermsProviderFactory, EliminationTermsProviderFactory>()
+            .AddSingleton<IEliminationTermsProviderFactory, EliminationTermsProviderFactory>()
             .AddSingleton(s => s.GetService<IEliminationTermsProviderFactory>()!.Create().GetAwaiter().GetResult());
     }
 }

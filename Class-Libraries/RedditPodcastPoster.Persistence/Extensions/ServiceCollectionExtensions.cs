@@ -9,16 +9,16 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddRepositories(this IServiceCollection services)
     {
         services
-            .AddScoped<ICosmosDbClientFactory, CosmosDbClientFactory>()
-            .AddScoped<ICosmosDbContainerFactory, CosmosDbContainerFactory>()
-            .AddScoped(s => s.GetService<ICosmosDbClientFactory>()!.Create())
-            .AddScoped(s => s.GetService<ICosmosDbContainerFactory>()!.Create())
-            .AddScoped<IDataRepository, CosmosDbRepository>()
-            .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
-            .AddScoped<IEpisodeMatcher, EpisodeMatcher>()
-            .AddScoped<IPodcastRepository, PodcastRepository>()
+            .AddSingleton<ICosmosDbClientFactory, CosmosDbClientFactory>()
+            .AddSingleton<ICosmosDbContainerFactory, CosmosDbContainerFactory>()
+            .AddSingleton(s => s.GetService<ICosmosDbClientFactory>()!.Create())
+            .AddSingleton(s => s.GetService<ICosmosDbContainerFactory>()!.Create())
+            .AddSingleton<IDataRepository, CosmosDbRepository>()
+            .AddSingleton<ICosmosDbRepository, CosmosDbRepository>()
+            .AddSingleton<IEpisodeMatcher, EpisodeMatcher>()
+            .AddSingleton<IPodcastRepository, PodcastRepository>()
             .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
-            .AddScoped<IEliminationTermsRepository, EliminationTermsRepository>();
+            .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>();
         services.BindConfiguration<CosmosDbSettings>("cosmosdb");
         return services;
     }
