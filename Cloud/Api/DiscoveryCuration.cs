@@ -1,11 +1,14 @@
 using System.Net;
+using Api.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 
 namespace Api;
 
-public class DiscoveryCuration(ILogger<DiscoveryCuration> logger)
+public class DiscoveryCuration(
+    IDiscoveryResultsService discoveryResultsService, 
+    ILogger<DiscoveryCuration> logger)
 {
     private readonly ILogger<DiscoveryCuration> _logger = logger;
 
@@ -17,9 +20,12 @@ public class DiscoveryCuration(ILogger<DiscoveryCuration> logger)
         CancellationToken ct)
     {
         return req.HandleRequest(
-            new[] {"curate"},
-            (r, c) =>
-                r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new {Message = "Success"}, c),
+            ["curate"],
+            async (r, c) =>
+            {
+                var result = await discoveryResultsService.Get(c);
+                return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(result, c);
+            },
             (r, c) =>
                 r.CreateResponse(HttpStatusCode.Unauthorized).WithJsonBody(new {Message = "Unauthorised"}, c),
             ct);

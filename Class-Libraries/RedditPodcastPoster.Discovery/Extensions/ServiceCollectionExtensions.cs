@@ -20,10 +20,17 @@ public static class ServiceCollectionExtensions
             .AddScoped<IEpisodeResultsAdapter, EpisodeResultsAdapter>()
             .AddScoped<IEpisodeResultAdapter, EpisodeResultAdapter>()
             .AddScoped<IIgnoreTermsProvider, IgnoreTermsProvider>()
-            .AddScoped<IDiscoveryResultsRepository, DiscoveryResultsRepository>()
+            .AddDiscoveryRepository(config)
             .AddSpotifyServices(config)
             .AddYouTubeServices(config)
             .AddListenNotes(config)
             .AddTextSanitiser();
+    }
+
+    public static IServiceCollection AddDiscoveryRepository(
+        this IServiceCollection services, IConfiguration config)
+    {
+        return services
+            .AddScoped<IDiscoveryResultsRepository, DiscoveryResultsRepository>();
     }
 }

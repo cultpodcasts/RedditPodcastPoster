@@ -1,8 +1,10 @@
-﻿using iTunesSearch.Library;
+﻿using Api.Services;
+using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
@@ -34,6 +36,8 @@ public static class Ioc
             .AddScoped(s => new iTunesSearchManager())
             .AddSubjectServices()
             .AddUrlSubmission()
+            .AddDiscoveryRepository(hostBuilderContext.Configuration)
+            .AddScoped<IDiscoveryResultsService, DiscoveryResultsService>()
             .AddHttpClient();
     }
 }
