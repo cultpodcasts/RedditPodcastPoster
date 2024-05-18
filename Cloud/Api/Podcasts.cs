@@ -19,7 +19,7 @@ public class Podcasts(IPodcastRepository podcastRepository, ILogger<Podcasts> lo
     )
     {
         return await req.HandleRequest(
-            new[] {"submit"},
+            ["submit"],
             async (r, c) =>
             {
                 try

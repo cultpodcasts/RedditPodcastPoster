@@ -34,7 +34,7 @@ public class DiscoveryCuration(ILogger<DiscoveryCuration> logger)
         CancellationToken ct)
     {
         return req.HandleRequest(
-            new[] {"curate"},
+            ["curate"],
             model,
             (r,m,  c) =>
                 r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new { Message = "Success" }, c),

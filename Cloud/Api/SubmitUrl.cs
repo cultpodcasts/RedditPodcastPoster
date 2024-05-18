@@ -1,6 +1,5 @@
 using System.Net;
 using Api.Dtos;
-using Api.Extensions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -16,42 +15,46 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
         [HttpTrigger(AuthorizationLevel.Anonymous, "post")]
         HttpRequestData req,
         FunctionContext executionContext,
-        [FromBody] SubmitUrlRequest request
+        [FromBody] SubmitUrlRequest submitUrlModel,
+        CancellationToken ct
     )
     {
-        if (req.HasScope("submit"))
-        {
-            try
+        return await req.HandleRequest(
+            ["submit"],
+            submitUrlModel, async (r, m, c) =>
             {
-                logger.LogInformation(
-                    $"{nameof(Run)}: Handling url-submission: url: '{request.Url}', podcast-id: '{request.PodcastId}'.");
-                await urlSubmitter.Submit(
-                    request.Url,
-                    new IndexingContext
-                    {
-                        SkipPodcastDiscovery = false,
-                        SkipExpensiveYouTubeQueries = false,
-                        SkipExpensiveSpotifyQueries = false
-                    },
-                    new SubmitOptions(request.PodcastId, true));
-                var success = req.CreateResponse(HttpStatusCode.OK);
-                await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("success"));
-                return success;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{request.Url}'.");
-            }
+                try
+                {
+                    logger.LogInformation(
+                        $"{nameof(Run)}: Handling url-submission: url: '{submitUrlModel.Url}', podcast-id: '{submitUrlModel.PodcastId}'.");
+                    await urlSubmitter.Submit(
+                        submitUrlModel.Url,
+                        new IndexingContext
+                        {
+                            SkipPodcastDiscovery = false,
+                            SkipExpensiveYouTubeQueries = false,
+                            SkipExpensiveSpotifyQueries = false
+                        },
+                        new SubmitOptions(submitUrlModel.PodcastId, true));
+                    var success = req.CreateResponse(HttpStatusCode.OK);
+                    await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("success"), c);
+                    return success;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{submitUrlModel.Url}'.");
+                }
 
-            var failure = req.CreateResponse(HttpStatusCode.BadRequest);
-            await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
-            return failure;
-        }
-        else
-        {
-            var failure = req.CreateResponse(HttpStatusCode.Forbidden);
-            await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"));
-            return failure;
-        }
+                var failure = req.CreateResponse(HttpStatusCode.BadRequest);
+                await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"), c);
+                return failure;
+            },
+            async (r, m, c) =>
+            {
+                var failure = req.CreateResponse(HttpStatusCode.Forbidden);
+                await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"), c);
+                return failure;
+            },
+            ct);
     }
 }
