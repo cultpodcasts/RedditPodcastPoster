@@ -28,8 +28,8 @@ public class Podcasts(IPodcastRepository podcastRepository, ILogger<Podcasts> lo
                         podcast => !podcast.Removed.IsDefined() || podcast.Removed == false,
                         podcast => new {id = podcast.Id, name = podcast.Name});
 
-                    var success = req.CreateResponse(HttpStatusCode.OK);
-                    await success.WriteAsJsonAsync(await podcasts.ToListAsync(c), c);
+                    var success = await req.CreateResponse(HttpStatusCode.OK)
+                        .WithJsonBody(await podcasts.ToListAsync(c), c);
                     return success;
                 }
                 catch (Exception ex)
@@ -37,14 +37,14 @@ public class Podcasts(IPodcastRepository podcastRepository, ILogger<Podcasts> lo
                     logger.LogError(ex, $"{nameof(Run)}: Failed to get-podcasts.");
                 }
 
-                var failure = req.CreateResponse(HttpStatusCode.InternalServerError);
-                await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to retrieve podcasts"), c);
+                var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
+                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve podcasts"), c);
                 return failure;
             },
             async (r, c) =>
             {
-                var failure = req.CreateResponse(HttpStatusCode.Forbidden);
-                await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unauthorised"), ct);
+                var failure = await req.CreateResponse(HttpStatusCode.Forbidden)
+                    .WithJsonBody(SubmitUrlResponse.Failure("Unauthorised"), c);
                 return failure;
             },
             ct);

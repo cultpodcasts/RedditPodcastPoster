@@ -36,8 +36,8 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
                             SkipExpensiveSpotifyQueries = false
                         },
                         new SubmitOptions(submitUrlModel.PodcastId, true));
-                    var success = req.CreateResponse(HttpStatusCode.OK);
-                    await success.WriteAsJsonAsync(SubmitUrlResponse.Successful("success"), c);
+                    var success = await req.CreateResponse(HttpStatusCode.OK)
+                        .WithJsonBody(SubmitUrlResponse.Successful("success"), c);
                     return success;
                 }
                 catch (Exception ex)
@@ -45,14 +45,14 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
                     logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{submitUrlModel.Url}'.");
                 }
 
-                var failure = req.CreateResponse(HttpStatusCode.BadRequest);
-                await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"), c);
+                var failure = await req.CreateResponse(HttpStatusCode.BadRequest)
+                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to accept"), c);
                 return failure;
             },
             async (r, m, c) =>
             {
-                var failure = req.CreateResponse(HttpStatusCode.Forbidden);
-                await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to accept"), c);
+                var failure = await req.CreateResponse(HttpStatusCode.Forbidden)
+                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to accept"), c);
                 return failure;
             },
             ct);
