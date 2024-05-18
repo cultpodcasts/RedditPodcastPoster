@@ -5,14 +5,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Api;
 
-public class DiscoveryCuration
+public class DiscoveryCuration(ILogger<DiscoveryCuration> logger)
 {
-    private readonly ILogger<DiscoveryCuration> _logger;
-
-    public DiscoveryCuration(ILogger<DiscoveryCuration> logger)
-    {
-        _logger = logger;
-    }
+    private readonly ILogger<DiscoveryCuration> _logger = logger;
 
     [Function("DiscoveryCuration")]
     public Task<HttpResponseData> Run(
@@ -23,17 +18,11 @@ public class DiscoveryCuration
     {
         return req.HandleRequest(
             new[] {"curate"},
-            async (r, c) =>
-            {
-                var success = r.CreateResponse(HttpStatusCode.OK);
-                await success.WriteAsJsonAsync(new {Message = "Success"}, c);
-                return success;
-            }, async (r, c) =>
-            {
-                var failure = r.CreateResponse(HttpStatusCode.Unauthorized);
-                await failure.WriteAsJsonAsync(new {Message = "Unauthorised"}, c);
-                return failure;
-            }, ct);
+            (r, c) =>
+                r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new {Message = "Success"}, c),
+            (r, c) =>
+                r.CreateResponse(HttpStatusCode.Unauthorized).WithJsonBody(new {Message = "Unauthorised"}, c),
+            ct);
     }
 
     [Function("DiscoveryCurationWithModel")]
@@ -47,17 +36,11 @@ public class DiscoveryCuration
         return req.HandleRequest(
             new[] {"curate"},
             model,
-            async (r, m, c) =>
-            {
-                var success = r.CreateResponse(HttpStatusCode.OK);
-                await success.WriteAsJsonAsync(new {Message = "Success"}, c);
-                return success;
-            }, async (r, m, c) =>
-            {
-                var failure = r.CreateResponse(HttpStatusCode.Unauthorized);
-                await failure.WriteAsJsonAsync(new {Message = "Unauthorised"}, c);
-                return failure;
-            }, ct);
+            (r,m,  c) =>
+                r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new { Message = "Success" }, c),
+            (r,m,  c) =>
+                r.CreateResponse(HttpStatusCode.Unauthorized).WithJsonBody(new { Message = "Unauthorised" }, c),
+            ct);
     }
 }
 

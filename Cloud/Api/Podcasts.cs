@@ -1,6 +1,5 @@
 using System.Net;
 using Api.Dtos;
-using Api.Extensions;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -19,32 +18,35 @@ public class Podcasts(IPodcastRepository podcastRepository, ILogger<Podcasts> lo
         CancellationToken ct
     )
     {
-        if (req.HasScope("submit"))
-        {
-            try
+        return await req.HandleRequest(
+            new[] {"submit"},
+            async (r, c) =>
             {
-                var podcasts = podcastRepository.GetAllBy(
-                    podcast => !podcast.Removed.IsDefined() || podcast.Removed == false,
-                    podcast => new {id = podcast.Id, name = podcast.Name});
+                try
+                {
+                    var podcasts = podcastRepository.GetAllBy(
+                        podcast => !podcast.Removed.IsDefined() || podcast.Removed == false,
+                        podcast => new {id = podcast.Id, name = podcast.Name});
 
-                var success = req.CreateResponse(HttpStatusCode.OK);
-                await success.WriteAsJsonAsync(await podcasts.ToListAsync(ct), ct);
-                return success;
-            }
-            catch (Exception ex)
+                    var success = req.CreateResponse(HttpStatusCode.OK);
+                    await success.WriteAsJsonAsync(await podcasts.ToListAsync(c), c);
+                    return success;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, $"{nameof(Run)}: Failed to get-podcasts.");
+                }
+
+                var failure = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to retrieve podcasts"), c);
+                return failure;
+            },
+            async (r, c) =>
             {
-                logger.LogError(ex, $"{nameof(Run)}: Failed to get-podcasts.");
-            }
-
-            var failure = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to retrieve podcasts"), ct);
-            return failure;
-        }
-        else
-        {
-            var failure = req.CreateResponse(HttpStatusCode.Forbidden);
-            await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unauthorised"), ct);
-            return failure;
-        }
+                var failure = req.CreateResponse(HttpStatusCode.Forbidden);
+                await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unauthorised"), ct);
+                return failure;
+            },
+            ct);
     }
 }
