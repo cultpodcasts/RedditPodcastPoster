@@ -19,7 +19,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddFileRepository()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddSingleton<PublicDatabasePublisher>();
 
 using var host = builder.Build();

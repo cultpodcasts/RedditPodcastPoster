@@ -30,7 +30,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<AddAudioPodcastProcessor>()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddPodcastServices(builder.Configuration)
     .AddAppleServices()
     .AddSpotifyServices(builder.Configuration)

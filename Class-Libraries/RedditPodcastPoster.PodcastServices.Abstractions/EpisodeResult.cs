@@ -7,7 +7,7 @@ public record EpisodeResult(
     string EpisodeName,
     TimeSpan? Length,
     string ShowName,
-    DiscoveryService DiscoveryService,
+    DiscoverService DiscoverService,
     Uri? Url = null,
     string? ServicePodcastId = null,
     ulong? ViewCount = null,

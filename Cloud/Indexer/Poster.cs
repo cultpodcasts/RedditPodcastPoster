@@ -28,7 +28,7 @@ public class Poster(
         var baselineDate = DateTimeHelper.DaysAgo(_posterOptions.ReleasedDaysAgo);
 
         logger.LogInformation(
-            $"{nameof(RunAsync)} Posting with options released-since: '{baselineDate:dd/MM/yyyy HH:mm:ss}''.");
+            $"{nameof(RunAsync)} Posting with options released-since: '{baselineDate:O}''.");
 
         if (DryRun.IsPosterDryRun)
         {

@@ -20,4 +20,10 @@ public class DiscoveryRequest
 
     [Option('y', "include-youtube", Default = false, HelpText = "Search Listen Notes")]
     public bool IncludeYouTube { get; set; }
+
+    [Option('e', "enrich-listen-notes", Default = true, HelpText = "Enrich Listen Notes from Spotify")]
+    public bool EnrichListenNotesFromSpotify { get; set; }
+
+    [Option('u', "use-remote", Default = true, HelpText = "Use Remotely Collected Data")]
+    public bool UseRemote { get; set; }
 }

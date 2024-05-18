@@ -18,7 +18,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddFileRepository()
     .AddSingleton<CosmosDbDownloader.CosmosDbDownloader>();
 

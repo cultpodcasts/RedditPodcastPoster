@@ -22,22 +22,22 @@ public class SearchProvider(
         foreach (var config in discoveryConfig.ServiceConfigs)
         {
             var serviceResults = Enumerable.Empty<EpisodeResult>();
-            switch (config.DiscoveryService)
+            switch (config.DiscoverService)
             {
-                case DiscoveryService.ListenNotes:
+                case DiscoverService.ListenNotes:
                     serviceResults = await listenNotesSearcher.Search(
                         config.Term,
                         indexingContext,
                         discoveryConfig.EnrichFromSpotify);
                     break;
-                case DiscoveryService.Spotify:
+                case DiscoverService.Spotify:
                     serviceResults = await spotifySearcher.Search(config.Term, indexingContext);
                     break;
-                case DiscoveryService.YouTube:
+                case DiscoverService.YouTube:
                     serviceResults = await youTubeSearcher.Search(config.Term, indexingContext);
                     break;
                 default:
-                    logger.LogError($"Unhandled {nameof(DiscoveryService)}");
+                    logger.LogError($"Unhandled {nameof(DiscoverService)}");
                     break;
             }
 

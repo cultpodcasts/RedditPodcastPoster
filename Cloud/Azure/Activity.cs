@@ -1,19 +1,20 @@
 ﻿using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models;
 
 namespace Azure;
 
-public sealed class Activity
-{
-    public static string PartitionKey = nameof(Activity);
+[CosmosSelector(ModelType.Activity)]
 
-    [JsonPropertyName("id")]
-    public Guid Id { get; set; }
+public sealed class Activity : CosmosSelector
+{
+    public Activity()
+    {
+        Id = Guid.NewGuid();
+        ModelType = ModelType.Activity;
+    }
 
     [JsonPropertyName("status")]
     public required string Status { get; set; }
-
-    [JsonPropertyName("type")]
-    public required string Type { get; set; }
 
     [JsonPropertyName("operationType")]
     public required string OperationType { get; set; }

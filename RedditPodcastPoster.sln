@@ -62,6 +62,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{
 	ProjectSection(SolutionItems) = preProject
 		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
 		.github\workflows\main_api-cultpodcasts.yml = .github\workflows\main_api-cultpodcasts.yml
+		.github\workflows\main_discover-cultpodcasts.yml = .github\workflows\main_discover-cultpodcasts.yml
 		.github\workflows\main_indexer-cultpodcasts.yml = .github\workflows\main_indexer-cultpodcasts.yml
 	EndProjectSection
 EndProject
@@ -142,6 +143,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Discovery", "Class-Libraries\RedditPodcastPoster.Discovery\RedditPodcastPoster.Discovery.csproj", "{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Api", "Cloud\Api\Api.csproj", "{DB24B573-899C-40EB-99A6-92681230D39C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Discovery", "Cloud\Discovery\Discovery.csproj", "{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -385,6 +388,10 @@ Global
 		{DB24B573-899C-40EB-99A6-92681230D39C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DB24B573-899C-40EB-99A6-92681230D39C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DB24B573-899C-40EB-99A6-92681230D39C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -450,6 +457,7 @@ Global
 		{9C87F6A7-CBEA-4673-8FBA-C7A73F3E09CE} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{DB24B573-899C-40EB-99A6-92681230D39C} = {8C39850E-EB98-4D1F-B961-FBF7FF98049E}
+		{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723} = {8C39850E-EB98-4D1F-B961-FBF7FF98049E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

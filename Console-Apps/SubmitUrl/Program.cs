@@ -30,7 +30,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddPodcastServices(builder.Configuration)
     .AddSpotifyServices(builder.Configuration)
     .AddAppleServices()

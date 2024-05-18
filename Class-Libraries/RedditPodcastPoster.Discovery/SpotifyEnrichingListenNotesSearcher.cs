@@ -8,9 +8,7 @@ namespace RedditPodcastPoster.Discovery;
 public class SpotifyEnrichingListenNotesSearcher(
     IListenNotesSearcher listenNotesSearcher,
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
-#pragma warning disable CS9113 // Parameter is unread.
     ILogger<SpotifyEnrichingListenNotesSearcher> logger
-#pragma warning restore CS9113 // Parameter is unread.
 ) : ISpotifyEnrichingListenNotesSearcher
 {
     public async Task<IEnumerable<EpisodeResult>> Search(
@@ -18,6 +16,7 @@ public class SpotifyEnrichingListenNotesSearcher(
         IndexingContext indexingContext,
         bool enrichFromSpotify)
     {
+        logger.LogInformation($"{nameof(Search)}: searching '{query}'. Enrich-from-spotify: '{enrichFromSpotify}'.");
         var results = new List<EpisodeResult>();
         var episodeResults = await listenNotesSearcher.Search(query, indexingContext);
         if (enrichFromSpotify)
@@ -39,7 +38,7 @@ public class SpotifyEnrichingListenNotesSearcher(
                     var enrichedResult = episodeResult with
                     {
                         Url = spotifyResult.FullEpisode.GetUrl(),
-                        DiscoveryService = DiscoveryService.Spotify,
+                        DiscoverService = DiscoverService.Spotify,
                         ServicePodcastId = spotifyResult.FullEpisode.Show.Id
                     };
                     results.Add(enrichedResult);

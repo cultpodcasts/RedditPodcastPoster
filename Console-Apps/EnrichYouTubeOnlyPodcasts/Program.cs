@@ -25,7 +25,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddYouTubeServices(builder.Configuration)
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddYouTubeServices(builder.Configuration)
     .AddSubjectServices()
     .AddSingleton<EnrichYouTubePodcastProcessor>()

@@ -22,7 +22,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddSingleton<TweetProcessor>()
     .AddTwitterServices(builder.Configuration)
     .AddSubjectServices()

@@ -27,7 +27,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddFileRepository("subreddit-repository")
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddSubredditServices(builder.Configuration)
     .AddSpotifyServices(builder.Configuration)
     .AddYouTubeServices(builder.Configuration)

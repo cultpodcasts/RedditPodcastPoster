@@ -9,15 +9,14 @@ namespace RedditPodcastPoster.PodcastServices.Spotify;
 public class SpotifySearcher(
     ISpotifyClientWrapper spotifyClient,
     IHtmlSanitiser htmlSanitiser,
-#pragma warning disable CS9113 // Parameter is unread.
     ILogger<SpotifySearcher> logger
-#pragma warning restore CS9113 // Parameter is unread.
 ) : ISpotifySearcher
 {
     private readonly Uri _spotifyEpisodeBase = new("https://open.spotify.com/episode/");
 
     public async Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext)
     {
+        logger.LogInformation($"{nameof(Search)}: query: '{query}'.");
         var results = await spotifyClient.FindEpisodes(
             new SearchRequest(SearchRequest.Types.Episode, query) {Market = Market.CountryCode},
             indexingContext);
@@ -54,7 +53,7 @@ public class SpotifySearcher(
             htmlSanitiser.Sanitise(episode.HtmlDescription).Trim(),
             episode.Name.Trim(),
             episode.GetDuration(),
-            episode.Show.Name.Trim(), DiscoveryService.Spotify,
+            episode.Show.Name.Trim(), DiscoverService.Spotify,
             new Uri(_spotifyEpisodeBase, episode.Id),
             episode.Show.Id);
     }

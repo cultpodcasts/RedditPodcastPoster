@@ -30,7 +30,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddSingleton<IndexProcessor>()
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddSingleton<PodcastFactory>()
     .AddPodcastServices(builder.Configuration)
     .AddAppleServices()

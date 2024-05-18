@@ -21,7 +21,7 @@ builder.Configuration
     .AddSecrets(Assembly.GetExecutingAssembly());
 
 builder.Services
-    .AddRepositories(builder.Configuration)
+    .AddRepositories()
     .AddYouTubeServices(builder.Configuration)
     .AddScoped<AddYouTubeChannelProcessor>()
     .AddSingleton<PodcastFactory>()
