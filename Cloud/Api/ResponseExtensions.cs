@@ -9,7 +9,7 @@ public static class ResponseExtensions
         object body,
         CancellationToken ct)
     {
-        await response.WriteAsJsonAsync(new {Message = "Success"}, ct);
+        await response.WriteAsJsonAsync(body, ct);
         return response;
     }
 }
