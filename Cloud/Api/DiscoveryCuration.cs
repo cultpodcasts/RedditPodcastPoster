@@ -3,15 +3,16 @@ using Api.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Api;
 
 public class DiscoveryCuration(
-    IDiscoveryResultsService discoveryResultsService, 
-    ILogger<DiscoveryCuration> logger)
+    IDiscoveryResultsService discoveryResultsService,
+    ILogger<DiscoveryCuration> logger,
+    IOptions<HostingOptions> hostingOptions)
+    : BaseHttpFunction(hostingOptions)
 {
-    private readonly ILogger<DiscoveryCuration> _logger = logger;
-
     [Function("DiscoveryCuration")]
     public Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get")]
@@ -19,7 +20,8 @@ public class DiscoveryCuration(
         FunctionContext executionContext,
         CancellationToken ct)
     {
-        return req.HandleRequest(
+        return HandleRequest(
+            req,
             ["curate"],
             async (r, c) =>
             {
@@ -39,13 +41,14 @@ public class DiscoveryCuration(
         [FromBody] Model model,
         CancellationToken ct)
     {
-        return req.HandleRequest(
+        return HandleRequest(
+            req,
             ["curate"],
             model,
-            (r,m,  c) =>
-                r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new { Message = "Success" }, c),
-            (r,m,  c) =>
-                r.CreateResponse(HttpStatusCode.Unauthorized).WithJsonBody(new { Message = "Unauthorised" }, c),
+            (r, m, c) =>
+                r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new {Message = "Success"}, c),
+            (r, m, c) =>
+                r.CreateResponse(HttpStatusCode.Unauthorized).WithJsonBody(new {Message = "Unauthorised"}, c),
             ct);
     }
 }

@@ -1,12 +1,15 @@
 using Api.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Options;
 
 namespace Api;
 
-public static class RequestExtensions
+public abstract class BaseHttpFunction(IOptions<HostingOptions> hostingOptions)
 {
-    public static Task<HttpResponseData> HandleRequest(
-        this HttpRequestData req,
+    protected HostingOptions HostingOptions = hostingOptions.Value;
+
+    protected Task<HttpResponseData> HandleRequest(
+        HttpRequestData req,
         string[] roles,
         Func<HttpRequestData, CancellationToken, Task<HttpResponseData>> authorised,
         Func<HttpRequestData, CancellationToken, Task<HttpResponseData>> unauthorised,
@@ -16,10 +19,11 @@ public static class RequestExtensions
         var roleCtr = 0;
         while (!isAuthorised && roleCtr < roles.Length)
         {
-            isAuthorised = req.HasScope(roles[roleCtr++]);
+            var scope = roles[roleCtr++];
+            isAuthorised = req.HasScope(scope) || HostingOptions.UserRoles.Contains(scope);
         }
 
-        if (isAuthorised)
+        if (isAuthorised || roles.Contains("*"))
         {
             return authorised(req, ct);
         }
@@ -27,8 +31,8 @@ public static class RequestExtensions
         return unauthorised(req, ct);
     }
 
-    public static Task<HttpResponseData> HandleRequest<T>(
-        this HttpRequestData req,
+    protected Task<HttpResponseData> HandleRequest<T>(
+        HttpRequestData req,
         string[] roles,
         T model,
         Func<HttpRequestData, T, CancellationToken, Task<HttpResponseData>> authorised,
@@ -39,7 +43,8 @@ public static class RequestExtensions
         var roleCtr = 0;
         while (!isAuthorised && roleCtr < roles.Length)
         {
-            isAuthorised = req.HasScope(roles[roleCtr++]);
+            var scope = roles[roleCtr++];
+            isAuthorised = req.HasScope(scope) || HostingOptions.UserRoles.Contains(scope);
         }
 
         if (isAuthorised)

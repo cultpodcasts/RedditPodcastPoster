@@ -3,12 +3,17 @@ using Api.Dtos;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
-public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
+public class SubmitUrl(
+    IUrlSubmitter urlSubmitter,
+    ILogger<SubmitUrl> logger,
+    IOptions<HostingOptions> hostingOptions)
+    : BaseHttpFunction(hostingOptions)
 {
     [Function("SubmitUrl")]
     public async Task<HttpResponseData> Run(
@@ -19,9 +24,11 @@ public class SubmitUrl(IUrlSubmitter urlSubmitter, ILogger<SubmitUrl> logger)
         CancellationToken ct
     )
     {
-        return await req.HandleRequest(
+        return await HandleRequest(
+            req,
             ["submit"],
-            submitUrlModel, async (r, m, c) =>
+            submitUrlModel, 
+            async (r, m, c) =>
             {
                 try
                 {

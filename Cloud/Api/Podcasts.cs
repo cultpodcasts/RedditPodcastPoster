@@ -4,11 +4,16 @@ using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace Api;
 
-public class Podcasts(IPodcastRepository podcastRepository, ILogger<Podcasts> logger)
+public class Podcasts(
+    IPodcastRepository podcastRepository,
+    ILogger<Podcasts> logger,
+    IOptions<HostingOptions> hostingOptions)
+    : BaseHttpFunction(hostingOptions)
 {
     [Function("Podcasts")]
     public async Task<HttpResponseData> Run(
@@ -18,7 +23,8 @@ public class Podcasts(IPodcastRepository podcastRepository, ILogger<Podcasts> lo
         CancellationToken ct
     )
     {
-        return await req.HandleRequest(
+        return await HandleRequest(
+            req,
             ["submit"],
             async (r, c) =>
             {
