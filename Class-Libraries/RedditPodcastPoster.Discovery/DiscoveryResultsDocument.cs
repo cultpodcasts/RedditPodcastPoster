@@ -29,5 +29,6 @@ public sealed class DiscoveryResultsDocument : CosmosSelector
 public enum DiscoveryResultState
 {
     None = 0,
-    Unprocessed=1
+    Unprocessed=1,
+    Processed=2
 }

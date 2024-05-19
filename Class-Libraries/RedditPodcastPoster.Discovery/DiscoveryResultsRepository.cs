@@ -36,4 +36,9 @@ public class DiscoveryResultsRepository(
                 $"{nameof(SetProcessed)} Failure to delete {nameof(DiscoveryResultsDocument)}s with ids: {string.Join(", ", ids)}.");
         }
     }
+
+    public Task<DiscoveryResultsDocument?> GetById(Guid documentId)
+    {
+        return repository.GetBy<DiscoveryResultsDocument>(x => x.Id == documentId);
+    }
 }
