@@ -144,7 +144,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Discove
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Api", "Cloud\Api\Api.csproj", "{DB24B573-899C-40EB-99A6-92681230D39C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Discovery", "Cloud\Discovery\Discovery.csproj", "{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Discovery", "Cloud\Discovery\Discovery.csproj", "{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

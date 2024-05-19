@@ -2,18 +2,14 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
-using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.Discovery;
 
 public class DiscoveryResultsRepository(
-
     IDataRepository repository,
     Container container,
     ILogger<DiscoveryResultsRepository> logger) : IDiscoveryResultsRepository
 {
-
-
     public Task Save(DiscoveryResultsDocument discoveryResultsDocument)
     {
         logger.LogInformation($"{nameof(Save)} initiated.");
@@ -22,7 +18,7 @@ public class DiscoveryResultsRepository(
 
     public IAsyncEnumerable<DiscoveryResultsDocument> GetAllUnprocessed()
     {
-        return repository.GetAll<DiscoveryResultsDocument>().Where(x=>x.State== DiscoveryResultState.Unprocessed);
+        return repository.GetAll<DiscoveryResultsDocument>().Where(x => x.State == DiscoveryResultState.Unprocessed);
     }
 
     public async Task SetProcessed(IEnumerable<Guid> ids)
@@ -36,7 +32,13 @@ public class DiscoveryResultsRepository(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(SetProcessed)} Failure to delete {nameof(DiscoveryResultsDocument)}s with ids: {string.Join(", ", ids)}." );
+            logger.LogError(ex,
+                $"{nameof(SetProcessed)} Failure to delete {nameof(DiscoveryResultsDocument)}s with ids: {string.Join(", ", ids)}.");
         }
+    }
+
+    public Task<DiscoveryResultsDocument?> GetById(Guid documentId)
+    {
+        return repository.GetBy<DiscoveryResultsDocument>(x => x.Id == documentId);
     }
 }

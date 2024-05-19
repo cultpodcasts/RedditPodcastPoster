@@ -1,15 +1,19 @@
 using System.Net;
 using Api.Dtos;
-using Api.Extensions;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace Api;
 
-public class Podcasts(IPodcastRepository podcastRepository, ILogger<Podcasts> logger)
+public class Podcasts(
+    IPodcastRepository podcastRepository,
+    ILogger<Podcasts> logger,
+    IOptions<HostingOptions> hostingOptions)
+    : BaseHttpFunction(hostingOptions)
 {
     [Function("Podcasts")]
     public async Task<HttpResponseData> Run(
@@ -19,32 +23,36 @@ public class Podcasts(IPodcastRepository podcastRepository, ILogger<Podcasts> lo
         CancellationToken ct
     )
     {
-        if (req.HasScope("submit"))
-        {
-            try
+        return await HandleRequest(
+            req,
+            ["submit"],
+            async (r, c) =>
             {
-                var podcasts = podcastRepository.GetAllBy(
-                    podcast => !podcast.Removed.IsDefined() || podcast.Removed == false,
-                    podcast => new {id = podcast.Id, name = podcast.Name});
+                try
+                {
+                    var podcasts = podcastRepository.GetAllBy(
+                        podcast => !podcast.Removed.IsDefined() || podcast.Removed == false,
+                        podcast => new {id = podcast.Id, name = podcast.Name});
 
-                var success = req.CreateResponse(HttpStatusCode.OK);
-                await success.WriteAsJsonAsync(await podcasts.ToListAsync(ct), ct);
-                return success;
-            }
-            catch (Exception ex)
+                    var success = await req.CreateResponse(HttpStatusCode.OK)
+                        .WithJsonBody(await podcasts.ToListAsync(c), c);
+                    return success;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, $"{nameof(Run)}: Failed to get-podcasts.");
+                }
+
+                var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
+                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve podcasts"), c);
+                return failure;
+            },
+            async (r, c) =>
             {
-                logger.LogError(ex, $"{nameof(Run)}: Failed to get-podcasts.");
-            }
-
-            var failure = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unable to retrieve podcasts"), ct);
-            return failure;
-        }
-        else
-        {
-            var failure = req.CreateResponse(HttpStatusCode.Forbidden);
-            await failure.WriteAsJsonAsync(SubmitUrlResponse.Failure("Unauthorised"), ct);
-            return failure;
-        }
+                var failure = await req.CreateResponse(HttpStatusCode.Forbidden)
+                    .WithJsonBody(SubmitUrlResponse.Failure("Unauthorised"), c);
+                return failure;
+            },
+            ct);
     }
 }

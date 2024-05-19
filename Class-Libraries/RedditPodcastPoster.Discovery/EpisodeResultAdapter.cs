@@ -7,7 +7,10 @@ namespace RedditPodcastPoster.Discovery;
 
 public class EpisodeResultAdapter(
     ISubjectMatcher subjectMatcher,
-    ILogger<EpisodeResultAdapter> logger) : IEpisodeResultAdapter
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<EpisodeResultAdapter> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) : IEpisodeResultAdapter
 {
     public async Task<DiscoveryResult> ToDiscoveryResult(EpisodeResult episode)
     {
