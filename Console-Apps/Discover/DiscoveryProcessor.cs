@@ -75,7 +75,7 @@ public class DiscoveryProcessor(
 
         if (request.UseRemote)
         {
-            discoveryResultsRepository.SetProcessed(unprocessedEpisodes!.Select(x => x.Id));
+            await discoveryResultsRepository.SetProcessed(unprocessedEpisodes!.Select(x => x.Id));
         }
 
         return new DiscoveryResponse(latest);
