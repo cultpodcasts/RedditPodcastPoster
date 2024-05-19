@@ -17,9 +17,11 @@ public class DiscoveryCuration(
     IOptions<HostingOptions> hostingOptions)
     : BaseHttpFunction(hostingOptions)
 {
-    [Function("DiscoveryCuration")]
+    private const string? Route = "DiscoveryCuration";
+
+    [Function("DiscoveryCurationGet")]
     public Task<HttpResponseData> Get(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = Route)]
         HttpRequestData req,
         FunctionContext executionContext,
         CancellationToken ct)
@@ -37,9 +39,9 @@ public class DiscoveryCuration(
             ct);
     }
 
-    [Function("DiscoveryCurationWithModel")]
+    [Function("DiscoveryCurationPost")]
     public Task<HttpResponseData> Post(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "DiscoveryCuration")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
         HttpRequestData req,
         FunctionContext executionContext,
         [FromBody] DiscoveryIngest discoveryIngest,
