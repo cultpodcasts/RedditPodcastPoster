@@ -24,6 +24,6 @@ public class DiscoveryRequest
     [Option('e', "enrich-listen-notes", Default = true, HelpText = "Enrich Listen Notes from Spotify")]
     public bool EnrichListenNotesFromSpotify { get; set; }
 
-    [Option('u', "use-remote", Default = true, HelpText = "Use Remotely Collected Data")]
+    [Option('u', "use-remote", Default = false, HelpText = "Use Remotely Collected Data")]
     public bool UseRemote { get; set; }
 }
