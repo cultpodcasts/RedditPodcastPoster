@@ -17,10 +17,10 @@ public class SpotifyEnrichingListenNotesSearcher(
         bool enrichFromSpotify)
     {
         logger.LogInformation($"{nameof(Search)}: searching '{query}'. Enrich-from-spotify: '{enrichFromSpotify}'.");
-        var results = new List<EpisodeResult>();
         var episodeResults = await listenNotesSearcher.Search(query, indexingContext);
         if (enrichFromSpotify)
         {
+            var results = new List<EpisodeResult>();
             foreach (var episodeResult in episodeResults)
             {
                 var episodeRequest = new FindSpotifyEpisodeRequest(
@@ -49,9 +49,11 @@ public class SpotifyEnrichingListenNotesSearcher(
                 }
             }
 
+            logger.LogInformation($"{nameof(Search)}: Found {results.Count} items from listen-notes enriched-from-spotify matching query '{query}'.");
             return results;
         }
 
+        logger.LogInformation($"{nameof(Search)}: Found {episodeResults.Count()} items from listen-notes not-enriched-from-spotify matching query '{query}'.");
         return episodeResults;
     }
 }

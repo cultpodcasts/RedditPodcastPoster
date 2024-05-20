@@ -52,8 +52,10 @@ public class Discover(
                 $"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}'), indexing-context: {indexingContext}");
             var discoveryConfig = new DiscoveryConfig(serviceConfigs, _discoverOptions.EnrichListenNotesFromSpotify);
 
+            var preIndexingContextSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
             var discoveryResults = await discoveryService.GetDiscoveryResults(indexingContext, discoveryConfig);
             var discoveryResultsDocument = new DiscoveryResultsDocument(discoveryBegan, discoveryResults);
+            EnrichDiscoveryResultsDocument(discoveryResultsDocument, _discoverOptions, indexingContext, preIndexingContextSkipSpotify);
 
             await discoveryResultsRepository.Save(discoveryResultsDocument);
 
@@ -94,5 +96,20 @@ public class Discover(
         {
             Success = results
         };
+    }
+
+    private void EnrichDiscoveryResultsDocument(
+        DiscoveryResultsDocument discoveryResultsDocument, 
+        DiscoverOptions discoverOptions, 
+        IndexingContext indexingContext, 
+        bool preIndexingContextSkipSpotify)
+    {
+        discoveryResultsDocument.ExcludeSpotify = discoverOptions.ExcludeSpotify;
+        discoveryResultsDocument.IncludeYouTube = discoverOptions.IncludeYouTube;
+        discoveryResultsDocument.IncludeListenNotes = discoverOptions.IncludeListenNotes;
+        discoveryResultsDocument.EnrichListenNotesFromSpotify = discoverOptions.EnrichListenNotesFromSpotify;
+        discoveryResultsDocument.SearchSince = discoverOptions.SearchSince;
+        discoveryResultsDocument.PreSkipSpotifyUrlResolving = preIndexingContextSkipSpotify;
+        discoveryResultsDocument.PostSkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving;
     }
 }

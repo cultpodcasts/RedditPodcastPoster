@@ -7,7 +7,7 @@ on:
   push:
     branches:
       - main
-      - feature/discovery-curation
+      - feature/improve-obs-on-discovery
   workflow_dispatch:
 
 env:

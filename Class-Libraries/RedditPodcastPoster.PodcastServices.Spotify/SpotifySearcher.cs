@@ -38,10 +38,15 @@ public class SpotifySearcher(
                         new EpisodesRequest(recentResults.Select(x => x.Id).ToArray()) {Market = Market.CountryCode},
                         indexingContext);
 
-                return fullShows?.Episodes.Select(ToEpisodeResult) ?? Enumerable.Empty<EpisodeResult>();
+                var episodeResults = fullShows?.Episodes.Select(ToEpisodeResult) ?? Enumerable.Empty<EpisodeResult>();
+                logger.LogInformation(
+                    $"{nameof(Search)}: Found {episodeResults.Count()} items from spotify matching query '{query}'.");
+
+                return episodeResults;
             }
         }
 
+        logger.LogInformation($"{nameof(Search)}: Found no items from spotify matching query '{query}'.");
         return Enumerable.Empty<EpisodeResult>();
     }
 
