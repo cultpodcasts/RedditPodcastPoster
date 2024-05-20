@@ -44,10 +44,14 @@ public class SearchProvider(
             results.AddRange(serviceResults);
         }
 
-        return results
+        var items = results
             .Where(x => x.Released >= indexingContext.ReleasedSince)
             .GroupBy(x => x.EpisodeName)
             .Select(x => x.FirstOrDefault(y => y.Url != null) ?? x.First())
             .OrderBy(x => x.Released);
+
+        logger.LogInformation(
+            $"total-items: '{items.Count()}', spotify-items '{items.Count(x => x.DiscoverService == DiscoverService.Spotify)}, youtube-items: '{items.Count(x => x.DiscoverService == DiscoverService.YouTube)}', listen-notes-items: '{items.Count(x => x.DiscoverService == DiscoverService.ListenNotes)}'.");
+        return items;
     }
 }
