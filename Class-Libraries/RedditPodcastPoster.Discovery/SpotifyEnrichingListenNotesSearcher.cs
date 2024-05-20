@@ -53,12 +53,12 @@ public class SpotifyEnrichingListenNotesSearcher(
             }
 
             logger.LogInformation(
-                $"{nameof(Search)}: Found {results.Count} items from listen-notes enriched-from-spotify matching query '{query}'.");
+                $"{nameof(Search)}: Found {results.Count(x => x.Released >= indexingContext.ReleasedSince)} items from listen-notes enriched-from-spotify matching query '{query}'.");
             return results;
         }
 
         logger.LogInformation(
-            $"{nameof(Search)}: Found {episodeResults.Count()} items from listen-notes not-enriched-from-spotify matching query '{query}'.");
+            $"{nameof(Search)}: Found {episodeResults.Count(x => x.Released >= indexingContext.ReleasedSince)} items from listen-notes not-enriched-from-spotify matching query '{query}'.");
         return episodeResults;
     }
 }

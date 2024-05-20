@@ -40,7 +40,7 @@ public class SpotifySearcher(
 
                 var episodeResults = fullShows?.Episodes.Select(ToEpisodeResult) ?? Enumerable.Empty<EpisodeResult>();
                 logger.LogInformation(
-                    $"{nameof(Search)}: Found {episodeResults.Count()} items from spotify matching query '{query}'.");
+                    $"{nameof(Search)}: Found {episodeResults.Count(x => x.Released >= indexingContext.ReleasedSince)} items from spotify matching query '{query}'.");
 
                 return episodeResults;
             }

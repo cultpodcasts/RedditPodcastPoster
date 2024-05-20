@@ -30,7 +30,7 @@ public class YouTubeSearcher(
         var @long = await Search(query, indexingContext, VideoDurationEnum.Long__);
         var episodeResults = medium.Union(@long).Distinct();
         logger.LogInformation(
-            $"{nameof(Search)}: Found {episodeResults.Count()} items from youtube matching query '{query}'.");
+            $"{nameof(Search)}: Found {episodeResults.Count(x => x.Released >= indexingContext.ReleasedSince)} items from youtube matching query '{query}'.");
 
         return episodeResults;
     }
