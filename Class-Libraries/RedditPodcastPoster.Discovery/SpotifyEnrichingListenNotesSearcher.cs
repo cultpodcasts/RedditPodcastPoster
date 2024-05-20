@@ -35,11 +35,14 @@ public class SpotifyEnrichingListenNotesSearcher(
                     episodeRequest, indexingContext);
                 if (spotifyResult.FullEpisode != null)
                 {
+                    var image = spotifyResult.FullEpisode.Images.MaxBy(x => x.Height);
+
                     var enrichedResult = episodeResult with
                     {
                         Url = spotifyResult.FullEpisode.GetUrl(),
                         DiscoverService = DiscoverService.Spotify,
-                        ServicePodcastId = spotifyResult.FullEpisode.Show.Id
+                        ServicePodcastId = spotifyResult.FullEpisode.Show.Id,
+                        ImageUrl = image != null ? new Uri(image.Url) : null
                     };
                     results.Add(enrichedResult);
                 }
@@ -49,11 +52,13 @@ public class SpotifyEnrichingListenNotesSearcher(
                 }
             }
 
-            logger.LogInformation($"{nameof(Search)}: Found {results.Count} items from listen-notes enriched-from-spotify matching query '{query}'.");
+            logger.LogInformation(
+                $"{nameof(Search)}: Found {results.Count} items from listen-notes enriched-from-spotify matching query '{query}'.");
             return results;
         }
 
-        logger.LogInformation($"{nameof(Search)}: Found {episodeResults.Count()} items from listen-notes not-enriched-from-spotify matching query '{query}'.");
+        logger.LogInformation(
+            $"{nameof(Search)}: Found {episodeResults.Count()} items from listen-notes not-enriched-from-spotify matching query '{query}'.");
         return episodeResults;
     }
 }

@@ -52,6 +52,7 @@ public class SpotifySearcher(
 
     private EpisodeResult ToEpisodeResult(FullEpisode episode)
     {
+        var image = episode.Images.MaxBy(x => x.Height);
         return new EpisodeResult(
             episode.Id,
             episode.GetReleaseDate(),
@@ -60,6 +61,8 @@ public class SpotifySearcher(
             episode.GetDuration(),
             episode.Show.Name.Trim(), DiscoverService.Spotify,
             new Uri(_spotifyEpisodeBase, episode.Id),
-            episode.Show.Id);
+            episode.Show.Id,
+            ImageUrl: image != null ? new Uri(image.Url) : null
+        );
     }
 }
