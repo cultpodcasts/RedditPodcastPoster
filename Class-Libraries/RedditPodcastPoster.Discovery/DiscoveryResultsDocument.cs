@@ -6,7 +6,9 @@ namespace RedditPodcastPoster.Discovery;
 [CosmosSelector(ModelType.Discovery)]
 public sealed class DiscoveryResultsDocument : CosmosSelector
 {
-    public DiscoveryResultsDocument(DateTime discoveryBegan, IEnumerable<DiscoveryResult> discoveryResults)
+    public DiscoveryResultsDocument(
+        DateTime discoveryBegan,
+        IEnumerable<DiscoveryResult> discoveryResults)
     {
         Id = Guid.NewGuid();
         ModelType = ModelType.Discovery;
