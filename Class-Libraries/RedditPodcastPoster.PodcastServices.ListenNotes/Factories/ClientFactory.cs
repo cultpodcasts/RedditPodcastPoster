@@ -16,6 +16,8 @@ public class ClientFactory(
 
     public Client Create()
     {
+        logger.LogInformation(
+            $"{nameof(Create)}: Using listen-notes application-key ending '{_options.Key.Substring(_options.Key.Length - 4)}'.");
         return new Client(_options.Key);
     }
 }
