@@ -46,7 +46,7 @@ public sealed class DiscoveryResultsDocument : CosmosSelector
 
     [JsonPropertyName("searchSince")]
     [JsonPropertyOrder(34)]
-    public string SearchSince { get; set; }
+    public required string SearchSince { get; set; }
 
     [JsonPropertyName("preSkipSpotifyUrlResolving")]
     [JsonPropertyOrder(35)]
