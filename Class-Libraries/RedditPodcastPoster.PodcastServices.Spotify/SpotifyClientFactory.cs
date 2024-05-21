@@ -17,6 +17,9 @@ public class SpotifyClientFactory(
     {
         var config = SpotifyClientConfig.CreateDefault();
 
+        logger.LogInformation(
+            $"{nameof(Create)}: Using spotify client-id ending '{_settings.ClientId.Substring(_settings.ClientId.Length - 2)}' and client-secret ending with '{_settings.ClientSecret.Substring(_settings.ClientSecret.Length - 2)}'.");
+
         var request = new ClientCredentialsRequest(_settings.ClientId, _settings.ClientSecret);
         try
         {

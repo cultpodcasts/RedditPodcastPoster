@@ -16,6 +16,14 @@ public class ClientFactory(
 
     public Client Create()
     {
+        if (string.IsNullOrWhiteSpace(_options.Key))
+        {
+            logger.LogError($"{nameof(Create)}: Listen-notes key is missing");
+            throw new ArgumentNullException($"{nameof(ListenNotesOptions)}.{nameof(ListenNotesOptions.Key)}");
+        }
+
+        logger.LogInformation(
+            $"{nameof(Create)}: Using listen-notes application-key ending '{_options.Key.Substring(_options.Key.Length - 2)}'.");
         return new Client(_options.Key);
     }
 }

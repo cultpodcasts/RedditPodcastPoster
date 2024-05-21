@@ -11,4 +11,5 @@ public record EpisodeResult(
     Uri? Url = null,
     string? ServicePodcastId = null,
     ulong? ViewCount = null,
-    ulong? MemberCount = null);
+    ulong? MemberCount = null,
+    Uri? ImageUrl = null);

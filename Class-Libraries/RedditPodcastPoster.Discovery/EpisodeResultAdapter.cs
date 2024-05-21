@@ -49,6 +49,8 @@ public class EpisodeResultAdapter(
             discoveryResult.YouTubeChannelMembers = episode.MemberCount;
         }
 
+        discoveryResult.ImageUrl = episode.ImageUrl;
+
         return discoveryResult;
     }
 }

@@ -14,7 +14,7 @@ public class YouTubeApiKeyStrategy(
     {
         var application = _settings.Applications.Skip(DateTime.UtcNow.Hour <= 11 ? 0 : 1).First();
         logger.LogInformation(
-            $"{nameof(GetApplication)}: Using application-key ending '{application.ApiKey.Substring(application.ApiKey.Length - 4)}'.");
+            $"{nameof(GetApplication)}: Using application-key ending '{application.ApiKey.Substring(application.ApiKey.Length - 2)}'.");
         return application;
     }
 }

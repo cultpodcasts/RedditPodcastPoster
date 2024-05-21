@@ -38,15 +38,21 @@ public class SpotifySearcher(
                         new EpisodesRequest(recentResults.Select(x => x.Id).ToArray()) {Market = Market.CountryCode},
                         indexingContext);
 
-                return fullShows?.Episodes.Select(ToEpisodeResult) ?? Enumerable.Empty<EpisodeResult>();
+                var episodeResults = fullShows?.Episodes.Select(ToEpisodeResult) ?? Enumerable.Empty<EpisodeResult>();
+                logger.LogInformation(
+                    $"{nameof(Search)}: Found {episodeResults.Count(x => x.Released >= indexingContext.ReleasedSince)} items from spotify matching query '{query}'.");
+
+                return episodeResults;
             }
         }
 
+        logger.LogInformation($"{nameof(Search)}: Found no items from spotify matching query '{query}'.");
         return Enumerable.Empty<EpisodeResult>();
     }
 
     private EpisodeResult ToEpisodeResult(FullEpisode episode)
     {
+        var image = episode.Images.MaxBy(x => x.Height);
         return new EpisodeResult(
             episode.Id,
             episode.GetReleaseDate(),
@@ -55,6 +61,8 @@ public class SpotifySearcher(
             episode.GetDuration(),
             episode.Show.Name.Trim(), DiscoverService.Spotify,
             new Uri(_spotifyEpisodeBase, episode.Id),
-            episode.Show.Id);
+            episode.Show.Id,
+            ImageUrl: image != null ? new Uri(image.Url) : null
+        );
     }
 }

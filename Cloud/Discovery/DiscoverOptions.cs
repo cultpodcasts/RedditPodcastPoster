@@ -10,6 +10,16 @@ public class DiscoverOptions
 
     public override string ToString()
     {
-        return $"{nameof(DiscoverOptions)}: since: '{SearchSince}', exclude-spotify: '{ExcludeSpotify}', include-you-tube: '{IncludeYouTube}', include-listen-notes: '{IncludeListenNotes}'.";
+        var reportDefinition = new[]
+        {
+            new {displayName = "since", value = SearchSince},
+            new {displayName = "exclude-spotify", value = ExcludeSpotify.ToString()},
+            new {displayName = "include-you-tube", value = IncludeYouTube.ToString()},
+            new {displayName = "include-listen-notes", value = IncludeListenNotes.ToString()},
+            new {displayName = "enrich-listen-notes-from-spotify", value = EnrichListenNotesFromSpotify.ToString()}
+        };
+
+        return
+            $"{nameof(DiscoverOptions)}: {string.Join(", ", reportDefinition.Select(y => $"{y.displayName}= '{y.value}'"))}.";
     }
 }

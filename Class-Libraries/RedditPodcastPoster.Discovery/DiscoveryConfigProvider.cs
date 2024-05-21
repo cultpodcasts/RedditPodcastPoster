@@ -1,5 +1,4 @@
 ﻿using RedditPodcastPoster.PodcastServices.Abstractions;
-using static RedditPodcastPoster.Discovery.DiscoveryConfig;
 
 namespace RedditPodcastPoster.Discovery;
 
@@ -7,8 +6,8 @@ public class DiscoveryServiceConfigProvider : IDiscoveryServiceConfigProvider
 {
     private readonly ServiceConfig[] _spotifyConfigs =
     {
-        new("Cults", DiscoverService.Spotify),
         new("Cult", DiscoverService.Spotify),
+        new("Cults", DiscoverService.Spotify),
         new("Scientology", DiscoverService.Spotify),
         new("NXIVM", DiscoverService.Spotify),
         new("FLDS", DiscoverService.Spotify)
