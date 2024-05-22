@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
+using CreateSearchIndex.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Persistence;
@@ -17,9 +18,9 @@ public partial class CreateSearchIndexProcessor(
 )
 {
     private static readonly Regex Whitespace = CreateWhitespaceRegex();
+    private static readonly TimeSpan IndexAtMinutes = TimeSpan.FromMinutes(5);
     private readonly CosmosDbSettings _cosmosDbSettings = cosmosDbSettings.Value;
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Used once.")]
     public async Task Process(CreateSearchIndexRequest request)
     {
         if (!string.IsNullOrWhiteSpace(request.IndexName))
@@ -31,71 +32,69 @@ public partial class CreateSearchIndexProcessor(
 
             var index = new SearchIndex(request.IndexName)
             {
-                Fields = new List<SearchField>
-                {
-                    new("id", SearchFieldDataType.String)
-                    {
-                        IsKey = true, IsSearchable = false, IsFilterable = false, IsSortable = false,
-                        IsFacetable = false
-                    },
-                    new("episodeTitle", SearchFieldDataType.String)
-                    {
-                        IsSearchable = true, AnalyzerName = LexicalAnalyzerName.EnLucene, IsFilterable = false,
-                        IsFacetable = false, IsSortable = false
-                    },
-                    new("podcastName", SearchFieldDataType.String)
-                    {
-                        IsSearchable = true, IsFilterable = true, IsFacetable = true,
-                        AnalyzerName = LexicalAnalyzerName.EnLucene, IsSortable = false
-                    },
-                    new("episodeDescription", SearchFieldDataType.String)
-                    {
-                        IsSearchable = true, AnalyzerName = LexicalAnalyzerName.EnLucene, IsFilterable = false,
-                        IsSortable = false, IsFacetable = false
-                    },
-                    new("release", SearchFieldDataType.DateTimeOffset)
-                    {
-                        IsSortable = true, IsFacetable = false, IsFilterable = false
-                    },
-                    new("duration", SearchFieldDataType.String)
-                    {
-                        IsSortable = true, IsSearchable = false, IsFacetable = false, IsFilterable = false
-                    },
-                    new("explicit", SearchFieldDataType.Boolean)
-                    {
-                        IsFilterable = true, IsSortable = false, IsFacetable = false
-                    },
-                    new("spotify", SearchFieldDataType.String)
-                    {
-                        IsSearchable = false, IsSortable = false, IsFilterable = false, IsFacetable = false
-                    },
-                    new("apple", SearchFieldDataType.String)
-                    {
-                        IsSearchable = false, IsSortable = false, IsFilterable = false, IsFacetable = false
-                    },
-                    new("youtube", SearchFieldDataType.String)
-                    {
-                        IsSearchable = false, IsSortable = false, IsFilterable = false, IsFacetable = false
-                    },
-                    new("subjects", SearchFieldDataType.Collection(SearchFieldDataType.String))
-                    {
-                        IsSearchable = true, IsFilterable = true, IsFacetable = true,
-                        AnalyzerName = LexicalAnalyzerName.EnLucene
-                    },
-                    new("podcastSearchTerms", SearchFieldDataType.String)
-                    {
-                        IsSearchable = true, AnalyzerName = LexicalAnalyzerName.EnLucene, IsFilterable = false,
-                        IsFacetable = false, IsSortable = false, IsHidden = true
-                    },
-                    new("episodeSearchTerms", SearchFieldDataType.String)
-                    {
-                        IsSearchable = true, AnalyzerName = LexicalAnalyzerName.EnLucene, IsFilterable = false,
-                        IsFacetable = false, IsSortable = false, IsHidden = true
-                    }
-                },
+                Fields = [],
                 DefaultScoringProfile = string.Empty,
-                CorsOptions = new CorsOptions(new[] {"*"}) {MaxAgeInSeconds = 300}
+                CorsOptions = new CorsOptions(["*"]) {MaxAgeInSeconds = 300}
             };
+            index.Fields.Add(new SearchField("id", SearchFieldDataType.String)
+            {
+                IsKey = true, IsSearchable = false, IsFilterable = false, IsSortable = false,
+                IsFacetable = false
+            });
+            index.Fields.Add(new SearchField("episodeTitle", SearchFieldDataType.String)
+            {
+                IsSearchable = true, AnalyzerName = LexicalAnalyzerName.EnLucene, IsFilterable = false,
+                IsFacetable = false, IsSortable = false
+            });
+            index.Fields.Add(new SearchField("podcastName", SearchFieldDataType.String)
+            {
+                IsSearchable = true, IsFilterable = true, IsFacetable = true,
+                AnalyzerName = LexicalAnalyzerName.EnLucene, IsSortable = false
+            });
+            index.Fields.Add(new SearchField("episodeDescription", SearchFieldDataType.String)
+            {
+                IsSearchable = true, AnalyzerName = LexicalAnalyzerName.EnLucene, IsFilterable = false,
+                IsSortable = false, IsFacetable = false
+            });
+            index.Fields.Add(new SearchField("release", SearchFieldDataType.DateTimeOffset)
+            {
+                IsSortable = true, IsFacetable = false, IsFilterable = false
+            });
+            index.Fields.Add(new SearchField("duration", SearchFieldDataType.String)
+            {
+                IsSortable = true, IsSearchable = false, IsFacetable = false, IsFilterable = false
+            });
+            index.Fields.Add(new SearchField("explicit", SearchFieldDataType.Boolean)
+            {
+                IsFilterable = true, IsSortable = false, IsFacetable = false
+            });
+            index.Fields.Add(new SearchField("spotify", SearchFieldDataType.String)
+            {
+                IsSearchable = false, IsSortable = false, IsFilterable = false, IsFacetable = false
+            });
+            index.Fields.Add(new SearchField("apple", SearchFieldDataType.String)
+            {
+                IsSearchable = false, IsSortable = false, IsFilterable = false, IsFacetable = false
+            });
+            index.Fields.Add(new SearchField("youtube", SearchFieldDataType.String)
+            {
+                IsSearchable = false, IsSortable = false, IsFilterable = false, IsFacetable = false
+            });
+            index.Fields.Add(new SearchField("subjects", SearchFieldDataType.Collection(SearchFieldDataType.String))
+            {
+                IsSearchable = true, IsFilterable = true, IsFacetable = true,
+                AnalyzerName = LexicalAnalyzerName.EnLucene
+            });
+            index.Fields.Add(new SearchField("podcastSearchTerms", SearchFieldDataType.String)
+            {
+                IsSearchable = true, AnalyzerName = LexicalAnalyzerName.EnLucene, IsFilterable = false,
+                IsFacetable = false, IsSortable = false, IsHidden = true
+            });
+            index.Fields.Add(new SearchField("episodeSearchTerms", SearchFieldDataType.String)
+            {
+                IsSearchable = true, AnalyzerName = LexicalAnalyzerName.EnLucene, IsFilterable = false,
+                IsFacetable = false, IsSortable = false, IsHidden = true
+            });
             var searchIndexCreateResponse = await searchIndexClient.CreateOrUpdateIndexAsync(index);
         }
 
@@ -144,9 +143,12 @@ public partial class CreateSearchIndexProcessor(
             !string.IsNullOrWhiteSpace(request.DataSourceName) &&
             !string.IsNullOrWhiteSpace(request.IndexName))
         {
+            var nextIndex = DateTimeOffset.Now.Add(TimeSpan.FromHours(1)).Floor(TimeSpan.FromHours(1))
+                .Add(IndexAtMinutes);
+            var indexingSchedule = new IndexingSchedule(TimeSpan.FromHours(1)) {StartTime = nextIndex};
             var searchIndexer = new SearchIndexer(request.IndexerName, request.DataSourceName, request.IndexName)
             {
-                Schedule = new IndexingSchedule(TimeSpan.FromHours(1)),
+                Schedule = indexingSchedule,
                 Description = string.Empty,
                 Parameters = new IndexingParameters
                 {

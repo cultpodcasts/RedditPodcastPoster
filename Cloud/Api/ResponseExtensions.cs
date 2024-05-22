@@ -9,7 +9,9 @@ public static class ResponseExtensions
         object body,
         CancellationToken ct)
     {
+        var originalStatusCode= response.StatusCode;
         await response.WriteAsJsonAsync(body, ct);
+        response.StatusCode= originalStatusCode;
         return response;
     }
 }
