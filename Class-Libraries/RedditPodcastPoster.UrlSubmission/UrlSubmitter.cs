@@ -56,7 +56,7 @@ public class UrlSubmitter(
             var matchingEpisodes = categorisedItem.MatchingEpisode != null
                 ? new[] {categorisedItem.MatchingEpisode}
                 : categorisedItem.MatchingPodcast.Episodes.Where(episode =>
-                    IsMatchingEpisode(episode, categorisedItem));
+                    IsMatchingEpisode(episode, categorisedItem)).ToArray();
 
             Episode? matchingEpisode;
             if (matchingEpisodes!.Count() > 1)
@@ -375,20 +375,42 @@ public class UrlSubmitter(
 
     private bool IsMatchingEpisode(Episode episode, CategorisedItem categorisedItem)
     {
+        var spotifyResolved = ((categorisedItem.ResolvedSpotifyItem != null && !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
+                  episode.SpotifyId != categorisedItem.ResolvedSpotifyItem.EpisodeId) ||
+                 categorisedItem.ResolvedSpotifyItem == null);
+        var appleResolved = ((categorisedItem.ResolvedAppleItem != null && episode.AppleId != null &&
+                  episode.AppleId != categorisedItem.ResolvedAppleItem.EpisodeId) ||
+                 categorisedItem.ResolvedAppleItem == null);
+        var youTubeResolved = ((categorisedItem.ResolvedYouTubeItem != null && !string.IsNullOrWhiteSpace(episode.YouTubeId) &&
+                  episode.YouTubeId != categorisedItem.ResolvedYouTubeItem.EpisodeId) ||
+                 categorisedItem.ResolvedYouTubeItem == null);
         var alreadyCategorised =
-            ((categorisedItem.ResolvedSpotifyItem != null && !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
-              episode.SpotifyId != categorisedItem.ResolvedSpotifyItem.EpisodeId) ||
-             categorisedItem.ResolvedSpotifyItem == null) &&
-            ((categorisedItem.ResolvedAppleItem != null && episode.AppleId != null &&
-              episode.AppleId != categorisedItem.ResolvedAppleItem.EpisodeId) ||
-             categorisedItem.ResolvedAppleItem == null) &&
-            ((categorisedItem.ResolvedYouTubeItem != null && !string.IsNullOrWhiteSpace(episode.YouTubeId) &&
-              episode.YouTubeId != categorisedItem.ResolvedYouTubeItem.EpisodeId) ||
-             categorisedItem.ResolvedYouTubeItem == null);
+            spotifyResolved &&
+            appleResolved &&
+            youTubeResolved;
         if (alreadyCategorised)
         {
             return false;
         }
+
+
+        spotifyResolved = (categorisedItem.ResolvedSpotifyItem != null && !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
+                                episode.SpotifyId == categorisedItem.ResolvedSpotifyItem.EpisodeId);
+        appleResolved = (categorisedItem.ResolvedAppleItem != null && episode.AppleId != null &&
+                              episode.AppleId == categorisedItem.ResolvedAppleItem.EpisodeId);
+        youTubeResolved = (categorisedItem.ResolvedYouTubeItem != null && !string.IsNullOrWhiteSpace(episode.YouTubeId) &&
+                                episode.YouTubeId == categorisedItem.ResolvedYouTubeItem.EpisodeId);
+        alreadyCategorised =
+            spotifyResolved ||
+            appleResolved ||
+            youTubeResolved;
+        if (alreadyCategorised)
+        {
+            return true;
+        }
+
+
+
 
         var episodeTitle = WebUtility.HtmlDecode(episode.Title.Trim());
         string resolvedTitle;
