@@ -26,13 +26,13 @@ public class Test(
             async (r, c) =>
             {
                 var success = await req.CreateResponse(HttpStatusCode.OK)
-                    .WithJsonBody(new {Message = "Success"}, c);
+                    .WithJsonBody(new {message = "success"}, c);
                 return success;
             },
             async (r, c) =>
             {
                 var failure = await req.CreateResponse(HttpStatusCode.Forbidden)
-                    .WithJsonBody(new {Message = "Failure"}, c);
+                    .WithJsonBody(new {message = "failure"}, c);
                 return failure;
             },
             ct);

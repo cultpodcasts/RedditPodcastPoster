@@ -8,12 +8,15 @@ public class SubmitUrlResponse
 {
     public enum SubmitItemResponse
     {
-        [JsonPropertyName("none")] None = 0,
-        [JsonPropertyName("created")] CreatedEpisode,
-        [JsonPropertyName("enriched")] EnrichedEpisode
+        None = 0,
+        CreatedEpisode,
+        EnrichedEpisode
     }
 
+    [JsonPropertyName("success")]
     public SubmitUrlSuccessResponse? Success { get; private set; }
+
+    [JsonPropertyName("error")]
     public string? Error { get; private set; }
 
     private static SubmitItemResponse ToSubmitEpisodeResponse(SubmitResultState submitResultState)
@@ -23,7 +26,7 @@ public class SubmitUrlResponse
             SubmitResultState.None => SubmitItemResponse.None,
             SubmitResultState.Created => SubmitItemResponse.CreatedEpisode,
             SubmitResultState.Enriched => SubmitItemResponse.EnrichedEpisode,
-            _ => throw new ArgumentException(nameof(submitResultState))
+            _ => throw new ArgumentException($"Unknown value '{submitResultState}'.", nameof(submitResultState))
         };
     }
 
@@ -31,7 +34,8 @@ public class SubmitUrlResponse
     {
         return new SubmitUrlResponse
         {
-            Success = new SubmitUrlSuccessResponse(ToSubmitEpisodeResponse(result.EpisodeResult),
+            Success = new SubmitUrlSuccessResponse(
+                ToSubmitEpisodeResponse(result.EpisodeResult),
                 ToSubmitEpisodeResponse(result.PodcastResult))
         };
     }
