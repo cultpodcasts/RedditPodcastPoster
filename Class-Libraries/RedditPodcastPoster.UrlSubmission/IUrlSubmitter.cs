@@ -4,7 +4,7 @@ namespace RedditPodcastPoster.UrlSubmission;
 
 public interface IUrlSubmitter
 {
-    Task Submit(
+    Task<SubmitResult> Submit(
         Uri url,
         IndexingContext indexingContext,
         SubmitOptions submitOptions);

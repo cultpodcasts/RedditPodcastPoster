@@ -1,16 +1,58 @@
+using System.Text.Json.Serialization;
+using RedditPodcastPoster.UrlSubmission;
+using static RedditPodcastPoster.UrlSubmission.SubmitResult;
+
 namespace Api.Dtos;
 
 public class SubmitUrlResponse
 {
-    public string? Success { get; private set; }
+    public enum SubmitItemResponse
+    {
+        None = 0,
+        Created,
+        Enriched
+    }
+
+    [JsonPropertyName("success")]
+    public SubmitUrlSuccessResponse? Success { get; private set; }
+
+    [JsonPropertyName("error")]
     public string? Error { get; private set; }
 
-    public static SubmitUrlResponse Successful(string message= "")
+    private static SubmitItemResponse ToSubmitEpisodeResponse(SubmitResultState submitResultState)
     {
-        return new SubmitUrlResponse() {Success = message};
+        return submitResultState switch
+        {
+            SubmitResultState.None => SubmitItemResponse.None,
+            SubmitResultState.Created => SubmitItemResponse.Created,
+            SubmitResultState.Enriched => SubmitItemResponse.Enriched,
+            _ => throw new ArgumentException($"Unknown value '{submitResultState}'.", nameof(submitResultState))
+        };
     }
-    public static SubmitUrlResponse Failure(string message= "")
+
+    public static SubmitUrlResponse Successful(SubmitResult result)
     {
-        return new SubmitUrlResponse() { Error = message };
+        return new SubmitUrlResponse
+        {
+            Success = new SubmitUrlSuccessResponse(
+                ToSubmitEpisodeResponse(result.EpisodeResult),
+                ToSubmitEpisodeResponse(result.PodcastResult))
+        };
+    }
+
+    public static SubmitUrlResponse Failure(string message = "")
+    {
+        return new SubmitUrlResponse {Error = message};
+    }
+
+    public class SubmitUrlSuccessResponse(SubmitItemResponse episode, SubmitItemResponse podcast)
+    {
+        [JsonPropertyName("episode")]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public SubmitItemResponse Episode { get; private set; } = episode;
+
+        [JsonPropertyName("podcast")]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public SubmitItemResponse Podcast { get; private set; } = podcast;
     }
 }

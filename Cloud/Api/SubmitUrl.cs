@@ -33,7 +33,7 @@ public class SubmitUrl(
         {
             logger.LogInformation(
                 $"{nameof(Run)}: Handling url-submission: url: '{submitUrlModel.Url}', podcast-id: '{submitUrlModel.PodcastId}'.");
-            await urlSubmitter.Submit(
+            var result = await urlSubmitter.Submit(
                 submitUrlModel.Url,
                 new IndexingContext
                 {
@@ -42,8 +42,9 @@ public class SubmitUrl(
                     SkipExpensiveSpotifyQueries = false
                 },
                 new SubmitOptions(submitUrlModel.PodcastId, true));
+
             var success = await req.CreateResponse(HttpStatusCode.OK)
-                .WithJsonBody(SubmitUrlResponse.Successful("success"), c);
+                .WithJsonBody(SubmitUrlResponse.Successful(result), c);
             return success;
         }
         catch (Exception ex)

@@ -1,5 +1,4 @@
 using System.Net;
-using Api.Dtos;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -27,13 +26,13 @@ public class Test(
             async (r, c) =>
             {
                 var success = await req.CreateResponse(HttpStatusCode.OK)
-                    .WithJsonBody(SubmitUrlResponse.Successful("Has principle."), c);
+                    .WithJsonBody(new {message = "success"}, c);
                 return success;
             },
             async (r, c) =>
             {
                 var failure = await req.CreateResponse(HttpStatusCode.Forbidden)
-                    .WithJsonBody(SubmitUrlResponse.Failure("No principle."), c);
+                    .WithJsonBody(new {message = "failure"}, c);
                 return failure;
             },
             ct);
