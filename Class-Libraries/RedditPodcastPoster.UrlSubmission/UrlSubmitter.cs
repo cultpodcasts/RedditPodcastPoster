@@ -8,6 +8,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using static RedditPodcastPoster.UrlSubmission.SubmitResult;
 
 namespace RedditPodcastPoster.UrlSubmission;
 
@@ -24,11 +25,13 @@ public class UrlSubmitter(
     private const string DefaultMatchingPodcastYouTubePublishingDelay = "0:01:00:00";
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
-    public async Task Submit(
+    public async Task<SubmitResult> Submit(
         Uri url,
         IndexingContext indexingContext,
         SubmitOptions submitOptions)
     {
+        SubmitResultState episodeResult = SubmitResultState.None;
+        SubmitResultState podcastResult= SubmitResultState.None;
         Podcast? podcast;
         if (submitOptions.PodcastId != null)
         {
@@ -42,13 +45,14 @@ public class UrlSubmitter(
         if (podcast != null && podcast.IsRemoved())
         {
             logger.LogWarning($"Podcast with id '{podcast.Id}' is removed.");
-            return;
+            return new SubmitResult(episodeResult, podcastResult);
         }
 
         var categorisedItem = await urlCategoriser.Categorise(podcast, url, indexingContext, submitOptions.MatchOtherServices);
 
         if (categorisedItem.MatchingPodcast != null)
         {
+            podcastResult = SubmitResultState.Enriched;
             var matchingEpisodes = categorisedItem.MatchingEpisode != null
                 ? new[] {categorisedItem.MatchingEpisode}
                 : categorisedItem.MatchingPodcast.Episodes.Where(episode =>
@@ -76,6 +80,7 @@ public class UrlSubmitter(
 
             if (matchingEpisode == null)
             {
+                episodeResult = SubmitResultState.Created;
                 var episode = CreateEpisode(categorisedItem);
                 await subjectEnricher.EnrichSubjects(
                     episode,
@@ -86,6 +91,10 @@ public class UrlSubmitter(
                 categorisedItem.MatchingPodcast.Episodes.Add(episode);
                 categorisedItem.MatchingPodcast.Episodes =
                     categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
+            }
+            else
+            {
+                episodeResult = SubmitResultState.Enriched;
             }
 
             if (submitOptions.PersistToDatabase)
@@ -99,6 +108,7 @@ public class UrlSubmitter(
         }
         else
         {
+            podcastResult = SubmitResultState.Created;
             var newPodcast = await CreatePodcastWithEpisode(categorisedItem);
             if (submitOptions.PersistToDatabase)
             {
@@ -109,6 +119,8 @@ public class UrlSubmitter(
                 logger.LogWarning("Bypassing persisting new-podcast.");
             }
         }
+
+        return new SubmitResult(episodeResult, podcastResult);
     }
 
     private async Task<Podcast> CreatePodcastWithEpisode(CategorisedItem categorisedItem)
