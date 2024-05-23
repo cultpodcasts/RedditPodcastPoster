@@ -16,43 +16,35 @@ public class Podcasts(
     : BaseHttpFunction(hostingOptions)
 {
     [Function("Podcasts")]
-    public async Task<HttpResponseData> Run(
+    public Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get")]
         HttpRequestData req,
         FunctionContext executionContext,
         CancellationToken ct
     )
     {
-        return await HandleRequest(
-            req,
-            ["submit"],
-            async (r, c) =>
-            {
-                try
-                {
-                    var podcasts = podcastRepository.GetAllBy(
-                        podcast => !podcast.Removed.IsDefined() || podcast.Removed == false,
-                        podcast => new {id = podcast.Id, name = podcast.Name});
+        return HandleRequest(req, ["submit"], Get, Unauthorised, ct);
+    }
 
-                    var success = await req.CreateResponse(HttpStatusCode.OK)
-                        .WithJsonBody(await podcasts.ToListAsync(c), c);
-                    return success;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, $"{nameof(Run)}: Failed to get-podcasts.");
-                }
+    private async Task<HttpResponseData> Get(HttpRequestData req, CancellationToken c)
+    {
+        try
+        {
+            var podcasts = podcastRepository.GetAllBy(
+                podcast => !podcast.Removed.IsDefined() || podcast.Removed == false,
+                podcast => new {id = podcast.Id, name = podcast.Name});
 
-                var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve podcasts"), c);
-                return failure;
-            },
-            async (r, c) =>
-            {
-                var failure = await req.CreateResponse(HttpStatusCode.Forbidden)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unauthorised"), c);
-                return failure;
-            },
-            ct);
+            var success = await req.CreateResponse(HttpStatusCode.OK)
+                .WithJsonBody(await podcasts.ToListAsync(c), c);
+            return success;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"{nameof(Run)}: Failed to get-podcasts.");
+        }
+
+        var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
+            .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve podcasts"), c);
+        return failure;
     }
 }

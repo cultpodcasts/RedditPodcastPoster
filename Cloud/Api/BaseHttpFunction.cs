@@ -1,3 +1,4 @@
+using System.Net;
 using Api.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Options;
@@ -53,5 +54,15 @@ public abstract class BaseHttpFunction(IOptions<HostingOptions> hostingOptions)
         }
 
         return unauthorised(req, model, ct);
+    }
+
+    protected static Task<HttpResponseData> Unauthorised(HttpRequestData r, CancellationToken c)
+    {
+        return r.CreateResponse(HttpStatusCode.Unauthorized).WithJsonBody(new {Message = "Unauthorised"}, c);
+    }
+
+    protected static Task<HttpResponseData> Unauthorised<T>(HttpRequestData r, T _, CancellationToken c)
+    {
+        return Unauthorised(r, c);
     }
 }

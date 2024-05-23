@@ -16,7 +16,7 @@ public class SubmitUrl(
     : BaseHttpFunction(hostingOptions)
 {
     [Function("SubmitUrl")]
-    public async Task<HttpResponseData> Run(
+    public Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post")]
         HttpRequestData req,
         FunctionContext executionContext,
@@ -24,44 +24,35 @@ public class SubmitUrl(
         CancellationToken ct
     )
     {
-        return await HandleRequest(
-            req,
-            ["submit"],
-            submitUrlModel, 
-            async (r, m, c) =>
-            {
-                try
-                {
-                    logger.LogInformation(
-                        $"{nameof(Run)}: Handling url-submission: url: '{submitUrlModel.Url}', podcast-id: '{submitUrlModel.PodcastId}'.");
-                    await urlSubmitter.Submit(
-                        submitUrlModel.Url,
-                        new IndexingContext
-                        {
-                            SkipPodcastDiscovery = false,
-                            SkipExpensiveYouTubeQueries = false,
-                            SkipExpensiveSpotifyQueries = false
-                        },
-                        new SubmitOptions(submitUrlModel.PodcastId, true));
-                    var success = await req.CreateResponse(HttpStatusCode.OK)
-                        .WithJsonBody(SubmitUrlResponse.Successful("success"), c);
-                    return success;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{submitUrlModel.Url}'.");
-                }
+        return HandleRequest(req, ["submit"], submitUrlModel, Post, Unauthorised, ct);
+    }
 
-                var failure = await req.CreateResponse(HttpStatusCode.BadRequest)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to accept"), c);
-                return failure;
-            },
-            async (r, m, c) =>
-            {
-                var failure = await req.CreateResponse(HttpStatusCode.Forbidden)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to accept"), c);
-                return failure;
-            },
-            ct);
+    private async Task<HttpResponseData> Post(HttpRequestData req, SubmitUrlRequest submitUrlModel, CancellationToken c)
+    {
+        try
+        {
+            logger.LogInformation(
+                $"{nameof(Run)}: Handling url-submission: url: '{submitUrlModel.Url}', podcast-id: '{submitUrlModel.PodcastId}'.");
+            await urlSubmitter.Submit(
+                submitUrlModel.Url,
+                new IndexingContext
+                {
+                    SkipPodcastDiscovery = false,
+                    SkipExpensiveYouTubeQueries = false,
+                    SkipExpensiveSpotifyQueries = false
+                },
+                new SubmitOptions(submitUrlModel.PodcastId, true));
+            var success = await req.CreateResponse(HttpStatusCode.OK)
+                .WithJsonBody(SubmitUrlResponse.Successful("success"), c);
+            return success;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{submitUrlModel.Url}'.");
+        }
+
+        var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
+            .WithJsonBody(SubmitUrlResponse.Failure("Failure"), c);
+        return failure;
     }
 }
