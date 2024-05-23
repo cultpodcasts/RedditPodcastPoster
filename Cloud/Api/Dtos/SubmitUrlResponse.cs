@@ -9,8 +9,8 @@ public class SubmitUrlResponse
     public enum SubmitItemResponse
     {
         None = 0,
-        CreatedEpisode,
-        EnrichedEpisode
+        Created,
+        Enriched
     }
 
     [JsonPropertyName("success")]
@@ -24,8 +24,8 @@ public class SubmitUrlResponse
         return submitResultState switch
         {
             SubmitResultState.None => SubmitItemResponse.None,
-            SubmitResultState.Created => SubmitItemResponse.CreatedEpisode,
-            SubmitResultState.Enriched => SubmitItemResponse.EnrichedEpisode,
+            SubmitResultState.Created => SubmitItemResponse.Created,
+            SubmitResultState.Enriched => SubmitItemResponse.Enriched,
             _ => throw new ArgumentException($"Unknown value '{submitResultState}'.", nameof(submitResultState))
         };
     }
