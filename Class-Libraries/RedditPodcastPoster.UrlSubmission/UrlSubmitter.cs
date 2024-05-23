@@ -30,8 +30,8 @@ public class UrlSubmitter(
         IndexingContext indexingContext,
         SubmitOptions submitOptions)
     {
-        SubmitResultState episodeResult = SubmitResultState.None;
-        SubmitResultState podcastResult= SubmitResultState.None;
+        var episodeResult = SubmitResultState.None;
+        var podcastResult = SubmitResultState.None;
         Podcast? podcast;
         if (submitOptions.PodcastId != null)
         {
@@ -48,7 +48,8 @@ public class UrlSubmitter(
             return new SubmitResult(episodeResult, podcastResult);
         }
 
-        var categorisedItem = await urlCategoriser.Categorise(podcast, url, indexingContext, submitOptions.MatchOtherServices);
+        var categorisedItem =
+            await urlCategoriser.Categorise(podcast, url, indexingContext, submitOptions.MatchOtherServices);
 
         if (categorisedItem.MatchingPodcast != null)
         {
@@ -56,7 +57,7 @@ public class UrlSubmitter(
             var matchingEpisodes = categorisedItem.MatchingEpisode != null
                 ? new[] {categorisedItem.MatchingEpisode}
                 : categorisedItem.MatchingPodcast.Episodes.Where(episode =>
-                    IsMatchingEpisode(episode, categorisedItem));
+                    IsMatchingEpisode(episode, categorisedItem)).ToArray();
 
             Episode? matchingEpisode;
             if (matchingEpisodes!.Count() > 1)
@@ -375,19 +376,41 @@ public class UrlSubmitter(
 
     private bool IsMatchingEpisode(Episode episode, CategorisedItem categorisedItem)
     {
+        var spotifyResolved = (categorisedItem.ResolvedSpotifyItem != null &&
+                               !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
+                               episode.SpotifyId != categorisedItem.ResolvedSpotifyItem.EpisodeId) ||
+                              categorisedItem.ResolvedSpotifyItem == null;
+        var appleResolved = (categorisedItem.ResolvedAppleItem != null && episode.AppleId != null &&
+                             episode.AppleId != categorisedItem.ResolvedAppleItem.EpisodeId) ||
+                            categorisedItem.ResolvedAppleItem == null;
+        var youTubeResolved = (categorisedItem.ResolvedYouTubeItem != null &&
+                               !string.IsNullOrWhiteSpace(episode.YouTubeId) &&
+                               episode.YouTubeId != categorisedItem.ResolvedYouTubeItem.EpisodeId) ||
+                              categorisedItem.ResolvedYouTubeItem == null;
         var alreadyCategorised =
-            ((categorisedItem.ResolvedSpotifyItem != null && !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
-              episode.SpotifyId != categorisedItem.ResolvedSpotifyItem.EpisodeId) ||
-             categorisedItem.ResolvedSpotifyItem == null) &&
-            ((categorisedItem.ResolvedAppleItem != null && episode.AppleId != null &&
-              episode.AppleId != categorisedItem.ResolvedAppleItem.EpisodeId) ||
-             categorisedItem.ResolvedAppleItem == null) &&
-            ((categorisedItem.ResolvedYouTubeItem != null && !string.IsNullOrWhiteSpace(episode.YouTubeId) &&
-              episode.YouTubeId != categorisedItem.ResolvedYouTubeItem.EpisodeId) ||
-             categorisedItem.ResolvedYouTubeItem == null);
+            spotifyResolved &&
+            appleResolved &&
+            youTubeResolved;
         if (alreadyCategorised)
         {
             return false;
+        }
+
+        var matchingSpotify = categorisedItem.ResolvedSpotifyItem != null &&
+                              !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
+                              episode.SpotifyId == categorisedItem.ResolvedSpotifyItem.EpisodeId;
+        var matchingApple = categorisedItem.ResolvedAppleItem != null && episode.AppleId != null &&
+                            episode.AppleId == categorisedItem.ResolvedAppleItem.EpisodeId;
+        var matchingYouTube = categorisedItem.ResolvedYouTubeItem != null &&
+                              !string.IsNullOrWhiteSpace(episode.YouTubeId) &&
+                              episode.YouTubeId == categorisedItem.ResolvedYouTubeItem.EpisodeId;
+        var hasMatchingUrl =
+            matchingSpotify ||
+            matchingApple ||
+            matchingYouTube;
+        if (hasMatchingUrl)
+        {
+            return true;
         }
 
         var episodeTitle = WebUtility.HtmlDecode(episode.Title.Trim());
