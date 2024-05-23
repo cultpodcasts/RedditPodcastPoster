@@ -26,17 +26,7 @@ public class DiscoveryCuration(
         FunctionContext executionContext,
         CancellationToken ct)
     {
-        return HandleRequest(
-            req,
-            ["curate"],
-            async (r, c) =>
-            {
-                var result = await discoveryResultsService.Get(c);
-                return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(result, c);
-            },
-            (r, c) =>
-                r.CreateResponse(HttpStatusCode.Unauthorized).WithJsonBody(new {Message = "Unauthorised"}, c),
-            ct);
+        return HandleRequest(req, ["curate"], Get, Unauthorised, ct);
     }
 
     [Function("DiscoveryCurationPost")]
@@ -47,39 +37,41 @@ public class DiscoveryCuration(
         [FromBody] DiscoveryIngest discoveryIngest,
         CancellationToken ct)
     {
-        return HandleRequest(
-            req,
-            ["curate"],
-            discoveryIngest, async (r, m, c) =>
+        return HandleRequest(req, ["curate"], discoveryIngest, Post, Unauthorised, ct);
+    }
+
+    private async Task<HttpResponseData> Get(HttpRequestData r, CancellationToken c)
+    {
+        var result = await discoveryResultsService.Get(c);
+        return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(result, c);
+    }
+
+    private async Task<HttpResponseData> Post(HttpRequestData r, DiscoveryIngest m, CancellationToken c)
+    {
+        try
+        {
+            var indexingContext = new IndexingContext
             {
-                try
-                {
-                    var indexingContext = new IndexingContext
-                    {
-                        SkipPodcastDiscovery = false,
-                        SkipExpensiveYouTubeQueries = false,
-                        SkipExpensiveSpotifyQueries = false
-                    };
-                    var submitOptions = new SubmitOptions(null, true);
-                    foreach (var url in m.Urls)
-                    {
-                        logger.LogInformation($"Submitting '{url}' with indexing-context: {indexingContext.ToString()}");
-                        await urlSubmitter.Submit(url, indexingContext, submitOptions);
-                    }
+                SkipPodcastDiscovery = false,
+                SkipExpensiveYouTubeQueries = false,
+                SkipExpensiveSpotifyQueries = false
+            };
+            var submitOptions = new SubmitOptions(null, true);
+            foreach (var url in m.Urls)
+            {
+                logger.LogInformation($"Submitting '{url}' with indexing-context: {indexingContext}");
+                await urlSubmitter.Submit(url, indexingContext, submitOptions);
+            }
 
-                    await discoveryResultsService.MarkAsProcessed(m.DiscoveryResultsDocumentIds);
-                }
-                catch (Exception e)
-                {
-                    logger.LogError(e, $"Failure handling post of {nameof(DiscoveryIngest)}");
-                    return await r.CreateResponse(HttpStatusCode.InternalServerError).WithJsonBody(new { Message = "Success" }, c);
+            await discoveryResultsService.MarkAsProcessed(m.DiscoveryResultsDocumentIds);
+            return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new {Message = "Success"}, c);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, $"Failure handling post of {nameof(DiscoveryIngest)}");
+        }
 
-                }
-                return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new {Message = "Success"}, c);
-            },
-            (r, m, c) =>
-                r.CreateResponse(HttpStatusCode.Unauthorized).WithJsonBody(new {Message = "Unauthorised"}, c),
-            ct);
+        return await r.CreateResponse(HttpStatusCode.InternalServerError)
+            .WithJsonBody(new {Message = "Failure"}, c);
     }
 }
-
