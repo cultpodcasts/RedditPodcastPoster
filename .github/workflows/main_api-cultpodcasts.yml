@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - main
-      - feature/cleaned-up-api
   workflow_dispatch:
 
 env:
