@@ -1,5 +1,5 @@
 ﻿using CommandLine;
-using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Common;
 
 namespace RedditPodcastPoster;
 
@@ -32,7 +32,7 @@ public class ProcessRequest
             DateTime? releaseBaseLine = null;
             if (ReleasedSince != null)
             {
-                releaseBaseLine = DateTimeExtensions.DaysAgo(ReleasedSince.Value);
+                releaseBaseLine = DateTimeHelper.DaysAgo(ReleasedSince.Value);
             }
 
             return releaseBaseLine;

@@ -1,4 +1,4 @@
-using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Common;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace Indexer;
@@ -19,7 +19,7 @@ public class IndexerOptions
         DateTime? releasedSince = null;
         if (ReleasedDaysAgo != null)
         {
-            releasedSince = DateTimeExtensions.DaysAgo(ReleasedDaysAgo.Value);
+            releasedSince = DateTimeHelper.DaysAgo(ReleasedDaysAgo.Value);
         }
 
         return new IndexingContext(releasedSince, ByPassYouTube);

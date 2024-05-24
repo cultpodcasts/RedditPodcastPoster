@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Episodes;
-using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration;
 
 namespace Indexer;
@@ -26,7 +25,7 @@ public class Poster(
         logger.LogInformation(indexerContext.ToString());
         logger.LogInformation(_posterOptions.ToString());
         logger.LogInformation(_postingCriteria.ToString());
-        var baselineDate = DateTimeExtensions.DaysAgo(_posterOptions.ReleasedDaysAgo);
+        var baselineDate = DateTimeHelper.DaysAgo(_posterOptions.ReleasedDaysAgo);
 
         logger.LogInformation(
             $"{nameof(RunAsync)} Posting with options released-since: '{baselineDate:O}''.");
