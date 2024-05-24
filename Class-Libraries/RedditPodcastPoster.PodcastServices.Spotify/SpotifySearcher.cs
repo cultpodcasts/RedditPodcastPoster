@@ -26,13 +26,13 @@ public class SpotifySearcher(
             var queryRegexPattern = $@"\b{query}\b";
             var termRegex = new Regex(queryRegexPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
             var allResults = await spotifyClient.PaginateAll(results, response => response.Episodes, indexingContext);
-            
-            var x = DateTimeExtensions.Floor(indexingContext.ReleasedSince.Value, TimeSpan.FromDays(1));
-            
+
+
             var recentResults =
                 allResults?
-                    .Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince.Value.Floor(TimeSpan.FromDays(1)) &&
-                                (termRegex.IsMatch(x.Name) || termRegex.IsMatch(x.Description))) ??
+                    .Where(x =>
+                        x.GetReleaseDate() >= indexingContext.ReleasedSince!.Value.Floor(TimeSpan.FromDays(1)) &&
+                        (termRegex.IsMatch(x.Name) || termRegex.IsMatch(x.Description))) ??
                 Enumerable.Empty<SimpleEpisode>();
 
             if (recentResults.Any())
@@ -66,7 +66,7 @@ public class SpotifySearcher(
             episode.Show.Name.Trim(), DiscoverService.Spotify,
             new Uri(_spotifyEpisodeBase, episode.Id),
             episode.Show.Id,
-            ImageUrl: image != null ? new Uri(image.Url) : null
+            imageUrl: image != null ? new Uri(image.Url) : null
         );
     }
 }

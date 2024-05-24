@@ -9,5 +9,4 @@ public record FindAppleEpisodeRequest(
     string EpisodeTitle,
     DateTime? Released,
     Service? ReleaseAuthority,
-    TimeSpan? EpisodeLength,
-    int EpisodeIndex);
+    TimeSpan? EpisodeLength);

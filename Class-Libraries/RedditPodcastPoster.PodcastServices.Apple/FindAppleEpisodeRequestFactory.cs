@@ -14,8 +14,7 @@ public static class FindAppleEpisodeRequestFactory
             episode.Title,
             episode.Release,
             podcast.ReleaseAuthority,
-            episode.Length,
-            podcast.Episodes.ToList().FindIndex(x => x == episode)
+            episode.Length
         );
     }
 
@@ -31,8 +30,7 @@ public static class FindAppleEpisodeRequestFactory
             criteria.EpisodeTitle,
             criteria.Release,
             podcast?.ReleaseAuthority,
-            criteria.Duration,
-            0);
+            criteria.Duration);
     }
 
     public static FindAppleEpisodeRequest Create(long podcastId, long episodeId)
@@ -44,7 +42,6 @@ public static class FindAppleEpisodeRequestFactory
             string.Empty,
             null,
             null,
-            null,
-            0);
+            null);
     }
 }

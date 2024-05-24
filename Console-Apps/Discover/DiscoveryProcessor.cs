@@ -64,7 +64,8 @@ public class DiscoveryProcessor(
             latest = DateTime.UtcNow.ToUniversalTime();
             Console.WriteLine(
                 $"Initiating discovery at '{latest:O}' (local: '{latest.Value.ToLocalTime():O}').");
-            var discoveryConfig = new DiscoveryConfig(serviceConfigs, request.EnrichListenNotesFromSpotify);
+            var discoveryConfig =
+                new DiscoveryConfig(serviceConfigs, request.EnrichFromSpotify, request.EnrichFromApple);
             discoveryResults = await discoveryService.GetDiscoveryResults(indexingContext, discoveryConfig);
         }
 

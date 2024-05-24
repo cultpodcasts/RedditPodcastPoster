@@ -2,7 +2,7 @@
 
 namespace RedditPodcastPoster.Discovery;
 
-public interface ISpotifyEnricher
+public interface IAppleEnricher
 {
     Task Enrich(IEnumerable<EpisodeResult> results, IndexingContext indexingContext);
 }
