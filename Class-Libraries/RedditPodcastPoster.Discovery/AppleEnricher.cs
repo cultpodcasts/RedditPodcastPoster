@@ -12,7 +12,7 @@ public class AppleEnricher(
     public async Task Enrich(IEnumerable<EpisodeResult> results, IndexingContext indexingContext)
     {
         logger.LogInformation($"{nameof(Enrich)} initiated");
-
+        var enrichedCtr = 0;
 
         foreach (var episodeResult in results)
         {
@@ -28,8 +28,11 @@ public class AppleEnricher(
                 episodeRequest, indexingContext);
             if (appleResult != null)
             {
+                enrichedCtr++;
                 episodeResult.Released = appleResult.Release;
             }
         }
+
+        logger.LogInformation($"{nameof(Enrich)} enriched '{enrichedCtr}' results.");
     }
 }

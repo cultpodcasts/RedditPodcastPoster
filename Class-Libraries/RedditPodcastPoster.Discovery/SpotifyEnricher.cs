@@ -12,7 +12,7 @@ public class SpotifyEnricher(
     public async Task Enrich(IEnumerable<EpisodeResult> results, IndexingContext indexingContext)
     {
         logger.LogInformation($"{nameof(Enrich)} initiated");
-
+        var enrichedCtr = 0;
         foreach (var episodeResult in results)
         {
             var episodeRequest = new FindSpotifyEpisodeRequest(
@@ -27,6 +27,7 @@ public class SpotifyEnricher(
                 episodeRequest, indexingContext);
             if (spotifyResult.FullEpisode != null)
             {
+                enrichedCtr++;
                 var image = spotifyResult.FullEpisode.Images.MaxBy(x => x.Height);
 
                 episodeResult.Url = spotifyResult.FullEpisode.GetUrl();
@@ -35,5 +36,7 @@ public class SpotifyEnricher(
                 episodeResult.ImageUrl = image != null ? new Uri(image.Url) : null;
             }
         }
+        logger.LogInformation($"{nameof(Enrich)} enriched '{enrichedCtr}' results.");
+
     }
 }
