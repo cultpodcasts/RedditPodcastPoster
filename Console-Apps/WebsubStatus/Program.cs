@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.YouTubePushNotifications.Extensions;
 using WebsubStatus;
 
@@ -24,7 +25,8 @@ builder.Services
     .AddLogging()
     .AddScoped<WebSubStatusProcessor>()
     .AddRepositories()
-    .AddPodcastServices(builder.Configuration)
+    .AddPodcastServices()
+    .AddCommonServices(builder.Configuration)
     .AddYouTubePushNotificationServices(builder.Configuration)
     .AddHttpClient();
 

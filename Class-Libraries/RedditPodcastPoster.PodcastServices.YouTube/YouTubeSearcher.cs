@@ -23,7 +23,7 @@ public class YouTubeSearcher(
 
     private readonly HttpClient _httpClient = httpClientFactory.Create();
 
-    public async Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext)
+    public async Task<IList<EpisodeResult>> Search(string query, IndexingContext indexingContext)
     {
         logger.LogInformation($"{nameof(Search)}: query: '{query}'.");
         var medium = await Search(query, indexingContext, VideoDurationEnum.Medium);
@@ -32,7 +32,7 @@ public class YouTubeSearcher(
         logger.LogInformation(
             $"{nameof(Search)}: Found {episodeResults.Count(x => x.Released >= indexingContext.ReleasedSince)} items from youtube matching query '{query}'.");
 
-        return episodeResults;
+        return episodeResults.ToList();
     }
 
     private async Task<IEnumerable<EpisodeResult>> Search(

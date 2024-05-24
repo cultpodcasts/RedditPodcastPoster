@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.ListenNotes;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
 
@@ -7,7 +8,9 @@ namespace RedditPodcastPoster.Discovery;
 
 public class SearchProvider(
     ISpotifySearcher spotifySearcher,
-    ISpotifyEnrichingListenNotesSearcher listenNotesSearcher,
+    IListenNotesSearcher listenNotesSearcher,
+    ISpotifyEnricher spotifyEnricher,
+    IAppleEnricher appleEnricher,
     IYouTubeSearcher youTubeSearcher,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<SearchProvider> logger
@@ -21,23 +24,31 @@ public class SearchProvider(
         var results = new List<EpisodeResult>();
         foreach (var config in discoveryConfig.ServiceConfigs)
         {
-            var serviceResults = Enumerable.Empty<EpisodeResult>();
+            IList<EpisodeResult> serviceResults;
             switch (config.DiscoverService)
             {
                 case DiscoverService.ListenNotes:
-                    serviceResults = await listenNotesSearcher.Search(
-                        config.Term,
-                        indexingContext,
-                        discoveryConfig.EnrichFromSpotify);
+                    serviceResults = await listenNotesSearcher.Search(config.Term, indexingContext);
+                    if (discoveryConfig.EnrichFromSpotify)
+                    {
+                        await spotifyEnricher.Enrich(serviceResults, indexingContext);
+                    }
+
                     break;
                 case DiscoverService.Spotify:
                     serviceResults = await spotifySearcher.Search(config.Term, indexingContext);
+                    if (discoveryConfig.EnrichFromApple)
+                    {
+                        await appleEnricher.Enrich(serviceResults, indexingContext);
+                    }
+
                     break;
                 case DiscoverService.YouTube:
                     serviceResults = await youTubeSearcher.Search(config.Term, indexingContext);
                     break;
                 default:
                     logger.LogError($"Unhandled {nameof(DiscoverService)}");
+                    serviceResults = new List<EpisodeResult>();
                     break;
             }
 

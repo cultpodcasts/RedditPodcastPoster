@@ -1,14 +1,14 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Episodes;
-using RedditPodcastPoster.Common.PodcastServices;
+using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text.EliminationTerms;
 
-namespace RedditPodcastPoster.Common.Podcasts;
+namespace RedditPodcastPoster.PodcastServices;
 
 public class PodcastUpdater(
     IPodcastRepository podcastRepository,

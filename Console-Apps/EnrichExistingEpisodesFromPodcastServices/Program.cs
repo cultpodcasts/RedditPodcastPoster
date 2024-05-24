@@ -30,7 +30,7 @@ builder.Services
     .AddRepositories()
     .AddScoped<EnrichPodcastEpisodesProcessor>()
     .AddUrlSubmission()
-    .AddPodcastServices(builder.Configuration)
+    .AddCommonServices(builder.Configuration)
     .AddSpotifyServices(builder.Configuration)
     .AddYouTubeServices(builder.Configuration)
     .AddAppleServices()

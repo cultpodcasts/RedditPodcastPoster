@@ -1,11 +1,11 @@
 ﻿using System.Text;
-using RedditPodcastPoster.Common.PodcastServices;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
-namespace RedditPodcastPoster.Common.Podcasts;
+namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
-public record IndexPodcastResult(Podcast Podcast,
+public record IndexPodcastResult(
+    Podcast Podcast,
     MergeResult MergeResult,
     FilterResult FilterResult,
     EnrichmentResults EnrichmentResult,

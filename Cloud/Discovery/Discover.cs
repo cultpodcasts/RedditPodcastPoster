@@ -31,6 +31,16 @@ public class Discover(
             SkipSpotifyUrlResolving: false,
             SkipPodcastDiscovery: false,
             SkipExpensiveSpotifyQueries: false);
+        
+        logger.LogInformation($"{nameof(RunAsync)}: {indexingContext.ToString()}");
+
+        if (DryRun.IsDiscoverDryRun)
+        {
+            return input with
+            {
+                Success = true
+            };
+        }
 
         var activityBooked = await activityMarshaller.Initiate(input.DiscoveryOperationId, nameof(Discover));
         if (activityBooked != ActivityStatus.Initiated)
@@ -50,7 +60,8 @@ public class Discover(
             var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
             logger.LogInformation(
                 $"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}'), indexing-context: {indexingContext}");
-            var discoveryConfig = new DiscoveryConfig(serviceConfigs, _discoverOptions.EnrichListenNotesFromSpotify);
+            var discoveryConfig = new DiscoveryConfig(serviceConfigs, _discoverOptions.EnrichListenNotesFromSpotify,
+                _discoverOptions.EnrichSpotifyFromApple);
 
             var preIndexingContextSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
             var discoveryResults = await discoveryService.GetDiscoveryResults(indexingContext, discoveryConfig);

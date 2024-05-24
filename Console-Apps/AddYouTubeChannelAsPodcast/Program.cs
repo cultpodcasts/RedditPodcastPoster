@@ -29,7 +29,6 @@ builder.Services
     .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
     .AddHttpClient();
 
-
 using var host = builder.Build();
 
 return await Parser.Default.ParseArguments<Args>(args)

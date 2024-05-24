@@ -1,10 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Apple;
 
-namespace RedditPodcastPoster.Common.PodcastServices.Apple;
+namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class AppleEpisodeRetrievalHandler(
     IAppleEpisodeProvider appleEpisodeProvider,

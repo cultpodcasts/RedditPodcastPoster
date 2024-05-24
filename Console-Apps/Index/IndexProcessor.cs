@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Subjects;

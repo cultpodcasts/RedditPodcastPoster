@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Common;
+namespace RedditPodcastPoster.Common;
 
 public static class DateTimeHelper
 {

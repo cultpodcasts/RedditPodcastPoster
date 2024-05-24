@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Discovery\RedditPodcastPoster.Discovery.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices\RedditPodcastPoster.PodcastServices.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj" />
     <ProjectReference Include="..\Azure\Azure.csproj" />
   </ItemGroup>

@@ -1,8 +1,8 @@
-namespace RedditPodcastPoster.Models.Extensions;
+﻿namespace RedditPodcastPoster.Common.Extensions;
 
-public static class DateTimeOffsetExtensions
+public static class DateTimeExtensions
 {
-    public static bool ReleasedSinceDate(this DateTimeOffset? releaseDate, DateTime? date)
+    public static bool ReleasedSinceDate(this DateTime? releaseDate, DateTime? date)
     {
         if (releaseDate.HasValue && date.HasValue)
         {
@@ -12,19 +12,19 @@ public static class DateTimeOffsetExtensions
         return true;
     }
 
-    public static DateTimeOffset Floor(this DateTimeOffset dateTime, TimeSpan interval)
+    public static DateTime Floor(this DateTime dateTime, TimeSpan interval)
     {
         return dateTime.AddTicks(-(dateTime.Ticks % interval.Ticks));
     }
 
-    public static DateTimeOffset Ceiling(this DateTimeOffset dateTime, TimeSpan interval)
+    public static DateTime Ceiling(this DateTime dateTime, TimeSpan interval)
     {
         var overflow = dateTime.Ticks % interval.Ticks;
 
         return overflow == 0 ? dateTime : dateTime.AddTicks(interval.Ticks - overflow);
     }
 
-    public static DateTimeOffset Round(this DateTimeOffset dateTime, TimeSpan interval)
+    public static DateTime Round(this DateTime dateTime, TimeSpan interval)
     {
         var halfIntervalTicks = (interval.Ticks + 1) >> 1;
 

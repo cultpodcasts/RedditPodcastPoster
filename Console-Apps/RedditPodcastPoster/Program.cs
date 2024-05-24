@@ -36,7 +36,7 @@ builder.Services
     .AddYouTubeServices(builder.Configuration)
     .AddSpotifyServices(builder.Configuration)
     .AddAppleServices()
-    .AddPodcastServices(builder.Configuration)
+    .AddCommonServices(builder.Configuration)
     .AddSubjectServices()
     .AddRemoteClient()
     .AddScoped(s => new iTunesSearchManager())

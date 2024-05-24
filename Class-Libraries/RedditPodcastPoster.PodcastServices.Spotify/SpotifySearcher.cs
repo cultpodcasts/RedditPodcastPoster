@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
@@ -14,8 +15,16 @@ public class SpotifySearcher(
 {
     private readonly Uri _spotifyEpisodeBase = new("https://open.spotify.com/episode/");
 
-    public async Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext)
+    public async Task<IList<EpisodeResult>> Search(string query, IndexingContext indexingContext)
     {
+        if (indexingContext.ReleasedSince.HasValue)
+        {
+            indexingContext = indexingContext with
+            {
+                ReleasedSince = indexingContext.ReleasedSince!.Value.ToUniversalTime().Floor(TimeSpan.FromDays(1))
+            };
+        }
+
         logger.LogInformation($"{nameof(Search)}: query: '{query}'.");
         var results = await spotifyClient.FindEpisodes(
             new SearchRequest(SearchRequest.Types.Episode, query) {Market = Market.CountryCode},
@@ -25,10 +34,12 @@ public class SpotifySearcher(
             var queryRegexPattern = $@"\b{query}\b";
             var termRegex = new Regex(queryRegexPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
             var allResults = await spotifyClient.PaginateAll(results, response => response.Episodes, indexingContext);
+
             var recentResults =
                 allResults?
-                    .Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince &&
-                                (termRegex.IsMatch(x.Name) || termRegex.IsMatch(x.Description))) ??
+                    .Where(x =>
+                        x.GetReleaseDate() >= indexingContext.ReleasedSince &&
+                        (termRegex.IsMatch(x.Name) || termRegex.IsMatch(x.Description))) ??
                 Enumerable.Empty<SimpleEpisode>();
 
             if (recentResults.Any())
@@ -42,12 +53,12 @@ public class SpotifySearcher(
                 logger.LogInformation(
                     $"{nameof(Search)}: Found {episodeResults.Count(x => x.Released >= indexingContext.ReleasedSince)} items from spotify matching query '{query}'.");
 
-                return episodeResults;
+                return episodeResults.ToList();
             }
         }
 
         logger.LogInformation($"{nameof(Search)}: Found no items from spotify matching query '{query}'.");
-        return Enumerable.Empty<EpisodeResult>();
+        return new List<EpisodeResult>();
     }
 
     private EpisodeResult ToEpisodeResult(FullEpisode episode)
@@ -62,7 +73,7 @@ public class SpotifySearcher(
             episode.Show.Name.Trim(), DiscoverService.Spotify,
             new Uri(_spotifyEpisodeBase, episode.Id),
             episode.Show.Id,
-            ImageUrl: image != null ? new Uri(image.Url) : null
+            imageUrl: image != null ? new Uri(image.Url) : null
         );
     }
 }
