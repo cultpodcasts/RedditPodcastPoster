@@ -1,5 +1,5 @@
 ﻿using CommandLine;
-using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.Extensions;
 
 namespace RedditPodcastPoster;
 

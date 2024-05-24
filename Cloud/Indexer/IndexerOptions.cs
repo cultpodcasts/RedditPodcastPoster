@@ -1,4 +1,4 @@
-using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace Indexer;

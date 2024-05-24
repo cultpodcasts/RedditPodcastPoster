@@ -1,6 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
@@ -34,7 +34,7 @@ public class SpotifySearcher(
             var queryRegexPattern = $@"\b{query}\b";
             var termRegex = new Regex(queryRegexPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
             var allResults = await spotifyClient.PaginateAll(results, response => response.Episodes, indexingContext);
-            
+
             var recentResults =
                 allResults?
                     .Where(x =>

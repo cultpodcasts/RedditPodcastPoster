@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration;
 
 namespace Indexer;
