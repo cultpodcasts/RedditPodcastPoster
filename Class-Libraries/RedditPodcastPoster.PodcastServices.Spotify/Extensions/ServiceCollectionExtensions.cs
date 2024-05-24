@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 
@@ -26,6 +27,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<ISpotifyPodcastResolver, SpotifyPodcastResolver>()
             .AddScoped<ISpotifyQueryPaginator, SpotifyQueryPaginator>()
             .AddScoped<ISearchResultFinder, SearchResultFinder>()
-            .AddScoped<ISpotifySearcher, SpotifySearcher>();
+            .AddScoped<ISpotifySearcher, SpotifySearcher>()
+            .AddScoped<ISpotifyEpisodeRetrievalHandler, SpotifyEpisodeRetrievalHandler>();
     }
 }

@@ -8,6 +8,7 @@ using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
@@ -28,7 +29,8 @@ builder.Services
     .AddLogging()
     .AddScoped<PostProcessor>()
     .AddRepositories()
-    .AddPodcastServices(builder.Configuration)
+    .AddCommonServices(builder.Configuration)
+    .AddPodcastServices()
     .AddContentPublishing(builder.Configuration)
     .AddRedditServices(builder.Configuration)
     .AddTwitterServices(builder.Configuration)

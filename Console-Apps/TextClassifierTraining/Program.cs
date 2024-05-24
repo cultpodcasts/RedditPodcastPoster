@@ -36,7 +36,6 @@ builder.Services
     .AddSubjectServices()
     .AddRedditServices(builder.Configuration);
 
-
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<TrainingDataRequest>(args)
     .MapResult(async trainingDataRequest => await Run(trainingDataRequest),

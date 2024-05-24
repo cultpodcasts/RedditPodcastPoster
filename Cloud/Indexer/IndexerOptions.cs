@@ -19,7 +19,7 @@ public class IndexerOptions
         DateTime? releasedSince = null;
         if (ReleasedDaysAgo != null)
         {
-            releasedSince = DateTimeHelper.DaysAgo(ReleasedDaysAgo.Value);
+            releasedSince = DateTimeExtensions.DaysAgo(ReleasedDaysAgo.Value);
         }
 
         return new IndexingContext(releasedSince, ByPassYouTube);

@@ -10,6 +10,7 @@ using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
+using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
@@ -31,7 +32,8 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
-    .AddPodcastServices(builder.Configuration)
+    .AddCommonServices(builder.Configuration)
+    .AddPodcastServices()
     .AddSpotifyServices(builder.Configuration)
     .AddAppleServices()
     .AddYouTubeServices(builder.Configuration)

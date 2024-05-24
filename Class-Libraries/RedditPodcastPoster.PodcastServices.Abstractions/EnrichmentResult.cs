@@ -1,7 +1,6 @@
 ﻿using RedditPodcastPoster.Models;
-using RedditPodcastPoster.PodcastServices.Abstractions;
 
-namespace RedditPodcastPoster.Common.PodcastServices;
+namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public record EnrichmentResult(
     Podcast Podcast,

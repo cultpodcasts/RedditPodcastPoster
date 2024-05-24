@@ -25,7 +25,7 @@ public class EnrichPodcastEpisodesProcessor(
         IndexingContext indexingContext;
         if (request.ReleasedSince.HasValue)
         {
-            indexingContext = new IndexingContext(DateTimeHelper.DaysAgo(request.ReleasedSince.Value));
+            indexingContext = new IndexingContext(DateTimeExtensions.DaysAgo(request.ReleasedSince.Value));
         }
         else
         {

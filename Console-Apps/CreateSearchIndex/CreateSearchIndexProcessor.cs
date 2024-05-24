@@ -1,9 +1,9 @@
 ﻿using System.Text.RegularExpressions;
 using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
-using CreateSearchIndex.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence;
 
 namespace CreateSearchIndex;

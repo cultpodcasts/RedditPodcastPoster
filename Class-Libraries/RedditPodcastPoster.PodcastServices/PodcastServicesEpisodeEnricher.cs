@@ -6,7 +6,7 @@ using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
 
-namespace RedditPodcastPoster.Common.PodcastServices;
+namespace RedditPodcastPoster.PodcastServices;
 
 public class PodcastServicesEpisodeEnricher(
     IAppleEpisodeEnricher appleEpisodeEnricher,

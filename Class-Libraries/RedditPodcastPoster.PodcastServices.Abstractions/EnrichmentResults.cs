@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace RedditPodcastPoster.Common.PodcastServices;
+namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public class EnrichmentResults(IList<EnrichmentResult> updatedEpisodes)
 {

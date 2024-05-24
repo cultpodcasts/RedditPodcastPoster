@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Common.Podcasts;
+namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public class FilterResult(IList<(Episode, string[])> filteredEpisodes)
 {

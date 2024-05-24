@@ -12,11 +12,13 @@
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices.YouTube\RedditPodcastPoster.PodcastServices.YouTube.csproj" />
   </ItemGroup>
 
 </Project>

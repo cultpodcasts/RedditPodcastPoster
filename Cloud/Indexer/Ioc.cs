@@ -37,7 +37,7 @@ public static class Ioc
             .AddYouTubeServices(hostBuilderContext.Configuration)
             .AddSpotifyServices(hostBuilderContext.Configuration)
             .AddAppleServices()
-            .AddPodcastServices(hostBuilderContext.Configuration)
+            .AddCommonServices(hostBuilderContext.Configuration)
             .AddRemoteClient()
             .AddScoped(s => new iTunesSearchManager())
             .AddEliminationTerms()

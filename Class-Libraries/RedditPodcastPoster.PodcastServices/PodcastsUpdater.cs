@@ -1,9 +1,10 @@
 ﻿using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
-namespace RedditPodcastPoster.Common.Podcasts;
+namespace RedditPodcastPoster.PodcastServices;
 
 public class PodcastsUpdater(
     IPodcastUpdater podcastUpdater,
