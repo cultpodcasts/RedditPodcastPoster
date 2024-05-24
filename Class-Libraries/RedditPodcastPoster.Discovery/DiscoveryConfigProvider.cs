@@ -6,11 +6,11 @@ public class DiscoveryServiceConfigProvider : IDiscoveryServiceConfigProvider
 {
     private readonly ServiceConfig[] _spotifyConfigs =
     {
-        new("Cult", DiscoverService.Spotify)
-        //new("Cults", DiscoverService.Spotify),
-        //new("Scientology", DiscoverService.Spotify),
-        //new("NXIVM", DiscoverService.Spotify),
-        //new("FLDS", DiscoverService.Spotify)
+        new("Cult", DiscoverService.Spotify),
+        new("Cults", DiscoverService.Spotify),
+        new("Scientology", DiscoverService.Spotify),
+        new("NXIVM", DiscoverService.Spotify),
+        new("FLDS", DiscoverService.Spotify)
     };
 
     public IEnumerable<ServiceConfig> GetServiceConfigs(
