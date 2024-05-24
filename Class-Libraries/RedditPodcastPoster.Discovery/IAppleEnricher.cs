@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Discovery;
 
 public interface IAppleEnricher
 {
-    Task Enrich(IEnumerable<EpisodeResult> results, IndexingContext indexingContext);
+    Task Enrich(IList<EpisodeResult> results, IndexingContext indexingContext);
 }

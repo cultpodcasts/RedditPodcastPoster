@@ -17,7 +17,7 @@ public class ListenNotesSearcher(
     private const string OffsetKey = "offset";
     private readonly Client _client = clientFactory.Create();
 
-    public async Task<IEnumerable<EpisodeResult>> Search(string term, IndexingContext indexingContext)
+    public async Task<IList<EpisodeResult>> Search(string term, IndexingContext indexingContext)
     {
         var results = new List<EpisodeResult>();
         var offset = 0;

@@ -1,12 +1,15 @@
 ﻿using System.Reflection;
 using CommandLine;
 using Discover;
+using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.PodcastServices;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Subjects.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -26,6 +29,8 @@ builder.Services
     .AddScoped<IDiscoveryResultConsoleLogger, DiscoveryResultConsoleLogger>()
     .AddRepositories()
     .AddSubjectServices()
+    .AddScoped<IRemoteClient, RemoteClient>()
+    .AddScoped(s => new iTunesSearchManager())
     .AddHttpClient();
 
 using var host = builder.Build();

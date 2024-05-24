@@ -7,7 +7,7 @@ public class DiscoverOptions
     public bool IncludeYouTube { get; set; }
     public bool IncludeListenNotes { get; set; }
     public bool EnrichListenNotesFromSpotify { get; set; }
-    public bool EnrichFromApple { get; set; }
+    public bool EnrichSpotifyFromApple { get; set; }
 
     public override string ToString()
     {
@@ -18,7 +18,7 @@ public class DiscoverOptions
             new {displayName = "include-you-tube", value = IncludeYouTube.ToString()},
             new {displayName = "include-listen-notes", value = IncludeListenNotes.ToString()},
             new {displayName = "enrich-listen-notes-from-spotify", value = EnrichListenNotesFromSpotify.ToString()},
-            new {displayName = "enrich-from-apple", value = EnrichFromApple.ToString()}
+            new {displayName = "enrich-spotify-from-apple", value = EnrichSpotifyFromApple.ToString()}
         };
 
         return

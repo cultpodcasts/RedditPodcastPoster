@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
@@ -23,6 +24,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IIgnoreTermsProvider, IgnoreTermsProvider>()
             .AddDiscoveryRepository(config)
             .AddSpotifyServices(config)
+            .AddAppleServices()
             .AddYouTubeServices(config)
             .AddListenNotes(config)
             .AddTextSanitiser();

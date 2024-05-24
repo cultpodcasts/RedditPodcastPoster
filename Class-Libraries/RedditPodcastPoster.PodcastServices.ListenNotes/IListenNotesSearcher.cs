@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.PodcastServices.ListenNotes;
 
 public interface IListenNotesSearcher
 {
-    Task<IEnumerable<EpisodeResult>> Search(string query, IndexingContext indexingContext);
+    Task<IList<EpisodeResult>> Search(string query, IndexingContext indexingContext);
 }

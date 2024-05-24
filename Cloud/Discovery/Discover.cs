@@ -51,7 +51,7 @@ public class Discover(
             logger.LogInformation(
                 $"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}'), indexing-context: {indexingContext}");
             var discoveryConfig = new DiscoveryConfig(serviceConfigs, _discoverOptions.EnrichListenNotesFromSpotify,
-                _discoverOptions.EnrichFromApple);
+                _discoverOptions.EnrichSpotifyFromApple);
 
             var preIndexingContextSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
             var discoveryResults = await discoveryService.GetDiscoveryResults(indexingContext, discoveryConfig);

@@ -24,7 +24,7 @@ public class SearchProvider(
         var results = new List<EpisodeResult>();
         foreach (var config in discoveryConfig.ServiceConfigs)
         {
-            var serviceResults = Enumerable.Empty<EpisodeResult>();
+            IList<EpisodeResult> serviceResults;
             switch (config.DiscoverService)
             {
                 case DiscoverService.ListenNotes:
@@ -32,11 +32,6 @@ public class SearchProvider(
                     if (discoveryConfig.EnrichFromSpotify)
                     {
                         await spotifyEnricher.Enrich(serviceResults, indexingContext);
-                    }
-
-                    if (discoveryConfig.EnrichFromApple)
-                    {
-                        await appleEnricher.Enrich(serviceResults, indexingContext);
                     }
 
                     break;
@@ -53,6 +48,7 @@ public class SearchProvider(
                     break;
                 default:
                     logger.LogError($"Unhandled {nameof(DiscoverService)}");
+                    serviceResults = new List<EpisodeResult>();
                     break;
             }
 
