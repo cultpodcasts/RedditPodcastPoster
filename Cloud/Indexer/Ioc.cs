@@ -38,6 +38,7 @@ public static class Ioc
             .AddSpotifyServices(hostBuilderContext.Configuration)
             .AddAppleServices()
             .AddCommonServices(hostBuilderContext.Configuration)
+            .AddPodcastServices()
             .AddRemoteClient()
             .AddScoped(s => new iTunesSearchManager())
             .AddEliminationTerms()

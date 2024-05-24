@@ -1,6 +1,5 @@
 ﻿using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
@@ -18,8 +17,8 @@ public class PodcastsUpdater(
         var success = true;
         logger.LogInformation($"{nameof(UpdatePodcasts)} Retrieving podcasts.");
         var podcastIds = podcastRepository.GetAllBy(podcast =>
-            (!podcast.Removed.IsDefined() || podcast.Removed==false )&&
-            podcast.IndexAllEpisodes ||
+            ((!podcast.Removed.IsDefined() || podcast.Removed == false) &&
+             podcast.IndexAllEpisodes) ||
             podcast.EpisodeIncludeTitleRegex != "", x => x.Id);
         logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
         await foreach (var podcastId in podcastIds)
