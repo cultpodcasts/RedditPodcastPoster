@@ -31,6 +31,16 @@ public class Discover(
             SkipSpotifyUrlResolving: false,
             SkipPodcastDiscovery: false,
             SkipExpensiveSpotifyQueries: false);
+        
+        logger.LogInformation($"{nameof(RunAsync)}: {indexingContext.ToString()}");
+
+        if (DryRun.IsDiscoverDryRun)
+        {
+            return input with
+            {
+                Success = true
+            };
+        }
 
         var activityBooked = await activityMarshaller.Initiate(input.DiscoveryOperationId, nameof(Discover));
         if (activityBooked != ActivityStatus.Initiated)
