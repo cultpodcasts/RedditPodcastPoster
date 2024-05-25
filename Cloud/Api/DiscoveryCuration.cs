@@ -50,6 +50,7 @@ public class DiscoveryCuration(
     {
         try
         {
+            var errorsOccured = false;
             var indexingContext = new IndexingContext
             {
                 SkipPodcastDiscovery = false,
@@ -60,11 +61,20 @@ public class DiscoveryCuration(
             foreach (var url in m.Urls)
             {
                 logger.LogInformation($"Submitting '{url}' with indexing-context: {indexingContext}");
-                await urlSubmitter.Submit(url, indexingContext, submitOptions);
+                try
+                {
+                    await urlSubmitter.Submit(url, indexingContext, submitOptions);
+                }
+                catch (Exception ex)
+                {
+                    errorsOccured = true;
+                    logger.LogError($"{nameof(Post)} Failure submitting url '{url}'.");
+                }
             }
 
             await discoveryResultsService.MarkAsProcessed(m.DiscoveryResultsDocumentIds);
-            return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new {Message = "Success"}, c);
+            
+            return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new {message = "Success", errorsOccurred= errorsOccured}, c);
         }
         catch (Exception e)
         {
