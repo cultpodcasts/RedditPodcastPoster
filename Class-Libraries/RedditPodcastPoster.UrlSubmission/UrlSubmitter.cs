@@ -31,7 +31,7 @@ public class UrlSubmitter(
         SubmitOptions submitOptions)
     {
         var episodeResult = SubmitResultState.None;
-        var podcastResult = SubmitResultState.None;
+        SubmitResultState podcastResult;
         Podcast? podcast;
         if (submitOptions.PodcastId != null)
         {
@@ -45,7 +45,7 @@ public class UrlSubmitter(
         if (podcast != null && podcast.IsRemoved())
         {
             logger.LogWarning($"Podcast with id '{podcast.Id}' is removed.");
-            return new SubmitResult(episodeResult, podcastResult);
+            return new SubmitResult(episodeResult, SubmitResultState.PodcastRemoved);
         }
 
         var categorisedItem =
@@ -110,6 +110,7 @@ public class UrlSubmitter(
         else
         {
             podcastResult = SubmitResultState.Created;
+            episodeResult = SubmitResultState.Created;
             var newPodcast = await CreatePodcastWithEpisode(categorisedItem);
             if (submitOptions.PersistToDatabase)
             {
