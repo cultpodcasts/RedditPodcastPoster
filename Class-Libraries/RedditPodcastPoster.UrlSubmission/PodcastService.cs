@@ -73,8 +73,12 @@ public class PodcastService(
 
                 if (podcasts.Count() > 1)
                 {
-                    throw new InvalidOperationException(
-                        $"Multiple podcasts with youtube-channel-id '{snippetChannelId}' and empty youtube-playlist-id and index-all-episodes is true found");
+                    var message =
+                        $"Multiple podcasts with youtube-channel-id '{snippetChannelId}' and empty youtube-playlist-id and index-all-episodes is true found";
+                    var invalidOperationException = new InvalidOperationException(
+                        message);
+                    logger.LogError(invalidOperationException, message);
+                    throw invalidOperationException;
                 }
             }
         }

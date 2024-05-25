@@ -10,6 +10,7 @@ public record SubmitResult(
     {
         None = 0,
         Created,
-        Enriched
+        Enriched,
+        PodcastRemoved
     }
 }
