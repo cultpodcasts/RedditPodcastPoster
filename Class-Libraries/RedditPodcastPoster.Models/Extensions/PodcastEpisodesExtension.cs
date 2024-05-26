@@ -5,11 +5,33 @@ namespace RedditPodcastPoster.Models.Extensions;
 
 public static class PodcastEpisodesExtension
 {
+    public static bool HasMultipleServices(this PodcastEpisode podcastEpisode)
+    {
+        var ctr = 0;
+        if (podcastEpisode.Podcast.AppleId.HasValue)
+        {
+            ctr++;
+        }
+
+        if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.SpotifyId))
+        {
+            ctr++;
+        }
+
+        if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId))
+        {
+            ctr++;
+        }
+
+        return ctr > 1;
+    }
+
     public static string ToEpisodeUrl(this PodcastEpisode podcastEpisode)
     {
         var escapedPodcastName = Uri.EscapeDataString(podcastEpisode.Podcast.Name);
         return $"https://cultpodcasts.com/podcast/{escapedPodcastName}/{podcastEpisode.Episode.Id}";
     }
+
     public static PostModel ToPostModel(
         this (Podcast Podcast, IEnumerable<Episode> Episodes) podcastEpisodes,
         bool preferYouTube = false)
