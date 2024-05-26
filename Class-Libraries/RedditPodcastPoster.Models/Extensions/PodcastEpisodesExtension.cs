@@ -1,9 +1,15 @@
 ﻿using System.Globalization;
+using System.Net;
 
 namespace RedditPodcastPoster.Models.Extensions;
 
 public static class PodcastEpisodesExtension
 {
+    public static string ToEpisodeUrl(this PodcastEpisode podcastEpisode)
+    {
+        var escapedPodcastName = Uri.EscapeDataString(podcastEpisode.Podcast.Name);
+        return $"https://cultpodcasts.com/podcast/{escapedPodcastName}/{podcastEpisode.Episode.Id}";
+    }
     public static PostModel ToPostModel(
         this (Podcast Podcast, IEnumerable<Episode> Episodes) podcastEpisodes,
         bool preferYouTube = false)
