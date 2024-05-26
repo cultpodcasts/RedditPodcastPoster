@@ -28,6 +28,8 @@ public partial class CreateSearchIndexProcessor(
             if (request.TearDownIndex)
             {
                 await searchIndexClient.DeleteIndexAsync(request.IndexName);
+                logger.LogWarning(
+                    "Ensure that the indexer has run and completed indexing ALL records. The indexer will time-out at 10,000 records, so it must be re-run until all records are reindexed.");
             }
 
             var index = new SearchIndex(request.IndexName)
@@ -38,7 +40,7 @@ public partial class CreateSearchIndexProcessor(
             };
             index.Fields.Add(new SearchField("id", SearchFieldDataType.String)
             {
-                IsKey = true, IsSearchable = false, IsFilterable = false, IsSortable = false,
+                IsKey = true, IsSearchable = false, IsFilterable = true, IsSortable = false,
                 IsFacetable = false
             });
             index.Fields.Add(new SearchField("episodeTitle", SearchFieldDataType.String)
