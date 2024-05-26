@@ -75,11 +75,17 @@ public class TweetBuilder(
             tweetBuilder.AppendLine(endHashTags);
         }
 
-        var permittedTitleLength = 257 - tweetBuilder.Length;
+        var permittedTitleLength = 257 - (tweetBuilder.Length + (_twitterOptions.WithEpisodeUrl ? 26 : 0));
 
         if (episodeTitle.Length > permittedTitleLength)
         {
             episodeTitle = episodeTitle[..Math.Min(episodeTitle.Length, permittedTitleLength - 1)] + "…";
+        }
+
+        if (_twitterOptions.WithEpisodeUrl)
+        {
+            var podcastEpisodeUrl = podcastEpisode.ToEpisodeUrl();
+            tweetBuilder.Append($"{podcastEpisodeUrl}{Environment.NewLine}");
         }
 
         tweetBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");
