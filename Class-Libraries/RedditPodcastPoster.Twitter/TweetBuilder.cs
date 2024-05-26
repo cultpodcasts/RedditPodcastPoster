@@ -75,7 +75,7 @@ public class TweetBuilder(
             tweetBuilder.AppendLine(endHashTags);
         }
 
-        var permittedTitleLength = 257 - tweetBuilder.Length;
+        var permittedTitleLength = 257 - (tweetBuilder.Length + (_twitterOptions.WithEpisodeUrl ? 26 : 0));
 
         if (episodeTitle.Length > permittedTitleLength)
         {
