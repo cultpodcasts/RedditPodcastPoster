@@ -1,6 +1,6 @@
-﻿using KVWriter.Shortner;
-using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.UrlShortening;
 
 namespace KVWriter;
 

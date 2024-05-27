@@ -8,7 +8,7 @@ using RedditPodcastPoster.ContentPublisher.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 
-namespace KVWriter.Shortner;
+namespace RedditPodcastPoster.UrlShortening;
 
 public class ShortnerService(
     HttpClient httpClient,

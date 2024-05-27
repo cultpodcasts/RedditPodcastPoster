@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Configuration;
 
-namespace KVWriter.Shortner.Extensions;
+namespace RedditPodcastPoster.UrlShortening.Extensions;
 
 public static class ServiceCollectionExtensions
 {

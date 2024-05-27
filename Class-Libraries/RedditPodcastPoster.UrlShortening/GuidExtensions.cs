@@ -1,4 +1,4 @@
-﻿namespace KVWriter.Shortner;
+﻿namespace RedditPodcastPoster.UrlShortening;
 
 public static class GuidExtensions
 {

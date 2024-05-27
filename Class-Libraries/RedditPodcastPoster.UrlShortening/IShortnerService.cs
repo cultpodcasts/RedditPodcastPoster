@@ -1,6 +1,6 @@
 ﻿using RedditPodcastPoster.Models;
 
-namespace KVWriter.Shortner;
+namespace RedditPodcastPoster.UrlShortening;
 
 public interface IShortnerService
 {

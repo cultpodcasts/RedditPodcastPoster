@@ -1,12 +1,12 @@
 ﻿using System.Reflection;
 using CommandLine;
 using KVWriter;
-using KVWriter.Shortner.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.UrlShortening.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
