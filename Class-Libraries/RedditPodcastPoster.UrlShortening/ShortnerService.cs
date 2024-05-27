@@ -27,9 +27,6 @@ public class ShortnerService(
             Value = $"{x.PodcastName}/{x.EpisodeId}"
         }).ToArray();
 
-        logger.LogInformation(
-            $"Cloudflare-options: account-id-length '{_cloudFlareOptions.AccountId.Length}', KVShortnerNamespaceId-length: '{_cloudFlareOptions.KVShortnerNamespaceId.Length}', KVApiToken-length: '{_cloudFlareOptions.KVApiToken.Length}'.");
-
         var url = BulkWriteUrl(_cloudFlareOptions.AccountId, _cloudFlareOptions.KVShortnerNamespaceId);
         using var request = new HttpRequestMessage();
         request.Method = HttpMethod.Put;
@@ -48,7 +45,6 @@ public class ShortnerService(
             logger.LogError(
                 $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
         }
-
         return new WriteResult(result.StatusCode == HttpStatusCode.OK);
     }
 
@@ -61,9 +57,6 @@ public class ShortnerService(
             Key = item.Base64EpisodeKey,
             Value = $"{item.PodcastName}/{item.EpisodeId}"
         };
-
-        logger.LogInformation(
-            $"Cloudflare-options: account-id-length '{_cloudFlareOptions.AccountId.Length}', KVShortnerNamespaceId-length: '{_cloudFlareOptions.KVShortnerNamespaceId.Length}', KVApiToken-length: '{_cloudFlareOptions.KVApiToken.Length}'.");
 
         var url = WriteUrl(_cloudFlareOptions.AccountId, _cloudFlareOptions.KVShortnerNamespaceId, kvRecord.Key);
         using var request = new HttpRequestMessage();
@@ -80,7 +73,6 @@ public class ShortnerService(
             logger.LogError(
                 $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
         }
-
         return new WriteResult(result.StatusCode == HttpStatusCode.OK);
     }
 
