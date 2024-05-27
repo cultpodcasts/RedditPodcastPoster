@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - main
+      - feature/remote-logging-for-shortner
   workflow_dispatch:
 
 env:
