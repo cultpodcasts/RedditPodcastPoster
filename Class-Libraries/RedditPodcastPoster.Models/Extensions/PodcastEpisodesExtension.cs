@@ -28,9 +28,9 @@ public static class PodcastEpisodesExtension
 
     public static string ToEpisodeUrl(this PodcastEpisode podcastEpisode)
     {
-        var podcastName = podcastEpisode.Podcast.Name.Replace("(", "%28").Replace(")", "%29");
-        var escapedPodcastName = Uri.EscapeDataString(podcastName);
-        return $"https://cultpodcasts.com/podcast/{escapedPodcastName}/{podcastEpisode.Episode.Id}";
+        var escapedPodcastName = Uri.EscapeDataString(podcastEpisode.Podcast.Name);
+        var podcastName = escapedPodcastName.Replace("(", "%28").Replace(")", "%29");
+        return $"https://cultpodcasts.com/podcast/{podcastName}/{podcastEpisode.Episode.Id}";
     }
 
     public static PostModel ToPostModel(
