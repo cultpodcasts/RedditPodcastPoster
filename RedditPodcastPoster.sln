@@ -146,6 +146,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Api", "Cloud\Api\Api.csproj
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Discovery", "Cloud\Discovery\Discovery.csproj", "{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KVWriter", "Console-Apps\KVWriter\KVWriter.csproj", "{C988FDFE-6F23-4B58-9074-14158E2675C6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.UrlShortening", "Class-Libraries\RedditPodcastPoster.UrlShortening\RedditPodcastPoster.UrlShortening.csproj", "{C3C54A23-1322-42FF-A9F2-822A3669DA8C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -392,6 +396,14 @@ Global
 		{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C988FDFE-6F23-4B58-9074-14158E2675C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C988FDFE-6F23-4B58-9074-14158E2675C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C988FDFE-6F23-4B58-9074-14158E2675C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C988FDFE-6F23-4B58-9074-14158E2675C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3C54A23-1322-42FF-A9F2-822A3669DA8C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3C54A23-1322-42FF-A9F2-822A3669DA8C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3C54A23-1322-42FF-A9F2-822A3669DA8C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3C54A23-1322-42FF-A9F2-822A3669DA8C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -458,6 +470,8 @@ Global
 		{187FBE18-8517-45C5-B2BB-CA96B8E8EE7D} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{DB24B573-899C-40EB-99A6-92681230D39C} = {8C39850E-EB98-4D1F-B961-FBF7FF98049E}
 		{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723} = {8C39850E-EB98-4D1F-B961-FBF7FF98049E}
+		{C988FDFE-6F23-4B58-9074-14158E2675C6} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
+		{C3C54A23-1322-42FF-A9F2-822A3669DA8C} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

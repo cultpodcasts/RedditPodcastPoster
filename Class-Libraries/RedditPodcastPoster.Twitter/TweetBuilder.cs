@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Text;
+using RedditPodcastPoster.UrlShortening;
 
 namespace RedditPodcastPoster.Twitter;
 
@@ -13,11 +14,14 @@ public class TweetBuilder(
     IHashTagEnricher hashTagEnricher,
     IHashTagProvider hashTagProvider,
     IOptions<TwitterOptions> twitterOptions,
+    IOptions<ShortnerOptions> shortnerOptions,
+    IShortnerService shortnerService,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<TweetBuilder> logger)
 #pragma warning restore CS9113 // Parameter is unread.
     : ITweetBuilder
 {
+    private readonly ShortnerOptions _shortnerOptions = shortnerOptions.Value;
     private readonly TwitterOptions _twitterOptions = twitterOptions.Value;
 
     public async Task<string> BuildTweet(PodcastEpisode podcastEpisode)
@@ -85,8 +89,11 @@ public class TweetBuilder(
         if (_twitterOptions.WithEpisodeUrl && (podcastEpisode.HasMultipleServices() ||
                                                podcastEpisode.Podcast.Episodes.Count > 1))
         {
-            var podcastEpisodeUrl = podcastEpisode.ToEpisodeUrl();
-            tweetBuilder.Append($"{podcastEpisodeUrl}{Environment.NewLine}");
+            var shortnerResult = await shortnerService.Write(podcastEpisode);
+            var url = shortnerResult.Success
+                ? $"{_shortnerOptions.ShortnerUrl}{podcastEpisode.Episode.Id.ToBase64()}"
+                : podcastEpisode.ToEpisodeUrl();
+            tweetBuilder.Append($"{url}{Environment.NewLine}");
         }
 
         tweetBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");
