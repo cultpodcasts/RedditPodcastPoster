@@ -1,5 +1,4 @@
 ﻿using System.Globalization;
-using System.Net;
 
 namespace RedditPodcastPoster.Models.Extensions;
 
@@ -28,9 +27,8 @@ public static class PodcastEpisodesExtension
 
     public static string ToEpisodeUrl(this PodcastEpisode podcastEpisode)
     {
-        var escapedPodcastName = Uri.EscapeDataString(podcastEpisode.Podcast.Name);
-        var podcastName = escapedPodcastName.Replace("(", "%28").Replace(")", "%29");
-        return $"https://cultpodcasts.com/podcast/{podcastName}/{podcastEpisode.Episode.Id}";
+        var safePodcastName = podcastEpisode.Podcast.PodcastNameInSafeUrlForm();
+        return $"https://cultpodcasts.com/podcast/{safePodcastName}/{podcastEpisode.Episode.Id}";
     }
 
     public static PostModel ToPostModel(
