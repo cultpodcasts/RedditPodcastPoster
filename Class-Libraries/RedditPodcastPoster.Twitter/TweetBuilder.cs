@@ -90,6 +90,10 @@ public class TweetBuilder(
                                                podcastEpisode.Podcast.Episodes.Count > 1))
         {
             var shortnerResult = await shortnerService.Write(podcastEpisode);
+            if (!shortnerResult.Success)
+            {
+                logger.LogError($"Unsuccessful shortening-url.");
+            }
             var url = shortnerResult.Success
                 ? $"{_shortnerOptions.ShortnerUrl}{podcastEpisode.Episode.Id.ToBase64()}"
                 : podcastEpisode.ToEpisodeUrl();

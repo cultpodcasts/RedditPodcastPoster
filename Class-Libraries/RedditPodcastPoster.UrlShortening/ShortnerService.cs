@@ -40,6 +40,11 @@ public class ShortnerService(
 
         request.Content = requestContent;
         var result = await httpClient.SendAsync(request);
+        if (result.StatusCode != HttpStatusCode.OK)
+        {
+            logger.LogError(
+                $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
+        }
         return new WriteResult(result.StatusCode == HttpStatusCode.OK);
     }
 
@@ -63,6 +68,11 @@ public class ShortnerService(
         requestContent.Add(new StringContent("{}"), "metadata");
         request.Content = requestContent;
         var result = await httpClient.SendAsync(request);
+        if (result.StatusCode != HttpStatusCode.OK)
+        {
+            logger.LogError(
+                $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
+        }
         return new WriteResult(result.StatusCode == HttpStatusCode.OK);
     }
 
