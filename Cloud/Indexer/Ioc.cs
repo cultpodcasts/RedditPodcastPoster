@@ -19,6 +19,7 @@ using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Twitter.Extensions;
+using RedditPodcastPoster.UrlShortening.Extensions;
 
 namespace Indexer;
 
@@ -50,6 +51,7 @@ public static class Ioc
             .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddContentPublishing(hostBuilderContext.Configuration)
+            .AddShortnerServices(hostBuilderContext.Configuration)
             .AddHttpClient();
 
         serviceCollection.BindConfiguration<IndexerOptions>("indexer");

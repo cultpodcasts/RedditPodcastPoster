@@ -15,6 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.UrlShortening\RedditPodcastPoster.UrlShortening.csproj" />
   </ItemGroup>
 
 </Project>

@@ -13,6 +13,7 @@ using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Twitter.Extensions;
+using RedditPodcastPoster.UrlShortening.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -35,7 +36,9 @@ builder.Services
     .AddRedditServices(builder.Configuration)
     .AddTwitterServices(builder.Configuration)
     .AddSubjectServices()
-    .AddTextSanitiser();
+    .AddTextSanitiser()
+    .AddShortnerServices(builder.Configuration)
+    .AddHttpClient();
 
 builder.Services.AddPostingCriteria(builder.Configuration);
 builder.Services.AddDelayedYouTubePublication(builder.Configuration);
