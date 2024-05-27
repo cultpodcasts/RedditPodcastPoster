@@ -82,8 +82,8 @@ public class TweetBuilder(
             episodeTitle = episodeTitle[..Math.Min(episodeTitle.Length, permittedTitleLength - 1)] + "…";
         }
 
-        if ((_twitterOptions.WithEpisodeUrl && podcastEpisode.HasMultipleServices()) ||
-            podcastEpisode.Podcast.Episodes.Count > 1)
+        if (_twitterOptions.WithEpisodeUrl && (podcastEpisode.HasMultipleServices() ||
+                                               podcastEpisode.Podcast.Episodes.Count > 1))
         {
             var podcastEpisodeUrl = podcastEpisode.ToEpisodeUrl();
             tweetBuilder.Append($"{podcastEpisodeUrl}{Environment.NewLine}");
