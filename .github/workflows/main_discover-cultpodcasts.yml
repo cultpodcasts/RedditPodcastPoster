@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - main
-      - feature/handle-failing-listennotes
   workflow_dispatch:
 
 env:
