@@ -30,7 +30,7 @@ public class ListenNotesSearcher(
             {"sort_by_date", "1"}
         };
         var first = true;
-        while ((first || results.Last().Released > indexingContext.ReleasedSince) && !error && !@break)
+        while (!error && !@break && (first || results.Last().Released > indexingContext.ReleasedSince))
         {
             first = false;
             parameters[OffsetKey] = offset.ToString();
