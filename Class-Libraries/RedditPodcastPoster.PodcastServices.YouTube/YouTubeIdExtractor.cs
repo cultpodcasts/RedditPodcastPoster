@@ -41,6 +41,7 @@ public partial class YouTubeIdExtractor(
 
     [GeneratedRegex(@"shorts/(?'videoId'[\-\w]+)", RegexOptions.Compiled)]
     private static partial Regex GenerateShortId();
+
     [GeneratedRegex(@"live/(?'videoId'[\-\w]+)", RegexOptions.Compiled)]
     private static partial Regex GenerateLiveId();
 }
