@@ -11,6 +11,7 @@ public partial class YouTubeIdExtractor(
 {
     private static readonly Regex VideoId = GenerateYouTubeIdRegex();
     private static readonly Regex ShortId = GenerateShortId();
+    private static readonly Regex LiveId = GenerateLiveId();
 
     public string? Extract(Uri youTubeUrl)
     {
@@ -26,6 +27,12 @@ public partial class YouTubeIdExtractor(
             return videoIdMatch.Value;
         }
 
+        videoIdMatch = LiveId.Match(youTubeUrl.ToString()).Groups["videoId"];
+        if (videoIdMatch.Success)
+        {
+            return videoIdMatch.Value;
+        }
+
         return null;
     }
 
@@ -34,4 +41,6 @@ public partial class YouTubeIdExtractor(
 
     [GeneratedRegex(@"shorts/(?'videoId'[\-\w]+)", RegexOptions.Compiled)]
     private static partial Regex GenerateShortId();
+    [GeneratedRegex(@"live/(?'videoId'[\-\w]+)", RegexOptions.Compiled)]
+    private static partial Regex GenerateLiveId();
 }

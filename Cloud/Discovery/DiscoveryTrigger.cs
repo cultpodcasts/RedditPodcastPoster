@@ -8,7 +8,7 @@ namespace Discovery;
 public class DiscoveryTrigger(ILogger<DiscoveryTrigger> logger)
 {
     [Function("DiscoveryTrigger")]
-    public async Task Run([TimerTrigger("20 11/12 * * *"
+    public async Task Run([TimerTrigger("45 11/12 * * *"
 #if DEBUG
             , RunOnStartup = true
 #endif
