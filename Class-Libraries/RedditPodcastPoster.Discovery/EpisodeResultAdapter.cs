@@ -27,8 +27,8 @@ public class EpisodeResultAdapter(
 
         discoveryResult.Source = episode.DiscoverService
             .ConvertEnumByName<PodcastServices.Abstractions.DiscoverService, DiscoverService>();
-        discoveryResult.EnrichmentService = episode.EnrichedFrom
-            .ConvertEnumByName<PodcastServices.Abstractions.EnrichmentService, EnrichmentService>();
+        discoveryResult.EnrichedTimeFromApple = episode.EnrichedTimeFromApple;
+        discoveryResult.EnrichedUrlFromSpotify = episode.EnrichedUrlFromSpotify;
 
         discoveryResult.EpisodeName = episode.EpisodeName;
 

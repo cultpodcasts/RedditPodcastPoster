@@ -22,10 +22,11 @@ public class EpisodeResult(
     public TimeSpan? Length { get; init; } = length;
     public string ShowName { get; init; } = showName;
     public DiscoverService DiscoverService { get; set; } = discoverService;
-    public EnrichmentService? EnrichedFrom { get; set; }
     public string? ServicePodcastId { get; set; } = servicePodcastId;
     public ulong? ViewCount { get; init; } = viewCount;
     public ulong? MemberCount { get; init; } = memberCount;
     public Uri? ImageUrl { get; set; } = imageUrl;
     public PodcastServiceUrls Urls { get; set; } = new();
+    public bool EnrichedTimeFromApple { get; set; }
+    public bool EnrichedUrlFromSpotify { get; set; }
 }

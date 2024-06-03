@@ -72,8 +72,8 @@ public class SearchProvider(
             $"spotify-items '{items.Count(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.Spotify)}'",
             $"youtube-items: '{items.Count(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.YouTube)}'",
             $"listen-notes-items: '{items.Count(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.ListenNotes)}'",
-            $"spotify-enriched: '{items.Count(x => x.EnrichedFrom == PodcastServices.Abstractions.EnrichmentService.Spotify)}'",
-            $"apple-enriched: '{items.Count(x => x.EnrichedFrom == PodcastServices.Abstractions.EnrichmentService.Apple)}'"
+            $"spotify-enriched-url: '{items.Count(x => x.EnrichedUrlFromSpotify)}'",
+            $"apple-enriched-release: '{items.Count(x => x.EnrichedTimeFromApple)}'"
         ];
 
         logger.LogInformation($"{string.Join(", ", logItems)}.");
@@ -83,30 +83,24 @@ public class SearchProvider(
     private EpisodeResult Coalesce(IGrouping<string, EpisodeResult> items, int index)
     {
         var first = items.First();
-        var appleTime = false;
         foreach (var subsequent in items.Skip(1))
         {
             first.Urls.Apple ??= subsequent.Urls.Apple;
             first.Urls.Spotify ??= subsequent.Urls.Spotify;
             first.Urls.YouTube ??= subsequent.Urls.YouTube;
-            if (!appleTime)
-            {
-                first.EnrichedFrom ??= subsequent.EnrichedFrom;
-            }
+        }
 
-            if (first is {DiscoverService: PodcastServices.Abstractions.DiscoverService.Spotify, EnrichedFrom: null} &&
-                subsequent.DiscoverService != PodcastServices.Abstractions.DiscoverService.Spotify)
-            {
-                if (!appleTime)
-                {
-                    first.Released = subsequent.Released;
-                    if (subsequent.EnrichedFrom == PodcastServices.Abstractions.EnrichmentService.Apple)
-                    {
-                        appleTime = true;
-                        first.EnrichedFrom = PodcastServices.Abstractions.EnrichmentService.Apple;
-                    }
-                }
-            }
+        var youTube =
+            items.FirstOrDefault(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.YouTube);
+        if (youTube != null)
+        {
+            first.Released = youTube.Released;
+        }
+
+        var apple = items.FirstOrDefault(x => x.EnrichedTimeFromApple);
+        if (apple != null)
+        {
+            first.Released = apple.Released;
         }
 
         return first;

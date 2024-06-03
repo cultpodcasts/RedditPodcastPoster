@@ -48,7 +48,11 @@ public class DiscoveryResult
     [JsonPropertyOrder(110)]
     public DiscoverService Source { get; set; }
 
-    [JsonPropertyName("enrichmentService")]
+    [JsonPropertyName("enrichedTimeFromApple")]
     [JsonPropertyOrder(120)]
-    public EnrichmentService? EnrichmentService { get; set; }
+    public bool EnrichedTimeFromApple { get; set; }
+
+    [JsonPropertyName("enrichedUrlFromSpotify")]
+    [JsonPropertyOrder(122)]
+    public bool EnrichedUrlFromSpotify { get; set; }
 }

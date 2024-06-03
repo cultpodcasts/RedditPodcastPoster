@@ -31,7 +31,7 @@ public class SpotifyEnricher(
                 var image = spotifyResult.FullEpisode.Images.MaxBy(x => x.Height);
 
                 episodeResult.Urls.Spotify = spotifyResult.FullEpisode.GetUrl();
-                episodeResult.EnrichedFrom = PodcastServices.Abstractions.EnrichmentService.Spotify;
+                episodeResult.EnrichedUrlFromSpotify = true;
                 episodeResult.ServicePodcastId = spotifyResult.FullEpisode.Show.Id;
                 episodeResult.ImageUrl = image != null ? new Uri(image.Url) : null;
             }
