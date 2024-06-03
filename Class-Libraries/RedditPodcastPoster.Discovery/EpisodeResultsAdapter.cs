@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using DiscoverService = RedditPodcastPoster.PodcastServices.Abstractions.DiscoverService;
 
 namespace RedditPodcastPoster.Discovery;
 
@@ -28,9 +30,9 @@ public class EpisodeResultsAdapter(
 
         foreach (var episode in episodeResults)
         {
-            if ((episode.DiscoverService == PodcastServices.Abstractions.DiscoverService.YouTube &&
+            if ((episode.DiscoverService == DiscoverService.YouTube &&
                  indexedYouTubeChannelIds.Contains(episode.ServicePodcastId!)) ||
-                (episode.DiscoverService == PodcastServices.Abstractions.DiscoverService.Spotify &&
+                (episode.DiscoverService == DiscoverService.Spotify &&
                  indexedSpotifyChannelIds.Contains(episode.ServicePodcastId!)))
             {
                 continue;

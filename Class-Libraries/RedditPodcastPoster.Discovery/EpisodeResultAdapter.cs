@@ -3,6 +3,7 @@ using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Subjects;
+using DiscoverService = RedditPodcastPoster.Models.DiscoverService;
 
 namespace RedditPodcastPoster.Discovery;
 
@@ -15,7 +16,10 @@ public class EpisodeResultAdapter(
 {
     public async Task<DiscoveryResult> ToDiscoveryResult(EpisodeResult episode)
     {
-        var discoveryResult = new DiscoveryResult();
+        var discoveryResult = new DiscoveryResult
+        {
+            Id = default
+        };
 
         var subjects = await subjectMatcher.MatchSubjects(new Episode
             {Title = episode.EpisodeName, Description = episode.Description});

@@ -5,6 +5,9 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -18,6 +21,10 @@ public class UrlSubmitter(
     IUrlCategoriser urlCategoriser,
     ISubjectEnricher subjectEnricher,
     IOptions<PostingCriteria> postingCriteria,
+    ISpotifyUrlCategoriser spotifyUrlCategoriser,
+    IAppleUrlCategoriser appleUrlCategoriser,
+    IYouTubeUrlCategoriser youTubeUrlCategoriser,
+    IYouTubeIdExtractor youTubeIdExtractor,
     ILogger<UrlSubmitter> logger)
     : IUrlSubmitter
 {
@@ -123,6 +130,153 @@ public class UrlSubmitter(
         }
 
         return new SubmitResult(episodeResult, podcastResult);
+    }
+
+    public async Task<DiscoverySubmitResult> Submit(
+        DiscoveryResult discoveryResult,
+        IndexingContext indexingContext,
+        SubmitOptions submitOptions)
+    {
+        if (!discoveryResult.Urls.Any())
+        {
+            return new DiscoverySubmitResult(DiscoverySubmitResultState.NoUrls);
+        }
+
+        Podcast? spotifyPodcast = null, applePodcast = null, youTubePodcast = null;
+        if (discoveryResult.Urls.Spotify != null)
+        {
+            spotifyPodcast =
+                await podcastService.GetPodcastFromEpisodeUrl(discoveryResult.Urls.Spotify, indexingContext);
+        }
+
+        if (discoveryResult.Urls.Apple != null)
+        {
+            applePodcast = await podcastService.GetPodcastFromEpisodeUrl(discoveryResult.Urls.Apple, indexingContext);
+        }
+
+        if (discoveryResult.Urls.YouTube != null)
+        {
+            youTubePodcast =
+                await podcastService.GetPodcastFromEpisodeUrl(discoveryResult.Urls.YouTube, indexingContext);
+        }
+
+        Podcast?[] podcasts = [spotifyPodcast, applePodcast, youTubePodcast];
+        var foundPodcasts = podcasts.Where(x => x != null);
+        var areSame = foundPodcasts.All(x => x.Id == foundPodcasts.First().Id);
+        if (!areSame)
+        {
+            return new DiscoverySubmitResult(DiscoverySubmitResultState.DifferentPodcasts);
+        }
+
+        bool enrichSpotify = false, enrichApple = false, enrichYouTube = false;
+        CategorisedItem categorisedItem;
+        if (discoveryResult.Urls.Spotify != null &&
+            (spotifyPodcast != null || (applePodcast == null && youTubePodcast == null)))
+        {
+            categorisedItem = await urlCategoriser.Categorise(spotifyPodcast, discoveryResult.Urls.Spotify,
+                indexingContext, submitOptions.MatchOtherServices);
+            if (discoveryResult.Urls.Apple != null)
+            {
+                enrichApple = true;
+            }
+
+            if (discoveryResult.Urls.YouTube != null)
+            {
+                enrichYouTube = true;
+            }
+        }
+        else if (discoveryResult.Urls.Apple != null &&
+                 (applePodcast != null || (spotifyPodcast == null && youTubePodcast == null)))
+        {
+            categorisedItem = await urlCategoriser.Categorise(applePodcast, discoveryResult.Urls.Apple, indexingContext,
+                submitOptions.MatchOtherServices);
+            if (discoveryResult.Urls.YouTube != null)
+            {
+                enrichYouTube = true;
+            }
+
+            if (discoveryResult.Urls.Spotify != null)
+            {
+                enrichSpotify = true;
+            }
+        }
+        else
+        {
+            categorisedItem = await urlCategoriser.Categorise(youTubePodcast, discoveryResult.Urls.YouTube,
+                indexingContext, submitOptions.MatchOtherServices);
+            if (discoveryResult.Urls.Apple != null)
+            {
+                enrichApple = true;
+            }
+
+            if (discoveryResult.Urls.Spotify != null)
+            {
+                enrichSpotify = true;
+            }
+        }
+
+        if (enrichSpotify)
+        {
+            if (categorisedItem.ResolvedSpotifyItem == null ||
+                categorisedItem.ResolvedSpotifyItem.EpisodeDescription !=
+                spotifyUrlCategoriser.GetEpisodeId(discoveryResult.Urls.Spotify))
+            {
+                categorisedItem = categorisedItem with
+                {
+                    ResolvedSpotifyItem =
+                    await spotifyUrlCategoriser.Resolve(null, discoveryResult.Urls.Spotify!, indexingContext)
+                };
+            }
+        }
+
+        if (enrichApple)
+        {
+            if (categorisedItem.ResolvedAppleItem == null ||
+                categorisedItem.ResolvedAppleItem.ShowId !=
+                appleUrlCategoriser.GetPodcastId(discoveryResult.Urls.Apple) ||
+                categorisedItem.ResolvedAppleItem.EpisodeId !=
+                appleUrlCategoriser.GetEpisodeId(discoveryResult.Urls.Apple))
+            {
+                categorisedItem = categorisedItem with
+                {
+                    ResolvedAppleItem =
+                    await appleUrlCategoriser.Resolve(null, discoveryResult.Urls.Apple!, indexingContext)
+                };
+            }
+        }
+
+        if (enrichYouTube)
+        {
+            if (categorisedItem.ResolvedYouTubeItem == null ||
+                categorisedItem.ResolvedYouTubeItem.ShowId != youTubeIdExtractor.Extract(discoveryResult.Urls.YouTube!))
+            {
+                categorisedItem = categorisedItem with
+                {
+                    ResolvedYouTubeItem =
+                    await youTubeUrlCategoriser.Resolve(null, discoveryResult.Urls.YouTube!, indexingContext)
+                };
+            }
+        }
+
+        if (categorisedItem.MatchingPodcast == null)
+        {
+            var result = await CreatePodcastWithEpisode(categorisedItem);
+            await podcastRepository.Save(result);
+            return new DiscoverySubmitResult(DiscoverySubmitResultState.CreatedPodcastAndEpisode);
+        }
+
+        var episode = CreateEpisode(categorisedItem);
+        await subjectEnricher.EnrichSubjects(
+            episode,
+            new SubjectEnrichmentOptions(
+                categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
+                categorisedItem.MatchingPodcast.IgnoredSubjects,
+                categorisedItem.MatchingPodcast.DefaultSubject));
+        categorisedItem.MatchingPodcast.Episodes.Add(episode);
+        categorisedItem.MatchingPodcast.Episodes =
+            categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
+        await podcastRepository.Save(categorisedItem.MatchingPodcast);
+        return new DiscoverySubmitResult(DiscoverySubmitResultState.CreatedEpisode);
     }
 
     private async Task<Podcast> CreatePodcastWithEpisode(CategorisedItem categorisedItem)

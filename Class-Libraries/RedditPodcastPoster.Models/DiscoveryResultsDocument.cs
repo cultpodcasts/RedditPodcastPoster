@@ -1,7 +1,6 @@
 ﻿using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Discovery;
+namespace RedditPodcastPoster.Models;
 
 [CosmosSelector(ModelType.Discovery)]
 public sealed class DiscoveryResultsDocument : CosmosSelector
@@ -57,11 +56,4 @@ public sealed class DiscoveryResultsDocument : CosmosSelector
     [JsonPropertyName("postSkipSpotifyUrlResolving")]
     [JsonPropertyOrder(36)]
     public bool PostSkipSpotifyUrlResolving { get; set; }
-}
-
-public enum DiscoveryResultState
-{
-    None = 0,
-    Unprocessed = 1,
-    Processed = 2
 }

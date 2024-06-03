@@ -1,9 +1,13 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Discovery;
+namespace RedditPodcastPoster.Models;
 
 public class DiscoveryResult
 {
+    [JsonPropertyName("id")]
+    [JsonPropertyOrder(1)]
+    public required Guid Id { get; set; } = Guid.NewGuid();
+
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(10)]
     public DiscoveryResultUrls Urls { get; set; } = new();

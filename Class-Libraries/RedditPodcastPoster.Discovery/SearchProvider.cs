@@ -3,6 +3,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.ListenNotes;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
+using DiscoverService = RedditPodcastPoster.Models.DiscoverService;
 
 namespace RedditPodcastPoster.Discovery;
 
@@ -95,6 +96,8 @@ public class SearchProvider(
         if (youTube != null)
         {
             first.Released = youTube.Released;
+            first.ViewCount = youTube.ViewCount;
+            first.MemberCount = youTube.MemberCount;
         }
 
         var apple = items.FirstOrDefault(x => x.EnrichedTimeFromApple);

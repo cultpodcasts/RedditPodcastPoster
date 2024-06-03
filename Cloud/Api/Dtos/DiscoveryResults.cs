@@ -1,5 +1,5 @@
 ﻿using System.Text.Json.Serialization;
-using RedditPodcastPoster.Discovery;
+using RedditPodcastPoster.Models;
 
 namespace Api.Dtos;
 

@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.Discovery;
+﻿using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.Discovery;
 
 public interface IDiscoveryResultsRepository
 {
@@ -6,4 +8,5 @@ public interface IDiscoveryResultsRepository
     IAsyncEnumerable<DiscoveryResultsDocument> GetAllUnprocessed();
     Task SetProcessed(IEnumerable<Guid> ids);
     Task<DiscoveryResultsDocument?> GetById(Guid documentId);
+    IAsyncEnumerable<DiscoveryResultsDocument> GetByIds(IEnumerable<Guid> ids);
 }

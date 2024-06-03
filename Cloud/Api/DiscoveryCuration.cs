@@ -58,23 +58,31 @@ public class DiscoveryCuration(
                 SkipExpensiveSpotifyQueries = false
             };
             var submitOptions = new SubmitOptions(null, true);
-            foreach (var url in m.Urls)
+
+            var discoveryResults = await discoveryResultsService.GetDiscoveryResult(m);
+            var submitResults = new List<(Guid, string)>();
+
+            foreach (var discoveryResult in discoveryResults)
             {
-                logger.LogInformation($"Submitting '{url}' with indexing-context: {indexingContext}");
+                logger.LogInformation(
+                    $"Submitting discovery-result '{discoveryResult.Id}' with indexing-context: {indexingContext}");
                 try
                 {
-                    await urlSubmitter.Submit(url, indexingContext, submitOptions);
+                    var result = await urlSubmitter.Submit(discoveryResult, indexingContext, submitOptions);
+                    submitResults.Add((discoveryResult.Id, result.ToString())!);
                 }
                 catch (Exception ex)
                 {
                     errorsOccured = true;
-                    logger.LogError($"{nameof(Post)} Failure submitting url '{url}'.");
+                    submitResults.Add((discoveryResult.Id, "Error"));
+                    logger.LogError(ex, $"{nameof(Post)} Failure submitting discovery-result '{discoveryResult.Id}'.");
                 }
             }
 
             await discoveryResultsService.MarkAsProcessed(m.DiscoveryResultsDocumentIds);
-            
-            return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new {message = "Success", errorsOccurred= errorsOccured}, c);
+
+            return await r.CreateResponse(HttpStatusCode.OK)
+                .WithJsonBody(new {message = "Success", errorsOccurred = errorsOccured, results = submitResults}, c);
         }
         catch (Exception e)
         {

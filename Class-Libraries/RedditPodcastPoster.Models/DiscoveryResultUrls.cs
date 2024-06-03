@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Discovery;
+namespace RedditPodcastPoster.Models;
 
 public class DiscoveryResultUrls
 {
@@ -15,4 +15,9 @@ public class DiscoveryResultUrls
     [JsonPropertyName("youtube")]
     [JsonPropertyOrder(30)]
     public Uri? YouTube { get; set; } = null;
+
+    public bool Any()
+    {
+        return Spotify != null || Apple != null || YouTube != null;
+    }
 }

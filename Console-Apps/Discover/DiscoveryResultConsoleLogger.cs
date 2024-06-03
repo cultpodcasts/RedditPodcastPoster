@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.Discovery;
+﻿using RedditPodcastPoster.Models;
 
 namespace Discover;
 
