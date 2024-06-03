@@ -4,9 +4,9 @@ namespace RedditPodcastPoster.Discovery;
 
 public class DiscoveryResult
 {
-    [JsonPropertyName("url")]
+    [JsonPropertyName("urls")]
     [JsonPropertyOrder(10)]
-    public Uri? Url { get; set; }
+    public DiscoveryResultUrls Urls { get; set; } = new();
 
     [JsonPropertyName("episodeName")]
     [JsonPropertyOrder(20)]
@@ -43,4 +43,12 @@ public class DiscoveryResult
     [JsonPropertyName("imageUrl")]
     [JsonPropertyOrder(100)]
     public Uri? ImageUrl { get; set; }
+
+    [JsonPropertyName("discoverService")]
+    [JsonPropertyOrder(110)]
+    public DiscoverService Source { get; set; }
+
+    [JsonPropertyName("enrichmentService")]
+    [JsonPropertyOrder(120)]
+    public EnrichmentService? EnrichmentService { get; set; }
 }

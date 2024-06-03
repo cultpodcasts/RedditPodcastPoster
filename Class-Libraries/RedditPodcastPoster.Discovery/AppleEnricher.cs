@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using iTunesSearch.Library.Models;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 
@@ -17,11 +18,19 @@ public class AppleEnricher(
 
         foreach (var episodeResult in results)
         {
-            var podcast =
-                await applePodcastResolver.FindPodcast(new FindApplePodcastRequest(
+            Podcast? podcast;
+            if (episodeResult.ITunesPodcastId != null)
+            {
+                podcast = await applePodcastResolver.FindPodcast(
+                    new FindApplePodcastRequest(episodeResult.ITunesPodcastId, episodeResult.ShowName, string.Empty));
+            }
+            else
+            {
+                podcast = await applePodcastResolver.FindPodcast(new FindApplePodcastRequest(
                     null,
                     episodeResult.ShowName,
                     string.Empty));
+            }
 
             var episodeRequest = new FindAppleEpisodeRequest(
                 podcast?.Id,
@@ -37,6 +46,7 @@ public class AppleEnricher(
             {
                 enrichedCtr++;
                 episodeResult.Released = appleResult.Release;
+                episodeResult.EnrichedFrom = PodcastServices.Abstractions.EnrichmentService.Apple;
             }
         }
 

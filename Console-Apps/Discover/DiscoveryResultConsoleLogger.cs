@@ -7,9 +7,19 @@ public class DiscoveryResultConsoleLogger : IDiscoveryResultConsoleLogger
     public void DisplayEpisode(DiscoveryResult episode, ConsoleColor defaultColor)
     {
         Console.WriteLine(new string('-', 40));
-        if (episode.Url != null)
+        if (episode.Urls.Apple != null)
         {
-            Console.WriteLine(episode.Url);
+            Console.WriteLine(episode.Urls.Apple);
+        }
+
+        if (episode.Urls.Spotify != null)
+        {
+            Console.WriteLine(episode.Urls.Spotify);
+        }
+
+        if (episode.Urls.YouTube != null)
+        {
+            Console.WriteLine(episode.Urls.YouTube);
         }
 
         Console.ForegroundColor = ConsoleColor.Yellow;

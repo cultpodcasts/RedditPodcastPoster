@@ -64,6 +64,7 @@ public class ListenNotesSearcher(
             episode.Title.Trim(),
             TimeSpan.FromSeconds(episode.AudioLengthSeconds),
             episode.Podcast.ShowName.Trim(),
-            DiscoverService.ListenNotes);
+            DiscoverService.ListenNotes,
+            itunesPodcastId: episode.PodcastITunesId);
     }
 }

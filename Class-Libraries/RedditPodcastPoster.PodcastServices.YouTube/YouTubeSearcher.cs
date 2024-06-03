@@ -158,7 +158,7 @@ public class YouTubeSearcher(
             imageUrl = new Uri(video.Snippet.Thumbnails.Default__.Url);
         }
 
-        return new EpisodeResult(
+        var episodeResult = new EpisodeResult(
             episode.Id.VideoId,
             episode.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
             !string.IsNullOrWhiteSpace(video?.Snippet.Description)
@@ -168,12 +168,13 @@ public class YouTubeSearcher(
             video?.GetLength(),
             WebUtility.HtmlDecode(episode.Snippet.ChannelTitle.Trim()),
             DiscoverService.YouTube,
-            episode.ToYouTubeUrl(),
             episode.Snippet.ChannelId,
             video?.Statistics.ViewCount,
             channel?.Statistics.SubscriberCount,
             imageUrl
         );
+        episodeResult.Urls.YouTube = episode.ToYouTubeUrl();
+        return episodeResult;
     }
 
     private class YouTubeItemDetails(SearchResult searchResult)

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Subjects;
@@ -20,10 +21,14 @@ public class EpisodeResultAdapter(
             {Title = episode.EpisodeName, Description = episode.Description});
 
         var description = episode.Description;
-        if (episode.Url != null)
-        {
-            discoveryResult.Url = episode.Url;
-        }
+        discoveryResult.Urls.Apple = episode.Urls.Apple;
+        discoveryResult.Urls.Spotify = episode.Urls.Spotify;
+        discoveryResult.Urls.YouTube = episode.Urls.YouTube;
+
+        discoveryResult.Source = episode.DiscoverService
+            .ConvertEnumByName<PodcastServices.Abstractions.DiscoverService, DiscoverService>();
+        discoveryResult.EnrichmentService = episode.EnrichedFrom
+            .ConvertEnumByName<PodcastServices.Abstractions.EnrichmentService, EnrichmentService>();
 
         discoveryResult.EpisodeName = episode.EpisodeName;
 

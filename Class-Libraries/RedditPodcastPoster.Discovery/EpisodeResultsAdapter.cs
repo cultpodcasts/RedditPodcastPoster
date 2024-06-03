@@ -28,9 +28,9 @@ public class EpisodeResultsAdapter(
 
         foreach (var episode in episodeResults)
         {
-            if ((episode.DiscoverService == DiscoverService.YouTube &&
+            if ((episode.DiscoverService == PodcastServices.Abstractions.DiscoverService.YouTube &&
                  indexedYouTubeChannelIds.Contains(episode.ServicePodcastId!)) ||
-                (episode.DiscoverService == DiscoverService.Spotify &&
+                (episode.DiscoverService == PodcastServices.Abstractions.DiscoverService.Spotify &&
                  indexedSpotifyChannelIds.Contains(episode.ServicePodcastId!)))
             {
                 continue;

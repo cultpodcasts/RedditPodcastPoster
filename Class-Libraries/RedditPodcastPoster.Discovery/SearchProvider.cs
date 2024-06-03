@@ -34,6 +34,11 @@ public class SearchProvider(
                         await spotifyEnricher.Enrich(serviceResults, indexingContext);
                     }
 
+                    if (discoveryConfig.EnrichFromApple)
+                    {
+                        await appleEnricher.Enrich(serviceResults, indexingContext);
+                    }
+
                     break;
                 case DiscoverService.Spotify:
                     serviceResults = await spotifySearcher.Search(config.Term, indexingContext);
@@ -58,11 +63,52 @@ public class SearchProvider(
         var items = results
             .Where(x => x.Released >= indexingContext.ReleasedSince)
             .GroupBy(x => x.EpisodeName)
-            .Select(x => x.FirstOrDefault(y => y.Url != null) ?? x.First())
+            .Select(Coalesce)
             .OrderBy(x => x.Released);
 
-        logger.LogInformation(
-            $"total-items: '{items.Count()}', spotify-items '{items.Count(x => x.DiscoverService == DiscoverService.Spotify)}, youtube-items: '{items.Count(x => x.DiscoverService == DiscoverService.YouTube)}', listen-notes-items: '{items.Count(x => x.DiscoverService == DiscoverService.ListenNotes)}'.");
+        string[] logItems =
+        [
+            $"total-items: '{items.Count()}'",
+            $"spotify-items '{items.Count(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.Spotify)}'",
+            $"youtube-items: '{items.Count(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.YouTube)}'",
+            $"listen-notes-items: '{items.Count(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.ListenNotes)}'",
+            $"spotify-enriched: '{items.Count(x => x.EnrichedFrom == PodcastServices.Abstractions.EnrichmentService.Spotify)}'",
+            $"apple-enriched: '{items.Count(x => x.EnrichedFrom == PodcastServices.Abstractions.EnrichmentService.Apple)}'"
+        ];
+
+        logger.LogInformation($"{string.Join(", ", logItems)}.");
         return items;
+    }
+
+    private EpisodeResult Coalesce(IGrouping<string, EpisodeResult> items, int index)
+    {
+        var first = items.First();
+        var appleTime = false;
+        foreach (var subsequent in items.Skip(1))
+        {
+            first.Urls.Apple ??= subsequent.Urls.Apple;
+            first.Urls.Spotify ??= subsequent.Urls.Spotify;
+            first.Urls.YouTube ??= subsequent.Urls.YouTube;
+            if (!appleTime)
+            {
+                first.EnrichedFrom ??= subsequent.EnrichedFrom;
+            }
+
+            if (first is {DiscoverService: PodcastServices.Abstractions.DiscoverService.Spotify, EnrichedFrom: null} &&
+                subsequent.DiscoverService != PodcastServices.Abstractions.DiscoverService.Spotify)
+            {
+                if (!appleTime)
+                {
+                    first.Released = subsequent.Released;
+                    if (subsequent.EnrichedFrom == PodcastServices.Abstractions.EnrichmentService.Apple)
+                    {
+                        appleTime = true;
+                        first.EnrichedFrom = PodcastServices.Abstractions.EnrichmentService.Apple;
+                    }
+                }
+            }
+        }
+
+        return first;
     }
 }
