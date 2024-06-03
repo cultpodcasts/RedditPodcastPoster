@@ -101,6 +101,12 @@ public class SearchProvider(
         if (apple != null)
         {
             first.Released = apple.Released;
+            first.EnrichedTimeFromApple = true;
+        }
+
+        if (items.Any(x => x.EnrichedUrlFromSpotify))
+        {
+            first.EnrichedUrlFromSpotify = true;
         }
 
         return first;
