@@ -6,7 +6,7 @@ public class DiscoveryResult
 {
     [JsonPropertyName("id")]
     [JsonPropertyOrder(1)]
-    public required Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.NewGuid();
 
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(10)]
@@ -49,6 +49,7 @@ public class DiscoveryResult
     public Uri? ImageUrl { get; set; }
 
     [JsonPropertyName("discoverService")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     [JsonPropertyOrder(110)]
     public DiscoverService Source { get; set; }
 

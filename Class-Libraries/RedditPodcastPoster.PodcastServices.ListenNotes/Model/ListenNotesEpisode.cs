@@ -17,7 +17,7 @@ public class ListenNotesEpisode
     public long ReleasedMilliseconds { get; set; }
 
     [JsonProperty("itunes_id")]
-    public long PodcastITunesId { get; set; }
+    public long? PodcastITunesId { get; set; }
 
     [JsonProperty("audio_length_sec")]
     public long AudioLengthSeconds { get; set; }

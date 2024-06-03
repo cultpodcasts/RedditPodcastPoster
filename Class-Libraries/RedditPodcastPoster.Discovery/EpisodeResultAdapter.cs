@@ -16,10 +16,7 @@ public class EpisodeResultAdapter(
 {
     public async Task<DiscoveryResult> ToDiscoveryResult(EpisodeResult episode)
     {
-        var discoveryResult = new DiscoveryResult
-        {
-            Id = default
-        };
+        var discoveryResult = new DiscoveryResult();
 
         var subjects = await subjectMatcher.MatchSubjects(new Episode
             {Title = episode.EpisodeName, Description = episode.Description});

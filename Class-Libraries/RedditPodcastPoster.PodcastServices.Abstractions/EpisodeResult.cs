@@ -14,7 +14,7 @@ public class EpisodeResult(
     Uri? imageUrl = null,
     long? itunesPodcastId = null)
 {
-    public long? ITunesPodcastId = itunesPodcastId;
+    public long? ITunesPodcastId { get; init; } = itunesPodcastId;
     public string Id { get; init; } = id;
     public DateTime Released { get; set; } = released;
     public string Description { get; init; } = description;

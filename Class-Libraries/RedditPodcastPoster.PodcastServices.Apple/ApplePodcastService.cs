@@ -39,10 +39,13 @@ public class ApplePodcastService : IApplePodcastService
             throw;
         }
 
+        var collectedAppleJson = new List<string>();
+
         var podcastRecords = new List<Record>();
         if (response.IsSuccessStatusCode)
         {
             var appleJson = await response.Content.ReadAsStringAsync();
+            collectedAppleJson.Add(appleJson);
             var appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
             if (appleObject != null && appleObject.Records.Any())
             {
@@ -68,6 +71,7 @@ public class ApplePodcastService : IApplePodcastService
                     if (response.IsSuccessStatusCode)
                     {
                         appleJson = await response.Content.ReadAsStringAsync();
+                        collectedAppleJson.Add(appleJson);
                         appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
                         podcastRecords.AddRange(appleObject!.Records);
                     }
@@ -82,6 +86,10 @@ public class ApplePodcastService : IApplePodcastService
         {
             _logger.LogError(
                 $"Unable to cast apple-podcast-record (count:'{podcastRecords.Count}') to apple-episodes (count:'{appleEpisodes.Count()}').");
+            foreach (var json in collectedAppleJson)
+            {
+                _logger.LogError(json);
+            }
         }
 
         return appleEpisodes;
