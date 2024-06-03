@@ -21,7 +21,7 @@ public class DiscoveryRequest
     [Option('y', "include-youtube", Default = false, HelpText = "Search Listen Notes")]
     public bool IncludeYouTube { get; set; }
 
-    [Option('s', "enrich-listennotes-from-spotify", Default = true, HelpText = "Enrich Listennotes from Spotify")]
+    [Option('e', "enrich-listennotes-from-spotify", Default = true, HelpText = "Enrich Listennotes from Spotify")]
     public bool EnrichFromSpotify { get; set; }
 
     [Option('u', "use-remote", Default = false, HelpText = "Use Remotely Collected Data")]
