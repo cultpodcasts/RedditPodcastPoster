@@ -20,6 +20,7 @@ public class ApplePodcastService : IApplePodcastService
 
     public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
     {
+        _logger.LogInformation($"{nameof(GetEpisodes)} podcast-id: '{podcastId}'.");
         var inDescendingDateOrder = true;
         var requestUri = $"/v1/catalog/us/podcasts/{podcastId.PodcastId}/episodes";
         HttpResponseMessage response;
