@@ -5,5 +5,6 @@ public enum DiscoverySubmitResultState
     NoUrls = 1,
     DifferentPodcasts,
     CreatedPodcastAndEpisode,
-    CreatedEpisode
+    CreatedEpisode,
+    EnrichedPodcastAndEpisode
 }

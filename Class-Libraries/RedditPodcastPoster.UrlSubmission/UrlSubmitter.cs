@@ -58,76 +58,7 @@ public class UrlSubmitter(
         var categorisedItem =
             await urlCategoriser.Categorise(podcast, url, indexingContext, submitOptions.MatchOtherServices);
 
-        if (categorisedItem.MatchingPodcast != null)
-        {
-            podcastResult = SubmitResultState.Enriched;
-            var matchingEpisodes = categorisedItem.MatchingEpisode != null
-                ? new[] {categorisedItem.MatchingEpisode}
-                : categorisedItem.MatchingPodcast.Episodes.Where(episode =>
-                    IsMatchingEpisode(episode, categorisedItem)).ToArray();
-
-            Episode? matchingEpisode;
-            if (matchingEpisodes!.Count() > 1)
-            {
-                var title = categorisedItem.ResolvedAppleItem?.EpisodeTitle ??
-                            categorisedItem.ResolvedSpotifyItem?.EpisodeTitle ??
-                            categorisedItem.ResolvedYouTubeItem?.EpisodeTitle;
-                matchingEpisode = FuzzyMatcher.Match(title!, matchingEpisodes, x => x.Title);
-            }
-            else
-            {
-                matchingEpisode = matchingEpisodes.SingleOrDefault();
-            }
-
-            logger.LogInformation(
-                $"Modifying podcast with name '{categorisedItem.MatchingPodcast.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
-
-            ApplyResolvedPodcastServiceProperties(
-                categorisedItem.MatchingPodcast,
-                categorisedItem, matchingEpisode);
-
-            if (matchingEpisode == null)
-            {
-                episodeResult = SubmitResultState.Created;
-                var episode = CreateEpisode(categorisedItem);
-                await subjectEnricher.EnrichSubjects(
-                    episode,
-                    new SubjectEnrichmentOptions(
-                        categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
-                        categorisedItem.MatchingPodcast.IgnoredSubjects,
-                        categorisedItem.MatchingPodcast.DefaultSubject));
-                categorisedItem.MatchingPodcast.Episodes.Add(episode);
-                categorisedItem.MatchingPodcast.Episodes =
-                    categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
-            }
-            else
-            {
-                episodeResult = SubmitResultState.Enriched;
-            }
-
-            if (submitOptions.PersistToDatabase)
-            {
-                await podcastRepository.Save(categorisedItem.MatchingPodcast);
-            }
-            else
-            {
-                logger.LogWarning("Bypassing persisting podcast.");
-            }
-        }
-        else
-        {
-            podcastResult = SubmitResultState.Created;
-            episodeResult = SubmitResultState.Created;
-            var newPodcast = await CreatePodcastWithEpisode(categorisedItem);
-            if (submitOptions.PersistToDatabase)
-            {
-                await podcastRepository.Save(newPodcast);
-            }
-            else
-            {
-                logger.LogWarning("Bypassing persisting new-podcast.");
-            }
-        }
+        (podcastResult, episodeResult) = await ProcessCategorisesItem(categorisedItem, submitOptions);
 
         return new SubmitResult(episodeResult, podcastResult);
     }
@@ -258,25 +189,117 @@ public class UrlSubmitter(
             }
         }
 
-        if (categorisedItem.MatchingPodcast == null)
+        var (podcastResult, episodeResult) = await ProcessCategorisesItem(categorisedItem, submitOptions);
+
+        DiscoverySubmitResultState state;
+        if (podcastResult == SubmitResultState.Created && episodeResult == SubmitResultState.Created)
         {
-            var result = await CreatePodcastWithEpisode(categorisedItem);
-            await podcastRepository.Save(result);
-            return new DiscoverySubmitResult(DiscoverySubmitResultState.CreatedPodcastAndEpisode);
+            state = DiscoverySubmitResultState.CreatedPodcastAndEpisode;
+        }
+        else if (podcastResult == SubmitResultState.Enriched && episodeResult == SubmitResultState.Created)
+        {
+            state = DiscoverySubmitResultState.CreatedEpisode;
+        }
+        else if (podcastResult == SubmitResultState.Enriched && episodeResult == SubmitResultState.Enriched)
+        {
+            state = DiscoverySubmitResultState.EnrichedPodcastAndEpisode;
+        }
+        else
+        {
+            throw new ArgumentException(
+                $"Unknown state: podcast-result: '{podcastResult.ToString()}', episode-result '{episodeResult.ToString()}'.");
         }
 
-        var episode = CreateEpisode(categorisedItem);
-        await subjectEnricher.EnrichSubjects(
-            episode,
-            new SubjectEnrichmentOptions(
-                categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
-                categorisedItem.MatchingPodcast.IgnoredSubjects,
-                categorisedItem.MatchingPodcast.DefaultSubject));
-        categorisedItem.MatchingPodcast.Episodes.Add(episode);
-        categorisedItem.MatchingPodcast.Episodes =
-            categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
-        await podcastRepository.Save(categorisedItem.MatchingPodcast);
-        return new DiscoverySubmitResult(DiscoverySubmitResultState.CreatedEpisode);
+        return new DiscoverySubmitResult(state);
+    }
+
+    private async Task<(SubmitResultState podcastResult, SubmitResultState episodeResult)> ProcessCategorisesItem(
+        CategorisedItem categorisedItem, SubmitOptions submitOptions)
+    {
+        SubmitResultState podcastResult;
+        SubmitResultState episodeResult;
+        if (categorisedItem.MatchingPodcast != null)
+        {
+            (podcastResult, episodeResult) = await AddEpisodeToExistingPodcast(categorisedItem);
+
+            if (submitOptions.PersistToDatabase)
+            {
+                await podcastRepository.Save(categorisedItem.MatchingPodcast);
+            }
+            else
+            {
+                logger.LogWarning("Bypassing persisting podcast.");
+            }
+        }
+        else
+        {
+            podcastResult = SubmitResultState.Created;
+            episodeResult = SubmitResultState.Created;
+            var newPodcast = await CreatePodcastWithEpisode(categorisedItem);
+            if (submitOptions.PersistToDatabase)
+            {
+                await podcastRepository.Save(newPodcast);
+            }
+            else
+            {
+                logger.LogWarning("Bypassing persisting new-podcast.");
+            }
+        }
+
+        return (podcastResult, episodeResult);
+    }
+
+    private async Task<(SubmitResultState podcastResult, SubmitResultState episodeResult)> AddEpisodeToExistingPodcast(
+        CategorisedItem categorisedItem)
+    {
+        SubmitResultState podcastResult;
+        SubmitResultState episodeResult;
+        podcastResult = SubmitResultState.Enriched;
+        var matchingEpisodes = categorisedItem.MatchingEpisode != null
+            ? new[] {categorisedItem.MatchingEpisode}
+            : categorisedItem.MatchingPodcast.Episodes.Where(episode =>
+                IsMatchingEpisode(episode, categorisedItem)).ToArray();
+
+        Episode? matchingEpisode;
+        if (matchingEpisodes!.Count() > 1)
+        {
+            var title = categorisedItem.ResolvedAppleItem?.EpisodeTitle ??
+                        categorisedItem.ResolvedSpotifyItem?.EpisodeTitle ??
+                        categorisedItem.ResolvedYouTubeItem?.EpisodeTitle;
+            matchingEpisode = FuzzyMatcher.Match(title!, matchingEpisodes, x => x.Title);
+        }
+        else
+        {
+            matchingEpisode = matchingEpisodes.SingleOrDefault();
+        }
+
+        logger.LogInformation(
+            $"Modifying podcast with name '{categorisedItem.MatchingPodcast.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
+
+        ApplyResolvedPodcastServiceProperties(
+            categorisedItem.MatchingPodcast,
+            categorisedItem, matchingEpisode);
+
+        if (matchingEpisode == null)
+        {
+            episodeResult = SubmitResultState.Created;
+            var episode = CreateEpisode(categorisedItem);
+            await subjectEnricher.EnrichSubjects(
+                episode,
+                new SubjectEnrichmentOptions(
+                    categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
+                    categorisedItem.MatchingPodcast.IgnoredSubjects,
+                    categorisedItem.MatchingPodcast.DefaultSubject));
+            categorisedItem.MatchingPodcast.Episodes.Add(episode);
+            categorisedItem.MatchingPodcast.Episodes =
+                categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
+        }
+        else
+        {
+            episodeResult = SubmitResultState.Enriched;
+        }
+
+        return (podcastResult, episodeResult);
     }
 
     private async Task<Podcast> CreatePodcastWithEpisode(CategorisedItem categorisedItem)
