@@ -60,7 +60,7 @@ public class DiscoveryCuration(
             var submitOptions = new SubmitOptions(null, true);
 
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(m);
-            var submitResults = new List<(Guid DiscoveryItemId, string Message)>();
+            var submitResults = new List<DiscoveryItemResult>();
 
             foreach (var discoveryResult in discoveryResults)
             {
@@ -69,12 +69,22 @@ public class DiscoveryCuration(
                 try
                 {
                     var result = await urlSubmitter.Submit(discoveryResult, indexingContext, submitOptions);
-                    submitResults.Add((discoveryResult.Id, result.ToString())!);
+                    submitResults.Add(
+                        new DiscoveryItemResult
+                        {
+                            DiscoveryItemId = discoveryResult.Id,
+                            Message = result.ToString()
+                        });
                 }
                 catch (Exception ex)
                 {
                     errorsOccured = true;
-                    submitResults.Add((discoveryResult.Id, "Error"));
+                    submitResults.Add(
+                        new DiscoveryItemResult
+                        {
+                            DiscoveryItemId = discoveryResult.Id,
+                            Message = "Error"
+                        });
                     logger.LogError(ex, $"{nameof(Post)} Failure submitting discovery-result '{discoveryResult.Id}'.");
                 }
             }
@@ -85,18 +95,12 @@ public class DiscoveryCuration(
             {
                 Message = "Success",
                 ErrorsOccurred = errorsOccured,
-                Results = submitResults
-                    .Select(x => new DiscoveryItemResult
-                    {
-                        DiscoveryItemId = x.DiscoveryItemId,
-                        Message = x.Message
-                    })
-                    .ToArray()
+                Results = submitResults.ToArray()
             };
 
-
-            return await r.CreateResponse(HttpStatusCode.OK)
-                .WithJsonBody(new {message = "Success", errorsOccurred = errorsOccured, results = submitResults}, c);
+            return await r
+                .CreateResponse(HttpStatusCode.OK)
+                .WithJsonBody(response, c);
         }
         catch (Exception e)
         {
