@@ -11,11 +11,5 @@ public class DiscoverySubmitResults
     public bool ErrorsOccurred { get; set; }
 
     [JsonPropertyName("results")]
-    public DiscoveryItemResult[] Results { get; set; }
-}
-
-public class DiscoveryItemResult
-{
-    public Guid DiscoveryItemId { get; set; }
-    public string Message { get; set; }
+    public required DiscoveryItemResult[] Results { get; set; }
 }

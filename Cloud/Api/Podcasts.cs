@@ -34,8 +34,9 @@ public class Podcasts(
                 podcast => !podcast.Removed.IsDefined() || podcast.Removed == false,
                 podcast => new {id = podcast.Id, name = podcast.Name});
 
+            var podcastResults = await podcasts.ToListAsync(c);
             var success = await req.CreateResponse(HttpStatusCode.OK)
-                .WithJsonBody(await podcasts.ToListAsync(c), c);
+                .WithJsonBody(podcastResults, c);
             return success;
         }
         catch (Exception ex)
