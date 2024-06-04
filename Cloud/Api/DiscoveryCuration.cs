@@ -98,7 +98,6 @@ public class DiscoveryCuration(
                 Results = submitResults.ToArray()
             };
 
-
             return await r
                 .CreateResponse(HttpStatusCode.OK)
                 .WithJsonBody(response, c);
