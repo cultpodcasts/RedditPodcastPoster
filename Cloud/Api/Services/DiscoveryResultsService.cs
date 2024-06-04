@@ -1,6 +1,7 @@
 using Api.Dtos;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery;
+using RedditPodcastPoster.Models;
 
 namespace Api.Services;
 
@@ -40,5 +41,13 @@ public class DiscoveryResultsService(
                 await discoveryResultsRepository.Save(document);
             }
         }
+    }
+
+    public async Task<IEnumerable<DiscoveryResult>> GetDiscoveryResult(DiscoveryIngest discoveryIngest)
+    {
+        var documentResultSets = await discoveryResultsRepository.GetByIds(discoveryIngest.DiscoveryResultsDocumentIds)
+            .ToListAsync();
+        var discoveryResults = documentResultSets.SelectMany(x => x.DiscoveryResults);
+        return discoveryResults.Where(y => discoveryIngest.ResultIds.Contains(y.Id));
     }
 }

@@ -3,6 +3,7 @@ using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Discovery;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace Discovery;
@@ -31,8 +32,8 @@ public class Discover(
             SkipSpotifyUrlResolving: false,
             SkipPodcastDiscovery: false,
             SkipExpensiveSpotifyQueries: false);
-        
-        logger.LogInformation($"{nameof(RunAsync)}: {indexingContext.ToString()}");
+
+        logger.LogInformation($"{nameof(RunAsync)}: {indexingContext}");
 
         if (DryRun.IsDiscoverDryRun)
         {

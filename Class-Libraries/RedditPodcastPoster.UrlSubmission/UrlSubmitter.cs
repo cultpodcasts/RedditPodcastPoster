@@ -5,6 +5,9 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -18,6 +21,10 @@ public class UrlSubmitter(
     IUrlCategoriser urlCategoriser,
     ISubjectEnricher subjectEnricher,
     IOptions<PostingCriteria> postingCriteria,
+    ISpotifyUrlCategoriser spotifyUrlCategoriser,
+    IAppleUrlCategoriser appleUrlCategoriser,
+    IYouTubeUrlCategoriser youTubeUrlCategoriser,
+    IYouTubeIdExtractor youTubeIdExtractor,
     ILogger<UrlSubmitter> logger)
     : IUrlSubmitter
 {
@@ -51,52 +58,169 @@ public class UrlSubmitter(
         var categorisedItem =
             await urlCategoriser.Categorise(podcast, url, indexingContext, submitOptions.MatchOtherServices);
 
+        (podcastResult, episodeResult) = await ProcessCategorisesItem(categorisedItem, submitOptions);
+
+        return new SubmitResult(episodeResult, podcastResult);
+    }
+
+    public async Task<DiscoverySubmitResult> Submit(
+        DiscoveryResult discoveryResult,
+        IndexingContext indexingContext,
+        SubmitOptions submitOptions)
+    {
+        if (!discoveryResult.Urls.Any())
+        {
+            return new DiscoverySubmitResult(DiscoverySubmitResultState.NoUrls);
+        }
+
+        Podcast? spotifyPodcast = null, applePodcast = null, youTubePodcast = null;
+        if (discoveryResult.Urls.Spotify != null)
+        {
+            spotifyPodcast =
+                await podcastService.GetPodcastFromEpisodeUrl(discoveryResult.Urls.Spotify, indexingContext);
+        }
+
+        if (discoveryResult.Urls.Apple != null)
+        {
+            applePodcast = await podcastService.GetPodcastFromEpisodeUrl(discoveryResult.Urls.Apple, indexingContext);
+        }
+
+        if (discoveryResult.Urls.YouTube != null)
+        {
+            youTubePodcast =
+                await podcastService.GetPodcastFromEpisodeUrl(discoveryResult.Urls.YouTube, indexingContext);
+        }
+
+        Podcast?[] podcasts = [spotifyPodcast, applePodcast, youTubePodcast];
+        var foundPodcasts = podcasts.Where(x => x != null);
+        var areSame = foundPodcasts.All(x => x.Id == foundPodcasts.First().Id);
+        if (!areSame)
+        {
+            return new DiscoverySubmitResult(DiscoverySubmitResultState.DifferentPodcasts);
+        }
+
+        bool enrichSpotify = false, enrichApple = false, enrichYouTube = false;
+        CategorisedItem categorisedItem;
+        if (discoveryResult.Urls.Spotify != null &&
+            (spotifyPodcast != null || (applePodcast == null && youTubePodcast == null)))
+        {
+            categorisedItem = await urlCategoriser.Categorise(spotifyPodcast, discoveryResult.Urls.Spotify,
+                indexingContext, submitOptions.MatchOtherServices);
+            if (discoveryResult.Urls.Apple != null)
+            {
+                enrichApple = true;
+            }
+
+            if (discoveryResult.Urls.YouTube != null)
+            {
+                enrichYouTube = true;
+            }
+        }
+        else if (discoveryResult.Urls.Apple != null &&
+                 (applePodcast != null || (spotifyPodcast == null && youTubePodcast == null)))
+        {
+            categorisedItem = await urlCategoriser.Categorise(applePodcast, discoveryResult.Urls.Apple, indexingContext,
+                submitOptions.MatchOtherServices);
+            if (discoveryResult.Urls.YouTube != null)
+            {
+                enrichYouTube = true;
+            }
+
+            if (discoveryResult.Urls.Spotify != null)
+            {
+                enrichSpotify = true;
+            }
+        }
+        else
+        {
+            categorisedItem = await urlCategoriser.Categorise(youTubePodcast, discoveryResult.Urls.YouTube,
+                indexingContext, submitOptions.MatchOtherServices);
+            if (discoveryResult.Urls.Apple != null)
+            {
+                enrichApple = true;
+            }
+
+            if (discoveryResult.Urls.Spotify != null)
+            {
+                enrichSpotify = true;
+            }
+        }
+
+        if (enrichSpotify)
+        {
+            if (categorisedItem.ResolvedSpotifyItem == null ||
+                categorisedItem.ResolvedSpotifyItem.EpisodeDescription !=
+                spotifyUrlCategoriser.GetEpisodeId(discoveryResult.Urls.Spotify))
+            {
+                categorisedItem = categorisedItem with
+                {
+                    ResolvedSpotifyItem =
+                    await spotifyUrlCategoriser.Resolve(null, discoveryResult.Urls.Spotify!, indexingContext)
+                };
+            }
+        }
+
+        if (enrichApple)
+        {
+            if (categorisedItem.ResolvedAppleItem == null ||
+                categorisedItem.ResolvedAppleItem.ShowId !=
+                appleUrlCategoriser.GetPodcastId(discoveryResult.Urls.Apple) ||
+                categorisedItem.ResolvedAppleItem.EpisodeId !=
+                appleUrlCategoriser.GetEpisodeId(discoveryResult.Urls.Apple))
+            {
+                categorisedItem = categorisedItem with
+                {
+                    ResolvedAppleItem =
+                    await appleUrlCategoriser.Resolve(null, discoveryResult.Urls.Apple!, indexingContext)
+                };
+            }
+        }
+
+        if (enrichYouTube)
+        {
+            if (categorisedItem.ResolvedYouTubeItem == null ||
+                categorisedItem.ResolvedYouTubeItem.ShowId != youTubeIdExtractor.Extract(discoveryResult.Urls.YouTube!))
+            {
+                categorisedItem = categorisedItem with
+                {
+                    ResolvedYouTubeItem =
+                    await youTubeUrlCategoriser.Resolve(null, discoveryResult.Urls.YouTube!, indexingContext)
+                };
+            }
+        }
+
+        var (podcastResult, episodeResult) = await ProcessCategorisesItem(categorisedItem, submitOptions);
+
+        DiscoverySubmitResultState state;
+        if (podcastResult == SubmitResultState.Created && episodeResult == SubmitResultState.Created)
+        {
+            state = DiscoverySubmitResultState.CreatedPodcastAndEpisode;
+        }
+        else if (podcastResult == SubmitResultState.Enriched && episodeResult == SubmitResultState.Created)
+        {
+            state = DiscoverySubmitResultState.CreatedEpisode;
+        }
+        else if (podcastResult == SubmitResultState.Enriched && episodeResult == SubmitResultState.Enriched)
+        {
+            state = DiscoverySubmitResultState.EnrichedPodcastAndEpisode;
+        }
+        else
+        {
+            throw new ArgumentException(
+                $"Unknown state: podcast-result: '{podcastResult.ToString()}', episode-result '{episodeResult.ToString()}'.");
+        }
+
+        return new DiscoverySubmitResult(state);
+    }
+
+    private async Task<(SubmitResultState podcastResult, SubmitResultState episodeResult)> ProcessCategorisesItem(
+        CategorisedItem categorisedItem, SubmitOptions submitOptions)
+    {
+        SubmitResultState podcastResult;
+        SubmitResultState episodeResult;
         if (categorisedItem.MatchingPodcast != null)
         {
-            podcastResult = SubmitResultState.Enriched;
-            var matchingEpisodes = categorisedItem.MatchingEpisode != null
-                ? new[] {categorisedItem.MatchingEpisode}
-                : categorisedItem.MatchingPodcast.Episodes.Where(episode =>
-                    IsMatchingEpisode(episode, categorisedItem)).ToArray();
-
-            Episode? matchingEpisode;
-            if (matchingEpisodes!.Count() > 1)
-            {
-                var title = categorisedItem.ResolvedAppleItem?.EpisodeTitle ??
-                            categorisedItem.ResolvedSpotifyItem?.EpisodeTitle ??
-                            categorisedItem.ResolvedYouTubeItem?.EpisodeTitle;
-                matchingEpisode = FuzzyMatcher.Match(title!, matchingEpisodes, x => x.Title);
-            }
-            else
-            {
-                matchingEpisode = matchingEpisodes.SingleOrDefault();
-            }
-
-            logger.LogInformation(
-                $"Modifying podcast with name '{categorisedItem.MatchingPodcast.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
-
-            ApplyResolvedPodcastServiceProperties(
-                categorisedItem.MatchingPodcast,
-                categorisedItem, matchingEpisode);
-
-            if (matchingEpisode == null)
-            {
-                episodeResult = SubmitResultState.Created;
-                var episode = CreateEpisode(categorisedItem);
-                await subjectEnricher.EnrichSubjects(
-                    episode,
-                    new SubjectEnrichmentOptions(
-                        categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
-                        categorisedItem.MatchingPodcast.IgnoredSubjects,
-                        categorisedItem.MatchingPodcast.DefaultSubject));
-                categorisedItem.MatchingPodcast.Episodes.Add(episode);
-                categorisedItem.MatchingPodcast.Episodes =
-                    categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
-            }
-            else
-            {
-                episodeResult = SubmitResultState.Enriched;
-            }
+            (podcastResult, episodeResult) = await AddEpisodeToExistingPodcast(categorisedItem);
 
             if (submitOptions.PersistToDatabase)
             {
@@ -122,7 +246,60 @@ public class UrlSubmitter(
             }
         }
 
-        return new SubmitResult(episodeResult, podcastResult);
+        return (podcastResult, episodeResult);
+    }
+
+    private async Task<(SubmitResultState podcastResult, SubmitResultState episodeResult)> AddEpisodeToExistingPodcast(
+        CategorisedItem categorisedItem)
+    {
+        SubmitResultState podcastResult;
+        SubmitResultState episodeResult;
+        podcastResult = SubmitResultState.Enriched;
+        var matchingEpisodes = categorisedItem.MatchingEpisode != null
+            ? new[] {categorisedItem.MatchingEpisode}
+            : categorisedItem.MatchingPodcast.Episodes.Where(episode =>
+                IsMatchingEpisode(episode, categorisedItem)).ToArray();
+
+        Episode? matchingEpisode;
+        if (matchingEpisodes!.Count() > 1)
+        {
+            var title = categorisedItem.ResolvedAppleItem?.EpisodeTitle ??
+                        categorisedItem.ResolvedSpotifyItem?.EpisodeTitle ??
+                        categorisedItem.ResolvedYouTubeItem?.EpisodeTitle;
+            matchingEpisode = FuzzyMatcher.Match(title!, matchingEpisodes, x => x.Title);
+        }
+        else
+        {
+            matchingEpisode = matchingEpisodes.SingleOrDefault();
+        }
+
+        logger.LogInformation(
+            $"Modifying podcast with name '{categorisedItem.MatchingPodcast.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
+
+        ApplyResolvedPodcastServiceProperties(
+            categorisedItem.MatchingPodcast,
+            categorisedItem, matchingEpisode);
+
+        if (matchingEpisode == null)
+        {
+            episodeResult = SubmitResultState.Created;
+            var episode = CreateEpisode(categorisedItem);
+            await subjectEnricher.EnrichSubjects(
+                episode,
+                new SubjectEnrichmentOptions(
+                    categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
+                    categorisedItem.MatchingPodcast.IgnoredSubjects,
+                    categorisedItem.MatchingPodcast.DefaultSubject));
+            categorisedItem.MatchingPodcast.Episodes.Add(episode);
+            categorisedItem.MatchingPodcast.Episodes =
+                categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
+        }
+        else
+        {
+            episodeResult = SubmitResultState.Enriched;
+        }
+
+        return (podcastResult, episodeResult);
     }
 
     private async Task<Podcast> CreatePodcastWithEpisode(CategorisedItem categorisedItem)

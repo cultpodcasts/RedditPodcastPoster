@@ -30,13 +30,13 @@ public class SpotifyEnricher(
                 enrichedCtr++;
                 var image = spotifyResult.FullEpisode.Images.MaxBy(x => x.Height);
 
-                episodeResult.Url = spotifyResult.FullEpisode.GetUrl();
-                episodeResult.DiscoverService = DiscoverService.Spotify;
+                episodeResult.Urls.Spotify = spotifyResult.FullEpisode.GetUrl();
+                episodeResult.EnrichedUrlFromSpotify = true;
                 episodeResult.ServicePodcastId = spotifyResult.FullEpisode.Show.Id;
                 episodeResult.ImageUrl = image != null ? new Uri(image.Url) : null;
             }
         }
-        logger.LogInformation($"{nameof(Enrich)} enriched '{enrichedCtr}' results.");
 
+        logger.LogInformation($"{nameof(Enrich)} enriched '{enrichedCtr}' results.");
     }
 }

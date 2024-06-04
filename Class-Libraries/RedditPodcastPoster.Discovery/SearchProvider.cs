@@ -3,6 +3,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.ListenNotes;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
+using DiscoverService = RedditPodcastPoster.Models.DiscoverService;
 
 namespace RedditPodcastPoster.Discovery;
 
@@ -34,6 +35,11 @@ public class SearchProvider(
                         await spotifyEnricher.Enrich(serviceResults, indexingContext);
                     }
 
+                    if (discoveryConfig.EnrichFromApple)
+                    {
+                        await appleEnricher.Enrich(serviceResults, indexingContext);
+                    }
+
                     break;
                 case DiscoverService.Spotify:
                     serviceResults = await spotifySearcher.Search(config.Term, indexingContext);
@@ -58,11 +64,54 @@ public class SearchProvider(
         var items = results
             .Where(x => x.Released >= indexingContext.ReleasedSince)
             .GroupBy(x => x.EpisodeName)
-            .Select(x => x.FirstOrDefault(y => y.Url != null) ?? x.First())
+            .Select(Coalesce)
             .OrderBy(x => x.Released);
 
-        logger.LogInformation(
-            $"total-items: '{items.Count()}', spotify-items '{items.Count(x => x.DiscoverService == DiscoverService.Spotify)}, youtube-items: '{items.Count(x => x.DiscoverService == DiscoverService.YouTube)}', listen-notes-items: '{items.Count(x => x.DiscoverService == DiscoverService.ListenNotes)}'.");
+        string[] logItems =
+        [
+            $"total-items: '{items.Count()}'",
+            $"spotify-items '{items.Count(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.Spotify)}'",
+            $"youtube-items: '{items.Count(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.YouTube)}'",
+            $"listen-notes-items: '{items.Count(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.ListenNotes)}'",
+            $"spotify-enriched-url: '{items.Count(x => x.EnrichedUrlFromSpotify)}'",
+            $"apple-enriched-release: '{items.Count(x => x.EnrichedTimeFromApple)}'"
+        ];
+
+        logger.LogInformation($"{string.Join(", ", logItems)}.");
         return items;
+    }
+
+    private EpisodeResult Coalesce(IGrouping<string, EpisodeResult> items, int index)
+    {
+        var first = items.First();
+        foreach (var subsequent in items.Skip(1))
+        {
+            first.Urls.Apple ??= subsequent.Urls.Apple;
+            first.Urls.Spotify ??= subsequent.Urls.Spotify;
+            first.Urls.YouTube ??= subsequent.Urls.YouTube;
+        }
+
+        var youTube =
+            items.FirstOrDefault(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.YouTube);
+        if (youTube != null)
+        {
+            first.Released = youTube.Released;
+            first.ViewCount = youTube.ViewCount;
+            first.MemberCount = youTube.MemberCount;
+        }
+
+        var apple = items.FirstOrDefault(x => x.EnrichedTimeFromApple);
+        if (apple != null)
+        {
+            first.Released = apple.Released;
+            first.EnrichedTimeFromApple = true;
+        }
+
+        if (items.Any(x => x.EnrichedUrlFromSpotify))
+        {
+            first.EnrichedUrlFromSpotify = true;
+        }
+
+        return first;
     }
 }

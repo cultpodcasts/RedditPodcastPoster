@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using DiscoverService = RedditPodcastPoster.PodcastServices.Abstractions.DiscoverService;
 
 namespace RedditPodcastPoster.Discovery;
 

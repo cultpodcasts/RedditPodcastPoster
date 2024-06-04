@@ -7,6 +7,6 @@ public class DiscoveryIngest
     [JsonPropertyName("ids")]
     public Guid[] DiscoveryResultsDocumentIds { get; set; } = [];
 
-    [JsonPropertyName("urls")]
-    public Uri[] Urls { get; set; } = [];
+    [JsonPropertyName("resultIds")]
+    public Guid[] ResultIds { get; set; } = [];
 }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 
@@ -40,5 +41,10 @@ public class DiscoveryResultsRepository(
     public Task<DiscoveryResultsDocument?> GetById(Guid documentId)
     {
         return repository.GetBy<DiscoveryResultsDocument>(x => x.Id == documentId);
+    }
+
+    public IAsyncEnumerable<DiscoveryResultsDocument> GetByIds(IEnumerable<Guid> ids)
+    {
+        return repository.GetAllBy<DiscoveryResultsDocument>(x => ids.Contains(x.Id));
     }
 }

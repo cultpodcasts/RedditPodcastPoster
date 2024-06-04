@@ -1,12 +1,16 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Discovery;
+namespace RedditPodcastPoster.Models;
 
 public class DiscoveryResult
 {
-    [JsonPropertyName("url")]
+    [JsonPropertyName("id")]
+    [JsonPropertyOrder(1)]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [JsonPropertyName("urls")]
     [JsonPropertyOrder(10)]
-    public Uri? Url { get; set; }
+    public DiscoveryResultUrls Urls { get; set; } = new();
 
     [JsonPropertyName("episodeName")]
     [JsonPropertyOrder(20)]
@@ -43,4 +47,17 @@ public class DiscoveryResult
     [JsonPropertyName("imageUrl")]
     [JsonPropertyOrder(100)]
     public Uri? ImageUrl { get; set; }
+
+    [JsonPropertyName("discoverService")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    [JsonPropertyOrder(110)]
+    public DiscoverService Source { get; set; }
+
+    [JsonPropertyName("enrichedTimeFromApple")]
+    [JsonPropertyOrder(120)]
+    public bool EnrichedTimeFromApple { get; set; }
+
+    [JsonPropertyName("enrichedUrlFromSpotify")]
+    [JsonPropertyOrder(122)]
+    public bool EnrichedUrlFromSpotify { get; set; }
 }
