@@ -60,7 +60,7 @@ public class DiscoveryCuration(
             var submitOptions = new SubmitOptions(null, true);
 
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(m);
-            var submitResults = new List<(Guid, string)>();
+            var submitResults = new List<(Guid DiscoveryItemId, string Message)>();
 
             foreach (var discoveryResult in discoveryResults)
             {
@@ -80,6 +80,20 @@ public class DiscoveryCuration(
             }
 
             await discoveryResultsService.MarkAsProcessed(m.DiscoveryResultsDocumentIds);
+
+            var response = new DiscoverySubmitResults
+            {
+                Message = "Success",
+                ErrorsOccurred = errorsOccured,
+                Results = submitResults
+                    .Select(x => new DiscoveryItemResult
+                    {
+                        DiscoveryItemId = x.DiscoveryItemId,
+                        Message = x.Message
+                    })
+                    .ToArray()
+            };
+
 
             return await r.CreateResponse(HttpStatusCode.OK)
                 .WithJsonBody(new {message = "Success", errorsOccurred = errorsOccured, results = submitResults}, c);
