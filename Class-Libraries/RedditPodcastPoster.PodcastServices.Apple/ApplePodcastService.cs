@@ -86,11 +86,16 @@ public class ApplePodcastService : IApplePodcastService
         if (podcastRecords.Any() && !appleEpisodes.Any())
         {
             _logger.LogError(
-                $"Unable to cast apple-podcast-record (count:'{podcastRecords.Count}') to apple-episodes (count:'{appleEpisodes.Count()}').");
+                $"Missing duration-attribute on all apple-podcast episodes for podcast with apple-podcast-id '{podcastId.PodcastId}'. podcast-records count:'{podcastRecords.Count}',  apple-episodes count:'{appleEpisodes.Count()}'.");
             foreach (var json in collectedAppleJson)
             {
                 _logger.LogError(json);
             }
+        }
+        else
+        {
+            _logger.LogInformation(
+                $"Successfully found podcast-episodes with duration. Apple-podcast-id '{podcastId.PodcastId}', items-with-duration: '{appleEpisodes.Count()}/{podcastRecords.Count}'.");
         }
 
         return appleEpisodes;

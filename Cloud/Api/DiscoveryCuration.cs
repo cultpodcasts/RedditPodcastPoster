@@ -73,7 +73,7 @@ public class DiscoveryCuration(
                         new DiscoveryItemResult
                         {
                             DiscoveryItemId = discoveryResult.Id,
-                            Message = result.ToString()
+                            Message = result.State.ToString()
                         });
                 }
                 catch (Exception ex)
@@ -95,7 +95,7 @@ public class DiscoveryCuration(
             {
                 Message = "Success",
                 ErrorsOccurred = errorsOccured,
-                Results = submitResults.ToArray()
+                Results = [.. submitResults]
             };
 
             return await r
