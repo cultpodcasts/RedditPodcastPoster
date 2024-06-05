@@ -15,12 +15,14 @@ public static class ServiceCollectionExtensions
     {
         return services
             .AddScoped<ISearchProvider, SearchProvider>()
+            .AddScoped<IEpisodeResultsEnricher, EpisodeResultsEnricher>()
+            .AddScoped<IEpisodeResultEnricher, EpisodeResultEnricher>()
             .AddScoped<ISpotifyEnricher, SpotifyEnricher>()
             .AddScoped<IAppleEnricher, AppleEnricher>()
             .AddScoped<IDiscoveryServiceConfigProvider, DiscoveryServiceConfigProvider>()
             .AddScoped<IDiscoveryService, DiscoveryService>()
-            .AddScoped<IEpisodeResultsAdapter, EpisodeResultsAdapter>()
-            .AddScoped<IEpisodeResultAdapter, EpisodeResultAdapter>()
+            .AddScoped<IEnrichedEpisodeResultsAdapter, EnrichedEpisodeResultsAdapter>()
+            .AddScoped<IEnrichedEpisodeResultAdapter, EnrichedEpisodeResultAdapter>()
             .AddScoped<IIgnoreTermsProvider, IgnoreTermsProvider>()
             .AddDiscoveryRepository(config)
             .AddSpotifyServices(config)

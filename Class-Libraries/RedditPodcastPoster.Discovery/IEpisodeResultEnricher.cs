@@ -3,7 +3,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.Discovery;
 
-public interface IEpisodeResultAdapter
+public interface IEpisodeResultEnricher
 {
-    Task<DiscoveryResult> ToDiscoveryResult(EpisodeResult episode);
+    EnrichedEpisodeResult Enrich(EpisodeResult episodeResult, Podcast[] podcasts);
 }

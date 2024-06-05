@@ -12,8 +12,6 @@ public class PodcastService(
     IPodcastRepository podcastRepository,
     ISpotifyUrlCategoriser spotifyUrlCategoriser,
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
-    IAppleUrlCategoriser appleUrlCategoriser,
-    IYouTubeUrlCategoriser youTubeUrlCategoriser,
     IYouTubeIdExtractor youTubeIdExtractor,
     IYouTubeVideoService youTubeVideoService,
 #pragma warning disable CS9113 // Parameter is unread.
@@ -24,7 +22,7 @@ public class PodcastService(
     public async Task<Podcast?> GetPodcastFromEpisodeUrl(Uri url, IndexingContext indexingContext)
     {
         IEnumerable<Podcast> podcasts;
-        if (spotifyUrlCategoriser.IsMatch(url))
+        if (SpotifyPodcastServiceMatcher.IsMatch(url))
         {
             var episodeId = spotifyUrlCategoriser.GetEpisodeId(url);
             if (string.IsNullOrWhiteSpace(episodeId))
@@ -44,7 +42,7 @@ public class PodcastService(
             podcasts = await podcastRepository.GetAllBy(podcast => podcast.SpotifyId == episode.FullEpisode.Show.Id)
                 .ToArrayAsync();
         }
-        else if (youTubeUrlCategoriser.IsMatch(url))
+        else if (YouTubePodcastServiceMatcher.IsMatch(url))
         {
             var videoId = youTubeIdExtractor.Extract(url);
             if (string.IsNullOrWhiteSpace(videoId))
@@ -82,9 +80,9 @@ public class PodcastService(
                 }
             }
         }
-        else if (appleUrlCategoriser.IsMatch(url))
+        else if (ApplePodcastServiceMatcher.IsMatch(url))
         {
-            var podcastId = appleUrlCategoriser.GetPodcastId(url);
+            var podcastId = AppleIdResolver.GetPodcastId(url);
             if (podcastId == null)
             {
                 throw new ArgumentException($"Unable to extract apple-episode-id from '{url}'.", nameof(url));

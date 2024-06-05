@@ -164,9 +164,9 @@ public class UrlSubmitter(
         {
             if (categorisedItem.ResolvedAppleItem == null ||
                 categorisedItem.ResolvedAppleItem.ShowId !=
-                appleUrlCategoriser.GetPodcastId(discoveryResult.Urls.Apple) ||
+                AppleIdResolver.GetPodcastId(discoveryResult.Urls.Apple) ||
                 categorisedItem.ResolvedAppleItem.EpisodeId !=
-                appleUrlCategoriser.GetEpisodeId(discoveryResult.Urls.Apple))
+                AppleIdResolver.GetEpisodeId(discoveryResult.Urls.Apple))
             {
                 categorisedItem = categorisedItem with
                 {

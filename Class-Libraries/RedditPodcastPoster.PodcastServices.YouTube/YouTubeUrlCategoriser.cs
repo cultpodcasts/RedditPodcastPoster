@@ -14,11 +14,6 @@ public class YouTubeUrlCategoriser(
 #pragma warning restore CS9113 // Parameter is unread.
     : IYouTubeUrlCategoriser
 {
-    public bool IsMatch(Uri url)
-    {
-        return url.Host.ToLower().Contains("youtube");
-    }
-
     public async Task<ResolvedYouTubeItem?> Resolve(
         Podcast? podcast,
         Uri url,

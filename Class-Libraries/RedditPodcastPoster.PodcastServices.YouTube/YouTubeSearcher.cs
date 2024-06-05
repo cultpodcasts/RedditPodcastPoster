@@ -174,6 +174,7 @@ public class YouTubeSearcher(
             imageUrl
         );
         episodeResult.Urls.YouTube = episode.ToYouTubeUrl();
+        episodeResult.PodcastIds.YouTube = channel?.Id;
         return episodeResult;
     }
 

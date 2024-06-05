@@ -6,7 +6,8 @@ namespace RedditPodcastPoster.Discovery;
 
 public class DiscoveryService(
     ISearchProvider searchProvider,
-    IEpisodeResultsAdapter episodeResultsAdapter,
+    IEnrichedEpisodeResultsAdapter enrichedEpisodeResultsAdapter,
+    IEpisodeResultsEnricher episodeResultsEnricher,
     ILogger<DiscoveryService> logger
 ) : IDiscoveryService
 {
@@ -16,6 +17,7 @@ public class DiscoveryService(
     {
         logger.LogInformation($"{nameof(GetDiscoveryResults)} initiated.");
         var results = await searchProvider.GetEpisodes(indexingContext, discoveryConfig);
-        return await episodeResultsAdapter.ToDiscoveryResults(results).ToListAsync();
+        var enrichedResults = await episodeResultsEnricher.EnrichWithPodcastDetails(results).ToListAsync();
+        return await enrichedEpisodeResultsAdapter.ToDiscoveryResults(enrichedResults).ToListAsync();
     }
 }
