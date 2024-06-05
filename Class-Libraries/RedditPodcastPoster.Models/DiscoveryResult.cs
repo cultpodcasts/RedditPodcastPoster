@@ -51,7 +51,7 @@ public class DiscoveryResult
     [JsonPropertyName("discoverService")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     [JsonPropertyOrder(110)]
-    public DiscoverService[] Sources { get; set; }
+    public DiscoverService[] Sources { get; set; } = [];
 
     [JsonPropertyName("enrichedTimeFromApple")]
     [JsonPropertyOrder(120)]
@@ -63,5 +63,5 @@ public class DiscoveryResult
 
     [JsonPropertyName("matchingPodcastIds")]
     [JsonPropertyOrder(130)]
-    public Guid[] MatchingPodcastIds { get; set; }
+    public Guid[] MatchingPodcastIds { get; set; } = [];
 }
