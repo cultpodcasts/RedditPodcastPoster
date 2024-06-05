@@ -113,6 +113,8 @@ public class SearchProvider(
             first.EnrichedUrlFromSpotify = true;
         }
 
+        first.DiscoverServices = items.SelectMany(x => x.DiscoverServices).Distinct().ToArray();
+
         return first;
     }
 }
