@@ -1,4 +1,5 @@
-﻿using Azure;
+﻿using System.Text.Json;
+using Azure;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -75,7 +76,15 @@ public class Discover(
                 _discoverOptions, indexingContext,
                 preIndexingContextSkipSpotify);
 
-            await discoveryResultsRepository.Save(discoveryResultsDocument);
+            try
+            {
+                await discoveryResultsRepository.Save(discoveryResultsDocument);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, $"Failure to persist {nameof(DiscoveryResultsDocument)}. Json: '{JsonSerializer.Serialize(discoveryResultsDocument)}'");
+                throw;
+            }
 
             logger.LogInformation(
                 $"{nameof(RunAsync)} Complete. {nameof(discoveryBegan)}: '{discoveryBegan:O}', document-id: '{discoveryResultsDocument.Id}', no-results: '{discoveryResults.Count()}', indexing-context: {indexingContext}.");

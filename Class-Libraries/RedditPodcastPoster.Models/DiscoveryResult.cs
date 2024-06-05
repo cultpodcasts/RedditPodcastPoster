@@ -34,7 +34,7 @@ public class DiscoveryResult
 
     [JsonPropertyName("subjects")]
     [JsonPropertyOrder(70)]
-    public IEnumerable<string> Subjects { get; set; } = Enumerable.Empty<string>();
+    public IEnumerable<string> Subjects { get; set; } = [];
 
     [JsonPropertyName("youTubeViews")]
     [JsonPropertyOrder(80)]

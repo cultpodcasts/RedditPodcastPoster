@@ -87,7 +87,8 @@ public class TweetBuilder(
         }
 
         if (_twitterOptions.WithEpisodeUrl && (podcastEpisode.HasMultipleServices() ||
-                                               podcastEpisode.Podcast.Episodes.Count > 1))
+                                               podcastEpisode.Podcast.Episodes.Count > 1 ||
+                                               podcastEpisode.Episode.Subjects.Any()))
         {
             var shortnerResult = await shortnerService.Write(podcastEpisode);
             if (!shortnerResult.Success)
