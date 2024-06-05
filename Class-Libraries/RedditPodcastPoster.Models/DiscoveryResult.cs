@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Converters;
 
 namespace RedditPodcastPoster.Models;
 
@@ -34,7 +35,7 @@ public class DiscoveryResult
 
     [JsonPropertyName("subjects")]
     [JsonPropertyOrder(70)]
-    public IEnumerable<string> Subjects { get; set; } = Enumerable.Empty<string>();
+    public IEnumerable<string> Subjects { get; set; } = [];
 
     [JsonPropertyName("youTubeViews")]
     [JsonPropertyOrder(80)]
@@ -49,7 +50,7 @@ public class DiscoveryResult
     public Uri? ImageUrl { get; set; }
 
     [JsonPropertyName("discoverService")]
-    [JsonConverter(typeof(JsonStringEnumConverter))]
+    [JsonConverter(typeof(ItemConverterDecorator<JsonStringEnumConverter>))]
     [JsonPropertyOrder(110)]
     public DiscoverService[] Sources { get; set; } = [];
 
