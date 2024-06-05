@@ -30,7 +30,7 @@ public class UrlCategoriser(
 
         Episode? matchingEpisode = null;
 
-        if (spotifyUrlCategoriser.IsMatch(url))
+        if (SpotifyPodcastServiceMatcher.IsMatch(url))
         {
             resolvedSpotifyItem = await spotifyUrlCategoriser.Resolve(podcast, url, indexingContext);
             matchingEpisode = podcast?.Episodes.SingleOrDefault(x =>
@@ -38,7 +38,7 @@ public class UrlCategoriser(
             criteria = resolvedSpotifyItem.ToPodcastServiceSearchCriteria();
             authority = Service.Spotify;
         }
-        else if (appleUrlCategoriser.IsMatch(url))
+        else if (ApplePodcastServiceMatcher.IsMatch(url))
         {
             resolvedAppleItem = await appleUrlCategoriser.Resolve(podcast, url, indexingContext);
             criteria = resolvedAppleItem.ToPodcastServiceSearchCriteria();
@@ -46,7 +46,7 @@ public class UrlCategoriser(
                 podcast?.Episodes.SingleOrDefault(x => x.Urls.Apple == url || x.AppleId == resolvedAppleItem.EpisodeId);
             authority = Service.Apple;
         }
-        else if (youTubeUrlCategoriser.IsMatch(url))
+        else if (YouTubePodcastServiceMatcher.IsMatch(url))
         {
             resolvedYouTubeItem = await youTubeUrlCategoriser.Resolve(podcast, url, indexingContext);
             if (resolvedYouTubeItem != null)
@@ -66,7 +66,7 @@ public class UrlCategoriser(
         {
             if (matchOtherServices)
             {
-                if (resolvedSpotifyItem == null && !spotifyUrlCategoriser.IsMatch(url) &&
+                if (resolvedSpotifyItem == null && !SpotifyPodcastServiceMatcher.IsMatch(url) &&
                     (string.IsNullOrWhiteSpace(matchingEpisode?.SpotifyId) ||
                      matchingEpisode?.Urls.Spotify == null ||
                      string.IsNullOrWhiteSpace(podcast?.SpotifyId)))
@@ -92,7 +92,7 @@ public class UrlCategoriser(
                 }
 
 
-                if (resolvedAppleItem == null && !appleUrlCategoriser.IsMatch(url) &&
+                if (resolvedAppleItem == null && !ApplePodcastServiceMatcher.IsMatch(url) &&
                     (matchingEpisode?.AppleId == null ||
                      matchingEpisode?.Urls.Apple == null ||
                      podcast?.AppleId == null))
@@ -126,7 +126,7 @@ public class UrlCategoriser(
                     }
                 }
 
-                if (resolvedYouTubeItem == null && !youTubeUrlCategoriser.IsMatch(url) &&
+                if (resolvedYouTubeItem == null && !YouTubePodcastServiceMatcher.IsMatch(url) &&
                     (string.IsNullOrWhiteSpace(matchingEpisode?.YouTubeId) ||
                      matchingEpisode?.Urls.YouTube == null ||
                      string.IsNullOrWhiteSpace(podcast?.YouTubeChannelId)))

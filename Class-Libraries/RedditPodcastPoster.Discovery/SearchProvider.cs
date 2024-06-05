@@ -70,9 +70,9 @@ public class SearchProvider(
         string[] logItems =
         [
             $"total-items: '{items.Count()}'",
-            $"spotify-items '{items.Count(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.Spotify)}'",
-            $"youtube-items: '{items.Count(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.YouTube)}'",
-            $"listen-notes-items: '{items.Count(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.ListenNotes)}'",
+            $"spotify-items '{items.Count(x => x.DiscoverServices.Contains(PodcastServices.Abstractions.DiscoverService.Spotify))}'",
+            $"youtube-items: '{items.Count(x => x.DiscoverServices.Contains(PodcastServices.Abstractions.DiscoverService.YouTube))}'",
+            $"listen-notes-items: '{items.Count(x => x.DiscoverServices.Contains(PodcastServices.Abstractions.DiscoverService.ListenNotes))}'",
             $"spotify-enriched-url: '{items.Count(x => x.EnrichedUrlFromSpotify)}'",
             $"apple-enriched-release: '{items.Count(x => x.EnrichedTimeFromApple)}'"
         ];
@@ -92,7 +92,8 @@ public class SearchProvider(
         }
 
         var youTube =
-            items.FirstOrDefault(x => x.DiscoverService == PodcastServices.Abstractions.DiscoverService.YouTube);
+            items.FirstOrDefault(x =>
+                x.DiscoverServices.Contains(PodcastServices.Abstractions.DiscoverService.YouTube));
         if (youTube != null)
         {
             first.Released = youTube.Released;

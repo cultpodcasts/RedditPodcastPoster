@@ -47,6 +47,8 @@ public class AppleEnricher(
                 enrichedCtr++;
                 episodeResult.Released = appleResult.Release;
                 episodeResult.Urls.Apple = appleResult.Url;
+                episodeResult.PodcastIds.Apple ??= episodeResult.ITunesPodcastId ??
+                                                   podcast?.Id ?? AppleIdResolver.GetPodcastId(appleResult.Url);
                 episodeResult.EnrichedTimeFromApple = true;
             }
         }

@@ -57,7 +57,7 @@ public class ListenNotesSearcher(
 
     private EpisodeResult ToEpisodeResult(ListenNotesEpisode episode)
     {
-        return new EpisodeResult(
+        var episodeResult = new EpisodeResult(
             episode.Id,
             DateTimeOffset.FromUnixTimeMilliseconds(episode.ReleasedMilliseconds).DateTime,
             htmlSanitiser.Sanitise(episode.Description).Trim(),
@@ -66,5 +66,7 @@ public class ListenNotesSearcher(
             episode.Podcast.ShowName.Trim(),
             DiscoverService.ListenNotes,
             itunesPodcastId: episode.PodcastITunesId);
+        episodeResult.PodcastIds.Apple ??= episode.PodcastITunesId;
+        return episodeResult;
     }
 }

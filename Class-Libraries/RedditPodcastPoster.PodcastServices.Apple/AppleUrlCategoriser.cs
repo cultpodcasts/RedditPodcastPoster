@@ -1,5 +1,4 @@
-﻿using System.Text.RegularExpressions;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
@@ -11,13 +10,6 @@ public class AppleUrlCategoriser(
     ILogger<AppleUrlCategoriser> logger)
     : IAppleUrlCategoriser
 {
-    private static readonly Regex AppleIds = new(@"podcast/[\w\-]+/id(?'podcastId'\d+)\?i=(?'episodeId'\d+)");
-
-    public bool IsMatch(Uri url)
-    {
-        return url.Host.ToLower().Contains("apple");
-    }
-
     public async Task<ResolvedAppleItem?> Resolve(
         PodcastServiceSearchCriteria criteria,
         Podcast? matchingPodcast,
@@ -75,8 +67,8 @@ public class AppleUrlCategoriser(
                 podcast.Episodes.Single(x => x.Urls.Apple == url)));
         }
 
-        var podcastId = GetPodcastId(url);
-        var episodeId = GetEpisodeId(url);
+        var podcastId = AppleIdResolver.GetPodcastId(url);
+        var episodeId = AppleIdResolver.GetEpisodeId(url);
 
         if (episodeId == null)
         {
@@ -113,17 +105,5 @@ public class AppleUrlCategoriser(
 
         throw new InvalidOperationException(
             $"Could not find item with apple-episode-id '{episodeId}' and apple-podcast-id '{podcastId}'.");
-    }
-
-    public long? GetEpisodeId(Uri url)
-    {
-        var match = AppleIds.Match(url.ToString()).Groups["episodeId"];
-        return match.Success ? long.Parse(match.Value) : null;
-    }
-
-    public long? GetPodcastId(Uri url)
-    {
-        var match = AppleIds.Match(url.ToString()).Groups["podcastId"];
-        return match.Success ? long.Parse(match.Value) : null;
     }
 }

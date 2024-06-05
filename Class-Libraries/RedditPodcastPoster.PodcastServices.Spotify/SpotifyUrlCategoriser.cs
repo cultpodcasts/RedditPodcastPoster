@@ -7,23 +7,18 @@ using RedditPodcastPoster.Text;
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public partial class SpotifyUrlCategoriser(
-    ISpotifyEpisodeResolver spotifyEpisodeResolver, 
+    ISpotifyEpisodeResolver spotifyEpisodeResolver,
     IHtmlSanitiser htmlSanitiser,
     ILogger<SpotifyUrlCategoriser> logger)
     : ISpotifyUrlCategoriser
 {
     private static readonly Regex SpotifyId = CreateEpisodeIdRegex();
 
-    public bool IsMatch(Uri url)
-    {
-        return url.Host.ToLower().Contains("spotify");
-    }
-
     public async Task<ResolvedSpotifyItem> Resolve(Podcast? podcast, Uri url, IndexingContext indexingContext)
     {
         if (podcast != null && podcast.Episodes.Any(x => x.Urls.Spotify == url))
         {
-            return new ResolvedSpotifyItem(new Models.PodcastEpisode(podcast,
+            return new ResolvedSpotifyItem(new PodcastEpisode(podcast,
                 podcast.Episodes.Single(x => x.Urls.Spotify == url)));
         }
 

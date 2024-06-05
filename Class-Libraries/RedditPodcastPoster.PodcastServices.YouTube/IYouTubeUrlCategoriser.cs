@@ -3,7 +3,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
-public interface IYouTubeUrlCategoriser : IPodcastServiceUrlResolver
+public interface IYouTubeUrlCategoriser
 {
     Task<ResolvedYouTubeItem?> Resolve(Podcast? podcasts, Uri url, IndexingContext indexingContext);
 
