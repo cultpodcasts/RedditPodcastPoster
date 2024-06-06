@@ -9,11 +9,11 @@ public class DiscoveryResultsService(
     IDiscoveryResultsRepository discoveryResultsRepository,
     ILogger<DiscoveryResultsService> logger) : IDiscoveryResultsService
 {
-    public async Task<DiscoveryResults> Get(CancellationToken c)
+    public async Task<DiscoveryResponse> Get(CancellationToken c)
     {
         var documents = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync(c);
         var results = documents.SelectMany(x => x.DiscoveryResults);
-        var result = new DiscoveryResults
+        var result = new DiscoveryResponse
         {
             Ids = documents.Select(x => x.Id),
             Results = results.OrderBy(x => x.Released)
@@ -43,11 +43,12 @@ public class DiscoveryResultsService(
         }
     }
 
-    public async Task<IEnumerable<DiscoveryResult>> GetDiscoveryResult(DiscoveryIngest discoveryIngest)
+    public async Task<IEnumerable<DiscoveryResult>> GetDiscoveryResult(DiscoverySubmitRequest discoverySubmitRequest)
     {
-        var documentResultSets = await discoveryResultsRepository.GetByIds(discoveryIngest.DiscoveryResultsDocumentIds)
+        var documentResultSets = await discoveryResultsRepository
+            .GetByIds(discoverySubmitRequest.DiscoveryResultsDocumentIds)
             .ToListAsync();
         var discoveryResults = documentResultSets.SelectMany(x => x.DiscoveryResults);
-        return discoveryResults.Where(y => discoveryIngest.ResultIds.Contains(y.Id));
+        return discoveryResults.Where(y => discoverySubmitRequest.ResultIds.Contains(y.Id));
     }
 }

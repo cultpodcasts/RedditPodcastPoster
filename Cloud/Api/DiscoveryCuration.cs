@@ -34,10 +34,10 @@ public class DiscoveryCuration(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
         HttpRequestData req,
         FunctionContext executionContext,
-        [FromBody] DiscoveryIngest discoveryIngest,
+        [FromBody] DiscoverySubmitRequest discoverySubmitRequest,
         CancellationToken ct)
     {
-        return HandleRequest(req, ["curate"], discoveryIngest, Post, Unauthorised, ct);
+        return HandleRequest(req, ["curate"], discoverySubmitRequest, Post, Unauthorised, ct);
     }
 
     private async Task<HttpResponseData> Get(HttpRequestData r, CancellationToken c)
@@ -46,7 +46,7 @@ public class DiscoveryCuration(
         return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(result, c);
     }
 
-    private async Task<HttpResponseData> Post(HttpRequestData r, DiscoveryIngest m, CancellationToken c)
+    private async Task<HttpResponseData> Post(HttpRequestData r, DiscoverySubmitRequest m, CancellationToken c)
     {
         try
         {
@@ -60,7 +60,7 @@ public class DiscoveryCuration(
             var submitOptions = new SubmitOptions(null, true);
 
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(m);
-            var submitResults = new List<DiscoveryItemResult>();
+            var submitResults = new List<DiscoverySubmitResponseItem>();
 
             foreach (var discoveryResult in discoveryResults)
             {
@@ -70,7 +70,7 @@ public class DiscoveryCuration(
                 {
                     var result = await urlSubmitter.Submit(discoveryResult, indexingContext, submitOptions);
                     submitResults.Add(
-                        new DiscoveryItemResult
+                        new DiscoverySubmitResponseItem
                         {
                             DiscoveryItemId = discoveryResult.Id,
                             Message = result.State.ToString()
@@ -80,7 +80,7 @@ public class DiscoveryCuration(
                 {
                     errorsOccured = true;
                     submitResults.Add(
-                        new DiscoveryItemResult
+                        new DiscoverySubmitResponseItem
                         {
                             DiscoveryItemId = discoveryResult.Id,
                             Message = "Error"
@@ -91,7 +91,7 @@ public class DiscoveryCuration(
 
             await discoveryResultsService.MarkAsProcessed(m.DiscoveryResultsDocumentIds);
 
-            var response = new DiscoverySubmitResults
+            var response = new DiscoverySubmitResponse
             {
                 Message = "Success",
                 ErrorsOccurred = errorsOccured,
@@ -104,7 +104,7 @@ public class DiscoveryCuration(
         }
         catch (Exception e)
         {
-            logger.LogError(e, $"Failure handling post of {nameof(DiscoveryIngest)}");
+            logger.LogError(e, $"Failure handling post of {nameof(DiscoverySubmitRequest)}");
         }
 
         return await r.CreateResponse(HttpStatusCode.InternalServerError)

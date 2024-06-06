@@ -3,7 +3,7 @@ using RedditPodcastPoster.Models;
 
 namespace Api.Dtos;
 
-public class DiscoveryResults
+public class DiscoveryResponse
 {
     [JsonPropertyName("ids")]
     public required IEnumerable<Guid> Ids { get; set; }
