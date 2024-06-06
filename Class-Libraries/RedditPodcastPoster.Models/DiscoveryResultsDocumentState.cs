@@ -1,9 +1,8 @@
 ﻿namespace RedditPodcastPoster.Models;
 
-public enum DiscoveryResultState
+public enum DiscoveryResultsDocumentState
 {
     None = 0,
     Unprocessed,
-    Rejected,
-    Accepted
+    Processed
 }

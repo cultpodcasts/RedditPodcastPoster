@@ -82,7 +82,8 @@ public class Discover(
             }
             catch (Exception e)
             {
-                logger.LogError(e, $"Failure to persist {nameof(DiscoveryResultsDocument)}. Json: '{JsonSerializer.Serialize(discoveryResultsDocument)}'");
+                logger.LogError(e,
+                    $"Failure to persist {nameof(DiscoveryResultsDocument)}. Json: '{JsonSerializer.Serialize(discoveryResultsDocument)}'");
                 throw;
             }
 

@@ -32,7 +32,7 @@ public class DiscoveryResultsService(
         return result;
     }
 
-    public async Task MarkAsProcessed(Guid[] documentIds)
+    public async Task MarkAsProcessed(Guid[] documentIds, Guid[] acceptedResultIds)
     {
         foreach (var documentId in documentIds)
         {
@@ -41,14 +41,27 @@ public class DiscoveryResultsService(
             {
                 logger.LogError($"No {nameof(DiscoveryResultsDocument)} with id '{documentId}'.");
             }
-            else if (document.State != DiscoveryResultState.Unprocessed)
+            else if (document.State != DiscoveryResultsDocumentState.Unprocessed)
             {
                 logger.LogWarning(
                     $"{nameof(DiscoveryResultsDocument)} with id '{documentId}' is not in unprocessed-state. Has state '{document.State}'.");
             }
-            else if (document.State == DiscoveryResultState.Unprocessed)
+            else if (document.State == DiscoveryResultsDocumentState.Unprocessed)
             {
-                document.State = DiscoveryResultState.Processed;
+                document.State = DiscoveryResultsDocumentState.Processed;
+
+                foreach (var documentDiscoveryResult in document.DiscoveryResults)
+                {
+                    if (acceptedResultIds.Contains(documentDiscoveryResult.Id))
+                    {
+                        documentDiscoveryResult.State = DiscoveryResultState.Accepted;
+                    }
+                    else
+                    {
+                        documentDiscoveryResult.State = DiscoveryResultState.Rejected;
+                    }
+                }
+
                 await discoveryResultsRepository.Save(document);
             }
         }

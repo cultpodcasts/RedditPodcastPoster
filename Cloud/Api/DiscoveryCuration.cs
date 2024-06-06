@@ -97,7 +97,7 @@ public class DiscoveryCuration(
                 }
             }
 
-            await discoveryResultsService.MarkAsProcessed(m.DiscoveryResultsDocumentIds);
+            await discoveryResultsService.MarkAsProcessed(m.DiscoveryResultsDocumentIds, m.ResultIds);
 
             var response = new DiscoverySubmitResponse
             {
