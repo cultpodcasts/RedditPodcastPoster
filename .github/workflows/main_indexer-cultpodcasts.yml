@@ -7,7 +7,7 @@ on:
   push:
     branches:
       - main
-      - feature/remote-logging-for-shortner
+      - feature/haf-hourly-orchestraton
   workflow_dispatch:
 
 env:
