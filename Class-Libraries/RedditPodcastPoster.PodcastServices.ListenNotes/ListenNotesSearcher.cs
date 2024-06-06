@@ -64,6 +64,7 @@ public class ListenNotesSearcher(
             episode.Title.Trim(),
             TimeSpan.FromSeconds(episode.AudioLengthSeconds),
             episode.Podcast.ShowName.Trim(),
+            string.Empty,
             DiscoverService.ListenNotes,
             itunesPodcastId: episode.PodcastITunesId);
         episodeResult.PodcastIds.Apple ??= episode.PodcastITunesId;

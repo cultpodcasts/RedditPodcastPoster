@@ -3,10 +3,11 @@
 public class EpisodeResult(
     string id,
     DateTime released,
-    string description,
+    string episodeDescription,
     string episodeName,
     TimeSpan? length,
     string showName,
+    string showDescription,
     DiscoverService discoverService,
     ulong? viewCount = null,
     ulong? memberCount = null,
@@ -16,7 +17,8 @@ public class EpisodeResult(
     public long? ITunesPodcastId { get; init; } = itunesPodcastId;
     public string Id { get; init; } = id;
     public DateTime Released { get; set; } = released;
-    public string Description { get; init; } = description;
+    public string Description { get; init; } = episodeDescription;
+    public string ShowDescription { get; init; } = showDescription;
     public string EpisodeName { get; init; } = episodeName;
     public TimeSpan? Length { get; init; } = length;
     public string ShowName { get; init; } = showName;

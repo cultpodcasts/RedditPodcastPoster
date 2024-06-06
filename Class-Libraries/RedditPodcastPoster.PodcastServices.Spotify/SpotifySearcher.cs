@@ -70,7 +70,9 @@ public class SpotifySearcher(
             htmlSanitiser.Sanitise(episode.HtmlDescription).Trim(),
             episode.Name.Trim(),
             episode.GetDuration(),
-            episode.Show.Name.Trim(), DiscoverService.Spotify,
+            episode.Show.Name.Trim(),
+            episode.Show.Description,
+            DiscoverService.Spotify,
             imageUrl: image != null ? new Uri(image.Url) : null
         );
         episodeResult.Urls.Spotify = new Uri(_spotifyEpisodeBase, episode.Id);

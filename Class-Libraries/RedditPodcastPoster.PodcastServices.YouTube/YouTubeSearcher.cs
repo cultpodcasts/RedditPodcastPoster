@@ -136,6 +136,30 @@ public class YouTubeSearcher(
 
     private EpisodeResult ToEpisodeResult(SearchResult episode, Video? video, Channel? channel)
     {
+        var imageUrl = GetImageUrl(video);
+
+        var episodeResult = new EpisodeResult(
+            episode.Id.VideoId,
+            episode.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
+            !string.IsNullOrWhiteSpace(video?.Snippet.Description)
+                ? WebUtility.HtmlDecode(video?.Snippet.Description!)
+                : WebUtility.HtmlDecode(episode.Snippet.Description.Trim()),
+            WebUtility.HtmlDecode(episode.Snippet.Title.Trim()),
+            video?.GetLength(),
+            WebUtility.HtmlDecode(episode.Snippet.ChannelTitle.Trim()),
+            channel?.Snippet.Description ?? string.Empty,
+            DiscoverService.YouTube,
+            video?.Statistics.ViewCount,
+            channel?.Statistics.SubscriberCount,
+            imageUrl
+        );
+        episodeResult.Urls.YouTube = episode.ToYouTubeUrl();
+        episodeResult.PodcastIds.YouTube = channel?.Id;
+        return episodeResult;
+    }
+
+    private static Uri? GetImageUrl(Video? video)
+    {
         Uri? imageUrl = null;
         if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.Maxres?.Url))
         {
@@ -158,23 +182,7 @@ public class YouTubeSearcher(
             imageUrl = new Uri(video.Snippet.Thumbnails.Default__.Url);
         }
 
-        var episodeResult = new EpisodeResult(
-            episode.Id.VideoId,
-            episode.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-            !string.IsNullOrWhiteSpace(video?.Snippet.Description)
-                ? WebUtility.HtmlDecode(video?.Snippet.Description!)
-                : WebUtility.HtmlDecode(episode.Snippet.Description.Trim()),
-            WebUtility.HtmlDecode(episode.Snippet.Title.Trim()),
-            video?.GetLength(),
-            WebUtility.HtmlDecode(episode.Snippet.ChannelTitle.Trim()),
-            DiscoverService.YouTube,
-            video?.Statistics.ViewCount,
-            channel?.Statistics.SubscriberCount,
-            imageUrl
-        );
-        episodeResult.Urls.YouTube = episode.ToYouTubeUrl();
-        episodeResult.PodcastIds.YouTube = channel?.Id;
-        return episodeResult;
+        return imageUrl;
     }
 
     private class YouTubeItemDetails(SearchResult searchResult)

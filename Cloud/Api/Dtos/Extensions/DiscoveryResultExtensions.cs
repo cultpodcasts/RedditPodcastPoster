@@ -12,6 +12,7 @@ public static class DiscoveryResultExtensions
         result.Urls = item.Urls;
         result.Released = item.Released;
         result.Description = item.Description;
+        result.ShowDescription = item.ShowDescription;
         result.EnrichedTimeFromApple = item.EnrichedTimeFromApple;
         result.EnrichedUrlFromSpotify = item.EnrichedUrlFromSpotify;
         result.EpisodeName = item.EpisodeName;

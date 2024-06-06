@@ -13,13 +13,13 @@ public sealed class DiscoveryResultsDocument : CosmosSelector
         ModelType = ModelType.Discovery;
         DiscoveryBegan = discoveryBegan;
         DiscoveryResults = discoveryResults;
-        State = DiscoveryResultState.Unprocessed;
+        State = DiscoveryResultsDocumentState.Unprocessed;
     }
 
     [JsonPropertyName("state")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     [JsonPropertyOrder(10)]
-    public DiscoveryResultState State { get; set; }
+    public DiscoveryResultsDocumentState State { get; set; }
 
     [JsonPropertyName("discoveryBegan")]
     [JsonPropertyOrder(20)]

@@ -15,12 +15,14 @@ public class EnrichedEpisodeResultAdapter(
 {
     public async Task<DiscoveryResult> ToDiscoveryResult(EnrichedEpisodeResult episode)
     {
-        var discoveryResult = new DiscoveryResult();
+        var discoveryResult = new DiscoveryResult
+        {
+            State = DiscoveryResultState.Unprocessed
+        };
 
         var subjects = await subjectMatcher.MatchSubjects(new Episode
             {Title = episode.EpisodeResult.EpisodeName, Description = episode.EpisodeResult.Description});
 
-        var description = episode.EpisodeResult.Description;
         discoveryResult.Urls.Apple = episode.EpisodeResult.Urls.Apple;
         discoveryResult.Urls.Spotify = episode.EpisodeResult.Urls.Spotify;
         discoveryResult.Urls.YouTube = episode.EpisodeResult.Urls.YouTube;
@@ -35,9 +37,16 @@ public class EnrichedEpisodeResultAdapter(
 
         discoveryResult.ShowName = episode.EpisodeResult.ShowName;
 
+        var description = episode.EpisodeResult.Description;
         if (!string.IsNullOrWhiteSpace(description))
         {
             discoveryResult.Description = description;
+        }
+
+        var showDescription = episode.EpisodeResult.ShowDescription;
+        if (!string.IsNullOrWhiteSpace(showDescription))
+        {
+            discoveryResult.Description = showDescription;
         }
 
         discoveryResult.Released = episode.EpisodeResult.Released;
