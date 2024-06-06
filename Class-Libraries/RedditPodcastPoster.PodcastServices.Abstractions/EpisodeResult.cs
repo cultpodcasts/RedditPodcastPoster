@@ -8,7 +8,6 @@ public class EpisodeResult(
     TimeSpan? length,
     string showName,
     DiscoverService discoverService,
-    string? servicePodcastId = null,
     ulong? viewCount = null,
     ulong? memberCount = null,
     Uri? imageUrl = null,

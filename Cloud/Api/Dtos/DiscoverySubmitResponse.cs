@@ -5,7 +5,7 @@ namespace Api.Dtos;
 public class DiscoverySubmitResponse
 {
     [JsonPropertyName("message")]
-    public string Message { get; set; }
+    public string Message { get; set; } = "";
 
     [JsonPropertyName("errorsOccured")]
     public bool ErrorsOccurred { get; set; }

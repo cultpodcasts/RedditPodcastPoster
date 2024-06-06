@@ -92,7 +92,7 @@ public class UrlSubmitter(
         }
 
         Podcast?[] podcasts = [spotifyPodcast, applePodcast, youTubePodcast];
-        var foundPodcasts = podcasts.Where(x => x != null);
+        IEnumerable<Podcast> foundPodcasts = podcasts.Where(x => x != null)!;
         var areSame = foundPodcasts.All(x => x.Id == foundPodcasts.First().Id);
         if (!areSame)
         {
@@ -133,7 +133,7 @@ public class UrlSubmitter(
         }
         else
         {
-            categorisedItem = await urlCategoriser.Categorise(youTubePodcast, discoveryResult.Urls.YouTube,
+            categorisedItem = await urlCategoriser.Categorise(youTubePodcast, discoveryResult.Urls.YouTube!,
                 indexingContext, submitOptions.MatchOtherServices);
             if (discoveryResult.Urls.Apple != null)
             {
@@ -150,7 +150,7 @@ public class UrlSubmitter(
         {
             if (categorisedItem.ResolvedSpotifyItem == null ||
                 categorisedItem.ResolvedSpotifyItem.EpisodeDescription !=
-                spotifyUrlCategoriser.GetEpisodeId(discoveryResult.Urls.Spotify))
+                spotifyUrlCategoriser.GetEpisodeId(discoveryResult.Urls.Spotify!))
             {
                 categorisedItem = categorisedItem with
                 {
@@ -164,9 +164,9 @@ public class UrlSubmitter(
         {
             if (categorisedItem.ResolvedAppleItem == null ||
                 categorisedItem.ResolvedAppleItem.ShowId !=
-                AppleIdResolver.GetPodcastId(discoveryResult.Urls.Apple) ||
+                AppleIdResolver.GetPodcastId(discoveryResult.Urls.Apple!) ||
                 categorisedItem.ResolvedAppleItem.EpisodeId !=
-                AppleIdResolver.GetEpisodeId(discoveryResult.Urls.Apple))
+                AppleIdResolver.GetEpisodeId(discoveryResult.Urls.Apple!))
             {
                 categorisedItem = categorisedItem with
                 {
@@ -257,7 +257,7 @@ public class UrlSubmitter(
         podcastResult = SubmitResultState.Enriched;
         var matchingEpisodes = categorisedItem.MatchingEpisode != null
             ? new[] {categorisedItem.MatchingEpisode}
-            : categorisedItem.MatchingPodcast.Episodes.Where(episode =>
+            : categorisedItem.MatchingPodcast!.Episodes.Where(episode =>
                 IsMatchingEpisode(episode, categorisedItem)).ToArray();
 
         Episode? matchingEpisode;
@@ -274,7 +274,7 @@ public class UrlSubmitter(
         }
 
         logger.LogInformation(
-            $"Modifying podcast with name '{categorisedItem.MatchingPodcast.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
+            $"Modifying podcast with name '{categorisedItem.MatchingPodcast!.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
 
         ApplyResolvedPodcastServiceProperties(
             categorisedItem.MatchingPodcast,

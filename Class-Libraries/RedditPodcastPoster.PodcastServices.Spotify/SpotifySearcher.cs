@@ -71,7 +71,6 @@ public class SpotifySearcher(
             episode.Name.Trim(),
             episode.GetDuration(),
             episode.Show.Name.Trim(), DiscoverService.Spotify,
-            episode.Show.Id,
             imageUrl: image != null ? new Uri(image.Url) : null
         );
         episodeResult.Urls.Spotify = new Uri(_spotifyEpisodeBase, episode.Id);
