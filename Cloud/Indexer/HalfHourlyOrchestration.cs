@@ -3,22 +3,23 @@ using Microsoft.Extensions.Logging;
 
 namespace Indexer;
 
-[DurableTask(nameof(HourlyOrchestration))]
-public class HourlyOrchestration : TaskOrchestrator<object, IndexerContext>
+[DurableTask(nameof(HalfHourlyOrchestration))]
+public class HalfHourlyOrchestration : TaskOrchestrator<object, IndexerContext>
 {
     public override async Task<IndexerContext> RunAsync(TaskOrchestrationContext context, object input)
     {
-        var logger = context.CreateReplaySafeLogger<HourlyOrchestration>();
+        var logger = context.CreateReplaySafeLogger<HalfHourlyOrchestration>();
         logger.LogInformation(
-            $"{nameof(HourlyOrchestration)}.{nameof(RunAsync)} initiated. Instance-id: '{context.InstanceId}'.");
+            $"{nameof(HalfHourlyOrchestration)}.{nameof(RunAsync)} initiated. Instance-id: '{context.InstanceId}'.");
 
-        var indexerContext = new IndexerContext(context.NewGuid());
-        indexerContext = await context.CallIndexerAsync(indexerContext);
-        logger.LogInformation($"{nameof(Indexer)} complete.");
-
-        indexerContext =
-            await context.CallCategoriserAsync(indexerContext with {CategoriserOperationId = context.NewGuid()});
-        logger.LogInformation($"{nameof(Categoriser)} complete.");
+        var indexerContext = new IndexerContext(context.NewGuid())
+        {
+            // hold back posting anything not ready
+            SkipYouTubeUrlResolving = true,
+            YouTubeError = true,
+            SkipSpotifyUrlResolving = true,
+            SpotifyError = true
+        };
 
         indexerContext = await context.CallPosterAsync(indexerContext with {PosterOperationId = context.NewGuid()});
         logger.LogInformation($"{nameof(Poster)} complete.");

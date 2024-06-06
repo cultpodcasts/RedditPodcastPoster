@@ -2,7 +2,7 @@
 
 namespace Api.Dtos;
 
-public class DiscoveryItemResult
+public class DiscoverySubmitResponseItem
 {
     [JsonPropertyName("discoveryItemId")]
     public Guid DiscoveryItemId { get; set; }

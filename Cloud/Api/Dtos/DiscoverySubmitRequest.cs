@@ -2,7 +2,7 @@
 
 namespace Api.Dtos;
 
-public class DiscoveryIngest
+public class DiscoverySubmitRequest
 {
     [JsonPropertyName("ids")]
     public Guid[] DiscoveryResultsDocumentIds { get; set; } = [];
