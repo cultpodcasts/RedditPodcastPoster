@@ -22,7 +22,7 @@ public class EpisodeResultsEnricher(
                     await podcastRepository.GetAllBy(x => x.SpotifyId == episodeResult.PodcastIds.Spotify)
                         .ToArrayAsync();
                 var spotifyPodcast = GetCurrentIndexed(spotifyPodcasts);
-                if (spotifyPodcast != null)
+                if (spotifyPodcast != null && podcasts.All(x => x.Id != spotifyPodcast.Id))
                 {
                     podcasts.Add(spotifyPodcast);
                 }
@@ -34,7 +34,7 @@ public class EpisodeResultsEnricher(
                     await podcastRepository.GetAllBy(x => x.AppleId == episodeResult.PodcastIds.Apple)
                         .ToArrayAsync();
                 var applePodcast = GetCurrentIndexed(applePodcasts);
-                if (applePodcast != null)
+                if (applePodcast != null && podcasts.All(x => x.Id != applePodcast.Id))
                 {
                     podcasts.Add(applePodcast);
                 }
@@ -46,7 +46,7 @@ public class EpisodeResultsEnricher(
                     await podcastRepository.GetAllBy(x => x.YouTubeChannelId == episodeResult.PodcastIds.YouTube)
                         .ToArrayAsync();
                 var youTubePodcast = GetCurrentIndexed(youTubePodcasts);
-                if (youTubePodcast != null)
+                if (youTubePodcast != null && podcasts.All(x => x.Id != youTubePodcast.Id))
                 {
                     podcasts.Add(youTubePodcast);
                 }
