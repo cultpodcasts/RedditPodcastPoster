@@ -108,7 +108,7 @@ public class YouTubeSearcher(
         {
             var channel = await youTubeChannelService.GetChannel(
                 new YouTubeChannelId(result.SearchResult.Snippet.ChannelId),
-                indexingContext, withStatistics: true);
+                indexingContext, withStatistics: true, withSnippets: true);
             result.Channel = channel;
         }
     }
