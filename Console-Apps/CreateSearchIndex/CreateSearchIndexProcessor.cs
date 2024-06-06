@@ -19,6 +19,7 @@ public partial class CreateSearchIndexProcessor(
 {
     private static readonly Regex Whitespace = CreateWhitespaceRegex();
     private static readonly TimeSpan IndexAtMinutes = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan Frequency = TimeSpan.FromMinutes(30);
     private readonly CosmosDbSettings _cosmosDbSettings = cosmosDbSettings.Value;
 
     public async Task Process(CreateSearchIndexRequest request)
@@ -145,9 +146,12 @@ public partial class CreateSearchIndexProcessor(
             !string.IsNullOrWhiteSpace(request.DataSourceName) &&
             !string.IsNullOrWhiteSpace(request.IndexName))
         {
-            var nextIndex = DateTimeOffset.Now.Add(TimeSpan.FromHours(1)).Floor(TimeSpan.FromHours(1))
+            var nextIndex = DateTimeOffset.Now
+                .Add(Frequency)
+                .Floor(Frequency)
                 .Add(IndexAtMinutes);
-            var indexingSchedule = new IndexingSchedule(TimeSpan.FromHours(1)) {StartTime = nextIndex};
+
+            var indexingSchedule = new IndexingSchedule(Frequency) {StartTime = nextIndex};
             var searchIndexer = new SearchIndexer(request.IndexerName, request.DataSourceName, request.IndexName)
             {
                 Schedule = indexingSchedule,
