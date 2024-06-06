@@ -17,16 +17,19 @@ public static class DiscoveryResultExtensions
         result.EpisodeName = item.EpisodeName;
         result.Id = item.Id;
         result.ImageUrl = item.ImageUrl;
+        result.Length = item.Length;
         result.MatchingPodcasts = item.MatchingPodcastIds
             .Select(x =>
             {
                 podcasts.TryGetValue(x, out var podcast);
-                return new MatchingPodcast {Id = x, Name = podcast ?? string.Empty};
+                return podcast ?? string.Empty;
             })
+            .Distinct()
             .ToArray();
         result.ShowName = item.ShowName;
         result.YouTubeChannelMembers = item.YouTubeChannelMembers;
         result.YouTubeViews = item.YouTubeViews;
+        result.Subjects = item.Subjects;
         result.Sources = item.Sources
             .Select(x =>
                 x.ConvertEnumByName<RedditPodcastPoster.Models.DiscoverService, DiscoverService>(true))

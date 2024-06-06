@@ -1,5 +1,4 @@
 ﻿using System.Text.Json.Serialization;
-using Api.Dtos.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Converters;
 
@@ -66,5 +65,5 @@ public class DiscoveryResponseItem
 
     [JsonPropertyName("matchingPodcasts")]
     [JsonPropertyOrder(130)]
-    public MatchingPodcast[] MatchingPodcasts { get; set; } = [];
+    public string[] MatchingPodcasts { get; set; } = [];
 }

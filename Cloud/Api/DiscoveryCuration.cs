@@ -42,8 +42,16 @@ public class DiscoveryCuration(
 
     private async Task<HttpResponseData> Get(HttpRequestData r, CancellationToken c)
     {
-        var result = await discoveryResultsService.Get(c);
-        return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(result, c);
+        try
+        {
+            var result = await discoveryResultsService.Get(c);
+            return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(result, c);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failure to obtain discovery-results.");
+            return r.CreateResponse(HttpStatusCode.InternalServerError);
+        }
     }
 
     private async Task<HttpResponseData> Post(HttpRequestData r, DiscoverySubmitRequest m, CancellationToken c)
