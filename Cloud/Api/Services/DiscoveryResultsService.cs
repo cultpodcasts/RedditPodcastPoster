@@ -1,22 +1,30 @@
 using Api.Dtos;
+using Api.Dtos.Extensions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace Api.Services;
 
 public class DiscoveryResultsService(
     IDiscoveryResultsRepository discoveryResultsRepository,
+    IPodcastRepository podcastRepository,
     ILogger<DiscoveryResultsService> logger) : IDiscoveryResultsService
 {
     public async Task<DiscoveryResponse> Get(CancellationToken c)
     {
         var documents = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync(c);
         var results = documents.SelectMany(x => x.DiscoveryResults);
+        var podcastIds = results.SelectMany(x => x.MatchingPodcastIds).Distinct();
+        var referencedPodcasts = await podcastRepository
+            .GetAllBy(x => podcastIds.Contains(x.Id), p => new PodcastDetails(p.Id, p.Name))
+            .ToDictionaryAsync(pd => pd.Id, pd => pd.Name, c);
         var result = new DiscoveryResponse
         {
             Ids = documents.Select(x => x.Id),
-            Results = results.OrderBy(x => x.Released)
+            Results = results.Select(x => { return x.ToDiscoveryResponseItem(referencedPodcasts); })
+                .OrderBy(x => x.Released)
         };
         return result;
     }
@@ -51,4 +59,6 @@ public class DiscoveryResultsService(
         var discoveryResults = documentResultSets.SelectMany(x => x.DiscoveryResults);
         return discoveryResults.Where(y => discoverySubmitRequest.ResultIds.Contains(y.Id));
     }
+
+    private record PodcastDetails(Guid Id, string Name);
 }
