@@ -13,7 +13,7 @@ public class AppleEnricher(
 {
     public async Task Enrich(IList<EpisodeResult> results, IndexingContext indexingContext)
     {
-        logger.LogInformation($"{nameof(Enrich)} initiated");
+        logger.LogInformation($"{nameof(AppleEnricher)}.{nameof(Enrich)} initiated");
         var enrichedCtr = 0;
 
         foreach (var episodeResult in results)

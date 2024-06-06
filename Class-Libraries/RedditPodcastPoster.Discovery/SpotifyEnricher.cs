@@ -11,7 +11,7 @@ public class SpotifyEnricher(
 {
     public async Task Enrich(IEnumerable<EpisodeResult> results, IndexingContext indexingContext)
     {
-        logger.LogInformation($"{nameof(Enrich)} initiated");
+        logger.LogInformation($"{nameof(SpotifyEnricher)}.{nameof(Enrich)} initiated");
         var enrichedCtr = 0;
         foreach (var episodeResult in results)
         {
