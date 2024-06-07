@@ -69,6 +69,7 @@ public class DiscoveryCuration(
 
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(m);
             var submitResults = new List<DiscoverySubmitResponseItem>();
+            var erroredResults = new List<Guid>();
 
             foreach (var discoveryResult in discoveryResults)
             {
@@ -86,6 +87,7 @@ public class DiscoveryCuration(
                 }
                 catch (Exception ex)
                 {
+                    erroredResults.Add(discoveryResult.Id);
                     errorsOccured = true;
                     submitResults.Add(
                         new DiscoverySubmitResponseItem
@@ -97,7 +99,8 @@ public class DiscoveryCuration(
                 }
             }
 
-            await discoveryResultsService.MarkAsProcessed(m.DiscoveryResultsDocumentIds, m.ResultIds);
+            await discoveryResultsService.MarkAsProcessed(m.DiscoveryResultsDocumentIds, m.ResultIds,
+                erroredResults.ToArray());
 
             var response = new DiscoverySubmitResponse
             {

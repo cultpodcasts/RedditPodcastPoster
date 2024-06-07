@@ -32,7 +32,16 @@ public class DiscoveryResultsService(
         return result;
     }
 
-    public async Task MarkAsProcessed(Guid[] documentIds, Guid[] acceptedResultIds)
+    public async Task<IEnumerable<DiscoveryResult>> GetDiscoveryResult(DiscoverySubmitRequest discoverySubmitRequest)
+    {
+        var documentResultSets = await discoveryResultsRepository
+            .GetByIds(discoverySubmitRequest.DiscoveryResultsDocumentIds)
+            .ToListAsync();
+        var discoveryResults = documentResultSets.SelectMany(x => x.DiscoveryResults);
+        return discoveryResults.Where(y => discoverySubmitRequest.ResultIds.Contains(y.Id));
+    }
+
+    public async Task MarkAsProcessed(Guid[] documentIds, Guid[] acceptedResultIds, Guid[] erroredResultIds)
     {
         foreach (var documentId in documentIds)
         {
@@ -52,7 +61,11 @@ public class DiscoveryResultsService(
 
                 foreach (var documentDiscoveryResult in document.DiscoveryResults)
                 {
-                    if (acceptedResultIds.Contains(documentDiscoveryResult.Id))
+                    if (erroredResultIds.Contains(documentDiscoveryResult.Id))
+                    {
+                        documentDiscoveryResult.State = DiscoveryResultState.AcceptError;
+                    }
+                    else if (acceptedResultIds.Contains(documentDiscoveryResult.Id))
                     {
                         documentDiscoveryResult.State = DiscoveryResultState.Accepted;
                     }
@@ -65,14 +78,5 @@ public class DiscoveryResultsService(
                 await discoveryResultsRepository.Save(document);
             }
         }
-    }
-
-    public async Task<IEnumerable<DiscoveryResult>> GetDiscoveryResult(DiscoverySubmitRequest discoverySubmitRequest)
-    {
-        var documentResultSets = await discoveryResultsRepository
-            .GetByIds(discoverySubmitRequest.DiscoveryResultsDocumentIds)
-            .ToListAsync();
-        var discoveryResults = documentResultSets.SelectMany(x => x.DiscoveryResults);
-        return discoveryResults.Where(y => discoverySubmitRequest.ResultIds.Contains(y.Id));
     }
 }
