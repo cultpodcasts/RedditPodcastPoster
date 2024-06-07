@@ -101,6 +101,13 @@ public class SearchProvider(
             first.MemberCount = youTube.MemberCount;
         }
 
+        if (string.IsNullOrWhiteSpace(first.ShowDescription))
+        {
+            first.ShowDescription =
+                items.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.ShowDescription))?.ShowDescription ??
+                string.Empty;
+        }
+
         var apple = items.FirstOrDefault(x => x.EnrichedTimeFromApple);
         if (apple != null)
         {

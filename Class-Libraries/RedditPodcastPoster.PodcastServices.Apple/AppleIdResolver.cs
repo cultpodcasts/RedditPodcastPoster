@@ -4,7 +4,7 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public static class AppleIdResolver
 {
-    private static readonly Regex AppleIds = new(@"podcast/[\w\-]+/id(?'podcastId'\d+)\?i=(?'episodeId'\d+)");
+    private static readonly Regex AppleIds = new(@"podcast/[\w\-\d%]+/id(?'podcastId'\d+)\?i=(?'episodeId'\d+)");
 
     public static long? GetEpisodeId(Uri url)
     {
