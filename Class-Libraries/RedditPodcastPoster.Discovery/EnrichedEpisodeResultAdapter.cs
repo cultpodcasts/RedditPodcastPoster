@@ -46,7 +46,7 @@ public class EnrichedEpisodeResultAdapter(
         var showDescription = episode.EpisodeResult.ShowDescription;
         if (!string.IsNullOrWhiteSpace(showDescription))
         {
-            discoveryResult.Description = showDescription;
+            discoveryResult.ShowDescription = showDescription;
         }
 
         discoveryResult.Released = episode.EpisodeResult.Released;
