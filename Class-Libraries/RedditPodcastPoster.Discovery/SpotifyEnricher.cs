@@ -35,6 +35,11 @@ public class SpotifyEnricher(
                 episodeResult.PodcastIds.Spotify = spotifyResult.FullEpisode.Show.Id;
                 episodeResult.ImageUrl = image != null ? new Uri(image.Url) : null;
             }
+
+            if (string.IsNullOrWhiteSpace(episodeResult.ShowDescription) && spotifyResult.FullEpisode != null)
+            {
+                episodeResult.ShowDescription = spotifyResult.FullEpisode.Show.Description;
+            }
         }
 
         logger.LogInformation($"{nameof(Enrich)} enriched '{enrichedCtr}' results.");
