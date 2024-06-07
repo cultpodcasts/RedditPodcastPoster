@@ -146,9 +146,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Api", "Cloud\Api\Api.csproj
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Discovery", "Cloud\Discovery\Discovery.csproj", "{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KVWriter", "Console-Apps\KVWriter\KVWriter.csproj", "{C988FDFE-6F23-4B58-9074-14158E2675C6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KVWriter", "Console-Apps\KVWriter\KVWriter.csproj", "{C988FDFE-6F23-4B58-9074-14158E2675C6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.UrlShortening", "Class-Libraries\RedditPodcastPoster.UrlShortening\RedditPodcastPoster.UrlShortening.csproj", "{C3C54A23-1322-42FF-A9F2-822A3669DA8C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.UrlShortening", "Class-Libraries\RedditPodcastPoster.UrlShortening\RedditPodcastPoster.UrlShortening.csproj", "{C3C54A23-1322-42FF-A9F2-822A3669DA8C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.PodcastServices.Apple.Tests", "Class-Libraries\RedditPodcastPoster.PodcastServices.Apple.Tests\RedditPodcastPoster.PodcastServices.Apple.Tests.csproj", "{6150DC4A-316B-4CCA-99DB-233BEE2EBCED}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -404,6 +406,10 @@ Global
 		{C3C54A23-1322-42FF-A9F2-822A3669DA8C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C3C54A23-1322-42FF-A9F2-822A3669DA8C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C3C54A23-1322-42FF-A9F2-822A3669DA8C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6150DC4A-316B-4CCA-99DB-233BEE2EBCED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6150DC4A-316B-4CCA-99DB-233BEE2EBCED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6150DC4A-316B-4CCA-99DB-233BEE2EBCED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6150DC4A-316B-4CCA-99DB-233BEE2EBCED}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -472,6 +478,7 @@ Global
 		{6EF7BBB2-3A51-4BD8-9A0F-FEF608688723} = {8C39850E-EB98-4D1F-B961-FBF7FF98049E}
 		{C988FDFE-6F23-4B58-9074-14158E2675C6} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{C3C54A23-1322-42FF-A9F2-822A3669DA8C} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{6150DC4A-316B-4CCA-99DB-233BEE2EBCED} = {C870AC3C-8261-4807-AC30-DBEC8C89DCB7}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

@@ -18,7 +18,7 @@ public class EpisodeResult(
     public string Id { get; init; } = id;
     public DateTime Released { get; set; } = released;
     public string Description { get; init; } = episodeDescription;
-    public string ShowDescription { get; init; } = showDescription;
+    public string ShowDescription { get; set; } = showDescription;
     public string EpisodeName { get; init; } = episodeName;
     public TimeSpan? Length { get; init; } = length;
     public string ShowName { get; init; } = showName;
