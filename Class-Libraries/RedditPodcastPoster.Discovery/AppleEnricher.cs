@@ -51,6 +51,11 @@ public class AppleEnricher(
                                                    podcast?.Id ?? AppleIdResolver.GetPodcastId(appleResult.Url);
                 episodeResult.EnrichedTimeFromApple = true;
             }
+
+            if (podcast != null && string.IsNullOrWhiteSpace(episodeResult.ShowDescription))
+            {
+                episodeResult.ShowDescription = podcast.Description;
+            }
         }
 
         logger.LogInformation($"{nameof(Enrich)} enriched '{enrichedCtr}' results.");
