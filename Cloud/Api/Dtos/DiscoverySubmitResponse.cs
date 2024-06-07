@@ -7,7 +7,7 @@ public class DiscoverySubmitResponse
     [JsonPropertyName("message")]
     public string Message { get; set; } = "";
 
-    [JsonPropertyName("errorsOccured")]
+    [JsonPropertyName("errorsOccurred")]
     public bool ErrorsOccurred { get; set; }
 
     [JsonPropertyName("results")]
