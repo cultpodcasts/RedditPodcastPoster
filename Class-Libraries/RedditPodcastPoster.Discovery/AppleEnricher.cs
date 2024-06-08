@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.Discovery;
 
 public class AppleEnricher(
     IAppleEpisodeResolver appleEpisodeResolver,
-    IApplePodcastResolver applePodcastResolver,
+    IEnrichedApplePodcastResolver applePodcastResolver,
     ILogger<ISpotifyEnricher> logger
 ) : IAppleEnricher
 {
