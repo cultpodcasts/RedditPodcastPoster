@@ -10,6 +10,7 @@ public static class ServiceCollectionExtensions
         return services
             .AddScoped<IAppleEpisodeEnricher, AppleEpisodeEnricher>()
             .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
+            .AddScoped<IEnrichedApplePodcastResolver, EnrichedApplePodcastResolver>()
             .AddScoped<IAppleEpisodeResolver, AppleEpisodeResolver>()
             .AddScoped<IApplePodcastEnricher, ApplePodcastEnricher>()
             .AddScoped<IApplePodcastService, ApplePodcastService>()
@@ -17,7 +18,6 @@ public static class ServiceCollectionExtensions
             .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
             .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
             .AddSingleton<IApplePodcastHttpClientFactory, ApplePodcastHttpClientFactory>()
-            .AddScoped<IAppleEpisodeRetrievalHandler, AppleEpisodeRetrievalHandler>()
-            ;
+            .AddScoped<IAppleEpisodeRetrievalHandler, AppleEpisodeRetrievalHandler>();
     }
 }
