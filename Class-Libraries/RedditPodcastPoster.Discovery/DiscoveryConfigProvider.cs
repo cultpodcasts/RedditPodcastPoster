@@ -1,9 +1,12 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Discovery;
 
-public class DiscoveryServiceConfigProvider(IOptions<DiscoverySettings> discoverySettings)
+public class DiscoveryServiceConfigProvider(
+    IOptions<DiscoverySettings> discoverySettings,
+    ILogger<DiscoveryServiceConfigProvider> logger)
     : IDiscoveryServiceConfigProvider
 {
     private readonly DiscoverySettings _discoverySettings = discoverySettings.Value;
@@ -11,6 +14,8 @@ public class DiscoveryServiceConfigProvider(IOptions<DiscoverySettings> discover
     public IEnumerable<ServiceConfig> GetServiceConfigs(
         bool excludeSpotify, bool includeYouTube, bool includeListenNotes)
     {
+        logger.LogInformation(
+            $"{nameof(GetServiceConfigs)}: {nameof(excludeSpotify)}= {excludeSpotify}, {nameof(includeYouTube)}= {includeYouTube}, {nameof(includeListenNotes)}= {includeListenNotes}. {_discoverySettings}");
         var serviceConfigs = new List<ServiceConfig>();
         if (_discoverySettings.Queries != null)
         {

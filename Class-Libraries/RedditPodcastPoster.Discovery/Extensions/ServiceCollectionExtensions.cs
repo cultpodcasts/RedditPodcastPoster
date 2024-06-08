@@ -14,7 +14,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddDiscovery(
         this IServiceCollection services, IConfiguration config)
     {
-        services.BindConfiguration<DiscoverySettings>("Discover");
+        services.BindConfiguration<DiscoverySettings>("discover");
 
         return services
             .AddScoped<ISearchProvider, SearchProvider>()
