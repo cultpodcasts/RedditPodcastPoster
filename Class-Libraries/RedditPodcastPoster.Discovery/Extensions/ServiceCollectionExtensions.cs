@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
@@ -13,6 +14,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddDiscovery(
         this IServiceCollection services, IConfiguration config)
     {
+        services.BindConfiguration<DiscoverySettings>("Discover");
+
         return services
             .AddScoped<ISearchProvider, SearchProvider>()
             .AddScoped<IEpisodeResultsEnricher, EpisodeResultsEnricher>()

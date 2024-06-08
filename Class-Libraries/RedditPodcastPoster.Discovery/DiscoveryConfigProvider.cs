@@ -1,58 +1,38 @@
-﻿using DiscoverService = RedditPodcastPoster.Models.DiscoverService;
+﻿using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Discovery;
 
-public class DiscoveryServiceConfigProvider : IDiscoveryServiceConfigProvider
+public class DiscoveryServiceConfigProvider(IOptions<DiscoverySettings> discoverySettings)
+    : IDiscoveryServiceConfigProvider
 {
-    private readonly ServiceConfig[] _spotifyConfigs =
-    {
-        new("Cult", DiscoverService.Spotify),
-        new("Cults", DiscoverService.Spotify),
-        new("Scientology", DiscoverService.Spotify),
-        new("NXIVM", DiscoverService.Spotify),
-        new("FLDS", DiscoverService.Spotify)
-    };
+    private readonly DiscoverySettings _discoverySettings = discoverySettings.Value;
 
     public IEnumerable<ServiceConfig> GetServiceConfigs(
         bool excludeSpotify, bool includeYouTube, bool includeListenNotes)
     {
         var serviceConfigs = new List<ServiceConfig>();
-        if (!excludeSpotify)
+        if (_discoverySettings.Queries != null)
         {
-            serviceConfigs.AddRange(GetSpotifyServiceConfigs());
-        }
+            if (!excludeSpotify)
+            {
+                serviceConfigs.AddRange(
+                    _discoverySettings.Queries.Where(x => x.DiscoverService == DiscoverService.Spotify));
+            }
 
-        if (includeYouTube)
-        {
-            serviceConfigs.AddRange(GetYouTubeServiceConfigs());
-        }
+            if (includeYouTube)
+            {
+                serviceConfigs.AddRange(
+                    _discoverySettings.Queries.Where(x => x.DiscoverService == DiscoverService.YouTube));
+            }
 
-        if (includeListenNotes)
-        {
-            serviceConfigs.InsertRange(0, GetListenNotesServiceConfigs());
+            if (includeListenNotes)
+            {
+                serviceConfigs.InsertRange(0,
+                    _discoverySettings.Queries.Where(x => x.DiscoverService == DiscoverService.ListenNotes));
+            }
         }
 
         return serviceConfigs;
-    }
-
-    private IEnumerable<ServiceConfig> GetSpotifyServiceConfigs()
-    {
-        return _spotifyConfigs;
-    }
-
-    private IEnumerable<ServiceConfig> GetYouTubeServiceConfigs()
-    {
-        return new ServiceConfig[]
-        {
-            new("Cult", DiscoverService.YouTube)
-        };
-    }
-
-    private IEnumerable<ServiceConfig> GetListenNotesServiceConfigs()
-    {
-        return new ServiceConfig[]
-        {
-            new("Cult", DiscoverService.ListenNotes)
-        };
     }
 }
