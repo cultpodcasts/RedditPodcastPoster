@@ -18,7 +18,18 @@
         "discover__Queries__5__Term": "FLDS",
         "discover__Queries__5__DiscoverService": "Spotify",
         "discover__Queries__6__Term": "Cult",
-        "discover__Queries__6__DiscoverService": "YouTube"
+        "discover__Queries__6__DiscoverService": "YouTube",
+        "discover__IgnoreTerms__0": "cult of the lamb",
+        "discover__IgnoreTerms__1": "cult of lamb",
+        "discover__IgnoreTerms__2": "COTL",
+        "discover__IgnoreTerms__3": "cult of the lab",
+        "discover__IgnoreTerms__4": "Cult of the Lamp",
+        "discover__IgnoreTerms__5": "Cult of the Lumb",
+        "discover__IgnoreTerms__6": "Blue Oyster Cult",
+        "discover__IgnoreTerms__7": "Blue Öyster Cult",
+        "discover__IgnoreTerms__8": "Living Colour",
+        "discover__IgnoreTerms__9": "She Sells Sanctuary",
+        "discover__IgnoreTerms__10": "Far Cry"
       }
     }
   }

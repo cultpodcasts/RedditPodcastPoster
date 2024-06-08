@@ -15,7 +15,8 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services, IConfiguration config)
     {
         services.BindConfiguration<DiscoverySettings>("discover");
-
+        services.BindConfiguration<IgnoreTermsSettings>("discover");
+        
         return services
             .AddScoped<ISearchProvider, SearchProvider>()
             .AddScoped<IEpisodeResultsEnricher, EpisodeResultsEnricher>()

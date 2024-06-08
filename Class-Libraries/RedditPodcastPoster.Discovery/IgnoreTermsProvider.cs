@@ -1,24 +1,21 @@
-﻿namespace RedditPodcastPoster.Discovery;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
-public class IgnoreTermsProvider : IIgnoreTermsProvider
+namespace RedditPodcastPoster.Discovery;
+
+public class IgnoreTermsProvider(IOptions<IgnoreTermsSettings> ignoreTerms, ILogger<IgnoreTermsProvider> logger)
+    : IIgnoreTermsProvider
 {
-    private static readonly string[] IgnoreTerms =
-    {
-        "cult of the lamb".ToLower(),
-        "cult of lamb".ToLower(),
-        "COTL".ToLower(),
-        "cult of the lab".ToLower(),
-        "Cult of the Lamp".ToLower(),
-        "Cult of the Lumb".ToLower(),
-        "Blue Oyster Cult".ToLower(),
-        "Blue Öyster Cult".ToLower(),
-        "Living Colour".ToLower(),
-        "She Sells Sanctuary".ToLower(),
-        "Far Cry".ToLower()
-    };
+    private readonly IgnoreTermsSettings _ignoreTerms = ignoreTerms.Value;
 
     public IEnumerable<string> GetIgnoreTerms()
     {
-        return IgnoreTerms;
+        if (_ignoreTerms.IgnoreTerms == null)
+        {
+            return [];
+        }
+
+        logger.LogInformation($"{nameof(IgnoreTermsProvider)} - {nameof(GetIgnoreTerms)}: {_ignoreTerms}");
+        return _ignoreTerms.IgnoreTerms.Select(x => x.ToLower());
     }
 }
