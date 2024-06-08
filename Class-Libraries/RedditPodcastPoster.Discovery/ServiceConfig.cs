@@ -2,4 +2,8 @@
 
 namespace RedditPodcastPoster.Discovery;
 
-public record ServiceConfig(string Term, DiscoverService DiscoverService);
+public class ServiceConfig
+{
+    public required string Term { get; set; }
+    public DiscoverService DiscoverService { get; set; }
+}
