@@ -10,6 +10,7 @@ namespace Indexer;
 public class Indexer(
     IPodcastsUpdater podcastsUpdater,
     IActivityMarshaller activityMarshaller,
+    IIndexingStrategy indexingStrategy,
     IOptions<IndexerOptions> indexerOptions,
     ILogger<Indexer> logger)
     : TaskActivity<IndexerContext, IndexerContext>
@@ -26,14 +27,13 @@ public class Indexer(
         var indexingContext = _indexerOptions.ToIndexingContext() with
         {
             SkipSpotifyUrlResolving = false,
-            SkipYouTubeUrlResolving = DateTime.UtcNow.Hour % 2 > 0,
-            SkipExpensiveYouTubeQueries = DateTime.UtcNow.Hour % 12 > 0,
-            SkipExpensiveSpotifyQueries = DateTime.UtcNow.Hour % 3 > 1,
+            SkipYouTubeUrlResolving = !indexingStrategy.ResolveYouTube(),
+            SkipExpensiveYouTubeQueries = !indexingStrategy.ExpensiveYouTubeQueries(),
+            SkipExpensiveSpotifyQueries = !indexingStrategy.ExpensiveSpotifyQueries(),
             SkipPodcastDiscovery = true
         };
 
-        var originalSkipYouTubeUrlResolving = indexingContext.SkipYouTubeUrlResolving;
-        var originalSkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving;
+        var originalIndexingContext = indexerContext with { };
 
         logger.LogInformation(indexingContext.ToString());
 
@@ -43,9 +43,9 @@ public class Indexer(
             {
                 Success = true,
                 SkipYouTubeUrlResolving = indexerContext.SkipYouTubeUrlResolving,
-                YouTubeError = indexingContext.SkipYouTubeUrlResolving != originalSkipYouTubeUrlResolving,
+                YouTubeError = false,
                 SkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving,
-                SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalSkipSpotifyUrlResolving
+                SpotifyError = false
             };
         }
 
@@ -96,9 +96,9 @@ public class Indexer(
         {
             Success = results,
             SkipYouTubeUrlResolving = indexingContext.SkipYouTubeUrlResolving,
-            YouTubeError = indexingContext.SkipYouTubeUrlResolving != originalSkipYouTubeUrlResolving,
+            YouTubeError = indexingContext.SkipYouTubeUrlResolving != originalIndexingContext.SkipYouTubeUrlResolving,
             SkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving,
-            SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalSkipSpotifyUrlResolving
+            SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalIndexingContext.SkipSpotifyUrlResolving
         };
     }
 }

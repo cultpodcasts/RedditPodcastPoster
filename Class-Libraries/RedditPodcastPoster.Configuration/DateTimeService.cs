@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.PodcastServices.YouTube;
+﻿namespace RedditPodcastPoster.Configuration;
 
 public class DateTimeService : IDateTimeService
 {

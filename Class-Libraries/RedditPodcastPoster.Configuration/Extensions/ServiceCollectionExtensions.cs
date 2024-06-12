@@ -41,4 +41,10 @@ public static class ServiceCollectionExtensions
             configuration.GetSection(configSection).Bind(settings);
         });
     }
+
+    public static IServiceCollection AddDateTimeService(this IServiceCollection services)
+    {
+        return services
+            .AddSingleton<IDateTimeService, DateTimeService>();
+    }
 }

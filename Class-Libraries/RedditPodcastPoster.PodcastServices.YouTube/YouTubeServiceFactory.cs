@@ -2,6 +2,7 @@
 using Google.Apis.YouTube.v3;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Configuration.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
@@ -27,7 +28,7 @@ public class YouTubeServiceFactory(
         return services
             .AddScoped<IYouTubeServiceFactory, YouTubeServiceFactory>()
             .AddScoped<IYouTubeApiKeyStrategy, YouTubeApiKeyStrategy>()
-            .AddSingleton<IDateTimeService, DateTimeService>()
+            .AddDateTimeService()
             .AddScoped(s => s.GetService<IYouTubeServiceFactory>()!.Create());
     }
 }
