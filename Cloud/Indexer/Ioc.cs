@@ -52,6 +52,8 @@ public static class Ioc
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddContentPublishing(hostBuilderContext.Configuration)
             .AddShortnerServices(hostBuilderContext.Configuration)
+            .AddDateTimeService()
+            .AddScoped<IIndexingStrategy, IndexingStrategy>()
             .AddHttpClient();
 
         serviceCollection.BindConfiguration<IndexerOptions>("indexer");

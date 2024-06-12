@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.Configuration;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests;
 
