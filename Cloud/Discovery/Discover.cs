@@ -88,7 +88,7 @@ public class Discover(
             }
 
             logger.LogInformation(
-                $"{nameof(RunAsync)} Complete. {nameof(discoveryBegan)}: '{discoveryBegan:O}', document-id: '{discoveryResultsDocument.Id}', no-results: '{discoveryResults.Count()}', indexing-context: {indexingContext}.");
+                $"{nameof(RunAsync)} Complete. {nameof(discoveryBegan)}: '{discoveryBegan:O}', document-id: '{discoveryResultsDocument.Id}', results-count: '{discoveryResults.Count()}', indexing-context: {indexingContext}");
             results = true;
         }
         catch (Exception ex)
