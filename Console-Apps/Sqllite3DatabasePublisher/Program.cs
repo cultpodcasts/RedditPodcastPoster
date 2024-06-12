@@ -1,11 +1,13 @@
 ﻿using System.Data.SQLite;
 using System.Reflection;
+using CommandLine;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using Sqllite3DatabasePublisher;
 
@@ -23,15 +25,25 @@ builder.Services
     .AddLogging()
     .AddRepositories()
     .AddEliminationTerms()
+    .AddSubjectServices()
     .AddSingleton<Sqllite3DatabasePublisher.Sqllite3DatabasePublisher>();
 
-var databaseFileName = "podcasts.sqlite";
-var connectionString = $"Data Source={databaseFileName}";
 
-File.Delete(databaseFileName);
-SQLiteConnection.CreateFile(databaseFileName);
-builder.Services.AddDbContext<PodcastContext>(options => options.UseSqlite(connectionString));
+return await Parser.Default.ParseArguments<Request>(args)
+    .MapResult(async request => await Run(request), errs => Task.FromResult(-1)); // Invalid arguments
 
-using var host = builder.Build();
-var processor = host.Services.GetService<Sqllite3DatabasePublisher.Sqllite3DatabasePublisher>();
-await processor!.Run();
+async Task<int> Run(Request request)
+{
+    var databaseFileName = request.DatabaseName;
+    var connectionString = $"Data Source={databaseFileName}";
+    File.Delete(databaseFileName);
+    SQLiteConnection.CreateFile(databaseFileName);
+    builder.Services.AddDbContext<DatabaseContext>(options => options.UseSqlite(connectionString));
+    using var host = builder.Build();
+    var processor = host.Services.GetService<Sqllite3DatabasePublisher.Sqllite3DatabasePublisher>();
+    await processor!.Run(request);
+    return 0;
+}
+
+
+
