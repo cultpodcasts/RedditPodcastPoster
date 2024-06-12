@@ -15,6 +15,8 @@ public class SpotifyEnricher(
         var enrichedCtr = 0;
         foreach (var episodeResult in results)
         {
+            logger.LogInformation(
+                $"Enriching show-name '{episodeResult.ShowName}' episode-name '{episodeResult.EpisodeName}'.");
             var episodeRequest = new FindSpotifyEpisodeRequest(
                 string.Empty,
                 episodeResult.ShowName,
