@@ -15,6 +15,7 @@ public class ListenNotesSearcher(
 {
     private const string QueryKey = "q";
     private const string OffsetKey = "offset";
+    private static readonly DateTime UnixEpoch = new(1970, 1, 1);
     private readonly Client _client = clientFactory.Create();
 
     public async Task<IList<EpisodeResult>> Search(string term, IndexingContext indexingContext)
@@ -23,11 +24,13 @@ public class ListenNotesSearcher(
         var offset = 0;
         var error = false;
         var @break = false;
+        var releasedSince = (long) (indexingContext.ReleasedSince!.Value - UnixEpoch).TotalMilliseconds;
         var parameters = new Dictionary<string, string>
         {
             {QueryKey, $@"""{term}"""},
             {"type", "episode"},
-            {"sort_by_date", "1"}
+            {"sort_by_date", "1"},
+            {"published_after", releasedSince.ToString()}
         };
         var first = true;
         while (!error && !@break && (first || results.Last().Released > indexingContext.ReleasedSince))
