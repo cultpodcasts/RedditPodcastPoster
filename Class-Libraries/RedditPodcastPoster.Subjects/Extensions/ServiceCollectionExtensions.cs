@@ -13,6 +13,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<ISubjectService, SubjectService>()
             .AddScoped<ISubjectEnricher, SubjectEnricher>()
             .AddScoped<ISubjectMatcher, SubjectMatcher>()
+            .AddSingleton<IRecycledFlareIdProvider, RecycledFlareIdProvider>()
             .AddScoped<ICategoriser, Categoriser>();
     }
 }

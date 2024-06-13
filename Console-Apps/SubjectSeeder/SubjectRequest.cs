@@ -19,4 +19,11 @@ public class SubjectRequest
 
     [Option('r', "reddit-flair", Required = false, HelpText = "Reddit Flair for the Subject", Default = null)]
     public string? Flair { get; set; }
+
+    [Option('c', "create-reddit-flair", Default = false, Required = false,
+        HelpText = "Reddit Flair for the Subject, rather than a recycled one")]
+    public bool CreateFlair { get; set; }
+
+    [Option('n', "recycled-flair-name", Required = false, HelpText = "Name of the recycled-flair", Default = null)]
+    public string? RecycledFlairName { get; set; }
 }
