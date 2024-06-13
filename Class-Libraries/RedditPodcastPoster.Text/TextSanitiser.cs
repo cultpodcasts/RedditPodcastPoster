@@ -158,6 +158,7 @@ public partial class TextSanitiser(
         title = title.Replace("”", "'");
         title = title.Replace("’", "'");
         title = title.Replace(@"´", "'");
+        title = title.Replace(@"‘", "'");
         title = MultipleSpaces.Replace(title, " ");
         return title.Trim();
     }
