@@ -37,8 +37,8 @@ public class ListenNotesSearcher(
         {
             {QueryKey, $@"""{term}"""},
             {"type", "episode"},
-            {"sort_by_date", "1"},
-            {"published_after", releasedSince.ToString()}
+            {"sort_by_date", "1"}
+            //, {"published_after", releasedSince.ToString()}
         };
         var first = true;
         while (!error && !@break && (first || results.Last().Released > indexingContext.ReleasedSince))
@@ -60,6 +60,8 @@ public class ListenNotesSearcher(
 
                 offset = response.NextOffset;
                 @break = offset == 0;
+                results = results.OrderByDescending(x => x.Released).ToList();
+                logger.LogInformation($"Last gathered listen-notes released-date: '{results.Last().Released:G}'.");
             }
             catch (Exception ex)
             {
