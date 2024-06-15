@@ -21,8 +21,7 @@ public class ListenNotesSearcher(
     private static readonly DateTime UnixEpoch = new(1970, 1, 1);
     private readonly Client _client = clientFactory.Create();
 
-    private readonly TimeSpan _listenNotesRequestDelay =
-        TimeSpan.FromSeconds(Convert.ToDouble(listenNotesOptions.Value.RequestDelaySeconds));
+    private readonly ListenNotesOptions _listenNotesOptions = listenNotesOptions.Value;
 
     public async Task<IList<EpisodeResult>> Search(string term, IndexingContext indexingContext)
     {
@@ -32,21 +31,28 @@ public class ListenNotesSearcher(
         var offset = 0;
         var error = false;
         var @break = false;
-        var releasedSince = (long) (indexingContext.ReleasedSince!.Value - UnixEpoch).TotalMilliseconds;
         var parameters = new Dictionary<string, string>
         {
             {QueryKey, $@"""{term}"""},
             {"type", "episode"},
             {"sort_by_date", "1"}
-            //, {"published_after", releasedSince.ToString()}
         };
+
+        if (_listenNotesOptions.UsePublishedAfter)
+        {
+            var releasedSince = (long) (indexingContext.ReleasedSince!.Value - UnixEpoch).TotalMilliseconds;
+            parameters.Add("published_after", releasedSince.ToString());
+        }
+
+        var listenNotesRequestDelay = TimeSpan.FromSeconds(Convert.ToDouble(_listenNotesOptions.RequestDelaySeconds));
+
         var first = true;
         while (!error && !@break && (first || results.Last().Released > indexingContext.ReleasedSince))
         {
             logger.LogInformation($"Querying listen-notes for '{term}'. First={first}.");
             if (!first)
             {
-                await Task.Delay(_listenNotesRequestDelay);
+                await Task.Delay(listenNotesRequestDelay);
             }
 
             first = false;
