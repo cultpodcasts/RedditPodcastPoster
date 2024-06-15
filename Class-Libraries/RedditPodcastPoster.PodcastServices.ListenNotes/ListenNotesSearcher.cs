@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using PodcastAPI;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.ListenNotes.Configuration;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Factories;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Model;
 using RedditPodcastPoster.Text;
@@ -10,6 +12,7 @@ namespace RedditPodcastPoster.PodcastServices.ListenNotes;
 public class ListenNotesSearcher(
     IClientFactory clientFactory,
     IHtmlSanitiser htmlSanitiser,
+    IOptions<ListenNotesOptions> listenNotesOptions,
     ILogger<ListenNotesSearcher> logger
 ) : IListenNotesSearcher
 {
@@ -18,8 +21,13 @@ public class ListenNotesSearcher(
     private static readonly DateTime UnixEpoch = new(1970, 1, 1);
     private readonly Client _client = clientFactory.Create();
 
+    private readonly TimeSpan _listenNotesRequestDelay =
+        TimeSpan.FromSeconds(Convert.ToDouble(listenNotesOptions.Value.RequestDelaySeconds));
+
     public async Task<IList<EpisodeResult>> Search(string term, IndexingContext indexingContext)
     {
+        logger.LogInformation(
+            $"{nameof(Search)}. RequestDelaySeconds='{listenNotesOptions.Value.RequestDelaySeconds}'");
         var results = new List<EpisodeResult>();
         var offset = 0;
         var error = false;
@@ -35,6 +43,12 @@ public class ListenNotesSearcher(
         var first = true;
         while (!error && !@break && (first || results.Last().Released > indexingContext.ReleasedSince))
         {
+            logger.LogInformation($"Querying listen-notes for '{term}'. First={first}.");
+            if (!first)
+            {
+                await Task.Delay(_listenNotesRequestDelay);
+            }
+
             first = false;
             parameters[OffsetKey] = offset.ToString();
             try

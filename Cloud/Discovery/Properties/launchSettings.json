@@ -27,7 +27,8 @@
         "discover__IgnoreTerms__7": "Blue Öyster Cult",
         "discover__IgnoreTerms__8": "Living Colour",
         "discover__IgnoreTerms__9": "She Sells Sanctuary",
-        "discover__IgnoreTerms__10": "Far Cry"
+        "discover__IgnoreTerms__10": "Far Cry",
+        "listenNotes__RequestDelaySeconds": "2"
       }
     }
   }
