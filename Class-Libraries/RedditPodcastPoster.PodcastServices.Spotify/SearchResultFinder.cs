@@ -17,7 +17,12 @@ public class SearchResultFinder(
 
     public IEnumerable<SimpleShow> FindMatchingPodcasts(string podcastName, List<SimpleShow>? podcasts)
     {
-        var matches = podcasts!.Where(x => x.Name.ToLower().Trim() == podcastName.ToLower());
+        if (podcasts == null)
+        {
+            return [];
+        }
+
+        var matches = podcasts.Where(x => x.Name.ToLower().Trim() == podcastName.ToLower());
         return matches;
     }
 
