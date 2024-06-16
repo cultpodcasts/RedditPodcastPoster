@@ -4,6 +4,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.Taddy.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 
@@ -16,7 +17,7 @@ public static class ServiceCollectionExtensions
     {
         services.BindConfiguration<DiscoverySettings>("discover");
         services.BindConfiguration<IgnoreTermsSettings>("discover");
-        
+
         return services
             .AddScoped<ISearchProvider, SearchProvider>()
             .AddScoped<IEpisodeResultsEnricher, EpisodeResultsEnricher>()
@@ -33,6 +34,7 @@ public static class ServiceCollectionExtensions
             .AddAppleServices()
             .AddYouTubeServices(config)
             .AddListenNotes(config)
+            .AddTaddy(config)
             .AddTextSanitiser();
     }
 

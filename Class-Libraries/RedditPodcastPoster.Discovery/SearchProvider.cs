@@ -2,6 +2,7 @@
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.ListenNotes;
 using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.Taddy;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using DiscoverService = RedditPodcastPoster.Models.DiscoverService;
 
@@ -10,6 +11,7 @@ namespace RedditPodcastPoster.Discovery;
 public class SearchProvider(
     ISpotifySearcher spotifySearcher,
     IListenNotesSearcher listenNotesSearcher,
+    ITaddySearcher taddySearcher,
     ISpotifyEnricher spotifyEnricher,
     IAppleEnricher appleEnricher,
     IYouTubeSearcher youTubeSearcher,
@@ -28,6 +30,20 @@ public class SearchProvider(
             IList<EpisodeResult> serviceResults;
             switch (config.DiscoverService)
             {
+                case DiscoverService.Taddy:
+                    serviceResults = await taddySearcher.Search(config.Term, indexingContext);
+                    if (discoveryConfig.EnrichFromSpotify)
+                    {
+                        await spotifyEnricher.Enrich(serviceResults, indexingContext);
+                    }
+
+                    if (discoveryConfig.EnrichFromApple)
+                    {
+                        await appleEnricher.Enrich(serviceResults, indexingContext);
+                    }
+
+                    break;
+
                 case DiscoverService.ListenNotes:
                     serviceResults = await listenNotesSearcher.Search(config.Term, indexingContext);
                     if (discoveryConfig.EnrichFromSpotify)

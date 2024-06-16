@@ -8,7 +8,6 @@ public class DiscoverOptions
     public bool IncludeListenNotes { get; set; }
     public bool EnrichListenNotesFromSpotify { get; set; }
     public bool EnrichSpotifyFromApple { get; set; }
-
     public bool IncludeTaddy { get; set; }
 
     public override string ToString()

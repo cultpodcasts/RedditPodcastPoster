@@ -17,6 +17,8 @@
         "discover__Queries__4__DiscoverService": "YouTube",
         "discover__Queries__5__Term": "Cults",
         "discover__Queries__5__DiscoverService": "YouTube",
+        "discover__Queries__6__Term": "Cult",
+        "discover__Queries__6__DiscoverService": "Taddy",
         "discover__IgnoreTerms__0": "cult of the lamb",
         "discover__IgnoreTerms__1": "cult of lamb",
         "discover__IgnoreTerms__2": "COTL",
