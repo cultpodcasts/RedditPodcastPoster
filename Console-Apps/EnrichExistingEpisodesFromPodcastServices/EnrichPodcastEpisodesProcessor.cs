@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -25,7 +25,7 @@ public class EnrichPodcastEpisodesProcessor(
         IndexingContext indexingContext;
         if (request.ReleasedSince.HasValue)
         {
-            indexingContext = new IndexingContext(DateTimeHelper.DaysAgo(request.ReleasedSince.Value));
+            indexingContext = new IndexingContext(DateTimeExtensions.DaysAgo(request.ReleasedSince.Value));
         }
         else
         {
