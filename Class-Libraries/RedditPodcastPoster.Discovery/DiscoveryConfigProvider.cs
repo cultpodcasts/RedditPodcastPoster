@@ -11,27 +11,26 @@ public class DiscoveryServiceConfigProvider(
 {
     private readonly DiscoverySettings _discoverySettings = discoverySettings.Value;
 
-    public IEnumerable<ServiceConfig> GetServiceConfigs(
-        bool excludeSpotify, bool includeYouTube, bool includeListenNotes)
+    public IEnumerable<ServiceConfig> GetServiceConfigs(GetServiceConfigOptions options)
     {
         logger.LogInformation(
-            $"{nameof(GetServiceConfigs)}: {nameof(excludeSpotify)}= {excludeSpotify}, {nameof(includeYouTube)}= {includeYouTube}, {nameof(includeListenNotes)}= {includeListenNotes}. {_discoverySettings}");
+            $"{nameof(GetServiceConfigs)}: {options.ToString()} {_discoverySettings}");
         var serviceConfigs = new List<ServiceConfig>();
         if (_discoverySettings.Queries != null)
         {
-            if (!excludeSpotify)
+            if (!options.ExcludeSpotify)
             {
                 serviceConfigs.AddRange(
                     _discoverySettings.Queries.Where(x => x.DiscoverService == DiscoverService.Spotify));
             }
 
-            if (includeYouTube)
+            if (options.IncludeYouTube)
             {
                 serviceConfigs.AddRange(
                     _discoverySettings.Queries.Where(x => x.DiscoverService == DiscoverService.YouTube));
             }
 
-            if (includeListenNotes)
+            if (options.IncludeListenNotes)
             {
                 serviceConfigs.InsertRange(0,
                     _discoverySettings.Queries.Where(x => x.DiscoverService == DiscoverService.ListenNotes));
