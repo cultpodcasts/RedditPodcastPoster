@@ -25,7 +25,7 @@ public class YouTubeSearcher(
 
     public async Task<IList<EpisodeResult>> Search(string query, IndexingContext indexingContext)
     {
-        logger.LogInformation($"{nameof(Search)}: query: '{query}'.");
+        logger.LogInformation($"{nameof(YouTubeSearcher)}.{nameof(Search)}: query: '{query}'.");
         var medium = await Search(query, indexingContext, VideoDurationEnum.Medium);
         var @long = await Search(query, indexingContext, VideoDurationEnum.Long__);
         var episodeResults = medium.Union(@long).Distinct();

@@ -56,8 +56,9 @@ public class Discover(
         bool results;
         try
         {
-            var serviceConfigs = discoveryConfigProvider.GetServiceConfigs(_discoverOptions.ExcludeSpotify,
-                _discoverOptions.IncludeYouTube, _discoverOptions.IncludeListenNotes);
+            var serviceConfigs = discoveryConfigProvider.GetServiceConfigs(
+                new GetServiceConfigOptions(_discoverOptions.ExcludeSpotify, _discoverOptions.IncludeYouTube,
+                    _discoverOptions.IncludeListenNotes, _discoverOptions.IncludeTaddy));
 
             var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
             logger.LogInformation(

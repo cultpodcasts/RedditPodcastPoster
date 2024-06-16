@@ -25,7 +25,7 @@ public class SpotifySearcher(
             };
         }
 
-        logger.LogInformation($"{nameof(Search)}: query: '{query}'.");
+        logger.LogInformation($"{nameof(SpotifySearcher)}.{nameof(Search)}: query: '{query}'.");
         var results = await spotifyClient.FindEpisodes(
             new SearchRequest(SearchRequest.Types.Episode, query) {Market = Market.CountryCode},
             indexingContext);

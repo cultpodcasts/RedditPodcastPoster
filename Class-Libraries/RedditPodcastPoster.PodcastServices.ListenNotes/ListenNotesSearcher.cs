@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PodcastAPI;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Configuration;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Factories;
@@ -18,15 +19,13 @@ public class ListenNotesSearcher(
 {
     private const string QueryKey = "q";
     private const string OffsetKey = "offset";
-    private static readonly DateTime UnixEpoch = new(1970, 1, 1);
     private readonly Client _client = clientFactory.Create();
 
     private readonly ListenNotesOptions _listenNotesOptions = listenNotesOptions.Value;
 
     public async Task<IList<EpisodeResult>> Search(string term, IndexingContext indexingContext)
     {
-        logger.LogInformation(
-            $"{nameof(Search)}. RequestDelaySeconds='{listenNotesOptions.Value.RequestDelaySeconds}'");
+        logger.LogInformation($"{nameof(ListenNotesSearcher)}.{nameof(Search)}: query: '{term}'. RequestDelaySeconds='{listenNotesOptions.Value.RequestDelaySeconds}'.");
         var results = new List<EpisodeResult>();
         var offset = 0;
         var error = false;
@@ -40,7 +39,7 @@ public class ListenNotesSearcher(
 
         if (_listenNotesOptions.UsePublishedAfter)
         {
-            var releasedSince = (long) (indexingContext.ReleasedSince!.Value - UnixEpoch).TotalMilliseconds;
+            var releasedSince = indexingContext.ReleasedSince!.Value.ToEpochMilliseconds();
             parameters.Add("published_after", releasedSince.ToString());
         }
 

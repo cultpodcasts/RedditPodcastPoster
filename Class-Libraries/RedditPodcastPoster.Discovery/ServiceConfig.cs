@@ -1,4 +1,5 @@
-﻿using DiscoverService = RedditPodcastPoster.Models.DiscoverService;
+﻿
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Discovery;
 

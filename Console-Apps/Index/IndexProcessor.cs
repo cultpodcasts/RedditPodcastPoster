@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Subjects;
@@ -20,7 +20,7 @@ internal class IndexProcessor(
         DateTime? releasedSince = null;
         if (request.ReleasedSince > 0)
         {
-            releasedSince = DateTimeHelper.DaysAgo(request.ReleasedSince);
+            releasedSince = DateTimeExtensions.DaysAgo(request.ReleasedSince);
         }
 
         var indexingContext = new IndexingContext(releasedSince)

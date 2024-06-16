@@ -15,6 +15,9 @@ public class DiscoveryRequest
     [Option('l', "include-listen-notes", Default = false, HelpText = "Search Listen Notes")]
     public bool IncludeListenNotes { get; set; }
 
+    [Option('d', "include-taddy", Default = false, HelpText = "Search Taddy")]
+    public bool IncludeTaddy { get; set; }
+
     [Option('s', "exclude-spotify", Default = false, HelpText = "Exclude Spotify")]
     public bool ExcludeSpotify { get; set; }
 
