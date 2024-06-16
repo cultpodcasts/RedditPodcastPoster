@@ -78,7 +78,10 @@ public class SearchProvider(
         }
 
         var items = results
-            .Where(x => x.Released >= indexingContext.ReleasedSince)
+            .Where(x =>
+                (x.DiscoverServices.SingleOrDefault() == PodcastServices.Abstractions.DiscoverService.Taddy &&
+                 x.Released >= indexingContext.ReleasedSince!.Value.Subtract(TaddyParameters.IndexingDelay)) ||
+                x.Released >= indexingContext.ReleasedSince)
             .GroupBy(x => x.EpisodeName)
             .Select(Coalesce)
             .OrderBy(x => x.Released);
@@ -89,6 +92,7 @@ public class SearchProvider(
             $"spotify-items '{items.Count(x => x.DiscoverServices.Contains(PodcastServices.Abstractions.DiscoverService.Spotify))}'",
             $"youtube-items: '{items.Count(x => x.DiscoverServices.Contains(PodcastServices.Abstractions.DiscoverService.YouTube))}'",
             $"listen-notes-items: '{items.Count(x => x.DiscoverServices.Contains(PodcastServices.Abstractions.DiscoverService.ListenNotes))}'",
+            $"taddy-items: '{items.Count(x => x.DiscoverServices.Contains(PodcastServices.Abstractions.DiscoverService.Taddy))}'",
             $"spotify-enriched-url: '{items.Count(x => x.EnrichedUrlFromSpotify)}'",
             $"apple-enriched-release: '{items.Count(x => x.EnrichedTimeFromApple)}'"
         ];

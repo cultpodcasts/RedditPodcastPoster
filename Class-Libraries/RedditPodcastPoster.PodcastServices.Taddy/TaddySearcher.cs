@@ -18,7 +18,7 @@ public class TaddySearcher(
     {
         logger.LogInformation($"{nameof(TaddySearcher)}.{nameof(Search)}: query: '{term}'.");
 
-        var since = indexingContext.ReleasedSince!.Value.ToEpochSeconds();
+        var since = indexingContext.ReleasedSince!.Value.Subtract(TaddyParameters.IndexingDelay).ToEpochSeconds();
 
         var query = $@"
                    {{
