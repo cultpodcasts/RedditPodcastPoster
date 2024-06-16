@@ -61,7 +61,7 @@ public class DiscoveryProcessor(
 
             var serviceConfigs = discoveryConfigProvider.GetServiceConfigs(
                 new GetServiceConfigOptions(request.ExcludeSpotify, request.IncludeYouTube,
-                    request.IncludeListenNotes));
+                    request.IncludeListenNotes, request.IncludeTaddy));
 
             latest = DateTime.UtcNow.ToUniversalTime();
             Console.WriteLine(

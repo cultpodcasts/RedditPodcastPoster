@@ -14,7 +14,7 @@ public class DiscoveryServiceConfigProvider(
     public IEnumerable<ServiceConfig> GetServiceConfigs(GetServiceConfigOptions options)
     {
         logger.LogInformation(
-            $"{nameof(GetServiceConfigs)}: {options.ToString()} {_discoverySettings}");
+            $"{nameof(GetServiceConfigs)}: {options} {_discoverySettings}");
         var serviceConfigs = new List<ServiceConfig>();
         if (_discoverySettings.Queries != null)
         {
@@ -34,6 +34,12 @@ public class DiscoveryServiceConfigProvider(
             {
                 serviceConfigs.InsertRange(0,
                     _discoverySettings.Queries.Where(x => x.DiscoverService == DiscoverService.ListenNotes));
+            }
+
+            if (options.IncludeTaddy)
+            {
+                serviceConfigs.InsertRange(0,
+                    _discoverySettings.Queries.Where(x => x.DiscoverService == DiscoverService.Taddy));
             }
         }
 
