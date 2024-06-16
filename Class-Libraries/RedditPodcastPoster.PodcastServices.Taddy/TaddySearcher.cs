@@ -16,6 +16,8 @@ public class TaddySearcher(
 {
     public async Task<IList<EpisodeResult>> Search(string term, IndexingContext indexingContext)
     {
+        logger.LogInformation($"{nameof(TaddySearcher)}.{nameof(Search)}: query: '{term}'.");
+
         var since = indexingContext.ReleasedSince!.Value.ToEpochSeconds();
 
         var query = $@"

@@ -25,8 +25,7 @@ public class ListenNotesSearcher(
 
     public async Task<IList<EpisodeResult>> Search(string term, IndexingContext indexingContext)
     {
-        logger.LogInformation(
-            $"{nameof(Search)}. RequestDelaySeconds='{listenNotesOptions.Value.RequestDelaySeconds}'");
+        logger.LogInformation($"{nameof(ListenNotesSearcher)}.{nameof(Search)}: query: '{term}'. RequestDelaySeconds='{listenNotesOptions.Value.RequestDelaySeconds}'.");
         var results = new List<EpisodeResult>();
         var offset = 0;
         var error = false;
