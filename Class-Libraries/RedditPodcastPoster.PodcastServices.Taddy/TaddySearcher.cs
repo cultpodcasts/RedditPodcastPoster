@@ -66,7 +66,7 @@ public class TaddySearcher(
         var episodeResult = new EpisodeResult(
             episode.Id.ToString(),
             DateTimeOffset.FromUnixTimeSeconds(episode.Published).DateTime,
-            htmlSanitiser.Sanitise(episode.Description??string.Empty).Trim(),
+            htmlSanitiser.Sanitise(episode.Description ?? string.Empty).Trim(),
             episode.Name.Trim(),
             TimeSpan.FromSeconds(episode.Seconds),
             episode.Podcast.Name.Trim(),
