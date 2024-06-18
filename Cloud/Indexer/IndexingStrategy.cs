@@ -11,11 +11,11 @@ public class IndexingStrategy(IDateTimeService dateTimeService) : IIndexingStrat
 
     public bool ExpensiveYouTubeQueries()
     {
-        return dateTimeService.GetHour() % 6 == 0;
+        return dateTimeService.GetHour() % 24 == 0;
     }
 
     public bool ExpensiveSpotifyQueries()
     {
-        return dateTimeService.GetHour() % 3 > 0;
+        return dateTimeService.GetHour() % 3 == 1;
     }
 }
