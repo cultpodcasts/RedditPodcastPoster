@@ -16,6 +16,6 @@ public class IndexingStrategy(IDateTimeService dateTimeService) : IIndexingStrat
 
     public bool ExpensiveSpotifyQueries()
     {
-        return dateTimeService.GetHour() % 3 > 0;
+        return dateTimeService.GetHour() % 3 == 1;
     }
 }
