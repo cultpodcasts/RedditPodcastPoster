@@ -11,7 +11,7 @@ public class IndexingStrategy(IDateTimeService dateTimeService) : IIndexingStrat
 
     public bool ExpensiveYouTubeQueries()
     {
-        return dateTimeService.GetHour() % 6 == 0;
+        return dateTimeService.GetHour() % 24 == 0;
     }
 
     public bool ExpensiveSpotifyQueries()
