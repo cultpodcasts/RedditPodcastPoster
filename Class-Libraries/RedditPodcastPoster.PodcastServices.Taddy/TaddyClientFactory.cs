@@ -8,7 +8,10 @@ namespace RedditPodcastPoster.PodcastServices.Taddy;
 
 public class TaddyClientFactory(
     IOptions<TaddyOptions> taddyOptions,
-    ILogger<TaddyClientFactory> logger) : ITaddyClientFactory
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<TaddyClientFactory> logger
+#pragma warning restore CS9113 // Parameter is unread.
+) : ITaddyClientFactory
 {
     private readonly TaddyOptions _taddyOptions = taddyOptions.Value;
 

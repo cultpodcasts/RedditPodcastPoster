@@ -5,5 +5,5 @@ namespace RedditPodcastPoster.PodcastServices.Taddy.Dtos;
 public class SearchResponse
 {
     [JsonPropertyName("searchForTerm")]
-    public SearchForTermResponse Results { get; set; }
+    public required SearchForTermResponse Results { get; set; }
 }
