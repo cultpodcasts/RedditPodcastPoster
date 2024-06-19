@@ -21,6 +21,21 @@ public class ApplePodcastService : IApplePodcastService
     public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
     {
         _logger.LogInformation($"{nameof(GetEpisodes)} podcast-id: '{podcastId}'.");
+        var appleEpisodes = await GetEpisodes(podcastId, indexingContext);
+
+        return appleEpisodes;
+    }
+
+    public async Task<AppleEpisode?> GetEpisode(ApplePodcastId podcastId, long episodeId,
+        IndexingContext indexingContext)
+    {
+        var episodes = await GetEpisodes(podcastId, indexingContext, x => x.Id == episodeId.ToString());
+        return episodes.SingleOrDefault(x => x.Id == episodeId);
+    }
+
+    private async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId,
+        IndexingContext indexingContext, Func<Record, bool>? breakEvaluator)
+    {
         var inDescendingDateOrder = true;
         var requestUri = $"/v1/catalog/us/podcasts/{podcastId.PodcastId}/episodes";
         HttpResponseMessage response;
@@ -63,10 +78,14 @@ public class ApplePodcastService : IApplePodcastService
                 }
 
                 podcastRecords.AddRange(appleObject!.Records);
-                while (response.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(appleObject.Next) &&
-                       (!indexingContext.ReleasedSince.HasValue ||
-                        podcastRecords.Last().ToAppleEpisode().Release >= indexingContext.ReleasedSince ||
-                        !inDescendingDateOrder))
+                while (response.IsSuccessStatusCode &&
+                       (breakEvaluator == null || !podcastRecords.Any(breakEvaluator)) &&
+                       !string.IsNullOrWhiteSpace(appleObject.Next) &&
+                       (
+                           !indexingContext.ReleasedSince.HasValue ||
+                           podcastRecords.Last().ToAppleEpisode().Release >= indexingContext.ReleasedSince ||
+                           !inDescendingDateOrder)
+                      )
                 {
                     response = await _httpClient.GetAsync((string?) appleObject.Next);
                     if (response.IsSuccessStatusCode)
@@ -82,7 +101,7 @@ public class ApplePodcastService : IApplePodcastService
 
         var appleEpisodes = podcastRecords
             .Where(x => x.Attributes.Duration > TimeSpan.Zero)
-            .Select(x => x.ToAppleEpisode());
+            .Select(x => x.ToAppleEpisode()).ToArray();
         if (podcastRecords.Any() && !appleEpisodes.Any())
         {
             _logger.LogError(
