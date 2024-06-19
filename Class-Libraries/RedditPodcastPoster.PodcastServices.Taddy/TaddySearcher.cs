@@ -69,7 +69,7 @@ public class TaddySearcher(
             htmlSanitiser.Sanitise(episode.Description ?? string.Empty).Trim(),
             episode.Name.Trim(),
             TimeSpan.FromSeconds(episode.Seconds),
-            episode.Podcast.Name.Trim(),
+            episode.Podcast?.Name.Trim() ?? string.Empty,
             string.Empty,
             DiscoverService.Taddy);
         return episodeResult;

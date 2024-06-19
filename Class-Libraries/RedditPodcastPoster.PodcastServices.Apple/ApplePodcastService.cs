@@ -21,7 +21,7 @@ public class ApplePodcastService : IApplePodcastService
     public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
     {
         _logger.LogInformation($"{nameof(GetEpisodes)} podcast-id: '{podcastId}'.");
-        var appleEpisodes = await GetEpisodes(podcastId, indexingContext);
+        var appleEpisodes = await GetEpisodes(podcastId, indexingContext, null);
 
         return appleEpisodes;
     }
@@ -30,7 +30,7 @@ public class ApplePodcastService : IApplePodcastService
         IndexingContext indexingContext)
     {
         var episodes = await GetEpisodes(podcastId, indexingContext, x => x.Id == episodeId.ToString());
-        return episodes.SingleOrDefault(x => x.Id == episodeId);
+        return episodes?.SingleOrDefault(x => x.Id == episodeId);
     }
 
     private async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId,
