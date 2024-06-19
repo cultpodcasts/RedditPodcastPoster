@@ -79,7 +79,7 @@ public class SearchProvider(
 
         var items = results
             .Where(x =>
-                (x.DiscoverServices.SingleOrDefault() == PodcastServices.Abstractions.DiscoverService.Taddy &&
+                (x.DiscoverServices.FirstOrDefault() == PodcastServices.Abstractions.DiscoverService.Taddy &&
                  x.Released >= indexingContext.ReleasedSince!.Value.Subtract(TaddyParameters.IndexingDelay)) ||
                 x.Released >= indexingContext.ReleasedSince)
             .GroupBy(x => x.EpisodeName)
