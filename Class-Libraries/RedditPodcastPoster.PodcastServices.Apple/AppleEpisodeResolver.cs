@@ -24,7 +24,19 @@ public class AppleEpisodeResolver(
         if (request.PodcastAppleId.HasValue)
         {
             var applePodcastId = new ApplePodcastId(request.PodcastAppleId.Value);
-            podcastEpisodes = await applePodcastService.GetEpisodes(applePodcastId, indexingContext);
+            if (request.EpisodeAppleId.HasValue)
+            {
+                var episode =
+                    await applePodcastService.GetEpisode(applePodcastId, request.EpisodeAppleId.Value, indexingContext);
+                if (episode != null)
+                {
+                    podcastEpisodes = [episode];
+                }
+            }
+            else
+            {
+                podcastEpisodes = await applePodcastService.GetEpisodes(applePodcastId, indexingContext);
+            }
         }
 
         if (request.EpisodeAppleId != null && podcastEpisodes != null)
