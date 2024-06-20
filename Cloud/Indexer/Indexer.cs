@@ -90,9 +90,7 @@ public class Indexer(
             logger.LogError("Failure occurred");
         }
 
-        logger.LogInformation($"{nameof(RunAsync)} Completed");
-
-        return indexerContext with
+        var result = indexerContext with
         {
             Success = results,
             SkipYouTubeUrlResolving = indexingContext.SkipYouTubeUrlResolving,
@@ -100,5 +98,9 @@ public class Indexer(
             SkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving,
             SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalIndexingContext.SkipSpotifyUrlResolving
         };
+
+        logger.LogInformation($"{nameof(RunAsync)} Completed. Result: {result}");
+
+        return result;
     }
 }
