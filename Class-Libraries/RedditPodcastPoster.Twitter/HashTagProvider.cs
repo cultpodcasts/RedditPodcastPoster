@@ -21,7 +21,7 @@ public class HashTagProvider(
                 .Select(x => x!.HashTag!.Split(" "))
                 .SelectMany(x => x)
                 .Distinct()
-                .Select(x => new HashTag(x!, (string?) null));
+                .Select(x => new HashTag(x!, null));
         var enrichmentHashTags =
             subjects
                 .Where(x => x?.EnrichmentHashTags != null && x.EnrichmentHashTags.Any())
@@ -32,6 +32,6 @@ public class HashTagProvider(
                     $"#{x
                         .Replace(" ", string.Empty)
                         .Replace("'", string.Empty)}"));
-        return hashTags.Union(enrichmentHashTags).ToList();
+        return enrichmentHashTags.Union(hashTags).ToList();
     }
 }
