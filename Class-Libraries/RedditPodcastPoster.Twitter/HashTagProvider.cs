@@ -32,6 +32,6 @@ public class HashTagProvider(
                     $"#{x
                         .Replace(" ", string.Empty)
                         .Replace("'", string.Empty)}"));
-        return hashTags.Union(enrichmentHashTags).ToList();
+        return enrichmentHashTags.Union(hashTags).ToList();
     }
 }
