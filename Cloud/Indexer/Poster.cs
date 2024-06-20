@@ -41,10 +41,10 @@ public class Poster(
             throw new ArgumentNullException(nameof(indexerContext.PosterOperationId));
         }
 
-        ProcessResponse result;
+        ProcessResponse results;
         try
         {
-            result = await episodeProcessor.PostEpisodesSinceReleaseDate(
+            results = await episodeProcessor.PostEpisodesSinceReleaseDate(
                 baselineDate,
                 indexerContext is {SkipYouTubeUrlResolving: false, YouTubeError: false},
                 indexerContext is {SkipSpotifyUrlResolving: false, SpotifyError: false});
@@ -53,19 +53,20 @@ public class Poster(
         {
             logger.LogError(ex,
                 $"Failure executing {nameof(IEpisodeProcessor)}.{nameof(IEpisodeProcessor.PostEpisodesSinceReleaseDate)}.");
-            result = ProcessResponse.Fail(ex.Message);
+            results = ProcessResponse.Fail(ex.Message);
         }
 
-        if (!result.Success)
+        if (!results.Success)
         {
-            logger.LogError($"{nameof(RunAsync)} Failed to process posts. {result}");
+            logger.LogError($"{nameof(RunAsync)} Failed to process posts. {results}");
         }
         else
         {
-            logger.LogInformation($"{nameof(RunAsync)} Successfully processed posts. {result}");
+            logger.LogInformation($"{nameof(RunAsync)} Successfully processed posts. {results}");
         }
 
-        logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerContext with {Success = result.Success};
+        var result = indexerContext with {Success = results.Success};
+        logger.LogInformation($"{nameof(RunAsync)} Completed. Result: {result}");
+        return result;
     }
 }

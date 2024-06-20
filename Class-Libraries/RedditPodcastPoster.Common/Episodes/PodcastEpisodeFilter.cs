@@ -124,9 +124,14 @@ public class PodcastEpisodeFilter(
             !string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId) &&
             string.IsNullOrWhiteSpace(podcastEpisode.Episode.YouTubeId))
         {
-            logger.LogInformation(
-                $"{nameof(EliminateItemsDueToIndexingErrors)} Eliminating episode with episode-id '{podcastEpisode.Episode.Id}' and episode-title '{podcastEpisode.Episode.Title}' from podcast with podcast-id '{podcastEpisode.Podcast.Id}' and podcast-name '{podcastEpisode.Podcast.Name}' due to '{nameof(youTubeRefreshed)}'='{youTubeRefreshed}'.");
-            return false;
+            if (podcastEpisode.Episode.Release.TimeOfDay > TimeSpan.Zero &&
+                podcastEpisode.Podcast.YouTubePublishingDelay() >= TimeSpan.Zero &&
+                DateTime.UtcNow < podcastEpisode.Episode.Release + podcastEpisode.Podcast.YouTubePublishingDelay())
+            {
+                logger.LogInformation(
+                    $"{nameof(EliminateItemsDueToIndexingErrors)} Eliminating episode with episode-id '{podcastEpisode.Episode.Id}' and episode-title '{podcastEpisode.Episode.Title}' from podcast with podcast-id '{podcastEpisode.Podcast.Id}' and podcast-name '{podcastEpisode.Podcast.Name}' due to '{nameof(youTubeRefreshed)}'='{youTubeRefreshed}'.");
+                return false;
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId) &&
