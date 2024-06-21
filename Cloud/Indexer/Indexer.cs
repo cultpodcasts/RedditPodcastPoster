@@ -26,7 +26,7 @@ public class Indexer(
         logger.LogInformation(_indexerOptions.ToString());
         var indexingContext = _indexerOptions.ToIndexingContext() with
         {
-            SkipSpotifyUrlResolving = false,
+            SkipSpotifyUrlResolving = !indexingStrategy.IndexSpotify(),
             SkipYouTubeUrlResolving = !indexingStrategy.ResolveYouTube(),
             SkipExpensiveYouTubeQueries = !indexingStrategy.ExpensiveYouTubeQueries(),
             SkipExpensiveSpotifyQueries = !indexingStrategy.ExpensiveSpotifyQueries(),

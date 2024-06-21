@@ -18,4 +18,9 @@ public class IndexingStrategy(IDateTimeService dateTimeService) : IIndexingStrat
     {
         return dateTimeService.GetHour() % 3 == 1;
     }
+
+    public bool IndexSpotify()
+    {
+        return dateTimeService.GetHour() % 6 != 3;
+    }
 }
