@@ -22,15 +22,14 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         catch (APITooManyRequestsException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(Paginate)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
-
         }
         catch (APIException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(Paginate)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
@@ -57,15 +56,14 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         catch (APITooManyRequestsException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(PaginateAll)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
-
         }
         catch (APIException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(PaginateAll)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
@@ -94,15 +92,14 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         catch (APITooManyRequestsException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(PaginateAll)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
-
         }
         catch (APIException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(PaginateAll)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
@@ -131,15 +128,14 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         catch (APITooManyRequestsException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(GetShowEpisodes)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
-
         }
         catch (APIException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(GetShowEpisodes)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             if (!ex.Message.StartsWith("Non existing id:"))
             {
                 indexingContext.SkipSpotifyUrlResolving = true;
@@ -170,15 +166,14 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         catch (APITooManyRequestsException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(GetSearchResponse)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
-
         }
         catch (APIException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(GetSearchResponse)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
@@ -206,15 +201,14 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         catch (APITooManyRequestsException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(GetFullShow)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
-
         }
         catch (APIException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(GetFullShow)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             if (!ex.Message.StartsWith("Non existing id:"))
             {
                 indexingContext.SkipSpotifyUrlResolving = true;
@@ -224,7 +218,7 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(GetFullEpisode)} Failure with Spotify-API.");
+            logger.LogError(ex, $"{nameof(GetFullShow)} Failure with Spotify-API.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
@@ -247,9 +241,8 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(GetFullEpisode)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
-                indexingContext.SkipSpotifyUrlResolving = true;
+            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
-
         }
         catch (APIException ex)
         {
@@ -283,10 +276,9 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         catch (APITooManyRequestsException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(GetSeveral)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
-
         }
         catch (APIException ex)
         {
@@ -318,21 +310,20 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         catch (APITooManyRequestsException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(FindEpisodes)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
-
         }
         catch (APIException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(FindEpisodes)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(GetShowEpisodes)} Failure with Spotify-API.");
+            logger.LogError(ex, $"{nameof(FindEpisodes)} Failure with Spotify-API.");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
