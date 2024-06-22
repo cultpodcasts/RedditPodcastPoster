@@ -16,8 +16,10 @@ public class YouTubeItemResolver(
         if (youTubePublishingDelay < TimeSpan.Zero)
         {
             indexingContext = new IndexingContext(
-                request.Episode.HasAccurateReleaseTime()?request.Episode.Release.Add(youTubePublishingDelay):
-                DateTime.UtcNow.Add(youTubePublishingDelay),
+                request.Episode.HasAccurateReleaseTime()
+                    ? request.Episode.Release.Add(youTubePublishingDelay)
+                    : DateTime.UtcNow.Add(youTubePublishingDelay),
+                indexingContext.IndexSpotify,
                 indexingContext.SkipYouTubeUrlResolving,
                 indexingContext.SkipSpotifyUrlResolving,
                 indexingContext.SkipExpensiveYouTubeQueries,

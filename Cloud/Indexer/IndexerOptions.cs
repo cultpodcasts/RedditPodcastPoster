@@ -22,6 +22,6 @@ public class IndexerOptions
             releasedSince = DateTimeExtensions.DaysAgo(ReleasedDaysAgo.Value);
         }
 
-        return new IndexingContext(releasedSince, ByPassYouTube);
+        return new IndexingContext(releasedSince, SkipYouTubeUrlResolving: ByPassYouTube);
     }
 }

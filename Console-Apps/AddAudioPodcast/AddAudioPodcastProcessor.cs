@@ -1,7 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using iTunesSearch.Library;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -23,7 +22,7 @@ public class AddAudioPodcastProcessor(
     ISubjectEnricher subjectEnricher,
     ILogger<AddAudioPodcastProcessor> logger)
 {
-    private readonly IndexingContext _indexingContext = new(null, true);
+    private readonly IndexingContext _indexingContext = new(SkipYouTubeUrlResolving: true);
 
     public async Task Create(AddAudioPodcastRequest request)
     {
@@ -77,7 +76,7 @@ public class AddAudioPodcastProcessor(
             {
                 await subjectEnricher.EnrichSubjects(episode,
                     new SubjectEnrichmentOptions(
-                        podcast.IgnoredAssociatedSubjects, 
+                        podcast.IgnoredAssociatedSubjects,
                         podcast.IgnoredSubjects,
                         podcast.DefaultSubject));
             }

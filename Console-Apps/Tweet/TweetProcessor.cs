@@ -25,17 +25,8 @@ public class TweetProcessor(
             {
                 var podcastEpisode = new PodcastEpisode(podcast, mostRecentEpisode);
                 var tweet = await tweetBuilder.BuildTweet(podcastEpisode);
-                bool tweeted;
-                try
-                {
-                    tweeted = await twitterClient.Send(tweet);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex,
-                        $"Failure to send tweet for podcast-id '{podcastEpisode.Podcast.Id}' episode-id '{podcastEpisode.Episode.Id}', tweet: '{tweet}'.");
-                    throw;
-                }
+                var tweetStatus = await twitterClient.Send(tweet);
+                var tweeted = tweetStatus == TweetSendStatus.Sent;
 
                 if (tweeted)
                 {

@@ -51,9 +51,11 @@ public class SpotifyEpisodeResolver(
             }
             else
             {
-                if (!indexingContext.SkipPodcastDiscovery)
+                if (!indexingContext.SkipPodcastDiscovery && !string.IsNullOrWhiteSpace(request.PodcastName))
                 {
-                    var searchRequest = new SearchRequest(SearchRequest.Types.Show, request.PodcastName)
+                    var searchRequest = new SearchRequest(
+                            SearchRequest.Types.Show,
+                            request.PodcastName)
                         {Market = market};
                     var podcastSearchResponse =
                         await spotifyClientWrapper.GetSearchResponse(searchRequest, indexingContext);

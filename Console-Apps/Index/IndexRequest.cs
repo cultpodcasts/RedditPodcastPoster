@@ -24,4 +24,8 @@ public class IndexRequest
 
     [Option('f', "skip-spotify-url-resolving", Default = false, HelpText = "Skip Spotify url resolution")]
     public bool SkipSpotifyUrlResolving { get; set; }
+    
+    [Option('i', "skip-spotify-indexing", Default = false, HelpText = "Skip Spotify indexing")]
+    public bool SkipSpotifyIndexing { get; set; }
+
 }

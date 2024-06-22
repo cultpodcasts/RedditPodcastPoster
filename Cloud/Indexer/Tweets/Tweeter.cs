@@ -39,8 +39,8 @@ public class Tweeter(
 
                 try
                 {
-                    await tweetPoster.PostTweet(podcastEpisode);
-                    tweeted = true;
+                    var tweetStatus = await tweetPoster.PostTweet(podcastEpisode);
+                    tweeted = tweetStatus == TweetSendStatus.Sent;
                 }
                 catch (Exception ex)
                 {

@@ -25,6 +25,7 @@ internal class IndexProcessor(
 
         var indexingContext = new IndexingContext(releasedSince)
         {
+            IndexSpotify = !request.SkipSpotifyIndexing,
             SkipExpensiveYouTubeQueries = request.SkipExpensiveYouTubeQueries,
             SkipPodcastDiscovery = request.SkipPodcastDiscovery,
             SkipExpensiveSpotifyQueries = request.SkipExpensiveSpotifyQueries,
