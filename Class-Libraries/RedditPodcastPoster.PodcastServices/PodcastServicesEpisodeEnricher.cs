@@ -47,6 +47,8 @@ public class PodcastServicesEpisodeEnricher(
                                  string.IsNullOrWhiteSpace(episode.YouTubeId)):
                         await youTubeEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
                         break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(service), $"service='{service}'.");
                 }
             }
 

@@ -142,6 +142,12 @@ public class PodcastRepository(
             updated = true;
         }
 
+        if (existingEpisode.Urls.Apple == null && episodeToMerge.Urls.Apple != null)
+        {
+            existingEpisode.Urls.Apple ??= episodeToMerge.Urls.Apple;
+            updated = true;
+        }
+
         if (existingEpisode.Urls.YouTube == null && episodeToMerge.Urls.YouTube != null)
         {
             existingEpisode.Urls.YouTube ??= episodeToMerge.Urls.YouTube;
@@ -152,6 +158,12 @@ public class PodcastRepository(
             !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
         {
             existingEpisode.SpotifyId = episodeToMerge.SpotifyId;
+            updated = true;
+        }
+
+        if (existingEpisode.AppleId==null && episodeToMerge.AppleId!=null)
+        {
+            existingEpisode.AppleId = episodeToMerge.AppleId;
             updated = true;
         }
 

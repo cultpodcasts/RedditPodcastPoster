@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Episodes;
-using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster;
@@ -20,9 +19,9 @@ public class PodcastProcessor(
         {
             IndexingContext indexingContext = new(
                 processRequest.ReleaseBaseline,
-                processRequest.SkipYouTube,
-                processRequest.SkipSpotify,
-                processRequest.SkipExpensiveQueries);
+                SkipYouTubeUrlResolving: processRequest.SkipYouTube,
+                SkipSpotifyUrlResolving: processRequest.SkipSpotify,
+                SkipExpensiveYouTubeQueries: processRequest.SkipExpensiveQueries);
 
             var originalSkipYouTubeUrlResolving = indexingContext.SkipYouTubeUrlResolving;
             var originalSkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving;

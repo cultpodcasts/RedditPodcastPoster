@@ -21,6 +21,6 @@ public class IndexingStrategy(IDateTimeService dateTimeService) : IIndexingStrat
 
     public bool IndexSpotify()
     {
-        return dateTimeService.GetHour() % 6 != 3;
+        return dateTimeService.GetHour() % 2 == 0;
     }
 }

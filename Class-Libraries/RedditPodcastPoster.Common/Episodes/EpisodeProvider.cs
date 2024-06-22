@@ -16,7 +16,8 @@ public class EpisodeProvider(
     {
         IList<Episode>? episodes = null;
         var handled = false;
-        if (podcast.ReleaseAuthority is null or Service.Spotify && !string.IsNullOrWhiteSpace(podcast.SpotifyId))
+        if (indexingContext.IndexSpotify && podcast.ReleaseAuthority is null or Service.Spotify &&
+            !string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
             (episodes, handled) = await spotifyEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
             if (handled)
