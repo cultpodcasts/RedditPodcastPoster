@@ -16,14 +16,16 @@ public class YouTubeItemResolver(
         if (youTubePublishingDelay < TimeSpan.Zero)
         {
             indexingContext = new IndexingContext(
-                request.Episode.HasAccurateReleaseTime()?request.Episode.Release.Add(youTubePublishingDelay):
-                    DateTime.UtcNow.Add(youTubePublishingDelay),
-                SkipYouTubeUrlResolving: indexingContext.SkipYouTubeUrlResolving,
-                SkipSpotifyUrlResolving: indexingContext.SkipSpotifyUrlResolving,
-                SkipExpensiveYouTubeQueries: indexingContext.SkipExpensiveYouTubeQueries,
-                SkipPodcastDiscovery: indexingContext.SkipPodcastDiscovery,
-                SkipExpensiveSpotifyQueries: indexingContext.SkipExpensiveSpotifyQueries,
-                SkipShortEpisodes: indexingContext.SkipShortEpisodes);
+                request.Episode.HasAccurateReleaseTime()
+                    ? request.Episode.Release.Add(youTubePublishingDelay)
+                    : DateTime.UtcNow.Add(youTubePublishingDelay),
+                indexingContext.IndexSpotify,
+                indexingContext.SkipYouTubeUrlResolving,
+                indexingContext.SkipSpotifyUrlResolving,
+                indexingContext.SkipExpensiveYouTubeQueries,
+                indexingContext.SkipPodcastDiscovery,
+                indexingContext.SkipExpensiveSpotifyQueries,
+                indexingContext.SkipShortEpisodes);
         }
 
         var searchListResponse =
