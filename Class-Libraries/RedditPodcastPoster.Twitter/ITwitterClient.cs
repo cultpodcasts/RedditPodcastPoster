@@ -2,5 +2,5 @@
 
 public interface ITwitterClient
 {
-    Task<bool> Send(string tweet);
+    Task<TweetSendStatus> Send(string tweet);
 }

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Net;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -11,7 +12,7 @@ public class TwitterClient(IOptions<TwitterOptions> options, ILogger<TwitterClie
 {
     private readonly TwitterOptions _options = options.Value;
 
-    public async Task<bool> Send(string tweet)
+    public async Task<TweetSendStatus> Send(string tweet)
     {
         var oauth = new OAuthMessageHandler(_options.ConsumerKey, _options.ConsumerSecret, _options.AccessToken,
             _options.AccessTokenSecret);
@@ -30,12 +31,23 @@ public class TwitterClient(IOptions<TwitterOptions> options, ILogger<TwitterClie
         if (response.IsSuccessStatusCode)
         {
             logger.LogInformation($"Tweet sent successfully! Tweet: '{tweet}'.");
-            return true;
+            return TweetSendStatus.Sent;
+        }
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            var responseBody = await response.Content.ReadAsStringAsync();
+            if (responseBody.Contains("duplicate content"))
+            {
+                logger.LogError(
+                    $"Failed to send tweet. Duplicate-tweet. Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Body: '{await response.Content.ReadAsStringAsync()}'.");
+                return TweetSendStatus.DuplicateForbidden;
+            }
         }
 
         logger.LogError(
             $"Failed to send tweet. Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Body: '{await response.Content.ReadAsStringAsync()}'.");
 
-        return false;
+        return TweetSendStatus.Failed;
     }
 }

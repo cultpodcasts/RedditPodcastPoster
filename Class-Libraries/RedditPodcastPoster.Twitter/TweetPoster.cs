@@ -11,13 +11,13 @@ public class TweetPoster(
     ILogger<TweetPoster> logger)
     : ITweetPoster
 {
-    public async Task PostTweet(PodcastEpisode podcastEpisode)
+    public async Task<TweetSendStatus> PostTweet(PodcastEpisode podcastEpisode)
     {
         var tweet = await tweetBuilder.BuildTweet(podcastEpisode);
-        bool tweeted;
+        TweetSendStatus tweetStatus;
         try
         {
-            tweeted = await twitterClient.Send(tweet);
+            tweetStatus = await twitterClient.Send(tweet);
         }
         catch (Exception ex)
         {
@@ -26,7 +26,7 @@ public class TweetPoster(
             throw;
         }
 
-        if (tweeted)
+        if (tweetStatus is TweetSendStatus.Sent or TweetSendStatus.DuplicateForbidden)
         {
             podcastEpisode.Episode.Tweeted = true;
             try
@@ -39,13 +39,10 @@ public class TweetPoster(
                     $"Failure to save podcast with podcast-id '{podcastEpisode.Podcast.Id}' to update episode with id '{podcastEpisode.Episode.Id}'.");
                 throw;
             }
+
+            return tweetStatus;
         }
-        else
-        {
-            var message =
-                $"Could not post tweet for podcast-episode: Podcast-id: '{podcastEpisode.Podcast.Id}', Episode-id: '{podcastEpisode.Episode.Id}'. Tweet: '{tweet}'.";
-            logger.LogError(message);
-            throw new Exception(message);
-        }
+
+        return tweetStatus;
     }
 }
