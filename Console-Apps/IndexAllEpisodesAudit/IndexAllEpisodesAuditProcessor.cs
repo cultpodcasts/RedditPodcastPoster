@@ -13,15 +13,18 @@ public class IndexAllEpisodesAuditProcessor(
         foreach (var podcast in indexAllEpisodePodcasts)
         {
             var mostRecentEpisode = podcast.Episodes.MaxBy(x => x.Release);
-            var since = DateTime.UtcNow - mostRecentEpisode.Release;
-            if (since > request.Since)
+            if (mostRecentEpisode != null)
             {
-                logger.LogInformation(
-                    $"Podcast '{podcast.Name}' with id '{podcast.Id}'. Most recent episode-release {mostRecentEpisode.Release:d}");
-                if (!request.DryRun)
+                var since = DateTime.UtcNow - mostRecentEpisode.Release;
+                if (since > request.Since)
                 {
-                    podcast.IndexAllEpisodes = false;
-                    await podcastRepository.Save(podcast);
+                    logger.LogInformation(
+                        $"Podcast '{podcast.Name}' with id '{podcast.Id}'. Most recent episode-release {mostRecentEpisode.Release:d}");
+                    if (!request.DryRun)
+                    {
+                        podcast.IndexAllEpisodes = false;
+                        await podcastRepository.Save(podcast);
+                    }
                 }
             }
         }

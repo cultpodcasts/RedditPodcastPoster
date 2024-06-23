@@ -8,7 +8,9 @@ public class RecycledFlareIdProvider : IRecycledFlareIdProvider
         {"pink-b-white", Guid.Parse("de0ca0ce-304f-11ed-ac3b-da4031bd66f5")},
         {"mandarin-d-black", Guid.Parse("ffe7e9ae-3060-11ed-a78d-960987c2a093")},
         {"navyblue-d-white", Guid.Parse("f9a96c40-3284-11ed-ba49-8ef0a808c862")},
-        {"lime-b-black", Guid.Parse("2cec2240-1af8-11ed-87e9-760ee0a08760")}
+        {"lime-b-black", Guid.Parse("2cec2240-1af8-11ed-87e9-760ee0a08760")},
+        {"navyblue-b-white", Guid.Parse("86417974-3fd5-11ed-aaee-aa2480d4d51a")},
+        {"brown-b-black", Guid.Parse("59d3427a-1af8-11ed-abbd-ba80b9e0dfe4")}
     };
 
     public Guid GetId(string key)
