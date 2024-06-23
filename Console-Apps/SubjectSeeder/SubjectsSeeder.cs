@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Reddit;
+using Reddit.Inputs.Flair;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Reddit;
@@ -31,7 +32,8 @@ public class SubjectsSeeder(
 
         if (match == null)
         {
-            if (!string.IsNullOrWhiteSpace(subjectRequest.Flair))
+            if (!string.IsNullOrWhiteSpace(subjectRequest.Flair) ||
+                !string.IsNullOrWhiteSpace(subjectRequest.RecycledFlairName))
             {
                 if (subjectRequest.CreateFlair)
                 {
@@ -59,6 +61,49 @@ public class SubjectsSeeder(
                     }
 
                     var flairId = recycledFlareIdProvider.GetId(subjectRequest.RecycledFlairName);
+
+                    // verify flare is user editable
+                    var subredditFlairs = redditClient
+                        .Subreddit(_subredditSettings.SubredditName)
+                        .Flairs
+                        .GetLinkFlairV2();
+                    var flair = subredditFlairs.SingleOrDefault(x => x.Id == flairId.ToString());
+                    if (flair == null)
+                    {
+                        throw new InvalidOperationException($"Unable to find subreddit-flair with id '{flairId}'.");
+                    }
+
+                    if (!flair.TextEditable)
+                    {
+                        var subjectUsingFlair = await subjectRepository.GetBy(x => x.RedditFlairTemplateId == flairId);
+                        if (subjectUsingFlair != null)
+                        {
+                            subject.RedditFlareText = flair.Text;
+                            await subjectRepository.Save(subjectUsingFlair);
+                            logger.LogInformation(
+                                $"Adjusted subject '{subjectUsingFlair.Name}' with id '{subjectUsingFlair.Id}' to have  {nameof(subjectUsingFlair.RedditFlareText)}='{flair.Text}'.");
+                        }
+
+                        flair.TextEditable = true;
+                        var updateResult = await redditClient
+                            .Subreddit(_subredditSettings.SubredditName)
+                            .Flairs
+                            .UpdateLinkFlairTemplateV2Async(new FlairTemplateV2Input
+                            {
+                                background_color = flair.BackgroundColor,
+                                flair_template_id = flair.Id,
+                                flair_type = flair.Type,
+                                text = flair.Text,
+                                text_color = flair.TextColor,
+                                text_editable = true
+                            });
+                        if (!updateResult.TextEditable)
+                        {
+                            logger.LogError($"Error updating flare '{flair.Text}' with id '{flair.Id}'.");
+                        }
+                    }
+
+
                     subject.RedditFlairTemplateId = flairId;
                     subject.RedditFlareText = subjectRequest.Flair;
                 }

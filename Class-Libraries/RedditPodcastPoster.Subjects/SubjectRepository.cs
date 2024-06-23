@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Linq.Expressions;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
@@ -31,5 +32,10 @@ public class SubjectRepository(
         return repository
             .GetAllBy<Subject>(x => names.Contains(x.Name))
             .OrderBy(s => Array.IndexOf(names, s.Name));
+    }
+
+    public Task<Subject?> GetBy(Expression<Func<Subject, bool>> selector)
+    {
+        return repository.GetBy(selector);
     }
 }
