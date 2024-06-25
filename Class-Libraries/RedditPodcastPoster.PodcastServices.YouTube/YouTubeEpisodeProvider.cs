@@ -51,7 +51,7 @@ public class YouTubeEpisodeProvider(
             searchResult.Id.VideoId,
             searchResult.Snippet.Title.Trim(),
             videoDetails.Snippet.Description.Trim(),
-            videoDetails.GetLength(),
+            videoDetails.GetLength() ?? TimeSpan.Zero,
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
             searchResult.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
             searchResult.ToYouTubeUrl());
@@ -63,7 +63,7 @@ public class YouTubeEpisodeProvider(
             playlistItemSnippet.ResourceId.VideoId,
             playlistItemSnippet.Title.Trim(),
             videoDetails.Snippet.Description.Trim(),
-            videoDetails.GetLength(),
+            videoDetails.GetLength() ?? TimeSpan.Zero,
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
             playlistItemSnippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
             playlistItemSnippet.ToYouTubeUrl());
@@ -95,8 +95,10 @@ public class YouTubeEpisodeProvider(
             return new GetPlaylistEpisodesResponse(
                 results
                     .Where(x => x.Snippet.Title != "Deleted video")
-                    .Select(x=>new PlaylistItemVideo( x, videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == x.Snippet.ResourceId.VideoId)!))
-                    .Where(x => youTubeChannelId == null || x.VideoDetails.Snippet.ChannelId == youTubeChannelId.ChannelId)
+                    .Select(x => new PlaylistItemVideo(x,
+                        videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == x.Snippet.ResourceId.VideoId)!))
+                    .Where(x => youTubeChannelId == null ||
+                                x.VideoDetails.Snippet.ChannelId == youTubeChannelId.ChannelId)
                     .Select(x => GetEpisode(x.PlaylistItem.Snippet, x.VideoDetails))
                     .ToList(), isExpensiveQuery);
         }

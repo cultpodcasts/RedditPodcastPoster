@@ -83,7 +83,7 @@ public class YouTubeUrlCategoriser(
                         item.Snippet.Title,
                         item.Snippet.Description,
                         item.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-                        item.GetLength(),
+                        item.GetLength() ?? TimeSpan.Zero,
                         item.ToYouTubeUrl(),
                         item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted"
                     );
