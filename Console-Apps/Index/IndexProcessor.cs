@@ -38,6 +38,13 @@ internal class IndexProcessor(
         {
             podcastIds = new[] {request.PodcastId.Value};
         }
+        else if (request.PodcastName != null)
+        {
+            podcastIds = await podcastRepository.GetAllBy(x =>
+                    x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
+                x => x.Id).ToListAsync();
+            logger.LogInformation($"Found {podcastIds.Count()} podcasts.");
+        }
         else
         {
             podcastIds = await podcastRepository.GetAllIds().ToArrayAsync();
