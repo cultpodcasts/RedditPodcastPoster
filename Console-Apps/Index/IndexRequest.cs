@@ -7,6 +7,9 @@ public class IndexRequest
     [Option('p', "podcast-id", Required = false, HelpText = "The id of the podcast to index")]
     public Guid? PodcastId { get; set; }
 
+    [Option('n', "podcast-name", Required = false, HelpText = "The name of the podcast to index")]
+    public string? PodcastName { get; set; }
+
     [Option('r', "released-since", Default = 2, HelpText = "Will index episodes released within this many days")]
     public int ReleasedSince { get; set; }
 
@@ -24,8 +27,7 @@ public class IndexRequest
 
     [Option('f', "skip-spotify-url-resolving", Default = false, HelpText = "Skip Spotify url resolution")]
     public bool SkipSpotifyUrlResolving { get; set; }
-    
+
     [Option('i', "skip-spotify-indexing", Default = false, HelpText = "Skip Spotify indexing")]
     public bool SkipSpotifyIndexing { get; set; }
-
 }
