@@ -15,28 +15,35 @@ public class ShortnerService(
     IOptions<CloudFlareOptions> cloudFlareOptions,
     ILogger<ShortnerService> logger) : IShortnerService
 {
+    private static readonly JsonSerializerOptions JsonSerializerOptions = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
     private readonly CloudFlareOptions _cloudFlareOptions = cloudFlareOptions.Value;
 
     public async Task<WriteResult> Write(IEnumerable<PodcastEpisode> podcastEpisodes)
     {
         var items = podcastEpisodes.Select(x =>
-            new ShortUrlRecord(x.Podcast.PodcastNameInSafeUrlForm(), x.Episode.Id, x.Episode.Id.ToBase64()));
+            new ShortUrlRecord(
+                x.Podcast.PodcastNameInSafeUrlForm(),
+                x.Episode.Id,
+                x.Episode.Id.ToBase64(),
+                x.Episode.Title));
         var kvRecords = items.Select(x => new KVRecord
         {
             Key = x.Base64EpisodeKey,
-            Value = $"{x.PodcastName}/{x.EpisodeId}"
+            Value = $"{x.PodcastName}/{x.EpisodeId}",
+            Metadata = new {episodeTitle = x.EpisodeTitle}
         }).ToArray();
 
-        var url = BulkWriteUrl(_cloudFlareOptions.AccountId, _cloudFlareOptions.KVShortnerNamespaceId);
+        var url = GetBulkWriteUrl(_cloudFlareOptions.AccountId, _cloudFlareOptions.KVShortnerNamespaceId);
         using var request = new HttpRequestMessage();
         request.Method = HttpMethod.Put;
         request.RequestUri = url;
         request.Headers.Add("Authorization", $"Bearer {_cloudFlareOptions.KVApiToken}");
 
-        var requestContent = JsonContent.Create(kvRecords, options: new JsonSerializerOptions
-        {
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-        });
+        var requestContent = JsonContent.Create(kvRecords, options: JsonSerializerOptions);
 
         request.Content = requestContent;
         var result = await httpClient.SendAsync(request);
@@ -45,17 +52,22 @@ public class ShortnerService(
             logger.LogError(
                 $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
         }
+
         return new WriteResult(result.StatusCode == HttpStatusCode.OK);
     }
 
     public async Task<WriteResult> Write(PodcastEpisode podcastEpisode)
     {
-        var item = new ShortUrlRecord(podcastEpisode.Podcast.PodcastNameInSafeUrlForm(), podcastEpisode.Episode.Id,
-            podcastEpisode.Episode.Id.ToBase64());
+        var item = new ShortUrlRecord(
+            podcastEpisode.Podcast.PodcastNameInSafeUrlForm(),
+            podcastEpisode.Episode.Id,
+            podcastEpisode.Episode.Id.ToBase64(),
+            podcastEpisode.Episode.Title);
         var kvRecord = new KVRecord
         {
             Key = item.Base64EpisodeKey,
-            Value = $"{item.PodcastName}/{item.EpisodeId}"
+            Value = $"{item.PodcastName}/{item.EpisodeId}",
+            Metadata = new {episodeTitle = item.EpisodeTitle}
         };
 
         var url = WriteUrl(_cloudFlareOptions.AccountId, _cloudFlareOptions.KVShortnerNamespaceId, kvRecord.Key);
@@ -65,7 +77,8 @@ public class ShortnerService(
         request.Headers.Add("Authorization", $"Bearer {_cloudFlareOptions.KVApiToken}");
         var requestContent = new MultipartFormDataContent();
         requestContent.Add(new StringContent(kvRecord.Value), "value");
-        requestContent.Add(new StringContent("{}"), "metadata");
+        var metaData = JsonSerializer.Serialize(kvRecord.Metadata, JsonSerializerOptions);
+        requestContent.Add(new StringContent(metaData), "metadata");
         request.Content = requestContent;
         var result = await httpClient.SendAsync(request);
         if (result.StatusCode != HttpStatusCode.OK)
@@ -73,10 +86,11 @@ public class ShortnerService(
             logger.LogError(
                 $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
         }
+
         return new WriteResult(result.StatusCode == HttpStatusCode.OK);
     }
 
-    private Uri BulkWriteUrl(string accountId, string namespaceId)
+    private Uri GetBulkWriteUrl(string accountId, string namespaceId)
     {
         return new Uri(
             $"https://api.cloudflare.com/client/v4/accounts/{accountId}/storage/kv/namespaces/{namespaceId}/bulk");
