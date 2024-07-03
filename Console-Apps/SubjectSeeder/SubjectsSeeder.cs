@@ -78,7 +78,7 @@ public class SubjectsSeeder(
                         var subjectUsingFlair = await subjectRepository.GetBy(x => x.RedditFlairTemplateId == flairId);
                         if (subjectUsingFlair != null)
                         {
-                            subject.RedditFlareText = flair.Text;
+                            subjectUsingFlair.RedditFlareText = flair.Text;
                             await subjectRepository.Save(subjectUsingFlair);
                             logger.LogInformation(
                                 $"Adjusted subject '{subjectUsingFlair.Name}' with id '{subjectUsingFlair.Id}' to have  {nameof(subjectUsingFlair.RedditFlareText)}='{flair.Text}'.");
