@@ -13,8 +13,7 @@ public class PodcastsSubscriber(
     {
         var podcasts =
             await podcastRepository
-                .GetAll()
-                .Where(x => x.IndexAllEpisodes && !string.IsNullOrWhiteSpace(x.YouTubeChannelId))
+                .GetAllBy(x => x.IndexAllEpisodes && !string.IsNullOrWhiteSpace(x.YouTubeChannelId))
                 .ToListAsync();
         var podcastsToSubscribe = podcasts
             .Where(podcastToSubscribe => string.IsNullOrWhiteSpace(podcastToSubscribe.YouTubePlaylistId) ||

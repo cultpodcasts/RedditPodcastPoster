@@ -23,8 +23,7 @@ public class AddYouTubeChannelProcessor(
         if (match != null)
         {
             logger.LogInformation($"Found channel-id: {match.Snippet.ChannelId}");
-            var allPodcasts = await repository.GetAll().ToListAsync();
-            var matchingPodcast = allPodcasts.SingleOrDefault(x => x.YouTubeChannelId == match.Snippet.ChannelId);
+            var matchingPodcast = await repository.GetBy(x => x.YouTubeChannelId == match.Snippet.ChannelId);
             if (matchingPodcast != null)
             {
                 logger.LogError(

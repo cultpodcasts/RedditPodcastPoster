@@ -11,11 +11,11 @@ public class EpisodeResolver(IPodcastRepository podcastRepository, ILogger<Episo
 
     public async Task<PodcastEpisode> ResolveServiceUrl(Uri url)
     {
-        var storedPodcasts = await podcastRepository.GetAll().ToListAsync();
-        var matchingPodcast = storedPodcasts.SingleOrDefault(x =>
+        var matchingPodcast = await podcastRepository.GetBy(x =>
             x.Episodes.Select(y => y.Urls.Spotify).Contains(url) ||
             x.Episodes.Select(y => y.Urls.Apple).Contains(url) ||
-            x.Episodes.Select(y => y.Urls.YouTube).Contains(url));
+            x.Episodes.Select(y => y.Urls.YouTube).Contains(url)
+        );
         var matchingEpisode = matchingPodcast?.Episodes
             .SingleOrDefault(x => x.Urls.Spotify == url || x.Urls.Apple == url || x.Urls.YouTube == url);
         return new PodcastEpisode(
