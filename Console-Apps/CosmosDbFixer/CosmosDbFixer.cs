@@ -13,10 +13,11 @@ public class CosmosDbFixer(
 
     public async Task Run()
     {
-        var podcasts = await podcastRepository.GetAll().ToListAsync();
-        foreach (var podcast in podcasts)
+        var podcastIds = await podcastRepository.GetAllIds().ToListAsync();
+        foreach (var podcastId in podcastIds)
         {
-            foreach (var episode in podcast.Episodes)
+            var podcast = await podcastRepository.GetBy(x => x.Id == podcastId);
+            foreach (var episode in podcast!.Episodes)
             {
                 if (episode.Urls.Apple != null)
                 {

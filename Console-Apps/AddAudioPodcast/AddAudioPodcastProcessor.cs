@@ -27,15 +27,14 @@ public class AddAudioPodcastProcessor(
     public async Task Create(AddAudioPodcastRequest request)
     {
         var indexingContext = new IndexingContext {SkipPodcastDiscovery = false};
-        var existingPodcasts = await podcastRepository.GetAll().ToListAsync();
         Podcast? podcast = null;
         if (!request.AppleReleaseAuthority)
         {
-            podcast = await GetSpotifyPodcast(request, indexingContext, existingPodcasts);
+            podcast = await GetSpotifyPodcast(request, indexingContext);
         }
         else
         {
-            podcast = await GetApplePodcast(request, indexingContext, existingPodcasts);
+            podcast = await GetApplePodcast(request, indexingContext);
         }
 
         if (podcast != null)
@@ -99,13 +98,12 @@ public class AddAudioPodcastProcessor(
         }
     }
 
-    private async Task<Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext,
-        List<Podcast> existingPodcasts)
+    private async Task<Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
     {
         var spotifyPodcast =
             await spotifyClient.Shows.Get(request.PodcastId, new ShowRequest {Market = Market.CountryCode});
-
-        var podcast = existingPodcasts.SingleOrDefault(x => x.SpotifyId == request.PodcastId);
+        logger.LogInformation("Retrieved spotify podcast");
+        var podcast = await podcastRepository.GetBy(x => x.SpotifyId == request.PodcastId);
         if (podcast == null)
         {
             podcast = podcastFactory.Create(spotifyPodcast.Name);
@@ -120,11 +118,11 @@ public class AddAudioPodcastProcessor(
         return podcast;
     }
 
-    private async Task<Podcast?> GetApplePodcast(AddAudioPodcastRequest request, IndexingContext indexingContext,
-        List<Podcast> existingPodcasts)
+    private async Task<Podcast?> GetApplePodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
     {
         var id = long.Parse(request.PodcastId);
         var applePodcast = (await iTunesSearchManager.GetPodcastById(id)).Podcasts.SingleOrDefault();
+        logger.LogInformation("Retrieved apple podcast");
 
         if (applePodcast == null)
         {
@@ -132,7 +130,7 @@ public class AddAudioPodcastProcessor(
             return null;
         }
 
-        var podcast = existingPodcasts.SingleOrDefault(x => x.AppleId == id);
+        var podcast = await podcastRepository.GetBy(x => x.AppleId == id);
         if (podcast == null)
         {
             podcast = podcastFactory.Create(applePodcast.Name);

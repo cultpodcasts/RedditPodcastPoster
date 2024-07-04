@@ -41,19 +41,31 @@ public sealed class DiscoveryResultsDocument : CosmosSelector
     [JsonPropertyOrder(32)]
     public bool IncludeListenNotes { get; set; }
 
-    [JsonPropertyName("enrichListenNotesFromSpotify")]
+    [JsonPropertyName("includeTaddy")]
     [JsonPropertyOrder(33)]
-    public bool EnrichListenNotesFromSpotify { get; set; }
+    public bool IncludeTaddy { get; set; }
+
+    [JsonPropertyName("enrichListenNotesFromSpotify")]
+    [JsonPropertyOrder(40)]
+    public bool? EnrichListenNotesFromSpotify { get; set; }
+
+    [JsonPropertyName("enrichFromSpotify")]
+    [JsonPropertyOrder(41)]
+    public bool? EnrichFromSpotify { get; set; }
+
+    [JsonPropertyName("enrichFromApple")]
+    [JsonPropertyOrder(42)]
+    public bool? EnrichFromApple { get; set; }
 
     [JsonPropertyName("searchSince")]
-    [JsonPropertyOrder(34)]
+    [JsonPropertyOrder(50)]
     public required string SearchSince { get; set; }
 
     [JsonPropertyName("preSkipSpotifyUrlResolving")]
-    [JsonPropertyOrder(35)]
+    [JsonPropertyOrder(60)]
     public bool PreSkipSpotifyUrlResolving { get; set; }
 
     [JsonPropertyName("postSkipSpotifyUrlResolving")]
-    [JsonPropertyOrder(36)]
+    [JsonPropertyOrder(61)]
     public bool PostSkipSpotifyUrlResolving { get; set; }
 }

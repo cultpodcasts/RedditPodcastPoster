@@ -63,8 +63,8 @@ public class Discover(
             var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
             logger.LogInformation(
                 $"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}'), indexing-context: {indexingContext}");
-            var discoveryConfig = new DiscoveryConfig(serviceConfigs, _discoverOptions.EnrichListenNotesFromSpotify,
-                _discoverOptions.EnrichSpotifyFromApple);
+            var discoveryConfig = new DiscoveryConfig(serviceConfigs, _discoverOptions.EnrichFromSpotify,
+                _discoverOptions.EnrichFromApple);
 
             var preIndexingContextSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
             var discoveryResults = await discoveryService.GetDiscoveryResults(indexingContext, discoveryConfig);
@@ -136,7 +136,9 @@ public class Discover(
         discoveryResultsDocument.ExcludeSpotify = discoverOptions.ExcludeSpotify;
         discoveryResultsDocument.IncludeYouTube = discoverOptions.IncludeYouTube;
         discoveryResultsDocument.IncludeListenNotes = discoverOptions.IncludeListenNotes;
-        discoveryResultsDocument.EnrichListenNotesFromSpotify = discoverOptions.EnrichListenNotesFromSpotify;
+        discoveryResultsDocument.IncludeTaddy = discoverOptions.IncludeTaddy;
+        discoveryResultsDocument.EnrichFromSpotify = discoverOptions.EnrichFromSpotify;
+        discoveryResultsDocument.EnrichFromApple = discoverOptions.EnrichFromApple;
         discoveryResultsDocument.PreSkipSpotifyUrlResolving = preIndexingContextSkipSpotify;
         discoveryResultsDocument.PostSkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving;
     }
