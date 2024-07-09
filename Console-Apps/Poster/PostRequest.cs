@@ -32,4 +32,7 @@ public class PostRequest
     [Value(0, MetaName = "released-within-days", HelpText = "The number of days episodes to post have been released in",
         Required = false, Default = 2)]
     public int ReleasedWithin { get; set; }
+
+    [Option('f', "flip-when-ignored", Required = false, HelpText = "Flip ignored to false if true and post")]
+    public bool FlipIgnored { get; set; }
 }

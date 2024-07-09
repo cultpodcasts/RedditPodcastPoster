@@ -124,7 +124,7 @@ public partial class CreateSearchIndexProcessor(
                             JOIN e IN p.episodes
                             WHERE ((NOT IS_DEFINED(p.removed)) OR p.removed=false)
                               and e.removed = false 
-                              and e.ignored=false
+                              and e.ignored = false
                               and p._ts >= @HighWaterMark
                             ORDER BY p._ts";
             query = Whitespace.Replace(query, " ").Trim();

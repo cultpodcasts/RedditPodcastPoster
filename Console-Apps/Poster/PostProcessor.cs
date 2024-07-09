@@ -103,6 +103,12 @@ public class PostProcessor(
         {
             var selectedPodcast = podcasts.Single(x => x.Episodes.Any(e => e.Id == request.EpisodeId));
             var selectedEpisode = selectedPodcast.Episodes.Single(x => x.Id == request.EpisodeId);
+
+            if (selectedEpisode.Ignored && request.FlipIgnored)
+            {
+                selectedEpisode.Ignored = false;
+            }
+
             if (selectedEpisode.Posted || selectedEpisode.Ignored || selectedEpisode.Removed)
             {
                 logger.LogWarning(

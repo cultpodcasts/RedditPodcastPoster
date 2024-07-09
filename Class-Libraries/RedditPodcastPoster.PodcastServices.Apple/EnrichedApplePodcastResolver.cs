@@ -16,30 +16,46 @@ public class EnrichedApplePodcastResolver(
         if (podcast != null)
         {
             var applePodcastUrl = GetApplePodcastUrl(podcast.Id);
-            var applePodcastPage = await httpClient.GetAsync(applePodcastUrl);
-            applePodcastPage.EnsureSuccessStatusCode();
-
-            var document = new HtmlDocument();
-            document.Load(await applePodcastPage.Content.ReadAsStreamAsync());
-            var applePodcastDetailsNode =
-                document.DocumentNode.SelectSingleNode("//script[@name=\"schema:podcast-show\"]");
-            if (applePodcastDetailsNode is {InnerText: not null})
+            HttpResponseMessage? applePodcastPage = null;
+            try
             {
-                try
-                {
-                    var podcastDetails = JsonNode.Parse(applePodcastDetailsNode.InnerText)!.AsObject();
-                    var description = podcastDetails["description"]?.GetValue<string>();
-                    podcast.Description = description;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Unable to parse as JSON: 'content'.");
-                }
+                applePodcastPage = await httpClient.GetAsync(applePodcastUrl);
+                applePodcastPage.EnsureSuccessStatusCode();
             }
-            else
+            catch (HttpIOException e)
             {
-                logger.LogWarning(
-                    $"Unable to locate <script name='schema:podcast-show'> tag with inner-text in url '{applePodcastUrl}'.");
+                logger.LogError(e,
+                    $"Unable to retrieve apple-podcast-page at url '{applePodcastUrl}', http-request-error: '{e.HttpRequestError}'.");
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, $"Unable to retrieve apple-podcast-page at url '{applePodcastUrl}'.");
+            }
+
+            if (applePodcastPage != null)
+            {
+                var document = new HtmlDocument();
+                document.Load(await applePodcastPage.Content.ReadAsStreamAsync());
+                var applePodcastDetailsNode =
+                    document.DocumentNode.SelectSingleNode("//script[@name=\"schema:podcast-show\"]");
+                if (applePodcastDetailsNode is {InnerText: not null})
+                {
+                    try
+                    {
+                        var podcastDetails = JsonNode.Parse(applePodcastDetailsNode.InnerText)!.AsObject();
+                        var description = podcastDetails["description"]?.GetValue<string>();
+                        podcast.Description = description;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Unable to parse as JSON: 'content'.");
+                    }
+                }
+                else
+                {
+                    logger.LogWarning(
+                        $"Unable to locate <script name='schema:podcast-show'> tag with inner-text in url '{applePodcastUrl}'.");
+                }
             }
         }
 

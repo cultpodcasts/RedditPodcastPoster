@@ -86,9 +86,17 @@ internal class IndexProcessor(
             }
             else
             {
-                if (podcast != null && podcast.IsRemoved())
+                if (podcast != null)
                 {
-                    logger.LogWarning($"Podcast with id '{podcast.Id}' is removed.");
+                    if (podcast.IsRemoved())
+                    {
+                        logger.LogWarning($"Podcast '{podcast.Name}' with id '{podcast.Id}' is removed.");
+                    }
+                    else
+                    {
+                        logger.LogWarning(
+                            $"Podcast '{podcast.Name}' with id '{podcast.Id}' ignored. index-all-episodes '{podcast.IndexAllEpisodes}', episode-include-title-regex: '{podcast.EpisodeIncludeTitleRegex}'.");
+                    }
                 }
             }
         }
