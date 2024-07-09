@@ -23,6 +23,11 @@ public class ApplePodcastResolver(
                 var podcastResult = await iTunesSearchManager.GetPodcastById(request.PodcastAppleId.Value);
                 matchingPodcast = podcastResult.Podcasts.FirstOrDefault();
             }
+            catch (HttpRequestException ex)
+            {
+                logger.LogError(ex,
+                    $"Error invoking {nameof(iTunesSearchManager.GetPodcastById)} with id '{request.PodcastAppleId.Value}', status-code: {ex.HttpRequestError}, http-request-error: '{ex.HttpRequestError}'.");
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex,
@@ -42,6 +47,11 @@ public class ApplePodcastResolver(
                 }
 
                 matchingPodcast = podcasts.FirstOrDefault(x => x.Name.ToLower() == request.PodcastName.ToLower());
+            }
+            catch (HttpRequestException ex)
+            {
+                logger.LogError(ex,
+                    $"Error invoking {nameof(iTunesSearchManager.GetPodcasts)} with podcast-name '{request.PodcastName}', status-code: {ex.HttpRequestError}, http-request-error: '{ex.HttpRequestError}'.");
             }
             catch (Exception e)
             {
