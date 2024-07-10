@@ -35,4 +35,7 @@ public class PostRequest
 
     [Option('f', "flip-when-ignored", Required = false, HelpText = "Flip ignored to false if true and post")]
     public bool FlipIgnored { get; set; }
+
+    [Option('n', "name", Required = false, HelpText = "Name of the podcast (will perform partial-match")]
+    public string? PodcastName { get; set; }
 }
