@@ -42,6 +42,12 @@ public class PostProcessor(
 
             podcasts = new[] {podcast};
         }
+        else if (request.PodcastName != null)
+        {
+            podcasts = await repository.GetAllBy(x =>
+                x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase)).ToListAsync();
+            logger.LogInformation($"Found {podcasts.Count()} podcasts.");
+        }
         else
         {
             podcasts = await repository.GetAll().ToListAsync();

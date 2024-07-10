@@ -49,7 +49,7 @@ public class RedditLinkPoster(
             }
             else
             {
-                logger.LogError(ex, $"Error posting link '{link}' and title '{title}'.");
+                logger.LogError(ex, $"Forbidden from posting link '{link}' and title '{title}'.");
             }
 
             throw;
