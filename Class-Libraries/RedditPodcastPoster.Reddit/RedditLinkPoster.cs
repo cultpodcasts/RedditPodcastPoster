@@ -38,7 +38,21 @@ public class RedditLinkPoster(
         }
         catch (RedditAlreadySubmittedException ex)
         {
-            logger.LogError(ex, $"Post already submitted. Link: '{link}'.");
+            logger.LogError(ex, $"Post already submitted. Link: '{link}' and title '{title}'.");
+        }
+        catch (RedditForbiddenException ex)
+        {
+            if (ex.InnerException != null)
+            {
+                logger.LogError(ex,
+                    $"Forbidden from posting link '{link}' and title '{title}'. Inner-exception-message: '{ex.InnerException.Message}'.");
+            }
+            else
+            {
+                logger.LogError(ex, $"Error posting link '{link}' and title '{title}'.");
+            }
+
+            throw;
         }
         catch (Exception ex)
         {
