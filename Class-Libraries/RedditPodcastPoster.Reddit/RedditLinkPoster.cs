@@ -42,15 +42,11 @@ public class RedditLinkPoster(
         }
         catch (RedditForbiddenException ex)
         {
-            if (ex.InnerException != null)
-            {
-                logger.LogError(ex,
-                    $"Forbidden from posting link '{link}' and title '{title}'. Inner-exception-message: '{ex.InnerException.Message}'.");
-            }
-            else
-            {
-                logger.LogError(ex, $"Forbidden from posting link '{link}' and title '{title}'.");
-            }
+            var statusDescription = (string) (ex.Data["StatusDescription"] ?? string.Empty);
+            var content = (string) (ex.Data["Content"] ?? string.Empty);
+
+            logger.LogError(ex,
+                $"Forbidden from posting link '{link}' and title '{title}'. Status: '{statusDescription}', content: '{content}'.");
 
             throw;
         }
