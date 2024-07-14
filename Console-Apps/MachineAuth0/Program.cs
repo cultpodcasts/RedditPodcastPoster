@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Auth0.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.EdgeApi.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -19,17 +20,8 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddSingleton<MachineAuth0Processor>()
-    .AddScoped<IApiClient, ApiClient>()
     .AddAuth0Client()
-    .AddHttpClient<IApiClient, ApiClient>()
-    .ConfigurePrimaryHttpMessageHandler(() =>
-    {
-        return new HttpClientHandler
-        {
-            ServerCertificateCustomValidationCallback = (m, c, ch, e) => true
-        };
-    });
-builder.Services.BindConfiguration<ApiOptions>("api");
+    .AddEdgeApiClient();
 
 using var host = builder.Build();
 var urlSubmitter = host.Services.GetService<MachineAuth0Processor>()!;

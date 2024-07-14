@@ -5,7 +5,13 @@ using Microsoft.Extensions.Options;
 
 namespace RedditPodcastPoster.Auth0;
 
-public class Auth0Client(IOptions<Auth0Options> auth0Options, HttpClient httpClient, ILogger<Auth0Client> logger)
+public class Auth0Client(
+    IOptions<Auth0Options> auth0Options,
+    HttpClient httpClient,
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<Auth0Client> logger
+#pragma warning restore CS9113 // Parameter is unread.
+)
     : IAuth0Client
 {
     private readonly Auth0Options _auth0Options = auth0Options.Value;

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Auth0;
 
-namespace MachineAuth0;
+namespace RedditPodcastPoster.EdgeApi;
 
 public class ApiClient(
     HttpClient httpClient,

@@ -160,6 +160,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MachineAuth0", "Console-App
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Auth0", "Class-Libraries\RedditPodcastPoster.Auth0\RedditPodcastPoster.Auth0.csproj", "{FCED4F2F-4C0C-4BC0-962C-AE41C31C5FF6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.EdgeApi", "Class-Libraries\RedditPodcastPoster.EdgeApi\RedditPodcastPoster.EdgeApi.csproj", "{8D9DD880-F206-445C-8771-58C195EC4F7E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -434,6 +436,10 @@ Global
 		{FCED4F2F-4C0C-4BC0-962C-AE41C31C5FF6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FCED4F2F-4C0C-4BC0-962C-AE41C31C5FF6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FCED4F2F-4C0C-4BC0-962C-AE41C31C5FF6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8D9DD880-F206-445C-8771-58C195EC4F7E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8D9DD880-F206-445C-8771-58C195EC4F7E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8D9DD880-F206-445C-8771-58C195EC4F7E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8D9DD880-F206-445C-8771-58C195EC4F7E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -507,6 +513,7 @@ Global
 		{931329EE-7C87-4FC5-B4D0-CD904E65E544} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{CFA9BE95-64C2-4563-A685-B89482B6718D} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{FCED4F2F-4C0C-4BC0-962C-AE41C31C5FF6} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{8D9DD880-F206-445C-8771-58C195EC4F7E} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

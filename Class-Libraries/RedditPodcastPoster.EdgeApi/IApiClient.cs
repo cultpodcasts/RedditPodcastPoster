@@ -1,4 +1,4 @@
-﻿namespace MachineAuth0;
+﻿namespace RedditPodcastPoster.EdgeApi;
 
 public interface IApiClient
 {
