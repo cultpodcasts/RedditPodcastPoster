@@ -21,7 +21,7 @@ builder.Services
     .AddLogging()
     .AddSingleton<MachineAuth0Processor>()
     .AddAuth0Client()
-    .AddEdgeApiClient();
+    .AddEdgeApiClient(true);
 
 using var host = builder.Build();
 var urlSubmitter = host.Services.GetService<MachineAuth0Processor>()!;
