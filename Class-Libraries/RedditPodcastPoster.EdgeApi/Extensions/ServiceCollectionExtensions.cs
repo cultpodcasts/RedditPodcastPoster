@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.Auth0.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 
 namespace RedditPodcastPoster.EdgeApi.Extensions;
@@ -9,8 +10,8 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         bool bypassCertificateValidation)
     {
+        services.AddAuth0Client();
         services.BindConfiguration<ApiOptions>("api");
-
         services.AddScoped<IApiClient, ApiClient>();
         if (bypassCertificateValidation)
         {

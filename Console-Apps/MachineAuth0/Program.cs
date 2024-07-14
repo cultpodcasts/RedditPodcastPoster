@@ -20,7 +20,6 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddSingleton<MachineAuth0Processor>()
-    .AddAuth0Client()
     .AddEdgeApiClient(true);
 
 using var host = builder.Build();
