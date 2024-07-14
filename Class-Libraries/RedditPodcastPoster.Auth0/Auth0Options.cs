@@ -1,4 +1,4 @@
-﻿namespace MachineAuth0;
+﻿namespace RedditPodcastPoster.Auth0;
 
 public class Auth0Options
 {

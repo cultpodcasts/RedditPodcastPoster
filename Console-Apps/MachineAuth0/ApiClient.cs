@@ -2,6 +2,7 @@
 using System.Net.Http.Headers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Auth0;
 
 namespace MachineAuth0;
 

@@ -3,7 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace MachineAuth0;
+namespace RedditPodcastPoster.Auth0;
 
 public class Auth0Client(IOptions<Auth0Options> auth0Options, HttpClient httpClient, ILogger<Auth0Client> logger)
     : IAuth0Client

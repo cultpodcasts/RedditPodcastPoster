@@ -3,6 +3,7 @@ using MachineAuth0;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.Auth0.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -19,7 +20,7 @@ builder.Services
     .AddLogging()
     .AddSingleton<MachineAuth0Processor>()
     .AddScoped<IApiClient, ApiClient>()
-    .AddScoped<IAuth0Client, Auth0Client>()
+    .AddAuth0Client()
     .AddHttpClient<IApiClient, ApiClient>()
     .ConfigurePrimaryHttpMessageHandler(() =>
     {
@@ -28,7 +29,6 @@ builder.Services
             ServerCertificateCustomValidationCallback = (m, c, ch, e) => true
         };
     });
-builder.Services.BindConfiguration<Auth0Options>("auth0client");
 builder.Services.BindConfiguration<ApiOptions>("api");
 
 using var host = builder.Build();
