@@ -13,6 +13,7 @@ namespace RedditPodcastPoster.UrlShortening;
 public class ShortnerService(
     HttpClient httpClient,
     IOptions<CloudFlareOptions> cloudFlareOptions,
+    IOptions<ShortnerOptions> shortnerOptions,
     ILogger<ShortnerService> logger) : IShortnerService
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
@@ -21,6 +22,7 @@ public class ShortnerService(
     };
 
     private readonly CloudFlareOptions _cloudFlareOptions = cloudFlareOptions.Value;
+    private readonly ShortnerOptions _shortnerOptions = shortnerOptions.Value;
 
     public async Task<WriteResult> Write(IEnumerable<PodcastEpisode> podcastEpisodes)
     {
@@ -87,7 +89,9 @@ public class ShortnerService(
                 $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
         }
 
-        return new WriteResult(result.StatusCode == HttpStatusCode.OK);
+        return new WriteResult(
+            result.StatusCode == HttpStatusCode.OK,
+            new Uri($"{_shortnerOptions.ShortnerUrl}{podcastEpisode.Episode.Id.ToBase64()}"));
     }
 
     private Uri GetBulkWriteUrl(string accountId, string namespaceId)

@@ -98,6 +98,11 @@ public class ApplePodcastService : IApplePodcastService
                 }
             }
         }
+        else
+        {
+            _logger.LogError(
+                $"Failure calling apple-api with url '{requestUri}'. Response-code: '{response.StatusCode}', response-content: '{await response.Content.ReadAsStringAsync()}'.");
+        }
 
         var appleEpisodes = podcastRecords
             .Where(x => x.Attributes.Duration > TimeSpan.Zero)
@@ -113,8 +118,11 @@ public class ApplePodcastService : IApplePodcastService
         }
         else
         {
-            _logger.LogInformation(
-                $"Successfully found podcast-episodes with duration. Apple-podcast-id '{podcastId.PodcastId}', items-with-duration: '{appleEpisodes.Count()}/{podcastRecords.Count}'.");
+            if (podcastRecords.Count > 0)
+            {
+                _logger.LogInformation(
+                    $"Successfully found podcast-episodes with duration. Apple-podcast-id '{podcastId.PodcastId}', items-with-duration: '{appleEpisodes.Count()}/{podcastRecords.Count}'.");
+            }
         }
 
         return appleEpisodes;
