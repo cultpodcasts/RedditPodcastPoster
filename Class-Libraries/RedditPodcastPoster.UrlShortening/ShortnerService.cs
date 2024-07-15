@@ -31,12 +31,15 @@ public class ShortnerService(
                 x.Podcast.PodcastNameInSafeUrlForm(),
                 x.Episode.Id,
                 x.Episode.Id.ToBase64(),
-                x.Episode.Title));
-        var kvRecords = items.Select(x => new KVRecord
+                x.Episode.Title,
+                DateOnly.FromDateTime(x.Episode.Release),
+                x.Episode.Length));
+        var kvRecords = items.Select(item => new KVRecord
         {
-            Key = x.Base64EpisodeKey,
-            Value = $"{x.PodcastName}/{x.EpisodeId}",
-            Metadata = new {episodeTitle = x.EpisodeTitle}
+            Key = item.Base64EpisodeKey,
+            Value = $"{item.PodcastName}/{item.EpisodeId}",
+            Metadata = new MetaData
+                {EpisodeTitle = item.EpisodeTitle, ReleaseDate = item.ReleaseDate, Duration = item.Duration}
         }).ToArray();
 
         var url = GetBulkWriteUrl(_cloudFlareOptions.AccountId, _cloudFlareOptions.KVShortnerNamespaceId);
@@ -64,12 +67,15 @@ public class ShortnerService(
             podcastEpisode.Podcast.PodcastNameInSafeUrlForm(),
             podcastEpisode.Episode.Id,
             podcastEpisode.Episode.Id.ToBase64(),
-            podcastEpisode.Episode.Title);
+            podcastEpisode.Episode.Title,
+            DateOnly.FromDateTime(podcastEpisode.Episode.Release),
+            podcastEpisode.Episode.Length);
         var kvRecord = new KVRecord
         {
             Key = item.Base64EpisodeKey,
             Value = $"{item.PodcastName}/{item.EpisodeId}",
-            Metadata = new {episodeTitle = item.EpisodeTitle}
+            Metadata = new MetaData
+                {EpisodeTitle = item.EpisodeTitle, ReleaseDate = item.ReleaseDate, Duration = item.Duration}
         };
 
         var url = WriteUrl(_cloudFlareOptions.AccountId, _cloudFlareOptions.KVShortnerNamespaceId, kvRecord.Key);

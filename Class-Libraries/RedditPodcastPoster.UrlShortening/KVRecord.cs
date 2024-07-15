@@ -11,5 +11,5 @@ public class KVRecord
     public string Value { get; set; } = "";
 
     [JsonPropertyName("metadata")]
-    public object? Metadata { get; set; }
+    public MetaData? Metadata { get; set; }
 }
