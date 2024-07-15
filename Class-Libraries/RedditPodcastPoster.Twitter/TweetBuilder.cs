@@ -95,7 +95,7 @@ public class TweetBuilder(
             }
 
             var url = shortnerResult.Success
-                ? shortnerResult.Url.ToString()
+                ? shortnerResult.Url!.ToString()
                 : podcastEpisode.ToEpisodeUrl();
             tweetBuilder.Append($"{url}{Environment.NewLine}");
         }
