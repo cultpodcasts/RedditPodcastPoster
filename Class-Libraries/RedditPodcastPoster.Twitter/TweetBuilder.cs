@@ -14,14 +14,12 @@ public class TweetBuilder(
     IHashTagEnricher hashTagEnricher,
     IHashTagProvider hashTagProvider,
     IOptions<TwitterOptions> twitterOptions,
-    IOptions<ShortnerOptions> shortnerOptions,
     IShortnerService shortnerService,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<TweetBuilder> logger)
 #pragma warning restore CS9113 // Parameter is unread.
     : ITweetBuilder
 {
-    private readonly ShortnerOptions _shortnerOptions = shortnerOptions.Value;
     private readonly TwitterOptions _twitterOptions = twitterOptions.Value;
 
     public async Task<string> BuildTweet(PodcastEpisode podcastEpisode)
@@ -93,10 +91,11 @@ public class TweetBuilder(
             var shortnerResult = await shortnerService.Write(podcastEpisode);
             if (!shortnerResult.Success)
             {
-                logger.LogError($"Unsuccessful shortening-url.");
+                logger.LogError("Unsuccessful shortening-url.");
             }
+
             var url = shortnerResult.Success
-                ? $"{_shortnerOptions.ShortnerUrl}{podcastEpisode.Episode.Id.ToBase64()}"
+                ? shortnerResult.Url!.ToString()
                 : podcastEpisode.ToEpisodeUrl();
             tweetBuilder.Append($"{url}{Environment.NewLine}");
         }

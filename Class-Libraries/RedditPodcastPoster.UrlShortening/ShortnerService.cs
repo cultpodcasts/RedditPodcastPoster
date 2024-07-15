@@ -13,6 +13,7 @@ namespace RedditPodcastPoster.UrlShortening;
 public class ShortnerService(
     HttpClient httpClient,
     IOptions<CloudFlareOptions> cloudFlareOptions,
+    IOptions<ShortnerOptions> shortnerOptions,
     ILogger<ShortnerService> logger) : IShortnerService
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
@@ -21,6 +22,7 @@ public class ShortnerService(
     };
 
     private readonly CloudFlareOptions _cloudFlareOptions = cloudFlareOptions.Value;
+    private readonly ShortnerOptions _shortnerOptions = shortnerOptions.Value;
 
     public async Task<WriteResult> Write(IEnumerable<PodcastEpisode> podcastEpisodes)
     {
@@ -29,12 +31,15 @@ public class ShortnerService(
                 x.Podcast.PodcastNameInSafeUrlForm(),
                 x.Episode.Id,
                 x.Episode.Id.ToBase64(),
-                x.Episode.Title));
-        var kvRecords = items.Select(x => new KVRecord
+                x.Episode.Title,
+                DateOnly.FromDateTime(x.Episode.Release),
+                x.Episode.Length));
+        var kvRecords = items.Select(item => new KVRecord
         {
-            Key = x.Base64EpisodeKey,
-            Value = $"{x.PodcastName}/{x.EpisodeId}",
-            Metadata = new {episodeTitle = x.EpisodeTitle}
+            Key = item.Base64EpisodeKey,
+            Value = $"{item.PodcastName}/{item.EpisodeId}",
+            Metadata = new MetaData
+                {EpisodeTitle = item.EpisodeTitle, ReleaseDate = item.ReleaseDate, Duration = item.Duration}
         }).ToArray();
 
         var url = GetBulkWriteUrl(_cloudFlareOptions.AccountId, _cloudFlareOptions.KVShortnerNamespaceId);
@@ -62,12 +67,15 @@ public class ShortnerService(
             podcastEpisode.Podcast.PodcastNameInSafeUrlForm(),
             podcastEpisode.Episode.Id,
             podcastEpisode.Episode.Id.ToBase64(),
-            podcastEpisode.Episode.Title);
+            podcastEpisode.Episode.Title,
+            DateOnly.FromDateTime(podcastEpisode.Episode.Release),
+            podcastEpisode.Episode.Length);
         var kvRecord = new KVRecord
         {
             Key = item.Base64EpisodeKey,
             Value = $"{item.PodcastName}/{item.EpisodeId}",
-            Metadata = new {episodeTitle = item.EpisodeTitle}
+            Metadata = new MetaData
+                {EpisodeTitle = item.EpisodeTitle, ReleaseDate = item.ReleaseDate, Duration = item.Duration}
         };
 
         var url = WriteUrl(_cloudFlareOptions.AccountId, _cloudFlareOptions.KVShortnerNamespaceId, kvRecord.Key);
@@ -87,7 +95,9 @@ public class ShortnerService(
                 $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
         }
 
-        return new WriteResult(result.StatusCode == HttpStatusCode.OK);
+        return new WriteResult(
+            result.StatusCode == HttpStatusCode.OK,
+            new Uri($"{_shortnerOptions.ShortnerUrl}{podcastEpisode.Episode.Id.ToBase64()}"));
     }
 
     private Uri GetBulkWriteUrl(string accountId, string namespaceId)
