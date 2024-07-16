@@ -76,8 +76,9 @@ public partial class SearchResultFinder(
             if (searchResult != null)
             {
                 var matchingPair = new FindEpisodeResponse(searchResult, matchingVideo);
-                if (Math.Abs((matchingPair.Video!.GetLength() ?? TimeSpan.Zero - episode.Length).Ticks) <
-                    VideoDurationTolerance.Ticks)
+                var matchingVideoLength = matchingPair.Video!.GetLength() ?? TimeSpan.Zero;
+                var matchingVideoLengthDifferentTicks = Math.Abs((matchingVideoLength - episode.Length).Ticks);
+                if (matchingVideoLengthDifferentTicks < VideoDurationTolerance.Ticks)
                 {
                     logger.LogInformation(
                         $"Matched episode '{episode.Title}' and length: '{episode.Length:g}' with episode '{matchingPair.SearchResult.Snippet.Title}' having length: '{matchingPair.Video?.GetLength():g}'.");
