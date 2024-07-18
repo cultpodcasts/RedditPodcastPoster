@@ -2,7 +2,7 @@
   "profiles": {
     "KVWriter": {
       "commandName": "Project",
-      "commandLineArgs": "-e 1aa3a5b1-7137-4d3b-8214-c8d732d0ac4d"
+      "commandLineArgs": "-i 100"
     }
   }
 }

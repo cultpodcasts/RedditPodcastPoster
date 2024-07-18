@@ -1,4 +1,5 @@
-﻿using RedditPodcastPoster.Models;
+﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.UrlShortening;
 
@@ -6,18 +7,29 @@ namespace KVWriter;
 
 public class KVWriterProcessor(
     IPodcastRepository podcastRepository,
-    IShortnerService shortnerService
+    IShortnerService shortnerService,
+    ILogger<KVWriterProcessor> logger
 )
 {
     public async Task Process(KVWriterRequest request)
     {
         if (request.ItemsToTake != null)
         {
+            logger.LogInformation("Getting podcasts");
             var podcasts = await podcastRepository.GetAll().ToListAsync();
+            logger.LogInformation("Process podcasts");
             var podcastEpisodes =
                 podcasts.SelectMany(p => p.Episodes.Select(e => new PodcastEpisode(p, e)));
-            podcastEpisodes = podcastEpisodes.Take(request.ItemsToTake.Value);
+            podcastEpisodes = podcastEpisodes.Skip(request.ItemsToSkip).Take(request.ItemsToTake.Value);
             var result = await shortnerService.Write(podcastEpisodes);
+            if (!result.Success)
+            {
+                logger.LogError("Failure");
+            }
+            else
+            {
+                logger.LogInformation("Success");
+            }
         }
         else if (request.EpisodeId != null)
         {
@@ -28,9 +40,9 @@ public class KVWriterProcessor(
                     nameof(request.EpisodeId));
             }
 
-            var result = await shortnerService.Write([
-                new PodcastEpisode(podcast, podcast.Episodes.Single(x => x.Id == request.EpisodeId))
-            ]);
+            var result = await shortnerService.Write(
+                new PodcastEpisode(podcast, podcast.Episodes.Single(x => x.Id == request.EpisodeId)), request.IsDryRun
+            );
         }
         else
         {

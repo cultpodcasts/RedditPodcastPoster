@@ -94,9 +94,7 @@ public class TweetBuilder(
                 logger.LogError("Unsuccessful shortening-url.");
             }
 
-            var url = shortnerResult.Success
-                ? shortnerResult.Url!.ToString()
-                : podcastEpisode.ToEpisodeUrl();
+            var url = shortnerResult.Url!.ToString();
             tweetBuilder.Append($"{url}{Environment.NewLine}");
         }
 
