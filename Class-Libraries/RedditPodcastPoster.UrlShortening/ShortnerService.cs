@@ -61,7 +61,7 @@ public class ShortnerService(
         return new WriteResult(result.StatusCode == HttpStatusCode.OK);
     }
 
-    public async Task<WriteResult> Write(PodcastEpisode podcastEpisode)
+    public async Task<WriteResult> Write(PodcastEpisode podcastEpisode, bool isDryRun = false)
     {
         var item = new ShortUrlRecord(
             podcastEpisode.Podcast.PodcastNameInSafeUrlForm(),
@@ -78,26 +78,33 @@ public class ShortnerService(
                 {EpisodeTitle = item.EpisodeTitle, ReleaseDate = item.ReleaseDate, Duration = item.Duration}
         };
 
-        var url = WriteUrl(_cloudFlareOptions.AccountId, _cloudFlareOptions.KVShortnerNamespaceId, kvRecord.Key);
-        using var request = new HttpRequestMessage();
-        request.Method = HttpMethod.Put;
-        request.RequestUri = url;
-        request.Headers.Add("Authorization", $"Bearer {_cloudFlareOptions.KVApiToken}");
-        var requestContent = new MultipartFormDataContent();
-        requestContent.Add(new StringContent(kvRecord.Value), "value");
-        var metaData = JsonSerializer.Serialize(kvRecord.Metadata, JsonSerializerOptions);
-        requestContent.Add(new StringContent(metaData), "metadata");
-        request.Content = requestContent;
-        var result = await httpClient.SendAsync(request);
-        if (result.StatusCode != HttpStatusCode.OK)
+        if (!isDryRun)
         {
-            logger.LogError(
-                $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
+            var url = WriteUrl(_cloudFlareOptions.AccountId, _cloudFlareOptions.KVShortnerNamespaceId, kvRecord.Key);
+            using var request = new HttpRequestMessage();
+            request.Method = HttpMethod.Put;
+            request.RequestUri = url;
+            request.Headers.Add("Authorization", $"Bearer {_cloudFlareOptions.KVApiToken}");
+            var requestContent = new MultipartFormDataContent();
+            requestContent.Add(new StringContent(kvRecord.Value), "value");
+            var metaData = JsonSerializer.Serialize(kvRecord.Metadata, JsonSerializerOptions);
+            requestContent.Add(new StringContent(metaData), "metadata");
+            request.Content = requestContent;
+            var result = await httpClient.SendAsync(request);
+            if (result.StatusCode != HttpStatusCode.OK)
+            {
+                logger.LogError(
+                    $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
+            }
+
+            return new WriteResult(
+                result.StatusCode == HttpStatusCode.OK,
+                new Uri($"{_shortnerOptions.ShortnerUrl}{podcastEpisode.Episode.Id.ToBase64()}"));
         }
 
-        return new WriteResult(
-            result.StatusCode == HttpStatusCode.OK,
-            new Uri($"{_shortnerOptions.ShortnerUrl}{podcastEpisode.Episode.Id.ToBase64()}"));
+        logger.LogInformation(JsonSerializer.Serialize(kvRecord));
+
+        return new WriteResult(true);
     }
 
     private Uri GetBulkWriteUrl(string accountId, string namespaceId)
