@@ -7,6 +7,9 @@ public class PodcastResult
     [JsonPropertyName("podcastName")]
     public required string PodcastName { get; set; }
 
+    [JsonPropertyName("episodeId")]
+    public Guid EpisodeId { get; set; }
+
     [JsonPropertyName("episodeTitle")]
     public required string EpisodeTitle { get; set; }
 
