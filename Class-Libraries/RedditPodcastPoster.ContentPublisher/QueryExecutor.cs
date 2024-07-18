@@ -36,6 +36,7 @@ public class QueryExecutor(
             RecentEpisodes = podcastResults.Result.OrderByDescending(x => x.Release).Select(Santitise).Select(x =>
                 new RecentEpisode
                 {
+                    Id = x.EpisodeId,
                     Apple = x.Apple,
                     EpisodeDescription = WebUtility.HtmlDecode(x.EpisodeDescription),
                     EpisodeTitle = WebUtility.HtmlDecode(x.EpisodeTitle),
@@ -149,6 +150,7 @@ public class QueryExecutor(
                            p.name as podcastName,
                            p.titleRegex as titleRegex,
                            p.descriptionRegex as descriptionRegex,
+                           e.id as episodeId,
                            e.title as episodeTitle,
                            e.description as episodeDescription,
                            e.release as release,

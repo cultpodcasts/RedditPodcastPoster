@@ -4,6 +4,9 @@ namespace RedditPodcastPoster.Models;
 
 public class RecentEpisode
 {
+    [JsonPropertyName("episodeId")]
+    public required Guid Id { get; set; }
+
     [JsonPropertyName("podcastName")]
     public required string PodcastName { get; set; }
 
