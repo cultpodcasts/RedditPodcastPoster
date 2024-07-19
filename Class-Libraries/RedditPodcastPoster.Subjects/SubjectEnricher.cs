@@ -42,8 +42,7 @@ public class SubjectEnricher(
         }
         else
         {
-            if (!string.IsNullOrWhiteSpace(options?.DefaultSubject) && !episode.Subjects
-                    .Select(x => x.ToLowerInvariant()).Contains(options.DefaultSubject.ToLowerInvariant()))
+            if (!episode.Subjects.Any() && !string.IsNullOrWhiteSpace(options?.DefaultSubject))
             {
                 episode.Subjects = new[] {options.DefaultSubject}.ToList();
                 logger.LogWarning(
