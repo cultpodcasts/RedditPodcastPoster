@@ -5,12 +5,14 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Search;
 
 namespace CreateSearchIndex;
 
 public partial class CreateSearchIndexProcessor(
     SearchIndexClient searchIndexClient,
     SearchIndexerClient searchIndexerClient,
+    ISearchIndexerService searchIndexerService,
     IOptions<CosmosDbSettings> cosmosDbSettings,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<CreateSearchIndexProcessor> logger
@@ -18,7 +20,7 @@ public partial class CreateSearchIndexProcessor(
 )
 {
     private static readonly Regex Whitespace = CreateWhitespaceRegex();
-    private static readonly TimeSpan IndexAtMinutes = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan IndexAtMinutes = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan Frequency = TimeSpan.FromMinutes(30);
     private readonly CosmosDbSettings _cosmosDbSettings = cosmosDbSettings.Value;
 
@@ -167,6 +169,11 @@ public partial class CreateSearchIndexProcessor(
                 }
             };
             await searchIndexerClient.CreateOrUpdateIndexerAsync(searchIndexer);
+        }
+
+        if (request.RunIndexer)
+        {
+            await searchIndexerService.RunIndexer();
         }
     }
 

@@ -26,4 +26,7 @@ public class SubmitUrlRequest
 
     [Option('d', "dry-run", Required = false, Default = false, HelpText = "Do not commit to database")]
     public bool DryRun { get; set; }
+
+    [Option('i', "no-index", Default = false, HelpText = "Do not reindex search-index")]
+    public bool NoIndex { get; set; }
 }

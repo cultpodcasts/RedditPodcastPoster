@@ -15,4 +15,7 @@ public class CreateSearchIndexRequest
 
     [Option('x', "indexer", Required = false, Default = null, HelpText = "Indexer name")]
     public string? IndexerName { get; set; }
+
+    [Option('r', "run-indexer", Required = false, Default = false, HelpText = "Run the indexer")]
+    public bool RunIndexer { get; set; }
 }

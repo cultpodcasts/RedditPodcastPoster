@@ -107,6 +107,23 @@ public class ShortnerService(
         return new WriteResult(true);
     }
 
+    public async Task<object> Read(string requestKey)
+    {
+        var url = ReadMetadata(_cloudFlareOptions.AccountId, _cloudFlareOptions.KVShortnerNamespaceId, requestKey);
+        using var request = new HttpRequestMessage();
+        request.Method = HttpMethod.Get;
+        request.RequestUri = url;
+        request.Headers.Add("Authorization", $"Bearer {_cloudFlareOptions.KVApiToken}");
+        var result = await httpClient.SendAsync(request);
+        if (result.StatusCode != HttpStatusCode.OK)
+        {
+            logger.LogError(
+                $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
+        }
+        var json= await result.Content.ReadAsStringAsync();
+        return new Object();
+    }
+
     private Uri GetBulkWriteUrl(string accountId, string namespaceId)
     {
         return new Uri(
@@ -117,5 +134,10 @@ public class ShortnerService(
     {
         return new Uri(
             $"https://api.cloudflare.com/client/v4/accounts/{accountId}/storage/kv/namespaces/{namespaceId}/values/{keyName}");
+    }
+    private Uri ReadMetadata(string accountId, string namespaceId, string keyName)
+    {
+        return new Uri(
+            $"https://api.cloudflare.com/client/v4/accounts/{accountId}/storage/kv/namespaces/{namespaceId}/metadata/{keyName}");
     }
 }

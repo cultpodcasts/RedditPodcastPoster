@@ -15,4 +15,7 @@ public class KVWriterRequest
 
     [Option('d', "dry-run", Default = false, HelpText = "Dry-Run", Group = "single")]
     public bool IsDryRun { get; set; }
+
+    [Option('r', "read", HelpText = "Short-guid for the item to read")]
+    public string? Key { get; set; }
 }

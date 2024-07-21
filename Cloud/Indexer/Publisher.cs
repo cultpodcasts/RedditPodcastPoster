@@ -1,12 +1,14 @@
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher;
+using RedditPodcastPoster.Search;
 
 namespace Indexer;
 
 [DurableTask(nameof(Publisher))]
 public class Publisher(
     IContentPublisher contentPublisher,
+    ISearchIndexerService searchIndexerService,
     ILogger<Publisher> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {
@@ -28,6 +30,7 @@ public class Publisher(
 
         try
         {
+            await searchIndexerService.RunIndexer();
             await contentPublisher.PublishHomepage();
         }
         catch (Exception ex)

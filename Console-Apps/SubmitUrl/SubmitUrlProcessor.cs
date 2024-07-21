@@ -1,11 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.Search;
 using RedditPodcastPoster.UrlSubmission;
 
 namespace SubmitUrl;
 
 public class SubmitUrlProcessor(
     IUrlSubmitter urlSubmitter,
+    ISearchIndexerService searchIndexerService,
     ILogger<SubmitUrlProcessor> logger)
 {
     public async Task Process(SubmitUrlRequest request)
@@ -38,6 +40,11 @@ public class SubmitUrlProcessor(
                     indexOptions,
                     new SubmitOptions(request.PodcastId, request.MatchOtherServices, !request.DryRun));
             }
+        }
+
+        if (!request.NoIndex)
+        {
+            await searchIndexerService.RunIndexer();
         }
     }
 }

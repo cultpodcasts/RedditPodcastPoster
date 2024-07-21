@@ -13,6 +13,7 @@ using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.Search.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.UrlSubmission.Extensions;
@@ -43,6 +44,7 @@ builder.Services
     .AddSubjectServices()
     .AddTextSanitiser()
     .AddScoped<SubmitUrlProcessor>()
+    .AddSearch()
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria(builder.Configuration);

@@ -3,7 +3,7 @@ using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace DeleteSearchDocument;
+namespace RedditPodcastPoster.Search;
 
 public class SearchClientFactory(
     IOptions<SearchIndexConfig> searchIndexConfig,

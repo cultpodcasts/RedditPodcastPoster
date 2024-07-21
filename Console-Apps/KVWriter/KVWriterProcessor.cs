@@ -43,6 +43,9 @@ public class KVWriterProcessor(
             var result = await shortnerService.Write(
                 new PodcastEpisode(podcast, podcast.Episodes.Single(x => x.Id == request.EpisodeId)), request.IsDryRun
             );
+        } else if (request.Key != null)
+        {
+            var result = await shortnerService.Read(request.Key);
         }
         else
         {

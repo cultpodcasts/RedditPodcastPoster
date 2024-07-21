@@ -1,5 +1,4 @@
 ﻿using System.Reflection;
-using Azure;
 using CommandLine;
 using DeleteSearchDocument;
 using Microsoft.Extensions.Configuration;
@@ -7,6 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.Search;
+using RedditPodcastPoster.Search.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -21,11 +22,8 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
-    .AddScoped<ISearchClientFactory, SearchClientFactory>()
-    .AddScoped(s => s.GetService<ISearchClientFactory>()!.Create())
+    .AddSearch()
     .AddScoped<DeleteSearchDocumentProcessor>();
-
-builder.Services.BindConfiguration<SearchIndexConfig>("searchIndex");
 
 using var host = builder.Build();
 

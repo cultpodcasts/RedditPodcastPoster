@@ -16,6 +16,7 @@ using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
+using RedditPodcastPoster.Search.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Twitter.Extensions;
@@ -54,6 +55,7 @@ public static class Ioc
             .AddShortnerServices(hostBuilderContext.Configuration)
             .AddDateTimeService()
             .AddScoped<IIndexingStrategy, IndexingStrategy>()
+            .AddSearch()
             .AddHttpClient();
 
         serviceCollection.BindConfiguration<IndexerOptions>("indexer");

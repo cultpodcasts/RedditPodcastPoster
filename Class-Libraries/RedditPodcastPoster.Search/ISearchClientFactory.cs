@@ -1,6 +1,6 @@
 ﻿using Azure.Search.Documents;
 
-namespace DeleteSearchDocument;
+namespace RedditPodcastPoster.Search;
 
 public interface ISearchClientFactory
 {
