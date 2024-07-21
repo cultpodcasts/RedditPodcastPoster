@@ -5,12 +5,14 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.Search;
 using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
 public class SubmitUrl(
     IUrlSubmitter urlSubmitter,
+    ISearchIndexerService searchIndexerService,
     ILogger<SubmitUrl> logger,
     IOptions<HostingOptions> hostingOptions)
     : BaseHttpFunction(hostingOptions)
@@ -42,6 +44,8 @@ public class SubmitUrl(
                     SkipExpensiveSpotifyQueries = false
                 },
                 new SubmitOptions(submitUrlModel.PodcastId, true));
+
+            await searchIndexerService.RunIndexer();
 
             var success = await req.CreateResponse(HttpStatusCode.OK)
                 .WithJsonBody(SubmitUrlResponse.Successful(result), c);

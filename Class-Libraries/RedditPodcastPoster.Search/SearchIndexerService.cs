@@ -35,5 +35,10 @@ public class SearchIndexerService(
             logger.LogError(ex,
                 $"Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{ex.Status}' and message '{ex.Message}'.");
         }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                $"Failure to run indexer '{_searchIndexConfig.IndexerName}' with message '{ex.Message}'.");
+        }
     }
 }
