@@ -2,6 +2,7 @@
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.Search;
 using RedditPodcastPoster.Subjects;
 
 namespace Index;
@@ -10,6 +11,7 @@ internal class IndexProcessor(
     IPodcastRepository podcastRepository,
     IPodcastUpdater podcastUpdater,
     ISubjectEnricher subjectEnricher,
+    ISearchIndexerService searchIndexerService,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<IndexProcessor> logger
 #pragma warning restore CS9113 // Parameter is unread.
@@ -57,6 +59,7 @@ internal class IndexProcessor(
                 (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
 
             {
+                logger.LogInformation($"Indexing podcast {podcast.Name}' with podcast-id '{podcastId}'.");
                 var results = await podcastUpdater.Update(podcast, indexingContext);
                 var resultsMessage = results.ToString();
                 if (results.MergeResult.FailedEpisodes.Any() ||
@@ -99,6 +102,11 @@ internal class IndexProcessor(
                     }
                 }
             }
+        }
+
+        if (!request.NoIndex)
+        {
+            await searchIndexerService.RunIndexer();
         }
     }
 }

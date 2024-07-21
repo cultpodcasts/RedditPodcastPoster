@@ -22,5 +22,9 @@ public class SearchIndexerService(
             logger.LogError(
                 $"Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{response.Status}' and reason '{response.ReasonPhrase}'.");
         }
+        else
+        {
+            logger.LogInformation($"Ran indexer '{_searchIndexConfig.IndexerName}'.");
+        }
     }
 }

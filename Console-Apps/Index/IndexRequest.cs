@@ -30,4 +30,8 @@ public class IndexRequest
 
     [Option('i', "skip-spotify-indexing", Default = false, HelpText = "Skip Spotify indexing")]
     public bool SkipSpotifyIndexing { get; set; }
+
+    [Option('i', "no-index", Default = false, HelpText = "Do not reindex search-index")]
+    public bool NoIndex { get; set; }
+
 }
