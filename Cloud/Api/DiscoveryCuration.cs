@@ -6,6 +6,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.Search;
 using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
@@ -13,6 +14,7 @@ namespace Api;
 public class DiscoveryCuration(
     IDiscoveryResultsService discoveryResultsService,
     IUrlSubmitter urlSubmitter,
+    ISearchIndexerService searchIndexerService,
     ILogger<DiscoveryCuration> logger,
     IOptions<HostingOptions> hostingOptions)
     : BaseHttpFunction(hostingOptions)
@@ -101,6 +103,8 @@ public class DiscoveryCuration(
 
             await discoveryResultsService.MarkAsProcessed(m.DiscoveryResultsDocumentIds, m.ResultIds,
                 erroredResults.ToArray());
+
+            await searchIndexerService.RunIndexer();
 
             var response = new DiscoverySubmitResponse
             {

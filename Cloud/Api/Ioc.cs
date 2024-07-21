@@ -11,6 +11,7 @@ using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.Search.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.UrlSubmission.Extensions;
@@ -40,6 +41,7 @@ public static class Ioc
             .AddUrlSubmission()
             .AddDiscoveryRepository(hostBuilderContext.Configuration)
             .AddScoped<IDiscoveryResultsService, DiscoveryResultsService>()
+            .AddSearch()
             .AddHttpClient();
         serviceCollection.BindConfiguration<HostingOptions>("hosting");
     }
