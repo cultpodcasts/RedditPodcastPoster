@@ -3,7 +3,7 @@ using Azure.Search.Documents.Indexes;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace CreateSearchIndex;
+namespace RedditPodcastPoster.Search;
 
 public class SearchIndexerClientFactory(
     IOptions<SearchIndexConfig> searchIndexConfig,

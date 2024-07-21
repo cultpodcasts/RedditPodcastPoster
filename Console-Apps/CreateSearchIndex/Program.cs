@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Search.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -20,13 +21,9 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<ISearchIndexClientFactory, SearchIndexClientFactory>()
-    .AddScoped<ISearchIndexerClientFactory, SearchIndexerClientFactory>()
-    .AddScoped(s => s.GetService<ISearchIndexClientFactory>()!.Create())
-    .AddScoped(s => s.GetService<ISearchIndexerClientFactory>()!.Create())
-    .AddScoped<CreateSearchIndexProcessor>();
+    .AddScoped<CreateSearchIndexProcessor>()
+    .AddSearch();
 
-builder.Services.BindConfiguration<SearchIndexConfig>("searchIndex");
 builder.Services.BindConfiguration<CosmosDbSettings>("cosmosdb");
 
 using var host = builder.Build();

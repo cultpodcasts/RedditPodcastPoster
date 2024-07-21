@@ -1,6 +1,6 @@
 ﻿using Azure.Search.Documents.Indexes;
 
-namespace CreateSearchIndex;
+namespace RedditPodcastPoster.Search;
 
 public interface ISearchIndexClientFactory
 {
