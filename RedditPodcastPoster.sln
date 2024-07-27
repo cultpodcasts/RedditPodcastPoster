@@ -164,6 +164,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.EdgeApi
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Search", "Class-Libraries\RedditPodcastPoster.Search\RedditPodcastPoster.Search.csproj", "{677C7664-D25B-4575-81C4-B5D5363C0940}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Third-Party", "Third-Party", "{500DB58B-23D9-4BBC-9D6D-BE5DA70366C1}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Reddit.NET", "Third-Party\sirkris-Reddit.NET-1.5.3\src\Reddit.NET\Reddit.NET.csproj", "{7DB17F4D-3722-4B7C-A39F-14B90E8B741F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -446,6 +450,10 @@ Global
 		{677C7664-D25B-4575-81C4-B5D5363C0940}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{677C7664-D25B-4575-81C4-B5D5363C0940}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{677C7664-D25B-4575-81C4-B5D5363C0940}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7DB17F4D-3722-4B7C-A39F-14B90E8B741F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7DB17F4D-3722-4B7C-A39F-14B90E8B741F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7DB17F4D-3722-4B7C-A39F-14B90E8B741F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7DB17F4D-3722-4B7C-A39F-14B90E8B741F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -521,6 +529,7 @@ Global
 		{FCED4F2F-4C0C-4BC0-962C-AE41C31C5FF6} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{8D9DD880-F206-445C-8771-58C195EC4F7E} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{677C7664-D25B-4575-81C4-B5D5363C0940} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{7DB17F4D-3722-4B7C-A39F-14B90E8B741F} = {500DB58B-23D9-4BBC-9D6D-BE5DA70366C1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}
