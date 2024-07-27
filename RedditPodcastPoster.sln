@@ -162,7 +162,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Auth0",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.EdgeApi", "Class-Libraries\RedditPodcastPoster.EdgeApi\RedditPodcastPoster.EdgeApi.csproj", "{8D9DD880-F206-445C-8771-58C195EC4F7E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Search", "Class-Libraries\RedditPodcastPoster.Search\RedditPodcastPoster.Search.csproj", "{677C7664-D25B-4575-81C4-B5D5363C0940}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Search", "Class-Libraries\RedditPodcastPoster.Search\RedditPodcastPoster.Search.csproj", "{677C7664-D25B-4575-81C4-B5D5363C0940}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
