@@ -50,7 +50,8 @@ public class PostProcessor(
         }
         else
         {
-            podcasts = await repository.GetAllBy(EpisodeProcessor.RecentRelease).ToListAsync();
+            var since = DateTime.UtcNow.AddDays(-1 * request.ReleasedWithin);
+            podcasts = await repository.GetPodcastsWithUnpostedEpisodesReleasedSince(since).ToListAsync();
         }
 
         podcasts = podcasts.Where(x => !x.IsRemoved()).ToList();
