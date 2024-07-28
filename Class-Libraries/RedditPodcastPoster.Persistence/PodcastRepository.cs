@@ -1,5 +1,6 @@
 ﻿using System.Linq.Expressions;
 using System.Text.RegularExpressions;
+using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -93,6 +94,18 @@ public class PodcastRepository(
         return dataRepository.GetAllBy(selector);
     }
 
+    public IAsyncEnumerable<Podcast> GetPodcastsWithUnpostedEpisodesReleasedSince(DateTime since)
+    {
+        return GetAllBy(x =>
+            (!x.Removed.IsDefined() || x.Removed == false) &&
+            x.Episodes.Any(
+                episode =>
+                    episode.Release >= since &&
+                    episode.Posted == false &&
+                    episode.Ignored == false &&
+                    episode.Removed == false));
+    }
+
     public IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item)
     {
         return dataRepository.GetAllBy(selector, item);
@@ -161,7 +174,7 @@ public class PodcastRepository(
             updated = true;
         }
 
-        if (existingEpisode.AppleId==null && episodeToMerge.AppleId!=null)
+        if (existingEpisode.AppleId == null && episodeToMerge.AppleId != null)
         {
             existingEpisode.AppleId = episodeToMerge.AppleId;
             updated = true;
