@@ -13,7 +13,7 @@ public abstract class BaseHttpFunction(
 {
     protected HostingOptions HostingOptions = hostingOptions.Value;
 
-    protected Task<HttpResponseData> HandleRequest(
+    protected async Task<HttpResponseData> HandleRequest(
         HttpRequestData req,
         string[] roles,
         Func<HttpRequestData, CancellationToken, Task<HttpResponseData>> authorised,
@@ -32,16 +32,16 @@ public abstract class BaseHttpFunction(
         if (isAuthorised || roles.Contains("*"))
         {
             logger.LogInformation($"{nameof(HandleRequest)} Authorised.");
-            var response = authorised(req, ct);
+            var response = await authorised(req, ct);
             logger.LogInformation($"{nameof(HandleRequest)} Response Gathered.");
             return response;
         }
 
         logger.LogWarning($"{nameof(HandleRequest)} Unauthorised.");
-        return unauthorised(req, ct);
+        return await unauthorised(req, ct);
     }
 
-    protected Task<HttpResponseData> HandleRequest<T>(
+    protected async Task<HttpResponseData> HandleRequest<T>(
         HttpRequestData req,
         string[] roles,
         T model,
@@ -61,13 +61,13 @@ public abstract class BaseHttpFunction(
         if (isAuthorised)
         {
             logger.LogInformation($"{nameof(HandleRequest)} Authorised.");
-            var response = authorised(req, model, ct);
+            var response = await authorised(req, model, ct);
             logger.LogInformation($"{nameof(HandleRequest)} Response Gathered.");
             return response;
         }
 
         logger.LogWarning($"{nameof(HandleRequest)} Unauthorised.");
-        return unauthorised(req, model, ct);
+        return await unauthorised(req, model, ct);
     }
 
     protected static Task<HttpResponseData> Unauthorised(HttpRequestData r, CancellationToken c)
