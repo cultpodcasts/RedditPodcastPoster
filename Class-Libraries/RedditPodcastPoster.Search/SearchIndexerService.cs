@@ -32,15 +32,20 @@ public class SearchIndexerService(
         }
         catch (RequestFailedException ex)
         {
-            if (ex.Status != (int) HttpStatusCode.TooManyRequests)
+            switch (ex.Status)
             {
-                logger.LogError(ex,
-                    $"Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{ex.Status}' and message '{ex.Message}'.");
-            }
-            else
-            {
-                logger.LogError(ex,
-                    $"Too Many Requests. Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{ex.Status}'.");
+                case (int) HttpStatusCode.TooManyRequests:
+                    logger.LogError(
+                        $"Too Many Requests. Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{ex.Status}'.");
+                    break;
+                case (int) HttpStatusCode.Conflict:
+                    logger.LogError(
+                        $"Indexer already running. Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{ex.Status}'.");
+                    break;
+                default:
+                    logger.LogError(ex,
+                        $"Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{ex.Status}' and message '{ex.Message}'.");
+                    break;
             }
         }
         catch (Exception ex)

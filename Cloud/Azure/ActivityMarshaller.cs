@@ -61,6 +61,7 @@ public class ActivityMarshaller(
                 }
             }
 
+            logger.LogError(ex, "Activity booking failed.");
             return ActivityStatus.Failed;
         }
         catch (Exception ex)
