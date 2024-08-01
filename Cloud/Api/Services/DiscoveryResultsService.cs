@@ -14,21 +14,25 @@ public class DiscoveryResultsService(
 {
     public async Task<DiscoveryResponse> Get(CancellationToken c)
     {
+        logger.LogInformation($"{nameof(Get)} initiated.");
         var documents = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync(c);
+        logger.LogInformation($"{nameof(Get)} Obtained unprocessed documents.");
         var results = documents.SelectMany(x => x.DiscoveryResults);
         var podcastIds = results.SelectMany(x => x.MatchingPodcastIds).Distinct();
         var referencedPodcasts = await podcastRepository
             .GetAllBy(x =>
                 podcastIds.Contains(x.Id), podcast => new {id = podcast.Id, name = podcast.Name})
             .ToListAsync(c);
+        logger.LogInformation($"{nameof(Get)} Obtained matching podcasts.");
         var podcastsLookup = referencedPodcasts
             .ToDictionary(pd => pd.id, pd => pd.name);
         var result = new DiscoveryResponse
         {
             Ids = documents.Select(x => x.Id),
-            Results = results.Select(x => { return x.ToDiscoveryResponseItem(podcastsLookup); })
+            Results = results.Select(x => x.ToDiscoveryResponseItem(podcastsLookup))
                 .OrderBy(x => x.Released)
         };
+        logger.LogInformation($"{nameof(Get)} Gathered results.");
         return result;
     }
 

@@ -12,8 +12,9 @@ namespace Api;
 public class Podcasts(
     IPodcastRepository podcastRepository,
     ILogger<Podcasts> logger,
+    ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(hostingOptions)
+    : BaseHttpFunction(hostingOptions, baseLogger)
 {
     [Function("Podcasts")]
     public Task<HttpResponseData> Run(
