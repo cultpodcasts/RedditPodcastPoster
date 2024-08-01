@@ -69,19 +69,12 @@ public class CosmosDbRepository(
 
         var query = container
             .GetItemLinqQueryable<T>(
-                linqSerializerOptions: new CosmosLinqSerializerOptions
-                {
-                    PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
-                },
-                requestOptions: new QueryRequestOptions
-                {
-                    PartitionKey = new PartitionKey(partitionKey)
-                })
-            .Where(selector)
-            .ToFeedIterator();
-        if (query.HasMoreResults)
+                requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
+            .Where(selector);
+        var items = query.ToFeedIterator();
+        if (items.HasMoreResults)
         {
-            foreach (var item in await query.ReadNextAsync())
+            foreach (var item in await items.ReadNextAsync())
             {
                 {
                     return item;
@@ -98,19 +91,13 @@ public class CosmosDbRepository(
         var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         var query = container
             .GetItemLinqQueryable<T>(
-                linqSerializerOptions: new CosmosLinqSerializerOptions
-                {
-                    PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
-                },
-                requestOptions: new QueryRequestOptions
-                {
-                    PartitionKey = new PartitionKey(partitionKey)
-                })
-            .Where(selector)
+                requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
+            .Where(selector);
+        var items = query
             .ToFeedIterator();
-        if (query.HasMoreResults)
+        if (items.HasMoreResults)
         {
-            foreach (var item in await query.ReadNextAsync())
+            foreach (var item in await items.ReadNextAsync())
             {
                 {
                     yield return item;
@@ -125,20 +112,13 @@ public class CosmosDbRepository(
         var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         var query = container
             .GetItemLinqQueryable<T>(
-                linqSerializerOptions: new CosmosLinqSerializerOptions
-                {
-                    PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
-                },
-                requestOptions: new QueryRequestOptions
-                {
-                    PartitionKey = new PartitionKey(partitionKey)
-                })
+                requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
             .Where(selector)
-            .Select(expr)
-            .ToFeedIterator();
-        if (query.HasMoreResults)
+            .Select(expr);
+        var items = query.ToFeedIterator();
+        if (items.HasMoreResults)
         {
-            foreach (var item in await query.ReadNextAsync())
+            foreach (var item in await items.ReadNextAsync())
             {
                 {
                     yield return item;

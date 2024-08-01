@@ -10,15 +10,9 @@ public class JsonSerializerOptionsProvider : IJsonSerializerOptionsProvider
     {
         return new JsonSerializerOptions
         {
-            Converters = {new RegexConverter()},
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-            //PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            //Converters =
-            //{
-            //    new JsonStringEnumConverter()
-            //},
-            //IgnoreNullValues = true,
-            //IgnoreReadOnlyFields = true
+            Converters = {new RegexConverter(), new JsonStringEnumConverter()},
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
     }
 }
