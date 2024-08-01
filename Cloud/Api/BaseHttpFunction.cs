@@ -1,21 +1,26 @@
 using System.Net;
 using Api.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Api;
 
-public abstract class BaseHttpFunction(IOptions<HostingOptions> hostingOptions)
+public abstract class BaseHttpFunction(
+    IOptions<HostingOptions> hostingOptions,
+    ILogger<BaseHttpFunction> logger
+    )
 {
     protected HostingOptions HostingOptions = hostingOptions.Value;
 
-    protected Task<HttpResponseData> HandleRequest(
+    protected async Task<HttpResponseData> HandleRequest(
         HttpRequestData req,
         string[] roles,
         Func<HttpRequestData, CancellationToken, Task<HttpResponseData>> authorised,
         Func<HttpRequestData, CancellationToken, Task<HttpResponseData>> unauthorised,
         CancellationToken ct)
     {
+        logger.LogInformation($"{nameof(HandleRequest)} initiated.");
         var isAuthorised = false;
         var roleCtr = 0;
         while (!isAuthorised && roleCtr < roles.Length)
@@ -26,13 +31,17 @@ public abstract class BaseHttpFunction(IOptions<HostingOptions> hostingOptions)
 
         if (isAuthorised || roles.Contains("*"))
         {
-            return authorised(req, ct);
+            logger.LogInformation($"{nameof(HandleRequest)} Authorised.");
+            var response = await authorised(req, ct);
+            logger.LogInformation($"{nameof(HandleRequest)} Response Gathered.");
+            return response;
         }
 
-        return unauthorised(req, ct);
+        logger.LogWarning($"{nameof(HandleRequest)} Unauthorised.");
+        return await unauthorised(req, ct);
     }
 
-    protected Task<HttpResponseData> HandleRequest<T>(
+    protected async Task<HttpResponseData> HandleRequest<T>(
         HttpRequestData req,
         string[] roles,
         T model,
@@ -40,6 +49,7 @@ public abstract class BaseHttpFunction(IOptions<HostingOptions> hostingOptions)
         Func<HttpRequestData, T, CancellationToken, Task<HttpResponseData>> unauthorised,
         CancellationToken ct)
     {
+        logger.LogInformation($"{nameof(HandleRequest)} initiated.");
         var isAuthorised = false;
         var roleCtr = 0;
         while (!isAuthorised && roleCtr < roles.Length)
@@ -50,10 +60,14 @@ public abstract class BaseHttpFunction(IOptions<HostingOptions> hostingOptions)
 
         if (isAuthorised)
         {
-            return authorised(req, model, ct);
+            logger.LogInformation($"{nameof(HandleRequest)} Authorised.");
+            var response = await authorised(req, model, ct);
+            logger.LogInformation($"{nameof(HandleRequest)} Response Gathered.");
+            return response;
         }
 
-        return unauthorised(req, model, ct);
+        logger.LogWarning($"{nameof(HandleRequest)} Unauthorised.");
+        return await unauthorised(req, model, ct);
     }
 
     protected static Task<HttpResponseData> Unauthorised(HttpRequestData r, CancellationToken c)

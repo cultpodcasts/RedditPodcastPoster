@@ -8,8 +8,9 @@ namespace Api;
 
 public class Test(
     ILogger<Test> logger,
+    ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(hostingOptions)
+    : BaseHttpFunction(hostingOptions, baseLogger)
 {
     [Function("Test")]
     public async Task<HttpResponseData> Run(

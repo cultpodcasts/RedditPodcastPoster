@@ -16,8 +16,9 @@ public class DiscoveryCuration(
     IUrlSubmitter urlSubmitter,
     ISearchIndexerService searchIndexerService,
     ILogger<DiscoveryCuration> logger,
+    ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(hostingOptions)
+    : BaseHttpFunction(hostingOptions, baseLogger)
 {
     private const string? Route = "DiscoveryCuration";
 
