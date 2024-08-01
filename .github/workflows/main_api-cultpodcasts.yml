@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - main
-      - feature/long-running-curate-get
   workflow_dispatch:
 
 env:
