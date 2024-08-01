@@ -26,7 +26,7 @@ public class Indexer(
         logger.LogInformation(_indexerOptions.ToString());
         var indexingContext = _indexerOptions.ToIndexingContext() with
         {
-            IndexSpotify= indexingStrategy.IndexSpotify(),
+            IndexSpotify = indexingStrategy.IndexSpotify(),
             SkipSpotifyUrlResolving = false,
             SkipYouTubeUrlResolving = !indexingStrategy.ResolveYouTube(),
             SkipExpensiveYouTubeQueries = !indexingStrategy.ExpensiveYouTubeQueries(),
@@ -53,6 +53,16 @@ public class Indexer(
         var activityBooked = await activityMarshaller.Initiate(indexerContext.IndexerOperationId, nameof(Indexer));
         if (activityBooked != ActivityStatus.Initiated)
         {
+            if (activityBooked == ActivityStatus.Failed)
+            {
+                return indexerContext with
+                {
+                    YouTubeError = true,
+                    SpotifyError = true,
+                    Success = false
+                };
+            }
+
             return indexerContext with
             {
                 DuplicateIndexerOperation = true
