@@ -1,11 +1,15 @@
 using System.Net;
 using Api.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Api;
 
-public abstract class BaseHttpFunction(IOptions<HostingOptions> hostingOptions)
+public abstract class BaseHttpFunction(
+    IOptions<HostingOptions> hostingOptions,
+    Logger<BaseHttpFunction> logger
+    )
 {
     protected HostingOptions HostingOptions = hostingOptions.Value;
 
@@ -16,6 +20,7 @@ public abstract class BaseHttpFunction(IOptions<HostingOptions> hostingOptions)
         Func<HttpRequestData, CancellationToken, Task<HttpResponseData>> unauthorised,
         CancellationToken ct)
     {
+        logger.LogInformation($"{nameof(HandleRequest)} initiated.");
         var isAuthorised = false;
         var roleCtr = 0;
         while (!isAuthorised && roleCtr < roles.Length)
@@ -26,9 +31,13 @@ public abstract class BaseHttpFunction(IOptions<HostingOptions> hostingOptions)
 
         if (isAuthorised || roles.Contains("*"))
         {
-            return authorised(req, ct);
+            logger.LogInformation($"{nameof(HandleRequest)} Authorised.");
+            var response = authorised(req, ct);
+            logger.LogInformation($"{nameof(HandleRequest)} Response Gathered.");
+            return response;
         }
 
+        logger.LogWarning($"{nameof(HandleRequest)} Unauthorised.");
         return unauthorised(req, ct);
     }
 
@@ -40,6 +49,7 @@ public abstract class BaseHttpFunction(IOptions<HostingOptions> hostingOptions)
         Func<HttpRequestData, T, CancellationToken, Task<HttpResponseData>> unauthorised,
         CancellationToken ct)
     {
+        logger.LogInformation($"{nameof(HandleRequest)} initiated.");
         var isAuthorised = false;
         var roleCtr = 0;
         while (!isAuthorised && roleCtr < roles.Length)
@@ -50,9 +60,13 @@ public abstract class BaseHttpFunction(IOptions<HostingOptions> hostingOptions)
 
         if (isAuthorised)
         {
-            return authorised(req, model, ct);
+            logger.LogInformation($"{nameof(HandleRequest)} Authorised.");
+            var response = authorised(req, model, ct);
+            logger.LogInformation($"{nameof(HandleRequest)} Response Gathered.");
+            return response;
         }
 
+        logger.LogWarning($"{nameof(HandleRequest)} Unauthorised.");
         return unauthorised(req, model, ct);
     }
 
