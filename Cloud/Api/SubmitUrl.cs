@@ -14,8 +14,9 @@ public class SubmitUrl(
     IUrlSubmitter urlSubmitter,
     ISearchIndexerService searchIndexerService,
     ILogger<SubmitUrl> logger,
+    ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(hostingOptions)
+    : BaseHttpFunction(hostingOptions, baseLogger)
 {
     [Function("SubmitUrl")]
     public Task<HttpResponseData> Run(

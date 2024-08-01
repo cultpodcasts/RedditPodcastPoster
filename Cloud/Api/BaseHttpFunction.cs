@@ -8,7 +8,7 @@ namespace Api;
 
 public abstract class BaseHttpFunction(
     IOptions<HostingOptions> hostingOptions,
-    Logger<BaseHttpFunction> logger
+    ILogger<BaseHttpFunction> logger
     )
 {
     protected HostingOptions HostingOptions = hostingOptions.Value;
