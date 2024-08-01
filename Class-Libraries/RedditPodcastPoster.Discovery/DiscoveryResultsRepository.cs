@@ -18,7 +18,6 @@ public class DiscoveryResultsRepository(
         return repository.Write(discoveryResultsDocument);
     }
 
-
     public async IAsyncEnumerable<DiscoveryResultsDocument> GetAllUnprocessed()
     {
         var unprocessedDocumentIds = new List<Guid>();
