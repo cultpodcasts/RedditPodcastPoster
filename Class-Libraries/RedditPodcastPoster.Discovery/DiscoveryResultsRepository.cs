@@ -1,6 +1,6 @@
-﻿using System.Text.Json.Serialization;
-using Microsoft.Azure.Cosmos;
+﻿using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -19,7 +19,6 @@ public class DiscoveryResultsRepository(
     }
 
 
-
     public async IAsyncEnumerable<DiscoveryResultsDocument> GetAllUnprocessed()
     {
         var unprocessedDocumentIds = new List<Guid>();
@@ -32,14 +31,13 @@ public class DiscoveryResultsRepository(
         while (feed.HasMoreResults)
         {
             var readNextAsync = await feed.ReadNextAsync();
-            unprocessedDocumentIds.AddRange(readNextAsync.Select(x=>x.Id));
+            unprocessedDocumentIds.AddRange(readNextAsync.Select(x => x.Id));
         }
 
         foreach (var unprocessedDocumentId in unprocessedDocumentIds)
         {
             yield return await GetById(unprocessedDocumentId);
         }
-
     }
 
     public async Task SetProcessed(IEnumerable<Guid> ids)
@@ -67,11 +65,4 @@ public class DiscoveryResultsRepository(
     {
         return repository.GetAllBy<DiscoveryResultsDocument>(x => ids.Contains(x.Id));
     }
-}
-
-
-public class IdRecord
-{
-    [JsonPropertyName("id")]
-    public Guid Id { get; set; }
 }
