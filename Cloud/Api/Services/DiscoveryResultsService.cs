@@ -14,6 +14,7 @@ public class DiscoveryResultsService(
 {
     public async Task<DiscoveryResponse> Get(CancellationToken c)
     {
+        logger.LogInformation($"{nameof(Get)} initiated.");
         var documents = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync(c);
         logger.LogInformation($"{nameof(Get)} Obtained unprocessed documents.");
         var results = documents.SelectMany(x => x.DiscoveryResults);
