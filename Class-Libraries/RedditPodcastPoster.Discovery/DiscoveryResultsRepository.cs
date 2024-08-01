@@ -19,8 +19,7 @@ public class DiscoveryResultsRepository(
 
     public IAsyncEnumerable<DiscoveryResultsDocument> GetAllUnprocessed()
     {
-        return repository.GetAll<DiscoveryResultsDocument>()
-            .Where(x => x.State == DiscoveryResultsDocumentState.Unprocessed);
+        return repository.GetAllBy<DiscoveryResultsDocument>(x => x.State == DiscoveryResultsDocumentState.Unprocessed);
     }
 
     public async Task SetProcessed(IEnumerable<Guid> ids)
