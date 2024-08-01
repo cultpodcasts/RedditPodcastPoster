@@ -53,6 +53,14 @@ public class Indexer(
         var activityBooked = await activityMarshaller.Initiate(indexerContext.IndexerOperationId, nameof(Indexer));
         if (activityBooked != ActivityStatus.Initiated)
         {
+            if (activityBooked == ActivityStatus.Failed)
+            {
+                return indexerContext with
+                {
+                    YouTubeError = true,
+                    SpotifyError = true
+                };
+            }
             return indexerContext with
             {
                 DuplicateIndexerOperation = true
