@@ -36,7 +36,7 @@ public class DiscoveryResultsRepository(
 
         foreach (var unprocessedDocumentId in unprocessedDocumentIds)
         {
-            yield return await GetById(unprocessedDocumentId);
+            yield return (await GetById(unprocessedDocumentId))!;
         }
     }
 
