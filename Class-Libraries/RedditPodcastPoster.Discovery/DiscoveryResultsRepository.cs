@@ -1,6 +1,5 @@
 ﻿using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -18,25 +17,9 @@ public class DiscoveryResultsRepository(
         return repository.Write(discoveryResultsDocument);
     }
 
-    public async IAsyncEnumerable<DiscoveryResultsDocument> GetAllUnprocessed()
+    public IAsyncEnumerable<DiscoveryResultsDocument> GetAllUnprocessed()
     {
-        var unprocessedDocumentIds = new List<Guid>();
-        var unprocessedDiscoveryResultDocuments = new QueryDefinition(
-            @"
-                SELECT c.id FROM c WHERE c.type = 'Discovery' AND c.state='Unprocessed'
-            ");
-
-        using var feed = container.GetItemQueryIterator<IdRecord>(unprocessedDiscoveryResultDocuments);
-        while (feed.HasMoreResults)
-        {
-            var readNextAsync = await feed.ReadNextAsync();
-            unprocessedDocumentIds.AddRange(readNextAsync.Select(x => x.Id));
-        }
-
-        foreach (var unprocessedDocumentId in unprocessedDocumentIds)
-        {
-            yield return (await GetById(unprocessedDocumentId))!;
-        }
+        return repository.GetAllBy<DiscoveryResultsDocument>(x => x.State == DiscoveryResultsDocumentState.Unprocessed);
     }
 
     public async Task SetProcessed(IEnumerable<Guid> ids)
