@@ -1,4 +1,5 @@
-﻿using Microsoft.Azure.Cosmos;
+﻿using System.Text.Json.Serialization;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
@@ -17,9 +18,28 @@ public class DiscoveryResultsRepository(
         return repository.Write(discoveryResultsDocument);
     }
 
-    public IAsyncEnumerable<DiscoveryResultsDocument> GetAllUnprocessed()
+
+
+    public async IAsyncEnumerable<DiscoveryResultsDocument> GetAllUnprocessed()
     {
-        return repository.GetAllBy<DiscoveryResultsDocument>(x => x.State == DiscoveryResultsDocumentState.Unprocessed);
+        var unprocessedDocumentIds = new List<Guid>();
+        var unprocessedDiscoveryResultDocuments = new QueryDefinition(
+            @"
+                SELECT c.id FROM c WHERE c.type = 'Discovery' AND c.state='Unprocessed'
+            ");
+
+        using var feed = container.GetItemQueryIterator<IdRecord>(unprocessedDiscoveryResultDocuments);
+        while (feed.HasMoreResults)
+        {
+            var readNextAsync = await feed.ReadNextAsync();
+            unprocessedDocumentIds.AddRange(readNextAsync.Select(x=>x.Id));
+        }
+
+        foreach (var unprocessedDocumentId in unprocessedDocumentIds)
+        {
+            yield return await GetById(unprocessedDocumentId);
+        }
+
     }
 
     public async Task SetProcessed(IEnumerable<Guid> ids)
@@ -47,4 +67,11 @@ public class DiscoveryResultsRepository(
     {
         return repository.GetAllBy<DiscoveryResultsDocument>(x => ids.Contains(x.Id));
     }
+}
+
+
+public class IdRecord
+{
+    [JsonPropertyName("id")]
+    public Guid Id { get; set; }
 }
