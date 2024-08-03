@@ -1,19 +1,16 @@
-﻿using System.Text.RegularExpressions;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
-public partial class SpotifyUrlCategoriser(
+public class SpotifyUrlCategoriser(
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
     IHtmlSanitiser htmlSanitiser,
     ILogger<SpotifyUrlCategoriser> logger)
     : ISpotifyUrlCategoriser
 {
-    private static readonly Regex SpotifyId = CreateEpisodeIdRegex();
-
     public async Task<ResolvedSpotifyItem> Resolve(Podcast? podcast, Uri url, IndexingContext indexingContext)
     {
         if (podcast != null && podcast.Episodes.Any(x => x.Urls.Spotify == url))
@@ -22,7 +19,7 @@ public partial class SpotifyUrlCategoriser(
                 podcast.Episodes.Single(x => x.Urls.Spotify == url)));
         }
 
-        var episodeId = GetEpisodeId(url);
+        var episodeId = SpotifyIdResolver.GetEpisodeId(url);
         if (episodeId == null)
         {
             throw new InvalidOperationException($"Unable to find spotify-id in url '{url}'.");
@@ -86,12 +83,4 @@ public partial class SpotifyUrlCategoriser(
             $"Could not find spotify episode for show named '{criteria.ShowName}' and episode-name '{criteria.EpisodeTitle}'.");
         return null;
     }
-
-    public string GetEpisodeId(Uri url)
-    {
-        return SpotifyId.Match(url.ToString()).Groups["episodeId"].Value;
-    }
-
-    [GeneratedRegex(@"episode/(?'episodeId'\w+)")]
-    private static partial Regex CreateEpisodeIdRegex();
 }
