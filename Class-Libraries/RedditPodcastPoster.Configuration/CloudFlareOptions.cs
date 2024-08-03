@@ -1,4 +1,4 @@
-namespace RedditPodcastPoster.ContentPublisher.Configuration;
+namespace RedditPodcastPoster.Configuration;
 
 public class CloudFlareOptions
 {
