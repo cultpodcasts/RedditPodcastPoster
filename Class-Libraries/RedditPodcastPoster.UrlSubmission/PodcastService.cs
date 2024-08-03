@@ -10,9 +10,7 @@ namespace RedditPodcastPoster.UrlSubmission;
 
 public class PodcastService(
     IPodcastRepository podcastRepository,
-    ISpotifyUrlCategoriser spotifyUrlCategoriser,
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
-    IYouTubeIdExtractor youTubeIdExtractor,
     IYouTubeVideoService youTubeVideoService,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<PodcastService> logger
@@ -24,7 +22,7 @@ public class PodcastService(
         IEnumerable<Podcast> podcasts;
         if (SpotifyPodcastServiceMatcher.IsMatch(url))
         {
-            var episodeId = spotifyUrlCategoriser.GetEpisodeId(url);
+            var episodeId = SpotifyIdResolver.GetEpisodeId(url);
             if (string.IsNullOrWhiteSpace(episodeId))
             {
                 throw new ArgumentException($"Unable to extract spotify-episode-id from '{url}'.", nameof(url));
@@ -44,7 +42,7 @@ public class PodcastService(
         }
         else if (YouTubePodcastServiceMatcher.IsMatch(url))
         {
-            var videoId = youTubeIdExtractor.Extract(url);
+            var videoId = YouTubeIdResolver.Extract(url);
             if (string.IsNullOrWhiteSpace(videoId))
             {
                 throw new ArgumentException($"Unable to extract youtube-video-id from '{url}'.", nameof(url));

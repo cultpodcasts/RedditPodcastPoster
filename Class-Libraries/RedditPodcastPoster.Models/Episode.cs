@@ -15,7 +15,7 @@ public class Episode
 
     [JsonPropertyName("title")]
     [JsonPropertyOrder(30)]
-    public string Title { get; init; } = "";
+    public string Title { get; set; } = "";
 
     [JsonPropertyName("description")]
     [JsonPropertyOrder(40)]
@@ -43,11 +43,11 @@ public class Episode
 
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(71)]
-    public TimeSpan Length { get; init; }
+    public TimeSpan Length { get; set; }
 
     [JsonPropertyName("explicit")]
     [JsonPropertyOrder(72)]
-    public bool Explicit { get; init; }
+    public bool Explicit { get; set; }
 
     [JsonPropertyName("spotifyId")]
     [JsonPropertyOrder(80)]

@@ -7,7 +7,6 @@ namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeEpisodeEnricher(
     IYouTubeItemResolver youTubeItemResolver,
-    IYouTubeIdExtractor youTubeIdExtractor,
     ITextSanitiser textSanitiser,
     IYouTubeVideoService youTubeVideoService,
     ILogger<YouTubeEpisodeEnricher> logger)
@@ -35,7 +34,7 @@ public class YouTubeEpisodeEnricher(
 
         if (string.IsNullOrWhiteSpace(request.Episode.YouTubeId) && request.Episode.Urls.YouTube != null)
         {
-            var videoId = youTubeIdExtractor.Extract(request.Episode.Urls.YouTube);
+            var videoId = YouTubeIdResolver.Extract(request.Episode.Urls.YouTube);
             if (videoId != null)
             {
                 request.Episode.YouTubeId = videoId;
@@ -45,7 +44,8 @@ public class YouTubeEpisodeEnricher(
         }
 
         var youTubeItem = await youTubeItemResolver.FindEpisode(request, indexingContext);
-        if (!string.IsNullOrWhiteSpace(youTubeItem?.SearchResult?.Id.VideoId) && request.Podcast.Episodes.All(x => x.YouTubeId != youTubeItem.SearchResult.Id.VideoId))
+        if (!string.IsNullOrWhiteSpace(youTubeItem?.SearchResult?.Id.VideoId) &&
+            request.Podcast.Episodes.All(x => x.YouTubeId != youTubeItem.SearchResult.Id.VideoId))
         {
             var episodeYouTubeId = youTubeItem.SearchResult.Id.VideoId;
             var release = youTubeItem.SearchResult.Snippet.PublishedAtDateTimeOffset;

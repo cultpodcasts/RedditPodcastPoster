@@ -28,6 +28,25 @@ public class CosmosDbRepository(
         }
     }
 
+    public async IAsyncEnumerable<T2> GetAll<T, T2>(Expression<Func<T, T2>> expr) where T : CosmosSelector
+    {
+        var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
+        var query = container
+            .GetItemLinqQueryable<T>(
+                requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
+            .Select(expr);
+        var items = query.ToFeedIterator();
+        if (items.HasMoreResults)
+        {
+            foreach (var item in await items.ReadNextAsync())
+            {
+                {
+                    yield return item;
+                }
+            }
+        }
+    }
+
     public IAsyncEnumerable<Guid> GetAllIds<T>() where T : CosmosSelector
     {
         try

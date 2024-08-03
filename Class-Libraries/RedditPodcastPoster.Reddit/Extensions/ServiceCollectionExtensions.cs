@@ -19,8 +19,9 @@ public static class ServiceCollectionExtensions
             .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>();
     }
 
-    public static void AddSubredditSettings(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddSubredditSettings(this IServiceCollection services, IConfiguration config)
     {
         services.BindConfiguration<SubredditSettings>("subreddit");
+        return services;
     }
 }

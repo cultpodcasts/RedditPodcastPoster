@@ -14,19 +14,18 @@ public static class ServiceCollectionExtensions
             .AddOptions<YouTubeSettings>().Bind(config.GetSection("youtube"));
 
         return services
-            .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
-            .AddScoped<IYouTubeEpisodeEnricher, YouTubeEpisodeEnricher>()
-            .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
-            .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
-            .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
-            .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
-            .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
-            .AddSingleton<IYouTubeIdExtractor, YouTubeIdExtractor>()
-            .AddScoped<ISearchResultFinder, SearchResultFinder>()
-            .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>()
-            .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
-            .AddSingleton<INoRedirectHttpClientFactory, NoRedirectHttpClientFactory>()
-            .AddScoped<IYouTubeEpisodeRetrievalHandler, YouTubeEpisodeRetrievalHandler>()
+                .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
+                .AddScoped<IYouTubeEpisodeEnricher, YouTubeEpisodeEnricher>()
+                .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
+                .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
+                .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
+                .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
+                .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
+                .AddScoped<ISearchResultFinder, SearchResultFinder>()
+                .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>()
+                .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
+                .AddSingleton<INoRedirectHttpClientFactory, NoRedirectHttpClientFactory>()
+                .AddScoped<IYouTubeEpisodeRetrievalHandler, YouTubeEpisodeRetrievalHandler>()
             ;
     }
 }

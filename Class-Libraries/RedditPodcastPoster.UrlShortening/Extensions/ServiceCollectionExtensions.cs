@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.ContentPublisher.Configuration;
 
 namespace RedditPodcastPoster.UrlShortening.Extensions;
 
