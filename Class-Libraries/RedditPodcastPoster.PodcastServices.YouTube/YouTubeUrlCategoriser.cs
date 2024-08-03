@@ -8,7 +8,6 @@ namespace RedditPodcastPoster.PodcastServices.YouTube;
 public class YouTubeUrlCategoriser(
     IYouTubeChannelService youTubeChannelService,
     IYouTubeVideoService youTubeVideoService,
-    IYouTubeIdExtractor youTubeIdExtractor,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<YouTubeUrlCategoriser> logger)
 #pragma warning restore CS9113 // Parameter is unread.
@@ -27,7 +26,7 @@ public class YouTubeUrlCategoriser(
 
             var episodes =
                 await youTubeVideoService.GetVideoContentDetails(
-                    new[] {youTubeIdExtractor.Extract(url)!},
+                    new[] {YouTubeIdResolver.Extract(url)!},
                     indexingContext,
                     true);
             if (episodes != null && episodes.Any())
@@ -52,7 +51,7 @@ public class YouTubeUrlCategoriser(
             }
         }
 
-        var videoId = youTubeIdExtractor.Extract(url);
+        var videoId = YouTubeIdResolver.Extract(url);
         if (videoId == null)
         {
             throw new InvalidOperationException($"Unable to find video-id in url '{url}'.");

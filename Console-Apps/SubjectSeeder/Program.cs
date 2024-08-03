@@ -4,10 +4,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
+using RedditPodcastPoster.Text.Extensions;
 using SubjectSeeder;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -25,7 +27,10 @@ builder.Services
     .AddRepositories()
     .AddSubjectServices()
     .AddSingleton<SubjectsSeeder>()
-    .AddSubredditSettings(builder.Configuration);
+    .AddSubredditSettings(builder.Configuration)
+    .AddContentPublishing(builder.Configuration)
+    .AddTextSanitiser();
+
 RedditClientFactory.AddRedditClient(builder.Services);
 
 builder.Services.BindConfiguration<RedditSettings>("reddit-moderator");

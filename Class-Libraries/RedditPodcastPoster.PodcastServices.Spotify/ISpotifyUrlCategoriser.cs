@@ -11,6 +11,4 @@ public interface ISpotifyUrlCategoriser
         PodcastServiceSearchCriteria criteria,
         Podcast? matchingPodcast,
         IndexingContext indexingContext);
-
-    string GetEpisodeId(Uri url);
 }

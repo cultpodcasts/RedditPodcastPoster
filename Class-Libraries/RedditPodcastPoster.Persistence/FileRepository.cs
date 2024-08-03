@@ -87,6 +87,13 @@ public class FileRepository : IFileRepository
         }
     }
 
+    public IAsyncEnumerable<T2> GetAll<T, T2>(Expression<Func<T, T2>> expr) where T : CosmosSelector
+    {
+        var items = GetAll<T>();
+        var reduce = items.Select(expr.Compile());
+        return reduce;
+    }
+
     public async IAsyncEnumerable<Guid> GetAllIds<T>() where T : CosmosSelector
     {
         var filenames = GetFilenames();

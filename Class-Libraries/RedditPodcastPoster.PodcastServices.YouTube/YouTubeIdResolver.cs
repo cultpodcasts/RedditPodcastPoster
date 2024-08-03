@@ -1,19 +1,14 @@
 ﻿using System.Text.RegularExpressions;
-using Microsoft.Extensions.Logging;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
-public partial class YouTubeIdExtractor(
-#pragma warning disable CS9113 // Parameter is unread.
-    ILogger<YouTubeIdExtractor> logger
-#pragma warning restore CS9113 // Parameter is unread.
-) : IYouTubeIdExtractor
+public static partial class YouTubeIdResolver
 {
     private static readonly Regex VideoId = GenerateYouTubeIdRegex();
     private static readonly Regex ShortId = GenerateShortId();
     private static readonly Regex LiveId = GenerateLiveId();
 
-    public string? Extract(Uri youTubeUrl)
+    public static string? Extract(Uri youTubeUrl)
     {
         var videoIdMatch = VideoId.Match(youTubeUrl.ToString()).Groups["videoId"];
         if (videoIdMatch.Success)

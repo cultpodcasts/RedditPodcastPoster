@@ -24,7 +24,6 @@ public class UrlSubmitter(
     ISpotifyUrlCategoriser spotifyUrlCategoriser,
     IAppleUrlCategoriser appleUrlCategoriser,
     IYouTubeUrlCategoriser youTubeUrlCategoriser,
-    IYouTubeIdExtractor youTubeIdExtractor,
     ILogger<UrlSubmitter> logger)
     : IUrlSubmitter
 {
@@ -150,7 +149,7 @@ public class UrlSubmitter(
         {
             if (categorisedItem.ResolvedSpotifyItem == null ||
                 categorisedItem.ResolvedSpotifyItem.EpisodeDescription !=
-                spotifyUrlCategoriser.GetEpisodeId(discoveryResult.Urls.Spotify!))
+                SpotifyIdResolver.GetEpisodeId(discoveryResult.Urls.Spotify!))
             {
                 categorisedItem = categorisedItem with
                 {
@@ -179,7 +178,7 @@ public class UrlSubmitter(
         if (enrichYouTube)
         {
             if (categorisedItem.ResolvedYouTubeItem == null ||
-                categorisedItem.ResolvedYouTubeItem.ShowId != youTubeIdExtractor.Extract(discoveryResult.Urls.YouTube!))
+                categorisedItem.ResolvedYouTubeItem.ShowId != YouTubeIdResolver.Extract(discoveryResult.Urls.YouTube!))
             {
                 categorisedItem = categorisedItem with
                 {
