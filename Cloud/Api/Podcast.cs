@@ -61,7 +61,7 @@ public class Podcast(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Get)}: Failed to index-podcast.");
+            logger.LogError(ex, $"{nameof(Index)}: Failed to index-podcast.");
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
