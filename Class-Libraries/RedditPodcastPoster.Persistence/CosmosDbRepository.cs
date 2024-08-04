@@ -54,8 +54,8 @@ public class CosmosDbRepository(
             var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
             var query = container
                 .GetItemLinqQueryable<T>(
-                    requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(partitionKey) })
-                .Select(x=>x.Id);
+                    requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
+                .Select(x => x.Id);
             var feedIterator = query.ToFeedIterator();
 
             return feedIterator.ToAsyncEnumerable();
@@ -85,7 +85,6 @@ public class CosmosDbRepository(
     public async Task<T?> GetBy<T>(Expression<Func<T, bool>> selector) where T : CosmosSelector
     {
         var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
-
         var query = container
             .GetItemLinqQueryable<T>(
                 requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
@@ -102,6 +101,29 @@ public class CosmosDbRepository(
         }
 
         return null;
+    }
+
+    public async Task<T2?> GetBy<T, T2>(Expression<Func<T, bool>> selector, Expression<Func<T, T2>> expr)
+        where T : CosmosSelector
+    {
+        var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
+        var query = container
+            .GetItemLinqQueryable<T>(
+                requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
+            .Where(selector)
+            .Select(expr);
+        var items = query.ToFeedIterator();
+        if (items.HasMoreResults)
+        {
+            foreach (var item in await items.ReadNextAsync())
+            {
+                {
+                    return item;
+                }
+            }
+        }
+
+        return default;
     }
 
     public async IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<T, bool>> selector)
