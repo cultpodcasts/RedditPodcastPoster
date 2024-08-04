@@ -52,12 +52,12 @@ public class CosmosDbRepository(
         try
         {
             var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
-            var query = "SELECT VALUE root.id FROM root";
-            var feedIterator = container.GetItemQueryIterator<Guid>(query,
-                requestOptions: new QueryRequestOptions
-                {
-                    PartitionKey = new PartitionKey(partitionKey)
-                });
+            var query = container
+                .GetItemLinqQueryable<T>(
+                    requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(partitionKey) })
+                .Select(x=>x.Id);
+            var feedIterator = query.ToFeedIterator();
+
             return feedIterator.ToAsyncEnumerable();
         }
         catch (Exception ex)
@@ -112,8 +112,7 @@ public class CosmosDbRepository(
             .GetItemLinqQueryable<T>(
                 requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
             .Where(selector);
-        var items = query
-            .ToFeedIterator();
+        var items = query.ToFeedIterator();
         if (items.HasMoreResults)
         {
             foreach (var item in await items.ReadNextAsync())

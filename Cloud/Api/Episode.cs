@@ -188,7 +188,7 @@ public class Episode(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Get)}: Failed to get-podcasts.");
+            logger.LogError(ex, $"{nameof(Get)}: Failed to get episode.");
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)

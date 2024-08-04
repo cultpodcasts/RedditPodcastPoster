@@ -85,6 +85,7 @@ public class DiscoveryCuration(
                         new DiscoverySubmitResponseItem
                         {
                             DiscoveryItemId = discoveryResult.Id,
+                            EpisodeId = result.EpisodeId,
                             Message = result.State.ToString()
                         });
                 }
