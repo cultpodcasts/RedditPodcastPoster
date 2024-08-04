@@ -45,7 +45,7 @@ public class ContentPublisher(
 
     public async Task PublishSubjects()
     {
-        var subjects = await subjectRepository.GetAll(x => new {name = x.Name}).ToListAsync();
+        var subjects = await subjectRepository.GetAll(x => new {name = x.Name}).OrderBy(x => x.name).ToListAsync();
         var json = JsonSerializer.Serialize(subjects);
 
         var request = new PutObjectRequest
