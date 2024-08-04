@@ -1,10 +1,10 @@
 ﻿using System.Net;
 using Api.Dtos;
-using Indexer;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Indexing;
 using RedditPodcastPoster.Search;
 
