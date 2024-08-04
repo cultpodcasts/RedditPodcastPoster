@@ -57,9 +57,9 @@ public class UrlSubmitter(
         var categorisedItem =
             await urlCategoriser.Categorise(podcast, url, indexingContext, submitOptions.MatchOtherServices);
 
-        (podcastResult, episodeResult) = await ProcessCategorisesItem(categorisedItem, submitOptions);
+        var submitResult = await ProcessCategorisesItem(categorisedItem, submitOptions);
 
-        return new SubmitResult(episodeResult, podcastResult);
+        return submitResult;
     }
 
     public async Task<DiscoverySubmitResult> Submit(
@@ -188,38 +188,37 @@ public class UrlSubmitter(
             }
         }
 
-        var (podcastResult, episodeResult) = await ProcessCategorisesItem(categorisedItem, submitOptions);
+        var submitResult = await ProcessCategorisesItem(categorisedItem, submitOptions);
 
         DiscoverySubmitResultState state;
-        if (podcastResult == SubmitResultState.Created && episodeResult == SubmitResultState.Created)
+        if (submitResult is {PodcastResult: SubmitResultState.Created, EpisodeResult: SubmitResultState.Created})
         {
             state = DiscoverySubmitResultState.CreatedPodcastAndEpisode;
         }
-        else if (podcastResult == SubmitResultState.Enriched && episodeResult == SubmitResultState.Created)
+        else if (submitResult is {PodcastResult: SubmitResultState.Enriched, EpisodeResult: SubmitResultState.Created})
         {
             state = DiscoverySubmitResultState.CreatedEpisode;
         }
-        else if (podcastResult == SubmitResultState.Enriched && episodeResult == SubmitResultState.Enriched)
+        else if (submitResult is {PodcastResult: SubmitResultState.Enriched, EpisodeResult: SubmitResultState.Enriched})
         {
             state = DiscoverySubmitResultState.EnrichedPodcastAndEpisode;
         }
         else
         {
             throw new ArgumentException(
-                $"Unknown state: podcast-result: '{podcastResult.ToString()}', episode-result '{episodeResult.ToString()}'.");
+                $"Unknown state: podcast-result: '{submitResult.PodcastResult.ToString()}', episode-result '{submitResult.EpisodeResult.ToString()}'.");
         }
 
-        return new DiscoverySubmitResult(state);
+        return new DiscoverySubmitResult(state, submitResult.EpisodeId);
     }
 
-    private async Task<(SubmitResultState podcastResult, SubmitResultState episodeResult)> ProcessCategorisesItem(
+    private async Task<SubmitResult> ProcessCategorisesItem(
         CategorisedItem categorisedItem, SubmitOptions submitOptions)
     {
-        SubmitResultState podcastResult;
-        SubmitResultState episodeResult;
+        SubmitResult submitResult;
         if (categorisedItem.MatchingPodcast != null)
         {
-            (podcastResult, episodeResult) = await AddEpisodeToExistingPodcast(categorisedItem);
+            submitResult = await AddEpisodeToExistingPodcast(categorisedItem);
 
             if (submitOptions.PersistToDatabase)
             {
@@ -232,9 +231,8 @@ public class UrlSubmitter(
         }
         else
         {
-            podcastResult = SubmitResultState.Created;
-            episodeResult = SubmitResultState.Created;
-            var newPodcast = await CreatePodcastWithEpisode(categorisedItem);
+            var (newPodcast, newEpisode) = await CreatePodcastWithEpisode(categorisedItem);
+            submitResult = new SubmitResult(SubmitResultState.Created, SubmitResultState.Created, newEpisode.Id);
             if (submitOptions.PersistToDatabase)
             {
                 await podcastRepository.Save(newPodcast);
@@ -245,17 +243,16 @@ public class UrlSubmitter(
             }
         }
 
-        return (podcastResult, episodeResult);
+        return submitResult;
     }
 
-    private async Task<(SubmitResultState podcastResult, SubmitResultState episodeResult)> AddEpisodeToExistingPodcast(
+    private async Task<SubmitResult> AddEpisodeToExistingPodcast(
         CategorisedItem categorisedItem)
     {
-        SubmitResultState podcastResult;
         SubmitResultState episodeResult;
-        podcastResult = SubmitResultState.Enriched;
+        var podcastResult = SubmitResultState.Enriched;
         var matchingEpisodes = categorisedItem.MatchingEpisode != null
-            ? new[] {categorisedItem.MatchingEpisode}
+            ? [categorisedItem.MatchingEpisode]
             : categorisedItem.MatchingPodcast!.Episodes.Where(episode =>
                 IsMatchingEpisode(episode, categorisedItem)).ToArray();
 
@@ -279,6 +276,7 @@ public class UrlSubmitter(
             categorisedItem.MatchingPodcast,
             categorisedItem, matchingEpisode);
 
+        Guid episodeId;
         if (matchingEpisode == null)
         {
             episodeResult = SubmitResultState.Created;
@@ -292,16 +290,18 @@ public class UrlSubmitter(
             categorisedItem.MatchingPodcast.Episodes.Add(episode);
             categorisedItem.MatchingPodcast.Episodes =
                 categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
+            episodeId = episode.Id;
         }
         else
         {
             episodeResult = SubmitResultState.Enriched;
+            episodeId = matchingEpisode.Id;
         }
 
-        return (podcastResult, episodeResult);
+        return new SubmitResult(podcastResult, episodeResult, episodeId);
     }
 
-    private async Task<Podcast> CreatePodcastWithEpisode(CategorisedItem categorisedItem)
+    private async Task<(Podcast, Episode)> CreatePodcastWithEpisode(CategorisedItem categorisedItem)
     {
         string showName;
         string publisher;
@@ -339,7 +339,7 @@ public class UrlSubmitter(
         newPodcast.Episodes.Add(episode);
         logger.LogInformation($"Created podcast with name '{showName}' with id '{newPodcast.Id}'.");
 
-        return newPodcast;
+        return (newPodcast, episode);
     }
 
     private Episode CreateEpisode(CategorisedItem categorisedItem)
@@ -378,7 +378,7 @@ public class UrlSubmitter(
                 description = categorisedItem.ResolvedYouTubeItem.EpisodeDescription;
                 break;
             default:
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException(nameof(categorisedItem.Authority));
         }
 
         var newEpisode = new Episode
