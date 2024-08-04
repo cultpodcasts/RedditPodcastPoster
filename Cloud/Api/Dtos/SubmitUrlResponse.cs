@@ -6,13 +6,6 @@ namespace Api.Dtos;
 
 public class SubmitUrlResponse
 {
-    public enum SubmitItemResponse
-    {
-        None = 0,
-        Created,
-        Enriched
-    }
-
     [JsonPropertyName("success")]
     public SubmitUrlSuccessResponse? Success { get; private set; }
 
@@ -26,6 +19,7 @@ public class SubmitUrlResponse
             SubmitResultState.None => SubmitItemResponse.None,
             SubmitResultState.Created => SubmitItemResponse.Created,
             SubmitResultState.Enriched => SubmitItemResponse.Enriched,
+            SubmitResultState.PodcastRemoved => SubmitItemResponse.Ignored,
             _ => throw new ArgumentException($"Unknown value '{submitResultState}'.", nameof(submitResultState))
         };
     }
@@ -36,23 +30,14 @@ public class SubmitUrlResponse
         {
             Success = new SubmitUrlSuccessResponse(
                 ToSubmitEpisodeResponse(result.EpisodeResult),
-                ToSubmitEpisodeResponse(result.PodcastResult))
+                ToSubmitEpisodeResponse(result.PodcastResult),
+                result.EpisodeId
+            )
         };
     }
 
     public static SubmitUrlResponse Failure(string message = "")
     {
         return new SubmitUrlResponse {Error = message};
-    }
-
-    public class SubmitUrlSuccessResponse(SubmitItemResponse episode, SubmitItemResponse podcast)
-    {
-        [JsonPropertyName("episode")]
-        [JsonConverter(typeof(JsonStringEnumConverter))]
-        public SubmitItemResponse Episode { get; private set; } = episode;
-
-        [JsonPropertyName("podcast")]
-        [JsonConverter(typeof(JsonStringEnumConverter))]
-        public SubmitItemResponse Podcast { get; private set; } = podcast;
     }
 }
