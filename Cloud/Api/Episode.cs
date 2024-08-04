@@ -30,7 +30,7 @@ public class Episode(
         CancellationToken ct
     )
     {
-        return HandleRequest(req, ["submit"], episodeId, Get, Unauthorised, ct);
+        return HandleRequest(req, ["curate"], episodeId, Get, Unauthorised, ct);
     }
 
     [Function("EpisodePost")]
@@ -43,7 +43,7 @@ public class Episode(
         CancellationToken ct
     )
     {
-        return HandleRequest(req, ["submit"], new EpisodeChangeRequestWrapper(episodeId, episodeChangeRequest), Post,
+        return HandleRequest(req, ["curate"], new EpisodeChangeRequestWrapper(episodeId, episodeChangeRequest), Post,
             Unauthorised, ct);
     }
 

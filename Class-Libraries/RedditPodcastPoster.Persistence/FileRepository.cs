@@ -117,6 +117,16 @@ public class FileRepository : IFileRepository
         return reduce;
     }
 
+    public async Task<T2?> GetBy<T, T2>(
+        Expression<Func<T, bool>> selector,
+        Expression<Func<T, T2>> expr) where T : CosmosSelector
+    {
+        var items = await GetAll<T>().ToListAsync();
+        var reduce = items.Where(selector.Compile()).Select(expr.Compile());
+        return reduce.FirstOrDefault();
+    }
+
+
     public IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<T, bool>> selector)
         where T : CosmosSelector
     {
@@ -125,14 +135,14 @@ public class FileRepository : IFileRepository
         return reduce;
     }
 
-    public IAsyncEnumerable<T2> GetAllBy<T, T2>(Expression<Func<T, bool>> selector,
+    public IAsyncEnumerable<T2> GetAllBy<T, T2>(
+        Expression<Func<T, bool>> selector,
         Expression<Func<T, T2>> expr) where T : CosmosSelector
     {
         var items = GetAll<T>();
         var reduce = items.Where(selector.Compile()).Select(expr.Compile());
         return reduce;
     }
-
 
     private string GetFilePath(string fileKey)
     {
