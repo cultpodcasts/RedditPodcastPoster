@@ -1,7 +1,7 @@
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
-namespace Indexer;
+namespace RedditPodcastPoster.Configuration;
 
 public class IndexerOptions
 {
