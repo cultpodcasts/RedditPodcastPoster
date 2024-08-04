@@ -1,4 +1,5 @@
 ﻿using Api.Services;
+using Indexer;
 using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Discovery.Extensions;
+using RedditPodcastPoster.Indexing.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
@@ -42,7 +44,10 @@ public static class Ioc
             .AddDiscoveryRepository(hostBuilderContext.Configuration)
             .AddScoped<IDiscoveryResultsService, DiscoveryResultsService>()
             .AddSearch()
+            .AddIndexer()
+            .AddEliminationTerms()
             .AddHttpClient();
         serviceCollection.BindConfiguration<HostingOptions>("hosting");
+        serviceCollection.BindConfiguration<IndexerOptions>("indexer");
     }
 }
