@@ -28,7 +28,6 @@
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.UrlSubmission\RedditPodcastPoster.UrlSubmission.csproj" />
     <ProjectReference Include="..\Azure\Azure.csproj" />
-    <ProjectReference Include="..\Indexer\Indexer.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">
