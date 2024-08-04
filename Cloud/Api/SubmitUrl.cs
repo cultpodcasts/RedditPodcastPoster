@@ -48,9 +48,9 @@ public class SubmitUrl(
 
             await searchIndexerService.RunIndexer();
 
-            var success = await req.CreateResponse(HttpStatusCode.OK)
-                .WithJsonBody(SubmitUrlResponse.Successful(result), c);
-            return success;
+            var success = SubmitUrlResponse.Successful(result);
+            var response = await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(success, c);
+            return response;
         }
         catch (Exception ex)
         {
