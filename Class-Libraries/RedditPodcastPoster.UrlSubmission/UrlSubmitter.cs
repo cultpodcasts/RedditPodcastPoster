@@ -298,7 +298,7 @@ public class UrlSubmitter(
             episodeId = matchingEpisode.Id;
         }
 
-        return new SubmitResult(podcastResult, episodeResult, episodeId);
+        return new SubmitResult(episodeResult, podcastResult, episodeId);
     }
 
     private async Task<(Podcast, Episode)> CreatePodcastWithEpisode(CategorisedItem categorisedItem)
