@@ -57,7 +57,7 @@ public class UrlSubmitter(
         var categorisedItem =
             await urlCategoriser.Categorise(podcast, url, indexingContext, submitOptions.MatchOtherServices);
 
-        var submitResult = await ProcessCategorisesItem(categorisedItem, submitOptions);
+        var submitResult = await ProcessCategorisedItem(categorisedItem, submitOptions);
 
         return submitResult;
     }
@@ -188,7 +188,7 @@ public class UrlSubmitter(
             }
         }
 
-        var submitResult = await ProcessCategorisesItem(categorisedItem, submitOptions);
+        var submitResult = await ProcessCategorisedItem(categorisedItem, submitOptions);
 
         DiscoverySubmitResultState state;
         if (submitResult is {PodcastResult: SubmitResultState.Created, EpisodeResult: SubmitResultState.Created})
@@ -212,7 +212,7 @@ public class UrlSubmitter(
         return new DiscoverySubmitResult(state, submitResult.EpisodeId);
     }
 
-    private async Task<SubmitResult> ProcessCategorisesItem(
+    private async Task<SubmitResult> ProcessCategorisedItem(
         CategorisedItem categorisedItem, SubmitOptions submitOptions)
     {
         SubmitResult submitResult;
