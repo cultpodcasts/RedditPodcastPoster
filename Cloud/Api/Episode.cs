@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Text.Json;
 using Api.Dtos;
+using Api.Extensions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -177,13 +178,14 @@ public class Episode(
             var podcast = await podcastRepository.GetBy(x => x.Episodes.Any(ep => ep.Id == episodeId));
             var episode = podcast?.Episodes.SingleOrDefault(x => x.Id == episodeId);
 
-            if (episode == null)
+            if (episode == null || podcast == null)
             {
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
+            var podcastEpisode = episode.Enrich(podcast.Name);
             var success = await req.CreateResponse(HttpStatusCode.OK)
-                .WithJsonBody(episode, c);
+                .WithJsonBody(podcastEpisode, c);
             return success;
         }
         catch (Exception ex)
