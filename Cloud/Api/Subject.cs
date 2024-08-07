@@ -1,11 +1,13 @@
 ﻿using System.Net;
 using System.Text.Json;
+using Amazon.Runtime.Internal;
 using Api.Dtos;
 using Api.Dtos.Extensions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subjects;
@@ -16,6 +18,7 @@ namespace Api;
 public class SubjectController(
     ISubjectRepository subjectRepository,
     ISubjectService subjectService,
+    IContentPublisher contentPublisher,
     ILogger<SubjectController> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions
@@ -81,7 +84,6 @@ public class SubjectController(
         CancellationToken ct
     )
     {
-        //return Task.FromResult(req.CreateResponse(HttpStatusCode.Accepted));
         return HandleRequest(req, ["curate"], subjectChangeRequest, Put, Unauthorised, ct);
     }
 
@@ -102,6 +104,8 @@ public class SubjectController(
         }
 
         await subjectRepository.Save(entity);
+        await contentPublisher.PublishSubjects();
+
         return await req.CreateResponse(HttpStatusCode.Accepted).WithJsonBody(entity.ToDto(), ct);
     }
 
