@@ -6,8 +6,10 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Subjects;
 
-public class SubjectService(ICachedSubjectRepository subjectRepository, ILogger<SubjectService> logger)
-    : ISubjectService
+public class SubjectService(
+    ICachedSubjectRepository subjectRepository,
+    ILogger<SubjectService> logger
+) : ISubjectService
 {
     public async Task<Subject?> Match(Subject subject)
     {

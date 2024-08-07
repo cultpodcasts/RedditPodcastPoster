@@ -98,7 +98,7 @@ public class SubjectController(
         if (matchingSubject != null)
         {
             return await req.CreateResponse(HttpStatusCode.Conflict)
-                .WithJsonBody(new {message = $"Matches subject '{matchingSubject.Name}'."}, ct);
+                .WithJsonBody(new {conflict = matchingSubject.Name}, ct);
         }
 
         await subjectRepository.Save(entity);
