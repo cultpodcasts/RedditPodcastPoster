@@ -38,6 +38,7 @@ builder.Services
     .AddAppleServices()
     .AddCommonServices(builder.Configuration)
     .AddSubjectServices()
+    .AddCachedSubjectProvider()
     .AddRemoteClient()
     .AddScoped(s => new iTunesSearchManager())
     .AddEliminationTerms()

@@ -4,27 +4,31 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Subjects;
 
-public class CachedSubjectRepository(
+public class CachedSubjectProvider(
     ISubjectRepository subjectRepository,
-    ILogger<CachedSubjectRepository> logger)
-    : ICachedSubjectRepository
+    ILogger<CachedSubjectProvider> logger)
+    : ICachedSubjectsProvider
 {
     private IList<Subject> _cache = new List<Subject>();
     private bool _requiresFetch = true;
 
-    public async Task<IEnumerable<Subject>> GetAll()
+    public async IAsyncEnumerable<Subject> GetAll()
     {
         if (_requiresFetch)
         {
             await Fetch();
         }
 
-        return _cache;
+        foreach (var subject in _cache)
+        {
+            yield return subject;
+        }
     }
+
 
     private async Task Fetch()
     {
-        logger.LogInformation($"Fetching {nameof(CachedSubjectRepository)}.");
+        logger.LogInformation($"Fetching {nameof(CachedSubjectProvider)}.");
         var subjects = await subjectRepository.GetAll().ToArrayAsync();
         _cache = subjects.ToList();
         _requiresFetch = false;

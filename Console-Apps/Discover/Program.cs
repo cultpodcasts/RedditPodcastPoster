@@ -29,6 +29,7 @@ builder.Services
     .AddScoped<IDiscoveryResultConsoleLogger, DiscoveryResultConsoleLogger>()
     .AddRepositories()
     .AddSubjectServices()
+    .AddCachedSubjectProvider()
     .AddScoped<IRemoteClient, RemoteClient>()
     .AddScoped(s => new iTunesSearchManager())
     .AddHttpClient();

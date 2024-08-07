@@ -22,6 +22,7 @@ builder.Services
     .AddLogging()
     .AddRepositories()
     .AddScoped<CategorisePodcastEpisodesProcessor>()
+    .AddCachedSubjectProvider()
     .AddSubjectServices();
 
 using var host = builder.Build();

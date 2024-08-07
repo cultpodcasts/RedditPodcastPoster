@@ -26,6 +26,7 @@ builder.Services
     .AddLogging()
     .AddRepositories()
     .AddSubjectServices()
+    .AddCachedSubjectProvider()
     .AddSingleton<SubjectsSeeder>()
     .AddSubredditSettings(builder.Configuration)
     .AddContentPublishing(builder.Configuration)

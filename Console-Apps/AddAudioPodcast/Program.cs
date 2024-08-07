@@ -42,6 +42,7 @@ builder.Services
     .AddScoped<IRemoteClient, RemoteClient>()
     .AddSingleton<PodcastFactory>()
     .AddSubjectServices()
+    .AddCachedSubjectProvider()
     .AddTextSanitiser()
     .AddHttpClient();
 

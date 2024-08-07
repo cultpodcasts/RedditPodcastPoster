@@ -36,6 +36,7 @@ builder.Services
     .AddRedditServices(builder.Configuration)
     .AddTwitterServices(builder.Configuration)
     .AddSubjectServices()
+    .AddCachedSubjectProvider()
     .AddTextSanitiser()
     .AddShortnerServices(builder.Configuration)
     .AddHttpClient();
