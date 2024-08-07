@@ -3,6 +3,7 @@ using System.Text.Json;
 using Api.Dtos;
 using Api.Extensions;
 using Azure.Search.Documents;
+using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -35,6 +36,49 @@ public class Episode(
     {
         return HandleRequest(req, ["curate"], episodeId, Get, Unauthorised, ct);
     }
+
+    [Function("OutgoingEpisodesGet")]
+    public Task<HttpResponseData> GetOutgoing(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "episodes/outgoing")]
+        HttpRequestData req,
+        FunctionContext executionContext,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(req, ["curate"], GetOutgoing, Unauthorised, ct);
+    }
+
+    private async Task<HttpResponseData> GetOutgoing(HttpRequestData req, CancellationToken c)
+    {
+        try
+        {
+            var episodes = new List<RedditPodcastPoster.Models.Episode>();
+            var since = DateTime.UtcNow.AddDays(-7);
+            var podcastIds = await podcastRepository.GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == false) && x.Episodes.Any(ep =>
+                ep.Release > since && !ep.Posted && !ep.Tweeted), x => new {guid = x.Id}).ToListAsync(c);
+            foreach (var podcastId in podcastIds)
+            {
+                var podcast = await podcastRepository.GetBy(x => x.Id == podcastId.guid);
+                var unpostedEpisodes =
+                    podcast.Episodes.Where(x => x.Release>since && x is {Posted: false, Tweeted: false});
+                episodes.AddRange(unpostedEpisodes);
+            }
+
+            var guids = episodes.OrderByDescending(x => x.Release).Select(x => x.Id);
+            var success = await req.CreateResponse(HttpStatusCode.OK)
+                .WithJsonBody(guids, c);
+            return success;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"{nameof(Get)}: Failed to get episode.");
+        }
+
+        var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
+            .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve episode"), c);
+        return failure;
+    }
+
 
     [Function("EpisodePost")]
     public Task<HttpResponseData> Post(
