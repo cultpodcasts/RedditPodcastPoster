@@ -8,12 +8,14 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Subjects;
 using Subject = RedditPodcastPoster.Models.Subject;
 
 namespace Api;
 
 public class SubjectController(
     ISubjectRepository subjectRepository,
+    ISubjectService subjectService,
     ILogger<SubjectController> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions
@@ -66,10 +68,43 @@ public class SubjectController(
         CancellationToken ct
     )
     {
-        //return Task.FromResult(req.CreateResponse(HttpStatusCode.Accepted));
         return HandleRequest(req, ["curate"], new SubjectChangeRequestWrapper(subjectId, subjectChangeRequest), Post,
             Unauthorised, ct);
     }
+
+    [Function("SubjectPut")]
+    public Task<HttpResponseData> Put(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "subject")]
+        HttpRequestData req,
+        FunctionContext executionContext,
+        [FromBody] Dtos.Subject subjectChangeRequest,
+        CancellationToken ct
+    )
+    {
+        //return Task.FromResult(req.CreateResponse(HttpStatusCode.Accepted));
+        return HandleRequest(req, ["curate"], subjectChangeRequest, Put, Unauthorised, ct);
+    }
+
+    private async Task<HttpResponseData> Put(HttpRequestData req, Dtos.Subject subject, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(subject.Name))
+        {
+            return await req.CreateResponse(HttpStatusCode.BadRequest).WithJsonBody(new {message = "Missing name"}, ct);
+        }
+
+        var entity = new Subject(subject.Name);
+        UpdateSubject(entity, subject);
+        var matchingSubject = await subjectService.Match(entity);
+        if (matchingSubject != null)
+        {
+            return await req.CreateResponse(HttpStatusCode.Conflict)
+                .WithJsonBody(new {message = $"Matches subject '{matchingSubject.Name}'."}, ct);
+        }
+
+        await subjectRepository.Save(entity);
+        return await req.CreateResponse(HttpStatusCode.Accepted).WithJsonBody(entity.ToDto(), ct);
+    }
+
 
     private async Task<HttpResponseData> Post(HttpRequestData req,
         SubjectChangeRequestWrapper subjectChangeRequestWrapper, CancellationToken c)
