@@ -18,8 +18,8 @@ public class SubjectServiceTests
         _fixture = new Fixture();
         _mocker = new AutoMocker();
         _subjects = _fixture.CreateMany<Subject>().ToList();
-        _mocker.GetMock<ICachedSubjectRepository>().Setup(x => x.GetAll())
-            .ReturnsAsync(() => _subjects);
+        _mocker.GetMock<ISubjectsProvider>().Setup(x => x.GetAll())
+            .Returns(() => _subjects.ToAsyncEnumerable());
     }
 
     private ISubjectService Sut => _mocker.CreateInstance<SubjectService>();

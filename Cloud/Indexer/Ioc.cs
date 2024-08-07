@@ -50,6 +50,7 @@ public static class Ioc
             .AddTwitterServices(hostBuilderContext.Configuration)
             .AddScoped<ITweeter, Tweeter>()
             .AddSubjectServices()
+            .AddCachedSubjectProvider()
             .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddContentPublishing(hostBuilderContext.Configuration)
