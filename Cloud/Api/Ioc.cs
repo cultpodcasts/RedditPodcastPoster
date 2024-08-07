@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Indexing.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
@@ -47,6 +48,7 @@ public static class Ioc
             .AddSearch()
             .AddIndexer()
             .AddEliminationTerms()
+            .AddContentPublishing(hostBuilderContext.Configuration)
             .AddHttpClient();
         serviceCollection.BindConfiguration<HostingOptions>("hosting");
         serviceCollection.BindConfiguration<IndexerOptions>("indexer");

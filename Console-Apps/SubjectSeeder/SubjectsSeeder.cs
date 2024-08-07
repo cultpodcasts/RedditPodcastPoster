@@ -24,7 +24,7 @@ public class SubjectsSeeder(
 
     public async Task Run(SubjectRequest subjectRequest)
     {
-        Subject? match= null;
+        Subject? match = null;
         if (!subjectRequest.Publish)
         {
             var subject = SubjectFactory.Create(
@@ -80,7 +80,8 @@ public class SubjectsSeeder(
 
                         if (!flair.TextEditable)
                         {
-                            var subjectUsingFlair = await subjectRepository.GetBy(x => x.RedditFlairTemplateId == flairId);
+                            var subjectUsingFlair =
+                                await subjectRepository.GetBy(x => x.RedditFlairTemplateId == flairId);
                             if (subjectUsingFlair != null)
                             {
                                 subjectUsingFlair.RedditFlareText = flair.Text;
@@ -124,6 +125,7 @@ public class SubjectsSeeder(
 
         if (match == null || subjectRequest.Publish)
         {
+            logger.LogInformation("Publishing subjects.");
             await contentPublisher.PublishSubjects();
         }
     }
