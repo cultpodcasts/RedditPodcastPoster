@@ -26,6 +26,7 @@ builder.Services
     .AddSingleton<TweetProcessor>()
     .AddTwitterServices(builder.Configuration)
     .AddSubjectServices()
+    .AddCachedSubjectProvider()
     .AddTextSanitiser();
 
 using var host = builder.Build();

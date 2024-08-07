@@ -34,6 +34,7 @@ builder.Services
     .AddSingleton<TrainingDataProcessor>()
     .AddSingleton<ISubjectCleanser, SubjectCleanser>()
     .AddSubjectServices()
+    .AddCachedSubjectProvider()
     .AddRedditServices(builder.Configuration);
 
 using var host = builder.Build();

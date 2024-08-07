@@ -44,6 +44,7 @@ builder.Services
     .AddScoped<IRemoteClient, RemoteClient>()
     .AddEliminationTerms()
     .AddSubjectServices()
+    .AddCachedSubjectProvider()
     .AddTextSanitiser()
     .AddIndexer()
     .AddSearch()

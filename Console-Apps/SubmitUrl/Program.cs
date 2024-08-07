@@ -42,6 +42,7 @@ builder.Services
     .AddScoped(s => new iTunesSearchManager())
     .AddUrlSubmission()
     .AddSubjectServices()
+    .AddCachedSubjectProvider()
     .AddTextSanitiser()
     .AddScoped<SubmitUrlProcessor>()
     .AddSearch()

@@ -6,12 +6,14 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Subjects;
 
-public class SubjectService(ICachedSubjectRepository subjectRepository, ILogger<SubjectService> logger)
-    : ISubjectService
+public class SubjectService(
+    ISubjectsProvider subjectRepository,
+    ILogger<SubjectService> logger
+) : ISubjectService
 {
     public async Task<Subject?> Match(Subject subject)
     {
-        var subjects = await subjectRepository.GetAll();
+        var subjects = await subjectRepository.GetAll().ToListAsync();
         if (!subjects.Any())
         {
             return null;
@@ -124,7 +126,7 @@ public class SubjectService(ICachedSubjectRepository subjectRepository, ILogger<
             throw new ArgumentNullException(nameof(subject));
         }
 
-        var subjects = await subjectRepository.GetAll();
+        var subjects = await subjectRepository.GetAll().ToListAsync();
 
         var matchedSubject =
             subjects.SingleOrDefault(x => x.Name.ToLowerInvariant() == subject.ToLowerInvariant());
@@ -158,7 +160,7 @@ public class SubjectService(ICachedSubjectRepository subjectRepository, ILogger<
         ignoredAssociatedSubjects = ignoredAssociatedSubjects?.Select(x => x.ToLowerInvariant()).ToArray();
         ignoredSubjects = ignoredSubjects?.Select(x => x.ToLowerInvariant()).ToArray();
 
-        var subjects = await subjectRepository.GetAll();
+        var subjects = await subjectRepository.GetAll().ToListAsync();
         var matches = subjects
             .Select(subject => new SubjectMatch(subject,
                 Matches(episode, subject, false, ignoredAssociatedSubjects, ignoredSubjects)))

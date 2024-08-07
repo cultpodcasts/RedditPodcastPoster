@@ -28,6 +28,7 @@ builder.Services
     .AddRepositories()
     .AddYouTubeServices(builder.Configuration)
     .AddSubjectServices()
+    .AddCachedSubjectProvider()
     .AddSingleton<EnrichYouTubePodcastProcessor>()
     .AddPostingCriteria(builder.Configuration);
 

@@ -3,10 +3,9 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Persistence.Abstractions;
 
-public interface ISubjectRepository
+public interface ISubjectRepository: ISubjectsProvider
 {
     Task Save(Subject subject);
-    IAsyncEnumerable<Subject> GetAll();
     IAsyncEnumerable<T> GetAll<T>(Expression<Func<Subject, T>> item);
     Task<Subject?> GetByName(string name);
     IAsyncEnumerable<Subject> GetByNames(string[] names);

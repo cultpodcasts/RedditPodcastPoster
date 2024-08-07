@@ -24,6 +24,7 @@ public static class Ioc
             .ConfigureFunctionsApplicationInsights()
             .AddRepositories()
             .AddSubjectServices()
+            .AddCachedSubjectProvider()
             .AddDiscovery(hostBuilderContext.Configuration)
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddScoped<IRemoteClient, RemoteClient>()

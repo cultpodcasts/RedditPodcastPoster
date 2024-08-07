@@ -31,6 +31,7 @@ builder.Services
     .AddRedditServices(builder.Configuration)
     .AddSubredditServices(builder.Configuration)
     .AddSubjectServices()
+    .AddCachedSubjectProvider()
     .AddScoped<ISubjectCleanser, SubjectCleanser>();
 
 using var host = builder.Build();

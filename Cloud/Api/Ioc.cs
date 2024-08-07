@@ -40,6 +40,7 @@ public static class Ioc
             .AddRemoteClient()
             .AddScoped(s => new iTunesSearchManager())
             .AddSubjectServices()
+            .AddSubjectProvider()
             .AddUrlSubmission()
             .AddDiscoveryRepository(hostBuilderContext.Configuration)
             .AddScoped<IDiscoveryResultsService, DiscoveryResultsService>()
