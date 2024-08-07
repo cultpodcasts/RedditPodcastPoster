@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Text.Json;
 using Api.Dtos;
+using Azure.Search.Documents;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,7 @@ public class Podcast(
     IIndexer indexer,
     ISearchIndexerService searchIndexerService,
     IPodcastRepository podcastRepository,
+    SearchClient searchClient,
     ILogger<Podcast> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<IndexerOptions> indexerOptions,
@@ -80,6 +82,37 @@ public class Podcast(
 
             UpdatePodcast(podcast, podcastChangeRequestWrapper.Podcast);
             await podcastRepository.Update(podcast);
+            if (podcastChangeRequestWrapper.Podcast.Removed.HasValue &&
+                podcastChangeRequestWrapper.Podcast.Removed.Value)
+            {
+                foreach (var documentId in podcast.Episodes.Select(x => x.Id))
+                {
+                    try
+                    {
+                        var result = await searchClient.DeleteDocumentsAsync(
+                            "id",
+                            new[] {documentId.ToString()},
+                            new IndexDocumentsOptions {ThrowOnAnyError = true},
+                            c);
+                        var success = result.Value.Results.First().Succeeded;
+                        if (!success)
+                        {
+                            logger.LogError(result.Value.Results.First().ErrorMessage);
+                        }
+                        else
+                        {
+                            logger.LogInformation(
+                                $"Removed episode from podcast with id '{podcast.Id}' with episode-id '{documentId}' from search-index.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex,
+                            $"Error removing episode from podcast with id '{podcast.Id}' with episode-id '{documentId}' from search-index.");
+                    }
+                }
+            }
+
             return req.CreateResponse(HttpStatusCode.Accepted);
         }
         catch (Exception ex)

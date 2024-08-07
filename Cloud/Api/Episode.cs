@@ -2,6 +2,7 @@
 using System.Text.Json;
 using Api.Dtos;
 using Api.Extensions;
+using Azure.Search.Documents;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -15,6 +16,7 @@ namespace Api;
 
 public class Episode(
     IPodcastRepository podcastRepository,
+    SearchClient searchClient,
     ILogger<Episode> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
@@ -68,6 +70,37 @@ public class Episode(
 
             UpdateEpisode(episode, episodeChangeRequestWrapper.EpisodeChangeRequest);
             await podcastRepository.Update(podcast);
+
+            if ((episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
+                 episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value) ||
+                (episodeChangeRequestWrapper.EpisodeChangeRequest.Ignored.HasValue &&
+                 episodeChangeRequestWrapper.EpisodeChangeRequest.Ignored.Value))
+            {
+                try
+                {
+                    var result = await searchClient.DeleteDocumentsAsync(
+                        "id",
+                        new[] {episodeChangeRequestWrapper.EpisodeId.ToString()},
+                        new IndexDocumentsOptions {ThrowOnAnyError = true},
+                        c);
+                    var success = result.Value.Results.First().Succeeded;
+                    if (!success)
+                    {
+                        logger.LogError(result.Value.Results.First().ErrorMessage);
+                    }
+                    else
+                    {
+                        logger.LogInformation(
+                            $"Removed episode from podcast with id '{podcast.Id}' with episode-id '{episodeChangeRequestWrapper.EpisodeId}' from search-index.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex,
+                        $"Error removing episode from podcast with id '{podcast.Id}' with episode-id '{episodeChangeRequestWrapper.EpisodeId}' from search-index.");
+                }
+            }
+
             return req.CreateResponse(HttpStatusCode.Accepted);
         }
         catch (Exception ex)
