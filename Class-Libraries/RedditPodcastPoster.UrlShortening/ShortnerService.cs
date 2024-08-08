@@ -26,6 +26,7 @@ public class ShortnerService(
 
     public async Task<WriteResult> Write(IEnumerable<PodcastEpisode> podcastEpisodes)
     {
+        logger.LogInformation($"{nameof(Write)}. Writing to KV. Bulk write: {podcastEpisodes.Count()} episodes.");
         var items = podcastEpisodes.Select(x =>
             new ShortUrlRecord(
                 x.Podcast.PodcastNameInSafeUrlForm(),
@@ -63,6 +64,8 @@ public class ShortnerService(
 
     public async Task<WriteResult> Write(PodcastEpisode podcastEpisode, bool isDryRun = false)
     {
+        logger.LogInformation(
+            $"{nameof(Write)}. Writing to KV. Individual write. Episode-id '{podcastEpisode.Episode.Id}'.");
         var item = new ShortUrlRecord(
             podcastEpisode.Podcast.PodcastNameInSafeUrlForm(),
             podcastEpisode.Episode.Id,
@@ -109,6 +112,7 @@ public class ShortnerService(
 
     public async Task<object> Read(string requestKey)
     {
+        logger.LogInformation($"{nameof(Write)}. Reading from KV. Key '{requestKey}'.");
         var url = ReadMetadata(_cloudFlareOptions.AccountId, _cloudFlareOptions.KVShortnerNamespaceId, requestKey);
         using var request = new HttpRequestMessage();
         request.Method = HttpMethod.Get;
@@ -120,8 +124,9 @@ public class ShortnerService(
             logger.LogError(
                 $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
         }
-        var json= await result.Content.ReadAsStringAsync();
-        return new Object();
+
+        var json = await result.Content.ReadAsStringAsync();
+        return new object();
     }
 
     private Uri GetBulkWriteUrl(string accountId, string namespaceId)
@@ -135,6 +140,7 @@ public class ShortnerService(
         return new Uri(
             $"https://api.cloudflare.com/client/v4/accounts/{accountId}/storage/kv/namespaces/{namespaceId}/values/{keyName}");
     }
+
     private Uri ReadMetadata(string accountId, string namespaceId, string keyName)
     {
         return new Uri(

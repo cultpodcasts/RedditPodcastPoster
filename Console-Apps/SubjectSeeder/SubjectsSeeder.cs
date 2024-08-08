@@ -125,7 +125,6 @@ public class SubjectsSeeder(
 
         if (match == null || subjectRequest.Publish)
         {
-            logger.LogInformation("Publishing subjects.");
             await contentPublisher.PublishSubjects();
         }
     }

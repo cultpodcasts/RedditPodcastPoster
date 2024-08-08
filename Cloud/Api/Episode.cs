@@ -48,19 +48,35 @@ public class Episode(
         return HandleRequest(req, ["curate"], GetOutgoing, Unauthorised, ct);
     }
 
+    [Function("EpisodePost")]
+    public Task<HttpResponseData> Post(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
+        HttpRequestData req,
+        Guid episodeId,
+        FunctionContext executionContext,
+        [FromBody] EpisodeChangeRequest episodeChangeRequest,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(req, ["curate"], new EpisodeChangeRequestWrapper(episodeId, episodeChangeRequest), Post,
+            Unauthorised, ct);
+    }
+
     private async Task<HttpResponseData> GetOutgoing(HttpRequestData req, CancellationToken c)
     {
         try
         {
             var episodes = new List<RedditPodcastPoster.Models.Episode>();
             var since = DateTime.UtcNow.AddDays(-7);
-            var podcastIds = await podcastRepository.GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == false) && x.Episodes.Any(ep =>
-                ep.Release > since && !ep.Posted && !ep.Tweeted), x => new {guid = x.Id}).ToListAsync(c);
+            var podcastIds = await podcastRepository.GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == false) &&
+                                                                   x.Episodes.Any(ep =>
+                                                                       ep.Release > since && !ep.Posted && !ep.Tweeted),
+                x => new {guid = x.Id}).ToListAsync(c);
             foreach (var podcastId in podcastIds)
             {
                 var podcast = await podcastRepository.GetBy(x => x.Id == podcastId.guid);
                 var unpostedEpisodes =
-                    podcast.Episodes.Where(x => x.Release>since && x is {Posted: false, Tweeted: false});
+                    podcast.Episodes.Where(x => x.Release > since && x is {Posted: false, Tweeted: false});
                 episodes.AddRange(unpostedEpisodes);
             }
 
@@ -79,20 +95,6 @@ public class Episode(
         return failure;
     }
 
-
-    [Function("EpisodePost")]
-    public Task<HttpResponseData> Post(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
-        HttpRequestData req,
-        Guid episodeId,
-        FunctionContext executionContext,
-        [FromBody] EpisodeChangeRequest episodeChangeRequest,
-        CancellationToken ct
-    )
-    {
-        return HandleRequest(req, ["curate"], new EpisodeChangeRequestWrapper(episodeId, episodeChangeRequest), Post,
-            Unauthorised, ct);
-    }
 
     private async Task<HttpResponseData> Post(HttpRequestData req,
         EpisodeChangeRequestWrapper episodeChangeRequestWrapper, CancellationToken c)
