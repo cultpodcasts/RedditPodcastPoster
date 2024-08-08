@@ -56,22 +56,14 @@ public class TwitterClient(IOptions<TwitterOptions> options, ILogger<TwitterClie
         {
             var retryAfterHeaders = response.Headers.Where(x => x.Key.StartsWith("x-rate-limit"))
                 .Select(x => new {name = x.Key, value = x.Value.FirstOrDefault()}).ToArray();
+
             var resetDetails = "";
             if (retryAfterHeaders.SingleOrDefault(x =>
                     x.name == "x-rate-limit-reset" && !string.IsNullOrWhiteSpace(x.value)) != null)
             {
                 var rateLimitReset = long.Parse(retryAfterHeaders.Single(x => x.name == "x-rate-limit-reset").value!);
                 var resetAt = DateTimeOffset.FromUnixTimeSeconds(rateLimitReset);
-                resetDetails += $"Reset-At: '{resetAt:G}'. ";
-            }
-
-            if (retryAfterHeaders.SingleOrDefault(x =>
-                    x.name == "x-rate-limit-remaining" && !string.IsNullOrWhiteSpace(x.value)) != null)
-            {
-                var rateLimitReset =
-                    long.Parse(retryAfterHeaders.Single(x => x.name == "x-rate-limit-remaining").value!);
-                var resetIn = TimeSpan.FromMilliseconds(rateLimitReset);
-                resetDetails += $"Reset-In: '{resetIn:g}'. ";
+                resetDetails = $"Reset-At: '{resetAt:G}'. ";
             }
 
             logger.LogError(
