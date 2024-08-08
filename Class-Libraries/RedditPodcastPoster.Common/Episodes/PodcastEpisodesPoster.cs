@@ -21,12 +21,19 @@ public class PodcastEpisodesPoster(
 
     public async Task<IList<ProcessResponse>> PostNewEpisodes(
         DateTime since,
-        IEnumerable<Podcast> podcasts,
+        IEnumerable<Guid> podcastIds,
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true,
         bool preferYouTube = false,
         bool ignoreAppleGracePeriod = false)
     {
+        var podcasts = new List<Podcast>();
+        foreach (var podcastId in podcastIds)
+        {
+            var podcast = await podcastRepository.GetPodcast(podcastId);
+            podcasts.Add(podcast);
+        }
+
         var matchingPodcastEpisodes =
             podcastEpisodeFilter.GetNewEpisodesReleasedSince(podcasts, since, youTubeRefreshed, spotifyRefreshed);
 

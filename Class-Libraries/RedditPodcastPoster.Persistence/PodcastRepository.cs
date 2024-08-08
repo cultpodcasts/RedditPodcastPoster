@@ -60,7 +60,7 @@ public class PodcastRepository(
             }
         }
 
-        podcast.Episodes = [..podcast.Episodes.OrderByDescending(x => x.Release)];
+        podcast.Episodes = [.. podcast.Episodes.OrderByDescending(x => x.Release)];
         return new MergeResult(addedEpisodes, mergedEpisodes, failedEpisodes);
     }
 
@@ -99,21 +99,36 @@ public class PodcastRepository(
         return dataRepository.GetAllBy(selector);
     }
 
-    public IAsyncEnumerable<Podcast> GetPodcastsWithUnpostedOrUntweetedEpisodesReleasedSince(DateTime since)
-    {
-        return GetAllBy(x =>
-            (!x.Removed.IsDefined() || x.Removed == false) &&
-            x.Episodes.Any(
-                episode =>
-                    episode.Release >= since &&
-                    (episode.Posted == false || episode.Tweeted == false) &&
-                    episode.Ignored == false &&
-                    episode.Removed == false));
-    }
 
     public IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<Podcast, bool>> selector, Expression<Func<Podcast, T>> item)
     {
         return dataRepository.GetAllBy(selector, item);
+    }
+
+    public async Task<IEnumerable<Guid>> GetPodcastsIdsWithUnpostedReleasedSince(DateTime since)
+    {
+        var items = await GetAllBy(x =>
+            (!x.Removed.IsDefined() || x.Removed == false) &&
+            x.Episodes.Any(
+                episode =>
+                    episode.Release >= since &&
+                    episode.Posted == false &&
+                    episode.Ignored == false &&
+                    episode.Removed == false), x => new { guid = x.Id }).ToListAsync();
+        return items.Select(x => x.guid);
+    }
+
+    public async Task<IEnumerable<Guid>> GetPodcastIdsWithUntweetedReleasedSince(DateTime since)
+    {
+        var items = await GetAllBy(x =>
+            (!x.Removed.IsDefined() || x.Removed == false) &&
+            x.Episodes.Any(
+                episode =>
+                    episode.Release >= since &&
+                    episode.Tweeted == false &&
+                    episode.Ignored == false &&
+                    episode.Removed == false), x => new { guid = x.Id }).ToListAsync();
+        return items.Select(x => x.guid);
     }
 
     private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)

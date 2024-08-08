@@ -17,10 +17,10 @@ public class EpisodeProcessor(
         bool spotifyRefreshed)
     {
         logger.LogInformation($"{nameof(PostEpisodesSinceReleaseDate)} Finding episodes released since '{since}'.");
-        var podcasts = await podcastRepository.GetPodcastsWithUnpostedOrUntweetedEpisodesReleasedSince(since).ToArrayAsync();
+        var podcastIds = await podcastRepository.GetPodcastsIdsWithUnpostedReleasedSince(since);
 
         var matchingPodcastEpisodeResults =
-            await podcastEpisodesPoster.PostNewEpisodes(since, podcasts, youTubeRefreshed, spotifyRefreshed);
+            await podcastEpisodesPoster.PostNewEpisodes(since, podcastIds, youTubeRefreshed, spotifyRefreshed);
 
         return processResponsesAdaptor.CreateResponse(matchingPodcastEpisodeResults);
     }

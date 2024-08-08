@@ -42,6 +42,7 @@ public class PodcastEpisodeFilter(
             EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed));
     }
 
+
     public bool IsRecentlyExpiredDelayedPublishing(Podcast podcast, Episode episode)
     {
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
@@ -59,14 +60,14 @@ public class PodcastEpisodeFilter(
     }
 
     public IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(
-        IEnumerable<Podcast> podcasts,
+        Podcast podcast,
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true,
         int numberOfDays = 1)
     {
         var podcastEpisodes =
-            podcasts
-                .SelectMany(p => p.Episodes.Select(e => new PodcastEpisode(p, e)))
+            podcast.Episodes
+                .Select(e => new PodcastEpisode(podcast, e))
                 .Where(x =>
                     x.Episode.Release >= DateTime.UtcNow.Date.AddDays(-1 * numberOfDays) &&
                     x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
