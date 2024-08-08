@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using System.Text.Json;
-using Amazon.Runtime.Internal;
 using Api.Dtos;
 using Api.Dtos.Extensions;
 using Microsoft.Azure.Functions.Worker;
@@ -36,31 +35,6 @@ public class SubjectController(
         return HandleRequest(req, ["curate"], subjectName, Get, Unauthorised, ct);
     }
 
-    private async Task<HttpResponseData> Get(HttpRequestData req, string subjectName, CancellationToken c)
-    {
-        try
-        {
-            var subject = await subjectRepository.GetBy(x => x.Name == subjectName);
-            if (subject == null)
-            {
-                return req.CreateResponse(HttpStatusCode.NotFound);
-            }
-
-            var dto = subject.ToDto();
-            var success = await req.CreateResponse(HttpStatusCode.OK)
-                .WithJsonBody(dto, c);
-            return success;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, $"{nameof(Get)}: Failed to get subject.");
-        }
-
-        var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve subject"), c);
-        return failure;
-    }
-
     [Function("SubjectPost")]
     public Task<HttpResponseData> Post(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "subject/{subjectId:guid}")]
@@ -87,28 +61,30 @@ public class SubjectController(
         return HandleRequest(req, ["curate"], subjectChangeRequest, Put, Unauthorised, ct);
     }
 
-    private async Task<HttpResponseData> Put(HttpRequestData req, Dtos.Subject subject, CancellationToken ct)
+    private async Task<HttpResponseData> Get(HttpRequestData req, string subjectName, CancellationToken c)
     {
-        if (string.IsNullOrWhiteSpace(subject.Name))
+        try
         {
-            return await req.CreateResponse(HttpStatusCode.BadRequest).WithJsonBody(new {message = "Missing name"}, ct);
+            var subject = await subjectRepository.GetBy(x => x.Name == subjectName);
+            if (subject == null)
+            {
+                return req.CreateResponse(HttpStatusCode.NotFound);
+            }
+
+            var dto = subject.ToDto();
+            var success = await req.CreateResponse(HttpStatusCode.OK)
+                .WithJsonBody(dto, c);
+            return success;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"{nameof(Get)}: Failed to get subject.");
         }
 
-        var entity = new Subject(subject.Name);
-        UpdateSubject(entity, subject);
-        var matchingSubject = await subjectService.Match(entity);
-        if (matchingSubject != null)
-        {
-            return await req.CreateResponse(HttpStatusCode.Conflict)
-                .WithJsonBody(new {conflict = matchingSubject.Name}, ct);
-        }
-
-        await subjectRepository.Save(entity);
-        await contentPublisher.PublishSubjects();
-
-        return await req.CreateResponse(HttpStatusCode.Accepted).WithJsonBody(entity.ToDto(), ct);
+        var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
+            .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve subject"), c);
+        return failure;
     }
-
 
     private async Task<HttpResponseData> Post(HttpRequestData req,
         SubjectChangeRequestWrapper subjectChangeRequestWrapper, CancellationToken c)
@@ -138,6 +114,31 @@ public class SubjectController(
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
             .WithJsonBody(SubmitUrlResponse.Failure("Unable to update subject"), c);
         return failure;
+    }
+
+    private async Task<HttpResponseData> Put(HttpRequestData req, Dtos.Subject subject, CancellationToken ct)
+    {
+        logger.LogInformation($"{nameof(Put)}: received subject: {JsonSerializer.Serialize(subject)}");
+        if (string.IsNullOrWhiteSpace(subject.Name))
+        {
+            logger.LogWarning("Missing name.");
+            return await req.CreateResponse(HttpStatusCode.BadRequest).WithJsonBody(new {message = "Missing name"}, ct);
+        }
+
+        var entity = new Subject(subject.Name);
+        UpdateSubject(entity, subject);
+        var matchingSubject = await subjectService.Match(entity);
+        if (matchingSubject != null)
+        {
+            return await req.CreateResponse(HttpStatusCode.Conflict)
+                .WithJsonBody(new {conflict = matchingSubject.Name}, ct);
+        }
+
+        await subjectRepository.Save(entity);
+        await contentPublisher.PublishSubjects();
+        logger.LogInformation($"Created subject '{subject.Name}' with subject-id '{subject.Id}'.");
+
+        return await req.CreateResponse(HttpStatusCode.Accepted).WithJsonBody(entity.ToDto(), ct);
     }
 
     private void UpdateSubject(Subject subject, Dtos.Subject change)
