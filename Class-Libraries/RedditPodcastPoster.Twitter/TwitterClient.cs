@@ -37,12 +37,26 @@ public class TwitterClient(IOptions<TwitterOptions> options, ILogger<TwitterClie
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
             var responseBody = await response.Content.ReadAsStringAsync();
+            responseBody = responseBody.ToLower();
             if (responseBody.Contains("duplicate content"))
             {
                 logger.LogError(
                     $"Failed to send tweet. Duplicate-tweet. Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Body: '{await response.Content.ReadAsStringAsync()}', Tweet: '{tweet}'.");
                 return TweetSendStatus.DuplicateForbidden;
             }
+
+            if (responseBody.Contains("too many requests"))
+            {
+                logger.LogError(
+                    $"Failed to send tweet. Too-many-requests. Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Body: '{await response.Content.ReadAsStringAsync()}', Tweet: '{tweet}'.");
+                return TweetSendStatus.TooManyRequests;
+            }
+        } else if (response.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            logger.LogError(
+                $"Failed to send tweet. Too-many-requests. Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Body: '{await response.Content.ReadAsStringAsync()}', Tweet: '{tweet}'.");
+            return TweetSendStatus.TooManyRequests;
+
         }
 
         logger.LogError(

@@ -30,9 +30,10 @@ public class Tweeter(
         if (untweeted.Any())
         {
             var tweeted = false;
+            var tooManyRequests = false;
             foreach (var podcastEpisode in untweeted)
             {
-                if (tweeted)
+                if (tweeted || tooManyRequests)
                 {
                     break;
                 }
@@ -41,6 +42,7 @@ public class Tweeter(
                 {
                     var tweetStatus = await tweetPoster.PostTweet(podcastEpisode);
                     tweeted = tweetStatus == TweetSendStatus.Sent;
+                    tooManyRequests = tweetStatus == TweetSendStatus.TooManyRequests;
                 }
                 catch (Exception ex)
                 {

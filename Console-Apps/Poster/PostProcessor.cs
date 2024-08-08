@@ -82,17 +82,19 @@ public class PostProcessor(
                     podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(podcasts, numberOfDays: request.ReleasedWithin);
 
                 var tweeted = false;
+                var tooManyRequests = false;
                 foreach (var podcastEpisode in untweeted)
                 {
-                    if (tweeted)
+                    if (tweeted || tooManyRequests)
                     {
                         break;
                     }
 
                     try
                     {
-                        await tweetPoster.PostTweet(podcastEpisode);
-                        tweeted = true;
+                        var result = await tweetPoster.PostTweet(podcastEpisode);
+                        tweeted = result == TweetSendStatus.Sent;
+                        tooManyRequests = result == TweetSendStatus.TooManyRequests;
                     }
                     catch (Exception ex)
                     {
