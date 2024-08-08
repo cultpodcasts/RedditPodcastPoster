@@ -99,14 +99,14 @@ public class PodcastRepository(
         return dataRepository.GetAllBy(selector);
     }
 
-    public IAsyncEnumerable<Podcast> GetPodcastsWithUnpostedEpisodesReleasedSince(DateTime since)
+    public IAsyncEnumerable<Podcast> GetPodcastsWithUnpostedOrUntweetedEpisodesReleasedSince(DateTime since)
     {
         return GetAllBy(x =>
             (!x.Removed.IsDefined() || x.Removed == false) &&
             x.Episodes.Any(
                 episode =>
                     episode.Release >= since &&
-                    episode.Posted == false &&
+                    (episode.Posted == false || episode.Tweeted == false) &&
                     episode.Ignored == false &&
                     episode.Removed == false));
     }

@@ -56,7 +56,7 @@ public class ShortnerService(
         if (result.StatusCode != HttpStatusCode.OK)
         {
             logger.LogError(
-                $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
+                $"{nameof(Write)} KV-write unsuccessful. Write-Bulk. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
         }
 
         return new WriteResult(result.StatusCode == HttpStatusCode.OK);
@@ -97,7 +97,7 @@ public class ShortnerService(
             if (result.StatusCode != HttpStatusCode.OK)
             {
                 logger.LogError(
-                    $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
+                    $"{nameof(Write)} KV-write unsuccessful. Write-Single. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
             }
 
             return new WriteResult(
@@ -122,7 +122,7 @@ public class ShortnerService(
         if (result.StatusCode != HttpStatusCode.OK)
         {
             logger.LogError(
-                $"{nameof(Write)} KV-write unsuccessful. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
+                $"{nameof(Write)} KV-write unsuccessful. Read-Key. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
         }
 
         var json = await result.Content.ReadAsStringAsync();
