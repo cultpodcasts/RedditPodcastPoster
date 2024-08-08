@@ -51,12 +51,32 @@ public class TwitterClient(IOptions<TwitterOptions> options, ILogger<TwitterClie
                     $"Failed to send tweet. Too-many-requests. Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Body: '{await response.Content.ReadAsStringAsync()}', Tweet: '{tweet}'.");
                 return TweetSendStatus.TooManyRequests;
             }
-        } else if (response.StatusCode == HttpStatusCode.TooManyRequests)
+        }
+        else if (response.StatusCode == HttpStatusCode.TooManyRequests)
         {
-            logger.LogError(
-                $"Failed to send tweet. Too-many-requests. Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Body: '{await response.Content.ReadAsStringAsync()}', Tweet: '{tweet}'.");
-            return TweetSendStatus.TooManyRequests;
+            var retryAfterHeaders = response.Headers.Where(x => x.Key.StartsWith("x-rate-limit"))
+                .Select(x => new {name = x.Key, value = x.Value.FirstOrDefault()}).ToArray();
+            var resetDetails = "";
+            if (retryAfterHeaders.SingleOrDefault(x =>
+                    x.name == "x-rate-limit-reset" && !string.IsNullOrWhiteSpace(x.value)) != null)
+            {
+                var rateLimitReset = long.Parse(retryAfterHeaders.Single(x => x.name == "x-rate-limit-reset").value!);
+                var resetAt = DateTimeOffset.FromUnixTimeSeconds(rateLimitReset);
+                resetDetails += $"Reset-At: '{resetAt:G}'. ";
+            }
 
+            if (retryAfterHeaders.SingleOrDefault(x =>
+                    x.name == "x-rate-limit-remaining" && !string.IsNullOrWhiteSpace(x.value)) != null)
+            {
+                var rateLimitReset =
+                    long.Parse(retryAfterHeaders.Single(x => x.name == "x-rate-limit-remaining").value!);
+                var resetIn = TimeSpan.FromMilliseconds(rateLimitReset);
+                resetDetails += $"Reset-In: '{resetIn:g}'. ";
+            }
+
+            logger.LogError(
+                $"Failed to send tweet. Too-many-requests. {resetDetails}Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Headers: {JsonSerializer.Serialize(retryAfterHeaders)} Body: '{await response.Content.ReadAsStringAsync()}', Tweet: '{tweet}'.");
+            return TweetSendStatus.TooManyRequests;
         }
 
         logger.LogError(
