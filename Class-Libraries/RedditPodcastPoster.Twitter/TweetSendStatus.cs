@@ -4,5 +4,6 @@ public enum TweetSendStatus
 {
     Sent = 1,
     Failed,
-    DuplicateForbidden
+    DuplicateForbidden,
+    TooManyRequests
 }
