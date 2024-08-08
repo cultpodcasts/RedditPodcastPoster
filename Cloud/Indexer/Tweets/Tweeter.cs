@@ -1,5 +1,4 @@
-﻿using Microsoft.Azure.Cosmos.Linq;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -57,28 +56,20 @@ public class Tweeter(
         bool spotifyRefreshed)
     {
         const int numberOfDays = 2;
-        IEnumerable<Podcast> podcasts;
-        try
-        {
-            var since = DateTime.UtcNow.Date.AddDays(-1 * numberOfDays);
+        var podcastEpisodes = new List<PodcastEpisode>();
 
-            podcasts = await repository.GetAllBy(x =>
-                (!x.Removed.IsDefined() || x.Removed == false) &&
-                x.Episodes.Any(episode =>
-                    episode.Release >= since &&
-                    episode.Removed == false &&
-                    episode.Ignored == false &&
-                    episode.Tweeted == false
-                )
-            ).ToArrayAsync();
-        }
-        catch (Exception ex)
+
+        var untweetedPodcastIds =
+            await repository.GetPodcastsIdsWithUnpostedReleasedSince(DateTime.UtcNow.Date.AddDays(-1 * numberOfDays));
+
+        foreach (var untweetedPodcastId in untweetedPodcastIds)
         {
-            logger.LogError(ex, "Failure to retrieve podcasts");
-            throw;
+            var podcast = await repository.GetPodcast(untweetedPodcastId);
+            var filtered = podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
+                podcast, youTubeRefreshed, spotifyRefreshed);
+            podcastEpisodes.AddRange(filtered);
         }
 
-        return podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
-            podcasts, youTubeRefreshed, spotifyRefreshed);
+        return podcastEpisodes;
     }
 }
