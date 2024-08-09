@@ -86,7 +86,8 @@ public class PostProcessor(
             }
             else
             {
-                var since = DateTime.UtcNow.AddDays(-1 * request.ReleasedWithin);
+                var numberOfDays = request.ReleasedWithin;
+                var since = DateTime.UtcNow.AddDays(numberOfDays * -1 * request.ReleasedWithin);
                 var untweetedPodcastIds = await repository.GetPodcastIdsWithUntweetedReleasedSince(since);
                 var untweeted = new List<PodcastEpisode>();
                 foreach (var podcastId in untweetedPodcastIds)
