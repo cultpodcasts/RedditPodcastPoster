@@ -78,7 +78,7 @@ public class PodcastEpisodeFilter(
                 .OrderByDescending(x => x.Episode.Release);
         if (!podcastEpisodes.Any())
         {
-            logger.LogInformation("No Podcast-Episode found to Tweet.");
+            logger.LogInformation($"No Podcast-Episode found ready to Tweet for podcast '{podcast.Name}' with podcast-id '{podcast.Id}'.");
         }
 
         return podcastEpisodes;
