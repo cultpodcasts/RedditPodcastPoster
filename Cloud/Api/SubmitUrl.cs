@@ -4,6 +4,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Search;
 using RedditPodcastPoster.UrlSubmission;
@@ -11,6 +12,7 @@ using RedditPodcastPoster.UrlSubmission;
 namespace Api;
 
 public class SubmitUrl(
+    IPodcastRepository repository,
     IUrlSubmitter urlSubmitter,
     ISearchIndexerService searchIndexerService,
     ILogger<SubmitUrl> logger,
@@ -35,7 +37,26 @@ public class SubmitUrl(
         try
         {
             logger.LogInformation(
-                $"{nameof(Run)}: Handling url-submission: url: '{submitUrlModel.Url}', podcast-id: '{submitUrlModel.PodcastId}'.");
+                $"{nameof(Run)}: Handling url-submission: url: '{submitUrlModel.Url}', podcast-id: '{submitUrlModel.PodcastId}', podcast-name: '{submitUrlModel.PodcastName}'.");
+            Guid? podcastId = null;
+            if (!string.IsNullOrWhiteSpace(submitUrlModel.PodcastName))
+            {
+                var podcastIdWrapper =
+                    await repository.GetBy(x => x.Name == submitUrlModel.PodcastName, x => new {guid = x.Id});
+                if (podcastIdWrapper == null)
+                {
+                    return await req.CreateResponse(HttpStatusCode.NotFound)
+                        .WithJsonBody(new {message = "Podcast with name not found"}, c);
+                }
+
+                podcastId = podcastIdWrapper.guid;
+            }
+            else
+            {
+                podcastId = submitUrlModel.PodcastId;
+            }
+
+            var submitOptions = new SubmitOptions(podcastId, true);
             var result = await urlSubmitter.Submit(
                 submitUrlModel.Url,
                 new IndexingContext
@@ -44,7 +65,7 @@ public class SubmitUrl(
                     SkipExpensiveYouTubeQueries = false,
                     SkipExpensiveSpotifyQueries = false
                 },
-                new SubmitOptions(submitUrlModel.PodcastId, true));
+                submitOptions);
 
             await searchIndexerService.RunIndexer();
 
