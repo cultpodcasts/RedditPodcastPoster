@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - main
-      - feature/convert-youtube-delay-to-ticks-for-use-in-cosmos-queries 
   workflow_dispatch:
 
 env:
