@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Adaptors;
 using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -58,8 +59,8 @@ public class PostProcessor(
         }
         else
         {
-            var since = DateTime.UtcNow.AddDays(-30);
-            var ids = await repository.GetPodcastsIdsWithUnpostedReleasedSince(since);
+            var ids = await repository.GetPodcastsIdsWithUnpostedReleasedSince(
+                DateTimeExtensions.DaysAgo(request.ReleasedWithin));
             podcastIds = ids.ToList();
         }
 
@@ -86,10 +87,8 @@ public class PostProcessor(
             }
             else
             {
-                var numberOfDays = request.ReleasedWithin;
-                var since = DateTime.UtcNow.AddDays(numberOfDays * -1 * request.ReleasedWithin);
-                var untweetedPodcastIds =
-                    await repository.GetPodcastIdsWithUntweetedReleasedSince(DateTime.UtcNow.AddDays(-30));
+                var since = DateTimeExtensions.DaysAgo(request.ReleasedWithin);
+                var untweetedPodcastIds = await repository.GetPodcastIdsWithUntweetedReleasedSince(since);
                 var untweeted = new List<PodcastEpisode>();
                 foreach (var podcastId in untweetedPodcastIds)
                 {
