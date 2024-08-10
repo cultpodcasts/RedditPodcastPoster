@@ -73,6 +73,10 @@ public sealed class Podcast : CosmosSelector
     [JsonPropertyOrder(150)]
     public string YouTubePublishingDelayTimeSpan { get; set; } = "";
 
+    [JsonPropertyName("youTubePublicationOffset")]
+    [JsonPropertyOrder(151)]
+    public long? YouTubePublicationOffset { get; set; }
+
     [JsonPropertyName("youTubePlaylistQueryIsExpensive")]
     [JsonPropertyOrder(160)]
     public bool? YouTubePlaylistQueryIsExpensive { get; set; }
