@@ -55,12 +55,10 @@ public class Tweeter(
     private async Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        const int numberOfDays = 2;
         var podcastEpisodes = new List<PodcastEpisode>();
 
-
         var untweetedPodcastIds =
-            await repository.GetPodcastsIdsWithUnpostedReleasedSince(DateTime.UtcNow.Date.AddDays(-1 * numberOfDays));
+            await repository.GetPodcastsIdsWithUnpostedReleasedSince(DateTime.UtcNow.AddDays(-39));
 
         foreach (var untweetedPodcastId in untweetedPodcastIds)
         {
