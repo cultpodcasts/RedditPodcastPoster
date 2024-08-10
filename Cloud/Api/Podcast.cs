@@ -217,7 +217,7 @@ public class Podcast(
             var podcast = await podcastRepository.GetBy(x => x.Name == podcastName);
             if (podcast != null)
             {
-                new Dtos.Podcast
+                var dto= new Dtos.Podcast
                 {
                     Id = podcast.Id,
                     Removed = podcast.Removed,
@@ -228,7 +228,7 @@ public class Podcast(
                     SpotifyId = podcast.SpotifyId,
                     AppleId = podcast.AppleId,
                     YouTubePublishingDelayTimeSpan = podcast.YouTubePublicationOffset.HasValue
-                        ? podcast.YouTubePublicationOffset.Value.ToString("g")
+                        ? TimeSpan.FromTicks(podcast.YouTubePublicationOffset.Value).ToString("g")
                         : string.Empty,
                     SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube,
                     TwitterHandle = podcast.TwitterHandle,
@@ -238,7 +238,7 @@ public class Podcast(
                     EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex,
                     DefaultSubject = podcast.DefaultSubject
                 };
-                return await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(podcast, c);
+                return await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(dto, c);
             }
 
             return req.CreateResponse(HttpStatusCode.NotFound);
