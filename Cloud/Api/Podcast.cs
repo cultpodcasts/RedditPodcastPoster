@@ -66,7 +66,7 @@ public class Podcast(
 
     private async Task<HttpResponseData> Post(
         HttpRequestData req,
-        PodcastChangeRequestWrapper podcastChangeRequestWrapper, 
+        PodcastChangeRequestWrapper podcastChangeRequestWrapper,
         CancellationToken c)
     {
         try
@@ -161,7 +161,15 @@ public class Podcast(
 
         if (podcastChangeRequest.YouTubePublishingDelayTimeSpan != null)
         {
-            podcast.YouTubePublicationOffset = podcastChangeRequest.YouTubePublishingDelayTimeSpan;
+            if (podcastChangeRequest.YouTubePublishingDelayTimeSpan == string.Empty)
+            {
+                podcast.YouTubePublicationOffset = null;
+            }
+            else
+            {
+                podcast.YouTubePublicationOffset =
+                    TimeSpan.Parse(podcastChangeRequest.YouTubePublishingDelayTimeSpan).Ticks;
+            }
         }
 
         if (podcastChangeRequest.SkipEnrichingFromYouTube != null)
@@ -219,7 +227,9 @@ public class Podcast(
                     PrimaryPostService = podcast.PrimaryPostService,
                     SpotifyId = podcast.SpotifyId,
                     AppleId = podcast.AppleId,
-                    YouTubePublishingDelayTimeSpan = podcast.YouTubePublicationOffset,
+                    YouTubePublishingDelayTimeSpan = podcast.YouTubePublicationOffset.HasValue
+                        ? podcast.YouTubePublicationOffset.Value.ToString("g")
+                        : string.Empty,
                     SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube,
                     TwitterHandle = podcast.TwitterHandle,
                     TitleRegex = podcast.TitleRegex,

@@ -32,7 +32,7 @@ public class Podcast
     public long? AppleId { get; set; } = null;
 
     [JsonPropertyName("youTubePublicationDelay")]
-    public long? YouTubePublishingDelayTimeSpan { get; set; }
+    public string? YouTubePublishingDelayTimeSpan { get; set; }
 
     [JsonPropertyName("skipEnrichingFromYouTube")]
     public bool? SkipEnrichingFromYouTube { get; set; }
