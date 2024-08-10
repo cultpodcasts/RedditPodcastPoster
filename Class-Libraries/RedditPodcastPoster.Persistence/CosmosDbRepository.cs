@@ -155,6 +155,9 @@ public class CosmosDbRepository(
                 requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
             .Where(selector)
             .Select(expr);
+#if DEBUG
+        var sql = query.ToString();
+#endif
         var items = query.ToFeedIterator();
         if (items.HasMoreResults)
         {

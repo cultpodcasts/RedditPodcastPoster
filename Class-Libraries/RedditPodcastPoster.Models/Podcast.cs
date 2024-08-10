@@ -69,9 +69,9 @@ public sealed class Podcast : CosmosSelector
     [JsonPropertyOrder(140)]
     public string YouTubePlaylistId { get; set; } = "";
 
-    [JsonPropertyName("youTubePublicationDelay")]
-    [JsonPropertyOrder(150)]
-    public string YouTubePublishingDelayTimeSpan { get; set; } = "";
+    [JsonPropertyName("youTubePublicationOffset")]
+    [JsonPropertyOrder(151)]
+    public long? YouTubePublicationOffset { get; set; }
 
     [JsonPropertyName("youTubePlaylistQueryIsExpensive")]
     [JsonPropertyOrder(160)]
@@ -137,12 +137,12 @@ public sealed class Podcast : CosmosSelector
 
     public TimeSpan YouTubePublishingDelay()
     {
-        if (string.IsNullOrEmpty(YouTubePublishingDelayTimeSpan))
+        if (YouTubePublicationOffset==null)
         {
             return TimeSpan.Zero;
         }
 
-        return TimeSpan.Parse(YouTubePublishingDelayTimeSpan);
+        return TimeSpan.FromTicks(YouTubePublicationOffset.Value);
     }
 
     public bool IsRemoved()

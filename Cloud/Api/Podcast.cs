@@ -66,7 +66,7 @@ public class Podcast(
 
     private async Task<HttpResponseData> Post(
         HttpRequestData req,
-        PodcastChangeRequestWrapper podcastChangeRequestWrapper, 
+        PodcastChangeRequestWrapper podcastChangeRequestWrapper,
         CancellationToken c)
     {
         try
@@ -161,7 +161,15 @@ public class Podcast(
 
         if (podcastChangeRequest.YouTubePublishingDelayTimeSpan != null)
         {
-            podcast.YouTubePublishingDelayTimeSpan = podcastChangeRequest.YouTubePublishingDelayTimeSpan;
+            if (podcastChangeRequest.YouTubePublishingDelayTimeSpan == string.Empty)
+            {
+                podcast.YouTubePublicationOffset = null;
+            }
+            else
+            {
+                podcast.YouTubePublicationOffset =
+                    TimeSpan.Parse(podcastChangeRequest.YouTubePublishingDelayTimeSpan).Ticks;
+            }
         }
 
         if (podcastChangeRequest.SkipEnrichingFromYouTube != null)
@@ -209,7 +217,7 @@ public class Podcast(
             var podcast = await podcastRepository.GetBy(x => x.Name == podcastName);
             if (podcast != null)
             {
-                new Dtos.Podcast
+                var dto= new Dtos.Podcast
                 {
                     Id = podcast.Id,
                     Removed = podcast.Removed,
@@ -219,7 +227,9 @@ public class Podcast(
                     PrimaryPostService = podcast.PrimaryPostService,
                     SpotifyId = podcast.SpotifyId,
                     AppleId = podcast.AppleId,
-                    YouTubePublishingDelayTimeSpan = podcast.YouTubePublishingDelayTimeSpan,
+                    YouTubePublishingDelayTimeSpan = podcast.YouTubePublicationOffset.HasValue
+                        ? TimeSpan.FromTicks(podcast.YouTubePublicationOffset.Value).ToString("g")
+                        : string.Empty,
                     SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube,
                     TwitterHandle = podcast.TwitterHandle,
                     TitleRegex = podcast.TitleRegex,
@@ -228,7 +238,7 @@ public class Podcast(
                     EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex,
                     DefaultSubject = podcast.DefaultSubject
                 };
-                return await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(podcast, c);
+                return await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(dto, c);
             }
 
             return req.CreateResponse(HttpStatusCode.NotFound);

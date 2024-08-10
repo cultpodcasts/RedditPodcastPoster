@@ -111,10 +111,12 @@ public class PodcastRepository(
             (!x.Removed.IsDefined() || x.Removed == false) &&
             x.Episodes.Any(
                 episode =>
-                    episode.Release >= since &&
+                    episode.Release.Ticks >=
+                    since.Ticks + (x.YouTubePublicationOffset < 0 ? x.YouTubePublicationOffset : 0L) -
+                    (x.YouTubePublicationOffset > 0 ? x.YouTubePublicationOffset - since.Ticks : 0L) &&
                     episode.Posted == false &&
                     episode.Ignored == false &&
-                    episode.Removed == false), x => new { guid = x.Id }).ToListAsync();
+                    episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
         return items.Select(x => x.guid);
     }
 
@@ -124,10 +126,12 @@ public class PodcastRepository(
             (!x.Removed.IsDefined() || x.Removed == false) &&
             x.Episodes.Any(
                 episode =>
-                    episode.Release >= since &&
+                    episode.Release.Ticks >=
+                    since.Ticks + (x.YouTubePublicationOffset < 0 ? x.YouTubePublicationOffset : 0L) -
+                    (x.YouTubePublicationOffset > 0 ? x.YouTubePublicationOffset - since.Ticks : 0L) &&
                     episode.Tweeted == false &&
                     episode.Ignored == false &&
-                    episode.Removed == false), x => new { guid = x.Id }).ToListAsync();
+                    episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
         return items.Select(x => x.guid);
     }
 

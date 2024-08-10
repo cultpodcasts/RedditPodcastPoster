@@ -50,9 +50,9 @@ public sealed class OldPodcast : CosmosSelector
     [JsonPropertyOrder(22)]
     public string YouTubeChannelId { get; set; } = "";
 
-    [JsonPropertyName("youTubePublicationDelay")]
-    [JsonPropertyOrder(40)]
-    public string YouTubePublishingDelayTimeSpan { get; set; } = "";
+    [JsonPropertyName("youTubePublicationOffset")]
+    [JsonPropertyOrder(30)]
+    public long? YouTubePublicationOffset { get; set; }
 
     [JsonPropertyName("titleRegex")]
     [JsonPropertyOrder(60)]

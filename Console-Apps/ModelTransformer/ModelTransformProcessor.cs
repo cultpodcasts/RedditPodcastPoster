@@ -24,7 +24,7 @@ public class ModelTransformProcessor(ISplitFileRepository splitFileRepository, I
                 SpotifyId = oldPodcast.SpotifyId,
                 TitleRegex = oldPodcast.TitleRegex,
                 YouTubeChannelId = oldPodcast.YouTubeChannelId,
-                YouTubePublishingDelayTimeSpan = oldPodcast.YouTubePublishingDelayTimeSpan,
+                YouTubePublicationOffset = oldPodcast.YouTubePublicationOffset,
                 FileKey = oldPodcast.FileKey,
                 Publisher = oldPodcast.Publisher,
                 IndexAllEpisodes = oldPodcast.IndexAllEpisodes,

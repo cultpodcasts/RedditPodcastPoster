@@ -19,8 +19,9 @@ public class YouTubeEpisodeEnricher(
     {
         if (request.Podcast.IsDelayedYouTubePublishing(request.Episode))
         {
+            var timeSpan = request.Podcast.YouTubePublishingDelay().ToString("g");
             logger.LogInformation(
-                $"{nameof(Enrich)} Bypassing enriching of '{request.Episode.Title}' with release-date of '{request.Episode.Release:R}' from YouTube as is below the {nameof(request.Podcast.YouTubePublishingDelayTimeSpan)} which is '{request.Podcast.YouTubePublishingDelayTimeSpan}'.");
+                $"{nameof(Enrich)} Bypassing enriching of '{request.Episode.Title}' with release-date of '{request.Episode.Release:R}' from YouTube as is below the {nameof(request.Podcast.YouTubePublishingDelay)} which is '{timeSpan}'.");
             return;
         }
 

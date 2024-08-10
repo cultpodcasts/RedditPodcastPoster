@@ -27,9 +27,9 @@ public class AppleEpisodeEnricher(
         {
             var findAppleEpisodeRequest = FindAppleEpisodeRequestFactory.Create(request.Podcast, request.Episode);
             var ticks = YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
-            if (!string.IsNullOrWhiteSpace(request.Podcast.YouTubePublishingDelayTimeSpan))
+            if (request.Podcast.YouTubePublishingDelay()!=TimeSpan.Zero)
             {
-                var delay = TimeSpan.Parse(request.Podcast.YouTubePublishingDelayTimeSpan).Ticks;
+                var delay = request.Podcast.YouTubePublishingDelay().Ticks;
                 if (delay < 0)
                 {
                     ticks = Math.Abs(delay);

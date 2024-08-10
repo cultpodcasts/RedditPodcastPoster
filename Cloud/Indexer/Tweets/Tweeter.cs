@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Twitter;
@@ -58,7 +59,7 @@ public class Tweeter(
         var podcastEpisodes = new List<PodcastEpisode>();
 
         var untweetedPodcastIds =
-            await repository.GetPodcastsIdsWithUnpostedReleasedSince(DateTime.UtcNow.AddDays(-39));
+            await repository.GetPodcastsIdsWithUnpostedReleasedSince(DateTimeExtensions.DaysAgo(3));
 
         foreach (var untweetedPodcastId in untweetedPodcastIds)
         {

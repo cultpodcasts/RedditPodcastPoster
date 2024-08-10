@@ -51,7 +51,7 @@ public class JsonSplitCosmosDbUploadProcessor(
                 podcast.YouTubeNotificationSubscriptionLeaseExpiry = null;
                 podcast.YouTubePlaylistId = sourcePodcast.YouTubePlaylistId;
                 podcast.YouTubePlaylistQueryIsExpensive = sourcePodcast.YouTubePlaylistQueryIsExpensive;
-                podcast.YouTubePublishingDelayTimeSpan = sourcePodcast.YouTubePublishingDelayTimeSpan;
+                podcast.YouTubePublicationOffset = sourcePodcast.YouTubePublicationOffset;
                 podcast.Episodes = sourcePodcast.Episodes.Skip((splitFiles - (i + 1)) * episodesPerFile)
                     .Take(episodesPerFile)
                     .OrderByDescending(x => x.Release).ToList();

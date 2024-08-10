@@ -115,9 +115,9 @@ public class SpotifyEpisodeResolver(
                 if (request is {ReleaseAuthority: Service.YouTube, Length: not null})
                 {
                     var ticks = YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
-                    if (!string.IsNullOrWhiteSpace(request.YouTubePublishingDelayTimeSpan))
+                    if (request.YouTubePublishingDelay.HasValue && request.YouTubePublishingDelay.Value!=TimeSpan.Zero)
                     {
-                        var delayTicks = TimeSpan.Parse(request.YouTubePublishingDelayTimeSpan).Ticks;
+                        var delayTicks = request.YouTubePublishingDelay.Value.Ticks;
                         if (delayTicks < 0)
                         {
                             ticks = Math.Abs(delayTicks);
