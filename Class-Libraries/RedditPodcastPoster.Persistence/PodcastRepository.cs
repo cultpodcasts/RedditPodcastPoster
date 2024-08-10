@@ -107,13 +107,21 @@ public class PodcastRepository(
 
     public async Task<IEnumerable<Guid>> GetPodcastsIdsWithUnpostedReleasedSince(DateTime since)
     {
+        //var items = await GetAllBy(x =>
+        //    (!x.Removed.IsDefined() || x.Removed == false) &&
+        //    x.Episodes.Any(
+        //        episode =>
+        //            episode.Release.Ticks >=
+        //            since.Ticks + (x.YouTubePublicationOffset < 0 ? x.YouTubePublicationOffset : 0L) -
+        //            (x.YouTubePublicationOffset > 0 ? x.YouTubePublicationOffset - since.Ticks : 0L) &&
+        //            episode.Posted == false &&
+        //            episode.Ignored == false &&
+        //            episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
         var items = await GetAllBy(x =>
             (!x.Removed.IsDefined() || x.Removed == false) &&
             x.Episodes.Any(
                 episode =>
-                    episode.Release.Ticks >=
-                    since.Ticks + (x.YouTubePublicationOffset < 0 ? x.YouTubePublicationOffset : 0L) -
-                    (x.YouTubePublicationOffset > 0 ? x.YouTubePublicationOffset - since.Ticks : 0L) &&
+                    episode.Release >= since &&
                     episode.Posted == false &&
                     episode.Ignored == false &&
                     episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
@@ -122,13 +130,21 @@ public class PodcastRepository(
 
     public async Task<IEnumerable<Guid>> GetPodcastIdsWithUntweetedReleasedSince(DateTime since)
     {
+        //var items = await GetAllBy(x =>
+        //    (!x.Removed.IsDefined() || x.Removed == false) &&
+        //    x.Episodes.Any(
+        //        episode =>
+        //            episode.Release.Ticks >=
+        //            since.Ticks + (x.YouTubePublicationOffset < 0 ? x.YouTubePublicationOffset : 0L) -
+        //            (x.YouTubePublicationOffset > 0 ? x.YouTubePublicationOffset - since.Ticks : 0L) &&
+        //            episode.Tweeted == false &&
+        //            episode.Ignored == false &&
+        //            episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
         var items = await GetAllBy(x =>
             (!x.Removed.IsDefined() || x.Removed == false) &&
             x.Episodes.Any(
                 episode =>
-                    episode.Release.Ticks >=
-                    since.Ticks + (x.YouTubePublicationOffset < 0 ? x.YouTubePublicationOffset : 0L) -
-                    (x.YouTubePublicationOffset > 0 ? x.YouTubePublicationOffset - since.Ticks : 0L) &&
+                    episode.Release >= since &&
                     episode.Tweeted == false &&
                     episode.Ignored == false &&
                     episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
