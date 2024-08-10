@@ -28,7 +28,7 @@ public class UrlSubmitter(
     : IUrlSubmitter
 {
     private const int MinFuzzyTitleMatch = 95;
-    private const string DefaultMatchingPodcastYouTubePublishingDelay = "0:01:00:00";
+    private static TimeSpan DefaultMatchingPodcastYouTubePublishingDelay = TimeSpan.FromHours(1);
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
     public async Task<SubmitResult> Submit(
@@ -331,7 +331,7 @@ public class UrlSubmitter(
 
         if (!string.IsNullOrWhiteSpace(newPodcast.YouTubeChannelId))
         {
-            newPodcast.YouTubePublishingDelayTimeSpan = DefaultMatchingPodcastYouTubePublishingDelay;
+            newPodcast.YouTubePublicationOffset = DefaultMatchingPodcastYouTubePublishingDelay.Ticks;
         }
 
         var episode = CreateEpisode(categorisedItem);
@@ -513,7 +513,7 @@ public class UrlSubmitter(
             if (string.IsNullOrWhiteSpace(matchingPodcast.YouTubeChannelId))
             {
                 matchingPodcast.YouTubeChannelId = categorisedItem.ResolvedYouTubeItem.ShowId;
-                matchingPodcast.YouTubePublishingDelayTimeSpan = DefaultMatchingPodcastYouTubePublishingDelay;
+                matchingPodcast.YouTubePublicationOffset = DefaultMatchingPodcastYouTubePublishingDelay.Ticks;
                 logger.LogInformation(
                     $"Enriched podcast '{matchingPodcast.Id}' with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.ShowId}.");
             }

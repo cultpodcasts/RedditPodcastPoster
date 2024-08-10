@@ -14,7 +14,7 @@ public static class FindSpotifyEpisodeRequestFactory
             criteria.EpisodeTitle.Trim(),
             criteria.Release,
             podcast?.HasExpensiveSpotifyEpisodesQuery() ?? true,
-            podcast?.YouTubePublishingDelayTimeSpan ?? string.Empty,
+            podcast?.YouTubePublishingDelay()??TimeSpan.Zero,
             podcast?.ReleaseAuthority,
             criteria.Duration);
     }
@@ -28,7 +28,7 @@ public static class FindSpotifyEpisodeRequestFactory
             episode.Title.Trim(),
             episode.Release,
             podcast.HasExpensiveSpotifyEpisodesQuery(),
-            podcast.YouTubePublishingDelayTimeSpan,
+            podcast.YouTubePublishingDelay(),
             podcast.ReleaseAuthority,
             episode.Length,
             podcast.SpotifyMarket);

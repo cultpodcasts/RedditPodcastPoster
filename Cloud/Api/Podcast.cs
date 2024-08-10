@@ -161,7 +161,7 @@ public class Podcast(
 
         if (podcastChangeRequest.YouTubePublishingDelayTimeSpan != null)
         {
-            podcast.YouTubePublishingDelayTimeSpan = podcastChangeRequest.YouTubePublishingDelayTimeSpan;
+            podcast.YouTubePublicationOffset = podcastChangeRequest.YouTubePublishingDelayTimeSpan;
         }
 
         if (podcastChangeRequest.SkipEnrichingFromYouTube != null)
@@ -219,7 +219,7 @@ public class Podcast(
                     PrimaryPostService = podcast.PrimaryPostService,
                     SpotifyId = podcast.SpotifyId,
                     AppleId = podcast.AppleId,
-                    YouTubePublishingDelayTimeSpan = podcast.YouTubePublishingDelayTimeSpan,
+                    YouTubePublishingDelayTimeSpan = podcast.YouTubePublicationOffset,
                     SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube,
                     TwitterHandle = podcast.TwitterHandle,
                     TitleRegex = podcast.TitleRegex,
