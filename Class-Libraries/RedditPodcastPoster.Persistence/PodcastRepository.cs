@@ -112,7 +112,8 @@ public class PodcastRepository(
             x.Episodes.Any(
                 episode =>
                     episode.Release.Ticks >=
-                    since.Ticks + (x.YouTubePublicationOffset < 0 ? x.YouTubePublicationOffset : 0L) &&
+                    since.Ticks + (x.YouTubePublicationOffset < 0 ? x.YouTubePublicationOffset : 0L) -
+                    (x.YouTubePublicationOffset > 0 ? x.YouTubePublicationOffset - since.Ticks : 0L) &&
                     episode.Posted == false &&
                     episode.Ignored == false &&
                     episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
@@ -126,7 +127,8 @@ public class PodcastRepository(
             x.Episodes.Any(
                 episode =>
                     episode.Release.Ticks >=
-                    since.Ticks + (x.YouTubePublicationOffset < 0 ? x.YouTubePublicationOffset : 0L) &&
+                    since.Ticks + (x.YouTubePublicationOffset < 0 ? x.YouTubePublicationOffset : 0L) -
+                    (x.YouTubePublicationOffset > 0 ? x.YouTubePublicationOffset - since.Ticks : 0L) &&
                     episode.Tweeted == false &&
                     episode.Ignored == false &&
                     episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
