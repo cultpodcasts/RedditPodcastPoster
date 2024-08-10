@@ -216,36 +216,80 @@ public class Episode(
             episode.Subjects = episodeChangeRequest.Subjects.ToList();
         }
 
-        if (episodeChangeRequest.Urls.Spotify != null &&
-            SpotifyPodcastServiceMatcher.IsMatch(episodeChangeRequest.Urls.Spotify))
+        if (episodeChangeRequest.Urls.Spotify != null)
         {
-            var spotifyId = SpotifyIdResolver.GetEpisodeId(episodeChangeRequest.Urls.Spotify);
-            if (!string.IsNullOrWhiteSpace(spotifyId))
+            if (episodeChangeRequest.Urls.Spotify.ToString() == string.Empty)
             {
-                episode.SpotifyId = spotifyId;
-                episode.Urls.Spotify = episodeChangeRequest.Urls.Spotify;
+                episode.AppleId = null;
+                episode.Urls.Apple = null;
+            }
+            else
+            {
+                if (SpotifyPodcastServiceMatcher.IsMatch(episodeChangeRequest.Urls.Spotify))
+                {
+                    var spotifyId = SpotifyIdResolver.GetEpisodeId(episodeChangeRequest.Urls.Spotify);
+                    if (!string.IsNullOrWhiteSpace(spotifyId))
+                    {
+                        episode.SpotifyId = spotifyId;
+                        episode.Urls.Spotify = episodeChangeRequest.Urls.Spotify;
+                    }
+                }
+                else
+                {
+                    logger.LogError($"Invalid spotify-url: '{episodeChangeRequest.Urls.Spotify}'.");
+                }
             }
         }
 
-        if (episodeChangeRequest.Urls.Apple != null &&
-            ApplePodcastServiceMatcher.IsMatch(episodeChangeRequest.Urls.Apple))
+        if (episodeChangeRequest.Urls.Apple != null)
         {
-            var appleId = AppleIdResolver.GetEpisodeId(episodeChangeRequest.Urls.Apple);
-            if (appleId != null)
+            if (episodeChangeRequest.Urls.Apple.ToString() == string.Empty)
             {
-                episode.AppleId = appleId;
-                episode.Urls.Apple = episodeChangeRequest.Urls.Apple;
+                episode.AppleId = null;
+                episode.Urls.Apple = null;
+            }
+            else
+            {
+                if (ApplePodcastServiceMatcher.IsMatch(episodeChangeRequest.Urls.Apple))
+                {
+                    var appleId = AppleIdResolver.GetEpisodeId(episodeChangeRequest.Urls.Apple);
+                    if (appleId != null)
+                    {
+                        episode.AppleId = appleId;
+                        episode.Urls.Apple = episodeChangeRequest.Urls.Apple;
+                    }
+                }
+                else
+                {
+                    logger.LogError($"Invalid apple-url: '{episodeChangeRequest.Urls.Apple}'.");
+                }
             }
         }
 
-        if (episodeChangeRequest.Urls.YouTube != null &&
-            YouTubePodcastServiceMatcher.IsMatch(episodeChangeRequest.Urls.YouTube))
+        if (episodeChangeRequest.Urls.YouTube != null)
         {
-            var youTubeId = YouTubeIdResolver.Extract(episodeChangeRequest.Urls.YouTube);
-            if (!string.IsNullOrWhiteSpace(youTubeId))
+            if (episodeChangeRequest.Urls.YouTube.ToString() == string.Empty)
             {
-                episode.YouTubeId = youTubeId;
-                episode.Urls.YouTube = episodeChangeRequest.Urls.YouTube;
+                episode.AppleId = null;
+                episode.Urls.Apple = null;
+            }
+            else
+            {
+                if (YouTubePodcastServiceMatcher.IsMatch(episodeChangeRequest.Urls.YouTube))
+                {
+                    {
+                        var youTubeId = YouTubeIdResolver.Extract(episodeChangeRequest.Urls.YouTube);
+                        if (!string.IsNullOrWhiteSpace(youTubeId))
+                        {
+                            episode.YouTubeId = youTubeId;
+                            episode.Urls.YouTube = episodeChangeRequest.Urls.YouTube;
+                        }
+                        else
+                        {
+                            logger.LogError($"Invalid youtube-url: '{episodeChangeRequest.Urls.YouTube}'.");
+                        }
+                    }
+                }
             }
         }
     }
