@@ -59,7 +59,7 @@ public class Tweeter(
         var podcastEpisodes = new List<PodcastEpisode>();
 
         var untweetedPodcastIds =
-            await repository.GetPodcastsIdsWithUnpostedReleasedSince(DateTimeExtensions.DaysAgo(3));
+            await repository.GetPodcastsIdsWithUnpostedReleasedSince(DateTimeExtensions.DaysAgo(7));
 
         foreach (var untweetedPodcastId in untweetedPodcastIds)
         {

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Adaptors;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Common.Episodes;
@@ -17,7 +18,7 @@ public class EpisodeProcessor(
         bool spotifyRefreshed)
     {
         logger.LogInformation($"{nameof(PostEpisodesSinceReleaseDate)} Finding episodes released since '{since}'.");
-        var podcastIds = await podcastRepository.GetPodcastsIdsWithUnpostedReleasedSince(since);
+        var podcastIds = await podcastRepository.GetPodcastsIdsWithUnpostedReleasedSince(DateTimeExtensions.DaysAgo(7));
 
         var matchingPodcastEpisodeResults =
             await podcastEpisodesPoster.PostNewEpisodes(since, podcastIds, youTubeRefreshed, spotifyRefreshed);
