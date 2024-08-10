@@ -17,7 +17,7 @@ public class EpisodeProcessor(
         bool spotifyRefreshed)
     {
         logger.LogInformation($"{nameof(PostEpisodesSinceReleaseDate)} Finding episodes released since '{since}'.");
-        var podcastIds = await podcastRepository.GetPodcastsIdsWithUnpostedReleasedSince(since);
+        var podcastIds = await podcastRepository.GetPodcastsIdsWithUnpostedReleasedSince(DateTime.UtcNow.AddDays(-30));
 
         var matchingPodcastEpisodeResults =
             await podcastEpisodesPoster.PostNewEpisodes(since, podcastIds, youTubeRefreshed, spotifyRefreshed);
