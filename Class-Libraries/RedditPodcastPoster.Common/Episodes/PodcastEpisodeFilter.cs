@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
@@ -65,11 +66,12 @@ public class PodcastEpisodeFilter(
         bool spotifyRefreshed = true,
         int numberOfDays = 1)
     {
+        var since = DateTimeExtensions.DaysAgo(numberOfDays);
         var podcastEpisodes =
             podcast.Episodes
                 .Select(e => new PodcastEpisode(podcast, e))
                 .Where(x =>
-                    x.Episode.Release >= DateTime.UtcNow.Date.AddDays(-1 * numberOfDays) &&
+                    x.Episode.Release >= since &&
                     x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
                     (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
                     !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
@@ -78,7 +80,8 @@ public class PodcastEpisodeFilter(
                 .OrderByDescending(x => x.Episode.Release);
         if (!podcastEpisodes.Any())
         {
-            logger.LogInformation($"No Podcast-Episode found ready to Tweet for podcast '{podcast.Name}' with podcast-id '{podcast.Id}'.");
+            logger.LogInformation(
+                $"No Podcast-Episode found ready to Tweet for podcast '{podcast.Name}' with podcast-id '{podcast.Id}'.");
         }
 
         return podcastEpisodes;
