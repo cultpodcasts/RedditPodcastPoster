@@ -14,9 +14,12 @@ using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Search.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
+using RedditPodcastPoster.Twitter.Extensions;
+using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.UrlSubmission.Extensions;
 
 namespace Api;
@@ -49,6 +52,9 @@ public static class Ioc
             .AddIndexer()
             .AddEliminationTerms()
             .AddContentPublishing(hostBuilderContext.Configuration)
+            .AddTwitterServices(hostBuilderContext.Configuration)
+            .AddRedditServices(hostBuilderContext.Configuration)
+            .AddShortnerServices(hostBuilderContext.Configuration)
             .AddHttpClient();
         serviceCollection.BindConfiguration<HostingOptions>("hosting");
         serviceCollection.BindConfiguration<IndexerOptions>("indexer");

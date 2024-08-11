@@ -8,16 +8,21 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.Twitter;
+using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
 
 namespace Api;
 
 public class Episode(
     IPodcastRepository podcastRepository,
     SearchClient searchClient,
+    IPodcastEpisodePoster podcastEpisodePoster,
+    ITweetPoster tweetPoster,
     ILogger<Episode> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
@@ -60,6 +65,82 @@ public class Episode(
     {
         return HandleRequest(req, ["curate"], new EpisodeChangeRequestWrapper(episodeId, episodeChangeRequest), Post,
             Unauthorised, ct);
+    }
+
+    [Function("EpisodePublish")]
+    public Task<HttpResponseData> EpisodePublish(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "episode/publish/{episodeId:guid}")]
+        HttpRequestData req,
+        Guid episodeId,
+        FunctionContext executionContext,
+        [FromBody] EpisodePublishRequest episodePostRequest,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(req, ["curate"], new EpisodePublishRequestWrapper(episodeId, episodePostRequest), Publish,
+            Unauthorised, ct);
+    }
+
+    private async Task<HttpResponseData> Publish(HttpRequestData req, EpisodePublishRequestWrapper publishRequest,
+        CancellationToken c)
+    {
+        try
+        {
+            var response = new EpisodePublishResponse();
+            var podcast = await podcastRepository.GetBy(x =>
+                (!x.Removed.IsDefined() || x.Removed == false) &&
+                x.Episodes.Any(ep => ep.Id == publishRequest.EpisodeId));
+            if (podcast == null)
+            {
+                throw new ArgumentException($"Podcast with episode-id '{publishRequest.EpisodeId}' not found.");
+            }
+
+            var episode = podcast!.Episodes.Single(x => x.Id == publishRequest.EpisodeId);
+
+
+            var podcastEpisode = new PodcastEpisode(podcast, episode);
+
+            if (publishRequest.EpisodePublishRequest.Post)
+            {
+                var result = await podcastEpisodePoster.PostPodcastEpisode(podcastEpisode);
+                if (!result.Success)
+                {
+                    logger.LogError(result.ToString());
+                }
+
+                response.Posted = result.Success;
+            }
+
+            if (publishRequest.EpisodePublishRequest.Tweet)
+            {
+                var result = await tweetPoster.PostTweet(podcastEpisode);
+                if (result != TweetSendStatus.Sent)
+                {
+                    logger.LogError($"Tweet result: '{result}'.");
+                }
+                else
+                {
+                    response.Tweeted = true;
+                }
+            }
+
+            if (response.Updated())
+            {
+                await podcastRepository.Save(podcast);
+            }
+
+            var success = await req.CreateResponse(
+                response.Updated() ? HttpStatusCode.Accepted : HttpStatusCode.BadRequest
+            ).WithJsonBody(response, c);
+            return success;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"{nameof(Publish)}: Failed to publish episode.");
+        }
+
+        var failure = req.CreateResponse(HttpStatusCode.InternalServerError);
+        return failure;
     }
 
     private async Task<HttpResponseData> GetOutgoing(HttpRequestData req, CancellationToken c)
