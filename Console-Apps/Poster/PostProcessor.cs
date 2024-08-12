@@ -22,59 +22,65 @@ public class PostProcessor(
 {
     public async Task Process(PostRequest request)
     {
-        await Post(request);
-        await Publish();
-        await Tweet(request);
+        if (!request.SkipReddit)
+        {
+            await Post(request);
+        }
+        if (!request.SkipPublish)
+        {
+            await Publish();
+        }
+        if (!request.SkipTweet)
+        {
+            await Tweet(request);
+        }
     }
 
     private async Task Post(PostRequest request)
     {
-        if (!request.SkipReddit)
+        IList<Guid> podcastIds;
+
+        if (request.EpisodeId.HasValue)
         {
-            IList<Guid> podcastIds;
-
-            if (request.EpisodeId.HasValue)
+            var podcastId = await repository.GetBy(x =>
+                (!x.Removed.IsDefined() || x.Removed == false) &&
+                x.Episodes.Any(ep => ep.Id == request.EpisodeId), x => new {guid = x.Id});
+            if (podcastId == null)
             {
-                var podcastId = await repository.GetBy(x =>
-                    (!x.Removed.IsDefined() || x.Removed == false) &&
-                    x.Episodes.Any(ep => ep.Id == request.EpisodeId), x => new {guid = x.Id});
-                if (podcastId == null)
-                {
-                    throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
-                }
-
-                podcastIds = new[] {podcastId.guid};
-            }
-            else if (request.PodcastId.HasValue)
-            {
-                var podcast = await repository.GetBy(x =>
-                    (!x.Removed.IsDefined() || x.Removed == false) &&
-                    x.Id == request.PodcastId.Value, x => new { });
-                if (podcast == null)
-                {
-                    throw new ArgumentException($"Podcast with id '{request.PodcastId.Value}' not found.");
-                }
-
-                podcastIds = new[] {request.PodcastId.Value};
-            }
-            else if (request.PodcastName != null)
-            {
-                var ids = await repository.GetAllBy(x =>
-                        (!x.Removed.IsDefined() || x.Removed == false) &&
-                        x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
-                    x => new {guid = x.Id}).ToListAsync();
-                logger.LogInformation($"Found {ids.Count()} podcasts.");
-                podcastIds = ids.Select(x => x.guid).ToArray();
-            }
-            else
-            {
-                var ids = await repository.GetPodcastsIdsWithUnpostedReleasedSince(
-                    DateTimeExtensions.DaysAgo(7));
-                podcastIds = ids.ToList();
+                throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
             }
 
-            await PostNewEpisodes(request, podcastIds);
+            podcastIds = new[] {podcastId.guid};
         }
+        else if (request.PodcastId.HasValue)
+        {
+            var podcast = await repository.GetBy(x =>
+                (!x.Removed.IsDefined() || x.Removed == false) &&
+                x.Id == request.PodcastId.Value, x => new { });
+            if (podcast == null)
+            {
+                throw new ArgumentException($"Podcast with id '{request.PodcastId.Value}' not found.");
+            }
+
+            podcastIds = new[] {request.PodcastId.Value};
+        }
+        else if (request.PodcastName != null)
+        {
+            var ids = await repository.GetAllBy(x =>
+                    (!x.Removed.IsDefined() || x.Removed == false) &&
+                    x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
+                x => new {guid = x.Id}).ToListAsync();
+            logger.LogInformation($"Found {ids.Count()} podcasts.");
+            podcastIds = ids.Select(x => x.guid).ToArray();
+        }
+        else
+        {
+            var ids = await repository.GetPodcastsIdsWithUnpostedReleasedSince(
+                DateTimeExtensions.DaysAgo(7));
+            podcastIds = ids.ToList();
+        }
+
+        await PostNewEpisodes(request, podcastIds);
     }
 
     private async Task Publish()
@@ -89,16 +95,13 @@ public class PostProcessor(
 
     private async Task Tweet(PostRequest request)
     {
-        if (!request.SkipTweet)
+        if (request.EpisodeId.HasValue)
         {
-            if (request.EpisodeId.HasValue)
-            {
-                await TweetEpisode(request);
-            }
-            else
-            {
-                await tweeter.Tweet(true, true);
-            }
+            await TweetEpisode(request);
+        }
+        else
+        {
+            await tweeter.Tweet(true, true);
         }
     }
 
