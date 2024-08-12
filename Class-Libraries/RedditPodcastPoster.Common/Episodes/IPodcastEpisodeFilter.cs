@@ -7,14 +7,14 @@ public interface IPodcastEpisodeFilter
     IEnumerable<PodcastEpisode> GetNewEpisodesReleasedSince(
         IEnumerable<Podcast> podcasts,
         DateTime since,
-        bool youTubeRefreshed = true,
-        bool spotifyRefreshed = true);
+        bool youTubeRefreshed,
+        bool spotifyRefreshed);
 
     IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(
         Podcast podcast,
-        bool youTubeRefreshed = true,
-        bool spotifyRefreshed = true,
-        int numberOfDays = 1);
+        bool youTubeRefreshed,
+        bool spotifyRefreshed,
+        int numberOfDays);
 
     bool IsRecentlyExpiredDelayedPublishing(
         Podcast podcast,

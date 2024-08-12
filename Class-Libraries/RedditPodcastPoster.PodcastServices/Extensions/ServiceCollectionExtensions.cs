@@ -10,7 +10,8 @@ public static class ServiceCollectionExtensions
         return services
             .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
             .AddScoped<IPodcastUpdater, PodcastUpdater>()
-            .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>();
+            .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>()
+            .AddScoped<IPodcastEpisodeProvider, PodcastEpisodeProvider>();
     }
 
     public static IServiceCollection AddRemoteClient(this IServiceCollection services)

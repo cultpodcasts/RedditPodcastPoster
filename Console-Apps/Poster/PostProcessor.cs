@@ -12,10 +12,10 @@ namespace Poster;
 
 public class PostProcessor(
     IPodcastRepository repository,
+    ITweeter tweeter,
     IPodcastEpisodesPoster podcastEpisodesPoster,
     IProcessResponsesAdaptor processResponsesAdaptor,
     IContentPublisher contentPublisher,
-    IPodcastEpisodeFilter podcastEpisodeFilter,
     IPodcastEpisodePoster podcastEpisodePoster,
     ITweetPoster tweetPoster,
     ILogger<PostProcessor> logger)
@@ -48,42 +48,7 @@ public class PostProcessor(
             }
             else
             {
-                var since = DateTimeExtensions.DaysAgo(7);
-                var untweetedPodcastIds = await repository.GetPodcastIdsWithUntweetedReleasedSince(since);
-                var untweeted = new List<PodcastEpisode>();
-                foreach (var podcastId in untweetedPodcastIds)
-                {
-                    var podcast = await repository.GetPodcast(podcastId);
-                    var filtered =
-                        podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(podcast,
-                            numberOfDays: request.ReleasedWithin);
-                    untweeted.AddRange(filtered);
-                }
-
-                untweeted = untweeted.OrderByDescending(x => x.Episode.Release).ToList();
-
-
-                var tweeted = false;
-                var tooManyRequests = false;
-                foreach (var podcastEpisode in untweeted)
-                {
-                    if (tweeted || tooManyRequests)
-                    {
-                        break;
-                    }
-
-                    try
-                    {
-                        var result = await tweetPoster.PostTweet(podcastEpisode);
-                        tweeted = result == TweetSendStatus.Sent;
-                        tooManyRequests = result == TweetSendStatus.TooManyRequests;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex,
-                            $"Unable to tweet episode with id '{podcastEpisode.Episode.Id}' with title '{podcastEpisode.Episode.Title}' from podcast with id '{podcastEpisode.Podcast.Id}' and name '{podcastEpisode.Podcast.Name}'.");
-                    }
-                }
+                await tweeter.Tweet();
             }
         }
     }
