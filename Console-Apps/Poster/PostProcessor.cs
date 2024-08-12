@@ -27,42 +27,6 @@ public class PostProcessor(
         await Tweet(request);
     }
 
-    private async Task Tweet(PostRequest request)
-    {
-        if (!request.SkipTweet)
-        {
-            if (request.EpisodeId.HasValue)
-            {
-                var podcastId = await repository.GetBy(x =>
-                    (!x.Removed.IsDefined() || x.Removed == false) &&
-                    x.Episodes.Any(ep => ep.Id == request.EpisodeId), x => new {guid = x.Id});
-                if (podcastId == null)
-                {
-                    throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
-                }
-
-                var selectedPodcast = await repository.GetPodcast(podcastId.guid);
-                var selectedEpisode = selectedPodcast.Episodes.Single(x => x.Id == request.EpisodeId);
-                var podcastEpisode = new PodcastEpisode(selectedPodcast, selectedEpisode);
-                await tweetPoster.PostTweet(podcastEpisode);
-            }
-            else
-            {
-                await tweeter.Tweet();
-            }
-        }
-    }
-
-    private async Task Publish()
-    {
-        Task[] publishingTasks =
-        {
-            contentPublisher.PublishHomepage()
-        };
-
-        await Task.WhenAll(publishingTasks);
-    }
-
     private async Task Post(PostRequest request)
     {
         if (!request.SkipReddit)
@@ -110,6 +74,65 @@ public class PostProcessor(
             }
 
             await PostNewEpisodes(request, podcastIds);
+        }
+    }
+
+    private async Task Publish()
+    {
+        Task[] publishingTasks =
+        {
+            contentPublisher.PublishHomepage()
+        };
+
+        await Task.WhenAll(publishingTasks);
+    }
+
+    private async Task Tweet(PostRequest request)
+    {
+        if (!request.SkipTweet)
+        {
+            if (request.EpisodeId.HasValue)
+            {
+                await TweetEpisode(request);
+            }
+            else
+            {
+                await tweeter.Tweet();
+            }
+        }
+    }
+
+    private async Task TweetEpisode(PostRequest request)
+    {
+        var podcastId = await repository.GetBy(x =>
+            (!x.Removed.IsDefined() || x.Removed == false) &&
+            x.Episodes.Any(ep => ep.Id == request.EpisodeId), x => new {guid = x.Id});
+        if (podcastId == null)
+        {
+            throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
+        }
+
+        var selectedPodcast = await repository.GetPodcast(podcastId.guid);
+        var selectedEpisode = selectedPodcast.Episodes.Single(x => x.Id == request.EpisodeId);
+        var podcastEpisode = new PodcastEpisode(selectedPodcast, selectedEpisode);
+        var result = await tweetPoster.PostTweet(podcastEpisode);
+        if (result != TweetSendStatus.Sent)
+        {
+            switch (result)
+            {
+                case TweetSendStatus.DuplicateForbidden:
+                    logger.LogError("Forbidden to send duplicate-tweet");
+                    break;
+                case TweetSendStatus.TooManyRequests:
+                    logger.LogError("Too many twitter requests");
+                    break;
+                case TweetSendStatus.Failed:
+                    logger.LogError("Failed to send tweet.");
+                    break;
+                default:
+                    logger.LogError($"Unknown tweet-send response '{result.ToString()}'.");
+                    break;
+            }
         }
     }
 
