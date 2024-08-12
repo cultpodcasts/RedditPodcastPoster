@@ -1,6 +1,5 @@
 ﻿using Azure;
 using Indexer.Categorisation;
-using Indexer.Tweets;
 using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,7 +47,6 @@ public static class Ioc
             .AddRedditServices(hostBuilderContext.Configuration)
             .AddScoped<IFlushable, CacheFlusher>()
             .AddTwitterServices(hostBuilderContext.Configuration)
-            .AddScoped<ITweeter, Tweeter>()
             .AddSubjectServices()
             .AddCachedSubjectProvider()
             .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()

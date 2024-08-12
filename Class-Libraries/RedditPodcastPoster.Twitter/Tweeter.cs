@@ -1,25 +1,23 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Episodes;
-using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
-using RedditPodcastPoster.Twitter;
 
-namespace Indexer.Tweets;
+namespace RedditPodcastPoster.Twitter;
 
 public class Tweeter(
-    IPodcastRepository repository,
-    IPodcastEpisodeFilter podcastEpisodeFilter,
     ITweetPoster tweetPoster,
+    IPodcastEpisodeProvider podcastEpisodeProvider,
     ILogger<Tweeter> logger)
     : ITweeter
 {
-    public async Task Tweet(bool youTubeRefreshed, bool spotifyRefreshed)
+    public async Task Tweet(
+        bool youTubeRefreshed,
+        bool spotifyRefreshed)
     {
         IEnumerable<PodcastEpisode> untweeted;
         try
         {
-            untweeted = await GetUntweetedPodcastEpisodes(youTubeRefreshed, spotifyRefreshed);
+            untweeted = await podcastEpisodeProvider.GetUntweetedPodcastEpisodes(youTubeRefreshed, spotifyRefreshed);
         }
         catch (Exception ex)
         {
@@ -51,25 +49,5 @@ public class Tweeter(
                 }
             }
         }
-    }
-
-    private async Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(bool youTubeRefreshed,
-        bool spotifyRefreshed)
-    {
-        var numberOfDays = 7;
-        var podcastEpisodes = new List<PodcastEpisode>();
-
-        var untweetedPodcastIds =
-            await repository.GetPodcastsIdsWithUnpostedReleasedSince(DateTimeExtensions.DaysAgo(numberOfDays));
-
-        foreach (var untweetedPodcastId in untweetedPodcastIds)
-        {
-            var podcast = await repository.GetPodcast(untweetedPodcastId);
-            var filtered = podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
-                podcast, youTubeRefreshed, spotifyRefreshed, numberOfDays);
-            podcastEpisodes.AddRange(filtered);
-        }
-
-        return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
     }
 }

@@ -62,9 +62,9 @@ public class PodcastEpisodeFilter(
 
     public IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(
         Podcast podcast,
-        bool youTubeRefreshed = true,
-        bool spotifyRefreshed = true,
-        int numberOfDays = 1)
+        bool youTubeRefreshed,
+        bool spotifyRefreshed,
+        int numberOfDays)
     {
         var since = DateTimeExtensions.DaysAgo(numberOfDays);
         var podcastEpisodes =

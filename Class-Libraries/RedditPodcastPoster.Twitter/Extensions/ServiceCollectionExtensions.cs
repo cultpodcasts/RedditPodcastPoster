@@ -11,6 +11,7 @@ public static class ServiceCollectionExtensions
         services.BindConfiguration<TwitterOptions>("twitter");
 
         return services
+            .AddScoped<ITweeter, Tweeter>()
             .AddScoped<ITwitterClient, TwitterClient>()
             .AddScoped<ITweetBuilder, TweetBuilder>()
             .AddScoped<IHashTagProvider, HashTagProvider>()
