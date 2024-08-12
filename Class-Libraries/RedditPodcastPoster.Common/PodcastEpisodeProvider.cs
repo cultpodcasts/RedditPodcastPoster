@@ -18,7 +18,7 @@ public class PodcastEpisodeProvider(
         var podcastEpisodes = new List<PodcastEpisode>();
 
         var untweetedPodcastIds =
-            await repository.GetPodcastsIdsWithUnpostedReleasedSince(DateTimeExtensions.DaysAgo(numberOfDays));
+            await repository.GetPodcastIdsWithUntweetedReleasedSince(DateTimeExtensions.DaysAgo(numberOfDays));
 
         foreach (var untweetedPodcastId in untweetedPodcastIds)
         {
