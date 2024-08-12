@@ -56,6 +56,7 @@ public class Indexer(
             }
 
             await podcastRepository.Save(podcast);
+            status = IndexStatus.Performed;
         }
         else
         {
