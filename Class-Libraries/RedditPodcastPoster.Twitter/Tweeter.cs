@@ -11,8 +11,8 @@ public class Tweeter(
     : ITweeter
 {
     public async Task Tweet(
-        bool youTubeRefreshed=true, 
-        bool spotifyRefreshed=true)
+        bool youTubeRefreshed, 
+        bool spotifyRefreshed)
     {
         IEnumerable<PodcastEpisode> untweeted;
         try

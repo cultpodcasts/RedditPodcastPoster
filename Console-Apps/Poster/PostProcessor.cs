@@ -97,7 +97,7 @@ public class PostProcessor(
             }
             else
             {
-                await tweeter.Tweet();
+                await tweeter.Tweet(true, true);
             }
         }
     }
