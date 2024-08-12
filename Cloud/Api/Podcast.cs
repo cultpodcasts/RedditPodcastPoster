@@ -217,7 +217,7 @@ public class Podcast(
             var podcast = await podcastRepository.GetBy(x => x.Name == podcastName);
             if (podcast != null)
             {
-                var dto= new Dtos.Podcast
+                var dto = new Dtos.Podcast
                 {
                     Id = podcast.Id,
                     Removed = podcast.Removed,
@@ -274,10 +274,20 @@ public class Podcast(
                 SkipPodcastDiscovery = true
             };
 
-            await indexer.Index(podcastName, indexingContext);
-            await searchIndexerService.RunIndexer();
+            var response = await indexer.Index(podcastName, indexingContext);
+            if (response.IndexStatus == IndexStatus.Performed)
+            {
+                await searchIndexerService.RunIndexer();
+            }
 
-            return req.CreateResponse(HttpStatusCode.Accepted);
+            HttpStatusCode status = response.IndexStatus switch
+            {
+                IndexStatus.NotFound => HttpStatusCode.NotFound,
+                IndexStatus.Performed => HttpStatusCode.Accepted,
+                _ => HttpStatusCode.BadRequest
+            };
+
+            return req.CreateResponse(status);
         }
         catch (Exception ex)
         {

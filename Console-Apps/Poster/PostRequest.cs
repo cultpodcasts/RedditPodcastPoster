@@ -20,6 +20,9 @@ public class PostRequest
     [Option('t', "skip-tweet", Required = false, HelpText = "Skip Tweet", Default = false)]
     public bool SkipTweet { get; set; }
 
+    [Option('w', "skip-publish", Required = false, HelpText = "Skip Publish", Default = false)]
+    public bool SkipPublish { get; set; }
+
     [Option('r', "skip-reddit", Required = false, HelpText = "Skip Reddit", Default = false)]
     public bool SkipReddit { get; set; }
 

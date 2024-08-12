@@ -12,17 +12,20 @@ public class Indexer(
     ILogger<Indexer> logger
 ) : IIndexer
 {
-    public async Task Index(string podcastName, IndexingContext indexingContext)
+    public async Task<IndexResponse> Index(string podcastName, IndexingContext indexingContext)
     {
         var podcast = await podcastRepository.GetBy(x => x.Name == podcastName, x => new {id = x.Id, name = x.Name});
         if (podcast != null)
         {
-            await Index(podcast.id, indexingContext);
+            return await Index(podcast.id, indexingContext);
         }
+
+        return new IndexResponse(IndexStatus.NotFound);
     }
 
-    public async Task Index(Guid podcastId, IndexingContext indexingContext)
+    public async Task<IndexResponse> Index(Guid podcastId, IndexingContext indexingContext)
     {
+        IndexStatus status= IndexStatus.Unset;
         var podcast = await podcastRepository.GetPodcast(podcastId);
         if (podcast != null && !podcast.IsRemoved() &&
             (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
@@ -67,7 +70,15 @@ public class Indexer(
                     logger.LogWarning(
                         $"Podcast '{podcast.Name}' with id '{podcast.Id}' ignored. index-all-episodes '{podcast.IndexAllEpisodes}', episode-include-title-regex: '{podcast.EpisodeIncludeTitleRegex}'.");
                 }
+
+                status = IndexStatus.NotPerformed;
+            }
+            else
+            {
+                status = IndexStatus.NotFound;
             }
         }
+
+        return new IndexResponse(status);
     }
 }
