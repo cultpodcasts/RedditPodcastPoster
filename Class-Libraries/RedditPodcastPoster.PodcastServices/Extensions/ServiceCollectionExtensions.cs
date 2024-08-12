@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.Common;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Extensions;
@@ -10,8 +11,7 @@ public static class ServiceCollectionExtensions
         return services
             .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
             .AddScoped<IPodcastUpdater, PodcastUpdater>()
-            .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>()
-            .AddScoped<IPodcastEpisodeProvider, PodcastEpisodeProvider>();
+            .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>();
     }
 
     public static IServiceCollection AddRemoteClient(this IServiceCollection services)

@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.PodcastServices;
 
 namespace RedditPodcastPoster.Twitter;
 
@@ -11,7 +11,7 @@ public class Tweeter(
     : ITweeter
 {
     public async Task Tweet(
-        bool youTubeRefreshed, 
+        bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
         IEnumerable<PodcastEpisode> untweeted;

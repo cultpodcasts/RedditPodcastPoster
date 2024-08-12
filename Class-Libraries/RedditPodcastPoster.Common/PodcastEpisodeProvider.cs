@@ -3,7 +3,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
-namespace RedditPodcastPoster.PodcastServices;
+namespace RedditPodcastPoster.Common;
 
 public class PodcastEpisodeProvider(
     IPodcastRepository repository,
