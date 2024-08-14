@@ -176,6 +176,17 @@ public class HashTagEnricherTests
     }
 
     [Fact]
+    public void AddHashTag_WithCompositeTermWithApostrophe_StringIsCorrect()
+    {
+        // arrange
+        var input = "Prefix Composite Term's Middle TeRm Suffix";
+        // act
+        var (result, _) = Sut.AddHashTag(input, "Composite Term", "CompositeTerm");
+        // assert
+        result.Should().Be("Prefix #CompositeTerm's Middle TeRm Suffix");
+    }
+
+    [Fact]
     public void AddHashTag_WithMultipleCompositeTerm_StringIsCorrect()
     {
         // arrange
