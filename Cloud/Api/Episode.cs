@@ -247,7 +247,7 @@ public class Episode(
             episode.Title = episodeChangeRequest.Title;
         }
 
-        if (!string.IsNullOrWhiteSpace(episodeChangeRequest.Description))
+        if (episodeChangeRequest.Description != null)
         {
             episode.Description = episodeChangeRequest.Description;
         }
@@ -337,7 +337,7 @@ public class Episode(
                     if (appleId != null)
                     {
                         episode.AppleId = appleId;
-                        episode.Urls.Apple = episodeChangeRequest.Urls.Apple;
+                        episode.Urls.Apple = episodeChangeRequest.Urls.Apple.CleanAppleUrl();
                     }
                 }
                 else

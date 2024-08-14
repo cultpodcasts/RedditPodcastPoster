@@ -56,6 +56,8 @@ public class EpisodePostManager(
                     {
                         var flairTemplateId = subject.RedditFlairTemplateId.ToString();
                         result.LinkPost.SetFlair(subject.RedditFlareText ?? subject.Name, flairTemplateId);
+                        logger.LogInformation(
+                            $"Set flair-text '{subject.RedditFlareText ?? subject.Name}' and flair-id 'flairTemplateId'.");
                     }
                     else
                     {
