@@ -1,5 +1,4 @@
 ﻿using Azure;
-using Indexer.Categorisation;
 using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,7 +48,6 @@ public static class Ioc
             .AddTwitterServices(hostBuilderContext.Configuration)
             .AddSubjectServices()
             .AddCachedSubjectProvider()
-            .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddContentPublishing(hostBuilderContext.Configuration)
             .AddShortnerServices(hostBuilderContext.Configuration)

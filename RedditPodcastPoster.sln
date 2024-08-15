@@ -170,6 +170,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Reddit.NET", "Third-Party\s
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Indexing", "Class-Libraries\RedditPodcastPoster.Indexing\RedditPodcastPoster.Indexing.csproj", "{62563496-22D6-42EE-A11C-892A2C27BE1F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlairPublisher", "Console-Apps\FlairPublisher\FlairPublisher.csproj", "{1965E90F-2292-41AF-8447-431C1014FBB8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -460,6 +462,10 @@ Global
 		{62563496-22D6-42EE-A11C-892A2C27BE1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{62563496-22D6-42EE-A11C-892A2C27BE1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{62563496-22D6-42EE-A11C-892A2C27BE1F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1965E90F-2292-41AF-8447-431C1014FBB8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1965E90F-2292-41AF-8447-431C1014FBB8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1965E90F-2292-41AF-8447-431C1014FBB8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1965E90F-2292-41AF-8447-431C1014FBB8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -537,6 +543,7 @@ Global
 		{677C7664-D25B-4575-81C4-B5D5363C0940} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{7DB17F4D-3722-4B7C-A39F-14B90E8B741F} = {500DB58B-23D9-4BBC-9D6D-BE5DA70366C1}
 		{62563496-22D6-42EE-A11C-892A2C27BE1F} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{1965E90F-2292-41AF-8447-431C1014FBB8} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

@@ -1,9 +1,9 @@
 ﻿using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
-using RedditPodcastPoster.Subjects;
 
-namespace Indexer.Categorisation;
+namespace RedditPodcastPoster.Subjects;
 
 public class RecentPodcastEpisodeCategoriser(
     IPodcastRepository podcastRepository,
@@ -13,7 +13,7 @@ public class RecentPodcastEpisodeCategoriser(
 {
     public async Task Categorise()
     {
-        var since = DateTime.UtcNow.AddDays(-7);
+        var since = DateTimeExtensions.DaysAgo(7);
 
         var podcasts =
             podcastRepository.GetAllBy(x =>

@@ -13,7 +13,8 @@ public static class ServiceCollectionExtensions
             .AddScoped<ISubjectEnricher, SubjectEnricher>()
             .AddScoped<ISubjectMatcher, SubjectMatcher>()
             .AddSingleton<IRecycledFlareIdProvider, RecycledFlareIdProvider>()
-            .AddScoped<ICategoriser, Categoriser>();
+            .AddScoped<ICategoriser, Categoriser>()
+            .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>();
     }
 
     public static IServiceCollection AddCachedSubjectProvider(this IServiceCollection services)

@@ -1,4 +1,4 @@
-﻿namespace Indexer.Categorisation;
+﻿namespace RedditPodcastPoster.Subjects;
 
 public interface IRecentPodcastEpisodeCategoriser
 {

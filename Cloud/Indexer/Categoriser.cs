@@ -1,6 +1,6 @@
-﻿using Indexer.Categorisation;
-using Microsoft.DurableTask;
+﻿using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Subjects;
 
 namespace Indexer;
 
