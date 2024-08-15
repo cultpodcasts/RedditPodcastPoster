@@ -30,10 +30,9 @@ builder.Services
     .AddSingleton<SubjectsSeeder>()
     .AddSubredditSettings(builder.Configuration)
     .AddContentPublishing(builder.Configuration)
-    .AddTextSanitiser()
-    .AddRedditServices(builder.Configuration);
+    .AddTextSanitiser();
 
-RedditClientFactory.AddRedditClient(builder.Services);
+AdminRedditClientFactory.AddAdminRedditClient(builder.Services);
 
 builder.Services.BindConfiguration<RedditSettings>("reddit-moderator");
 

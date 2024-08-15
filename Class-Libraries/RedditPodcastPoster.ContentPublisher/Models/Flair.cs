@@ -16,7 +16,7 @@ public class Flair
     [JsonPropertyOrder(4)]
     public string TextColour { get; set; } = "";
 
-    [JsonPropertyName("BackgroundColour")]
+    [JsonPropertyName("backgroundColour")]
     [JsonPropertyOrder(5)]
     public string BackgroundColour { get; set; } = "";
 }
