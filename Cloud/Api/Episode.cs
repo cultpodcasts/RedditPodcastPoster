@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
@@ -24,6 +25,7 @@ public class Episode(
     SearchClient searchClient,
     IPodcastEpisodePoster podcastEpisodePoster,
     ITweetPoster tweetPoster,
+    IContentPublisher contentPublisher,
     ILogger<Episode> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
@@ -129,6 +131,8 @@ public class Episode(
             {
                 await podcastRepository.Save(podcast);
             }
+
+            await contentPublisher.PublishHomepage();
 
             var success = await req.CreateResponse(
                 response.Updated() ? HttpStatusCode.Accepted : HttpStatusCode.BadRequest
