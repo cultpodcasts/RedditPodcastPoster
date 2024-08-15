@@ -14,6 +14,7 @@ using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Search.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
@@ -56,6 +57,9 @@ public static class Ioc
             .AddRedditServices(hostBuilderContext.Configuration)
             .AddShortnerServices(hostBuilderContext.Configuration)
             .AddHttpClient();
+
+        AdminRedditClientFactory.AddAdminRedditClient(serviceCollection);
+
         serviceCollection.BindConfiguration<HostingOptions>("hosting");
         serviceCollection.BindConfiguration<IndexerOptions>("indexer");
     }

@@ -6,9 +6,11 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Reddit.Inputs.Flair;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Subjects;
 using Subject = RedditPodcastPoster.Models.Subject;
 
@@ -18,11 +20,15 @@ public class SubjectController(
     ISubjectRepository subjectRepository,
     ISubjectService subjectService,
     IContentPublisher contentPublisher,
+    IAdminRedditClient redditClient,
+    IOptions<SubredditSettings> subredditSettings,
     ILogger<SubjectController> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions
 ) : BaseHttpFunction(hostingOptions, baseLogger)
 {
+    private readonly SubredditSettings _subredditSettings = subredditSettings.Value;
+
     [Function("SubjectGet")]
     public Task<HttpResponseData> Get(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "subject/{subjectName}")]
@@ -102,7 +108,7 @@ public class SubjectController(
             logger.LogInformation(
                 $"{nameof(Post)} Updating subject-id '{subjectChangeRequestWrapper.SubjectId}'. Original-episode: {JsonSerializer.Serialize(subject)}");
 
-            UpdateSubject(subject, subjectChangeRequestWrapper.Subject);
+            await UpdateSubject(subject, subjectChangeRequestWrapper.Subject);
             await subjectRepository.Save(subject);
             return req.CreateResponse(HttpStatusCode.Accepted);
         }
@@ -126,7 +132,7 @@ public class SubjectController(
         }
 
         var entity = new Subject(subject.Name);
-        UpdateSubject(entity, subject);
+        await UpdateSubject(entity, subject);
         var matchingSubject = await subjectService.Match(entity);
         if (matchingSubject != null)
         {
@@ -141,7 +147,7 @@ public class SubjectController(
         return await req.CreateResponse(HttpStatusCode.Accepted).WithJsonBody(entity.ToDto(), ct);
     }
 
-    private void UpdateSubject(Subject subject, Dtos.Subject change)
+    private async Task UpdateSubject(Subject subject, Dtos.Subject change)
     {
         if (change.Aliases != null)
         {
@@ -200,6 +206,7 @@ public class SubjectController(
             else
             {
                 subject.RedditFlairTemplateId = change.RedditFlairTemplateId;
+                await UseFlair(subject, change.RedditFlairTemplateId.Value);
             }
         }
 
@@ -225,6 +232,57 @@ public class SubjectController(
             {
                 subject.SubjectType = null;
             }
+        }
+    }
+
+    public async Task UseFlair(Subject subject, Guid flairId)
+    {
+        var subredditFlairs = redditClient.Client
+            .Subreddit(_subredditSettings.SubredditName)
+            .Flairs
+            .GetLinkFlairV2();
+        var flair = subredditFlairs.SingleOrDefault(x => x.Id == flairId.ToString());
+        if (flair == null)
+        {
+            throw new InvalidOperationException($"Unable to find subreddit-flair with id '{flairId}'.");
+        }
+
+        if (!flair.TextEditable)
+        {
+            var subjectsUsingFlair =
+                await subjectRepository.GetAllBy(x => x.RedditFlairTemplateId == flairId).ToListAsync();
+            if (subjectsUsingFlair.Count == 1)
+            {
+                var subjectUsingFlair = subjectsUsingFlair.Single();
+                subjectUsingFlair.RedditFlareText = flair.Text;
+                await subjectRepository.Save(subjectUsingFlair);
+                logger.LogInformation(
+                    $"Adjusted subject '{subjectUsingFlair.Name}' with id '{subjectUsingFlair.Id}' to have  {nameof(subjectUsingFlair.RedditFlareText)}='{flair.Text}'.");
+            }
+
+            flair.TextEditable = true;
+            var updateResult = await redditClient.Client
+                .Subreddit(_subredditSettings.SubredditName)
+                .Flairs
+                .UpdateLinkFlairTemplateV2Async(new FlairTemplateV2Input
+                {
+                    background_color = flair.BackgroundColor,
+                    flair_template_id = flair.Id,
+                    flair_type = flair.Type,
+                    text = flair.Text,
+                    text_color = flair.TextColor,
+                    text_editable = true
+                });
+            if (!updateResult.TextEditable)
+            {
+                logger.LogError($"Error updating flare '{flair.Text}' with id '{flair.Id}'.");
+            }
+        }
+
+        subject.RedditFlairTemplateId = flairId;
+        if (!string.IsNullOrWhiteSpace(subject.RedditFlareText))
+        {
+            subject.RedditFlareText = subject.Name;
         }
     }
 }

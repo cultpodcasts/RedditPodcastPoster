@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Reddit;
 using Reddit.Inputs.Flair;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.Models;
@@ -13,7 +12,7 @@ namespace SubjectSeeder;
 public class SubjectsSeeder(
     ISubjectRepository subjectRepository,
     ISubjectService subjectService,
-    RedditClient redditClient,
+    IAdminRedditClient redditClient,
     IRecycledFlareIdProvider recycledFlareIdProvider,
     IOptions<SubredditSettings> subredditSettings,
     IContentPublisher contentPublisher,
@@ -42,14 +41,15 @@ public class SubjectsSeeder(
                 {
                     if (subjectRequest.CreateFlair)
                     {
-                        var flairs = redditClient.Subreddit(_subredditSettings.SubredditName).Flairs.GetFlairList();
+                        var flairs = redditClient.Client.Subreddit(_subredditSettings.SubredditName).Flairs
+                            .GetFlairList();
                         if (flairs.Count >= MaxSubredditFlairs)
                         {
                             throw new ArgumentException(
                                 $"Cannot create new flare. Subreddit has hit limit of flairs at '{MaxSubredditFlairs}'.");
                         }
 
-                        var createdFlair = await redditClient
+                        var createdFlair = await redditClient.Client
                             .Subreddit(_subredditSettings.SubredditName)
                             .Flairs
                             .CreateLinkFlairTemplateV2Async(subjectRequest.Flair);
@@ -68,7 +68,7 @@ public class SubjectsSeeder(
                         var flairId = recycledFlareIdProvider.GetId(subjectRequest.RecycledFlairName);
 
                         // verify flare is user editable
-                        var subredditFlairs = redditClient
+                        var subredditFlairs = redditClient.Client
                             .Subreddit(_subredditSettings.SubredditName)
                             .Flairs
                             .GetLinkFlairV2();
@@ -91,7 +91,7 @@ public class SubjectsSeeder(
                             }
 
                             flair.TextEditable = true;
-                            var updateResult = await redditClient
+                            var updateResult = await redditClient.Client
                                 .Subreddit(_subredditSettings.SubredditName)
                                 .Flairs
                                 .UpdateLinkFlairTemplateV2Async(new FlairTemplateV2Input
