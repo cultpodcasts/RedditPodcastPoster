@@ -9,6 +9,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
@@ -148,7 +149,7 @@ public class Episode(
         try
         {
             var episodes = new List<RedditPodcastPoster.Models.Episode>();
-            var since = DateTime.UtcNow.AddDays(-7);
+            var since = DateTimeExtensions.DaysAgo(7);
             var podcastIds = await podcastRepository.GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == false) &&
                                                                    x.Episodes.Any(ep =>
                                                                        ep.Release > since && !ep.Posted && !ep.Tweeted),

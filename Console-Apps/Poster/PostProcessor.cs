@@ -26,10 +26,12 @@ public class PostProcessor(
         {
             await Post(request);
         }
+
         if (!request.SkipPublish)
         {
             await Publish();
         }
+
         if (!request.SkipTweet)
         {
             await Tweet(request);
@@ -173,7 +175,7 @@ public class PostProcessor(
         {
             var results =
                 await podcastEpisodesPoster.PostNewEpisodes(
-                    DateTime.UtcNow.AddDays(-1 * request.ReleasedWithin),
+                    DateTimeExtensions.DaysAgo(request.ReleasedWithin),
                     podcastIds,
                     preferYouTube: request.YouTubePrimaryPostService,
                     ignoreAppleGracePeriod: request.IgnoreAppleGracePeriod);
