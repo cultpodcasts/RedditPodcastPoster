@@ -21,9 +21,11 @@ public class RecentPodcastEpisodeCategoriser(
                 x.Episodes.Any(y => y.Release > since && !y.Subjects.Any()));
         await foreach (var podcast in podcasts)
         {
+            logger.LogInformation($"Categorise podcast '{podcast.Name}'.");
             var updated = false;
             foreach (var episode in podcast.Episodes.Where(x => x.Release > since && !x.Subjects.Any()))
             {
+                logger.LogInformation($"Categorise episode '{episode.Title}'.");
                 var updatedEpisode = await categoriser.Categorise(
                     episode,
                     podcast.IgnoredAssociatedSubjects,
