@@ -27,7 +27,7 @@ public class AppleEpisodeEnricher(
         {
             var findAppleEpisodeRequest = FindAppleEpisodeRequestFactory.Create(request.Podcast, request.Episode);
             var ticks = YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
-            if (request.Podcast.YouTubePublishingDelay()!=TimeSpan.Zero)
+            if (request.Podcast.YouTubePublishingDelay() != TimeSpan.Zero)
             {
                 var delay = request.Podcast.YouTubePublishingDelay().Ticks;
                 if (delay < 0)
@@ -45,8 +45,10 @@ public class AppleEpisodeEnricher(
                 var url = appleItem.Url.CleanAppleUrl();
                 request.Episode.Urls.Apple = url;
                 request.Episode.AppleId = appleItem.Id;
+                logger.LogInformation($"Episode.Release.TimeOfDay: '{request.Episode.Release.TimeOfDay:G}'.");
                 if (request.Episode.Release.TimeOfDay == TimeSpan.Zero)
                 {
+                    logger.LogInformation($"Updating Episode.Release.TimeOfDay with: '{appleItem.Release:G}'.");
                     request.Episode.Release = appleItem.Release;
                     enrichmentContext.Release = appleItem.Release;
                 }
