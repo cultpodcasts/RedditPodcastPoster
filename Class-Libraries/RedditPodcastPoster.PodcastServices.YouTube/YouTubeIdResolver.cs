@@ -7,6 +7,7 @@ public static partial class YouTubeIdResolver
     private static readonly Regex VideoId = GenerateYouTubeIdRegex();
     private static readonly Regex ShortId = GenerateShortId();
     private static readonly Regex LiveId = GenerateLiveId();
+    private static readonly Regex ShortUrlId = GenerateShortUrlId();
 
     public static string? Extract(Uri youTubeUrl)
     {
@@ -28,6 +29,12 @@ public static partial class YouTubeIdResolver
             return videoIdMatch.Value;
         }
 
+        videoIdMatch = ShortUrlId.Match(youTubeUrl.ToString()).Groups["videoId"];
+        if (videoIdMatch.Success)
+        {
+            return videoIdMatch.Value;
+        }
+
         return null;
     }
 
@@ -39,4 +46,7 @@ public static partial class YouTubeIdResolver
 
     [GeneratedRegex(@"live/(?'videoId'[\-\w]+)", RegexOptions.Compiled)]
     private static partial Regex GenerateLiveId();
+
+    [GeneratedRegex(@"be/(?'videoId'[\-\w]+)", RegexOptions.Compiled)]
+    private static partial Regex GenerateShortUrlId();
 }

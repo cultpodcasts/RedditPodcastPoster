@@ -4,6 +4,6 @@ public static class YouTubePodcastServiceMatcher
 {
     public static bool IsMatch(Uri url)
     {
-        return url.Host.ToLower().Contains("youtube");
+        return url.Host.ToLower().Contains("youtube") || url.Host.ToLower() == "youtu.be";
     }
 }
