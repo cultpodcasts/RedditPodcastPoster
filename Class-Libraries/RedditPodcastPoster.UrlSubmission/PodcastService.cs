@@ -71,8 +71,7 @@ public class PodcastService(
                 {
                     var message =
                         $"Multiple podcasts with youtube-channel-id '{snippetChannelId}' and empty youtube-playlist-id and index-all-episodes is true found";
-                    var invalidOperationException = new InvalidOperationException(
-                        message);
+                    var invalidOperationException = new InvalidOperationException(message);
                     logger.LogError(invalidOperationException, message);
                     throw invalidOperationException;
                 }

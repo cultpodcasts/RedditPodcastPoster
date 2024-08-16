@@ -45,7 +45,8 @@ public class AppleEpisodeEnricher(
                 var url = appleItem.Url.CleanAppleUrl();
                 request.Episode.Urls.Apple = url;
                 request.Episode.AppleId = appleItem.Id;
-                logger.LogInformation($"Episode.Release.TimeOfDay: '{request.Episode.Release.TimeOfDay:G}'.");
+                logger.LogInformation(
+                    $"Episode.Release.TimeOfDay: '{request.Episode.Release.TimeOfDay:G}' podcast-id '{request.Podcast.Id}' with episode with apple-id '{appleItem.Id}'.");
                 if (request.Episode.Release.TimeOfDay == TimeSpan.Zero)
                 {
                     logger.LogInformation($"Updating Episode.Release.TimeOfDay with: '{appleItem.Release:G}'.");
