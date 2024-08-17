@@ -16,13 +16,18 @@ public class RecentPodcastEpisodeCategoriser(
         var since = DateTimeExtensions.DaysAgo(7);
 
         var podcasts =
-            podcastRepository.GetAllBy(x =>
-                (!x.Removed.IsDefined() || x.Removed == false) &&
-                x.Episodes.Any(y => y.Release > since && !y.Subjects.Any()));
-        await foreach (var podcast in podcasts)
+            await podcastRepository.GetAllBy(x =>
+                    (!x.Removed.IsDefined() || x.Removed == false) &&
+                    x.Episodes.Any(y => y.Release > since && !y.Subjects.Any()), x => new {guid = x.Id, x.Name})
+                .ToListAsync();
+        logger.LogInformation(
+            $"Categorising podcasts: {string.Join(", ", podcasts.Select(x => $"'{x.Name}' ({x.guid})"))}");
+
+        foreach (var podcastDetails in podcasts)
         {
-            logger.LogInformation($"Categorise podcast '{podcast.Name}'.");
+            logger.LogInformation($"Categorise podcast '{podcastDetails.Name}'.");
             var updated = false;
+            var podcast = await podcastRepository.GetPodcast(podcastDetails.guid);
             foreach (var episode in podcast.Episodes.Where(x => x.Release > since && !x.Subjects.Any()))
             {
                 logger.LogInformation($"Categorise episode '{episode.Title}'.");
