@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Konsole;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -13,13 +14,21 @@ public class CosmosDbDownloader(
 {
     public async Task Run()
     {
-        var podcastIds = cosmosDbRepository.GetAllIds<Podcast>();
-        foreach (var podcastId in await podcastIds.ToArrayAsync())
+        var podcastIds = await cosmosDbRepository.GetAllIds<Podcast>().ToArrayAsync();
+        var progress = new ProgressBar(podcastIds.Length);
+        var ctr = 0;
+        foreach (var podcastId in podcastIds)
         {
             var podcast = await cosmosDbRepository.Read<Podcast>(podcastId.ToString());
+            progress.Refresh(ctr, $"Downloaded {podcast.FileKey}");
             if (podcast != null)
             {
                 await fileRepository.Write(podcast);
+            }
+
+            if (++ctr == podcastIds.Length)
+            {
+                progress.Refresh(ctr, "Finished");
             }
         }
 
@@ -38,9 +47,12 @@ public class CosmosDbDownloader(
         }
 
         var subjectIds = await cosmosDbRepository.GetAllIds<Subject>().ToArrayAsync();
+        progress = new ProgressBar(subjectIds.Length);
+        ctr = 0;
         foreach (var subjectId in subjectIds)
         {
             var subject = await cosmosDbRepository.Read<Subject>(subjectId.ToString());
+            progress.Refresh(ctr, $"Downloaded {subject.FileKey}");
             if (subject != null)
             {
                 if (string.IsNullOrWhiteSpace(subject.FileKey))
@@ -51,6 +63,11 @@ public class CosmosDbDownloader(
                 }
 
                 await fileRepository.Write(subject);
+            }
+
+            if (++ctr == subjectIds.Length)
+            {
+                progress.Refresh(ctr, "Finished");
             }
         }
     }

@@ -1,4 +1,5 @@
 ﻿using CultPodcasts.DatabasePublisher.PublicModels;
+using Konsole;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
@@ -12,14 +13,18 @@ public class PublicDatabasePublisher(
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<CosmosDbRepository> logger
 #pragma warning restore CS9113 // Parameter is unread.
-) {
+)
+{
     public async Task Run()
     {
         var podcastIds = await cosmosDbRepository.GetAllIds<Podcast>().ToArrayAsync();
 
+        var progress = new ProgressBar(podcastIds.Length);
+        var ctr = 0;
         foreach (var podcastId in podcastIds)
         {
             var podcast = await cosmosDbRepository.Read<Podcast>(podcastId.ToString());
+            progress.Refresh(ctr, $"Downloaded {podcast.FileKey}");
 
             if (podcast != null && !podcast.IsRemoved() && podcast.Episodes.Any(x => x is {Removed: false}))
             {
@@ -60,6 +65,11 @@ public class PublicDatabasePublisher(
                     .ToList();
 
                 await fileRepository.Write(publicPodcast);
+            }
+
+            if (++ctr == podcastIds.Length)
+            {
+                progress.Refresh(ctr, "Finished");
             }
         }
     }
