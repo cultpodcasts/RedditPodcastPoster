@@ -306,8 +306,8 @@ public class Episode(
         {
             if (episodeChangeRequest.Urls.Spotify.ToString() == string.Empty)
             {
-                episode.AppleId = null;
-                episode.Urls.Apple = null;
+                episode.SpotifyId = string.Empty;
+                episode.Urls.Spotify = null;
             }
             else
             {
@@ -356,8 +356,8 @@ public class Episode(
         {
             if (episodeChangeRequest.Urls.YouTube.ToString() == string.Empty)
             {
-                episode.AppleId = null;
-                episode.Urls.Apple = null;
+                episode.YouTubeId = string.Empty;
+                episode.Urls.YouTube = null;
             }
             else
             {
