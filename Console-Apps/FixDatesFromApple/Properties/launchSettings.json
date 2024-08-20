@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "FixDatesFromApple": {
+      "commandName": "Project",
+      "commandLineArgs": "\"935f53e0-f7a8-411a-93d4-84f7af2e92da\" \"2024-08-19\""
+    }
+  }
+}
