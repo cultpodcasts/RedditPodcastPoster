@@ -45,7 +45,7 @@ public class PodcastEpisodesPoster(
         var UpdatedPodcasts = new List<Podcast>();
 
         var matchingPodcastEpisodeResults = new List<ProcessResponse>();
-        foreach (var matchingPodcastEpisode in matchingPodcastEpisodes.OrderByDescending(x => x.Episode.Release))
+        foreach (var matchingPodcastEpisode in matchingPodcastEpisodes.OrderBy(x => x.Episode.Release))
         {
             if (!matchingPodcastEpisode.Episode.Posted)
             {
