@@ -15,6 +15,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Twitter;
 using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
 
@@ -26,6 +27,7 @@ public class Episode(
     IPodcastEpisodePoster podcastEpisodePoster,
     ITweetPoster tweetPoster,
     IContentPublisher contentPublisher,
+    IPostManager postManager,
     ILogger<Episode> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
@@ -200,7 +202,7 @@ public class Episode(
             logger.LogInformation(
                 $"{nameof(Post)} Updating episode-id '{episodeChangeRequestWrapper.EpisodeId}' of podcast with id '{podcast.Id}'. Original-episode: {JsonSerializer.Serialize(episode)}");
 
-            UpdateEpisode(episode, episodeChangeRequestWrapper.EpisodeChangeRequest);
+            var changeState = UpdateEpisode(episode, episodeChangeRequestWrapper.EpisodeChangeRequest);
             await podcastRepository.Update(podcast);
 
             if ((episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
@@ -208,29 +210,12 @@ public class Episode(
                 (episodeChangeRequestWrapper.EpisodeChangeRequest.Ignored.HasValue &&
                  episodeChangeRequestWrapper.EpisodeChangeRequest.Ignored.Value))
             {
-                try
-                {
-                    var result = await searchClient.DeleteDocumentsAsync(
-                        "id",
-                        new[] {episodeChangeRequestWrapper.EpisodeId.ToString()},
-                        new IndexDocumentsOptions {ThrowOnAnyError = true},
-                        c);
-                    var success = result.Value.Results.First().Succeeded;
-                    if (!success)
-                    {
-                        logger.LogError(result.Value.Results.First().ErrorMessage);
-                    }
-                    else
-                    {
-                        logger.LogInformation(
-                            $"Removed episode from podcast with id '{podcast.Id}' with episode-id '{episodeChangeRequestWrapper.EpisodeId}' from search-index.");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex,
-                        $"Error removing episode from podcast with id '{podcast.Id}' with episode-id '{episodeChangeRequestWrapper.EpisodeId}' from search-index.");
-                }
+                await DeleteSearchEntry(episodeChangeRequestWrapper, podcast, c);
+            }
+
+            if (changeState.UnPost)
+            {
+                await postManager.RemoveEpisodePost(new PodcastEpisode(podcast, episode));
             }
 
             return req.CreateResponse(HttpStatusCode.Accepted);
@@ -245,8 +230,39 @@ public class Episode(
         return failure;
     }
 
-    private void UpdateEpisode(RedditPodcastPoster.Models.Episode episode, EpisodeChangeRequest episodeChangeRequest)
+    private async Task DeleteSearchEntry(EpisodeChangeRequestWrapper episodeChangeRequestWrapper,
+        RedditPodcastPoster.Models.Podcast podcast,
+        CancellationToken c)
     {
+        try
+        {
+            var result = await searchClient.DeleteDocumentsAsync(
+                "id",
+                new[] {episodeChangeRequestWrapper.EpisodeId.ToString()},
+                new IndexDocumentsOptions {ThrowOnAnyError = true},
+                c);
+            var success = result.Value.Results.First().Succeeded;
+            if (!success)
+            {
+                logger.LogError(result.Value.Results.First().ErrorMessage);
+            }
+            else
+            {
+                logger.LogInformation(
+                    $"Removed episode from podcast with id '{podcast.Id}' with episode-id '{episodeChangeRequestWrapper.EpisodeId}' from search-index.");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                $"Error removing episode from podcast with id '{podcast.Id}' with episode-id '{episodeChangeRequestWrapper.EpisodeId}' from search-index.");
+        }
+    }
+
+    private EpisodeChangeState UpdateEpisode(RedditPodcastPoster.Models.Episode episode,
+        EpisodeChangeRequest episodeChangeRequest)
+    {
+        var changeState = new EpisodeChangeState();
         if (!string.IsNullOrWhiteSpace(episodeChangeRequest.Title))
         {
             episode.Title = episodeChangeRequest.Title;
@@ -284,6 +300,11 @@ public class Episode(
 
         if (episodeChangeRequest.Posted != null)
         {
+            if (!episodeChangeRequest.Posted.Value && episode.Posted)
+            {
+                changeState.UnPost = true;
+            }
+
             episode.Posted = episodeChangeRequest.Posted.Value;
         }
 
@@ -378,6 +399,8 @@ public class Episode(
                 }
             }
         }
+
+        return changeState;
     }
 
     private async Task<HttpResponseData> Get(HttpRequestData req, Guid episodeId, CancellationToken c)

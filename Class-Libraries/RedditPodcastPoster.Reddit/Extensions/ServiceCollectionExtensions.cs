@@ -14,9 +14,11 @@ public static class ServiceCollectionExtensions
         RedditClientFactory.AddRedditClient(services);
 
         return services.AddScoped<IRedditPostTitleFactory, RedditPostTitleFactory>()
-            .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
-            .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
-            .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>();
+                .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
+                .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
+                .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
+                .AddScoped<IPostManager, PostManager>()
+            ;
     }
 
     public static IServiceCollection AddSubredditSettings(this IServiceCollection services, IConfiguration config)
