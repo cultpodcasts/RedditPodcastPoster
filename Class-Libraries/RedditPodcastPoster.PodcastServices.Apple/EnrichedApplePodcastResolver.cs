@@ -53,7 +53,7 @@ public class EnrichedApplePodcastResolver(
                 }
                 else
                 {
-                    logger.LogWarning(
+                    logger.LogError(
                         $"Unable to locate <script name='schema:podcast-show'> tag with inner-text in url '{applePodcastUrl}'.");
                 }
             }
