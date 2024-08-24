@@ -37,7 +37,7 @@ public class EnrichedApplePodcastResolver(
                 var document = new HtmlDocument();
                 document.Load(await applePodcastPage.Content.ReadAsStreamAsync());
                 var applePodcastDetailsNode =
-                    document.DocumentNode.SelectSingleNode("//script[@name=\"schema:podcast-show\"]");
+                    document.DocumentNode.SelectSingleNode("//script[@name=\"schema:show\"]");
                 if (applePodcastDetailsNode is {InnerText: not null})
                 {
                     try
