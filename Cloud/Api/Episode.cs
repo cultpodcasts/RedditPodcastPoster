@@ -102,7 +102,6 @@ public class Episode(
 
             var episode = podcast!.Episodes.Single(x => x.Id == publishRequest.EpisodeId);
 
-
             var podcastEpisode = new PodcastEpisode(podcast, episode);
 
             if (publishRequest.EpisodePublishRequest.Post)
@@ -196,6 +195,7 @@ public class Episode(
             var episode = podcast?.Episodes.SingleOrDefault(x => x.Id == episodeChangeRequestWrapper.EpisodeId);
             if (episode == null)
             {
+                logger.LogWarning($"Episode with id '{episodeChangeRequestWrapper.EpisodeId}' not found.");
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
@@ -412,6 +412,7 @@ public class Episode(
 
             if (episode == null || podcast == null)
             {
+                logger.LogWarning($"Episode with id '{episodeId}' not found.");
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
