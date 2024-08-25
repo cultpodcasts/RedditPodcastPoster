@@ -76,8 +76,10 @@ public class Podcast(
             var podcast = await podcastRepository.GetBy(x => x.Id == podcastChangeRequestWrapper.PodcastId);
             if (podcast == null)
             {
-                logger.LogWarning($"{nameof(Post)}: Podcast with id '{podcastChangeRequestWrapper.PodcastId}' not found.");
-                return req.CreateResponse(HttpStatusCode.NotFound);
+                logger.LogWarning(
+                    $"{nameof(Post)}: Podcast with id '{podcastChangeRequestWrapper.PodcastId}' not found.");
+                return await req.CreateResponse(HttpStatusCode.NotFound)
+                    .WithJsonBody(new {id = podcastChangeRequestWrapper.PodcastId}, c);
             }
 
             logger.LogInformation(
@@ -100,7 +102,8 @@ public class Podcast(
                         var success = result.Value.Results.First().Succeeded;
                         if (!success)
                         {
-                            logger.LogError($"{nameof(Post)}: Failure to delete search-document with id '{documentId}'.");
+                            logger.LogError(
+                                $"{nameof(Post)}: Failure to delete search-document with id '{documentId}'.");
                             logger.LogError(result.Value.Results.First().ErrorMessage);
                         }
                         else
@@ -244,7 +247,7 @@ public class Podcast(
             }
 
             logger.LogWarning($"{nameof(Get)}: Podcast with name '{podcastName}' not found.");
-            return req.CreateResponse(HttpStatusCode.NotFound);
+            return await req.CreateResponse(HttpStatusCode.NotFound).WithJsonBody(new {name = podcastName}, c);
         }
         catch (Exception ex)
         {
