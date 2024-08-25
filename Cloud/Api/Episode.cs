@@ -174,7 +174,7 @@ public class Episode(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Get)}: Failed to get episode.");
+            logger.LogError(ex, $"{nameof(GetOutgoing)}: Failed to get episode.");
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
@@ -222,7 +222,7 @@ public class Episode(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Get)}: Failed to update episode.");
+            logger.LogError(ex, $"{nameof(Post)}: Failed to update episode.");
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
@@ -407,12 +407,13 @@ public class Episode(
     {
         try
         {
+            logger.LogInformation($"{nameof(Get)}: Get episode with id '{episodeId}'.");
             var podcast = await podcastRepository.GetBy(x => x.Episodes.Any(ep => ep.Id == episodeId));
             var episode = podcast?.Episodes.SingleOrDefault(x => x.Id == episodeId);
 
             if (episode == null || podcast == null)
             {
-                logger.LogWarning($"Episode with id '{episodeId}' not found.");
+                logger.LogWarning($"{nameof(Get)}: Episode with id '{episodeId}' not found.");
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
