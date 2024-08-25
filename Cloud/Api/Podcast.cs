@@ -72,16 +72,16 @@ public class Podcast(
         try
         {
             logger.LogInformation(
-                $"{nameof(Post)} Podcast Change Request: episode-id: '{podcastChangeRequestWrapper.PodcastId}'. {JsonSerializer.Serialize(podcastChangeRequestWrapper.Podcast)}");
+                $"{nameof(Post)}: Podcast Change Request: episode-id: '{podcastChangeRequestWrapper.PodcastId}'. {JsonSerializer.Serialize(podcastChangeRequestWrapper.Podcast)}");
             var podcast = await podcastRepository.GetBy(x => x.Id == podcastChangeRequestWrapper.PodcastId);
             if (podcast == null)
             {
-                logger.LogWarning($"Podcast with id '{podcastChangeRequestWrapper.PodcastId}' not found.");
+                logger.LogWarning($"{nameof(Post)}: Podcast with id '{podcastChangeRequestWrapper.PodcastId}' not found.");
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
             logger.LogInformation(
-                $"{nameof(Post)} Updating podcast-id '{podcastChangeRequestWrapper.PodcastId}'.");
+                $"{nameof(Post)}: Updating podcast-id '{podcastChangeRequestWrapper.PodcastId}'.");
 
             UpdatePodcast(podcast, podcastChangeRequestWrapper.Podcast);
             await podcastRepository.Update(podcast);
@@ -100,18 +100,19 @@ public class Podcast(
                         var success = result.Value.Results.First().Succeeded;
                         if (!success)
                         {
+                            logger.LogError($"{nameof(Post)}: Failure to delete search-document with id '{documentId}'.");
                             logger.LogError(result.Value.Results.First().ErrorMessage);
                         }
                         else
                         {
                             logger.LogInformation(
-                                $"Removed episode from podcast with id '{podcast.Id}' with episode-id '{documentId}' from search-index.");
+                                $"{nameof(Post)}: Removed episode from podcast with id '{podcast.Id}' with episode-id '{documentId}' from search-index.");
                         }
                     }
                     catch (Exception ex)
                     {
                         logger.LogError(ex,
-                            $"Error removing episode from podcast with id '{podcast.Id}' with episode-id '{documentId}' from search-index.");
+                            $"{nameof(Post)}: Error removing episode from podcast with id '{podcast.Id}' with episode-id '{documentId}' from search-index.");
                     }
                 }
             }
@@ -120,7 +121,7 @@ public class Podcast(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Get)}: Failed to update podcast.");
+            logger.LogError(ex, $"{nameof(Post)}: Failed to update podcast.");
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
@@ -213,7 +214,7 @@ public class Podcast(
     {
         try
         {
-            logger.LogInformation($"{nameof(Index)} Index podcast '{podcastName}'.");
+            logger.LogInformation($"{nameof(Get)}: Get podcast with name '{podcastName}'.");
             podcastName = WebUtility.UrlDecode(podcastName);
             var podcast = await podcastRepository.GetBy(x => x.Name == podcastName);
             if (podcast != null)
@@ -242,12 +243,12 @@ public class Podcast(
                 return await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(dto, c);
             }
 
-            logger.LogWarning($"Podcast with name '{podcastName}' not found.");
+            logger.LogWarning($"{nameof(Get)}: Podcast with name '{podcastName}' not found.");
             return req.CreateResponse(HttpStatusCode.NotFound);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Index)}: Failed to index-podcast.");
+            logger.LogError(ex, $"{nameof(Get)}: Failed to index-podcast.");
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
@@ -259,7 +260,7 @@ public class Podcast(
     {
         try
         {
-            logger.LogInformation($"{nameof(Index)} Index podcast '{podcastName}'.");
+            logger.LogInformation($"{nameof(Index)}: Index podcast '{podcastName}'.");
             podcastName = WebUtility.UrlDecode(podcastName);
 
             if (_indexerOptions.ReleasedDaysAgo == null)
@@ -292,7 +293,7 @@ public class Podcast(
 
             if (status == HttpStatusCode.NotFound)
             {
-                logger.LogWarning($"Podcast with name '{podcastName}' not found.");
+                logger.LogWarning($"{nameof(Index)}: Podcast with name '{podcastName}' not found.");
             }
 
             return req.CreateResponse(status);
