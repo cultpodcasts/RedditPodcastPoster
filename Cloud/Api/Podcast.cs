@@ -213,7 +213,7 @@ public class Podcast(
         try
         {
             logger.LogInformation($"{nameof(Index)} Index podcast '{podcastName}'.");
-
+            podcastName = WebUtility.UrlDecode(podcastName);
             var podcast = await podcastRepository.GetBy(x => x.Name == podcastName);
             if (podcast != null)
             {
@@ -258,6 +258,7 @@ public class Podcast(
         try
         {
             logger.LogInformation($"{nameof(Index)} Index podcast '{podcastName}'.");
+            podcastName = WebUtility.UrlDecode(podcastName);
 
             if (_indexerOptions.ReleasedDaysAgo == null)
             {
@@ -280,7 +281,7 @@ public class Podcast(
                 await searchIndexerService.RunIndexer();
             }
 
-            HttpStatusCode status = response.IndexStatus switch
+            var status = response.IndexStatus switch
             {
                 IndexStatus.NotFound => HttpStatusCode.NotFound,
                 IndexStatus.Performed => HttpStatusCode.Accepted,
