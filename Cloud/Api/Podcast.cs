@@ -76,6 +76,7 @@ public class Podcast(
             var podcast = await podcastRepository.GetBy(x => x.Id == podcastChangeRequestWrapper.PodcastId);
             if (podcast == null)
             {
+                logger.LogWarning($"Podcast with id '{podcastChangeRequestWrapper.PodcastId}' not found.");
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
@@ -241,6 +242,7 @@ public class Podcast(
                 return await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(dto, c);
             }
 
+            logger.LogWarning($"Podcast with name '{podcastName}' not found.");
             return req.CreateResponse(HttpStatusCode.NotFound);
         }
         catch (Exception ex)
@@ -287,6 +289,11 @@ public class Podcast(
                 IndexStatus.Performed => HttpStatusCode.Accepted,
                 _ => HttpStatusCode.BadRequest
             };
+
+            if (status == HttpStatusCode.NotFound)
+            {
+                logger.LogWarning($"Podcast with name '{podcastName}' not found.");
+            }
 
             return req.CreateResponse(status);
         }
