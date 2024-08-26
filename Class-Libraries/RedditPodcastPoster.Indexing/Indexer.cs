@@ -14,10 +14,28 @@ public class Indexer(
 {
     public async Task<IndexResponse> Index(string podcastName, IndexingContext indexingContext)
     {
-        var podcast = await podcastRepository.GetBy(x => x.Name == podcastName, x => new {id = x.Id, name = x.Name});
-        if (podcast != null)
+        var podcasts = await podcastRepository.GetAllBy(
+            x => x.Name == podcastName,
+            x => new
+            {
+                id = x.Id, name = x.Name,
+                indexAllEpisodes = x.IndexAllEpisodes,
+                episodeIncludeTitleRegex = x.EpisodeIncludeTitleRegex,
+                removed = x.Removed
+            }).ToListAsync();
+
+        if (podcasts.Any())
         {
-            return await Index(podcast.id, indexingContext);
+            var canIndex = podcasts.Where(x =>
+                !(x.removed.HasValue && x.removed.Value) &&
+                (x.indexAllEpisodes ||
+                 !string.IsNullOrWhiteSpace(x.episodeIncludeTitleRegex)));
+            if (!canIndex.Any() || canIndex.Count() > 1)
+            {
+                return new IndexResponse(IndexStatus.NotPerformed);
+            }
+
+            return await Index(canIndex.Single().id, indexingContext);
         }
 
         return new IndexResponse(IndexStatus.NotFound);
@@ -25,7 +43,7 @@ public class Indexer(
 
     public async Task<IndexResponse> Index(Guid podcastId, IndexingContext indexingContext)
     {
-        IndexStatus status= IndexStatus.Unset;
+        IndexStatus status;
         var podcast = await podcastRepository.GetPodcast(podcastId);
         if (podcast != null && !podcast.IsRemoved() &&
             (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
