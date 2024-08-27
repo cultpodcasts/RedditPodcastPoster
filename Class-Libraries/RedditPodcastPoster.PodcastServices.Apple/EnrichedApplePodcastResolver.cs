@@ -37,7 +37,7 @@ public class EnrichedApplePodcastResolver(
                 var document = new HtmlDocument();
                 document.Load(await applePodcastPage.Content.ReadAsStreamAsync());
                 var applePodcastDetailsNode =
-                    document.DocumentNode.SelectSingleNode("//script[@name=\"schema:show\"]");
+                    document.DocumentNode.SelectSingleNode("//script[@id=\"schema:show\"]");
                 if (applePodcastDetailsNode is {InnerText: not null})
                 {
                     try
@@ -54,7 +54,7 @@ public class EnrichedApplePodcastResolver(
                 else
                 {
                     logger.LogError(
-                        $"Unable to locate <script name='schema:podcast-show'> tag with inner-text in url '{applePodcastUrl}'.");
+                        $"Unable to locate <script id='schema:show'> tag with inner-text in url '{applePodcastUrl}'.");
                 }
             }
         }
