@@ -76,7 +76,7 @@ public class AppleEpisodeResolver(
                                     TimeDifferenceThreshold);
                     if (sameLength.Count() > 1)
                     {
-                        return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title);
+                        return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title, MinFuzzyScore);
                     }
 
                     match = sameLength.SingleOrDefault(x =>
