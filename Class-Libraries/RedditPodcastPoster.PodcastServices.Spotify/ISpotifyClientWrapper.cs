@@ -28,6 +28,11 @@ public interface ISpotifyClientWrapper
         IndexingContext indexingContext,
         CancellationToken cancel = default);
 
+    Task<List<SimpleShow>> GetSimpleShows(
+        SearchRequest request,
+        IndexingContext indexingContext,
+        CancellationToken cancel = default);
+
     Task<SearchResponse?> GetSearchResponse(
         SearchRequest request,
         IndexingContext indexingContext,

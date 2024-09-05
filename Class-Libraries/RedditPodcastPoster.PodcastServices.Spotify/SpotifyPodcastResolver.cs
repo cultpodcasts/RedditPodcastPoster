@@ -36,10 +36,10 @@ public class SpotifyPodcastResolver(
         if (matchingFullShow == null)
         {
             var searchRequest = new SearchRequest(SearchRequest.Types.Show, request.Name);
-            var podcasts = await spotifyClientWrapper.GetSearchResponse(searchRequest, indexingContext);
-            if (podcasts != null)
+            var simpleShows = await spotifyClientWrapper.GetSimpleShows(searchRequest, indexingContext);
+            if (simpleShows.Any())
             {
-                var matchingPodcasts = searchResultFinder.FindMatchingPodcasts(request.Name, podcasts.Shows.Items);
+                var matchingPodcasts = searchResultFinder.FindMatchingPodcasts(request.Name, simpleShows);
                 if (request.Episodes.Any())
                 {
                     foreach (var candidatePodcast in matchingPodcasts)

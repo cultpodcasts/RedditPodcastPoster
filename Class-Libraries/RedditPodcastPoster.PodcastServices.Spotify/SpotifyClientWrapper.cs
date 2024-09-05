@@ -153,6 +153,19 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         return results;
     }
 
+    public async Task<List<SimpleShow>> GetSimpleShows(SearchRequest request, IndexingContext indexingContext,
+        CancellationToken cancel = default)
+    {
+        var searchResponse = await GetSearchResponse(request, indexingContext, cancel);
+        if (searchResponse?.Shows.Items == null)
+        {
+            return [];
+        }
+
+        List<SimpleShow?> items = searchResponse.Shows.Items;
+        return items.Where(x => x != null).ToList();
+    }
+
     public async Task<SearchResponse?> GetSearchResponse(
         SearchRequest request,
         IndexingContext indexingContext,
