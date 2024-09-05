@@ -57,12 +57,11 @@ public class SpotifyEpisodeResolver(
                             SearchRequest.Types.Show,
                             request.PodcastName)
                         {Market = market};
-                    var podcastSearchResponse =
-                        await spotifyClientWrapper.GetSearchResponse(searchRequest, indexingContext);
-                    if (podcastSearchResponse != null)
+                    var simpleShows = await spotifyClientWrapper.GetSimpleShows(searchRequest, indexingContext);
+                    if (simpleShows.Any())
                     {
-                        var podcasts = podcastSearchResponse.Shows.Items;
-                        var matchingPodcasts = searchResultFinder.FindMatchingPodcasts(request.PodcastName, podcasts);
+                        var matchingPodcasts =
+                            searchResultFinder.FindMatchingPodcasts(request.PodcastName, simpleShows);
 
                         var showEpisodesRequest = new ShowEpisodesRequest {Market = market};
                         if (indexingContext.ReleasedSince.HasValue)
@@ -115,7 +114,8 @@ public class SpotifyEpisodeResolver(
                 if (request is {ReleaseAuthority: Service.YouTube, Length: not null})
                 {
                     var ticks = YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
-                    if (request.YouTubePublishingDelay.HasValue && request.YouTubePublishingDelay.Value!=TimeSpan.Zero)
+                    if (request.YouTubePublishingDelay.HasValue &&
+                        request.YouTubePublishingDelay.Value != TimeSpan.Zero)
                     {
                         var delayTicks = request.YouTubePublishingDelay.Value.Ticks;
                         if (delayTicks < 0)
