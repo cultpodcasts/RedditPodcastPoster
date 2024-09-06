@@ -62,22 +62,25 @@ public class SpotifyQueryPaginator(
         {
             IList<SimpleEpisode>? batchEpisodes = new List<SimpleEpisode>();
             var seenGrowth = true;
-            while (seenGrowth &&
-                   episodes.Where(x => x != null).OrderByDescending(x => x.ReleaseDate).Last().GetReleaseDate() >=
-                   indexingContext.ReleasedSince)
+            if (episodes.Any(x => x != null))
             {
-                var preCount = batchEpisodes.Count;
-                var items = await spotifyClientWrapper.Paginate(
-                    pagedEpisodes,
-                    indexingContext,
-                    new SimpleEpisodePaginator(indexingContext.ReleasedSince, isInReverseTimeOrder)
-                );
-                if (items != null)
+                while (seenGrowth &&
+                       episodes.Where(x => x != null).OrderByDescending(x => x.ReleaseDate).Last().GetReleaseDate() >=
+                       indexingContext.ReleasedSince)
                 {
-                    batchEpisodes = items;
-                }
+                    var preCount = batchEpisodes.Count;
+                    var items = await spotifyClientWrapper.Paginate(
+                        pagedEpisodes,
+                        indexingContext,
+                        new SimpleEpisodePaginator(indexingContext.ReleasedSince, isInReverseTimeOrder)
+                    );
+                    if (items != null)
+                    {
+                        batchEpisodes = items;
+                    }
 
-                seenGrowth = items != null && batchEpisodes.Count > preCount;
+                    seenGrowth = items != null && batchEpisodes.Count > preCount;
+                }
             }
 
             episodes.AddRange(batchEpisodes);
