@@ -32,6 +32,8 @@ builder.Services
     .AddContentPublishing(builder.Configuration)
     .AddTextSanitiser();
 
+RedditClientFactory.AddRedditClient(builder.Services);
+
 AdminRedditClientFactory.AddAdminRedditClient(builder.Services);
 
 builder.Services.BindConfiguration<RedditSettings>("reddit-moderator");
