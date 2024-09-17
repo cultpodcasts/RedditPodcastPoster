@@ -234,6 +234,13 @@ public class PodcastRepository(
             updated = true;
         }
 
+        if (existingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
+            episodeToMerge.Release.TimeOfDay > TimeSpan.Zero)
+        {
+            existingEpisode.Release = episodeToMerge.Release;
+            updated = true;
+        }
+
         return updated;
     }
 }
