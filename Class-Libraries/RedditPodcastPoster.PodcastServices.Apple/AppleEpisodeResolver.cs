@@ -11,6 +11,7 @@ public class AppleEpisodeResolver(
     : IAppleEpisodeResolver
 {
     private const int MinFuzzyScore = 65;
+    private const int MinSameLengthFuzzyScore = 80;
     private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(30).Ticks;
     private static readonly long BroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
 
@@ -76,7 +77,8 @@ public class AppleEpisodeResolver(
                                     TimeDifferenceThreshold);
                     if (sameLength.Count() > 1)
                     {
-                        return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title, MinFuzzyScore);
+                        return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title,
+                            MinSameLengthFuzzyScore);
                     }
 
                     match = sameLength.SingleOrDefault(x =>
