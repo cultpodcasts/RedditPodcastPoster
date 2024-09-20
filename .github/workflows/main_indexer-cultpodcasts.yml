@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - main
-      - feature/bump-packages
   workflow_dispatch:
 
 env:
