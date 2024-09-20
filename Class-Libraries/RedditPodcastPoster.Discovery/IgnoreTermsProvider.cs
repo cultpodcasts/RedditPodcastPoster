@@ -3,7 +3,9 @@ using Microsoft.Extensions.Options;
 
 namespace RedditPodcastPoster.Discovery;
 
-public class IgnoreTermsProvider(IOptions<IgnoreTermsSettings> ignoreTerms, ILogger<IgnoreTermsProvider> logger)
+public class IgnoreTermsProvider(
+    IOptions<IgnoreTermsSettings> ignoreTerms, 
+    ILogger<IgnoreTermsProvider> logger)
     : IIgnoreTermsProvider
 {
     private readonly IgnoreTermsSettings _ignoreTerms = ignoreTerms.Value;
