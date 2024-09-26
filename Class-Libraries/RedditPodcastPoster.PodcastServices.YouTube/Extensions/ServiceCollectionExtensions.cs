@@ -26,6 +26,7 @@ public static class ServiceCollectionExtensions
                 .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
                 .AddSingleton<INoRedirectHttpClientFactory, NoRedirectHttpClientFactory>()
                 .AddScoped<IYouTubeEpisodeRetrievalHandler, YouTubeEpisodeRetrievalHandler>()
+                .AddScoped<IYouTubeChannelVideosService, YouTubeChannelVideosService>()
             ;
     }
 }
