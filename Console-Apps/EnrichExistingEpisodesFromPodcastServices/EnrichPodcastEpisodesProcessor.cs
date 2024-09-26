@@ -98,17 +98,36 @@ public class EnrichPodcastEpisodesProcessor(
             if (podcast.YouTubeChannelId != null &&
                 (string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.Urls.YouTube == null))
             {
-                var match = await youTubeUrlCategoriser.Resolve(criteria, podcast, indexingContext);
-                if (match != null)
+                if (string.IsNullOrWhiteSpace(episode.YouTubeId) && episode.Urls.YouTube != null)
                 {
-                    episode.Urls.YouTube ??= match.Url;
-                    if (string.IsNullOrWhiteSpace(episode.YouTubeId))
+                    var youTubeId = YouTubeIdResolver.Extract(episode.Urls.YouTube);
+                    if (!string.IsNullOrWhiteSpace(youTubeId))
                     {
-                        episode.YouTubeId = match.EpisodeId;
+                        episode.YouTubeId = youTubeId;
+                        logger.LogInformation(
+                            $"Enriched from youtube-url: '{episode.Urls.YouTube}', youtube-id: '{episode.YouTubeId}'.");
                     }
+                }
+                else if (episode.Urls.YouTube == null && !string.IsNullOrWhiteSpace(episode.YouTubeId))
+                {
+                    episode.Urls.YouTube = SearchResultExtensions.ToYouTubeUrl(episode.YouTubeId);
+                    logger.LogInformation(
+                        $"Enriched from youtube-id: '{episode.YouTubeId}', Url: '{episode.Urls.YouTube}'.");
+                }
+                else
+                {
+                    var match = await youTubeUrlCategoriser.Resolve(criteria, podcast, indexingContext);
+                    if (match != null)
+                    {
+                        episode.Urls.YouTube ??= match.Url;
+                        if (string.IsNullOrWhiteSpace(episode.YouTubeId))
+                        {
+                            episode.YouTubeId = match.EpisodeId;
+                        }
 
-                    logger.LogInformation($"Enriched from youtube: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
-                    updated = true;
+                        logger.LogInformation($"Enriched from youtube: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
+                        updated = true;
+                    }
                 }
             }
 

@@ -10,5 +10,6 @@ public interface IYouTubeChannelService : IFlushable
         IndexingContext indexingContext,
         bool withSnippets = false,
         bool withContentOwnerDetails = false,
-        bool withStatistics = false);
+        bool withStatistics = false,
+        bool withContentDetails = false);
 }
