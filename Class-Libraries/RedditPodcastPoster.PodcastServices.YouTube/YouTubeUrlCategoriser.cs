@@ -1,18 +1,25 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Google.Apis.YouTube.v3.Data;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeUrlCategoriser(
     IYouTubeChannelService youTubeChannelService,
     IYouTubeVideoService youTubeVideoService,
+    IYouTubeChannelVideosService youTubeChannelVideosService,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<YouTubeUrlCategoriser> logger)
 #pragma warning restore CS9113 // Parameter is unread.
     : IYouTubeUrlCategoriser
 {
+    private const int MultiplePublicationDateMatchTitleThreshold = 60;
+    private const int TitleThreshold = 80;
+    private static readonly TimeSpan PublishThreshold = TimeSpan.FromDays(2);
+
     public async Task<ResolvedYouTubeItem?> Resolve(
         Podcast? podcast,
         Uri url,
@@ -21,14 +28,21 @@ public class YouTubeUrlCategoriser(
         PodcastEpisode? pair = null;
         if (podcast != null && podcast.Episodes.Any(x => x.Urls.YouTube == url))
         {
-            pair = new PodcastEpisode(podcast,
-                podcast.Episodes.Single(x => x.Urls.YouTube == url));
+            var storedEpisodes = podcast.Episodes.Where(x => x.Urls.YouTube == url);
+            if (storedEpisodes.Count() > 1)
+            {
+                var ex = new InvalidOperationException(
+                    $"Podcast '{podcast.Name}' with podcast-id '{podcast.Id}' has multiple episodes with url '{url}'.");
+                logger.LogError(ex, ex.Message);
+                throw ex;
+            }
+
+            var episode = storedEpisodes.Single();
+            pair = new PodcastEpisode(podcast, episode);
 
             var episodes =
-                await youTubeVideoService.GetVideoContentDetails(
-                    new[] {YouTubeIdResolver.Extract(url)!},
-                    indexingContext,
-                    true);
+                await youTubeVideoService.GetVideoContentDetails(new[] {YouTubeIdResolver.Extract(url)!},
+                    indexingContext, true);
             if (episodes != null && episodes.Any())
             {
                 if (episodes.Count > 1)
@@ -107,11 +121,79 @@ public class YouTubeUrlCategoriser(
         return null;
     }
 
-    public Task<ResolvedYouTubeItem?> Resolve(
+    public async Task<ResolvedYouTubeItem?> Resolve(
         PodcastServiceSearchCriteria criteria,
         Podcast? matchingPodcast,
         IndexingContext indexingContext)
     {
-        return Task.FromResult((ResolvedYouTubeItem) null!)!;
+        if (!string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId))
+        {
+            if (matchingPodcast.Episodes.Any(x =>
+                    (string.IsNullOrWhiteSpace(x.YouTubeId) && x.Urls.YouTube != null) ||
+                    (x.Urls.YouTube == null && !string.IsNullOrWhiteSpace(x.YouTubeId)) ||
+                    (!string.IsNullOrWhiteSpace(x.YouTubeId) && x.Urls.YouTube != null &&
+                     YouTubeIdResolver.Extract(x.Urls.YouTube) != x.YouTubeId)
+                ))
+            {
+                throw new InvalidOperationException(
+                    $"Podcast with id '{matchingPodcast.Id}' has episodes with inconsistent youtube-id && youtube-url.");
+            }
+
+            var channelUploads =
+                await youTubeChannelVideosService.GetChannelVideos(
+                    new YouTubeChannelId(matchingPodcast.YouTubeChannelId), indexingContext);
+            var podcastEpisodeYouTubeIds = matchingPodcast.Episodes.Where(y => !string.IsNullOrWhiteSpace(y.YouTubeId))
+                .Select(x => x.YouTubeId);
+            var unassignedChannelUploads =
+                channelUploads.PlaylistItems.Where(x => !podcastEpisodeYouTubeIds.Contains(x.Id));
+            var expectedPublish = criteria.Release + matchingPodcast.YouTubePublishingDelay();
+            var publishedWithin = unassignedChannelUploads.Where(x =>
+                x.Snippet.PublishedAtDateTimeOffset > expectedPublish.Subtract(PublishThreshold) &&
+                x.Snippet.PublishedAtDateTimeOffset < expectedPublish.Add(PublishThreshold));
+            PlaylistItem? match;
+            if (publishedWithin.Any())
+            {
+                match = FuzzyMatcher.Match(criteria.EpisodeTitle, publishedWithin, x => x.Snippet.Title,
+                    MultiplePublicationDateMatchTitleThreshold);
+            }
+            else
+            {
+                match = FuzzyMatcher.Match(criteria.EpisodeTitle, unassignedChannelUploads, x => x.Snippet.Title,
+                    TitleThreshold);
+            }
+
+            if (match != null)
+            {
+                var video = await youTubeVideoService.GetVideoContentDetails([match.Snippet.ResourceId.VideoId],
+                    indexingContext);
+                if (video != null)
+                {
+                    return new ResolvedYouTubeItem(
+                        match.Snippet.ChannelId,
+                        match.Snippet.ResourceId.VideoId,
+                        match.Snippet.ChannelTitle,
+                        channelUploads.Channel.Snippet.Description, //
+                        channelUploads.Channel.ContentOwnerDetails.ContentOwner, //
+                        match.Snippet.Title,
+                        match.Snippet.Description,
+                        match.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
+                        video?.SingleOrDefault()?.GetLength() ?? TimeSpan.Zero,
+                        match.Snippet.ToYouTubeUrl(),
+                        video?.SingleOrDefault()?.ContentDetails.ContentRating.YtRating == "ytAgeRestricted");
+                }
+            }
+        }
+        else
+        {
+            if (matchingPodcast != null)
+            {
+                logger.LogInformation(
+                    $"Podcast with id '{matchingPodcast.YouTubeChannelId}' does not have youtube-id.");
+            }
+
+            return null;
+        }
+
+        return null;
     }
 }

@@ -9,6 +9,7 @@ public class CacheFlusher(
     ICachedApplePodcastService cachedApplePodcastService,
     IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
     IYouTubeChannelService youTubeChannelService,
+    IYouTubeChannelVideosService youTubeChannelVideosService,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<CacheFlusher> logger)
 #pragma warning restore CS9113 // Parameter is unread.
@@ -19,5 +20,6 @@ public class CacheFlusher(
         cachedApplePodcastService.Flush();
         youTubeChannelVideoSnippetsService.Flush();
         youTubeChannelService.Flush();
+        youTubeChannelVideosService.Flush();
     }
 }

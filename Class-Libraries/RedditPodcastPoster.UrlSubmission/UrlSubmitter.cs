@@ -28,7 +28,7 @@ public class UrlSubmitter(
     : IUrlSubmitter
 {
     private const int MinFuzzyTitleMatch = 95;
-    private static TimeSpan DefaultMatchingPodcastYouTubePublishingDelay = TimeSpan.FromHours(1);
+    private static readonly TimeSpan DefaultMatchingPodcastYouTubePublishingDelay = TimeSpan.FromHours(1);
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
     public async Task<SubmitResult> Submit(
@@ -38,28 +38,36 @@ public class UrlSubmitter(
     {
         var episodeResult = SubmitResultState.None;
         SubmitResultState podcastResult;
-        Podcast? podcast;
-        if (submitOptions.PodcastId != null)
+        try
         {
-            podcast = await podcastRepository.GetPodcast(submitOptions.PodcastId.Value);
+            Podcast? podcast;
+            if (submitOptions.PodcastId != null)
+            {
+                podcast = await podcastRepository.GetPodcast(submitOptions.PodcastId.Value);
+            }
+            else
+            {
+                podcast = await podcastService.GetPodcastFromEpisodeUrl(url, indexingContext);
+            }
+
+            if (podcast != null && podcast.IsRemoved())
+            {
+                logger.LogWarning($"Podcast with id '{podcast.Id}' is removed.");
+                return new SubmitResult(episodeResult, SubmitResultState.PodcastRemoved);
+            }
+
+            var categorisedItem =
+                await urlCategoriser.Categorise(podcast, url, indexingContext, submitOptions.MatchOtherServices);
+
+            var submitResult = await ProcessCategorisedItem(categorisedItem, submitOptions);
+
+            return submitResult;
         }
-        else
+        catch (Exception e)
         {
-            podcast = await podcastService.GetPodcastFromEpisodeUrl(url, indexingContext);
+            logger.LogError(e, $"Error ingesting '{url}'.");
+            return new SubmitResult(SubmitResultState.None, SubmitResultState.None);
         }
-
-        if (podcast != null && podcast.IsRemoved())
-        {
-            logger.LogWarning($"Podcast with id '{podcast.Id}' is removed.");
-            return new SubmitResult(episodeResult, SubmitResultState.PodcastRemoved);
-        }
-
-        var categorisedItem =
-            await urlCategoriser.Categorise(podcast, url, indexingContext, submitOptions.MatchOtherServices);
-
-        var submitResult = await ProcessCategorisedItem(categorisedItem, submitOptions);
-
-        return submitResult;
     }
 
     public async Task<DiscoverySubmitResult> Submit(
