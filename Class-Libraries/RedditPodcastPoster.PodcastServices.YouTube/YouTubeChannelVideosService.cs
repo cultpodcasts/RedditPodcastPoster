@@ -24,7 +24,8 @@ public class YouTubeChannelVideosService(
             return cachedVideos;
         }
 
-        var channel = await youTubeChannelService.GetChannel(channelId, indexingContext, withContentDetails: true);
+        var channel =
+            await youTubeChannelService.GetChannel(channelId, indexingContext, true, true, withContentDetails: true);
         if (channel == null)
         {
             logger.LogError($"{nameof(GetChannelVideos)}: Unable to find channel with id '{channelId.ChannelId}'.");

@@ -142,40 +142,45 @@ public class YouTubeUrlCategoriser(
             var channelUploads =
                 await youTubeChannelVideosService.GetChannelVideos(
                     new YouTubeChannelId(matchingPodcast.YouTubeChannelId), indexingContext);
-            var unassignedChannelUploads = channelUploads.PlaylistItems.Where(x =>
-                matchingPodcast.Episodes.Where(x => !string.IsNullOrWhiteSpace(x.YouTubeId)).Select(x => x.YouTubeId)
-                    .Contains(x.Id));
+            var podcastEpisodeYouTubeIds = matchingPodcast.Episodes.Where(y => !string.IsNullOrWhiteSpace(y.YouTubeId))
+                .Select(x => x.YouTubeId);
+            var unassignedChannelUploads =
+                channelUploads.PlaylistItems.Where(x => !podcastEpisodeYouTubeIds.Contains(x.Id));
             var expectedPublish = criteria.Release + matchingPodcast.YouTubePublishingDelay();
             var publishedWithin = unassignedChannelUploads.Where(x =>
                 x.Snippet.PublishedAtDateTimeOffset > expectedPublish.Subtract(PublishThreshold) &&
                 x.Snippet.PublishedAtDateTimeOffset < expectedPublish.Add(PublishThreshold));
-            PlaylistItem match;
+            PlaylistItem? match;
             if (publishedWithin.Any())
             {
-                match = FuzzyMatcher.Match(criteria.EpisodeTitle, publishedWithin, x => x.Snippet.ChannelTitle,
+                match = FuzzyMatcher.Match(criteria.EpisodeTitle, publishedWithin, x => x.Snippet.Title,
                     MultiplePublicationDateMatchTitleThreshold);
             }
             else
             {
-                match = FuzzyMatcher.Match(criteria.EpisodeTitle, unassignedChannelUploads, x => x.Snippet.ChannelTitle,
+                match = FuzzyMatcher.Match(criteria.EpisodeTitle, unassignedChannelUploads, x => x.Snippet.Title,
                     TitleThreshold);
             }
 
             if (match != null)
             {
-                var video = await youTubeVideoService.GetVideoContentDetails([match.Id], indexingContext);
-                return new ResolvedYouTubeItem(
-                    match.Snippet.ChannelId,
-                    match.Id,
-                    match.Snippet.ChannelTitle,
-                    channelUploads.Channel.Snippet.Description,
-                    channelUploads.Channel.ContentOwnerDetails.ContentOwner,
-                    match.Snippet.Title,
-                    match.Snippet.Description,
-                    match.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-                    video?.SingleOrDefault()?.GetLength() ?? TimeSpan.Zero,
-                    match.Snippet.ToYouTubeUrl(),
-                    video?.SingleOrDefault()?.ContentDetails.ContentRating.YtRating == "ytAgeRestricted");
+                var video = await youTubeVideoService.GetVideoContentDetails([match.Snippet.ResourceId.VideoId],
+                    indexingContext);
+                if (video != null)
+                {
+                    return new ResolvedYouTubeItem(
+                        match.Snippet.ChannelId,
+                        match.Snippet.ResourceId.VideoId,
+                        match.Snippet.ChannelTitle,
+                        channelUploads.Channel.Snippet.Description, //
+                        channelUploads.Channel.ContentOwnerDetails.ContentOwner, //
+                        match.Snippet.Title,
+                        match.Snippet.Description,
+                        match.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
+                        video?.SingleOrDefault()?.GetLength() ?? TimeSpan.Zero,
+                        match.Snippet.ToYouTubeUrl(),
+                        video?.SingleOrDefault()?.ContentDetails.ContentRating.YtRating == "ytAgeRestricted");
+                }
             }
         }
         else
