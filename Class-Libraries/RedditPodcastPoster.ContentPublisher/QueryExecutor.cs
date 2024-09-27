@@ -104,7 +104,7 @@ public class QueryExecutor(
                 JOIN
                 e IN p.episodes
                 WHERE ((NOT IS_DEFINED(p.removed)) OR p.removed=false)
-                AND   e.ignored=false AND e.removed=false
+                AND   e.removed=false
                 ");
         using var episodeCount = c.GetItemQueryIterator<ScalarResult<int>>(
             numberOfEpisodes

@@ -148,9 +148,9 @@ public partial class CreateSearchIndexProcessor(
             !string.IsNullOrWhiteSpace(request.IndexName))
         {
             var nextIndex = DateTimeOffset.Now
-                .Add(Frequency)
-                .Floor(Frequency)
-                .Add(IndexAtMinutes);
+                    .Add(Frequency)
+                    .Floor(Frequency)
+                    .Add(IndexAtMinutes);
 
             var indexingSchedule = new IndexingSchedule(Frequency) {StartTime = nextIndex};
             var searchIndexer = new SearchIndexer(request.IndexerName, request.DataSourceName, request.IndexName)
