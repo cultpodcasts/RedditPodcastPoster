@@ -30,12 +30,13 @@ public class PostModel
 
         if (!string.IsNullOrWhiteSpace(podcastPost.TitleRegex))
         {
-            TitleRegex = new Regex(podcastPost.TitleRegex);
+            TitleRegex = new Regex(podcastPost.TitleRegex, RegexOptions.IgnoreCase);
         }
 
         if (!string.IsNullOrWhiteSpace(podcastPost.DescriptionRegex))
         {
-            DescriptionRegex = new Regex(podcastPost.DescriptionRegex, RegexOptions.Singleline);
+            DescriptionRegex = new Regex(podcastPost.DescriptionRegex,
+                RegexOptions.IgnoreCase | RegexOptions.Singleline);
         }
 
         if (TitleRegex != null)
@@ -81,7 +82,7 @@ public class PostModel
     public Uri? Spotify { get; init; }
     public Uri? Apple { get; init; }
     public Uri? YouTube { get; init; }
-    public IEnumerable<int> BundledPartNumbers { get; set; } = Enumerable.Empty<int>();
+    public IEnumerable<int> BundledPartNumbers { get; set; } = [];
     public string ReleaseDate { get; init; }
     public string EpisodeLength { get; init; }
     public string EpisodeDescription { get; init; }
