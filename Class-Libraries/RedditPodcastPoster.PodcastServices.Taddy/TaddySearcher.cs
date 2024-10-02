@@ -49,15 +49,22 @@ public class TaddySearcher(
         {
             Query = query
         };
-
-        var response = await graphQlClient.SendQueryAsync<SearchResponse>(episodesRequest);
-        if (response.Errors != null && response.Errors.Any())
+        try
         {
-            logger.LogError(
-                $"Error querying taddy: {string.Join(", ", response.Errors.Select(x => $"Message: '{x.Message}''"))}");
-        }
+            var response = await graphQlClient.SendQueryAsync<SearchResponse>(episodesRequest);
+            if (response.Errors != null && response.Errors.Any())
+            {
+                logger.LogError(
+                    $"Error querying taddy: {string.Join(", ", response.Errors.Select(x => $"Message: '{x.Message}''"))}");
+            }
 
-        return response.Data.Results.Episodes.Select(ToEpisodeResult).ToList();
+            return response.Data.Results.Episodes.Select(ToEpisodeResult).ToList();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"{nameof(Search)}: Failed to query taddy for '{term}'.");
+            return [];
+        }
     }
 
 
