@@ -8,13 +8,16 @@ public class EpisodeSearchRecord
     [SimpleField(IsKey = true, IsFilterable = true, IsSortable = false, IsFacetable = false)]
     public required string Id { get; set; }
 
-    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsFacetable = false, IsSortable = false)]
+    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsFacetable = false,
+        IsSortable = false)]
     public required string EpisodeTitle { get; set; }
 
-    [SearchableField(IsFilterable = true, IsFacetable = true, AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsSortable = false)]
+    [SearchableField(IsFilterable = true, IsFacetable = true, AnalyzerName = LexicalAnalyzerName.Values.EnLucene,
+        IsSortable = false)]
     public required string PodcastName { get; set; }
 
-    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsSortable = false, IsFacetable = false)]
+    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsSortable = false,
+        IsFacetable = false)]
     public required string EpisodeDescription { get; set; }
 
     [SimpleField(IsSortable = true, IsFacetable = false, IsFilterable = false)]
@@ -38,9 +41,11 @@ public class EpisodeSearchRecord
     [SearchableField(IsFilterable = true, IsFacetable = true, AnalyzerName = LexicalAnalyzerName.Values.EnLucene)]
     public required string[] Subjects { get; set; }
 
-    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsFacetable = false, IsSortable = false, IsHidden = true)]
+    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsFacetable = false,
+        IsSortable = false, IsHidden = true)]
     public required string PodcastSearchTerms { get; set; }
 
-    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsFacetable = false, IsSortable = false, IsHidden = true)]
+    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsFacetable = false,
+        IsSortable = false, IsHidden = true)]
     public required string EpisodeSearchTerms { get; set; }
 }
