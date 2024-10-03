@@ -1,5 +1,7 @@
-﻿using System.Text.Json;
+﻿using System.Net;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using Azure;
 using Azure.Core.Serialization;
 using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
@@ -28,34 +30,64 @@ public partial class CreateSearchIndexProcessor(
 
     public async Task Process(CreateSearchIndexRequest request)
     {
+        if (request.TearDownIndex)
+        {
+            await TearDown(request);
+        }
+
         if (!string.IsNullOrWhiteSpace(request.IndexName))
         {
-            if (request.TearDownIndex)
-            {
-                await searchIndexClient.DeleteIndexAsync(request.IndexName);
-                logger.LogWarning(
-                    "Ensure that the indexer has run and completed indexing ALL records. The indexer will time-out at 10,000 records, so it must be re-run until all records are re-indexed.");
-            }
-
-            var index = new SearchIndex(request.IndexName)
-            {
-//                Fields = [],
-                Fields = new FieldBuilder
-                {
-                    Serializer = new JsonObjectSerializer(new JsonSerializerOptions
-                        {PropertyNamingPolicy = JsonNamingPolicy.CamelCase})
-                }.Build(typeof(EpisodeSearchRecord)),
-                DefaultScoringProfile = string.Empty,
-                CorsOptions = new CorsOptions(["*"]) {MaxAgeInSeconds = 300}
-            };
-            var searchIndexCreateResponse = await searchIndexClient.CreateOrUpdateIndexAsync(index);
+            var result = await CreateIndex(request);
         }
 
         if (!string.IsNullOrWhiteSpace(request.DataSourceName))
         {
-            var connectionString =
-                $"AccountEndpoint={_cosmosDbSettings.Endpoint};Database={_cosmosDbSettings.DatabaseId};AccountKey={_cosmosDbSettings.AuthKeyOrResourceToken}";
-            var query = @"SELECT
+            await CreateDataSource(request);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.IndexerName) &&
+            !string.IsNullOrWhiteSpace(request.DataSourceName) &&
+            !string.IsNullOrWhiteSpace(request.IndexName))
+        {
+            var result = await CreateIndexer(request);
+        }
+
+        if (request.RunIndexer)
+        {
+            await searchIndexerService.RunIndexer();
+        }
+    }
+
+    private async Task<Response<SearchIndexer>> CreateIndexer(CreateSearchIndexRequest request)
+    {
+        var nextIndex = DateTimeOffset.Now
+            .Add(Frequency)
+            .Floor(Frequency)
+            .Add(IndexAtMinutes);
+
+        var indexingSchedule = new IndexingSchedule(Frequency) {StartTime = nextIndex};
+        var searchIndexer = new SearchIndexer(request.IndexerName, request.DataSourceName, request.IndexName)
+        {
+            Schedule = indexingSchedule,
+            Description = string.Empty,
+            Parameters = new IndexingParameters
+            {
+                MaxFailedItems = 0,
+                MaxFailedItemsPerBatch = 0,
+                Configuration =
+                {
+                    {"assumeOrderByHighWaterMarkColumn", true}
+                }
+            }
+        };
+        return await searchIndexerClient.CreateOrUpdateIndexerAsync(searchIndexer);
+    }
+
+    private async Task<Response<SearchIndexerDataSourceConnection>> CreateDataSource(CreateSearchIndexRequest request)
+    {
+        var connectionString =
+            $"AccountEndpoint={_cosmosDbSettings.Endpoint};Database={_cosmosDbSettings.DatabaseId};AccountKey={_cosmosDbSettings.AuthKeyOrResourceToken}";
+        var query = @"SELECT
                             e.id,
                             e.title as episodeTitle,
                             p.name as podcastName,
@@ -76,52 +108,67 @@ public partial class CreateSearchIndexProcessor(
                               and e.removed = false 
                               and p._ts >= @HighWaterMark
                             ORDER BY p._ts";
-            query = Whitespace.Replace(query, " ").Trim();
-            var searchIndexDataContainer = new SearchIndexerDataContainer(_cosmosDbSettings.Container)
-            {
-                Query = query
-            };
-            var searchIndexDataSourceConnection = new SearchIndexerDataSourceConnection(request.DataSourceName,
-                SearchIndexerDataSourceType.CosmosDb, connectionString, searchIndexDataContainer)
-            {
-                DataChangeDetectionPolicy = new HighWaterMarkChangeDetectionPolicy("_ts")
-            };
-
-            var dataSource =
-                await searchIndexerClient.CreateOrUpdateDataSourceConnectionAsync(searchIndexDataSourceConnection);
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.IndexerName) &&
-            !string.IsNullOrWhiteSpace(request.DataSourceName) &&
-            !string.IsNullOrWhiteSpace(request.IndexName))
+        query = Whitespace.Replace(query, " ").Trim();
+        var searchIndexDataContainer = new SearchIndexerDataContainer(_cosmosDbSettings.Container)
         {
-            var nextIndex = DateTimeOffset.Now
-                .Add(Frequency)
-                .Floor(Frequency)
-                .Add(IndexAtMinutes);
-
-            var indexingSchedule = new IndexingSchedule(Frequency) {StartTime = nextIndex};
-            var searchIndexer = new SearchIndexer(request.IndexerName, request.DataSourceName, request.IndexName)
-            {
-                Schedule = indexingSchedule,
-                Description = string.Empty,
-                Parameters = new IndexingParameters
-                {
-                    MaxFailedItems = 0,
-                    MaxFailedItemsPerBatch = 0,
-                    Configuration =
-                    {
-                        {"assumeOrderByHighWaterMarkColumn", true}
-                    }
-                }
-            };
-            await searchIndexerClient.CreateOrUpdateIndexerAsync(searchIndexer);
-        }
-
-        if (request.RunIndexer)
+            Query = query
+        };
+        var searchIndexDataSourceConnection = new SearchIndexerDataSourceConnection(request.DataSourceName,
+            SearchIndexerDataSourceType.CosmosDb, connectionString, searchIndexDataContainer)
         {
-            await searchIndexerService.RunIndexer();
+            DataChangeDetectionPolicy = new HighWaterMarkChangeDetectionPolicy("_ts")
+        };
+
+        return await searchIndexerClient.CreateOrUpdateDataSourceConnectionAsync(searchIndexDataSourceConnection);
+    }
+
+    private async Task<Response<SearchIndex>> CreateIndex(CreateSearchIndexRequest request)
+    {
+        var index = new SearchIndex(request.IndexName)
+        {
+            Fields = new FieldBuilder
+            {
+                Serializer = new JsonObjectSerializer(new JsonSerializerOptions
+                    {PropertyNamingPolicy = JsonNamingPolicy.CamelCase})
+            }.Build(typeof(EpisodeSearchRecord)),
+            DefaultScoringProfile = string.Empty,
+            CorsOptions = new CorsOptions(["*"]) {MaxAgeInSeconds = 300}
+        };
+        return await searchIndexClient.CreateOrUpdateIndexAsync(index);
+    }
+
+    private async Task TearDown(CreateSearchIndexRequest request)
+    {
+        Response result;
+        if (!string.IsNullOrWhiteSpace(request.IndexerName))
+        {
+            result = await searchIndexerClient.DeleteIndexerAsync(request.IndexerName);
+            if (result.Status != (int) HttpStatusCode.NoContent || result.IsError)
+            {
+                throw new InvalidOperationException($"Unable to tear-down indexer '{request.IndexerName}'.");
+            }
         }
+
+        if (!string.IsNullOrWhiteSpace(request.IndexName))
+        {
+            result = await searchIndexClient.DeleteIndexAsync(request.IndexName);
+            if (result.Status != (int) HttpStatusCode.NoContent || result.IsError)
+            {
+                throw new InvalidOperationException($"Unable to tear-down index '{request.IndexName}'.");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.DataSourceName))
+        {
+            result = await searchIndexerClient.DeleteDataSourceConnectionAsync(request.DataSourceName);
+            if (result.Status != (int) HttpStatusCode.NoContent || result.IsError)
+            {
+                throw new InvalidOperationException($"Unable to tear-down data-source '{request.DataSourceName}'.");
+            }
+        }
+
+        logger.LogWarning(
+            "Ensure that the indexer has run and completed indexing ALL records. The indexer will time-out at 10,000 records, so it must be re-run until all records are re-indexed.");
     }
 
     [GeneratedRegex(@"\s+", RegexOptions.Multiline | RegexOptions.Compiled)]
