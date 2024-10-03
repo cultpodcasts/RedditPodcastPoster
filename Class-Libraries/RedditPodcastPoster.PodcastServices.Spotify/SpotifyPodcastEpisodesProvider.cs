@@ -5,8 +5,6 @@ using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
-public record PodcastEpisodesResult(IEnumerable<SimpleEpisode> Episodes, bool ExpensiveQueryFound = false);
-
 public class SpotifyPodcastEpisodesProvider(
     ISpotifyClientWrapper spotifyClientWrapper,
     ISpotifyQueryPaginator spotifyQueryPaginator,
