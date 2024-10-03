@@ -100,9 +100,9 @@ public class SpotifyPodcastEpisodesProvider(
         GetEpisodesRequest request,
         IndexingContext indexingContext)
     {
-        if (_cache.ContainsKey(request.SpotifyPodcastId.PodcastId))
+        if (_cache.TryGetValue(request.SpotifyPodcastId.PodcastId, out var episodes))
         {
-            return _cache[request.SpotifyPodcastId.PodcastId];
+            return episodes;
         }
 
         var market = request.Market ?? Market.CountryCode;
