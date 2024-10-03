@@ -89,8 +89,11 @@ public class SpotifyPodcastEpisodesProvider(
                 }
             }
 
-            return new PodcastEpisodesResult(allEpisodes.SelectMany(x => x).GroupBy(x => x.Id).First(),
-                expensiveQueryFound);
+            if (allEpisodes.Any())
+            {
+                return new PodcastEpisodesResult(allEpisodes.SelectMany(x => x).GroupBy(x => x.Id).First(),
+                    expensiveQueryFound);
+            }
         }
 
         return new PodcastEpisodesResult([], expensiveQueryFound);
