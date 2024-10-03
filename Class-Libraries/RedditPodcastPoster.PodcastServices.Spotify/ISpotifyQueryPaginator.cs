@@ -5,7 +5,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public interface ISpotifyQueryPaginator
 {
-    Task<PaginateEpisodesResponse> PaginateEpisodes(
+    Task<PodcastEpisodesResult> PaginateEpisodes(
         IPaginatable<SimpleEpisode>? pagedEpisodes,
         IndexingContext indexingContext);
 }

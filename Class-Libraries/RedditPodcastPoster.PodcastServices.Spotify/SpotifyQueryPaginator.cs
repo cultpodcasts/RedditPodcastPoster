@@ -9,7 +9,7 @@ public class SpotifyQueryPaginator(
     ILogger<SpotifyQueryPaginator> logger)
     : ISpotifyQueryPaginator
 {
-    public async Task<PaginateEpisodesResponse> PaginateEpisodes(
+    public async Task<PodcastEpisodesResult> PaginateEpisodes(
         IPaginatable<SimpleEpisode>? pagedEpisodes,
         IndexingContext indexingContext)
     {
@@ -17,12 +17,12 @@ public class SpotifyQueryPaginator(
         {
             logger.LogInformation(
                 $"Skipping '{nameof(PaginateEpisodes)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set.");
-            return new PaginateEpisodesResponse(new List<SimpleEpisode>());
+            return new PodcastEpisodesResult(new List<SimpleEpisode>());
         }
 
         if (pagedEpisodes == null || pagedEpisodes.Items == null)
         {
-            return new PaginateEpisodesResponse(new List<SimpleEpisode>());
+            return new PodcastEpisodesResult(new List<SimpleEpisode>());
         }
 
         var currentMoment = DateTime.Now.AddDays(2);
@@ -86,6 +86,6 @@ public class SpotifyQueryPaginator(
             episodes.AddRange(batchEpisodes);
         }
 
-        return new PaginateEpisodesResponse(episodes.Where(x => x != null).ToList(), isExpensiveQueryFound);
+        return new PodcastEpisodesResult(episodes.Where(x => x != null).ToList(), isExpensiveQueryFound);
     }
 }

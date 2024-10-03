@@ -7,7 +7,7 @@ public interface ISearchResultFinder
     SimpleEpisode? FindMatchingEpisodeByDate(
         string episodeTitle,
         DateTime? episodeRelease,
-        IEnumerable<IEnumerable<SimpleEpisode>> episodeLists);
+        IEnumerable<SimpleEpisode> episodes);
 
     IEnumerable<SimpleShow> FindMatchingPodcasts(
         string podcastName,
@@ -16,6 +16,6 @@ public interface ISearchResultFinder
     SimpleEpisode? FindMatchingEpisodeByLength(
         string episodeTitle,
         TimeSpan episodeLength,
-        IList<IList<SimpleEpisode>> episodeLists,
+        IEnumerable<SimpleEpisode> episodeLists,
         Func<SimpleEpisode, bool>? reducer = null);
 }
