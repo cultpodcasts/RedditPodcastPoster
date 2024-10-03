@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
 
 namespace RedditPodcastPoster.PodcastServices;
@@ -10,6 +11,7 @@ public class CacheFlusher(
     IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
     IYouTubeChannelService youTubeChannelService,
     IYouTubeChannelVideosService youTubeChannelVideosService,
+    ISpotifyPodcastEpisodesProvider spotifyPodcastEpisodesProvider,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<CacheFlusher> logger)
 #pragma warning restore CS9113 // Parameter is unread.
@@ -21,5 +23,6 @@ public class CacheFlusher(
         youTubeChannelVideoSnippetsService.Flush();
         youTubeChannelService.Flush();
         youTubeChannelVideosService.Flush();
+        spotifyPodcastEpisodesProvider.Flush();
     }
 }

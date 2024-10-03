@@ -12,7 +12,6 @@ public class SpotifyPodcastResolver(
     ILogger<SpotifyPodcastResolver> logger)
     : ISpotifyPodcastResolver
 {
-
     public async Task<SpotifyPodcastWrapper?> FindPodcast(
         FindSpotifyPodcastRequest request,
         IndexingContext indexingContext)
@@ -44,7 +43,7 @@ public class SpotifyPodcastResolver(
                 {
                     foreach (var candidatePodcast in matchingPodcasts)
                     {
-                        var showEpisodesRequest = new ShowEpisodesRequest {Market = Market.CountryCode };
+                        var showEpisodesRequest = new ShowEpisodesRequest {Market = Market.CountryCode};
                         if (indexingContext.ReleasedSince.HasValue)
                         {
                             showEpisodesRequest.Limit = 1;
@@ -57,19 +56,19 @@ public class SpotifyPodcastResolver(
                         {
                             var paginateEpisodesResponse =
                                 await spotifyQueryPaginator.PaginateEpisodes(pagedEpisodes, indexingContext);
-                            if (paginateEpisodesResponse.IsExpensiveQuery)
+                            if (paginateEpisodesResponse.ExpensiveQueryFound)
                             {
                                 expensiveSpotifyEpisodesQueryFound = true;
                             }
 
-                            if (paginateEpisodesResponse.Results.Any())
+                            if (paginateEpisodesResponse.Episodes.Any())
                             {
                                 var mostRecentEpisode = request.Episodes.OrderByDescending(x => x.Release).First();
                                 var matchingEpisode =
                                     searchResultFinder.FindMatchingEpisodeByDate(
                                         mostRecentEpisode.Title.Trim(),
                                         mostRecentEpisode.Release,
-                                        new[] {paginateEpisodesResponse.Results});
+                                        paginateEpisodesResponse.Episodes);
                                 if (request.Episodes
                                     .Select(x => x.Url?.ToString())
                                     .Contains(matchingEpisode!.ExternalUrls.FirstOrDefault().Value))

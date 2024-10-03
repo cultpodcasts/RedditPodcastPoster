@@ -42,7 +42,7 @@ public partial class CreateSearchIndexProcessor(
 
         if (!string.IsNullOrWhiteSpace(request.DataSourceName))
         {
-            await CreateDataSource(request);
+            var result = await CreateDataSource(request);
         }
 
         if (!string.IsNullOrWhiteSpace(request.IndexerName) &&

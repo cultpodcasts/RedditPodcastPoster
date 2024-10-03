@@ -2,12 +2,11 @@
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text;
-using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public class SpotifyEpisodeProvider(
-    ISpotifyEpisodeResolver spotifyEpisodeResolver,
+    ISpotifyPodcastEpisodesProvider spotifyPodcastEpisodesProvider,
     IHtmlSanitiser htmlSanitiser,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<SpotifyEpisodeProvider> logger)
@@ -16,12 +15,11 @@ public class SpotifyEpisodeProvider(
 {
     public async Task<GetEpisodesResponse> GetEpisodes(GetEpisodesRequest request, IndexingContext indexingContext)
     {
-        var getEpisodesResult =
-            await spotifyEpisodeResolver.GetEpisodes(request, indexingContext);
+        var getEpisodesResult = await spotifyPodcastEpisodesProvider.GetEpisodes(request, indexingContext);
 
-        var expensiveQueryFound = getEpisodesResult.IsExpensiveQuery;
+        var expensiveQueryFound = getEpisodesResult.ExpensiveQueryFound;
 
-        IEnumerable<SimpleEpisode> episodes = getEpisodesResult.Results;
+        var episodes = getEpisodesResult.Episodes;
         if (indexingContext.ReleasedSince.HasValue)
         {
             episodes = episodes.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince.Value);

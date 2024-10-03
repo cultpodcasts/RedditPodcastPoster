@@ -6,9 +6,9 @@ using SpotifyAPI.Web;
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public class SpotifyEpisodeResolver(
+    ISpotifyPodcastEpisodesProvider spotifyPodcastEpisodesProvider,
     ISpotifyClientWrapper spotifyClientWrapper,
     ISearchResultFinder searchResultFinder,
-    ISpotifyQueryPaginator spotifyQueryPaginator,
     ILogger<SpotifyEpisodeResolver> logger)
     : ISpotifyEpisodeResolver
 {
@@ -19,7 +19,6 @@ public class SpotifyEpisodeResolver(
         IndexingContext indexingContext)
     {
         var market = request.Market ?? Market.CountryCode;
-        var expensiveQueryFound = false;
         if (indexingContext.SkipSpotifyUrlResolving)
         {
             logger.LogInformation(
@@ -34,153 +33,48 @@ public class SpotifyEpisodeResolver(
                 {Market = market};
             fullEpisode =
                 await spotifyClientWrapper.GetFullEpisode(request.EpisodeSpotifyId, episodeRequest, indexingContext);
-        }
-
-        if (fullEpisode == null)
-        {
-            EpisodeFetchResults[]? episodes = null;
-            if (!string.IsNullOrWhiteSpace(request.PodcastSpotifyId))
+            if (fullEpisode != null)
             {
-                var showRequest = new ShowRequest {Market = market};
-                var fullShow =
-                    await spotifyClientWrapper.GetFullShow(request.PodcastSpotifyId, showRequest, indexingContext);
-                if (fullShow != null)
-                {
-                    episodes = [new EpisodeFetchResults(request.PodcastSpotifyId, fullShow.Episodes)];
-                }
-            }
-            else
-            {
-                if (!indexingContext.SkipPodcastDiscovery && !string.IsNullOrWhiteSpace(request.PodcastName))
-                {
-                    var searchRequest = new SearchRequest(
-                            SearchRequest.Types.Show,
-                            request.PodcastName)
-                        {Market = market};
-                    var simpleShows = await spotifyClientWrapper.GetSimpleShows(searchRequest, indexingContext);
-                    if (simpleShows.Any())
-                    {
-                        var matchingPodcasts =
-                            searchResultFinder.FindMatchingPodcasts(request.PodcastName, simpleShows);
-
-                        var showEpisodesRequest = new ShowEpisodesRequest {Market = market};
-                        if (indexingContext.ReleasedSince.HasValue)
-                        {
-                            showEpisodesRequest.Limit = 1;
-                        }
-
-                        var episodesFetches = matchingPodcasts
-                            .Select(async x => await spotifyClientWrapper
-                                .GetShowEpisodes(x.Id, showEpisodesRequest, indexingContext)
-                                .ContinueWith(y =>
-                                    new EpisodeFetchResults(x.Id, y.Result)));
-                        episodes = await Task.WhenAll(episodesFetches);
-                    }
-                }
-            }
-
-            if (episodes != null)
-            {
-                IList<IList<SimpleEpisode>> allEpisodes = new List<IList<SimpleEpisode>>();
-                foreach (var paging in episodes)
-                {
-                    if (paging.Episodes != null)
-                    {
-                        if (indexingContext.SkipExpensiveSpotifyQueries && request.HasExpensiveSpotifyEpisodesQuery)
-                        {
-                            logger.LogInformation(
-                                $"{nameof(FindEpisode)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveSpotifyQueries)} is set.");
-                        }
-                        else
-                        {
-                            var paginateEpisodeResponse =
-                                await spotifyQueryPaginator.PaginateEpisodes(paging.Episodes, indexingContext);
-                            var result = paginateEpisodeResponse.Results.GroupBy(x => x.Id).Select(x => x.First());
-                            allEpisodes.Add(result.ToList());
-                            if (paginateEpisodeResponse.IsExpensiveQuery)
-                            {
-                                expensiveQueryFound = true;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        logger.LogWarning(
-                            $"Null paged-list of episodes found for spotify-show-id '{paging.SpotifyPodcastId}'.");
-                    }
-                }
-
-                SimpleEpisode? matchingEpisode;
-                if (request is {ReleaseAuthority: Service.YouTube, Length: not null})
-                {
-                    var ticks = YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
-                    if (request.YouTubePublishingDelay.HasValue &&
-                        request.YouTubePublishingDelay.Value != TimeSpan.Zero)
-                    {
-                        var delayTicks = request.YouTubePublishingDelay.Value.Ticks;
-                        if (delayTicks < 0)
-                        {
-                            ticks = Math.Abs(delayTicks);
-                        }
-                    }
-
-                    matchingEpisode =
-                        searchResultFinder.FindMatchingEpisodeByLength(
-                            request.EpisodeTitle,
-                            request.Length.Value,
-                            allEpisodes,
-                            y => request.Released.HasValue &&
-                                 Math.Abs((y.GetReleaseDate() - request.Released.Value).Ticks) < ticks);
-                }
-                else
-                {
-                    matchingEpisode =
-                        searchResultFinder.FindMatchingEpisodeByDate(request.EpisodeTitle, request.Released,
-                            allEpisodes);
-                }
-
-                if (matchingEpisode != null)
-                {
-                    var showRequest = new EpisodeRequest {Market = market};
-                    fullEpisode =
-                        await spotifyClientWrapper.GetFullEpisode(matchingEpisode.Id, showRequest, indexingContext);
-                }
+                return new FindEpisodeResponse(fullEpisode);
             }
         }
 
-        return new FindEpisodeResponse(fullEpisode, expensiveQueryFound);
-    }
+        var podcastEpisodes = await spotifyPodcastEpisodesProvider.GetAllEpisodes(request, indexingContext, market);
 
-    public async Task<PaginateEpisodesResponse> GetEpisodes(
-        GetEpisodesRequest request,
-        IndexingContext indexingContext)
-    {
-        var market = request.Market ?? Market.CountryCode;
-        if (indexingContext.SkipSpotifyUrlResolving)
+        SimpleEpisode? matchingEpisode;
+        if (request is {ReleaseAuthority: Service.YouTube, Length: not null})
         {
-            logger.LogInformation(
-                $"Skipping '{nameof(GetEpisodes)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.SpotifyPodcastId.PodcastId}'.");
-            return new PaginateEpisodesResponse(new List<SimpleEpisode>());
+            var ticks = YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
+            if (request.YouTubePublishingDelay.HasValue &&
+                request.YouTubePublishingDelay.Value != TimeSpan.Zero)
+            {
+                var delayTicks = request.YouTubePublishingDelay.Value.Ticks;
+                if (delayTicks < 0)
+                {
+                    ticks = Math.Abs(delayTicks);
+                }
+            }
+
+            matchingEpisode = searchResultFinder.FindMatchingEpisodeByLength(
+                request.EpisodeTitle,
+                request.Length.Value,
+                podcastEpisodes.Episodes,
+                y => request.Released.HasValue &&
+                     Math.Abs((y.GetReleaseDate() - request.Released.Value).Ticks) < ticks);
+        }
+        else
+        {
+            matchingEpisode =
+                searchResultFinder.FindMatchingEpisodeByDate(request.EpisodeTitle, request.Released,
+                    podcastEpisodes.Episodes);
         }
 
-        var showEpisodesRequest = new ShowEpisodesRequest {Market = market};
-
-        if (indexingContext.ReleasedSince.HasValue)
+        if (matchingEpisode != null)
         {
-            showEpisodesRequest.Limit = 5;
+            var showRequest = new EpisodeRequest {Market = market};
+            fullEpisode = await spotifyClientWrapper.GetFullEpisode(matchingEpisode.Id, showRequest, indexingContext);
         }
 
-        var pagedEpisodes =
-            await spotifyClientWrapper.GetShowEpisodes(request.SpotifyPodcastId.PodcastId, showEpisodesRequest,
-                indexingContext);
-
-        if (indexingContext.SkipExpensiveSpotifyQueries && request.HasExpensiveSpotifyEpisodesQuery)
-        {
-            logger.LogInformation(
-                $"{nameof(GetEpisodes)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveSpotifyQueries)} is set.");
-            return new PaginateEpisodesResponse(pagedEpisodes?.Items ?? new List<SimpleEpisode>());
-        }
-
-        return await spotifyQueryPaginator.PaginateEpisodes(pagedEpisodes, indexingContext);
+        return new FindEpisodeResponse(fullEpisode, podcastEpisodes.ExpensiveQueryFound);
     }
 }
