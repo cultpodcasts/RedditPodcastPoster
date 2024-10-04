@@ -2,5 +2,5 @@
 
 public interface ISearchIndexerService
 {
-    Task RunIndexer();
+    Task<IndexerState> RunIndexer();
 }

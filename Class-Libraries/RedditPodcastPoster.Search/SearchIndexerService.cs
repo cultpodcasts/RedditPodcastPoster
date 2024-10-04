@@ -6,6 +6,16 @@ using Microsoft.Extensions.Options;
 
 namespace RedditPodcastPoster.Search;
 
+public enum IndexerState
+{
+    Unknown = 0,
+
+    Executed,
+    Failure,
+    TooManyRequests,
+    AlreadyRunning
+}
+
 public class SearchIndexerService(
     SearchIndexerClient searchIndexerClient,
     IOptions<SearchIndexConfig> searchIndexConfig,
@@ -14,7 +24,7 @@ public class SearchIndexerService(
 {
     private readonly SearchIndexConfig _searchIndexConfig = searchIndexConfig.Value;
 
-    public async Task RunIndexer()
+    public async Task<IndexerState> RunIndexer()
     {
         logger.LogInformation($"Indexing '{_searchIndexConfig.IndexerName}'.");
         try
@@ -24,11 +34,11 @@ public class SearchIndexerService(
             {
                 logger.LogError(
                     $"Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{response.Status}' and reason '{response.ReasonPhrase}'.");
+                return IndexerState.Failure;
             }
-            else
-            {
-                logger.LogInformation($"Ran indexer '{_searchIndexConfig.IndexerName}'.");
-            }
+
+            logger.LogInformation($"Ran indexer '{_searchIndexConfig.IndexerName}'.");
+            return IndexerState.Executed;
         }
         catch (RequestFailedException ex)
         {
@@ -37,21 +47,22 @@ public class SearchIndexerService(
                 case (int) HttpStatusCode.TooManyRequests:
                     logger.LogError(
                         $"Too Many Requests. Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{ex.Status}'.");
-                    break;
+                    return IndexerState.TooManyRequests;
                 case (int) HttpStatusCode.Conflict:
                     logger.LogError(
                         $"Indexer already running. Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{ex.Status}'.");
-                    break;
+                    return IndexerState.AlreadyRunning;
                 default:
                     logger.LogError(ex,
                         $"Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{ex.Status}' and message '{ex.Message}'.");
-                    break;
+                    return IndexerState.Failure;
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
                 $"Failure to run indexer '{_searchIndexConfig.IndexerName}' with message '{ex.Message}'.");
+            return IndexerState.Failure;
         }
     }
 }
