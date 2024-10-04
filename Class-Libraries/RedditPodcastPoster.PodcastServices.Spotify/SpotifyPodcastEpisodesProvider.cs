@@ -92,10 +92,11 @@ public class SpotifyPodcastEpisodesProvider(
             if (allEpisodes.Any())
             {
                 return new PodcastEpisodesResult(
-                    allEpisodes.Where(x => x != null && x.Any())
+                    allEpisodes
+                        .Where(x => x != null && x.Any())
                         .SelectMany(x => x)
                         .GroupBy(x => x.Id)
-                        .First(),
+                        .FirstOrDefault() ?? Enumerable.Empty<SimpleEpisode>(),
                     expensiveQueryFound);
             }
         }
