@@ -153,38 +153,77 @@ public class Episode(
     {
         try
         {
-            var episodes = new List<RedditPodcastPoster.Models.Episode>();
-            var since = DateTimeExtensions.DaysAgo(7);
-            var podcastIds = await podcastRepository.GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == false) &&
-                                                                   x.Episodes.Any(ep =>
-                                                                       ep.Release > since && !ep.Posted && !ep.Tweeted),
+            var (days, posted, tweeted) = ParseOutgoingQuery(req);
+            if (posted && tweeted)
+            {
+                var invalidArguments = await req.CreateResponse(HttpStatusCode.BadRequest)
+                    .WithJsonBody(
+                        SubmitUrlResponse.Failure($"Invalid arguments. Posted='{posted}', Tweeted='{tweeted}'."), c);
+                return invalidArguments;
+            }
+
+            var episodes = new List<DiscreteEpisode>();
+            var since = DateTimeExtensions.DaysAgo(days);
+            var podcastIds = await podcastRepository.GetAllBy(x =>
+                    (
+                        !x.Removed.IsDefined() ||
+                        x.Removed == false
+                    ) &&
+                    x.Episodes.Any(ep => ep.Release > since && (!ep.Posted || posted) && (!ep.Tweeted || tweeted)),
                 x => new {guid = x.Id}).ToListAsync(c);
             foreach (var podcastId in podcastIds)
             {
                 var podcast = await podcastRepository.GetBy(x => x.Id == podcastId.guid);
                 var unpostedEpisodes =
-                    podcast.Episodes.Where(x => x.Release > since && x is {Posted: false, Tweeted: false});
+                    podcast.Episodes.Where(x => x.Release > since && (!x.Posted || posted) && (!x.Tweeted || tweeted))
+                        .Select(x => x.Enrich(podcast.Name));
                 episodes.AddRange(unpostedEpisodes);
             }
 
-            var guids = episodes.OrderByDescending(x => x.Release).Select(x => x.Id);
             var success = await req.CreateResponse(HttpStatusCode.OK)
-                .WithJsonBody(guids, c);
+                .WithJsonBody(episodes.OrderByDescending(x => x.Release), c);
             return success;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(GetOutgoing)}: Failed to get episode.");
+            logger.LogError(ex, $"{nameof(GetOutgoing)}: Failed to get out-going episodes.");
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve episode"), c);
+            .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve out-going episodes"), c);
         return failure;
     }
 
+    private (int days, bool posted, bool tweeted) ParseOutgoingQuery(HttpRequestData req)
+    {
+        if (!bool.TryParse(req.Query["tweeted"], out var tweeted))
+        {
+            tweeted = false;
+        }
 
-    private async Task<HttpResponseData> Post(HttpRequestData req,
-        EpisodeChangeRequestWrapper episodeChangeRequestWrapper, CancellationToken c)
+        if (!bool.TryParse(req.Query["posted"], out var posted))
+        {
+            posted = false;
+        }
+
+        if (!int.TryParse(req.Query["days"], out var days))
+        {
+            days = 7;
+        }
+
+        if (days > 14)
+        {
+            days = 14;
+        }
+
+        return (days, posted, tweeted);
+    }
+
+
+    private async Task<HttpResponseData> Post(
+        HttpRequestData req,
+        EpisodeChangeRequestWrapper episodeChangeRequestWrapper,
+        CancellationToken c)
     {
         try
         {
