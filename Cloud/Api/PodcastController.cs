@@ -56,7 +56,7 @@ public class PodcastController(
         HttpRequestData req,
         Guid podcastId,
         FunctionContext executionContext,
-        [FromBody] Dtos.Podcast podcastChangeRequest,
+        [FromBody] Podcast podcastChangeRequest,
         CancellationToken ct
     )
     {
@@ -132,7 +132,7 @@ public class PodcastController(
         return failure;
     }
 
-    private void UpdatePodcast(RedditPodcastPoster.Models.Podcast podcast, Dtos.Podcast podcastChangeRequest)
+    private void UpdatePodcast(RedditPodcastPoster.Models.Podcast podcast, Podcast podcastChangeRequest)
     {
         if (podcastChangeRequest.Removed != null)
         {
@@ -154,9 +154,19 @@ public class PodcastController(
             podcast.ReleaseAuthority = podcastChangeRequest.ReleaseAuthority.Value;
         }
 
+        if (podcastChangeRequest.UnsetReleaseAuthority != null && podcastChangeRequest.UnsetReleaseAuthority.Value)
+        {
+            podcast.ReleaseAuthority = null;
+        }
+
         if (podcastChangeRequest.PrimaryPostService != null)
         {
             podcast.PrimaryPostService = podcastChangeRequest.PrimaryPostService.Value;
+        }
+
+        if (podcastChangeRequest.UnsetPrimaryPostService != null && podcastChangeRequest.UnsetPrimaryPostService.Value)
+        {
+            podcast.PrimaryPostService = null;
         }
 
         if (podcastChangeRequest.AppleId != null)
@@ -222,7 +232,7 @@ public class PodcastController(
             var podcast = await podcastRepository.GetBy(x => x.Name == podcastName);
             if (podcast != null)
             {
-                var dto = new Dtos.Podcast
+                var dto = new Podcast
                 {
                     Id = podcast.Id,
                     Removed = podcast.Removed,
