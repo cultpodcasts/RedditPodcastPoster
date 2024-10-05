@@ -11,11 +11,16 @@ using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
-public class DiscoveryCuration(
+public class TermSubmitRequest
+{
+    public string Term { get; set; }
+}
+
+public class DiscoveryCurationController(
     IDiscoveryResultsService discoveryResultsService,
     IUrlSubmitter urlSubmitter,
     ISearchIndexerService searchIndexerService,
-    ILogger<DiscoveryCuration> logger,
+    ILogger<DiscoveryCurationController> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
     : BaseHttpFunction(hostingOptions, baseLogger)

@@ -7,9 +7,9 @@ using RedditPodcastPoster.ContentPublisher;
 
 namespace Api;
 
-public class Publish(
+public class PublishController(
     IContentPublisher contentPublisher,
-    ILogger<SearchIndex> logger,
+    ILogger<PublishController> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
     : BaseHttpFunction(hostingOptions, baseLogger)

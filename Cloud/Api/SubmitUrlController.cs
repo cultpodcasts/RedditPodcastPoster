@@ -11,11 +11,11 @@ using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
 
-public class SubmitUrl(
+public class SubmitUrlController(
     IPodcastRepository repository,
     IUrlSubmitter urlSubmitter,
     ISearchIndexerService searchIndexerService,
-    ILogger<SubmitUrl> logger,
+    ILogger<SubmitUrlController> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
     : BaseHttpFunction(hostingOptions, baseLogger)

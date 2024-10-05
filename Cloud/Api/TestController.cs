@@ -6,8 +6,8 @@ using Microsoft.Extensions.Options;
 
 namespace Api;
 
-public class Test(
-    ILogger<Test> logger,
+public class TestController(
+    ILogger<TestController> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
     : BaseHttpFunction(hostingOptions, baseLogger)

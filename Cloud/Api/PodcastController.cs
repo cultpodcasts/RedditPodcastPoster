@@ -13,12 +13,12 @@ using RedditPodcastPoster.Search;
 
 namespace Api;
 
-public class Podcast(
+public class PodcastController(
     IIndexer indexer,
     ISearchIndexerService searchIndexerService,
     IPodcastRepository podcastRepository,
     SearchClient searchClient,
-    ILogger<Podcast> logger,
+    ILogger<PodcastController> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<IndexerOptions> indexerOptions,
     IOptions<HostingOptions> hostingOptions
