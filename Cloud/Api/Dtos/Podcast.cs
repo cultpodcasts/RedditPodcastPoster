@@ -21,9 +21,15 @@ public class Podcast
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public Service? ReleaseAuthority { get; set; }
 
+    [JsonPropertyName("unsetReleaseAuthority")]
+    public bool? UnsetReleaseAuthority { get; set; }
+
     [JsonPropertyName("primaryPostService")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public Service? PrimaryPostService { get; set; }
+
+    [JsonPropertyName("unsetPrimaryPostService")]
+    public bool? UnsetPrimaryPostService { get; set; }
 
     [JsonPropertyName("spotifyId")]
     public string? SpotifyId { get; set; }
