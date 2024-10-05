@@ -8,9 +8,9 @@ using RedditPodcastPoster.Search;
 
 namespace Api;
 
-public class SearchIndex(
+public class SearchIndexController(
     ISearchIndexerService searchIndexerService,
-    ILogger<SearchIndex> logger,
+    ILogger<SearchIndexController> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
     : BaseHttpFunction(hostingOptions, baseLogger)

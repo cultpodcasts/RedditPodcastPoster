@@ -21,14 +21,14 @@ using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
 
 namespace Api;
 
-public class Episode(
+public class EpisodeController(
     IPodcastRepository podcastRepository,
     SearchClient searchClient,
     IPodcastEpisodePoster podcastEpisodePoster,
     ITweetPoster tweetPoster,
     IContentPublisher contentPublisher,
     IPostManager postManager,
-    ILogger<Episode> logger,
+    ILogger<EpisodeController> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
     : BaseHttpFunction(hostingOptions, baseLogger)

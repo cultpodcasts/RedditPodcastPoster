@@ -63,7 +63,6 @@ public class Episode
 
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(100)]
-
     public ServiceUrls Urls { get; set; } = new();
 
     [JsonPropertyName("subjects")]
