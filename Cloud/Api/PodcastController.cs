@@ -300,7 +300,7 @@ public class PodcastController(
             var status = response.IndexStatus switch
             {
                 IndexStatus.NotFound => HttpStatusCode.NotFound,
-                IndexStatus.Performed => HttpStatusCode.Accepted,
+                IndexStatus.Performed => HttpStatusCode.OK,
                 _ => HttpStatusCode.BadRequest
             };
 
@@ -309,7 +309,7 @@ public class PodcastController(
                 logger.LogWarning($"{nameof(Index)}: Podcast with name '{podcastName}' not found.");
             }
 
-            return req.CreateResponse(status);
+            return await req.CreateResponse(status).WithJsonBody(new {episodeIds = response.UpdatedEpisodeIds}, c);
         }
         catch (Exception ex)
         {

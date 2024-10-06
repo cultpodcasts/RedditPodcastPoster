@@ -45,11 +45,16 @@ public class Indexer(
     {
         IndexStatus status;
         var podcast = await podcastRepository.GetPodcast(podcastId);
+        Guid[]? updatedEpisodeIds = null;
         if (podcast != null && !podcast.IsRemoved() &&
             (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
         {
             logger.LogInformation($"Indexing podcast {podcast.Name}' with podcast-id '{podcastId}'.");
             var results = await podcastUpdater.Update(podcast, indexingContext);
+
+            updatedEpisodeIds = results.MergeResult.AddedEpisodes.Select(x => x.Id)
+                .Concat(results.EnrichmentResult.UpdatedEpisodes.Select(x => x.Episode.Id)).Distinct().ToArray();
+
             var resultsMessage = results.ToString();
             if (results.MergeResult.FailedEpisodes.Any() ||
                 (results.SpotifyBypassed && !indexingContext.SkipSpotifyUrlResolving) ||
@@ -98,6 +103,6 @@ public class Indexer(
             }
         }
 
-        return new IndexResponse(status);
+        return new IndexResponse(status, updatedEpisodeIds);
     }
 }
