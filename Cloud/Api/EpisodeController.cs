@@ -11,12 +11,14 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Twitter;
+using Podcast = RedditPodcastPoster.Models.Podcast;
 using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
 
 namespace Api;
@@ -219,7 +221,6 @@ public class EpisodeController(
         return (days, posted, tweeted);
     }
 
-
     private async Task<HttpResponseData> Post(
         HttpRequestData req,
         EpisodeChangeRequestWrapper episodeChangeRequestWrapper,
@@ -270,7 +271,7 @@ public class EpisodeController(
     }
 
     private async Task DeleteSearchEntry(EpisodeChangeRequestWrapper episodeChangeRequestWrapper,
-        RedditPodcastPoster.Models.Podcast podcast,
+        Podcast podcast,
         CancellationToken c)
     {
         try
@@ -298,7 +299,7 @@ public class EpisodeController(
         }
     }
 
-    private EpisodeChangeState UpdateEpisode(RedditPodcastPoster.Models.Episode episode,
+    private EpisodeChangeState UpdateEpisode(Episode episode,
         EpisodeChangeRequest episodeChangeRequest)
     {
         var changeState = new EpisodeChangeState();

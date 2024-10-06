@@ -2,7 +2,7 @@
 
 public enum IndexStatus
 {
-    Unset=0,
+    Unset = 0,
     NotFound,
     NotPerformed,
     Performed
