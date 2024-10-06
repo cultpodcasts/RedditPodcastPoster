@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using SpotifyAPI.Web;
 
@@ -132,10 +133,16 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
+        catch (JsonSerializationException ex)
+        {
+            logger.LogError(ex,
+                $"{nameof(GetShowEpisodes)} Failure deserializing response from Spotify-API for show '{showId}'.");
+            return null;
+        }
         catch (APIException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetShowEpisodes)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                $"{nameof(GetShowEpisodes)} Failure with Spotify-API for show '{showId}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
             if (!ex.Message.StartsWith("Non existing id:") &&
                 !ex.Message.Contains("Error converting value \"chapter\" to type"))
             {
