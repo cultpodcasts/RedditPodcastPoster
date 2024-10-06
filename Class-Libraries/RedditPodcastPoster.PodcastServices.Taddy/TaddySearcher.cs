@@ -67,7 +67,6 @@ public class TaddySearcher(
         }
     }
 
-
     private EpisodeResult ToEpisodeResult(PodcastEpisode episode)
     {
         var episodeResult = new EpisodeResult(
