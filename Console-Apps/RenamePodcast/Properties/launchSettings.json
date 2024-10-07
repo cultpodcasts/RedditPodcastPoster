@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "RenamePodcast": {
+      "commandName": "Project",
+      "commandLineArgs": "\"old10\" \"new10\""
+    }
+  }
+}
