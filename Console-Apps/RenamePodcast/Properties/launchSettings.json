@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "RenamePodcast": {
+      "commandName": "Project",
+      "commandLineArgs": "\"new-name\" \"The Computer Game Show-2\""
+    }
+  }
+}

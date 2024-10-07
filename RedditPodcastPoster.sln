@@ -172,7 +172,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Indexin
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FlairPublisher", "Console-Apps\FlairPublisher\FlairPublisher.csproj", "{1965E90F-2292-41AF-8447-431C1014FBB8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FixDatesFromApple", "Console-Apps\FixDatesFromApple\FixDatesFromApple.csproj", "{53BBEAF6-C46A-4F5B-A2CC-E5919AD1D1CB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FixDatesFromApple", "Console-Apps\FixDatesFromApple\FixDatesFromApple.csproj", "{53BBEAF6-C46A-4F5B-A2CC-E5919AD1D1CB}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.CloudflareRedirect", "Class-Libraries\RedditPodcastPoster.CloudflareRedirect\RedditPodcastPoster.CloudflareRedirect.csproj", "{B71BF453-9F9D-4C2E-A1B7-D54F08CA18E6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RenamePodcast", "Console-Apps\RenamePodcast\RenamePodcast.csproj", "{C361E775-F4D7-4990-BE17-DE284433F344}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -472,6 +476,14 @@ Global
 		{53BBEAF6-C46A-4F5B-A2CC-E5919AD1D1CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{53BBEAF6-C46A-4F5B-A2CC-E5919AD1D1CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{53BBEAF6-C46A-4F5B-A2CC-E5919AD1D1CB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B71BF453-9F9D-4C2E-A1B7-D54F08CA18E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B71BF453-9F9D-4C2E-A1B7-D54F08CA18E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B71BF453-9F9D-4C2E-A1B7-D54F08CA18E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B71BF453-9F9D-4C2E-A1B7-D54F08CA18E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C361E775-F4D7-4990-BE17-DE284433F344}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C361E775-F4D7-4990-BE17-DE284433F344}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C361E775-F4D7-4990-BE17-DE284433F344}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C361E775-F4D7-4990-BE17-DE284433F344}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -551,6 +563,8 @@ Global
 		{62563496-22D6-42EE-A11C-892A2C27BE1F} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{1965E90F-2292-41AF-8447-431C1014FBB8} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{53BBEAF6-C46A-4F5B-A2CC-E5919AD1D1CB} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
+		{B71BF453-9F9D-4C2E-A1B7-D54F08CA18E6} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{C361E775-F4D7-4990-BE17-DE284433F344} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

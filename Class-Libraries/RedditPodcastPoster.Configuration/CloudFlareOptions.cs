@@ -11,4 +11,5 @@ public class CloudFlareOptions
     public required string KVApiToken { get; set; }
     public required string KVShortnerNamespaceId { get; set; }
     public required string FlairsKey { get; set; }
+    public required string ListsApiToken { get; set; }
 }
