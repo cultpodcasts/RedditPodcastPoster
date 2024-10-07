@@ -38,7 +38,7 @@ public class RedirectService(
                     PreservePathSuffix = true,
                     PreserveQueryString = true,
                     SubpathMatching = true,
-                    StatusCode = (int) HttpStatusCode.Redirect,
+                    StatusCode = (int) HttpStatusCode.PermanentRedirect,
                     SourceUrl =
                         new Uri(_redirectOptions.PodcastBasePath, podcastRedirect.OldPodcastName).ToString()
                             .Substring(_redirectOptions.PodcastBasePath.Scheme.Length + 3),
