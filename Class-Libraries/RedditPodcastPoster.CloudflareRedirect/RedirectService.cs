@@ -100,20 +100,24 @@ public class RedirectService(
                 try
                 {
                     response = await httpResponse.Content.ReadFromJsonAsync<GetListItemsResponse>();
-                    var podcastRedirects = response.Results
+                    var podcastPathRedirects = response.Results
                         .Where(x =>
-                            x.Redirect.SourceUrl.ToLowerInvariant().StartsWith(_podcastBasePath.ToLowerInvariant()) &&
+                            x.Redirect.SourceUrl.ToLowerInvariant().StartsWith(_podcastBasePath.ToLowerInvariant()
+                                .Substring(_redirectOptions.PodcastBasePath.Scheme.Length + 3)) &&
                             x.Redirect.TargetUrl.ToLowerInvariant().StartsWith(_podcastBasePath.ToLowerInvariant())
-                        )
+                        );
+                    var models = podcastPathRedirects
                         .Select(x =>
                             new PodcastRedirect(
-                                x.Redirect.SourceUrl.Substring(_podcastBasePath.Length),
+                                x.Redirect.SourceUrl.Substring(_podcastBasePath
+                                    .Substring(_redirectOptions.PodcastBasePath.Scheme.Length + 3).Length),
                                 x.Redirect.TargetUrl.Substring(_podcastBasePath.Length)
-                            ))
+                            ));
+                    var filtered = models
                         .Where(x =>
                             !x.OldPodcastName.Contains("/") &&
                             !x.NewPodcastName.Contains("/"));
-                    redirects.AddRange(podcastRedirects);
+                    redirects.AddRange(filtered);
                 }
                 catch (Exception e) // Invalid JSON
                 {

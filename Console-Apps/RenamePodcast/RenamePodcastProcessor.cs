@@ -11,18 +11,24 @@ public class RenamePodcastProcessor(
 {
     public async Task Process(RenamePodcastRequest request)
     {
+        var podcasts = await podcastRepository.GetAllBy(x => x.Name == request.OldPodcastName).ToListAsync();
+        if (!podcasts.Any())
+        {
+            throw new InvalidOperationException($"Podcast not found with name '{request.OldPodcastName}'.");
+        }
+
         var result =
             await redirectService.CreatePodcastRedirect(
                 new PodcastRedirect(
                     request.OldPodcastName,
                     request.NewPodcastName));
-        //var podcasts = await podcastRepository.GetAllBy(x => x.Name == request.OldPodcastName).ToListAsync();
-        //if (!podcasts.Any())
-        //    throw new InvalidOperationException($"Podcast not found with name '{request.OldPodcastName}'.");
-        //foreach (var podcast in podcasts)
-        //{
-        //    podcast.Name = request.NewPodcastName;
-        //    await podcastRepository.Save(podcast);
-        //}
+        if (result)
+        {
+            foreach (var podcast in podcasts)
+            {
+                podcast.Name = request.NewPodcastName;
+                await podcastRepository.Save(podcast);
+            }
+        }
     }
 }
