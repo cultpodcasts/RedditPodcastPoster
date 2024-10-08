@@ -346,7 +346,8 @@ public class PodcastController(
             var podcasts = await podcastRepository.GetAllBy(x => x.Name == change.Name).ToListAsync(c);
             if (!podcasts.Any())
             {
-                throw new InvalidOperationException($"Podcast not found with name '{change.Name}'.");
+                logger.LogError($"Podcast not found with name '{change.Name}'.");
+                return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
             var result =
