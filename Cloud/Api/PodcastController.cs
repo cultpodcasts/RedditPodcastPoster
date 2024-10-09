@@ -26,19 +26,21 @@ public class PodcastController(
     IOptions<HostingOptions> hostingOptions
 ) : BaseHttpFunction(hostingOptions, baseLogger)
 {
+    private const int MaxPodcastToRename = 2;
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
+
 
     [Function("PodcastRename")]
     public Task<HttpResponseData> Rename(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "podcast/index/{podcastName}/name/{newName}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "podcast/name/{podcastName}")]
         HttpRequestData req,
         string podcastName,
-        string newName,
+        [FromBody] Dtos.PodcastRenameRequest newPodcastName,
         FunctionContext executionContext,
         CancellationToken ct
     )
     {
-        var podcastRenameRequest = new PodcastRenameRequest(podcastName, newName);
+        var podcastRenameRequest = new PodcastRenameRequest(podcastName, newPodcastName.NewPodcastName);
         return HandleRequest(req, ["admin"], podcastRenameRequest, Rename, Unauthorised, ct);
     }
 
@@ -341,13 +343,35 @@ public class PodcastController(
     {
         try
         {
+            if (change.NewName.Contains("/"))
+            {
+                logger.LogError($"New podcast-name contains invalid-character: '{change.NewName}'.");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+
             logger.LogInformation(
                 $"{nameof(Post)}: Podcast Name-Change Request: podcast-name: '{change.Name}'. new-name: '{change.NewName}'.");
-            var podcasts = await podcastRepository.GetAllBy(x => x.Name == change.Name).ToListAsync(c);
-            if (!podcasts.Any())
+            var podcasts = await podcastRepository.GetAllBy(x =>
+                    x.Name.ToLower() == change.Name.ToLower() || x.Name.ToLower() == change.NewName.ToLower())
+                .ToListAsync(c);
+            if (podcasts.Any(x => x.Name.ToLower() == change.NewName.ToLower()))
+            {
+                logger.LogError($"Podcast found with new-name '{change.Name}'.");
+                return req.CreateResponse(HttpStatusCode.Conflict);
+            }
+
+            if (podcasts.All(x => x.Name != change.Name))
             {
                 logger.LogError($"Podcast not found with name '{change.Name}'.");
                 return req.CreateResponse(HttpStatusCode.NotFound);
+            }
+
+            var podcastsToUpdate = podcasts.Where(x => x.Name == change.Name);
+            if (podcastsToUpdate.Count() > MaxPodcastToRename)
+            {
+                logger.LogError(
+                    $"Operation to rename podcasts with name '{change.Name}' to '{change.NewName}' impacts {podcastsToUpdate.Count()} podcasts. Operation rejected.");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
             }
 
             var result =
@@ -357,14 +381,18 @@ public class PodcastController(
                         change.NewName));
             if (result)
             {
-                foreach (var podcast in podcasts)
+                foreach (var podcast in podcastsToUpdate)
                 {
-                    podcast.Name = change.Name;
+                    podcast.Name = change.NewName;
                     await podcastRepository.Save(podcast);
                 }
+
+                var indexState = await searchIndexerService.RunIndexer();
+                return await req.CreateResponse(HttpStatusCode.OK)
+                    .WithJsonBody(new {indexState = indexState.ToString()}, c);
             }
 
-            return req.CreateResponse(HttpStatusCode.OK);
+            return req.CreateResponse(HttpStatusCode.BadRequest);
         }
         catch (Exception ex)
         {
