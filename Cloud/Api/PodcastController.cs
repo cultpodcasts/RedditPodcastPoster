@@ -6,6 +6,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.CloudflareRedirect;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Indexing;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -18,13 +19,30 @@ public class PodcastController(
     ISearchIndexerService searchIndexerService,
     IPodcastRepository podcastRepository,
     SearchClient searchClient,
+    IRedirectService redirectService,
     ILogger<PodcastController> logger,
     ILogger<BaseHttpFunction> baseLogger,
     IOptions<IndexerOptions> indexerOptions,
     IOptions<HostingOptions> hostingOptions
 ) : BaseHttpFunction(hostingOptions, baseLogger)
 {
+    private const int MaxPodcastToRename = 2;
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
+
+
+    [Function("PodcastRename")]
+    public Task<HttpResponseData> Rename(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "podcast/name/{podcastName}")]
+        HttpRequestData req,
+        string podcastName,
+        [FromBody] Dtos.PodcastRenameRequest newPodcastName,
+        FunctionContext executionContext,
+        CancellationToken ct
+    )
+    {
+        var podcastRenameRequest = new PodcastRenameRequest(podcastName, newPodcastName.NewPodcastName);
+        return HandleRequest(req, ["admin"], podcastRenameRequest, Rename, Unauthorised, ct);
+    }
 
     [Function("PodcastIndex")]
     public Task<HttpResponseData> Index(
@@ -318,6 +336,71 @@ public class PodcastController(
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
             .WithJsonBody(SubmitUrlResponse.Failure("Unable to index podcast"), c);
+        return failure;
+    }
+
+    private async Task<HttpResponseData> Rename(HttpRequestData req, PodcastRenameRequest change, CancellationToken c)
+    {
+        try
+        {
+            if (change.NewName.Contains("/"))
+            {
+                logger.LogError($"New podcast-name contains invalid-character: '{change.NewName}'.");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+
+            logger.LogInformation(
+                $"{nameof(Post)}: Podcast Name-Change Request: podcast-name: '{change.Name}'. new-name: '{change.NewName}'.");
+            var podcasts = await podcastRepository.GetAllBy(x =>
+                    x.Name.ToLower() == change.Name.ToLower() || x.Name.ToLower() == change.NewName.ToLower())
+                .ToListAsync(c);
+            if (podcasts.Any(x => x.Name.ToLower() == change.NewName.ToLower()))
+            {
+                logger.LogError($"Podcast found with new-name '{change.Name}'.");
+                return req.CreateResponse(HttpStatusCode.Conflict);
+            }
+
+            if (podcasts.All(x => x.Name != change.Name))
+            {
+                logger.LogError($"Podcast not found with name '{change.Name}'.");
+                return req.CreateResponse(HttpStatusCode.NotFound);
+            }
+
+            var podcastsToUpdate = podcasts.Where(x => x.Name == change.Name);
+            if (podcastsToUpdate.Count() > MaxPodcastToRename)
+            {
+                logger.LogError(
+                    $"Operation to rename podcasts with name '{change.Name}' to '{change.NewName}' impacts {podcastsToUpdate.Count()} podcasts. Operation rejected.");
+                return req.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+
+            var result =
+                await redirectService.CreatePodcastRedirect(
+                    new PodcastRedirect(
+                        change.Name,
+                        change.NewName));
+            if (result)
+            {
+                foreach (var podcast in podcastsToUpdate)
+                {
+                    podcast.Name = change.NewName;
+                    await podcastRepository.Save(podcast);
+                }
+
+                var indexState = await searchIndexerService.RunIndexer();
+                return await req.CreateResponse(HttpStatusCode.OK)
+                    .WithJsonBody(new {indexState = indexState.ToString()}, c);
+            }
+
+            return req.CreateResponse(HttpStatusCode.BadRequest);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"{nameof(Post)}: Failed to rename podcast.");
+        }
+
+        var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
+            .WithJsonBody(SubmitUrlResponse.Failure("Unable to rename podcast"), c);
         return failure;
     }
 }

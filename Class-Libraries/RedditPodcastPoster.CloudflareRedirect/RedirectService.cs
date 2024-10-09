@@ -21,7 +21,6 @@ public class RedirectService(
     private readonly string _podcastBasePath = redirectOptions.Value.PodcastBasePath.ToString();
     private readonly RedirectOptions _redirectOptions = redirectOptions.Value;
 
-
     public async Task<bool> CreatePodcastRedirect(PodcastRedirect podcastRedirect)
     {
         if (await IsSafe(podcastRedirect))
@@ -32,7 +31,7 @@ public class RedirectService(
                 new AuthenticationHeaderValue("Bearer", _cloudFlareOptions.ListsApiToken);
             var getListItemsResult = new GetListItemsResult
             {
-                Comment = "commentx",
+                Comment = $"Redirect '{podcastRedirect.OldPodcastName}' -> '{podcastRedirect.NewPodcastName}'.",
                 Redirect = new GetListItemsResultRedirect
                 {
                     PreservePathSuffix = true,
@@ -57,10 +56,14 @@ public class RedirectService(
                 return true;
             }
 
-            var json = await requestMessage.Content.ReadAsStringAsync();
             var responseContent = await httpResponse.Content.ReadAsStringAsync();
+            logger.LogError($"Unable to create podcast-redirect. Response: {responseContent}");
         }
-
+        else
+        {
+            logger.LogError(
+                $"Unable to create podcast-redirect. Redirect considered unsafe. '{podcastRedirect.OldPodcastName}' -> '{podcastRedirect.NewPodcastName}'.");
+        }
         return false;
     }
 

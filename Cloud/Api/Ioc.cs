@@ -3,6 +3,7 @@ using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.CloudflareRedirect.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
@@ -56,6 +57,7 @@ public static class Ioc
             .AddTwitterServices(hostBuilderContext.Configuration)
             .AddRedditServices(hostBuilderContext.Configuration)
             .AddShortnerServices(hostBuilderContext.Configuration)
+            .AddRedirectServices(hostBuilderContext.Configuration)
             .AddHttpClient();
 
         AdminRedditClientFactory.AddAdminRedditClient(serviceCollection);
