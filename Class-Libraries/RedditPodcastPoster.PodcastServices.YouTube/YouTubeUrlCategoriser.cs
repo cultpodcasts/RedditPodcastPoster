@@ -128,15 +128,17 @@ public class YouTubeUrlCategoriser(
     {
         if (!string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId))
         {
-            if (matchingPodcast.Episodes.Any(x =>
-                    (string.IsNullOrWhiteSpace(x.YouTubeId) && x.Urls.YouTube != null) ||
-                    (x.Urls.YouTube == null && !string.IsNullOrWhiteSpace(x.YouTubeId)) ||
-                    (!string.IsNullOrWhiteSpace(x.YouTubeId) && x.Urls.YouTube != null &&
-                     YouTubeIdResolver.Extract(x.Urls.YouTube) != x.YouTubeId)
-                ))
+            var mismatchedEpisodes = matchingPodcast.Episodes.Where(x =>
+                (!x.Removed &&
+                 string.IsNullOrWhiteSpace(x.YouTubeId) && x.Urls.YouTube != null) ||
+                (x.Urls.YouTube == null && !string.IsNullOrWhiteSpace(x.YouTubeId)) ||
+                (!string.IsNullOrWhiteSpace(x.YouTubeId) && x.Urls.YouTube != null &&
+                 YouTubeIdResolver.Extract(x.Urls.YouTube) != x.YouTubeId)
+            );
+            if (mismatchedEpisodes.Any())
             {
                 throw new InvalidOperationException(
-                    $"Podcast with id '{matchingPodcast.Id}' has episodes with inconsistent youtube-id && youtube-url.");
+                    $"Podcast with id '{matchingPodcast.Id}' has episodes with inconsistent youtube-id && youtube-url. Episode-ids: {string.Join(", ", mismatchedEpisodes.Select(x => x.Id))}");
             }
 
             var channelUploads =
