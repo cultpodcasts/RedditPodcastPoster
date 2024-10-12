@@ -2,4 +2,10 @@
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 
-public record PodcastEpisodesResult(IEnumerable<SimpleEpisode> Episodes, bool ExpensiveQueryFound = false);
+public class PodcastEpisodesResult(
+    IEnumerable<SimpleEpisode> episodes,
+    bool expensiveQueryFound = false)
+{
+    public IEnumerable<SimpleEpisode> Episodes => episodes.Where(x => x.Type == ItemType.Episode);
+    public bool ExpensiveQueryFound { get; } = expensiveQueryFound;
+}
