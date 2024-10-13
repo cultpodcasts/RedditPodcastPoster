@@ -19,7 +19,8 @@ public class SpotifyPodcastEpisodesProvider(
         _cache.Clear();
     }
 
-    public async Task<PodcastEpisodesResult> GetAllEpisodes(FindSpotifyEpisodeRequest request,
+    public async Task<PodcastEpisodesResult> GetAllEpisodes(
+        FindSpotifyEpisodeRequest request,
         IndexingContext indexingContext, string market)
     {
         var expensiveQueryFound = false;

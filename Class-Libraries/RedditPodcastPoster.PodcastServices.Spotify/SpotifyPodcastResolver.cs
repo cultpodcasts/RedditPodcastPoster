@@ -8,7 +8,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify;
 public class SpotifyPodcastResolver(
     ISpotifyClientWrapper spotifyClientWrapper,
     ISearchResultFinder searchResultFinder,
-    ISpotifyQueryPaginator spotifyQueryPaginator,
+    ISpotifyPodcastEpisodesProvider spotifyPodcastEpisodesProvider,
     ILogger<SpotifyPodcastResolver> logger)
     : ISpotifyPodcastResolver
 {
@@ -49,33 +49,29 @@ public class SpotifyPodcastResolver(
                             showEpisodesRequest.Limit = 1;
                         }
 
-                        var pagedEpisodes =
-                            await spotifyClientWrapper.GetShowEpisodes(candidatePodcast.Id, showEpisodesRequest,
-                                indexingContext);
-                        if (pagedEpisodes != null)
-                        {
-                            var paginateEpisodesResponse =
-                                await spotifyQueryPaginator.PaginateEpisodes(pagedEpisodes, indexingContext);
-                            if (paginateEpisodesResponse.ExpensiveQueryFound)
-                            {
-                                expensiveSpotifyEpisodesQueryFound = true;
-                            }
+                        var podcastEpisodes = await spotifyPodcastEpisodesProvider.GetEpisodes(
+                            new GetEpisodesRequest(new SpotifyPodcastId(candidatePodcast.Id),
+                                showEpisodesRequest.Market), indexingContext);
 
-                            if (paginateEpisodesResponse.Episodes.Any())
+                        if (podcastEpisodes.ExpensiveQueryFound)
+                        {
+                            expensiveSpotifyEpisodesQueryFound = true;
+                        }
+
+                        if (podcastEpisodes.Episodes.Any())
+                        {
+                            var mostRecentEpisode = request.Episodes.OrderByDescending(x => x.Release).First();
+                            var matchingEpisode =
+                                searchResultFinder.FindMatchingEpisodeByDate(
+                                    mostRecentEpisode.Title.Trim(),
+                                    mostRecentEpisode.Release,
+                                    podcastEpisodes.Episodes);
+                            if (request.Episodes
+                                .Select(x => x.Url?.ToString())
+                                .Contains(matchingEpisode!.ExternalUrls.FirstOrDefault().Value))
                             {
-                                var mostRecentEpisode = request.Episodes.OrderByDescending(x => x.Release).First();
-                                var matchingEpisode =
-                                    searchResultFinder.FindMatchingEpisodeByDate(
-                                        mostRecentEpisode.Title.Trim(),
-                                        mostRecentEpisode.Release,
-                                        paginateEpisodesResponse.Episodes);
-                                if (request.Episodes
-                                    .Select(x => x.Url?.ToString())
-                                    .Contains(matchingEpisode!.ExternalUrls.FirstOrDefault().Value))
-                                {
-                                    matchingSimpleShow = candidatePodcast;
-                                    break;
-                                }
+                                matchingSimpleShow = candidatePodcast;
+                                break;
                             }
                         }
                     }
