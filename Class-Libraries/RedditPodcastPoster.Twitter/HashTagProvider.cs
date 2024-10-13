@@ -31,7 +31,8 @@ public class HashTagProvider(
                 .Select(x => new HashTag(x, (string?)
                     $"#{x
                         .Replace(" ", string.Empty)
-                        .Replace("'", string.Empty)}"));
+                        .Replace("'", string.Empty)
+                        .Replace("-", string.Empty)}"));
         return enrichmentHashTags.Union(hashTags).ToList();
     }
 }
