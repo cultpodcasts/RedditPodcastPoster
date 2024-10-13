@@ -10,11 +10,11 @@
 
   <ItemGroup>
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
-    <PackageReference Include="HtmlAgilityPack" Version="1.11.65" />
-    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="8.0.8" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.67" />
+    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="8.0.10" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>
