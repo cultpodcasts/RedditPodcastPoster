@@ -12,13 +12,14 @@ public partial class TextSanitiser(
     ILogger<TextSanitiser> logger)
     : ITextSanitiser
 {
+    private static readonly Regex OApostrophe = CreateOApostrophe();
     private static readonly Regex HashtagOrAtSymbols = GenerateHashTagAtSymbolPatter();
     private static readonly Regex InQuotes = GenerateInQuotes();
     private static readonly Regex InvalidTitlePrefix = GenerateInvalidTitlePrefix();
     private static readonly Regex MultipleSpaces = GenerateMultipleSpaces();
+    private static readonly Regex PostAsteriskLetters = GeneratePostAsteriskLetters();
 
     private static readonly TextInfo TextInfo = new CultureInfo("en-GB", false).TextInfo;
-    private static readonly Regex PostAsteriskLetters = GeneratePostAsteriskLetters();
     private readonly ILogger<TextSanitiser> _logger = logger;
 
     public string SanitiseTitle(PostModel postModel)
@@ -53,6 +54,7 @@ public partial class TextSanitiser(
 
         episodeTitle = HashtagOrAtSymbols.Replace(episodeTitle, "$1");
         episodeTitle = TextInfo.ToTitleCase(episodeTitle.ToLower());
+        episodeTitle = RaiseOfApostropheLetter(episodeTitle);
         episodeTitle = LowerPostAsteriskLetters(episodeTitle);
         foreach (var term in LowerCaseTerms.Expressions)
         {
@@ -87,6 +89,22 @@ public partial class TextSanitiser(
 
         description = FixCharacters(description);
         return description;
+    }
+
+    public string RaiseOfApostropheLetter(string text)
+    {
+        var matches = OApostrophe.Matches(text);
+        foreach (Match match in matches)
+        {
+            var index = match.Index;
+            var length = match.Length;
+            var pre = match.Groups["pre"].Value;
+            var post = match.Groups["post"].Value;
+            text = text.Substring(0, index) + pre + "'" + TextInfo.ToTitleCase(post.ToLower()) +
+                   text.Substring(index + length);
+        }
+
+        return text;
     }
 
     private string LowerPostAsteriskLetters(string text)
@@ -185,4 +203,7 @@ public partial class TextSanitiser(
 
     [GeneratedRegex(@"\s+", RegexOptions.Compiled)]
     private static partial Regex GenerateMultipleSpaces();
+
+    [GeneratedRegex("\\b(?'pre'O)'\\b(?'post'\\w+)\\b", RegexOptions.Compiled)]
+    private static partial Regex CreateOApostrophe();
 }
