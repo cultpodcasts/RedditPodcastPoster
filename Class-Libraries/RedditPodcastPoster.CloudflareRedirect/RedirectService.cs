@@ -29,6 +29,7 @@ public class RedirectService(
             using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
             requestMessage.Headers.Authorization =
                 new AuthenticationHeaderValue("Bearer", _cloudFlareOptions.ListsApiToken);
+            var target = new Uri(_redirectOptions.PodcastBasePath, podcastRedirect.NewPodcastName.Replace("?", "%3F"));
             var getListItemsResult = new GetListItemsResult
             {
                 Comment = $"Redirect '{podcastRedirect.OldPodcastName}' -> '{podcastRedirect.NewPodcastName}'.",
@@ -41,7 +42,7 @@ public class RedirectService(
                     SourceUrl =
                         new Uri(_redirectOptions.PodcastBasePath, podcastRedirect.OldPodcastName).ToString()
                             .Substring(_redirectOptions.PodcastBasePath.Scheme.Length + 3),
-                    TargetUrl = new Uri(_redirectOptions.PodcastBasePath, podcastRedirect.NewPodcastName).ToString()
+                    TargetUrl = target.ToString()
                 }
             };
             var redirect =
