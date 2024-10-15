@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "AddSubjectToSearchMatches": {
+      "commandName": "Project",
+      "commandLineArgs": "\"Purity Culture\""
+    }
+  }
+}

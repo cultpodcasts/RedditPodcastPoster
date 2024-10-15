@@ -18,9 +18,7 @@ public partial class TextSanitiser(
     private static readonly Regex InvalidTitlePrefix = GenerateInvalidTitlePrefix();
     private static readonly Regex MultipleSpaces = GenerateMultipleSpaces();
     private static readonly Regex PostAsteriskLetters = GeneratePostAsteriskLetters();
-
     private static readonly TextInfo TextInfo = new CultureInfo("en-GB", false).TextInfo;
-    private readonly ILogger<TextSanitiser> _logger = logger;
 
     public string SanitiseTitle(PostModel postModel)
     {

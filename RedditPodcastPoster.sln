@@ -180,7 +180,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RenamePodcast", "Console-Ap
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ThrowawayConsole", "Console-Apps\ThrowawayConsole\ThrowawayConsole.csproj", "{8FE1250B-EE6A-4C91-9087-D09EBD4E22B2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.Twitter.Tests", "Class-Libraries\RedditPodcastPoster.Twitter.Tests\RedditPodcastPoster.Twitter.Tests.csproj", "{5B90D51E-13F6-428D-ADB9-59EA47FF2584}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Twitter.Tests", "Class-Libraries\RedditPodcastPoster.Twitter.Tests\RedditPodcastPoster.Twitter.Tests.csproj", "{5B90D51E-13F6-428D-ADB9-59EA47FF2584}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AddSubjectToSearchMatches", "Console-Apps\AddSubjectToSearchMatches\AddSubjectToSearchMatches.csproj", "{1AC5F032-283B-4475-B6D4-3917710C76A7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -496,6 +498,10 @@ Global
 		{5B90D51E-13F6-428D-ADB9-59EA47FF2584}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5B90D51E-13F6-428D-ADB9-59EA47FF2584}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5B90D51E-13F6-428D-ADB9-59EA47FF2584}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1AC5F032-283B-4475-B6D4-3917710C76A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1AC5F032-283B-4475-B6D4-3917710C76A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1AC5F032-283B-4475-B6D4-3917710C76A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1AC5F032-283B-4475-B6D4-3917710C76A7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -579,6 +585,7 @@ Global
 		{C361E775-F4D7-4990-BE17-DE284433F344} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{8FE1250B-EE6A-4C91-9087-D09EBD4E22B2} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{5B90D51E-13F6-428D-ADB9-59EA47FF2584} = {C870AC3C-8261-4807-AC30-DBEC8C89DCB7}
+		{1AC5F032-283B-4475-B6D4-3917710C76A7} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}
