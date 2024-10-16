@@ -6,7 +6,8 @@ public class IndexingStrategy(IDateTimeService dateTimeService) : IIndexingStrat
 {
     public bool ResolveYouTube()
     {
-        return dateTimeService.GetHour() % 2 == 0;
+        // was  % 2
+        return dateTimeService.GetHour() % 6 == 0;
     }
 
     public bool ExpensiveYouTubeQueries()
