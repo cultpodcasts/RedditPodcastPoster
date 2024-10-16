@@ -247,7 +247,7 @@ public class PodcastController(
         {
             logger.LogInformation($"{nameof(Get)}: Get podcast with name '{podcastName}'.");
             podcastName = WebUtility.UrlDecode(podcastName);
-            var podcast = await podcastRepository.GetBy(x => x.Name == podcastName);
+            var podcast = await GetPodcast(podcastName, c);
             if (podcast != null)
             {
                 var dto = new Podcast
@@ -285,6 +285,22 @@ public class PodcastController(
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
             .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve podcast"), c);
         return failure;
+    }
+
+    private async Task<RedditPodcastPoster.Models.Podcast?> GetPodcast(string podcastName, CancellationToken c)
+    {
+        var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastName).ToListAsync(c);
+        RedditPodcastPoster.Models.Podcast? podcast = null;
+        if (podcasts.Count() == 1)
+        {
+            podcast = podcasts.Single();
+        }
+        else if (podcasts.Count() > 1)
+        {
+            podcast = podcasts.SingleOrDefault(x => x.IndexAllEpisodes);
+        }
+
+        return podcast;
     }
 
     private async Task<HttpResponseData> Index(HttpRequestData req, string podcastName, CancellationToken c)
