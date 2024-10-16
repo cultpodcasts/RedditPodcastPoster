@@ -132,6 +132,16 @@ public class EpisodeController(
 
             if (response.Updated())
             {
+                if (episode.Ignored)
+                {
+                    episode.Ignored = false;
+                }
+
+                if (episode.Removed)
+                {
+                    episode.Removed = false;
+                }
+
                 await podcastRepository.Save(podcast);
             }
 
@@ -245,10 +255,8 @@ public class EpisodeController(
             var changeState = UpdateEpisode(episode, episodeChangeRequestWrapper.EpisodeChangeRequest);
             await podcastRepository.Update(podcast);
 
-            if ((episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
-                 episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value) ||
-                (episodeChangeRequestWrapper.EpisodeChangeRequest.Ignored.HasValue &&
-                 episodeChangeRequestWrapper.EpisodeChangeRequest.Ignored.Value))
+            if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
+                episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
             {
                 await DeleteSearchEntry(episodeChangeRequestWrapper, podcast, c);
             }
