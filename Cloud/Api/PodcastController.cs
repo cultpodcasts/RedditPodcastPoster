@@ -247,8 +247,7 @@ public class PodcastController(
         {
             logger.LogInformation($"{nameof(Get)}: Get podcast with name '{podcastName}'.");
             podcastName = WebUtility.UrlDecode(podcastName);
-            var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastName).ToListAsync(c);
-            var podcast = GetPodcast(podcasts);
+            var podcast = await GetPodcast(podcastName, c);
             if (podcast != null)
             {
                 var dto = new Podcast
@@ -288,8 +287,9 @@ public class PodcastController(
         return failure;
     }
 
-    private static RedditPodcastPoster.Models.Podcast? GetPodcast(List<RedditPodcastPoster.Models.Podcast> podcasts)
+    private async Task<RedditPodcastPoster.Models.Podcast?> GetPodcast(string podcastName, CancellationToken c)
     {
+        var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastName).ToListAsync(c);
         RedditPodcastPoster.Models.Podcast? podcast = null;
         if (podcasts.Count() == 1)
         {
