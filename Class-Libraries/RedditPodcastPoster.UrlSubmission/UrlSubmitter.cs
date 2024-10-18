@@ -279,7 +279,7 @@ public class UrlSubmitter(
         logger.LogInformation(
             $"Modifying podcast with name '{categorisedItem.MatchingPodcast!.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
 
-        var podcastResult = ApplyResolvedPodcastServiceProperties(
+        var (podcastResult, appliedEpisodeResult) = ApplyResolvedPodcastServiceProperties(
             categorisedItem.MatchingPodcast,
             categorisedItem, matchingEpisode);
 
@@ -301,7 +301,7 @@ public class UrlSubmitter(
         }
         else
         {
-            episodeResult = SubmitResultState.Enriched;
+            episodeResult = appliedEpisodeResult;
             episodeId = matchingEpisode.Id;
         }
 
@@ -428,12 +428,13 @@ public class UrlSubmitter(
         return newEpisode;
     }
 
-    private SubmitResultState ApplyResolvedPodcastServiceProperties(
+    private (SubmitResultState PodcastResult, SubmitResultState EpisodeResult) ApplyResolvedPodcastServiceProperties(
         Podcast matchingPodcast,
         CategorisedItem categorisedItem,
         Episode? matchingEpisode)
     {
-        var result = SubmitResultState.None;
+        var podcastResult = SubmitResultState.None;
+        var episodeResult = SubmitResultState.None;
         if (matchingEpisode != null)
         {
             logger.LogInformation(
@@ -445,7 +446,7 @@ public class UrlSubmitter(
             if (!matchingPodcast.AppleId.HasValue)
             {
                 matchingPodcast.AppleId = categorisedItem.ResolvedAppleItem.ShowId;
-                result = SubmitResultState.Enriched;
+                podcastResult = SubmitResultState.Enriched;
                 logger.LogInformation(
                     $"Enriched podcast '{matchingPodcast.Id}' with apple details with apple-id {categorisedItem.ResolvedAppleItem.ShowId}.");
             }
@@ -456,6 +457,7 @@ public class UrlSubmitter(
                     matchingEpisode.AppleId != categorisedItem.ResolvedAppleItem.EpisodeId)
                 {
                     matchingEpisode.AppleId = categorisedItem.ResolvedAppleItem.EpisodeId;
+                    episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
                         $"Enriched episode '{matchingEpisode.Id}' with apple details with apple-id {categorisedItem.ResolvedAppleItem.EpisodeId}.");
                 }
@@ -464,6 +466,7 @@ public class UrlSubmitter(
                     matchingEpisode.Urls.Apple != categorisedItem.ResolvedAppleItem.Url)
                 {
                     matchingEpisode.Urls.Apple = categorisedItem.ResolvedAppleItem.Url;
+                    episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
                         $"Enriched episode '{matchingEpisode.Id}' with apple details with apple-url {categorisedItem.ResolvedAppleItem.Url}.");
                 }
@@ -472,12 +475,14 @@ public class UrlSubmitter(
                     categorisedItem.ResolvedAppleItem.Release.TimeOfDay != TimeSpan.Zero)
                 {
                     matchingEpisode.Release = categorisedItem.ResolvedAppleItem.Release;
+                    episodeResult = SubmitResultState.Enriched;
                 }
 
                 if (matchingEpisode.Description.EndsWith("...") &&
                     categorisedItem.ResolvedAppleItem.EpisodeDescription.Length > matchingEpisode.Description.Length)
                 {
                     matchingEpisode.Description = categorisedItem.ResolvedAppleItem.EpisodeDescription.Trim();
+                    episodeResult = SubmitResultState.Enriched;
                 }
             }
         }
@@ -487,7 +492,7 @@ public class UrlSubmitter(
             if (string.IsNullOrWhiteSpace(matchingPodcast.SpotifyId))
             {
                 matchingPodcast.SpotifyId = categorisedItem.ResolvedSpotifyItem.ShowId;
-                result = SubmitResultState.Enriched;
+                podcastResult = SubmitResultState.Enriched;
                 logger.LogInformation(
                     $"Enriched podcast '{matchingPodcast.Id}' with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.ShowId}.");
             }
@@ -498,6 +503,7 @@ public class UrlSubmitter(
                     matchingEpisode.SpotifyId != categorisedItem.ResolvedSpotifyItem.EpisodeId)
                 {
                     matchingEpisode.SpotifyId = categorisedItem.ResolvedSpotifyItem.EpisodeId;
+                    episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
                         $"Enriched episode '{matchingEpisode.Id}' with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.EpisodeId}.");
                 }
@@ -506,6 +512,7 @@ public class UrlSubmitter(
                     matchingEpisode.Urls.Spotify != categorisedItem.ResolvedSpotifyItem.Url)
                 {
                     matchingEpisode.Urls.Spotify = categorisedItem.ResolvedSpotifyItem.Url;
+                    episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
                         $"Enriched episode '{matchingEpisode.Id}' with spotify details with spotify-url {categorisedItem.ResolvedSpotifyItem.Url}.");
                 }
@@ -514,6 +521,7 @@ public class UrlSubmitter(
                     categorisedItem.ResolvedSpotifyItem.EpisodeDescription.Length > matchingEpisode.Description.Length)
                 {
                     matchingEpisode.Description = categorisedItem.ResolvedSpotifyItem.EpisodeDescription.Trim();
+                    episodeResult = SubmitResultState.Enriched;
                 }
             }
         }
@@ -524,7 +532,7 @@ public class UrlSubmitter(
             {
                 matchingPodcast.YouTubeChannelId = categorisedItem.ResolvedYouTubeItem.ShowId;
                 matchingPodcast.YouTubePublicationOffset = DefaultMatchingPodcastYouTubePublishingDelay.Ticks;
-                result = SubmitResultState.Enriched;
+                podcastResult = SubmitResultState.Enriched;
                 logger.LogInformation(
                     $"Enriched podcast '{matchingPodcast.Id}' with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.ShowId}.");
             }
@@ -535,6 +543,7 @@ public class UrlSubmitter(
                     matchingEpisode.YouTubeId != categorisedItem.ResolvedYouTubeItem.EpisodeId)
                 {
                     matchingEpisode.YouTubeId = categorisedItem.ResolvedYouTubeItem.EpisodeId;
+                    episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
                         $"Enriched episode '{matchingEpisode.Id}' with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.EpisodeId}.");
                 }
@@ -543,6 +552,7 @@ public class UrlSubmitter(
                     matchingEpisode.Urls.YouTube != categorisedItem.ResolvedYouTubeItem.Url)
                 {
                     matchingEpisode.Urls.YouTube = categorisedItem.ResolvedYouTubeItem.Url;
+                    episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
                         $"Enriched episode '{matchingEpisode.Id}' with youtube details with youtube-url {categorisedItem.ResolvedYouTubeItem.Url}.");
                 }
@@ -551,17 +561,19 @@ public class UrlSubmitter(
                     categorisedItem.ResolvedYouTubeItem.Release.TimeOfDay != TimeSpan.Zero)
                 {
                     matchingEpisode.Release = categorisedItem.ResolvedYouTubeItem.Release;
+                    episodeResult = SubmitResultState.Enriched;
                 }
 
                 if (matchingEpisode.Description.Trim().EndsWith("...") &&
                     categorisedItem.ResolvedYouTubeItem.EpisodeDescription.Length > matchingEpisode.Description.Length)
                 {
                     matchingEpisode.Description = categorisedItem.ResolvedYouTubeItem.EpisodeDescription.Trim();
+                    episodeResult = SubmitResultState.Enriched;
                 }
             }
         }
 
-        return result;
+        return (podcastResult, episodeResult);
     }
 
     private bool IsMatchingEpisode(Episode episode, CategorisedItem categorisedItem)
