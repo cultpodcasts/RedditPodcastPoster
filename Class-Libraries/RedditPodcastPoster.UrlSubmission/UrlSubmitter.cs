@@ -258,7 +258,6 @@ public class UrlSubmitter(
         CategorisedItem categorisedItem)
     {
         SubmitResultState episodeResult;
-        var podcastResult = SubmitResultState.Enriched;
         var matchingEpisodes = categorisedItem.MatchingEpisode != null
             ? [categorisedItem.MatchingEpisode]
             : categorisedItem.MatchingPodcast!.Episodes.Where(episode =>
@@ -280,7 +279,7 @@ public class UrlSubmitter(
         logger.LogInformation(
             $"Modifying podcast with name '{categorisedItem.MatchingPodcast!.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
 
-        ApplyResolvedPodcastServiceProperties(
+        var podcastResult = ApplyResolvedPodcastServiceProperties(
             categorisedItem.MatchingPodcast,
             categorisedItem, matchingEpisode);
 
@@ -429,11 +428,12 @@ public class UrlSubmitter(
         return newEpisode;
     }
 
-    private void ApplyResolvedPodcastServiceProperties(
+    private SubmitResultState ApplyResolvedPodcastServiceProperties(
         Podcast matchingPodcast,
         CategorisedItem categorisedItem,
         Episode? matchingEpisode)
     {
+        var result = SubmitResultState.None;
         if (matchingEpisode != null)
         {
             logger.LogInformation(
@@ -445,6 +445,7 @@ public class UrlSubmitter(
             if (!matchingPodcast.AppleId.HasValue)
             {
                 matchingPodcast.AppleId = categorisedItem.ResolvedAppleItem.ShowId;
+                result = SubmitResultState.Enriched;
                 logger.LogInformation(
                     $"Enriched podcast '{matchingPodcast.Id}' with apple details with apple-id {categorisedItem.ResolvedAppleItem.ShowId}.");
             }
@@ -486,6 +487,7 @@ public class UrlSubmitter(
             if (string.IsNullOrWhiteSpace(matchingPodcast.SpotifyId))
             {
                 matchingPodcast.SpotifyId = categorisedItem.ResolvedSpotifyItem.ShowId;
+                result = SubmitResultState.Enriched;
                 logger.LogInformation(
                     $"Enriched podcast '{matchingPodcast.Id}' with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.ShowId}.");
             }
@@ -522,6 +524,7 @@ public class UrlSubmitter(
             {
                 matchingPodcast.YouTubeChannelId = categorisedItem.ResolvedYouTubeItem.ShowId;
                 matchingPodcast.YouTubePublicationOffset = DefaultMatchingPodcastYouTubePublishingDelay.Ticks;
+                result = SubmitResultState.Enriched;
                 logger.LogInformation(
                     $"Enriched podcast '{matchingPodcast.Id}' with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.ShowId}.");
             }
@@ -557,6 +560,8 @@ public class UrlSubmitter(
                 }
             }
         }
+
+        return result;
     }
 
     private bool IsMatchingEpisode(Episode episode, CategorisedItem categorisedItem)
