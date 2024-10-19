@@ -12,6 +12,7 @@ public record SubmitResult(
         None = 0,
         Created,
         Enriched,
-        PodcastRemoved
+        PodcastRemoved,
+        EpisodeAlreadyExists
     }
 }
