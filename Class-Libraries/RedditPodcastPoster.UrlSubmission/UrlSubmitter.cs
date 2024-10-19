@@ -199,17 +199,61 @@ public class UrlSubmitter(
         var submitResult = await ProcessCategorisedItem(categorisedItem, submitOptions);
 
         DiscoverySubmitResultState state;
-        if (submitResult is {PodcastResult: SubmitResultState.Created, EpisodeResult: SubmitResultState.Created})
+        if (submitResult is
+            {
+                PodcastResult: SubmitResultState.Created,
+                EpisodeResult: SubmitResultState.Created
+            })
         {
             state = DiscoverySubmitResultState.CreatedPodcastAndEpisode;
         }
-        else if (submitResult is {PodcastResult: SubmitResultState.Enriched, EpisodeResult: SubmitResultState.Created})
+        else if (submitResult is
+                 {
+                     PodcastResult: SubmitResultState.Enriched,
+                     EpisodeResult: SubmitResultState.Created
+                 })
+        {
+            state = DiscoverySubmitResultState.EnrichedPodcastAndCreatedEpisode;
+        }
+        else if (submitResult is
+                 {
+                     PodcastResult: SubmitResultState.Enriched,
+                     EpisodeResult: SubmitResultState.None or SubmitResultState.EpisodeAlreadyExists
+                 })
+        {
+            state = DiscoverySubmitResultState.EnrichedPodcast;
+        }
+        else if (submitResult is
+                 {
+                     PodcastResult: SubmitResultState.Enriched,
+                     EpisodeResult: SubmitResultState.Enriched
+                 })
+        {
+            state = DiscoverySubmitResultState.EnrichedPodcastAndEpisode;
+        }
+        else if (submitResult is
+                 {
+                     PodcastResult: SubmitResultState.None,
+                     EpisodeResult: SubmitResultState.Created
+                 })
         {
             state = DiscoverySubmitResultState.CreatedEpisode;
         }
-        else if (submitResult is {PodcastResult: SubmitResultState.Enriched, EpisodeResult: SubmitResultState.Enriched})
+        else if (submitResult is
+                 {
+                     PodcastResult: SubmitResultState.None,
+                     EpisodeResult: SubmitResultState.EpisodeAlreadyExists
+                 })
         {
-            state = DiscoverySubmitResultState.EnrichedPodcastAndEpisode;
+            state = DiscoverySubmitResultState.EpisodeAlreadyExists;
+        }
+        else if (submitResult is
+                 {
+                     PodcastResult: SubmitResultState.None,
+                     EpisodeResult: SubmitResultState.Enriched
+                 })
+        {
+            state = DiscoverySubmitResultState.EnrichedEpisode;
         }
         else
         {

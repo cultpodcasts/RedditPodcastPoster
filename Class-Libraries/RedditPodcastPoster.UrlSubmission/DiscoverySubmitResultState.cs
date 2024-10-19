@@ -6,5 +6,9 @@ public enum DiscoverySubmitResultState
     DifferentPodcasts,
     CreatedPodcastAndEpisode,
     CreatedEpisode,
-    EnrichedPodcastAndEpisode
+    EnrichedPodcastAndEpisode,
+    EnrichedPodcastAndCreatedEpisode,
+    EpisodeAlreadyExists,
+    EnrichedPodcast,
+    EnrichedEpisode
 }
