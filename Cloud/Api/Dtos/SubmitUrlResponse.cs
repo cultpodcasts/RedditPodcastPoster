@@ -20,6 +20,7 @@ public class SubmitUrlResponse
             SubmitResultState.Created => SubmitItemResponse.Created,
             SubmitResultState.Enriched => SubmitItemResponse.Enriched,
             SubmitResultState.PodcastRemoved => SubmitItemResponse.Ignored,
+            SubmitResultState.EpisodeAlreadyExists => SubmitItemResponse.EpisodeAlreadyExists,
             _ => throw new ArgumentException($"Unknown value '{submitResultState}'.", nameof(submitResultState))
         };
     }

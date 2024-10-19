@@ -5,5 +5,6 @@ public enum SubmitItemResponse
     None = 0,
     Created,
     Enriched,
-    Ignored
+    Ignored,
+    EpisodeAlreadyExists
 }
