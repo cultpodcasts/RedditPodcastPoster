@@ -18,6 +18,8 @@ public class YouTubeUrlCategoriser(
 {
     private const int MultiplePublicationDateMatchTitleThreshold = 60;
     private const int TitleThreshold = 80;
+    private const int SameTitleThreshold = 95;
+    private static readonly long SameTitleDurationThreshold = TimeSpan.FromMinutes(2).Ticks;
     private static readonly TimeSpan PublishThreshold = TimeSpan.FromDays(2);
 
     public async Task<ResolvedYouTubeItem?> Resolve(
@@ -162,6 +164,40 @@ public class YouTubeUrlCategoriser(
             {
                 match = FuzzyMatcher.Match(criteria.EpisodeTitle, unassignedChannelUploads, x => x.Snippet.Title,
                     TitleThreshold);
+            }
+
+            if (match == null)
+            {
+                match = FuzzyMatcher.Match(criteria.EpisodeTitle, unassignedChannelUploads, x => x.Snippet.Title,
+                    SameTitleThreshold);
+                if (match != null)
+                {
+                    var videoContent =
+                        await youTubeVideoService.GetVideoContentDetails(
+                            [match.Snippet.ResourceId.VideoId],
+                            indexingContext
+                        );
+                    if (videoContent is {Count: 1})
+                    {
+                        var duration = videoContent.Single().GetLength();
+                        if (duration.HasValue)
+                        {
+                            var diff = Math.Abs((duration.Value - criteria.Duration).Ticks);
+                            if (diff > SameTitleDurationThreshold)
+                            {
+                                match = null;
+                            }
+                        }
+                        else
+                        {
+                            match = null;
+                        }
+                    }
+                    else
+                    {
+                        match = null;
+                    }
+                }
             }
 
             if (match != null)

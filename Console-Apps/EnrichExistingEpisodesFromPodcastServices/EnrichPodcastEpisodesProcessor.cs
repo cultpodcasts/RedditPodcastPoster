@@ -125,7 +125,8 @@ public class EnrichPodcastEpisodesProcessor(
                             episode.YouTubeId = match.EpisodeId;
                         }
 
-                        logger.LogInformation($"Enriched from youtube: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
+                        logger.LogInformation(
+                            $"Enriched episode with episode-id '{episode.Id}' from youtube: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
                         updated = true;
                     }
                 }
