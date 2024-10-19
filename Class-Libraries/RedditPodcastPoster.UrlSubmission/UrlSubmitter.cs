@@ -437,6 +437,7 @@ public class UrlSubmitter(
         var episodeResult = SubmitResultState.None;
         if (matchingEpisode != null)
         {
+            episodeResult = SubmitResultState.EpisodeAlreadyExists;
             logger.LogInformation(
                 $"Applying to episode with title '{matchingEpisode.Title}' and id '{matchingEpisode.Id}'.");
         }
