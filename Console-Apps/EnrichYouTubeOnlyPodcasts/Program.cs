@@ -5,10 +5,12 @@ using EnrichYouTubeOnlyPodcasts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
+using RedditPodcastPoster.Text.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -26,11 +28,12 @@ builder.Services
     .AddLogging()
     .AddYouTubeServices(builder.Configuration)
     .AddRepositories()
-    .AddYouTubeServices(builder.Configuration)
     .AddSubjectServices()
     .AddCachedSubjectProvider()
     .AddSingleton<EnrichYouTubePodcastProcessor>()
-    .AddPostingCriteria(builder.Configuration);
+    .AddPostingCriteria(builder.Configuration)
+    .AddEliminationTerms()
+    .AddCommonServices(builder.Configuration);
 
 using var host = builder.Build();
 
