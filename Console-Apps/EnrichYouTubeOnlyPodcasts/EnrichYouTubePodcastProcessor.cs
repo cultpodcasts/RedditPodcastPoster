@@ -2,12 +2,14 @@ using System.Text.RegularExpressions;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Text.EliminationTerms;
 
 namespace EnrichYouTubeOnlyPodcasts;
 
@@ -18,6 +20,8 @@ public class EnrichYouTubePodcastProcessor(
     IYouTubeVideoService youTubeVideoService,
     IYouTubeEpisodeProvider youTubeEpisodeProvider,
     ISubjectEnricher subjectEnricher,
+    IEliminationTermsProvider eliminationTermsProvider,
+    IPodcastFilter podcastFilter,
     IOptions<PostingCriteria> postingCriteria,
     ILogger<EnrichYouTubePodcastProcessor> logger)
 {
@@ -155,6 +159,14 @@ public class EnrichYouTubePodcastProcessor(
         }
 
         podcast.Episodes = podcast.Episodes.OrderByDescending(x => x.Release).ToList();
+
+        var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
+        var filterResult = podcastFilter.Filter(podcast, eliminationTerms.Terms);
+        if (filterResult.FilteredEpisodes.Any())
+        {
+            logger.LogWarning(filterResult.ToString());
+        }
+
         await podcastRepository.Save(podcast);
     }
 
