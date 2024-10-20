@@ -17,6 +17,8 @@ public partial class SearchResultFinder(
     private const int MinFuzzyScore = 70;
     private static readonly Regex NumberMatch = CreateNumberMatch();
     private static readonly TimeSpan VideoDurationTolerance = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan MinDurationForPublicationDate = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan VideoDurationToleranceForPublicationDate = TimeSpan.FromMinutes(5);
 
     public async Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(
         Episode episode,
@@ -36,7 +38,12 @@ public partial class SearchResultFinder(
             return new FindEpisodeResponse(match);
         }
 
-        var videoMatch = await MatchOnEpisodeDuration(episode, searchResults, indexingContext);
+        var videoDetails =
+            await videoService.GetVideoContentDetails(searchResults.Select(x => x.Id.VideoId).ToList(),
+                indexingContext);
+
+
+        var videoMatch = await MatchOnEpisodeDuration(episode, searchResults, videoDetails, indexingContext);
         if (videoMatch != null)
         {
             return videoMatch;
@@ -47,7 +54,29 @@ public partial class SearchResultFinder(
             match = MatchOnPublishTimeComparedToPublishDelay(episode, searchResults, youTubePublishDelay.Value);
             if (match != null && FuzzyMatcher.IsMatch(episode.Title, match, s => s.Snippet.Title, MinFuzzyScore))
             {
-                return new FindEpisodeResponse(match);
+                if (videoDetails != null)
+                {
+                    // verify duration is similar
+                    var videoDetail = videoDetails.SingleOrDefault(x => x.Id == match.Id.VideoId);
+                    if (videoDetail != null)
+                    {
+                        var matchingVideoLength = videoDetail.GetLength();
+                        if (matchingVideoLength.HasValue)
+                        {
+                            var matchingVideoLengthDifferentTicks =
+                                Math.Abs((matchingVideoLength.Value - episode.Length).Ticks);
+                            if (matchingVideoLength > MinDurationForPublicationDate &&
+                                matchingVideoLengthDifferentTicks < VideoDurationToleranceForPublicationDate.Ticks)
+                            {
+                                return new FindEpisodeResponse(match);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        return new FindEpisodeResponse(match);
+                    }
+                }
             }
         }
 
@@ -63,11 +92,9 @@ public partial class SearchResultFinder(
     private async Task<FindEpisodeResponse?> MatchOnEpisodeDuration(
         Episode episode,
         IList<SearchResult> searchResults,
+        IList<Video>? videoDetails,
         IndexingContext indexingContext)
     {
-        var videoDetails =
-            await videoService.GetVideoContentDetails(searchResults.Select(x => x.Id.VideoId).ToList(),
-                indexingContext);
         if (videoDetails != null && videoDetails.Any())
         {
             var matchingVideo =
