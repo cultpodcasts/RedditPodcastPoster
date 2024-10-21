@@ -9,7 +9,12 @@ public static class PodcastExtensions
         if (IsAudioPodcastAwaitingYouTubeRelease(podcast, episode) ||
             IsYouTubePodcastWithDelayedPosting(podcast))
         {
-            if (episode.Release.Add(podcast.YouTubePublishingDelay()) > DateTime.UtcNow)
+            var youTubePublishingDelay = podcast.YouTubePublishingDelay();
+            if (youTubePublishingDelay > TimeSpan.Zero && episode.Length> TimeSpan.Zero)
+            {
+                youTubePublishingDelay = youTubePublishingDelay.Add(episode.Length);
+            }
+            if (episode.Release.Add(youTubePublishingDelay) > DateTime.UtcNow)
             {
                 return true;
             }
