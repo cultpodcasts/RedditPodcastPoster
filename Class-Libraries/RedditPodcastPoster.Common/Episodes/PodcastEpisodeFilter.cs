@@ -49,11 +49,15 @@ public class PodcastEpisodeFilter(
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
         if (youTubePublishingDelay > TimeSpan.Zero)
         {
+            var evaluationThreshold = _delayedYouTubePublicationSettings.EvaluationThreshold;
+            if (episode.Length > TimeSpan.Zero)
+            {
+                evaluationThreshold += episode.Length;
+            }
+
             var isRecentlyExpiredDelayedPublishing =
-                episode.Release.Add(youTubePublishingDelay) <= DateTime.UtcNow
-                && episode.Release.Add(
-                    youTubePublishingDelay.Add(_delayedYouTubePublicationSettings
-                        .EvaluationThreshold)) >= DateTime.UtcNow;
+                episode.Release.Add(youTubePublishingDelay) <= DateTime.UtcNow &&
+                episode.Release.Add(youTubePublishingDelay.Add(evaluationThreshold)) >= DateTime.UtcNow;
             return isRecentlyExpiredDelayedPublishing;
         }
 
