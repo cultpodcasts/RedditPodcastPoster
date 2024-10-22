@@ -20,7 +20,6 @@ using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Twitter;
-using Podcast = RedditPodcastPoster.Models.Podcast;
 using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
 
 namespace Api;
@@ -144,12 +143,22 @@ public class EpisodeController(
                     $"Podcast with id '{podcasts.Single().Id}' expected to have episode with id '{episodeId}' but not found.");
             }
 
-            var removed = podcasts.Single().Episodes.Remove(podcasts.Single().Episodes.Single(x => x.Id == episodeId));
+            var episode = podcasts.Single().Episodes.Single(x => x.Id == episodeId);
+
+            if (episode.Tweeted || episode.Posted)
+            {
+                return await req.CreateResponse(HttpStatusCode.BadRequest).WithJsonBody(
+                    new {message = "Cannot remove episode.", posted = episode.Posted, tweeted = episode.Tweeted}, c);
+            }
+
+            var removed = podcasts.Single().Episodes.Remove(episode);
             if (!removed)
             {
                 throw new InvalidOperationException(
                     $"Unable to remove episode from Podcast with id '{podcasts.Single().Id}' episode with id '{episodeId}'.");
             }
+
+            await DeleteSearchEntry(podcasts.Single().Name, episodeId, c);
 
             logger.LogWarning(
                 $"Delete episode from podcast with id '{podcasts.Single().Id}' and episode-id '{episodeId}'");
@@ -336,7 +345,7 @@ public class EpisodeController(
             if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
                 episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
             {
-                await DeleteSearchEntry(episodeChangeRequestWrapper, podcast, c);
+                await DeleteSearchEntry(podcast.Name, episodeChangeRequestWrapper.EpisodeId, c);
             }
 
             if (changeState.UnPost)
@@ -356,15 +365,16 @@ public class EpisodeController(
         return failure;
     }
 
-    private async Task DeleteSearchEntry(EpisodeChangeRequestWrapper episodeChangeRequestWrapper,
-        Podcast podcast,
+    private async Task DeleteSearchEntry(
+        string podcastName,
+        Guid episodeId,
         CancellationToken c)
     {
         try
         {
             var result = await searchClient.DeleteDocumentsAsync(
                 "id",
-                new[] {episodeChangeRequestWrapper.EpisodeId.ToString()},
+                new[] {episodeId.ToString()},
                 new IndexDocumentsOptions {ThrowOnAnyError = true},
                 c);
             var success = result.Value.Results.First().Succeeded;
@@ -375,13 +385,13 @@ public class EpisodeController(
             else
             {
                 logger.LogInformation(
-                    $"Removed episode from podcast with id '{podcast.Id}' with episode-id '{episodeChangeRequestWrapper.EpisodeId}' from search-index.");
+                    $"Removed episode from podcast with id '{podcastName}' with episode-id '{episodeId}' from search-index.");
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Error removing episode from podcast with id '{podcast.Id}' with episode-id '{episodeChangeRequestWrapper.EpisodeId}' from search-index.");
+                $"Error removing episode from podcast with id '{podcastName}' with episode-id '{episodeId}' from search-index.");
         }
     }
 
