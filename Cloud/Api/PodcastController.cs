@@ -1,6 +1,8 @@
 ﻿using System.Net;
 using System.Text.Json;
+using Api.Configuration;
 using Api.Dtos;
+using Api.Extensions;
 using Azure.Search.Documents;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -11,6 +13,7 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Indexing;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Search;
+using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
 
 namespace Api;
 

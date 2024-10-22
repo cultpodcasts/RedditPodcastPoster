@@ -1,4 +1,4 @@
-﻿namespace Api;
+﻿namespace Api.Models;
 
 public class EpisodeChangeState
 {

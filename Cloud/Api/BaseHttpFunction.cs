@@ -1,4 +1,5 @@
 using System.Net;
+using Api.Configuration;
 using Api.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;

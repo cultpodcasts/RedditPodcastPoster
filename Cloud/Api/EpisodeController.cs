@@ -1,7 +1,9 @@
 ﻿using System.Net;
 using System.Text.Json;
+using Api.Configuration;
 using Api.Dtos;
 using Api.Extensions;
+using Api.Models;
 using Azure.Search.Documents;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Azure.Functions.Worker;

@@ -1,4 +1,5 @@
-﻿using Api.Services;
+﻿using Api.Configuration;
+using Api.Services;
 using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
