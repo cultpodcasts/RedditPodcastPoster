@@ -151,8 +151,9 @@ public class EpisodeController(
                     $"Unable to remove episode from Podcast with id '{podcasts.Single().Id}' episode with id '{episodeId}'.");
             }
 
+            logger.LogWarning(
+                $"Delete episode from podcast with id '{podcasts.Single().Id}' and episode-id '{episodeId}'");
             await podcastRepository.Save(podcasts.Single());
-
             return req.CreateResponse(HttpStatusCode.OK);
         }
         catch (Exception ex)
