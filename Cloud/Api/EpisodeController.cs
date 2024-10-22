@@ -1,7 +1,9 @@
 ﻿using System.Net;
 using System.Text.Json;
+using Api.Configuration;
 using Api.Dtos;
 using Api.Extensions;
+using Api.Models;
 using Azure.Search.Documents;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Azure.Functions.Worker;
@@ -87,6 +89,82 @@ public class EpisodeController(
         return HandleRequest(req, ["curate"], new EpisodePublishRequestWrapper(episodeId, episodePostRequest), Publish,
             Unauthorised, ct);
     }
+
+    [Function("EpisodeDelete")]
+    public Task<HttpResponseData> EpisodeDelete(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "episode/{episodeId:guid}")]
+        HttpRequestData req,
+        Guid episodeId,
+        FunctionContext executionContext,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(req, ["admin"], episodeId, Delete, Unauthorised, ct);
+    }
+
+    private async Task<HttpResponseData> Delete(HttpRequestData req, Guid episodeId, CancellationToken c)
+    {
+        try
+        {
+            var podcasts = await podcastRepository
+                .GetAllBy(x => x.Episodes.Any(x => x.Id == episodeId))
+                .ToListAsync(c);
+            if (podcasts.Count > 1)
+            {
+                var tooManyPodcasts = await req
+                    .CreateResponse(HttpStatusCode.Ambiguous)
+                    .WithJsonBody(new {message = $"Multiple podcasts. Count='{podcasts.Count}'."}, c);
+                return tooManyPodcasts;
+            }
+
+            if (podcasts.Count == 0)
+            {
+                var notFound = req
+                    .CreateResponse(HttpStatusCode.NotFound);
+                return notFound;
+            }
+
+            var count = podcasts.Single().Episodes.Count(x => x.Id == episodeId);
+            if (count > 1)
+            {
+                var tooManyEpisodes = await req
+                    .CreateResponse(HttpStatusCode.Ambiguous)
+                    .WithJsonBody(
+                        new
+                        {
+                            message =
+                                $"Podcast with id '{podcasts.Single().Id}' has multiple episodes with id. Count='{count}'."
+                        }, c);
+                return tooManyEpisodes;
+            }
+
+            if (count == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Podcast with id '{podcasts.Single().Id}' expected to have episode with id '{episodeId}' but not found.");
+            }
+
+            var removed = podcasts.Single().Episodes.Remove(podcasts.Single().Episodes.Single(x => x.Id == episodeId));
+            if (!removed)
+            {
+                throw new InvalidOperationException(
+                    $"Unable to remove episode from Podcast with id '{podcasts.Single().Id}' episode with id '{episodeId}'.");
+            }
+
+            logger.LogWarning(
+                $"Delete episode from podcast with id '{podcasts.Single().Id}' and episode-id '{episodeId}'");
+            await podcastRepository.Save(podcasts.Single());
+            return req.CreateResponse(HttpStatusCode.OK);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"{nameof(Delete)}: Failed to delete episode.");
+        }
+
+        var failure = req.CreateResponse(HttpStatusCode.InternalServerError);
+        return failure;
+    }
+
 
     private async Task<HttpResponseData> Publish(HttpRequestData req, EpisodePublishRequestWrapper publishRequest,
         CancellationToken c)

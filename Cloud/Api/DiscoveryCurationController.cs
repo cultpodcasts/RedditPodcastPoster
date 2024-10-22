@@ -1,5 +1,7 @@
 using System.Net;
+using Api.Configuration;
 using Api.Dtos;
+using Api.Extensions;
 using Api.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -10,11 +12,6 @@ using RedditPodcastPoster.Search;
 using RedditPodcastPoster.UrlSubmission;
 
 namespace Api;
-
-public class TermSubmitRequest
-{
-    public string Term { get; set; }
-}
 
 public class DiscoveryCurationController(
     IDiscoveryResultsService discoveryResultsService,

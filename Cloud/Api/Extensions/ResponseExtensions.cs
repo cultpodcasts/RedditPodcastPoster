@@ -1,6 +1,6 @@
 using Microsoft.Azure.Functions.Worker.Http;
 
-namespace Api;
+namespace Api.Extensions;
 
 public static class ResponseExtensions
 {
