@@ -12,7 +12,7 @@ public sealed class PushSubscription : CosmosSelector
         Endpoint = endpoint;
         ExpirationTime = expirationTime;
         Auth = auth;
-        P256dh = p256dh;
+        P256Dh = p256dh;
         User = user;
     }
 
@@ -34,5 +34,5 @@ public sealed class PushSubscription : CosmosSelector
 
     [JsonPropertyName("p256dh")]
     [JsonPropertyOrder(50)]
-    public string P256dh { get; set; }
+    public string P256Dh { get; set; }
 }
