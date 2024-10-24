@@ -60,7 +60,7 @@ public static class Ioc
             .AddRedditServices(hostBuilderContext.Configuration)
             .AddShortnerServices(hostBuilderContext.Configuration)
             .AddRedirectServices(hostBuilderContext.Configuration)
-            .AddPushSubscriptions(hostBuilderContext.Configuration)
+            .AddPushSubscriptionsRepository(hostBuilderContext.Configuration)
             .AddHttpClient();
 
         AdminRedditClientFactory.AddAdminRedditClient(serviceCollection);

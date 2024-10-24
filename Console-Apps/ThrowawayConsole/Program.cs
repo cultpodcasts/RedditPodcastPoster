@@ -3,8 +3,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
-using SpotifyAPI.Web;
+using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.PushSubscriptions;
+using RedditPodcastPoster.PushSubscriptions.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -18,7 +19,8 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddSpotifyServices(builder.Configuration)
+    .AddRepositories()
+    .AddPushSubscriptions(builder.Configuration)
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria(builder.Configuration);
@@ -27,6 +29,6 @@ builder.Services.AddDelayedYouTubePublication(builder.Configuration);
 
 using var host = builder.Build();
 
-var spotifyClient = host.Services.GetService<ISpotifyClient>()!;
-var result = await spotifyClient.Shows.GetEpisodes("0witfebPufGbHK5itHFcRb", new ShowEpisodesRequest {Market = "GB"});
+var publisher = host.Services.GetService<INotificationPublisher>()!;
+await publisher.SendDiscoveryNotification();
 return 0;
