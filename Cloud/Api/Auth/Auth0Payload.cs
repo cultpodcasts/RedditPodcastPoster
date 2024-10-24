@@ -12,6 +12,12 @@ public class Auth0Payload
     [JsonPropertyName("permissions")]
     public string[] Permissions { get; set; } = [];
 
+    [JsonPropertyName("scope")]
+    public string Scope { get; set; } = "";
+
+    [JsonPropertyName("azp")]
+    public string Azp { get; set; } = "";
+
     [JsonPropertyName("iss")]
     public string Issuer { get; set; } = "";
 
@@ -19,7 +25,7 @@ public class Auth0Payload
     public string Subject { get; set; } = "";
 
     [JsonPropertyName("aud")]
-    public object Audience { get; set; }
+    public string[] Audience { get; set; } = [];
 
     [JsonPropertyName("exp")]
     public long? ExpirationTimeSeconds { get; set; }

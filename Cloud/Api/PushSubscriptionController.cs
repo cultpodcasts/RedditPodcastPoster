@@ -36,6 +36,12 @@ public class PushSubscriptionController(
         ClientPrincipal? cp,
         CancellationToken c)
     {
+        if (cp?.Subject == null)
+        {
+            logger.LogError($"{nameof(CreatePushSubscription)}: No user.");
+            return req.CreateResponse(HttpStatusCode.InternalServerError);
+        }
+
         try
         {
             DateTime? expirationTime = pushSubscription.ExpirationTime.HasValue
@@ -45,7 +51,8 @@ public class PushSubscriptionController(
                 pushSubscription.Endpoint,
                 expirationTime,
                 pushSubscription.Keys.Auth,
-                pushSubscription.Keys.P256dh
+                pushSubscription.Keys.P256dh,
+                cp.Subject
             )
             {
                 FileKey = FileKeyFactory.GetFileKey("push-subscription")
