@@ -45,7 +45,7 @@ public class NotificationPublisher(
             "mailto:vapid1@educocult.com",
             _pushSubscriptionsOptions.PublicKey,
             _pushSubscriptionsOptions.PrivateKey);
-
+        var sent = 0;
         foreach (var pushSubscription in pushSubscriptions)
         {
             var subscription = new PushSubscription(pushSubscription.Endpoint.ToString(), pushSubscription.P256Dh,
@@ -54,11 +54,28 @@ public class NotificationPublisher(
             try
             {
                 await webPushClient.SendNotificationAsync(subscription, payloadJson, vapidDetails);
+                logger.LogInformation($"Notification sent to '{pushSubscription.User}'.");
+                sent++;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failure to send notification.");
             }
+        }
+
+        var plural = "s";
+        if (pushSubscriptions.Count == 1)
+        {
+            plural = string.Empty;
+        }
+
+        if (sent < pushSubscriptions.Count)
+        {
+            logger.LogWarning($"Sent {sent}/{pushSubscriptions} push-notification{plural}.");
+        }
+        else
+        {
+            logger.LogWarning($"Sent {sent} push-notification{plural}.");
         }
     }
 }
