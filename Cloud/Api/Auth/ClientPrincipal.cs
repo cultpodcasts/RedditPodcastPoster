@@ -15,4 +15,10 @@ public class ClientPrincipal
 
     [JsonPropertyName("claims")]
     public IEnumerable<ClientPrincipalClaim> Claims { get; set; } = Enumerable.Empty<ClientPrincipalClaim>();
+
+    public bool HasScope(string scope)
+    {
+        var scopeClaim = Claims.SingleOrDefault(x => x.Type == "permissions" && x.Value == scope);
+        return scopeClaim != null;
+    }
 }

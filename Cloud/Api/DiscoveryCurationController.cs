@@ -1,4 +1,5 @@
 using System.Net;
+using Api.Auth;
 using Api.Configuration;
 using Api.Dtos;
 using Api.Extensions;
@@ -45,7 +46,7 @@ public class DiscoveryCurationController(
         return HandleRequest(req, ["curate"], discoverySubmitRequest, Post, Unauthorised, ct);
     }
 
-    private async Task<HttpResponseData> Get(HttpRequestData r, CancellationToken c)
+    private async Task<HttpResponseData> Get(HttpRequestData r, ClientPrincipal? _, CancellationToken c)
     {
         try
         {
@@ -59,7 +60,8 @@ public class DiscoveryCurationController(
         }
     }
 
-    private async Task<HttpResponseData> Post(HttpRequestData r, DiscoverySubmitRequest m, CancellationToken c)
+    private async Task<HttpResponseData> Post(HttpRequestData r, DiscoverySubmitRequest m, ClientPrincipal? _,
+        CancellationToken c)
     {
         try
         {

@@ -29,5 +29,9 @@ public enum ModelType
     Activity = 8,
 
     [JsonPropertyName(nameof(Discovery))]
-    Discovery = 9
+    Discovery = 9,
+
+    [JsonPropertyName(nameof(PushSubscription))]
+    PushSubscription = 10
+
 }

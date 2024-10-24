@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using Api.Auth;
 using Api.Configuration;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -26,7 +27,7 @@ public class PublishController(
         return HandleRequest(req, ["admin"], PublishHomepage, Unauthorised, ct);
     }
 
-    private async Task<HttpResponseData> PublishHomepage(HttpRequestData req, CancellationToken c)
+    private async Task<HttpResponseData> PublishHomepage(HttpRequestData req, ClientPrincipal? _, CancellationToken c)
     {
         try
         {

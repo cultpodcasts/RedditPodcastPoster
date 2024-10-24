@@ -7,27 +7,66 @@ namespace Api.Extensions;
 
 public static class HttpRequestDataExtensions
 {
-    public static bool HasScope(this HttpRequestData request, string scope)
+    private const string Bearer = "Bearer ";
+
+    public static ClientPrincipal? GetClientPrincipal(this HttpRequestData request)
     {
-        if (!request.Headers.TryGetValues("X-MS-CLIENT-PRINCIPAL", out var claimHeaders))
+        var auth = request.Headers.TryGetValues("X-MS-CLIENT-PRINCIPAL", out var claims);
+        if (auth)
         {
-            return false;
+            return GetAppServiceAuthClientPrincipal(claims);
         }
 
+        auth = request.Headers.TryGetValues("Authorization", out claims);
+        if (auth)
+        {
+            return GetAuth0ClientPrincipal(claims);
+        }
+
+        return null;
+    }
+
+    private static ClientPrincipal? GetAuth0ClientPrincipal(IEnumerable<string>? claims)
+    {
+        claims = claims
+            .Where(x => x.StartsWith(Bearer))
+            .Select(x => x.Substring(Bearer.Length))
+            .Select(x => x.Split(".")[1])
+            .ToArray();
         try
         {
-            var claimHeader = claimHeaders.First();
+            var claimHeader = claims!.First();
+            var decoded = Convert.FromBase64String(claimHeader);
+            var json = Encoding.UTF8.GetString(decoded);
+            var jwtToken = JsonSerializer.Deserialize<Auth0Payload>(json,
+                new JsonSerializerOptions {PropertyNameCaseInsensitive = true});
+
+            return new ClientPrincipal
+            {
+                Claims = jwtToken.Permissions.Select(x => new ClientPrincipalClaim
+                    {Type = "permissions", Value = x})
+            };
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    private static ClientPrincipal? GetAppServiceAuthClientPrincipal(IEnumerable<string>? claims)
+    {
+        try
+        {
+            var claimHeader = claims!.First();
             var decoded = Convert.FromBase64String(claimHeader);
             var json = Encoding.UTF8.GetString(decoded);
             var principal = JsonSerializer.Deserialize<ClientPrincipal>(json,
                 new JsonSerializerOptions {PropertyNameCaseInsensitive = true});
-            var scopeClaim =
-                principal?.Claims.SingleOrDefault(x => x.Type == "permissions" && x.Value==scope);
-            return scopeClaim != null;
+            return principal;
         }
         catch (Exception)
         {
-            return false;
+            return null;
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using Api.Auth;
 using Api.Configuration;
 using Api.Dtos;
 using Api.Extensions;
@@ -28,7 +29,7 @@ public class SearchIndexController(
         return HandleRequest(req, ["admin"], RunIndexer, Unauthorised, ct);
     }
 
-    private async Task<HttpResponseData> RunIndexer(HttpRequestData req, CancellationToken c)
+    private async Task<HttpResponseData> RunIndexer(HttpRequestData req, ClientPrincipal? _, CancellationToken c)
     {
         try
         {

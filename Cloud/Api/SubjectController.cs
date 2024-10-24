@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Text.Json;
+using Api.Auth;
 using Api.Configuration;
 using Api.Dtos;
 using Api.Dtos.Extensions;
@@ -69,7 +70,8 @@ public class SubjectController(
         return HandleRequest(req, ["curate"], subjectChangeRequest, Put, Unauthorised, ct);
     }
 
-    private async Task<HttpResponseData> Get(HttpRequestData req, string subjectName, CancellationToken c)
+    private async Task<HttpResponseData> Get(HttpRequestData req, string subjectName, ClientPrincipal? _,
+        CancellationToken c)
     {
         try
         {
@@ -95,7 +97,7 @@ public class SubjectController(
     }
 
     private async Task<HttpResponseData> Post(HttpRequestData req,
-        SubjectChangeRequestWrapper subjectChangeRequestWrapper, CancellationToken c)
+        SubjectChangeRequestWrapper subjectChangeRequestWrapper, ClientPrincipal? _, CancellationToken c)
     {
         try
         {
@@ -124,7 +126,8 @@ public class SubjectController(
         return failure;
     }
 
-    private async Task<HttpResponseData> Put(HttpRequestData req, Dtos.Subject subject, CancellationToken ct)
+    private async Task<HttpResponseData> Put(HttpRequestData req, Dtos.Subject subject, ClientPrincipal? _,
+        CancellationToken ct)
     {
         logger.LogInformation($"{nameof(Put)}: received subject: {JsonSerializer.Serialize(subject)}");
         if (string.IsNullOrWhiteSpace(subject.Name))
