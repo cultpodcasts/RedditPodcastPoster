@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
+using Api.Auth;
 using Api.Configuration;
 using Api.Dtos;
 using Api.Extensions;
@@ -33,7 +34,7 @@ public class TermsController(
         return HandleRequest(req, ["curate"], termSubmitRequest, Post, Unauthorised, ct);
     }
 
-    private async Task<HttpResponseData> Post(HttpRequestData r, TermSubmitRequest t, CancellationToken c)
+    private async Task<HttpResponseData> Post(HttpRequestData r, TermSubmitRequest t, ClientPrincipal? _, CancellationToken c)
     {
         try
         {

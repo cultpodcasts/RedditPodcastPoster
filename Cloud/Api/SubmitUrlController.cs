@@ -1,4 +1,5 @@
 using System.Net;
+using Api.Auth;
 using Api.Configuration;
 using Api.Dtos;
 using Api.Extensions;
@@ -34,7 +35,8 @@ public class SubmitUrlController(
         return HandleRequest(req, ["submit"], submitUrlModel, Post, Unauthorised, ct);
     }
 
-    private async Task<HttpResponseData> Post(HttpRequestData req, SubmitUrlRequest submitUrlModel, CancellationToken c)
+    private async Task<HttpResponseData> Post(HttpRequestData req, SubmitUrlRequest submitUrlModel, ClientPrincipal? _,
+        CancellationToken c)
     {
         try
         {

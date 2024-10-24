@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Text.Json;
+using Api.Auth;
 using Api.Configuration;
 using Api.Dtos;
 using Api.Extensions;
@@ -101,7 +102,8 @@ public class EpisodeController(
         return HandleRequest(req, ["admin"], episodeId, Delete, Unauthorised, ct);
     }
 
-    private async Task<HttpResponseData> Delete(HttpRequestData req, Guid episodeId, CancellationToken c)
+    private async Task<HttpResponseData> Delete(HttpRequestData req, Guid episodeId, ClientPrincipal? cp,
+        CancellationToken c)
     {
         try
         {
@@ -158,7 +160,7 @@ public class EpisodeController(
                     $"Unable to remove episode from Podcast with id '{podcasts.Single().Id}' episode with id '{episodeId}'.");
             }
 
-            await DeleteSearchEntry(podcasts.Single().Name, episodeId, c);
+            await DeleteSearchEntry(podcasts.Single().Name, episodeId, cp, c);
 
             logger.LogWarning(
                 $"Delete episode from podcast with id '{podcasts.Single().Id}' and episode-id '{episodeId}'");
@@ -176,7 +178,7 @@ public class EpisodeController(
 
 
     private async Task<HttpResponseData> Publish(HttpRequestData req, EpisodePublishRequestWrapper publishRequest,
-        CancellationToken c)
+        ClientPrincipal? _, CancellationToken c)
     {
         try
         {
@@ -248,7 +250,7 @@ public class EpisodeController(
         return failure;
     }
 
-    private async Task<HttpResponseData> GetOutgoing(HttpRequestData req, CancellationToken c)
+    private async Task<HttpResponseData> GetOutgoing(HttpRequestData req, ClientPrincipal? _, CancellationToken c)
     {
         try
         {
@@ -321,6 +323,7 @@ public class EpisodeController(
     private async Task<HttpResponseData> Post(
         HttpRequestData req,
         EpisodeChangeRequestWrapper episodeChangeRequestWrapper,
+        ClientPrincipal? cp,
         CancellationToken c)
     {
         try
@@ -345,7 +348,7 @@ public class EpisodeController(
             if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
                 episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
             {
-                await DeleteSearchEntry(podcast.Name, episodeChangeRequestWrapper.EpisodeId, c);
+                await DeleteSearchEntry(podcast.Name, episodeChangeRequestWrapper.EpisodeId, cp, c);
             }
 
             if (changeState.UnPost)
@@ -368,6 +371,7 @@ public class EpisodeController(
     private async Task DeleteSearchEntry(
         string podcastName,
         Guid episodeId,
+        ClientPrincipal? _,
         CancellationToken c)
     {
         try
@@ -539,7 +543,8 @@ public class EpisodeController(
         return changeState;
     }
 
-    private async Task<HttpResponseData> Get(HttpRequestData req, Guid episodeId, CancellationToken c)
+    private async Task<HttpResponseData> Get(HttpRequestData req, Guid episodeId, ClientPrincipal? _,
+        CancellationToken c)
     {
         try
         {

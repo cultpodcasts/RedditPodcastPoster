@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Text.Json;
+using Api.Auth;
 using Api.Configuration;
 using Api.Dtos;
 using Api.Extensions;
@@ -88,6 +89,7 @@ public class PodcastController(
     private async Task<HttpResponseData> Post(
         HttpRequestData req,
         PodcastChangeRequestWrapper podcastChangeRequestWrapper,
+        ClientPrincipal? _,
         CancellationToken c)
     {
         try
@@ -244,7 +246,8 @@ public class PodcastController(
         }
     }
 
-    private async Task<HttpResponseData> Get(HttpRequestData req, string podcastName, CancellationToken c)
+    private async Task<HttpResponseData> Get(HttpRequestData req, string podcastName, ClientPrincipal? _,
+        CancellationToken c)
     {
         try
         {
@@ -306,7 +309,8 @@ public class PodcastController(
         return podcast;
     }
 
-    private async Task<HttpResponseData> Index(HttpRequestData req, string podcastName, CancellationToken c)
+    private async Task<HttpResponseData> Index(HttpRequestData req, string podcastName, ClientPrincipal? _,
+        CancellationToken c)
     {
         try
         {
@@ -358,7 +362,8 @@ public class PodcastController(
         return failure;
     }
 
-    private async Task<HttpResponseData> Rename(HttpRequestData req, PodcastRenameRequest change, CancellationToken c)
+    private async Task<HttpResponseData> Rename(HttpRequestData req, PodcastRenameRequest change, ClientPrincipal? _,
+        CancellationToken c)
     {
         try
         {

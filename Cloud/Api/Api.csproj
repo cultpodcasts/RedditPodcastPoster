@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices.Spotify\RedditPodcastPoster.PodcastServices.Spotify.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices.YouTube\RedditPodcastPoster.PodcastServices.YouTube.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices\RedditPodcastPoster.PodcastServices.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PushSubscriptions\RedditPodcastPoster.PushSubscriptions.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Search\RedditPodcastPoster.Search.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
@@ -44,9 +45,5 @@
   </ItemGroup>
   <ItemGroup>
     <Using Include="System.Threading.ExecutionContext" Alias="ExecutionContext" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Configuration\" />
-    <Folder Include="Models\" />
   </ItemGroup>
 </Project>
