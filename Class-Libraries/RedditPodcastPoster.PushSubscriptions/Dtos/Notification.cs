@@ -12,4 +12,34 @@ public class Notification
 
     [JsonPropertyName("icon")]
     public string? Icon { get; set; }
+
+    [JsonPropertyName("actions")]
+    public List<NotificationAction>? Actions { get; set; }
+
+    [JsonPropertyName("badge")]
+    public string? Badge { get; set; }
+
+    [JsonPropertyName("image")]
+    public string? Image { get; set; }
+
+    [JsonPropertyName("renotify")]
+    public bool? Renotify { get; set; }
+
+    [JsonPropertyName("requireInteraction")]
+    public bool? RequireInteraction { get; set; }
+
+    [JsonPropertyName("silent")]
+    public bool? Silent { get; set; }
+
+    [JsonPropertyName("tag")]
+    public string? Tag { get; set; }
+
+    [JsonPropertyName("timestamp")]
+    public long? Timestamp { get; set; }
+
+    [JsonPropertyName("vibrate")]
+    public int[]? Vibrate { get; set; }
+
+    [JsonPropertyName("data")]
+    public object? Data { get; set; }
 }

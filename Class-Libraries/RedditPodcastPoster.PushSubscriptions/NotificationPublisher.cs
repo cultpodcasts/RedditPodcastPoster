@@ -23,9 +23,21 @@ public class NotificationPublisher(
 
         var notificationBuilder = new NotificationBuilder()
             .WithTitle("New discovery available")
-            .WithBody("Get to work");
+            .WithBody("Get to work")
+            .WithIcon("assets/cultpodcasts.svg")
+            .WithAction("Discover", "discover")
+            .WithBadge("assets/cultpodcasts-badge.svg")
+            .WithImage("assets/sq-image.png")
+            .WithRenotify(true)
+            .WithRequireInteraction(true)
+            .WithSilent(false)
+            .WithTag("tag")
+            .WithTimestamp(DateTimeOffset.Now)
+            .WithVibrate([200, 100, 200])
+            .WithData(new {url = "/discovery"});
 
-        var payloadJson = JsonSerializer.Serialize(notificationBuilder.Build(), new JsonSerializerOptions()
+
+        var payloadJson = JsonSerializer.Serialize(notificationBuilder.Build(), new JsonSerializerOptions
         {
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         });
