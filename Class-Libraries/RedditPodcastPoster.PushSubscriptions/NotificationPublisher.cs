@@ -31,11 +31,10 @@ public class NotificationPublisher(
             .WithRenotify(true)
             .WithRequireInteraction(true)
             .WithSilent(false)
-            .WithTag("tag")
+            .WithTag("discovery")
             .WithTimestamp(DateTimeOffset.Now)
             .WithVibrate([200, 100, 200])
             .WithData(new {url = "/discovery"});
-
 
         var payloadJson = JsonSerializer.Serialize(notificationBuilder.Build(), new JsonSerializerOptions
         {

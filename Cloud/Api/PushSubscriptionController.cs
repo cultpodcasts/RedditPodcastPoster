@@ -58,6 +58,7 @@ public class PushSubscriptionController(
                 FileKey = FileKeyFactory.GetFileKey("push-subscription")
             };
             await pushSubscriptionRepository.Save(subscription);
+            logger.LogInformation($"Created push-subscription with id '{subscription.Id}' for user '{cp.Subject}'.");
             return req.CreateResponse();
         }
         catch (Exception ex)
