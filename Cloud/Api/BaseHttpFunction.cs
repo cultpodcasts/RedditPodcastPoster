@@ -29,8 +29,6 @@ public abstract class BaseHttpFunction(
         var roleCtr = 0;
         var clientPrincipal = req.GetClientPrincipal();
 
-        logger.LogInformation("clientPrincipal: " + JsonSerializer.Serialize(clientPrincipal));
-
         while (!isAuthorised && roleCtr < roles.Length)
         {
             var scope = roles[roleCtr++];
