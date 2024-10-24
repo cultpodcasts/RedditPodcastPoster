@@ -29,7 +29,7 @@ public class TestController(
             async (r, cp, c) =>
             {
                 var success = await req.CreateResponse(HttpStatusCode.OK)
-                    .WithJsonBody(new {message = "success", cp = cp}, c);
+                    .WithJsonBody(new {message = "success"}, c);
                 return success;
             },
             async (r, cp, c) =>
