@@ -9,4 +9,7 @@ public class Notification
 
     [JsonPropertyName("body")]
     public string? Body { get; set; }
+
+    [JsonPropertyName("icon")]
+    public string? Icon { get; set; }
 }
