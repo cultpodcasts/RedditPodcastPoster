@@ -8,6 +8,7 @@ using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 
 namespace Discovery;
@@ -29,6 +30,7 @@ public static class Ioc
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddScoped<IRemoteClient, RemoteClient>()
             .AddScoped(s => new iTunesSearchManager())
+            .AddPushSubscriptions(hostBuilderContext.Configuration)
             .AddHttpClient();
 
         serviceCollection.BindConfiguration<DiscoverOptions>("discover");

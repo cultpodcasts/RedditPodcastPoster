@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PushSubscriptions;
 
 namespace Discovery;
 
@@ -15,6 +16,7 @@ public class Discover(
     IDiscoveryServiceConfigProvider discoveryConfigProvider,
     IDiscoveryService discoveryService,
     IDiscoveryResultsRepository discoveryResultsRepository,
+    INotificationPublisher notificationPublisher,
     IActivityMarshaller activityMarshaller,
     ILogger<Discover> logger) : TaskActivity<DiscoveryContext, DiscoveryContext>
 {
@@ -86,6 +88,16 @@ public class Discover(
                 logger.LogError(e,
                     $"Failure to persist {nameof(DiscoveryResultsDocument)}. Json: '{JsonSerializer.Serialize(discoveryResultsDocument)}'");
                 throw;
+            }
+
+            try
+            {
+                await notificationPublisher.SendDiscoveryNotification();
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e,
+                    $"Failure to persist {nameof(DiscoveryResultsDocument)}. Failure to send notification.");
             }
 
             logger.LogInformation(
