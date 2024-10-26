@@ -55,7 +55,8 @@ public class PushSubscriptionController(
                 cp.Subject
             )
             {
-                FileKey = FileKeyFactory.GetFileKey("push-subscription")
+                FileKey = FileKeyFactory.GetFileKey(
+                    $"ps-{cp.Subject.Replace("|", "-")}-{DateTimeOffset.Now.ToUnixTimeSeconds()}")
             };
             await pushSubscriptionRepository.Save(subscription);
             logger.LogInformation($"Created push-subscription with id '{subscription.Id}' for user '{cp.Subject}'.");

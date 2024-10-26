@@ -20,4 +20,9 @@ public class PushSubscriptionRepository(
     {
         return repository.GetAll<PushSubscription>();
     }
+
+    public Task Delete(PushSubscription pushSubscription)
+    {
+        return repository.Delete(pushSubscription);
+    }
 }

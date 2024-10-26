@@ -170,6 +170,12 @@ public class CosmosDbRepository(
         }
     }
 
+    public Task Delete<T>(T data) where T : CosmosSelector
+    {
+        var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
+        return container.DeleteItemAsync<T>(data.Id.ToString(), new PartitionKey(partitionKey));
+    }
+
     public IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector
     {
         try

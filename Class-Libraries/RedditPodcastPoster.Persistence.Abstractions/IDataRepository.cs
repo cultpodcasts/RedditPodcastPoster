@@ -16,4 +16,6 @@ public interface IDataRepository
 
     IAsyncEnumerable<T2> GetAllBy<T, T2>(Expression<Func<T, bool>> selector, Expression<Func<T, T2>> expr)
         where T : CosmosSelector;
+
+    Task Delete<T>(T data) where T : CosmosSelector;
 }
