@@ -144,6 +144,13 @@ public class FileRepository : IFileRepository
         return reduce;
     }
 
+    public Task Delete<T>(T data) where T : CosmosSelector
+    {
+        var filePath = GetFilePath(data.FileKey);
+        File.Delete(filePath);
+        return Task.CompletedTask;
+    }
+
     private string GetFilePath(string fileKey)
     {
         return $"{_container}{fileKey}{FileExtension}";

@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Net;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -42,7 +43,7 @@ public class NotificationPublisher(
         });
 
         var vapidDetails = new VapidDetails(
-            "mailto:vapid1@educocult.com",
+            _pushSubscriptionsOptions.Subject,
             _pushSubscriptionsOptions.PublicKey,
             _pushSubscriptionsOptions.PrivateKey);
         var sent = 0;
@@ -56,6 +57,18 @@ public class NotificationPublisher(
                 await webPushClient.SendNotificationAsync(subscription, payloadJson, vapidDetails);
                 logger.LogInformation($"Notification sent to '{pushSubscription.User}'.");
                 sent++;
+            }
+            catch (WebPushException ex)
+            {
+                if (ex.HttpResponseMessage.StatusCode == HttpStatusCode.Gone)
+                {
+                    await pushSubscriptionRepository.Delete(pushSubscription);
+                    logger.LogError(ex, $"Subscription with id '{pushSubscription.Id}' has gone.");
+                }
+                else
+                {
+                    logger.LogError(ex, "Failure to send notification.");
+                }
             }
             catch (Exception ex)
             {

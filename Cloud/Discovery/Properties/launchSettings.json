@@ -33,6 +33,7 @@
         "discover__IgnoreTerms__11": "cult classic",
         "discover__IgnoreTerms__12": "cult film",
         "discover__IgnoreTerms__13": "cult movie",
+        "pushSubscriptions__Subject": "vapid@cultpodcasts.com",
         "listenNotes__RequestDelaySeconds": "2"
       }
     }
