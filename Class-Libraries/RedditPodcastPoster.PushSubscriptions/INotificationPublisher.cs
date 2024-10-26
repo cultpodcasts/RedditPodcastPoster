@@ -2,5 +2,5 @@
 
 public interface INotificationPublisher
 {
-    public Task SendDiscoveryNotification();
+    public Task SendDiscoveryNotification(DiscoveryNotification discoveryNotification);
 }
