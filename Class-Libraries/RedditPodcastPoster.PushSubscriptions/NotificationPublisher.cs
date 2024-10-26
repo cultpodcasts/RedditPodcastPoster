@@ -62,8 +62,15 @@ public class NotificationPublisher(
             {
                 if (ex.HttpResponseMessage.StatusCode == HttpStatusCode.Gone)
                 {
-                    await pushSubscriptionRepository.Delete(pushSubscription);
                     logger.LogError(ex, $"Subscription with id '{pushSubscription.Id}' has gone.");
+                    try
+                    {
+                        await pushSubscriptionRepository.Delete(pushSubscription);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogError(e, $"Failure to delete push-subscription with id '{pushSubscription.Id}'.");
+                    }
                 }
                 else
                 {

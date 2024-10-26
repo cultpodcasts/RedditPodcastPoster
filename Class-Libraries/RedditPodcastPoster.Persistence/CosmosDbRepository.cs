@@ -172,16 +172,8 @@ public class CosmosDbRepository(
 
     public Task Delete<T>(T data) where T : CosmosSelector
     {
-        try
-        {
-            var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
-            return container.DeleteItemAsync<T>(data.Id.ToString(), new PartitionKey(partitionKey));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, $"{nameof(Delete)}: Error deleting item with id '{data.Id}'.");
-            throw;
-        }
+        var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
+        return container.DeleteItemAsync<T>(data.Id.ToString(), new PartitionKey(partitionKey));
     }
 
     public IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector
