@@ -33,7 +33,9 @@ builder.Services.AddDelayedYouTubePublication(builder.Configuration);
 using var host = builder.Build();
 
 var publisher = host.Services.GetService<INotificationPublisher>()!;
-await publisher.SendDiscoveryNotification();
+
+await publisher.SendDiscoveryNotification(new DiscoveryNotification(1, DateTime.UtcNow.Subtract(TimeSpan.FromDays(8)),
+    100));
 return 0;
 
 string GetBasePath()

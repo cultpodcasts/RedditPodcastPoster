@@ -17,14 +17,15 @@ public class NotificationPublisher(
 {
     private readonly PushSubscriptionsOptions _pushSubscriptionsOptions = pushSubscriptionsOptions.Value;
 
-    public async Task SendDiscoveryNotification()
+    public async Task SendDiscoveryNotification(DiscoveryNotification discoveryNotification)
     {
         var pushSubscriptions = await pushSubscriptionRepository.GetAll().ToListAsync();
         var webPushClient = new WebPushClient();
 
+
         var notificationBuilder = new NotificationBuilder()
             .WithTitle("New discovery available")
-            .WithBody("Get to work")
+            .WithBody(discoveryNotification.ToString())
             .WithIcon("assets/cultpodcasts.svg")
             .WithAction("Discover", "discover")
             .WithBadge("assets/cultpodcasts-badge.svg")
