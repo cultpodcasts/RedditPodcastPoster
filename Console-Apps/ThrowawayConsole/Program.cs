@@ -34,7 +34,7 @@ using var host = builder.Build();
 
 var publisher = host.Services.GetService<INotificationPublisher>()!;
 
-await publisher.SendDiscoveryNotification(new DiscoveryNotification(1, DateTime.UtcNow.Subtract(TimeSpan.FromDays(8)),
+await publisher.SendDiscoveryNotification(new DiscoveryNotification(1, DateTime.UtcNow.Subtract(TimeSpan.FromHours(15)),
     100));
 return 0;
 
