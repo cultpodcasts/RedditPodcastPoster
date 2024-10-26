@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.Search;
 using RedditPodcastPoster.Search.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);

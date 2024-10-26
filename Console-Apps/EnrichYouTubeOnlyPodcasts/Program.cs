@@ -47,7 +47,6 @@ async Task<int> Run(EnrichYouTubePodcastRequest request)
     return 0;
 }
 
-
 string GetBasePath()
 {
     using var processModule = Process.GetCurrentProcess().MainModule;
