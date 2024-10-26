@@ -91,7 +91,7 @@ public class NotificationPublisher(
 
         if (sent < pushSubscriptions.Count)
         {
-            logger.LogWarning($"Sent {sent}/{pushSubscriptions} push-notification{plural}.");
+            logger.LogWarning($"Sent {sent}/{pushSubscriptions.Count} push-notification{plural}.");
         }
         else
         {

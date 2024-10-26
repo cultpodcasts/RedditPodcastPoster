@@ -21,7 +21,6 @@ using SubmitUrl;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 
 builder.Configuration
