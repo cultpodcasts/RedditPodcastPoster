@@ -2,6 +2,8 @@
 
 public record DiscoveryNotification(int NumberOfReports, DateTime MinDateTime, int NumberOfResults)
 {
+    private static readonly TimeZoneInfo UK = TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time");
+
     public override string ToString()
     {
         var plural = "s";
@@ -19,14 +21,14 @@ public record DiscoveryNotification(int NumberOfReports, DateTime MinDateTime, i
         var fmt = "t";
         if (DateTime.UtcNow - MinDateTime >= TimeSpan.FromDays(1))
         {
-            fmt = "dddd";
+            fmt = "dddd HH:mm";
         }
         else if (DateTime.UtcNow - MinDateTime >= TimeSpan.FromDays(7))
         {
             fmt = "f";
         }
 
-        var since = MinDateTime.ToString(fmt);
+        var since = TimeZoneInfo.ConvertTimeFromUtc(MinDateTime.ToUniversalTime(), UK).ToString(fmt);
         return
             $"{NumberOfReports} report{plural} since {since}. {NumberOfResults} result{plural2}.";
     }

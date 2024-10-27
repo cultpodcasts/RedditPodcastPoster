@@ -22,14 +22,12 @@ public class NotificationPublisher(
         var pushSubscriptions = await pushSubscriptionRepository.GetAll().ToListAsync();
         var webPushClient = new WebPushClient();
 
-
         var notificationBuilder = new NotificationBuilder()
             .WithTitle("New discovery available")
             .WithBody(discoveryNotification.ToString())
             .WithIcon("assets/cultpodcasts.svg")
             .WithAction("Discover", "discover")
             .WithBadge("assets/cultpodcasts-badge.svg")
-            .WithImage("assets/sq-image.png")
             .WithRenotify(true)
             .WithRequireInteraction(true)
             .WithSilent(false)
