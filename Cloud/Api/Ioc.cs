@@ -61,6 +61,7 @@ public static class Ioc
             .AddShortnerServices(hostBuilderContext.Configuration)
             .AddRedirectServices(hostBuilderContext.Configuration)
             .AddPushSubscriptionsRepository(hostBuilderContext.Configuration)
+            .AddScoped<IClientPrincipalFactory, ClientPrincipalFactory>()
             .AddHttpClient();
 
         AdminRedditClientFactory.AddAdminRedditClient(serviceCollection);

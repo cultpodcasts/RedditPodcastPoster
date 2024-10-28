@@ -2,31 +2,44 @@ using System.Text;
 using System.Text.Json;
 using Api.Auth;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
 
-namespace Api.Extensions;
+namespace Api;
 
-public static class HttpRequestDataExtensions
+public class ClientPrincipalFactory(ILogger<ClientPrincipalFactory> logger) : IClientPrincipalFactory
 {
     private const string Bearer = "Bearer ";
 
-    public static ClientPrincipal? GetClientPrincipal(this HttpRequestData request)
+    public ClientPrincipal? Create(HttpRequestData request)
     {
         var auth = request.Headers.TryGetValues("X-MS-CLIENT-PRINCIPAL", out var claims);
         if (auth)
         {
-            return GetAppServiceAuthClientPrincipal(claims);
+            if (claims != null && claims.Any())
+            {
+                logger.LogInformation("Has X-MS-CLIENT-PRINCIPAL header.");
+                return GetAppServiceAuthClientPrincipal(claims);
+            }
+
+            logger.LogError("Has X-MS-CLIENT-PRINCIPAL header but no claims.");
         }
 
         auth = request.Headers.TryGetValues("Authorization", out claims);
         if (auth)
         {
-            return GetAuth0ClientPrincipal(claims);
+            if (claims != null && claims.Any())
+            {
+                logger.LogInformation("Has Authorization header.");
+                return GetAuth0ClientPrincipal(claims);
+            }
+
+            logger.LogError("Has Authorization header but no claims.");
         }
 
         return null;
     }
 
-    private static ClientPrincipal? GetAuth0ClientPrincipal(IEnumerable<string>? claims)
+    private ClientPrincipal? GetAuth0ClientPrincipal(IEnumerable<string>? claims)
     {
         claims = claims
             .Where(x => x.StartsWith(Bearer))
@@ -79,7 +92,7 @@ public static class HttpRequestDataExtensions
         }
     }
 
-    private static ClientPrincipal? GetAppServiceAuthClientPrincipal(IEnumerable<string>? claims)
+    private ClientPrincipal? GetAppServiceAuthClientPrincipal(IEnumerable<string>? claims)
     {
         try
         {

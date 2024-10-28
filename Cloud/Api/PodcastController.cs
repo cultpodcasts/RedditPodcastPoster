@@ -24,11 +24,11 @@ public class PodcastController(
     IPodcastRepository podcastRepository,
     SearchClient searchClient,
     IRedirectService redirectService,
+    IClientPrincipalFactory clientPrincipalFactory,
     ILogger<PodcastController> logger,
-    ILogger<BaseHttpFunction> baseLogger,
     IOptions<IndexerOptions> indexerOptions,
     IOptions<HostingOptions> hostingOptions
-) : BaseHttpFunction(hostingOptions, baseLogger)
+) : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     private const int MaxPodcastToRename = 2;
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
