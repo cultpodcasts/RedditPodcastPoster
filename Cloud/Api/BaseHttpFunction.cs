@@ -2,17 +2,16 @@ using System.Net;
 using Api.Auth;
 using Api.Configuration;
 using Api.Extensions;
-using Microsoft.ApplicationInsights.Extensibility.Implementation;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Api;
 
 public abstract class BaseHttpFunction(
+    IClientPrincipalFactory clientPrincipalFactory,
     IOptions<HostingOptions> hostingOptions,
-    ILogger<BaseHttpFunction> logger
+    ILogger logger
 )
 {
     protected HostingOptions HostingOptions = hostingOptions.Value;
@@ -27,7 +26,7 @@ public abstract class BaseHttpFunction(
         logger.LogInformation($"{nameof(HandleRequest)} initiated.");
         var isAuthorised = false;
         var roleCtr = 0;
-        var clientPrincipal = req.GetClientPrincipal();
+        var clientPrincipal = clientPrincipalFactory.Create(req);
 
         while (!isAuthorised && roleCtr < roles.Length)
         {
@@ -61,7 +60,8 @@ public abstract class BaseHttpFunction(
         logger.LogInformation($"{nameof(HandleRequest)} initiated.");
         var isAuthorised = false;
         var roleCtr = 0;
-        var clientPrincipal = req.GetClientPrincipal();
+        var clientPrincipal = clientPrincipalFactory.Create(req);
+
         while (!isAuthorised && roleCtr < roles.Length)
         {
             var scope = roles[roleCtr++];

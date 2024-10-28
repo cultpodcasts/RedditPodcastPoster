@@ -11,10 +11,10 @@ namespace Api;
 
 public class PublishController(
     IContentPublisher contentPublisher,
+    IClientPrincipalFactory clientPrincipalFactory,
     ILogger<PublishController> logger,
-    ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(hostingOptions, baseLogger)
+    : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     [Function("PublishHomepage")]
     public Task<HttpResponseData> Run(

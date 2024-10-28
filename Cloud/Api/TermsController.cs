@@ -15,10 +15,10 @@ namespace Api;
 
 public class TermsController(
     IKnownTermsRepository knownTermsRepository,
+    IClientPrincipalFactory clientPrincipalFactory,
     ILogger<DiscoveryCurationController> logger,
-    ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(hostingOptions, baseLogger)
+    : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     private const string? Route = "terms";
 
@@ -34,7 +34,8 @@ public class TermsController(
         return HandleRequest(req, ["curate"], termSubmitRequest, Post, Unauthorised, ct);
     }
 
-    private async Task<HttpResponseData> Post(HttpRequestData r, TermSubmitRequest t, ClientPrincipal? _, CancellationToken c)
+    private async Task<HttpResponseData> Post(HttpRequestData r, TermSubmitRequest t, ClientPrincipal? _,
+        CancellationToken c)
     {
         try
         {

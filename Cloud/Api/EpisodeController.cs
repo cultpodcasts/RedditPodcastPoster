@@ -32,10 +32,10 @@ public class EpisodeController(
     ITweetPoster tweetPoster,
     IContentPublisher contentPublisher,
     IPostManager postManager,
+    IClientPrincipalFactory clientPrincipalFactory,
     ILogger<EpisodeController> logger,
-    ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(hostingOptions, baseLogger)
+    : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     private const string? Route = "episode/{episodeId:guid}";
 

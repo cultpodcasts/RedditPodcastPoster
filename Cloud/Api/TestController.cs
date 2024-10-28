@@ -9,10 +9,10 @@ using Microsoft.Extensions.Options;
 namespace Api;
 
 public class TestController(
+    IClientPrincipalFactory clientPrincipalFactory,
     ILogger<TestController> logger,
-    ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(hostingOptions, baseLogger)
+    : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     [Function("Test")]
     public async Task<HttpResponseData> Run(

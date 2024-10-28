@@ -24,11 +24,11 @@ public class SubjectController(
     ISubjectService subjectService,
     IContentPublisher contentPublisher,
     IAdminRedditClient redditClient,
+    IClientPrincipalFactory clientPrincipalFactory,
     IOptions<SubredditSettings> subredditSettings,
     ILogger<SubjectController> logger,
-    ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions
-) : BaseHttpFunction(hostingOptions, baseLogger)
+) : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     private readonly SubredditSettings _subredditSettings = subredditSettings.Value;
 

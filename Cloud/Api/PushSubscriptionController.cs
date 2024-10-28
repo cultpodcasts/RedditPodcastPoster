@@ -13,10 +13,10 @@ namespace Api;
 
 public class PushSubscriptionController(
     IPushSubscriptionRepository pushSubscriptionRepository,
+    IClientPrincipalFactory clientPrincipalFactory,
     ILogger<PushSubscriptionController> logger,
-    ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions
-) : BaseHttpFunction(hostingOptions, baseLogger)
+) : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     [Function("PushSubscription")]
     public Task<HttpResponseData> CreatePushSubscription(

@@ -18,10 +18,10 @@ public class DiscoveryCurationController(
     IDiscoveryResultsService discoveryResultsService,
     IUrlSubmitter urlSubmitter,
     ISearchIndexerService searchIndexerService,
+    IClientPrincipalFactory clientPrincipalFactory,
     ILogger<DiscoveryCurationController> logger,
-    ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(hostingOptions, baseLogger)
+    : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     private const string? Route = "DiscoveryCuration";
 

@@ -18,10 +18,10 @@ public class SubmitUrlController(
     IPodcastRepository repository,
     IUrlSubmitter urlSubmitter,
     ISearchIndexerService searchIndexerService,
+    IClientPrincipalFactory clientPrincipalFactory,
     ILogger<SubmitUrlController> logger,
-    ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(hostingOptions, baseLogger)
+    : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     [Function("SubmitUrl")]
     public Task<HttpResponseData> Run(

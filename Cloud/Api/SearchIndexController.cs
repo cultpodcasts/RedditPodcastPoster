@@ -13,10 +13,10 @@ namespace Api;
 
 public class SearchIndexController(
     ISearchIndexerService searchIndexerService,
+    IClientPrincipalFactory clientPrincipalFactory,
     ILogger<SearchIndexController> logger,
-    ILogger<BaseHttpFunction> baseLogger,
     IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(hostingOptions, baseLogger)
+    : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     [Function("SearchIndexRun")]
     public Task<HttpResponseData> Run(
