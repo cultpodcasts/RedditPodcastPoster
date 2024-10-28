@@ -5,5 +5,5 @@ namespace Api;
 
 public interface IClientPrincipalFactory
 {
-    public ClientPrincipal Create(HttpRequestData request);
+    public ClientPrincipal? Create(HttpRequestData request);
 }
