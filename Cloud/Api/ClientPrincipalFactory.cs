@@ -50,29 +50,29 @@ public class ClientPrincipalFactory(ILogger<ClientPrincipalFactory> logger) : IC
         try
         {
             var handler = new JwtSecurityTokenHandler();
-            var decodedBearer = handler.ReadJwtToken(bearer);
+            var jwtToken = handler.ReadJwtToken(bearer);
 
-            var permissions = decodedBearer.Claims.Where(x => x.Type == "permissions")
+            var permissions = jwtToken.Claims.Where(x => x.Type == "permissions")
                 .Select(x => new ClientPrincipalClaim {Type = "permissions", Value = x.Value});
-            var roles = decodedBearer.Claims.Where(x => x.Type == ClaimsRolesIdentifierType)
+            var roles = jwtToken.Claims.Where(x => x.Type == ClaimsRolesIdentifierType)
                 .Select(x => new ClientPrincipalClaim {Type = ClaimsRolesIdentifierType, Value = x.Value});
-            var audiences = decodedBearer.Claims.Where(x => x.Type == "aud")
+            var audiences = jwtToken.Claims.Where(x => x.Type == "aud")
                 .Select(x => new ClientPrincipalClaim {Type = "aud", Value = x.Value});
-            var scopes = decodedBearer.Claims.Where(x => x.Type == "scope")
+            var scopes = jwtToken.Claims.Where(x => x.Type == "scope")
                 .Select(x => new ClientPrincipalClaim {Type = "scope", Value = x.Value});
-            var azps = decodedBearer.Claims.Where(x => x.Type == "azp")
+            var azps = jwtToken.Claims.Where(x => x.Type == "azp")
                 .Select(x => new ClientPrincipalClaim {Type = "azp", Value = x.Value});
 
             return new ClientPrincipal
             {
                 Claims = permissions
                     .Concat(roles)
-                    .Concat([new ClientPrincipalClaim {Type = "iss", Value = decodedBearer.Issuer}])
+                    .Concat([new ClientPrincipalClaim {Type = "iss", Value = jwtToken.Issuer}])
                     .Concat([
                         new ClientPrincipalClaim
                         {
                             Type = ClientPrincipal.ClaimsNameIdentifierType,
-                            Value = decodedBearer.Subject
+                            Value = jwtToken.Subject
                         }
                     ])
                     .Concat(audiences)
@@ -80,7 +80,7 @@ public class ClientPrincipalFactory(ILogger<ClientPrincipalFactory> logger) : IC
                         new ClientPrincipalClaim
                         {
                             Type = "iat",
-                            Value = new DateTimeOffset(decodedBearer.IssuedAt.ToUniversalTime()).ToUnixTimeSeconds()
+                            Value = new DateTimeOffset(jwtToken.IssuedAt.ToUniversalTime()).ToUnixTimeSeconds()
                                 .ToString()
                         }
                     ])
@@ -88,7 +88,7 @@ public class ClientPrincipalFactory(ILogger<ClientPrincipalFactory> logger) : IC
                         new ClientPrincipalClaim
                         {
                             Type = "exp",
-                            Value = new DateTimeOffset(decodedBearer.ValidTo.ToUniversalTime()).ToUnixTimeSeconds()
+                            Value = new DateTimeOffset(jwtToken.ValidTo.ToUniversalTime()).ToUnixTimeSeconds()
                                 .ToString()
                         }
                     ])
