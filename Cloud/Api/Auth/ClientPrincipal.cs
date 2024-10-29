@@ -7,8 +7,6 @@ public class ClientPrincipal
     public const string ClaimsNameIdentifierType =
         "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
 
-    public const string ClaimsRolesIdentifierType = "https://api.cultpodcasts.com/roles";
-
     [JsonPropertyName("auth_typ")]
     public string IdentityProvider { get; set; } = "";
 
