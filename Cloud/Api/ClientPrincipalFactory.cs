@@ -39,7 +39,7 @@ public class ClientPrincipalFactory(ILogger<ClientPrincipalFactory> logger) : IC
         return null;
     }
 
-    private ClientPrincipal? GetAuth0ClientPrincipal(IEnumerable<string>? claims)
+    private ClientPrincipal? GetAuth0ClientPrincipal(IEnumerable<string> claims)
     {
         claims = claims
             .Where(x => x.StartsWith(Bearer))
@@ -49,6 +49,10 @@ public class ClientPrincipalFactory(ILogger<ClientPrincipalFactory> logger) : IC
         try
         {
             var claimHeader = claims!.First();
+            if (!claimHeader.EndsWith("=="))
+            {
+                claimHeader += "==";
+            }
             var decoded = Convert.FromBase64String(claimHeader);
             var json = Encoding.UTF8.GetString(decoded);
             var jwtToken = JsonSerializer.Deserialize<Auth0Payload>(json,
@@ -86,17 +90,18 @@ public class ClientPrincipalFactory(ILogger<ClientPrincipalFactory> logger) : IC
                     .Concat([new ClientPrincipalClaim {Type = "azp", Value = jwtToken.Azp}])
             };
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            logger.LogError(ex, $"Unable to decode jwt token");
             return null;
         }
     }
 
-    private ClientPrincipal? GetAppServiceAuthClientPrincipal(IEnumerable<string>? claims)
+    private ClientPrincipal? GetAppServiceAuthClientPrincipal(IEnumerable<string> claims)
     {
         try
         {
-            var claimHeader = claims!.First();
+            var claimHeader = claims.First();
             var decoded = Convert.FromBase64String(claimHeader);
             var json = Encoding.UTF8.GetString(decoded);
             var principal = JsonSerializer.Deserialize<ClientPrincipal>(json,
