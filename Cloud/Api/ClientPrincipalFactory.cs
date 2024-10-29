@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using System.Text.Json;
 using Api.Auth;
@@ -8,6 +9,7 @@ namespace Api;
 
 public class ClientPrincipalFactory(ILogger<ClientPrincipalFactory> logger) : IClientPrincipalFactory
 {
+    private const string ClaimsRolesIdentifierType = "https://api.cultpodcasts.com/roles";
     private const string Bearer = "Bearer ";
 
     public ClientPrincipal? Create(HttpRequestData request)
@@ -39,27 +41,27 @@ public class ClientPrincipalFactory(ILogger<ClientPrincipalFactory> logger) : IC
         return null;
     }
 
-    private ClientPrincipal? GetAuth0ClientPrincipal(IEnumerable<string>? claims)
+    private ClientPrincipal? GetAuth0ClientPrincipal(IEnumerable<string> claims)
     {
-        claims = claims
+        var bearer = claims
             .Where(x => x.StartsWith(Bearer))
             .Select(x => x.Substring(Bearer.Length))
-            .Select(x => x.Split(".")[1])
-            .ToArray();
+            .First();
         try
         {
-            var claimHeader = claims!.First();
-            var decoded = Convert.FromBase64String(claimHeader);
-            var json = Encoding.UTF8.GetString(decoded);
-            var jwtToken = JsonSerializer.Deserialize<Auth0Payload>(json,
-                new JsonSerializerOptions {PropertyNameCaseInsensitive = true});
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(bearer);
 
-            var permissions = jwtToken.Permissions.Select(x => new ClientPrincipalClaim
-                {Type = "permissions", Value = x});
-            var roles = jwtToken.Roles.Select(x => new ClientPrincipalClaim
-                {Type = ClientPrincipal.ClaimsRolesIdentifierType, Value = x});
-            var audiences = jwtToken.Audience.Select(x => new ClientPrincipalClaim
-                {Type = "aud", Value = x});
+            var permissions = jwtToken.Claims.Where(x => x.Type == "permissions")
+                .Select(x => new ClientPrincipalClaim {Type = "permissions", Value = x.Value});
+            var roles = jwtToken.Claims.Where(x => x.Type == ClaimsRolesIdentifierType)
+                .Select(x => new ClientPrincipalClaim {Type = ClaimsRolesIdentifierType, Value = x.Value});
+            var audiences = jwtToken.Claims.Where(x => x.Type == "aud")
+                .Select(x => new ClientPrincipalClaim {Type = "aud", Value = x.Value});
+            var scopes = jwtToken.Claims.Where(x => x.Type == "scope")
+                .Select(x => new ClientPrincipalClaim {Type = "scope", Value = x.Value});
+            var azps = jwtToken.Claims.Where(x => x.Type == "azp")
+                .Select(x => new ClientPrincipalClaim {Type = "azp", Value = x.Value});
 
             return new ClientPrincipal
             {
@@ -76,27 +78,36 @@ public class ClientPrincipalFactory(ILogger<ClientPrincipalFactory> logger) : IC
                     .Concat(audiences)
                     .Concat([
                         new ClientPrincipalClaim
-                            {Type = "iat", Value = jwtToken.IssuedAtTimeSeconds?.ToString() ?? string.Empty}
+                        {
+                            Type = "iat",
+                            Value = new DateTimeOffset(jwtToken.IssuedAt.ToUniversalTime()).ToUnixTimeSeconds()
+                                .ToString()
+                        }
                     ])
                     .Concat([
                         new ClientPrincipalClaim
-                            {Type = "exp", Value = jwtToken.ExpirationTimeSeconds?.ToString() ?? string.Empty}
+                        {
+                            Type = "exp",
+                            Value = new DateTimeOffset(jwtToken.ValidTo.ToUniversalTime()).ToUnixTimeSeconds()
+                                .ToString()
+                        }
                     ])
-                    .Concat([new ClientPrincipalClaim {Type = "scope", Value = jwtToken.Scope}])
-                    .Concat([new ClientPrincipalClaim {Type = "azp", Value = jwtToken.Azp}])
+                    .Concat(scopes)
+                    .Concat(azps)
             };
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            logger.LogError(ex, "Unable to decode jwt token");
             return null;
         }
     }
 
-    private ClientPrincipal? GetAppServiceAuthClientPrincipal(IEnumerable<string>? claims)
+    private ClientPrincipal? GetAppServiceAuthClientPrincipal(IEnumerable<string> claims)
     {
         try
         {
-            var claimHeader = claims!.First();
+            var claimHeader = claims.First();
             var decoded = Convert.FromBase64String(claimHeader);
             var json = Encoding.UTF8.GetString(decoded);
             var principal = JsonSerializer.Deserialize<ClientPrincipal>(json,
