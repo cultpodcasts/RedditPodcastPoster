@@ -27,11 +27,51 @@ public class NotificationBuilder
         return this;
     }
 
-    public NotificationBuilder WithAction(string title, string action, string? icon = null)
+    public NotificationBuilder WithDefaultAction(ActionOperation actionOperation, Uri? url = null)
+    {
+        _payload.Notification ??= new Notification();
+        _payload.Notification.Data ??= new NotificationData();
+        _payload.Notification.Data.OnActionClick ??= new Dictionary<string, NotificationOnActionClick>();
+        var notificationOnActionClick = new NotificationOnActionClick
+        {
+            Operation = actionOperation,
+            Url = url
+        };
+        _payload.Notification.Data.OnActionClick["default"] = notificationOnActionClick;
+        return this;
+    }
+
+    public NotificationBuilder WithDefaultOpenWindowAction()
+    {
+        _payload.Notification ??= new Notification();
+        _payload.Notification.Data ??= new NotificationData();
+        _payload.Notification.Data.OnActionClick ??= new Dictionary<string, NotificationOnActionClick>();
+        var notificationOnActionClick = new NotificationOnActionClick
+        {
+            Operation = ActionOperation.OpenWindow
+        };
+        _payload.Notification.Data.OnActionClick["default"] = notificationOnActionClick;
+        return this;
+    }
+
+    public NotificationBuilder WithAction(string title, string action, string? icon = null,
+        ActionOperation? actionOperation = null, Uri? url = null)
     {
         _payload.Notification ??= new Notification();
         _payload.Notification.Actions ??= [];
         _payload.Notification.Actions.Add(new NotificationAction {Action = action, Title = title, Icon = icon});
+        if (actionOperation != null)
+        {
+            _payload.Notification.Data ??= new NotificationData();
+            _payload.Notification.Data.OnActionClick ??= new Dictionary<string, NotificationOnActionClick>();
+            var notificationOnActionClick = new NotificationOnActionClick
+            {
+                Operation = actionOperation.Value,
+                Url = url
+            };
+            _payload.Notification.Data.OnActionClick[action] = notificationOnActionClick;
+        }
+
         return this;
     }
 
@@ -93,13 +133,6 @@ public class NotificationBuilder
     {
         _payload.Notification ??= new Notification();
         _payload.Notification.Vibrate = vibrate;
-        return this;
-    }
-
-    public NotificationBuilder WithData(object data)
-    {
-        _payload.Notification ??= new Notification();
-        _payload.Notification.Data = data;
         return this;
     }
 }
