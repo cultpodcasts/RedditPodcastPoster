@@ -41,5 +41,5 @@ public class Notification
     public int[]? Vibrate { get; set; }
 
     [JsonPropertyName("data")]
-    public object? Data { get; set; }
+    public NotificationData? Data { get; set; }
 }

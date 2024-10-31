@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PushSubscriptions.Configuration;
+using RedditPodcastPoster.PushSubscriptions.Dtos;
 using WebPush;
 
 namespace RedditPodcastPoster.PushSubscriptions;
@@ -15,6 +16,12 @@ public class NotificationPublisher(
     ILogger<NotificationPublisher> logger
 ) : INotificationPublisher
 {
+    private static readonly JsonSerializerOptions JsonSerializerOptions = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = {new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)}
+    };
+
     private readonly PushSubscriptionsOptions _pushSubscriptionsOptions = pushSubscriptionsOptions.Value;
 
     public async Task SendDiscoveryNotification(DiscoveryNotification discoveryNotification)
@@ -26,20 +33,18 @@ public class NotificationPublisher(
             .WithTitle("New discovery available")
             .WithBody(discoveryNotification.ToString())
             .WithIcon("assets/cultpodcasts.svg")
-            .WithAction("Discover", "discover")
+            .WithDefaultAction(ActionOperation.NavigateLastFocusedOrOpen, new Uri("/discovery", UriKind.Relative))
+            .WithAction("Discover", "discover", actionOperation: ActionOperation.NavigateLastFocusedOrOpen,
+                url: new Uri("/discovery", UriKind.Relative))
             .WithBadge("assets/cultpodcasts-badge.svg")
             .WithRenotify(true)
             .WithRequireInteraction(true)
             .WithSilent(false)
             .WithTag("discovery")
             .WithTimestamp(DateTimeOffset.Now)
-            .WithVibrate([200, 100, 200])
-            .WithData(new {url = "/discovery"});
+            .WithVibrate([200, 100, 200]);
 
-        var payloadJson = JsonSerializer.Serialize(notificationBuilder.Build(), new JsonSerializerOptions
-        {
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-        });
+        var payloadJson = JsonSerializer.Serialize(notificationBuilder.Build(), JsonSerializerOptions);
 
         var vapidDetails = new VapidDetails(
             _pushSubscriptionsOptions.Subject,
