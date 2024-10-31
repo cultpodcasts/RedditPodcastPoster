@@ -16,6 +16,12 @@ public class NotificationPublisher(
     ILogger<NotificationPublisher> logger
 ) : INotificationPublisher
 {
+    private static readonly JsonSerializerOptions JsonSerializerOptions = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = {new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)}
+    };
+
     private readonly PushSubscriptionsOptions _pushSubscriptionsOptions = pushSubscriptionsOptions.Value;
 
     public async Task SendDiscoveryNotification(DiscoveryNotification discoveryNotification)
@@ -38,11 +44,7 @@ public class NotificationPublisher(
             .WithTimestamp(DateTimeOffset.Now)
             .WithVibrate([200, 100, 200]);
 
-        var payloadJson = JsonSerializer.Serialize(notificationBuilder.Build(), new JsonSerializerOptions
-        {
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            Converters = {new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)}
-        });
+        var payloadJson = JsonSerializer.Serialize(notificationBuilder.Build(), JsonSerializerOptions);
 
         var vapidDetails = new VapidDetails(
             _pushSubscriptionsOptions.Subject,
