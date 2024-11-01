@@ -174,7 +174,12 @@ public partial class SearchResultFinder(
     {
         var episodeTitle = episode.Title.Trim().ToLower();
         var matchingSearchResult = searchResults.Where(x =>
-            x.Snippet.Title.Trim().ToLower() == episodeTitle);
+        {
+            var snippetTitle = x.Snippet.Title.Trim().ToLower();
+            return snippetTitle == episodeTitle ||
+                   snippetTitle.Contains(episodeTitle) ||
+                   episodeTitle.Contains(episodeTitle);
+        });
 
         if (matchingSearchResult.Count() == 1)
         {
