@@ -21,12 +21,15 @@ public class PodcastFactory(
 
         podcastName = podcastName.Trim();
         var fileKey = FileKeyFactory.GetFileKey(podcastName);
-        var rootFileKey = fileKey;
-        var ctr = 2;
-        do
+        if (_fileKeys.Contains(fileKey))
         {
-            fileKey = $"{rootFileKey}_{ctr++}";
-        } while (_fileKeys.Contains(fileKey));
+            var rootFileKey = fileKey;
+            var ctr = 2;
+            do
+            {
+                fileKey = $"{rootFileKey}_{ctr++}";
+            } while (_fileKeys.Contains(fileKey));
+        }
 
         return new Podcast(Guid.NewGuid()) {Name = podcastName, FileKey = fileKey};
     }

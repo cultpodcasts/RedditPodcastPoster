@@ -25,12 +25,15 @@ public class SubjectFactory(
 
         subjectName = subjectName.Trim();
         var fileKey = FileKeyFactory.GetFileKey(subjectName);
-        var rootFileKey = fileKey;
-        var ctr = 2;
-        do
+        if (_fileKeys.Contains(fileKey))
         {
-            fileKey = $"{rootFileKey}_{ctr++}";
-        } while (_fileKeys.Contains(fileKey));
+            var rootFileKey = fileKey;
+            var ctr = 2;
+            do
+            {
+                fileKey = $"{rootFileKey}_{ctr++}";
+            } while (_fileKeys.Contains(fileKey));
+        }
 
         var subject = new Subject(subjectName) {FileKey = fileKey};
 
