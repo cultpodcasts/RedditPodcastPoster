@@ -14,7 +14,8 @@ public static class ServiceCollectionExtensions
             .AddScoped<ISubjectMatcher, SubjectMatcher>()
             .AddSingleton<IRecycledFlareIdProvider, RecycledFlareIdProvider>()
             .AddScoped<ICategoriser, Categoriser>()
-            .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>();
+            .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
+            .AddScoped<ISubjectFactory, SubjectFactory>();
     }
 
     public static IServiceCollection AddCachedSubjectProvider(this IServiceCollection services)

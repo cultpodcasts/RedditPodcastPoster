@@ -6,9 +6,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Indexing.Extensions;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -34,7 +34,6 @@ builder.Services
     .AddLogging()
     .AddSingleton<IndexProcessor>()
     .AddRepositories()
-    .AddSingleton<PodcastFactory>()
     .AddCommonServices(builder.Configuration)
     .AddPodcastServices()
     .AddAppleServices()

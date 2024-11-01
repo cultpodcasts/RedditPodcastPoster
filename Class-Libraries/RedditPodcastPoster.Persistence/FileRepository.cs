@@ -53,7 +53,7 @@ public class FileRepository : IFileRepository
             throw new ArgumentException($"{nameof(data)} with id '{data.Id}' has a null/empty file-key.");
         }
 
-        var filePath = GetFilePath(data.FileKey);
+        var filePath = GetFilePath(data);
         await using var createStream = File.Create(filePath);
         await JsonSerializer.SerializeAsync(createStream, data, _jsonSerialiserOptions);
     }
@@ -110,6 +110,22 @@ public class FileRepository : IFileRepository
         }
     }
 
+    public async IAsyncEnumerable<string> GetAllFileKeys()
+    {
+        var filenames = GetFilenames();
+        var keys = filenames.Select(x =>
+            x.Substring(_container.Length, x.Length - (FileExtension.Length + _container.Length)));
+        foreach (var item in keys)
+        {
+            var cosmosSelector = await Read<CosmosSelector>(item);
+            if (cosmosSelector != null)
+            {
+                yield return cosmosSelector.FileKey;
+            }
+        }
+    }
+
+
     public async Task<T?> GetBy<T>(Expression<Func<T, bool>> selector) where T : CosmosSelector
     {
         var items = await GetAll<T>().ToListAsync();
@@ -146,15 +162,21 @@ public class FileRepository : IFileRepository
 
     public Task Delete<T>(T data) where T : CosmosSelector
     {
-        var filePath = GetFilePath(data.FileKey);
+        var filePath = GetFilePath(data);
         File.Delete(filePath);
         return Task.CompletedTask;
+    }
+
+    public string GetFilePath<T>(T data) where T : CosmosSelector
+    {
+        return GetFilePath(data.FileKey);
     }
 
     private string GetFilePath(string fileKey)
     {
         return $"{_container}{fileKey}{FileExtension}";
     }
+
 
     private string[] GetFilenames()
     {

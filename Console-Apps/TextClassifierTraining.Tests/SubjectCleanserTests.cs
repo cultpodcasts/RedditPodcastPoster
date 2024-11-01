@@ -20,10 +20,10 @@ public class SubjectCleanserTests
         _mocker
             .GetMock<ISubjectService>()
             .Setup(x => x.Match(subject))
-            .ReturnsAsync(() => SubjectFactory.Create(subject));
+            .ReturnsAsync(() => new Subject(subject));
 
         // act
-        var (unmatched, result) = await Sut.CleanSubjects(new List<string> {subject});
+        var (unmatched, result) = await Sut.CleanSubjects([subject]);
         // assert
         result.SingleOrDefault().Should().Be(subject);
     }
@@ -36,10 +36,10 @@ public class SubjectCleanserTests
         _mocker
             .GetMock<ISubjectService>()
             .Setup(x => x.Match(subject))
-            .ReturnsAsync(() => SubjectFactory.Create(subject));
+            .ReturnsAsync(() => new Subject(subject));
 
         // act
-        var (unmatched, result) = await Sut.CleanSubjects(new List<string> {subject, subject});
+        var (unmatched, result) = await Sut.CleanSubjects([subject, subject]);
         // assert
         result.SingleOrDefault().Should().Be(subject);
     }
@@ -52,18 +52,18 @@ public class SubjectCleanserTests
         _mocker
             .GetMock<ISubjectService>()
             .Setup(x => x.Match("term 1"))
-            .ReturnsAsync(() => SubjectFactory.Create("term 1"));
+            .ReturnsAsync(() => new Subject("term 1"));
         _mocker
             .GetMock<ISubjectService>()
             .Setup(x => x.Match("term 2"))
-            .ReturnsAsync(() => SubjectFactory.Create("term 2"));
+            .ReturnsAsync(() => new Subject("term 2"));
         _mocker
             .GetMock<ISubjectService>()
             .Setup(x => x.Match("term 3"))
-            .ReturnsAsync(() => SubjectFactory.Create("term 3"));
+            .ReturnsAsync(() => new Subject("term 3"));
 
         // act
-        var (unmatched, results) = await Sut.CleanSubjects(new List<string> {subject});
+        var (unmatched, results) = await Sut.CleanSubjects([subject]);
         // assert
         results.Should().BeEquivalentTo("term 1", "term 2", "term 3");
     }
@@ -76,13 +76,13 @@ public class SubjectCleanserTests
         _mocker
             .GetMock<ISubjectService>()
             .Setup(x => x.Match("term 1"))
-            .ReturnsAsync(() => SubjectFactory.Create("term 1"));
+            .ReturnsAsync(() => new Subject("term 1"));
         _mocker
             .GetMock<ISubjectService>()
             .Setup(x => x.Match("term 2"))
-            .ReturnsAsync(() => SubjectFactory.Create("term 2"));
+            .ReturnsAsync(() => new Subject("term 2"));
         // act
-        var (unmatched, result) = await Sut.CleanSubjects(new List<string> {subject});
+        var (unmatched, result) = await Sut.CleanSubjects([subject]);
         // assert
         result.Should().BeEquivalentTo("term 1", "term 2");
     }
@@ -95,13 +95,13 @@ public class SubjectCleanserTests
         _mocker
             .GetMock<ISubjectService>()
             .Setup(x => x.Match("term 1"))
-            .ReturnsAsync(() => SubjectFactory.Create("term 1"));
+            .ReturnsAsync(() => new Subject("term 1"));
         _mocker
             .GetMock<ISubjectService>()
             .Setup(x => x.Match("term 2"))
-            .ReturnsAsync(() => SubjectFactory.Create("term 2"));
+            .ReturnsAsync(() => new Subject("term 2"));
         // act
-        var (unmatched, result) = await Sut.CleanSubjects(new List<string> {subject});
+        var (unmatched, result) = await Sut.CleanSubjects([subject]);
         // assert
         result.Should().BeEquivalentTo("term 1", "term 2");
     }
@@ -114,13 +114,13 @@ public class SubjectCleanserTests
         _mocker
             .GetMock<ISubjectService>()
             .Setup(x => x.Match("term 1"))
-            .ReturnsAsync(() => SubjectFactory.Create("term 1"));
+            .ReturnsAsync(() => new Subject("term 1"));
         _mocker
             .GetMock<ISubjectService>()
             .Setup(x => x.Match("term 2"))
-            .ReturnsAsync(() => SubjectFactory.Create("term 2"));
+            .ReturnsAsync(() => new Subject("term 2"));
         // act
-        var (unmatched, result) = await Sut.CleanSubjects(new List<string> {subject});
+        var (unmatched, result) = await Sut.CleanSubjects([subject]);
         // assert
         result.Should().BeEquivalentTo(expected);
     }

@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using System.Text.Json.Serialization;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
@@ -62,7 +63,7 @@ public class CosmosDbRepository(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(GetAll)}: Error retrieving all-documents.");
+            logger.LogError(ex, $"{nameof(GetAll)}: Error retrieving all-document-ids.");
             throw;
         }
     }
@@ -193,4 +194,26 @@ public class CosmosDbRepository(
             throw;
         }
     }
+
+    public IAsyncEnumerable<string> GetAllFileKeys()
+    {
+        try
+        {
+            var query = $"SELECT c.fileKey FROM c WHERE c.type <> '{ModelType.Discovery.ToString()}'";
+            var fileKeysQuery = new QueryDefinition(query);
+            using var feed = container.GetItemQueryIterator<FileKeyWrapper>(fileKeysQuery);
+            return feed.ToAsyncEnumerable().Where(x => x?.FileKey != null).Select(x => x.FileKey);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"{nameof(GetAll)}: Error retrieving all-file-keys.");
+            throw;
+        }
+    }
+}
+
+public class FileKeyWrapper
+{
+    [JsonPropertyName("fileKey")]
+    public string FileKey { get; set; }
 }

@@ -12,6 +12,7 @@ namespace SubjectSeeder;
 public class SubjectsSeeder(
     ISubjectRepository subjectRepository,
     ISubjectService subjectService,
+    ISubjectFactory subjectFactory,
     IAdminRedditClient redditClient,
     IRecycledFlareIdProvider recycledFlareIdProvider,
     IOptions<SubredditSettings> subredditSettings,
@@ -26,7 +27,7 @@ public class SubjectsSeeder(
         Subject? match = null;
         if (!subjectRequest.Publish)
         {
-            var subject = SubjectFactory.Create(
+            var subject = await subjectFactory.Create(
                 subjectRequest.Name,
                 subjectRequest.Aliases,
                 subjectRequest.AssociatedSubjects,
