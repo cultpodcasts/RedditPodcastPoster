@@ -74,6 +74,11 @@ public class PodcastRepository(
         return dataRepository.GetAllIds<Podcast>();
     }
 
+    public IAsyncEnumerable<string> GetAllFileKeys()
+    {
+        return dataRepository.GetAllFileKeys();
+    }
+
     public Task Save(Podcast podcast)
     {
         return dataRepository.Write(podcast);

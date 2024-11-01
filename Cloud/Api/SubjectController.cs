@@ -22,6 +22,7 @@ namespace Api;
 public class SubjectController(
     ISubjectRepository subjectRepository,
     ISubjectService subjectService,
+    ISubjectFactory subjectFactory,
     IContentPublisher contentPublisher,
     IAdminRedditClient redditClient,
     IClientPrincipalFactory clientPrincipalFactory,
@@ -136,7 +137,7 @@ public class SubjectController(
             return await req.CreateResponse(HttpStatusCode.BadRequest).WithJsonBody(new {message = "Missing name"}, ct);
         }
 
-        var entity = new Subject(subject.Name);
+        var entity = await subjectFactory.Create(subject.Name);
         await UpdateSubject(entity, subject);
         var matchingSubject = await subjectService.Match(entity);
         if (matchingSubject != null)

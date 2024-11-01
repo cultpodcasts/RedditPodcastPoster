@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using iTunesSearch.Library;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -14,7 +15,7 @@ namespace AddAudioPodcast;
 public class AddAudioPodcastProcessor(
     IPodcastRepository podcastRepository,
     ISpotifyClient spotifyClient,
-    PodcastFactory podcastFactory,
+    IPodcastFactory podcastFactory,
     IApplePodcastEnricher applePodcastEnricher,
     ISpotifyPodcastEnricher spotifyPodcastEnricher,
     IPodcastUpdater podcastUpdater,
@@ -106,7 +107,7 @@ public class AddAudioPodcastProcessor(
         var podcast = await podcastRepository.GetBy(x => x.SpotifyId == request.PodcastId);
         if (podcast == null)
         {
-            podcast = podcastFactory.Create(spotifyPodcast.Name);
+            podcast = await podcastFactory.Create(spotifyPodcast.Name);
             podcast.SpotifyId = spotifyPodcast.Id;
             podcast.Bundles = false;
             podcast.Publisher = spotifyPodcast.Publisher.Trim();
@@ -133,7 +134,7 @@ public class AddAudioPodcastProcessor(
         var podcast = await podcastRepository.GetBy(x => x.AppleId == id);
         if (podcast == null)
         {
-            podcast = podcastFactory.Create(applePodcast.Name);
+            podcast = await podcastFactory.Create(applePodcast.Name);
             podcast.AppleId = applePodcast.Id;
             podcast.Bundles = false;
             podcast.Publisher = applePodcast.ArtistName.Trim();

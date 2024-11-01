@@ -4,6 +4,8 @@ using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Extensions;
@@ -24,9 +26,9 @@ builder.Services
     .AddRepositories()
     .AddYouTubeServices(builder.Configuration)
     .AddScoped<AddYouTubeChannelProcessor>()
-    .AddSingleton<PodcastFactory>()
     .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
     .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
+    .AddCommonServices(builder.Configuration)
     .AddHttpClient();
 
 using var host = builder.Build();

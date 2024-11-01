@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using CosmosDbDownloader;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -15,11 +16,11 @@ builder.Configuration
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
 
-
 builder.Services
     .AddLogging()
     .AddRepositories()
     .AddFileRepository()
+    .AddScoped<ISafeFileEntityWriter, SafeFileEntityWriter>()
     .AddSingleton<CosmosDbDownloader.CosmosDbDownloader>();
 
 using var host = builder.Build();

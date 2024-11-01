@@ -4,9 +4,9 @@ using JsonSplitCosmosDbUploader;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.JsonSplitCosmosDbUploader;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -23,8 +23,8 @@ builder.Services
     .AddLogging()
     .AddRepositories()
     .AddFileRepository("podcast")
-    .AddScoped<JsonSplitCosmosDbUploadProcessor>()
-    .AddSingleton<PodcastFactory>();
+    .AddCommonServices(builder.Configuration)
+    .AddScoped<JsonSplitCosmosDbUploadProcessor>();
 
 
 using var host = builder.Build();

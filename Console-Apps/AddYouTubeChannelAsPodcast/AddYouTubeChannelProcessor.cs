@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -34,7 +35,7 @@ public class AddYouTubeChannelProcessor(
             var channel =
                 await youTubeChannelService.GetChannel(new YouTubeChannelId(match.Snippet.ChannelId),
                     indexOptions, withContentOwnerDetails: true);
-            var newPodcast = podcastFactory.Create(match.Snippet.ChannelTitle);
+            var newPodcast = await podcastFactory.Create(match.Snippet.ChannelTitle);
             newPodcast.Publisher = channel?.ContentOwnerDetails.ContentOwner ?? string.Empty;
             newPodcast.YouTubePublicationOffset = null;
             newPodcast.YouTubeChannelId = match.Snippet.ChannelId;

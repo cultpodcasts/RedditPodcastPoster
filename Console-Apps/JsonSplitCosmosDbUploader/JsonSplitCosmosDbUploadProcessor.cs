@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.JsonSplitCosmosDbUploader;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -10,7 +11,7 @@ public class JsonSplitCosmosDbUploadProcessor(
     IFileRepository fileRepository,
     IPodcastRepository podcastRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
-    PodcastFactory podcastFactory,
+    IPodcastFactory podcastFactory,
     ILogger<JsonSplitCosmosDbUploadProcessor> logger)
 {
     public async Task Run(JsonSplitCosmosDbUploadRequest request)
@@ -30,7 +31,7 @@ public class JsonSplitCosmosDbUploadProcessor(
 
             for (var i = 0; i < splitFiles; i++)
             {
-                var podcast = podcastFactory.Create(sourcePodcast.Name);
+                var podcast = await podcastFactory.Create(sourcePodcast.Name);
                 podcast.FileKey = $"{podcast.FileKey}_{i}";
                 podcast.AppleId = sourcePodcast.AppleId;
                 podcast.Bundles = sourcePodcast.Bundles;

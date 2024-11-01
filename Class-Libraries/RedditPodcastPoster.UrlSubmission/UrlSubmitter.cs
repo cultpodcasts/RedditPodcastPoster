@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -24,6 +25,7 @@ public class UrlSubmitter(
     ISpotifyUrlCategoriser spotifyUrlCategoriser,
     IAppleUrlCategoriser appleUrlCategoriser,
     IYouTubeUrlCategoriser youTubeUrlCategoriser,
+    IPodcastFactory podcastFactory,
     ILogger<UrlSubmitter> logger)
     : IUrlSubmitter
 {
@@ -374,7 +376,7 @@ public class UrlSubmitter(
                 throw new ArgumentOutOfRangeException();
         }
 
-        var newPodcast = new PodcastFactory().Create(showName);
+        var newPodcast = await podcastFactory.Create(showName);
         newPodcast.Publisher = publisher;
         newPodcast.SpotifyId = categorisedItem.ResolvedSpotifyItem?.ShowId ?? string.Empty;
         newPodcast.AppleId = categorisedItem.ResolvedAppleItem?.ShowId;
