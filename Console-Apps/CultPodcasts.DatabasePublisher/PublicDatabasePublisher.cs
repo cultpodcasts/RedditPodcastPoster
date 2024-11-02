@@ -8,7 +8,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace CultPodcasts.DatabasePublisher;
 
 public class PublicDatabasePublisher(
-    IFileRepository fileRepository,
+    ISafeFileEntityWriter safeFileEntityWriter,
     ICosmosDbRepository cosmosDbRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<CosmosDbRepository> logger
@@ -17,6 +17,18 @@ public class PublicDatabasePublisher(
 {
     public async Task Run()
     {
+        var fileKeys = await cosmosDbRepository.GetAllFileKeys().ToListAsync();
+        var multipleFileKeys = fileKeys
+            .GroupBy(x => x)
+            .Select(x => new {FileKey = x.Key, Count = x.Count()})
+            .Where(x => x.Count > 1)
+            .Select(x => x.FileKey)
+            .ToArray();
+        if (multipleFileKeys.Any())
+        {
+            throw new InvalidOperationException($"Multiple File-keys exist: '{string.Join(", ", multipleFileKeys)}'.");
+        }
+
         var podcastIds = await cosmosDbRepository.GetAllIds<Podcast>().ToArrayAsync();
 
         var progress = new ProgressBar(podcastIds.Length);
@@ -64,7 +76,7 @@ public class PublicDatabasePublisher(
                     .OrderByDescending(x => x.Release)
                     .ToList();
 
-                await fileRepository.Write(publicPodcast);
+                await safeFileEntityWriter.Write(publicPodcast);
             }
 
             if (++ctr == podcastIds.Length)

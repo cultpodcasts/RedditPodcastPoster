@@ -1,5 +1,4 @@
 ﻿using System.Reflection;
-using CosmosDbDownloader;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -20,7 +19,7 @@ builder.Services
     .AddLogging()
     .AddRepositories()
     .AddFileRepository()
-    .AddScoped<ISafeFileEntityWriter, SafeFileEntityWriter>()
+    .AddSafeFileWriter()
     .AddSingleton<CosmosDbDownloader.CosmosDbDownloader>();
 
 using var host = builder.Build();

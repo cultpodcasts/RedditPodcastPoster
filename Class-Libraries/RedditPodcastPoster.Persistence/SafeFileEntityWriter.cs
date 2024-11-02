@@ -2,7 +2,7 @@
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
-namespace CosmosDbDownloader;
+namespace RedditPodcastPoster.Persistence;
 
 public class SafeFileEntityWriter(
     IFileRepository fileRepository,
