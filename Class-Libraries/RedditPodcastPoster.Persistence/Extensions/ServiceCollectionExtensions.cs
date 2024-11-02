@@ -29,4 +29,9 @@ public static class ServiceCollectionExtensions
             .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
             .AddScoped(x => x.GetService<IFileRepositoryFactory>()!.Create(containerName));
     }
+
+    public static IServiceCollection AddSafeFileWriter(this IServiceCollection services)
+    {
+        return services.AddScoped<ISafeFileEntityWriter, SafeFileEntityWriter>();
+    }
 }
