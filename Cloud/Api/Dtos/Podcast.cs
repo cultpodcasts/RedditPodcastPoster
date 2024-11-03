@@ -37,6 +37,9 @@ public class Podcast
     [JsonPropertyName("appleId")]
     public long? AppleId { get; set; } = null;
 
+    [JsonPropertyName("nullAppleId")]
+    public bool? NullAppleId { get; set; }
+
     [JsonPropertyName("youTubePublicationDelay")]
     public string? YouTubePublishingDelayTimeSpan { get; set; }
 

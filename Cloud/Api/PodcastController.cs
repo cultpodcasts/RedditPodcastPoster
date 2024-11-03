@@ -192,9 +192,21 @@ public class PodcastController(
             podcast.PrimaryPostService = null;
         }
 
-        if (podcastChangeRequest.AppleId != null)
+        if (podcastChangeRequest.AppleId != null ||
+            (podcastChangeRequest.NullAppleId.HasValue && podcastChangeRequest.NullAppleId.Value))
         {
-            podcast.AppleId = podcastChangeRequest.AppleId.Value;
+            if (podcastChangeRequest.NullAppleId.HasValue && podcastChangeRequest.NullAppleId.Value)
+            {
+                podcast.AppleId = null;
+            }
+            else if (podcastChangeRequest.AppleId.HasValue)
+            {
+                podcast.AppleId = podcastChangeRequest.AppleId.Value;
+            }
+            else
+            {
+                throw new InvalidOperationException("Indeterminate state of apple-id");
+            }
         }
 
         if (podcastChangeRequest.YouTubePublishingDelayTimeSpan != null)
