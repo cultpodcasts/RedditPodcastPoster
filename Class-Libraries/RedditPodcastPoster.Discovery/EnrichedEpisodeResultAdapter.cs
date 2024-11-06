@@ -50,7 +50,7 @@ public class EnrichedEpisodeResultAdapter(
         }
 
         discoveryResult.Released = episode.EpisodeResult.Released;
-        if (episode.EpisodeResult.Length != null)
+        if (episode.EpisodeResult.Length.HasValue)
         {
             discoveryResult.Length = episode.EpisodeResult.Length;
         }
