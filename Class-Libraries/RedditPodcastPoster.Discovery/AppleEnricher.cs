@@ -38,7 +38,8 @@ public class AppleEnricher(
                 null,
                 episodeResult.EpisodeName,
                 episodeResult.Released,
-                null, episodeResult.Length);
+                null, 
+                episodeResult.Length);
 
             var appleResult = await appleEpisodeResolver.FindEpisode(
                 episodeRequest, indexingContext);

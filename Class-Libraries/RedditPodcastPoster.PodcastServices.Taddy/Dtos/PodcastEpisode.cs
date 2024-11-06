@@ -14,7 +14,7 @@ public class PodcastEpisode
     public string? Description { get; set; }
 
     [JsonPropertyName("duration")]
-    public int Seconds { get; set; }
+    public int? Seconds { get; set; }
 
     [JsonPropertyName("datePublished")]
     public long Published { get; set; }

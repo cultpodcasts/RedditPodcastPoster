@@ -72,24 +72,27 @@ public class AppleEpisodeResolver(
                         sampleList = podcastEpisodes;
                     }
 
-                    var sameLength = sampleList
-                        .Where(x => Math.Abs((x.Duration - request.EpisodeLength!.Value).Ticks) <
-                                    TimeDifferenceThreshold);
-                    if (sameLength.Count() > 1)
+                    if (request.EpisodeLength.HasValue)
                     {
-                        return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title,
-                            MinSameLengthFuzzyScore);
-                    }
+                        var sameLength = sampleList
+                            .Where(x => Math.Abs((x.Duration - request.EpisodeLength.Value).Ticks) <
+                                        TimeDifferenceThreshold);
+                        if (sameLength.Count() > 1)
+                        {
+                            return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title,
+                                MinSameLengthFuzzyScore);
+                        }
 
-                    match = sameLength.SingleOrDefault(x =>
-                        FuzzyMatcher.IsMatch(request.EpisodeTitle, x, y => y.Title, MinFuzzyScore));
+                        match = sameLength.SingleOrDefault(x =>
+                            FuzzyMatcher.IsMatch(request.EpisodeTitle, x, y => y.Title, MinFuzzyScore));
 
-                    if (match == null)
-                    {
-                        sameLength = sampleList
-                            .Where(x => Math.Abs((x.Duration - request.EpisodeLength!.Value).Ticks) <
-                                        BroaderTimeDifferenceThreshold);
-                        return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title, MinFuzzyScore);
+                        if (match == null)
+                        {
+                            sameLength = sampleList
+                                .Where(x => Math.Abs((x.Duration - request.EpisodeLength.Value).Ticks) <
+                                            BroaderTimeDifferenceThreshold);
+                            return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title, MinFuzzyScore);
+                        }
                     }
                 }
 

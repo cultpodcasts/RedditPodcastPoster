@@ -74,7 +74,7 @@ public class TaddySearcher(
             DateTimeOffset.FromUnixTimeSeconds(episode.Published).DateTime,
             htmlSanitiser.Sanitise(episode.Description ?? string.Empty).Trim(),
             episode.Name?.Trim() ?? string.Empty,
-            TimeSpan.FromSeconds(episode.Seconds),
+            episode.Seconds.HasValue ? TimeSpan.FromSeconds(episode.Seconds.Value) : null,
             episode.Podcast?.Name.Trim() ?? string.Empty,
             string.Empty,
             DiscoverService.Taddy);
