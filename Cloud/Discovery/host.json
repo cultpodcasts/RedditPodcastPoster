@@ -16,11 +16,12 @@
         "isEnabled": true
       },
       "enableLiveMetricsFilters": true
+    },
+    "logLevel": {
+      "default": "Information",
+      "Function": "Trace",
+      "Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler": "Warning"
     }
-  },
-  "logLevel": {
-    "default": "Information",
-    "Function": "Trace"
   },
   "functionTimeout": "00:10:00"
 }
