@@ -95,7 +95,7 @@ public class QueryExecutor(
         dict[term].Add(subject);
     }
 
-    private static async Task<int?> GetEpisodeCount(Container c, CancellationToken ct)
+    private static async Task<int> GetEpisodeCount(Container c, CancellationToken ct)
     {
         var numberOfEpisodes = new QueryDefinition(@"
                 SELECT Count(p.episodes)
@@ -109,12 +109,8 @@ public class QueryExecutor(
         using var episodeCount = c.GetItemQueryIterator<ScalarResult<int>>(
             numberOfEpisodes
         );
-        int? count = null;
-        if (episodeCount.HasMoreResults)
-        {
-            var item = await episodeCount.ReadNextAsync(ct);
-            count = item.First().Item;
-        }
+        var item = await episodeCount.ReadNextAsync(ct);
+        var count = item.First().Item;
 
         return count;
     }

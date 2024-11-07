@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Reddit;
 using Reddit.Things;
 using RedditPodcastPoster.Configuration;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using Flair = RedditPodcastPoster.ContentPublisher.Models.Flair;
 using SubredditSettings = RedditPodcastPoster.Reddit.SubredditSettings;
@@ -28,26 +29,8 @@ public class ContentPublisher(
     public async Task PublishHomepage()
     {
         var homepageContent = await queryExecutor.GetHomePage(CancellationToken.None);
-        var homepageContentAsJson = JsonSerializer.Serialize(homepageContent);
-
-        var request = new PutObjectRequest
-        {
-            BucketName = _cloudFlareOptions.BucketName,
-            Key = _cloudFlareOptions.HomepageKey,
-            ContentBody = homepageContentAsJson,
-            ContentType = "application/json",
-            DisablePayloadSigning = true
-        };
-
-        try
-        {
-            await client.PutObjectAsync(request);
-            logger.LogInformation($"Completed '{nameof(PublishHomepage)}'.");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, $"{nameof(PublishHomepage)} - Failed to upload homepage-content to R2");
-        }
+        await PublishHomepageToR2(homepageContent);
+        await PublishPreProcessedHomepageToR2(homepageContent);
     }
 
     public async Task PublishSubjects()
@@ -97,6 +80,76 @@ public class ContentPublisher(
         catch (Exception ex)
         {
             logger.LogError(ex, $"{nameof(PublishFlairs)} - Failed to upload flairs-content to R2");
+        }
+    }
+
+    private async Task PublishHomepageToR2(HomePageModel homepageContent)
+    {
+        var homepageContentAsJson = JsonSerializer.Serialize(homepageContent);
+
+        var request = new PutObjectRequest
+        {
+            BucketName = _cloudFlareOptions.BucketName,
+            Key = _cloudFlareOptions.HomepageKey,
+            ContentBody = homepageContentAsJson,
+            ContentType = "application/json",
+            DisablePayloadSigning = true
+        };
+
+        try
+        {
+            await client.PutObjectAsync(request);
+            logger.LogInformation($"Completed '{nameof(PublishHomepage)}'.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"{nameof(PublishHomepage)} - Failed to upload homepage-content to R2");
+        }
+    }
+
+    private async Task PublishPreProcessedHomepageToR2(HomePageModel homepageContent)
+    {
+        var london = TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time");
+        const int homepageItems = 20;
+        var episodesByDay = homepageContent.RecentEpisodes
+            .OrderByDescending(x => x.Release)
+            .Take(homepageItems)
+            .GroupBy(x => TimeZoneInfo
+                .ConvertTime(x.Release, TimeZoneInfo.Utc, london)
+                .ToString("dddd d MMMM"))
+            .ToDictionary(
+                x => x.Key,
+                y => y
+                    .OrderByDescending(z => z.Release)
+                    .ToArray());
+        PreProcessedHomePageModel preProcessedHomepage = new()
+        {
+            TotalDurationDays = homepageContent.TotalDuration.Days,
+            HasNext = homepageContent.RecentEpisodes.Count() > homepageItems,
+            EpisodesByDay = episodesByDay,
+            EpisodesThisWeek = homepageContent.RecentEpisodes.Count(),
+            EpisodeCount = homepageContent.EpisodeCount
+        };
+
+        var preProcessedHomepageContentAsJson = JsonSerializer.Serialize(preProcessedHomepage);
+
+        var request = new PutObjectRequest
+        {
+            BucketName = _cloudFlareOptions.BucketName,
+            Key = _cloudFlareOptions.PreProcessedHomepageKey,
+            ContentBody = preProcessedHomepageContentAsJson,
+            ContentType = "application/json",
+            DisablePayloadSigning = true
+        };
+
+        try
+        {
+            await client.PutObjectAsync(request);
+            logger.LogInformation($"Completed '{nameof(PublishHomepage)}'.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"{nameof(PublishHomepage)} - Failed to upload homepage-content to R2");
         }
     }
 
