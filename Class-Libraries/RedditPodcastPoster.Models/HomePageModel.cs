@@ -8,7 +8,7 @@ public class HomePageModel
     public required IEnumerable<RecentEpisode> RecentEpisodes { get; set; }
 
     [JsonPropertyName("episodeCount")]
-    public int? EpisodeCount { get; set; }
+    public int EpisodeCount { get; set; }
 
     [JsonPropertyName("totalDuration")]
     public TimeSpan TotalDuration { get; set; }
