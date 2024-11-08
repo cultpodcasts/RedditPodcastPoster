@@ -17,7 +17,11 @@ public class Tweeter(
         IEnumerable<PodcastEpisode> untweeted;
         try
         {
+            logger.LogInformation(
+                $"{nameof(Tweeter)}.{nameof(Tweet)}: Exec {nameof(podcastEpisodeProvider.GetUntweetedPodcastEpisodes)} init.");
             untweeted = await podcastEpisodeProvider.GetUntweetedPodcastEpisodes(youTubeRefreshed, spotifyRefreshed);
+            logger.LogInformation(
+                $"{nameof(Tweeter)}.{nameof(Tweet)}: Exec {nameof(podcastEpisodeProvider.GetUntweetedPodcastEpisodes)} complete.");
         }
         catch (Exception ex)
         {
@@ -38,7 +42,11 @@ public class Tweeter(
 
                 try
                 {
+                    logger.LogInformation(
+                        $"{nameof(Tweeter)}.{nameof(Tweet)}: Exec {nameof(tweetPoster.PostTweet)} init.");
                     var tweetStatus = await tweetPoster.PostTweet(podcastEpisode);
+                    logger.LogInformation(
+                        $"{nameof(Tweeter)}.{nameof(Tweet)}: Exec {nameof(tweetPoster.PostTweet)} complete.");
                     tweeted = tweetStatus == TweetSendStatus.Sent;
                     tooManyRequests = tweetStatus == TweetSendStatus.TooManyRequests;
                 }
