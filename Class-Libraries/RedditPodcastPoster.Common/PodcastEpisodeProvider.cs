@@ -24,7 +24,7 @@ public class PodcastEpisodeProvider(
         var untweetedPodcastIds =
             await repository.GetPodcastIdsWithUntweetedReleasedSince(DateTimeExtensions.DaysAgo(numberOfDays));
         logger.LogInformation(
-            $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcastIdsWithUntweetedReleasedSince)} init.");
+            $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcastIdsWithUntweetedReleasedSince)} complete.");
 
         foreach (var untweetedPodcastId in untweetedPodcastIds)
         {
