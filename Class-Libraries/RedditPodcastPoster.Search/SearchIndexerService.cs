@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using Azure;
 using Azure.Search.Documents.Indexes;
+using Azure.Search.Documents.Indexes.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -21,6 +22,7 @@ public class SearchIndexerService(
         try
         {
             var response = await searchIndexerClient.RunIndexerAsync(_searchIndexConfig.IndexerName);
+            response = await searchIndexerClient.RunIndexerAsync(_searchIndexConfig.IndexerName);
             if (response.Status != (int) HttpStatusCode.Accepted)
             {
                 logger.LogError(
@@ -52,6 +54,10 @@ public class SearchIndexerService(
                             {
                                 nextRun = IndexingWaitPeriod + lastRan;
                             }
+                        }
+                        else if (indexerStatus.Value.LastResult.Status == IndexerExecutionStatus.InProgress)
+                        {
+                            nextRun = IndexingWaitPeriod;
                         }
                     }
 
