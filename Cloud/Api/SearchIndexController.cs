@@ -8,6 +8,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Search;
+using IndexerState = RedditPodcastPoster.Search.IndexerState;
 
 namespace Api;
 
@@ -36,8 +37,8 @@ public class SearchIndexController(
             var result = await searchIndexerService.RunIndexer();
             return await req
                 .CreateResponse(
-                    result == IndexerState.Executed ? HttpStatusCode.OK : HttpStatusCode.BadRequest)
-                .WithJsonBody(new {status = result.ToString()}, c);
+                    result.IndexerState == IndexerState.Executed ? HttpStatusCode.OK : HttpStatusCode.BadRequest)
+                .WithJsonBody(result.ToDto(), c);
         }
         catch (Exception ex)
         {
