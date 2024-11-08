@@ -1,3 +1,4 @@
+using Azure;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Twitter;
@@ -7,6 +8,7 @@ namespace Indexer;
 [DurableTask(nameof(Tweet))]
 public class Tweet(
     ITweeter tweeter,
+    IActivityMarshaller activityMarshaller,
     ILogger<Tweet> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {
@@ -26,6 +28,34 @@ public class Tweet(
             throw new ArgumentNullException(nameof(indexerContext.TweetOperationId));
         }
 
+        if (indexerContext.TweetOperationId.HasValue)
+        {
+            logger.LogError(
+                $"{nameof(Tweet)}.{nameof(RunAsync)}: Unable to track Tweet operation. {nameof(indexerContext)}.{nameof(indexerContext.TweetOperationId)} is null.");
+            return indexerContext with {Success = false};
+        }
+
+        logger.LogInformation($"{nameof(Tweet)}.{nameof(RunAsync)}: Marshall init.");
+
+        var activityBooked = await activityMarshaller.Initiate(indexerContext.TweetOperationId.Value, nameof(Tweet));
+        if (activityBooked != ActivityStatus.Initiated)
+        {
+            if (activityBooked == ActivityStatus.Failed)
+            {
+                return indexerContext with
+                {
+                    Success = false
+                };
+            }
+
+            return indexerContext with
+            {
+                DuplicateTweetOperation = true
+            };
+        }
+
+        logger.LogInformation($"{nameof(Tweet)}.{nameof(RunAsync)}: Marshall complete. Task is not duplicate.");
+
         try
         {
             await tweeter.Tweet(
@@ -36,6 +66,22 @@ public class Tweet(
         {
             logger.LogError(ex, $"Failure to execute {nameof(ITweeter)}.{nameof(ITweeter.Tweet)}.");
             return indexerContext with {Success = false};
+        }
+        finally
+        {
+            try
+            {
+                activityBooked =
+                    await activityMarshaller.Complete(indexerContext.TweetOperationId.Value, nameof(Tweet));
+                if (activityBooked != ActivityStatus.Completed)
+                {
+                    logger.LogError("Failure to complete activity");
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failure to complete activity.");
+            }
         }
 
         logger.LogInformation($"{nameof(RunAsync)} Completed");
