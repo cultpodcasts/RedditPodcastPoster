@@ -28,7 +28,7 @@ public class Tweet(
             throw new ArgumentNullException(nameof(indexerContext.TweetOperationId));
         }
 
-        if (indexerContext.TweetOperationId.HasValue)
+        if (!indexerContext.TweetOperationId.HasValue)
         {
             logger.LogError(
                 $"{nameof(Tweet)}.{nameof(RunAsync)}: Unable to track Tweet operation. {nameof(indexerContext)}.{nameof(indexerContext.TweetOperationId)} is null.");
