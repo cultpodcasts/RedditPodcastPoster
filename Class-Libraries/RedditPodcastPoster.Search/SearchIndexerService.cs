@@ -58,6 +58,7 @@ public class SearchIndexerService(
                         else if (indexerStatus.Value.LastResult.Status == IndexerExecutionStatus.InProgress)
                         {
                             nextRun = IndexingWaitPeriod;
+                            lastRan = DateTimeOffset.UtcNow - indexerStatus.Value.LastResult.StartTime;
                         }
                     }
 
