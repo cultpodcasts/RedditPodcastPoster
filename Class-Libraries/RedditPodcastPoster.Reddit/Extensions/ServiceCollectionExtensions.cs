@@ -14,11 +14,12 @@ public static class ServiceCollectionExtensions
         RedditClientFactory.AddRedditClient(services);
 
         return services.AddScoped<IRedditPostTitleFactory, RedditPostTitleFactory>()
-                .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
-                .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
-                .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
-                .AddScoped<IPostManager, PostManager>()
-            ;
+            .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
+            .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
+            .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
+            .AddScoped<IPostManager, PostManager>()
+            .AddScoped<IPostResolver, PostResolver>()
+            .AddScoped<IFlareManager, FlareManager>();
     }
 
     public static IServiceCollection AddSubredditSettings(this IServiceCollection services, IConfiguration config)

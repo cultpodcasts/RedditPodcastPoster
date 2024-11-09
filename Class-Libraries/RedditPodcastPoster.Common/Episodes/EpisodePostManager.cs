@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Reddit;
 
 namespace RedditPodcastPoster.Common.Episodes;
@@ -9,7 +8,7 @@ public class EpisodePostManager(
     IRedditLinkPoster redditLinkPoster,
     IRedditEpisodeCommentFactory redditEpisodeCommentFactory,
     IRedditBundleCommentFactory redditBundleCommentFactory,
-    ISubjectRepository subjectRepository,
+    IFlareManager flareManager,
     ILogger<EpisodePostManager> logger)
     : IEpisodePostManager
 {
@@ -45,26 +44,17 @@ public class EpisodePostManager(
 
             if (result.LinkPost != null)
             {
-                if (postModel.Subjects.Any())
+                var postModelSubjects = postModel.Subjects;
+                var flareState = await flareManager.SetFlare(postModelSubjects, result.LinkPost);
+                if (flareState == FlareState.NoFlareId)
                 {
-                    var subjects = await subjectRepository.GetByNames(postModel.Subjects).ToArrayAsync();
-                    var redditSubjects = subjects.Where(x => x.RedditFlairTemplateId != null);
-                    var subject =
-                        redditSubjects.FirstOrDefault(x => x.SubjectType is null or SubjectType.Canonical) ??
-                        redditSubjects.FirstOrDefault();
-                    if (subject != null)
-                    {
-                        var flairTemplateId = subject.RedditFlairTemplateId.ToString();
-                        result.LinkPost.SetFlair(subject.RedditFlareText ?? subject.Name, flairTemplateId);
-                        logger.LogInformation(
-                            $"Set flair-text '{subject.RedditFlareText ?? subject.Name}' and flair-id '{flairTemplateId}'.");
-                    }
-                    else
-                    {
-                        logger.LogError(
-                            $"No subject with flair-id for episode with title '{postModel.EpisodeTitle}'.");
-                        result.LinkPost.SetFlair(postModel.Subjects.FirstOrDefault());
-                    }
+                    logger.LogError(
+                        $"No subject with flair-id for episode with title '{postModel.EpisodeTitle}' and episode-id '{postModel.Id}'.");
+                }
+                else
+                {
+                    logger.LogInformation(
+                        $"Episode with title '{postModel.EpisodeTitle}' and episode-id '{postModel.Id}' flare-state: {flareState.ToString()}.");
                 }
 
                 string comments;
