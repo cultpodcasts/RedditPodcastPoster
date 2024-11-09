@@ -24,28 +24,25 @@ public class PodcastEpisodeProvider(
         var podcastEpisodes = new List<PodcastEpisode>();
 
         logger.LogInformation(
-            $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcastIdsWithUntweetedReleasedSince)} init. Tweet-days: ${_postingCriteria.TweetDays}");
+            $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcastIdsWithUntweetedReleasedSince)} init. Tweet-days: '{_postingCriteria.TweetDays}'");
         var untweetedPodcastIds =
             await repository.GetPodcastIdsWithUntweetedReleasedSince(
                 DateTimeExtensions.DaysAgo(_postingCriteria.TweetDays));
         logger.LogInformation(
             $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcastIdsWithUntweetedReleasedSince)} complete. Podcasts with untweeted episodes: '{untweetedPodcastIds.Count()}'.");
 
+        logger.LogInformation(
+            $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcast)} & {nameof(podcastEpisodeFilter.GetMostRecentUntweetedEpisodes)} init.");
         foreach (var untweetedPodcastId in untweetedPodcastIds)
         {
-            logger.LogInformation(
-                $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcast)} init.");
             var podcast = await repository.GetPodcast(untweetedPodcastId);
-            logger.LogInformation(
-                $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcast)} complete.");
-            logger.LogInformation(
-                $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(podcastEpisodeFilter.GetMostRecentUntweetedEpisodes)} init.");
             var filtered = podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
                 podcast, youTubeRefreshed, spotifyRefreshed, _postingCriteria.TweetDays);
-            logger.LogInformation(
-                $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(podcastEpisodeFilter.GetMostRecentUntweetedEpisodes)} complete.");
             podcastEpisodes.AddRange(filtered);
         }
+
+        logger.LogInformation(
+            $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcast)} & {nameof(podcastEpisodeFilter.GetMostRecentUntweetedEpisodes)} complete.");
 
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
     }
