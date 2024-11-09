@@ -8,4 +8,5 @@ public class TwitterOptions
     public required string AccessTokenSecret { get; set; }
     public string? HashTag { get; set; }
     public bool WithEpisodeUrl { get; set; }
+    public long TwitterId { get; set; }
 }

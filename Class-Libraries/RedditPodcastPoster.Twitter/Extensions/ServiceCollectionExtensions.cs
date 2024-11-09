@@ -15,6 +15,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<ITwitterClient, TwitterClient>()
             .AddScoped<ITweetBuilder, TweetBuilder>()
             .AddScoped<IHashTagProvider, HashTagProvider>()
-            .AddScoped<ITweetPoster, TweetPoster>();
+            .AddScoped<ITweetPoster, TweetPoster>()
+            .AddScoped<ITweetManager, TweetManager>();
     }
 }
