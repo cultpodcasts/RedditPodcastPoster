@@ -25,14 +25,9 @@ public class Tweet(
 
         if (indexerContext.TweetOperationId == null)
         {
-            throw new ArgumentNullException(nameof(indexerContext.TweetOperationId));
-        }
-
-        if (!indexerContext.TweetOperationId.HasValue)
-        {
             logger.LogError(
                 $"{nameof(Tweet)}.{nameof(RunAsync)}: Unable to track Tweet operation. {nameof(indexerContext)}.{nameof(indexerContext.TweetOperationId)} is null.");
-            return indexerContext with {Success = false};
+            throw new ArgumentNullException(nameof(indexerContext.TweetOperationId));
         }
 
         logger.LogInformation($"{nameof(Tweet)}.{nameof(RunAsync)}: Marshall init.");
