@@ -120,7 +120,7 @@ public class TwitterClient(
         using var response = await httpClient.SendAsync(createTweetRequest);
         if (response.IsSuccessStatusCode)
         {
-            logger.LogError($"Delete tweet with id '{tweet.Id}'.");
+            logger.LogInformation($"Delete tweet with id '{tweet.Id}'.");
             return true;
         }
 
