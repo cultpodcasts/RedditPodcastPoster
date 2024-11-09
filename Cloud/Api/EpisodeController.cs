@@ -355,6 +355,10 @@ public class EpisodeController(
             {
                 await postManager.RemoveEpisodePost(new PodcastEpisode(podcast, episode));
             }
+            else if (changeState.UpdatedSubjects)
+            {
+                await postManager.UpdateFlare(new PodcastEpisode(podcast, episode));
+            }
 
             return req.CreateResponse(HttpStatusCode.Accepted);
         }
@@ -460,6 +464,7 @@ public class EpisodeController(
 
         if (episodeChangeRequest.Subjects != null && !episode.Subjects.SequenceEqual(episodeChangeRequest.Subjects))
         {
+            changeState.UpdatedSubjects = true;
             episode.Subjects = episodeChangeRequest.Subjects.ToList();
         }
 
