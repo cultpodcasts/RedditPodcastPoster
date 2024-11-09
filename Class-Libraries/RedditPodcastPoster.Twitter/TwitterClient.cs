@@ -113,14 +113,14 @@ public class TwitterClient(
             _options.AccessTokenSecret);
 
         var createTweetRequest =
-            new HttpRequestMessage(HttpMethod.Delete, $"https://api.twitter.com//2/tweets/{tweet.Id}");
+            new HttpRequestMessage(HttpMethod.Delete, $"https://api.twitter.com/2/tweets/{tweet.Id}");
 
         using var httpClient = new HttpClient(oauth);
 
         using var response = await httpClient.SendAsync(createTweetRequest);
         if (response.IsSuccessStatusCode)
         {
-            logger.LogInformation($"Delete tweet with id '{tweet.Id}'.");
+            logger.LogInformation($"Deleted tweet with id '{tweet.Id}'.");
             return true;
         }
 
