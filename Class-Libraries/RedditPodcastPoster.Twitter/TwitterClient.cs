@@ -112,8 +112,8 @@ public class TwitterClient(
         var oauth = new OAuthMessageHandler(_options.ConsumerKey, _options.ConsumerSecret, _options.AccessToken,
             _options.AccessTokenSecret);
 
-        var createTweetRequest = new HttpRequestMessage(HttpMethod.Delete,
-            $"https://api.twitter.com//2/tweets/{tweet.Id}");
+        var createTweetRequest =
+            new HttpRequestMessage(HttpMethod.Delete, $"https://api.twitter.com//2/tweets/{tweet.Id}");
 
         using var httpClient = new HttpClient(oauth);
 
