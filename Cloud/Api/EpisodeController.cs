@@ -21,6 +21,7 @@ using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Twitter;
+using RedditPodcastPoster.Twitter.Models;
 using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
 
 namespace Api;
@@ -32,6 +33,7 @@ public class EpisodeController(
     ITweetPoster tweetPoster,
     IContentPublisher contentPublisher,
     IPostManager postManager,
+    ITweetManager tweetManager,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<EpisodeController> logger,
     IOptions<HostingOptions> hostingOptions)
@@ -360,7 +362,20 @@ public class EpisodeController(
                 await postManager.UpdateFlare(new PodcastEpisode(podcast, episode));
             }
 
-            return req.CreateResponse(HttpStatusCode.Accepted);
+            var removeTweetResult = RemoveTweetState.Unknown;
+            if (changeState.UnTweet)
+            {
+                removeTweetResult = await tweetManager.RemoveTweet(new PodcastEpisode(podcast, episode));
+            }
+
+            var response = req.CreateResponse(HttpStatusCode.Accepted);
+            if (changeState.UnTweet)
+            {
+                response = await response.WithJsonBody(
+                    new {TweetDeleted = removeTweetResult == RemoveTweetState.Deleted}, c);
+            }
+
+            return response;
         }
         catch (Exception ex)
         {
@@ -459,6 +474,11 @@ public class EpisodeController(
 
         if (episodeChangeRequest.Tweeted != null)
         {
+            if (!episodeChangeRequest.Tweeted.Value && episode.Tweeted)
+            {
+                changeState.UnTweet = true;
+            }
+
             episode.Tweeted = episodeChangeRequest.Tweeted.Value;
         }
 

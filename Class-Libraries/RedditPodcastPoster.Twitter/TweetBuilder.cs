@@ -20,6 +20,8 @@ public class TweetBuilder(
 #pragma warning restore CS9113 // Parameter is unread.
     : ITweetBuilder
 {
+    public const string LengthFormat = @"\[h\:mm\:ss\]";
+    public const string? ReleaseFormat = "d MMM yyyy";
     private readonly TwitterOptions _twitterOptions = twitterOptions.Value;
 
     public async Task<string> BuildTweet(PodcastEpisode podcastEpisode)
@@ -63,7 +65,7 @@ public class TweetBuilder(
         }
 
         tweetBuilder.AppendLine(
-            $"{podcastEpisode.Episode.Release.ToString("d MMM yyyy")} {podcastEpisode.Episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture)}");
+            $"{podcastEpisode.Episode.Release.ToString(ReleaseFormat)} {podcastEpisode.Episode.Length.ToString(LengthFormat, CultureInfo.InvariantCulture)}");
 
         var endHashTags = string.Join(" ",
             episodeHashtags

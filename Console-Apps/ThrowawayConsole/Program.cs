@@ -3,10 +3,9 @@ using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RedditPodcastPoster.Common;
-using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.Twitter;
+using RedditPodcastPoster.Twitter.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -22,8 +21,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddRepositories()
-    .AddCommonServices(builder.Configuration)
+    .AddTwitterServices(builder.Configuration)
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria(builder.Configuration);
@@ -32,10 +30,9 @@ builder.Services.AddDelayedYouTubePublication(builder.Configuration);
 
 using var host = builder.Build();
 
-var component = host.Services.GetService<IPodcastEpisodeProvider>()!;
+var component = host.Services.GetService<ITwitterClient>()!;
 
-var results = await component.GetUntweetedPodcastEpisodes(true, true);
-var arr = results.ToArray();
+var results = await component.GetTweets();
 return 0;
 
 string GetBasePath()
