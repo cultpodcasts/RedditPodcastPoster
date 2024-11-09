@@ -365,7 +365,16 @@ public class EpisodeController(
             var removeTweetResult = RemoveTweetState.Unknown;
             if (changeState.UnTweet)
             {
-                removeTweetResult = await tweetManager.RemoveTweet(new PodcastEpisode(podcast, episode));
+                try
+                {
+                    removeTweetResult = await tweetManager.RemoveTweet(new PodcastEpisode(podcast, episode));
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e,
+                        $"Error using tweet-manager to remove tweet for episode with id '{episode.Id}'.");
+                    removeTweetResult = RemoveTweetState.Other;
+                }
             }
 
             var response = req.CreateResponse(HttpStatusCode.Accepted);
