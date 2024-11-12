@@ -3,6 +3,7 @@ using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.Bluesky.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
@@ -46,6 +47,7 @@ public static class Ioc
             .AddRedditServices(hostBuilderContext.Configuration)
             .AddScoped<IFlushable, CacheFlusher>()
             .AddTwitterServices(hostBuilderContext.Configuration)
+            .AddBlueskyServices(hostBuilderContext.Configuration)
             .AddSubjectServices()
             .AddCachedSubjectProvider()
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()

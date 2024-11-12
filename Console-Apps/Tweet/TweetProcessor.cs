@@ -2,6 +2,7 @@
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Twitter;
+using RedditPodcastPoster.UrlShortening;
 
 namespace Tweet;
 
@@ -9,6 +10,7 @@ public class TweetProcessor(
     IPodcastRepository podcastRepository,
     ITweetBuilder tweetBuilder,
     ITwitterClient twitterClient,
+    IShortnerService shortnerService,
     ILogger<TweetProcessor> logger)
 {
     public async Task Run(TweetRequest request)
@@ -24,7 +26,13 @@ public class TweetProcessor(
             if (mostRecentEpisode != null)
             {
                 var podcastEpisode = new PodcastEpisode(podcast, mostRecentEpisode);
-                var tweet = await tweetBuilder.BuildTweet(podcastEpisode);
+                var shortnerResult = await shortnerService.Write(podcastEpisode);
+                if (!shortnerResult.Success)
+                {
+                    logger.LogError("Unsuccessful shortening-url.");
+                }
+
+                var tweet = await tweetBuilder.BuildTweet(podcastEpisode, shortnerResult.Url);
                 var tweetStatus = await twitterClient.Send(tweet);
                 var tweeted = tweetStatus == TweetSendStatus.Sent;
 

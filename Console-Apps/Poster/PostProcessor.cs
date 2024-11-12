@@ -1,5 +1,6 @@
 ﻿using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Bluesky;
 using RedditPodcastPoster.Common.Adaptors;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
@@ -7,6 +8,7 @@ using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Twitter;
+using RedditPodcastPoster.UrlShortening;
 
 namespace Poster;
 
@@ -18,6 +20,9 @@ public class PostProcessor(
     IContentPublisher contentPublisher,
     IPodcastEpisodePoster podcastEpisodePoster,
     ITweetPoster tweetPoster,
+    IBlueskyPoster blueSkyPoster,
+    IBlueskyPostManager blueskyPostManager,
+    IShortnerService shortnerService,
     ILogger<PostProcessor> logger)
 {
     public async Task Process(PostRequest request)
@@ -32,9 +37,9 @@ public class PostProcessor(
             await Publish();
         }
 
-        if (!request.SkipTweet)
+        if (!request.SkipTweet || !request.SkipBluesky)
         {
-            await Tweet(request);
+            await PostToSocial(request);
         }
     }
 
@@ -95,32 +100,70 @@ public class PostProcessor(
         await Task.WhenAll(publishingTasks);
     }
 
-    private async Task Tweet(PostRequest request)
+    private async Task PostToSocial(PostRequest request)
     {
         if (request.EpisodeId.HasValue)
         {
-            await TweetEpisode(request);
+            var podcastId = await repository.GetBy(x =>
+                (!x.Removed.IsDefined() || x.Removed == false) &&
+                x.Episodes.Any(ep => ep.Id == request.EpisodeId), x => new {guid = x.Id});
+            if (podcastId == null)
+            {
+                throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
+            }
+
+            var selectedPodcast = await repository.GetPodcast(podcastId.guid);
+            var selectedEpisode = selectedPodcast.Episodes.Single(x => x.Id == request.EpisodeId);
+            var podcastEpisode = new PodcastEpisode(selectedPodcast, selectedEpisode);
+
+            if (podcastEpisode == null)
+            {
+                throw new InvalidOperationException($"Episode with id '{request.EpisodeId}' not found");
+            }
+
+            var shortnerResult = await shortnerService.Write(podcastEpisode);
+            if (!shortnerResult.Success)
+            {
+                logger.LogError("Unsuccessful shortening-url.");
+            }
+
+            if (!request.SkipTweet)
+            {
+                await TweetEpisode(podcastEpisode, shortnerResult.Url);
+            }
+
+            if (!request.SkipBluesky)
+            {
+                await PostBluesky(podcastEpisode, shortnerResult.Url);
+            }
         }
         else
         {
-            await tweeter.Tweet(true, true);
+            if (!request.SkipTweet)
+            {
+                await tweeter.Tweet(true, true);
+            }
+
+            if (!request.SkipBluesky)
+            {
+                await blueskyPostManager.Post(true, true);
+            }
         }
     }
 
-    private async Task TweetEpisode(PostRequest request)
+    private async Task PostBluesky(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
-        var podcastId = await repository.GetBy(x =>
-            (!x.Removed.IsDefined() || x.Removed == false) &&
-            x.Episodes.Any(ep => ep.Id == request.EpisodeId), x => new {guid = x.Id});
-        if (podcastId == null)
+        var result = await blueSkyPoster.Post(podcastEpisode, shortUrl);
+        if (result != BlueskySendStatus.Success)
         {
-            throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
+            logger.LogError("Forbidden to send duplicate-tweet");
         }
+    }
 
-        var selectedPodcast = await repository.GetPodcast(podcastId.guid);
-        var selectedEpisode = selectedPodcast.Episodes.Single(x => x.Id == request.EpisodeId);
-        var podcastEpisode = new PodcastEpisode(selectedPodcast, selectedEpisode);
-        var result = await tweetPoster.PostTweet(podcastEpisode);
+
+    private async Task TweetEpisode(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    {
+        var result = await tweetPoster.PostTweet(podcastEpisode, shortUrl);
         if (result != TweetSendStatus.Sent)
         {
             switch (result)

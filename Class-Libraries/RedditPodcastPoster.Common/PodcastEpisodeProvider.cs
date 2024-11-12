@@ -21,28 +21,52 @@ public class PodcastEpisodeProvider(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        var podcastEpisodes = new List<PodcastEpisode>();
-
         logger.LogInformation(
             $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcastIdsWithUntweetedReleasedSince)} init. Tweet-days: '{_postingCriteria.TweetDays}'");
-        var untweetedPodcastIds =
-            await repository.GetPodcastIdsWithUntweetedReleasedSince(
-                DateTimeExtensions.DaysAgo(_postingCriteria.TweetDays));
-        logger.LogInformation(
-            $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcastIdsWithUntweetedReleasedSince)} complete. Podcasts with untweeted episodes: '{untweetedPodcastIds.Count()}'.");
+        return await GetPodcastEpisodes(
+            repository.GetPodcastIdsWithUntweetedReleasedSince,
+            podcastEpisodeFilter.GetMostRecentUntweetedEpisodes,
+            youTubeRefreshed,
+            spotifyRefreshed);
+    }
 
+    public async Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(
+        bool youTubeRefreshed,
+        bool spotifyRefreshed)
+    {
         logger.LogInformation(
-            $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcast)} & {nameof(podcastEpisodeFilter.GetMostRecentUntweetedEpisodes)} init.");
+            $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcastIdsWithBlueskyReadyReleasedSince)} init. Tweet-days: '{_postingCriteria.TweetDays}'");
+        return await GetPodcastEpisodes(
+            repository.GetPodcastIdsWithBlueskyReadyReleasedSince,
+            podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes,
+            youTubeRefreshed,
+            spotifyRefreshed);
+    }
+
+    private async Task<IEnumerable<PodcastEpisode>> GetPodcastEpisodes(
+        Func<DateTime, Task<IEnumerable<Guid>>> findPodcast,
+        Func<Podcast, bool, bool, int, IEnumerable<PodcastEpisode>> filterEpisodes,
+        bool youTubeRefreshed,
+        bool spotifyRefreshed)
+    {
+        var podcastEpisodes = new List<PodcastEpisode>();
+        var dateTime = DateTimeExtensions.DaysAgo(_postingCriteria.TweetDays);
+
+        var untweetedPodcastIds = await findPodcast(dateTime);
+
         foreach (var untweetedPodcastId in untweetedPodcastIds)
         {
             var podcast = await repository.GetPodcast(untweetedPodcastId);
-            var filtered = podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
-                podcast, youTubeRefreshed, spotifyRefreshed, _postingCriteria.TweetDays);
-            podcastEpisodes.AddRange(filtered);
+            if (podcast == null)
+            {
+                logger.LogError($"Podcast with id '{untweetedPodcastId}' not found.");
+            }
+            else
+            {
+                var filtered = filterEpisodes(podcast, youTubeRefreshed, spotifyRefreshed, _postingCriteria.TweetDays);
+                podcastEpisodes.AddRange(filtered);
+            }
         }
-
-        logger.LogInformation(
-            $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcast)} & {nameof(podcastEpisodeFilter.GetMostRecentUntweetedEpisodes)} complete.");
 
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
     }

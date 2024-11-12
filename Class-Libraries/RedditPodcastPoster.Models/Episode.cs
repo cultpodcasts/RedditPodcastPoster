@@ -29,6 +29,10 @@ public class Episode
     [JsonPropertyOrder(51)]
     public bool Tweeted { get; set; }
 
+    [JsonPropertyName("bluesky")]
+    [JsonPropertyOrder(52)]
+    public bool? BlueskyPosted { get; set; }
+
     [JsonPropertyName("ignored")]
     [JsonPropertyOrder(60)]
     public bool Ignored { get; set; } = false;

@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Twitter;
+using RedditPodcastPoster.Twitter.Dtos;
 using RedditPodcastPoster.Twitter.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -32,7 +33,7 @@ using var host = builder.Build();
 
 var component = host.Services.GetService<ITwitterClient>()!;
 
-var results = await component.GetTweets();
+var results = await component.DeleteTweet(new Tweet {Id = "1855377539499438334"});
 return 0;
 
 string GetBasePath()

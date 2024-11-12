@@ -180,11 +180,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RenamePodcast", "Console-Ap
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ThrowawayConsole", "Console-Apps\ThrowawayConsole\ThrowawayConsole.csproj", "{8FE1250B-EE6A-4C91-9087-D09EBD4E22B2}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Twitter.Tests", "Class-Libraries\RedditPodcastPoster.Twitter.Tests\RedditPodcastPoster.Twitter.Tests.csproj", "{5B90D51E-13F6-428D-ADB9-59EA47FF2584}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AddSubjectToSearchMatches", "Console-Apps\AddSubjectToSearchMatches\AddSubjectToSearchMatches.csproj", "{1AC5F032-283B-4475-B6D4-3917710C76A7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.PushSubscriptions", "Class-Libraries\RedditPodcastPoster.PushSubscriptions\RedditPodcastPoster.PushSubscriptions.csproj", "{1E0065A8-4951-41B6-BF6E-9F7153AC7C7A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.PushSubscriptions", "Class-Libraries\RedditPodcastPoster.PushSubscriptions\RedditPodcastPoster.PushSubscriptions.csproj", "{1E0065A8-4951-41B6-BF6E-9F7153AC7C7A}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Bluesky", "Class-Libraries\RedditPodcastPoster.Bluesky\RedditPodcastPoster.Bluesky.csproj", "{F85576A7-32AD-462A-93FC-EB816EE11B69}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -496,10 +496,6 @@ Global
 		{8FE1250B-EE6A-4C91-9087-D09EBD4E22B2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8FE1250B-EE6A-4C91-9087-D09EBD4E22B2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8FE1250B-EE6A-4C91-9087-D09EBD4E22B2}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5B90D51E-13F6-428D-ADB9-59EA47FF2584}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5B90D51E-13F6-428D-ADB9-59EA47FF2584}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5B90D51E-13F6-428D-ADB9-59EA47FF2584}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5B90D51E-13F6-428D-ADB9-59EA47FF2584}.Release|Any CPU.Build.0 = Release|Any CPU
 		{1AC5F032-283B-4475-B6D4-3917710C76A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{1AC5F032-283B-4475-B6D4-3917710C76A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1AC5F032-283B-4475-B6D4-3917710C76A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -508,6 +504,10 @@ Global
 		{1E0065A8-4951-41B6-BF6E-9F7153AC7C7A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1E0065A8-4951-41B6-BF6E-9F7153AC7C7A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1E0065A8-4951-41B6-BF6E-9F7153AC7C7A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F85576A7-32AD-462A-93FC-EB816EE11B69}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F85576A7-32AD-462A-93FC-EB816EE11B69}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F85576A7-32AD-462A-93FC-EB816EE11B69}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F85576A7-32AD-462A-93FC-EB816EE11B69}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -590,9 +590,9 @@ Global
 		{B71BF453-9F9D-4C2E-A1B7-D54F08CA18E6} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{C361E775-F4D7-4990-BE17-DE284433F344} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{8FE1250B-EE6A-4C91-9087-D09EBD4E22B2} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
-		{5B90D51E-13F6-428D-ADB9-59EA47FF2584} = {C870AC3C-8261-4807-AC30-DBEC8C89DCB7}
 		{1AC5F032-283B-4475-B6D4-3917710C76A7} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{1E0065A8-4951-41B6-BF6E-9F7153AC7C7A} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
+		{F85576A7-32AD-462A-93FC-EB816EE11B69} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

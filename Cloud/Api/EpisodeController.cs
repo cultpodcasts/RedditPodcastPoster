@@ -22,6 +22,7 @@ using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.Twitter.Models;
+using RedditPodcastPoster.UrlShortening;
 using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
 
 namespace Api;
@@ -35,6 +36,7 @@ public class EpisodeController(
     IPostManager postManager,
     ITweetManager tweetManager,
     IClientPrincipalFactory clientPrincipalFactory,
+    IShortnerService shortnerService,
     ILogger<EpisodeController> logger,
     IOptions<HostingOptions> hostingOptions)
     : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
@@ -210,7 +212,13 @@ public class EpisodeController(
 
             if (publishRequest.EpisodePublishRequest.Tweet)
             {
-                var result = await tweetPoster.PostTweet(podcastEpisode);
+                var shortnerResult = await shortnerService.Write(podcastEpisode);
+                if (!shortnerResult.Success)
+                {
+                    logger.LogError("Unsuccessful shortening-url.");
+                }
+
+                var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url);
                 if (result != TweetSendStatus.Sent)
                 {
                     logger.LogError($"Tweet result: '{result}'.");

@@ -4,6 +4,7 @@ using iTunesSearch.Library;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.Bluesky.Extensions;
 using RedditPodcastPoster.CloudflareRedirect.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration;
@@ -57,6 +58,7 @@ public static class Ioc
             .AddEliminationTerms()
             .AddContentPublishing(hostBuilderContext.Configuration)
             .AddTwitterServices(hostBuilderContext.Configuration)
+            .AddBlueskyServices(hostBuilderContext.Configuration)
             .AddRedditServices(hostBuilderContext.Configuration)
             .AddShortnerServices(hostBuilderContext.Configuration)
             .AddRedirectServices(hostBuilderContext.Configuration)

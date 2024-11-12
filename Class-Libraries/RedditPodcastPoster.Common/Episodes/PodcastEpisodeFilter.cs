@@ -85,7 +85,35 @@ public class PodcastEpisodeFilter(
         if (!podcastEpisodes.Any())
         {
             logger.LogInformation(
-                $"No Podcast-Episode found ready to Tweet for podcast '{podcast.Name}' with podcast-id '{podcast.Id}'.");
+                $"No Podcast-Episode found ready to tweet for podcast '{podcast.Name}' with podcast-id '{podcast.Id}'.");
+        }
+
+        return podcastEpisodes;
+    }
+
+    public IEnumerable<PodcastEpisode> GetMostRecentBlueskyReadyEpisodes(
+        Podcast podcast,
+        bool youTubeRefreshed,
+        bool spotifyRefreshed,
+        int numberOfDays)
+    {
+        var since = DateTimeExtensions.DaysAgo(numberOfDays);
+        var podcastEpisodes =
+            podcast.Episodes
+                .Select(e => new PodcastEpisode(podcast, e))
+                .Where(x =>
+                    x.Episode.Release >= since &&
+                    x.Episode.BlueskyPosted is null or false &&
+                    x.Episode is {Removed: false, Ignored: false} &&
+                    (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
+                    !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
+                .Where(x =>
+                    EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed))
+                .OrderByDescending(x => x.Episode.Release);
+        if (!podcastEpisodes.Any())
+        {
+            logger.LogInformation(
+                $"No Podcast-Episode found ready to Bluesky for podcast '{podcast.Name}' with podcast-id '{podcast.Id}'.");
         }
 
         return podcastEpisodes;

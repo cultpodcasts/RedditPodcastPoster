@@ -11,9 +11,9 @@ public class TweetPoster(
     ILogger<TweetPoster> logger)
     : ITweetPoster
 {
-    public async Task<TweetSendStatus> PostTweet(PodcastEpisode podcastEpisode)
+    public async Task<TweetSendStatus> PostTweet(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
-        var tweet = await tweetBuilder.BuildTweet(podcastEpisode);
+        var tweet = await tweetBuilder.BuildTweet(podcastEpisode, shortUrl);
         TweetSendStatus tweetStatus;
         try
         {
