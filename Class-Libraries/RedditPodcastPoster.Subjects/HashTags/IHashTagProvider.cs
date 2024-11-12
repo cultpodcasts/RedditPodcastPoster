@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Twitter;
+﻿namespace RedditPodcastPoster.Subjects.HashTags;
 
 public interface IHashTagProvider
 {

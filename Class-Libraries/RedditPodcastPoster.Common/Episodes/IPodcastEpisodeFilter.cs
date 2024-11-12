@@ -19,4 +19,10 @@ public interface IPodcastEpisodeFilter
     bool IsRecentlyExpiredDelayedPublishing(
         Podcast podcast,
         Episode episode);
+
+    IEnumerable<PodcastEpisode> GetMostRecentBlueskyReadyEpisodes(
+        Podcast podcast,
+        bool youTubeRefreshed,
+        bool spotifyRefreshed,
+        int numberOfDays);
 }

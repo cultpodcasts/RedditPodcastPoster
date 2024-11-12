@@ -4,8 +4,9 @@ using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Subjects.HashTags;
 
-namespace RedditPodcastPoster.Twitter.Tests;
+namespace RedditPodcastPoster.Subjects.Tests.HashTags;
 
 public class HashTagProviderTests
 {

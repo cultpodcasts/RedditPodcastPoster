@@ -156,6 +156,29 @@ public class PodcastRepository(
         return items.Select(x => x.guid);
     }
 
+    public async Task<IEnumerable<Guid>> GetPodcastIdsWithBlueskyReadyReleasedSince(DateTime since)
+    {
+        //var items = await GetAllBy(x =>
+        //    (!x.Removed.IsDefined() || x.Removed == false) &&
+        //    x.Episodes.Any(
+        //        episode =>
+        //            episode.Release.Ticks >=
+        //            since.Ticks + (x.YouTubePublicationOffset < 0 ? x.YouTubePublicationOffset : 0L) -
+        //            (x.YouTubePublicationOffset > 0 ? x.YouTubePublicationOffset - since.Ticks : 0L) &&
+        //            episode.Tweeted == false &&
+        //            episode.Ignored == false &&
+        //            episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
+        var items = await GetAllBy(x =>
+            (!x.Removed.IsDefined() || x.Removed == false) &&
+            x.Episodes.Any(
+                episode =>
+                    episode.Release >= since &&
+                    (!episode.BlueskyPosted.IsDefined() || episode.BlueskyPosted == false) &&
+                    episode.Ignored == false &&
+                    episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
+        return items.Select(x => x.guid);
+    }
+
     private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)
     {
         if (!string.IsNullOrWhiteSpace(episode.SpotifyId) && !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))

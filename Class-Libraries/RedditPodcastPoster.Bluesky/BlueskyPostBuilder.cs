@@ -2,36 +2,35 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Text;
 
-namespace RedditPodcastPoster.Twitter;
+namespace RedditPodcastPoster.Bluesky;
 
-public class TweetBuilder(
+public class BlueskyPostBuilder(
     ITextSanitiser textSanitiser,
     IHashTagEnricher hashTagEnricher,
     IHashTagProvider hashTagProvider,
-    IOptions<TwitterOptions> twitterOptions,
-#pragma warning disable CS9113 // Parameter is unread.
-    ILogger<TweetBuilder> logger)
-#pragma warning restore CS9113 // Parameter is unread.
-    : ITweetBuilder
+    IOptions<BlueskyOptions> blueskyOptions,
+    ILogger<BlueskyPostBuilder> logger
+) : IBlueskyPostBuilder
 {
     public const string LengthFormat = @"\[h\:mm\:ss\]";
     public const string? ReleaseFormat = "d MMM yyyy";
-    private readonly TwitterOptions _twitterOptions = twitterOptions.Value;
+    private readonly BlueskyOptions _blueskyOptions = blueskyOptions.Value;
 
-    public async Task<string> BuildTweet(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    public async Task<string> BuildPost(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
         var postModel = (podcastEpisode.Podcast, new[] {podcastEpisode.Episode}).ToPostModel();
         var episodeTitle = textSanitiser.SanitiseTitle(postModel);
 
         var episodeHashtags = await hashTagProvider.GetHashTags(podcastEpisode.Episode.Subjects);
-        if (!string.IsNullOrWhiteSpace(_twitterOptions.HashTag))
+        if (!string.IsNullOrWhiteSpace(_blueskyOptions.HashTag))
         {
-            episodeHashtags.Add(new HashTag(_twitterOptions.HashTag, null));
+            episodeHashtags.Add(new HashTag(_blueskyOptions.HashTag, null));
         }
 
         var hashtagsAdded = new List<string>();
@@ -54,14 +53,7 @@ public class TweetBuilder(
         var podcastName = textSanitiser.SanitisePodcastName(postModel);
 
         var tweetBuilder = new StringBuilder();
-        if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TwitterHandle))
-        {
-            tweetBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.TwitterHandle}");
-        }
-        else
-        {
-            tweetBuilder.AppendLine($"{podcastName}");
-        }
+        tweetBuilder.AppendLine($"{podcastName}");
 
         tweetBuilder.AppendLine(
             $"{podcastEpisode.Episode.Release.ToString(ReleaseFormat)} {podcastEpisode.Episode.Length.ToString(LengthFormat, CultureInfo.InvariantCulture)}");
@@ -78,16 +70,18 @@ public class TweetBuilder(
             tweetBuilder.AppendLine(endHashTags);
         }
 
-        var permittedTitleLength = 257 - (tweetBuilder.Length + (_twitterOptions.WithEpisodeUrl ? 26 : 0));
+        var permittedTitleLength = 257 - (tweetBuilder.Length + (_blueskyOptions.WithEpisodeUrl ? 26 : 0));
 
         if (episodeTitle.Length > permittedTitleLength)
         {
             episodeTitle = episodeTitle[..Math.Min(episodeTitle.Length, permittedTitleLength - 1)] + "…";
         }
 
-        if (shortUrl != null && _twitterOptions.WithEpisodeUrl && (podcastEpisode.HasMultipleServices() ||
-                                                                   podcastEpisode.Podcast.Episodes.Count > 1 ||
-                                                                   podcastEpisode.Episode.Subjects.Any()))
+        if (shortUrl != null &&
+            _blueskyOptions.WithEpisodeUrl &&
+            (podcastEpisode.HasMultipleServices() ||
+             podcastEpisode.Podcast.Episodes.Count > 1 ||
+             podcastEpisode.Episode.Subjects.Any()))
         {
             tweetBuilder.Append($"{shortUrl}{Environment.NewLine}");
         }

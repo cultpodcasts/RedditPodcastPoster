@@ -1,6 +1,7 @@
 using Azure;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Bluesky;
 using RedditPodcastPoster.Twitter;
 
 namespace Indexer;
@@ -8,6 +9,7 @@ namespace Indexer;
 [DurableTask(nameof(Tweet))]
 public class Tweet(
     ITweeter tweeter,
+    IBlueskyPostManager blueskyPostManager,
     IActivityMarshaller activityMarshaller,
     ILogger<Tweet> logger)
     : TaskActivity<IndexerContext, IndexerContext>
@@ -56,6 +58,11 @@ public class Tweet(
             await tweeter.Tweet(
                 indexerContext is {SkipYouTubeUrlResolving: false, YouTubeError: false},
                 indexerContext is {SkipSpotifyUrlResolving: false, SpotifyError: false});
+            logger.LogInformation("Tweet executed");
+            await blueskyPostManager.Post(
+                indexerContext is {SkipYouTubeUrlResolving: false, YouTubeError: false},
+                indexerContext is {SkipSpotifyUrlResolving: false, SpotifyError: false});
+            logger.LogInformation("Bluesky-post executed");
         }
         catch (Exception ex)
         {

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Poster;
+using RedditPodcastPoster.Bluesky.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
@@ -34,6 +35,7 @@ builder.Services
     .AddContentPublishing(builder.Configuration)
     .AddRedditServices(builder.Configuration)
     .AddTwitterServices(builder.Configuration)
+    .AddBlueskyServices(builder.Configuration)
     .AddSubjectServices()
     .AddCachedSubjectProvider()
     .AddTextSanitiser()

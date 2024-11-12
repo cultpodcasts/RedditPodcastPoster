@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions;
 
-namespace RedditPodcastPoster.Twitter;
+namespace RedditPodcastPoster.Subjects.HashTags;
 
 public class HashTagProvider(
     ISubjectRepository subjectRepository,
