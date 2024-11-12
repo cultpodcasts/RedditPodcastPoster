@@ -70,20 +70,20 @@ public class BlueskyPostBuilder(
             tweetBuilder.AppendLine(endHashTags);
         }
 
-        var permittedTitleLength = 257 - (tweetBuilder.Length + (_blueskyOptions.WithEpisodeUrl ? 26 : 0));
-
-        if (episodeTitle.Length > permittedTitleLength)
-        {
-            episodeTitle = episodeTitle[..Math.Min(episodeTitle.Length, permittedTitleLength - 1)] + "…";
-        }
-
         if (shortUrl != null &&
             _blueskyOptions.WithEpisodeUrl &&
             (podcastEpisode.HasMultipleServices() ||
              podcastEpisode.Podcast.Episodes.Count > 1 ||
              podcastEpisode.Episode.Subjects.Any()))
         {
-            tweetBuilder.Append($"{shortUrl}{Environment.NewLine}");
+            tweetBuilder.Append($"{shortUrl}");
+        }
+
+        var permittedTitleLength = 300 - (tweetBuilder.Length + (_blueskyOptions.WithEpisodeUrl ? 26 : 0));
+
+        if (episodeTitle.Length > permittedTitleLength)
+        {
+            episodeTitle = episodeTitle[..Math.Min(episodeTitle.Length, permittedTitleLength - 1)] + "…";
         }
 
         tweetBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");
