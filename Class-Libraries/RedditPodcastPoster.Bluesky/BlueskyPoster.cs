@@ -14,11 +14,11 @@ public class BlueskyPoster(
 {
     public async Task<BlueskySendStatus> Post(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
-        var post = await postBuilder.BuildPost(podcastEpisode, shortUrl);
+        var (post, url) = await postBuilder.BuildPost(podcastEpisode, shortUrl);
         BlueskySendStatus sendStatus;
         try
         {
-            await blueSkyClient.Post(post);
+            await blueSkyClient.Post(post, url);
             sendStatus = BlueskySendStatus.Success;
             logger.LogInformation($"Posted to bluesky: '{post}'.");
         }
