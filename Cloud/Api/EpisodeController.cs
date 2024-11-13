@@ -523,6 +523,18 @@ public class EpisodeController(
             episode.Tweeted = episodeChangeRequest.Tweeted.Value;
         }
 
+        if (episodeChangeRequest.BlueskyPosted != null)
+        {
+            if (!episodeChangeRequest.BlueskyPosted.Value && episode.BlueskyPosted.HasValue &&
+                episode.BlueskyPosted.Value)
+            {
+                changeState.UnBlueskyPost = true;
+            }
+
+            episode.BlueskyPosted =
+                episodeChangeRequest.BlueskyPosted.HasValue && episodeChangeRequest.BlueskyPosted.Value ? true : null;
+        }
+
         if (episodeChangeRequest.Subjects != null && !episode.Subjects.SequenceEqual(episodeChangeRequest.Subjects))
         {
             changeState.UpdatedSubjects = true;

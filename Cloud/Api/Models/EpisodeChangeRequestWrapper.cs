@@ -3,5 +3,5 @@
 namespace Api.Models;
 
 public record EpisodeChangeRequestWrapper(
-    Guid EpisodeId, 
+    Guid EpisodeId,
     EpisodeChangeRequest EpisodeChangeRequest);

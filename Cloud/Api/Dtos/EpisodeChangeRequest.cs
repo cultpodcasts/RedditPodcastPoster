@@ -17,6 +17,9 @@ public class EpisodeChangeRequest
     [JsonPropertyName("tweeted")]
     public bool? Tweeted { get; set; }
 
+    [JsonPropertyName("bluesky")]
+    public bool? BlueskyPosted { get; set; }
+
     [JsonPropertyName("ignored")]
     public bool? Ignored { get; set; }
 
