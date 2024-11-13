@@ -9,4 +9,7 @@ public class EpisodePublishRequest
 
     [JsonPropertyName("tweet")]
     public bool Tweet { get; set; }
+
+    [JsonPropertyName("blueskyPost")]
+    public bool BlueskyPost { get; set; }
 }

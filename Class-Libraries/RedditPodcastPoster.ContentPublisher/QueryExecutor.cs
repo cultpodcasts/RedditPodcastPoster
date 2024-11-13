@@ -26,27 +26,30 @@ public class QueryExecutor(
 
         var totalDuration = GetTotalDuration(container, ct);
 
-        IEnumerable<Task> tasks = new Task[] {podcastResults, count, totalDuration};
+        IEnumerable<Task> tasks = [podcastResults, count, totalDuration];
 
         await Task.WhenAll(tasks);
 
         return new HomePageModel
         {
             EpisodeCount = count.Result,
-            RecentEpisodes = podcastResults.Result.OrderByDescending(x => x.Release).Select(Santitise).Select(x =>
-                new RecentEpisode
-                {
-                    Id = x.EpisodeId,
-                    Apple = x.Apple,
-                    EpisodeDescription = WebUtility.HtmlDecode(x.EpisodeDescription),
-                    EpisodeTitle = WebUtility.HtmlDecode(x.EpisodeTitle),
-                    PodcastName = x.PodcastName,
-                    Release = x.Release,
-                    Spotify = x.Spotify,
-                    YouTube = x.YouTube,
-                    Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
-                    Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null
-                }),
+            RecentEpisodes = podcastResults.Result
+                .OrderByDescending(x => x.Release)
+                .Select(Santitise)
+                .Select(x =>
+                    new RecentEpisode
+                    {
+                        Id = x.EpisodeId,
+                        Apple = x.Apple,
+                        EpisodeDescription = WebUtility.HtmlDecode(x.EpisodeDescription),
+                        EpisodeTitle = WebUtility.HtmlDecode(x.EpisodeTitle),
+                        PodcastName = x.PodcastName,
+                        Release = x.Release,
+                        Spotify = x.Spotify,
+                        YouTube = x.YouTube,
+                        Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
+                        Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null
+                    }),
             TotalDuration = totalDuration.Result
         };
     }
