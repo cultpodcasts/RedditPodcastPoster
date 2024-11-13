@@ -11,6 +11,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Bluesky;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher;
@@ -35,6 +36,7 @@ public class EpisodeController(
     IContentPublisher contentPublisher,
     IPostManager postManager,
     ITweetManager tweetManager,
+    IBlueskyPoster blueskyPoster,
     IClientPrincipalFactory clientPrincipalFactory,
     IShortnerService shortnerService,
     ILogger<EpisodeController> logger,
@@ -210,7 +212,7 @@ public class EpisodeController(
                 response.Posted = result.Success;
             }
 
-            if (publishRequest.EpisodePublishRequest.Tweet)
+            if (publishRequest.EpisodePublishRequest.Tweet || publishRequest.EpisodePublishRequest.BlueskyPost)
             {
                 var shortnerResult = await shortnerService.Write(podcastEpisode);
                 if (!shortnerResult.Success)
@@ -218,14 +220,30 @@ public class EpisodeController(
                     logger.LogError("Unsuccessful shortening-url.");
                 }
 
-                var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url);
-                if (result != TweetSendStatus.Sent)
+                if (publishRequest.EpisodePublishRequest.Tweet)
                 {
-                    logger.LogError($"Tweet result: '{result}'.");
+                    var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url);
+                    if (result != TweetSendStatus.Sent)
+                    {
+                        logger.LogError($"Tweet result: '{result}'.");
+                    }
+                    else
+                    {
+                        response.Tweeted = true;
+                    }
                 }
-                else
+
+                if (publishRequest.EpisodePublishRequest.BlueskyPost)
                 {
-                    response.Tweeted = true;
+                    var result = await blueskyPoster.Post(podcastEpisode, shortnerResult.Url);
+                    if (result != BlueskySendStatus.Success)
+                    {
+                        logger.LogError($"Bluesky-post result: '{result}'.");
+                    }
+                    else
+                    {
+                        response.BlueskyPosted = true;
+                    }
                 }
             }
 
@@ -264,14 +282,7 @@ public class EpisodeController(
     {
         try
         {
-            var (days, posted, tweeted) = ParseOutgoingQuery(req);
-            if (posted && tweeted)
-            {
-                var invalidArguments = await req.CreateResponse(HttpStatusCode.BadRequest)
-                    .WithJsonBody(
-                        SubmitUrlResponse.Failure($"Invalid arguments. Posted='{posted}', Tweeted='{tweeted}'."), c);
-                return invalidArguments;
-            }
+            var (days, posted, tweeted, blueskyPosted) = ParseOutgoingQuery(req);
 
             var episodes = new List<DiscreteEpisode>();
             var since = DateTimeExtensions.DaysAgo(days);
@@ -280,13 +291,21 @@ public class EpisodeController(
                         !x.Removed.IsDefined() ||
                         x.Removed == false
                     ) &&
-                    x.Episodes.Any(ep => ep.Release > since && (!ep.Posted || posted) && (!ep.Tweeted || tweeted)),
+                    x.Episodes.Any(ep =>
+                        ep.Release > since &&
+                        (!ep.Posted || posted) &&
+                        (!ep.Tweeted || tweeted) &&
+                        (!(ep.BlueskyPosted.IsDefined() && ep.BlueskyPosted == true) || blueskyPosted)),
                 x => new {guid = x.Id}).ToListAsync(c);
             foreach (var podcastId in podcastIds)
             {
                 var podcast = await podcastRepository.GetBy(x => x.Id == podcastId.guid);
                 var unpostedEpisodes =
-                    podcast.Episodes.Where(x => x.Release > since && (!x.Posted || posted) && (!x.Tweeted || tweeted))
+                    podcast.Episodes.Where(x =>
+                            x.Release > since &&
+                            (!x.Posted || posted) &&
+                            (!x.Tweeted || tweeted) &&
+                            (!(x.BlueskyPosted.HasValue && x.BlueskyPosted.Value) || blueskyPosted))
                         .Select(x => x.Enrich(podcast.Name));
                 episodes.AddRange(unpostedEpisodes);
             }
@@ -305,7 +324,7 @@ public class EpisodeController(
         return failure;
     }
 
-    private (int days, bool posted, bool tweeted) ParseOutgoingQuery(HttpRequestData req)
+    private (int days, bool posted, bool tweeted, bool blueskyPosted) ParseOutgoingQuery(HttpRequestData req)
     {
         if (!bool.TryParse(req.Query["tweeted"], out var tweeted))
         {
@@ -315,6 +334,11 @@ public class EpisodeController(
         if (!bool.TryParse(req.Query["posted"], out var posted))
         {
             posted = false;
+        }
+
+        if (!bool.TryParse(req.Query["blueskyPosted"], out var blueskyPosted))
+        {
+            blueskyPosted = false;
         }
 
         if (!int.TryParse(req.Query["days"], out var days))
@@ -327,7 +351,7 @@ public class EpisodeController(
             days = 14;
         }
 
-        return (days, posted, tweeted);
+        return (days, posted, tweeted, blueskyPosted);
     }
 
     private async Task<HttpResponseData> Post(
