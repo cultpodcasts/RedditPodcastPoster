@@ -51,10 +51,10 @@ public class BlueskyPostManager(
 
                     logger.LogInformation(
                         $"{nameof(BlueskyPostManager)}.{nameof(Post)}: Exec {nameof(poster.Post)} init.");
-                    var tweetStatus = await poster.Post(podcastEpisode, shortnerResult.Url);
+                    var status = await poster.Post(podcastEpisode, shortnerResult.Url);
                     logger.LogInformation(
-                        $"{nameof(BlueskyPostManager)}.{nameof(Post)}: Exec {nameof(poster.Post)} complete. Tweet-status: '{tweetStatus}'.");
-                    posted = tweetStatus == BlueskySendStatus.Success;
+                        $"{nameof(BlueskyPostManager)}.{nameof(Post)}: Exec {nameof(poster.Post)} complete. Bluesky-post-status: '{status}'.");
+                    posted = status == BlueskySendStatus.Success;
                 }
                 catch (Exception ex)
                 {
