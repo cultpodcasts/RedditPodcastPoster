@@ -3,5 +3,8 @@
 public enum BlueskySendStatus
 {
     Unknown = 0,
-    Success
+    Success,
+    Failure,
+    FailureHttp,
+    FailureAuth
 }
