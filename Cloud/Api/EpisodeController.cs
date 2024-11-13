@@ -306,7 +306,7 @@ public class EpisodeController(
                             (!x.Posted || posted) &&
                             (!x.Tweeted || tweeted) &&
                             (!(x.BlueskyPosted.HasValue && x.BlueskyPosted.Value) || blueskyPosted))
-                        .Select(x => x.Enrich(podcast.Name));
+                        .Select(x => x.Enrich(podcast));
                 episodes.AddRange(unpostedEpisodes);
             }
 
@@ -624,7 +624,7 @@ public class EpisodeController(
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            var podcastEpisode = episode.Enrich(podcast.Name);
+            var podcastEpisode = episode.Enrich(podcast);
             var success = await req.CreateResponse(HttpStatusCode.OK)
                 .WithJsonBody(podcastEpisode, c);
             return success;

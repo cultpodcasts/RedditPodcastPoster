@@ -1,16 +1,17 @@
 ﻿using Api.Dtos;
 using RedditPodcastPoster.Models;
+using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace Api.Extensions;
 
 public static class EpisodeExtensions
 {
-    public static DiscreteEpisode Enrich(this Episode episode, string podcastName)
+    public static DiscreteEpisode Enrich(this Episode episode, Podcast podcast)
     {
         return new DiscreteEpisode
         {
             Id = episode.Id,
-            PodcastName = podcastName,
+            PodcastName = podcast.Name,
             Title = episode.Title,
             Description = episode.Description,
             Posted = episode.Posted,
@@ -26,7 +27,10 @@ public static class EpisodeExtensions
             YouTubeId = episode.YouTubeId,
             Urls = episode.Urls,
             Subjects = episode.Subjects,
-            SearchTerms = episode.SearchTerms
+            SearchTerms = episode.SearchTerms,
+            YouTubePodcast = !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId),
+            SpotifyPodcast = !string.IsNullOrWhiteSpace(podcast.SpotifyId),
+            ApplePodcast = podcast.AppleId != null
         };
     }
 }
