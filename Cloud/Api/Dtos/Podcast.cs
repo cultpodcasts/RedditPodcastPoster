@@ -49,6 +49,9 @@ public class Podcast
     [JsonPropertyName("twitterHandle")]
     public string? TwitterHandle { get; set; }
 
+    [JsonPropertyName("blueskyHandle")]
+    public string? BlueskyHandle { get; set; }
+
     [JsonPropertyName("titleRegex")]
     public string? TitleRegex { get; set; }
 

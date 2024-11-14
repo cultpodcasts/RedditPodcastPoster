@@ -89,6 +89,10 @@ public sealed class Podcast : CosmosSelector
     [JsonPropertyOrder(190)]
     public string TwitterHandle { get; set; } = "";
 
+    [JsonPropertyName("blueskyHandle")]
+    [JsonPropertyOrder(191)]
+    public string? BlueskyHandle { get; set; }
+
     [JsonPropertyName("titleRegex")]
     [JsonPropertyOrder(200)]
     public string TitleRegex { get; set; } = "";
@@ -137,7 +141,7 @@ public sealed class Podcast : CosmosSelector
 
     public TimeSpan YouTubePublishingDelay()
     {
-        if (YouTubePublicationOffset==null)
+        if (YouTubePublicationOffset == null)
         {
             return TimeSpan.Zero;
         }
