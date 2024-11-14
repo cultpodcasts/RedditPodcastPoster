@@ -53,7 +53,14 @@ public class BlueskyPostBuilder(
         var podcastName = textSanitiser.SanitisePodcastName(postModel);
 
         var tweetBuilder = new StringBuilder();
-        tweetBuilder.AppendLine($"{podcastName}");
+        if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.BlueskyHandle))
+        {
+            tweetBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.BlueskyHandle}");
+        }
+        else
+        {
+            tweetBuilder.AppendLine($"{podcastName}");
+        }
 
         tweetBuilder.AppendLine(
             $"{podcastEpisode.Episode.Release.ToString(ReleaseFormat)} {podcastEpisode.Episode.Length.ToString(LengthFormat, CultureInfo.InvariantCulture)}");
@@ -76,7 +83,7 @@ public class BlueskyPostBuilder(
              podcastEpisode.Podcast.Episodes.Count > 1 ||
              podcastEpisode.Episode.Subjects.Any()))
         {
-            tweetBuilder.Append($"{shortUrl}");
+            tweetBuilder.AppendLine($"{shortUrl}");
         }
 
         var permittedTitleLength = 300 - (tweetBuilder.Length + (_blueskyOptions.WithEpisodeUrl ? 26 : 0));

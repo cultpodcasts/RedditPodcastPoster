@@ -232,6 +232,13 @@ public class PodcastController(
             podcast.TwitterHandle = podcastChangeRequest.TwitterHandle;
         }
 
+        if (podcastChangeRequest.BlueskyHandle != null)
+        {
+            podcast.BlueskyHandle = string.IsNullOrWhiteSpace(podcastChangeRequest.BlueskyHandle)
+                ? null
+                : podcastChangeRequest.BlueskyHandle;
+        }
+
         if (podcastChangeRequest.TitleRegex != null)
         {
             podcast.TitleRegex = podcastChangeRequest.TitleRegex;
@@ -283,6 +290,7 @@ public class PodcastController(
                         : string.Empty,
                     SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube,
                     TwitterHandle = podcast.TwitterHandle,
+                    BlueskyHandle = podcast.BlueskyHandle ?? string.Empty,
                     TitleRegex = podcast.TitleRegex,
                     DescriptionRegex = podcast.DescriptionRegex,
                     EpisodeMatchRegex = podcast.EpisodeMatchRegex,
