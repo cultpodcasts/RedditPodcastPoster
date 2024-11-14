@@ -30,7 +30,9 @@ public static class EpisodeExtensions
             SearchTerms = episode.SearchTerms,
             YouTubePodcast = !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId),
             SpotifyPodcast = !string.IsNullOrWhiteSpace(podcast.SpotifyId),
-            ApplePodcast = podcast.AppleId != null
+            ApplePodcast = podcast.AppleId != null,
+            ReleaseAuthority = podcast.ReleaseAuthority,
+            PrimaryPostService = podcast.PrimaryPostService
         };
     }
 }

@@ -20,4 +20,14 @@ public class DiscreteEpisode : Episode
     [JsonPropertyName("applePodcast")]
     [JsonPropertyOrder(202)]
     public bool ApplePodcast { get; set; }
+
+    [JsonPropertyName("releaseAuthority")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    [JsonPropertyOrder(210)]
+    public Service? ReleaseAuthority { get; set; }
+
+    [JsonPropertyName("primaryPostService")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    [JsonPropertyOrder(211)]
+    public Service? PrimaryPostService { get; set; }
 }
