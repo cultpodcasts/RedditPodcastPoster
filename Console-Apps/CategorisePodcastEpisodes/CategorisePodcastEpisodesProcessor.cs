@@ -36,7 +36,7 @@ public class CategorisePodcastEpisodesProcessor(
                         podcastEpisode.Subjects = new List<string>();
                     }
 
-                    await subjectEnricher.EnrichSubjects(
+                    var results = await subjectEnricher.EnrichSubjects(
                         podcastEpisode,
                         new SubjectEnrichmentOptions(
                             podcast.IgnoredAssociatedSubjects,

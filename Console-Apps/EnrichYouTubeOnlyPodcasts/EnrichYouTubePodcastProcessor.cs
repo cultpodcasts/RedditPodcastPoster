@@ -131,7 +131,7 @@ public class EnrichYouTubePodcastProcessor(
                     episode.Ignored = !((podcast.BypassShortEpisodeChecking.HasValue &&
                                          podcast.BypassShortEpisodeChecking.Value) ||
                                         episode.Length > _postingCriteria.MinimumDuration);
-                    await subjectEnricher.EnrichSubjects(episode,
+                    var results = await subjectEnricher.EnrichSubjects(episode,
                         new SubjectEnrichmentOptions(
                             podcast.IgnoredAssociatedSubjects,
                             podcast.IgnoredSubjects,

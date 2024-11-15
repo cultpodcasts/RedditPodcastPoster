@@ -336,7 +336,7 @@ public class UrlSubmitter(
         {
             episodeResult = SubmitResultState.Created;
             var episode = CreateEpisode(categorisedItem);
-            var (subjectAdditions, subjectRemovals) = await subjectEnricher.EnrichSubjects(
+            var subjectsResult = await subjectEnricher.EnrichSubjects(
                 episode,
                 new SubjectEnrichmentOptions(
                     categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
@@ -350,7 +350,7 @@ public class UrlSubmitter(
                 episode.Urls.Spotify != null,
                 episode.Urls.Apple != null,
                 episode.Urls.YouTube != null,
-                subjectAdditions);
+                subjectsResult.Additions);
         }
         else
         {
@@ -396,7 +396,7 @@ public class UrlSubmitter(
         }
 
         var episode = CreateEpisode(categorisedItem);
-        var (subjectAdditions, subjectRemovals) = await subjectEnricher.EnrichSubjects(episode);
+        var subjectsResult = await subjectEnricher.EnrichSubjects(episode);
         newPodcast.Episodes.Add(episode);
         logger.LogInformation($"Created podcast with name '{showName}' with id '{newPodcast.Id}'.");
 
@@ -404,7 +404,7 @@ public class UrlSubmitter(
             episode.Urls.Spotify != null,
             episode.Urls.Apple != null,
             episode.Urls.YouTube != null,
-            subjectAdditions);
+            subjectsResult.Additions);
         return (newPodcast, episode, submitEpisodeDetails);
     }
 
