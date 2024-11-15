@@ -89,7 +89,7 @@ public class Indexer(
                         podcast.IgnoredAssociatedSubjects,
                         podcast.IgnoredSubjects,
                         podcast.DefaultSubject));
-                var result = updatedEpisodes.SingleOrDefault(x => x.EpisodeId == episode.Id);
+                var result = updatedEpisodes.FirstOrDefault(x => x.EpisodeId == episode.Id);
                 if (result != null)
                 {
                     result.Subjects = subjectsResult.Additions;
@@ -121,6 +121,33 @@ public class Indexer(
             }
         }
 
+        updatedEpisodes = Collapse(updatedEpisodes);
+
         return new IndexResponse(status, updatedEpisodes);
+    }
+
+    private static IndexedEpisode[]? Collapse(IndexedEpisode[]? episodes)
+    {
+        if (episodes == null)
+        {
+            return null;
+        }
+
+        var results = new List<IndexedEpisode>();
+        var groupedEpisodes = episodes.GroupBy(x => x.EpisodeId);
+        foreach (var groupedEpisode in groupedEpisodes)
+        {
+            var items = groupedEpisode.ToList();
+            var result = new IndexedEpisode(
+                items.First().EpisodeId,
+                items.Any(x => x.Spotify),
+                items.Any(x => x.Apple),
+                items.Any(x => x.YouTube));
+            var subjects = items.SelectMany(x => x.Subjects).Distinct();
+            result.Subjects = subjects.ToArray();
+            results.Add(result);
+        }
+
+        return results.ToArray();
     }
 }
