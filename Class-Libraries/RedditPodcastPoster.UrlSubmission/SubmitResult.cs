@@ -5,7 +5,9 @@ namespace RedditPodcastPoster.UrlSubmission;
 public record SubmitResult(
     SubmitResultState EpisodeResult,
     SubmitResultState PodcastResult,
-    Guid? EpisodeId = null)
+    SubmitEpisodeDetails? SubmitEpisodeDetails = null,
+    Guid? EpisodeId = null
+)
 {
     public enum SubmitResultState
     {

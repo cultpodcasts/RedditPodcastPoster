@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Subjects;
 
 public interface ISubjectEnricher
 {
-    Task EnrichSubjects(Episode episode, SubjectEnrichmentOptions? options = null);
+    Task<(string[], string[])> EnrichSubjects(Episode episode, SubjectEnrichmentOptions? options = null);
 }

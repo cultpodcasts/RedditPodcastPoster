@@ -285,8 +285,9 @@ public class UrlSubmitter(
         }
         else
         {
-            var (newPodcast, newEpisode) = await CreatePodcastWithEpisode(categorisedItem);
-            submitResult = new SubmitResult(SubmitResultState.Created, SubmitResultState.Created, newEpisode.Id);
+            var (newPodcast, newEpisode, submitEpisodeDetails) = await CreatePodcastWithEpisode(categorisedItem);
+            submitResult = new SubmitResult(SubmitResultState.Created, SubmitResultState.Created, submitEpisodeDetails,
+                newEpisode.Id);
             if (submitOptions.PersistToDatabase)
             {
                 await podcastRepository.Save(newPodcast);
@@ -303,7 +304,6 @@ public class UrlSubmitter(
     private async Task<SubmitResult> AddEpisodeToExistingPodcast(
         CategorisedItem categorisedItem)
     {
-        SubmitResultState episodeResult;
         var matchingEpisodes = categorisedItem.MatchingEpisode != null
             ? [categorisedItem.MatchingEpisode]
             : categorisedItem.MatchingPodcast!.Episodes.Where(episode =>
@@ -325,16 +325,18 @@ public class UrlSubmitter(
         logger.LogInformation(
             $"Modifying podcast with name '{categorisedItem.MatchingPodcast!.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
 
-        var (podcastResult, appliedEpisodeResult) = ApplyResolvedPodcastServiceProperties(
+        var (podcastResult, appliedEpisodeResult, submitEpisodeDetails) = ApplyResolvedPodcastServiceProperties(
             categorisedItem.MatchingPodcast,
-            categorisedItem, matchingEpisode);
+            categorisedItem,
+            matchingEpisode);
 
         Guid episodeId;
+        SubmitResultState episodeResult;
         if (matchingEpisode == null)
         {
             episodeResult = SubmitResultState.Created;
             var episode = CreateEpisode(categorisedItem);
-            await subjectEnricher.EnrichSubjects(
+            var (subjectAdditions, subjectRemovals) = await subjectEnricher.EnrichSubjects(
                 episode,
                 new SubjectEnrichmentOptions(
                     categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
@@ -344,6 +346,11 @@ public class UrlSubmitter(
             categorisedItem.MatchingPodcast.Episodes =
                 categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
             episodeId = episode.Id;
+            submitEpisodeDetails = new SubmitEpisodeDetails(
+                episode.Urls.Spotify != null,
+                episode.Urls.Apple != null,
+                episode.Urls.YouTube != null,
+                subjectAdditions);
         }
         else
         {
@@ -351,10 +358,11 @@ public class UrlSubmitter(
             episodeId = matchingEpisode.Id;
         }
 
-        return new SubmitResult(episodeResult, podcastResult, episodeId);
+        return new SubmitResult(episodeResult, podcastResult, submitEpisodeDetails, episodeId);
     }
 
-    private async Task<(Podcast, Episode)> CreatePodcastWithEpisode(CategorisedItem categorisedItem)
+    private async Task<(Podcast, Episode, SubmitEpisodeDetails)> CreatePodcastWithEpisode(
+        CategorisedItem categorisedItem)
     {
         string showName;
         string publisher;
@@ -388,11 +396,16 @@ public class UrlSubmitter(
         }
 
         var episode = CreateEpisode(categorisedItem);
-        await subjectEnricher.EnrichSubjects(episode);
+        var (subjectAdditions, subjectRemovals) = await subjectEnricher.EnrichSubjects(episode);
         newPodcast.Episodes.Add(episode);
         logger.LogInformation($"Created podcast with name '{showName}' with id '{newPodcast.Id}'.");
 
-        return (newPodcast, episode);
+        var submitEpisodeDetails = new SubmitEpisodeDetails(
+            episode.Urls.Spotify != null,
+            episode.Urls.Apple != null,
+            episode.Urls.YouTube != null,
+            subjectAdditions);
+        return (newPodcast, episode, submitEpisodeDetails);
     }
 
     private Episode CreateEpisode(CategorisedItem categorisedItem)
@@ -474,11 +487,14 @@ public class UrlSubmitter(
         return newEpisode;
     }
 
-    private (SubmitResultState PodcastResult, SubmitResultState EpisodeResult) ApplyResolvedPodcastServiceProperties(
-        Podcast matchingPodcast,
-        CategorisedItem categorisedItem,
-        Episode? matchingEpisode)
+    private (SubmitResultState PodcastResult, SubmitResultState EpisodeResult, SubmitEpisodeDetails)
+        ApplyResolvedPodcastServiceProperties(
+            Podcast matchingPodcast,
+            CategorisedItem categorisedItem,
+            Episode? matchingEpisode)
     {
+        var (addedSpotify, addedApple, addedYouTube) = (false, false, false);
+
         var podcastResult = SubmitResultState.None;
         var episodeResult = SubmitResultState.None;
         if (matchingEpisode != null)
@@ -503,6 +519,7 @@ public class UrlSubmitter(
                 if (!matchingEpisode.AppleId.HasValue ||
                     matchingEpisode.AppleId != categorisedItem.ResolvedAppleItem.EpisodeId)
                 {
+                    addedApple = true;
                     matchingEpisode.AppleId = categorisedItem.ResolvedAppleItem.EpisodeId;
                     episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
@@ -512,6 +529,7 @@ public class UrlSubmitter(
                 if (matchingEpisode.Urls.Apple == null ||
                     matchingEpisode.Urls.Apple != categorisedItem.ResolvedAppleItem.Url)
                 {
+                    addedApple = true;
                     matchingEpisode.Urls.Apple = categorisedItem.ResolvedAppleItem.Url;
                     episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
@@ -549,6 +567,7 @@ public class UrlSubmitter(
                 if (string.IsNullOrWhiteSpace(matchingEpisode.SpotifyId) ||
                     matchingEpisode.SpotifyId != categorisedItem.ResolvedSpotifyItem.EpisodeId)
                 {
+                    addedSpotify = true;
                     matchingEpisode.SpotifyId = categorisedItem.ResolvedSpotifyItem.EpisodeId;
                     episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
@@ -558,6 +577,7 @@ public class UrlSubmitter(
                 if (matchingEpisode.Urls.Spotify == null ||
                     matchingEpisode.Urls.Spotify != categorisedItem.ResolvedSpotifyItem.Url)
                 {
+                    addedSpotify = true;
                     matchingEpisode.Urls.Spotify = categorisedItem.ResolvedSpotifyItem.Url;
                     episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
@@ -589,6 +609,7 @@ public class UrlSubmitter(
                 if (string.IsNullOrWhiteSpace(matchingEpisode.YouTubeId) ||
                     matchingEpisode.YouTubeId != categorisedItem.ResolvedYouTubeItem.EpisodeId)
                 {
+                    addedYouTube = true;
                     matchingEpisode.YouTubeId = categorisedItem.ResolvedYouTubeItem.EpisodeId;
                     episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
@@ -598,6 +619,7 @@ public class UrlSubmitter(
                 if (matchingEpisode.Urls.YouTube == null ||
                     matchingEpisode.Urls.YouTube != categorisedItem.ResolvedYouTubeItem.Url)
                 {
+                    addedYouTube = true;
                     matchingEpisode.Urls.YouTube = categorisedItem.ResolvedYouTubeItem.Url;
                     episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
@@ -620,7 +642,7 @@ public class UrlSubmitter(
             }
         }
 
-        return (podcastResult, episodeResult);
+        return (podcastResult, episodeResult, new SubmitEpisodeDetails(addedSpotify, addedApple, addedYouTube));
     }
 
     private bool IsMatchingEpisode(Episode episode, CategorisedItem categorisedItem)
