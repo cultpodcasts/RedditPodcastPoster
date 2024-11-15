@@ -45,15 +45,28 @@ public class Indexer(
     {
         IndexStatus status;
         var podcast = await podcastRepository.GetPodcast(podcastId);
-        Guid[]? updatedEpisodeIds = null;
+        IndexedEpisode[]? updatedEpisodes = null;
         if (podcast != null && !podcast.IsRemoved() &&
             (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
         {
             logger.LogInformation($"Indexing podcast {podcast.Name}' with podcast-id '{podcastId}'.");
             var results = await podcastUpdater.Update(podcast, indexingContext);
 
-            updatedEpisodeIds = results.MergeResult.AddedEpisodes.Select(x => x.Id)
-                .Concat(results.EnrichmentResult.UpdatedEpisodes.Select(x => x.Episode.Id)).Distinct().ToArray();
+            updatedEpisodes = results.MergeResult.AddedEpisodes
+                .Select(x =>
+                    new IndexedEpisode(
+                        x.Id,
+                        x.Urls.Spotify != null,
+                        x.Urls.Apple != null,
+                        x.Urls.YouTube != null))
+                .Concat(results.EnrichmentResult.UpdatedEpisodes.Select(x =>
+                    new IndexedEpisode(
+                        x.Episode.Id,
+                        x.EnrichmentContext.SpotifyUrlUpdated,
+                        x.EnrichmentContext.AppleUrlUpdated,
+                        x.EnrichmentContext.YouTubeUrlUpdated)))
+                .Distinct()
+                .ToArray();
 
             var resultsMessage = results.ToString();
             if (results.MergeResult.FailedEpisodes.Any() ||
@@ -76,6 +89,11 @@ public class Indexer(
                         podcast.IgnoredAssociatedSubjects,
                         podcast.IgnoredSubjects,
                         podcast.DefaultSubject));
+                var result = updatedEpisodes.SingleOrDefault(x => x.EpisodeId == episode.Id);
+                if (result != null)
+                {
+                    result.Subjects = subjectsResult.Additions;
+                }
             }
 
             await podcastRepository.Save(podcast);
@@ -103,6 +121,6 @@ public class Indexer(
             }
         }
 
-        return new IndexResponse(status, updatedEpisodeIds);
+        return new IndexResponse(status, updatedEpisodes);
     }
 }

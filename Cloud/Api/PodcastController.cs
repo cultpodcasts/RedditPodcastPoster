@@ -370,7 +370,7 @@ public class PodcastController(
                 logger.LogWarning($"{nameof(Index)}: Podcast with name '{podcastName}' not found.");
             }
 
-            return await req.CreateResponse(status).WithJsonBody(new {episodeIds = response.UpdatedEpisodeIds}, c);
+            return await req.CreateResponse(status).WithJsonBody(IndexPodcastResponse.ToDto(response), c);
         }
         catch (Exception ex)
         {

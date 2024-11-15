@@ -1,3 +1,3 @@
 ﻿namespace RedditPodcastPoster.Indexing;
 
-public record IndexResponse(IndexStatus IndexStatus, Guid[]? UpdatedEpisodeIds = null);
+public record IndexResponse(IndexStatus IndexStatus, IndexedEpisode[]? UpdatedEpisodes = null);
