@@ -8,15 +8,20 @@ public class IndexPodcastResponse
     [JsonPropertyName("indexedEpisodes")]
     public IndexedEpisode[]? IndexedEpisodes { get; set; }
 
+    [JsonPropertyName("indexStatus")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public required IndexStatus IndexStatus { get; set; }
+
     public static IndexPodcastResponse ToDto(IndexResponse indexResponse)
     {
         if (indexResponse.UpdatedEpisodes == null)
         {
-            return new IndexPodcastResponse();
+            return new IndexPodcastResponse(){IndexStatus = indexResponse.IndexStatus};
         }
 
         return new IndexPodcastResponse
         {
+            IndexStatus = indexResponse.IndexStatus,
             IndexedEpisodes = indexResponse.UpdatedEpisodes.Select(ToDto).ToArray()
         };
     }
