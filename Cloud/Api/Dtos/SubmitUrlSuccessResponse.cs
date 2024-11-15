@@ -5,6 +5,7 @@ namespace Api.Dtos;
 public class SubmitUrlSuccessResponse(
     SubmitItemResponse episode,
     SubmitItemResponse podcast,
+    SubmitEpisodeDetails? submitEpisodeDetails,
     Guid? episodeId)
 {
     [JsonPropertyName("episode")]
@@ -17,4 +18,7 @@ public class SubmitUrlSuccessResponse(
     [JsonPropertyName("podcast")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public SubmitItemResponse Podcast { get; private set; } = podcast;
+
+    [JsonPropertyName("episodeDetails")]
+    public SubmitEpisodeDetails? EpisodeDetails { get; private set; } = submitEpisodeDetails;
 }

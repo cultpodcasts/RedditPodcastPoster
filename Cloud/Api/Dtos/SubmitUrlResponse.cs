@@ -12,6 +12,24 @@ public class SubmitUrlResponse
     [JsonPropertyName("error")]
     public string? Error { get; private set; }
 
+    public static SubmitUrlResponse Successful(SubmitResult result)
+    {
+        return new SubmitUrlResponse
+        {
+            Success = new SubmitUrlSuccessResponse(
+                ToSubmitEpisodeResponse(result.EpisodeResult),
+                ToSubmitEpisodeResponse(result.PodcastResult),
+                ToSubmitEpisodeDetails(result.SubmitEpisodeDetails),
+                result.EpisodeId
+            )
+        };
+    }
+
+    public static SubmitUrlResponse Failure(string message = "")
+    {
+        return new SubmitUrlResponse {Error = message};
+    }
+
     private static SubmitItemResponse ToSubmitEpisodeResponse(SubmitResultState submitResultState)
     {
         return submitResultState switch
@@ -25,20 +43,17 @@ public class SubmitUrlResponse
         };
     }
 
-    public static SubmitUrlResponse Successful(SubmitResult result)
+    private static SubmitEpisodeDetails? ToSubmitEpisodeDetails(
+        RedditPodcastPoster.UrlSubmission.SubmitEpisodeDetails? resultSubmitEpisodeDetails)
     {
-        return new SubmitUrlResponse
+        if (resultSubmitEpisodeDetails != null)
         {
-            Success = new SubmitUrlSuccessResponse(
-                ToSubmitEpisodeResponse(result.EpisodeResult),
-                ToSubmitEpisodeResponse(result.PodcastResult),
-                result.EpisodeId
-            )
-        };
-    }
+            return new SubmitEpisodeDetails(resultSubmitEpisodeDetails.Spotify,
+                resultSubmitEpisodeDetails.Apple,
+                resultSubmitEpisodeDetails.YouTube,
+                resultSubmitEpisodeDetails.Subjects ?? []);
+        }
 
-    public static SubmitUrlResponse Failure(string message = "")
-    {
-        return new SubmitUrlResponse {Error = message};
+        return null;
     }
 }

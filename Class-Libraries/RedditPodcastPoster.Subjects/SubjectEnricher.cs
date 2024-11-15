@@ -8,7 +8,8 @@ public class SubjectEnricher(
     ILogger<ISubjectEnricher> logger)
     : ISubjectEnricher
 {
-    public async Task EnrichSubjects(Episode episode, SubjectEnrichmentOptions? options = null)
+    public async Task<(string[] Additions, string[] Removals)> EnrichSubjects(Episode episode,
+        SubjectEnrichmentOptions? options = null)
     {
         var subjectMatches = await subjectMatcher.MatchSubjects(episode, options);
         var (additions, removals) = CompareSubjects(episode.Subjects, subjectMatches, options?.DefaultSubject);
@@ -59,6 +60,8 @@ public class SubjectEnricher(
             logger.LogWarning(
                 $"Redundant: {string.Join(",", removals.Select(x => "'" + x + "'"))} : '{episode.Title}'.");
         }
+
+        return (additions.Select(x => x.Subject.Name).ToArray(), removals.ToArray());
     }
 
     private (IList<SubjectMatch>, IList<string>) CompareSubjects(

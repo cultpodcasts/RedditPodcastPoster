@@ -24,10 +24,11 @@ public class SubmitUrlProcessor(
 
         if (!request.SubmitUrlsInFile)
         {
-            await urlSubmitter.Submit(
+            var result = await urlSubmitter.Submit(
                 new Uri(request.UrlOrFile, UriKind.Absolute),
                 indexOptions,
                 new SubmitOptions(request.PodcastId, request.MatchOtherServices, !request.DryRun));
+            logger.LogInformation(result.ToString());
         }
         else
         {
@@ -35,10 +36,11 @@ public class SubmitUrlProcessor(
             foreach (var url in urls)
             {
                 logger.LogInformation($"Ingesting '{url}'.");
-                await urlSubmitter.Submit(
+                var result = await urlSubmitter.Submit(
                     new Uri(url, UriKind.Absolute),
                     indexOptions,
                     new SubmitOptions(request.PodcastId, request.MatchOtherServices, !request.DryRun));
+                logger.LogInformation(result.ToString());
             }
         }
 

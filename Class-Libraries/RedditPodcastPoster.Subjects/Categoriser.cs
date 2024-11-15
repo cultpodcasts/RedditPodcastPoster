@@ -17,7 +17,7 @@ public class Categoriser(
         string? defaultSubject = null)
     {
         var originalSubject = episode.Subjects.ToArray();
-        await subjectEnricher.EnrichSubjects(episode, new SubjectEnrichmentOptions(
+        var results= await subjectEnricher.EnrichSubjects(episode, new SubjectEnrichmentOptions(
             ignoredAssociatedSubjects,
             ignoredSubjects,
             defaultSubject));

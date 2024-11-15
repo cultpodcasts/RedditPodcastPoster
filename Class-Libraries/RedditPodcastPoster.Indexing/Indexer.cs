@@ -70,7 +70,7 @@ public class Indexer(
             var episodes = podcast.Episodes.Where(x => x.Release >= indexingContext.ReleasedSince);
             foreach (var episode in episodes)
             {
-                await subjectEnricher.EnrichSubjects(
+                var subjectsResult = await subjectEnricher.EnrichSubjects(
                     episode,
                     new SubjectEnrichmentOptions(
                         podcast.IgnoredAssociatedSubjects,
