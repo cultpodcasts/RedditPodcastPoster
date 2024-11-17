@@ -19,6 +19,7 @@ public class BlueskyPoster(
         BlueskySendStatus sendStatus;
         try
         {
+            logger.LogInformation($"bluesky-post-url: {url}");
             await blueSkyClient.Post(post, url);
             sendStatus = BlueskySendStatus.Success;
             logger.LogInformation($"Posted to bluesky: '{post}'.");
