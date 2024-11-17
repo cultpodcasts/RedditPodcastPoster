@@ -1,8 +1,7 @@
 {
   "profiles": {
-    "Api": {
+    "Indexer": {
       "commandName": "Project",
-      "commandLineArgs": "--port 7060",
       "environmentVariables": {
         "bluesky__ReuseSession": "true"
       }

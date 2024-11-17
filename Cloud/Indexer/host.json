@@ -19,7 +19,8 @@
     "logLevel": {
       "default": "Information",
       "Function": "Trace",
-      "Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler": "Warning"
+      "Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler": "Warning",
+      "X.Bluesky": "Information"
     }
   }
 }
