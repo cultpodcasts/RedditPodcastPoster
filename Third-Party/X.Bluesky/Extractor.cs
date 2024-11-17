@@ -31,7 +31,6 @@ public class Extractor : IExtractor
     public async Task<Metadata> ExtractAsync(Uri uri)
     {
         var html = await _pageContentLoader.LoadPageContentAsync(uri);
-        this._logger.LogInformation($"html for {uri.ToString()}: {html}");
         var htmlDocument = CreateHtmlDocument(html);
         var title = ExtractTitle(htmlDocument);
         IReadOnlyCollection<string> keywords = ExtractKeywords(htmlDocument);
