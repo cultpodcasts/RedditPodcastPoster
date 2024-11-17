@@ -28,16 +28,19 @@ public class BlueskyPoster(
             {
                 var video = await youTubeVideoService.GetVideoContentDetails([podcastEpisode.Episode.YouTubeId],
                     new IndexingContext(), true);
+                EmbedCardRequest embedCardRequest;
                 if (video.FirstOrDefault() == null)
                 {
-                    var embedCardRequest =
-                        new EmbedCardRequest(podcastEpisode.Episode.Title, podcastEpisode.Episode.Description, url);
+                    embedCardRequest = new EmbedCardRequest(podcastEpisode.Episode.Title,
+                        podcastEpisode.Episode.Description, url);
                 }
                 else
                 {
-                    var embedCardRequest =
-                        new EmbedCardRequest(video.First().Snippet.Title, video.First().Snippet.Description, url);
-                    embedCardRequest.ThumbUrl = video.FirstOrDefault().GetImageUrl();
+                    embedCardRequest = new EmbedCardRequest(video.First().Snippet.Title.Trim(),
+                        video.First().Snippet.Description.Trim(), url)
+                    {
+                        ThumbUrl = video.FirstOrDefault().GetImageUrl()
+                    };
                 }
 
                 await blueSkyClient.Post(post, embedCardRequest);
