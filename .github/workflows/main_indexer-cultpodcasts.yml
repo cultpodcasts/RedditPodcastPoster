@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - main
-      - feature/9-packages
   workflow_dispatch:
 
 env:
