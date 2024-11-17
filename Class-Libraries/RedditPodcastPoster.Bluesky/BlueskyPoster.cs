@@ -2,6 +2,9 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using X.Bluesky;
 
 namespace RedditPodcastPoster.Bluesky;
@@ -10,17 +13,33 @@ public class BlueskyPoster(
     IPodcastRepository repository,
     IBlueskyPostBuilder postBuilder,
     IBlueskyClient blueSkyClient,
+    IYouTubeVideoService youTubeVideoService,
     ILogger<BlueskyPoster> logger)
     : IBlueskyPoster
 {
     public async Task<BlueskySendStatus> Post(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
-        var (post, url) = await postBuilder.BuildPost(podcastEpisode, shortUrl);
+        var (post, url, service) = await postBuilder.BuildPost(podcastEpisode, shortUrl);
         BlueskySendStatus sendStatus;
         try
         {
             logger.LogInformation($"bluesky-post-url: {url}");
-            await blueSkyClient.Post(post, url);
+            if (service == Service.YouTube)
+            {
+                var embedCardRequest =
+                    new EmbedCardRequest(podcastEpisode.Episode.Title, podcastEpisode.Episode.Description, url);
+
+                var video = await youTubeVideoService.GetVideoContentDetails([podcastEpisode.Episode.YouTubeId],
+                    new IndexingContext(), withSnippets:true);
+                embedCardRequest.ThumbUrl = video.FirstOrDefault().GetImageUrl();
+
+                await blueSkyClient.Post(post, embedCardRequest);
+
+            }
+            else
+            {
+                await blueSkyClient.Post(post, url);
+            }
             sendStatus = BlueskySendStatus.Success;
             logger.LogInformation($"Posted to bluesky: '{post}'.");
         }

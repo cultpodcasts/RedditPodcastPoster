@@ -34,6 +34,8 @@ public interface IBlueskyClient
     /// </param>
     /// <returns></returns>
     Task Post(string text, Uri uri);
+
+    Task Post(string text, EmbedCardRequest embedCard);
 }
 
 public class BlueskyClient : IBlueskyClient
@@ -110,6 +112,28 @@ public class BlueskyClient : IBlueskyClient
     /// <inheritdoc />
     public Task Post(string text, Uri uri) => CreatePost(text, uri);
 
+    public async Task Post(string text, EmbedCardRequest embedCard)
+    {
+        var session = await _authorizationClient.GetSession();
+
+        if (session == null)
+        {
+            throw new AuthenticationException();
+        }
+
+        var (facets, post) = await CreatePostAndFacets(text);
+
+        var embedCardBuilder = new EmbedCardBuilder(_httpClientFactory, session, _logger);
+
+        post.Embed = new Embed
+        {
+            External = await embedCardBuilder.GetEmbedCard(embedCard),
+            Type = "app.bsky.embed.external"
+        };
+
+        await Post(session, post);
+    }
+
 
     /// <summary>
     /// Create post
@@ -126,34 +150,7 @@ public class BlueskyClient : IBlueskyClient
             throw new AuthenticationException();
         }
 
-        // Fetch the current time in ISO 8601 format, with "Z" to denote UTC
-        var now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-        var facetBuilder = new FacetBuilder();
-
-        var facets = facetBuilder.GetFacets(text);
-
-        foreach (var facet in facets)
-        {
-            foreach (var facetFeature in facet.Features)
-            {
-                if (facetFeature is FacetFeatureMention facetFeatureMention)
-                {
-                    var resolveDid = await _mentionResolver.ResolveMention(facetFeatureMention.Did);
-
-                    facetFeatureMention.ResolveDid(resolveDid);
-                }
-            }
-        }
-
-        // Required fields for the post
-        var post = new Post
-        {
-            Type = "app.bsky.feed.post",
-            Text = text,
-            CreatedAt = now,
-            Langs = _languages.ToList(),
-            Facets = facets.ToList()
-        };
+        var (facets, post) = await CreatePostAndFacets(text);
 
         if (url == null)
         {
@@ -177,6 +174,11 @@ public class BlueskyClient : IBlueskyClient
             };
         }
 
+        await Post(session, post);
+    }
+
+    private async Task Post(Session session, Post post)
+    {
         var requestUri = "https://bsky.social/xrpc/com.atproto.repo.createRecord";
 
         var requestData = new CreatePostRequest
@@ -211,5 +213,38 @@ public class BlueskyClient : IBlueskyClient
 
         // This throws an exception if the HTTP response status is an error code.
         response.EnsureSuccessStatusCode();
+    }
+
+    private async Task<(IReadOnlyCollection<Facet> facets, Post post)> CreatePostAndFacets(string text)
+    {
+        // Fetch the current time in ISO 8601 format, with "Z" to denote UTC
+        var now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+        var facetBuilder = new FacetBuilder();
+
+        var facets = facetBuilder.GetFacets(text);
+
+        foreach (var facet in facets)
+        {
+            foreach (var facetFeature in facet.Features)
+            {
+                if (facetFeature is FacetFeatureMention facetFeatureMention)
+                {
+                    var resolveDid = await _mentionResolver.ResolveMention(facetFeatureMention.Did);
+
+                    facetFeatureMention.ResolveDid(resolveDid);
+                }
+            }
+        }
+
+        // Required fields for the post
+        var post = new Post
+        {
+            Type = "app.bsky.feed.post",
+            Text = text,
+            CreatedAt = now,
+            Langs = _languages.ToList(),
+            Facets = facets.ToList()
+        };
+        return (facets, post);
     }
 }

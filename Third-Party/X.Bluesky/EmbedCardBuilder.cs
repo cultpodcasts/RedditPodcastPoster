@@ -2,8 +2,6 @@ using System.Net.Http.Headers;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using X.Bluesky.Models;
-using X.Web.MetaExtractor;
-using X.Web.MetaExtractor.ContentLoaders.HttpClient;
 using X.Web.MetaExtractor.LanguageDetectors;
 
 namespace X.Bluesky;
@@ -30,11 +28,11 @@ public class EmbedCardBuilder
     /// <returns></returns>
     public async Task<EmbedCard> GetEmbedCard(Uri url)
     {
-        var extractor = new X.Bluesky.Extractor(
+        var extractor = new Extractor(
             string.Empty,
-            new X.Bluesky.HttpClientPageContentLoader(_httpClientFactory, this._logger),
+            new HttpClientPageContentLoader(_httpClientFactory, _logger),
             new LanguageDetector(),
-            this._logger
+            _logger
         );
         var metadata = await extractor.ExtractAsync(url);
 
@@ -64,7 +62,31 @@ public class EmbedCardBuilder
                 _logger.LogInformation("EmbedCard created");
             }
         }
-        _logger.LogInformation($"embed-card: url: '{card.Uri}', title: '{card.Title}', description '{card.Description}', thumb: '{card.Thumb}'");
+
+        _logger.LogInformation(
+            $"embed-card: url: '{card.Uri}', title: '{card.Title}', description '{card.Description}', thumb: '{card.Thumb}'");
+
+        return card;
+    }
+
+
+    public async Task<EmbedCard> GetEmbedCard(EmbedCardRequest embedCardRequest)
+    {
+        var card = new EmbedCard
+        {
+            Uri = embedCardRequest.Url.ToString(),
+            Title = embedCardRequest.Title,
+            Description = embedCardRequest.Description
+        };
+
+        if (embedCardRequest.ThumbUrl != null)
+        {
+            card.Thumb = await UploadImageAndSetThumbAsync(embedCardRequest.ThumbUrl);
+            _logger.LogInformation("EmbedCard created");
+        }
+
+        _logger.LogInformation(
+            $"embed-card: url: '{card.Uri}', title: '{card.Title}', description '{card.Description}', thumb: '{card.Thumb}'");
 
         return card;
     }
