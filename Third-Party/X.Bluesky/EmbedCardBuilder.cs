@@ -30,10 +30,11 @@ public class EmbedCardBuilder
     /// <returns></returns>
     public async Task<EmbedCard> GetEmbedCard(Uri url)
     {
-        var extractor = new Extractor(
+        var extractor = new X.Bluesky.Extractor(
             string.Empty,
-            new HttpClientPageContentLoader(_httpClientFactory),
-            new LanguageDetector()
+            new X.Bluesky.HttpClientPageContentLoader(_httpClientFactory, this._logger),
+            new LanguageDetector(),
+            this._logger
         );
         var metadata = await extractor.ExtractAsync(url);
 
