@@ -9,7 +9,7 @@ public class LoggingHandler(
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
-        logger.LogInformation(request.ToString());
+        logger.LogInformation($"url: {request.RequestUri}, method: {request.Method}");
 
         var response = await base.SendAsync(request, cancellationToken);
 
