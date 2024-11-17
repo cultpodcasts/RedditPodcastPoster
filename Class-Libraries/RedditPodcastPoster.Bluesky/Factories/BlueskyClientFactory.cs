@@ -6,6 +6,7 @@ using X.Bluesky;
 namespace RedditPodcastPoster.Bluesky.Factories;
 
 public class BlueskyClientFactory(
+    IBlueskyApiHttpClientFactory httpClientFactory,
     IOptions<BlueskyOptions> options,
     ILogger<BlueskyClientFactory> logger,
     ILogger<BlueskyClient> blueskyLogger
@@ -16,6 +17,13 @@ public class BlueskyClientFactory(
     public IBlueskyClient Create()
     {
         logger.LogInformation($"Creating blue-sky client with reuse-session: '{_options.ReuseSession}'.");
-        return new BlueskyClient(_options.Identifier, _options.Password, _options.ReuseSession, blueskyLogger);
+
+        return new BlueskyClient(
+            httpClientFactory,
+            _options.Identifier,
+            _options.Password,
+            ["en", "en-US", "en-GB"],
+            _options.ReuseSession,
+            blueskyLogger);
     }
 }

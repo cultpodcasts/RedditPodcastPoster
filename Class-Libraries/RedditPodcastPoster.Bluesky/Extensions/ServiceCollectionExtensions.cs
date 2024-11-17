@@ -13,6 +13,8 @@ public static class ServiceCollectionExtensions
         services.BindConfiguration<BlueskyOptions>("bluesky");
 
         return services
+            .AddSingleton<IBlueskyApiHttpClientFactoryFactory, BlueskyApiHttpClientFactoryFactory>()
+            .AddSingleton(x => x.GetService<IBlueskyApiHttpClientFactoryFactory>()!.Create())
             .AddSingleton<IBlueskyClientFactory, BlueskyClientFactory>()
             .AddSingleton(x => x.GetService<IBlueskyClientFactory>()!.Create())
             .AddScoped<IBlueskyPostBuilder, BlueskyPostBuilder>()
