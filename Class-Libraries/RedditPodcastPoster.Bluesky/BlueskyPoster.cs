@@ -26,20 +26,27 @@ public class BlueskyPoster(
             logger.LogInformation($"bluesky-post-url: {url}");
             if (service == Service.YouTube)
             {
-                var embedCardRequest =
-                    new EmbedCardRequest(podcastEpisode.Episode.Title, podcastEpisode.Episode.Description, url);
-
                 var video = await youTubeVideoService.GetVideoContentDetails([podcastEpisode.Episode.YouTubeId],
-                    new IndexingContext(), withSnippets:true);
-                embedCardRequest.ThumbUrl = video.FirstOrDefault().GetImageUrl();
+                    new IndexingContext(), true);
+                if (video.FirstOrDefault() == null)
+                {
+                    var embedCardRequest =
+                        new EmbedCardRequest(podcastEpisode.Episode.Title, podcastEpisode.Episode.Description, url);
+                }
+                else
+                {
+                    var embedCardRequest =
+                        new EmbedCardRequest(video.First().Snippet.Title, video.First().Snippet.Description, url);
+                    embedCardRequest.ThumbUrl = video.FirstOrDefault().GetImageUrl();
+                }
 
                 await blueSkyClient.Post(post, embedCardRequest);
-
             }
             else
             {
                 await blueSkyClient.Post(post, url);
             }
+
             sendStatus = BlueskySendStatus.Success;
             logger.LogInformation($"Posted to bluesky: '{post}'.");
         }
