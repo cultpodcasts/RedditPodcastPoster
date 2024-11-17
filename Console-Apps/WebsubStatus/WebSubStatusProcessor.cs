@@ -1,8 +1,8 @@
 ﻿using HtmlAgilityPack;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.YouTubePushNotifications;
+using System.Web;
+using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace WebsubStatus;
 
@@ -38,13 +38,11 @@ public class WebSubStatusProcessor(
                 var (callbackUrl, topicUrl) =
                     podcastYouTubePushNotificationUrlAdaptor.GetPodcastSubscriptionUrls(podcast);
 
-                var @params = new Dictionary<string, string>
-                {
-                    {"hub.callback", callbackUrl.ToString()},
-                    {"hub.topic", topicUrl.ToString()}
-                };
+                var queryString = HttpUtility.ParseQueryString("");
+                queryString.Add("hub.callback", callbackUrl.ToString());
+                queryString.Add("hub.topic", topicUrl.ToString());
 
-                var url = new Uri(QueryHelpers.AddQueryString(WebSubEndpoint, @params!));
+                var url = new Uri($"{WebSubEndpoint}?{queryString}");
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
