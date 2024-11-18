@@ -29,7 +29,7 @@ public class BlueskyPoster(
                 var video = await youTubeVideoService.GetVideoContentDetails([podcastEpisode.Episode.YouTubeId],
                     new IndexingContext(), true);
                 EmbedCardRequest embedCardRequest;
-                if (video.FirstOrDefault() == null)
+                if (video?.FirstOrDefault() == null)
                 {
                     embedCardRequest = new EmbedCardRequest(podcastEpisode.Episode.Title,
                         podcastEpisode.Episode.Description, url);
