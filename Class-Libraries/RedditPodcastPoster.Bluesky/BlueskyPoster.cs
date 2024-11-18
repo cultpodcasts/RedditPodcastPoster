@@ -1,12 +1,9 @@
 ﻿using System.Security.Authentication;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Client;
+using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Spotify;
-using RedditPodcastPoster.PodcastServices.YouTube;
-using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 namespace RedditPodcastPoster.Bluesky;
 
@@ -14,8 +11,7 @@ public class BlueskyPoster(
     IPodcastRepository repository,
     IBlueskyPostBuilder postBuilder,
     IEmbedCardBlueskyClient blueSkyClient,
-    IYouTubeVideoService youTubeVideoService,
-    ISpotifyEpisodeResolver spotifyEpisodeResolver,
+    IEmbedCardFactory embedCardFactory,
     ILogger<BlueskyPoster> logger)
     : IBlueskyPoster
 {
@@ -23,51 +19,9 @@ public class BlueskyPoster(
     {
         var embedPost = await postBuilder.BuildPost(podcastEpisode, shortUrl);
         BlueskySendStatus sendStatus;
+        var embedCardRequest = await embedCardFactory.EmbedCardRequest(podcastEpisode, embedPost);
         try
         {
-            EmbedCardRequest? embedCardRequest = null;
-            switch (embedPost.UrlService)
-            {
-                case Service.YouTube:
-                {
-                    var video = await youTubeVideoService.GetVideoContentDetails(
-                        [podcastEpisode.Episode.YouTubeId],
-                        new IndexingContext(), true);
-                    if (video?.FirstOrDefault() != null)
-                    {
-                        embedCardRequest = new EmbedCardRequest(
-                            video.First().Snippet.Title.Trim(),
-                            video.First().Snippet.Description.Trim(),
-                            embedPost.Url)
-                        {
-                            ThumbUrl = video.FirstOrDefault().GetImageUrl()
-                        };
-                    }
-
-                    break;
-                }
-                case Service.Spotify:
-                {
-                    var episode = await spotifyEpisodeResolver.FindEpisode(
-                        FindSpotifyEpisodeRequestFactory.Create(podcastEpisode.Podcast, podcastEpisode.Episode),
-                        new IndexingContext());
-                    if (episode.FullEpisode != null)
-                    {
-                        embedCardRequest = new EmbedCardRequest(
-                            episode.FullEpisode.Name,
-                            episode.FullEpisode.Description,
-                            embedPost.Url);
-                        var maxImage = episode.FullEpisode.Images.MaxBy(x => x.Height);
-                        if (maxImage != null)
-                        {
-                            embedCardRequest.ThumbUrl = new Uri(maxImage.Url);
-                        }
-                    }
-
-                    break;
-                }
-            }
-
             if (embedCardRequest != null)
             {
                 await blueSkyClient.Post(embedPost.Text, embedCardRequest);
@@ -110,7 +64,6 @@ public class BlueskyPoster(
                 $"Failure to save podcast with podcast-id '{podcastEpisode.Podcast.Id}' to update episode with id '{podcastEpisode.Episode.Id}'.");
             throw;
         }
-
 
         return sendStatus;
     }

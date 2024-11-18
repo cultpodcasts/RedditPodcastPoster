@@ -17,6 +17,7 @@ public static class ServiceCollectionExtensions
             .AddSingleton(x => x.GetService<IBlueskyClientFactory>()!.Create())
             .AddScoped<IBlueskyPostBuilder, BlueskyPostBuilder>()
             .AddScoped<IBlueskyPoster, BlueskyPoster>()
-            .AddScoped<IBlueskyPostManager, BlueskyPostManager>();
+            .AddScoped<IBlueskyPostManager, BlueskyPostManager>()
+            .AddScoped<IEmbedCardFactory, EmbedCardFactory>();
     }
 }
