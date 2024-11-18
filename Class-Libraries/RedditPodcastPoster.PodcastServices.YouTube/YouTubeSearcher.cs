@@ -136,7 +136,7 @@ public class YouTubeSearcher(
 
     private EpisodeResult ToEpisodeResult(SearchResult episode, Video? video, Channel? channel)
     {
-        var imageUrl = GetImageUrl(video);
+        var imageUrl = video.GetImageUrl();
 
         var episodeResult = new EpisodeResult(
             episode.Id.VideoId,
@@ -158,32 +158,7 @@ public class YouTubeSearcher(
         return episodeResult;
     }
 
-    private static Uri? GetImageUrl(Video? video)
-    {
-        Uri? imageUrl = null;
-        if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.Maxres?.Url))
-        {
-            imageUrl = new Uri(video.Snippet.Thumbnails.Maxres.Url);
-        }
-        else if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.High?.Url))
-        {
-            imageUrl = new Uri(video.Snippet.Thumbnails.High.Url);
-        }
-        else if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.Medium?.Url))
-        {
-            imageUrl = new Uri(video.Snippet.Thumbnails.Medium.Url);
-        }
-        else if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.Standard?.Url))
-        {
-            imageUrl = new Uri(video.Snippet.Thumbnails.Standard.Url);
-        }
-        else if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.Default__?.Url))
-        {
-            imageUrl = new Uri(video.Snippet.Thumbnails.Default__.Url);
-        }
 
-        return imageUrl;
-    }
 
     private class YouTubeItemDetails(SearchResult searchResult)
     {

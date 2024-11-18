@@ -22,7 +22,7 @@ public class BlueskyPostBuilder(
     public const string? ReleaseFormat = "d MMM yyyy";
     private readonly BlueskyOptions _blueskyOptions = blueskyOptions.Value;
 
-    public async Task<(string, Uri)> BuildPost(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    public async Task<BlueskyEmbedCardPost> BuildPost(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
         var postModel = (podcastEpisode.Podcast, new[] {podcastEpisode.Episode}).ToPostModel();
         var episodeTitle = textSanitiser.SanitiseTitle(postModel);
@@ -95,20 +95,24 @@ public class BlueskyPostBuilder(
 
         tweetBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");
         Uri url;
+        Service urlPodcastService;
         if (podcastEpisode.Episode.Urls.YouTube != null)
         {
             url = podcastEpisode.Episode.Urls.YouTube;
+            urlPodcastService = Service.YouTube;
         }
         else if (podcastEpisode.Episode.Urls.Spotify != null)
         {
             url = podcastEpisode.Episode.Urls.Spotify;
+            urlPodcastService = Service.Spotify;
         }
         else
         {
             url = podcastEpisode.Episode.Urls.Apple!;
+            urlPodcastService = Service.Apple;
         }
 
         var tweet = tweetBuilder.ToString();
-        return (tweet, url);
+        return new BlueskyEmbedCardPost(tweet, url, urlPodcastService);
     }
 }

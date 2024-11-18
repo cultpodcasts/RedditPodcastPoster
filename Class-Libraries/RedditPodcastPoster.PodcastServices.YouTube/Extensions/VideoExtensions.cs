@@ -14,4 +14,31 @@ public static class VideoExtensions
 
         return XmlConvert.ToTimeSpan(video.ContentDetails.Duration);
     }
+
+    public static Uri? GetImageUrl(this Video? video)
+    {
+        Uri? imageUrl = null;
+        if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.Maxres?.Url))
+        {
+            imageUrl = new Uri(video.Snippet.Thumbnails.Maxres.Url);
+        }
+        else if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.High?.Url))
+        {
+            imageUrl = new Uri(video.Snippet.Thumbnails.High.Url);
+        }
+        else if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.Medium?.Url))
+        {
+            imageUrl = new Uri(video.Snippet.Thumbnails.Medium.Url);
+        }
+        else if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.Standard?.Url))
+        {
+            imageUrl = new Uri(video.Snippet.Thumbnails.Standard.Url);
+        }
+        else if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.Default__?.Url))
+        {
+            imageUrl = new Uri(video.Snippet.Thumbnails.Default__.Url);
+        }
+
+        return imageUrl;
+    }
 }

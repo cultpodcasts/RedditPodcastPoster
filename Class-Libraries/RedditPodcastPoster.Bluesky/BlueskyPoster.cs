@@ -1,44 +1,55 @@
 ﻿using System.Security.Authentication;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Bluesky.Client;
+using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using X.Bluesky;
 
 namespace RedditPodcastPoster.Bluesky;
 
 public class BlueskyPoster(
     IPodcastRepository repository,
     IBlueskyPostBuilder postBuilder,
-    IBlueskyClient blueSkyClient,
+    IEmbedCardBlueskyClient blueSkyClient,
+    IEmbedCardFactory embedCardFactory,
     ILogger<BlueskyPoster> logger)
     : IBlueskyPoster
 {
     public async Task<BlueskySendStatus> Post(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
-        var (post, url) = await postBuilder.BuildPost(podcastEpisode, shortUrl);
+        var embedPost = await postBuilder.BuildPost(podcastEpisode, shortUrl);
         BlueskySendStatus sendStatus;
+        var embedCardRequest = await embedCardFactory.EmbedCardRequest(podcastEpisode, embedPost);
         try
         {
-            await blueSkyClient.Post(post, url);
+            if (embedCardRequest != null)
+            {
+                await blueSkyClient.Post(embedPost.Text, embedCardRequest);
+            }
+            else
+            {
+                await blueSkyClient.Post($"{embedPost.Text}{Environment.NewLine}{embedPost.Url}");
+            }
+
             sendStatus = BlueskySendStatus.Success;
-            logger.LogInformation($"Posted to bluesky: '{post}'.");
+            logger.LogInformation($"Posted to bluesky: '{embedPost.Text}'.");
         }
         catch (HttpRequestException ex)
         {
             logger.LogError(ex,
-                $"Failure making http-request sending blue-sky post for podcast-id '{podcastEpisode.Podcast.Id}' episode-id '{podcastEpisode.Episode.Id}'. Status-code: '{ex.StatusCode}', request-error: '{ex.HttpRequestError}'. Post: '{post}'.");
+                $"Failure making http-request sending blue-sky post for podcast-id '{podcastEpisode.Podcast.Id}' episode-id '{podcastEpisode.Episode.Id}'. Status-code: '{ex.StatusCode}', request-error: '{ex.HttpRequestError}'. Post: '{embedPost.Text}'.");
             return BlueskySendStatus.FailureHttp;
         }
         catch (AuthenticationException ex)
         {
             logger.LogError(ex,
-                $"Failure authenticating to send blue-sky post. Post: '{post}'.");
+                $"Failure authenticating to send blue-sky post. Post: '{embedPost.Text}'.");
             return BlueskySendStatus.FailureAuth;
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failure to send blue-sky post for podcast-id '{podcastEpisode.Podcast.Id}' episode-id '{podcastEpisode.Episode.Id}', post: '{post}'.");
+                $"Failure to send blue-sky post for podcast-id '{podcastEpisode.Podcast.Id}' episode-id '{podcastEpisode.Episode.Id}', post: '{embedPost.Text}'.");
             return BlueskySendStatus.Failure;
         }
 
@@ -53,7 +64,6 @@ public class BlueskyPoster(
                 $"Failure to save podcast with podcast-id '{podcastEpisode.Podcast.Id}' to update episode with id '{podcastEpisode.Episode.Id}'.");
             throw;
         }
-
 
         return sendStatus;
     }
