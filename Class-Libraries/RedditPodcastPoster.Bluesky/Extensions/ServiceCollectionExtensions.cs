@@ -18,6 +18,6 @@ public static class ServiceCollectionExtensions
             .AddScoped<IBlueskyPostBuilder, BlueskyPostBuilder>()
             .AddScoped<IBlueskyPoster, BlueskyPoster>()
             .AddScoped<IBlueskyPostManager, BlueskyPostManager>()
-            .AddScoped<IEmbedCardFactory, EmbedCardFactory>();
+            .AddScoped<IEmbedCardRequestFactory, EmbedCardRequestFactory>();
     }
 }

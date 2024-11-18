@@ -11,7 +11,7 @@ public class BlueskyPoster(
     IPodcastRepository repository,
     IBlueskyPostBuilder postBuilder,
     IEmbedCardBlueskyClient blueSkyClient,
-    IEmbedCardFactory embedCardFactory,
+    IEmbedCardRequestFactory embedCardRequestFactory,
     ILogger<BlueskyPoster> logger)
     : IBlueskyPoster
 {
@@ -19,7 +19,7 @@ public class BlueskyPoster(
     {
         var embedPost = await postBuilder.BuildPost(podcastEpisode, shortUrl);
         BlueskySendStatus sendStatus;
-        var embedCardRequest = await embedCardFactory.EmbedCardRequest(podcastEpisode, embedPost);
+        var embedCardRequest = await embedCardRequestFactory.CreateEmbedCardRequest(podcastEpisode, embedPost);
         try
         {
             if (embedCardRequest != null)
