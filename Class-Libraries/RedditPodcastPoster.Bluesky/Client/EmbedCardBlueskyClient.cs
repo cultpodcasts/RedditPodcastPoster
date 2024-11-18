@@ -3,7 +3,6 @@ using System.Net.Http.Headers;
 using System.Security.Authentication;
 using System.Text;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using X.Bluesky;
@@ -46,21 +45,6 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
     /// <summary>
     ///     Creates a new instance of the Bluesky client
     /// </summary>
-    /// <param name="httpClientFactory"></param>
-    /// <param name="identifier">Bluesky identifier</param>
-    /// <param name="password">Bluesky application password</param>
-    public EmbedCardBlueskyClient(
-        IHttpClientFactory httpClientFactory,
-        string identifier,
-        string password)
-        : this(httpClientFactory, identifier, password, ["en", "en-US"], false,
-            NullLogger<EmbedCardBlueskyClient>.Instance)
-    {
-    }
-
-    /// <summary>
-    ///     Creates a new instance of the Bluesky client
-    /// </summary>
     /// <param name="identifier">Bluesky identifier</param>
     /// <param name="password">Bluesky application password</param>
     /// <param name="reuseSession">Reuse session</param>
@@ -68,16 +52,6 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
     public EmbedCardBlueskyClient(string identifier, string password, bool reuseSession,
         ILogger<EmbedCardBlueskyClient> logger)
         : this(new BlueskyHttpClientFactory(), identifier, password, ["en", "en-US"], reuseSession, logger)
-    {
-    }
-
-    /// <summary>
-    ///     Creates a new instance of the Bluesky client
-    /// </summary>
-    /// <param name="identifier">Bluesky identifier</param>
-    /// <param name="password">Bluesky application password</param>
-    public EmbedCardBlueskyClient(string identifier, string password)
-        : this(identifier, password, false, NullLogger<EmbedCardBlueskyClient>.Instance)
     {
     }
 
