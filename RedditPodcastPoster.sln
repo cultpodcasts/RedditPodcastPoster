@@ -186,8 +186,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster.Bluesky
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebsubStatus", "Console-Apps\WebsubStatus\WebsubStatus.csproj", "{8E3CBD83-E7DE-41F9-BC5C-20E56E5DEE5F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "X.Bluesky", "Third-Party\X.Bluesky\X.Bluesky.csproj", "{9BDA3649-88BF-4646-8E15-262BC767ACFB}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -510,10 +508,6 @@ Global
 		{8E3CBD83-E7DE-41F9-BC5C-20E56E5DEE5F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8E3CBD83-E7DE-41F9-BC5C-20E56E5DEE5F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8E3CBD83-E7DE-41F9-BC5C-20E56E5DEE5F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{9BDA3649-88BF-4646-8E15-262BC767ACFB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9BDA3649-88BF-4646-8E15-262BC767ACFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9BDA3649-88BF-4646-8E15-262BC767ACFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9BDA3649-88BF-4646-8E15-262BC767ACFB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -599,7 +593,6 @@ Global
 		{1E0065A8-4951-41B6-BF6E-9F7153AC7C7A} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{F85576A7-32AD-462A-93FC-EB816EE11B69} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{8E3CBD83-E7DE-41F9-BC5C-20E56E5DEE5F} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
-		{9BDA3649-88BF-4646-8E15-262BC767ACFB} = {500DB58B-23D9-4BBC-9D6D-BE5DA70366C1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

@@ -1,9 +1,10 @@
 using System.Net.Http.Headers;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using X.Bluesky;
 using X.Bluesky.Models;
 
-namespace X.Bluesky;
+namespace RedditPodcastPoster.Bluesky.Client;
 
 public class EmbedCardBuilder
 {
@@ -27,7 +28,7 @@ public class EmbedCardBuilder
     /// <returns></returns>
     public async Task<EmbedCard> GetEmbedCard(Uri url)
     {
-        var extractor = new Web.MetaExtractor.Extractor();
+        var extractor = new X.Web.MetaExtractor.Extractor();
         var metadata = await extractor.ExtractAsync(url);
 
         var card = new EmbedCard

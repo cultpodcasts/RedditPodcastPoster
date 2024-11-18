@@ -2,52 +2,25 @@
 using System.Net.Http.Headers;
 using System.Security.Authentication;
 using System.Text;
-using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
+using X.Bluesky;
 using X.Bluesky.Models;
 
-namespace X.Bluesky;
+namespace RedditPodcastPoster.Bluesky.Client;
 
-[PublicAPI]
-public interface IBlueskyClient
+public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
 {
-    /// <summary>
-    /// Create post
-    /// </summary>
-    /// <param name="text">
-    /// Post text
-    /// </param>
-    /// <returns></returns>
-    Task Post(string text);
-
-    /// <summary>
-    /// Create post with link
-    /// </summary>
-    /// <param name="text">
-    /// Post text
-    /// </param>
-    /// <param name="uri">
-    /// Url of attachment page
-    /// </param>
-    /// <returns></returns>
-    Task Post(string text, Uri uri);
-
-    Task Post(string text, EmbedCardRequest embedCard);
-}
-
-public class BlueskyClient : IBlueskyClient
-{
-    private readonly ILogger _logger;
     private readonly IAuthorizationClient _authorizationClient;
-    private readonly IMentionResolver _mentionResolver;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IReadOnlyCollection<string> _languages;
+    private readonly ILogger _logger;
+    private readonly IMentionResolver _mentionResolver;
 
     /// <summary>
-    /// Creates a new instance of the Bluesky client
+    ///     Creates a new instance of the Bluesky client
     /// </summary>
     /// <param name="httpClientFactory"></param>
     /// <param name="identifier">Bluesky identifier</param>
@@ -55,13 +28,13 @@ public class BlueskyClient : IBlueskyClient
     /// <param name="languages">Post languages</param>
     /// <param name="reuseSession">Reuse session</param>
     /// <param name="logger"></param>
-    public BlueskyClient(
+    public EmbedCardBlueskyClient(
         IHttpClientFactory httpClientFactory,
         string identifier,
         string password,
         IEnumerable<string> languages,
         bool reuseSession,
-        ILogger<BlueskyClient> logger)
+        ILogger<EmbedCardBlueskyClient> logger)
     {
         _logger = logger;
         _httpClientFactory = httpClientFactory;
@@ -71,46 +44,54 @@ public class BlueskyClient : IBlueskyClient
     }
 
     /// <summary>
-    /// Creates a new instance of the Bluesky client
+    ///     Creates a new instance of the Bluesky client
     /// </summary>
     /// <param name="httpClientFactory"></param>
     /// <param name="identifier">Bluesky identifier</param>
     /// <param name="password">Bluesky application password</param>
-    public BlueskyClient(
+    public EmbedCardBlueskyClient(
         IHttpClientFactory httpClientFactory,
         string identifier,
         string password)
-        : this(httpClientFactory, identifier, password, ["en", "en-US"], false, NullLogger<BlueskyClient>.Instance)
+        : this(httpClientFactory, identifier, password, ["en", "en-US"], false,
+            NullLogger<EmbedCardBlueskyClient>.Instance)
     {
     }
 
     /// <summary>
-    /// Creates a new instance of the Bluesky client
+    ///     Creates a new instance of the Bluesky client
     /// </summary>
     /// <param name="identifier">Bluesky identifier</param>
     /// <param name="password">Bluesky application password</param>
     /// <param name="reuseSession">Reuse session</param>
     /// <param name="logger"></param>
-    public BlueskyClient(string identifier, string password, bool reuseSession, ILogger<BlueskyClient> logger)
+    public EmbedCardBlueskyClient(string identifier, string password, bool reuseSession,
+        ILogger<EmbedCardBlueskyClient> logger)
         : this(new BlueskyHttpClientFactory(), identifier, password, ["en", "en-US"], reuseSession, logger)
     {
     }
 
     /// <summary>
-    /// Creates a new instance of the Bluesky client
+    ///     Creates a new instance of the Bluesky client
     /// </summary>
     /// <param name="identifier">Bluesky identifier</param>
     /// <param name="password">Bluesky application password</param>
-    public BlueskyClient(string identifier, string password)
-        : this(identifier, password, false, NullLogger<BlueskyClient>.Instance)
+    public EmbedCardBlueskyClient(string identifier, string password)
+        : this(identifier, password, false, NullLogger<EmbedCardBlueskyClient>.Instance)
     {
     }
 
     /// <inheritdoc />
-    public Task Post(string text) => CreatePost(text, null);
+    public Task Post(string text)
+    {
+        return CreatePost(text, null);
+    }
 
     /// <inheritdoc />
-    public Task Post(string text, Uri uri) => CreatePost(text, uri);
+    public Task Post(string text, Uri uri)
+    {
+        return CreatePost(text, uri);
+    }
 
     public async Task Post(string text, EmbedCardRequest embedCard)
     {
@@ -136,7 +117,7 @@ public class BlueskyClient : IBlueskyClient
 
 
     /// <summary>
-    /// Create post
+    ///     Create post
     /// </summary>
     /// <param name="text">Post text</param>
     /// <param name="url"></param>
@@ -185,7 +166,7 @@ public class BlueskyClient : IBlueskyClient
         {
             Repo = session.Did,
             Collection = "app.bsky.feed.post",
-            Record = post,
+            Record = post
         };
 
         var jsonRequest = JsonConvert.SerializeObject(requestData, Formatting.Indented, new JsonSerializerSettings

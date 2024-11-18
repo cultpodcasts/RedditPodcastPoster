@@ -1,8 +1,8 @@
-﻿using X.Bluesky;
+﻿using RedditPodcastPoster.Bluesky.Client;
 
 namespace RedditPodcastPoster.Bluesky.Factories;
 
 public interface IBlueskyClientFactory
 {
-    IBlueskyClient Create();
+    IEmbedCardBlueskyClient Create();
 }

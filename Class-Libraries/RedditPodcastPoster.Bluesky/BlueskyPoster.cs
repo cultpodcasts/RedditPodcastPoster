@@ -1,19 +1,19 @@
 ﻿using System.Security.Authentication;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using X.Bluesky;
 
 namespace RedditPodcastPoster.Bluesky;
 
 public class BlueskyPoster(
     IPodcastRepository repository,
     IBlueskyPostBuilder postBuilder,
-    IBlueskyClient blueSkyClient,
+    IEmbedCardBlueskyClient blueSkyClient,
     IYouTubeVideoService youTubeVideoService,
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
     ILogger<BlueskyPoster> logger)
