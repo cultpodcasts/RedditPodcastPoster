@@ -89,7 +89,6 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
         await Post(session, post);
     }
 
-
     /// <summary>
     ///     Create post
     /// </summary>
