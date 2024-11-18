@@ -2,15 +2,14 @@ using System.Net.Http.Headers;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using X.Bluesky.Models;
-using X.Web.MetaExtractor.LanguageDetectors;
 
 namespace X.Bluesky;
 
 public class EmbedCardBuilder
 {
+    private readonly ILogger _logger;
     private readonly FileTypeHelper _fileTypeHelper;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ILogger _logger;
     private readonly Session _session;
 
     public EmbedCardBuilder(IHttpClientFactory httpClientFactory, Session session, ILogger logger)
@@ -20,20 +19,15 @@ public class EmbedCardBuilder
         _session = session;
         _fileTypeHelper = new FileTypeHelper(logger);
     }
-
+    
     /// <summary>
-    ///     Create embed card
+    /// Create embed card
     /// </summary>
     /// <param name="url"></param>
     /// <returns></returns>
     public async Task<EmbedCard> GetEmbedCard(Uri url)
     {
-        var extractor = new Extractor(
-            string.Empty,
-            new HttpClientPageContentLoader(_httpClientFactory, _logger),
-            new LanguageDetector(),
-            _logger
-        );
+        var extractor = new Web.MetaExtractor.Extractor();
         var metadata = await extractor.ExtractAsync(url);
 
         var card = new EmbedCard
@@ -46,7 +40,6 @@ public class EmbedCardBuilder
         if (metadata.Images.Any())
         {
             var imgUrl = metadata.Images.FirstOrDefault();
-            _logger.LogInformation($"img-url: {imgUrl}");
 
             if (!string.IsNullOrWhiteSpace(imgUrl))
             {
@@ -56,15 +49,12 @@ public class EmbedCardBuilder
                 }
                 else
                 {
-                    card.Thumb = await UploadImageAndSetThumbAsync(new Uri(imgUrl));
+                    card.Thumb = await UploadImageAndSetThumbAsync(new Uri(imgUrl));    
                 }
-
+                
                 _logger.LogInformation("EmbedCard created");
             }
         }
-
-        _logger.LogInformation(
-            $"embed-card: url: '{card.Uri}', title: '{card.Title}', description '{card.Description}', thumb: '{card.Thumb}'");
 
         return card;
     }
@@ -105,7 +95,7 @@ public class EmbedCardBuilder
 
         var request = new HttpRequestMessage(HttpMethod.Post, "https://bsky.social/xrpc/com.atproto.repo.uploadBlob")
         {
-            Content = imageContent
+            Content = imageContent,
         };
 
         // Add the Authorization header with the access token to the request message
@@ -113,7 +103,6 @@ public class EmbedCardBuilder
 
         var response = await httpClient.SendAsync(request);
 
-        _logger.LogInformation($"upload-blog response: {response.StatusCode}");
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync();
@@ -125,7 +114,7 @@ public class EmbedCardBuilder
         {
             // ToDo: fix it
             // This is hack for fix problem when Type is empty after deserialization
-            card.Type = "blob";
+            card.Type = "blob"; 
         }
 
         return card;
