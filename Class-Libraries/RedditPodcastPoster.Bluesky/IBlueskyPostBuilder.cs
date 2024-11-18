@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Bluesky;
 
 public interface IBlueskyPostBuilder
 {
-    Task<(string, Uri, Service)> BuildPost(PodcastEpisode podcastEpisode, Uri? shortUrl);
+    Task<BlueskyEmbedCardPost> BuildPost(PodcastEpisode podcastEpisode, Uri? shortUrl);
 }
