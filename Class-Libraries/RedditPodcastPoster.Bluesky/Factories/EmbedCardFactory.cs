@@ -8,15 +8,16 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 namespace RedditPodcastPoster.Bluesky.Factories;
 
-public class EmbedCardFactory(
+public class EmbedCardRequestFactory(
     IYouTubeVideoService youTubeVideoService,
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
 #pragma warning disable CS9113 // Parameter is unread.
-    ILogger<EmbedCardFactory> logger
+    ILogger<EmbedCardRequestFactory> logger
 #pragma warning restore CS9113 // Parameter is unread.
-) : IEmbedCardFactory
+) : IEmbedCardRequestFactory
 {
-    public async Task<EmbedCardRequest?> EmbedCardRequest(PodcastEpisode podcastEpisode, BlueskyEmbedCardPost embedPost)
+    public async Task<EmbedCardRequest?> CreateEmbedCardRequest(PodcastEpisode podcastEpisode,
+        BlueskyEmbedCardPost embedPost)
     {
         EmbedCardRequest? embedCardRequest = null;
         switch (embedPost.UrlService)
@@ -35,6 +36,8 @@ public class EmbedCardFactory(
                     {
                         ThumbUrl = video.FirstOrDefault().GetImageUrl()
                     };
+                    logger.LogInformation(
+                        $"Youtube-thumbnail for youtube-video-id '{podcastEpisode.Episode.YouTubeId}' found '{embedCardRequest.ThumbUrl}'.");
                 }
 
                 break;
@@ -54,6 +57,8 @@ public class EmbedCardFactory(
                     if (maxImage != null)
                     {
                         embedCardRequest.ThumbUrl = new Uri(maxImage.Url);
+                        logger.LogInformation(
+                            $"Spotify-thumbnail for spotify-episode-id '{podcastEpisode.Episode.SpotifyId}' found '{embedCardRequest.ThumbUrl}'.");
                     }
                 }
 
