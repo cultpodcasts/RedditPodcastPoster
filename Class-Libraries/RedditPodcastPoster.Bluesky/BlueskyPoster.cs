@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using X.Bluesky;
@@ -14,6 +15,7 @@ public class BlueskyPoster(
     IBlueskyPostBuilder postBuilder,
     IBlueskyClient blueSkyClient,
     IYouTubeVideoService youTubeVideoService,
+    ISpotifyEpisodeResolver spotifyEpisodeResolver,
     ILogger<BlueskyPoster> logger)
     : IBlueskyPoster
 {
@@ -41,6 +43,30 @@ public class BlueskyPoster(
                     {
                         ThumbUrl = video.FirstOrDefault().GetImageUrl()
                     };
+                }
+
+                await blueSkyClient.Post(post, embedCardRequest);
+            }
+            else if (service == Service.Spotify)
+            {
+                var episode = await spotifyEpisodeResolver.FindEpisode(
+                    FindSpotifyEpisodeRequestFactory.Create(podcastEpisode.Podcast, podcastEpisode.Episode),
+                    new IndexingContext());
+                EmbedCardRequest embedCardRequest;
+                if (episode.FullEpisode != null)
+                {
+                    embedCardRequest =
+                        new EmbedCardRequest(episode.FullEpisode.Name, episode.FullEpisode.Description, url);
+                    var maxImage = episode.FullEpisode.Images.MaxBy(x => x.Height);
+                    if (maxImage != null)
+                    {
+                        embedCardRequest.ThumbUrl = new Uri(maxImage.Url);
+                    }
+                }
+                else
+                {
+                    embedCardRequest = new EmbedCardRequest(podcastEpisode.Episode.Title,
+                        podcastEpisode.Episode.Description, url);
                 }
 
                 await blueSkyClient.Post(post, embedCardRequest);

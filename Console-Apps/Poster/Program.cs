@@ -10,6 +10,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
@@ -42,6 +43,7 @@ builder.Services
     .AddTextSanitiser()
     .AddShortnerServices(builder.Configuration)
     .AddYouTubeServices(builder.Configuration)
+    .AddSpotifyServices(builder.Configuration)
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria(builder.Configuration);
