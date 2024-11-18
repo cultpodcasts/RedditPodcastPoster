@@ -75,9 +75,6 @@ public class EmbedCardBuilder
             _logger.LogInformation("EmbedCard created");
         }
 
-        _logger.LogInformation(
-            $"embed-card: url: '{card.Uri}', title: '{card.Title}', description '{card.Description}', thumb: '{card.Thumb}'");
-
         return card;
     }
 
