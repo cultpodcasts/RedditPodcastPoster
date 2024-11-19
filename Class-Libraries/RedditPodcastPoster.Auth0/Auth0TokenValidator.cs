@@ -29,15 +29,24 @@ public class Auth0TokenValidator(
             ValidateLifetime = true
         };
         var handler = new JwtSecurityTokenHandler();
-        var claimsPrincipal = handler.ValidateToken(auth0Bearer, validationParameters, out var token);
-        if (claimsPrincipal == null || token == null)
+        try
         {
-            logger.LogWarning(
-                $"Unable to validate token. Claim-principal null: {claimsPrincipal == null}. Validated-token null: {token == null}.");
-            return null;
+            var claimsPrincipal = handler.ValidateToken(auth0Bearer, validationParameters, out var token);
+            if (claimsPrincipal == null || token == null)
+            {
+                logger.LogWarning(
+                    $"Unable to validate token. Claim-principal null: {claimsPrincipal == null}. Validated-token null: {token == null}.");
+                return null;
+            }
+
+            logger.LogInformation("Token valid.");
+            return new ValidatedToken(claimsPrincipal, token);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failure validating token.");
         }
 
-        logger.LogInformation("Token valid.");
-        return new ValidatedToken(claimsPrincipal, token);
+        return null;
     }
 }

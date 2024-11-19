@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
-using System.Runtime.InteropServices.Marshalling;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -34,9 +33,13 @@ using var host = builder.Build();
 var component = host.Services.GetService<IAuth0TokenValidator>()!;
 
 var result = component.GetClaimsPrincipal(args[0]);
-var model = result.ToClientPrincipal();
-var subject = model.Subject;
-var isCurate = model.HasScope("curate");
+if (result != null)
+{
+    var model = result.ToClientPrincipal();
+    var subject = model.Subject;
+    var isCurate = model.HasScope("curate");
+}
+
 var x = 1;
 
 string GetBasePath()
