@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ThrowawayConsole": {
+      "commandName": "Project",
+      "commandLineArgs": ""
+    }
+  }
+}

@@ -1,10 +1,10 @@
 using System.Net;
-using Api.Auth;
 using Api.Configuration;
 using Api.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Auth0;
 
 namespace Api;
 
@@ -28,12 +28,15 @@ public abstract class BaseHttpFunction(
         var roleCtr = 0;
         var clientPrincipal = clientPrincipalFactory.Create(req);
 
-        while (!isAuthorised && roleCtr < roles.Length)
+        if (!HostingOptions.TestMode)
         {
-            var scope = roles[roleCtr++];
-            if (clientPrincipal != null)
+            while (!isAuthorised && roleCtr < roles.Length)
             {
-                isAuthorised = clientPrincipal.HasScope(scope) || HostingOptions.UserRoles.Contains(scope);
+                var scope = roles[roleCtr++];
+                if (clientPrincipal != null)
+                {
+                    isAuthorised = clientPrincipal.HasScope(scope) || HostingOptions.UserRoles.Contains(scope);
+                }
             }
         }
 

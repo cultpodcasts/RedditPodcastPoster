@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "SecretsToFunctionSettings": {
+      "commandName": "Project",
+      "commandLineArgs": ""
+    }
+  }
+}

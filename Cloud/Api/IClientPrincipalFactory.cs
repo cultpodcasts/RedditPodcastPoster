@@ -1,5 +1,5 @@
-using Api.Auth;
 using Microsoft.Azure.Functions.Worker.Http;
+using RedditPodcastPoster.Auth0;
 
 namespace Api;
 

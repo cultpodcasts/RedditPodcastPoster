@@ -20,7 +20,9 @@ public class Discover(
     IActivityMarshaller activityMarshaller,
     ILogger<Discover> logger) : TaskActivity<DiscoveryContext, DiscoveryContext>
 {
-    private readonly DiscoverOptions _discoverOptions = discoverOptions.Value;
+    private readonly DiscoverOptions _discoverOptions =
+        discoverOptions.Value ??
+        throw new ArgumentException($"Missing {nameof(DiscoverOptions)}.");
 
     public override async Task<DiscoveryContext> RunAsync(TaskActivityContext context, DiscoveryContext input)
     {

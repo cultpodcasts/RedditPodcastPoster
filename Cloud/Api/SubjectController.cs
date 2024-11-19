@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using System.Text.Json;
-using Api.Auth;
 using Api.Configuration;
 using Api.Dtos;
 using Api.Dtos.Extensions;
@@ -10,6 +9,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Reddit.Inputs.Flair;
+using RedditPodcastPoster.Auth0;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
