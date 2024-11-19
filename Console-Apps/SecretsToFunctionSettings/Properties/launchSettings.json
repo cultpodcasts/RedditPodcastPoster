@@ -2,7 +2,7 @@
   "profiles": {
     "SecretsToFunctionSettings": {
       "commandName": "Project",
-      "commandLineArgs": "C:\\Users\\jonbr\\AppData\\Roaming\\Microsoft\\UserSecrets\\e4eaaf12-4507-4875-857d-a8d4032107f3\\secrets.json"
+      "commandLineArgs": ""
     }
   }
 }
