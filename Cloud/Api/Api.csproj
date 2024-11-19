@@ -17,6 +17,7 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.1" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Auth0\RedditPodcastPoster.Auth0.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Bluesky\RedditPodcastPoster.Bluesky.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.CloudflareRedirect\RedditPodcastPoster.CloudflareRedirect.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
@@ -47,5 +48,8 @@
   </ItemGroup>
   <ItemGroup>
     <Using Include="System.Threading.ExecutionContext" Alias="ExecutionContext" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Auth\" />
   </ItemGroup>
 </Project>

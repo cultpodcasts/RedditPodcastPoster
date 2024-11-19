@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Api.Auth;
+namespace RedditPodcastPoster.Auth0;
 
 public class ClientPrincipal
 {
@@ -17,7 +17,7 @@ public class ClientPrincipal
     public string RoleClaimType { get; set; } = "";
 
     [JsonPropertyName("claims")]
-    public IEnumerable<ClientPrincipalClaim> Claims { get; set; } = Enumerable.Empty<ClientPrincipalClaim>();
+    public IEnumerable<ClientPrincipalClaim> Claims { get; set; } = [];
 
     [JsonIgnore]
     public string? Subject =>

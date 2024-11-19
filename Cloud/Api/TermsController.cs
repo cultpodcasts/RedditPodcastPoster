@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
-using Api.Auth;
 using Api.Configuration;
 using Api.Dtos;
 using Api.Extensions;
@@ -9,6 +8,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Auth0;
 using RedditPodcastPoster.Text.KnownTerms;
 
 namespace Api;

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Api.Auth;
+namespace RedditPodcastPoster.Auth0;
 
 public class ClientPrincipalClaim
 {

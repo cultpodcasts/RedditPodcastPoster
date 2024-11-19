@@ -1,12 +1,12 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices.Marshalling;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.Auth0;
+using RedditPodcastPoster.Auth0.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.Twitter;
-using RedditPodcastPoster.Twitter.Dtos;
-using RedditPodcastPoster.Twitter.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -22,7 +22,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddTwitterServices(builder.Configuration)
+    .AddAuth0Validation()
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria(builder.Configuration);
@@ -31,10 +31,13 @@ builder.Services.AddDelayedYouTubePublication(builder.Configuration);
 
 using var host = builder.Build();
 
-var component = host.Services.GetService<ITwitterClient>()!;
+var component = host.Services.GetService<IAuth0TokenValidator>()!;
 
-var results = await component.DeleteTweet(new Tweet {Id = "1855377539499438334"});
-return 0;
+var result = component.GetClaimsPrincipal(args[0]);
+var model = result.ToClientPrincipal();
+var subject = model.Subject;
+var isCurate = model.HasScope("curate");
+var x = 1;
 
 string GetBasePath()
 {

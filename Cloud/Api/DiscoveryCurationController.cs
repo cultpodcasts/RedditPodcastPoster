@@ -1,5 +1,4 @@
 using System.Net;
-using Api.Auth;
 using Api.Configuration;
 using Api.Dtos;
 using Api.Extensions;
@@ -8,6 +7,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Auth0;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Search;
 using RedditPodcastPoster.UrlSubmission;

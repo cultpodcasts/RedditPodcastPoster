@@ -1,15 +1,15 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using System.Text.Json;
-using Api.Auth;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Auth0;
 
 namespace Api;
 
-public class ClientPrincipalFactory(ILogger<ClientPrincipalFactory> logger) : IClientPrincipalFactory
+public class ClientPrincipalFactory(
+    IAuth0TokenValidator auth0TokenValidator,
+    ILogger<ClientPrincipalFactory> logger) : IClientPrincipalFactory
 {
-    private const string ClaimsRolesIdentifierType = "https://api.cultpodcasts.com/roles";
     private const string Bearer = "Bearer ";
 
     public ClientPrincipal? Create(HttpRequestData request)
@@ -47,60 +47,15 @@ public class ClientPrincipalFactory(ILogger<ClientPrincipalFactory> logger) : IC
             .Where(x => x.StartsWith(Bearer))
             .Select(x => x.Substring(Bearer.Length))
             .First();
-        try
-        {
-            var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(bearer);
 
-            var permissions = jwtToken.Claims.Where(x => x.Type == "permissions")
-                .Select(x => new ClientPrincipalClaim {Type = "permissions", Value = x.Value});
-            var roles = jwtToken.Claims.Where(x => x.Type == ClaimsRolesIdentifierType)
-                .Select(x => new ClientPrincipalClaim {Type = ClaimsRolesIdentifierType, Value = x.Value});
-            var audiences = jwtToken.Claims.Where(x => x.Type == "aud")
-                .Select(x => new ClientPrincipalClaim {Type = "aud", Value = x.Value});
-            var scopes = jwtToken.Claims.Where(x => x.Type == "scope")
-                .Select(x => new ClientPrincipalClaim {Type = "scope", Value = x.Value});
-            var azps = jwtToken.Claims.Where(x => x.Type == "azp")
-                .Select(x => new ClientPrincipalClaim {Type = "azp", Value = x.Value});
-
-            return new ClientPrincipal
-            {
-                Claims = permissions
-                    .Concat(roles)
-                    .Concat([new ClientPrincipalClaim {Type = "iss", Value = jwtToken.Issuer}])
-                    .Concat([
-                        new ClientPrincipalClaim
-                        {
-                            Type = ClientPrincipal.ClaimsNameIdentifierType,
-                            Value = jwtToken.Subject
-                        }
-                    ])
-                    .Concat(audiences)
-                    .Concat([
-                        new ClientPrincipalClaim
-                        {
-                            Type = "iat",
-                            Value = new DateTimeOffset(jwtToken.IssuedAt.ToUniversalTime()).ToUnixTimeSeconds()
-                                .ToString()
-                        }
-                    ])
-                    .Concat([
-                        new ClientPrincipalClaim
-                        {
-                            Type = "exp",
-                            Value = new DateTimeOffset(jwtToken.ValidTo.ToUniversalTime()).ToUnixTimeSeconds()
-                                .ToString()
-                        }
-                    ])
-                    .Concat(scopes)
-                    .Concat(azps)
-            };
-        }
-        catch (Exception ex)
+        var validatedToken = auth0TokenValidator.GetClaimsPrincipal(bearer);
+        if (validatedToken == null)
         {
-            logger.LogError(ex, "Unable to decode jwt token");
+            logger.LogWarning($"No client-principal.");
             return null;
         }
+
+        return validatedToken.ToClientPrincipal();
     }
 
     private ClientPrincipal? GetAppServiceAuthClientPrincipal(IEnumerable<string> claims)

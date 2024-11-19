@@ -1,10 +1,10 @@
 using System.Net;
-using Api.Auth;
 using Api.Configuration;
 using Api.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Auth0;
 
 namespace Api;
 
