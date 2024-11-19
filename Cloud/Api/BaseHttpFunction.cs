@@ -28,12 +28,15 @@ public abstract class BaseHttpFunction(
         var roleCtr = 0;
         var clientPrincipal = clientPrincipalFactory.Create(req);
 
-        while (!isAuthorised && roleCtr < roles.Length)
+        if (!HostingOptions.TestMode)
         {
-            var scope = roles[roleCtr++];
-            if (clientPrincipal != null)
+            while (!isAuthorised && roleCtr < roles.Length)
             {
-                isAuthorised = clientPrincipal.HasScope(scope) || HostingOptions.UserRoles.Contains(scope);
+                var scope = roles[roleCtr++];
+                if (clientPrincipal != null)
+                {
+                    isAuthorised = clientPrincipal.HasScope(scope) || HostingOptions.UserRoles.Contains(scope);
+                }
             }
         }
 
