@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - main
+      - feature/rebuild-aszure
   workflow_dispatch:
 
 env:
@@ -39,4 +40,4 @@ jobs:
           app-name: 'indexer-cultpodcasts'
           slot-name: 'Production'
           package: '${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/output'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_AEFD80055D024ED4B4BF46169D110602 }}
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
