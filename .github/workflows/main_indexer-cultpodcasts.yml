@@ -17,6 +17,8 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write #This is required for requesting the JWT
     steps:
       - name: 'Checkout GitHub Action'
         uses: actions/checkout@v2
@@ -33,10 +35,17 @@ jobs:
           dotnet build --configuration Release --output ./output
           popd
 
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_5F65013DB1E543D5A6A63AEABB73E576 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_28728D3C270B4ACC9A5574968FA82DBF }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_201510327F7A4789AA98EEEF541EDC66 }}
+
       - name: 'Run Azure Functions Action'
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'indexer-cultpodcasts'
+          app-name: 'cultpodcasts-index'
+          slot-name: 'Production'
           package: '${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/output'
-          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
