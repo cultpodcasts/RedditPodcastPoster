@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "LaunchSettingsToAppSettiings": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\Users\\jonbr\\source\\repos\\RedditPodcastPoster\\Cloud\\Discovery\\Properties\\launchSettings.json Discovery"
+    }
+  }
+}
