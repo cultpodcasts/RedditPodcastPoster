@@ -21,7 +21,7 @@ jobs:
       id-token: write #This is required for requesting the JWT
     steps:
       - name: 'Checkout GitHub Action'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Setup DotNet ${{ env.DOTNET_VERSION }} Environment
         uses: actions/setup-dotnet@v1
@@ -38,9 +38,9 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_11D73DAF86EE485BBF4E5A6FDB2E4530 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_1BD8323D6C984CDDBE4D5C0BA7BC7F9D }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_0C35DE48055341FE83536AD3B6E23651 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_3DD0CBA1937E42C59828F8D79B0FB9E1 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_BC7636CFC25F406883CAB13CCB5F635F }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_598643DED67F4D9A9A0145053C01E075 }}
 
       - name: 'Run Azure Functions Action'
         uses: Azure/functions-action@v1
@@ -49,3 +49,4 @@ jobs:
           app-name: 'cultpodcasts-api'
           slot-name: 'Production'
           package: '${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/output'
+          
