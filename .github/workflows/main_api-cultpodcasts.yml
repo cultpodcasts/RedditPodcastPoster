@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - main
+      - feature/rebuild-aszure
   workflow_dispatch:
 
 env:
@@ -16,6 +17,8 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write #This is required for requesting the JWT
     steps:
       - name: 'Checkout GitHub Action'
         uses: actions/checkout@v2
@@ -32,11 +35,17 @@ jobs:
           dotnet build --configuration Release --output ./output
           popd
 
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_11D73DAF86EE485BBF4E5A6FDB2E4530 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_1BD8323D6C984CDDBE4D5C0BA7BC7F9D }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_0C35DE48055341FE83536AD3B6E23651 }}
+
       - name: 'Run Azure Functions Action'
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'api-cultpodcasts'
+          app-name: 'cultpodcasts-api'
           slot-name: 'Production'
           package: '${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/output'
-          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_API_PUBLISH_PROFILE }}
