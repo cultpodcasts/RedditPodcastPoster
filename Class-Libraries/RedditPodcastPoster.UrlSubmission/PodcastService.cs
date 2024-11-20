@@ -56,24 +56,30 @@ public class PodcastService(
 
             var snippetChannelId = episodes.FirstOrDefault()!.Snippet.ChannelId;
 
-
             podcasts = await podcastRepository.GetAllBy(podcast =>
                 podcast.YouTubeChannelId == snippetChannelId).ToArrayAsync();
             if (podcasts.Count() > 1)
             {
                 podcasts = podcasts.Where(x => x.YouTubePlaylistId == string.Empty);
-                if (podcasts.Count() > 1)
+                if (podcasts.Count() > 1 && podcasts.Count(x => x.IndexAllEpisodes) == 1)
                 {
                     podcasts = podcasts.Where(x => x.IndexAllEpisodes);
                 }
 
                 if (podcasts.Count() > 1)
                 {
-                    var message =
-                        $"Multiple podcasts with youtube-channel-id '{snippetChannelId}' and empty youtube-playlist-id and index-all-episodes is true found";
-                    var invalidOperationException = new InvalidOperationException(message);
-                    logger.LogError(invalidOperationException, message);
-                    throw invalidOperationException;
+                    var videoChannelName = episodes.First().Snippet.ChannelTitle.Trim().ToLowerInvariant();
+                    podcasts = podcasts.Where(x => x.Name.Trim().ToLowerInvariant() == videoChannelName);
+                    if (podcasts.Count() != 1)
+                    {
+                        {
+                            var message =
+                                $"Multiple podcasts with youtube-channel-id '{snippetChannelId}'.";
+                            var invalidOperationException = new InvalidOperationException(message);
+                            logger.LogError(invalidOperationException, message);
+                            throw invalidOperationException;
+                        }
+                    }
                 }
             }
         }
@@ -84,7 +90,6 @@ public class PodcastService(
             {
                 throw new ArgumentException($"Unable to extract apple-episode-id from '{url}'.", nameof(url));
             }
-
 
             podcasts = await podcastRepository.GetAllBy(podcast => podcast.AppleId == podcastId).ToArrayAsync();
         }
