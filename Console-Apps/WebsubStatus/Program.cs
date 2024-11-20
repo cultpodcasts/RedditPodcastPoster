@@ -26,8 +26,8 @@ builder.Services
     .AddScoped<WebSubStatusProcessor>()
     .AddRepositories()
     .AddPodcastServices()
-    .AddCommonServices(builder.Configuration)
-    .AddYouTubePushNotificationServices(builder.Configuration)
+    .AddCommonServices()
+    .AddYouTubePushNotificationServices()
     .AddHttpClient();
 
 

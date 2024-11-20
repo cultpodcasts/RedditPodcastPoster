@@ -1,17 +1,16 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddYouTubeServices(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddYouTubeServices(this IServiceCollection services)
     {
         YouTubeServiceFactory.AddYouTubeService(services);
 
-        services
-            .AddOptions<YouTubeSettings>().Bind(config.GetSection("youtube"));
+        services.BindConfiguration<YouTubeSettings>("youtube");
 
         return services
                 .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()

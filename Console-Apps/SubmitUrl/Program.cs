@@ -32,11 +32,11 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
-    .AddCommonServices(builder.Configuration)
+    .AddCommonServices()
     .AddPodcastServices()
-    .AddSpotifyServices(builder.Configuration)
+    .AddSpotifyServices()
     .AddAppleServices()
-    .AddYouTubeServices(builder.Configuration)
+    .AddYouTubeServices()
     .AddScoped<IRemoteClient, RemoteClient>()
     .AddScoped(s => new iTunesSearchManager())
     .AddUrlSubmission()
@@ -47,7 +47,7 @@ builder.Services
     .AddSearch()
     .AddHttpClient();
 
-builder.Services.AddPostingCriteria(builder.Configuration);
+builder.Services.AddPostingCriteria();
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<SubmitUrlRequest>(args)

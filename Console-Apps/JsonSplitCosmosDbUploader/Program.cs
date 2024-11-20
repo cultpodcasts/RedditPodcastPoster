@@ -23,7 +23,7 @@ builder.Services
     .AddLogging()
     .AddRepositories()
     .AddFileRepository("podcast")
-    .AddCommonServices(builder.Configuration)
+    .AddCommonServices()
     .AddScoped<JsonSplitCosmosDbUploadProcessor>();
 
 

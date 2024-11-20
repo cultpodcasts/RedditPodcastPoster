@@ -24,7 +24,7 @@ builder.Services
     .AddLogging()
     .AddScoped<SubscribeProcessor>()
     .AddRepositories()
-    .AddYouTubePushNotificationServices(builder.Configuration)
+    .AddYouTubePushNotificationServices()
     .AddHttpClient();
 
 using var host = builder.Build();

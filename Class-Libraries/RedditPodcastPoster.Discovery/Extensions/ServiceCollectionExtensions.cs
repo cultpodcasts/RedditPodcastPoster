@@ -12,8 +12,7 @@ namespace RedditPodcastPoster.Discovery.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddDiscovery(
-        this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddDiscovery(this IServiceCollection services)
     {
         services.BindConfiguration<DiscoverySettings>("discover");
         services.BindConfiguration<IgnoreTermsSettings>("discover");
@@ -29,17 +28,16 @@ public static class ServiceCollectionExtensions
             .AddScoped<IEnrichedEpisodeResultsAdapter, EnrichedEpisodeResultsAdapter>()
             .AddScoped<IEnrichedEpisodeResultAdapter, EnrichedEpisodeResultAdapter>()
             .AddScoped<IIgnoreTermsProvider, IgnoreTermsProvider>()
-            .AddDiscoveryRepository(config)
-            .AddSpotifyServices(config)
+            .AddDiscoveryRepository()
+            .AddSpotifyServices()
             .AddAppleServices()
-            .AddYouTubeServices(config)
-            .AddListenNotes(config)
-            .AddTaddy(config)
+            .AddYouTubeServices()
+            .AddListenNotes()
+            .AddTaddy()
             .AddTextSanitiser();
     }
 
-    public static IServiceCollection AddDiscoveryRepository(
-        this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddDiscoveryRepository(this IServiceCollection services)
     {
         return services
             .AddScoped<IDiscoveryResultsRepository, DiscoveryResultsRepository>();

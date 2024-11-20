@@ -21,7 +21,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
-    .AddRedirectServices(builder.Configuration)
+    .AddRedirectServices()
     .AddScoped<RenamePodcastProcessor>()
     .AddHttpClient();
 

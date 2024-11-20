@@ -9,9 +9,9 @@ namespace RedditPodcastPoster.Common.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddCommonServices(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddCommonServices(this IServiceCollection services)
     {
-        services.AddDelayedYouTubePublication(config);
+        services.AddDelayedYouTubePublication();
 
         return services
             .AddScoped<IEpisodeProvider, EpisodeProvider>()

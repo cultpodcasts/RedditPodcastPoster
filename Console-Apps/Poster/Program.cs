@@ -32,22 +32,22 @@ builder.Services
     .AddLogging()
     .AddScoped<PostProcessor>()
     .AddRepositories()
-    .AddCommonServices(builder.Configuration)
+    .AddCommonServices()
     .AddPodcastServices()
-    .AddContentPublishing(builder.Configuration)
-    .AddRedditServices(builder.Configuration)
-    .AddTwitterServices(builder.Configuration)
-    .AddBlueskyServices(builder.Configuration)
+    .AddContentPublishing()
+    .AddRedditServices()
+    .AddTwitterServices()
+    .AddBlueskyServices()
     .AddSubjectServices()
     .AddCachedSubjectProvider()
     .AddTextSanitiser()
-    .AddShortnerServices(builder.Configuration)
-    .AddYouTubeServices(builder.Configuration)
-    .AddSpotifyServices(builder.Configuration)
+    .AddShortnerServices()
+    .AddYouTubeServices()
+    .AddSpotifyServices()
     .AddHttpClient();
 
-builder.Services.AddPostingCriteria(builder.Configuration);
-builder.Services.AddDelayedYouTubePublication(builder.Configuration);
+builder.Services.AddPostingCriteria();
+builder.Services.AddDelayedYouTubePublication();
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<PostRequest>(args)

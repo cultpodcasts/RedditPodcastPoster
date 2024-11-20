@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Taddy.Configuration;
 
@@ -7,9 +6,7 @@ namespace RedditPodcastPoster.PodcastServices.Taddy.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddTaddy(
-        this IServiceCollection services,
-        IConfiguration config)
+    public static IServiceCollection AddTaddy(this IServiceCollection services)
     {
         services.BindConfiguration<TaddyOptions>("taddy");
 

@@ -23,7 +23,7 @@ builder.Services
     .AddRepositories()
     .AddScoped<IndexAllEpisodesAuditProcessor>();
 
-builder.Services.AddPostingCriteria(builder.Configuration);
+builder.Services.AddPostingCriteria();
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<IndexAllEpisodesAuditRequest>(args)

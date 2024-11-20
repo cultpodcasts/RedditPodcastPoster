@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.YouTubePushNotifications.Configuration;
 
@@ -7,8 +6,8 @@ namespace RedditPodcastPoster.YouTubePushNotifications.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddYouTubePushNotificationServices(this IServiceCollection services,
-        IConfiguration config)
+    public static IServiceCollection AddYouTubePushNotificationServices(
+        this IServiceCollection services)
     {
         services.BindConfiguration<YouTubePushNotificationCallbackSettings>("youTubePushNotification");
 

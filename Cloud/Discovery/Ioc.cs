@@ -26,11 +26,11 @@ public static class Ioc
             .AddRepositories()
             .AddSubjectServices()
             .AddCachedSubjectProvider()
-            .AddDiscovery(hostBuilderContext.Configuration)
+            .AddDiscovery()
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddScoped<IRemoteClient, RemoteClient>()
             .AddScoped(s => new iTunesSearchManager())
-            .AddPushSubscriptions(hostBuilderContext.Configuration)
+            .AddPushSubscriptions()
             .AddHttpClient();
 
         serviceCollection.BindConfiguration<DiscoverOptions>("discover");

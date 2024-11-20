@@ -36,23 +36,23 @@ public static class Ioc
             .ConfigureFunctionsApplicationInsights()
             .AddRepositories()
             .AddTextSanitiser()
-            .AddYouTubeServices(hostBuilderContext.Configuration)
-            .AddSpotifyServices(hostBuilderContext.Configuration)
+            .AddYouTubeServices()
+            .AddSpotifyServices()
             .AddAppleServices()
-            .AddCommonServices(hostBuilderContext.Configuration)
+            .AddCommonServices()
             .AddPodcastServices()
             .AddRemoteClient()
             .AddScoped(s => new iTunesSearchManager())
             .AddEliminationTerms()
-            .AddRedditServices(hostBuilderContext.Configuration)
+            .AddRedditServices()
             .AddScoped<IFlushable, CacheFlusher>()
-            .AddTwitterServices(hostBuilderContext.Configuration)
-            .AddBlueskyServices(hostBuilderContext.Configuration)
+            .AddTwitterServices()
+            .AddBlueskyServices()
             .AddSubjectServices()
             .AddCachedSubjectProvider()
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
-            .AddContentPublishing(hostBuilderContext.Configuration)
-            .AddShortnerServices(hostBuilderContext.Configuration)
+            .AddContentPublishing()
+            .AddShortnerServices()
             .AddDateTimeService()
             .AddScoped<IIndexingStrategy, IndexingStrategy>()
             .AddSearch()
@@ -60,7 +60,7 @@ public static class Ioc
 
         serviceCollection.BindConfiguration<IndexerOptions>("indexer");
         serviceCollection.BindConfiguration<PosterOptions>("poster");
-        serviceCollection.AddPostingCriteria(hostBuilderContext.Configuration);
-        serviceCollection.AddDelayedYouTubePublication(hostBuilderContext.Configuration);
+        serviceCollection.AddPostingCriteria();
+        serviceCollection.AddDelayedYouTubePublication();
     }
 }

@@ -9,7 +9,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddSubredditServices(this IServiceCollection services, IConfiguration config)
     {
-        services.AddSubredditSettings(config);
+        services.AddSubredditSettings();
 
         RedditClientFactory.AddRedditClient(services);
 

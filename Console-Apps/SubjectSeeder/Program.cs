@@ -28,8 +28,8 @@ builder.Services
     .AddSubjectServices()
     .AddCachedSubjectProvider()
     .AddSingleton<SubjectsSeeder>()
-    .AddSubredditSettings(builder.Configuration)
-    .AddContentPublishing(builder.Configuration)
+    .AddSubredditSettings()
+    .AddContentPublishing()
     .AddTextSanitiser();
 
 RedditClientFactory.AddRedditClient(builder.Services);
