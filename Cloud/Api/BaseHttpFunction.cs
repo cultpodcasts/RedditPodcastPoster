@@ -23,7 +23,7 @@ public abstract class BaseHttpFunction(
         Func<HttpRequestData, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> unauthorised,
         CancellationToken ct)
     {
-        logger.LogInformation($"{nameof(HandleRequest)} initiated.");
+        logger.LogInformation($"{nameof(HandleRequest)} initiated for '{req.Url}' / '{req.Method}'.");
         var isAuthorised = false;
         var roleCtr = 0;
         var clientPrincipal = clientPrincipalFactory.Create(req);
@@ -60,7 +60,7 @@ public abstract class BaseHttpFunction(
         Func<HttpRequestData, T, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> unauthorised,
         CancellationToken ct)
     {
-        logger.LogInformation($"{nameof(HandleRequest)} initiated.");
+        logger.LogInformation($"{nameof(HandleRequest)} initiated for '{req.Url}' / '{req.Method}'.");
         var isAuthorised = false;
         var roleCtr = 0;
         var clientPrincipal = clientPrincipalFactory.Create(req);

@@ -76,9 +76,11 @@ public class SubjectController(
     {
         try
         {
+            logger.LogInformation($"Get subject '{subjectName}'.");
             var subject = await subjectRepository.GetBy(x => x.Name == subjectName);
             if (subject == null)
             {
+                logger.LogInformation($"Could not find subject with name '{subjectName}'.");
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
