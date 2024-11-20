@@ -76,6 +76,7 @@ public class SubjectController(
     {
         try
         {
+            logger.LogInformation($"Get subject '{subjectName}'.");
             var subject = await subjectRepository.GetBy(x => x.Name == subjectName);
             if (subject == null)
             {
