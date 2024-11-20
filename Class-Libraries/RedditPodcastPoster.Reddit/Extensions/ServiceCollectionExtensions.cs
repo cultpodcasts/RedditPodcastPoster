@@ -1,15 +1,14 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 
 namespace RedditPodcastPoster.Reddit.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddRedditServices(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddRedditServices(this IServiceCollection services)
     {
         services.BindConfiguration<RedditSettings>("reddit");
-        services.AddSubredditSettings(config);
+        services.AddSubredditSettings();
 
         RedditClientFactory.AddRedditClient(services);
 
@@ -22,7 +21,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IFlareManager, FlareManager>();
     }
 
-    public static IServiceCollection AddSubredditSettings(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddSubredditSettings(this IServiceCollection services)
     {
         services.BindConfiguration<SubredditSettings>("subreddit");
         return services;

@@ -1,12 +1,11 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 
 namespace RedditPodcastPoster.Twitter.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddTwitterServices(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddTwitterServices(this IServiceCollection services)
     {
         services.BindConfiguration<TwitterOptions>("twitter");
 

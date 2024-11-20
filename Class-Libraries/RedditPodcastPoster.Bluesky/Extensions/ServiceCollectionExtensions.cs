@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Configuration.Extensions;
@@ -8,7 +7,7 @@ namespace RedditPodcastPoster.Bluesky.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddBlueskyServices(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddBlueskyServices(this IServiceCollection services)
     {
         services.BindConfiguration<BlueskyOptions>("bluesky");
 

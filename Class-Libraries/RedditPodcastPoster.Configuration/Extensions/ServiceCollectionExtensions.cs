@@ -6,14 +6,13 @@ namespace RedditPodcastPoster.Configuration.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddPostingCriteria(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddPostingCriteria(this IServiceCollection services)
     {
         services.BindConfiguration<PostingCriteria>("postingCriteria");
         return services;
     }
 
-    public static IServiceCollection AddDelayedYouTubePublication(this IServiceCollection services,
-        IConfiguration config)
+    public static IServiceCollection AddDelayedYouTubePublication(this IServiceCollection services)
     {
         services.BindConfiguration<DelayedYouTubePublication>("delayedYouTubePublication");
         return services;

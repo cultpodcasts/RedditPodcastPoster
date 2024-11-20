@@ -29,13 +29,13 @@ builder.Services
     .AddFileRepository("subreddit-repository")
     .AddRepositories()
     .AddSubredditServices(builder.Configuration)
-    .AddSpotifyServices(builder.Configuration)
-    .AddYouTubeServices(builder.Configuration)
+    .AddSpotifyServices()
+    .AddYouTubeServices()
     .AddSingleton<TrainingDataProcessor>()
     .AddSingleton<ISubjectCleanser, SubjectCleanser>()
     .AddSubjectServices()
     .AddCachedSubjectProvider()
-    .AddRedditServices(builder.Configuration);
+    .AddRedditServices();
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<TrainingDataRequest>(args)

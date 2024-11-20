@@ -28,7 +28,7 @@ builder.Services
     .AddRepositories()
     .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
     .AddSingleton<RedditFlairsProcessor>()
-    .AddRedditServices(builder.Configuration)
+    .AddRedditServices()
     .AddSubredditServices(builder.Configuration)
     .AddSubjectServices()
     .AddCachedSubjectProvider()

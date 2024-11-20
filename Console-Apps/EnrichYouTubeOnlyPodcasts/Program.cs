@@ -26,14 +26,14 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddYouTubeServices(builder.Configuration)
+    .AddYouTubeServices()
     .AddRepositories()
     .AddSubjectServices()
     .AddCachedSubjectProvider()
     .AddSingleton<EnrichYouTubePodcastProcessor>()
-    .AddPostingCriteria(builder.Configuration)
+    .AddPostingCriteria()
     .AddEliminationTerms()
-    .AddCommonServices(builder.Configuration);
+    .AddCommonServices();
 
 using var host = builder.Build();
 

@@ -24,7 +24,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddDiscovery(builder.Configuration)
+    .AddDiscovery()
     .AddScoped<DiscoveryProcessor>()
     .AddScoped<IDiscoveryResultConsoleLogger, DiscoveryResultConsoleLogger>()
     .AddRepositories()

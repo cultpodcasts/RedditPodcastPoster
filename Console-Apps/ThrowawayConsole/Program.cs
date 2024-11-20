@@ -24,8 +24,8 @@ builder.Services
     .AddAuth0Validation()
     .AddHttpClient();
 
-builder.Services.AddPostingCriteria(builder.Configuration);
-builder.Services.AddDelayedYouTubePublication(builder.Configuration);
+builder.Services.AddPostingCriteria();
+builder.Services.AddDelayedYouTubePublication();
 
 
 using var host = builder.Build();

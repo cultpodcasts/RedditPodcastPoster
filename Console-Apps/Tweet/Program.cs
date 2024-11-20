@@ -24,7 +24,7 @@ builder.Services
     .AddLogging()
     .AddRepositories()
     .AddSingleton<TweetProcessor>()
-    .AddTwitterServices(builder.Configuration)
+    .AddTwitterServices()
     .AddSubjectServices()
     .AddCachedSubjectProvider()
     .AddTextSanitiser();

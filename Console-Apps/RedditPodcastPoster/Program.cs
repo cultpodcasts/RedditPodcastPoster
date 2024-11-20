@@ -34,21 +34,21 @@ builder.Services
     .AddRepositories()
     .AddPodcastServices()
     .AddTextSanitiser()
-    .AddYouTubeServices(builder.Configuration)
-    .AddSpotifyServices(builder.Configuration)
+    .AddYouTubeServices()
+    .AddSpotifyServices()
     .AddAppleServices()
-    .AddCommonServices(builder.Configuration)
+    .AddCommonServices()
     .AddSubjectServices()
     .AddCachedSubjectProvider()
     .AddRemoteClient()
     .AddScoped(s => new iTunesSearchManager())
     .AddEliminationTerms()
-    .AddRedditServices(builder.Configuration)
+    .AddRedditServices()
     .AddScoped<IFlushable, CacheFlusher>()
     .AddScoped<PodcastProcessor>()
     .AddHttpClient();
 
-builder.Services.AddDelayedYouTubePublication(builder.Configuration);
+builder.Services.AddDelayedYouTubePublication();
 
 using var host = builder.Build();
 

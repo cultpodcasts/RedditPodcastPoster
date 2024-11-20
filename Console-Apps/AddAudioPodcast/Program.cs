@@ -32,11 +32,11 @@ builder.Services
     .AddLogging()
     .AddScoped<AddAudioPodcastProcessor>()
     .AddRepositories()
-    .AddCommonServices(builder.Configuration)
+    .AddCommonServices()
     .AddPodcastServices()
     .AddAppleServices()
-    .AddSpotifyServices(builder.Configuration)
-    .AddYouTubeServices(builder.Configuration)
+    .AddSpotifyServices()
+    .AddYouTubeServices()
     .AddEliminationTerms()
     .AddScoped(s => new iTunesSearchManager())
     .AddScoped<IRemoteClient, RemoteClient>()
@@ -45,8 +45,8 @@ builder.Services
     .AddTextSanitiser()
     .AddHttpClient();
 
-builder.Services.AddPostingCriteria(builder.Configuration);
-builder.Services.AddDelayedYouTubePublication(builder.Configuration);
+builder.Services.AddPostingCriteria();
+builder.Services.AddDelayedYouTubePublication();
 
 using var host = builder.Build();
 

@@ -22,7 +22,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
-    .AddShortnerServices(builder.Configuration)
+    .AddShortnerServices()
     .AddScoped<KVWriterProcessor>()
     .AddHttpClient();
 

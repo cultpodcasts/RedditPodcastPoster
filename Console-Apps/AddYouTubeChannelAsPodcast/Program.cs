@@ -24,11 +24,11 @@ builder.Configuration
 
 builder.Services
     .AddRepositories()
-    .AddYouTubeServices(builder.Configuration)
+    .AddYouTubeServices()
     .AddScoped<AddYouTubeChannelProcessor>()
     .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
     .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
-    .AddCommonServices(builder.Configuration)
+    .AddCommonServices()
     .AddHttpClient();
 
 using var host = builder.Build();

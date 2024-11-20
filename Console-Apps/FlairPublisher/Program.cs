@@ -24,8 +24,8 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
-    .AddContentPublishing(builder.Configuration)
-    .AddRedditServices(builder.Configuration)
+    .AddContentPublishing()
+    .AddRedditServices()
     .AddTextSanitiser()
     .AddSubjectServices();
 
