@@ -2,7 +2,7 @@
 param location string = resourceGroup().location
 
 @description('Suffix to use for resources')
-param suffix string = uniqueString(resourceGroup().id
+param suffix string = uniqueString(resourceGroup().id)
 
 module storage 'function-storage.bicep' = {
   name: 'storageDeployment'
