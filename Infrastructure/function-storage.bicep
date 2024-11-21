@@ -10,7 +10,7 @@ param storageAccountType string = 'Standard_LRS'
 param location string
 
 @description('Suffix to use for resources')
-param suffix string = uniqueString(resourceGroup().id
+param suffix string = uniqueString(resourceGroup().id)
 
 var storageAccountName = 'storage${suffix}'
 
