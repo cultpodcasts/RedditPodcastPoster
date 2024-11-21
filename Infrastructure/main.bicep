@@ -32,7 +32,6 @@ module function1 'function.bicep' = {
   params: {
     name: 'Function 1'
     location: location
-    suffix: suffix
     instrumentationKey: applicationInsights.outputs.instrumentationKey
     storageAccountName: storage.outputs.storageAccountName
     storageAccountId: storage.outputs.storageAccountId
@@ -45,7 +44,6 @@ module function1 'function.bicep' = {
 //   params: {
 //     name: 'Function 2'
 //     location: location
-//     suffix: suffix
 //     instrumentationKey: applicationInsights.outputs.instrumentationKey
 //     storageAccountName: storage.outputs.storageAccountName
 //     storageAccountId: storage.outputs.storageAccountId 
