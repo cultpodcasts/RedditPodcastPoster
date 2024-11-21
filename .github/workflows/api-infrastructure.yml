@@ -31,4 +31,3 @@ jobs:
         deploymentName: ${{ github.run_number }}
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/api.bicep
-        parameters: environmentType=${{ env.ENVIRONMENT }}
