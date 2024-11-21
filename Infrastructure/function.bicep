@@ -29,14 +29,20 @@ var hostingPlanName = '${name}-plan-${suffix}'
 var functionWorkerRuntime = runtime
 var storageKey= listKeys(storageAccountId, '2022-05-01').keys[0].value
 
-resource hostingPlan 'Microsoft.Web/serverfarms@2021-03-01' = {
+resource hostingPlan 'Microsoft.Web/serverfarms@2022-03-01' = {
   name: hostingPlanName
   location: location
   sku: {
     name: 'Y1'
     tier: 'Dynamic'
+    size: 'Y1'
+    family: 'Y'
+    capacity: 0
   }
-  properties: {}
+  properties: {
+    computeMode: 'Dynamic'
+    reserved: true
+  }
 }
 
 resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
