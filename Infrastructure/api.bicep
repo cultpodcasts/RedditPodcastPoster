@@ -7,7 +7,7 @@ param resourceNameSuffix string = uniqueString(resourceGroup().id)
 
 var appServiceAppName = 'cultpodcasts-api-${resourceNameSuffix}'
 var appServicePlanName = 'cultpodcasts-api-plan'
-var functionStorageAccountName = 'cultpodcasts-storage-${resourceNameSuffix}'
+var functionsStorageAccountName = 'cultpodcasts-storage-${resourceNameSuffix}'
 
 var functionsStorageAccountConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${functionsStorageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${functionsStorageAccount.listKeys().keys[0].value}'
 
@@ -35,7 +35,7 @@ resource appServiceApp 'Microsoft.Web/sites@2023-12-01' = {
 }
 
 resource functionsStorageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: functonsStorageAccountName
+  name: functionsStorageAccountName
   location: location
   kind: 'Storage'
   sku: 'Standard_LRS'
