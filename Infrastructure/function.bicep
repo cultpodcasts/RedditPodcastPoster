@@ -42,7 +42,7 @@ resource hostingPlan 'Microsoft.Web/serverfarms@2021-03-01' = {
 resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
   name: functionAppName
   location: location
-  kind: 'functionapp'
+  kind: 'functionapp,linux'
   identity: {
     type: 'SystemAssigned'
   }
@@ -81,7 +81,19 @@ resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
       ]
       ftpsState: 'FtpsOnly'
       minTlsVersion: '1.2'
+      linuxFxVersion: 'DOTNET-ISOLATED|8.0'
+      functionAppScaleLimit: 1
     }
     httpsOnly: true
+    siteProperties: {
+        properties: [
+            {
+                "name": "LinuxFxVersion"
+                "value": "DOTNET-ISOLATED|8.0"
+            }
+        ]
+    }
+    kind: 'functionapp,linux'
+    
   }
 }
