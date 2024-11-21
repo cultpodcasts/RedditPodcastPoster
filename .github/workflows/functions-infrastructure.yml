@@ -67,6 +67,7 @@ jobs:
         parameters: 'location=${{ env.LOCATION }} name=Function1 runtime=dotnet, storageAccountName=needs.createStorage.outputs.storageAccountName, storageAccountKey=needs.createStorage.outputs.storageAccountKey, instrumentationKey=needs.createApplicationInsights.outputs.instrumentationKey'
   createFunction2:
     runs-on: ubuntu-latest
+    needs: [createStorage, createApplicationInsights]
     steps:
     - name: Function 2
       uses: Azure/arm-deploy@v2
