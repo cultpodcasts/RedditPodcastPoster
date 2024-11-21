@@ -26,8 +26,9 @@ jobs:
         client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
-    - uses: Azure/arm-deploy@v2
+    - name: Storage
+      uses: Azure/arm-deploy@v2
       with:
-        deploymentName: ${{ github.run_number }}
+        deploymentName: storage-${{ github.run_number }}
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-        template: ./Infrastructure/api.bicep
+        template: ./Infrastructure/function-storage.bicep

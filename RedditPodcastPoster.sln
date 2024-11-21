@@ -193,7 +193,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LaunchSettingsToAppSettings
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{991D2F69-2ABA-43A7-8837-9521F9448BD1}"
 	ProjectSection(SolutionItems) = preProject
-		Infrastructure\api.bicep = Infrastructure\api.bicep
+		Infrastructure\function-storage.bicep = Infrastructure\function-storage.bicep
 	EndProjectSection
 EndProject
 Global
