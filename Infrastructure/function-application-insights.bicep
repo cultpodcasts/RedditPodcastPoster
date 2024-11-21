@@ -1,8 +1,11 @@
 @description('Location for Resources')
 param location string
 
-var logAnalyticsName = 'loganalytics-${uniqueString(resourceGroup().id)}'
-var applicationInsightsName = 'ai-${uniqueString(resourceGroup().id)}'
+@description('Suffix to use for resources')
+param suffix string = uniqueString(resourceGroup().id
+
+var logAnalyticsName = 'loganalytics-${suffix}'
+var applicationInsightsName = 'ai-${suffix}'
 
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: logAnalyticsName

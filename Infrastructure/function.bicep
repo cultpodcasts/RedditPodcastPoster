@@ -1,5 +1,5 @@
 @description('The name of the function app')
-param name string = 'fnapp${uniqueString(resourceGroup().id)}'
+param name string
 
 @description('Location for the function app.')
 param location string
