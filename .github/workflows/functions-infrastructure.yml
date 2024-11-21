@@ -20,6 +20,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
   connect:
+    needs: [checkout]
     runs-on: ubuntu-latest
     steps:
     - name: Azure Login
@@ -29,6 +30,7 @@ jobs:
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
   createStorage:
+    needs: [connect]
     runs-on: ubuntu-latest
     outputs:
         storageAccountName: storageAccountName
@@ -43,6 +45,7 @@ jobs:
         template: ./Infrastructure/function-storage.bicep
         parameters: 'location=${{ env.LOCATION }}'
   createApplicationInsights:
+    needs: [connect]
     runs-on: ubuntu-latest
     outputs:
         instrumentationKey: instrumentationKey
