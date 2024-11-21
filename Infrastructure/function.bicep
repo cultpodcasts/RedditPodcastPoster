@@ -15,8 +15,8 @@ param runtime string = 'dotnet'
 @description('Storage-account for this Function')
 param storageAccountName string
 
-@description('Storage-account key')
-param storageAccountKey string
+@description('Storage-account id')
+param storageAccountId string
 
 @description('Application-Insights Instrumentation-Key for this Function')
 param instrumentationKey string
@@ -24,6 +24,7 @@ param instrumentationKey string
 var functionAppName = name
 var hostingPlanName = name
 var functionWorkerRuntime = runtime
+var storageKey= listKeys(storageAccountId, '2022-05-01').keys[0].value
 
 resource hostingPlan 'Microsoft.Web/serverfarms@2021-03-01' = {
   name: hostingPlanName
@@ -48,11 +49,11 @@ resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
       appSettings: [
         {
           name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageKey}'
         }
         {
           name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageKey}'
         }
         {
           name: 'WEBSITE_CONTENTSHARE'
@@ -68,7 +69,7 @@ resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
         }
         {
           name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-          value: applicationInsights.properties.InstrumentationKey
+          value: instrumentationKey
         }
         {
           name: 'FUNCTIONS_WORKER_RUNTIME'

@@ -47,11 +47,11 @@ jobs:
         deploymentName: fn1-${{ github.run_number }}
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/function.bicep
-        parameters: 'location=${{ env.LOCATION }} name=Function1 runtime=dotnet, storageAccountName=steps.storage.outputs.storageAccountName, storageAccountKey=steps.storage.outputs.storageAccountKey, instrumentationKey=steps.applicationInsights.outputs.instrumentationKey'
+        parameters: 'location=${{ env.LOCATION }} name=Function1 runtime=dotnet, storageAccountName=steps.storage.outputs.storageAccountName, storageAccountId=steps.storage.outputs.storageAccountId, instrumentationKey=steps.applicationInsights.outputs.instrumentationKey'
     - name: Function 2
       uses: Azure/arm-deploy@v2
       with:
         deploymentName: fn2-${{ github.run_number }}
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/function.bicep
-        parameters: 'location=${{ env.LOCATION }} name=Function1 runtime=dotnet, storageAccountName=steps.storage.outputs.storageAccountName, storageAccountKey=steps.storage.outputs.storageAccountKey, instrumentationKey=steps.applicationInsights.outputs.instrumentationKey'
+        parameters: 'location=${{ env.LOCATION }} name=Function1 runtime=dotnet, storageAccountName=steps.storage.outputs.storageAccountName, storageAccountId=steps.storage.outputs.storageAccountId, instrumentationKey=steps.applicationInsights.outputs.instrumentationKey'
