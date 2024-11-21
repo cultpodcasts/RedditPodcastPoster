@@ -6,6 +6,9 @@ on:
       - feature/fn-bicep
   workflow_dispatch:
 
+env:
+    DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
+
 permissions:
   id-token: write
   contents: read
@@ -17,8 +20,6 @@ jobs:
     - uses: actions/checkout@v4
     - name: Print Resource Group
       run: echo "Resource-group $DEPLOYMENT_RESOURCEGROUP_NAME"
-      env:
-        DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
     - name: Azure Login
       uses: Azure/login@v2.2.0            
       with:
