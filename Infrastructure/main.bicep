@@ -4,10 +4,14 @@ param location string = resourceGroup().location
 @description('Suffix to use for resources')
 param suffix string = uniqueString(resourceGroup().id)
 
+@description('Name for the Storage Account')
+param storageName string= 'storage${uniqueString(resourceGroup().id)}'
+
 module storage 'function-storage.bicep' = {
   name: 'storageDeployment'
   params: {
     location: location
+    storageName: storageName
   }
 }
 
