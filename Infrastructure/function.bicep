@@ -50,11 +50,11 @@ resource hostingPlan 'Microsoft.Web/serverfarms@2022-03-01' = {
 resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
   name: functionAppName
   location: location
-  publicNetworkAccess: publicNetworkAccess?'Enabled':null
   kind: 'functionapp,linux'
   properties: {
     reserved: true
     httpsOnly: true
+    publicNetworkAccess: publicNetworkAccess?'Enabled':null
     serverFarmId: hostingPlan.id
     siteConfig: {
       functionAppScaleLimit: 1
