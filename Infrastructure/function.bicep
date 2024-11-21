@@ -2,7 +2,7 @@
 param name string = 'fnapp${uniqueString(resourceGroup().id)}'
 
 @description('Location for the function app.')
-param location string = resourceGroup().location
+param location string
 
 @description('The language worker runtime to load in the function app.')
 @allowed([

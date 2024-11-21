@@ -1,5 +1,5 @@
 @description('Location for Resources')
-param location string = resourceGroup().location
+param location string
 
 var logAnalyticsName = 'loganalytics-${uniqueString(resourceGroup().id)}'
 var applicationInsightsName = 'ai-${uniqueString(resourceGroup().id)}'

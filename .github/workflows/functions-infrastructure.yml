@@ -25,33 +25,11 @@ jobs:
         client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
-    - name: Storage
+    - name: Bicep
       id: storage
       uses: Azure/arm-deploy@v2
       with:
         deploymentName: storage-${{ github.run_number }}
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-        template: ./Infrastructure/function-storage.bicep
+        template: ./Infrastructure/main.bicep
         parameters: 'location=${{ env.LOCATION }}'
-    - name: Application Insights
-      id: applicationInsights
-      uses: Azure/arm-deploy@v2
-      with:
-        deploymentName: ai-${{ github.run_number }}
-        resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-        template: ./Infrastructure/function-application-insights.bicep
-        parameters: 'location=${{ env.LOCATION }}'
-    - name: Function 1
-      uses: Azure/arm-deploy@v2
-      with:
-        deploymentName: fn1-${{ github.run_number }}
-        resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-        template: ./Infrastructure/function.bicep
-        parameters: 'location=${{ env.LOCATION }} name=Function1 runtime=dotnet storageAccountName=steps.storage.outputs.storageAccountName storageAccountId=steps.storage.outputs.storageAccountId instrumentationKey=steps.applicationInsights.outputs.instrumentationKey'
-    - name: Function 2
-      uses: Azure/arm-deploy@v2
-      with:
-        deploymentName: fn2-${{ github.run_number }}
-        resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-        template: ./Infrastructure/function.bicep
-        parameters: 'location=${{ env.LOCATION }} name=Function1 runtime=dotnet storageAccountName=steps.storage.outputs.storageAccountName storageAccountId=steps.storage.outputs.storageAccountId instrumentationKey=steps.applicationInsights.outputs.instrumentationKey'
