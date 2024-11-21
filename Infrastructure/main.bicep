@@ -29,7 +29,7 @@ module applicationInsights 'function-application-insights.bicep' = {
 module function1 'function.bicep' = {
   name: 'function1Deployment'
   params: {
-    name: 'Function 1'
+    name: 'function1'
     location: location
     instrumentationKey: applicationInsights.outputs.instrumentationKey
     storageAccountName: storage.outputs.storageAccountName
