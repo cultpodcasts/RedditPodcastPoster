@@ -18,6 +18,6 @@ jobs:
     - name: Azure Login
       uses: Azure/login@v2.2.0            
       with:
-        client-id: ${{ secrets.API_Client_ID }}
+        client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
-        subscription-id: ${{ secrets.API_Subscription_ID }}
+        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
