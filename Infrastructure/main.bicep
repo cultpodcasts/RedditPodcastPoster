@@ -4,6 +4,7 @@ param location string = resourceGroup().location
 module storage 'function-storage.bicep' = {
   name: 'storageDeployment'
   params: {
+    Location: location
     storageAccountName: storageAccountName
     storageAccountId: storageAccountId
   }
@@ -12,6 +13,7 @@ module storage 'function-storage.bicep' = {
 module applicationInsights 'function-application-insights.bicep' = {
   name: 'applicationInsightsDeployment'
   params: {
+    Location: location
     instrumentationKey: instrumentationKey
   }
 }
@@ -19,6 +21,7 @@ module applicationInsights 'function-application-insights.bicep' = {
 module function 'function.bicep' = {
   name: 'functionDeployment'
   params: {
+    Location: location
     instrumentationKey: logAnalytics.outputs.instrumentationKey
     storageAccountName: storage.outputs.storageAccountName
     storageAccountId: storage.outputs.storageAccountId
