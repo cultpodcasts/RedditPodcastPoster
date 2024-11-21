@@ -85,14 +85,6 @@ resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
       functionAppScaleLimit: 1
     }
     httpsOnly: true
-    siteProperties: {
-        properties: [
-            {
-                name: 'LinuxFxVersion'
-                value: 'DOTNET-ISOLATED|8.0'
-            }
-        ]
-    }
     kind: 'functionapp,linux'
     
   }
