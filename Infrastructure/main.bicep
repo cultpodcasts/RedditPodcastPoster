@@ -39,7 +39,7 @@ module function1 'function.bicep' = {
 }
 
 module function2 'function.bicep' = {
-  name: 'function1Deployment'
+  name: 'function2Deployment'
   params: {
     name: 'function2'
     location: location
