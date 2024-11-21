@@ -15,17 +15,10 @@ permissions:
   contents: read
 
 jobs:
-  checkout:
+  deplpy:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-  createStorage:
-    needs: [checkout]
-    runs-on: ubuntu-latest
-    outputs:
-        storageAccountName: storageAccountName
-        storageAccountKey: key
-    steps:
     - name: Azure Login
       uses: Azure/login@v2.2.0            
       with:
@@ -40,56 +33,25 @@ jobs:
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/function-storage.bicep
         parameters: 'location=${{ env.LOCATION }}'
-  createApplicationInsights:
-    needs: [checkout]
-    runs-on: ubuntu-latest
-    outputs:
-        instrumentationKey: instrumentationKey
-    steps:
-    - name: Azure Login
-      uses: Azure/login@v2.2.0            
-      with:
-        client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
-        tenant-id: ${{ secrets.AZURE_Tenant_ID }}
-        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
     - name: Application Insights
+      id: applicationInsights
       uses: Azure/arm-deploy@v2
       with:
         deploymentName: ai-${{ github.run_number }}
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/function-application-insights.bicep
         parameters: 'location=${{ env.LOCATION }}'
-  createFunction1:
-    runs-on: ubuntu-latest
-    needs: [createStorage, createApplicationInsights]
-    steps:
-    - name: Azure Login
-      uses: Azure/login@v2.2.0            
-      with:
-        client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
-        tenant-id: ${{ secrets.AZURE_Tenant_ID }}
-        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
     - name: Function 1
       uses: Azure/arm-deploy@v2
       with:
         deploymentName: fn1-${{ github.run_number }}
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/function.bicep
-        parameters: 'location=${{ env.LOCATION }} name=Function1 runtime=dotnet, storageAccountName=needs.createStorage.outputs.storageAccountName, storageAccountKey=needs.createStorage.outputs.storageAccountKey, instrumentationKey=needs.createApplicationInsights.outputs.instrumentationKey'
-  createFunction2:
-    runs-on: ubuntu-latest
-    needs: [createStorage, createApplicationInsights]
-    steps:
-    - name: Azure Login
-      uses: Azure/login@v2.2.0            
-      with:
-        client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
-        tenant-id: ${{ secrets.AZURE_Tenant_ID }}
-        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+        parameters: 'location=${{ env.LOCATION }} name=Function1 runtime=dotnet, storageAccountName=steps.storage.outputs.storageAccountName, storageAccountKey=steps.storage.outputs.storageAccountKey, instrumentationKey=steps.applicationInsights.outputs.instrumentationKey'
     - name: Function 2
       uses: Azure/arm-deploy@v2
       with:
         deploymentName: fn2-${{ github.run_number }}
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/function.bicep
-        parameters: 'location=${{ env.LOCATION }} name=Function2 runtime=dotnet, storageAccountName=needs.createStorage.outputs.storageAccountName, storageAccountKey=needs.createStorage.outputs.storageAccountKey, instrumentationKey=needs.createApplicationInsights.outputs.instrumentationKey'
+        parameters: 'location=${{ env.LOCATION }} name=Function1 runtime=dotnet, storageAccountName=steps.storage.outputs.storageAccountName, storageAccountKey=steps.storage.outputs.storageAccountKey, instrumentationKey=steps.applicationInsights.outputs.instrumentationKey'

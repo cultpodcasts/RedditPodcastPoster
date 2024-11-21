@@ -25,4 +25,4 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
 }
 
 output storageAccountName string = storageAccountName
-output key string = storageAccount.listKeys().keys[0].value
+output storageAccountKey string = storageAccount.listKeys().keys[0].value
