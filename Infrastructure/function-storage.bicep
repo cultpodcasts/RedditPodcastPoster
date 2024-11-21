@@ -6,7 +6,7 @@
 ])
 param storageAccountType string = 'Standard_LRS'
 
-@description('Location for all resources.')
+@description('Location for Storage.')
 param location string = resourceGroup().location
 
 var storageAccountName = 'functions${uniqueString(resourceGroup().id)}'
