@@ -16,7 +16,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Print Resource Group
-      run: echo "Host $DEPLOYMENT_RESOURCEGROUP_NAME"
+      run: echo "Resource-group $DEPLOYMENT_RESOURCEGROUP_NAME"
       env:
         DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
     - name: Azure Login
@@ -28,6 +28,6 @@ jobs:
     - uses: Azure/arm-deploy@v2
       with:
         deploymentName: ${{ github.run_number }}
-        resourceGroupName: $DEPLOYMENT_RESOURCEGROUP_NAME
+        resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/api.bicep
         parameters: environmentType=${{ env.ENVIRONMENT }}
