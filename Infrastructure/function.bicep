@@ -88,8 +88,8 @@ resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
     siteProperties: {
         properties: [
             {
-                "name": "LinuxFxVersion"
-                "value": "DOTNET-ISOLATED|8.0"
+                name: 'LinuxFxVersion'
+                value: 'DOTNET-ISOLATED|8.0'
             }
         ]
     }
