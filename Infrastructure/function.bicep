@@ -39,53 +39,41 @@ resource hostingPlan 'Microsoft.Web/serverfarms@2021-03-01' = {
   properties: {}
 }
 
-resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
+resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
   name: functionAppName
   location: location
   kind: 'functionapp,linux'
-  identity: {
-    type: 'SystemAssigned'
-  }
   properties: {
-      reserved: true
-      serverFarmId: hostingPlan.id
-      siteConfig: {
-          appSettings: [
-            {
-              name: 'AzureWebJobsStorage'
-              value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageKey}'
-            }
-            {
-              name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-              value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageKey}'
-            }
-            {
-              name: 'WEBSITE_CONTENTSHARE'
-              value: toLower(functionAppName)
-            }
-            {
-              name: 'FUNCTIONS_EXTENSION_VERSION'
-              value: '~4'
-            }
-            {
-              name: 'WEBSITE_NODE_DEFAULT_VERSION'
-              value: '~14'
-            }
-            {
-              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: instrumentationKey
-            }
-            {
-              name: 'FUNCTIONS_WORKER_RUNTIME'
-              value: functionWorkerRuntime
-            }
-        ]
-      }
-      ftpsState: 'FtpsOnly'
-      minTlsVersion: '1.2'
+    reserved: true
+    serverFarmId: hostingPlan.id
+    siteConfig: {
       linuxFxVersion: 'DOTNET-ISOLATED|8.0'
-      functionAppScaleLimit: 1
+      appSettings: [
+        {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: instrumentationKey
+        }
+        {
+          name: 'AzureWebJobsStorage'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageKey}'
+        }
+        {
+          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageKey}'
+        }
+        {
+          name: 'WEBSITE_CONTENTSHARE'
+          value: toLower(functionAppName)
+        }
+        {
+          name: 'FUNCTIONS_EXTENSION_VERSION'
+          value: '~4'
+        }
+        {
+          name: 'FUNCTIONS_WORKER_RUNTIME'
+          value: functionWorkerRuntime
+        }
+      ]
     }
-    httpsOnly: true    
   }
 }
