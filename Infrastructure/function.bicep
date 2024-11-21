@@ -52,6 +52,7 @@ resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
     reserved: true
     serverFarmId: hostingPlan.id
     siteConfig: {
+      functionAppScaleLimit: 2
       linuxFxVersion: 'DOTNET-ISOLATED|8.0'
       appSettings: [
         {
