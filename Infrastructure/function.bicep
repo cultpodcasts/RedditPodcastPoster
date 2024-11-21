@@ -24,6 +24,9 @@ param instrumentationKey string
 @description('Suffix to use for resources')
 param suffix string = uniqueString(resourceGroup().id)
 
+@description('Enable public access')
+param publicNetworkAccess bool = false
+
 var functionAppName = '${name}-${suffix}'
 var hostingPlanName = '${name}-plan-${suffix}'
 var functionWorkerRuntime = runtime
@@ -47,6 +50,7 @@ resource hostingPlan 'Microsoft.Web/serverfarms@2022-03-01' = {
 resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
   name: functionAppName
   location: location
+  publicNetworkAccess: publicNetworkAccess?'Enabled':null
   kind: 'functionapp,linux'
   properties: {
     reserved: true
