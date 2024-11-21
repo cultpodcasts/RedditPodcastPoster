@@ -8,6 +8,7 @@ on:
 
 env:
     DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
+    LOCATION: uksouth
 
 permissions:
   id-token: write
@@ -32,4 +33,4 @@ jobs:
         deploymentName: storage-${{ github.run_number }}
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/function-storage.bicep
-        parameters: 'location=uksouth'
+        parameters: 'location=$LOCATION'
