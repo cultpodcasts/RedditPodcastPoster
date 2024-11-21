@@ -7,6 +7,10 @@ param suffix string = uniqueString(resourceGroup().id)
 @description('Name for the Storage Account')
 param storageName string= 'storage${uniqueString(resourceGroup().id)}'
 
+@description('Runtime for the Functions')
+param runtime string
+
+
 module storage 'function-storage.bicep' = {
   name: 'storageDeployment'
   params: {
@@ -32,6 +36,7 @@ module function1 'function.bicep' = {
     instrumentationKey: applicationInsights.outputs.instrumentationKey
     storageAccountName: storage.outputs.storageAccountName
     storageAccountId: storage.outputs.storageAccountId
+    runtime: runtime
   }
 }
 
@@ -43,6 +48,7 @@ module function1 'function.bicep' = {
 //     suffix: suffix
 //     instrumentationKey: applicationInsights.outputs.instrumentationKey
 //     storageAccountName: storage.outputs.storageAccountName
-//     storageAccountId: storage.outputs.storageAccountId
+//     storageAccountId: storage.outputs.storageAccountId 
+//     runtime: runtime
 //   }
 // }
