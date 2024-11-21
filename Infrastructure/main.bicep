@@ -19,7 +19,7 @@ module function 'function.bicep' = {
   name: 'functionDeployment'
   params: {
     location: location
-    instrumentationKey: logAnalytics.outputs.instrumentationKey
+    instrumentationKey: applicationInsights.outputs.instrumentationKey
     storageAccountName: storage.outputs.storageAccountName
     storageAccountId: storage.outputs.storageAccountId
   }
