@@ -9,9 +9,6 @@ param storageAccountType string = 'Standard_LRS'
 @description('Location for resource')
 param location string
 
-@description('Suffix to use for resources')
-param suffix string = uniqueString(resourceGroup().id)
-
 var storageAccountName = 'storage${suffix}'
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {

@@ -8,29 +8,28 @@ module storage 'function-storage.bicep' = {
   name: 'storageDeployment'
   params: {
     location: location
+  }
+}
+
+module applicationInsights 'function-application-insights.bicep' = {
+  name: 'applicationInsightsDeployment'
+  params: {
+    location: location
     suffix: suffix
   }
 }
 
-// module applicationInsights 'function-application-insights.bicep' = {
-//   name: 'applicationInsightsDeployment'
-//   params: {
-//     location: location
-//     suffix: suffix
-//   }
-// }
-
-// module function1 'function.bicep' = {
-//   name: 'function1Deployment'
-//   params: {
-//     name: 'Function 1'
-//     location: location
-//     suffix: suffix
-//     instrumentationKey: applicationInsights.outputs.instrumentationKey
-//     storageAccountName: storage.outputs.storageAccountName
-//     storageAccountId: storage.outputs.storageAccountId
-//   }
-// }
+module function1 'function.bicep' = {
+  name: 'function1Deployment'
+  params: {
+    name: 'Function 1'
+    location: location
+    suffix: suffix
+    instrumentationKey: applicationInsights.outputs.instrumentationKey
+    storageAccountName: storage.outputs.storageAccountName
+    storageAccountId: storage.outputs.storageAccountId
+  }
+}
 
 // module function2 'function.bicep' = {
 //   name: 'function2Deployment'
