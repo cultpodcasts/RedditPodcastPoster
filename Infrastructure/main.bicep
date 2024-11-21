@@ -5,8 +5,6 @@ module storage 'function-storage.bicep' = {
   name: 'storageDeployment'
   params: {
     Location: location
-    storageAccountName: storageAccountName
-    storageAccountId: storageAccountId
   }
 }
 
@@ -14,7 +12,6 @@ module applicationInsights 'function-application-insights.bicep' = {
   name: 'applicationInsightsDeployment'
   params: {
     Location: location
-    instrumentationKey: instrumentationKey
   }
 }
 
