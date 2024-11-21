@@ -191,6 +191,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecretsToFunctionSettings",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LaunchSettingsToAppSettings", "Console-Apps\LaunchSettingsToAppSettings\LaunchSettingsToAppSettings.csproj", "{2BB4F08B-1D00-47EB-AA6B-01039A6AD747}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{991D2F69-2ABA-43A7-8837-9521F9448BD1}"
+	ProjectSection(SolutionItems) = preProject
+		Infrastructure\api.bicep = Infrastructure\api.bicep
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
