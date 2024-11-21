@@ -21,7 +21,7 @@ module applicationInsights 'function-application-insights.bicep' = {
 }
 
 module function1 'function.bicep' = {
-  name: 'functionDeployment'
+  name: 'function1Deployment'
   params: {
     name: 'Function 1'
     location: location
@@ -33,7 +33,7 @@ module function1 'function.bicep' = {
 }
 
 module function2 'function.bicep' = {
-  name: 'functionDeployment'
+  name: 'function2Deployment'
   params: {
     name: 'Function 2'
     location: location
