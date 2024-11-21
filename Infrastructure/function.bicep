@@ -50,9 +50,10 @@ resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
   kind: 'functionapp,linux'
   properties: {
     reserved: true
+    httpsOnly: true
     serverFarmId: hostingPlan.id
     siteConfig: {
-      functionAppScaleLimit: 2
+      functionAppScaleLimit: 1
       linuxFxVersion: 'DOTNET-ISOLATED|8.0'
       appSettings: [
         {
