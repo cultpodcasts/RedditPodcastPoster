@@ -7,7 +7,7 @@ param resourceNameSuffix string = uniqueString(resourceGroup().id)
 
 var appServiceAppName = 'cultpodcasts-api-${resourceNameSuffix}'
 var appServicePlanName = 'cultpodcasts-api-plan'
-var functionsStorageAccountName = 'storage-${resourceNameSuffix}'
+var functionsStorageAccountName = 'storage${resourceNameSuffix}'
 
 var functionsStorageAccountConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${functionsStorageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${functionsStorageAccount.listKeys().keys[0].value}'
 
