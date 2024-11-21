@@ -38,14 +38,15 @@ module function1 'function.bicep' = {
   }
 }
 
-// module function2 'function.bicep' = {
-//   name: 'function2Deployment'
-//   params: {
-//     name: 'Function 2'
-//     location: location
-//     instrumentationKey: applicationInsights.outputs.instrumentationKey
-//     storageAccountName: storage.outputs.storageAccountName
-//     storageAccountId: storage.outputs.storageAccountId 
-//     runtime: runtime
-//   }
-// }
+module function2 'function.bicep' = {
+  name: 'function1Deployment'
+  params: {
+    name: 'function2'
+    location: location
+    instrumentationKey: applicationInsights.outputs.instrumentationKey
+    storageAccountName: storage.outputs.storageAccountName
+    storageAccountId: storage.outputs.storageAccountId
+    runtime: runtime
+  }
+}
+
