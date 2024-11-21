@@ -10,7 +10,6 @@ param storageName string= 'storage${uniqueString(resourceGroup().id)}'
 @description('Runtime for the Functions')
 param runtime string
 
-
 module storage 'function-storage.bicep' = {
   name: 'storageDeployment'
   params: {

@@ -11,7 +11,7 @@ param location string
 
 @description('Name for the Storage Account')
 param storageName string= 'storage${uniqueString(resourceGroup().id)}'
-
+var storageAccountName= storageName
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
   name: storageName
