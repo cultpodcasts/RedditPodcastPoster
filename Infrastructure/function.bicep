@@ -21,8 +21,11 @@ param storageAccountId string
 @description('Application-Insights Instrumentation-Key for this Function')
 param instrumentationKey string
 
-var functionAppName = name
-var hostingPlanName = name
+@description('Suffix to use for resources')
+param suffix string = uniqueString(resourceGroup().id)
+
+var functionAppName = '${name}-${suffix}'
+var hostingPlanName = '${name}-plan-${suffix}'
 var functionWorkerRuntime = runtime
 var storageKey= listKeys(storageAccountId, '2022-05-01').keys[0].value
 

@@ -35,6 +35,7 @@ module function1 'function.bicep' = {
     storageAccountName: storage.outputs.storageAccountName
     storageAccountId: storage.outputs.storageAccountId
     runtime: runtime
+    suffix: suffix
   }
 }
 
@@ -47,6 +48,7 @@ module function2 'function.bicep' = {
     storageAccountName: storage.outputs.storageAccountName
     storageAccountId: storage.outputs.storageAccountId
     runtime: runtime
+    suffix: suffix
   }
 }
 
