@@ -2,7 +2,7 @@
 param location string
 
 @description('Suffix to use for resources')
-param suffix string = uniqueString(resourceGroup().id
+param suffix string = uniqueString(resourceGroup().id)
 
 var logAnalyticsName = 'loganalytics-${suffix}'
 var applicationInsightsName = 'ai-${suffix}'
