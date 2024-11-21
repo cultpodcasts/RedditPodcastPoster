@@ -6,6 +6,7 @@ param location string
 
 @description('The language worker runtime to load in the function app.')
 @allowed([
+  'dotnet-isolated'
   'node'
   'dotnet'
   'java'

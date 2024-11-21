@@ -8,6 +8,12 @@ param suffix string = uniqueString(resourceGroup().id)
 param storageName string= 'storage${uniqueString(resourceGroup().id)}'
 
 @description('Runtime for the Functions')
+@allowed([
+  'dotnet-isolated'
+  'node'
+  'dotnet'
+  'java'
+])
 param runtime string
 
 module storage 'function-storage.bicep' = {

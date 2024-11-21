@@ -3,7 +3,7 @@ name: Api-Infrastructure
 on:
   push:
     branches:
-      - feature/x-fn-bicep
+      - feature/fn-bicep
   workflow_dispatch:
 
 env:
@@ -32,4 +32,4 @@ jobs:
         deploymentName: storage-${{ github.run_number }}
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/main.bicep
-        parameters: 'location=${{ env.LOCATION }} suffix=infra storageName=cultpodcastsstorage1 runtime=dotnet'
+        parameters: 'location=${{ env.LOCATION }} suffix=infra storageName=cultpodcastsstorage1 runtime=dotnet-isolated'
