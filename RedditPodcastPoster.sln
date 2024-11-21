@@ -194,6 +194,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{991D2F69-2ABA-43A7-8837-9521F9448BD1}"
 	ProjectSection(SolutionItems) = preProject
 		Infrastructure\function-application-insights.bicep = Infrastructure\function-application-insights.bicep
+		Infrastructure\function-loganalytics.bicep = Infrastructure\function-loganalytics.bicep
 		Infrastructure\function-storage.bicep = Infrastructure\function-storage.bicep
 	EndProjectSection
 EndProject

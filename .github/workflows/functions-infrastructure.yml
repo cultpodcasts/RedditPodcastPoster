@@ -34,10 +34,17 @@ jobs:
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/function-storage.bicep
         parameters: 'location=${{ env.LOCATION }}'
-    - name: Application Insights
+    - name: Log Analytics
       uses: Azure/arm-deploy@v2
       with:
-        deploymentName: ai-${{ github.run_number }}
+        deploymentName: storage-${{ github.run_number }}
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-        template: ./Infrastructure/function-application-insights.bicep
+        template: ./Infrastructure/function-loganalytics.bicep
         parameters: 'location=${{ env.LOCATION }}'
+    # - name: Application Insights
+    #   uses: Azure/arm-deploy@v2
+    #   with:
+    #     deploymentName: ai-${{ github.run_number }}
+    #     resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+    #     template: ./Infrastructure/function-application-insights.bicep
+    #     parameters: 'location=${{ env.LOCATION }}'
