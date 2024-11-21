@@ -24,6 +24,6 @@ jobs:
     - uses: Azure/arm-deploy@v2
       with:
         deploymentName: ${{ github.run_number }}
-        resourceGroupName: ${{ env.DEPLOYMENT_ResourceGroup_Name }}
+        resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/api.bicep
         parameters: environmentType=${{ env.ENVIRONMENT }}
