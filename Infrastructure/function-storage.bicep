@@ -23,3 +23,6 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
     defaultToOAuthAuthentication: true
   }
 }
+
+output storageAccountName string = storageAccountName
+output key string = storageAccount.listKeys().keys[0].value

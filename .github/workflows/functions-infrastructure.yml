@@ -15,25 +15,38 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  checkout:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Print Resource Group
-      run: echo "Resource-group $DEPLOYMENT_RESOURCEGROUP_NAME"
+  connect:
+    runs-on: ubuntu-latest
+    steps:
     - name: Azure Login
       uses: Azure/login@v2.2.0            
       with:
         client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+  createStorage:
+    runs-on: ubuntu-latest
+    outputs:
+        storageAccountName: storageAccountName
+        storageAccountKey: key
+    steps:
     - name: Storage
+      id: storage
       uses: Azure/arm-deploy@v2
       with:
         deploymentName: storage-${{ github.run_number }}
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/function-storage.bicep
         parameters: 'location=${{ env.LOCATION }}'
+  createApplicationInsights:
+    runs-on: ubuntu-latest
+    outputs:
+        instrumentationKey: instrumentationKey
+    steps:
     - name: Application Insights
       uses: Azure/arm-deploy@v2
       with:
@@ -41,3 +54,24 @@ jobs:
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/function-application-insights.bicep
         parameters: 'location=${{ env.LOCATION }}'
+  createFunction1:
+    runs-on: ubuntu-latest
+    needs: [createStorage, createApplicationInsights]
+    steps:
+    - name: Function 1
+      uses: Azure/arm-deploy@v2
+      with:
+        deploymentName: fn1-${{ github.run_number }}
+        resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+        template: ./Infrastructure/function.bicep
+        parameters: 'location=${{ env.LOCATION }} name=Function1 runtime=dotnet, storageAccountName=needs.createStorage.outputs.storageAccountName, storageAccountKey=needs.createStorage.outputs.storageAccountKey, instrumentationKey=needs.createApplicationInsights.outputs.instrumentationKey'
+  createFunction2:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Function 2
+      uses: Azure/arm-deploy@v2
+      with:
+        deploymentName: fn2-${{ github.run_number }}
+        resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+        template: ./Infrastructure/function.bicep
+        parameters: 'location=${{ env.LOCATION }} name=Function2 runtime=dotnet, storageAccountName=needs.createStorage.outputs.storageAccountName, storageAccountKey=needs.createStorage.outputs.storageAccountKey, instrumentationKey=needs.createApplicationInsights.outputs.instrumentationKey'
