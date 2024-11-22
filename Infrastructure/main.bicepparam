@@ -6,5 +6,9 @@ param storageName = 'cultpodcastsstg'
 param runtime = 'dotnet-isolated'
 
 param apiSettings = {
-	NewVal:	'Phoey'
+	api__Endpoint:	'https://api.cultpodcasts.com'
+	auth0__Audience: 'https://api.cultpodcasts.com/'
+	auth0__Domain: 'cultpodcasts.uk.auth0.com'
+	auth0__Issuer: 'https://cultpodcasts.uk.auth0.com/'
+	auth0client__Audience: 'https://api.cultpodcasts.com/'
 }
