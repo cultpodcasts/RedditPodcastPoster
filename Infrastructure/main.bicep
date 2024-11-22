@@ -54,7 +54,7 @@ module apiFunctionAppSetings 'app-settings.bicep' = {
     appSettings: {
       'Foo': 'Bar'
     }
-    name: apiFunction.outputs.name
+    functionName: apiFunction.outputs.name
   }
 }
 
