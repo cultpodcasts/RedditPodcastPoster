@@ -4,7 +4,7 @@ param functionName string
 
 var appSettingsKey= '${functionName}/appSettings'
 
-resource siteconfig 'Microsoft.Web/sites/config@2024-04-01' = {
+resource siteconfig 'Microsoft.Web/config/appsettings@2024-04-01' = {
   name: appSettingsKey
   properties: union(currentAppSettings, appSettings)
 }
