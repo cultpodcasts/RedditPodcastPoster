@@ -32,4 +32,4 @@ jobs:
         deploymentName: storage-${{ github.run_number }}
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/main.bicep
-        parameters: 'location=${{ env.LOCATION }} suffix=infra storageName=cultpodcastsstorage runtime=dotnet-isolated'
+        parameters: 'location=${{ env.LOCATION }} suffix=infra storageName=cultpodcastsstg runtime=dotnet-isolated'
