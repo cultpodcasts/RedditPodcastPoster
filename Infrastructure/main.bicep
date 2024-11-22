@@ -32,10 +32,10 @@ module applicationInsights 'function-application-insights.bicep' = {
   }
 }
 
-module function1 'function.bicep' = {
-  name: 'function1Deployment'
+module apiFunction 'function.bicep' = {
+  name: 'apiFunctionDeployment'
   params: {
-    name: 'function1'
+    name: 'api'
     location: location
     instrumentationKey: applicationInsights.outputs.instrumentationKey
     storageAccountName: storage.outputs.storageAccountName
@@ -46,10 +46,24 @@ module function1 'function.bicep' = {
   }
 }
 
-module function2 'function.bicep' = {
-  name: 'function2Deployment'
+module discoveryFunction 'function.bicep' = {
+  name: 'discoveryFunctionDeployment'
   params: {
-    name: 'function2'
+    name: 'discover'
+    location: location
+    instrumentationKey: applicationInsights.outputs.instrumentationKey
+    storageAccountName: storage.outputs.storageAccountName
+    storageAccountId: storage.outputs.storageAccountId
+    runtime: runtime
+    suffix: suffix
+    publicNetworkAccess: false
+  }
+}
+
+module indexerFunction 'function.bicep' = {
+  name: 'indexerFunctionDeployment'
+  params: {
+    name: 'indexer'
     location: location
     instrumentationKey: applicationInsights.outputs.instrumentationKey
     storageAccountName: storage.outputs.storageAccountName
