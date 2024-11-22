@@ -47,7 +47,7 @@ module apiFunction 'function.bicep' = {
   }
 }
 
-model apiFunctionAppSetings 'app-settings.bicep' = {
+module apiFunctionAppSetings 'app-settings.bicep' = {
   name: 'apiFunctionAppSettings'
   params: {
     currentAppSettings: list('{apiFunction.id}/config/appsettings', '2020-12-01').properties
