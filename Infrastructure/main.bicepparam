@@ -7,6 +7,8 @@ param runtime = 'dotnet-isolated'
 
 param auth0ClientId= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Auth0-ClientId')
 param auth0ClientSecret= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Auth0-ClientSecret')
+param blueskyPassword= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Bluesky-Password')
+
 
 param apiSettings = {
 	api__Endpoint:	'https://api.cultpodcasts.com'
@@ -14,4 +16,8 @@ param apiSettings = {
 	auth0__Domain: 'cultpodcasts.uk.auth0.com'
 	auth0__Issuer: 'https://cultpodcasts.uk.auth0.com/'
 	auth0client__Audience: 'https://api.cultpodcasts.com/'
+	auth0client__Domain: 'cultpodcasts.uk.auth0.com'
+	bluesky__HashTag: 'Cult'
+	bluesky__Identifier: 'cultpodcasts.com'
+
 }

@@ -31,6 +31,9 @@ param auth0ClientId string
 @secure()
 param auth0ClientSecret string
 
+@secure
+param blueskyPassword string
+
 module storage 'function-storage.bicep' = {
   name: 'storageDeployment'
   params: {
@@ -62,6 +65,7 @@ module apiFunction 'function.bicep' = {
     appSettings: union({
         auth0client__ClientId: auth0ClientId
         auth0client__ClientSecret: auth0ClientSecret
+        bluesky__Password: blueskyPassword
     }, apiSettings)
   }
 }
