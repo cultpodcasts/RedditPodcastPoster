@@ -19,6 +19,12 @@ param runtime string
 @description('App-Settings for Api-Function')
 param apiSettings object = {}
 
+@description('App-Settings for Discover-Function')
+param discoverySettings object = {}
+
+@description('App-Settings for Indexer-Function')
+param indexerSettings object = {}
+
 module storage 'function-storage.bicep' = {
   name: 'storageDeployment'
   params: {
@@ -63,6 +69,7 @@ module discoveryFunction 'function.bicep' = {
     runtime: runtime
     suffix: suffix
     publicNetworkAccess: false
+    appSettings: discoverySettings
   }
 }
 
@@ -78,6 +85,7 @@ module indexerFunction 'function.bicep' = {
     runtime: runtime
     suffix: suffix
     publicNetworkAccess: false
+    appSettings: indexerSettings
   }
 }
 
