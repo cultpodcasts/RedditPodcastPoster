@@ -104,5 +104,3 @@ module functionAppSetings 'app-settings.bicep' = {
     functionName: functionApp.name
   }
 }
-
-output name string = functionAppName
