@@ -167,10 +167,6 @@ module apiFunction 'function.bicep' = {
         twitter__TwitterId: twitterTwitterId
         youtube__Applications__0__ApiKey: youTubeApiKey0
         youtube__Applications__1__ApiKey: youTubeApiKey1
-        youtube__Applications__2__ApiKey: youTubeApiKey2
-        youtube__Applications__3__ApiKey: youTubeApiKey3
-        youtube__Applications__4__ApiKey: youTubeApiKey4
-        youtube__Applications__5__ApiKey: youTubeApiKey5
     }, apiSettings)
   }
 }
@@ -187,8 +183,44 @@ module discoveryFunction 'function.bicep' = {
     runtime: runtime
     suffix: suffix
     publicNetworkAccess: false
-    appSettings: discoverySettings
-  }
+    appSettings: union({
+        auth0client__ClientId: auth0ClientId
+        auth0client__ClientSecret: auth0ClientSecret
+        bluesky__Password: blueskyPassword
+        cloudflare__AccountId: cloudflareAccountId
+        cloudflare__KVApiToken: cloudflareKVApiToken
+        cloudflare__ListsApiToken: cloudflareListsApiToken
+        cloudflare__R2AccessKey: cloudflareR2AccessKey
+        cloudflare__R2SecretKey: cloudflareR2SecretKey
+        cosmosdb__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken
+        cosmosdb__Endpoint: cosmosdbEndpoint
+        listenNotes__Key: listenNotesKey
+        pushSubscriptions__PrivateKey: pushSubscriptionsPrivateKey
+        pushSubscriptions__PublicKey: pushSubscriptionsPublicKey
+        reddit__AppId: redditAppId
+        reddit__AppSecret: redditAppSecret
+        reddit__RefreshToken: redditRefreshToken
+        redditAdmin__AppId: redditAdminAppId
+        redditAdmin__AppSecret: redditAdminAppSecret
+        redditAdmin__RefreshToken: redditAdminRefreshToken
+        searchIndex__Key: searchIndexKey
+        searchIndex__Url: searchIndexUrl
+        spotify__ClientId: spotifyClientId
+        spotify__ClientSecret: spotifyClientSecret
+        taddy__ApiKey: taddyApiKey
+        taddy__Userid: taddyUserId
+        textanalytics__ApiKey: textanalyticsApiKey
+        textanalytics__EndPoint: textanalyticsEndPoint
+        twitter__AccessToken: twitterAccessToken
+        twitter__AccessTokenSecret: twitterAccessTokenSecret
+        twitter__ConsumerKey: twitterConsumerKey
+        twitter__ConsumerSecret: twitterConsumerSecret
+        twitter__TwitterId: twitterTwitterId
+        youtube__Applications__0__ApiKey: youTubeApiKey2
+        youtube__Applications__1__ApiKey: youTubeApiKey3
+        youtube__Applications__2__ApiKey: youTubeApiKey4
+        youtube__Applications__3__ApiKey: youTubeApiKey5
+    }, discoverySettings)  }
 }
 
 module indexerFunction 'function.bicep' = {
@@ -203,7 +235,43 @@ module indexerFunction 'function.bicep' = {
     runtime: runtime
     suffix: suffix
     publicNetworkAccess: false
-    appSettings: indexerSettings
-  }
+    appSettings: union({
+        auth0client__ClientId: auth0ClientId
+        auth0client__ClientSecret: auth0ClientSecret
+        bluesky__Password: blueskyPassword
+        cloudflare__AccountId: cloudflareAccountId
+        cloudflare__KVApiToken: cloudflareKVApiToken
+        cloudflare__ListsApiToken: cloudflareListsApiToken
+        cloudflare__R2AccessKey: cloudflareR2AccessKey
+        cloudflare__R2SecretKey: cloudflareR2SecretKey
+        cosmosdb__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken
+        cosmosdb__Endpoint: cosmosdbEndpoint
+        listenNotes__Key: listenNotesKey
+        pushSubscriptions__PrivateKey: pushSubscriptionsPrivateKey
+        pushSubscriptions__PublicKey: pushSubscriptionsPublicKey
+        reddit__AppId: redditAppId
+        reddit__AppSecret: redditAppSecret
+        reddit__RefreshToken: redditRefreshToken
+        redditAdmin__AppId: redditAdminAppId
+        redditAdmin__AppSecret: redditAdminAppSecret
+        redditAdmin__RefreshToken: redditAdminRefreshToken
+        searchIndex__Key: searchIndexKey
+        searchIndex__Url: searchIndexUrl
+        spotify__ClientId: spotifyClientId
+        spotify__ClientSecret: spotifyClientSecret
+        taddy__ApiKey: taddyApiKey
+        taddy__Userid: taddyUserId
+        textanalytics__ApiKey: textanalyticsApiKey
+        textanalytics__EndPoint: textanalyticsEndPoint
+        twitter__AccessToken: twitterAccessToken
+        twitter__AccessTokenSecret: twitterAccessTokenSecret
+        twitter__ConsumerKey: twitterConsumerKey
+        twitter__ConsumerSecret: twitterConsumerSecret
+        twitter__TwitterId: twitterTwitterId
+        youtube__Applications__0__ApiKey: youTubeApiKey2
+        youtube__Applications__1__ApiKey: youTubeApiKey3
+        youtube__Applications__2__ApiKey: youTubeApiKey4
+        youtube__Applications__3__ApiKey: youTubeApiKey5
+    }, indexerSettings)  }  }
 }
 
