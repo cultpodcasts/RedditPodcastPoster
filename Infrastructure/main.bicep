@@ -220,7 +220,8 @@ module discoveryFunction 'function.bicep' = {
         youtube__Applications__1__ApiKey: youTubeApiKey3
         youtube__Applications__2__ApiKey: youTubeApiKey4
         youtube__Applications__3__ApiKey: youTubeApiKey5
-    }, discoverySettings)  }
+    }, discoverySettings)
+  }
 }
 
 module indexerFunction 'function.bicep' = {
@@ -272,7 +273,8 @@ module indexerFunction 'function.bicep' = {
         youtube__Applications__1__ApiKey: youTubeApiKey3
         youtube__Applications__2__ApiKey: youTubeApiKey4
         youtube__Applications__3__ApiKey: youTubeApiKey5
-    }, indexerSettings)  }  
+    }, indexerSettings)
+  }  
 }
 
 

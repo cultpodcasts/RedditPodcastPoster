@@ -111,7 +111,7 @@ param discoverySettings= {
 	discover__IgnoreTerms__4: 'Cult of the Lamp'
 	discover__IgnoreTerms__5: 'Cult of the Lumb'
 	discover__IgnoreTerms__6: 'Blue Oyster Cult'
-	discover__IgnoreTerms__7: 'Blue Öyster Cult'
+	discover__IgnoreTerms__7: 'Blue Ã–yster Cult'
 	discover__IgnoreTerms__8: 'Living Colour'
 	discover__IgnoreTerms__9: 'She Sells Sanctuary'
 	discover__IncludeListenNotes: 'true'
