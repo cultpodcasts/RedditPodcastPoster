@@ -44,7 +44,7 @@ jobs:
         operation: create
         name: bicep-${{ github.run_number }}
         scope: resourceGroup
-        subscription-id: $${{ secrets.AZURE_Subscription_ID }}
+        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/main.bicep
         parameters-file: ./Infrastructure/main.bicepparam
