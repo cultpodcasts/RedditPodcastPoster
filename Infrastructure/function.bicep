@@ -19,11 +19,11 @@ param storageAccountName string
 @description('Storage-account id')
 param storageAccountId string
 
-// @description('Application-Insights Instrumentation-Key for this Function')
-// param instrumentationKey string
+@description('Application-Insights Instrumentation-Key for this Function')
+param instrumentationKey string
 
-@description('Application-Insights Connection-String for this Function')
-param applicationInsightsConnectionString string
+// @description('Application-Insights Connection-String for this Function')
+// param applicationInsightsConnectionString string
 
 @description('Suffix to use for resources')
 param suffix string = uniqueString(resourceGroup().id)
