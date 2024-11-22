@@ -94,3 +94,4 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
 }
 
 output name string = functionAppName
+output id string = functionApp.id
