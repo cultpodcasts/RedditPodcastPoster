@@ -19,8 +19,8 @@ param storageAccountName string
 @description('Storage-account id')
 param storageAccountId string
 
-@description('Application-Insights Instrumentation-Key for this Function')
-param instrumentationKey string
+@description('Application-Insights Connection-String for this Function')
+param applicationInsightsConnectionString string
 
 @description('Suffix to use for resources')
 param suffix string = uniqueString(resourceGroup().id)
@@ -62,8 +62,8 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
       linuxFxVersion: 'DOTNET-ISOLATED|8.0'
       appSettings: [
         {
-          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-          value: instrumentationKey
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: applicationInsightsConnectionString
         }
         {
           name: 'AzureWebJobsStorage'
