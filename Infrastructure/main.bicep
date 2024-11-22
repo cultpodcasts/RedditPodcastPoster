@@ -16,6 +16,9 @@ param storageName string= 'storage${uniqueString(resourceGroup().id)}'
 ])
 param runtime string
 
+@description('App-Settings for Api-Function')
+param apiSettings object = {}
+
 module storage 'function-storage.bicep' = {
   name: 'storageDeployment'
   params: {
