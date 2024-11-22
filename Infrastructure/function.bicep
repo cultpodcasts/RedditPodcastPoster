@@ -65,8 +65,8 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
       linuxFxVersion: 'DOTNET-ISOLATED|8.0'
       appSettings: [
         {
-          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-          value: instrumentationKey
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: applicationInsightsConnectionString
         }
         {
           name: 'AzureWebJobsStorage'
