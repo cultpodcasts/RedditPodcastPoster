@@ -13,5 +13,5 @@ param apiSettings = {
 	auth0__Domain: 'cultpodcasts.uk.auth0.com'
 	auth0__Issuer: 'https://cultpodcasts.uk.auth0.com/'
 	auth0client__Audience: 'https://api.cultpodcasts.com/'
-	auth0client__ClientId: auth0ClientId
+	auth0client__ClientId: 'x'
 }
