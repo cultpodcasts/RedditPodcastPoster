@@ -31,7 +31,7 @@ param auth0ClientId string
 @secure()
 param auth0ClientSecret string
 
-@secure
+@secure()
 param blueskyPassword string
 
 module storage 'function-storage.bicep' = {
