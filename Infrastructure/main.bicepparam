@@ -25,8 +25,8 @@ param apiSettings = {
 	bluesky__WithEpisodeUrl: 'true'
 	cloudflare__BucketName: 'content'
 	cloudflare__FlairsKey: 'flairs'
-	cloudflare__HomepageKey: homepage
-	cloudflare__KVShortnerNamespaceId: 663cd5c74988404dafbf67e1e06b21e8
+	cloudflare__HomepageKey: 'homepage'
+	cloudflare__KVShortnerNamespaceId: '663cd5c74988404dafbf67e1e06b21e8'
 
 
 }
