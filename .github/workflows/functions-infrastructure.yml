@@ -24,11 +24,27 @@ jobs:
         client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
-    - name: Bicep
+    - name: Bicep (Validate)
       id: storage
-      uses: Azure/arm-deploy@v2
+      uses: azure/bicep-deploy@v1
       with:
-        deploymentName: storage-${{ github.run_number }}
-        resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-        template: ./Infrastructure/main.bicep
+        type: deployment
+        operation: create
+        name: storage-${{ github.run_number }}
+        scope: resourceGroup
+        subscription-id: $${{ secrets.AZURE_Subscription_ID }}
+        resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+        template-file: ./Infrastructure/main.bicep
+        parameters-file: ./Infrastructure/main.bicepparam
+    - name: Bicep (Deploy)
+      id: storage
+      uses: azure/bicep-deploy@v1
+      with:
+        type: deployment
+        operation: create
+        name: storage-${{ github.run_number }}
+        scope: resourceGroup
+        subscription-id: $${{ secrets.AZURE_Subscription_ID }}
+        resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+        template-file: ./Infrastructure/main.bicep
         parameters-file: ./Infrastructure/main.bicepparam
