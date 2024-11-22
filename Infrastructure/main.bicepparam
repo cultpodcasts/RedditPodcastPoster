@@ -1,4 +1,4 @@
-using './Infrastructure/main.bicep'
+using './main.bicep'
 
 param location=uksouth
 param suffix=infra
