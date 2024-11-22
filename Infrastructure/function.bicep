@@ -99,7 +99,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
 module functionAppSetings 'app-settings.bicep' = {
   name: 'functionAppSettings'
   params: {
-    currentAppSettings: list('${functionApp.id}/config/appsettings', '2024-04-01').properties
+    currentAppSettings: list('${functionApp.id}/config/appsettings', '2020-12-01'').properties
     appSettings: appSettings
     functionName: functionApp.name
   }
