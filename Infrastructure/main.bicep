@@ -56,7 +56,7 @@ module apiFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: true
     appSettings: union({
-        auth0client__Audience: auth0ClientId
+        auth0client__ClientId: auth0ClientId
     }, apiSettings)
   }
 }
