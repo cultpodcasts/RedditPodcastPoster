@@ -198,6 +198,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastru
 		Infrastructure\function-storage.bicep = Infrastructure\function-storage.bicep
 		Infrastructure\function.bicep = Infrastructure\function.bicep
 		Infrastructure\main.bicep = Infrastructure\main.bicep
+		Infrastructure\main.bicepparam = Infrastructure\main.bicepparam
 	EndProjectSection
 EndProject
 Global

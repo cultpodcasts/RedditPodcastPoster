@@ -8,7 +8,6 @@ on:
 
 env:
     DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
-    LOCATION: uksouth
 
 permissions:
   id-token: write
@@ -32,4 +31,4 @@ jobs:
         deploymentName: storage-${{ github.run_number }}
         resourceGroupName: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template: ./Infrastructure/main.bicep
-        parameters: 'location=${{ env.LOCATION }} suffix=infra storageName=cultpodcastsstg runtime=dotnet-isolated'
+        parameters-file: ./Infrastructure/main.bicepparam
