@@ -26,6 +26,7 @@ param discoverySettings object = {}
 param indexerSettings object = {}
 
 param auth0ClientId string
+param auth0ClientSecret string
 
 module storage 'function-storage.bicep' = {
   name: 'storageDeployment'
@@ -57,6 +58,7 @@ module apiFunction 'function.bicep' = {
     publicNetworkAccess: true
     appSettings: union({
         auth0client__ClientId: auth0ClientId
+        auth0client__ClientSecret: auth0ClientSecret
     }, apiSettings)
   }
 }
