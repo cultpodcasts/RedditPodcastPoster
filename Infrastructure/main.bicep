@@ -44,10 +44,7 @@ module apiFunction 'function.bicep' = {
     runtime: runtime
     suffix: suffix
     publicNetworkAccess: true
-    appSettings: {
-      Foo: 'Bar'
-      X: 'Y'
-    }
+    appSettings: apiSettings
   }
 }
 
