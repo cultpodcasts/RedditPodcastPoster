@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - main
+      - feature/fn-bicep
   workflow_dispatch:
 
 env:
@@ -45,6 +46,6 @@ jobs:
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'cultpodcasts-discovery'
+          app-name: 'discover-infra'
           slot-name: 'Production'
           package: '${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/output'

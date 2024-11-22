@@ -7,7 +7,7 @@ on:
   push:
     branches:
       - main
-      - feature/x-fn-bicep
+      - feature/fn-bicep
   workflow_dispatch:
 
 env:
@@ -46,7 +46,7 @@ jobs:
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'function1-infra'
+          app-name: 'api-infra'
           slot-name: 'Production'
           package: '${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/output'
           
