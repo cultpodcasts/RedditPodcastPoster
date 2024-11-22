@@ -8,6 +8,8 @@ on:
 
 env:
     DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
+    MANAGEMENT_RESOURCEGROUP_NAME: ${{ secrets.MANAGEMENT_RESOURCEGROUP_NAME }}
+    AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
 
 permissions:
   id-token: write
