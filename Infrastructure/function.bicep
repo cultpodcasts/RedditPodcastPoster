@@ -31,6 +31,9 @@ param suffix string = uniqueString(resourceGroup().id)
 @description('Enable public access')
 param publicNetworkAccess bool = false
 
+@description('App-Settings for the Function')
+param appSettings object
+
 var functionAppName = '${name}-${suffix}'
 var hostingPlanName = '${name}-plan-${suffix}'
 var functionWorkerRuntime = runtime
@@ -93,5 +96,13 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   }
 }
 
+module apiFunctionAppSetings 'app-settings.bicep' = {
+  name: 'apiFunctionAppSettings'
+  params: {
+    currentAppSettings: list('{functionApp.id}/config/appsettings', '2024-04-01').properties
+    appSettings: appSettings
+    functionName: apiFunction.outputs.name
+  }
+}
+
 output name string = functionAppName
-output id string = functionApp.id

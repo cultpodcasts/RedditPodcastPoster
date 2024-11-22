@@ -44,17 +44,9 @@ module apiFunction 'function.bicep' = {
     runtime: runtime
     suffix: suffix
     publicNetworkAccess: true
-  }
-}
-
-module apiFunctionAppSetings 'app-settings.bicep' = {
-  name: 'apiFunctionAppSettings'
-  params: {
-    currentAppSettings: list('${apiFunction.outputs.id}/config/appsettings', '2024-04-01').properties
     appSettings: {
       Foo: 'Bar'
     }
-    functionName: apiFunction.outputs.name
   }
 }
 
