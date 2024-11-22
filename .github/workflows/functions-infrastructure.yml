@@ -16,6 +16,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    continue-on-error: false
     steps:
     - uses: actions/checkout@v4
     - name: Azure Login

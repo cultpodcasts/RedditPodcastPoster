@@ -5,6 +5,6 @@ param suffix = 'infra'
 param storageName = 'cultpodcastsstg'
 param runtime = 'dotnet-isolated'
 
-param apiSettings object = {
+param apiSettings = {
 	NewVal:	'Phoey'
 }
