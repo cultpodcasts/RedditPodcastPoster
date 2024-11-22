@@ -45,7 +45,7 @@ param cosmosdbAuthKeyOrResourceToken string
 param cosmosdbEndpoint string
 @secure()
 param listenNotesKey string
-@secure
+@secure()
 param pushSubscriptionsPrivateKey string
 @secure()
 param pushSubscriptionsPublicKey string
@@ -85,7 +85,7 @@ param twitterAccessToken string
 param twitterAccessTokenSecret string
 @secure()
 param twitterConsumerKey string
-@secure
+@secure()
 param twitterConsumerSecret string
 @secure()
 param twitterTwitterId string
