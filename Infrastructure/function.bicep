@@ -32,7 +32,7 @@ param suffix string = uniqueString(resourceGroup().id)
 param publicNetworkAccess bool = false
 
 @description('App-Settings for the Function')
-param appSettings object
+param appSettings object = {}
 
 var functionAppName = '${name}-${suffix}'
 var hostingPlanName = '${name}-plan-${suffix}'
