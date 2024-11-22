@@ -46,6 +46,7 @@ module apiFunction 'function.bicep' = {
     publicNetworkAccess: true
     appSettings: {
       Foo: 'Bar'
+      X: 'Y'
     }
   }
 }
