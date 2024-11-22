@@ -6,5 +6,5 @@ param storageName = 'cultpodcastsstg'
 param runtime = 'dotnet-isolated'
 
 param apiSettings = {
-	Foo:	'Phoey'
+	NewVal:	'Phoey'
 }
