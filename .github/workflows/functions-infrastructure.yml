@@ -25,7 +25,7 @@ jobs:
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
     - name: Bicep (Validate)
-      id: storage
+      id: bicepvalidate
       uses: azure/bicep-deploy@v1
       with:
         type: deployment
@@ -37,7 +37,7 @@ jobs:
         template-file: ./Infrastructure/main.bicep
         parameters-file: ./Infrastructure/main.bicepparam
     - name: Bicep (Deploy)
-      id: storage
+      id: bicepdeploy
       uses: azure/bicep-deploy@v1
       with:
         type: deployment
