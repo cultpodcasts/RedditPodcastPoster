@@ -34,6 +34,15 @@ param auth0ClientSecret string
 @secure()
 param blueskyPassword string
 
+@secure()
+param cloudflareAccountId string
+
+@secure()
+param cloudflareKVApiToken string
+
+@secure()
+param cloudflareListsApiToken string
+
 module storage 'function-storage.bicep' = {
   name: 'storageDeployment'
   params: {
@@ -66,6 +75,9 @@ module apiFunction 'function.bicep' = {
         auth0client__ClientId: auth0ClientId
         auth0client__ClientSecret: auth0ClientSecret
         bluesky__Password: blueskyPassword
+        cloudflare__AccountId: cloudflareAccountId
+        cloudflare__KVApiToken: cloudflareKVApiToken
+        cloudflare__ListsApiToken: cloudflareListsApiToken
     }, apiSettings)
   }
 }
