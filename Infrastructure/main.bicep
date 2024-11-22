@@ -37,8 +37,8 @@ module apiFunction 'function.bicep' = {
   params: {
     name: 'api'
     location: location
-    instrumentationKey: applicationInsights.outputs.instrumentationKey
-    // applicationInsightsConnectionString: applicationInsights.outputs.connectionString
+    // instrumentationKey: applicationInsights.outputs.instrumentationKey
+    applicationInsightsConnectionString: applicationInsights.outputs.connectionString
     storageAccountName: storage.outputs.storageAccountName
     storageAccountId: storage.outputs.storageAccountId
     runtime: runtime
@@ -47,13 +47,24 @@ module apiFunction 'function.bicep' = {
   }
 }
 
+model apiFunctionAppSetings 'app-settings.bicep' = {
+  name: 'apiFunctionAppSettings'
+  params: {
+    currentAppSettings: list('{apiFunction.id}/config/appsettings', '2020-12-01').properties
+    appSettings: {
+      'Foo': 'Bar'
+    }
+    name: apiFunction.outputs.name
+  }
+}
+
 module discoveryFunction 'function.bicep' = {
   name: 'discoveryFunctionDeployment'
   params: {
     name: 'discover'
     location: location
-    instrumentationKey: applicationInsights.outputs.instrumentationKey
-    // applicationInsightsConnectionString: applicationInsights.outputs.connectionString
+    // instrumentationKey: applicationInsights.outputs.instrumentationKey
+    applicationInsightsConnectionString: applicationInsights.outputs.connectionString
     storageAccountName: storage.outputs.storageAccountName
     storageAccountId: storage.outputs.storageAccountId
     runtime: runtime
@@ -67,8 +78,8 @@ module indexerFunction 'function.bicep' = {
   params: {
     name: 'indexer'
     location: location
-    instrumentationKey: applicationInsights.outputs.instrumentationKey
-    // applicationInsightsConnectionString: applicationInsights.outputs.connectionString
+    // instrumentationKey: applicationInsights.outputs.instrumentationKey
+    applicationInsightsConnectionString: applicationInsights.outputs.connectionString
     storageAccountName: storage.outputs.storageAccountName
     storageAccountId: storage.outputs.storageAccountId
     runtime: runtime

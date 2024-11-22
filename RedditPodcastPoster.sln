@@ -61,8 +61,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{A6E1AF4E-16F3-424B-844A-4576869047DF}"
 	ProjectSection(SolutionItems) = preProject
 		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
-		.github\workflows\main_api-cultpodcasts.yml = .github\workflows\main_api-cultpodcasts.yml
 		.github\workflows\functions-infrastructure.yml = .github\workflows\functions-infrastructure.yml
+		.github\workflows\main_api-cultpodcasts.yml = .github\workflows\main_api-cultpodcasts.yml
 		.github\workflows\main_discover-cultpodcasts.yml = .github\workflows\main_discover-cultpodcasts.yml
 		.github\workflows\main_indexer-cultpodcasts.yml = .github\workflows\main_indexer-cultpodcasts.yml
 	EndProjectSection
@@ -193,6 +193,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LaunchSettingsToAppSettings
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{991D2F69-2ABA-43A7-8837-9521F9448BD1}"
 	ProjectSection(SolutionItems) = preProject
+		Infrastructure\app-settings.bicep = Infrastructure\app-settings.bicep
 		Infrastructure\function-application-insights.bicep = Infrastructure\function-application-insights.bicep
 		Infrastructure\function-storage.bicep = Infrastructure\function-storage.bicep
 		Infrastructure\function.bicep = Infrastructure\function.bicep
