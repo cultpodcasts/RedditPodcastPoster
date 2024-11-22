@@ -52,7 +52,7 @@ module apiFunctionAppSetings 'app-settings.bicep' = {
   params: {
     currentAppSettings: list('{apiFunction.id}/config/appsettings', '2024-04-01').properties
     appSettings: {
-      'Foo': 'Bar'
+      Foo: 'Bar'
     }
     functionName: apiFunction.outputs.name
   }
