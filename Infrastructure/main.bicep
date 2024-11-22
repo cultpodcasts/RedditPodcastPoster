@@ -74,7 +74,7 @@ param spotifyClientSecret string
 @secure()
 param taddyApiKey string
 @secure()
-param taddy__Userid string
+param taddyUserId string
 @secure()
 param textanalyticsApiKey string
 @secure()
@@ -157,7 +157,7 @@ module apiFunction 'function.bicep' = {
         spotify__ClientId: spotifyClientId
         spotify__ClientSecret: spotifyClientSecret
         taddy__ApiKey: taddyApiKey
-        taddy__Userid: taddyUserid
+        taddy__Userid: taddyUserId
         textanalytics__ApiKey: textanalyticsApiKey
         textanalytics__EndPoint: textanalyticsEndPoint
         twitter__AccessToken: twitterAccessToken
