@@ -5,7 +5,7 @@ param suffix = 'infra'
 param storageName = 'cultpodcastsstg'
 param runtime = 'dotnet-isolated'
 
-var auth0ClientId= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), 'MANAGEMENT', 'cultpodcasts-keyvault', 'Auth0-ClientId')
+var auth0ClientId= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), 'Management', 'cultpodcasts-keyvault', 'Auth0-ClientId')
 
 param apiSettings = {
 	api__Endpoint:	'https://api.cultpodcasts.com'
