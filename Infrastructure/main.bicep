@@ -25,7 +25,10 @@ param discoverySettings object = {}
 @description('App-Settings for Indexer-Function')
 param indexerSettings object = {}
 
+@secure()
 param auth0ClientId string
+
+@secure()
 param auth0ClientSecret string
 
 module storage 'function-storage.bicep' = {
