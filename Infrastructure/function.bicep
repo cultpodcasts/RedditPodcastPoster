@@ -96,12 +96,12 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   }
 }
 
-module apiFunctionAppSetings 'app-settings.bicep' = {
-  name: 'apiFunctionAppSettings'
+module functionAppSetings 'app-settings.bicep' = {
+  name: 'functionAppSettings'
   params: {
     currentAppSettings: list('{functionApp.id}/config/appsettings', '2024-04-01').properties
     appSettings: appSettings
-    functionName: apiFunction.outputs.name
+    functionName: functionApp.name
   }
 }
 
