@@ -13,7 +13,7 @@ env:
     storageName: cultpodcastsstg
     suffix: infra
     location: uksouth
-    functionState: stop
+    functionState: xxx
 
 permissions:
   id-token: write
