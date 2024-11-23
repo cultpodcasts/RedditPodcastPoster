@@ -38,7 +38,7 @@ jobs:
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/function-storage.bicep
-        parameters: '{"location":"uksouth", "storageName":"cultpodcastsstg}"}'
+        parameters: '{"location":"uksouth", "storageName":"cultpodcastsstg"}'
     - name: Bicep Storage (Deploy)
       id: bicepstoragedeploy
       uses: azure/bicep-deploy@v1
@@ -50,7 +50,7 @@ jobs:
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/function-storage.bicep
-        parameters: '{"location":"uksouth", "storageName":"cultpodcastsstg}"}'
+        parameters: '{"location":"uksouth", "storageName":"cultpodcastsstg"}'
     - name: Bicep Main (Validate)
       id: bicepmainvalidate
       uses: azure/bicep-deploy@v1
