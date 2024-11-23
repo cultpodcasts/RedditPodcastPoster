@@ -20,13 +20,14 @@ public class EmbedCardRequestFactory(
         BlueskyEmbedCardPost embedPost)
     {
         EmbedCardRequest? embedCardRequest = null;
+        var indexingContext = new IndexingContext();
         switch (embedPost.UrlService)
         {
             case Service.YouTube:
             {
                 var video = await youTubeVideoService.GetVideoContentDetails(
                     [podcastEpisode.Episode.YouTubeId],
-                    new IndexingContext(), true);
+                    indexingContext, true);
                 if (video?.FirstOrDefault() != null)
                 {
                     embedCardRequest = new EmbedCardRequest(
@@ -39,6 +40,11 @@ public class EmbedCardRequestFactory(
                     logger.LogInformation(
                         $"Youtube-thumbnail for youtube-video-id '{podcastEpisode.Episode.YouTubeId}' found '{embedCardRequest.ThumbUrl}'.");
                 }
+                else
+                {
+                    logger.LogError(
+                        $"Unable to find video for bluesky-thumbnail with id '{podcastEpisode.Episode.YouTubeId}'. {nameof(indexingContext.SkipYouTubeUrlResolving)}= '{indexingContext.SkipYouTubeUrlResolving}'.");
+                }
 
                 break;
             }
@@ -46,7 +52,7 @@ public class EmbedCardRequestFactory(
             {
                 var episode = await spotifyEpisodeResolver.FindEpisode(
                     FindSpotifyEpisodeRequestFactory.Create(podcastEpisode.Podcast, podcastEpisode.Episode),
-                    new IndexingContext());
+                    indexingContext);
                 if (episode.FullEpisode != null)
                 {
                     embedCardRequest = new EmbedCardRequest(
