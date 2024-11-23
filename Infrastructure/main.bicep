@@ -5,7 +5,7 @@ param location string = resourceGroup().location
 param suffix string = uniqueString(resourceGroup().id)
 
 @description('Name for the Storage Account')
-param storageName string= 'storage${uniqueString(resourceGroup().id)}'
+param storageName
 
 @description('Runtime for the Functions')
 @allowed([
@@ -102,13 +102,8 @@ param youTubeApiKey4 string
 @secure()
 param youTubeApiKey5 string
 
-
-module storage 'function-storage.bicep' = {
-  name: 'storageDeployment'
-  params: {
-    location: location
-    storageName: storageName
-  }
+resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' existing = {
+  name: storageName
 }
 
 module applicationInsights 'function-application-insights.bicep' = {
@@ -126,8 +121,8 @@ module apiFunction 'function.bicep' = {
     location: location
     // instrumentationKey: applicationInsights.outputs.instrumentationKey
     applicationInsightsConnectionString: applicationInsights.outputs.connectionString
-    storageAccountName: storage.outputs.storageAccountName
-    storageAccountId: storage.outputs.storageAccountId
+    storageAccountName: storage.name
+    storageAccountId: storage.id
     runtime: runtime
     suffix: suffix
     publicNetworkAccess: true
@@ -178,8 +173,8 @@ module discoveryFunction 'function.bicep' = {
     location: location
     // instrumentationKey: applicationInsights.outputs.instrumentationKey
     applicationInsightsConnectionString: applicationInsights.outputs.connectionString
-    storageAccountName: storage.outputs.storageAccountName
-    storageAccountId: storage.outputs.storageAccountId
+    storageAccountName: storage.name
+    storageAccountId: storage.id
     runtime: runtime
     suffix: suffix
     publicNetworkAccess: false
@@ -231,8 +226,8 @@ module indexerFunction 'function.bicep' = {
     location: location
     // instrumentationKey: applicationInsights.outputs.instrumentationKey
     applicationInsightsConnectionString: applicationInsights.outputs.connectionString
-    storageAccountName: storage.outputs.storageAccountName
-    storageAccountId: storage.outputs.storageAccountId
+    storageAccountName: storage.name
+    storageAccountId: storage.id
     runtime: runtime
     suffix: suffix
     publicNetworkAccess: false

@@ -27,7 +27,31 @@ jobs:
         client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
-    - name: Bicep (Validate)
+    - name: Bicep Storage (Validate)
+      id: bicepvalidate
+      uses: azure/bicep-deploy@v1
+      with:
+        type: deployment
+        operation: validate
+        name: bicep-validate-${{ github.run_number }}
+        scope: resourceGroup
+        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+        resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+        template-file: ./Infrastructure/function-storage.bicep
+        parameters: 'location=uksouth storageName=cultpodcastsstg'
+    - name: Bicep Storage (Deploy)
+      id: bicepdeploy
+      uses: azure/bicep-deploy@v1
+      with:
+        type: deployment
+        operation: create
+        name: bicep-${{ github.run_number }}
+        scope: resourceGroup
+        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+        resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+        template-file: ./Infrastructure/function-storage.bicep
+        parameters: 'location=uksouth storageName=cultpodcastsstg'
+    - name: Bicep Main (Validate)
       id: bicepvalidate
       uses: azure/bicep-deploy@v1
       with:
@@ -39,7 +63,7 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/main.bicep
         parameters-file: ./Infrastructure/main.bicepparam
-    - name: Bicep (Deploy)
+    - name: Bicep Main (Deploy)
       id: bicepdeploy
       uses: azure/bicep-deploy@v1
       with:
