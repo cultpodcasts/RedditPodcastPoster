@@ -65,8 +65,8 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   name: functionAppName
   location: location
   kind: 'functionapp,linux'
+  state: functionState
   properties: {
-    state: functionState
     reserved: true
     httpsOnly: true
     publicNetworkAccess: publicNetworkAccess?'Enabled':null
