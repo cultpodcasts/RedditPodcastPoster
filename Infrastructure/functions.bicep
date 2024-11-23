@@ -170,7 +170,7 @@ module discoveryFunction 'function.bicep' = {
   params: {
     name: 'discover'
     location: location
-    functionState: functionState
+    functionRunning: functionRunning
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
     storageAccountId: storage.id
@@ -223,7 +223,7 @@ module indexerFunction 'function.bicep' = {
   params: {
     name: 'indexer'
     location: location
-    functionState: functionState
+    functionRunning: functionRunning
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
     storageAccountId: storage.id
