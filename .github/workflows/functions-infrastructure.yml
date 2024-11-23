@@ -28,7 +28,7 @@ jobs:
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
     - name: Bicep Storage (Validate)
-      id: bicepvalidate
+      id: bicepstoragevalidate
       uses: azure/bicep-deploy@v1
       with:
         type: deployment
@@ -40,7 +40,7 @@ jobs:
         template-file: ./Infrastructure/function-storage.bicep
         parameters: 'location=uksouth storageName=cultpodcastsstg'
     - name: Bicep Storage (Deploy)
-      id: bicepdeploy
+      id: bicepstoragedeploy
       uses: azure/bicep-deploy@v1
       with:
         type: deployment
@@ -52,7 +52,7 @@ jobs:
         template-file: ./Infrastructure/function-storage.bicep
         parameters: 'location=uksouth storageName=cultpodcastsstg'
     - name: Bicep Main (Validate)
-      id: bicepvalidate
+      id: bicepmainvalidate
       uses: azure/bicep-deploy@v1
       with:
         type: deployment
@@ -64,7 +64,7 @@ jobs:
         template-file: ./Infrastructure/main.bicep
         parameters-file: ./Infrastructure/main.bicepparam
     - name: Bicep Main (Deploy)
-      id: bicepdeploy
+      id: bicepmaindeploy
       uses: azure/bicep-deploy@v1
       with:
         type: deployment
