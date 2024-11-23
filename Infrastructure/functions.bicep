@@ -16,12 +16,8 @@ param storageName string
 ])
 param runtime string
 
-@description('State for the function app.')
-@allowed([
-  'Stopped'
-  'Running'
-])
-param functionState string
+@description('Running-state for the function app.')
+param functionRunning boolean
 
 @description('App-Settings for Api-Function')
 param apiSettings object = {}
@@ -122,7 +118,7 @@ module apiFunction 'function.bicep' = {
   params: {
     name: 'api'
     location: location
-    functionState: functionState
+    functionRunning: functionRunning
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
     storageAccountId: storage.id

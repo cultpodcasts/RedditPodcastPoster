@@ -13,7 +13,7 @@ env:
     storageName: cultpodcastsstg
     suffix: infra
     location: uksouth
-    functionState: Stopped
+    functionRunninState: false
 
 permissions:
   id-token: write
@@ -67,7 +67,7 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/functions.bicep
         parameters-file: ./Infrastructure/functions.bicepparam
-        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "functionState":"${{ env.functionState }}"}'
+        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "functionRunning":"${{ env.functionRunningState }}"}'
 
     - name: Storage (Deploy Bicep)
       id: bicepstoragedeploy
@@ -105,4 +105,4 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/functions.bicep
         parameters-file: ./Infrastructure/functions.bicepparam
-        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "functionState":"${{ env.functionState }}"}'
+        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "functionRunning":"${{ env.functionRunningState }}"}'
