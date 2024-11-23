@@ -4,6 +4,13 @@ param name string
 @description('Location for the function app.')
 param location string
 
+@description('State for the function app.')
+@allowed([
+  'Stopped'
+  'Running'
+])
+param state string
+
 @description('The language worker runtime to load in the function app.')
 @allowed([
   'dotnet-isolated'
@@ -65,6 +72,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
     serverFarmId: hostingPlan.id
     siteConfig: {
       functionAppScaleLimit: 1
+      state: state
       linuxFxVersion: 'DOTNET-ISOLATED|8.0'
       appSettings: [
         {

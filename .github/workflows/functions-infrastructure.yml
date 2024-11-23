@@ -13,6 +13,7 @@ env:
     storageName: cultpodcastsstg
     suffix: infra
     location: uksouth
+    functionState: Stopped
 
 permissions:
   id-token: write
@@ -55,18 +56,18 @@ jobs:
         template-file: ./Infrastructure/function-application-insights.bicep
         parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}"}'
     - name: Functions (Validate Bicep)
-      id: bicepmainvalidate
+      id: bicepfunctionsvalidate
       uses: azure/bicep-deploy@v1
       with:
         type: deployment
         operation: validate
-        name: bicep-validate-main-${{ github.run_number }}
+        name: bicep-validate-functions-${{ github.run_number }}
         scope: resourceGroup
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-        template-file: ./Infrastructure/main.bicep
-        parameters-file: ./Infrastructure/main.bicepparam
-        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}"}'
+        template-file: ./Infrastructure/functions.bicep
+        parameters-file: ./Infrastructure/functions.bicepparam
+        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "state":"${{ env.functionState }}"}'
 
     - name: Storage (Deploy Bicep)
       id: bicepstoragedeploy
@@ -93,15 +94,15 @@ jobs:
         template-file: ./Infrastructure/function-application-insights.bicep
         parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}"}'
     - name: Functions (Deploy Bicep)
-      id: bicepmaindeploy
+      id: bicepfunctionsdeploy
       uses: azure/bicep-deploy@v1
       with:
         type: deployment
         operation: create
-        name: bicep-main-${{ github.run_number }}
+        name: bicep-functions-${{ github.run_number }}
         scope: resourceGroup
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-        template-file: ./Infrastructure/main.bicep
-        parameters-file: ./Infrastructure/main.bicepparam
-        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}"}'
+        template-file: ./Infrastructure/functions.bicep
+        parameters-file: ./Infrastructure/functions.bicepparam
+        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "state":"${{ env.functionState }}"}'

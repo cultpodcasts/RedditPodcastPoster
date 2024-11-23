@@ -197,8 +197,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastru
 		Infrastructure\function-application-insights.bicep = Infrastructure\function-application-insights.bicep
 		Infrastructure\function-storage.bicep = Infrastructure\function-storage.bicep
 		Infrastructure\function.bicep = Infrastructure\function.bicep
-		Infrastructure\main.bicep = Infrastructure\main.bicep
-		Infrastructure\main.bicepparam = Infrastructure\main.bicepparam
+		Infrastructure\functions.bicep = Infrastructure\functions.bicep
+		Infrastructure\functions.bicepparam = Infrastructure\functions.bicepparam
 	EndProjectSection
 EndProject
 Global

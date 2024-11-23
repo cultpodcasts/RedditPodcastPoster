@@ -1,4 +1,4 @@
-using './main.bicep'
+using './functions.bicep'
 
 param runtime = 'dotnet-isolated'
 

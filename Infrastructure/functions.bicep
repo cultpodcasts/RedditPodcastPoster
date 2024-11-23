@@ -16,6 +16,13 @@ param storageName string
 ])
 param runtime string
 
+@description('State for the function app.')
+@allowed([
+  'Stopped'
+  'Running'
+])
+param state string
+
 @description('App-Settings for Api-Function')
 param apiSettings object = {}
 @description('App-Settings for Discover-Function')
@@ -112,6 +119,7 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
 
 module apiFunction 'function.bicep' = {
   name: '${deployment().name}-api'
+  state: state
   params: {
     name: 'api'
     location: location
@@ -163,6 +171,7 @@ module apiFunction 'function.bicep' = {
 
 module discoveryFunction 'function.bicep' = {
   name: '${deployment().name}-discover'
+  state: state
   params: {
     name: 'discover'
     location: location
@@ -216,6 +225,7 @@ module discoveryFunction 'function.bicep' = {
 
 module indexerFunction 'function.bicep' = {
   name: '${deployment().name}-indexer'
+  state: state
   params: {
     name: 'indexer'
     location: location
