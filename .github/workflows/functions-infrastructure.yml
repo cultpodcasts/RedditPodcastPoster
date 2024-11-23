@@ -13,7 +13,7 @@ env:
     storageName: cultpodcastsstg
     suffix: infra
     location: uksouth
-    functionRunning: 'true'
+    functionRunning: 'false'
 
 permissions:
   id-token: write
@@ -25,12 +25,14 @@ jobs:
     continue-on-error: false
     steps:
     - uses: actions/checkout@v4
+  
     - name: Azure Login
       uses: Azure/login@v2.2.0            
       with:
         client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+
     - name: Storage (Validate Bicep)
       id: bicepstoragevalidate
       uses: azure/bicep-deploy@v1
