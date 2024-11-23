@@ -4,8 +4,8 @@ param name string
 @description('Location for the function app.')
 param location string
 
-@description('Running-state for the function app.')
-param functionRunning bool
+@description('Enabled-state for the function app.')
+param functionEnabled bool
 
 @description('The language worker runtime to load in the function app.')
 @allowed([
@@ -62,7 +62,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   location: location
   kind: 'functionapp,linux'
   properties: {
-    enabled: functionRunning 
+    enabled: functionEnabled
     reserved: true
     httpsOnly: true
     publicNetworkAccess: publicNetworkAccess?'Enabled':null
