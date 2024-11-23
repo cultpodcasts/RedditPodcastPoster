@@ -106,7 +106,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' existing = {
   name: storageName
 }
 
-resource applicationInsights 'fMicrosoft.Insights/components@2020-02-02' existing = {
+resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing = {
   name: 'loganalytics-${suffix}'
 }
 
