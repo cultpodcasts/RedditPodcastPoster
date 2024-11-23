@@ -9,7 +9,7 @@ param location string
   'Stopped'
   'Running'
 ])
-param state string
+param functionState string
 
 @description('The language worker runtime to load in the function app.')
 @allowed([
@@ -66,13 +66,13 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   location: location
   kind: 'functionapp,linux'
   properties: {
+    state: functionState
     reserved: true
     httpsOnly: true
     publicNetworkAccess: publicNetworkAccess?'Enabled':null
     serverFarmId: hostingPlan.id
     siteConfig: {
       functionAppScaleLimit: 1
-      state: state
       linuxFxVersion: 'DOTNET-ISOLATED|8.0'
       appSettings: [
         {
