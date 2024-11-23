@@ -16,9 +16,6 @@ param storageName string
 ])
 param runtime string
 
-@description('Enabled-state for the function app.')
-param functionEnabled bool
-
 @description('App-Settings for Api-Function')
 param apiSettings object = {}
 @description('App-Settings for Discover-Function')
@@ -169,7 +166,6 @@ module discoveryFunction 'function.bicep' = {
   params: {
     name: 'discover'
     location: location
-    functionEnabled: functionEnabled
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
     storageAccountId: storage.id
@@ -222,7 +218,6 @@ module indexerFunction 'function.bicep' = {
   params: {
     name: 'indexer'
     location: location
-    functionEnabled: functionEnabled
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
     storageAccountId: storage.id
