@@ -110,7 +110,7 @@ jobs:
     #     parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}"}'
 
     - name: Stop Functions
-      if: env.functionRunning != true
+      if: env.functionRunning != 'true'
       uses: Azure/cli@v2.1.0
       with:
         azcliversion: latest
