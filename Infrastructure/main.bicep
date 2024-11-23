@@ -5,7 +5,7 @@ param location string = resourceGroup().location
 param suffix string = uniqueString(resourceGroup().id)
 
 @description('Name for the Storage Account')
-param storageName
+param storageName string
 
 @description('Runtime for the Functions')
 @allowed([
