@@ -118,3 +118,13 @@ jobs:
           az functionapp stop --name api-infra --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
           az functionapp stop --name indexer-infra --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
           az functionapp stop --name discover-infra --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+
+    - name: Start Functions
+      if: env.functionRunning == 'true'
+      uses: Azure/cli@v2.1.0
+      with:
+        azcliversion: latest
+        inlineScript: |
+          az functionapp stop --name api-infra --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+          az functionapp stop --name indexer-infra --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+          az functionapp stop --name discover-infra --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
