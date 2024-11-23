@@ -95,6 +95,7 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/main.bicep
         parameters-file: ./Infrastructure/main.bicepparam
+        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}"}'
     - name: Main (Deploy Bicep)
       id: bicepmaindeploy
       uses: azure/bicep-deploy@v1
@@ -107,3 +108,4 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/main.bicep
         parameters-file: ./Infrastructure/main.bicepparam
+        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}"}'

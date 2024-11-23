@@ -1,8 +1,5 @@
 using './main.bicep'
 
-param location = 'uksouth'
-param suffix = 'infra'
-param storageName = 'cultpodcastsstg'
 param runtime = 'dotnet-isolated'
 
 param auth0ClientId= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Auth0-ClientId')
