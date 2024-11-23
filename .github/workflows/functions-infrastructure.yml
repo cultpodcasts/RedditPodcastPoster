@@ -36,7 +36,7 @@ jobs:
       with:
         type: deployment
         operation: validate
-        name: bicep-validate-${{ github.run_number }}
+        name: bicep-validate-storage-${{ github.run_number }}
         scope: resourceGroup
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
@@ -48,7 +48,7 @@ jobs:
       with:
         type: deployment
         operation: create
-        name: bicep-${{ github.run_number }}
+        name: bicep-storage-${{ github.run_number }}
         scope: resourceGroup
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
@@ -63,7 +63,7 @@ jobs:
       with:
         type: deployment
         operation: validate
-        name: bicep-validate-${{ github.run_number }}
+        name: bicep-validate-appinsights-${{ github.run_number }}
         scope: resourceGroup
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
@@ -75,7 +75,7 @@ jobs:
       with:
         type: deployment
         operation: create
-        name: bicep-${{ github.run_number }}
+        name: bicep-appinsights-${{ github.run_number }}
         scope: resourceGroup
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
@@ -89,7 +89,7 @@ jobs:
       with:
         type: deployment
         operation: validate
-        name: bicep-validate-${{ github.run_number }}
+        name: bicep-validate-main-${{ github.run_number }}
         scope: resourceGroup
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
@@ -101,7 +101,7 @@ jobs:
       with:
         type: deployment
         operation: create
-        name: bicep-${{ github.run_number }}
+        name: bicep-main-${{ github.run_number }}
         scope: resourceGroup
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
