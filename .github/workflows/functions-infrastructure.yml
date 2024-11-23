@@ -3,7 +3,7 @@ name: Api-Infrastructure
 on:
   push:
     branches:
-      - feature/x-fn-bicep
+      - feature/infrastructure
   workflow_dispatch:
 
 env:
