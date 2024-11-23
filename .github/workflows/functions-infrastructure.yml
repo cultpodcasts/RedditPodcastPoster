@@ -27,7 +27,7 @@ jobs:
         client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
-    - name: Bicep Storage (Validate)
+    - name: Storage (Validate Bicep)
       id: bicepstoragevalidate
       uses: azure/bicep-deploy@v1
       with:
@@ -39,7 +39,7 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/function-storage.bicep
         parameters: '{"location":"uksouth", "storageName":"cultpodcastsstg"}'
-    - name: Bicep Storage (Deploy)
+    - name: Storage (Deploy Bicep)
       id: bicepstoragedeploy
       uses: azure/bicep-deploy@v1
       with:
@@ -51,7 +51,36 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/function-storage.bicep
         parameters: '{"location":"uksouth", "storageName":"cultpodcastsstg"}'
-    - name: Bicep Main (Validate)
+
+
+
+    - name: Application-Insights (Validate Bicep)
+      id: bicepappinsightsvalidate
+      uses: azure/bicep-deploy@v1
+      with:
+        type: deployment
+        operation: validate
+        name: bicep-validate-${{ github.run_number }}
+        scope: resourceGroup
+        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+        resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+        template-file: ./Infrastructure/function-application-insights.bicep
+        parameters: '{"location":"uksouth", "suffix":"infra"}'
+    - name: Application-Insights (Deploy Bicep)
+      id: bicepappinsightsdeploy
+      uses: azure/bicep-deploy@v1
+      with:
+        type: deployment
+        operation: create
+        name: bicep-${{ github.run_number }}
+        scope: resourceGroup
+        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+        resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+        template-file: ./Infrastructure/function-application-insights.bicep
+        parameters: '{"location":"uksouth", "suffix":"infra"}'
+
+
+    - name: Main (Validate Bicep)
       id: bicepmainvalidate
       uses: azure/bicep-deploy@v1
       with:
@@ -63,7 +92,7 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/main.bicep
         parameters-file: ./Infrastructure/main.bicepparam
-    - name: Bicep Main (Deploy)
+    - name: Main (Deploy Bicep)
       id: bicepmaindeploy
       uses: azure/bicep-deploy@v1
       with:

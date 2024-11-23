@@ -106,12 +106,8 @@ resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' existing = {
   name: storageName
 }
 
-module applicationInsights 'function-application-insights.bicep' = {
-  name: 'applicationInsightsDeployment'
-  params: {
-    location: location
-    suffix: suffix
-  }
+module applicationInsights 'fMicrosoft.Insights/components@2020-02-02' existing = {
+  name: 'loganalytics-${suffix}'
 }
 
 module apiFunction 'function.bicep' = {
@@ -119,8 +115,7 @@ module apiFunction 'function.bicep' = {
   params: {
     name: 'api'
     location: location
-    // instrumentationKey: applicationInsights.outputs.instrumentationKey
-    applicationInsightsConnectionString: applicationInsights.outputs.connectionString
+    applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
     storageAccountId: storage.id
     runtime: runtime
@@ -172,7 +167,7 @@ module discoveryFunction 'function.bicep' = {
     name: 'discover'
     location: location
     // instrumentationKey: applicationInsights.outputs.instrumentationKey
-    applicationInsightsConnectionString: applicationInsights.outputs.connectionString
+    applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
     storageAccountId: storage.id
     runtime: runtime
@@ -225,7 +220,7 @@ module indexerFunction 'function.bicep' = {
     name: 'indexer'
     location: location
     // instrumentationKey: applicationInsights.outputs.instrumentationKey
-    applicationInsightsConnectionString: applicationInsights.outputs.connectionString
+    applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
     storageAccountId: storage.id
     runtime: runtime
