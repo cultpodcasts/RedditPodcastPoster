@@ -119,10 +119,10 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
 
 module apiFunction 'function.bicep' = {
   name: '${deployment().name}-api'
-  functionState: functionState
   params: {
     name: 'api'
     location: location
+    functionState: functionState
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
     storageAccountId: storage.id
@@ -171,11 +171,10 @@ module apiFunction 'function.bicep' = {
 
 module discoveryFunction 'function.bicep' = {
   name: '${deployment().name}-discover'
-  functionState: functionState
   params: {
     name: 'discover'
     location: location
-    // instrumentationKey: applicationInsights.outputs.instrumentationKey
+    functionState: functionState
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
     storageAccountId: storage.id
@@ -225,11 +224,10 @@ module discoveryFunction 'function.bicep' = {
 
 module indexerFunction 'function.bicep' = {
   name: '${deployment().name}-indexer'
-  functionState: functionState
   params: {
     name: 'indexer'
     location: location
-    // instrumentationKey: applicationInsights.outputs.instrumentationKey
+    functionState: functionState
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
     storageAccountId: storage.id
