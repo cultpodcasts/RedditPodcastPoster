@@ -17,7 +17,7 @@ param storageName string
 param runtime string
 
 @description('Running-state for the function app.')
-param functionRunning boolean
+param functionRunning bool
 
 @description('App-Settings for Api-Function')
 param apiSettings object = {}

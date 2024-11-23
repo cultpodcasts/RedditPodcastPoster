@@ -5,7 +5,7 @@ param name string
 param location string
 
 @description('Running-state for the function app.')
-param functionRunning boolean
+param functionRunning bool
 
 @description('The language worker runtime to load in the function app.')
 @allowed([
