@@ -107,7 +107,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' existing = {
 }
 
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing = {
-  name: 'loganalytics-${suffix}'
+  name: 'ai-${suffix}'
 }
 
 module apiFunction 'function.bicep' = {
