@@ -111,7 +111,7 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
 }
 
 module apiFunction 'function.bicep' = {
-  name: 'apiFunctionDeployment'
+  name: '${deployment().name}-api'
   params: {
     name: 'api'
     location: location
@@ -162,7 +162,7 @@ module apiFunction 'function.bicep' = {
 }
 
 module discoveryFunction 'function.bicep' = {
-  name: 'discoveryFunctionDeployment'
+  name: '${deployment().name}-discover'
   params: {
     name: 'discover'
     location: location
@@ -215,7 +215,7 @@ module discoveryFunction 'function.bicep' = {
 }
 
 module indexerFunction 'function.bicep' = {
-  name: 'indexerFunctionDeployment'
+  name: '${deployment().name}-indexer'
   params: {
     name: 'indexer'
     location: location
