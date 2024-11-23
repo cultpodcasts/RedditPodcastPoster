@@ -118,7 +118,6 @@ module apiFunction 'function.bicep' = {
   params: {
     name: 'api'
     location: location
-    functionEnabled: functionEnabled
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
     storageAccountId: storage.id
