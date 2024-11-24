@@ -7,7 +7,7 @@ on:
   push:
     branches:
       - main
-      - feature/x-fn-bicep
+      - feature/fn-bicep
   workflow_dispatch:
 
 env:
