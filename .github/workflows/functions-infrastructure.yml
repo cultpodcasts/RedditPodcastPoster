@@ -3,7 +3,7 @@ name: Api-Infrastructure
 on:
   push:
     branches:
-      - feature/infrastructure
+      - feature/fn-bicep
   workflow_dispatch:
 
 env:
@@ -13,7 +13,7 @@ env:
     storageName: cultpodcastsstg
     suffix: infra
     location: uksouth
-    functionState: stop
+    functionState: start
 
 permissions:
   id-token: write
