@@ -9,7 +9,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeChannelResolver(
-    YouTubeService youTubeService,
+    YouTubeServiceWrapper youTubeService,
     ILogger<YouTubeChannelResolver> logger)
     : IYouTubeChannelResolver
 {
@@ -25,7 +25,7 @@ public class YouTubeChannelResolver(
         }
 
         mostRecentlyUploadVideoTitle = AlphaNumericOnly(mostRecentlyUploadVideoTitle);
-        var channelsListRequest = youTubeService.Search.List("snippet");
+        var channelsListRequest = youTubeService.YouTubeService.Search.List("snippet");
         channelsListRequest.Type = "channel";
         channelsListRequest.Fields = "items/snippet/channelId,items/snippet/channelTitle";
         channelsListRequest.Q = channelName;
@@ -37,14 +37,14 @@ public class YouTubeChannelResolver(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
+            logger.LogError(ex, $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
             indexingContext.SkipYouTubeUrlResolving = true;
             return null;
         }
 
         foreach (var searchResult in channelsListResponse.Items)
         {
-            var searchListRequest = youTubeService.Search.List("snippet");
+            var searchListRequest = youTubeService.YouTubeService.Search.List("snippet");
             searchListRequest.MaxResults = 1;
             searchListRequest.ChannelId = searchResult.Snippet.ChannelId;
             searchListRequest.PageToken = " "; // or searchListResponse.NextPageToken if paging
@@ -62,7 +62,7 @@ public class YouTubeChannelResolver(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
+                logger.LogError(ex, $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return null;
             }

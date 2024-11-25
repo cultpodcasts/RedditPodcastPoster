@@ -1,4 +1,3 @@
-using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -6,7 +5,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeVideoService(
-    YouTubeService youTubeService,
+    YouTubeServiceWrapper youTubeService,
     ILogger<YouTubeVideoService> logger)
     : IYouTubeVideoService
 {
@@ -44,7 +43,7 @@ public class YouTubeVideoService(
                     contentDetails = "statistics," + contentDetails;
                 }
 
-                var request = youTubeService.Videos.List(contentDetails);
+                var request = youTubeService.YouTubeService.Videos.List(contentDetails);
                 request.Id = string.Join(",", batchVideoIds);
                 request.MaxResults = MaxSearchResults;
                 VideoListResponse response;
@@ -54,7 +53,8 @@ public class YouTubeVideoService(
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
+                    logger.LogError(ex,
+                        $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
                     if (indexingContext != null)
                     {
                         indexingContext.SkipYouTubeUrlResolving = true;
@@ -69,7 +69,8 @@ public class YouTubeVideoService(
 
             nextPageToken = "";
             batch++;
-            batchVideoIds = videoIds.Skip(batch * MaxSearchResults)
+            batchVideoIds = videoIds
+                .Skip(batch * MaxSearchResults)
                 .Take(MaxSearchResults);
         }
 

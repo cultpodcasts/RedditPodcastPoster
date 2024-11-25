@@ -7,7 +7,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeChannelVideoSnippetsService(
-    YouTubeService youTubeService,
+    YouTubeServiceWrapper youTubeService,
     ILogger<YouTubeChannelVideoSnippetsService> logger)
     : IYouTubeChannelVideoSnippetsService
 {
@@ -32,7 +32,7 @@ public class YouTubeChannelVideoSnippetsService(
 
         var result = new List<SearchResult>();
         var nextPageToken = "";
-        var searchListRequest = youTubeService.Search.List("snippet");
+        var searchListRequest = youTubeService.YouTubeService.Search.List("snippet");
         searchListRequest.MaxResults = MaxSearchResults;
         searchListRequest.ChannelId = channelId.ChannelId;
         searchListRequest.Type = "video";
@@ -55,7 +55,8 @@ public class YouTubeChannelVideoSnippetsService(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
+                logger.LogError(ex,
+                    $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return result;
             }

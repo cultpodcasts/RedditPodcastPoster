@@ -24,7 +24,7 @@ public class YouTubeApiKeyStrategy(
 
         var application = usageApplications.Skip(applicationIndex).First();
         logger.LogInformation(
-            $"{nameof(GetApplication)}: Using application-key ending '{application.ApiKey.Substring(application.ApiKey.Length - 2)}'.");
+            $"{nameof(GetApplication)}: Using application-key with name '{application.DisplayName}' ending '{application.ApiKey.Substring(application.ApiKey.Length - 2)}'.");
         return application;
     }
 }

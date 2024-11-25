@@ -14,14 +14,15 @@ public class YouTubeServiceFactory(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : IYouTubeServiceFactory
 {
-    public YouTubeService Create(ApplicationUsage usage)
+    public YouTubeServiceWrapper Create(ApplicationUsage usage)
     {
         var application = youTubeApiKeyStrategy.GetApplication(usage);
-        return new YouTubeService(new BaseClientService.Initializer
-        {
-            ApiKey = application.ApiKey,
-            ApplicationName = application.Name
-        });
+        return new YouTubeServiceWrapper(
+            new YouTubeService(new BaseClientService.Initializer
+            {
+                ApiKey = application.ApiKey,
+                ApplicationName = application.Name
+            }), application.DisplayName);
     }
 
     public static IServiceCollection AddYouTubeService(IServiceCollection services, ApplicationUsage usage)
