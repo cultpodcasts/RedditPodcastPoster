@@ -82,3 +82,4 @@ module functionAppSetings 'app-settings.bicep' = {
     functionName: functionApp.name
   }
 }
+ 
