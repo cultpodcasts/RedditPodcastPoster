@@ -72,31 +72,13 @@ module functionAppSetings 'app-settings.bicep' = {
   params: {
     currentAppSettings: list('${functionApp.id}/config/appsettings', '2020-12-01').properties
     appSettings: union({
-        {
-          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: applicationInsightsConnectionString
-        }
-        {
-          name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageKey}'
-        }
-        {
-          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageKey}'
-        }
-        {
-          name: 'WEBSITE_CONTENTSHARE'
-          value: toLower(functionAppName)
-        }
-        {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~4'
-        }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: functionWorkerRuntime
-        }
-    },appSettings)
+        APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsightsConnectionString
+        AzureWebJobsStorage: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageKey}'
+        WEBSITE_CONTENTAZUREFILECONNECTIONSTRING: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageKey}'
+        WEBSITE_CONTENTSHARE: toLower(functionAppName)
+        FUNCTIONS_EXTENSION_VERSION: '~4'
+        FUNCTIONS_WORKER_RUNTIME: functionWorkerRuntime
+    }, appSettings)
     functionName: functionApp.name
   }
 }
