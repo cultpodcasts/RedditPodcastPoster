@@ -10,4 +10,6 @@ public class Application
 
     [JsonConverter(typeof(ItemConverterDecorator<JsonStringEnumConverter>))]
     public ApplicationUsage Usage { get; set; }
+
+    public required string DisplayName { get; set; }
 }

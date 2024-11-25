@@ -1,4 +1,3 @@
-using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Extensions;
@@ -7,7 +6,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubePlaylistService(
-    YouTubeService youTubeService,
+    YouTubeServiceWrapper youTubeService,
     ILogger<YouTubePlaylistService> logger)
     : IYouTubePlaylistService
 {
@@ -42,7 +41,7 @@ public class YouTubePlaylistService(
              !knownToBeInReverseOrder
             ))
         {
-            var playlistRequest = youTubeService.PlaylistItems.List("snippet");
+            var playlistRequest = youTubeService.YouTubeService.PlaylistItems.List("snippet");
             playlistRequest.PlaylistId = playlistId.PlaylistId;
             playlistRequest.MaxResults = batchSize;
             playlistRequest.PageToken = nextPageToken;
@@ -54,7 +53,7 @@ public class YouTubePlaylistService(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
+                logger.LogError(ex, $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return new GetPlaylistVideoSnippetsResponse(null);
             }

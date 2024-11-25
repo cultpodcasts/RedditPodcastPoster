@@ -44,17 +44,23 @@ param youTubeApiKey5= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-I
 
 var youTubeKeyUsage= {
 	youtube__Applications__0__Name: 'CultPodcasts'
-	youtube__Applications__1__Name: 'CultPodcasts'
-	youtube__Applications__2__Name: 'CultPodcasts'
-	youtube__Applications__3__Name: 'CultPodcasts'
-	youtube__Applications__4__Name: 'CultPodcasts'
-	youtube__Applications__5__Name: 'CultPodcasts'
 	youtube__Applications__0__Usage: 'Api,Cli'
+	youtube__Applications__0__DisplayName: 'ApiKey0 - Api & Cli'
+	youtube__Applications__1__Name: 'CultPodcasts'
 	youtube__Applications__1__Usage: 'Api,Cli'
+	youtube__Applications__1__DisplayName: 'ApiKey1 - Api & Cli'
+	youtube__Applications__2__Name: 'CultPodcasts'
 	youtube__Applications__2__Usage: 'Discover,Indexer'
+	youtube__Applications__2__DisplayName: 'ApiKey2 - Discover & Indexer'
+	youtube__Applications__3__Name: 'CultPodcasts'
 	youtube__Applications__3__Usage: 'Discover,Indexer'
+	youtube__Applications__3__DisplayName: 'ApiKey3 - Discover & Indexer'
+	youtube__Applications__4__Name: 'CultPodcasts'
 	youtube__Applications__4__Usage: 'Discover,Indexer'
+	youtube__Applications__4__DisplayName: 'ApiKey5 - Discover & Indexer'
 	youtube__Applications__5__Usage: 'Discover,Indexer'
+	youtube__Applications__5__Name: 'CultPodcasts'
+	youtube__Applications__5__DisplayName: 'ApiKey5 - Discover & Indexer'
 }
 
 param apiSettings = union(youTubeKeyUsage, {

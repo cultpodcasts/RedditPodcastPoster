@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -9,7 +8,7 @@ using static Google.Apis.YouTube.v3.SearchResource.ListRequest;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeSearcher(
-    YouTubeService youTubeService,
+    YouTubeServiceWrapper youTubeService,
     INoRedirectHttpClientFactory httpClientFactory,
     IYouTubeVideoService youTubeVideoService,
     IYouTubeChannelService youTubeChannelService,
@@ -42,7 +41,7 @@ public class YouTubeSearcher(
     {
         var results = new List<YouTubeItemDetails>();
         var nextPageToken = "";
-        var searchListRequest = youTubeService.Search.List("snippet");
+        var searchListRequest = youTubeService.YouTubeService.Search.List("snippet");
         searchListRequest.MaxResults = MaxSearchResults;
         searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
         searchListRequest.Type = "video";
@@ -67,7 +66,7 @@ public class YouTubeSearcher(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
+                logger.LogError(ex, $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return results.Select(x => ToEpisodeResult(x.SearchResult, x.Video, x.Channel));
             }

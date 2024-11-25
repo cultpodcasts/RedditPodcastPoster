@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -7,7 +6,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeChannelService(
-    YouTubeService youTubeService,
+    YouTubeServiceWrapper youTubeService,
     ILogger<YouTubeChannelService> logger)
     : IYouTubeChannelService
 {
@@ -64,7 +63,7 @@ public class YouTubeChannelService(
             requestScope += ",contentDetails";
         }
 
-        var listRequest = youTubeService.Channels.List(requestScope);
+        var listRequest = youTubeService.YouTubeService.Channels.List(requestScope);
         listRequest.Id = channelId.ChannelId;
         ChannelListResponse result;
         try
@@ -73,7 +72,8 @@ public class YouTubeChannelService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
+            logger.LogError(ex,
+                $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
             indexingContext.SkipYouTubeUrlResolving = true;
             return null;
         }
@@ -99,7 +99,7 @@ public class YouTubeChannelService(
             return;
         }
 
-        var channelsListRequest = youTubeService.Search.List("snippet");
+        var channelsListRequest = youTubeService.YouTubeService.Search.List("snippet");
         channelsListRequest.Type = "channel";
         channelsListRequest.Fields = "items/snippet/channelId";
         channelsListRequest.Q = channelName;
@@ -110,7 +110,8 @@ public class YouTubeChannelService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Failed to use {nameof(youTubeService)}.");
+            logger.LogError(ex,
+                $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
             indexingContext.SkipYouTubeUrlResolving = true;
             return;
         }
@@ -151,8 +152,8 @@ public class YouTubeChannelService(
         // 000
         if (!withSnippets && !withContentOwnerDetails && !withStatistics)
         {
-            return new[]
-            {
+            return
+            [
                 channelId,
                 $"{channelId}{Snippets}",
                 $"{channelId}{ContentOwner}",
@@ -161,80 +162,80 @@ public class YouTubeChannelService(
                 $"{channelId}{Snippets}{Statistics}",
                 $"{channelId}{ContentOwner}{Statistics}",
                 $"{channelId}{Snippets}{ContentOwner}{Statistics}"
-            };
+            ];
         }
 
         // 001
         if (!withContentOwnerDetails && !withSnippets && withStatistics)
         {
-            return new[]
-            {
+            return
+            [
                 $"{channelId}{Statistics}",
                 $"{channelId}{Snippets}{Statistics}",
                 $"{channelId}{ContentOwner}{Statistics}",
                 $"{channelId}{Snippets}{ContentOwner}{Statistics}"
-            };
+            ];
         }
 
         // 010
         if (!withContentOwnerDetails && withSnippets && !withStatistics)
         {
-            return new[]
-            {
+            return
+            [
                 $"{channelId}{Snippets}",
                 $"{channelId}{Snippets}{ContentOwner}",
                 $"{channelId}{Snippets}{Statistics}",
                 $"{channelId}{Snippets}{ContentOwner}{Statistics}"
-            };
+            ];
         }
 
         // 011
         if (!withContentOwnerDetails && withSnippets && withStatistics)
         {
-            return new[]
-            {
+            return
+            [
                 $"{channelId}{Snippets}{Statistics}",
                 $"{channelId}{Snippets}{ContentOwner}{Statistics}"
-            };
+            ];
         }
 
         // 100
         if (withContentOwnerDetails && !withSnippets && !withStatistics)
         {
-            return new[]
-            {
+            return
+            [
                 $"{channelId}{ContentOwner}",
                 $"{channelId}{Snippets}{ContentOwner}",
                 $"{channelId}{ContentOwner}{Statistics}",
                 $"{channelId}{Snippets}{ContentOwner}{Statistics}"
-            };
+            ];
         }
 
         // 101
         if (withContentOwnerDetails && !withSnippets && withStatistics)
         {
-            return new[]
-            {
+            return
+            [
                 $"{channelId}{ContentOwner}{Statistics}",
                 $"{channelId}{Snippets}{ContentOwner}{Statistics}"
-            };
+            ];
         }
 
         // 110
         if (withContentOwnerDetails && withSnippets && !withStatistics)
         {
-            return new[]
-            {
+            return
+            [
                 $"{channelId}{Snippets}{ContentOwner}",
                 $"{channelId}{Snippets}{ContentOwner}{Statistics}"
-            };
+            ];
         }
 
         // 111
-        return new[]
-        {
+        return
+        [
             $"{channelId}{Snippets}{ContentOwner}{Statistics}"
-        };
+        ];
     }
 
     private Channel? GetCachedChannel(
