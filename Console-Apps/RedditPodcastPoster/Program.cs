@@ -14,6 +14,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
@@ -34,7 +35,7 @@ builder.Services
     .AddRepositories()
     .AddPodcastServices()
     .AddTextSanitiser()
-    .AddYouTubeServices()
+    .AddYouTubeServices(ApplicationUsage.Cli)
     .AddSpotifyServices()
     .AddAppleServices()
     .AddCommonServices()

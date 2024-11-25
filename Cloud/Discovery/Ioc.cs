@@ -8,6 +8,7 @@ using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 
@@ -26,7 +27,7 @@ public static class Ioc
             .AddRepositories()
             .AddSubjectServices()
             .AddCachedSubjectProvider()
-            .AddDiscovery()
+            .AddDiscovery(ApplicationUsage.Discover)
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddScoped<IRemoteClient, RemoteClient>()
             .AddScoped(s => new iTunesSearchManager())

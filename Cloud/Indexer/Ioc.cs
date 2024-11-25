@@ -14,6 +14,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Search.Extensions;
@@ -36,7 +37,7 @@ public static class Ioc
             .ConfigureFunctionsApplicationInsights()
             .AddRepositories()
             .AddTextSanitiser()
-            .AddYouTubeServices()
+            .AddYouTubeServices(ApplicationUsage.Indexer)
             .AddSpotifyServices()
             .AddAppleServices()
             .AddCommonServices()

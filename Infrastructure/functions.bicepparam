@@ -42,7 +42,22 @@ param youTubeApiKey3= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-I
 param youTubeApiKey4= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Youtube-ApiKey-4')
 param youTubeApiKey5= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Youtube-ApiKey-5')
 
-param apiSettings = {
+var youTubeKeyUsage= {
+	youtube__Applications__0__Name: 'CultPodcasts'
+	youtube__Applications__1__Name: 'CultPodcasts'
+	youtube__Applications__2__Name: 'CultPodcasts'
+	youtube__Applications__3__Name: 'CultPodcasts'
+	youtube__Applications__4__Name: 'CultPodcasts'
+	youtube__Applications__5__Name: 'CultPodcasts'
+	youtube__Applications__0__Usage: 'Api,Cli'
+	youtube__Applications__1__Usage: 'Api,Cli'
+	youtube__Applications__2__Usage: 'Discover,Indexer'
+	youtube__Applications__3__Usage: 'Discover,Indexer'
+	youtube__Applications__4__Usage: 'Discover,Indexer'
+	youtube__Applications__5__Usage: 'Discover,Indexer'
+}
+
+param apiSettings = union(youTubeKeyUsage, {
 	api__Endpoint:	'https://api.cultpodcasts.com'
 	auth0__Audience: 'https://api.cultpodcasts.com/'
 	auth0__Domain: 'cultpodcasts.uk.auth0.com'
@@ -72,11 +87,9 @@ param apiSettings = {
 	subreddit__SubredditTitleMaxLength: '300'
 	twitter__HashTag: 'Cult'
 	twitter__WithEpisodeUrl: 'true'
-	youtube__Applications__0__Name: 'CultPodcasts'
-	youtube__Applications__1__Name: 'CultPodcasts'
-}
+})
 
-param discoverySettings= {
+param discoverySettings= union(youTubeKeyUsage, {
 	api__Endpoint:	'https://api.cultpodcasts.com'
 	auth0client__Audience: 'https://api.cultpodcasts.com/'
 	auth0client__Domain: 'cultpodcasts.uk.auth0.com'
@@ -137,13 +150,9 @@ param discoverySettings= {
 	subreddit__SubredditTitleMaxLength: '300'
 	twitter__HashTag: 'Cult'
 	twitter__WithEpisodeUrl: 'true'
-	youtube__Applications__0__Name: 'CultPodcasts'
-	youtube__Applications__1__Name: 'CultPodcasts'
-	youtube__Applications__2__Name: 'CultPodcasts'
-	youtube__Applications__3__Name: 'CultPodcasts'
-}
+})
 
-param indexerSettings= {
+param indexerSettings= union(youTubeKeyUsage, {
 	api__Endpoint:	'https://api.cultpodcasts.com'
 	auth0client__Audience: 'https://api.cultpodcasts.com/'
 	auth0client__Domain: 'cultpodcasts.uk.auth0.com'
@@ -173,8 +182,4 @@ param indexerSettings= {
 	subreddit__SubredditTitleMaxLength: '300'
 	twitter__HashTag: 'Cult'
 	twitter__WithEpisodeUrl: 'true'
-	youtube__Applications__0__Name: 'CultPodcasts'
-	youtube__Applications__1__Name: 'CultPodcasts'
-	youtube__Applications__2__Name: 'CultPodcasts'
-	youtube__Applications__3__Name: 'CultPodcasts'
-}
+})

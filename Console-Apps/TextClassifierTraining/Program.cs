@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects;
@@ -30,7 +31,7 @@ builder.Services
     .AddRepositories()
     .AddSubredditServices(builder.Configuration)
     .AddSpotifyServices()
-    .AddYouTubeServices()
+    .AddYouTubeServices(ApplicationUsage.Cli)
     .AddSingleton<TrainingDataProcessor>()
     .AddSingleton<ISubjectCleanser, SubjectCleanser>()
     .AddSubjectServices()

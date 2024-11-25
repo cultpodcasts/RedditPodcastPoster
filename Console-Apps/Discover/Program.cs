@@ -10,6 +10,7 @@ using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.Subjects.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -24,7 +25,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddDiscovery()
+    .AddDiscovery(ApplicationUsage.Cli)
     .AddScoped<DiscoveryProcessor>()
     .AddScoped<IDiscoveryResultConsoleLogger, DiscoveryResultConsoleLogger>()
     .AddRepositories()

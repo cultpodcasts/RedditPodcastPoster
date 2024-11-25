@@ -157,6 +157,10 @@ module apiFunction 'function.bicep' = {
         twitter__TwitterId: twitterTwitterId
         youtube__Applications__0__ApiKey: youTubeApiKey0
         youtube__Applications__1__ApiKey: youTubeApiKey1
+        youtube__Applications__2__ApiKey: youTubeApiKey2
+        youtube__Applications__3__ApiKey: youTubeApiKey3
+        youtube__Applications__4__ApiKey: youTubeApiKey4
+        youtube__Applications__5__ApiKey: youTubeApiKey5
     }, apiSettings)
   }
 }
@@ -205,10 +209,12 @@ module discoveryFunction 'function.bicep' = {
         twitter__ConsumerKey: twitterConsumerKey
         twitter__ConsumerSecret: twitterConsumerSecret
         twitter__TwitterId: twitterTwitterId
-        youtube__Applications__0__ApiKey: youTubeApiKey2
-        youtube__Applications__1__ApiKey: youTubeApiKey3
-        youtube__Applications__2__ApiKey: youTubeApiKey4
-        youtube__Applications__3__ApiKey: youTubeApiKey5
+        youtube__Applications__0__ApiKey: youTubeApiKey0
+        youtube__Applications__1__ApiKey: youTubeApiKey1
+        youtube__Applications__2__ApiKey: youTubeApiKey2
+        youtube__Applications__3__ApiKey: youTubeApiKey3
+        youtube__Applications__4__ApiKey: youTubeApiKey4
+        youtube__Applications__5__ApiKey: youTubeApiKey5
     }, discoverySettings)
   }
 }
@@ -257,10 +263,12 @@ module indexerFunction 'function.bicep' = {
         twitter__ConsumerKey: twitterConsumerKey
         twitter__ConsumerSecret: twitterConsumerSecret
         twitter__TwitterId: twitterTwitterId
-        youtube__Applications__0__ApiKey: youTubeApiKey2
-        youtube__Applications__1__ApiKey: youTubeApiKey3
-        youtube__Applications__2__ApiKey: youTubeApiKey4
-        youtube__Applications__3__ApiKey: youTubeApiKey5
+        youtube__Applications__0__ApiKey: youTubeApiKey0
+        youtube__Applications__1__ApiKey: youTubeApiKey1
+        youtube__Applications__2__ApiKey: youTubeApiKey2
+        youtube__Applications__3__ApiKey: youTubeApiKey3
+        youtube__Applications__4__ApiKey: youTubeApiKey4
+        youtube__Applications__5__ApiKey: youTubeApiKey5
     }, indexerSettings)
   }  
 }

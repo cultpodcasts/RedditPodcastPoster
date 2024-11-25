@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Configuration;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests;
 
@@ -50,15 +51,15 @@ public class YouTubeApiKeyStrategyTests
         // arrange
         _mocker.Use(Options.Create(new YouTubeSettings
         {
-            Applications = new[]
-            {
-                new Application {ApiKey = _fixture.Create<string>(), Name = "1"},
-                new Application {ApiKey = _fixture.Create<string>(), Name = "2"}
-            }
+            Applications =
+            [
+                new Application {ApiKey = _fixture.Create<string>(), Name = "1", Usage = ApplicationUsage.Indexer},
+                new Application {ApiKey = _fixture.Create<string>(), Name = "2", Usage = ApplicationUsage.Indexer}
+            ]
         }));
         _dateTimeService.Setup(x => x.GetHour()).Returns(hour);
         // act
-        var result = Sut.GetApplication();
+        var result = Sut.GetApplication(ApplicationUsage.Indexer);
         // assert
         result.Name.Should().Be(applicationName);
     }
@@ -93,17 +94,57 @@ public class YouTubeApiKeyStrategyTests
         // arrange
         _mocker.Use(Options.Create(new YouTubeSettings
         {
-            Applications = new[]
-            {
-                new Application {ApiKey = _fixture.Create<string>(), Name = "1"},
-                new Application {ApiKey = _fixture.Create<string>(), Name = "2"},
-                new Application {ApiKey = _fixture.Create<string>(), Name = "3"},
-                new Application {ApiKey = _fixture.Create<string>(), Name = "4"}
-            }
+            Applications =
+            [
+                new Application {ApiKey = _fixture.Create<string>(), Name = "1", Usage = ApplicationUsage.Indexer},
+                new Application {ApiKey = _fixture.Create<string>(), Name = "2", Usage = ApplicationUsage.Indexer},
+                new Application {ApiKey = _fixture.Create<string>(), Name = "3", Usage = ApplicationUsage.Indexer},
+                new Application {ApiKey = _fixture.Create<string>(), Name = "4", Usage = ApplicationUsage.Indexer}
+            ]
         }));
         _dateTimeService.Setup(x => x.GetHour()).Returns(hour);
         // act
-        var result = Sut.GetApplication();
+        var result = Sut.GetApplication(ApplicationUsage.Indexer);
+        // assert
+        result.Name.Should().Be(applicationName);
+    }
+
+    [Fact]
+    public void GetApplication_WithSingularUsageFlags_IsCorrect()
+    {
+        // arrange
+        var applicationName = _fixture.Create<string>();
+        _mocker.Use(Options.Create(new YouTubeSettings
+        {
+            Applications =
+            [
+
+                new Application {ApiKey = _fixture.Create<string>(), Name =_fixture.Create<string>(), Usage = ApplicationUsage.Discover},
+                new Application {ApiKey = _fixture.Create<string>(), Name =applicationName, Usage = ApplicationUsage.Indexer},
+                new Application {ApiKey = _fixture.Create<string>(), Name =_fixture.Create<string>(), Usage = ApplicationUsage.Api}
+            ]
+        }));
+        // act
+        var result = Sut.GetApplication(ApplicationUsage.Indexer);
+        // assert
+        result.Name.Should().Be(applicationName);
+    }
+
+    [Fact]
+    public void GetApplication_WithCombinationUsageFlags_IsCorrect()
+    {
+        // arrange
+        var applicationName = _fixture.Create<string>();
+        _mocker.Use(Options.Create(new YouTubeSettings
+        {
+            Applications =
+            [
+                new Application {ApiKey = _fixture.Create<string>(), Name =_fixture.Create<string>(), Usage = ApplicationUsage.Discover|ApplicationUsage.Api},
+                new Application {ApiKey = _fixture.Create<string>(), Name =applicationName, Usage = ApplicationUsage.Indexer|ApplicationUsage.Api}
+            ]
+        }));
+        // act
+        var result = Sut.GetApplication(ApplicationUsage.Indexer);
         // assert
         result.Name.Should().Be(applicationName);
     }
