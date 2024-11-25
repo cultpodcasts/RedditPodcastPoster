@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/maintan-existing-settings
 
 permissions:
   id-token: write
