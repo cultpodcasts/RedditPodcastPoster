@@ -4,7 +4,10 @@ on:
   push:
     branches:
       - feature/fn-bicep
-  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
 
 env:  
   DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
@@ -18,10 +21,6 @@ env:
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
   INDEXER_PACKAGE_PATH: './Cloud/Indexer' 
   DOTNET_VERSION: '9.0.x' 
-
-permissions:
-  id-token: write
-  contents: read
 
 jobs:
   build-and-test:
