@@ -41,7 +41,7 @@ jobs:
 
   provision:
     runs-on: build-and-test
-    needs: provision
+    needs: build-and-test
     continue-on-error: false
     steps:
     - uses: actions/checkout@v4
