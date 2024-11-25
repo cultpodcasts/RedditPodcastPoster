@@ -267,6 +267,7 @@ public class PodcastController(
         if (podcastChangeRequest.EpisodeIncludeTitleRegex != null)
         {
             podcast.EpisodeIncludeTitleRegex = podcastChangeRequest.EpisodeIncludeTitleRegex;
+            podcast.IndexAllEpisodes = false;
         }
 
         if (podcastChangeRequest.DefaultSubject != null)
