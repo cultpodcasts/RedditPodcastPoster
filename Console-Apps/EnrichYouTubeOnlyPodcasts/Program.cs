@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
@@ -26,7 +27,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddYouTubeServices()
+    .AddYouTubeServices(ApplicationUsage.Cli)
     .AddRepositories()
     .AddSubjectServices()
     .AddCachedSubjectProvider()

@@ -17,6 +17,7 @@ using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Reddit;
@@ -42,7 +43,7 @@ public static class Ioc
             .ConfigureFunctionsApplicationInsights()
             .AddRepositories()
             .AddTextSanitiser()
-            .AddYouTubeServices()
+            .AddYouTubeServices(ApplicationUsage.Api)
             .AddSpotifyServices()
             .AddAppleServices()
             .AddPodcastServices()

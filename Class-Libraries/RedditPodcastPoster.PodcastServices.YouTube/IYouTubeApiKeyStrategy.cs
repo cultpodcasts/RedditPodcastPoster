@@ -1,6 +1,8 @@
-﻿namespace RedditPodcastPoster.PodcastServices.YouTube;
+﻿using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
+
+namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public interface IYouTubeApiKeyStrategy
 {
-    Application GetApplication();
+    Application GetApplication(ApplicationUsage usage);
 }

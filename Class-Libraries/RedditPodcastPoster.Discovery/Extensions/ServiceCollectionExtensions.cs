@@ -1,10 +1,10 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Taddy.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 
@@ -12,7 +12,7 @@ namespace RedditPodcastPoster.Discovery.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddDiscovery(this IServiceCollection services)
+    public static IServiceCollection AddDiscovery(this IServiceCollection services, ApplicationUsage usage)
     {
         services.BindConfiguration<DiscoverySettings>("discover");
         services.BindConfiguration<IgnoreTermsSettings>("discover");
@@ -31,8 +31,7 @@ public static class ServiceCollectionExtensions
             .AddDiscoveryRepository()
             .AddSpotifyServices()
             .AddAppleServices()
-            .AddYouTubeServices()
-            .AddListenNotes()
+            .AddYouTubeServices(usage).AddListenNotes()
             .AddTaddy()
             .AddTextSanitiser();
     }

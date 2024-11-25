@@ -24,10 +24,12 @@ public class BlueskyPoster(
         {
             if (embedCardRequest != null)
             {
+                logger.LogInformation($"Non-Null {nameof(EmbedCardRequest)} for episode with id '{podcastEpisode.Episode.Id}'.");
                 await blueSkyClient.Post(embedPost.Text, embedCardRequest);
             }
             else
             {
+                logger.LogError($"Null {nameof(EmbedCardRequest)} for episode with id '{podcastEpisode.Episode.Id}'.");
                 await blueSkyClient.Post($"{embedPost.Text}{Environment.NewLine}{embedPost.Url}");
             }
 
