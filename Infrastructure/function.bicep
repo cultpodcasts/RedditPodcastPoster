@@ -63,7 +63,15 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
     siteConfig: {
       functionAppScaleLimit: 1
       linuxFxVersion: 'DOTNET-ISOLATED|8.0'
-      appSettings: [
+    }
+  }
+}
+
+module functionAppSetings 'app-settings.bicep' = {
+  name: '${deployment().name}-appsettings'
+  params: {
+    currentAppSettings: list('${functionApp.id}/config/appsettings', '2020-12-01').properties
+    appSettings: union({
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: applicationInsightsConnectionString
@@ -88,16 +96,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           name: 'FUNCTIONS_WORKER_RUNTIME'
           value: functionWorkerRuntime
         }
-      ]
-    }
-  }
-}
-
-module functionAppSetings 'app-settings.bicep' = {
-  name: '${deployment().name}-appsettings'
-  params: {
-    currentAppSettings: list('${functionApp.id}/config/appsettings', '2020-12-01').properties
-    appSettings: appSettings
+    },appSettings)
     functionName: functionApp.name
   }
 }
