@@ -229,4 +229,4 @@ jobs:
         with:
           app-name: 'indexer-infra'
           slot-name: 'Production'
-          package: '${{ envINDEXER_PACKAGE_PATH }}/output'
+          package: '${{ env.INDEXER_PACKAGE_PATH }}/output'
