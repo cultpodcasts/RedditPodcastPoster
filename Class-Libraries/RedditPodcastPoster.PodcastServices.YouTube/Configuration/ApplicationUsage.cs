@@ -4,7 +4,7 @@
 public enum ApplicationUsage
 {
     Indexer = 1,
-    Discover,
-    Api,
-    Cli
+    Discover = 2,
+    Api = 4,
+    Cli = 8
 }
