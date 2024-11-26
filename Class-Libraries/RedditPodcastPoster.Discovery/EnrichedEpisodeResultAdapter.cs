@@ -24,13 +24,10 @@ public class EnrichedEpisodeResultAdapter(
         discoveryResult.Urls.Apple = episode.EpisodeResult.Urls.Apple;
         discoveryResult.Urls.Spotify = episode.EpisodeResult.Urls.Spotify;
         discoveryResult.Urls.YouTube = episode.EpisodeResult.Urls.YouTube;
-
-        discoveryResult.Sources = episode.EpisodeResult.DiscoverServices.ToArray();
+        discoveryResult.Sources = episode.EpisodeResult.DiscoverServices;
         discoveryResult.EnrichedTimeFromApple = episode.EpisodeResult.EnrichedTimeFromApple;
         discoveryResult.EnrichedUrlFromSpotify = episode.EpisodeResult.EnrichedUrlFromSpotify;
-
         discoveryResult.EpisodeName = episode.EpisodeResult.EpisodeName;
-
         discoveryResult.ShowName = episode.EpisodeResult.ShowName;
 
         var description = episode.EpisodeResult.Description;
