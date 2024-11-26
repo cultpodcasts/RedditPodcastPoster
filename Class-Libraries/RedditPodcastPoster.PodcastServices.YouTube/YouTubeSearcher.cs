@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using static Google.Apis.YouTube.v3.SearchResource.ListRequest;
@@ -66,7 +67,8 @@ public class YouTubeSearcher(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
+                logger.LogError(ex,
+                    $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return results.Select(x => ToEpisodeResult(x.SearchResult, x.Video, x.Channel));
             }
@@ -156,8 +158,6 @@ public class YouTubeSearcher(
         episodeResult.PodcastIds.YouTube = channel?.Id;
         return episodeResult;
     }
-
-
 
     private class YouTubeItemDetails(SearchResult searchResult)
     {

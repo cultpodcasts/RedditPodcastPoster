@@ -1,10 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.ListenNotes;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.Taddy;
 using RedditPodcastPoster.PodcastServices.YouTube;
-using DiscoverService = RedditPodcastPoster.Models.DiscoverService;
 
 namespace RedditPodcastPoster.Discovery;
 
@@ -87,7 +87,7 @@ public class SearchProvider(
 
         var items = results
             .Where(x =>
-                (x.DiscoverServices.FirstOrDefault() == PodcastServices.Abstractions.DiscoverService.Taddy &&
+                (x.DiscoverServices.FirstOrDefault() == DiscoverService.Taddy &&
                  x.Released >= indexingContext.ReleasedSince!.Value.Subtract(TaddyParameters.IndexingDelay)) ||
                 x.Released >= indexingContext.ReleasedSince)
             .GroupBy(x => x.EpisodeName)
@@ -97,10 +97,10 @@ public class SearchProvider(
         string[] logItems =
         [
             $"total-items: '{items.Count()}'",
-            $"spotify-items '{items.Count(x => x.DiscoverServices.Contains(PodcastServices.Abstractions.DiscoverService.Spotify))}'",
-            $"youtube-items: '{items.Count(x => x.DiscoverServices.Contains(PodcastServices.Abstractions.DiscoverService.YouTube))}'",
-            $"listen-notes-items: '{items.Count(x => x.DiscoverServices.Contains(PodcastServices.Abstractions.DiscoverService.ListenNotes))}'",
-            $"taddy-items: '{items.Count(x => x.DiscoverServices.Contains(PodcastServices.Abstractions.DiscoverService.Taddy))}'",
+            $"spotify-items '{items.Count(x => x.DiscoverServices.Contains(DiscoverService.Spotify))}'",
+            $"youtube-items: '{items.Count(x => x.DiscoverServices.Contains(DiscoverService.YouTube))}'",
+            $"listen-notes-items: '{items.Count(x => x.DiscoverServices.Contains(DiscoverService.ListenNotes))}'",
+            $"taddy-items: '{items.Count(x => x.DiscoverServices.Contains(DiscoverService.Taddy))}'",
             $"spotify-enriched-url: '{items.Count(x => x.EnrichedUrlFromSpotify)}'",
             $"apple-enriched-release: '{items.Count(x => x.EnrichedTimeFromApple)}'"
         ];
@@ -121,7 +121,7 @@ public class SearchProvider(
 
         var youTube =
             items.FirstOrDefault(x =>
-                x.DiscoverServices.Contains(PodcastServices.Abstractions.DiscoverService.YouTube));
+                x.DiscoverServices.Contains(DiscoverService.YouTube));
         if (youTube != null)
         {
             first.Released = youTube.Released;

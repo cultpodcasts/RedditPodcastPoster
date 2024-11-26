@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.PodcastServices.Abstractions;
+﻿using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public class EpisodeResult(
     string id,

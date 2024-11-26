@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
@@ -38,9 +39,9 @@ public class SpotifySearcher(
             var recentResults =
                 allResults?
                     .Where(x =>
+                        x != null &&
                         x.GetReleaseDate() >= indexingContext.ReleasedSince &&
-                        (termRegex.IsMatch(x.Name) || termRegex.IsMatch(x.Description))) ??
-                Enumerable.Empty<SimpleEpisode>();
+                        (termRegex.IsMatch(x.Name) || termRegex.IsMatch(x.Description))) ?? [];
 
             if (recentResults.Any())
             {

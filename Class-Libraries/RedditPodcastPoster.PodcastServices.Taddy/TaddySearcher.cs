@@ -2,9 +2,11 @@
 using GraphQL.Client.Http;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Taddy.Dtos;
 using RedditPodcastPoster.Text;
+using PodcastEpisode = RedditPodcastPoster.PodcastServices.Taddy.Dtos.PodcastEpisode;
 
 namespace RedditPodcastPoster.PodcastServices.Taddy;
 
