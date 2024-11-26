@@ -15,9 +15,6 @@ public class CosmosDbUploader(
 
     public async Task Run()
     {
-        throw new NotImplementedException(
-            "Changes made to the IFileRepository are untested. Do not use this app until correct behaviour verified.");
-#pragma warning disable CS0162 // Unreachable code detected
         var podcasts = await fileRepository.GetAll<Podcast>().ToListAsync();
         foreach (var podcast in podcasts)
         {
@@ -41,6 +38,17 @@ public class CosmosDbUploader(
         {
             await cosmosDbRepository.Write(subject);
         }
-#pragma warning restore CS0162 // Unreachable code detected
+
+        var pushSubscriptions = await fileRepository.GetAll<PushSubscription>().ToListAsync();
+        foreach (var pushSubscription in pushSubscriptions)
+        {
+            await cosmosDbRepository.Write(pushSubscription);
+        }
+
+        var discoveryResultsDocuments = await fileRepository.GetAll<DiscoveryResultsDocument>().ToListAsync();
+        foreach (var discoveryResultsDocument in discoveryResultsDocuments)
+        {
+            await cosmosDbRepository.Write(discoveryResultsDocument);
+        }
     }
 }

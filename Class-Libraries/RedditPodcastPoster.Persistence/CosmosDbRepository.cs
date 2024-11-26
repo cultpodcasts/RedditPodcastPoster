@@ -195,11 +195,12 @@ public class CosmosDbRepository(
         }
     }
 
-    public IAsyncEnumerable<string> GetAllFileKeys()
+    public IAsyncEnumerable<string> GetAllFileKeys<T>() where T : CosmosSelector
     {
         try
         {
-            var query = $"SELECT c.fileKey FROM c WHERE c.type <> '{ModelType.Discovery.ToString()}'";
+            var query =
+                $"SELECT c.fileKey FROM c WHERE c.type = '{CosmosSelectorExtensions.GetModelType<T>().ToString()}'";
             var fileKeysQuery = new QueryDefinition(query);
             using var feed = container.GetItemQueryIterator<FileKeyWrapper>(fileKeysQuery);
             return feed.ToAsyncEnumerable().Where(x => x?.FileKey != null).Select(x => x.FileKey);

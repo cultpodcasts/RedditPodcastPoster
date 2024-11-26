@@ -2,6 +2,6 @@
 
 public interface IFileRepositoryFactory
 {
-    IFileRepository Create(string container);
+    IFileRepository Create(string container, bool useEntityFolder);
     IFileRepository Create();
 }

@@ -13,14 +13,17 @@ public class FileRepository : IFileRepository
     private readonly string _container = ".\\";
     private readonly JsonSerializerOptions _jsonSerialiserOptions;
     private readonly ILogger<IFileRepository> _logger;
+    private readonly bool _useEntityFolder;
 
     public FileRepository(
         IJsonSerializerOptionsProvider jsonSerialiserOptionsProvider,
         string container,
+        bool useEntityFolder,
         ILogger<IFileRepository> logger)
     {
         _jsonSerialiserOptions = jsonSerialiserOptionsProvider.GetJsonSerializerOptions();
         _jsonSerialiserOptions.WriteIndented = true;
+        _useEntityFolder = useEntityFolder;
         _logger = logger;
         if (!string.IsNullOrWhiteSpace(container))
         {
@@ -54,6 +57,8 @@ public class FileRepository : IFileRepository
         }
 
         var filePath = GetFilePath(data);
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath) ??
+                                  throw new InvalidOperationException($"Cannot create directory for '{filePath}'."));
         await using var createStream = File.Create(filePath);
         await JsonSerializer.SerializeAsync(createStream, data, _jsonSerialiserOptions);
     }
@@ -61,9 +66,9 @@ public class FileRepository : IFileRepository
     public async Task<T?> Read<T>(string fileKey) where T : CosmosSelector
     {
         var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
-        var file = GetFilePath(fileKey);
-        await using var readStream = File.OpenRead(file);
-        var item = await JsonSerializer.DeserializeAsync<T>(readStream);
+        var filePath = GetFilePath<T>(fileKey);
+        await using var readStream = File.OpenRead(filePath);
+        var item = await JsonSerializer.DeserializeAsync<T>(readStream, _jsonSerialiserOptions);
         if (item != null && item.ModelType.ToString() == partitionKey)
         {
             return item;
@@ -74,9 +79,10 @@ public class FileRepository : IFileRepository
 
     public async IAsyncEnumerable<T> GetAll<T>() where T : CosmosSelector
     {
-        var filenames = GetFilenames();
+        var filenames = GetFilenames<T>();
+        var prefix = $"{_container}{GetEntityFolder<T>()}";
         var keys = filenames.Select(x =>
-            x.Substring(_container.Length, x.Length - (FileExtension.Length + _container.Length)));
+            x.Substring(prefix.Length, x.Length - (FileExtension.Length + prefix.Length)));
         foreach (var item in keys)
         {
             var cosmosSelector = await Read<T>(item);
@@ -96,7 +102,7 @@ public class FileRepository : IFileRepository
 
     public async IAsyncEnumerable<Guid> GetAllIds<T>() where T : CosmosSelector
     {
-        var filenames = GetFilenames();
+        var filenames = GetFilenames<T>();
 
         var keys = filenames.Select(x =>
             x.Substring(_container.Length, x.Length - (FileExtension.Length + _container.Length)));
@@ -110,9 +116,9 @@ public class FileRepository : IFileRepository
         }
     }
 
-    public async IAsyncEnumerable<string> GetAllFileKeys()
+    public async IAsyncEnumerable<string> GetAllFileKeys<T>() where T : CosmosSelector
     {
-        var filenames = GetFilenames();
+        var filenames = GetFilenames<T>();
         var keys = filenames.Select(x =>
             x.Substring(_container.Length, x.Length - (FileExtension.Length + _container.Length)));
         foreach (var item in keys)
@@ -169,17 +175,26 @@ public class FileRepository : IFileRepository
 
     public string GetFilePath<T>(T data) where T : CosmosSelector
     {
-        return GetFilePath(data.FileKey);
+        return GetFilePath<T>(data.FileKey);
     }
 
-    private string GetFilePath(string fileKey)
+    public string GetFilePath<T>(string fileKey) where T : CosmosSelector
     {
-        return $"{_container}{fileKey}{FileExtension}";
+        return $"{_container}{GetEntityFolder<T>()}{fileKey}{FileExtension}";
     }
 
-
-    private string[] GetFilenames()
+    private string GetEntityFolder<T>() where T : CosmosSelector
     {
-        return Directory.GetFiles(_container, $"*{FileExtension}");
+        if (!_useEntityFolder)
+        {
+            return string.Empty;
+        }
+
+        return $"{CosmosSelectorExtensions.GetModelType<T>().ToString().ToLowerInvariant()}/";
+    }
+
+    private string[] GetFilenames<T>() where T : CosmosSelector
+    {
+        return Directory.GetFiles($"{_container}{GetEntityFolder<T>()}", $"*{FileExtension}");
     }
 }

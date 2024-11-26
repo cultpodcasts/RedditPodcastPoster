@@ -1,24 +1,16 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace ModelTransformer;
 
-public class SplitFileRepository : ISplitFileRepository
+public class SplitFileRepository(
+    IFileRepositoryFactory fileRepositoryFactory,
+    ILogger<SplitFileRepository> logger)
+    : ISplitFileRepository
 {
-    private readonly IDataRepository _inputFileRepository;
-    private readonly ILogger<SplitFileRepository> _logger;
-    private readonly IDataRepository _outputFileRepository;
-
-    public SplitFileRepository(
-        IFileRepositoryFactory fileRepositoryFactory,
-        ILogger<SplitFileRepository> logger)
-    {
-        _logger = logger;
-        _inputFileRepository = fileRepositoryFactory.Create("input");
-        _outputFileRepository = fileRepositoryFactory.Create("output");
-    }
+    private readonly IDataRepository _inputFileRepository = fileRepositoryFactory.Create("input", false);
+    private readonly IDataRepository _outputFileRepository = fileRepositoryFactory.Create("output", false);
 
     public async Task Write<T>(string key, T data) where T : CosmosSelector
     {

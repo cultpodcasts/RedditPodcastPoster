@@ -11,16 +11,17 @@ public class FileRepositoryFactory(
 #pragma warning restore CS9113 // Parameter is unread.
     : IFileRepositoryFactory
 {
-    public IFileRepository Create(string container)
+    public IFileRepository Create(string container, bool useEntityFolder)
     {
         return new FileRepository(
             jsonSerializerOptionsProvider,
             container,
+            useEntityFolder,
             fileRepositoryLogger);
     }
 
     public IFileRepository Create()
     {
-        return Create("");
+        return Create("", false);
     }
 }

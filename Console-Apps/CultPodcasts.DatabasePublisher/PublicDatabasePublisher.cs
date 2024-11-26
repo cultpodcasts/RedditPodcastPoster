@@ -17,7 +17,7 @@ public class PublicDatabasePublisher(
 {
     public async Task Run()
     {
-        var fileKeys = await cosmosDbRepository.GetAllFileKeys().ToListAsync();
+        var fileKeys = await cosmosDbRepository.GetAllFileKeys<Podcast>().ToListAsync();
         var multipleFileKeys = fileKeys
             .GroupBy(x => x)
             .Select(x => new {FileKey = x.Key, Count = x.Count()})

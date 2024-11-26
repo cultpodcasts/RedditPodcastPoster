@@ -11,6 +11,11 @@ public class SafeFileEntityWriter(
 {
     public async Task Write<T>(T data) where T : CosmosSelector
     {
+        if (string.IsNullOrWhiteSpace(data.FileKey))
+        {
+            throw new InvalidOperationException($"Entity with id '{data.Id}' has empty file-key.");
+        }
+
         var filePath = fileRepository.GetFilePath(data);
         if (File.Exists(filePath))
         {
