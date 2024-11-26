@@ -53,44 +53,6 @@ jobs:
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
 
-    - name: Storage (Validate Bicep)
-      id: bicepstoragevalidate
-      uses: azure/bicep-deploy@v1
-      with:
-        type: deployment
-        operation: validate
-        name: bicep-validate-storage-${{ github.run_number }}
-        scope: resourceGroup
-        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
-        resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-        template-file: ./Infrastructure/function-storage.bicep
-        parameters: '{"location":"${{ env.location }}", "storageName":"${{ env.storageName }}"}'
-    - name: Application-Insights (Validate Bicep)
-      id: bicepappinsightsvalidate
-      uses: azure/bicep-deploy@v1
-      with:
-        type: deployment
-        operation: validate
-        name: bicep-validate-appinsights-${{ github.run_number }}
-        scope: resourceGroup
-        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
-        resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-        template-file: ./Infrastructure/function-application-insights.bicep
-        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}"}'
-    - name: Functions (Validate Bicep)
-      id: bicepfunctionsvalidate
-      uses: azure/bicep-deploy@v1
-      with:
-        type: deployment
-        operation: validate
-        name: bicep-validate-functions-${{ github.run_number }}
-        scope: resourceGroup
-        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
-        resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-        template-file: ./Infrastructure/functions.bicep
-        parameters-file: ./Infrastructure/functions.bicepparam
-        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}"}'
-
     - name: Storage (Deploy Bicep)
       id: bicepstoragedeploy
       uses: azure/bicep-deploy@v1
