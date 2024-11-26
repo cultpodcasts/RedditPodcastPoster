@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/streamline-build
 
 permissions:
   id-token: write
