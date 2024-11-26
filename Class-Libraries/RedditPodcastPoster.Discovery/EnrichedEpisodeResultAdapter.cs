@@ -1,8 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Subjects;
-using DiscoverService = RedditPodcastPoster.Models.DiscoverService;
 
 namespace RedditPodcastPoster.Discovery;
 
@@ -27,9 +25,7 @@ public class EnrichedEpisodeResultAdapter(
         discoveryResult.Urls.Spotify = episode.EpisodeResult.Urls.Spotify;
         discoveryResult.Urls.YouTube = episode.EpisodeResult.Urls.YouTube;
 
-        discoveryResult.Sources = episode.EpisodeResult.DiscoverServices
-            .Select(x => x.ConvertEnumByName<PodcastServices.Abstractions.DiscoverService, DiscoverService>())
-            .ToArray();
+        discoveryResult.Sources = episode.EpisodeResult.DiscoverServices.ToArray();
         discoveryResult.EnrichedTimeFromApple = episode.EpisodeResult.EnrichedTimeFromApple;
         discoveryResult.EnrichedUrlFromSpotify = episode.EpisodeResult.EnrichedUrlFromSpotify;
 
