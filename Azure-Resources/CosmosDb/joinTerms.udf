@@ -1,0 +1,3 @@
+function joinTerms(arr){
+    return arr.map((x) => `«${x}»`).join(" ");
+}
