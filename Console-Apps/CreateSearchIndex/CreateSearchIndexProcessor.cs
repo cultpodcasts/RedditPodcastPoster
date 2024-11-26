@@ -91,7 +91,7 @@ public partial class CreateSearchIndexProcessor(
                             e.id,
                             e.title as episodeTitle,
                             p.name as podcastName,
-                            e.description as episodeDescription,
+                            SUBSTRING (e.description, 0, 1800) as episodeDescription,
                             e.release,
                             e.duration,
                             e.explicit,

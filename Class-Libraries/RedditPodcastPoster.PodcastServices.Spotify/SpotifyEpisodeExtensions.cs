@@ -9,7 +9,7 @@ public static class SpotifyEpisodeExtensions
 
     public static DateTime GetReleaseDate(this SimpleEpisode episode)
     {
-        if (episode.ReleaseDate == "0000")
+        if (episode.ReleaseDate is null or "0000")
         {
             return DateTime.MinValue;
         }

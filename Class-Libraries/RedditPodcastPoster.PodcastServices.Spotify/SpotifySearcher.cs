@@ -38,9 +38,9 @@ public class SpotifySearcher(
             var recentResults =
                 allResults?
                     .Where(x =>
+                        x != null &&
                         x.GetReleaseDate() >= indexingContext.ReleasedSince &&
-                        (termRegex.IsMatch(x.Name) || termRegex.IsMatch(x.Description))) ??
-                Enumerable.Empty<SimpleEpisode>();
+                        (termRegex.IsMatch(x.Name) || termRegex.IsMatch(x.Description))) ?? [];
 
             if (recentResults.Any())
             {
