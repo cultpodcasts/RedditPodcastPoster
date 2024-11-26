@@ -169,7 +169,7 @@ jobs:
 
       - name: 'Deplpy Api'
         uses: Azure/functions-action@v1
-        id: fa
+        id: deployapi
         with:
           app-name: 'api-infra'
           slot-name: 'Production'
@@ -177,7 +177,7 @@ jobs:
 
       - name: 'Deploy Discover'
         uses: Azure/functions-action@v1
-        id: fa
+        id: deploydiscover
         with:
           app-name: 'discover-infra'
           slot-name: 'Production'
@@ -185,7 +185,7 @@ jobs:
 
       - name: 'Deplpy Indexer'
         uses: Azure/functions-action@v1
-        id: fa
+        id: deployindexer
         with:
           app-name: 'indexer-infra'
           slot-name: 'Production'
