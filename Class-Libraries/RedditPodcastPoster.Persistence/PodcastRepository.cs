@@ -76,7 +76,7 @@ public class PodcastRepository(
 
     public IAsyncEnumerable<string> GetAllFileKeys()
     {
-        return dataRepository.GetAllFileKeys();
+        return dataRepository.GetAllFileKeys<Podcast>();
     }
 
     public Task Save(Podcast podcast)

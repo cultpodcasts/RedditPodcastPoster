@@ -14,7 +14,20 @@ public class CosmosDbDownloader(
 {
     public async Task Run()
     {
-        var fileKeys = await cosmosDbRepository.GetAllFileKeys().ToListAsync();
+        var podcastFileKeys = await cosmosDbRepository.GetAllFileKeys<Podcast>().ToListAsync();
+        var subjectFileKeys = await cosmosDbRepository.GetAllFileKeys<Subject>().ToListAsync();
+        var eliminationTermsFileKeys = await cosmosDbRepository.GetAllFileKeys<EliminationTerms>().ToListAsync();
+        var knownTermsFileKeys = await cosmosDbRepository.GetAllFileKeys<KnownTerms>().ToListAsync();
+        var discoveryResultsDocumentFileKeys =
+            await cosmosDbRepository.GetAllFileKeys<DiscoveryResultsDocument>().ToListAsync();
+        var pushSubscriptionFileKeys = await cosmosDbRepository.GetAllFileKeys<PushSubscription>().ToListAsync();
+
+        var fileKeys = podcastFileKeys
+            .Union(subjectFileKeys)
+            .Union(eliminationTermsFileKeys)
+            .Union(knownTermsFileKeys)
+            .Union(discoveryResultsDocumentFileKeys)
+            .Union(pushSubscriptionFileKeys);
         var multipleFileKeys = fileKeys
             .GroupBy(x => x)
             .Select(x => new {FileKey = x.Key, Count = x.Count()})
@@ -30,6 +43,68 @@ public class CosmosDbDownloader(
         await DownloadEliminationTerms();
         await DownloadKnownTerms();
         await DownloadSubjects();
+        await DownloadDiscoveryResultsDocuments();
+        await DownloadPushSubscriptions();
+    }
+
+    private async Task DownloadPushSubscriptions()
+    {
+        var pushSubscriptionIds = await cosmosDbRepository.GetAllIds<PushSubscription>().ToArrayAsync();
+        var progress = new ProgressBar(pushSubscriptionIds.Length);
+        var ctr = 0;
+        foreach (var pushSubscriptionId in pushSubscriptionIds)
+        {
+            var pushSubscriptionDocument =
+                await cosmosDbRepository.Read<PushSubscription>(pushSubscriptionId.ToString());
+            if (pushSubscriptionDocument != null)
+            {
+                progress.Refresh(ctr, $"Downloaded {pushSubscriptionDocument.FileKey}");
+                if (string.IsNullOrWhiteSpace(pushSubscriptionDocument.FileKey))
+                {
+                    logger.LogInformation(
+                        $"Push-Subscription-Document with id '{pushSubscriptionDocument.Id}' missing a file-key.");
+                    pushSubscriptionDocument.FileKey = FileKeyFactory.GetFileKey("ps_" + pushSubscriptionDocument.Id);
+                    await cosmosDbRepository.Write(pushSubscriptionDocument);
+                }
+
+                await fileWriter.Write(pushSubscriptionDocument);
+            }
+
+            if (++ctr == pushSubscriptionIds.Length)
+            {
+                progress.Refresh(ctr, "Finished");
+            }
+        }
+    }
+
+    private async Task DownloadDiscoveryResultsDocuments()
+    {
+        var documentIds = await cosmosDbRepository.GetAllIds<DiscoveryResultsDocument>().ToArrayAsync();
+        var progress = new ProgressBar(documentIds.Length);
+        var ctr = 0;
+        foreach (var discoveryResultsDocumentId in documentIds)
+        {
+            var discoveryResultsDocument =
+                await cosmosDbRepository.Read<DiscoveryResultsDocument>(discoveryResultsDocumentId.ToString());
+            if (discoveryResultsDocument != null)
+            {
+                progress.Refresh(ctr, $"Downloaded {discoveryResultsDocument.FileKey}");
+                if (string.IsNullOrWhiteSpace(discoveryResultsDocument.FileKey))
+                {
+                    logger.LogInformation(
+                        $"Discovery-Results-Document with id '{discoveryResultsDocument.Id}' missing a file-key.");
+                    discoveryResultsDocument.FileKey = FileKeyFactory.GetFileKey("dr " + discoveryResultsDocument.Id);
+                    await cosmosDbRepository.Write(discoveryResultsDocument);
+                }
+
+                await fileWriter.Write(discoveryResultsDocument);
+            }
+
+            if (++ctr == documentIds.Length)
+            {
+                progress.Refresh(ctr, "Finished");
+            }
+        }
     }
 
     private async Task DownloadSubjects()

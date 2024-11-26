@@ -10,6 +10,7 @@ public sealed class DiscoveryResultsDocument : CosmosSelector
         IEnumerable<DiscoveryResult> discoveryResults)
     {
         Id = Guid.NewGuid();
+        FileKey = FileKeyFactory.GetFileKey($"dr {Id.ToString()}");
         ModelType = ModelType.Discovery;
         DiscoveryBegan = discoveryBegan;
         DiscoveryResults = discoveryResults;

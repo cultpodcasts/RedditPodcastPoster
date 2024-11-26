@@ -23,11 +23,13 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddFileRepository(this IServiceCollection services, string containerName = "")
+    public static IServiceCollection AddFileRepository(this IServiceCollection services, string containerName = "",
+        bool useEntityFolder = false)
     {
         return services
+            .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
             .AddScoped<IFileRepositoryFactory, FileRepositoryFactory>()
-            .AddScoped(x => x.GetService<IFileRepositoryFactory>()!.Create(containerName));
+            .AddScoped(x => x.GetService<IFileRepositoryFactory>()!.Create(containerName, useEntityFolder));
     }
 
     public static IServiceCollection AddSafeFileWriter(this IServiceCollection services)
