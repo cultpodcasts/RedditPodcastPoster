@@ -4,7 +4,5 @@ namespace RedditPodcastPoster.Discovery;
 
 public interface ISearchProvider
 {
-    Task<IEnumerable<EpisodeResult>> GetEpisodes(
-        IndexingContext indexingContext,
-        DiscoveryConfig discoveryConfig);
+    Task<IEnumerable<EpisodeResult>> GetEpisodes(DiscoveryConfig discoveryConfig, IndexingContext indexingContext);
 }

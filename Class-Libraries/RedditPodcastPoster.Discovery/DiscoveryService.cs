@@ -12,11 +12,11 @@ public class DiscoveryService(
 ) : IDiscoveryService
 {
     public async Task<IEnumerable<DiscoveryResult>> GetDiscoveryResults(
-        IndexingContext indexingContext,
-        DiscoveryConfig discoveryConfig)
+        DiscoveryConfig discoveryConfig,
+        IndexingContext indexingContext)
     {
         logger.LogInformation($"{nameof(GetDiscoveryResults)} initiated.");
-        var results = await searchProvider.GetEpisodes(indexingContext, discoveryConfig);
+        var results = await searchProvider.GetEpisodes(discoveryConfig, indexingContext);
         var enrichedResults = await episodeResultsEnricher.EnrichWithPodcastDetails(results).ToListAsync();
         return await enrichedEpisodeResultsAdapter.ToDiscoveryResults(enrichedResults).ToListAsync();
     }

@@ -9,12 +9,14 @@ public class DiscoverOptions
     public bool EnrichFromSpotify { get; set; }
     public bool EnrichFromApple { get; set; }
     public bool IncludeTaddy { get; set; }
+    public TimeSpan? TaddyOffset { get; set; }
 
     public override string ToString()
     {
         var reportDefinition = new[]
         {
             new {displayName = "since", value = SearchSince},
+            new {displayName = "taddyOffset", value = TaddyOffset?.ToString() ?? "Null"},
             new {displayName = "exclude-spotify", value = ExcludeSpotify.ToString()},
             new {displayName = "include-you-tube", value = IncludeYouTube.ToString()},
             new {displayName = "include-listen-notes", value = IncludeListenNotes.ToString()},

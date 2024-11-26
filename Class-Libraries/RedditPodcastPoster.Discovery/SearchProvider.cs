@@ -21,8 +21,8 @@ public class SearchProvider(
 ) : ISearchProvider
 {
     public async Task<IEnumerable<EpisodeResult>> GetEpisodes(
-        IndexingContext indexingContext,
-        DiscoveryConfig discoveryConfig)
+        DiscoveryConfig discoveryConfig,
+        IndexingContext indexingContext)
     {
         var results = new List<EpisodeResult>();
         foreach (var config in discoveryConfig.ServiceConfigs)
@@ -31,17 +31,25 @@ public class SearchProvider(
             switch (config.DiscoverService)
             {
                 case DiscoverService.Taddy:
-                    serviceResults = await taddySearcher.Search(config.Term, indexingContext);
+                    var taddyIndexingContent = indexingContext with
+                    {
+                        ReleasedSince = discoveryConfig.Since - (discoveryConfig.TaddyOffset ?? TimeSpan.Zero)
+                    };
+                    serviceResults = await taddySearcher.Search(config.Term, taddyIndexingContent);
                     if (discoveryConfig.EnrichFromSpotify)
                     {
-                        await spotifyEnricher.Enrich(serviceResults, indexingContext);
+                        await spotifyEnricher.Enrich(serviceResults, taddyIndexingContent);
                     }
 
                     if (discoveryConfig.EnrichFromApple)
                     {
-                        await appleEnricher.Enrich(serviceResults, indexingContext);
+                        await appleEnricher.Enrich(serviceResults, taddyIndexingContent);
                     }
 
+                    indexingContext = taddyIndexingContent with
+                    {
+                        ReleasedSince = indexingContext.ReleasedSince
+                    };
                     break;
 
                 case DiscoverService.ListenNotes:

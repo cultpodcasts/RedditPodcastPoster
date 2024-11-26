@@ -59,16 +59,15 @@ public class DiscoveryProcessor(
                 SkipPodcastDiscovery: false,
                 SkipExpensiveSpotifyQueries: false);
 
-            var serviceConfigs = discoveryConfigProvider.GetServiceConfigs(
-                new GetServiceConfigOptions(request.ExcludeSpotify, request.IncludeYouTube,
-                    request.IncludeListenNotes, request.IncludeTaddy));
+            var discoveryConfig = discoveryConfigProvider.CreateDiscoveryConfig(
+                new GetServiceConfigOptions(since, request.ExcludeSpotify, request.IncludeYouTube,
+                    request.IncludeListenNotes, request.IncludeTaddy, request.EnrichFromSpotify,
+                    request.EnrichFromApple, request.TaddyOffset));
 
             latest = DateTime.UtcNow.ToUniversalTime();
             Console.WriteLine(
                 $"Initiating discovery at '{latest:O}' (local: '{latest.Value.ToLocalTime():O}').");
-            var discoveryConfig =
-                new DiscoveryConfig(serviceConfigs, request.EnrichFromSpotify, request.EnrichFromApple);
-            discoveryResults = await discoveryService.GetDiscoveryResults(indexingContext, discoveryConfig);
+            discoveryResults = await discoveryService.GetDiscoveryResults(discoveryConfig, indexingContext);
         }
 
         foreach (var episode in discoveryResults)

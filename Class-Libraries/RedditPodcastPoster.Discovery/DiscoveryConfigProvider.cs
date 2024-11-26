@@ -11,10 +11,10 @@ public class DiscoveryServiceConfigProvider(
 {
     private readonly DiscoverySettings _discoverySettings = discoverySettings.Value;
 
-    public IEnumerable<ServiceConfig> GetServiceConfigs(GetServiceConfigOptions options)
+    public DiscoveryConfig CreateDiscoveryConfig(GetServiceConfigOptions options)
     {
         logger.LogInformation(
-            $"{nameof(GetServiceConfigs)}: {options} {_discoverySettings}");
+            $"{nameof(CreateDiscoveryConfig)}: {options} {_discoverySettings}");
         var serviceConfigs = new List<ServiceConfig>();
         if (_discoverySettings.Queries != null)
         {
@@ -43,6 +43,7 @@ public class DiscoveryServiceConfigProvider(
             }
         }
 
-        return serviceConfigs;
+        return new DiscoveryConfig(options.Since, options.TaddyOffset, serviceConfigs, options.EnrichFromSpotify,
+            options.EnrichFromApple);
     }
 }
