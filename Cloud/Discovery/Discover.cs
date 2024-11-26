@@ -60,18 +60,18 @@ public class Discover(
         bool results;
         try
         {
-            var serviceConfigs = discoveryConfigProvider.GetServiceConfigs(
-                new GetServiceConfigOptions(_discoverOptions.ExcludeSpotify, _discoverOptions.IncludeYouTube,
-                    _discoverOptions.IncludeListenNotes, _discoverOptions.IncludeTaddy));
+            var getServiceConfigOptions = new GetServiceConfigOptions(
+                since, _discoverOptions.ExcludeSpotify, _discoverOptions.IncludeYouTube,
+                _discoverOptions.IncludeListenNotes, _discoverOptions.IncludeTaddy, _discoverOptions.EnrichFromSpotify,
+                _discoverOptions.EnrichFromApple, _discoverOptions.TaddyOffset);
+            var discoveryConfig = discoveryConfigProvider.CreateDiscoveryConfig(getServiceConfigOptions);
 
             var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
             logger.LogInformation(
                 $"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}'), indexing-context: {indexingContext}");
-            var discoveryConfig = new DiscoveryConfig(serviceConfigs, _discoverOptions.EnrichFromSpotify,
-                _discoverOptions.EnrichFromApple);
 
             var preIndexingContextSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
-            var discoveryResults = await discoveryService.GetDiscoveryResults(indexingContext, discoveryConfig);
+            var discoveryResults = await discoveryService.GetDiscoveryResults(discoveryConfig, indexingContext);
             var discoveryResultsDocument = new DiscoveryResultsDocument(discoveryBegan, discoveryResults)
             {
                 SearchSince = _discoverOptions.SearchSince

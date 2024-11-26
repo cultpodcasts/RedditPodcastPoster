@@ -2,5 +2,5 @@
 
 public interface IDiscoveryServiceConfigProvider
 {
-    IEnumerable<ServiceConfig> GetServiceConfigs(GetServiceConfigOptions options);
+    DiscoveryConfig CreateDiscoveryConfig(GetServiceConfigOptions options);
 }

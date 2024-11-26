@@ -32,4 +32,8 @@ public class DiscoveryRequest
 
     [Option('a', "enrich-spotify-from-apple", Default = true, HelpText = "Enrich Spotify from Apple")]
     public bool EnrichFromApple { get; set; }
+
+    [Option('o', "taddy-offset", Default = null,
+        HelpText = "The amount of time extra to search against Taddy due to their indexing delay of 2 hours")]
+    public TimeSpan? TaddyOffset { get; set; }
 }
