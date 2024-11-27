@@ -20,7 +20,9 @@ public class YouTubeVideoService(
         if (indexingContext is {SkipYouTubeUrlResolving: true})
         {
             logger.LogInformation(
-                $"Skipping '{nameof(GetVideoContentDetails)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Video-ids: '{string.Join(",", videoIds)}'.");
+                "Skipping '{methodName}' as '{skipYouTubeUrlResolvingName}' is set. Video-ids: '{videoIds}'.",
+                nameof(GetVideoContentDetails), nameof(indexingContext.SkipYouTubeUrlResolving),
+                string.Join(",", videoIds));
             return null;
         }
 
@@ -54,7 +56,8 @@ public class YouTubeVideoService(
                 catch (Exception ex)
                 {
                     logger.LogError(ex,
-                        $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}' obtaining videos matching video-ides '{string.Join(",", videoIds)}'.");
+                        "Failed to use {youTubeServiceName} with api-key-name '{apiKeyName}' obtaining videos matching video-ids '{videoIds}'.",
+                        nameof(youTubeService.YouTubeService), youTubeService.ApiKeyName, string.Join(",", videoIds));
                     if (indexingContext != null)
                     {
                         indexingContext.SkipYouTubeUrlResolving = true;

@@ -42,6 +42,7 @@ param youTubeApiKey3= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-I
 param youTubeApiKey4= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Youtube-ApiKey-4')
 param youTubeApiKey5= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Youtube-ApiKey-5')
 param youTubeApiKey6= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Youtube-ApiKey-6')
+param youTubeApiKey7= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Youtube-ApiKey-7')
 
 var youTubeKeyUsage= {
 	youtube__Applications__0__Name: 'CultPodcasts'
@@ -65,6 +66,9 @@ var youTubeKeyUsage= {
 	youtube__Applications__6__Usage: 'Discover'
 	youtube__Applications__6__Name: 'CultPodcasts'
 	youtube__Applications__6__DisplayName: 'ApiKey6 - Discover'
+	youtube__Applications__7__Usage: 'Bluesky'
+	youtube__Applications__7__Name: 'CultPodcasts'
+	youtube__Applications__7__DisplayName: 'ApiKey7 - Bluesky'
 }
 
 param apiSettings = union(youTubeKeyUsage, {
