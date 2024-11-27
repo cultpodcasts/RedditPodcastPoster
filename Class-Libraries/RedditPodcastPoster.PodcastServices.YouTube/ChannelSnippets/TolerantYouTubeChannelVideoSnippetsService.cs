@@ -1,17 +1,17 @@
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 
 public class TolerantYouTubeChannelVideoSnippetsService(
     IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippets,
-    YouTubeServiceWrapper youTubeService,
     IYouTubeServiceFactory youTubeServiceFactory,
     ILogger<TolerantYouTubeChannelVideoSnippetsService> logger) : ITolerantYouTubeChannelVideoSnippetsService
 {
-    private YouTubeServiceWrapper _youTubeService = youTubeService;
+    private YouTubeServiceWrapper _youTubeService = youTubeServiceFactory.Create(ApplicationUsage.Indexer);
 
     public async Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(YouTubeChannelId channelId,
         IndexingContext indexingContext)
