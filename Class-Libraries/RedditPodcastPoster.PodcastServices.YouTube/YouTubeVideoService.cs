@@ -54,7 +54,7 @@ public class YouTubeVideoService(
                 catch (Exception ex)
                 {
                     logger.LogError(ex,
-                        $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
+                        $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}' obtaining videos matching video-ides '{string.Join(",", videoIds)}'.");
                     if (indexingContext != null)
                     {
                         indexingContext.SkipYouTubeUrlResolving = true;
