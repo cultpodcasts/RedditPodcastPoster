@@ -11,13 +11,18 @@ public class YouTubeApiKeyStrategy(
     ILogger<YouTubeApiKeyStrategy> logger)
     : IYouTubeApiKeyStrategy
 {
-    private readonly YouTubeSettings _settings = settings.Value ?? throw new ArgumentNullException($"Missing {nameof(YouTubeSettings)}.");
+    private readonly YouTubeSettings _settings =
+        settings.Value ?? throw new ArgumentNullException($"Missing {nameof(YouTubeSettings)}.");
 
     public Application GetApplication(ApplicationUsage usage)
     {
         logger.LogInformation($"Get youtube-applications for usage '{usage}'.");
         var usageApplications = _settings.Applications.Where(x => x.Usage.HasFlag(usage)).ToArray();
         var settingsCount = usageApplications.Count();
+        if (settingsCount == 0)
+        {
+            throw new InvalidOperationException($"No youtube-applications registered or usage '{usage.ToString()}'");
+        }
 
         var applicationIndex = dateTimeService.GetHour() / (24 / settingsCount);
         logger.LogInformation($"Using key '{applicationIndex}' out of '{settingsCount}' application-keys.");
