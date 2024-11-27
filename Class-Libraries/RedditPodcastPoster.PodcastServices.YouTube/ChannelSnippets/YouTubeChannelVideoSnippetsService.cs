@@ -46,6 +46,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets
                     if (ex.HttpStatusCode == HttpStatusCode.Forbidden && ex.Message.Contains("exceeded") &&
                         ex.Message.Contains("quota"))
                     {
+                        logger.LogError(ex, "Exceeded Quota occurred.");
                         throw new YouTubeQuotaException();
                     }
 

@@ -30,6 +30,8 @@ public class TolerantYouTubeChannelVideoSnippetsService(
             catch (YouTubeQuotaException ex)
             {
                 reattempt++;
+                logger.LogInformation("Quota exceeded observed. Rotating api-key with reattempt {reattempt} for index {index} and usage '{usage}'."
+                    , reattempt, _youTubeService.Index, _youTubeService.Usage.ToString());
                 _youTubeService = youTubeServiceFactory.Create(_youTubeService.Usage, _youTubeService.Index, reattempt);
             }
         }
