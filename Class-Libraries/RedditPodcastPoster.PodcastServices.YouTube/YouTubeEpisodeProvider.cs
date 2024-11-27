@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
@@ -10,7 +11,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube;
 public class YouTubeEpisodeProvider(
     IYouTubePlaylistService youTubePlaylistService,
     IYouTubeVideoService youTubeVideoService,
-    IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
+    ICachedTolerantYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<YouTubeEpisodeProvider> logger)
 #pragma warning restore CS9113 // Parameter is unread.

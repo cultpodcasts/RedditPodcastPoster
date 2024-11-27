@@ -12,4 +12,6 @@ public class Application
     public ApplicationUsage Usage { get; set; }
 
     public required string DisplayName { get; set; }
+
+    public int? Reattempt { get; set; }
 }

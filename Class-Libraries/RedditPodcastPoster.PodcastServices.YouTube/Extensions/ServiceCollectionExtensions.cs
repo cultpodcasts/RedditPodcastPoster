@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Factories;
 
@@ -30,6 +31,9 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeApiKeyStrategy, YouTubeApiKeyStrategy>()
             .AddDateTimeService()
             .AddScoped(s => s.GetService<IYouTubeServiceFactory>()!.Create(usage))
-            .AddScoped<IYouTubeVideoServiceFactory, YouTubeVideoServiceFactory>();
+            .AddScoped<IYouTubeVideoServiceFactory, YouTubeVideoServiceFactory>()
+            .AddScoped<ITolerantYouTubeChannelVideoSnippetsService, TolerantYouTubeChannelVideoSnippetsService>()
+            .AddScoped<ICachedTolerantYouTubeChannelVideoSnippetsService,
+                CachedTolerantYouTubeChannelVideoSnippetsService>();
     }
 }

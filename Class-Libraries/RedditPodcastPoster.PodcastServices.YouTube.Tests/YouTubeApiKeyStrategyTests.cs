@@ -53,15 +53,23 @@ public class YouTubeApiKeyStrategyTests
         {
             Applications =
             [
-                new Application {ApiKey = _fixture.Create<string>(), Name = "1", Usage = ApplicationUsage.Indexer, DisplayName = _fixture.Create<string>()},
-                new Application {ApiKey = _fixture.Create<string>(), Name = "2", Usage = ApplicationUsage.Indexer, DisplayName = _fixture.Create<string>()}
+                new Application
+                {
+                    ApiKey = _fixture.Create<string>(), Name = "1", Usage = ApplicationUsage.Indexer,
+                    DisplayName = _fixture.Create<string>()
+                },
+                new Application
+                {
+                    ApiKey = _fixture.Create<string>(), Name = "2", Usage = ApplicationUsage.Indexer,
+                    DisplayName = _fixture.Create<string>()
+                }
             ]
         }));
         _dateTimeService.Setup(x => x.GetHour()).Returns(hour);
         // act
         var result = Sut.GetApplication(ApplicationUsage.Indexer);
         // assert
-        result.Name.Should().Be(applicationName);
+        result.Application.Name.Should().Be(applicationName);
     }
 
     [Theory]
@@ -96,17 +104,33 @@ public class YouTubeApiKeyStrategyTests
         {
             Applications =
             [
-                new Application {ApiKey = _fixture.Create<string>(), Name = "1", Usage = ApplicationUsage.Indexer, DisplayName = _fixture.Create<string>()},
-                new Application {ApiKey = _fixture.Create<string>(), Name = "2", Usage = ApplicationUsage.Indexer, DisplayName = _fixture.Create<string>()},
-                new Application {ApiKey = _fixture.Create<string>(), Name = "3", Usage = ApplicationUsage.Indexer, DisplayName = _fixture.Create<string>()},
-                new Application {ApiKey = _fixture.Create<string>(), Name = "4", Usage = ApplicationUsage.Indexer, DisplayName = _fixture.Create<string>()}
+                new Application
+                {
+                    ApiKey = _fixture.Create<string>(), Name = "1", Usage = ApplicationUsage.Indexer,
+                    DisplayName = _fixture.Create<string>()
+                },
+                new Application
+                {
+                    ApiKey = _fixture.Create<string>(), Name = "2", Usage = ApplicationUsage.Indexer,
+                    DisplayName = _fixture.Create<string>()
+                },
+                new Application
+                {
+                    ApiKey = _fixture.Create<string>(), Name = "3", Usage = ApplicationUsage.Indexer,
+                    DisplayName = _fixture.Create<string>()
+                },
+                new Application
+                {
+                    ApiKey = _fixture.Create<string>(), Name = "4", Usage = ApplicationUsage.Indexer,
+                    DisplayName = _fixture.Create<string>()
+                }
             ]
         }));
         _dateTimeService.Setup(x => x.GetHour()).Returns(hour);
         // act
         var result = Sut.GetApplication(ApplicationUsage.Indexer);
         // assert
-        result.Name.Should().Be(applicationName);
+        result.Application.Name.Should().Be(applicationName);
     }
 
     [Fact]
@@ -118,16 +142,27 @@ public class YouTubeApiKeyStrategyTests
         {
             Applications =
             [
-
-                new Application {ApiKey = _fixture.Create<string>(), Name =_fixture.Create<string>(), Usage = ApplicationUsage.Discover, DisplayName = _fixture.Create<string>()},
-                new Application {ApiKey = _fixture.Create<string>(), Name =applicationName, Usage = ApplicationUsage.Indexer, DisplayName = _fixture.Create<string>()},
-                new Application {ApiKey = _fixture.Create<string>(), Name =_fixture.Create<string>(), Usage = ApplicationUsage.Api, DisplayName = _fixture.Create<string>()}
+                new Application
+                {
+                    ApiKey = _fixture.Create<string>(), Name = _fixture.Create<string>(),
+                    Usage = ApplicationUsage.Discover, DisplayName = _fixture.Create<string>()
+                },
+                new Application
+                {
+                    ApiKey = _fixture.Create<string>(), Name = applicationName, Usage = ApplicationUsage.Indexer,
+                    DisplayName = _fixture.Create<string>()
+                },
+                new Application
+                {
+                    ApiKey = _fixture.Create<string>(), Name = _fixture.Create<string>(), Usage = ApplicationUsage.Api,
+                    DisplayName = _fixture.Create<string>()
+                }
             ]
         }));
         // act
         var result = Sut.GetApplication(ApplicationUsage.Indexer);
         // assert
-        result.Name.Should().Be(applicationName);
+        result.Application.Name.Should().Be(applicationName);
     }
 
     [Fact]
@@ -139,13 +174,21 @@ public class YouTubeApiKeyStrategyTests
         {
             Applications =
             [
-                new Application {ApiKey = _fixture.Create<string>(), Name =_fixture.Create<string>(), Usage = ApplicationUsage.Discover|ApplicationUsage.Api, DisplayName = _fixture.Create<string>()},
-                new Application {ApiKey = _fixture.Create<string>(), Name =applicationName, Usage = ApplicationUsage.Indexer|ApplicationUsage.Api, DisplayName = _fixture.Create<string>()}
+                new Application
+                {
+                    ApiKey = _fixture.Create<string>(), Name = _fixture.Create<string>(),
+                    Usage = ApplicationUsage.Discover | ApplicationUsage.Api, DisplayName = _fixture.Create<string>()
+                },
+                new Application
+                {
+                    ApiKey = _fixture.Create<string>(), Name = applicationName,
+                    Usage = ApplicationUsage.Indexer | ApplicationUsage.Api, DisplayName = _fixture.Create<string>()
+                }
             ]
         }));
         // act
         var result = Sut.GetApplication(ApplicationUsage.Indexer);
         // assert
-        result.Name.Should().Be(applicationName);
+        result.Application.Name.Should().Be(applicationName);
     }
 }

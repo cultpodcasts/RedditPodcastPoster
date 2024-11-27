@@ -43,6 +43,7 @@ param youTubeApiKey4= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-I
 param youTubeApiKey5= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Youtube-ApiKey-5')
 param youTubeApiKey6= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Youtube-ApiKey-6')
 param youTubeApiKey7= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Youtube-ApiKey-7')
+param youTubeApiKey8= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Youtube-ApiKey-8')
 
 var youTubeKeyUsage= {
 	youtube__Applications__0__Name: 'CultPodcasts'
@@ -69,6 +70,23 @@ var youTubeKeyUsage= {
 	youtube__Applications__7__Usage: 'Bluesky'
 	youtube__Applications__7__Name: 'CultPodcasts'
 	youtube__Applications__7__DisplayName: 'ApiKey-7 - Bluesky'
+	youtube__Applications__8__Name: 'CultPodcasts'
+	youtube__Applications__8__Usage: 'Indexer'
+	youtube__Applications__8__DisplayName: 'ApiKey-8 (Reattempt 1 in place of Api-Key-1) - Indexer'
+	youtube__Applications__8__Reattempt: '1'
+	youtube__Applications__9__Name: 'CultPodcasts'
+	youtube__Applications__9__Usage: 'Indexer'
+	youtube__Applications__9__DisplayName: 'ApiKey-8 (Reattempt 1 in place of Api-Key-2) - Indexer'
+	youtube__Applications__9__Reattempt: '1'
+	youtube__Applications__10_Name: 'CultPodcasts'
+	youtube__Applications__10__Usage: 'Indexer'
+	youtube__Applications__10__DisplayName: 'ApiKey-8 (Reattempt 1 in place of Api-Key-4) - Indexer'
+	youtube__Applications__10__Reattempt: '1'
+	youtube__Applications__11__Name: 'CultPodcasts'
+	youtube__Applications__11__Usage: 'Indexer'
+	youtube__Applications__11__DisplayName: 'ApiKey-8 (Reattempt 1 in place of Api-Key-5) - Indexer'
+	youtube__Applications__11__Reattempt: '1'
+
 }
 
 param apiSettings = union(youTubeKeyUsage, {

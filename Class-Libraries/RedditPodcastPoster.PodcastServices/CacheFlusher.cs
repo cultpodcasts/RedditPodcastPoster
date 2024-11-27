@@ -3,12 +3,13 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 
 namespace RedditPodcastPoster.PodcastServices;
 
 public class CacheFlusher(
     ICachedApplePodcastService cachedApplePodcastService,
-    IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
+    ICachedTolerantYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
     IYouTubeChannelService youTubeChannelService,
     IYouTubeChannelVideosService youTubeChannelVideosService,
     ISpotifyPodcastEpisodesProvider spotifyPodcastEpisodesProvider,
