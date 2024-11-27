@@ -73,7 +73,7 @@ public class YouTubeChannelService(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
+                $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}' obtaining channel with id '{channelId.ChannelId}' and request-scope '{requestScope}'.");
             indexingContext.SkipYouTubeUrlResolving = true;
             return null;
         }
@@ -111,7 +111,7 @@ public class YouTubeChannelService(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
+                $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}' obtaining channel with channel-name '{channelName}'.");
             indexingContext.SkipYouTubeUrlResolving = true;
             return;
         }

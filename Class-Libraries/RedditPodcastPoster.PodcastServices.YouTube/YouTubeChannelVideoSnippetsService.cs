@@ -56,7 +56,7 @@ public class YouTubeChannelVideoSnippetsService(
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
+                    $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}' to obtain latest-channel-snippets for channel-id '{channelId.ChannelId}'.");
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return result;
             }

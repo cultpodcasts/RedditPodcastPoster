@@ -53,7 +53,7 @@ public class YouTubePlaylistService(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
+                logger.LogError(ex, $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}' obtaining playlist-video-snippets for playlist-id '{playlistId}'.");
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return new GetPlaylistVideoSnippetsResponse(null);
             }

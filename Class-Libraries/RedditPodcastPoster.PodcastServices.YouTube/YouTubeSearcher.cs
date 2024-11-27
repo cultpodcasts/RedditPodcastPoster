@@ -68,7 +68,7 @@ public class YouTubeSearcher(
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
+                    $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}' obtaining episodes using search-term '{query}'.");
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return results.Select(x => ToEpisodeResult(x.SearchResult, x.Video, x.Channel));
             }

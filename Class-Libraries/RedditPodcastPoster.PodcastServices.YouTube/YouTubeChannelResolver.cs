@@ -37,7 +37,7 @@ public class YouTubeChannelResolver(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
+            logger.LogError(ex, $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}' to obtain channel-snippets for channel-name '{channelName}'.");
             indexingContext.SkipYouTubeUrlResolving = true;
             return null;
         }
@@ -62,7 +62,7 @@ public class YouTubeChannelResolver(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}'.");
+                logger.LogError(ex, $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}' to obtain channel-snippets for channel-id '{searchResult.Snippet.ChannelId}' obtained when searching for channel with name '{channelName}'.");
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return null;
             }
