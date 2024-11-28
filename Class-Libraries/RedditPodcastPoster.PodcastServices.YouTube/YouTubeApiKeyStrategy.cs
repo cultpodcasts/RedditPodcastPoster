@@ -49,7 +49,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube
                 throw new InvalidOperationException($"Inadequate number of youtube-applications registered or usage '{usage.ToString()}'. Applications: '{settingsCount}', Index-requested: '{index}'.");
             }
 
-            var application = usageApplications.Skip(index).FirstOrDefault();
+            var application = usageApplications.Skip(index).First();
             if (application == null)
             {
                 logger.LogError("Expected application.");
@@ -59,7 +59,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube
                 "{methodName}: Using application-key for {usage} with name '{displayName}' ({position}/{settingsCount}) ending '{keyEnding}'.",
                 nameof(GetApplication), usage.ToString(), application?.DisplayName, index + 1, settingsCount,
                 application?.ApiKey.Substring(application.ApiKey.Length - 2));
-            return new ApplicationWrapper(application, index);
+            return new ApplicationWrapper(application!, index);
         }
     }
 }
