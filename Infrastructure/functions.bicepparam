@@ -86,7 +86,6 @@ var youTubeKeyUsage= {
 	youtube__Applications__11__Usage: 'Indexer'
 	youtube__Applications__11__DisplayName: 'ApiKey-8 (Reattempt 1 in place of Api-Key-5) - Indexer'
 	youtube__Applications__11__Reattempt: '1'
-
 }
 
 param apiSettings = union(youTubeKeyUsage, {
