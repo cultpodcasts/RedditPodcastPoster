@@ -14,10 +14,9 @@ public class TolerantYouTubeChannelVideoSnippetsService(
         IndexingContext indexingContext)
     {
         IList<SearchResult>? result = null;
-        var reattempt = 0;
         var success = false;
         var rotationExcepted = false;
-        while (reattempt <= youTubeService.Reattempts && !success && !rotationExcepted)
+        while (youTubeService.CanRotate && !success && !rotationExcepted)
         {
             try
             {
@@ -27,18 +26,15 @@ public class TolerantYouTubeChannelVideoSnippetsService(
             }
             catch (YouTubeQuotaException ex)
             {
-                reattempt++;
                 logger.LogInformation(
-                    "Quota exceeded observed. Rotating api-key with reattempt {reattempt} for index {index} and usage '{usage}'."
-                    , reattempt, youTubeService.Index, youTubeService.ApplicationUsage.ToString());
+                    "Quota exceeded observed. Rotating api-key .");
                 try
                 {
                     youTubeService.Rotate();
                 }
                 catch (Exception e)
                 {
-                    logger.LogError(e, "Error rotating api. usage: '{usage}', index: {index}, reattempt: {reattempt}.",
-                        youTubeService.ApplicationUsage, youTubeService.Index, reattempt);
+                    logger.LogError(e, "Error rotating api.");
                     rotationExcepted = true;
                 }
             }
@@ -48,8 +44,7 @@ public class TolerantYouTubeChannelVideoSnippetsService(
         {
             indexingContext.SkipYouTubeUrlResolving = true;
             logger.LogError(
-                "Unable to obtain latest-channel-video-snippets for channel-id '{channelId}'. Attempt: {attempt}, Usage: {usage}, reattempts: {reattempts}.",
-                channelId.ChannelId, reattempt, youTubeService.ApplicationUsage, youTubeService.Reattempts);
+                "Unable to obtain latest-channel-video-snippets for channel-id '{channelId}'.", channelId.ChannelId);
         }
 
         return result;
