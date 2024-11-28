@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Client;
+using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.YouTube;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;

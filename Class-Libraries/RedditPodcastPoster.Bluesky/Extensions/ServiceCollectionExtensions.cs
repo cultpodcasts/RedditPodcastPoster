@@ -15,11 +15,11 @@ public static class ServiceCollectionExtensions
         return services
             .AddSingleton<IBlueskyClientFactory, BlueskyClientFactory>()
             .AddSingleton(x => x.GetService<IBlueskyClientFactory>()!.Create())
-            .AddScoped<IBlueskyPostBuilder, BlueskyPostBuilder>()
+            .AddScoped<IBlueskyEmbedCardPostFactory, BlueskyEmbedCardPostFactory>()
             .AddScoped<IBlueskyPoster, BlueskyPoster>()
             .AddScoped<IBlueskyPostManager, BlueskyPostManager>()
             .AddScoped<IEmbedCardRequestFactory, EmbedCardRequestFactory>()
             .AddScoped<IBlueskyYouTubeServiceFactory, BlueskyYouTubeServiceFactory>()
-            .AddScoped<IBlueskyYouTubeServiceWrapper>(s => s.GetService<IBlueskyYouTubeServiceFactory>()!.Create());
+            .AddScoped(s => s.GetService<IBlueskyYouTubeServiceFactory>()!.Create());
     }
 }

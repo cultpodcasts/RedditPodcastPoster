@@ -3,20 +3,21 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Bluesky.Configuration;
+using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Text;
 
-namespace RedditPodcastPoster.Bluesky;
+namespace RedditPodcastPoster.Bluesky.Factories;
 
-public class BlueskyPostBuilder(
+public class BlueskyEmbedCardPostFactory(
     ITextSanitiser textSanitiser,
     IHashTagEnricher hashTagEnricher,
     IHashTagProvider hashTagProvider,
     IOptions<BlueskyOptions> blueskyOptions,
-    ILogger<BlueskyPostBuilder> logger
-) : IBlueskyPostBuilder
+    ILogger<IBlueskyEmbedCardPostFactory> logger
+) : IBlueskyEmbedCardPostFactory
 {
     public const string LengthFormat = @"\[h\:mm\:ss\]";
     public const string? ReleaseFormat = "d MMM yyyy";
