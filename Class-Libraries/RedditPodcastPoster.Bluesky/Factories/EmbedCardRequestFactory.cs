@@ -18,7 +18,7 @@ public class EmbedCardRequestFactory(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : IEmbedCardRequestFactory
 {
-    private readonly YouTubeServiceWrapper _youTubeService = youTubeServiceFactory.Create(ApplicationUsage.Bluesky);
+    private readonly IYouTubeServiceWrapper _youTubeService = youTubeServiceFactory.Create(ApplicationUsage.Bluesky);
 
     public async Task<EmbedCardRequest?> CreateEmbedCardRequest(PodcastEpisode podcastEpisode,
         BlueskyEmbedCardPost embedPost)

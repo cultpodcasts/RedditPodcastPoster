@@ -4,14 +4,12 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
-using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeEpisodeProvider(
-    IYouTubeServiceFactory youTubeServiceFactory,
-    IApplicationUsageProvider applicationUsageProvider,
+    IYouTubeServiceWrapper youTubeService,
     IYouTubePlaylistService youTubePlaylistService,
     IYouTubeVideoService youTubeVideoService,
     ICachedTolerantYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
@@ -20,9 +18,6 @@ public class YouTubeEpisodeProvider(
 #pragma warning restore CS9113 // Parameter is unread.
     : IYouTubeEpisodeProvider
 {
-    private readonly YouTubeServiceWrapper _youTubeService =
-        youTubeServiceFactory.Create(applicationUsageProvider.GetApplicationUsage());
-
     public async Task<IList<Episode>?> GetEpisodes(
         YouTubeChannelId request,
         IndexingContext indexingContext,
@@ -38,7 +33,7 @@ public class YouTubeEpisodeProvider(
             if (youTubeVideoIds.Any())
             {
                 var videoDetails =
-                    await youTubeVideoService.GetVideoContentDetails(_youTubeService, youTubeVideoIds, indexingContext,
+                    await youTubeVideoService.GetVideoContentDetails(youTubeService, youTubeVideoIds, indexingContext,
                         true);
 
                 if (videoDetails != null)
@@ -96,7 +91,7 @@ public class YouTubeEpisodeProvider(
         }
 
         var videoDetails =
-            await youTubeVideoService.GetVideoContentDetails(_youTubeService,
+            await youTubeVideoService.GetVideoContentDetails(youTubeService,
                 results.Select(x => x.Snippet.ResourceId.VideoId),
                 indexingContext, true);
         if (videoDetails != null && videoDetails.Any())

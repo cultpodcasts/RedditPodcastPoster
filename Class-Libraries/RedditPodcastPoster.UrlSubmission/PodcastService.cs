@@ -4,14 +4,12 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
-using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace RedditPodcastPoster.UrlSubmission;
 
 public class PodcastService(
-    IYouTubeServiceFactory youTubeServiceFactory,
-    IApplicationUsageProvider applicationUsageProvider,
+    IYouTubeServiceWrapper youTubeService,
     IPodcastRepository podcastRepository,
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
     IYouTubeVideoService youTubeVideoService,
@@ -20,9 +18,6 @@ public class PodcastService(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : IPodcastService
 {
-    private readonly YouTubeServiceWrapper _youTubeService =
-        youTubeServiceFactory.Create(applicationUsageProvider.GetApplicationUsage());
-
     public async Task<Podcast?> GetPodcastFromEpisodeUrl(Uri url, IndexingContext indexingContext)
     {
         IEnumerable<Podcast> podcasts;
@@ -55,7 +50,7 @@ public class PodcastService(
             }
 
             var episodes =
-                await youTubeVideoService.GetVideoContentDetails(_youTubeService, [videoId], indexingContext, true);
+                await youTubeVideoService.GetVideoContentDetails(youTubeService, [videoId], indexingContext, true);
             if (episodes == null || !episodes.Any())
             {
                 throw new InvalidOperationException($"Unable to find youtube-video for youtube-video-id '{videoId}'.");

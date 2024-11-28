@@ -8,15 +8,13 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube;
-using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Text.EliminationTerms;
 
 namespace EnrichYouTubeOnlyPodcasts;
 
 public class EnrichYouTubePodcastProcessor(
-    IYouTubeServiceFactory youTubeServiceFactory,
-    IApplicationUsageProvider applicationUsageProvider,
+    IYouTubeServiceWrapper youTubeService,
     IPodcastRepository podcastRepository,
     IYouTubePlaylistService youTubePlaylistService,
     IYouTubeChannelService youTubeChannelService,
@@ -29,9 +27,6 @@ public class EnrichYouTubePodcastProcessor(
     ILogger<EnrichYouTubePodcastProcessor> logger)
 {
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
-
-    private readonly YouTubeServiceWrapper _youTubeService =
-        youTubeServiceFactory.Create(applicationUsageProvider.GetApplicationUsage());
 
     public async Task Run(EnrichYouTubePodcastRequest request)
     {
@@ -112,7 +107,7 @@ public class EnrichYouTubePodcastProcessor(
             podcast.Episodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();
         var missingVideoIds = missingPlaylistItems.Select(x => x.Snippet.ResourceId.VideoId).Distinct();
         var missingPlaylistVideos =
-            await youTubeVideoService.GetVideoContentDetails(_youTubeService, missingVideoIds, indexOptions, true);
+            await youTubeVideoService.GetVideoContentDetails(youTubeService, missingVideoIds, indexOptions, true);
 
         if (missingPlaylistVideos == null)
         {

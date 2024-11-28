@@ -15,7 +15,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets
         private const int MaxSearchResults = 5;
 
         public async Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(
-            YouTubeServiceWrapper youTubeServiceWrapper,
+            IYouTubeServiceWrapper youTubeServiceWrapper,
             YouTubeChannelId channelId,
             IndexingContext indexingContext)
         {
@@ -52,14 +52,14 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets
                     }
 
                     logger.LogError(ex,
-                        $"Unrecognised google-api-exception. Failed to use {nameof(youTubeServiceWrapper.YouTubeService)} with api-key-name '{youTubeServiceWrapper.ApiKeyName}' to obtain latest-channel-snippets for channel-id '{channelId.ChannelId}'.");
+                        $"Unrecognised google-api-exception. Failed to use {nameof(youTubeServiceWrapper.YouTubeService)}  to obtain latest-channel-snippets for channel-id '{channelId.ChannelId}'.");
                     indexingContext.SkipYouTubeUrlResolving = true;
                     return result;
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex,
-                        $"Failed to use {nameof(youTubeServiceWrapper.YouTubeService)} with api-key-name '{youTubeServiceWrapper.ApiKeyName}' to obtain latest-channel-snippets for channel-id '{channelId.ChannelId}'.");
+                        $"Failed to use {nameof(youTubeServiceWrapper.YouTubeService)} to obtain latest-channel-snippets for channel-id '{channelId.ChannelId}'.");
                     indexingContext.SkipYouTubeUrlResolving = true;
                     return result;
                 }

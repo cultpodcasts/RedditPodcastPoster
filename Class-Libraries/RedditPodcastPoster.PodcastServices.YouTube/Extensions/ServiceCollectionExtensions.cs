@@ -31,6 +31,7 @@ public static class ServiceCollectionExtensions
             .AddDateTimeService()
             .AddSingleton<IApplicationUsageProvider>(new ApplicationUsageProvider(usage))
             .AddScoped(s => s.GetService<IYouTubeServiceFactory>()!.Create(usage))
+            .AddScoped(s => s.GetService<IYouTubeServiceFactory>()!.Create())
             .AddScoped<ITolerantYouTubeChannelVideoSnippetsService, TolerantYouTubeChannelVideoSnippetsService>()
             .AddScoped<ICachedTolerantYouTubeChannelVideoSnippetsService,
                 CachedTolerantYouTubeChannelVideoSnippetsService>();

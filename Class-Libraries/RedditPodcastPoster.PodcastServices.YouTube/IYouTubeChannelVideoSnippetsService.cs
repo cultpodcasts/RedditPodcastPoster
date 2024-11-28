@@ -6,7 +6,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube;
 public interface IYouTubeChannelVideoSnippetsService
 {
     Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(
-        YouTubeServiceWrapper youTubeServiceWrapper,
+        IYouTubeServiceWrapper youTubeServiceWrapper,
         YouTubeChannelId channelId,
         IndexingContext indexingContext);
 }

@@ -6,7 +6,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubePlaylistService(
-    YouTubeServiceWrapper youTubeService,
+    IYouTubeServiceWrapper youTubeService,
     ILogger<YouTubePlaylistService> logger)
     : IYouTubePlaylistService
 {
@@ -53,7 +53,7 @@ public class YouTubePlaylistService(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}' obtaining playlist-video-snippets for playlist-id '{playlistId}'.");
+                logger.LogError(ex, $"Failed to use {nameof(youTubeService.YouTubeService)} obtaining playlist-video-snippets for playlist-id '{playlistId}'.");
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return new GetPlaylistVideoSnippetsResponse(null);
             }

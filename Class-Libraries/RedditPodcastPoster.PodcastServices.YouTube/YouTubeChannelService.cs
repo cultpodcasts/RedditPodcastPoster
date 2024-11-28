@@ -6,7 +6,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeChannelService(
-    YouTubeServiceWrapper youTubeService,
+    IYouTubeServiceWrapper youTubeService,
     ILogger<YouTubeChannelService> logger)
     : IYouTubeChannelService
 {
@@ -73,7 +73,7 @@ public class YouTubeChannelService(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}' obtaining channel with id '{channelId.ChannelId}' and request-scope '{requestScope}'.");
+                $"Failed to use {nameof(youTubeService.YouTubeService)} obtaining channel with id '{channelId.ChannelId}' and request-scope '{requestScope}'.");
             indexingContext.SkipYouTubeUrlResolving = true;
             return null;
         }
@@ -111,7 +111,7 @@ public class YouTubeChannelService(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}' obtaining channel with channel-name '{channelName}'.");
+                $"Failed to use {nameof(youTubeService.YouTubeService)} obtaining channel with channel-name '{channelName}'.");
             indexingContext.SkipYouTubeUrlResolving = true;
             return;
         }
