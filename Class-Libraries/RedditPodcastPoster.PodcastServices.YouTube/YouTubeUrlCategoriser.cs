@@ -8,6 +8,7 @@ using RedditPodcastPoster.Text;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeUrlCategoriser(
+    IYouTubeServiceWrapper youTubeService,
     IYouTubeChannelService youTubeChannelService,
     IYouTubeVideoService youTubeVideoService,
     IYouTubeChannelVideosService youTubeChannelVideosService,
@@ -43,7 +44,7 @@ public class YouTubeUrlCategoriser(
             pair = new PodcastEpisode(podcast, episode);
 
             var episodes =
-                await youTubeVideoService.GetVideoContentDetails(new[] {YouTubeIdResolver.Extract(url)!},
+                await youTubeVideoService.GetVideoContentDetails(youTubeService, [YouTubeIdResolver.Extract(url)!],
                     indexingContext, true);
             if (episodes != null && episodes.Any())
             {
@@ -73,7 +74,7 @@ public class YouTubeUrlCategoriser(
             throw new InvalidOperationException($"Unable to find video-id in url '{url}'.");
         }
 
-        var items = await youTubeVideoService.GetVideoContentDetails(new[] {videoId}, indexingContext, true);
+        var items = await youTubeVideoService.GetVideoContentDetails(youTubeService, [videoId], indexingContext, true);
         if (items != null)
         {
             var item = items.FirstOrDefault();
@@ -174,6 +175,7 @@ public class YouTubeUrlCategoriser(
                 {
                     var videoContent =
                         await youTubeVideoService.GetVideoContentDetails(
+                            youTubeService,
                             [match.Snippet.ResourceId.VideoId],
                             indexingContext
                         );
@@ -202,7 +204,8 @@ public class YouTubeUrlCategoriser(
 
             if (match != null)
             {
-                var video = await youTubeVideoService.GetVideoContentDetails([match.Snippet.ResourceId.VideoId],
+                var video = await youTubeVideoService.GetVideoContentDetails(youTubeService,
+                    [match.Snippet.ResourceId.VideoId],
                     indexingContext);
                 if (video != null)
                 {

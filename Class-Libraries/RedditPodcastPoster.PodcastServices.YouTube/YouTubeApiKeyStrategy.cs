@@ -31,7 +31,11 @@ public class YouTubeApiKeyStrategy(
             "{methodName}: Using application-key for {usage} with name '{displayName}' ({position}/{settingsCount}) ending '{keyEnding}'.",
             nameof(GetApplication), usage.ToString(), application.DisplayName, applicationIndex + 1, settingsCount,
             application.ApiKey.Substring(application.ApiKey.Length - 2));
-        return new ApplicationWrapper(application, applicationIndex);
+        return new ApplicationWrapper(
+            application,
+            applicationIndex,
+            _settings.Applications.Where(x => x.Usage.HasFlag(usage)).Max(x => x.Reattempt) ?? 0
+        );
     }
 
     public ApplicationWrapper GetApplication(ApplicationUsage usage, int index, int reattempt)
@@ -58,6 +62,9 @@ public class YouTubeApiKeyStrategy(
             "{methodName}: Using application-key for {usage} with name '{displayName}' ({position}/{settingsCount}) ending '{keyEnding}' for reattempt {reattempt}.",
             nameof(GetApplication), usage.ToString(), application.DisplayName, index + 1, settingsCount,
             application.ApiKey.Substring(application.ApiKey.Length - 2), reattempt);
-        return new ApplicationWrapper(application, index);
+        return new ApplicationWrapper(
+            application,
+            index,
+            _settings.Applications.Where(x => x.Usage.HasFlag(usage)).Max(x => x.Reattempt) ?? 0);
     }
 }

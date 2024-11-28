@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Factories;
+using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
@@ -9,7 +10,7 @@ namespace RedditPodcastPoster.Bluesky;
 
 public class BlueskyPoster(
     IPodcastRepository repository,
-    IBlueskyPostBuilder postBuilder,
+    IBlueskyEmbedCardPostFactory embedCardPostFactory,
     IEmbedCardBlueskyClient blueSkyClient,
     IEmbedCardRequestFactory embedCardRequestFactory,
     ILogger<BlueskyPoster> logger)
@@ -17,14 +18,15 @@ public class BlueskyPoster(
 {
     public async Task<BlueskySendStatus> Post(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
-        var embedPost = await postBuilder.BuildPost(podcastEpisode, shortUrl);
+        var embedPost = await embedCardPostFactory.Create(podcastEpisode, shortUrl);
         BlueskySendStatus sendStatus;
         var embedCardRequest = await embedCardRequestFactory.CreateEmbedCardRequest(podcastEpisode, embedPost);
         try
         {
             if (embedCardRequest != null)
             {
-                logger.LogInformation($"Non-Null {nameof(EmbedCardRequest)} for episode with id '{podcastEpisode.Episode.Id}'.");
+                logger.LogInformation(
+                    $"Non-Null {nameof(EmbedCardRequest)} for episode with id '{podcastEpisode.Episode.Id}'.");
                 await blueSkyClient.Post(embedPost.Text, embedCardRequest);
             }
             else

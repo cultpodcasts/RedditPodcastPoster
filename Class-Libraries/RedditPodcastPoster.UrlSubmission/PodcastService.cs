@@ -9,6 +9,7 @@ using Podcast = RedditPodcastPoster.Models.Podcast;
 namespace RedditPodcastPoster.UrlSubmission;
 
 public class PodcastService(
+    IYouTubeServiceWrapper youTubeService,
     IPodcastRepository podcastRepository,
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
     IYouTubeVideoService youTubeVideoService,
@@ -48,7 +49,8 @@ public class PodcastService(
                 throw new ArgumentException($"Unable to extract youtube-video-id from '{url}'.", nameof(url));
             }
 
-            var episodes = await youTubeVideoService.GetVideoContentDetails(new[] {videoId}, indexingContext, true);
+            var episodes =
+                await youTubeVideoService.GetVideoContentDetails(youTubeService, [videoId], indexingContext, true);
             if (episodes == null || !episodes.Any())
             {
                 throw new InvalidOperationException($"Unable to find youtube-video for youtube-video-id '{videoId}'.");

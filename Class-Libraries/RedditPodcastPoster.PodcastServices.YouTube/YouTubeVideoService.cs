@@ -5,13 +5,13 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeVideoService(
-    YouTubeServiceWrapper youTubeService,
     ILogger<YouTubeVideoService> logger)
     : IYouTubeVideoService
 {
     private const int MaxSearchResults = 5;
 
     public async Task<IList<Video>?> GetVideoContentDetails(
+        IYouTubeServiceWrapper youTubeService,
         IEnumerable<string> videoIds,
         IndexingContext? indexingContext,
         bool withSnippets = false,
@@ -56,8 +56,8 @@ public class YouTubeVideoService(
                 catch (Exception ex)
                 {
                     logger.LogError(ex,
-                        "Failed to use {youTubeServiceName} with api-key-name '{apiKeyName}' obtaining videos matching video-ids '{videoIds}'.",
-                        nameof(youTubeService.YouTubeService), youTubeService.ApiKeyName, string.Join(",", videoIds));
+                        "Failed to use {youTubeServiceName} obtaining videos matching video-ids '{videoIds}'.",
+                        nameof(youTubeService.YouTubeService), string.Join(",", videoIds));
                     if (indexingContext != null)
                     {
                         indexingContext.SkipYouTubeUrlResolving = true;

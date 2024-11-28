@@ -9,6 +9,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeEpisodeProvider(
+    IYouTubeServiceWrapper youTubeService,
     IYouTubePlaylistService youTubePlaylistService,
     IYouTubeVideoService youTubeVideoService,
     ICachedTolerantYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
@@ -32,7 +33,8 @@ public class YouTubeEpisodeProvider(
             if (youTubeVideoIds.Any())
             {
                 var videoDetails =
-                    await youTubeVideoService.GetVideoContentDetails(youTubeVideoIds, indexingContext, true);
+                    await youTubeVideoService.GetVideoContentDetails(youTubeService, youTubeVideoIds, indexingContext,
+                        true);
 
                 if (videoDetails != null)
                 {
@@ -89,7 +91,8 @@ public class YouTubeEpisodeProvider(
         }
 
         var videoDetails =
-            await youTubeVideoService.GetVideoContentDetails(results.Select(x => x.Snippet.ResourceId.VideoId),
+            await youTubeVideoService.GetVideoContentDetails(youTubeService,
+                results.Select(x => x.Snippet.ResourceId.VideoId),
                 indexingContext, true);
         if (videoDetails != null && videoDetails.Any())
         {

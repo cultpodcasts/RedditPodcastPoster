@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Bluesky;
+﻿namespace RedditPodcastPoster.Bluesky.Models;
 
 public enum BlueskySendStatus
 {

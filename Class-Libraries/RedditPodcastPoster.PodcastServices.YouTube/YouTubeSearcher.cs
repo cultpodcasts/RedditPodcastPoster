@@ -9,7 +9,7 @@ using static Google.Apis.YouTube.v3.SearchResource.ListRequest;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeSearcher(
-    YouTubeServiceWrapper youTubeService,
+    IYouTubeServiceWrapper youTubeService,
     INoRedirectHttpClientFactory httpClientFactory,
     IYouTubeVideoService youTubeVideoService,
     IYouTubeChannelService youTubeChannelService,
@@ -68,7 +68,7 @@ public class YouTubeSearcher(
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}' obtaining episodes using search-term '{query}'.");
+                    $"Failed to use {nameof(youTubeService.YouTubeService)} obtaining episodes using search-term '{query}'.");
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return results.Select(x => ToEpisodeResult(x.SearchResult, x.Video, x.Channel));
             }
@@ -93,7 +93,8 @@ public class YouTubeSearcher(
         IndexingContext indexingContext)
     {
         var videoIds = results.Select(x => x.SearchResult.Id.VideoId);
-        var videos = await youTubeVideoService.GetVideoContentDetails(videoIds, indexingContext, true, true);
+        var videos =
+            await youTubeVideoService.GetVideoContentDetails(youTubeService, videoIds, indexingContext, true, true);
         foreach (var result in results)
         {
             var video = videos?.FirstOrDefault(x => x.Id == result.SearchResult.Id.VideoId);

@@ -6,6 +6,7 @@ using RedditPodcastPoster.Text;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeEpisodeEnricher(
+    IYouTubeServiceWrapper youTubeService,
     IYouTubeItemResolver youTubeItemResolver,
     ITextSanitiser textSanitiser,
     IYouTubeVideoService youTubeVideoService,
@@ -67,7 +68,8 @@ public class YouTubeEpisodeEnricher(
             if (string.IsNullOrWhiteSpace(request.Episode.Description))
             {
                 var videoContentDetails =
-                    await youTubeVideoService.GetVideoContentDetails(new[] {episodeYouTubeId}, indexingContext, true);
+                    await youTubeVideoService.GetVideoContentDetails(youTubeService, [episodeYouTubeId],
+                        indexingContext, true);
                 var description = videoContentDetails?.FirstOrDefault()?.Snippet.Description.Trim() ?? string.Empty;
                 if (!string.IsNullOrWhiteSpace(description))
                 {

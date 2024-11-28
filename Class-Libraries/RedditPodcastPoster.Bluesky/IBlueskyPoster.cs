@@ -1,4 +1,5 @@
-﻿using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Bluesky.Models;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Bluesky;
 
