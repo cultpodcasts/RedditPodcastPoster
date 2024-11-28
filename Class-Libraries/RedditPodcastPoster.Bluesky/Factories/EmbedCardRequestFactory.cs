@@ -1,25 +1,23 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Client;
+using RedditPodcastPoster.Bluesky.YouTube;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
-using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 namespace RedditPodcastPoster.Bluesky.Factories;
 
 public class EmbedCardRequestFactory(
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
-    IYouTubeServiceFactory youTubeServiceFactory,
+    IBlueskyYouTubeServiceWrapper youTubeService,
     IYouTubeVideoService youTubeVideoService,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<EmbedCardRequestFactory> logger
 #pragma warning restore CS9113 // Parameter is unread.
 ) : IEmbedCardRequestFactory
 {
-    private readonly IYouTubeServiceWrapper _youTubeService = youTubeServiceFactory.Create(ApplicationUsage.Bluesky);
-
     public async Task<EmbedCardRequest?> CreateEmbedCardRequest(PodcastEpisode podcastEpisode,
         BlueskyEmbedCardPost embedPost)
     {
@@ -30,7 +28,7 @@ public class EmbedCardRequestFactory(
             case Service.YouTube:
             {
                 var video = await youTubeVideoService.GetVideoContentDetails(
-                    _youTubeService,
+                    youTubeService,
                     [podcastEpisode.Episode.YouTubeId],
                     indexingContext, true);
                 if (video?.FirstOrDefault() != null)

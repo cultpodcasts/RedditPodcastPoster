@@ -6,21 +6,10 @@ using X.Bluesky.Models;
 
 namespace RedditPodcastPoster.Bluesky.Client;
 
-public class EmbedCardBuilder
+public class EmbedCardBuilder(IHttpClientFactory httpClientFactory, Session session, ILogger logger)
 {
-    private readonly ILogger _logger;
-    private readonly FileTypeHelper _fileTypeHelper;
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly Session _session;
+    private readonly FileTypeHelper _fileTypeHelper = new(logger);
 
-    public EmbedCardBuilder(IHttpClientFactory httpClientFactory, Session session, ILogger logger)
-    {
-        _logger = logger;
-        _httpClientFactory = httpClientFactory;
-        _session = session;
-        _fileTypeHelper = new FileTypeHelper(logger);
-    }
-    
     /// <summary>
     /// Create embed card
     /// </summary>
@@ -53,7 +42,7 @@ public class EmbedCardBuilder
                     card.Thumb = await UploadImageAndSetThumbAsync(new Uri(imgUrl));    
                 }
                 
-                _logger.LogInformation("EmbedCard created");
+                logger.LogInformation("EmbedCard created");
             }
         }
 
@@ -73,7 +62,7 @@ public class EmbedCardBuilder
         if (embedCardRequest.ThumbUrl != null)
         {
             card.Thumb = await UploadImageAndSetThumbAsync(embedCardRequest.ThumbUrl);
-            _logger.LogInformation("EmbedCard created");
+            logger.LogInformation("EmbedCard created");
         }
 
         return card;
@@ -81,7 +70,7 @@ public class EmbedCardBuilder
 
     private async Task<Thumb?> UploadImageAndSetThumbAsync(Uri imageUrl)
     {
-        var httpClient = _httpClientFactory.CreateClient();
+        var httpClient = httpClientFactory.CreateClient();
 
         var imgResp = await httpClient.GetAsync(imageUrl);
         imgResp.EnsureSuccessStatusCode();
@@ -97,7 +86,7 @@ public class EmbedCardBuilder
         };
 
         // Add the Authorization header with the access token to the request message
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _session.AccessJwt);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessJwt);
 
         var response = await httpClient.SendAsync(request);
 
