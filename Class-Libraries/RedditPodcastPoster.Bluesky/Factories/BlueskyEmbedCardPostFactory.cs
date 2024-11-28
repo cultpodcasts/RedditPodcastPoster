@@ -23,7 +23,7 @@ public class BlueskyEmbedCardPostFactory(
     public const string? ReleaseFormat = "d MMM yyyy";
     private readonly BlueskyOptions _blueskyOptions = blueskyOptions.Value;
 
-    public async Task<BlueskyEmbedCardPost> BuildPost(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    public async Task<BlueskyEmbedCardPost> Create(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
         var postModel = (podcastEpisode.Podcast, new[] {podcastEpisode.Episode}).ToPostModel();
         var episodeTitle = textSanitiser.SanitiseTitle(postModel);
