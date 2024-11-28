@@ -49,7 +49,8 @@ public class PodcastsUpdater(
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, $"Failure updating podcast with id '{podcast.Id}' and name '{podcast.Name}'.");
+                    logger.LogError(ex, "Failure updating podcast with id '{podcastId}' and name '{podcastName}'.",
+                        podcast.Id, podcast.Name);
                     success = false;
                 }
                 finally
