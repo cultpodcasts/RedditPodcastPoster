@@ -22,7 +22,7 @@ public class TolerantYouTubeChannelVideoSnippetsService(
         var reattempt = 0;
         var success = false;
         var rotationExcepted = false;
-        while (reattempt < 2 && !success && !rotationExcepted)
+        while (reattempt <= _youTubeService.Reattempts && !success && !rotationExcepted)
         {
             try
             {

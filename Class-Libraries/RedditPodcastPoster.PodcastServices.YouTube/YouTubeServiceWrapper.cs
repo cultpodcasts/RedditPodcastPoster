@@ -7,4 +7,5 @@ public record YouTubeServiceWrapper(
     YouTubeService YouTubeService,
     string ApiKeyName,
     ApplicationUsage Usage,
-    int Index);
+    int Index,
+    int Reattempts);

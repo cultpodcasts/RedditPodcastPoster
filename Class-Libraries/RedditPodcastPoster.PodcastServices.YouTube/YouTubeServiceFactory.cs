@@ -23,7 +23,8 @@ public class YouTubeServiceFactory(
             }),
             application.Application.DisplayName,
             usage,
-            application.Index);
+            application.Index,
+            application.Reattempts);
     }
 
     public YouTubeServiceWrapper Create(ApplicationUsage usage, int index, int reattempt)
@@ -37,6 +38,7 @@ public class YouTubeServiceFactory(
             }),
             application.Application.DisplayName,
             usage,
-            application.Index);
+            application.Index,
+            application.Reattempts);
     }
 }

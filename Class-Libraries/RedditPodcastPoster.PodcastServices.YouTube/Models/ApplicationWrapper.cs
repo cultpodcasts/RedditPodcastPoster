@@ -2,4 +2,4 @@
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Models;
 
-public record ApplicationWrapper(Application Application, int Index);
+public record ApplicationWrapper(Application Application, int Index, int Reattempts);
