@@ -1,11 +1,12 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeItemResolver(
-    IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
+    ICachedTolerantYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
     ISearchResultFinder searchResultFinder,
     ILogger<YouTubeItemResolver> logger)
     : IYouTubeItemResolver

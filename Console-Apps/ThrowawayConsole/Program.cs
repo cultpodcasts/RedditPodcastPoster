@@ -3,9 +3,11 @@ using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RedditPodcastPoster.Auth0;
-using RedditPodcastPoster.Auth0.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -21,7 +23,8 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddAuth0Validation()
+    .AddRepositories()
+    .AddYouTubeServices(ApplicationUsage.Indexer)
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria();
@@ -30,17 +33,11 @@ builder.Services.AddDelayedYouTubePublication();
 
 using var host = builder.Build();
 
-var component = host.Services.GetService<IAuth0TokenValidator>()!;
+var component = host.Services.GetService<IYouTubeApiKeyStrategy>()!;
 
-var result = component.GetClaimsPrincipal(args[0]);
-if (result != null)
-{
-    var model = result.ToClientPrincipal();
-    var subject = model.Subject;
-    var isCurate = model.HasScope("curate");
-}
+var x = component.GetApplication(ApplicationUsage.Indexer, 0, 1);
 
-var x = 1;
+return;
 
 string GetBasePath()
 {

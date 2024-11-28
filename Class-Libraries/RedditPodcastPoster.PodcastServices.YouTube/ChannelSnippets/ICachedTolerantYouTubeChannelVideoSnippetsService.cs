@@ -1,12 +1,11 @@
 using Google.Apis.YouTube.v3.Data;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
-namespace RedditPodcastPoster.PodcastServices.YouTube;
+namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 
-public interface IYouTubeChannelVideoSnippetsService
+public interface ICachedTolerantYouTubeChannelVideoSnippetsService : IFlushable
 {
     Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(
-        YouTubeServiceWrapper youTubeServiceWrapper,
         YouTubeChannelId channelId,
         IndexingContext indexingContext);
 }
