@@ -35,6 +35,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube
 
         public ApplicationWrapper GetApplication(ApplicationUsage usage, int index, int reattempt)
         {
+            logger.LogInformation("{method}: usage= '{usage}', index= {index}, reattempt= {reattempt}", nameof(GetApplication), usage, index, reattempt);
             var usageApplications =
                 _settings.Applications.Where(x => x.Usage.HasFlag(usage) && x.Reattempt == reattempt).ToArray();
             var settingsCount = usageApplications.Count();
@@ -48,11 +49,16 @@ namespace RedditPodcastPoster.PodcastServices.YouTube
                 throw new InvalidOperationException($"Inadequate number of youtube-applications registered or usage '{usage.ToString()}'. Applications: '{settingsCount}', Index-requested: '{index}'.");
             }
 
-            var application = usageApplications.Skip(index).First();
+            var application = usageApplications.Skip(index).FirstOrDefault();
+            if (application == null)
+            {
+                logger.LogError("Expected application.");
+            }
+
             logger.LogInformation(
                 "{methodName}: Using application-key for {usage} with name '{displayName}' ({position}/{settingsCount}) ending '{keyEnding}'.",
-                nameof(GetApplication), usage.ToString(), application.DisplayName, index + 1, settingsCount,
-                application.ApiKey.Substring(application.ApiKey.Length - 2));
+                nameof(GetApplication), usage.ToString(), application?.DisplayName, index + 1, settingsCount,
+                application?.ApiKey.Substring(application.ApiKey.Length - 2));
             return new ApplicationWrapper(application, index);
         }
     }
