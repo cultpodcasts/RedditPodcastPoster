@@ -1,13 +1,9 @@
 ﻿using System.Diagnostics;
-using System.Net.WebSockets;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RedditPodcastPoster.Auth0;
-using RedditPodcastPoster.Auth0.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
