@@ -1,5 +1,4 @@
 ﻿using Google.Apis.YouTube.v3;
-using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.PodcastServices.YouTube;
 
 namespace RedditPodcastPoster.Bluesky.YouTube;
@@ -9,7 +8,8 @@ public class BlueskyYouTubeServiceWrapper(IYouTubeServiceWrapper applicationWrap
     public YouTubeService YouTubeService { get; } = applicationWrapper.YouTubeService;
     public bool CanRotate => applicationWrapper.CanRotate;
 
-    public void Rotate(){
+    public void Rotate()
+    {
         applicationWrapper.Rotate();
     }
 }
