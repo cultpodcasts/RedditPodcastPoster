@@ -19,7 +19,8 @@ public class TolerantYouTubeChannelVideoSnippetsService(
         IList<SearchResult>? result = null;
         var reattempt = 0;
         var success = false;
-        while (reattempt < 2 && !success)
+        var rotationExcepted = false;
+        while (reattempt < 2 && !success && !rotationExcepted)
         {
             try
             {
@@ -32,7 +33,17 @@ public class TolerantYouTubeChannelVideoSnippetsService(
                 reattempt++;
                 logger.LogInformation("Quota exceeded observed. Rotating api-key with reattempt {reattempt} for index {index} and usage '{usage}'."
                     , reattempt, _youTubeService.Index, _youTubeService.Usage.ToString());
-                _youTubeService = youTubeServiceFactory.Create(_youTubeService.Usage, _youTubeService.Index, reattempt);
+                try
+                {
+                    _youTubeService =
+                        youTubeServiceFactory.Create(_youTubeService.Usage, _youTubeService.Index, reattempt);
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Error rotating api. usage: '{usage}', index: {index}, reattempt: {reattempt}.", 
+                        _youTubeService.Usage, _youTubeService.Index, reattempt);
+                    rotationExcepted = true;
+                }
             }
         }
 
