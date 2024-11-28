@@ -48,6 +48,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube
             {
                 throw new InvalidOperationException($"Inadequate number of youtube-applications registered or usage '{usage.ToString()}'. Applications: '{settingsCount}', Index-requested: '{index}'.");
             }
+            logger.LogInformation($"Found {settingsCount} applications for usage '{usage}' and reattempt {reattempt}", settingsCount, usage, reattempt);
 
             var application = usageApplications.Skip(index).First();
             if (application == null)
