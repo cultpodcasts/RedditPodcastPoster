@@ -3,18 +3,22 @@ using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using static Google.Apis.YouTube.v3.SearchResource.ListRequest;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeSearcher(
-    YouTubeServiceWrapper youTubeService,
+    IYouTubeServiceFactory youTubeServiceFactory,
+    IApplicationUsageProvider applicationUsageProvider,
     INoRedirectHttpClientFactory httpClientFactory,
     IYouTubeVideoService youTubeVideoService,
     IYouTubeChannelService youTubeChannelService,
     ILogger<YouTubeSearcher> logger) : IYouTubeSearcher
 {
+    private readonly YouTubeServiceWrapper _youTubeService =
+        youTubeServiceFactory.Create(applicationUsageProvider.GetApplicationUsage());
     private const long MaxSearchResults = 25;
     private const string ShortUrlPrefix = "https://www.youtube.com/shorts/";
 
@@ -42,7 +46,7 @@ public class YouTubeSearcher(
     {
         var results = new List<YouTubeItemDetails>();
         var nextPageToken = "";
-        var searchListRequest = youTubeService.YouTubeService.Search.List("snippet");
+        var searchListRequest = _youTubeService.YouTubeService.Search.List("snippet");
         searchListRequest.MaxResults = MaxSearchResults;
         searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
         searchListRequest.Type = "video";
@@ -68,7 +72,7 @@ public class YouTubeSearcher(
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    $"Failed to use {nameof(youTubeService.YouTubeService)} with api-key-name '{youTubeService.ApiKeyName}' obtaining episodes using search-term '{query}'.");
+                    $"Failed to use {nameof(_youTubeService.YouTubeService)} with api-key-name '{_youTubeService.ApiKeyName}' obtaining episodes using search-term '{query}'.");
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return results.Select(x => ToEpisodeResult(x.SearchResult, x.Video, x.Channel));
             }
@@ -93,7 +97,7 @@ public class YouTubeSearcher(
         IndexingContext indexingContext)
     {
         var videoIds = results.Select(x => x.SearchResult.Id.VideoId);
-        var videos = await youTubeVideoService.GetVideoContentDetails(videoIds, indexingContext, true, true);
+        var videos = await youTubeVideoService.GetVideoContentDetails(_youTubeService, videoIds, indexingContext, true, true);
         foreach (var result in results)
         {
             var video = videos?.FirstOrDefault(x => x.Id == result.SearchResult.Id.VideoId);

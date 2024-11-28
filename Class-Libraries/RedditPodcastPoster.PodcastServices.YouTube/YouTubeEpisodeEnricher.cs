@@ -1,17 +1,23 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeEpisodeEnricher(
+    IYouTubeServiceFactory youTubeServiceFactory,
+    IApplicationUsageProvider applicationUsageProvider,
     IYouTubeItemResolver youTubeItemResolver,
     ITextSanitiser textSanitiser,
     IYouTubeVideoService youTubeVideoService,
     ILogger<YouTubeEpisodeEnricher> logger)
     : IYouTubeEpisodeEnricher
 {
+    private readonly YouTubeServiceWrapper _youTubeService =
+        youTubeServiceFactory.Create(applicationUsageProvider.GetApplicationUsage());
+
     public async Task Enrich(
         EnrichmentRequest request,
         IndexingContext indexingContext,
@@ -67,7 +73,7 @@ public class YouTubeEpisodeEnricher(
             if (string.IsNullOrWhiteSpace(request.Episode.Description))
             {
                 var videoContentDetails =
-                    await youTubeVideoService.GetVideoContentDetails(new[] {episodeYouTubeId}, indexingContext, true);
+                    await youTubeVideoService.GetVideoContentDetails(_youTubeService, [episodeYouTubeId], indexingContext, true);
                 var description = videoContentDetails?.FirstOrDefault()?.Snippet.Description.Trim() ?? string.Empty;
                 if (!string.IsNullOrWhiteSpace(description))
                 {

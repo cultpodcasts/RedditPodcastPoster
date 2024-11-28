@@ -14,7 +14,8 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets
     {
         private const int MaxSearchResults = 5;
 
-        public async Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(YouTubeServiceWrapper youTubeServiceWrapper,
+        public async Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(
+            YouTubeServiceWrapper youTubeServiceWrapper,
             YouTubeChannelId channelId,
             IndexingContext indexingContext)
         {

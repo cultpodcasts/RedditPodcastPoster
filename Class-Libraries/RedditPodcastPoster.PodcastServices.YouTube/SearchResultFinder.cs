@@ -4,12 +4,15 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public partial class SearchResultFinder(
+    IYouTubeServiceFactory youTubeServiceFactory,
+    IApplicationUsageProvider applicationUsageProvider,
     IYouTubeVideoService videoService,
     ILogger<SearchResultFinder> logger)
     : ISearchResultFinder
@@ -19,6 +22,9 @@ public partial class SearchResultFinder(
     private static readonly TimeSpan VideoDurationTolerance = TimeSpan.FromMinutes(2);
     private static readonly TimeSpan MinDurationForPublicationDate = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan VideoDurationToleranceForPublicationDate = TimeSpan.FromMinutes(5);
+
+    private readonly YouTubeServiceWrapper _youTubeService =
+        youTubeServiceFactory.Create(applicationUsageProvider.GetApplicationUsage());
 
     public async Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(
         Episode episode,
@@ -39,7 +45,7 @@ public partial class SearchResultFinder(
         }
 
         var videoDetails =
-            await videoService.GetVideoContentDetails(searchResults.Select(x => x.Id.VideoId).ToList(),
+            await videoService.GetVideoContentDetails(_youTubeService, searchResults.Select(x => x.Id.VideoId).ToList(),
                 indexingContext);
 
 

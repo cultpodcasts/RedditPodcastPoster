@@ -5,13 +5,13 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 namespace RedditPodcastPoster.PodcastServices.YouTube;
 
 public class YouTubeVideoService(
-    YouTubeServiceWrapper youTubeService,
     ILogger<YouTubeVideoService> logger)
     : IYouTubeVideoService
 {
     private const int MaxSearchResults = 5;
 
     public async Task<IList<Video>?> GetVideoContentDetails(
+        YouTubeServiceWrapper youTubeService,
         IEnumerable<string> videoIds,
         IndexingContext? indexingContext,
         bool withSnippets = false,

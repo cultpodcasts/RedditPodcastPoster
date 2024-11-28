@@ -3,7 +3,6 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
-using RedditPodcastPoster.PodcastServices.YouTube.Factories;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
@@ -32,7 +31,6 @@ public static class ServiceCollectionExtensions
             .AddDateTimeService()
             .AddSingleton<IApplicationUsageProvider>(new ApplicationUsageProvider(usage))
             .AddScoped(s => s.GetService<IYouTubeServiceFactory>()!.Create(usage))
-            .AddScoped<IYouTubeVideoServiceFactory, YouTubeVideoServiceFactory>()
             .AddScoped<ITolerantYouTubeChannelVideoSnippetsService, TolerantYouTubeChannelVideoSnippetsService>()
             .AddScoped<ICachedTolerantYouTubeChannelVideoSnippetsService,
                 CachedTolerantYouTubeChannelVideoSnippetsService>();
