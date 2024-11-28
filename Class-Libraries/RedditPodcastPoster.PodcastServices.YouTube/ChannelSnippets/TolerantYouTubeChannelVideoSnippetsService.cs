@@ -8,10 +8,8 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 public class TolerantYouTubeChannelVideoSnippetsService(
     IYouTubeServiceWrapper youTubeService,
     IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippets,
-    IYouTubeServiceFactory youTubeServiceFactory,
     ILogger<TolerantYouTubeChannelVideoSnippetsService> logger) : ITolerantYouTubeChannelVideoSnippetsService
 {
-
     public async Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(YouTubeChannelId channelId,
         IndexingContext indexingContext)
     {
