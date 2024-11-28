@@ -53,15 +53,11 @@ public class YouTubeApiKeyStrategy(
                 $"Inadequate number of youtube-applications registered or usage '{usage.ToString()}'. Applications: '{settingsCount}', Index-requested: '{index}'.");
         }
 
-        logger.LogInformation($"Found {settingsCount} applications for usage '{usage}' and reattempt {reattempt}",
-            settingsCount, usage, reattempt);
-
         var application = usageApplications.Skip(index).First();
-
         logger.LogInformation(
-            "{methodName}: Using application-key for {usage} with name '{displayName}' ({position}/{settingsCount}) ending '{keyEnding}'.",
-            nameof(GetApplication), usage.ToString(), application?.DisplayName, index + 1, settingsCount,
-            application?.ApiKey.Substring(application.ApiKey.Length - 2));
+            "{methodName}: Using application-key for {usage} with name '{displayName}' ({position}/{settingsCount}) ending '{keyEnding}' for reattempt {reattempt}.",
+            nameof(GetApplication), usage.ToString(), application.DisplayName, index + 1, settingsCount,
+            application.ApiKey.Substring(application.ApiKey.Length - 2), reattempt);
         return new ApplicationWrapper(application, index);
     }
 }

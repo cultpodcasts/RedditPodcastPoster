@@ -7,11 +7,13 @@ using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 
 public class TolerantYouTubeChannelVideoSnippetsService(
+    IApplicationUsageProvider applicationUsageProvider,
     IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippets,
     IYouTubeServiceFactory youTubeServiceFactory,
     ILogger<TolerantYouTubeChannelVideoSnippetsService> logger) : ITolerantYouTubeChannelVideoSnippetsService
 {
-    private YouTubeServiceWrapper _youTubeService = youTubeServiceFactory.Create(ApplicationUsage.Indexer);
+    private YouTubeServiceWrapper _youTubeService =
+        youTubeServiceFactory.Create(applicationUsageProvider.GetApplicationUsage());
 
     public async Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(YouTubeChannelId channelId,
         IndexingContext indexingContext)
@@ -31,7 +33,8 @@ public class TolerantYouTubeChannelVideoSnippetsService(
             catch (YouTubeQuotaException ex)
             {
                 reattempt++;
-                logger.LogInformation("Quota exceeded observed. Rotating api-key with reattempt {reattempt} for index {index} and usage '{usage}'."
+                logger.LogInformation(
+                    "Quota exceeded observed. Rotating api-key with reattempt {reattempt} for index {index} and usage '{usage}'."
                     , reattempt, _youTubeService.Index, _youTubeService.Usage.ToString());
                 try
                 {
@@ -40,7 +43,7 @@ public class TolerantYouTubeChannelVideoSnippetsService(
                 }
                 catch (Exception e)
                 {
-                    logger.LogError(e, "Error rotating api. usage: '{usage}', index: {index}, reattempt: {reattempt}.", 
+                    logger.LogError(e, "Error rotating api. usage: '{usage}', index: {index}, reattempt: {reattempt}.",
                         _youTubeService.Usage, _youTubeService.Index, reattempt);
                     rotationExcepted = true;
                 }
