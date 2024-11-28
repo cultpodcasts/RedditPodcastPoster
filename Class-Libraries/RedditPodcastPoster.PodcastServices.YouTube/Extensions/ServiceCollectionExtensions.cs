@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeServiceFactory, YouTubeServiceFactory>()
             .AddScoped<IYouTubeApiKeyStrategy, YouTubeApiKeyStrategy>()
             .AddDateTimeService()
+            .AddSingleton<IApplicationUsageProvider>(new ApplicationUsageProvider(usage))
             .AddScoped(s => s.GetService<IYouTubeServiceFactory>()!.Create(usage))
             .AddScoped<IYouTubeVideoServiceFactory, YouTubeVideoServiceFactory>()
             .AddScoped<ITolerantYouTubeChannelVideoSnippetsService, TolerantYouTubeChannelVideoSnippetsService>()
