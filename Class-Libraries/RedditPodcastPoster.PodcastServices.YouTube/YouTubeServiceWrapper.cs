@@ -15,7 +15,7 @@ public class YouTubeServiceWrapper(
     private ApplicationWrapper _applicationWrapper = applicationWrapper;
     private int _reattempt;
     public YouTubeService YouTubeService { get; private set; } = youTubeService;
-    public bool CanRotate => _reattempt < _applicationWrapper.Reattempts;
+    public bool CanRotate => _reattempt <= _applicationWrapper.Reattempts;
 
     public void Rotate()
     {
