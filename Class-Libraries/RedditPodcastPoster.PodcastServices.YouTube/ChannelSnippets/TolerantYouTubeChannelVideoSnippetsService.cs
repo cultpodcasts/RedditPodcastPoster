@@ -43,7 +43,7 @@ public class TolerantYouTubeChannelVideoSnippetsService(
         if (!success)
         {
             indexingContext.SkipYouTubeUrlResolving = true;
-            logger.LogError("Unable to obtain latest-channel-video-snippets for channel-id '{channelId}'.", 
+            logger.LogError("Unable to obtain latest-channel-video-snippets for channel-id '{channelId}'.",
                 channelId.ChannelId);
         }
 
