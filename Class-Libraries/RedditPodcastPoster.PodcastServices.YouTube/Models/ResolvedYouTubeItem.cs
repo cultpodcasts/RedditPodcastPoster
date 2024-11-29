@@ -16,7 +16,7 @@ public class ResolvedYouTubeItem
         TimeSpan duration,
         Uri url,
         bool @explicit,
-        Uri? iimage)
+        Uri? image)
     {
         ShowId = showId;
         EpisodeId = episodeId;
@@ -29,7 +29,7 @@ public class ResolvedYouTubeItem
         Duration = duration;
         Url = url;
         Explicit = @explicit;
-        Image = Image;
+        Image = image;
     }
 
     public ResolvedYouTubeItem(PodcastEpisode podcastEpisode)
