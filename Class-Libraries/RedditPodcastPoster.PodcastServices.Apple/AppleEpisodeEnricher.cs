@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
@@ -60,6 +61,13 @@ public class AppleEpisodeEnricher(
                     !string.IsNullOrWhiteSpace(appleItem.Description))
                 {
                     request.Episode.Description = appleItem.Description;
+                }
+
+                var image = appleItem.Image;
+                if (image != null)
+                {
+                    request.Episode.Images ??= new EpisodeImages();
+                    request.Episode.Images.Apple = image;
                 }
             }
         }

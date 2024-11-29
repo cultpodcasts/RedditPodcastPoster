@@ -1,8 +1,20 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
+using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
+using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
+using RedditPodcastPoster.PodcastServices.YouTube.Enrichment;
+using RedditPodcastPoster.PodcastServices.YouTube.Episode;
+using RedditPodcastPoster.PodcastServices.YouTube.Factories;
+using RedditPodcastPoster.PodcastServices.YouTube.Handlers;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
+using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
+using RedditPodcastPoster.PodcastServices.YouTube.Services;
+using RedditPodcastPoster.PodcastServices.YouTube.Strategies;
+using RedditPodcastPoster.PodcastServices.YouTube.Video;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 

@@ -7,7 +7,13 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.PodcastServices.YouTube.Channel;
+using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Episode;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
+using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Text.EliminationTerms;
 

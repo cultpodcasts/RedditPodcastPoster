@@ -30,4 +30,8 @@ public class DiscreteEpisode : Episode
     [JsonConverter(typeof(JsonStringEnumConverter))]
     [JsonPropertyOrder(211)]
     public Service? PrimaryPostService { get; set; }
+
+    [JsonPropertyName("image")]
+    [JsonPropertyOrder(250)]
+    public Uri? Image { get; set; }
 }

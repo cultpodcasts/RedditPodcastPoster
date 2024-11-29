@@ -41,7 +41,8 @@ public class SpotifyUrlCategoriser(
                 findEpisodeResponse.FullEpisode.GetReleaseDate(),
                 findEpisodeResponse.FullEpisode.GetDuration(),
                 new Uri(findEpisodeResponse.FullEpisode.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute),
-                findEpisodeResponse.FullEpisode.Explicit);
+                findEpisodeResponse.FullEpisode.Explicit,
+                findEpisodeResponse.FullEpisode.GetBestImageUrl());
         }
 
         logger.LogError(
@@ -70,7 +71,8 @@ public class SpotifyUrlCategoriser(
                     findEpisodeResponse.FullEpisode.GetReleaseDate(),
                     findEpisodeResponse.FullEpisode.GetDuration(),
                     findEpisodeResponse.FullEpisode.GetUrl(),
-                    findEpisodeResponse.FullEpisode.Explicit);
+                    findEpisodeResponse.FullEpisode.Explicit,
+                    findEpisodeResponse.FullEpisode.GetBestImageUrl());
             }
         }
         else

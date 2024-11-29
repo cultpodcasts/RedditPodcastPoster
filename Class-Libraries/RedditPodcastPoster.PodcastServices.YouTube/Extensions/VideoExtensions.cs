@@ -1,11 +1,10 @@
 ﻿using System.Xml;
-using Google.Apis.YouTube.v3.Data;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 public static class VideoExtensions
 {
-    public static TimeSpan? GetLength(this Video video)
+    public static TimeSpan? GetLength(this Google.Apis.YouTube.v3.Data.Video video)
     {
         if (string.IsNullOrWhiteSpace(video.ContentDetails.Duration))
         {
@@ -15,7 +14,7 @@ public static class VideoExtensions
         return XmlConvert.ToTimeSpan(video.ContentDetails.Duration);
     }
 
-    public static Uri? GetImageUrl(this Video? video)
+    public static Uri? GetImageUrl(this Google.Apis.YouTube.v3.Data.Video? video)
     {
         Uri? imageUrl = null;
         if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.Maxres?.Url))

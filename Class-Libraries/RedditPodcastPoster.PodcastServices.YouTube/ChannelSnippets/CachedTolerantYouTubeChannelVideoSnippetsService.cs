@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Models;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 

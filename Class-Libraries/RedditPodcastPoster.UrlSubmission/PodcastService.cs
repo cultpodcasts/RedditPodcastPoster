@@ -4,6 +4,9 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
+using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace RedditPodcastPoster.UrlSubmission;

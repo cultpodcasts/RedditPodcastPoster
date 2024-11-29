@@ -23,6 +23,7 @@ public static class AppleEpisodeExtensions
             record.Attributes.Duration,
             new Uri(record.Attributes.Url, UriKind.Absolute).CleanAppleUrl(),
             record.Attributes.Description.Standard,
-            record.Attributes.Explicit);
+            record.Attributes.Explicit,
+            record.Attributes.Image());
     }
 }

@@ -21,6 +21,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.Twitter.Models;

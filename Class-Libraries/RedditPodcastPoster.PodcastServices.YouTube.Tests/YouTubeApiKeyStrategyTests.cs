@@ -5,6 +5,7 @@ using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
+using RedditPodcastPoster.PodcastServices.YouTube.Strategies;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests;
 

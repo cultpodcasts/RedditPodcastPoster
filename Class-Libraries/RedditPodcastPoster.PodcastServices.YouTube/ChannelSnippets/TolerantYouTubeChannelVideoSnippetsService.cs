@@ -1,7 +1,10 @@
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
+using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Services;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 

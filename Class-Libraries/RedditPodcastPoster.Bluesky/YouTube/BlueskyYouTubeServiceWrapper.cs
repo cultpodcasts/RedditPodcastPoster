@@ -1,5 +1,5 @@
 ﻿using Google.Apis.YouTube.v3;
-using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 
 namespace RedditPodcastPoster.Bluesky.YouTube;
 

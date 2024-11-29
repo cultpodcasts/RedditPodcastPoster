@@ -5,7 +5,9 @@ using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
-using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
+using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.Text;
 
 namespace EnrichExistingEpisodesFromPodcastServices;

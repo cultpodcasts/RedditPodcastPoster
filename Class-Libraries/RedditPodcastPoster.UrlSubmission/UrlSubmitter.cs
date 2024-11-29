@@ -8,7 +8,8 @@ using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
-using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
+using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -285,12 +286,13 @@ public class UrlSubmitter(
         }
         else
         {
-            var (newPodcast, newEpisode, submitEpisodeDetails) = await CreatePodcastWithEpisode(categorisedItem);
-            submitResult = new SubmitResult(SubmitResultState.Created, SubmitResultState.Created, submitEpisodeDetails,
-                newEpisode.Id);
+            var result = await CreatePodcastWithEpisode(categorisedItem);
+            submitResult = new SubmitResult(SubmitResultState.Created, SubmitResultState.Created,
+                result.SubmitEpisodeDetails,
+                result.NewEpisode.Id);
             if (submitOptions.PersistToDatabase)
             {
-                await podcastRepository.Save(newPodcast);
+                await podcastRepository.Save(result.NewPodcast);
             }
             else
             {
@@ -361,7 +363,7 @@ public class UrlSubmitter(
         return new SubmitResult(episodeResult, podcastResult, submitEpisodeDetails, episodeId);
     }
 
-    private async Task<(Podcast, Episode, SubmitEpisodeDetails)> CreatePodcastWithEpisode(
+    private async Task<CreatePodcastWithEpisodeResponse> CreatePodcastWithEpisode(
         CategorisedItem categorisedItem)
     {
         string showName;
@@ -405,7 +407,7 @@ public class UrlSubmitter(
             episode.Urls.Apple != null,
             episode.Urls.YouTube != null,
             subjectsResult.Additions);
-        return (newPodcast, episode, submitEpisodeDetails);
+        return new CreatePodcastWithEpisodeResponse(newPodcast, episode, submitEpisodeDetails);
     }
 
     private Episode CreateEpisode(CategorisedItem categorisedItem)
@@ -482,16 +484,26 @@ public class UrlSubmitter(
             newEpisode.Ignored = length < _postingCriteria.MinimumDuration;
         }
 
+        if (categorisedItem.ResolvedAppleItem?.Image != null || categorisedItem.ResolvedSpotifyItem?.Image != null ||
+            categorisedItem.ResolvedYouTubeItem?.Image != null)
+        {
+            newEpisode.Images = new EpisodeImages
+            {
+                Apple = categorisedItem.ResolvedAppleItem?.Image,
+                Spotify = categorisedItem.ResolvedSpotifyItem?.Image,
+                YouTube = categorisedItem.ResolvedYouTubeItem?.Image
+            };
+        }
+
         logger.LogInformation(
             $"Created episode with spotify-id '{categorisedItem.ResolvedSpotifyItem?.EpisodeId}', apple-id '{categorisedItem.ResolvedAppleItem?.EpisodeId}', youtube-id '{categorisedItem.ResolvedYouTubeItem?.EpisodeId}' and episode-id '{newEpisode.Id}'.");
         return newEpisode;
     }
 
-    private (SubmitResultState PodcastResult, SubmitResultState EpisodeResult, SubmitEpisodeDetails)
-        ApplyResolvedPodcastServiceProperties(
-            Podcast matchingPodcast,
-            CategorisedItem categorisedItem,
-            Episode? matchingEpisode)
+    private ApplyResolvePodcastServicePropertiesResponse ApplyResolvedPodcastServiceProperties(
+        Podcast matchingPodcast,
+        CategorisedItem categorisedItem,
+        Episode? matchingEpisode)
     {
         var (addedSpotify, addedApple, addedYouTube) = (false, false, false);
 
@@ -549,6 +561,12 @@ public class UrlSubmitter(
                     matchingEpisode.Description = categorisedItem.ResolvedAppleItem.EpisodeDescription.Trim();
                     episodeResult = SubmitResultState.Enriched;
                 }
+
+                if (matchingEpisode.Images?.Apple == null && categorisedItem.ResolvedAppleItem.Image != null)
+                {
+                    matchingEpisode.Images ??= new EpisodeImages();
+                    matchingEpisode.Images.Apple = categorisedItem.ResolvedAppleItem.Image;
+                }
             }
         }
 
@@ -589,6 +607,12 @@ public class UrlSubmitter(
                 {
                     matchingEpisode.Description = categorisedItem.ResolvedSpotifyItem.EpisodeDescription.Trim();
                     episodeResult = SubmitResultState.Enriched;
+                }
+
+                if (matchingEpisode.Images?.Spotify == null && categorisedItem.ResolvedSpotifyItem.Image != null)
+                {
+                    matchingEpisode.Images ??= new EpisodeImages();
+                    matchingEpisode.Images.Spotify = categorisedItem.ResolvedSpotifyItem.Image;
                 }
             }
         }
@@ -639,10 +663,17 @@ public class UrlSubmitter(
                     matchingEpisode.Description = categorisedItem.ResolvedYouTubeItem.EpisodeDescription.Trim();
                     episodeResult = SubmitResultState.Enriched;
                 }
+
+                if (matchingEpisode.Images?.YouTube == null && categorisedItem.ResolvedYouTubeItem.Image != null)
+                {
+                    matchingEpisode.Images ??= new EpisodeImages();
+                    matchingEpisode.Images.YouTube = categorisedItem.ResolvedYouTubeItem.Image;
+                }
             }
         }
 
-        return (podcastResult, episodeResult, new SubmitEpisodeDetails(addedSpotify, addedApple, addedYouTube));
+        return new ApplyResolvePodcastServicePropertiesResponse(podcastResult, episodeResult,
+            new SubmitEpisodeDetails(addedSpotify, addedApple, addedYouTube));
     }
 
     private bool IsMatchingEpisode(Episode episode, CategorisedItem categorisedItem)
@@ -717,4 +748,14 @@ public class UrlSubmitter(
 
         return false;
     }
+
+    private record CreatePodcastWithEpisodeResponse(
+        Podcast NewPodcast,
+        Episode NewEpisode,
+        SubmitEpisodeDetails SubmitEpisodeDetails);
+
+    private record ApplyResolvePodcastServicePropertiesResponse(
+        SubmitResultState PodcastResult,
+        SubmitResultState AppliedEpisodeResult,
+        SubmitEpisodeDetails SubmitEpisodeDetails);
 }

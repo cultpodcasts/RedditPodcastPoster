@@ -4,8 +4,7 @@ namespace RedditPodcastPoster.Models;
 
 public class RecentEpisode
 {
-    [JsonIgnore]
-    private static TimeZoneInfo _london = TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time");
+    [JsonIgnore] private static readonly TimeZoneInfo London = TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time");
 
     [JsonPropertyName("episodeId")]
     public required Guid Id { get; set; }
@@ -27,7 +26,7 @@ public class RecentEpisode
 
     [JsonPropertyName("releaseDayDisplay")]
     public string ReleaseDayDisplay => TimeZoneInfo
-        .ConvertTime(Release, TimeZoneInfo.Utc, _london)
+        .ConvertTime(Release, TimeZoneInfo.Utc, London)
         .ToString("dddd d MMMM");
 
     [JsonPropertyName("spotify")]
@@ -41,4 +40,7 @@ public class RecentEpisode
 
     [JsonPropertyName("subjects")]
     public string[]? Subjects { get; set; }
+
+    [JsonPropertyName("image")]
+    public Uri? Image { get; set; } = null;
 }

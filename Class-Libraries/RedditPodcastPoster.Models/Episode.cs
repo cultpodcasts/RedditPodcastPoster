@@ -77,15 +77,20 @@ public class Episode
     [JsonPropertyOrder(100)]
     public string? SearchTerms { get; set; }
 
+    [JsonPropertyName("images")]
+    [JsonPropertyOrder(150)]
+    public EpisodeImages? Images { get; set; }
+
     public static Episode FromSpotify(string spotifyId,
         string title,
         string description,
         TimeSpan length,
         bool @explicit,
         DateTime release,
-        Uri spotifyUrl)
+        Uri spotifyUrl,
+        Uri? maxImage)
     {
-        return new Episode
+        var episode = new Episode
         {
             SpotifyId = spotifyId,
             Title = title,
@@ -95,6 +100,12 @@ public class Episode
             Release = release,
             Urls = new ServiceUrls {Spotify = spotifyUrl}
         };
+        if (maxImage != null)
+        {
+            episode.Images = new EpisodeImages {Spotify = maxImage};
+        }
+
+        return episode;
     }
 
     public static Episode FromYouTube(
@@ -104,9 +115,10 @@ public class Episode
         TimeSpan length,
         bool @explicit,
         DateTime release,
-        Uri youTubeUrl)
+        Uri youTubeUrl,
+        Uri? image = null)
     {
-        return new Episode
+        var episode = new Episode
         {
             YouTubeId = youTubeId,
             Title = title,
@@ -116,6 +128,15 @@ public class Episode
             Release = release,
             Urls = new ServiceUrls {YouTube = youTubeUrl}
         };
+        if (image != null)
+        {
+            episode.Images = new EpisodeImages
+            {
+                YouTube = image
+            };
+        }
+
+        return episode;
     }
 
     public static Episode FromApple(

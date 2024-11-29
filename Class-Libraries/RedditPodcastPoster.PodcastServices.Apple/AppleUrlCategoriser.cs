@@ -51,7 +51,8 @@ public class AppleUrlCategoriser(
                 episode.Release,
                 episode.Duration,
                 episode.Url.CleanAppleUrl(),
-                episode.Explicit);
+                episode.Explicit,
+                episode.Image);
         }
 
         logger.LogWarning(
@@ -100,7 +101,8 @@ public class AppleUrlCategoriser(
                 episode.Release,
                 episode.Duration,
                 episode.Url.CleanAppleUrl(),
-                episode.Explicit);
+                episode.Explicit,
+                episode.Image);
         }
 
         throw new InvalidOperationException(

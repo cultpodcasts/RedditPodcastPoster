@@ -1,8 +1,7 @@
-﻿using RedditPodcastPoster.PodcastServices.YouTube;
+﻿using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 
 namespace RedditPodcastPoster.Bluesky.YouTube;
 
-public interface IBlueskyYouTubeServiceWrapper: IYouTubeServiceWrapper
+public interface IBlueskyYouTubeServiceWrapper : IYouTubeServiceWrapper
 {
-
 }

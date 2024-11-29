@@ -48,7 +48,8 @@ public class QueryExecutor(
                         Spotify = x.Spotify,
                         YouTube = x.YouTube,
                         Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
-                        Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null
+                        Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null,
+                        Image = x.Images?.YouTube ?? x.Images?.Spotify ?? x.Images?.Apple
                     }),
             TotalDuration = totalDuration.Result
         };
@@ -157,7 +158,8 @@ public class QueryExecutor(
                            e.urls.apple as apple,
                            e.urls.youtube as youtube,
                            e.duration as length,
-                           e.subjects as subjects
+                           e.subjects as subjects,
+                           e.images as images
                            FROM
                            podcasts p
                            JOIN

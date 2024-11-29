@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.ContentPublisher.Models;
 
@@ -39,4 +40,7 @@ public class PodcastResult
 
     [JsonPropertyName("descriptionRegex")]
     public string DescriptionRegex { get; set; } = "";
+
+    [JsonPropertyName("images")]
+    public EpisodeImages? Images { get; set; } = null;
 }

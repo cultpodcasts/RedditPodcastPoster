@@ -48,4 +48,7 @@ public class EpisodeSearchRecord
     [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsFacetable = false,
         IsSortable = false, IsHidden = true)]
     public required string EpisodeSearchTerms { get; set; }
+
+    [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
+    public required string Image { get; set; }
 }
