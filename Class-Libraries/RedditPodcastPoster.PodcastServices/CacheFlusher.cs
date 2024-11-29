@@ -2,8 +2,9 @@
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
-using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
+using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
 
 namespace RedditPodcastPoster.PodcastServices;
 

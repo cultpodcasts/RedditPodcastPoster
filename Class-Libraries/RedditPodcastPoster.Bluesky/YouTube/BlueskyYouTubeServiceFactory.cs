@@ -1,5 +1,5 @@
-﻿using RedditPodcastPoster.PodcastServices.YouTube;
-using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
+﻿using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
+using RedditPodcastPoster.PodcastServices.YouTube.Factories;
 
 namespace RedditPodcastPoster.Bluesky.YouTube;
 

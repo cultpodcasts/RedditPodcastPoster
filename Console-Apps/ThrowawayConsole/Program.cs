@@ -6,10 +6,10 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Models;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -40,7 +40,7 @@ var component = host.Services.GetService<ITolerantYouTubeChannelVideoSnippetsSer
 try
 {
     var y = await component.GetLatestChannelVideoSnippets(new YouTubeChannelId("UCWXWLynI5YwDHn_U-boE2Cg"),
-        new IndexingContext() {ReleasedSince = DateTime.UtcNow - TimeSpan.FromHours(1)});
+        new IndexingContext {ReleasedSince = DateTime.UtcNow - TimeSpan.FromHours(1)});
 }
 catch (Exception e)
 {
