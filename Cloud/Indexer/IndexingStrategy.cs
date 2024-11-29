@@ -7,21 +7,25 @@ public class IndexingStrategy(IDateTimeService dateTimeService) : IIndexingStrat
     public bool ResolveYouTube()
     {
         // was  % 2
-        return dateTimeService.GetHour() % 6 == 0;
+        var hour = dateTimeService.GetHour();
+        return hour % 6 == 0 || hour == 11;
     }
 
     public bool ExpensiveYouTubeQueries()
     {
-        return dateTimeService.GetHour() % 24 == 0;
+        var hour = dateTimeService.GetHour();
+        return hour % 24 == 0 || hour == 11;
     }
 
     public bool ExpensiveSpotifyQueries()
     {
-        return dateTimeService.GetHour() % 6 == 0;
+        var hour = dateTimeService.GetHour();
+        return hour % 6 == 0 || hour == 11;
     }
 
     public bool IndexSpotify()
     {
-        return dateTimeService.GetHour() % 2 == 0;
+        var hour = dateTimeService.GetHour();
+        return hour % 2 == 0 || hour == 11;
     }
 }
