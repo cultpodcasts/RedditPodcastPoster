@@ -35,7 +35,7 @@ public class SpotifyEpisodeProvider(
                 x.GetReleaseDate(),
                 new Uri(x.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute),
                 x.GetBestImageUrl()
-                )
+            )
         ).ToList(), expensiveQueryFound);
     }
 }
