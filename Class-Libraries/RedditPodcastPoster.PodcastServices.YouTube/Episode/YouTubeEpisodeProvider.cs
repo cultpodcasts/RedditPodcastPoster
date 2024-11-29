@@ -61,7 +61,8 @@ public class YouTubeEpisodeProvider(
             videoDetails.GetLength() ?? TimeSpan.Zero,
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
             searchResult.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-            searchResult.ToYouTubeUrl());
+            searchResult.ToYouTubeUrl(),
+            videoDetails.GetImageUrl());
     }
 
     public RedditPodcastPoster.Models.Episode GetEpisode(PlaylistItemSnippet playlistItemSnippet,

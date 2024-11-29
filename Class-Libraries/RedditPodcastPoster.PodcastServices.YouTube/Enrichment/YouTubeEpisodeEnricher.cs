@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
@@ -74,17 +75,28 @@ public class YouTubeEpisodeEnricher(
                 var videoContentDetails =
                     await youTubeVideoService.GetVideoContentDetails(youTubeService, [episodeYouTubeId],
                         indexingContext, true);
-                var description = videoContentDetails?.FirstOrDefault()?.Snippet.Description.Trim() ?? string.Empty;
-                if (!string.IsNullOrWhiteSpace(description))
+                var item = videoContentDetails?.FirstOrDefault();
+                if (item != null)
                 {
-                    if (!string.IsNullOrWhiteSpace(request.Podcast.DescriptionRegex))
+                    var description = item.Snippet.Description.Trim() ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(description))
                     {
-                        request.Episode.Description = textSanitiser.SanitiseDescription(
-                            description, new Regex(request.Podcast.DescriptionRegex));
+                        if (!string.IsNullOrWhiteSpace(request.Podcast.DescriptionRegex))
+                        {
+                            request.Episode.Description = textSanitiser.SanitiseDescription(
+                                description, new Regex(request.Podcast.DescriptionRegex));
+                        }
+                        else
+                        {
+                            request.Episode.Description = description;
+                        }
                     }
-                    else
+
+                    var image = item.GetImageUrl();
+                    if (image != null)
                     {
-                        request.Episode.Description = description;
+                        request.Episode.Images ??= new EpisodeImages();
+                        request.Episode.Images.YouTube = image;
                     }
                 }
             }

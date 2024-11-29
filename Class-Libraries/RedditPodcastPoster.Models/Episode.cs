@@ -115,9 +115,10 @@ public class Episode
         TimeSpan length,
         bool @explicit,
         DateTime release,
-        Uri youTubeUrl)
+        Uri youTubeUrl,
+        Uri? image = null)
     {
-        return new Episode
+        var episode = new Episode
         {
             YouTubeId = youTubeId,
             Title = title,
@@ -127,6 +128,15 @@ public class Episode
             Release = release,
             Urls = new ServiceUrls {YouTube = youTubeUrl}
         };
+        if (image != null)
+        {
+            episode.Images = new EpisodeImages
+            {
+                YouTube = image
+            };
+        }
+
+        return episode;
     }
 
     public static Episode FromApple(
