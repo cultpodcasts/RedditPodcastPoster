@@ -13,6 +13,9 @@ public class HourlyOrchestration : TaskOrchestrator<object, IndexerContext>
             $"{nameof(HourlyOrchestration)}.{nameof(RunAsync)} initiated. Instance-id: '{context.InstanceId}'.");
 
         var indexerContext = new IndexerContext(context.NewGuid());
+
+        await context.CallActivityAsync<string>("Orchestration_Hello", "Tokyo");
+
         indexerContext = await context.CallIndexerAsync(indexerContext);
         logger.LogInformation($"{nameof(Indexer)} complete.");
 
