@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text;
 
@@ -25,6 +26,13 @@ public class SpotifyEpisodeEnricher(
             request.Episode.SpotifyId = findEpisodeResult.FullEpisode.Id;
             var url = findEpisodeResult.FullEpisode.GetUrl();
             request.Episode.Urls.Spotify = url;
+            var image = findEpisodeResult.FullEpisode.GetBestImageUrl();
+            if (image != null)
+            {
+                request.Episode.Images ??= new EpisodeImages();
+                request.Episode.Images.Spotify = image;
+            }
+
             enrichmentContext.Spotify = url;
             var description = htmlSanitiser.Sanitise(findEpisodeResult.FullEpisode.HtmlDescription);
             if (string.IsNullOrWhiteSpace(request.Episode.Description) &&

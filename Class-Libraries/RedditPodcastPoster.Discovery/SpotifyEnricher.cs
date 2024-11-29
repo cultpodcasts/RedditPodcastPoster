@@ -30,12 +30,10 @@ public class SpotifyEnricher(
             if (spotifyResult.FullEpisode != null)
             {
                 enrichedCtr++;
-                var image = spotifyResult.FullEpisode.Images.MaxBy(x => x.Height);
-
                 episodeResult.Urls.Spotify = spotifyResult.FullEpisode.GetUrl();
                 episodeResult.EnrichedUrlFromSpotify = true;
                 episodeResult.PodcastIds.Spotify = spotifyResult.FullEpisode.Show.Id;
-                episodeResult.ImageUrl = image != null ? new Uri(image.Url) : null;
+                episodeResult.ImageUrl = spotifyResult.FullEpisode.GetBestImageUrl();
             }
 
             if (string.IsNullOrWhiteSpace(episodeResult.ShowDescription) && spotifyResult.FullEpisode != null)

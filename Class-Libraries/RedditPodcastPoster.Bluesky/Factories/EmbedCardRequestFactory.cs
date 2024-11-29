@@ -63,10 +63,10 @@ public class EmbedCardRequestFactory(
                         episode.FullEpisode.Name,
                         episode.FullEpisode.Description,
                         embedPost.Url);
-                    var maxImage = episode.FullEpisode.Images.MaxBy(x => x.Height);
+                    var maxImage = episode.FullEpisode.GetBestImageUrl();
                     if (maxImage != null)
                     {
-                        embedCardRequest.ThumbUrl = new Uri(maxImage.Url);
+                        embedCardRequest.ThumbUrl = maxImage;
                         logger.LogInformation(
                             $"Spotify-thumbnail for spotify-episode-id '{podcastEpisode.Episode.SpotifyId}' found '{embedCardRequest.ThumbUrl}'.");
                     }

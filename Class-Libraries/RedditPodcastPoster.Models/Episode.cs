@@ -87,9 +87,10 @@ public class Episode
         TimeSpan length,
         bool @explicit,
         DateTime release,
-        Uri spotifyUrl)
+        Uri spotifyUrl,
+        Uri? maxImage)
     {
-        return new Episode
+        var episode = new Episode
         {
             SpotifyId = spotifyId,
             Title = title,
@@ -99,6 +100,12 @@ public class Episode
             Release = release,
             Urls = new ServiceUrls {Spotify = spotifyUrl}
         };
+        if (maxImage != null)
+        {
+            episode.Images = new EpisodeImages {Spotify = maxImage};
+        }
+
+        return episode;
     }
 
     public static Episode FromYouTube(
