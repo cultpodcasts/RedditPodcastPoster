@@ -77,6 +77,10 @@ public class Episode
     [JsonPropertyOrder(100)]
     public string? SearchTerms { get; set; }
 
+    [JsonPropertyName("images")]
+    [JsonPropertyOrder(150)]
+    public EpisodeImages? Images { get; set; }
+
     public static Episode FromSpotify(string spotifyId,
         string title,
         string description,
