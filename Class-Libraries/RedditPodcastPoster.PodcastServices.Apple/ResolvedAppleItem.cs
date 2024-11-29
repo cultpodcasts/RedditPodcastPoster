@@ -12,7 +12,8 @@ public class ResolvedAppleItem
         DateTime release,
         TimeSpan duration,
         Uri url,
-        bool @explicit)
+        bool @explicit,
+        Uri? image)
     {
         ShowId = showId;
         EpisodeId = episodeId;
@@ -25,6 +26,7 @@ public class ResolvedAppleItem
         Duration = duration;
         Url = url;
         Explicit = @explicit;
+        Image = image;
     }
 
     public ResolvedAppleItem(Models.PodcastEpisode podcastEpisode)
@@ -42,6 +44,8 @@ public class ResolvedAppleItem
         {
             Url = podcastEpisode.Episode.Urls.Apple;
         }
+
+        Image = podcastEpisode.Episode.Images?.Apple;
     }
 
     public long? ShowId { get; init; }
@@ -53,6 +57,7 @@ public class ResolvedAppleItem
     public string EpisodeDescription { get; init; }
     public DateTime Release { get; init; }
     public TimeSpan Duration { get; init; }
-    public Uri? Url { get; init; } = null;
+    public Uri? Url { get; init; }
     public bool Explicit { get; init; }
+    public Uri? Image { get; init; }
 }

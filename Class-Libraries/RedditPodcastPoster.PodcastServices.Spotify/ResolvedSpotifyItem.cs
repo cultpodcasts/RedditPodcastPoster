@@ -1,8 +1,10 @@
-﻿namespace RedditPodcastPoster.PodcastServices.Spotify;
+﻿using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public class ResolvedSpotifyItem
 {
-    public ResolvedSpotifyItem(Models.PodcastEpisode podcastEpisode)
+    public ResolvedSpotifyItem(PodcastEpisode podcastEpisode)
     {
         ShowId = podcastEpisode.Podcast.SpotifyId;
         EpisodeId = podcastEpisode.Episode.SpotifyId;
@@ -17,6 +19,8 @@ public class ResolvedSpotifyItem
         {
             Url = podcastEpisode.Episode.Urls.Spotify;
         }
+
+        Image = podcastEpisode.Episode.Images?.Spotify;
     }
 
     public ResolvedSpotifyItem(
@@ -30,7 +34,8 @@ public class ResolvedSpotifyItem
         DateTime release,
         TimeSpan duration,
         Uri url,
-        bool @explicit)
+        bool @explicit,
+        Uri? image)
     {
         ShowId = showId;
         EpisodeId = episodeId;
@@ -43,6 +48,7 @@ public class ResolvedSpotifyItem
         Duration = duration;
         Url = url;
         Explicit = @explicit;
+        Image = image;
     }
 
     public string ShowId { get; init; }
@@ -54,6 +60,7 @@ public class ResolvedSpotifyItem
     public string EpisodeDescription { get; init; }
     public DateTime Release { get; init; }
     public TimeSpan Duration { get; init; }
-    public Uri? Url { get; init; } = null;
+    public Uri? Url { get; init; }
     public bool Explicit { get; init; }
+    public Uri? Image { get; init; }
 }

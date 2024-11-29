@@ -107,7 +107,8 @@ public class YouTubeUrlCategoriser(
                         item.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
                         item.GetLength() ?? TimeSpan.Zero,
                         item.ToYouTubeUrl(),
-                        item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted"
+                        item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
+                        item.GetImageUrl()
                     );
                 }
 
@@ -215,6 +216,7 @@ public class YouTubeUrlCategoriser(
                     indexingContext);
                 if (video != null)
                 {
+                    var videoContent = video.SingleOrDefault();
                     return new ResolvedYouTubeItem(
                         match.Snippet.ChannelId,
                         match.Snippet.ResourceId.VideoId,
@@ -224,9 +226,10 @@ public class YouTubeUrlCategoriser(
                         match.Snippet.Title,
                         match.Snippet.Description,
                         match.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-                        video?.SingleOrDefault()?.GetLength() ?? TimeSpan.Zero,
+                        videoContent?.GetLength() ?? TimeSpan.Zero,
                         match.Snippet.ToYouTubeUrl(),
-                        video?.SingleOrDefault()?.ContentDetails.ContentRating.YtRating == "ytAgeRestricted");
+                        videoContent?.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
+                        videoContent?.GetImageUrl());
                 }
             }
         }

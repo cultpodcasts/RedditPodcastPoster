@@ -15,7 +15,8 @@ public class ResolvedYouTubeItem
         DateTime release,
         TimeSpan duration,
         Uri url,
-        bool @explicit)
+        bool @explicit,
+        Uri? iimage)
     {
         ShowId = showId;
         EpisodeId = episodeId;
@@ -28,6 +29,7 @@ public class ResolvedYouTubeItem
         Duration = duration;
         Url = url;
         Explicit = @explicit;
+        Image = Image;
     }
 
     public ResolvedYouTubeItem(PodcastEpisode podcastEpisode)
@@ -45,6 +47,8 @@ public class ResolvedYouTubeItem
         {
             Url = podcastEpisode.Episode.Urls.YouTube;
         }
+
+        Image = podcastEpisode.Episode.Images?.YouTube;
     }
 
     public string ShowId { get; init; }
@@ -58,4 +62,5 @@ public class ResolvedYouTubeItem
     public TimeSpan Duration { get; init; }
     public Uri? Url { get; init; }
     public bool Explicit { get; init; }
+    public Uri? Image { get; init; }
 }
