@@ -6,10 +6,10 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
+using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube.Models;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -26,6 +26,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
+    .AddAppleServices()
     .AddYouTubeServices(ApplicationUsage.Indexer)
     .AddHttpClient();
 
@@ -35,17 +36,11 @@ builder.Services.AddDelayedYouTubePublication();
 
 using var host = builder.Build();
 
-var component = host.Services.GetService<ITolerantYouTubeChannelVideoSnippetsService>()!;
-
-try
-{
-    var y = await component.GetLatestChannelVideoSnippets(new YouTubeChannelId("UCWXWLynI5YwDHn_U-boE2Cg"),
-        new IndexingContext {ReleasedSince = DateTime.UtcNow - TimeSpan.FromHours(1)});
-}
-catch (Exception e)
-{
-    var x = 1;
-}
+var component = host.Services.GetService<IApplePodcastService>()!;
+var applePodcastId = new ApplePodcastId(1710302900);
+var indexingContext = new IndexingContext();
+var episodes = await component.GetEpisodes(applePodcastId, indexingContext);
+var episode = await component.GetEpisode(applePodcastId, 1000678451124, indexingContext);
 
 return;
 
