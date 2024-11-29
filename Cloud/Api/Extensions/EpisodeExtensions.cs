@@ -32,7 +32,8 @@ public static class EpisodeExtensions
             SpotifyPodcast = !string.IsNullOrWhiteSpace(podcast.SpotifyId),
             ApplePodcast = podcast.AppleId != null,
             ReleaseAuthority = podcast.ReleaseAuthority,
-            PrimaryPostService = podcast.PrimaryPostService
+            PrimaryPostService = podcast.PrimaryPostService,
+            Image = episode.Images?.YouTube ?? episode.Images?.Spotify ?? episode.Images?.Apple
         };
     }
 }
