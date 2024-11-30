@@ -1,4 +1,5 @@
 ﻿using System.Xml;
+using Google.Apis.YouTube.v3.Data;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
@@ -17,27 +18,55 @@ public static class VideoExtensions
     public static Uri? GetImageUrl(this Google.Apis.YouTube.v3.Data.Video? video)
     {
         Uri? imageUrl = null;
-        if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.Maxres?.Url))
+
+        if (video?.Snippet.Thumbnails != null)
         {
-            imageUrl = new Uri(video.Snippet.Thumbnails.Maxres.Url);
-        }
-        else if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.High?.Url))
-        {
-            imageUrl = new Uri(video.Snippet.Thumbnails.High.Url);
-        }
-        else if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.Medium?.Url))
-        {
-            imageUrl = new Uri(video.Snippet.Thumbnails.Medium.Url);
-        }
-        else if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.Standard?.Url))
-        {
-            imageUrl = new Uri(video.Snippet.Thumbnails.Standard.Url);
-        }
-        else if (!string.IsNullOrWhiteSpace(video?.Snippet.Thumbnails?.Default__?.Url))
-        {
-            imageUrl = new Uri(video.Snippet.Thumbnails.Default__.Url);
+            var images = new List<(long Height, Uri ImageUrl)>();
+            var (valid, imageDetails) = GetThumbnail(video.Snippet.Thumbnails.Maxres);
+            if (valid && imageDetails != null)
+            {
+                images.Add(imageDetails.Value);
+            }
+
+            (valid, imageDetails) = GetThumbnail(video.Snippet.Thumbnails.High);
+            if (valid && imageDetails != null)
+            {
+                images.Add(imageDetails.Value);
+            }
+
+            (valid, imageDetails) = GetThumbnail(video.Snippet.Thumbnails.Medium);
+            if (valid && imageDetails != null)
+            {
+                images.Add(imageDetails.Value);
+            }
+
+            (valid, imageDetails) = GetThumbnail(video.Snippet.Thumbnails.Standard);
+            if (valid && imageDetails != null)
+            {
+                images.Add(imageDetails.Value);
+            }
+
+            (valid, imageDetails) = GetThumbnail(video.Snippet.Thumbnails.Default__);
+            if (valid && imageDetails != null)
+            {
+                images.Add(imageDetails.Value);
+            }
+
+            imageUrl = images.MaxBy(x => x.Height).ImageUrl;
         }
 
         return imageUrl;
+
+        (bool, (long, Uri)?) GetThumbnail(Thumbnail thumbnail)
+        {
+            if (thumbnail is {Height: not null} &&
+                !string.IsNullOrWhiteSpace(thumbnail.Url))
+            {
+                return (true, (thumbnail.Height.Value,
+                    new Uri(thumbnail.Url)));
+            }
+
+            return (false, null);
+        }
     }
 }

@@ -29,16 +29,24 @@ public class CachedApplePodcastService(
         IndexingContext indexingContext)
     {
         var cacheKey = GetCacheKey(podcastId.PodcastId, indexingContext.ReleasedSince);
-        if (EpisodesCache.TryGetValue(cacheKey, out var podcastEpisodes))
+        if (!EpisodesCache.TryGetValue(cacheKey, out var podcastEpisodes))
         {
-            var episode = podcastEpisodes?.SingleOrDefault(x => x.Id == episodeId);
-            if (episode != null)
-            {
-                return episode;
-            }
+            podcastEpisodes = await GetEpisodes(podcastId, indexingContext);
         }
 
-        return await applePodcastService.GetEpisode(podcastId, episodeId, indexingContext);
+        return podcastEpisodes?.SingleOrDefault(x => x.Id == episodeId);
+    }
+
+    public async Task<AppleEpisode?> SingleUseGetEpisode(ApplePodcastId podcastId, long episodeId,
+        IndexingContext indexingContext)
+    {
+        var cacheKey = GetCacheKey(podcastId.PodcastId, indexingContext.ReleasedSince);
+        if (!EpisodesCache.TryGetValue(cacheKey, out var podcastEpisodes))
+        {
+            podcastEpisodes = await GetEpisodes(podcastId, indexingContext);
+        }
+
+        return podcastEpisodes?.SingleOrDefault(x => x.Id == episodeId);
     }
 
     public void Flush()
