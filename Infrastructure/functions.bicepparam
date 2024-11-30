@@ -91,7 +91,6 @@ var youTubeKeyUsage= {
 	youtube__Applications__12__Name: 'CultPodcasts'
 	youtube__Applications__12__Usage: 'Api'
 	youtube__Applications__12__DisplayName: 'ApiKey-10 - Cli'
-	youtube__Applications__12__Reattempt: '1'
 }
 
 param apiSettings = union(youTubeKeyUsage, {
