@@ -109,6 +109,8 @@ param youTubeApiKey7 string
 param youTubeApiKey8 string
 @secure()
 param youTubeApiKey9 string
+@secure()
+param youTubeApiKey10 string
 
 resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' existing = {
   name: storageName
@@ -175,6 +177,7 @@ module apiFunction 'function.bicep' = {
         youtube__Applications__9__ApiKey: youTubeApiKey8
         youtube__Applications__10__ApiKey: youTubeApiKey9
         youtube__Applications__11__ApiKey: youTubeApiKey9
+        youtube__Applications__12__ApiKey: youTubeApiKey10
     }, apiSettings)
   }
 }
@@ -235,6 +238,7 @@ module discoveryFunction 'function.bicep' = {
         youtube__Applications__9__ApiKey: youTubeApiKey8
         youtube__Applications__10__ApiKey: youTubeApiKey9
         youtube__Applications__11__ApiKey: youTubeApiKey9
+        youtube__Applications__12__ApiKey: youTubeApiKey10
     }, discoverySettings)
   }
 }
@@ -295,6 +299,7 @@ module indexerFunction 'function.bicep' = {
         youtube__Applications__9__ApiKey: youTubeApiKey8
         youtube__Applications__10__ApiKey: youTubeApiKey9
         youtube__Applications__11__ApiKey: youTubeApiKey9
+        youtube__Applications__12__ApiKey: youTubeApiKey10
     }, indexerSettings)
   }  
 }
