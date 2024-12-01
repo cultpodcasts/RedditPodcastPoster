@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Net;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using SpotifyAPI.Web;
@@ -144,7 +145,8 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
             logger.LogError(ex,
                 $"{nameof(GetShowEpisodes)} Failure with Spotify-API for show '{showId}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
             if (!ex.Message.StartsWith("Non existing id:") &&
-                !ex.Message.Contains("Error converting value \"chapter\" to type"))
+                !ex.Message.Contains("Error converting value \"chapter\" to type") &&
+                ex.Response?.StatusCode != HttpStatusCode.NotFound)
             {
                 indexingContext.SkipSpotifyUrlResolving = true;
             }
@@ -231,7 +233,7 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(GetFullShow)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
-            if (!ex.Message.StartsWith("Non existing id:"))
+            if (!ex.Message.StartsWith("Non existing id:") && ex.Response?.StatusCode != HttpStatusCode.NotFound)
             {
                 indexingContext.SkipSpotifyUrlResolving = true;
             }
@@ -270,7 +272,7 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
-            if (!ex.Message.StartsWith("Non existing id:"))
+            if (!ex.Message.StartsWith("Non existing id:") && ex.Response?.StatusCode != HttpStatusCode.NotFound)
             {
                 indexingContext.SkipSpotifyUrlResolving = true;
             }
