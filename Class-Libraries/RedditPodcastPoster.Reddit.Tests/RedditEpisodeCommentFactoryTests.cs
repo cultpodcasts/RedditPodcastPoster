@@ -75,6 +75,8 @@ public class RedditEpisodeCommentFactoryTests
                         .Build<EpisodePost>()
                         .With(x => x.YouTube, (Uri?) null)
                         .With(x => x.Spotify, (Uri?) null)
+                        .With(x => x.BBC, (Uri?) null)
+                        .With(x => x.InternetArchive, (Uri?) null)
                         .With(x => x.Apple, _fixture.Create<Uri>())
                         .Create()
                 },

@@ -15,22 +15,24 @@ public class RedditEpisodeCommentFactory(
         var body = new StringBuilder();
         var links = new Dictionary<string, (string Prefix, Uri? Url)>
         {
-            {"YouTube", ("\ud83d\udfe5", postModel.YouTube)},
-            {"Spotify", ("\ud83d\udfe2", postModel.Spotify)},
-            {"Apple Podcasts", ("\ud83d\udfe3", postModel.Apple)}
+            {"YouTube", ("\ud83d\udfe5 ", postModel.YouTube)},
+            {"Spotify", ("\ud83d\udfe2 ", postModel.Spotify)},
+            {"Apple Podcasts", ("\ud83d\udfe3 ", postModel.Apple)},
+            {"Internet Archive", (string.Empty, postModel.InternetArchive)},
+            {"BBC", (string.Empty, postModel.InternetArchive)}
         };
         var availableKeys = links
             .Where(x => x.Value.Url != null)
             .Select(x => x.Key);
 
-        if (availableKeys.Count()>1)
+        if (availableKeys.Count() > 1)
         {
             body.AppendLine("Links:");
             body.AppendLine("");
 
             foreach (var availableKey in availableKeys)
             {
-                body.AppendLine($"{links[availableKey].Prefix} [{availableKey}]({links[availableKey].Url})");
+                body.AppendLine($"{links[availableKey].Prefix}[{availableKey}]({links[availableKey].Url})");
                 body.AppendLine("");
             }
         }

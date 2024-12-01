@@ -20,6 +20,8 @@ public class PostModel
         Spotify = firstEpisode.Spotify;
         Apple = firstEpisode.Apple;
         YouTube = firstEpisode.YouTube;
+        BBC = firstEpisode.BBC;
+        InternetArchive = firstEpisode.InternetArchive;
         ReleaseDate = firstEpisode.Release;
         Published = firstEpisode.Published;
         EpisodeLength = firstEpisode.Duration;
@@ -69,7 +71,8 @@ public class PostModel
             };
         }
 
-        Link ??= firstEpisode.YouTube ?? firstEpisode.Spotify ?? firstEpisode.Apple ?? null;
+        Link ??= firstEpisode.YouTube ?? firstEpisode.Spotify ??
+            firstEpisode.Apple ?? firstEpisode.InternetArchive ?? firstEpisode.BBC;
     }
 
     public DateTime Published { get; init; }
@@ -82,6 +85,8 @@ public class PostModel
     public Uri? Spotify { get; init; }
     public Uri? Apple { get; init; }
     public Uri? YouTube { get; init; }
+    public Uri? BBC { get; init; }
+    public Uri? InternetArchive { get; init; }
     public IEnumerable<int> BundledPartNumbers { get; set; } = [];
     public string ReleaseDate { get; init; }
     public string EpisodeLength { get; init; }

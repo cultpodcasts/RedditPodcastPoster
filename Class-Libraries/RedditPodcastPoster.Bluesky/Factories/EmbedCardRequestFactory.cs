@@ -74,6 +74,19 @@ public class EmbedCardRequestFactory(
 
                 break;
             }
+            case Service.Other:
+            {
+                embedCardRequest = new EmbedCardRequest(
+                    podcastEpisode.Episode.Title,
+                    podcastEpisode.Episode.Description,
+                    embedPost.Url);
+                if (podcastEpisode.Episode.Images?.Other != null)
+                {
+                    embedCardRequest.ThumbUrl = podcastEpisode.Episode.Images?.Other;
+                }
+
+                break;
+            }
         }
 
         return embedCardRequest;

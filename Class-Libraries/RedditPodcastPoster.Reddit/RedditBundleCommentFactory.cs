@@ -25,22 +25,31 @@ public class RedditBundleCommentFactory(
 
             if (episode.Spotify != null)
             {
-                comment.AppendLine(
-                    $"\ud83d\udfe2 [Spotify]({episode.Spotify.ToString()})");
+                comment.AppendLine($"\ud83d\udfe2 [Spotify]({episode.Spotify.ToString()})");
                 comment.AppendLine();
             }
 
             if (episode.Apple != null)
             {
-                comment.AppendLine(
-                    $"\ud83d\udfe3 [Apple Podcasts]({episode.Apple.ToString()})");
+                comment.AppendLine($"\ud83d\udfe3 [Apple Podcasts]({episode.Apple.ToString()})");
                 comment.AppendLine();
             }
 
             if (episode.YouTube != null)
             {
-                comment.AppendLine(
-                    $"\ud83d\udfe5 [YouTube]({episode.YouTube.ToString()})");
+                comment.AppendLine($"\ud83d\udfe5 [YouTube]({episode.YouTube.ToString()})");
+                comment.AppendLine();
+            }
+
+            if (episode.InternetArchive != null)
+            {
+                comment.AppendLine($"[Internet Archive]({episode.InternetArchive.ToString()})");
+                comment.AppendLine();
+            }
+
+            if (episode.BBC != null)
+            {
+                comment.AppendLine($"[BBC]({episode.BBC.ToString()})");
                 comment.AppendLine();
             }
         }

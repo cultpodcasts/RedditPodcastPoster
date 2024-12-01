@@ -101,9 +101,21 @@ public class TweetBuilder(
         {
             tweetBuilder.Append(podcastEpisode.Episode.Urls.Spotify);
         }
-        else
+        else if (podcastEpisode.Episode.Urls.Apple != null)
         {
             tweetBuilder.Append(podcastEpisode.Episode.Urls.Apple!);
+        }
+        else if (podcastEpisode.Episode.Urls.InternetArchive != null)
+        {
+            tweetBuilder.Append(podcastEpisode.Episode.Urls.InternetArchive!);
+        }
+        else if (podcastEpisode.Episode.Urls.BBC != null)
+        {
+            tweetBuilder.Append(podcastEpisode.Episode.Urls.BBC!);
+        }
+        else
+        {
+            throw new InvalidOperationException("No link found to tweet");
         }
 
         var tweet = tweetBuilder.ToString();

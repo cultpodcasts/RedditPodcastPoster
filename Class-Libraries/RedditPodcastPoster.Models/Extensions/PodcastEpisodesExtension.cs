@@ -71,6 +71,8 @@ public static class PodcastEpisodesExtension
             episode.Description,
             id,
             episode.Release,
-            episode.Subjects.ToArray());
+            episode.Subjects.ToArray(),
+            episode.Urls.BBC,
+            episode.Urls.InternetArchive);
     }
 }
