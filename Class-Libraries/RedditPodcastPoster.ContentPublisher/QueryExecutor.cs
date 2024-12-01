@@ -49,7 +49,7 @@ public class QueryExecutor(
                         YouTube = x.YouTube,
                         Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
                         Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null,
-                        Image = x.Images?.YouTube ?? x.Images?.Spotify ?? x.Images?.Apple
+                        Image = x.Images?.YouTube ?? x.Images?.Spotify ?? x.Images?.Apple ?? x.Images?.Other
                     }),
             TotalDuration = totalDuration.Result
         };
