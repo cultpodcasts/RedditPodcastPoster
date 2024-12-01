@@ -18,6 +18,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
@@ -543,7 +544,7 @@ public class EpisodeController(
             episode.Subjects = episodeChangeRequest.Subjects.ToList();
         }
 
-        if (episodeChangeRequest.Urls.Spotify != null)
+        if (episodeChangeRequest.Urls?.Spotify != null)
         {
             if (episodeChangeRequest.Urls.Spotify.ToString() == string.Empty)
             {
@@ -568,7 +569,7 @@ public class EpisodeController(
             }
         }
 
-        if (episodeChangeRequest.Urls.Apple != null)
+        if (episodeChangeRequest.Urls?.Apple != null)
         {
             if (episodeChangeRequest.Urls.Apple.ToString() == string.Empty)
             {
@@ -593,7 +594,7 @@ public class EpisodeController(
             }
         }
 
-        if (episodeChangeRequest.Urls.YouTube != null)
+        if (episodeChangeRequest.Urls?.YouTube != null)
         {
             if (episodeChangeRequest.Urls.YouTube.ToString() == string.Empty)
             {
@@ -604,23 +605,51 @@ public class EpisodeController(
             {
                 if (YouTubePodcastServiceMatcher.IsMatch(episodeChangeRequest.Urls.YouTube))
                 {
+                    var youTubeId = YouTubeIdResolver.Extract(episodeChangeRequest.Urls.YouTube);
+                    if (!string.IsNullOrWhiteSpace(youTubeId))
                     {
-                        var youTubeId = YouTubeIdResolver.Extract(episodeChangeRequest.Urls.YouTube);
-                        if (!string.IsNullOrWhiteSpace(youTubeId))
-                        {
-                            episode.YouTubeId = youTubeId;
-                            episode.Urls.YouTube = episodeChangeRequest.Urls.YouTube;
-                        }
-                        else
-                        {
-                            logger.LogError($"Invalid youtube-url: '{episodeChangeRequest.Urls.YouTube}'.");
-                        }
+                        episode.YouTubeId = youTubeId;
+                        episode.Urls.YouTube = episodeChangeRequest.Urls.YouTube;
+                    }
+                    else
+                    {
+                        logger.LogError($"Invalid youtube-url: '{episodeChangeRequest.Urls.YouTube}'.");
                     }
                 }
             }
         }
 
-        if (episodeChangeRequest.Images.Spotify != null)
+        if (episodeChangeRequest.Urls?.BBC != null)
+        {
+            if (episodeChangeRequest.Urls.BBC.ToString() == string.Empty)
+            {
+                episode.Urls.BBC = null;
+            }
+            else
+            {
+                if (NonPodcastServiceMatcher.IsMatch(episodeChangeRequest.Urls.BBC))
+                {
+                    episode.Urls.BBC = episodeChangeRequest.Urls.BBC;
+                }
+            }
+        }
+
+        if (episodeChangeRequest.Urls?.InternetArchive != null)
+        {
+            if (episodeChangeRequest.Urls.InternetArchive.ToString() == string.Empty)
+            {
+                episode.Urls.InternetArchive = null;
+            }
+            else
+            {
+                if (NonPodcastServiceMatcher.IsMatch(episodeChangeRequest.Urls.InternetArchive))
+                {
+                    episode.Urls.InternetArchive = episodeChangeRequest.Urls.InternetArchive;
+                }
+            }
+        }
+
+        if (episodeChangeRequest.Images?.Spotify != null)
         {
             episode.Images ??= new EpisodeImages();
             if (episodeChangeRequest.Images.Spotify.ToString() == string.Empty)
@@ -633,7 +662,7 @@ public class EpisodeController(
             }
         }
 
-        if (episodeChangeRequest.Images.Apple != null)
+        if (episodeChangeRequest.Images?.Apple != null)
         {
             episode.Images ??= new EpisodeImages();
             if (episodeChangeRequest.Images.Apple.ToString() == string.Empty)
@@ -646,7 +675,7 @@ public class EpisodeController(
             }
         }
 
-        if (episodeChangeRequest.Images.YouTube != null)
+        if (episodeChangeRequest.Images?.YouTube != null)
         {
             episode.Images ??= new EpisodeImages();
             if (episodeChangeRequest.Images.YouTube.ToString() == string.Empty)
@@ -656,6 +685,19 @@ public class EpisodeController(
             else
             {
                 episode.Images.YouTube = episodeChangeRequest.Images.YouTube;
+            }
+        }
+
+        if (episodeChangeRequest.Images?.Other != null)
+        {
+            episode.Images ??= new EpisodeImages();
+            if (episodeChangeRequest.Images.Other.ToString() == string.Empty)
+            {
+                episode.Images.Other = null;
+            }
+            else
+            {
+                episode.Images.Other = episodeChangeRequest.Images.Other;
             }
         }
 

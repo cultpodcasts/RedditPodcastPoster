@@ -273,15 +273,32 @@ public class UrlSubmitter(
         SubmitResult submitResult;
         if (categorisedItem.MatchingPodcast != null)
         {
-            submitResult = await AddEpisodeToExistingPodcast(categorisedItem);
-
-            if (submitOptions.PersistToDatabase)
+            if (categorisedItem.ResolvedNonPodcastServiceItem == null)
             {
-                await podcastRepository.Save(categorisedItem.MatchingPodcast);
+                submitResult = await AddEpisodeToExistingPodcast(categorisedItem);
+
+                if (submitOptions.PersistToDatabase)
+                {
+                    await podcastRepository.Save(categorisedItem.MatchingPodcast);
+                }
+                else
+                {
+                    logger.LogWarning("Bypassing persisting podcast.");
+                }
             }
             else
             {
-                logger.LogWarning("Bypassing persisting podcast.");
+                submitResult = new SubmitResult(SubmitResultState.EpisodeAlreadyExists, SubmitResultState.None,
+                    new SubmitEpisodeDetails(
+                        false,
+                        false,
+                        false,
+                        [],
+                        categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl != null,
+                        categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl != null
+                    ), categorisedItem.ResolvedNonPodcastServiceItem.Episode!.Id);
+                logger.LogInformation(
+                    $"Item already persisted as a podcast: '{categorisedItem.ResolvedNonPodcastServiceItem!.Podcast!.Id}'.");
             }
         }
         else
@@ -382,6 +399,10 @@ public class UrlSubmitter(
                 showName = categorisedItem.ResolvedYouTubeItem!.ShowName;
                 publisher = categorisedItem.ResolvedYouTubeItem.Publisher;
                 break;
+            case Service.Other:
+                showName = categorisedItem.ResolvedNonPodcastServiceItem!.Title!;
+                publisher = categorisedItem.ResolvedNonPodcastServiceItem!.Publisher!;
+                break;
             default:
                 throw new ArgumentOutOfRangeException();
         }
@@ -406,7 +427,9 @@ public class UrlSubmitter(
             episode.Urls.Spotify != null,
             episode.Urls.Apple != null,
             episode.Urls.YouTube != null,
-            subjectsResult.Additions);
+            subjectsResult.Additions,
+            episode.Urls.BBC != null,
+            episode.Urls.InternetArchive != null);
         return new CreatePodcastWithEpisodeResponse(newPodcast, episode, submitEpisodeDetails);
     }
 
@@ -445,6 +468,13 @@ public class UrlSubmitter(
                 @explicit = categorisedItem.ResolvedYouTubeItem.Explicit;
                 description = categorisedItem.ResolvedYouTubeItem.EpisodeDescription;
                 break;
+            case Service.Other:
+                title = categorisedItem.ResolvedNonPodcastServiceItem!.Title!;
+                release = categorisedItem.ResolvedNonPodcastServiceItem.Release;
+                length = categorisedItem.ResolvedNonPodcastServiceItem.Duration;
+                @explicit = categorisedItem.ResolvedNonPodcastServiceItem.Explicit;
+                description = categorisedItem.ResolvedNonPodcastServiceItem.EpisodeDescription;
+                break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(categorisedItem.Authority));
         }
@@ -464,7 +494,9 @@ public class UrlSubmitter(
             {
                 Spotify = categorisedItem.ResolvedSpotifyItem?.Url,
                 Apple = categorisedItem.ResolvedAppleItem?.Url,
-                YouTube = categorisedItem.ResolvedYouTubeItem?.Url
+                YouTube = categorisedItem.ResolvedYouTubeItem?.Url,
+                BBC = categorisedItem.ResolvedNonPodcastServiceItem?.BBCUrl,
+                InternetArchive = categorisedItem.ResolvedNonPodcastServiceItem?.InternetArchiveUrl
             }
         };
         if (categorisedItem.MatchingPodcast != null)

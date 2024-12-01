@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
@@ -13,6 +14,7 @@ public class UrlCategoriser(
     ISpotifyUrlCategoriser spotifyUrlCategoriser,
     IAppleUrlCategoriser appleUrlCategoriser,
     IYouTubeUrlCategoriser youTubeUrlCategoriser,
+    INonPodcastServiceCategoriser nonPodcastServiceCategoriser,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<UrlCategoriser> logger)
 #pragma warning restore CS9113 // Parameter is unread.
@@ -27,6 +29,7 @@ public class UrlCategoriser(
         ResolvedSpotifyItem? resolvedSpotifyItem = null;
         ResolvedAppleItem? resolvedAppleItem = null;
         ResolvedYouTubeItem? resolvedYouTubeItem = null;
+        ResolvedNonPodcastServiceItem? resolvedNonPodcastServiceItem = null;
         PodcastServiceSearchCriteria? criteria = null;
         Service authority = 0;
 
@@ -58,6 +61,10 @@ public class UrlCategoriser(
                     x.Urls.YouTube == url || x.YouTubeId == resolvedYouTubeItem.EpisodeId);
                 authority = Service.YouTube;
             }
+        }
+        else if (NonPodcastServiceMatcher.IsMatch(url))
+        {
+            resolvedNonPodcastServiceItem = await nonPodcastServiceCategoriser.Resolve(url, indexingContext);
         }
         else
         {
@@ -156,7 +163,32 @@ public class UrlCategoriser(
                 resolvedSpotifyItem,
                 resolvedAppleItem,
                 resolvedYouTubeItem,
+                resolvedNonPodcastServiceItem,
                 authority);
+        }
+
+        if (resolvedNonPodcastServiceItem != null)
+        {
+            if (resolvedNonPodcastServiceItem is {Podcast: not null, Episode: not null})
+            {
+                return new CategorisedItem(
+                    resolvedNonPodcastServiceItem.Podcast,
+                    resolvedNonPodcastServiceItem.Episode,
+                    null,
+                    null,
+                    null,
+                    resolvedNonPodcastServiceItem,
+                    Service.Other);
+            }
+
+            return new CategorisedItem(
+                null,
+                null,
+                null,
+                null,
+                null,
+                resolvedNonPodcastServiceItem,
+                Service.Other);
         }
 
         if (!indexingContext.SkipYouTubeUrlResolving)
