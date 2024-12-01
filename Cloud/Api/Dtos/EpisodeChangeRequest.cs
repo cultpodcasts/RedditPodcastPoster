@@ -36,7 +36,10 @@ public class EpisodeChangeRequest
     public string? Duration { get; set; }
 
     [JsonPropertyName("urls")]
-    public ServiceUrls Urls { get; set; } = new();
+    public ServiceUrls? Urls { get; set; }
+
+    [JsonPropertyName("images")]
+    public ServiceImageUrls? Images { get; set; }
 
     [JsonPropertyName("subjects")]
     public string[]? Subjects { get; set; }

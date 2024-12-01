@@ -10,6 +10,7 @@ public static class ServiceCollectionExtensions
         return services
             .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
             .AddScoped<IPodcastUpdater, PodcastUpdater>()
+            .AddScoped<INonPodcastServiceCategoriser, NonPodcastServiceCategoriser>()
             .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>();
     }
 

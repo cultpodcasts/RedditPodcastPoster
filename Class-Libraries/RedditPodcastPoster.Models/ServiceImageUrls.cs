@@ -2,19 +2,19 @@
 
 namespace RedditPodcastPoster.Models;
 
-public class EpisodeImages
+public class ServiceImageUrls
 {
-    [JsonPropertyName("youtube")]
-    [JsonPropertyOrder(1)]
-    public Uri? YouTube { get; set; }
-
     [JsonPropertyName("spotify")]
-    [JsonPropertyOrder(3)]
+    [JsonPropertyOrder(1)]
     public Uri? Spotify { get; set; }
 
     [JsonPropertyName("apple")]
-    [JsonPropertyOrder(3)]
+    [JsonPropertyOrder(2)]
     public Uri? Apple { get; set; }
+
+    [JsonPropertyName("youtube")]
+    [JsonPropertyOrder(3)]
+    public Uri? YouTube { get; set; }
 
     [JsonPropertyName("other")]
     [JsonPropertyOrder(4)]

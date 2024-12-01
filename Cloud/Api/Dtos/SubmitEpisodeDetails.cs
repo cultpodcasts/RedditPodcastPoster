@@ -6,6 +6,8 @@ public class SubmitEpisodeDetails(
     bool spotify,
     bool apple,
     bool youTube,
+    bool BBC,
+    bool internetArchive,
     string[] subjects
 )
 {
@@ -20,4 +22,10 @@ public class SubmitEpisodeDetails(
 
     [JsonPropertyName("subjects")]
     public string[] Subject { get; private set; } = subjects;
+
+    [JsonPropertyName("bbc")]
+    public bool BBC { get; private set; } = BBC;
+
+    [JsonPropertyName("internetArchive")]
+    public bool InternetArchive { get; private set; } = internetArchive;
 }

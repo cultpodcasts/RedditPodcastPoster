@@ -51,6 +51,8 @@ public class SubmitUrlResponse
             return new SubmitEpisodeDetails(resultSubmitEpisodeDetails.Spotify,
                 resultSubmitEpisodeDetails.Apple,
                 resultSubmitEpisodeDetails.YouTube,
+                resultSubmitEpisodeDetails.BBC,
+                resultSubmitEpisodeDetails.InternetArchive,
                 resultSubmitEpisodeDetails.Subjects ?? []);
         }
 

@@ -103,7 +103,7 @@ public partial class CreateSearchIndexProcessor(
                             e.subjects as subjects,
                             p.searchTerms as podcastSearchTerms,
                             e.searchTerms as episodeSearchTerms,
-                            e.images.youtube ?? e.images.spotify ?? e.images.apple as image,
+                            e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other as image,
                             p._ts
                             FROM podcasts p
                             JOIN e IN p.episodes
