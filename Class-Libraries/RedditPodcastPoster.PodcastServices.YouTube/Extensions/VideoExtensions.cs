@@ -19,7 +19,7 @@ public static class VideoExtensions
     {
         Uri? imageUrl = null;
 
-        if (video?.Snippet.Thumbnails != null)
+        if (video?.Snippet?.Thumbnails != null)
         {
             var images = new List<(long Height, Uri ImageUrl)>();
             var (valid, imageDetails) = GetThumbnail(video.Snippet.Thumbnails.Maxres);
