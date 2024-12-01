@@ -38,6 +38,12 @@ public class EpisodeSearchRecord
     [SimpleField(IsSortable = false, IsFilterable = false, IsFacetable = false)]
     public required string Youtube { get; set; }
 
+    [SimpleField(IsSortable = false, IsFilterable = false, IsFacetable = false)]
+    public required string BBC { get; set; }
+
+    [SimpleField(IsSortable = false, IsFilterable = false, IsFacetable = false)]
+    public required string InternetArchive { get; set; }
+
     [SearchableField(IsFilterable = true, IsFacetable = true, AnalyzerName = LexicalAnalyzerName.Values.EnLucene)]
     public required string[] Subjects { get; set; }
 

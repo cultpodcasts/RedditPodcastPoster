@@ -69,7 +69,9 @@ public class PublicDatabasePublisher(
                         {
                             Apple = oldEpisode.Urls.Apple,
                             Spotify = oldEpisode.Urls.Spotify,
-                            YouTube = oldEpisode.Urls.YouTube
+                            YouTube = oldEpisode.Urls.YouTube,
+                            BBC = oldEpisode.Urls.BBC,
+                            InternetArchive = oldEpisode.Urls.InternetArchive
                         },
                         Subjects = oldEpisode.Subjects.Any() ? oldEpisode.Subjects : null
                     })

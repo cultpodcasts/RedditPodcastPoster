@@ -9,10 +9,18 @@ public class ServiceUrls
     public Uri? Spotify { get; set; }
 
     [JsonPropertyName("apple")]
-    [JsonPropertyOrder(1)]
+    [JsonPropertyOrder(2)]
     public Uri? Apple { get; set; }
 
     [JsonPropertyName("youtube")]
-    [JsonPropertyOrder(1)]
+    [JsonPropertyOrder(3)]
     public Uri? YouTube { get; set; }
+
+    [JsonPropertyName("internetArchive")]
+    [JsonPropertyOrder(4)]
+    public Uri? InternetArchive { get; set; }
+
+    [JsonPropertyName("bbc")]
+    [JsonPropertyOrder(4)]
+    public Uri? BBC { get; set; }
 }
