@@ -225,27 +225,45 @@ public class EpisodeController(
 
                 if (publishRequest.EpisodePublishRequest.Tweet)
                 {
-                    var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url);
-                    if (result != TweetSendStatus.Sent)
+                    try
                     {
-                        logger.LogError($"Tweet result: '{result}'.");
+                        var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url);
+                        if (result != TweetSendStatus.Sent)
+                        {
+                            logger.LogError($"Tweet result: '{result}'.");
+                        }
+                        else
+                        {
+                            response.Tweeted = true;
+                        }
                     }
-                    else
+                    catch (Exception e)
                     {
-                        response.Tweeted = true;
+                        logger.LogError(e,
+                            "Failed to tweet for podcast-id: {podcastId} and episode-id {episodeId}.",
+                            podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
                     }
                 }
 
                 if (publishRequest.EpisodePublishRequest.BlueskyPost)
                 {
-                    var result = await blueskyPoster.Post(podcastEpisode, shortnerResult.Url);
-                    if (result != BlueskySendStatus.Success)
+                    try
                     {
-                        logger.LogError($"Bluesky-post result: '{result}'.");
+                        var result = await blueskyPoster.Post(podcastEpisode, shortnerResult.Url);
+                        if (result != BlueskySendStatus.Success)
+                        {
+                            logger.LogError($"Bluesky-post result: '{result}'.");
+                        }
+                        else
+                        {
+                            response.BlueskyPosted = true;
+                        }
                     }
-                    else
+                    catch (Exception e)
                     {
-                        response.BlueskyPosted = true;
+                        logger.LogError(e,
+                            "Failed to bluesky-post for podcast-id: {podcastId} and episode-id {episodeId}.",
+                            podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
                     }
                 }
             }
