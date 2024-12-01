@@ -98,6 +98,8 @@ public partial class CreateSearchIndexProcessor(
                             e.urls.spotify,
                             e.urls.apple,
                             e.urls.youtube,
+                            e.urls.bbc,
+                            e.urls.internetArchive,
                             e.subjects as subjects,
                             p.searchTerms as podcastSearchTerms,
                             e.searchTerms as episodeSearchTerms,
