@@ -633,7 +633,6 @@ public class EpisodeController(
             }
         }
 
-
         if (episodeChangeRequest.Images.Apple != null)
         {
             episode.Images ??= new EpisodeImages();
@@ -647,7 +646,6 @@ public class EpisodeController(
             }
         }
 
-
         if (episodeChangeRequest.Images.YouTube != null)
         {
             episode.Images ??= new EpisodeImages();
@@ -660,7 +658,6 @@ public class EpisodeController(
                 episode.Images.YouTube = episodeChangeRequest.Images.YouTube;
             }
         }
-
 
         return changeState;
     }
