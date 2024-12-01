@@ -24,6 +24,9 @@ public class RecentEpisode
     [JsonPropertyName("length")]
     public TimeSpan Length { get; set; }
 
+    [JsonPropertyName("duration")]
+    public TimeSpan Duration => Length;
+
     [JsonPropertyName("release")]
     public DateTime Release { get; set; }
 
