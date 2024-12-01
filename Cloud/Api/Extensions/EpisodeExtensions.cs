@@ -34,7 +34,7 @@ public static class EpisodeExtensions
             ApplePodcast = podcast.AppleId != null,
             ReleaseAuthority = podcast.ReleaseAuthority,
             PrimaryPostService = podcast.PrimaryPostService,
-            Image = episode.Images?.YouTube ?? episode.Images?.Spotify ?? episode.Images?.Apple
+            Image = episode.Images?.YouTube ?? episode.Images?.Spotify ?? episode.Images?.Apple ?? episode.Images?.Other
         };
     }
 }
