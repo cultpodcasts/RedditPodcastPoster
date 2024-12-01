@@ -38,6 +38,9 @@ public class EpisodeChangeRequest
     [JsonPropertyName("urls")]
     public ServiceUrls Urls { get; set; } = new();
 
+    [JsonPropertyName("images")]
+    public ServiceUrls Images { get; set; } = new();
+
     [JsonPropertyName("subjects")]
     public string[]? Subjects { get; set; }
 

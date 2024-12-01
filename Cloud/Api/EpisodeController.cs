@@ -620,6 +620,48 @@ public class EpisodeController(
             }
         }
 
+        if (episodeChangeRequest.Images.Spotify != null)
+        {
+            episode.Images ??= new EpisodeImages();
+            if (episodeChangeRequest.Images.Spotify.ToString() == string.Empty)
+            {
+                episode.Images.Spotify = null;
+            }
+            else
+            {
+                episode.Images.Spotify = episodeChangeRequest.Images.Spotify;
+            }
+        }
+
+
+        if (episodeChangeRequest.Images.Apple != null)
+        {
+            episode.Images ??= new EpisodeImages();
+            if (episodeChangeRequest.Images.Apple.ToString() == string.Empty)
+            {
+                episode.Images.Apple = null;
+            }
+            else
+            {
+                episode.Images.Apple = episodeChangeRequest.Images.Apple;
+            }
+        }
+
+
+        if (episodeChangeRequest.Images.YouTube != null)
+        {
+            episode.Images ??= new EpisodeImages();
+            if (episodeChangeRequest.Images.YouTube.ToString() == string.Empty)
+            {
+                episode.Images.YouTube = null;
+            }
+            else
+            {
+                episode.Images.YouTube = episodeChangeRequest.Images.YouTube;
+            }
+        }
+
+
         return changeState;
     }
 

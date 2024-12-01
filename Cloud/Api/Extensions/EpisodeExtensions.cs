@@ -26,6 +26,7 @@ public static class EpisodeExtensions
             AppleId = episode.AppleId,
             YouTubeId = episode.YouTubeId,
             Urls = episode.Urls,
+            Images = episode.Images,
             Subjects = episode.Subjects,
             SearchTerms = episode.SearchTerms,
             YouTubePodcast = !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId),
