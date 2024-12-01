@@ -7,7 +7,10 @@ public class RecentEpisode
     [JsonIgnore] private static readonly TimeZoneInfo London = TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time");
 
     [JsonPropertyName("episodeId")]
-    public required Guid Id { get; set; }
+    public required Guid EpisodeId { get; set; }
+
+    [JsonPropertyName("id")]
+    public Guid Id => EpisodeId;
 
     [JsonPropertyName("podcastName")]
     public required string PodcastName { get; set; }

@@ -39,7 +39,7 @@ public class QueryExecutor(
                 .Select(x =>
                     new RecentEpisode
                     {
-                        Id = x.EpisodeId,
+                        EpisodeId = x.EpisodeId,
                         Apple = x.Apple,
                         EpisodeDescription = WebUtility.HtmlDecode(x.EpisodeDescription),
                         EpisodeTitle = WebUtility.HtmlDecode(x.EpisodeTitle),
