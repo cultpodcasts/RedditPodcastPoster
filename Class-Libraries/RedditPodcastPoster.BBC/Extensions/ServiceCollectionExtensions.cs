@@ -8,6 +8,8 @@ public static class ServiceCollectionExtensions
     {
         return services
             .AddSingleton<IBBCHttpClientFactory, BBCHttpClientFactory>()
-            .AddScoped<IBBCHttpClient>(s => s.GetService<IBBCHttpClientFactory>()!.Create());
+            .AddScoped(s => s.GetService<IBBCHttpClientFactory>()!.Create())
+            .AddScoped<IiPlayerPageMetaDataExtractor, iPlayerPageMetaDataExtractor>()
+            .AddScoped<IMetaDataExtractor, MetaDataExtractor>();
     }
 }

@@ -1,6 +1,6 @@
-﻿using HtmlAgilityPack;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.BBC;
+using RedditPodcastPoster.InternetArchive;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -11,7 +11,8 @@ public class NonPodcastServiceCategoriser(
     IPodcastRepository podcastRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     IHttpClientFactory httpClientFactory,
-    IBBCHttpClient BBCHttpClient,
+    IiPlayerPageMetaDataExtractor bbcMetaDataExtractor,
+    IInternetArchivePageMetaDataExtractor internetArchivePageMetaDataExtractor,
     ILogger<NonPodcastServiceCategoriser> logger
 #pragma warning restore CS9113 // Parameter is unread.
 ) : INonPodcastServiceCategoriser
@@ -88,39 +89,34 @@ public class NonPodcastServiceCategoriser(
         Podcast? podcast,
         Uri url)
     {
-        HttpResponseMessage podcastsHomepageContent;
+        NonPodcastServiceItemMetaData metaData;
+        string publisher;
         if (IsInternetArchive(url))
         {
-            var httpClient = httpClientFactory.CreateClient();
-            podcastsHomepageContent = await httpClient.GetAsync(url);
-        } else if (IsBBC(url))
+            metaData = await internetArchivePageMetaDataExtractor.GetMetaData(url);
+            publisher = "Internet Archive";
+        }
+        else if (IsBBC(url))
         {
-            podcastsHomepageContent = await BBCHttpClient.GetAsync(url);
+            metaData = await bbcMetaDataExtractor.GetMetaData(url);
+            publisher = "BBC";
         }
         else
         {
             throw new InvalidOperationException($"Url $'{url}' cannot be handled");
         }
-        podcastsHomepageContent.EnsureSuccessStatusCode();
 
-        var document = new HtmlDocument();
-        document.Load(await podcastsHomepageContent.Content.ReadAsStreamAsync());
-        var titleNodes = document.DocumentNode.SelectNodes("/html/head/title");
-        if (!titleNodes.Any())
-        {
-            throw new InvalidOperationException($"Cannot extract title from '{url}'.");
-        }
-
-        var titleNode = titleNodes.First();
-        var title = titleNode.InnerText;
-        var publisher = IsBBC(url) ? "BBC" : "Internet Archive";
 
         return new ResolvedNonPodcastServiceItem(
             podcast,
-            Title: title,
+            Title: metaData.Title,
+            Description: metaData.Description,
             Publisher: publisher,
             IsBBC: IsBBC(url),
             IsInternetArchive: IsInternetArchive(url),
-            Url: url);
+            Url: url,
+            Image: metaData.Image,
+            Release: metaData.Release,
+            Duration: metaData.Duration);
     }
 }

@@ -461,10 +461,10 @@ public class UrlSubmitter(
                 break;
             case Service.Other:
                 title = categorisedItem.ResolvedNonPodcastServiceItem!.Title!;
-                release = categorisedItem.ResolvedNonPodcastServiceItem.Release;
-                length = categorisedItem.ResolvedNonPodcastServiceItem.Duration;
+                release = categorisedItem.ResolvedNonPodcastServiceItem.Release ?? DateTime.MinValue;
+                length = categorisedItem.ResolvedNonPodcastServiceItem.Duration ?? TimeSpan.Zero;
                 @explicit = categorisedItem.ResolvedNonPodcastServiceItem.Explicit;
-                description = categorisedItem.ResolvedNonPodcastServiceItem.EpisodeDescription;
+                description = categorisedItem.ResolvedNonPodcastServiceItem.Description ?? string.Empty;
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(categorisedItem.Authority));
