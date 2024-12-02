@@ -64,7 +64,7 @@ public class UrlCategoriser(
         }
         else if (NonPodcastServiceMatcher.IsMatch(url))
         {
-            resolvedNonPodcastServiceItem = await nonPodcastServiceCategoriser.Resolve(url, indexingContext);
+            resolvedNonPodcastServiceItem = await nonPodcastServiceCategoriser.Resolve(podcast, url, indexingContext);
         }
         else
         {

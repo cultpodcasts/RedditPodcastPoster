@@ -14,57 +14,62 @@ public class NonPodcastServiceCategoriser(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : INonPodcastServiceCategoriser
 {
-    public async Task<ResolvedNonPodcastServiceItem?> Resolve(Uri url, IndexingContext indexingContext)
+    public async Task<ResolvedNonPodcastServiceItem?> Resolve(Podcast? podcast, Uri url,
+        IndexingContext indexingContext)
     {
-        var matchingPodcastIds = new List<Guid>();
-        if (IsBBC(url))
+        if (podcast == null)
         {
-            var wrappedIds = await podcastRepository
-                .GetAllBy(p => p.Episodes.Any(episode => episode.Urls.BBC == url), x => new {id = x.Id}).ToListAsync();
-            matchingPodcastIds = wrappedIds.Select(x => x.id).ToList();
-        }
-        else if (IsInternetArchive(url))
-        {
-            var wrappedIds = await podcastRepository
-                .GetAllBy(p => p.Episodes.Any(episode => episode.Urls.InternetArchive == url), x => new {id = x.Id})
-                .ToListAsync();
-            matchingPodcastIds = wrappedIds.Select(x => x.id).ToList();
-        }
-        else
-        {
-            throw new InvalidOperationException("Unrecognised service");
-        }
-
-        if (matchingPodcastIds.Any())
-        {
-            if (matchingPodcastIds.Count > 1)
-            {
-                throw new InvalidOperationException(
-                    $"Found multiple podcasts with url '{url}'. Podcast-ids: {string.Join(", ", matchingPodcastIds)}.");
-            }
-
-            var podcastId = matchingPodcastIds.Single();
-            var podcast = await podcastRepository.GetBy(x => x.Id == podcastId);
-            IEnumerable<Episode> episodes;
+            List<Guid> matchingPodcastIds;
             if (IsBBC(url))
             {
-                episodes = podcast.Episodes.Where(x => x.Urls.BBC == url);
+                var wrappedIds = await podcastRepository
+                    .GetAllBy(p => p.Episodes.Any(episode => episode.Urls.BBC == url), x => new {id = x.Id})
+                    .ToListAsync();
+                matchingPodcastIds = wrappedIds.Select(x => x.id).ToList();
+            }
+            else if (IsInternetArchive(url))
+            {
+                var wrappedIds = await podcastRepository
+                    .GetAllBy(p => p.Episodes.Any(episode => episode.Urls.InternetArchive == url), x => new {id = x.Id})
+                    .ToListAsync();
+                matchingPodcastIds = wrappedIds.Select(x => x.id).ToList();
             }
             else
             {
-                episodes = podcast.Episodes.Where(x => x.Urls.InternetArchive == url);
+                throw new InvalidOperationException("Unrecognised service");
             }
 
-            if (episodes.Count() > 1)
+            if (matchingPodcastIds.Any())
             {
-                throw new InvalidOperationException(
-                    $"Found episodes with url '{url}'. Podcast-id: '{podcast.Id}'. Episode-ids: {string.Join(", ", episodes)}.");
-            }
+                if (matchingPodcastIds.Count > 1)
+                {
+                    throw new InvalidOperationException(
+                        $"Found multiple podcasts with url '{url}'. Podcast-ids: {string.Join(", ", matchingPodcastIds)}.");
+                }
 
-            return new ResolvedNonPodcastServiceItem(podcast, episodes.Single());
+                var podcastId = matchingPodcastIds.Single();
+                podcast = await podcastRepository.GetBy(x => x.Id == podcastId);
+                IEnumerable<Episode> episodes;
+                if (IsBBC(url))
+                {
+                    episodes = podcast!.Episodes.Where(x => x.Urls.BBC == url);
+                }
+                else
+                {
+                    episodes = podcast!.Episodes.Where(x => x.Urls.InternetArchive == url);
+                }
+
+                if (episodes.Count() > 1)
+                {
+                    throw new InvalidOperationException(
+                        $"Found episodes with url '{url}'. Podcast-id: '{podcast.Id}'. Episode-ids: {string.Join(", ", episodes)}.");
+                }
+
+                return new ResolvedNonPodcastServiceItem(podcast, episodes.Single());
+            }
         }
 
-        return await CreateResolvedNonPodcastServiceItemFromUrl(url);
+        return await CreateResolvedNonPodcastServiceItemFromUrl(podcast, url);
     }
 
     private bool IsInternetArchive(Uri url)
@@ -77,7 +82,8 @@ public class NonPodcastServiceCategoriser(
         return url.Host.Contains("bbc.co.uk");
     }
 
-    private async Task<ResolvedNonPodcastServiceItem> CreateResolvedNonPodcastServiceItemFromUrl(Uri uri)
+    private async Task<ResolvedNonPodcastServiceItem> CreateResolvedNonPodcastServiceItemFromUrl(Podcast? podcast,
+        Uri uri)
     {
         var httpClient = httpClientFactory.CreateClient();
         var podcastsHomepageContent = await httpClient.GetAsync(uri);
@@ -93,17 +99,10 @@ public class NonPodcastServiceCategoriser(
 
         var titleNode = titleNodes.First();
         var title = titleNode.InnerText;
-        string publisher;
-        if (IsBBC(uri))
-        {
-            publisher = "BBC";
-        }
-        else
-        {
-            publisher = "Internet Archive";
-        }
+        var publisher = IsBBC(uri) ? "BBC" : "Internet Archive";
 
         return new ResolvedNonPodcastServiceItem(
+            podcast,
             Title: title,
             Publisher: publisher,
             IsBBC: IsBBC(uri),
