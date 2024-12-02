@@ -66,9 +66,15 @@ public class UrlSubmitter(
 
             return submitResult;
         }
+        catch (HttpRequestException e)
+        {
+            logger.LogError(e, "Error ingesting '{url}'. Http-request-exception with status: '{status}'", url,
+                e.StatusCode);
+            throw;
+        }
         catch (Exception e)
         {
-            logger.LogError(e, $"Error ingesting '{url}'.");
+            logger.LogError(e, $"Error ingesting '{url}'.", url);
             return new SubmitResult(SubmitResultState.None, SubmitResultState.None);
         }
     }
