@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.InternetArchive.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -48,6 +49,7 @@ builder.Services
     .AddScoped<SubmitUrlProcessor>()
     .AddSearch()
     .AddBBCServices()
+    .AddInternetArchiveServices()
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria();
