@@ -82,7 +82,8 @@ public class NonPodcastServiceCategoriser(
         return url.Host.Contains("bbc.co.uk");
     }
 
-    private async Task<ResolvedNonPodcastServiceItem> CreateResolvedNonPodcastServiceItemFromUrl(Podcast? podcast,
+    private async Task<ResolvedNonPodcastServiceItem> CreateResolvedNonPodcastServiceItemFromUrl(
+        Podcast? podcast,
         Uri uri)
     {
         var httpClient = httpClientFactory.CreateClient();
