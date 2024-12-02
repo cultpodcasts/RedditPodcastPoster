@@ -8,6 +8,9 @@ public class Podcast
     [JsonPropertyName("id")]
     public Guid? Id { get; set; }
 
+    [JsonPropertyName("podcastName")]
+    public string? Name { get; set; }
+
     [JsonPropertyName("removed")]
     public bool? Removed { get; set; }
 

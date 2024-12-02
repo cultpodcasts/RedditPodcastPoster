@@ -12,8 +12,10 @@ using RedditPodcastPoster.Auth0;
 using RedditPodcastPoster.CloudflareRedirect;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Indexing;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Search;
+using Podcast = Api.Dtos.Podcast;
 using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
 
 namespace Api;
@@ -86,6 +88,21 @@ public class PodcastController(
             Unauthorised, ct);
     }
 
+    [Function("PodcastPut")]
+    public Task<HttpResponseData> Put(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "podcast/{podcastId:guid}")]
+        HttpRequestData req,
+        Guid podcastId,
+        FunctionContext executionContext,
+        [FromBody] Podcast podcastChangeRequest,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(req, ["curate"], new PodcastChangeRequestWrapper(podcastId, podcastChangeRequest, true),
+            Post,
+            Unauthorised, ct);
+    }
+
     private async Task<HttpResponseData> Post(
         HttpRequestData req,
         PodcastChangeRequestWrapper podcastChangeRequestWrapper,
@@ -109,6 +126,11 @@ public class PodcastController(
                 $"{nameof(Post)}: Updating podcast-id '{podcastChangeRequestWrapper.PodcastId}'.");
 
             UpdatePodcast(podcast, podcastChangeRequestWrapper.Podcast);
+            if (podcastChangeRequestWrapper.AllowNameChange)
+            {
+                await UpdateName(podcast, podcastChangeRequestWrapper.Podcast.Name);
+            }
+
             await podcastRepository.Update(podcast);
             if (podcastChangeRequestWrapper.Podcast.Removed.HasValue &&
                 podcastChangeRequestWrapper.Podcast.Removed.Value)
@@ -126,6 +148,33 @@ public class PodcastController(
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
             .WithJsonBody(SubmitUrlResponse.Failure("Unable to update podcast"), c);
         return failure;
+    }
+
+    private async Task UpdateName(RedditPodcastPoster.Models.Podcast podcast, string? podcastName)
+    {
+        if (podcast.Episodes.Count > 1)
+        {
+            throw new InvalidOperationException(
+                "Cannot rename a podcast with more than one episode. Use rename-endpoint");
+        }
+
+        if (string.IsNullOrWhiteSpace(podcastName))
+        {
+            throw new InvalidOperationException(
+                "Supplied podcast-name is null/empty");
+        }
+
+        var sameNamePodcasts =
+            await podcastRepository.GetAllBy(x => x.Name == podcastName && x.Id != podcast.Id, x => new {id = x.Id})
+                .ToListAsync();
+        if (sameNamePodcasts.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Other podcasts have requested name. Podcast-ids: '{string.Join(", ", sameNamePodcasts.Select(x => $"'{x.id}'"))}'.");
+        }
+
+        podcast.Name = podcastName.Trim();
+        podcast.FileKey = FileKeyFactory.GetFileKey(podcast.Name);
     }
 
     private async Task<bool> DeleteEpisodesFromSearchIndex(CancellationToken c,
@@ -289,6 +338,7 @@ public class PodcastController(
                 var dto = new Podcast
                 {
                     Id = podcast.Id,
+                    Name = podcast.Name,
                     Removed = podcast.Removed,
                     IndexAllEpisodes = podcast.IndexAllEpisodes,
                     BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking,
