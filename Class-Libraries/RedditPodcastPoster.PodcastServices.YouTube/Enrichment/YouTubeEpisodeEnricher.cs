@@ -70,7 +70,7 @@ public class YouTubeEpisodeEnricher(
             request.Episode.YouTubeId = enrichmentContext.YouTubeId = episodeYouTubeId;
             request.Episode.Urls.YouTube = enrichmentContext.YouTube = youTubeItem.SearchResult.ToYouTubeUrl();
 
-            if (string.IsNullOrWhiteSpace(request.Episode.Description))
+            if (string.IsNullOrWhiteSpace(request.Episode.Description) || request.Episode.Images?.YouTube == null)
             {
                 var videoContentDetails =
                     await youTubeVideoService.GetVideoContentDetails(youTubeService, [episodeYouTubeId],
