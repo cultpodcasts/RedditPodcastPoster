@@ -1,8 +1,9 @@
-﻿using RedditPodcastPoster.PodcastServices.Abstractions;
+﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices;
 
 public interface INonPodcastServiceCategoriser
 {
-    Task<ResolvedNonPodcastServiceItem?> Resolve(Uri url, IndexingContext indexingContext);
+    Task<ResolvedNonPodcastServiceItem?> Resolve(Podcast? podcast, Uri url, IndexingContext indexingContext);
 }
