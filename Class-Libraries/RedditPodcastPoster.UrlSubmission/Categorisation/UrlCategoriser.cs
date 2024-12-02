@@ -169,21 +169,9 @@ public class UrlCategoriser(
 
         if (resolvedNonPodcastServiceItem != null)
         {
-            if (resolvedNonPodcastServiceItem is {Podcast: not null, Episode: not null})
-            {
-                return new CategorisedItem(
-                    resolvedNonPodcastServiceItem.Podcast,
-                    resolvedNonPodcastServiceItem.Episode,
-                    null,
-                    null,
-                    null,
-                    resolvedNonPodcastServiceItem,
-                    Service.Other);
-            }
-
             return new CategorisedItem(
-                null,
-                null,
+                resolvedNonPodcastServiceItem.Podcast,
+                resolvedNonPodcastServiceItem.Episode,
                 null,
                 null,
                 null,

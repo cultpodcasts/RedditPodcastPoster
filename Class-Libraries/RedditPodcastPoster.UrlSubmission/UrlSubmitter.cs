@@ -273,32 +273,15 @@ public class UrlSubmitter(
         SubmitResult submitResult;
         if (categorisedItem.MatchingPodcast != null)
         {
-            if (categorisedItem.ResolvedNonPodcastServiceItem == null)
-            {
-                submitResult = await AddEpisodeToExistingPodcast(categorisedItem);
+            submitResult = await AddEpisodeToExistingPodcast(categorisedItem);
 
-                if (submitOptions.PersistToDatabase)
-                {
-                    await podcastRepository.Save(categorisedItem.MatchingPodcast);
-                }
-                else
-                {
-                    logger.LogWarning("Bypassing persisting podcast.");
-                }
+            if (submitOptions.PersistToDatabase)
+            {
+                await podcastRepository.Save(categorisedItem.MatchingPodcast);
             }
             else
             {
-                submitResult = new SubmitResult(SubmitResultState.EpisodeAlreadyExists, SubmitResultState.None,
-                    new SubmitEpisodeDetails(
-                        false,
-                        false,
-                        false,
-                        [],
-                        categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl != null,
-                        categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl != null
-                    ), categorisedItem.ResolvedNonPodcastServiceItem.Episode!.Id);
-                logger.LogInformation(
-                    $"Item already persisted as a podcast: '{categorisedItem.ResolvedNonPodcastServiceItem!.Podcast!.Id}'.");
+                logger.LogWarning("Bypassing persisting podcast.");
             }
         }
         else
@@ -369,7 +352,9 @@ public class UrlSubmitter(
                 episode.Urls.Spotify != null,
                 episode.Urls.Apple != null,
                 episode.Urls.YouTube != null,
-                subjectsResult.Additions);
+                subjectsResult.Additions,
+                episode.Urls.BBC != null,
+                episode.Urls.InternetArchive != null);
         }
         else
         {
@@ -517,13 +502,15 @@ public class UrlSubmitter(
         }
 
         if (categorisedItem.ResolvedAppleItem?.Image != null || categorisedItem.ResolvedSpotifyItem?.Image != null ||
-            categorisedItem.ResolvedYouTubeItem?.Image != null)
+            categorisedItem.ResolvedYouTubeItem?.Image != null ||
+            categorisedItem.ResolvedNonPodcastServiceItem?.Image != null)
         {
             newEpisode.Images = new EpisodeImages
             {
                 Apple = categorisedItem.ResolvedAppleItem?.Image,
                 Spotify = categorisedItem.ResolvedSpotifyItem?.Image,
-                YouTube = categorisedItem.ResolvedYouTubeItem?.Image
+                YouTube = categorisedItem.ResolvedYouTubeItem?.Image,
+                Other = categorisedItem.ResolvedNonPodcastServiceItem?.Image
             };
         }
 
@@ -537,7 +524,8 @@ public class UrlSubmitter(
         CategorisedItem categorisedItem,
         Episode? matchingEpisode)
     {
-        var (addedSpotify, addedApple, addedYouTube) = (false, false, false);
+        var (addedSpotify, addedApple, addedYouTube, addedBBC, addedInternetArchive) =
+            (false, false, false, false, false);
 
         var podcastResult = SubmitResultState.None;
         var episodeResult = SubmitResultState.None;
@@ -701,6 +689,28 @@ public class UrlSubmitter(
                     matchingEpisode.Images ??= new EpisodeImages();
                     matchingEpisode.Images.YouTube = categorisedItem.ResolvedYouTubeItem.Image;
                 }
+            }
+        }
+
+        if (categorisedItem.ResolvedNonPodcastServiceItem != null && matchingEpisode != null)
+        {
+            if (matchingEpisode.Urls.BBC == null && categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl != null)
+            {
+                addedBBC = true;
+                matchingEpisode.Urls.BBC = categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl;
+                episodeResult = SubmitResultState.Enriched;
+                logger.LogInformation(
+                    $"Enriched episode '{matchingEpisode.Id}' with bbc details with bbc-url {categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl}.");
+            }
+
+            if (matchingEpisode.Urls.InternetArchive == null &&
+                categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl != null)
+            {
+                addedInternetArchive = true;
+                matchingEpisode.Urls.InternetArchive = categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl;
+                episodeResult = SubmitResultState.Enriched;
+                logger.LogInformation(
+                    $"Enriched episode '{matchingEpisode.Id}' with internet-archive details with internet-archive-url {categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl}.");
             }
         }
 
