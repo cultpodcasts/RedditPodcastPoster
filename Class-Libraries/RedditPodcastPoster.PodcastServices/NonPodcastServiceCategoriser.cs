@@ -1,5 +1,6 @@
 ﻿using HtmlAgilityPack;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.BBC;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -10,6 +11,7 @@ public class NonPodcastServiceCategoriser(
     IPodcastRepository podcastRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     IHttpClientFactory httpClientFactory,
+    IBBCHttpClient BBCHttpClient,
     ILogger<NonPodcastServiceCategoriser> logger
 #pragma warning restore CS9113 // Parameter is unread.
 ) : INonPodcastServiceCategoriser
@@ -84,10 +86,21 @@ public class NonPodcastServiceCategoriser(
 
     private async Task<ResolvedNonPodcastServiceItem> CreateResolvedNonPodcastServiceItemFromUrl(
         Podcast? podcast,
-        Uri uri)
+        Uri url)
     {
-        var httpClient = httpClientFactory.CreateClient();
-        var podcastsHomepageContent = await httpClient.GetAsync(uri);
+        HttpResponseMessage podcastsHomepageContent;
+        if (IsInternetArchive(url))
+        {
+            var httpClient = httpClientFactory.CreateClient();
+            podcastsHomepageContent = await httpClient.GetAsync(url);
+        } else if (IsBBC(url))
+        {
+            podcastsHomepageContent = await BBCHttpClient.GetAsync(url);
+        }
+        else
+        {
+            throw new InvalidOperationException($"Url $'{url}' cannot be handled");
+        }
         podcastsHomepageContent.EnsureSuccessStatusCode();
 
         var document = new HtmlDocument();
@@ -95,19 +108,19 @@ public class NonPodcastServiceCategoriser(
         var titleNodes = document.DocumentNode.SelectNodes("/html/head/title");
         if (!titleNodes.Any())
         {
-            throw new InvalidOperationException($"Cannot extract title from '{uri}'.");
+            throw new InvalidOperationException($"Cannot extract title from '{url}'.");
         }
 
         var titleNode = titleNodes.First();
         var title = titleNode.InnerText;
-        var publisher = IsBBC(uri) ? "BBC" : "Internet Archive";
+        var publisher = IsBBC(url) ? "BBC" : "Internet Archive";
 
         return new ResolvedNonPodcastServiceItem(
             podcast,
             Title: title,
             Publisher: publisher,
-            IsBBC: IsBBC(uri),
-            IsInternetArchive: IsInternetArchive(uri),
-            Url: uri);
+            IsBBC: IsBBC(url),
+            IsInternetArchive: IsInternetArchive(url),
+            Url: url);
     }
 }

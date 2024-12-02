@@ -5,6 +5,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Auth0.Extensions;
+using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Bluesky.Extensions;
 using RedditPodcastPoster.CloudflareRedirect.Extensions;
 using RedditPodcastPoster.Common.Extensions;
@@ -67,6 +68,7 @@ public static class Ioc
             .AddPushSubscriptionsRepository()
             .AddScoped<IClientPrincipalFactory, ClientPrincipalFactory>()
             .AddAuth0Validation()
+            .AddBBCServices()
             .AddHttpClient();
 
         AdminRedditClientFactory.AddAdminRedditClient(serviceCollection);

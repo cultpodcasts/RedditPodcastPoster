@@ -4,6 +4,7 @@ using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
@@ -46,6 +47,7 @@ builder.Services
     .AddTextSanitiser()
     .AddScoped<SubmitUrlProcessor>()
     .AddSearch()
+    .AddBBCServices()
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria();
