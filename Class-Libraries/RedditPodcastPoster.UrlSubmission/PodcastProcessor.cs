@@ -44,10 +44,10 @@ public class PodcastProcessor(
                 matchingEpisode);
 
         Guid episodeId;
-        SubmitResult.SubmitResultState episodeResult;
+        SubmitResultState episodeResult;
         if (matchingEpisode == null)
         {
-            episodeResult = SubmitResult.SubmitResultState.Created;
+            episodeResult = SubmitResultState.Created;
             var episode = episodeFactory.CreateEpisode(categorisedItem);
             var subjectsResult = await subjectEnricher.EnrichSubjects(
                 episode,

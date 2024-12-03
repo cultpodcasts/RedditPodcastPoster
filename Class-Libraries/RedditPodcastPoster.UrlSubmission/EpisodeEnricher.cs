@@ -16,11 +16,11 @@ public class EpisodeEnricher(
         var (addedSpotify, addedApple, addedYouTube, addedBBC, addedInternetArchive) =
             (false, false, false, false, false);
 
-        var podcastResult = SubmitResult.SubmitResultState.None;
-        var episodeResult = SubmitResult.SubmitResultState.None;
+        var podcastResult = SubmitResultState.None;
+        var episodeResult = SubmitResultState.None;
         if (matchingEpisode != null)
         {
-            episodeResult = SubmitResult.SubmitResultState.EpisodeAlreadyExists;
+            episodeResult = SubmitResultState.EpisodeAlreadyExists;
             logger.LogInformation(
                 $"Applying to episode with title '{matchingEpisode.Title}' and id '{matchingEpisode.Id}'.");
         }
@@ -30,7 +30,7 @@ public class EpisodeEnricher(
             if (!matchingPodcast.AppleId.HasValue)
             {
                 matchingPodcast.AppleId = categorisedItem.ResolvedAppleItem.ShowId;
-                podcastResult = SubmitResult.SubmitResultState.Enriched;
+                podcastResult = SubmitResultState.Enriched;
                 logger.LogInformation(
                     $"Enriched podcast '{matchingPodcast.Id}' with apple details with apple-id {categorisedItem.ResolvedAppleItem.ShowId}.");
             }
@@ -42,7 +42,7 @@ public class EpisodeEnricher(
                 {
                     addedApple = true;
                     matchingEpisode.AppleId = categorisedItem.ResolvedAppleItem.EpisodeId;
-                    episodeResult = SubmitResult.SubmitResultState.Enriched;
+                    episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
                         $"Enriched episode '{matchingEpisode.Id}' with apple details with apple-id {categorisedItem.ResolvedAppleItem.EpisodeId}.");
                 }
@@ -52,7 +52,7 @@ public class EpisodeEnricher(
                 {
                     addedApple = true;
                     matchingEpisode.Urls.Apple = categorisedItem.ResolvedAppleItem.Url;
-                    episodeResult = SubmitResult.SubmitResultState.Enriched;
+                    episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
                         $"Enriched episode '{matchingEpisode.Id}' with apple details with apple-url {categorisedItem.ResolvedAppleItem.Url}.");
                 }
@@ -61,7 +61,7 @@ public class EpisodeEnricher(
                     categorisedItem.ResolvedAppleItem.Release.TimeOfDay != TimeSpan.Zero)
                 {
                     matchingEpisode.Release = categorisedItem.ResolvedAppleItem.Release;
-                    episodeResult = SubmitResult.SubmitResultState.Enriched;
+                    episodeResult = SubmitResultState.Enriched;
                 }
 
                 var description =
@@ -72,7 +72,7 @@ public class EpisodeEnricher(
                      description.Length > matchingEpisode.Description.Length))
                 {
                     matchingEpisode.Description = description;
-                    episodeResult = SubmitResult.SubmitResultState.Enriched;
+                    episodeResult = SubmitResultState.Enriched;
                 }
 
                 if (matchingEpisode.Images?.Apple == null && categorisedItem.ResolvedAppleItem.Image != null)
@@ -88,7 +88,7 @@ public class EpisodeEnricher(
             if (string.IsNullOrWhiteSpace(matchingPodcast.SpotifyId))
             {
                 matchingPodcast.SpotifyId = categorisedItem.ResolvedSpotifyItem.ShowId;
-                podcastResult = SubmitResult.SubmitResultState.Enriched;
+                podcastResult = SubmitResultState.Enriched;
                 logger.LogInformation(
                     $"Enriched podcast '{matchingPodcast.Id}' with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.ShowId}.");
             }
@@ -100,7 +100,7 @@ public class EpisodeEnricher(
                 {
                     addedSpotify = true;
                     matchingEpisode.SpotifyId = categorisedItem.ResolvedSpotifyItem.EpisodeId;
-                    episodeResult = SubmitResult.SubmitResultState.Enriched;
+                    episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
                         $"Enriched episode '{matchingEpisode.Id}' with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.EpisodeId}.");
                 }
@@ -110,7 +110,7 @@ public class EpisodeEnricher(
                 {
                     addedSpotify = true;
                     matchingEpisode.Urls.Spotify = categorisedItem.ResolvedSpotifyItem.Url;
-                    episodeResult = SubmitResult.SubmitResultState.Enriched;
+                    episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
                         $"Enriched episode '{matchingEpisode.Id}' with spotify details with spotify-url {categorisedItem.ResolvedSpotifyItem.Url}.");
                 }
@@ -122,7 +122,7 @@ public class EpisodeEnricher(
                     description.Length > matchingEpisode.Description.Length)
                 {
                     matchingEpisode.Description = description;
-                    episodeResult = SubmitResult.SubmitResultState.Enriched;
+                    episodeResult = SubmitResultState.Enriched;
                 }
 
                 if (matchingEpisode.Images?.Spotify == null && categorisedItem.ResolvedSpotifyItem.Image != null)
@@ -139,7 +139,7 @@ public class EpisodeEnricher(
             {
                 matchingPodcast.YouTubeChannelId = categorisedItem.ResolvedYouTubeItem.ShowId;
                 matchingPodcast.YouTubePublicationOffset = Constants.DefaultMatchingPodcastYouTubePublishingDelay.Ticks;
-                podcastResult = SubmitResult.SubmitResultState.Enriched;
+                podcastResult = SubmitResultState.Enriched;
                 logger.LogInformation(
                     $"Enriched podcast '{matchingPodcast.Id}' with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.ShowId}.");
             }
@@ -151,7 +151,7 @@ public class EpisodeEnricher(
                 {
                     addedYouTube = true;
                     matchingEpisode.YouTubeId = categorisedItem.ResolvedYouTubeItem.EpisodeId;
-                    episodeResult = SubmitResult.SubmitResultState.Enriched;
+                    episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
                         $"Enriched episode '{matchingEpisode.Id}' with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.EpisodeId}.");
                 }
@@ -161,7 +161,7 @@ public class EpisodeEnricher(
                 {
                     addedYouTube = true;
                     matchingEpisode.Urls.YouTube = categorisedItem.ResolvedYouTubeItem.Url;
-                    episodeResult = SubmitResult.SubmitResultState.Enriched;
+                    episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
                         $"Enriched episode '{matchingEpisode.Id}' with youtube details with youtube-url {categorisedItem.ResolvedYouTubeItem.Url}.");
                 }
@@ -170,7 +170,7 @@ public class EpisodeEnricher(
                     categorisedItem.ResolvedYouTubeItem.Release.TimeOfDay != TimeSpan.Zero)
                 {
                     matchingEpisode.Release = categorisedItem.ResolvedYouTubeItem.Release;
-                    episodeResult = SubmitResult.SubmitResultState.Enriched;
+                    episodeResult = SubmitResultState.Enriched;
                 }
 
                 var description =
@@ -180,7 +180,7 @@ public class EpisodeEnricher(
                     description.Length > matchingEpisode.Description.Length)
                 {
                     matchingEpisode.Description = description;
-                    episodeResult = SubmitResult.SubmitResultState.Enriched;
+                    episodeResult = SubmitResultState.Enriched;
                 }
 
                 if (matchingEpisode.Images?.YouTube == null && categorisedItem.ResolvedYouTubeItem.Image != null)
@@ -197,7 +197,7 @@ public class EpisodeEnricher(
             {
                 addedBBC = true;
                 matchingEpisode.Urls.BBC = categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl;
-                episodeResult = SubmitResult.SubmitResultState.Enriched;
+                episodeResult = SubmitResultState.Enriched;
                 logger.LogInformation(
                     $"Enriched episode '{matchingEpisode.Id}' with bbc details with bbc-url {categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl}.");
             }
@@ -208,7 +208,7 @@ public class EpisodeEnricher(
                 addedInternetArchive = true;
                 matchingEpisode.Urls.InternetArchive =
                     categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl;
-                episodeResult = SubmitResult.SubmitResultState.Enriched;
+                episodeResult = SubmitResultState.Enriched;
                 logger.LogInformation(
                     $"Enriched episode '{matchingEpisode.Id}' with internet-archive details with internet-archive-url {categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl}.");
             }

@@ -24,6 +24,8 @@ public static class ServiceCollectionExtensions
             .AddScoped<IPodcastAndEpisodeFactory, PodcastAndEpisodeFactory>()
             .AddScoped<IPodcastProcessor, PodcastProcessor>()
             .AddScoped<ICategorisedItemProcessor, CategorisedItemProcessor>()
-            .AddScoped<IDiscoveryUrlSubmitter, DiscoveryUrlSubmitter>();
+            .AddScoped<IDiscoveryUrlSubmitter, DiscoveryUrlSubmitter>()
+            .AddScoped<IDiscoveryResultProcessor, DiscoveryResultProcessor>()
+            .AddSingleton<ISubmitResultAdaptor, SubmitResultAdaptor>();
     }
 }

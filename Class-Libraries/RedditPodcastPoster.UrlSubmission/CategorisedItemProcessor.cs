@@ -29,8 +29,8 @@ public class CategorisedItemProcessor(
         else
         {
             var result = await podcastAndEpisodeFactory.CreatePodcastWithEpisode(categorisedItem);
-            submitResult = new SubmitResult(SubmitResult.SubmitResultState.Created,
-                SubmitResult.SubmitResultState.Created,
+            submitResult = new SubmitResult(SubmitResultState.Created,
+                SubmitResultState.Created,
                 result.SubmitEpisodeDetails,
                 result.NewEpisode.Id);
             if (submitOptions.PersistToDatabase)
