@@ -1,6 +1,4 @@
-﻿using static RedditPodcastPoster.UrlSubmission.SubmitResult;
-
-namespace RedditPodcastPoster.UrlSubmission;
+﻿namespace RedditPodcastPoster.UrlSubmission;
 
 public record SubmitResult(
     SubmitResultState EpisodeResult,
@@ -9,15 +7,6 @@ public record SubmitResult(
     Guid? EpisodeId = null
 )
 {
-    public enum SubmitResultState
-    {
-        None = 0,
-        Created,
-        Enriched,
-        PodcastRemoved,
-        EpisodeAlreadyExists
-    }
-
     public override string ToString()
     {
         var results = new List<string>

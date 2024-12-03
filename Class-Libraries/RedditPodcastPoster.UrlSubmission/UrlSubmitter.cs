@@ -3,7 +3,6 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
-using static RedditPodcastPoster.UrlSubmission.SubmitResult;
 
 namespace RedditPodcastPoster.UrlSubmission;
 
