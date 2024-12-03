@@ -170,7 +170,7 @@ public class PodcastController(
         if (sameNamePodcasts.Count > 0)
         {
             throw new InvalidOperationException(
-                $"Other podcasts have requested name. Podcast-ids: '{string.Join(", ", sameNamePodcasts.Select(x => $"'{x.id}'"))}'.");
+                $"Other podcasts have requested name '{podcastName}'. Podcast-ids: {string.Join(", ", sameNamePodcasts.Select(x => $"'{x.id}'"))}.");
         }
 
         podcast.Name = podcastName.Trim();
