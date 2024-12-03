@@ -3,6 +3,7 @@ using System.Text.Json;
 using Api.Configuration;
 using Api.Dtos;
 using Api.Extensions;
+using Api.Models;
 using Azure.Search.Documents;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -332,9 +333,10 @@ public class PodcastController(
         {
             logger.LogInformation($"{nameof(Get)}: Get podcast with name '{podcastName}'.");
             podcastName = WebUtility.UrlDecode(podcastName);
-            var podcast = await GetPodcast(podcastName, c);
-            if (podcast != null)
+            var podcastResult = await GetPodcast(podcastName, c);
+            if (podcastResult.RetrievalState == PodcastRetrievalState.Found && podcastResult.Podcast != null)
             {
+                var podcast = podcastResult.Podcast;
                 var dto = new Podcast
                 {
                     Id = podcast.Id,
@@ -361,8 +363,19 @@ public class PodcastController(
                 return await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(dto, c);
             }
 
-            logger.LogWarning($"{nameof(Get)}: Podcast with name '{podcastName}' not found.");
-            return await req.CreateResponse(HttpStatusCode.NotFound).WithJsonBody(new {name = podcastName}, c);
+            if (podcastResult.RetrievalState == PodcastRetrievalState.NotFound)
+            {
+                logger.LogError("Unable to find podcast with name '{name}'.", podcastName);
+                return await req.CreateResponse(HttpStatusCode.NotFound)
+                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve podcast"), c);
+            }
+
+            if (podcastResult.RetrievalState == PodcastRetrievalState.Conflict)
+            {
+                logger.LogError("Multiple podcasts with name '{name}'.", podcastName);
+                return await req.CreateResponse(HttpStatusCode.Conflict)
+                    .WithJsonBody(SubmitUrlResponse.Failure("Multiple podcasts found"), c);
+            }
         }
         catch (Exception ex)
         {
@@ -374,20 +387,29 @@ public class PodcastController(
         return failure;
     }
 
-    private async Task<RedditPodcastPoster.Models.Podcast?> GetPodcast(string podcastName, CancellationToken c)
+    private async Task<PodcastWrapper> GetPodcast(string podcastName, CancellationToken c)
     {
         var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastName).ToListAsync(c);
-        RedditPodcastPoster.Models.Podcast? podcast = null;
-        if (podcasts.Count() == 1)
+        if (!podcasts.Any())
         {
-            podcast = podcasts.Single();
-        }
-        else if (podcasts.Count() > 1)
-        {
-            podcast = podcasts.SingleOrDefault(x => x.IndexAllEpisodes);
+            return new PodcastWrapper(null, PodcastRetrievalState.NotFound);
         }
 
-        return podcast;
+        if (podcasts.Count() == 1)
+        {
+            return new PodcastWrapper(podcasts.Single(), PodcastRetrievalState.Found);
+        }
+
+        if (podcasts.Count() > 1)
+        {
+            var indexedPodcasts = podcasts.Where(x => x.IndexAllEpisodes);
+            if (indexedPodcasts.Count() == 1)
+            {
+                return new PodcastWrapper(indexedPodcasts.Single(), PodcastRetrievalState.Found);
+            }
+        }
+
+        return new PodcastWrapper(null, PodcastRetrievalState.Conflict);
     }
 
     private async Task<HttpResponseData> Index(HttpRequestData req, string podcastName, ClientPrincipal? _,
