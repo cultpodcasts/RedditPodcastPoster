@@ -20,7 +20,7 @@ public class SpotifyQueryPaginator(
             return new PodcastEpisodesResult(new List<SimpleEpisode>());
         }
 
-        if (pagedEpisodes == null || pagedEpisodes.Items == null)
+        if (pagedEpisodes?.Items == null)
         {
             return new PodcastEpisodesResult(new List<SimpleEpisode>());
         }
