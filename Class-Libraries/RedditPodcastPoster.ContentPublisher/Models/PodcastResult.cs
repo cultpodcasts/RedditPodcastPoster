@@ -32,6 +32,12 @@ public class PodcastResult
     [JsonPropertyName("youtube")]
     public Uri? YouTube { get; set; }
 
+    [JsonPropertyName("bbc")]
+    public Uri? BBC { get; set; }
+
+    [JsonPropertyName("internetArchive")]
+    public Uri? InternetArchive { get; set; }
+
     [JsonPropertyName("subjects")]
     public string[]? Subjects { get; set; }
 
