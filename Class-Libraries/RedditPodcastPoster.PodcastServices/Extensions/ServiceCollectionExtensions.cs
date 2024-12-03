@@ -11,7 +11,8 @@ public static class ServiceCollectionExtensions
             .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
             .AddScoped<IPodcastUpdater, PodcastUpdater>()
             .AddScoped<INonPodcastServiceCategoriser, NonPodcastServiceCategoriser>()
-            .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>();
+            .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>()
+            .AddScoped<IStreamingServiceMetaDataHandler, StreamingServiceMetaDataHandler>();
     }
 
     public static IServiceCollection AddRemoteClient(this IServiceCollection services)

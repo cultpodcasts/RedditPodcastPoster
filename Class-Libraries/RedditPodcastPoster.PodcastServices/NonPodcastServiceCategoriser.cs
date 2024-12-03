@@ -11,8 +11,7 @@ public class NonPodcastServiceCategoriser(
     IPodcastRepository podcastRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     IHttpClientFactory httpClientFactory,
-    IiPlayerPageMetaDataExtractor bbcMetaDataExtractor,
-    IInternetArchivePageMetaDataExtractor internetArchivePageMetaDataExtractor,
+    IStreamingServiceMetaDataHandler streamingServiceMetaDataHandler,
     ILogger<NonPodcastServiceCategoriser> logger
 #pragma warning restore CS9113 // Parameter is unread.
 ) : INonPodcastServiceCategoriser
@@ -23,15 +22,18 @@ public class NonPodcastServiceCategoriser(
         if (podcast == null)
         {
             List<Guid> matchingPodcastIds;
-            if (IsBBC(url))
+            NonPodcastService service;
+            if (BBCUrlMatcher.IsBBCUrl(url))
             {
+                service = NonPodcastService.BBC;
                 var wrappedIds = await podcastRepository
                     .GetAllBy(p => p.Episodes.Any(episode => episode.Urls.BBC == url), x => new {id = x.Id})
                     .ToListAsync();
                 matchingPodcastIds = wrappedIds.Select(x => x.id).ToList();
             }
-            else if (IsInternetArchive(url))
+            else if (InternetArchiveUrlMatcher.IsInternetArchiveUrl(url))
             {
+                service = NonPodcastService.InternetArchive;
                 var wrappedIds = await podcastRepository
                     .GetAllBy(p => p.Episodes.Any(episode => episode.Urls.InternetArchive == url), x => new {id = x.Id})
                     .ToListAsync();
@@ -53,7 +55,7 @@ public class NonPodcastServiceCategoriser(
                 var podcastId = matchingPodcastIds.Single();
                 podcast = await podcastRepository.GetBy(x => x.Id == podcastId);
                 IEnumerable<Episode> episodes;
-                if (IsBBC(url))
+                if (service == NonPodcastService.BBC)
                 {
                     episodes = podcast!.Episodes.Where(x => x.Urls.BBC == url);
                 }
@@ -68,55 +70,10 @@ public class NonPodcastServiceCategoriser(
                         $"Found episodes with url '{url}'. Podcast-id: '{podcast.Id}'. Episode-ids: {string.Join(", ", episodes)}.");
                 }
 
-                return new ResolvedNonPodcastServiceItem(podcast, episodes.Single());
+                return new ResolvedNonPodcastServiceItem(service, podcast, episodes.Single());
             }
         }
 
-        return await CreateResolvedNonPodcastServiceItemFromUrl(podcast, url);
-    }
-
-    private bool IsInternetArchive(Uri url)
-    {
-        return url.Host.Contains("archive.org");
-    }
-
-    private bool IsBBC(Uri url)
-    {
-        return url.Host.Contains("bbc.co.uk");
-    }
-
-    private async Task<ResolvedNonPodcastServiceItem> CreateResolvedNonPodcastServiceItemFromUrl(
-        Podcast? podcast,
-        Uri url)
-    {
-        NonPodcastServiceItemMetaData metaData;
-        string publisher;
-        if (IsInternetArchive(url))
-        {
-            metaData = await internetArchivePageMetaDataExtractor.GetMetaData(url);
-            publisher = "Internet Archive";
-        }
-        else if (IsBBC(url))
-        {
-            metaData = await bbcMetaDataExtractor.GetMetaData(url);
-            publisher = "BBC";
-        }
-        else
-        {
-            throw new InvalidOperationException($"Url $'{url}' cannot be handled");
-        }
-
-
-        return new ResolvedNonPodcastServiceItem(
-            podcast,
-            Title: metaData.Title,
-            Description: metaData.Description,
-            Publisher: publisher,
-            IsBBC: IsBBC(url),
-            IsInternetArchive: IsInternetArchive(url),
-            Url: url,
-            Image: metaData.Image,
-            Release: metaData.Release,
-            Duration: metaData.Duration);
+        return await streamingServiceMetaDataHandler.ResolveServiceItem(podcast, url);
     }
 }
