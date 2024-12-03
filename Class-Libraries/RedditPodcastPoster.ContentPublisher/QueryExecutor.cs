@@ -40,13 +40,15 @@ public class QueryExecutor(
                     new RecentEpisode
                     {
                         EpisodeId = x.EpisodeId,
-                        Apple = x.Apple,
                         EpisodeDescription = WebUtility.HtmlDecode(x.EpisodeDescription),
                         EpisodeTitle = WebUtility.HtmlDecode(x.EpisodeTitle),
                         PodcastName = x.PodcastName,
                         Release = x.Release,
                         Spotify = x.Spotify,
+                        Apple = x.Apple,
                         YouTube = x.YouTube,
+                        BBC = x.BBC,
+                        InternetArchive = x.InternetArchive,
                         Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
                         Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null,
                         Image = x.Images?.YouTube ?? x.Images?.Spotify ?? x.Images?.Apple ?? x.Images?.Other
@@ -157,6 +159,8 @@ public class QueryExecutor(
                            e.urls.spotify as spotify,
                            e.urls.apple as apple,
                            e.urls.youtube as youtube,
+                           e.urls.bbc as bbc,
+                           e.urls.internetArchive as internetArchive,
                            e.duration as length,
                            e.subjects as subjects,
                            e.images as images
