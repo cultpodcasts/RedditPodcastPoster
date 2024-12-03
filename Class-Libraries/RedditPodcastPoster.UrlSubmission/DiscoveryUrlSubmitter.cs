@@ -106,49 +106,79 @@ public class DiscoveryUrlSubmitter(
 
         if (enrichSpotify)
         {
-            if (categorisedItem.ResolvedSpotifyItem == null ||
-                categorisedItem.ResolvedSpotifyItem.EpisodeDescription !=
-                SpotifyIdResolver.GetEpisodeId(discoveryResult.Urls.Spotify!))
-            {
-                categorisedItem = categorisedItem with
-                {
-                    ResolvedSpotifyItem =
-                    await spotifyUrlCategoriser.Resolve(null, discoveryResult.Urls.Spotify!, indexingContext)
-                };
-            }
+            categorisedItem = await ExtractSpotify(categorisedItem, discoveryResult.Urls, indexingContext);
         }
 
         if (enrichApple)
         {
-            if (categorisedItem.ResolvedAppleItem == null ||
-                categorisedItem.ResolvedAppleItem.ShowId !=
-                AppleIdResolver.GetPodcastId(discoveryResult.Urls.Apple!) ||
-                categorisedItem.ResolvedAppleItem.EpisodeId !=
-                AppleIdResolver.GetEpisodeId(discoveryResult.Urls.Apple!))
-            {
-                categorisedItem = categorisedItem with
-                {
-                    ResolvedAppleItem =
-                    await appleUrlCategoriser.Resolve(null, discoveryResult.Urls.Apple!, indexingContext)
-                };
-            }
+            categorisedItem = await ExtractApple(categorisedItem, discoveryResult.Urls, indexingContext);
         }
 
         if (enrichYouTube)
         {
-            if (categorisedItem.ResolvedYouTubeItem == null ||
-                categorisedItem.ResolvedYouTubeItem.ShowId != YouTubeIdResolver.Extract(discoveryResult.Urls.YouTube!))
-            {
-                categorisedItem = categorisedItem with
-                {
-                    ResolvedYouTubeItem =
-                    await youTubeUrlCategoriser.Resolve(null, discoveryResult.Urls.YouTube!, indexingContext)
-                };
-            }
+            categorisedItem = await ExtractYouTube(categorisedItem, discoveryResult.Urls, indexingContext);
         }
 
         var submitResult = await categorisedItemProcessor.ProcessCategorisedItem(categorisedItem, submitOptions);
+        var state = CreateState(submitResult);
+        return new DiscoverySubmitResult(state, submitResult.EpisodeId);
+    }
 
+    private async Task<CategorisedItem> ExtractSpotify(
+        CategorisedItem categorisedItem,
+        DiscoveryResultUrls urls,
+        IndexingContext indexingContext)
+    {
+        if (categorisedItem.ResolvedSpotifyItem == null ||
+            categorisedItem.ResolvedSpotifyItem.EpisodeDescription !=
+            SpotifyIdResolver.GetEpisodeId(urls.Spotify!))
+        {
+            categorisedItem = categorisedItem with
+            {
+                ResolvedSpotifyItem =
+                await spotifyUrlCategoriser.Resolve(null, urls.Spotify!, indexingContext)
+            };
+        }
+
+        return categorisedItem;
+    }
+
+    private async Task<CategorisedItem> ExtractApple(CategorisedItem categorisedItem, DiscoveryResultUrls urls,
+        IndexingContext indexingContext)
+    {
+        if (categorisedItem.ResolvedAppleItem == null ||
+            categorisedItem.ResolvedAppleItem.ShowId !=
+            AppleIdResolver.GetPodcastId(urls.Apple!) ||
+            categorisedItem.ResolvedAppleItem.EpisodeId !=
+            AppleIdResolver.GetEpisodeId(urls.Apple!))
+        {
+            categorisedItem = categorisedItem with
+            {
+                ResolvedAppleItem =
+                await appleUrlCategoriser.Resolve(null, urls.Apple!, indexingContext)
+            };
+        }
+
+        return categorisedItem;
+    }
+
+    private async Task<CategorisedItem> ExtractYouTube(CategorisedItem categorisedItem, DiscoveryResultUrls urls,
+        IndexingContext indexingContext)
+    {
+        if (categorisedItem.ResolvedYouTubeItem == null ||
+            categorisedItem.ResolvedYouTubeItem.ShowId != YouTubeIdResolver.Extract(urls.YouTube!))
+        {
+            categorisedItem = categorisedItem with
+            {
+                ResolvedYouTubeItem = await youTubeUrlCategoriser.Resolve(null, urls.YouTube!, indexingContext)
+            };
+        }
+
+        return categorisedItem;
+    }
+
+    private static DiscoverySubmitResultState CreateState(SubmitResult submitResult)
+    {
         DiscoverySubmitResultState state;
         if (submitResult is
             {
@@ -213,6 +243,6 @@ public class DiscoveryUrlSubmitter(
                 $"Unknown state: podcast-result: '{submitResult.PodcastResult.ToString()}', episode-result '{submitResult.EpisodeResult.ToString()}'.");
         }
 
-        return new DiscoverySubmitResult(state, submitResult.EpisodeId);
+        return state;
     }
 }
