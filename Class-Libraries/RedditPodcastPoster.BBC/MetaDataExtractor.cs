@@ -88,7 +88,16 @@ public partial class MetaDataExtractor(
             .FirstOrDefault();
         var maxImageUrl = maxImage?.Url;
 
-        return new NonPodcastServiceItemMetaData(title, description, duration, release, maxImageUrl);
+        var @explicit = false;
+        var guidanceContainer =
+            document.DocumentNode.SelectSingleNode("//div[contains(@class, 'guidance-banner')]");
+        if (guidanceContainer != null)
+        {
+            var guidanceItems = guidanceContainer.SelectNodes("//div[@class='banner__message__inner']/span");
+            @explicit = guidanceItems.Any();
+        }
+
+        return new NonPodcastServiceItemMetaData(title, description, duration, release, maxImageUrl, @explicit);
     }
 
     [GeneratedRegex(@"(?<mins>\d+) mins")]
