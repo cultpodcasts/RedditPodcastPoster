@@ -16,7 +16,7 @@ namespace Api;
 
 public class DiscoveryCurationController(
     IDiscoveryResultsService discoveryResultsService,
-    IUrlSubmitter urlSubmitter,
+    IDiscoveryUrlSubmitter discoveryUrlSubmitter,
     ISearchIndexerService searchIndexerService,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<DiscoveryCurationController> logger,
@@ -84,7 +84,7 @@ public class DiscoveryCurationController(
                     $"Submitting discovery-result '{discoveryResult.Id}' with indexing-context: {indexingContext}");
                 try
                 {
-                    var result = await urlSubmitter.Submit(discoveryResult, indexingContext, submitOptions);
+                    var result = await discoveryUrlSubmitter.Submit(discoveryResult, indexingContext, submitOptions);
                     submitResults.Add(
                         new DiscoverySubmitResponseItem
                         {
