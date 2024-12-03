@@ -8,7 +8,7 @@ public class PodcastFilter(ILogger<PodcastFilter> logger) : IPodcastFilter
 {
     public FilterResult Filter(Podcast podcast, List<string> eliminationTerms)
     {
-        IList<(Episode, string[])> filteredEpisodes = new List<(Episode, string[])>();
+        var filteredEpisodes = new List<FilteredEpisode>();
         var episodesToRemove = new List<Episode>();
         foreach (var podcastEpisode in podcast.Episodes.Where(x => !x.Removed))
         {
@@ -18,7 +18,7 @@ public class PodcastFilter(ILogger<PodcastFilter> logger) : IPodcastFilter
             var matchedTerms = new List<string>();
             foreach (var eliminationTerm in eliminationTerms)
             {
-                remove |= titleLower.Contains(eliminationTerm) || descriptionLower.Contains(eliminationTerm);
+                remove = titleLower.Contains(eliminationTerm) || descriptionLower.Contains(eliminationTerm);
                 if (remove)
                 {
                     matchedTerms.Add(eliminationTerm);
@@ -29,7 +29,7 @@ public class PodcastFilter(ILogger<PodcastFilter> logger) : IPodcastFilter
 
             if (remove)
             {
-                filteredEpisodes.Add((podcastEpisode, matchedTerms.ToArray()));
+                filteredEpisodes.Add(new FilteredEpisode(podcastEpisode, matchedTerms.ToArray()));
                 episodesToRemove.Add(podcastEpisode);
             }
         }
