@@ -16,6 +16,14 @@ public static class ServiceCollectionExtensions
             .AddScoped<ISpotifyUrlCategoriser, SpotifyUrlCategoriser>()
             .AddScoped<IYouTubeUrlCategoriser, YouTubeUrlCategoriser>()
             .AddScoped<IUrlSubmitter, UrlSubmitter>()
-            .AddScoped<IPodcastService, PodcastService>();
+            .AddScoped<IPodcastService, PodcastService>()
+            .AddSingleton<IDescriptionHelper, DescriptionHelper>()
+            .AddSingleton<IEpisodeHelper, EpisodeHelper>()
+            .AddScoped<IEpisodeFactory, EpisodeFactory>()
+            .AddScoped<IEpisodeEnricher, EpisodeEnricher>()
+            .AddScoped<IPodcastAndEpisodeFactory, PodcastAndEpisodeFactory>()
+            .AddScoped<IPodcastProcessor, PodcastProcessor>()
+            .AddScoped<ICategorisedItemProcessor, CategorisedItemProcessor>()
+            .AddScoped<IDiscoveryUrlSubmitter, DiscoveryUrlSubmitter>();
     }
 }
