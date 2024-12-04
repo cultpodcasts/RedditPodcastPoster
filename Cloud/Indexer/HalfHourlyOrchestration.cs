@@ -28,8 +28,8 @@ public class HalfHourlyOrchestration : TaskOrchestrator<object, IndexerContext>
             await context.CallPublisherAsync(indexerContext with {PublisherOperationId = context.NewGuid()});
         logger.LogInformation($"{nameof(Publisher)} complete.");
 
-        indexerContext = await context.CallTweetAsync(indexerContext with {TweetOperationId = context.NewGuid()});
-        logger.LogInformation($"{nameof(Tweet)} complete. All tasks complete.");
+        indexerContext = await context.CallBlueskyAsync(indexerContext with { BlueskyOperationId = context.NewGuid() });
+        logger.LogInformation($"{nameof(Bluesky)} complete. All tasks complete.");
 
         return indexerContext;
     }
