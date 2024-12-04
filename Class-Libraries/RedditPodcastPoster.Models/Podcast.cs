@@ -31,6 +31,10 @@ public sealed class Podcast : CosmosSelector
     [JsonPropertyOrder(50)]
     public bool IndexAllEpisodes { get; set; } = false;
 
+    [JsonPropertyName("ignoreAllEpisodes")]
+    [JsonPropertyOrder(51)]
+    public bool? IgnoreAllEpisodes { get; set; } = false;
+
     [JsonPropertyName("bypassShortEpisodeChecking")]
     [JsonPropertyOrder(60)]
     public bool? BypassShortEpisodeChecking { get; set; }
@@ -152,5 +156,10 @@ public sealed class Podcast : CosmosSelector
     public bool IsRemoved()
     {
         return Removed.HasValue && Removed.Value;
+    }
+
+    public bool HasIgnoreAllEpisodes()
+    {
+        return IgnoreAllEpisodes.HasValue && IgnoreAllEpisodes.Value;
     }
 }
