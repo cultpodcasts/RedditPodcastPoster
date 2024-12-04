@@ -23,7 +23,8 @@ public class PodcastFilter(ILogger<PodcastFilter> logger) : IPodcastFilter
                 {
                     matchedTerms.Add(eliminationTerm);
                     logger.LogInformation(
-                        $"Removing episode '{podcastEpisode.Title}' of podcast '{podcast.Name}' due to match with '{eliminationTerm}'.");
+                        "Removing episode '{episodeTitle}' of podcast '{podcastName}' due to match with '{eliminationTerm}'.",
+                        podcastEpisode.Title, podcast.Name, eliminationTerm);
                 }
             }
 

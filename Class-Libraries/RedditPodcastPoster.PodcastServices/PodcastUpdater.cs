@@ -73,6 +73,14 @@ public class PodcastUpdater(
                 .ToList();
         }
 
+        if (podcast.HasIgnoreAllEpisodes())
+        {
+            foreach (var episode in episodes)
+            {
+                episode.Ignored = true;
+            }
+        }
+
         var enrichmentResult = await podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, episodes, indexingContext);
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
         var filterResult = podcastFilter.Filter(podcast, eliminationTerms.Terms);

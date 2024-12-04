@@ -116,6 +116,11 @@ public class EpisodeFactory(
             };
         }
 
+        if (categorisedItem.MatchingPodcast != null && categorisedItem.MatchingPodcast.HasIgnoreAllEpisodes())
+        {
+            newEpisode.Ignored = true;
+        }
+
         logger.LogInformation(
             $"Created episode with spotify-id '{categorisedItem.ResolvedSpotifyItem?.EpisodeId}', apple-id '{categorisedItem.ResolvedAppleItem?.EpisodeId}', youtube-id '{categorisedItem.ResolvedYouTubeItem?.EpisodeId}' and episode-id '{newEpisode.Id}'.");
         return newEpisode;

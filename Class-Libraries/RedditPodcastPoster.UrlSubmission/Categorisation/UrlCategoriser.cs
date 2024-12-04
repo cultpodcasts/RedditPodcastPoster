@@ -186,41 +186,4 @@ public class UrlCategoriser(
 
         throw new InvalidOperationException($"Unable to handle url '{url}'.");
     }
-
-    private bool IsMatchingPodcast(Podcast podcast, ResolvedSpotifyItem? resolvedItem)
-    {
-        if (resolvedItem != null &&
-            !string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
-            resolvedItem.ShowId == podcast.SpotifyId)
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    private bool IsMatchingPodcast(Podcast podcast, ResolvedAppleItem? resolvedItem)
-    {
-        if (resolvedItem != null &&
-            podcast.AppleId.HasValue &&
-            resolvedItem.ShowId.HasValue &&
-            resolvedItem.ShowId == podcast.AppleId)
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    private bool IsMatchingPodcast(Podcast podcast, ResolvedYouTubeItem? resolvedItem)
-    {
-        if (resolvedItem != null &&
-            !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
-            resolvedItem.ShowId == podcast.YouTubeChannelId)
-        {
-            return true;
-        }
-
-        return false;
-    }
 }
