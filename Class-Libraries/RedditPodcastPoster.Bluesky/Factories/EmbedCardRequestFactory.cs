@@ -48,6 +48,7 @@ public class EmbedCardRequestFactory(
                 {
                     logger.LogError(
                         $"Unable to find video for bluesky-thumbnail with id '{podcastEpisode.Episode.YouTubeId}'. {nameof(indexingContext.SkipYouTubeUrlResolving)}= '{indexingContext.SkipYouTubeUrlResolving}'.");
+                    throw new EpisodeNotFoundException(podcastEpisode.Episode.YouTubeId);
                 }
 
                 break;
