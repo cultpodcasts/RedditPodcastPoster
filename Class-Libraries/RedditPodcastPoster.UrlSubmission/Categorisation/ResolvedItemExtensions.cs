@@ -9,10 +9,20 @@ public static class ResolvedItemExtensions
 {
     public static PodcastServiceSearchCriteria ToPodcastServiceSearchCriteria(this ResolvedSpotifyItem item)
     {
+        var showName = item.ShowName == null || string.IsNullOrWhiteSpace(item.ShowName)
+            ? string.Empty
+            : item.ShowName.Trim();
+        var showDescription = item.ShowDescription == null || string.IsNullOrWhiteSpace(item.ShowDescription)
+            ? string.Empty
+            : item.ShowDescription.Trim();
+        var publisher = item.Publisher == null || string.IsNullOrWhiteSpace(item.Publisher)
+            ? string.Empty
+            : item.Publisher.Trim();
+
         return new PodcastServiceSearchCriteria(
-            item.ShowName.Trim(),
-            item.ShowDescription.Trim(),
-            item.Publisher.Trim(),
+            showName,
+            showDescription,
+            publisher,
             item.EpisodeTitle.Trim(),
             item.EpisodeDescription.Trim(),
             item.Release,
