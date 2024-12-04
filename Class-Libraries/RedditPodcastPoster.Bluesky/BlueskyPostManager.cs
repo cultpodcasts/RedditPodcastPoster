@@ -2,6 +2,7 @@
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlShortening;
 
 namespace RedditPodcastPoster.Bluesky;
@@ -20,11 +21,7 @@ public class BlueskyPostManager(
         IEnumerable<PodcastEpisode> unposted;
         try
         {
-            logger.LogInformation(
-                $"{nameof(BlueskyPostManager)}.{nameof(Post)}: Exec {nameof(podcastEpisodeProvider.GetBlueskyReadyPodcastEpisodes)} init.");
             unposted = await podcastEpisodeProvider.GetBlueskyReadyPodcastEpisodes(youTubeRefreshed, spotifyRefreshed);
-            logger.LogInformation(
-                $"{nameof(BlueskyPostManager)}.{nameof(Post)}: Exec {nameof(podcastEpisodeProvider.GetBlueskyReadyPodcastEpisodes)} complete.");
         }
         catch (Exception ex)
         {
@@ -50,17 +47,24 @@ public class BlueskyPostManager(
                         logger.LogError("Unsuccessful shortening-url.");
                     }
 
-                    logger.LogInformation(
-                        $"{nameof(BlueskyPostManager)}.{nameof(Post)}: Exec {nameof(poster.Post)} init.");
-                    var status = await poster.Post(podcastEpisode, shortnerResult.Url);
-                    logger.LogInformation(
-                        $"{nameof(BlueskyPostManager)}.{nameof(Post)}: Exec {nameof(poster.Post)} complete. Bluesky-post-status: '{status}'.");
-                    posted = status == BlueskySendStatus.Success;
+                    logger.LogInformation("Bluesky Post init.");
+                    try
+                    {
+                        var status = await poster.Post(podcastEpisode, shortnerResult.Url);
+                        logger.LogInformation("Bluesky Post complete. Bluesky-post-status: '{status}'.", status);
+                        posted = status == BlueskySendStatus.Success;
+                    }
+                    catch (EpisodeNotFoundException e)
+                    {
+                        logger.LogError(e, "Candidate episode to post to bluesky not found");
+                    }
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex,
-                        $"Unable to bluesky-post episode with id '{podcastEpisode.Episode.Id}' with title '{podcastEpisode.Episode.Title}' from podcast with id '{podcastEpisode.Podcast.Id}' and name '{podcastEpisode.Podcast.Name}'.");
+                        "Unable to bluesky-post episode with id '{episodeId}' with title '{episodeTitle}' from podcast with id '{podcastId}' and name '{podcastName}'.",
+                        podcastEpisode.Episode.Id, podcastEpisode.Episode.Title, podcastEpisode.Podcast.Id,
+                        podcastEpisode.Podcast.Name);
                 }
             }
         }

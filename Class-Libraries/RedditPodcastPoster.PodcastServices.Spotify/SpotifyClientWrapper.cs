@@ -115,7 +115,6 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         return results;
     }
 
-
     public async Task<Paging<SimpleEpisode>?> GetShowEpisodes(
         string showId,
         ShowEpisodesRequest request,
@@ -275,6 +274,10 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
             if (!ex.Message.StartsWith("Non existing id:") && ex.Response?.StatusCode != HttpStatusCode.NotFound)
             {
                 indexingContext.SkipSpotifyUrlResolving = true;
+            }
+            else
+            {
+                throw new EpisodeNotFoundException(episodeId);
             }
 
             return null;
