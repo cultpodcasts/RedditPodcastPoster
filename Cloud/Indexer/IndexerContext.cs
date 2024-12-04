@@ -6,6 +6,7 @@ public record IndexerContext(
     Guid? PosterOperationId = null,
     Guid? PublisherOperationId = null,
     Guid? TweetOperationId = null,
+    Guid? BlueskyOperationId = null,
     bool? Success = null,
     bool? SkipYouTubeUrlResolving = null,
     bool? YouTubeError = null,
@@ -15,7 +16,8 @@ public record IndexerContext(
     bool? DuplicateCategoriserOperation = null,
     bool? DuplicatePosterOperation = null,
     bool? DuplicatePublisherOperation = null,
-    bool? DuplicateTweetOperation = null)
+    bool? DuplicateTweetOperation = null,
+    bool? DuplicateBlueskyOperation = null)
 {
     public override string ToString()
     {
@@ -31,6 +33,9 @@ public record IndexerContext(
             : string.Empty;
         var tweetOperationId = TweetOperationId.HasValue
             ? $"tweet-operation-id: '{TweetOperationId}'"
+            : string.Empty;
+        var blueskyOperationId = BlueskyOperationId.HasValue
+            ? $"bluesky-operation-id: '{BlueskyOperationId}'"
             : string.Empty;
         var success = Success.HasValue
             ? $"success: '{Success}'"
@@ -62,8 +67,11 @@ public record IndexerContext(
         var duplicateTweetOperation = DuplicateTweetOperation.HasValue
             ? $"duplicate-tweet-operation: '{DuplicateTweetOperation}'"
             : string.Empty;
+        var duplicateBlueskyOperation = DuplicateBlueskyOperation.HasValue
+            ? $"duplicate-bluesky-operation: '{DuplicateBlueskyOperation}'"
+            : string.Empty;
 
         return
-            $"{nameof(IndexerContext)} Indexer-options {string.Join(", ", new[] {indexerOperationId, categoriserOperationId, posterOperationId, publisherOperationId, tweetOperationId, success, skipYouTubeUrlResolving, youTubeError, skipSpotifyUrlResolving, spotifyError, duplicateIndexerOperation, duplicateCategoriserOperation, duplicatePosterOperation, duplicatePublisherOperation, duplicateTweetOperation}.Where(x => !string.IsNullOrWhiteSpace(x)))}.";
+            $"{nameof(IndexerContext)} Indexer-options {string.Join(", ", new[] {indexerOperationId, categoriserOperationId, posterOperationId, publisherOperationId, tweetOperationId, blueskyOperationId, success, skipYouTubeUrlResolving, youTubeError, skipSpotifyUrlResolving, spotifyError, duplicateIndexerOperation, duplicateCategoriserOperation, duplicatePosterOperation, duplicatePublisherOperation, duplicateTweetOperation, duplicateBlueskyOperation}.Where(x => !string.IsNullOrWhiteSpace(x)))}.";
     }
 }

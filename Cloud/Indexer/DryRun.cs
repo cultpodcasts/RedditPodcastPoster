@@ -7,4 +7,5 @@ internal static class DryRun
     public static bool IsPosterDryRun = false;
     public static bool IsPublisherDryRun = false;
     public static bool IsTweetDryRun = false;
+    public static bool IsBlueskyDryRun = false;
 }
