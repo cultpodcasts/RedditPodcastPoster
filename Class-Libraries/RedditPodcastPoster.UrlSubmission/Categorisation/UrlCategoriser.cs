@@ -116,7 +116,7 @@ public class UrlCategoriser(
                         {
                             criteria = criteria with
                             {
-                                Publisher = resolvedSpotifyItem.Publisher
+                                Publisher = resolvedSpotifyItem.Publisher ?? string.Empty
                             };
                         }
                     }

@@ -15,13 +15,16 @@ public class AppleUrlCategoriser(
         Podcast? matchingPodcast,
         IndexingContext indexingContext)
     {
+        var publisher = !string.IsNullOrWhiteSpace(matchingPodcast?.Publisher)
+            ? matchingPodcast?.Publisher
+            : criteria.Publisher ?? string.Empty;
+        var findApplePodcastRequest = new FindApplePodcastRequest(
+            matchingPodcast?.AppleId,
+            matchingPodcast?.Name ?? criteria.ShowName,
+            publisher
+        );
         var podcast =
-            await applePodcastResolver.FindPodcast(new FindApplePodcastRequest(
-                matchingPodcast?.AppleId,
-                matchingPodcast?.Name ?? criteria.ShowName,
-                !string.IsNullOrWhiteSpace(matchingPodcast?.Publisher)
-                    ? matchingPodcast.Publisher
-                    : criteria.Publisher));
+            await applePodcastResolver.FindPodcast(findApplePodcastRequest);
 
         if (podcast == null)
         {
