@@ -33,7 +33,7 @@ public sealed class Podcast : CosmosSelector
 
     [JsonPropertyName("ignoreAllEpisodes")]
     [JsonPropertyOrder(51)]
-    public bool? IgnoreAllEpisodes { get; set; } = false;
+    public bool? IgnoreAllEpisodes { get; set; }
 
     [JsonPropertyName("bypassShortEpisodeChecking")]
     [JsonPropertyOrder(60)]
