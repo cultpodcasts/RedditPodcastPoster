@@ -35,28 +35,32 @@ public class ApplePodcastResolver(
             }
         }
 
-        if (matchingPodcast == null)
+        if (!string.IsNullOrWhiteSpace(request.PodcastName))
         {
-            try
+            if (matchingPodcast == null)
             {
-                var items = await iTunesSearchManager.GetPodcasts(request.PodcastName, PodcastSearchLimit);
-                IEnumerable<Podcast> podcasts = items.Podcasts;
-                if (podcasts.Count() > 1)
+                try
                 {
-                    podcasts = podcasts.Where(x => x.ArtistName.ToLower().Trim() == request.PodcastPublisher.ToLower());
-                }
+                    var items = await iTunesSearchManager.GetPodcasts(request.PodcastName, PodcastSearchLimit);
+                    IEnumerable<Podcast> podcasts = items.Podcasts;
+                    if (podcasts.Count() > 1)
+                    {
+                        podcasts = podcasts.Where(x =>
+                            x.ArtistName.ToLower().Trim() == request.PodcastPublisher.ToLower());
+                    }
 
-                matchingPodcast = podcasts.FirstOrDefault(x => x.Name.ToLower() == request.PodcastName.ToLower());
-            }
-            catch (HttpRequestException ex)
-            {
-                logger.LogError(ex,
-                    $"Error invoking {nameof(iTunesSearchManager.GetPodcasts)} with podcast-name '{request.PodcastName}', status-code: {ex.HttpRequestError}, http-request-error: '{ex.HttpRequestError}'.");
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e,
-                    $"Error invoking {nameof(iTunesSearchManager.GetPodcasts)} with podcast-name '{request.PodcastName}'.");
+                    matchingPodcast = podcasts.FirstOrDefault(x => x.Name.ToLower() == request.PodcastName.ToLower());
+                }
+                catch (HttpRequestException ex)
+                {
+                    logger.LogError(ex,
+                        $"Error invoking {nameof(iTunesSearchManager.GetPodcasts)} with podcast-name '{request.PodcastName}', status-code: {ex.HttpRequestError}, http-request-error: '{ex.HttpRequestError}'.");
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e,
+                        $"Error invoking {nameof(iTunesSearchManager.GetPodcasts)} with podcast-name '{request.PodcastName}'.");
+                }
             }
         }
 
