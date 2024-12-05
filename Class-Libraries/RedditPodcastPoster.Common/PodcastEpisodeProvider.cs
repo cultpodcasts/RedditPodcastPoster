@@ -21,8 +21,10 @@ public class PodcastEpisodeProvider(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        logger.LogInformation(
-            $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcastIdsWithUntweetedReleasedSince)} init. Tweet-days: '{_postingCriteria.TweetDays}'");
+        logger.LogInformation("Exec {method}, {execMethod} init. Tweet-days: '{tweetDays}'",
+            nameof(GetUntweetedPodcastEpisodes),
+            nameof(repository.GetPodcastIdsWithUntweetedReleasedSince),
+            _postingCriteria.TweetDays);
         return await GetPodcastEpisodes(
             repository.GetPodcastIdsWithUntweetedReleasedSince,
             podcastEpisodeFilter.GetMostRecentUntweetedEpisodes,
@@ -34,8 +36,10 @@ public class PodcastEpisodeProvider(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        logger.LogInformation(
-            $"{nameof(PodcastEpisodeProvider)}.{nameof(GetUntweetedPodcastEpisodes)}: Exec {nameof(repository.GetPodcastIdsWithBlueskyReadyReleasedSince)} init. Tweet-days: '{_postingCriteria.TweetDays}'");
+        logger.LogInformation("Exec {method}, {execMethod} init. Tweet-days: '{tweetDays}'",
+            nameof(GetBlueskyReadyPodcastEpisodes),
+            nameof(repository.GetPodcastIdsWithBlueskyReadyReleasedSince),
+            _postingCriteria.TweetDays);
         return await GetPodcastEpisodes(
             repository.GetPodcastIdsWithBlueskyReadyReleasedSince,
             podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes,
