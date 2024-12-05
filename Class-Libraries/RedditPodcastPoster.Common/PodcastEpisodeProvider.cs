@@ -22,7 +22,8 @@ public class PodcastEpisodeProvider(
         bool spotifyRefreshed)
     {
         logger.LogInformation("Exec {method}, {execMethod} init. Tweet-days: '{tweetDays}'",
-            nameof(GetUntweetedPodcastEpisodes), nameof(repository.GetPodcastIdsWithUntweetedReleasedSince),
+            nameof(GetUntweetedPodcastEpisodes),
+            nameof(repository.GetPodcastIdsWithUntweetedReleasedSince),
             _postingCriteria.TweetDays);
         return await GetPodcastEpisodes(
             repository.GetPodcastIdsWithUntweetedReleasedSince,
@@ -36,8 +37,9 @@ public class PodcastEpisodeProvider(
         bool spotifyRefreshed)
     {
         logger.LogInformation("Exec {method}, {execMethod} init. Tweet-days: '{tweetDays}'",
-            nameof(GetBlueskyReadyPodcastEpisodes), nameof(repository.GetPodcastIdsWithBlueskyReadyReleasedSince),
-            _postingCriteria.TweetDays;
+            nameof(GetBlueskyReadyPodcastEpisodes),
+            nameof(repository.GetPodcastIdsWithBlueskyReadyReleasedSince),
+            _postingCriteria.TweetDays);
         return await GetPodcastEpisodes(
             repository.GetPodcastIdsWithBlueskyReadyReleasedSince,
             podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes,
