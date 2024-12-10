@@ -29,6 +29,7 @@ public class EnrichYouTubePodcastProcessor(
     ISubjectEnricher subjectEnricher,
     IEliminationTermsProvider eliminationTermsProvider,
     IPodcastFilter podcastFilter,
+    IFileRepository fileRepository,
     IOptions<PostingCriteria> postingCriteria,
     ILogger<EnrichYouTubePodcastProcessor> logger)
 {
@@ -174,7 +175,22 @@ public class EnrichYouTubePodcastProcessor(
             logger.LogWarning(filterResult.ToString());
         }
 
-        await podcastRepository.Save(podcast);
+        try
+        {
+            await podcastRepository.Save(podcast);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to write entity to cosmos.");
+            try
+            {
+                await fileRepository.Write(podcast);
+                logger.LogInformation("Writing to file '{filename}'.", podcast.FileKey);
+            } catch(Exception ex2)
+            {
+                logger.LogError(ex2, "Failed to write to file. Filekey '{filekey}'.", podcast.FileKey);
+            }
+        }
     }
 
     private static bool Matches(Episode episode, PlaylistItem playlistItem, Regex? episodeMatchRegex)

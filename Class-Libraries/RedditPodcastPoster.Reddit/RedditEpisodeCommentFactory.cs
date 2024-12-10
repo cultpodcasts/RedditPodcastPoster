@@ -19,7 +19,7 @@ public class RedditEpisodeCommentFactory(
             {"Spotify", ("\ud83d\udfe2 ", postModel.Spotify)},
             {"Apple Podcasts", ("\ud83d\udfe3 ", postModel.Apple)},
             {"Internet Archive", (string.Empty, postModel.InternetArchive)},
-            {"BBC", (string.Empty, postModel.InternetArchive)}
+            {"BBC", (string.Empty, postModel.BBC)}
         };
         var availableKeys = links
             .Where(x => x.Value.Url != null)

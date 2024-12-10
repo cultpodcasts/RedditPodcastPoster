@@ -29,6 +29,7 @@ builder.Services
     .AddLogging()
     .AddYouTubeServices(ApplicationUsage.Cli)
     .AddRepositories()
+    .AddFileRepository()
     .AddSubjectServices()
     .AddCachedSubjectProvider()
     .AddSingleton<EnrichYouTubePodcastProcessor>()
