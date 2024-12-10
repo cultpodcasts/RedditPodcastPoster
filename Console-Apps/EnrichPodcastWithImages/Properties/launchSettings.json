@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "EnrichPodcastWithImages": {
+      "commandName": "Project",
+      "commandLineArgs": "\"wildcide\""
+    }
+  }
+}
