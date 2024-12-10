@@ -3,13 +3,18 @@ using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.BBC;
+using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.InternetArchive.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Factories;
+using RedditPodcastPoster.PodcastServices.YouTube.Video;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -27,7 +32,10 @@ builder.Services
     .AddLogging()
     .AddRepositories()
     .AddAppleServices()
-    .AddYouTubeServices(ApplicationUsage.Indexer)
+    .AddYouTubeServices(ApplicationUsage.Cli)
+    .AddSpotifyServices()
+    .AddBBCServices()
+    .AddInternetArchiveServices()
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria();
@@ -36,11 +44,13 @@ builder.Services.AddDelayedYouTubePublication();
 
 using var host = builder.Build();
 
-var component = host.Services.GetService<IApplePodcastService>()!;
-var applePodcastId = new ApplePodcastId(1710302900);
-var indexingContext = new IndexingContext();
-var episodes = await component.GetEpisodes(applePodcastId, indexingContext);
-var episode = await component.GetEpisode(applePodcastId, 1000678451124, indexingContext);
+var component = host.Services.GetService<IYouTubeVideoService>();
+var youTubeServiceFactroy = host.Services.GetService<IYouTubeServiceFactory>();
+var youTubeService = youTubeServiceFactroy!.Create(ApplicationUsage.Cli);
+
+var video = await component.GetVideoContentDetails(youTubeService!, new[] {"wI87U-TuZmo"}, new IndexingContext(), withSnippets:true);
+var videoImage = video.SingleOrDefault()?.GetImageUrl();
+
 
 return;
 
