@@ -45,20 +45,21 @@ public class RedirectService(
                     TargetUrl = target.ToString()
                 }
             };
-            var redirect =
-                requestMessage.Content = JsonContent.Create(new[] {getListItemsResult},
-                    options: new JsonSerializerOptions
-                    {
-                        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-                    });
+            requestMessage.Content = JsonContent.Create(new[] {getListItemsResult},
+                options: new JsonSerializerOptions
+                {
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                });
             var httpResponse = await httpClient.SendAsync(requestMessage);
+            var responseContent = await httpResponse.Content.ReadAsStringAsync();
             if (httpResponse.IsSuccessStatusCode)
             {
+                logger.LogInformation("Response code for creating redirect {status}. Source-url: '{sourceUrl}', target-url '{targetUrl}'. Response-content: '{responseContent}'.", 
+                    httpResponse.StatusCode, getListItemsResult.Redirect.SourceUrl, getListItemsResult.Redirect.TargetUrl, responseContent.Trim());
                 return true;
             }
-
-            var responseContent = await httpResponse.Content.ReadAsStringAsync();
-            logger.LogError($"Unable to create podcast-redirect. Response: {responseContent}");
+            var requestJson = await requestMessage.Content.ReadAsStringAsync();
+            logger.LogError("Unable to create podcast-redirect. Response: {responseContent}. Status-code: {statusCode}, Method: {method}, Url: '{url}', Source-url: '{sourceUrl}', target-url '{targetUrl}'. Request-json: '{requestJson}'.", responseContent.Trim(), httpResponse.StatusCode, requestMessage.Method, requestMessage.RequestUri, getListItemsResult.Redirect.SourceUrl, getListItemsResult.Redirect.TargetUrl, requestJson.Trim());
         }
         else
         {

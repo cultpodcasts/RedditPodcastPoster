@@ -506,15 +506,19 @@ public class PodcastController(
                     new PodcastRedirect(
                         change.Name,
                         change.NewName));
+            logger.LogInformation("Result of {method} = {result}", nameof(redirectService.CreatePodcastRedirect), result);
             if (result)
             {
                 foreach (var podcast in podcastsToUpdate)
                 {
+                    var oldName = podcast.Name;
                     podcast.Name = change.NewName;
                     await podcastRepository.Save(podcast);
+                    logger.LogInformation("Renamed podcast '{oldName}' to '{newName}'.", oldName, change.NewName);
                 }
 
                 var indexState = await searchIndexerService.RunIndexer();
+                logger.LogInformation("Search-index run-state: {indexState}.", indexState);
                 return await req.CreateResponse(HttpStatusCode.OK)
                     .WithJsonBody(new {indexState = indexState.ToString()}, c);
             }
