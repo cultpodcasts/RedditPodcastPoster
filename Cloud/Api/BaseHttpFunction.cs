@@ -86,6 +86,27 @@ public abstract class BaseHttpFunction(
         return await unauthorised(req, model, clientPrincipal, ct);
     }
 
+    protected async Task<HttpResponseData> HandlePublicRequest<T>(
+    HttpRequestData req,
+    T model,
+    Func<HttpRequestData, T, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> authorised,
+    Func<HttpRequestData, T, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> unauthorised,
+    CancellationToken ct)
+    {
+        logger.LogInformation($"{nameof(HandlePublicRequest)} initiated for '{req.Url}' / '{req.Method}'.");
+        var clientPrincipal = clientPrincipalFactory.Create(req);
+        var isAuthorised = clientPrincipal != null;
+        if (isAuthorised)
+        {
+            logger.LogInformation($"{nameof(HandlePublicRequest)} Authorised.");
+            var response = await authorised(req, model, clientPrincipal, ct);
+            logger.LogInformation($"{nameof(HandlePublicRequest)} Response Gathered.");
+            return response;
+        }
+        logger.LogWarning($"{nameof(HandlePublicRequest)} Unauthorised.");
+        return await unauthorised(req, model, clientPrincipal, ct);
+    }
+
     protected static Task<HttpResponseData> Unauthorised(HttpRequestData r, ClientPrincipal? _, CancellationToken c)
     {
         return r.CreateResponse(HttpStatusCode.Unauthorized).WithJsonBody(new {Message = "Unauthorised"}, c);

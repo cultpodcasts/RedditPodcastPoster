@@ -37,4 +37,21 @@ public static class EpisodeExtensions
             Image = episode.Images?.YouTube ?? episode.Images?.Spotify ?? episode.Images?.Apple ?? episode.Images?.Other
         };
     }
+
+    public static PublicEpisode EnrichPublic(this Episode episode, Podcast podcast)
+    {
+        return new PublicEpisode
+        {
+            Id = episode.Id,
+            PodcastName = podcast.Name,
+            Title = episode.Title,
+            Description = episode.Description,
+            Release = episode.Release,
+            Length = episode.Length,
+            Explicit = episode.Explicit,
+            Urls = episode.Urls,
+            Subjects = episode.Subjects,
+            Image = episode.Images?.YouTube ?? episode.Images?.Spotify ?? episode.Images?.Apple ?? episode.Images?.Other
+        };
+    }
 }
