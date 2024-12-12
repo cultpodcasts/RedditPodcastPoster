@@ -56,8 +56,11 @@ public class ShortnerService(
         {
             Key = item.Base64EpisodeKey,
             Value = $"{item.PodcastName}/{item.EpisodeId}",
-            Metadata = new MetaData
-            { EpisodeTitle = item.EpisodeTitle, ReleaseDate = item.ReleaseDate, Duration = item.Duration }
+            Metadata = new MetaData { 
+                EpisodeTitle = item.EpisodeTitle, 
+                ReleaseDate = item.ReleaseDate, 
+                Duration = item.Duration 
+            }
         };
 
         if (!isDryRun)
