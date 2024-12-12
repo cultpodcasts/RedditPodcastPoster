@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 
 namespace RedditPodcastPoster.Cloudflare.Extensions;

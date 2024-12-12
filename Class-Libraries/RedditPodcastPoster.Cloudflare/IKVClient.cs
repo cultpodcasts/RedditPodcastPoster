@@ -1,12 +1,10 @@
-﻿using RedditPodcastPoster.Configuration;
-
-namespace RedditPodcastPoster.Cloudflare;
+﻿namespace RedditPodcastPoster.Cloudflare;
 
 public interface IKVClient
 {
-    Task<WriteResult> Write(IEnumerable<KVRecord> records, Func<CloudFlareOptions, string> selector);
-    Task<WriteResult> Write(KVRecord record, Func<CloudFlareOptions, string> selector);
-    Task<KVRecord?> ReadWithMetaData(string key, Func<CloudFlareOptions, string> selector);
-    Task<string?> Read(string key, Func<CloudFlareOptions, string> selector);
-    Task<IDictionary<string, string>> GetAll(Func<CloudFlareOptions, string> selector);
+    Task<WriteResult> Write(IEnumerable<KVRecord> records, string namespaceId);
+    Task<WriteResult> Write(KVRecord record, string namespaceId);
+    Task<KVRecord?> ReadWithMetaData(string key, string namespaceId);
+    Task<string?> Read(string key, string namespaceId);
+    Task<IDictionary<string, string>> GetAll(string namespaceId);
 }

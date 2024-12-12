@@ -34,8 +34,6 @@ param cloudflareAccountId string
 @secure()
 param cloudflareKVApiToken string
 @secure()
-param cloudflareListsApiToken string
-@secure()
 param cloudflareR2AccessKey string
 @secure()
 param cloudflareR2SecretKey string
@@ -135,7 +133,6 @@ module apiFunction 'function.bicep' = {
         bluesky__Password: blueskyPassword
         cloudflare__AccountId: cloudflareAccountId
         cloudflare__KVApiToken: cloudflareKVApiToken
-        cloudflare__ListsApiToken: cloudflareListsApiToken
         cloudflare__R2AccessKey: cloudflareR2AccessKey
         cloudflare__R2SecretKey: cloudflareR2SecretKey
         cosmosdb__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken
@@ -196,7 +193,6 @@ module discoveryFunction 'function.bicep' = {
         bluesky__Password: blueskyPassword
         cloudflare__AccountId: cloudflareAccountId
         cloudflare__KVApiToken: cloudflareKVApiToken
-        cloudflare__ListsApiToken: cloudflareListsApiToken
         cloudflare__R2AccessKey: cloudflareR2AccessKey
         cloudflare__R2SecretKey: cloudflareR2SecretKey
         cosmosdb__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken
@@ -257,7 +253,6 @@ module indexerFunction 'function.bicep' = {
         bluesky__Password: blueskyPassword
         cloudflare__AccountId: cloudflareAccountId
         cloudflare__KVApiToken: cloudflareKVApiToken
-        cloudflare__ListsApiToken: cloudflareListsApiToken
         cloudflare__R2AccessKey: cloudflareR2AccessKey
         cloudflare__R2SecretKey: cloudflareR2SecretKey
         cosmosdb__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken

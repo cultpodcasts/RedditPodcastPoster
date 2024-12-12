@@ -3,7 +3,6 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Cloudflare;
-using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 
@@ -11,7 +10,6 @@ namespace RedditPodcastPoster.UrlShortening;
 
 public class ShortnerService(
     IKVClient kvClient,
-    IOptions<CloudFlareOptions> cloudFlareOptions,
     IOptions<ShortnerOptions> shortnerOptions,
     ILogger<ShortnerService> logger) : IShortnerService
 {
@@ -20,7 +18,6 @@ public class ShortnerService(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    private readonly CloudFlareOptions _cloudFlareOptions = cloudFlareOptions.Value;
     private readonly ShortnerOptions _shortnerOptions = shortnerOptions.Value;
 
     public async Task<WriteResult> Write(IEnumerable<PodcastEpisode> podcastEpisodes)
@@ -41,7 +38,7 @@ public class ShortnerService(
             Metadata = new MetaData
             { EpisodeTitle = item.EpisodeTitle, ReleaseDate = item.ReleaseDate, Duration = item.Duration }
         }).ToArray();
-        return await kvClient.Write(kvRecords, x => x.KVShortnerNamespaceId);
+        return await kvClient.Write(kvRecords, _shortnerOptions.KVShortnerNamespaceId);
     }
 
     public async Task<WriteResult> Write(PodcastEpisode podcastEpisode, bool isDryRun = false)
@@ -65,7 +62,7 @@ public class ShortnerService(
 
         if (!isDryRun)
         {
-            var result = await kvClient.Write(kvRecord, x => x.KVShortnerNamespaceId);
+            var result = await kvClient.Write(kvRecord, _shortnerOptions.KVShortnerNamespaceId);
             if (result.Success)
             {
                 var url = new Uri($"{_shortnerOptions.ShortnerUrl}{podcastEpisode.Episode.Id.ToBase64()}");
@@ -79,6 +76,6 @@ public class ShortnerService(
 
     public async Task<KVRecord?> Read(string requestKey)
     {
-        return await kvClient.ReadWithMetaData(requestKey, x => x.KVShortnerNamespaceId);
+        return await kvClient.ReadWithMetaData(requestKey, _shortnerOptions.KVShortnerNamespaceId);
     }
 }

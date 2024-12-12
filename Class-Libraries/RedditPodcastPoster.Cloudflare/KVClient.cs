@@ -21,10 +21,10 @@ public class KVClient(
 
     private readonly CloudFlareOptions _cloudFlareOptions = cloudFlareOptions.Value;
 
-    public async Task<KVRecord?> ReadWithMetaData(string key, Func<CloudFlareOptions, string> selector)
+    public async Task<KVRecord?> ReadWithMetaData(string key, string namespaceId)
     {
         logger.LogInformation($"{nameof(ReadWithMetaData)}. Reading from KV. Key '{key}'.");
-        Uri url = GetReadMetadataUrl(_cloudFlareOptions.AccountId, selector(_cloudFlareOptions), key);
+        Uri url = GetReadMetadataUrl(_cloudFlareOptions.AccountId, namespaceId, key);
         var urlS = url.ToString();
         using var request = new HttpRequestMessage();
         request.Method = HttpMethod.Get;
@@ -41,10 +41,10 @@ public class KVClient(
         return JsonSerializer.Deserialize<KVRecord>(json);
     }
 
-    public async Task<string?> Read(string key, Func<CloudFlareOptions, string> selector)
+    public async Task<string?> Read(string key, string namespaceId)
     {
         logger.LogInformation($"{nameof(ReadWithMetaData)}. Reading from KV. Key '{key}'.");
-        Uri url = GetReadUrl(_cloudFlareOptions.AccountId, selector(_cloudFlareOptions), key);
+        Uri url = GetReadUrl(_cloudFlareOptions.AccountId, namespaceId, key);
         var urlS = url.ToString();
         using var request = new HttpRequestMessage();
         request.Method = HttpMethod.Get;
@@ -66,9 +66,9 @@ public class KVClient(
     }
 
 
-    public async Task<WriteResult> Write(IEnumerable<KVRecord> records, Func<CloudFlareOptions, string> selector)
+    public async Task<WriteResult> Write(IEnumerable<KVRecord> records, string namespaceId)
     {
-        var url = GetBulkWriteUrl(_cloudFlareOptions.AccountId, selector(_cloudFlareOptions));
+        var url = GetBulkWriteUrl(_cloudFlareOptions.AccountId, namespaceId);
         using var request = new HttpRequestMessage();
         request.Method = HttpMethod.Put;
         request.RequestUri = url;
@@ -85,9 +85,9 @@ public class KVClient(
         return new WriteResult(result.StatusCode == HttpStatusCode.OK);
     }
 
-    public async Task<WriteResult> Write(KVRecord record, Func<CloudFlareOptions, string> selector)
+    public async Task<WriteResult> Write(KVRecord record, string namespaceId)
     {
-        var url = GetWriteUrl(_cloudFlareOptions.AccountId, selector(_cloudFlareOptions), record.Key);
+        var url = GetWriteUrl(_cloudFlareOptions.AccountId, namespaceId, record.Key);
         using var request = new HttpRequestMessage();
         request.Method = HttpMethod.Put;
         request.RequestUri = url;
@@ -107,9 +107,9 @@ public class KVClient(
         return new WriteResult(result.StatusCode == HttpStatusCode.OK);
     }
 
-    public async Task<IDictionary<string, string>> GetAll(Func<CloudFlareOptions, string> selector)
+    public async Task<IDictionary<string, string>> GetAll(string namespaceId)
     {
-        var url = GetAllKeysUrl(_cloudFlareOptions.AccountId, selector(_cloudFlareOptions));
+        var url = GetAllKeysUrl(_cloudFlareOptions.AccountId, namespaceId);
         using var request = new HttpRequestMessage();
         request.Method = HttpMethod.Get;
         request.RequestUri = url;
@@ -129,7 +129,7 @@ public class KVClient(
             var records = new Dictionary<string, string>();
             foreach (var key in list.Result)
             {
-                var value = await Read(key.Name, selector);
+                var value = await Read(key.Name, namespaceId);
                 if (value == null)
                 {
                     throw new InvalidOperationException($"Unable to parse kv-record with key '{key.Name}'.");
@@ -143,7 +143,6 @@ public class KVClient(
             throw new InvalidOperationException("Unable to parse kv-key-list respons");
         }
     }
-
 
     private Uri GetBulkWriteUrl(string accountId, string namespaceId)
     {
@@ -164,6 +163,7 @@ public class KVClient(
         Uri uri = new Uri(uriString);
         return uri;
     }
+
     private Uri GetReadUrl(string accountId, string namespaceId, string keyName)
     {
         var keyArg = Uri.EscapeDataString(keyName);

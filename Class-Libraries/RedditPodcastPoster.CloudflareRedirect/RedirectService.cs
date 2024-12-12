@@ -1,16 +1,15 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Cloudflare;
-using RedditPodcastPoster.Configuration;
 
 namespace RedditPodcastPoster.CloudflareRedirect;
 
 public class RedirectService(
     IKVClient kVClient,
-    IOptions<CloudFlareOptions> cloudFlareOptions,
+    IOptions<RedirectOptions> redirectOptions,
     ILogger<RedirectService> logger) : IRedirectService
 {
-    private readonly CloudFlareOptions _cloudFlareOptions = cloudFlareOptions.Value;
+    private readonly RedirectOptions _redirectOptions = redirectOptions.Value;
 
     public async Task<bool> CreatePodcastRedirect(PodcastRedirect podcastRedirect)
     {
@@ -21,7 +20,7 @@ public class RedirectService(
                 Key = podcastRedirect.OldPodcastName,
                 Value = podcastRedirect.NewPodcastName
             };
-            await kVClient.Write(record, x => x.KVRedirectNamespaceId);
+            await kVClient.Write(record, _redirectOptions.KVRedirectNamespaceId);
             return true;
         }
         else
@@ -54,7 +53,7 @@ public class RedirectService(
 
     private async Task<List<PodcastRedirect>> GetAllPodcastRedirects()
     {
-        var redirects = await kVClient.GetAll(x => x.KVRedirectNamespaceId);
+        var redirects = await kVClient.GetAll(_redirectOptions.KVRedirectNamespaceId);
         if (redirects == null)
         {
             throw new InvalidOperationException($"Null response when requesting all keys");
