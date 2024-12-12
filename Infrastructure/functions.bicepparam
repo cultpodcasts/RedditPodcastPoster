@@ -198,7 +198,7 @@ param indexerSettings= union(youTubeKeyUsage, {
 	bluesky__ReuseSession: 'true'
 	content__BucketName: 'content'
 	content__FlairsKey: 'flairs'
-	content_HomepageKey: 'homepage'
+	content__HomepageKey: 'homepage'
 	content__PreProcessedHomepageKey: 'homepage-ssr'
 	content__SubjectsKey: 'subjects'
 	cosmosdb__Container: 'cultpodcasts'
