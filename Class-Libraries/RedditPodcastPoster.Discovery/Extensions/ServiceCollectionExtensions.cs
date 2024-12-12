@@ -32,7 +32,7 @@ public static class ServiceCollectionExtensions
             .AddTaddy()
             .AddTextSanitiser()
             .BindConfiguration<DiscoverySettings>("discover")
-            s.BindConfiguration<IgnoreTermsSettings>("discover");
+            .BindConfiguration<IgnoreTermsSettings>("discover");
     }
 
     public static IServiceCollection AddDiscoveryRepository(this IServiceCollection services)
