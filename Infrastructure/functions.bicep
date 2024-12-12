@@ -62,8 +62,6 @@ param redditAdminAppSecret string
 @secure()
 param redditAdminRefreshToken string
 @secure()
-param redirectsPodcastRedirectRulesId string
-@secure()
 param searchIndexKey string
 @secure()
 param searchIndexUrl string
@@ -151,7 +149,6 @@ module apiFunction 'function.bicep' = {
         redditAdmin__AppId: redditAdminAppId
         redditAdmin__AppSecret: redditAdminAppSecret
         redditAdmin__RefreshToken: redditAdminRefreshToken
-        redirects__PodcastRedirectRulesId: redirectsPodcastRedirectRulesId
         searchIndex__Key: searchIndexKey
         searchIndex__Url: searchIndexUrl
         spotify__ClientId: spotifyClientId

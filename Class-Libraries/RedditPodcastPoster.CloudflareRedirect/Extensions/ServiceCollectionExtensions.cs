@@ -9,7 +9,6 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddRedirectServices(this IServiceCollection services)
     {
         services.BindConfiguration<CloudFlareOptions>("cloudflare");
-        services.BindConfiguration<RedirectOptions>("redirects");
         return services.AddScoped<IRedirectService, RedirectService>();
     }
 }

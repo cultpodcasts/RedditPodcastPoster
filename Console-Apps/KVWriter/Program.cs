@@ -4,6 +4,7 @@ using KVWriter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.UrlShortening.Extensions;
@@ -22,6 +23,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
+    .AddCloudflareClients()
     .AddShortnerServices()
     .AddScoped<KVWriterProcessor>()
     .AddHttpClient();

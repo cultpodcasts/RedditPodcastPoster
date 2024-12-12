@@ -21,7 +21,6 @@ param redditRefreshToken= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTI
 param redditAdminAppId= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'RedditAdmin-AppId')
 param redditAdminAppSecret= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'RedditAdmin-AppSecret')
 param redditAdminRefreshToken= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'RedditAdmin-RefreshToken')
-param redirectsPodcastRedirectRulesId= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Redirects-PodcastRedirectRulesId')
 param searchIndexKey= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'SearchIndex-Key')
 param searchIndexUrl= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'SearchIndex-Url')
 param spotifyClientId= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Spotify-ClientId')
@@ -107,6 +106,7 @@ param apiSettings = union(youTubeKeyUsage, {
 	cloudflare__FlairsKey: 'flairs'
 	cloudflare__HomepageKey: 'homepage'
 	cloudflare__KVShortnerNamespaceId: '663cd5c74988404dafbf67e1e06b21e8'
+	cloudflare__KVRedirectNamespaceId: '19eea88f0cb14548bcab925238a68cc4'
 	cloudflare__PreProcessedHomepageKey: 'homepage-ssr'
 	cloudflare__SubjectsKey: 'subjects'
 	cosmosdb__Container: 'cultpodcasts'
@@ -115,7 +115,6 @@ param apiSettings = union(youTubeKeyUsage, {
 	delayedYouTubePublication__EvaluationThreshold: '4:00:00'
 	indexer__ByPassYouTube: 'false'
 	indexer__ReleasedDaysAgo: '2'
-	redirects__PodcastBasePath: 'https://cultpodcasts.com/podcast/'
 	searchIndex__IndexerName: 'cultpodcasts-indexer'
 	searchIndex__IndexName: 'cultpodcasts'
 	shortner__ShortnerUrl: 'https://s.cultpodcasts.com'
@@ -136,6 +135,7 @@ param discoverySettings= union(youTubeKeyUsage, {
 	cloudflare__FlairsKey: 'flairs'
 	cloudflare__HomepageKey: 'homepage'
 	cloudflare__KVShortnerNamespaceId: '663cd5c74988404dafbf67e1e06b21e8'
+	cloudflare__KVRedirectNamespaceId: '19eea88f0cb14548bcab925238a68cc4'
 	cloudflare__PreProcessedHomepageKey: 'homepage-ssr'
 	cloudflare__SubjectsKey: 'subjects'
 	cosmosdb__Container: 'cultpodcasts'
@@ -201,6 +201,7 @@ param indexerSettings= union(youTubeKeyUsage, {
 	cloudflare__FlairsKey: 'flairs'
 	cloudflare__HomepageKey: 'homepage'
 	cloudflare__KVShortnerNamespaceId: '663cd5c74988404dafbf67e1e06b21e8'
+	cloudflare__KVRedirectNamespaceId: '19eea88f0cb14548bcab925238a68cc4'
 	cloudflare__PreProcessedHomepageKey: 'homepage-ssr'
 	cloudflare__SubjectsKey: 'subjects'
 	cosmosdb__Container: 'cultpodcasts'
