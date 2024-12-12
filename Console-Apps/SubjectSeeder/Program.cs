@@ -3,6 +3,7 @@ using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
@@ -31,6 +32,7 @@ builder.Services
     .AddSubredditSettings()
     .AddContentPublishing()
     .AddTextSanitiser()
+    .AddCloudflareClients()
     .BindConfiguration<RedditSettings>("reddit-moderator");
 
 RedditClientFactory.AddRedditClient(builder.Services);

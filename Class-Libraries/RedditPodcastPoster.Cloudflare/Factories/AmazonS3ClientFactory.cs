@@ -2,9 +2,8 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Cloudflare;
 
-namespace RedditPodcastPoster.ContentPublisher.Factories;
+namespace RedditPodcastPoster.Cloudflare.Factories;
 
 public class AmazonS3ClientFactory(
     IOptions<CloudFlareOptions> r2Options,
@@ -16,6 +15,13 @@ public class AmazonS3ClientFactory(
 
     public IAmazonS3 Create()
     {
+        if (string.IsNullOrWhiteSpace(_cloudFlareOptions.AccountId) || 
+            string.IsNullOrWhiteSpace(_cloudFlareOptions.R2AccessKey)||
+            string.IsNullOrWhiteSpace(_cloudFlareOptions.R2SecretKey))
+        {
+            throw new InvalidOperationException($"Incomplete {nameof(CloudFlareOptions)} configuration ");
+        }
+
         var config = new AmazonS3Config
         {
             ServiceURL = $"https://{_cloudFlareOptions.AccountId}.r2.cloudflarestorage.com",

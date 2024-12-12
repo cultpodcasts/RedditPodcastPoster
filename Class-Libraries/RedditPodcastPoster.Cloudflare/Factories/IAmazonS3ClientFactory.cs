@@ -1,6 +1,6 @@
 using Amazon.S3;
 
-namespace RedditPodcastPoster.ContentPublisher.Factories;
+namespace RedditPodcastPoster.Cloudflare.Factories;
 
 public interface IAmazonS3ClientFactory
 {
