@@ -68,7 +68,6 @@ public class KVClient(
 
     public async Task<WriteResult> Write(IEnumerable<KVRecord> records, Func<CloudFlareOptions, string> selector)
     {
-
         var url = GetBulkWriteUrl(_cloudFlareOptions.AccountId, selector(_cloudFlareOptions));
         using var request = new HttpRequestMessage();
         request.Method = HttpMethod.Put;
