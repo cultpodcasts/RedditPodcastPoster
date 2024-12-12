@@ -59,11 +59,10 @@ public static class Ioc
             .AddDateTimeService()
             .AddScoped<IIndexingStrategy, IndexingStrategy>()
             .AddSearch()
-            .AddHttpClient();
-
-        serviceCollection.BindConfiguration<IndexerOptions>("indexer");
-        serviceCollection.BindConfiguration<PosterOptions>("poster");
-        serviceCollection.AddPostingCriteria();
-        serviceCollection.AddDelayedYouTubePublication();
+            .AddHttpClient()
+            .BindConfiguration<IndexerOptions>("indexer")
+            .BindConfiguration<PosterOptions>("poster")
+            .AddPostingCriteria()
+            .AddDelayedYouTubePublication();
     }
 }

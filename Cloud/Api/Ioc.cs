@@ -40,6 +40,8 @@ public static class Ioc
         HostBuilderContext hostBuilderContext,
         IServiceCollection serviceCollection)
     {
+        AdminRedditClientFactory.AddAdminRedditClient(serviceCollection);
+
         serviceCollection
             .AddLogging()
             .AddApplicationInsightsTelemetryWorkerService()
@@ -73,11 +75,8 @@ public static class Ioc
             .AddAuth0Validation()
             .AddBBCServices()
             .AddInternetArchiveServices()
-            .AddHttpClient();
-
-        AdminRedditClientFactory.AddAdminRedditClient(serviceCollection);
-
-        serviceCollection.BindConfiguration<HostingOptions>("hosting");
-        serviceCollection.BindConfiguration<IndexerOptions>("indexer");
+            .AddHttpClient()
+            .BindConfiguration<HostingOptions>("hosting")
+            .BindConfiguration<IndexerOptions>("indexer");
     }
 }

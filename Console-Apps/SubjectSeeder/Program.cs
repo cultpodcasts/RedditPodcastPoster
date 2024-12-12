@@ -30,13 +30,12 @@ builder.Services
     .AddSingleton<SubjectsSeeder>()
     .AddSubredditSettings()
     .AddContentPublishing()
-    .AddTextSanitiser();
+    .AddTextSanitiser()
+    .BindConfiguration<RedditSettings>("reddit-moderator");
 
 RedditClientFactory.AddRedditClient(builder.Services);
 
 AdminRedditClientFactory.AddAdminRedditClient(builder.Services);
-
-builder.Services.BindConfiguration<RedditSettings>("reddit-moderator");
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<SubjectRequest>(args)

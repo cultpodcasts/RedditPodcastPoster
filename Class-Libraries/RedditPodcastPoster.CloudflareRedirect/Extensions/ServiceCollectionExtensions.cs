@@ -7,7 +7,8 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddRedirectServices(this IServiceCollection services)
     {
-        return services.AddScoped<IRedirectService, RedirectService>()
+        return services
+            .AddScoped<IRedirectService, RedirectService>()
             .BindConfiguration<RedirectOptions>("redirect");
     }
 }

@@ -9,10 +9,9 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddListenNotes(this IServiceCollection services)
     {
-        services.BindConfiguration<ListenNotesOptions>("listenNotes");
-
         return services
             .AddScoped<IClientFactory, ClientFactory>()
-            .AddScoped<IListenNotesSearcher, ListenNotesSearcher>();
+            .AddScoped<IListenNotesSearcher, ListenNotesSearcher>()
+            .BindConfiguration<ListenNotesOptions>("listenNotes");
     }
 }

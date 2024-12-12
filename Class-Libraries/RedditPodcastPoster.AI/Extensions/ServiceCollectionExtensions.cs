@@ -8,11 +8,10 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddAIServices(this IServiceCollection services)
     {
-        services.BindConfiguration<TextAnalyticsSettings>("textanalytics");
-
-        services.BindConfiguration<PodcastSubjectAIModelSettings>("aipodcastsubjectcategorisation");
-
-        services.BindConfiguration<ClassificationSettings>("classification");
+        services
+            .BindConfiguration<TextAnalyticsSettings>("textanalytics")
+            .BindConfiguration<PodcastSubjectAIModelSettings>("aipodcastsubjectcategorisation")
+            .BindConfiguration<ClassificationSettings>("classification");
 
         return services
             //.AddSingleton<ITextAnalyticsClientFactory, TextAnalyticsClientFactory>()

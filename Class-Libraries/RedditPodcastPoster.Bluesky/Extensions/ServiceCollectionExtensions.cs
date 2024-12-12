@@ -10,7 +10,6 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddBlueskyServices(this IServiceCollection services)
     {
-        services.BindConfiguration<BlueskyOptions>("bluesky");
 
         return services
             .AddSingleton<IBlueskyClientFactory, BlueskyClientFactory>()
@@ -20,6 +19,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IBlueskyPostManager, BlueskyPostManager>()
             .AddScoped<IEmbedCardRequestFactory, EmbedCardRequestFactory>()
             .AddScoped<IBlueskyYouTubeServiceFactory, BlueskyYouTubeServiceFactory>()
-            .AddScoped(s => s.GetService<IBlueskyYouTubeServiceFactory>()!.Create());
+            .AddScoped(s => s.GetService<IBlueskyYouTubeServiceFactory>()!.Create())
+            .BindConfiguration<BlueskyOptions>("bluesky");
     }
 }

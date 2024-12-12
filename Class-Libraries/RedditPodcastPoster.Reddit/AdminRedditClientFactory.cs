@@ -19,10 +19,9 @@ public class AdminRedditClientFactory(IOptions<AdminRedditSettings> redditSettin
 
     public static IServiceCollection AddAdminRedditClient(IServiceCollection services)
     {
-        services.BindConfiguration<AdminRedditSettings>("redditAdmin");
-
         return services
             .AddScoped<IAdminRedditClientFactory, AdminRedditClientFactory>()
-            .AddScoped(s => s.GetService<IAdminRedditClientFactory>()!.Create());
+            .AddScoped(s => s.GetService<IAdminRedditClientFactory>()!.Create())
+            .BindConfiguration<AdminRedditSettings>("redditAdmin");
     }
 }

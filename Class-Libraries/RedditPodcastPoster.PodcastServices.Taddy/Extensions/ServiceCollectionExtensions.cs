@@ -8,11 +8,10 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddTaddy(this IServiceCollection services)
     {
-        services.BindConfiguration<TaddyOptions>("taddy");
-
         return services
             .AddScoped<ITaddySearcher, TaddySearcher>()
             .AddSingleton<ITaddyClientFactory, TaddyClientFactory>()
-            .AddScoped(s => s.GetService<ITaddyClientFactory>()!.Create());
+            .AddScoped(s => s.GetService<ITaddyClientFactory>()!.Create())
+            .BindConfiguration<TaddyOptions>("taddy");
     }
 }

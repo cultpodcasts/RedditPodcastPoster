@@ -8,11 +8,11 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddSpotifyClient(this IServiceCollection services)
     {
-        services.BindConfiguration<SpotifySettings>("spotify");
         return services
             .AddScoped<ISpotifyClientWrapper, SpotifyClientWrapper>()
             .AddScoped<ISpotifyClientFactory, SpotifyClientFactory>()
-            .AddScoped(s => s.GetService<ISpotifyClientFactory>()!.Create().GetAwaiter().GetResult());
+            .AddScoped(s => s.GetService<ISpotifyClientFactory>()!.Create().GetAwaiter().GetResult())
+            .BindConfiguration<SpotifySettings>("spotify");
     }
 
     public static IServiceCollection AddSpotifyServices(this IServiceCollection services)
