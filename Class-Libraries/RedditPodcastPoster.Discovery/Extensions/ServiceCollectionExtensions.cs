@@ -14,9 +14,6 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddDiscovery(this IServiceCollection services, ApplicationUsage usage)
     {
-        services.BindConfiguration<DiscoverySettings>("discover");
-        services.BindConfiguration<IgnoreTermsSettings>("discover");
-
         return services
             .AddScoped<ISearchProvider, SearchProvider>()
             .AddScoped<IEpisodeResultsEnricher, EpisodeResultsEnricher>()
@@ -33,7 +30,9 @@ public static class ServiceCollectionExtensions
             .AddAppleServices()
             .AddYouTubeServices(usage).AddListenNotes()
             .AddTaddy()
-            .AddTextSanitiser();
+            .AddTextSanitiser()
+            .BindConfiguration<DiscoverySettings>("discover")
+            .BindConfiguration<IgnoreTermsSettings>("discover");
     }
 
     public static IServiceCollection AddDiscoveryRepository(this IServiceCollection services)

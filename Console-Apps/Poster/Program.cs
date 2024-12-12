@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Poster;
 using RedditPodcastPoster.Bluesky.Extensions;
+using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
@@ -42,6 +43,7 @@ builder.Services
     .AddSubjectServices()
     .AddCachedSubjectProvider()
     .AddTextSanitiser()
+    .AddCloudflareClients()
     .AddShortnerServices()
     .AddYouTubeServices(ApplicationUsage.Cli)
     .AddSpotifyServices()

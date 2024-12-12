@@ -7,17 +7,14 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddSearch(this IServiceCollection services)
     {
-        services
+        return services
             .AddScoped<ISearchIndexClientFactory, SearchIndexClientFactory>()
             .AddScoped<ISearchIndexerClientFactory, SearchIndexerClientFactory>()
             .AddScoped<ISearchClientFactory, SearchClientFactory>()
             .AddScoped<ISearchIndexerService, SearchIndexerService>()
             .AddScoped(s => s.GetService<ISearchIndexClientFactory>()!.Create())
             .AddScoped(s => s.GetService<ISearchIndexerClientFactory>()!.Create())
-            .AddScoped(s => s.GetService<ISearchClientFactory>()!.Create());
-
-        services.BindConfiguration<SearchIndexConfig>("searchIndex");
-
-        return services;
+            .AddScoped(s => s.GetService<ISearchClientFactory>()!.Create())
+            .BindConfiguration<SearchIndexConfig>("searchIndex");
     }
 }

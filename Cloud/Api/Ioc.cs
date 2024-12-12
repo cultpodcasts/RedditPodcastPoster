@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Auth0.Extensions;
 using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Bluesky.Extensions;
+using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.CloudflareRedirect.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration;
@@ -39,6 +40,8 @@ public static class Ioc
         HostBuilderContext hostBuilderContext,
         IServiceCollection serviceCollection)
     {
+        AdminRedditClientFactory.AddAdminRedditClient(serviceCollection);
+
         serviceCollection
             .AddLogging()
             .AddApplicationInsightsTelemetryWorkerService()
@@ -64,6 +67,7 @@ public static class Ioc
             .AddTwitterServices()
             .AddBlueskyServices()
             .AddRedditServices()
+            .AddCloudflareClients()
             .AddShortnerServices()
             .AddRedirectServices()
             .AddPushSubscriptionsRepository()
@@ -71,11 +75,8 @@ public static class Ioc
             .AddAuth0Validation()
             .AddBBCServices()
             .AddInternetArchiveServices()
-            .AddHttpClient();
-
-        AdminRedditClientFactory.AddAdminRedditClient(serviceCollection);
-
-        serviceCollection.BindConfiguration<HostingOptions>("hosting");
-        serviceCollection.BindConfiguration<IndexerOptions>("indexer");
+            .AddHttpClient()
+            .BindConfiguration<HostingOptions>("hosting")
+            .BindConfiguration<IndexerOptions>("indexer");
     }
 }

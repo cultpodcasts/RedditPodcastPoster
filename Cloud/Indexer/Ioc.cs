@@ -4,6 +4,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Bluesky.Extensions;
+using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
@@ -53,15 +54,15 @@ public static class Ioc
             .AddCachedSubjectProvider()
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddContentPublishing()
+            .AddCloudflareClients()
             .AddShortnerServices()
             .AddDateTimeService()
             .AddScoped<IIndexingStrategy, IndexingStrategy>()
             .AddSearch()
-            .AddHttpClient();
-
-        serviceCollection.BindConfiguration<IndexerOptions>("indexer");
-        serviceCollection.BindConfiguration<PosterOptions>("poster");
-        serviceCollection.AddPostingCriteria();
-        serviceCollection.AddDelayedYouTubePublication();
+            .AddHttpClient()
+            .BindConfiguration<IndexerOptions>("indexer")
+            .BindConfiguration<PosterOptions>("poster")
+            .AddPostingCriteria()
+            .AddDelayedYouTubePublication();
     }
 }

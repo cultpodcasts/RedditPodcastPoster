@@ -22,8 +22,6 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddYouTubeServices(this IServiceCollection services, ApplicationUsage usage)
     {
-        services.BindConfiguration<YouTubeSettings>("youtube");
-
         return services
             .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
             .AddScoped<IYouTubeEpisodeEnricher, YouTubeEpisodeEnricher>()
@@ -45,7 +43,7 @@ public static class ServiceCollectionExtensions
             .AddScoped(s => s.GetService<IYouTubeServiceFactory>()!.Create(usage))
             .AddScoped(s => s.GetService<IYouTubeServiceFactory>()!.Create())
             .AddScoped<ITolerantYouTubeChannelVideoSnippetsService, TolerantYouTubeChannelVideoSnippetsService>()
-            .AddScoped<ICachedTolerantYouTubeChannelVideoSnippetsService,
-                CachedTolerantYouTubeChannelVideoSnippetsService>();
+            .AddScoped<ICachedTolerantYouTubeChannelVideoSnippetsService, CachedTolerantYouTubeChannelVideoSnippetsService>()
+            .BindConfiguration<YouTubeSettings>("youtube");
     }
 }

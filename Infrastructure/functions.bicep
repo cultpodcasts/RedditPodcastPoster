@@ -34,8 +34,6 @@ param cloudflareAccountId string
 @secure()
 param cloudflareKVApiToken string
 @secure()
-param cloudflareListsApiToken string
-@secure()
 param cloudflareR2AccessKey string
 @secure()
 param cloudflareR2SecretKey string
@@ -61,8 +59,6 @@ param redditAdminAppId string
 param redditAdminAppSecret string
 @secure()
 param redditAdminRefreshToken string
-@secure()
-param redirectsPodcastRedirectRulesId string
 @secure()
 param searchIndexKey string
 @secure()
@@ -137,7 +133,6 @@ module apiFunction 'function.bicep' = {
         bluesky__Password: blueskyPassword
         cloudflare__AccountId: cloudflareAccountId
         cloudflare__KVApiToken: cloudflareKVApiToken
-        cloudflare__ListsApiToken: cloudflareListsApiToken
         cloudflare__R2AccessKey: cloudflareR2AccessKey
         cloudflare__R2SecretKey: cloudflareR2SecretKey
         cosmosdb__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken
@@ -151,7 +146,6 @@ module apiFunction 'function.bicep' = {
         redditAdmin__AppId: redditAdminAppId
         redditAdmin__AppSecret: redditAdminAppSecret
         redditAdmin__RefreshToken: redditAdminRefreshToken
-        redirects__PodcastRedirectRulesId: redirectsPodcastRedirectRulesId
         searchIndex__Key: searchIndexKey
         searchIndex__Url: searchIndexUrl
         spotify__ClientId: spotifyClientId
@@ -199,7 +193,6 @@ module discoveryFunction 'function.bicep' = {
         bluesky__Password: blueskyPassword
         cloudflare__AccountId: cloudflareAccountId
         cloudflare__KVApiToken: cloudflareKVApiToken
-        cloudflare__ListsApiToken: cloudflareListsApiToken
         cloudflare__R2AccessKey: cloudflareR2AccessKey
         cloudflare__R2SecretKey: cloudflareR2SecretKey
         cosmosdb__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken
@@ -260,7 +253,6 @@ module indexerFunction 'function.bicep' = {
         bluesky__Password: blueskyPassword
         cloudflare__AccountId: cloudflareAccountId
         cloudflare__KVApiToken: cloudflareKVApiToken
-        cloudflare__ListsApiToken: cloudflareListsApiToken
         cloudflare__R2AccessKey: cloudflareR2AccessKey
         cloudflare__R2SecretKey: cloudflareR2SecretKey
         cosmosdb__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken

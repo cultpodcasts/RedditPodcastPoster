@@ -9,13 +9,12 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddYouTubePushNotificationServices(
         this IServiceCollection services)
     {
-        services.BindConfiguration<YouTubePushNotificationCallbackSettings>("youTubePushNotification");
-
         return services
             .AddScoped<IPodcastsSubscriber, PodcastsSubscriber>()
             .AddScoped<IPodcastYouTubePushNotificationSubscriber, PodcastYouTubePushNotificationSubscriber>()
             .AddScoped<INotificationAdaptor, NotificationAdaptor>()
             .AddScoped<IPushNotificationHandler, PushNotificationHandler>()
-            .AddSingleton<IPodcastYouTubePushNotificationUrlAdaptor, PodcastYouTubePushNotificationUrlAdaptor>();
+            .AddSingleton<IPodcastYouTubePushNotificationUrlAdaptor, PodcastYouTubePushNotificationUrlAdaptor>()
+            .BindConfiguration<YouTubePushNotificationCallbackSettings>("youTubePushNotification");
     }
 }

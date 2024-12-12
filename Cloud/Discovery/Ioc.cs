@@ -32,8 +32,7 @@ public static class Ioc
             .AddScoped<IRemoteClient, RemoteClient>()
             .AddScoped(s => new iTunesSearchManager())
             .AddPushSubscriptions()
-            .AddHttpClient();
-
-        serviceCollection.BindConfiguration<DiscoverOptions>("discover");
+            .AddHttpClient()
+            .BindConfiguration<DiscoverOptions>("discover");
     }
 }

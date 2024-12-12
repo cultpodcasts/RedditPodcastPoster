@@ -8,14 +8,14 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddPostingCriteria(this IServiceCollection services)
     {
-        services.BindConfiguration<PostingCriteria>("postingCriteria");
-        return services;
+        return services
+            .BindConfiguration<PostingCriteria>("postingCriteria");
     }
 
     public static IServiceCollection AddDelayedYouTubePublication(this IServiceCollection services)
     {
-        services.BindConfiguration<DelayedYouTubePublication>("delayedYouTubePublication");
-        return services;
+        return services
+            .BindConfiguration<DelayedYouTubePublication>("delayedYouTubePublication");
     }
 
     public static IConfigurationBuilder AddSecrets(this IConfigurationBuilder configuration, Assembly secretsAssembly)
@@ -33,12 +33,13 @@ public static class ServiceCollectionExtensions
         return configuration;
     }
 
-    public static void BindConfiguration<T>(this IServiceCollection services, string configSection) where T : class
+    public static IServiceCollection BindConfiguration<T>(this IServiceCollection services, string configSection) where T : class
     {
         services.AddOptions<T>().Configure<IConfiguration>((settings, configuration) =>
         {
             configuration.GetSection(configSection).Bind(settings);
         });
+        return services;
     }
 
     public static IServiceCollection AddDateTimeService(this IServiceCollection services)
