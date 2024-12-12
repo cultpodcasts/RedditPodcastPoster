@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Reddit;
 using Reddit.Things;
-using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using Flair = RedditPodcastPoster.ContentPublisher.Models.Flair;
@@ -16,14 +15,14 @@ namespace RedditPodcastPoster.ContentPublisher;
 public class ContentPublisher(
     IQueryExecutor queryExecutor,
     IAmazonS3 client,
-    IOptions<CloudFlareOptions> cloudFlareOptions,
+    IOptions<ContentOptions> contentOptions,
     ISubjectRepository subjectRepository,
     RedditClient redditClient,
     IOptions<SubredditSettings> subredditSettings,
     ILogger<ContentPublisher> logger)
     : IContentPublisher
 {
-    private readonly CloudFlareOptions _cloudFlareOptions = cloudFlareOptions.Value;
+    private readonly ContentOptions _contentOptions = contentOptions.Value;
     private readonly SubredditSettings _subredditSettings = subredditSettings.Value;
 
     public async Task PublishHomepage()
@@ -40,8 +39,8 @@ public class ContentPublisher(
 
         var request = new PutObjectRequest
         {
-            BucketName = _cloudFlareOptions.BucketName,
-            Key = _cloudFlareOptions.SubjectsKey,
+            BucketName = _contentOptions.BucketName,
+            Key = _contentOptions.SubjectsKey,
             ContentBody = json,
             ContentType = "application/json",
             DisablePayloadSigning = true
@@ -65,8 +64,8 @@ public class ContentPublisher(
         var json = JsonSerializer.Serialize(models);
         var request = new PutObjectRequest
         {
-            BucketName = _cloudFlareOptions.BucketName,
-            Key = _cloudFlareOptions.FlairsKey,
+            BucketName = _contentOptions.BucketName,
+            Key = _contentOptions.FlairsKey,
             ContentBody = json,
             ContentType = "application/json",
             DisablePayloadSigning = true
@@ -89,8 +88,8 @@ public class ContentPublisher(
 
         var request = new PutObjectRequest
         {
-            BucketName = _cloudFlareOptions.BucketName,
-            Key = _cloudFlareOptions.HomepageKey,
+            BucketName = _contentOptions.BucketName,
+            Key = _contentOptions.HomepageKey,
             ContentBody = homepageContentAsJson,
             ContentType = "application/json",
             DisablePayloadSigning = true
@@ -135,8 +134,8 @@ public class ContentPublisher(
 
         var request = new PutObjectRequest
         {
-            BucketName = _cloudFlareOptions.BucketName,
-            Key = _cloudFlareOptions.PreProcessedHomepageKey,
+            BucketName = _contentOptions.BucketName,
+            Key = _contentOptions.PreProcessedHomepageKey,
             ContentBody = preProcessedHomepageContentAsJson,
             ContentType = "application/json",
             DisablePayloadSigning = true

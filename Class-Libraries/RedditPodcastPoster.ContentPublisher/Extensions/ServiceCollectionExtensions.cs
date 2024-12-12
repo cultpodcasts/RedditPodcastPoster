@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Factories;
 
@@ -9,12 +8,11 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddContentPublishing(this IServiceCollection services)
     {
-        services.BindConfiguration<CloudFlareOptions>("cloudflare");
-
         return services
             .AddScoped<IQueryExecutor, QueryExecutor>()
             .AddScoped<IContentPublisher, ContentPublisher>()
             .AddScoped<IAmazonS3ClientFactory, AmazonS3ClientFactory>()
-            .AddScoped(s => s.GetService<IAmazonS3ClientFactory>()!.Create());
+            .AddScoped(s => s.GetService<IAmazonS3ClientFactory>()!.Create())
+            .BindConfiguration<ContentOptions>("content");
     }
 }

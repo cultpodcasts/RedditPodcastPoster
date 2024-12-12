@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.UrlShortening;
+namespace RedditPodcastPoster.Cloudflare;
 
 public class KVRecord
 {

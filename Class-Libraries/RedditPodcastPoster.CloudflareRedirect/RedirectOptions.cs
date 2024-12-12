@@ -1,8 +1,7 @@
-﻿namespace RedditPodcastPoster.CloudflareRedirect;
-
-public class RedirectOptions
+﻿namespace RedditPodcastPoster.CloudflareRedirect
 {
-    public required string PodcastRedirectRulesId { get; set; }
-
-    public required Uri PodcastBasePath { get; set; }
+    public class RedirectOptions
+    {
+        public required string KVRedirectNamespaceId { get; set; }
+    }
 }

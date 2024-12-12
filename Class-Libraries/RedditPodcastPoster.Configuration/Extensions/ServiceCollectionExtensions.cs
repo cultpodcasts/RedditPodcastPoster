@@ -33,12 +33,13 @@ public static class ServiceCollectionExtensions
         return configuration;
     }
 
-    public static void BindConfiguration<T>(this IServiceCollection services, string configSection) where T : class
+    public static IServiceCollection BindConfiguration<T>(this IServiceCollection services, string configSection) where T : class
     {
         services.AddOptions<T>().Configure<IConfiguration>((settings, configuration) =>
         {
             configuration.GetSection(configSection).Bind(settings);
         });
+        return services;
     }
 
     public static IServiceCollection AddDateTimeService(this IServiceCollection services)

@@ -2,7 +2,7 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Configuration;
+using RedditPodcastPoster.Cloudflare;
 
 namespace RedditPodcastPoster.ContentPublisher.Factories;
 
