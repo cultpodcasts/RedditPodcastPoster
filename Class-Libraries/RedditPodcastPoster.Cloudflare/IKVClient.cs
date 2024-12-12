@@ -6,6 +6,7 @@ public interface IKVClient
 {
     Task<WriteResult> Write(IEnumerable<KVRecord> records, Func<CloudFlareOptions, string> selector);
     Task<WriteResult> Write(KVRecord record, Func<CloudFlareOptions, string> selector);
-    Task<KVRecord?> Read(string key, Func<CloudFlareOptions, string> selector);
-    Task<IEnumerable<KVRecord>?> GetAll(Func<CloudFlareOptions, string> selector);
+    Task<KVRecord?> ReadWithMetaData(string key, Func<CloudFlareOptions, string> selector);
+    Task<string?> Read(string key, Func<CloudFlareOptions, string> selector);
+    Task<IDictionary<string, string>> GetAll(Func<CloudFlareOptions, string> selector);
 }

@@ -79,6 +79,6 @@ public class ShortnerService(
 
     public async Task<KVRecord?> Read(string requestKey)
     {
-        return await kvClient.Read(requestKey, x=>x.KVShortnerNamespaceId);
+        return await kvClient.ReadWithMetaData(requestKey, x => x.KVShortnerNamespaceId);
     }
 }

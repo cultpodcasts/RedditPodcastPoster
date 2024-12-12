@@ -18,10 +18,11 @@ public class RedirectService(
         {
             var record = new KVRecord()
             {
-                Key= podcastRedirect.OldPodcastName,
-                Value= podcastRedirect.NewPodcastName
+                Key = podcastRedirect.OldPodcastName,
+                Value = podcastRedirect.NewPodcastName
             };
             await kVClient.Write(record, x => x.KVRedirectNamespaceId);
+            return true;
         }
         else
         {
@@ -53,11 +54,11 @@ public class RedirectService(
 
     private async Task<List<PodcastRedirect>> GetAllPodcastRedirects()
     {
-        var redirects = await kVClient.GetAll(x=>x.KVRedirectNamespaceId);
-        if (redirects==null)
+        var redirects = await kVClient.GetAll(x => x.KVRedirectNamespaceId);
+        if (redirects == null)
         {
             throw new InvalidOperationException($"Null response when requesting all keys");
         }
-        return redirects.Select(x=>new PodcastRedirect(x.Key, x.Value)).ToList();
+        return redirects.Select(x => new PodcastRedirect(x.Key, x.Value)).ToList();
     }
 }

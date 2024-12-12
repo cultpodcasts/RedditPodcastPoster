@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.BBC.Extensions;
+using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.CloudflareRedirect;
 using RedditPodcastPoster.CloudflareRedirect.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
@@ -31,6 +32,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
+    .AddCloudflareClients()
     .AddRedirectServices()
     .AddHttpClient();
 
@@ -42,8 +44,8 @@ using var host = builder.Build();
 
 var component = host.Services.GetService<IRedirectService>()!;
 await component.CreatePodcastRedirect(new PodcastRedirect("source", "target"));
-var result= await component.CreatePodcastRedirect(new PodcastRedirect("The Influence Continuum with Dr. Steven Hassan", "Cult Conversations: The Influence Continuum with Dr. Steve Hassan"));
-result= await component.CreatePodcastRedirect(new PodcastRedirect("Spiritually F**ked", "The CULTural Zeitgeist"));
+//var result= await component.CreatePodcastRedirect(new PodcastRedirect("The Influence Continuum with Dr. Steven Hassan", "Cult Conversations: The Influence Continuum with Dr. Steve Hassan"));
+//result= await component.CreatePodcastRedirect(new PodcastRedirect("Spiritually F**ked", "The CULTural Zeitgeist"));
 
 
 return;
