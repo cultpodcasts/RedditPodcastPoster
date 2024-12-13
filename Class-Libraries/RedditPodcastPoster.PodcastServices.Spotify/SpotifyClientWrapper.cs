@@ -32,13 +32,11 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(Paginate)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
-            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"{nameof(Paginate)} Failure with Spotify-API.");
-            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
 
@@ -66,13 +64,11 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(PaginateAll)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
-            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"{nameof(PaginateAll)} Failure with Spotify-API.");
-            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
 
@@ -102,13 +98,11 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(PaginateAll)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
-            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"{nameof(PaginateAll)} Failure with Spotify-API.");
-            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
 
@@ -143,13 +137,6 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(GetShowEpisodes)} Failure with Spotify-API for show '{showId}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
-            if (!ex.Message.StartsWith("Non existing id:") &&
-                !ex.Message.Contains("Error converting value \"chapter\" to type") &&
-                ex.Response?.StatusCode != HttpStatusCode.NotFound)
-            {
-                indexingContext.SkipSpotifyUrlResolving = true;
-            }
-
             return null;
         }
         catch (Exception ex)
@@ -171,8 +158,10 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
             return [];
         }
 
+#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
         List<SimpleShow?> items = searchResponse.Shows.Items;
         return items.Where(x => x != null).ToList();
+#pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
     }
 
     public async Task<SearchResponse?> GetSearchResponse(
@@ -196,14 +185,12 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(GetSearchResponse)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
-            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
                 $"{nameof(GetSearchResponse)} Failure with Spotify-API. Search-query: '{request.Query}'.");
-            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
 
@@ -232,17 +219,11 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(GetFullShow)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
-            if (!ex.Message.StartsWith("Non existing id:") && ex.Response?.StatusCode != HttpStatusCode.NotFound)
-            {
-                indexingContext.SkipSpotifyUrlResolving = true;
-            }
-
             return null;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"{nameof(GetFullShow)} Failure with Spotify-API. Show-id: '{showId}'.");
-            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
 
@@ -271,11 +252,7 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
-            if (!ex.Message.StartsWith("Non existing id:") && ex.Response?.StatusCode != HttpStatusCode.NotFound)
-            {
-                indexingContext.SkipSpotifyUrlResolving = true;
-            }
-            else
+            if (ex.Message.StartsWith("Non existing id:") || ex.Response?.StatusCode == HttpStatusCode.NotFound)
             {
                 throw new EpisodeNotFoundException(episodeId);
             }
@@ -285,7 +262,6 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         catch (Exception ex)
         {
             logger.LogError(ex, $"{nameof(GetFullEpisode)} Failure with Spotify-API. Episode-id: '{episodeId}'.");
-            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
 
@@ -313,13 +289,11 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(GetSeveral)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
-            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"{nameof(GetSeveral)} Failure with Spotify-API.");
-            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
 
@@ -348,13 +322,11 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         {
             logger.LogError(ex,
                 $"{nameof(FindEpisodes)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
-            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"{nameof(FindEpisodes)} Failure with Spotify-API. Search-query '{request.Query}'.");
-            indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
 
