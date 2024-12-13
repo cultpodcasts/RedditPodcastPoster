@@ -42,6 +42,7 @@ public class EpisodeController(
     IBlueskyPoster blueskyPoster,
     IClientPrincipalFactory clientPrincipalFactory,
     IShortnerService shortnerService,
+    IImageUpdater imageUpdater,
     ILogger<EpisodeController> logger,
     IOptions<HostingOptions> hostingOptions)
     : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
@@ -123,7 +124,7 @@ public class EpisodeController(
             {
                 var tooManyPodcasts = await req
                     .CreateResponse(HttpStatusCode.Ambiguous)
-                    .WithJsonBody(new {message = $"Multiple podcasts. Count='{podcasts.Count}'."}, c);
+                    .WithJsonBody(new { message = $"Multiple podcasts. Count='{podcasts.Count}'." }, c);
                 return tooManyPodcasts;
             }
 
@@ -159,7 +160,7 @@ public class EpisodeController(
             if (episode.Tweeted || episode.Posted)
             {
                 return await req.CreateResponse(HttpStatusCode.BadRequest).WithJsonBody(
-                    new {message = "Cannot remove episode.", posted = episode.Posted, tweeted = episode.Tweeted}, c);
+                    new { message = "Cannot remove episode.", posted = episode.Posted, tweeted = episode.Tweeted }, c);
             }
 
             var removed = podcasts.Single().Episodes.Remove(episode);
@@ -317,7 +318,7 @@ public class EpisodeController(
                         (!ep.Posted || posted) &&
                         (!ep.Tweeted || tweeted) &&
                         (!(ep.BlueskyPosted.IsDefined() && ep.BlueskyPosted == true) || blueskyPosted)),
-                x => new {guid = x.Id}).ToListAsync(c);
+                x => new { guid = x.Id }).ToListAsync(c);
             foreach (var podcastId in podcastIds)
             {
                 var podcast = await podcastRepository.GetBy(x => x.Id == podcastId.guid);
@@ -398,6 +399,12 @@ public class EpisodeController(
                 $"{nameof(Post)} Updating episode-id '{episodeChangeRequestWrapper.EpisodeId}' of podcast with id '{podcast.Id}'. Original-episode: {JsonSerializer.Serialize(episode)}");
 
             var changeState = UpdateEpisode(episode, episodeChangeRequestWrapper.EpisodeChangeRequest);
+
+            if (changeState.UpdateImages)
+            {
+                await imageUpdater.UpdateImages(podcast, episode, changeState);
+            }
+
             await podcastRepository.Update(podcast);
 
             if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
@@ -434,7 +441,7 @@ public class EpisodeController(
             if (changeState.UnTweet)
             {
                 response = await response.WithJsonBody(
-                    new {TweetDeleted = removeTweetResult == RemoveTweetState.Deleted}, c);
+                    new { TweetDeleted = removeTweetResult == RemoveTweetState.Deleted }, c);
             }
 
             return response;
@@ -459,8 +466,8 @@ public class EpisodeController(
         {
             var result = await searchClient.DeleteDocumentsAsync(
                 "id",
-                new[] {episodeId.ToString()},
-                new IndexDocumentsOptions {ThrowOnAnyError = true},
+                new[] { episodeId.ToString() },
+                new IndexDocumentsOptions { ThrowOnAnyError = true },
                 c);
             var success = result.Value.Results.First().Succeeded;
             if (!success)
@@ -568,6 +575,10 @@ public class EpisodeController(
             {
                 episode.SpotifyId = string.Empty;
                 episode.Urls.Spotify = null;
+                if (episode.Images != null)
+                {
+                    episode.Images.YouTube = null;
+                }
             }
             else
             {
@@ -578,6 +589,7 @@ public class EpisodeController(
                     {
                         episode.SpotifyId = spotifyId;
                         episode.Urls.Spotify = episodeChangeRequest.Urls.Spotify;
+                        changeState.UpdateSpotifyImage = true;
                     }
                 }
                 else
@@ -593,6 +605,10 @@ public class EpisodeController(
             {
                 episode.AppleId = null;
                 episode.Urls.Apple = null;
+                if (episode.Images != null)
+                {
+                    episode.Images.Apple = null;
+                }
             }
             else
             {
@@ -603,6 +619,7 @@ public class EpisodeController(
                     {
                         episode.AppleId = appleId;
                         episode.Urls.Apple = episodeChangeRequest.Urls.Apple.CleanAppleUrl();
+                        changeState.UpdateAppleImage = true;
                     }
                 }
                 else
@@ -618,6 +635,10 @@ public class EpisodeController(
             {
                 episode.YouTubeId = string.Empty;
                 episode.Urls.YouTube = null;
+                if (episode.Images != null)
+                {
+                    episode.Images.YouTube = null;
+                }
             }
             else
             {
@@ -628,6 +649,7 @@ public class EpisodeController(
                     {
                         episode.YouTubeId = youTubeId;
                         episode.Urls.YouTube = episodeChangeRequest.Urls.YouTube;
+                        changeState.UpdateYouTubeImage = true;
                     }
                     else
                     {
@@ -648,6 +670,7 @@ public class EpisodeController(
                 if (NonPodcastServiceMatcher.IsMatch(episodeChangeRequest.Urls.BBC))
                 {
                     episode.Urls.BBC = episodeChangeRequest.Urls.BBC;
+                    changeState.UpdateBBCImage = true;
                 }
             }
         }
@@ -717,6 +740,14 @@ public class EpisodeController(
             {
                 episode.Images.Other = episodeChangeRequest.Images.Other;
             }
+        }
+        if (episode.Images != null &&
+            episode.Images.YouTube == null &&
+            episode.Images.Spotify == null &&
+            episode.Images.Apple == null &&
+            episode.Images.Other == null)
+        {
+            episode.Images = null;
         }
 
         return changeState;
