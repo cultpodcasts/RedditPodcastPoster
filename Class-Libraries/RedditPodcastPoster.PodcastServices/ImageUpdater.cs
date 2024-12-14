@@ -1,6 +1,4 @@
-﻿using Api;
-using Api.Models;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.BBC;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -10,6 +8,8 @@ using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 
+namespace RedditPodcastPoster.PodcastServices;
+
 public class ImageUpdater(
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
     IAppleEpisodeResolver appleEpisodeResolver,
@@ -18,10 +18,11 @@ public class ImageUpdater(
     IiPlayerPageMetaDataExtractor iPlayerPageMetaDataExtractor,
     ILogger<ImageUpdater> logger) : IImageUpdater
 {
-    public async Task UpdateImages(Podcast podcast, Episode episode, EpisodeChangeState changeState)
+    public async Task<bool> UpdateImages(Podcast podcast, Episode episode, EpisodeImageUpdateRequest updateRequest)
     {
+        var updated = false;
         var indexingContext = new IndexingContext();
-        if (changeState.UpdateSpotifyImage && !string.IsNullOrWhiteSpace(episode.SpotifyId))
+        if (updateRequest.UpdateSpotifyImage == true && !string.IsNullOrWhiteSpace(episode.SpotifyId))
         {
             try
             {
@@ -32,6 +33,7 @@ public class ImageUpdater(
                 {
                     episode.Images ??= new EpisodeImages();
                     episode.Images.Spotify = fullEpisode.FullEpisode?.GetBestImageUrl();
+                    updated = true;
                 }
             }
             catch (Exception ex)
@@ -41,7 +43,7 @@ public class ImageUpdater(
                     episode.SpotifyId);
             }
         }
-        if (changeState.UpdateAppleImage && episode.AppleId != null && podcast.AppleId != null)
+        if (updateRequest.UpdateAppleImage == true && episode.AppleId != null && podcast.AppleId != null)
         {
             try
             {
@@ -52,6 +54,7 @@ public class ImageUpdater(
                 {
                     episode.Images ??= new EpisodeImages();
                     episode.Images.Apple = appleEpisode.Image;
+                    updated = true;
                 }
             }
             catch (Exception ex)
@@ -62,7 +65,7 @@ public class ImageUpdater(
             }
 
         }
-        if (changeState.UpdateYouTubeImage && !string.IsNullOrWhiteSpace(episode.YouTubeId))
+        if (updateRequest.UpdateYouTubeImage == true && !string.IsNullOrWhiteSpace(episode.YouTubeId))
         {
             try
             {
@@ -71,6 +74,7 @@ public class ImageUpdater(
                 {
                     episode.Images ??= new EpisodeImages();
                     episode.Images.YouTube = video.First().GetImageUrl();
+                    updated = true;
                 }
             }
             catch (Exception ex)
@@ -81,14 +85,14 @@ public class ImageUpdater(
             }
 
         }
-        if (changeState.UpdateBBCImage && episode.Urls.BBC != null)
+        if (updateRequest.UpdateBBCImage == true && episode.Urls.BBC != null)
         {
             try
             {
                 var metaData = await iPlayerPageMetaDataExtractor.GetMetaData(episode.Urls.BBC);
                 episode.Images ??= new EpisodeImages();
                 episode.Images.Other = metaData.Image;
-
+                updated = true;
             }
             catch (Exception ex)
             {
@@ -96,8 +100,7 @@ public class ImageUpdater(
                     episode.Id,
                     episode.Urls.BBC);
             }
-
         }
-
+        return updated;
     }
 }

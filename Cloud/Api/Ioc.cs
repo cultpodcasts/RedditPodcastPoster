@@ -77,7 +77,6 @@ public static class Ioc
             .AddInternetArchiveServices()
             .AddHttpClient()
             .BindConfiguration<HostingOptions>("hosting")
-            .BindConfiguration<IndexerOptions>("indexer")
-            .AddScoped<IImageUpdater, ImageUpdater>();
+            .BindConfiguration<IndexerOptions>("indexer");
     }
 }
