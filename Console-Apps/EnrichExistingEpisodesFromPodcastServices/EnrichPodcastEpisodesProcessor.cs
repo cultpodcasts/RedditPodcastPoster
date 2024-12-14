@@ -65,6 +65,12 @@ public class EnrichPodcastEpisodesProcessor(
                 {
                     episode.Urls.Apple ??= match.Url;
                     episode.AppleId ??= match.EpisodeId;
+                    var appleImage = match.Image;
+                    if (appleImage!=null)
+                    {
+                        episode.Images ??= new EpisodeImages();
+                        episode.Images.Apple = appleImage;
+                    }
                     logger.LogInformation($"Enriched from apple: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
                     updated = true;
                 }
@@ -126,6 +132,12 @@ public class EnrichPodcastEpisodesProcessor(
                         {
                             episode.YouTubeId = match.EpisodeId;
                         }
+                        var youTubeImage = match.Image;
+                        if (youTubeImage != null)
+                        {
+                            episode.Images ??= new EpisodeImages();
+                            episode.Images.YouTube = youTubeImage;
+                        }
 
                         logger.LogInformation(
                             $"Enriched episode with episode-id '{episode.Id}' from youtube: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
@@ -144,6 +156,12 @@ public class EnrichPodcastEpisodesProcessor(
                     if (string.IsNullOrWhiteSpace(episode.SpotifyId))
                     {
                         episode.SpotifyId = match.EpisodeId;
+                    }
+                    var spotifyImage = match.Image;
+                    if (spotifyImage != null)
+                    {
+                        episode.Images ??= new EpisodeImages();
+                        episode.Images.Spotify = spotifyImage;
                     }
 
                     logger.LogInformation($"Enriched from spotify: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
@@ -167,6 +185,13 @@ public class EnrichPodcastEpisodesProcessor(
                             {
                                 episode.Urls.Spotify ??= match.Url;
                                 episode.SpotifyId = match.EpisodeId;
+                                var spotifyImage = match.Image;
+                                if (spotifyImage != null)
+                                {
+                                    episode.Images ??= new EpisodeImages();
+                                    episode.Images.Spotify = spotifyImage;
+                                }
+
                                 logger.LogInformation(
                                     $"Enriched from spotify: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
                                 updated = true;

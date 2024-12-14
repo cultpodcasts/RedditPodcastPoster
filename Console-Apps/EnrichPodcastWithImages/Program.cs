@@ -8,19 +8,14 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.InternetArchive.Extensions;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices;
+using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
-using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube.Factories;
-using RedditPodcastPoster.PodcastServices.YouTube.Video;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -41,15 +36,13 @@ builder.Services
     .AddYouTubeServices(ApplicationUsage.Cli)
     .AddSpotifyServices()
     .AddBBCServices()
-    .AddInternetArchiveServices()
+    .AddPodcastServices()
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria();
 builder.Services.AddDelayedYouTubePublication();
 
-
 using var host = builder.Build();
-
 
 return await Parser.Default.ParseArguments<Request>(args)
     .MapResult(async request => await Run(request),
@@ -59,17 +52,12 @@ async Task<int> Run(Request request)
 {
     var podcastRepository = host.Services.GetService<IPodcastRepository>()!;
     var logger = host.Services.GetService<ILogger<Program>>()!;
-    var appleResolver = host.Services.GetService<IAppleEpisodeResolver>()!;
-    var spotifyResolver = host.Services.GetService<ISpotifyEpisodeResolver>()!;
-    var youTubeServiceFactory = host.Services.GetService<IYouTubeServiceFactory>()!;
-    var youTubeVideoService = host.Services.GetService<IYouTubeVideoService>()!;
-    var youTubeService = youTubeServiceFactory.Create(ApplicationUsage.Cli)!;
-    var indexingContext = new IndexingContext();
+    var imageUpdater = host.Services.GetService<IImageUpdater>()!;
 
     var podcastIds =
         await podcastRepository.GetAllBy(
                 x => x.Name.ToLower().Contains(request.PodcastPartialMatch.ToLower()),
-                p => new {id = p.Id})
+                p => new { id = p.Id })
             .ToListAsync();
     if (!podcastIds.Any())
     {
@@ -91,86 +79,8 @@ async Task<int> Run(Request request)
         logger.LogInformation("Enriching podcast '{podcastName}'.", podcast.Name);
         foreach (var episode in podcast.Episodes)
         {
-            var updated = false;
-            if (podcast.AppleId != null && episode.AppleId != null && episode.Images?.Apple == null)
-            {
-                var findAppleEpisodeRequest = FindAppleEpisodeRequestFactory.Create(podcast, episode);
-                var appleItem = await appleResolver.FindEpisode(findAppleEpisodeRequest, indexingContext);
-                if (appleItem != null && appleItem.Image != null)
-                {
-                    episode.Images ??= new EpisodeImages();
-                    episode.Images.Apple = appleItem.Image;
-                    updated = true;
-                }
-                else
-                {
-                    logger.LogError(
-                        "Unable to obtain apple-item or image for apple-episode with apple-episode-id '{appleEpisodeId}'.",
-                        episode.AppleId);
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(podcast.SpotifyId) && !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
-                episode.Images?.Spotify == null)
-            {
-                var findSpotifyEpisodeRequest = FindSpotifyEpisodeRequestFactory.Create(podcast, episode);
-                try
-                {
-                    var spotifyEpisodeResponse =
-                        await spotifyResolver.FindEpisode(findSpotifyEpisodeRequest, indexingContext);
-                    if (spotifyEpisodeResponse.FullEpisode != null)
-                    {
-                        var image = spotifyEpisodeResponse.FullEpisode.GetBestImageUrl();
-                        if (image != null)
-                        {
-                            episode.Images ??= new EpisodeImages();
-                            episode.Images.Spotify = image;
-                            updated = true;
-                        }
-                        else
-                        {
-                            logger.LogError(
-                                "Unable to obtain image for spotify-episode with spotify-episode-id '{spotifyEpisodeId}'.",
-                                episode.SpotifyId);
-                        }
-                    }
-                    else
-                    {
-                        logger.LogError(
-                            "Unable to obtain episode for spotify-episode with spotify-episode-id '{spotifyEpisodeId}'.",
-                            episode.SpotifyId);
-                    }
-                }
-                catch (EpisodeNotFoundException e)
-                {
-                    logger.LogError( "Failure retrieving spotify-episode with episode-id '{spotifyEpisodeId}'.",
-                        episode.SpotifyId);
-                }
-            }
-
-
-            if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) && !string.IsNullOrWhiteSpace(episode.YouTubeId) &&
-                episode.Images?.YouTube == null)
-            {
-                var youTubeVideoResponse =
-                    await youTubeVideoService.GetVideoContentDetails(youTubeService, [episode.YouTubeId],
-                        indexingContext, true);
-                var image = youTubeVideoResponse?.SingleOrDefault()?.GetImageUrl();
-
-                if (image != null)
-                {
-                    episode.Images ??= new EpisodeImages();
-                    episode.Images.YouTube = image;
-                    updated = true;
-                }
-                else
-                {
-                    logger.LogError(
-                        "Unable to obtain image for youtube-video with youtube-video-id '{spotifyEpisodeId}'.",
-                        episode.YouTubeId);
-                }
-            }
-
+            var imageUpdateRequest = (podcast, episode).ToEpisodeImageUpdateRequest();
+            var updated = await imageUpdater.UpdateImages(podcast, episode, imageUpdateRequest);
             if (updated)
             {
                 updatedEpisodes++;
@@ -183,8 +93,6 @@ async Task<int> Run(Request request)
             await podcastRepository.Save(podcast);
         }
     }
-
-
     return 0;
 }
 

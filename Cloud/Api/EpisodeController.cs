@@ -323,7 +323,7 @@ public class EpisodeController(
             {
                 var podcast = await podcastRepository.GetBy(x => x.Id == podcastId.guid);
                 var unpostedEpisodes =
-                    podcast.Episodes.Where(x =>
+                    podcast!.Episodes.Where(x =>
                             x.Release > since &&
                             (!x.Posted || posted) &&
                             (!x.Tweeted || tweeted) &&
@@ -402,7 +402,14 @@ public class EpisodeController(
 
             if (changeState.UpdateImages)
             {
-                await imageUpdater.UpdateImages(podcast, episode, changeState);
+                await imageUpdater.UpdateImages(
+                    podcast,
+                    episode,
+                    new EpisodeImageUpdateRequest(
+                        changeState.UpdateSpotifyImage,
+                        changeState.UpdateAppleImage,
+                        changeState.UpdateYouTubeImage,
+                        changeState.UpdateBBCImage));
             }
 
             await podcastRepository.Update(podcast);
@@ -466,7 +473,7 @@ public class EpisodeController(
         {
             var result = await searchClient.DeleteDocumentsAsync(
                 "id",
-                new[] { episodeId.ToString() },
+                [episodeId.ToString()],
                 new IndexDocumentsOptions { ThrowOnAnyError = true },
                 c);
             var success = result.Value.Results.First().Succeeded;
