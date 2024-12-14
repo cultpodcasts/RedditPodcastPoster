@@ -27,14 +27,25 @@ public class AddAudioPodcastProcessor(
 
     public async Task Create(AddAudioPodcastRequest request)
     {
-        var indexingContext = new IndexingContext {SkipPodcastDiscovery = false};
+        var indexingContext = new IndexingContext { SkipPodcastDiscovery = false };
         Podcast? podcast = null;
         if (!request.AppleReleaseAuthority)
         {
+            var matchingPodcasts = await podcastRepository.GetAllBy(x => x.SpotifyId == request.PodcastId, x => new { Id = x.Id }).ToListAsync();
+            if (matchingPodcasts.Count() > 0)
+            {
+                throw new InvalidOperationException($"Found podcasts with spotify-id '{request.PodcastId}'. Podcast-ids: {string.Join(",", matchingPodcasts.Select(x => $"'{x.Id}'"))}.");
+            }
             podcast = await GetSpotifyPodcast(request, indexingContext);
         }
         else
         {
+            var appleId = long.Parse(request.PodcastId);
+            var matchingPodcasts = await podcastRepository.GetAllBy(x => x.AppleId == appleId, x => new { Id = x.Id }).ToListAsync();
+            if (matchingPodcasts.Count() > 0)
+            {
+                throw new InvalidOperationException($"Found podcasts with apple-id '{request.PodcastId}'. Podcast-ids: {string.Join(",", matchingPodcasts.Select(x => $"'{x.Id}'"))}.");
+            }
             podcast = await GetApplePodcast(request, indexingContext);
         }
 
@@ -102,7 +113,7 @@ public class AddAudioPodcastProcessor(
     private async Task<Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
     {
         var spotifyPodcast =
-            await spotifyClient.Shows.Get(request.PodcastId, new ShowRequest {Market = Market.CountryCode});
+            await spotifyClient.Shows.Get(request.PodcastId, new ShowRequest { Market = Market.CountryCode });
         logger.LogInformation("Retrieved spotify podcast");
         var podcast = await podcastRepository.GetBy(x => x.SpotifyId == request.PodcastId);
         if (podcast == null)
