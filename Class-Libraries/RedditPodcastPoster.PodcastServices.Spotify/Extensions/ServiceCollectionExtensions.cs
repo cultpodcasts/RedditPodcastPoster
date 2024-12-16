@@ -3,7 +3,6 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Extensions;
-
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddSpotifyClient(this IServiceCollection services)

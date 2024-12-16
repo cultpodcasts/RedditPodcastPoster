@@ -37,6 +37,35 @@ public class AppleUrlCategoriser(
             matchingPodcast.AppleId = podcast.Id;
         }
 
+        var result = await FindEpisode(matchingPodcast, podcast, criteria, indexingContext);
+        if (result == null && !string.IsNullOrWhiteSpace(criteria.SpotifyTitle))
+        {
+            var altCriteria= criteria with { EpisodeTitle= criteria.SpotifyTitle };
+            result = await FindEpisode(matchingPodcast, podcast, criteria, indexingContext);
+        }
+        if (result != null)
+        {
+            return result;
+        }
+        if (!string.IsNullOrWhiteSpace(criteria.SpotifyTitle))
+        {
+            logger.LogWarning(
+                $"Could not find item with episode-title '{criteria.EpisodeTitle}' or spotify-title '{criteria.SpotifyTitle}' and for podcast with name '{criteria.ShowName}'.");
+        }
+        else
+        {
+            logger.LogWarning(
+                $"Could not find item with episode-title '{criteria.EpisodeTitle}' and for podcast with name '{criteria.ShowName}'.");
+        }
+        return null;
+    }
+    
+    private async Task<ResolvedAppleItem?> FindEpisode(
+        Podcast? matchingPodcast, 
+        iTunesSearch.Library.Models.Podcast podcast,
+        PodcastServiceSearchCriteria criteria,
+        IndexingContext indexingContext)
+    {
         var findEpisodeRequest = FindAppleEpisodeRequestFactory.Create(matchingPodcast, podcast, criteria);
 
         var episode = await appleEpisodeResolver.FindEpisode(findEpisodeRequest, indexingContext);
@@ -57,9 +86,6 @@ public class AppleUrlCategoriser(
                 episode.Explicit,
                 episode.Image);
         }
-
-        logger.LogWarning(
-            $"Could not find item with episode-title '{criteria.EpisodeTitle}' and for podcast with name '{criteria.ShowName}'.");
         return null;
     }
 

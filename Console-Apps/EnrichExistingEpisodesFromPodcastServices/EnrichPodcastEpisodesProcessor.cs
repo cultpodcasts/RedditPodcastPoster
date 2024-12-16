@@ -58,6 +58,16 @@ public class EnrichPodcastEpisodesProcessor(
         {
             var criteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty, podcast.Publisher,
                 episode.Title, episode.Description, episode.Release, episode.Length);
+
+            if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) && !string.IsNullOrWhiteSpace(podcast.SpotifyId) && !string.IsNullOrWhiteSpace(episode.SpotifyId))
+            {
+                var spotifyEpisode =await  spotifyEpisodeResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode), indexingContext);
+                if (spotifyEpisode?.FullEpisode!=null && spotifyEpisode.FullEpisode.Name.Trim()!=episode.Title.Trim())
+                {
+                    criteria.SpotifyTitle = spotifyEpisode.FullEpisode.Name.Trim();
+                }
+            }
+
             if (podcast.AppleId != null && (episode.AppleId == null || episode.Urls.Apple == null))
             {
                 var match = await appleUrlCategoriser.Resolve(criteria, podcast, indexingContext);
