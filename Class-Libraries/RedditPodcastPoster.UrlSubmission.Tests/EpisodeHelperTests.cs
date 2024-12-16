@@ -11,7 +11,6 @@ namespace RedditPodcastPoster.UrlSubmission.Tests
 {
     public class EpisodeHelperTests
     {
-
         private readonly Fixture _fixture;
         private readonly AutoMocker _mocker;
 
@@ -22,8 +21,6 @@ namespace RedditPodcastPoster.UrlSubmission.Tests
         }
 
         private IEpisodeHelper Sut => _mocker.CreateInstance<EpisodeHelper>();
-
-
 
         [Fact]
         public void IsMatchingEpisode_WhenContainsResolvedEpisodeNameAndAlreadyAssigned_IsCorrect()
