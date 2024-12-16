@@ -27,7 +27,6 @@ using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.UrlShortening;
-using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
 
 namespace Api;
 
@@ -203,7 +202,7 @@ public class EpisodeController(
 
             var episode = podcast!.Episodes.Single(x => x.Id == publishRequest.EpisodeId);
 
-            var podcastEpisode = new PodcastEpisode(podcast, episode);
+            var podcastEpisode = new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode);
 
             if (publishRequest.EpisodePublishRequest.Post)
             {
@@ -422,11 +421,11 @@ public class EpisodeController(
 
             if (changeState.UnPost)
             {
-                await postManager.RemoveEpisodePost(new PodcastEpisode(podcast, episode));
+                await postManager.RemoveEpisodePost(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
             }
             else if (changeState.UpdatedSubjects)
             {
-                await postManager.UpdateFlare(new PodcastEpisode(podcast, episode));
+                await postManager.UpdateFlare(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
             }
 
             var removeTweetResult = RemoveTweetState.Unknown;
@@ -434,7 +433,7 @@ public class EpisodeController(
             {
                 try
                 {
-                    removeTweetResult = await tweetManager.RemoveTweet(new PodcastEpisode(podcast, episode));
+                    removeTweetResult = await tweetManager.RemoveTweet(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
                 }
                 catch (Exception e)
                 {
@@ -595,7 +594,7 @@ public class EpisodeController(
                     if (!string.IsNullOrWhiteSpace(spotifyId))
                     {
                         episode.SpotifyId = spotifyId;
-                        episode.Urls.Spotify = episodeChangeRequest.Urls.Spotify;
+                        episode.Urls.Spotify = episodeChangeRequest.Urls.Spotify.CleanSpotifyUrl();
                         changeState.UpdateSpotifyImage = true;
                     }
                 }

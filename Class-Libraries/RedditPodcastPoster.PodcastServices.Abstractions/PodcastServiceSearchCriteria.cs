@@ -7,4 +7,7 @@ public record PodcastServiceSearchCriteria(
     string EpisodeTitle,
     string EpisodeDescription,
     DateTime Release,
-    TimeSpan Duration);
+    TimeSpan Duration)
+{
+    public string? SpotifyTitle { get; set; }
+}
