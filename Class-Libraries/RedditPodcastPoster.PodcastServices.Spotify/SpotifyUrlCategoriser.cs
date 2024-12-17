@@ -11,7 +11,10 @@ public class SpotifyUrlCategoriser(
     ILogger<SpotifyUrlCategoriser> logger)
     : ISpotifyUrlCategoriser
 {
-    public async Task<ResolvedSpotifyItem> Resolve(Podcast? podcast, Uri url, IndexingContext indexingContext)
+    public async Task<ResolvedSpotifyItem> Resolve(
+        Podcast? podcast, 
+        Uri url, 
+        IndexingContext indexingContext)
     {
         if (podcast != null && podcast.Episodes.Any(x => x.Urls.Spotify == url))
         {
@@ -45,19 +48,28 @@ public class SpotifyUrlCategoriser(
                 findEpisodeResponse.FullEpisode.GetBestImageUrl());
         }
 
-        logger.LogError(
-            $"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveSpotifyQueries)}' is set.");
+        logger.LogError("Skipping finding-episode as '{property}' is set.", nameof(indexingContext.SkipExpensiveSpotifyQueries));
 
         throw new InvalidOperationException($"Could not find item with spotify-id '{episodeId}'.");
     }
 
-    public async Task<ResolvedSpotifyItem?> Resolve(PodcastServiceSearchCriteria criteria, Podcast? matchingPodcast,
+    public async Task<ResolvedSpotifyItem?> Resolve(
+        PodcastServiceSearchCriteria criteria, 
+        Podcast? matchingPodcast,
         IndexingContext indexingContext)
     {
         var request = FindSpotifyEpisodeRequestFactory.Create(matchingPodcast, criteria);
         if (!indexingContext.SkipExpensiveSpotifyQueries)
         {
             var findEpisodeResponse = await spotifyEpisodeResolver.FindEpisode(request, indexingContext);
+
+            if (findEpisodeResponse.FullEpisode== null && !string.IsNullOrWhiteSpace(criteria.AppleTitle))
+            {
+                var altCriteria = criteria with { EpisodeTitle = criteria.AppleTitle };
+                request = FindSpotifyEpisodeRequestFactory.Create(matchingPodcast, altCriteria);
+                findEpisodeResponse = await spotifyEpisodeResolver.FindEpisode(request, indexingContext);
+            }
+
             if (findEpisodeResponse.FullEpisode != null)
             {
                 return new ResolvedSpotifyItem(
@@ -77,12 +89,19 @@ public class SpotifyUrlCategoriser(
         }
         else
         {
-            logger.LogError(
-                $"Skipping finding-episode as '{nameof(indexingContext.SkipExpensiveSpotifyQueries)}' is set.");
+            logger.LogError("Skipping finding-episode as '{property}' is set.", nameof(indexingContext.SkipExpensiveSpotifyQueries));
         }
 
-        logger.LogWarning(
-            $"Could not find spotify episode for show named '{criteria.ShowName}' and episode-name '{criteria.EpisodeTitle}'.");
+        if (!string.IsNullOrWhiteSpace(criteria.AppleTitle))
+        {
+            logger.LogWarning("Could not find spotify episode for show named '{showName}' and episode-name '{episodeTitle}' or apple-title '{appleTitle}'.",
+                criteria.ShowName, criteria.EpisodeTitle, criteria.AppleTitle);
+        }
+        else
+        {
+            logger.LogWarning("Could not find spotify episode for show named '{showName}' and episode-name '{episodeTitle}'.",
+                criteria.ShowName, criteria.EpisodeTitle);
+        }
         return null;
     }
 }

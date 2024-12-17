@@ -10,4 +10,5 @@ public record PodcastServiceSearchCriteria(
     TimeSpan Duration)
 {
     public string? SpotifyTitle { get; set; }
+    public string? AppleTitle { get; set; }
 }

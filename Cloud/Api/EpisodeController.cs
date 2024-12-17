@@ -19,6 +19,7 @@ using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
@@ -400,6 +401,7 @@ public class EpisodeController(
 
             var changeState = UpdateEpisode(episode, episodeChangeRequestWrapper.EpisodeChangeRequest);
 
+            var indexingContext = new IndexingContext();
             if (changeState.UpdateImages)
             {
                 await imageUpdater.UpdateImages(
@@ -409,7 +411,8 @@ public class EpisodeController(
                         changeState.UpdateSpotifyImage,
                         changeState.UpdateAppleImage,
                         changeState.UpdateYouTubeImage,
-                        changeState.UpdateBBCImage));
+                        changeState.UpdateBBCImage),
+                    indexingContext);
             }
 
             await podcastRepository.Update(podcast);

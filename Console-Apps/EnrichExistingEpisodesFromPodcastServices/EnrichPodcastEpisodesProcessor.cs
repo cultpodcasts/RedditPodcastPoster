@@ -59,12 +59,27 @@ public class EnrichPodcastEpisodesProcessor(
             var criteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty, podcast.Publisher,
                 episode.Title, episode.Description, episode.Release, episode.Length);
 
-            if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) && !string.IsNullOrWhiteSpace(podcast.SpotifyId) && !string.IsNullOrWhiteSpace(episode.SpotifyId))
+            if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) && 
+                !string.IsNullOrWhiteSpace(podcast.SpotifyId) && 
+                !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
+                episode.AppleId==null)
             {
                 var spotifyEpisode =await  spotifyEpisodeResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode), indexingContext);
                 if (spotifyEpisode?.FullEpisode!=null && spotifyEpisode.FullEpisode.Name.Trim()!=episode.Title.Trim())
                 {
                     criteria.SpotifyTitle = spotifyEpisode.FullEpisode.Name.Trim();
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) && 
+                podcast.AppleId!=null && 
+                episode.AppleId!=null &&
+                string.IsNullOrWhiteSpace(episode.SpotifyId))
+            {
+                var appleEpisode = await appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(podcast, episode), indexingContext);
+                if (appleEpisode!=null  && appleEpisode.Title.Trim() != episode.Title.Trim())
+                {
+                    criteria.AppleTitle = appleEpisode.Title.Trim();
                 }
             }
 

@@ -16,6 +16,7 @@ using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -65,6 +66,7 @@ async Task<int> Run(Request request)
         return 0;
     }
 
+    var indexingContext = new IndexingContext();
     foreach (var podcastId in podcastIds)
     {
         var updatedEpisodes = 0;
@@ -80,7 +82,7 @@ async Task<int> Run(Request request)
         foreach (var episode in podcast.Episodes)
         {
             var imageUpdateRequest = (podcast, episode).ToEpisodeImageUpdateRequest();
-            var updated = await imageUpdater.UpdateImages(podcast, episode, imageUpdateRequest);
+            var updated = await imageUpdater.UpdateImages(podcast, episode, imageUpdateRequest, indexingContext);
             if (updated)
             {
                 updatedEpisodes++;
