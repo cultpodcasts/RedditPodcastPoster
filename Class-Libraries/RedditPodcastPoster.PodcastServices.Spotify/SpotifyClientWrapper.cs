@@ -244,24 +244,30 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         catch (APITooManyRequestsException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                "{method} Too-Many-Requests Failure with Spotify-API. Retry-after: '{retryAfter}'. Response: '{responseBody}'.",
+                nameof(GetFullEpisode), ex.RetryAfter, ex.Response?.Body ?? "<null>");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (APIException ex)
         {
-            logger.LogError(ex,
-                $"{nameof(GetFullEpisode)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
             if (ex.Message.StartsWith("Non existing id:") || ex.Response?.StatusCode == HttpStatusCode.NotFound)
             {
+                logger.LogError(ex,
+                    "{method} Failure with Spotify-API. Item with '{episodeId}' not found. Response: '{responseBody}'.", 
+                    nameof(GetFullEpisode), episodeId, ex.Response?.Body ?? "<null>");
                 throw new EpisodeNotFoundException(episodeId);
             }
+            logger.LogError(ex,
+                "{method} Failure with Spotify-API. Response: '{responseBody}'.",
+                nameof(GetFullEpisode), ex.Response?.Body ?? "<null>");
 
             return null;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(GetFullEpisode)} Failure with Spotify-API. Episode-id: '{episodeId}'.");
+            logger.LogError(ex, "{method} Failure with Spotify-API. Episode-id: '{episodeId}'.", 
+                nameof(GetFullEpisode), episodeId);
             return null;
         }
 

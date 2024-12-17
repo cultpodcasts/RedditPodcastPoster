@@ -18,10 +18,9 @@ public class ImageUpdater(
     IiPlayerPageMetaDataExtractor iPlayerPageMetaDataExtractor,
     ILogger<ImageUpdater> logger) : IImageUpdater
 {
-    public async Task<bool> UpdateImages(Podcast podcast, Episode episode, EpisodeImageUpdateRequest updateRequest)
+    public async Task<bool> UpdateImages(Podcast podcast, Episode episode, EpisodeImageUpdateRequest updateRequest, IndexingContext indexingContext)
     {
         var updated = false;
-        var indexingContext = new IndexingContext();
         if (updateRequest.UpdateSpotifyImage == true && !string.IsNullOrWhiteSpace(episode.SpotifyId))
         {
             try
