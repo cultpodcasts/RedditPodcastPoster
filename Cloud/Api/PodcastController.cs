@@ -252,6 +252,18 @@ public class PodcastController(
             podcast.PrimaryPostService = null;
         }
 
+        if (podcastChangeRequest.SpotifyId!=null)
+        {
+            if (podcastChangeRequest.SpotifyId == string.Empty)
+            {
+                podcast.SpotifyId = string.Empty;
+            }
+            else
+            {
+                podcast.SpotifyId = podcastChangeRequest.SpotifyId;
+            }
+        }
+
         if (podcastChangeRequest.AppleId != null ||
             (podcastChangeRequest.NullAppleId.HasValue && podcastChangeRequest.NullAppleId.Value))
         {
