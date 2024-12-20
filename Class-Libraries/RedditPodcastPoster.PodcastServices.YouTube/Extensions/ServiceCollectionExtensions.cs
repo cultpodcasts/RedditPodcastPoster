@@ -44,6 +44,9 @@ public static class ServiceCollectionExtensions
             .AddScoped(s => s.GetService<IYouTubeServiceFactory>()!.Create())
             .AddScoped<ITolerantYouTubeChannelVideoSnippetsService, TolerantYouTubeChannelVideoSnippetsService>()
             .AddScoped<ICachedTolerantYouTubeChannelVideoSnippetsService, CachedTolerantYouTubeChannelVideoSnippetsService>()
+            .AddScoped<ITolerantYouTubePlaylistService, TolerantYouTubePlaylistService>()
+            .AddScoped<ICachedTolerantYouTubePlaylistService, CachedTolerantYouTubePlaylistService>()
+            .AddScoped<IPlaylistItemFinder, PlaylistItemFinder>()
             .BindConfiguration<YouTubeSettings>("youtube");
     }
 }

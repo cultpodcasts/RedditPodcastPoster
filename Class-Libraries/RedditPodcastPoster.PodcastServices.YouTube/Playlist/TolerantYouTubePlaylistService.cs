@@ -1,28 +1,27 @@
-using Google.Apis.YouTube.v3.Data;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 
-namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
+namespace RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
-public class TolerantYouTubeChannelVideoSnippetsService(
+public class TolerantYouTubePlaylistService(
     IYouTubeServiceWrapper youTubeService,
-    IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippets,
-    ILogger<TolerantYouTubeChannelVideoSnippetsService> logger) : ITolerantYouTubeChannelVideoSnippetsService
+    IYouTubePlaylistService youTubePlaylistService,
+    ILogger<TolerantYouTubePlaylistService> logger
+    ) : ITolerantYouTubePlaylistService
 {
-    public async Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(YouTubeChannelId channelId,
-        IndexingContext indexingContext)
+    public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(YouTubePlaylistId playlistId, IndexingContext indexingContext)
     {
-        IList<SearchResult>? result = null;
+        GetPlaylistVideoSnippetsResponse result = new GetPlaylistVideoSnippetsResponse(null);
         var success = false;
         var rotationExcepted = false;
         while (youTubeService.CanRotate && !success && !rotationExcepted)
         {
             try
             {
-                result = await youTubeChannelVideoSnippets.GetLatestChannelVideoSnippets(youTubeService, channelId,
+                result = await youTubePlaylistService.GetPlaylistVideoSnippets(youTubeService, playlistId,
                     indexingContext);
                 success = true;
             }
@@ -45,8 +44,8 @@ public class TolerantYouTubeChannelVideoSnippetsService(
         if (!success)
         {
             indexingContext.SkipYouTubeUrlResolving = true;
-            logger.LogError("Unable to obtain latest-channel-video-snippets for channel-id '{channelId}'.",
-                channelId.ChannelId);
+            logger.LogError("Unable to obtain latest-playlist-video-snippets for channel-id '{playlistId}'.",
+                playlistId.PlaylistId);
         }
 
         return result;

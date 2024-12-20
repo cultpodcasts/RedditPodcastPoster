@@ -2,4 +2,7 @@
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Models;
 
-public record FindEpisodeResponse(SearchResult SearchResult, Google.Apis.YouTube.v3.Data.Video? Video = null);
+public record FindEpisodeResponse(
+    SearchResult? SearchResult= null,
+    PlaylistItem? PlaylistItem= null,
+    Google.Apis.YouTube.v3.Data.Video? Video = null);

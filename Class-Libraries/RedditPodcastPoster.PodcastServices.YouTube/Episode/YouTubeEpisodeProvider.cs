@@ -13,7 +13,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Episode;
 
 public class YouTubeEpisodeProvider(
     IYouTubeServiceWrapper youTubeService,
-    IYouTubePlaylistService youTubePlaylistService,
+    ITolerantYouTubePlaylistService youTubePlaylistService,
     IYouTubeVideoService youTubeVideoService,
     ICachedTolerantYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
 #pragma warning disable CS9113 // Parameter is unread.

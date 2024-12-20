@@ -9,7 +9,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
 
 public class YouTubeChannelVideosService(
     IYouTubeChannelService youTubeChannelService,
-    IYouTubePlaylistService youTubePlaylistService,
+    ITolerantYouTubePlaylistService youTubePlaylistService,
     ILogger<YouTubeChannelVideosService> logger
 ) : IYouTubeChannelVideosService
 {
@@ -38,7 +38,8 @@ public class YouTubeChannelVideosService(
 
         var uploadsChannelId = channel.ContentDetails.RelatedPlaylists.Uploads;
         var response =
-            await youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(uploadsChannelId),
+            await youTubePlaylistService.GetPlaylistVideoSnippets(
+                new YouTubePlaylistId(uploadsChannelId),
                 indexingContext);
         if (response.Result != null)
         {
