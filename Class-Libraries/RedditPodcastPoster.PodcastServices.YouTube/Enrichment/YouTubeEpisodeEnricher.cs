@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.ComponentModel;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -51,63 +52,100 @@ public class YouTubeEpisodeEnricher(
         }
 
         var youTubeItem = await youTubeItemResolver.FindEpisode(request, indexingContext);
-        if (!string.IsNullOrWhiteSpace(youTubeItem?.SearchResult?.Id.VideoId) &&
-            request.Podcast.Episodes.All(x => x.YouTubeId != youTubeItem.SearchResult.Id.VideoId))
+        if (youTubeItem?.SearchResult != null)
         {
-            var episodeYouTubeId = youTubeItem.SearchResult.Id.VideoId;
-            var release = youTubeItem.SearchResult.Snippet.PublishedAtDateTimeOffset;
-            if (release != null)
+            if (!string.IsNullOrWhiteSpace(youTubeItem.SearchResult.Id.VideoId) &&
+                request.Podcast.Episodes.All(x => x.YouTubeId != youTubeItem.SearchResult.Id.VideoId))
             {
-                logger.LogInformation(
-                    $"{nameof(Enrich)} Found matching YouTube episode: '{episodeYouTubeId}' with title '{youTubeItem.SearchResult.Snippet.Title}' and release-date '{release.Value.UtcDateTime:R}'.");
+                await Enrich(
+                    youTubeItem.SearchResult.Id.VideoId,
+                    youTubeItem.SearchResult.Snippet.PublishedAtDateTimeOffset,
+                    request,
+                    indexingContext,
+                    enrichmentContext,
+                    youTubeItem.SearchResult.Snippet.Title,
+                    youTubeItem.SearchResult.ToYouTubeUrl()
+                    );
             }
-            else
+        } else if (youTubeItem?.PlaylistItem != null)
+        {
+            if (!string.IsNullOrWhiteSpace(youTubeItem.PlaylistItem.ContentDetails.VideoId) &&
+                request.Podcast.Episodes.All(x => x.YouTubeId != youTubeItem.PlaylistItem.ContentDetails.VideoId))
             {
-                logger.LogInformation(
-                    $"{nameof(Enrich)} Found matching YouTube episode: '{episodeYouTubeId}' with title '{youTubeItem.SearchResult.Snippet.Title}'.");
+                await Enrich(
+                    youTubeItem.PlaylistItem.ContentDetails.VideoId,
+                    youTubeItem.PlaylistItem.Snippet.PublishedAtDateTimeOffset,
+                    request,
+                    indexingContext,
+                    enrichmentContext,
+                    youTubeItem.PlaylistItem.Snippet.Title,
+                    youTubeItem.PlaylistItem.Snippet.ToYouTubeUrl()
+                    );
             }
+        }
+    }
 
-            request.Episode.YouTubeId = enrichmentContext.YouTubeId = episodeYouTubeId;
-            request.Episode.Urls.YouTube = enrichmentContext.YouTube = youTubeItem.SearchResult.ToYouTubeUrl();
+    private async Task Enrich(
+        string episodeYouTubeId, 
+        DateTimeOffset? release, 
+        EnrichmentRequest request,
+        IndexingContext indexingContext,
+        EnrichmentContext enrichmentContext,
+        string title,
+        Uri url
+        )
+    {
+        if (release != null)
+        {
+            logger.LogInformation(
+                $"{nameof(Enrich)} Found matching YouTube episode: '{episodeYouTubeId}' with title '{title}' and release-date '{release.Value.UtcDateTime:R}'.");
+        }
+        else
+        {
+            logger.LogInformation(
+                $"{nameof(Enrich)} Found matching YouTube episode: '{episodeYouTubeId}' with title '{title}'.");
+        }
 
-            if (string.IsNullOrWhiteSpace(request.Episode.Description) || request.Episode.Images?.YouTube == null)
+        request.Episode.YouTubeId = enrichmentContext.YouTubeId = episodeYouTubeId;
+        request.Episode.Urls.YouTube = enrichmentContext.YouTube = url;
+
+        if (string.IsNullOrWhiteSpace(request.Episode.Description) || request.Episode.Images?.YouTube == null)
+        {
+            var videoContentDetails =
+                await youTubeVideoService.GetVideoContentDetails(youTubeService, [episodeYouTubeId],
+                    indexingContext, true);
+            var item = videoContentDetails?.FirstOrDefault();
+            if (item != null)
             {
-                var videoContentDetails =
-                    await youTubeVideoService.GetVideoContentDetails(youTubeService, [episodeYouTubeId],
-                        indexingContext, true);
-                var item = videoContentDetails?.FirstOrDefault();
-                if (item != null)
+                var description = item.Snippet.Description.Trim() ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(description))
                 {
-                    var description = item.Snippet.Description.Trim() ?? string.Empty;
-                    if (!string.IsNullOrWhiteSpace(description))
+                    if (!string.IsNullOrWhiteSpace(request.Podcast.DescriptionRegex))
                     {
-                        if (!string.IsNullOrWhiteSpace(request.Podcast.DescriptionRegex))
-                        {
-                            request.Episode.Description = textSanitiser.SanitiseDescription(
-                                description, new Regex(request.Podcast.DescriptionRegex));
-                        }
-                        else
-                        {
-                            request.Episode.Description = description;
-                        }
+                        request.Episode.Description = textSanitiser.SanitiseDescription(
+                            description, new Regex(request.Podcast.DescriptionRegex));
                     }
-
-                    var image = item.GetImageUrl();
-                    if (image != null)
+                    else
                     {
-                        request.Episode.Images ??= new EpisodeImages();
-                        request.Episode.Images.YouTube = image;
+                        request.Episode.Description = description;
                     }
                 }
-            }
 
-            if ((request.Podcast.AppleId == null || request.Episode.AppleId == null) &&
-                request.Episode.Release.TimeOfDay == TimeSpan.Zero &&
-                release.HasValue)
-            {
-                request.Episode.Release = enrichmentContext.Release = release!.Value.UtcDateTime;
-                enrichmentContext.Release = release!.Value.UtcDateTime;
+                var image = item.GetImageUrl();
+                if (image != null)
+                {
+                    request.Episode.Images ??= new EpisodeImages();
+                    request.Episode.Images.YouTube = image;
+                }
             }
+        }
+
+        if ((request.Podcast.AppleId == null || request.Episode.AppleId == null) &&
+            request.Episode.Release.TimeOfDay == TimeSpan.Zero &&
+            release.HasValue)
+        {
+            request.Episode.Release = enrichmentContext.Release = release!.Value.UtcDateTime;
+            enrichmentContext.Release = release!.Value.UtcDateTime;
         }
     }
 }

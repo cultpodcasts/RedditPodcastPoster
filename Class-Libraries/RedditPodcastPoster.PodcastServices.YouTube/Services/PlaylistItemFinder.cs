@@ -1,5 +1,4 @@
-﻿using System.Text.RegularExpressions;
-using Google.Apis.YouTube.v3.Data;
+﻿using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
@@ -8,14 +7,15 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Text;
+using System.Text.RegularExpressions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 
-public partial class SearchResultFinder(
+public partial class PlaylistItemFinder(
     IYouTubeServiceWrapper youTubeService,
     IYouTubeVideoService videoService,
-    ILogger<SearchResultFinder> logger)
-    : ISearchResultFinder
+    ILogger<PlaylistItemFinder> logger)
+    : IPlaylistItemFinder
 {
     private const int MinFuzzyScore = 70;
     private static readonly Regex NumberMatch = CreateNumberMatch();
@@ -25,28 +25,28 @@ public partial class SearchResultFinder(
 
     public async Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(
         RedditPodcastPoster.Models.Episode episode,
-        IList<SearchResult> searchResults,
+        IList<PlaylistItem> playlistItems,
         TimeSpan? youTubePublishDelay,
         IndexingContext indexingContext)
     {
-        var match = MatchOnExactTitle(episode, searchResults);
+        var match = MatchOnExactTitle(episode, playlistItems);
         if (match != null)
         {
-            return new FindEpisodeResponse(match);
+            return new FindEpisodeResponse(PlaylistItem: match);
         }
 
-        match = MatchOnEpisodeNumber(episode, searchResults);
+        match = MatchOnEpisodeNumber(episode, playlistItems);
         if (match != null)
         {
-            return new FindEpisodeResponse(match);
+            return new FindEpisodeResponse(PlaylistItem: match);
         }
 
         var videoDetails =
-            await videoService.GetVideoContentDetails(youTubeService, searchResults.Select(x => x.Id.VideoId).ToList(),
+            await videoService.GetVideoContentDetails(youTubeService, playlistItems.Select(x => x.ContentDetails.VideoId).ToList(),
                 indexingContext);
 
 
-        var videoMatch = MatchOnEpisodeDuration(episode, searchResults, videoDetails, indexingContext);
+        var videoMatch = MatchOnEpisodeDuration(episode, playlistItems, videoDetails, indexingContext);
         if (videoMatch != null)
         {
             return videoMatch;
@@ -54,13 +54,13 @@ public partial class SearchResultFinder(
 
         if (episode.HasAccurateReleaseTime() && youTubePublishDelay.HasValue)
         {
-            match = MatchOnPublishTimeComparedToPublishDelay(episode, searchResults, youTubePublishDelay.Value);
+            match = MatchOnPublishTimeComparedToPublishDelay(episode, playlistItems, youTubePublishDelay.Value);
             if (match != null && FuzzyMatcher.IsMatch(episode.Title, match, s => s.Snippet.Title, MinFuzzyScore))
             {
                 if (videoDetails != null)
                 {
                     // verify duration is similar
-                    var videoDetail = videoDetails.SingleOrDefault(x => x.Id == match.Id.VideoId);
+                    var videoDetail = videoDetails.SingleOrDefault(x => x.Id == match.ContentDetails.VideoId);
                     if (videoDetail != null)
                     {
                         var matchingVideoLength = videoDetail.GetLength();
@@ -71,22 +71,22 @@ public partial class SearchResultFinder(
                             if (matchingVideoLength > MinDurationForPublicationDate &&
                                 matchingVideoLengthDifferentTicks < VideoDurationToleranceForPublicationDate.Ticks)
                             {
-                                return new FindEpisodeResponse(match);
+                                return new FindEpisodeResponse(PlaylistItem: match);
                             }
                         }
                     }
                     else
                     {
-                        return new FindEpisodeResponse(match);
+                        return new FindEpisodeResponse(PlaylistItem: match);
                     }
                 }
             }
         }
 
-        match = MatchOnTextCloseness(episode, searchResults);
+        match = MatchOnTextCloseness(episode, playlistItems);
         if (match != null)
         {
-            return new FindEpisodeResponse(match);
+            return new FindEpisodeResponse(PlaylistItem: match);
         }
 
         return null;
@@ -94,7 +94,7 @@ public partial class SearchResultFinder(
 
     private FindEpisodeResponse? MatchOnEpisodeDuration(
         RedditPodcastPoster.Models.Episode episode,
-        IList<SearchResult> searchResults,
+        IList<PlaylistItem> searchResults,
         IList<Google.Apis.YouTube.v3.Data.Video>? videoDetails,
         IndexingContext indexingContext)
     {
@@ -102,10 +102,10 @@ public partial class SearchResultFinder(
         {
             var matchingVideo =
                 videoDetails.MinBy(x => Math.Abs((episode.Length - x.GetLength() ?? TimeSpan.Zero).Ticks));
-            var searchResult = searchResults.FirstOrDefault(x => x.Id.VideoId == matchingVideo!.Id);
+            var searchResult = searchResults.FirstOrDefault(x => x.ContentDetails.VideoId == matchingVideo!.Id);
             if (searchResult != null)
             {
-                var matchingPair = new FindEpisodeResponse(searchResult, Video: matchingVideo);
+                var matchingPair = new FindEpisodeResponse(PlaylistItem: searchResult, Video: matchingVideo);
                 var matchingVideoLength = matchingPair.Video!.GetLength() ?? TimeSpan.Zero;
                 var matchingVideoLengthDifferentTicks = Math.Abs((matchingVideoLength - episode.Length).Ticks);
                 if (matchingVideoLengthDifferentTicks < VideoDurationTolerance.Ticks)
@@ -120,14 +120,14 @@ public partial class SearchResultFinder(
         return null;
     }
 
-    private SearchResult? MatchOnTextCloseness(RedditPodcastPoster.Models.Episode episode,
-        IList<SearchResult> searchResults)
+    private PlaylistItem? MatchOnTextCloseness(RedditPodcastPoster.Models.Episode episode,
+        IList<PlaylistItem> searchResults)
     {
         return FuzzyMatcher.Match(episode.Title, searchResults, x => x.Snippet.Title, MinFuzzyScore);
     }
 
-    private SearchResult? MatchOnEpisodeNumber(RedditPodcastPoster.Models.Episode episode,
-        IList<SearchResult> searchResults)
+    private PlaylistItem? MatchOnEpisodeNumber(RedditPodcastPoster.Models.Episode episode,
+        IList<PlaylistItem> searchResults)
     {
         var episodeNumberMatch = NumberMatch.Match(episode.Title);
         if (episodeNumberMatch.Success)
@@ -157,9 +157,9 @@ public partial class SearchResultFinder(
         return null;
     }
 
-    private SearchResult? MatchOnPublishTimeComparedToPublishDelay(
+    private PlaylistItem? MatchOnPublishTimeComparedToPublishDelay(
         RedditPodcastPoster.Models.Episode episode,
-        IList<SearchResult> searchResults,
+        IList<PlaylistItem> searchResults,
         TimeSpan youTubePublishDelay)
     {
         var expectedPublish = episode.Release.Add(youTubePublishDelay);
@@ -175,8 +175,8 @@ public partial class SearchResultFinder(
         return null;
     }
 
-    private SearchResult? MatchOnExactTitle(RedditPodcastPoster.Models.Episode episode,
-        IList<SearchResult> searchResults)
+    private PlaylistItem? MatchOnExactTitle(RedditPodcastPoster.Models.Episode episode,
+        IList<PlaylistItem> searchResults)
     {
         var episodeTitle = episode.Title.Trim().ToLower();
         var matchingSearchResult = searchResults.Where(x =>
@@ -202,7 +202,7 @@ public partial class SearchResultFinder(
         return null;
     }
 
-    [GeneratedRegex("(?'number'\\d+)", RegexOptions.Compiled)]
+    [GeneratedRegex("(?'number'\\d+)")]
     private static partial Regex CreateNumberMatch();
 
 }

@@ -8,13 +8,13 @@ using RedditPodcastPoster.PodcastServices.YouTube.Models;
 namespace RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
 public class YouTubePlaylistService(
-    IYouTubeServiceWrapper youTubeService,
     ILogger<YouTubePlaylistService> logger)
     : IYouTubePlaylistService
 {
     private const int MaxSearchResults = 5;
 
     public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
+        IYouTubeServiceWrapper youTubeService,
         YouTubePlaylistId playlistId,
         IndexingContext indexingContext)
     {
