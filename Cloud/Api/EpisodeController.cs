@@ -24,6 +24,7 @@ using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Twitter;
@@ -658,7 +659,7 @@ public class EpisodeController(
                     if (!string.IsNullOrWhiteSpace(youTubeId))
                     {
                         episode.YouTubeId = youTubeId;
-                        episode.Urls.YouTube = episodeChangeRequest.Urls.YouTube;
+                        episode.Urls.YouTube = SearchResultExtensions.ToYouTubeUrl(youTubeId);
                         changeState.UpdateYouTubeImage = true;
                     }
                     else
