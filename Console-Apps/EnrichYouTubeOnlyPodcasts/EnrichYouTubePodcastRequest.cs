@@ -5,11 +5,14 @@ namespace EnrichYouTubeOnlyPodcasts;
 public class EnrichYouTubePodcastRequest
 {
 
-    [Value(0, MetaName = "Podcast Guid", HelpText = "The Id of the Podcast", Required = true)]
-    public Guid PodcastGuid { get; set; }
+    [Option('p', longName:  "podcast-id", HelpText = "The Id of the Podcast")]
+    public Guid? PodcastGuid { get; set; }
 
-    [Value(1, MetaName = "YouTube Playlist ID", HelpText = "")]
-    public string PlaylistId { get; set; } = "";
+    [Option('i', longName: "youtube-playlist-id", HelpText = "")]
+    public string? PlaylistId { get; set; } = "";
+
+    [Option('n', "podcast-name", Required = false, HelpText = "The name of the podcast to index")]
+    public string? PodcastName { get; set; }
 
     [Option('r',"released-since", HelpText = "Only ingest items released within these days" )]
     public int? ReleasedSince { get; set; }

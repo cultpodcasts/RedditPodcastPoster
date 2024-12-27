@@ -48,7 +48,34 @@ public class EnrichYouTubePodcastProcessor(
             indexOptions = new IndexingContext();
         }
 
-        var podcast = await podcastRepository.GetPodcast(request.PodcastGuid);
+        Guid podcastId;
+        if (request.PodcastGuid.HasValue)
+        {
+            podcastId = request.PodcastGuid.Value;
+        }
+        else if (request.PodcastName != null)
+        {
+            var podcastIds = await podcastRepository.GetAllBy(x =>
+                    x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
+                x => x.Id).ToListAsync();
+            if (podcastIds.Count > 1)
+            {
+                logger.LogError($"Found {podcastIds.Count} podcasts with name '{request.PodcastName}'.");
+                return;
+            } else if (podcastIds.Count == 0)
+            {
+                logger.LogError($"No podcasts found with name '{request.PodcastName}'.");
+                return;
+            }
+            podcastId= podcastIds.First();
+        } else
+        {
+            logger.LogError("No podcast specified.");
+            return;
+        }
+
+
+        var podcast = await podcastRepository.GetPodcast(podcastId);
 
         if (podcast == null)
         {

@@ -27,15 +27,16 @@ public class SubjectEnricher(
                 }
             }
 
-            var message =
-                $"{additions.Count()} - {string.Join(",", additions.Select(x => "'" + x.Subject.Name + "' (" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"))} : '{episode.Title}'.";
+            var terms = string.Join(",", additions.Select(x => "'" + x.Subject.Name + "' (" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"));
             if (!episode.Subjects.Any() && additions.Count() > 1)
             {
-                logger.LogWarning(message);
+                logger.LogWarning("{count} - {terms} : '{episodeTitle}' ({episodeId}).", 
+                    additions.Count(), terms, episode.Title, episode.Id);
             }
             else
             {
-                logger.LogInformation(message);
+                logger.LogInformation("{count} - {terms} : '{episodeTitle}' ({episodeId}).", 
+                    additions.Count(), terms, episode.Title, episode.Id);
             }
 
 
@@ -47,18 +48,21 @@ public class SubjectEnricher(
             {
                 episode.Subjects = new[] {options.DefaultSubject}.ToList();
                 logger.LogWarning(
-                    $"Applying default-subject '{options.DefaultSubject}' to episode with title: '{episode.Title}'.");
+                    "Applying default-subject '{defaultSubject}' to episode with title: '{episodeTitle}' ({episodeId}).",
+                    options.DefaultSubject, episode.Title, episode.Id);
             }
             else if (!episode.Subjects.Any())
             {
-                logger.LogError($"'No updates: '{episode.Title}'.");
+                logger.LogError("'No updates: '{episodeTitle}' ({episodeId}).",
+                    episode.Title, episode.Id);
             }
         }
 
         if (removals.Any())
         {
             logger.LogWarning(
-                $"Redundant: {string.Join(",", removals.Select(x => "'" + x + "'"))} : '{episode.Title}'.");
+                "Redundant: {redundantTerms} : '{episodeTitle}' ({episodeId}).",
+                string.Join(",", removals.Select(x => "'" + x + "'")), episode.Title, episode.Id);
         }
 
         return (additions.Select(x => x.Subject.Name).ToArray(), removals.ToArray());
