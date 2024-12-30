@@ -24,7 +24,7 @@ public static class LowerCaseTerms
 
     private static readonly string[] Ordinals =
     {
-        "th", "st", "rd", "s"
+        "th", "st", "rd", "s", "nd"
     };
 
     public static readonly IDictionary<string, Regex> Expressions =

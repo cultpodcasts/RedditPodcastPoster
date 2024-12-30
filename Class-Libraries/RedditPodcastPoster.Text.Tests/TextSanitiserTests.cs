@@ -214,4 +214,24 @@ public class TextSanitiserTests
         // assert
         result.Should().Be(expected);
     }
+
+    [Theory]
+    [InlineData("1st Something")]
+    [InlineData("2nd Something")]
+    [InlineData("3rd Something")]
+    [InlineData("4th Something")]
+    [InlineData("5th Something")]
+    [InlineData("6th Something")]
+    [InlineData("7th Something")]
+    [InlineData("8th Something")]
+    [InlineData("9th Something")]
+    [InlineData("10th Something")]
+    public void SanitiseTitle_WithOrdinalPrefix_IsCorrect(string expected)
+    {
+        // arrange
+        // act
+        var result = Sut.SanitiseTitle(expected, null);
+        // assert
+        result.Should().Be(expected);
+    }
 }
