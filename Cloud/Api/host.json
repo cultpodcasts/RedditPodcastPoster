@@ -9,9 +9,9 @@
     },
     "logLevel": {
       "default": "Information",
-      "Function": "Trace",
+      "Function": "Information",
       "Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler": "Warning",
-      "X.Bluesky":  "Information"
+      "X.Bluesky": "Information"
     }
   }
 }
