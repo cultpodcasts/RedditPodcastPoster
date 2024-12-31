@@ -41,7 +41,36 @@ public class EnrichPodcastEpisodesProcessor(
             SkipYouTubeUrlResolving = request.SkipYouTubeUrlResolving
         };
 
-        var podcast = await podcastsRepository.GetPodcast(request.PodcastId);
+        Guid podcastId;
+        if (request.PodcastId.HasValue)
+        {
+            podcastId = request.PodcastId.Value;
+        }
+        else if (request.PodcastName != null)
+        {
+            var podcastIds = await podcastsRepository.GetAllBy(x =>
+                    x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
+                x => x.Id).ToListAsync();
+            if (podcastIds.Count() == 0)
+            {
+                throw new InvalidOperationException($"No podcast matching '{request.PodcastName}' could be found.");
+            }
+            else if (podcastIds.Count() > 1)
+            {
+                throw new InvalidOperationException($"Multiple podcasts matching '{request.PodcastName}' were found.");
+            }
+            else
+            {
+                podcastId = podcastIds.First();
+            }
+        }
+        else
+        {
+            throw new InvalidOperationException("A podcast-id or podcast-name must be provided.");
+        }
+
+
+        var podcast = await podcastsRepository.GetPodcast(podcastId);
         if (podcast == null)
         {
             throw new ArgumentException($"No podcast found with id '{request.PodcastId}'.");
@@ -59,25 +88,25 @@ public class EnrichPodcastEpisodesProcessor(
             var criteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty, podcast.Publisher,
                 episode.Title, episode.Description, episode.Release, episode.Length);
 
-            if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) && 
-                !string.IsNullOrWhiteSpace(podcast.SpotifyId) && 
+            if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
+                !string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
                 !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
-                episode.AppleId==null)
+                episode.AppleId == null)
             {
-                var spotifyEpisode =await  spotifyEpisodeResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode), indexingContext);
-                if (spotifyEpisode?.FullEpisode!=null && spotifyEpisode.FullEpisode.Name.Trim()!=episode.Title.Trim())
+                var spotifyEpisode = await spotifyEpisodeResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode), indexingContext);
+                if (spotifyEpisode?.FullEpisode != null && spotifyEpisode.FullEpisode.Name.Trim() != episode.Title.Trim())
                 {
                     criteria.SpotifyTitle = spotifyEpisode.FullEpisode.Name.Trim();
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) && 
-                podcast.AppleId!=null && 
-                episode.AppleId!=null &&
+            if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
+                podcast.AppleId != null &&
+                episode.AppleId != null &&
                 string.IsNullOrWhiteSpace(episode.SpotifyId))
             {
                 var appleEpisode = await appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(podcast, episode), indexingContext);
-                if (appleEpisode!=null  && appleEpisode.Title.Trim() != episode.Title.Trim())
+                if (appleEpisode != null && appleEpisode.Title.Trim() != episode.Title.Trim())
                 {
                     criteria.AppleTitle = appleEpisode.Title.Trim();
                 }
@@ -91,7 +120,7 @@ public class EnrichPodcastEpisodesProcessor(
                     episode.Urls.Apple ??= match.Url;
                     episode.AppleId ??= match.EpisodeId;
                     var appleImage = match.Image;
-                    if (appleImage!=null)
+                    if (appleImage != null)
                     {
                         episode.Images ??= new EpisodeImages();
                         episode.Images.Apple = appleImage;
