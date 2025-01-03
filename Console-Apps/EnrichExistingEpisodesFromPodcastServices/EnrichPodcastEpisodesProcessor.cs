@@ -148,6 +148,12 @@ public class EnrichPodcastEpisodesProcessor(
                             {
                                 episode.Urls.Apple ??= match.Url;
                                 episode.AppleId ??= match.EpisodeId;
+                                var appleImage = match.Image;
+                                if (appleImage != null)
+                                {
+                                    episode.Images ??= new EpisodeImages();
+                                    episode.Images.Apple = appleImage;
+                                }
                                 logger.LogInformation(
                                     $"Enriched from apple: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
                                 updated = true;

@@ -213,7 +213,8 @@ public class YouTubeUrlCategoriser(
             {
                 var video = await youTubeVideoService.GetVideoContentDetails(youTubeService,
                     [match.Snippet.ResourceId.VideoId],
-                    indexingContext);
+                    indexingContext,
+                    withSnippets: true);
                 if (video != null)
                 {
                     var videoContent = video.SingleOrDefault();
