@@ -6,6 +6,9 @@ public static class NonPodcastServiceMatcher
     {
         return
             (url.Host.ToLower().Contains("archive.org") && url.AbsolutePath.StartsWith("/details")) ||
-            (url.Host.ToLower().Contains("bbc.co.uk") && url.AbsolutePath.StartsWith("/iplayer/episode"));
+            (url.Host.ToLower().Contains("bbc.co.uk") && (
+                url.AbsolutePath.StartsWith("/iplayer/episode") ||
+                url.AbsolutePath.StartsWith("/sounds/play/")
+            ));
     }
 }
