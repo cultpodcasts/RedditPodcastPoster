@@ -10,46 +10,6 @@ public class EmbedCardBuilder(IHttpClientFactory httpClientFactory, Session sess
 {
     private readonly FileTypeHelper _fileTypeHelper = new(logger);
 
-    /// <summary>
-    /// Create embed card
-    /// </summary>
-    /// <param name="url"></param>
-    /// <returns></returns>
-    public async Task<External> GetEmbedCard(Uri url)
-    {
-        var extractor = new X.Web.MetaExtractor.Extractor();
-        var metadata = await extractor.ExtractAsync(url);
-
-        var card = new External
-        {
-            Uri = url.ToString(),
-            Title = metadata.Title,
-            Description = metadata.Description
-        };
-
-        if (metadata.Images.Any())
-        {
-            var imgUrl = metadata.Images.FirstOrDefault();
-
-            if (!string.IsNullOrWhiteSpace(imgUrl))
-            {
-                if (!imgUrl.Contains("://"))
-                {
-                    card.Thumb = await UploadImageAndSetThumbAsync(new Uri(url, imgUrl));
-                }
-                else
-                {
-                    card.Thumb = await UploadImageAndSetThumbAsync(new Uri(imgUrl));    
-                }
-                
-                logger.LogInformation("EmbedCard created");
-            }
-        }
-
-        return card;
-    }
-
-
     public async Task<External> GetEmbedCard(EmbedCardRequest embedCardRequest)
     {
         var card = new External
