@@ -111,23 +111,27 @@ public class YouTubeEpisodeProvider(
                     results
                         .Where(x => x.Snippet != null)
                         .Where(x => x.Snippet.Title != "Deleted video")
-                        .Select(x => new PlaylistItemVideo(x, videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == x.Snippet.ResourceId.VideoId)!))
+                        .Select(x => 
+                            new PlaylistItemVideo(
+                                x, 
+                                videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == x.Snippet.ResourceId.VideoId)!
+                                )
+                            )
                         .Where(x => x.VideoDetails?.Snippet != null)
                         .Where(
                             x => youTubeChannelId == null ||
                             x.VideoDetails.Snippet.ChannelId == youTubeChannelId.ChannelId)
                         .Select(x => GetEpisode(x.PlaylistItem.Snippet, x.VideoDetails))
                         .ToList();
-            } catch (Exception e)
+                return new GetPlaylistEpisodesResponse(reducedResults, isExpensiveQuery);
+            }
+            catch (Exception e)
             {
                 logger.LogError(e, "Error getting playlist videos. youtube-channel-id: '{youtubeChannelId}', youtube-channel-id-value: '{youtubeChannelIdValue}'",
                     youTubeChannelId,
                     youTubeChannelId?.ChannelId);
-                throw;
             }
-            return new GetPlaylistEpisodesResponse(reducedResults, isExpensiveQuery);
         }
-
         return new GetPlaylistEpisodesResponse(null, isExpensiveQuery);
     }
 
