@@ -99,7 +99,7 @@ public class PodcastService(
 
             podcasts = await podcastRepository.GetAllBy(podcast => podcast.AppleId == podcastId).ToArrayAsync();
         }
-        else if (NonPodcastServiceMatcher.IsMatch(url))
+        else if (NonPodcastServiceMatcher.MatchesBBC(url) || NonPodcastServiceMatcher.MatchesInternetArchive(url))
         {
             podcasts = [];
         }

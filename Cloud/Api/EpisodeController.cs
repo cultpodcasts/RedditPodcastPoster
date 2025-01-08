@@ -678,7 +678,7 @@ public class EpisodeController(
             }
             else
             {
-                if (NonPodcastServiceMatcher.IsMatch(episodeChangeRequest.Urls.BBC))
+                if (NonPodcastServiceMatcher.MatchesBBC(episodeChangeRequest.Urls.BBC))
                 {
                     episode.Urls.BBC = episodeChangeRequest.Urls.BBC;
                     changeState.UpdateBBCImage = true;
@@ -694,7 +694,7 @@ public class EpisodeController(
             }
             else
             {
-                if (NonPodcastServiceMatcher.IsMatch(episodeChangeRequest.Urls.InternetArchive))
+                if (NonPodcastServiceMatcher.MatchesInternetArchive(episodeChangeRequest.Urls.InternetArchive))
                 {
                     episode.Urls.InternetArchive = episodeChangeRequest.Urls.InternetArchive;
                 }

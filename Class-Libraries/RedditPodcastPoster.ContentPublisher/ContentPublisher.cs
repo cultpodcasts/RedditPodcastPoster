@@ -144,11 +144,11 @@ public class ContentPublisher(
         try
         {
             await client.PutObjectAsync(request);
-            logger.LogInformation($"Completed '{nameof(PublishHomepage)}'.");
+            logger.LogInformation($"Completed '{nameof(PublishPreProcessedHomepageToR2)}'.");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(PublishHomepage)} - Failed to upload homepage-content to R2");
+            logger.LogError(ex, $"{nameof(PublishPreProcessedHomepageToR2)} - Failed to upload homepage-content to R2");
         }
     }
 

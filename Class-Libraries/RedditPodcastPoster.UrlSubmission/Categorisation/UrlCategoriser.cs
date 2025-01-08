@@ -62,7 +62,7 @@ public class UrlCategoriser(
                 authority = Service.YouTube;
             }
         }
-        else if (NonPodcastServiceMatcher.IsMatch(url))
+        else if (NonPodcastServiceMatcher.MatchesBBC(url) || NonPodcastServiceMatcher.MatchesInternetArchive(url))
         {
             resolvedNonPodcastServiceItem = await nonPodcastServiceCategoriser.Resolve(podcast, url, indexingContext);
         }
