@@ -10,7 +10,8 @@ public class BlueskyClientFactory(
     IOptions<BlueskyOptions> options,
     ILogger<BlueskyClientFactory> logger,
     ILogger<EmbedCardBlueskyClient> blueskyLogger,
-    ILogger<BlueskyClient> blueskyClientLogger
+    ILogger<BlueskyClient> blueskyClientLogger,
+    ILogger<MentionResolver> mentionResolver
 ) : IBlueskyClientFactory
 {
     private readonly BlueskyOptions _options = options.Value;
@@ -26,6 +27,7 @@ public class BlueskyClientFactory(
             ["en", "en-US"],
             _options.ReuseSession,
             blueskyLogger,
-            blueskyClientLogger);
+            blueskyClientLogger,
+            mentionResolver);
     }
 }

@@ -35,15 +35,17 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
         IEnumerable<string> languages,
         bool reuseSession,
         ILogger<EmbedCardBlueskyClient> logger,
-        ILogger<BlueskyClient> blueskyClientLogger
+        ILogger<BlueskyClient> blueskyClientLogger,
+        ILogger<MentionResolver> mentionResolver
         )
     {
         _logger = logger;
         _httpClientFactory = httpClientFactory;
+        var uri = new Uri("https://bsky.social");
         _languages = languages.ToFrozenSet();
         _blueskyClient = new BlueskyClient(httpClientFactory, identifier, password, languages, reuseSession, blueskyClientLogger);
-        _mentionResolver = new MentionResolver(_httpClientFactory);
-        _authorizationClient = new AuthorizationClient(httpClientFactory, identifier, password, reuseSession);
+        _mentionResolver = new MentionResolver(_httpClientFactory, uri, mentionResolver);
+        _authorizationClient = new AuthorizationClient(httpClientFactory, identifier, password, reuseSession, uri);
     }
 
     public async Task Post(string text, EmbedCardRequest embedCard)
@@ -59,10 +61,9 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
 
         var embedCardBuilder = new EmbedCardBuilder(_httpClientFactory, session, _logger);
 
-        post.Embed = new Embed
+        post.Embed = new EmbedExternal
         {
-            External = await embedCardBuilder.GetEmbedCard(embedCard),
-            Type = "app.bsky.embed.external"
+            External = await embedCardBuilder.GetEmbedCard(embedCard)
         };
 
         await Post(session, post);
@@ -76,6 +77,21 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
     public Task Post(string text, Uri uri)
     {
         return _blueskyClient.Post(text, uri);
+    }
+
+    public Task Post(string text, Image image)
+    {
+        return _blueskyClient.Post(text, image);
+    }
+
+    public Task Post(string text, Uri? url, Image image)
+    {
+        return _blueskyClient.Post(text, url, image);
+    }
+
+    public Task Post(string text, Uri? url, IEnumerable<Image> images)
+    {
+        return _blueskyClient.Post(text, url, images);
     }
 
     private async Task<(IReadOnlyCollection<Facet> facets, Post post)> CreatePostAndFacets(string text)

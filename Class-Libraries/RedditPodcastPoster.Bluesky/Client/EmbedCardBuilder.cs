@@ -15,12 +15,12 @@ public class EmbedCardBuilder(IHttpClientFactory httpClientFactory, Session sess
     /// </summary>
     /// <param name="url"></param>
     /// <returns></returns>
-    public async Task<EmbedCard> GetEmbedCard(Uri url)
+    public async Task<External> GetEmbedCard(Uri url)
     {
         var extractor = new X.Web.MetaExtractor.Extractor();
         var metadata = await extractor.ExtractAsync(url);
 
-        var card = new EmbedCard
+        var card = new External
         {
             Uri = url.ToString(),
             Title = metadata.Title,
@@ -50,9 +50,9 @@ public class EmbedCardBuilder(IHttpClientFactory httpClientFactory, Session sess
     }
 
 
-    public async Task<EmbedCard> GetEmbedCard(EmbedCardRequest embedCardRequest)
+    public async Task<External> GetEmbedCard(EmbedCardRequest embedCardRequest)
     {
-        var card = new EmbedCard
+        var card = new External
         {
             Uri = embedCardRequest.Url.ToString(),
             Title = embedCardRequest.Title,
