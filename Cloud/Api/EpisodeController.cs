@@ -440,6 +440,10 @@ public class EpisodeController(
                 try
                 {
                     removeTweetResult = await tweetManager.RemoveTweet(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
+                    if (removeTweetResult!= RemoveTweetState.Deleted)
+                    {
+                        logger.LogWarning("Failure to delete tweet. Result= {removeTweetResult}.", removeTweetResult);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -449,11 +453,15 @@ public class EpisodeController(
                 }
             }
             var removeBlueskyPostResult = RemovePostState.Unknown;
-            if (changeState.UnTweet)
+            if (changeState.UnBlueskyPost)
             {
                 try
                 {
                     removeBlueskyPostResult = await blueskyPostManager.RemovePost(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
+                    if (removeBlueskyPostResult != RemovePostState.Deleted)
+                    {
+                        logger.LogWarning("Failure to delete bluesky-post. Result= {removeBlueskyPostResult}.", removeBlueskyPostResult);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -464,7 +472,7 @@ public class EpisodeController(
             }
 
             var response = req.CreateResponse(HttpStatusCode.Accepted);
-            if (changeState.UnTweet||changeState.UnBlueskyPost)
+            if (changeState.UnTweet || changeState.UnBlueskyPost)
             {
                 var respModel = new EpisodePostResponse(
                     removeTweetResult == RemoveTweetState.Deleted,
