@@ -449,7 +449,7 @@ public class EpisodeController(
                 }
             }
             var removeBlueskyPostResult = RemovePostState.Unknown;
-            if (changeState.UnTweet)
+            if (changeState.UnBlueskyPost)
             {
                 try
                 {
@@ -464,7 +464,7 @@ public class EpisodeController(
             }
 
             var response = req.CreateResponse(HttpStatusCode.Accepted);
-            if (changeState.UnTweet||changeState.UnBlueskyPost)
+            if (changeState.UnTweet || changeState.UnBlueskyPost)
             {
                 var respModel = new EpisodePostResponse(
                     removeTweetResult == RemoveTweetState.Deleted,
