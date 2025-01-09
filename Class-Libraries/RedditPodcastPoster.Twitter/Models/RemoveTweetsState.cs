@@ -1,6 +1,6 @@
 ﻿namespace RedditPodcastPoster.Twitter.Models;
 
-public enum RemoveTweetState
+public enum RemoveTweetsState
 {
     Unknown = 0,
     TooManyRequests,

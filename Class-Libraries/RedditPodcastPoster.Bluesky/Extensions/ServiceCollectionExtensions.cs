@@ -20,6 +20,8 @@ public static class ServiceCollectionExtensions
             .AddScoped<IEmbedCardRequestFactory, EmbedCardRequestFactory>()
             .AddScoped<IBlueskyYouTubeServiceFactory, BlueskyYouTubeServiceFactory>()
             .AddScoped(s => s.GetService<IBlueskyYouTubeServiceFactory>()!.Create())
+            .AddSingleton<IBlueskyAgentFactory, BlueskyAgentFactory>()
+            .AddSingleton(x=>x.GetService<IBlueskyAgentFactory>()!.Create().GetAwaiter().GetResult())
             .BindConfiguration<BlueskyOptions>("bluesky");
     }
 }

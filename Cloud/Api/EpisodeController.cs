@@ -41,6 +41,7 @@ public class EpisodeController(
     IContentPublisher contentPublisher,
     IPostManager postManager,
     ITweetManager tweetManager,
+    IBlueskyPostManager blueskyPostManager,
     IBlueskyPoster blueskyPoster,
     IClientPrincipalFactory clientPrincipalFactory,
     IShortnerService shortnerService,
@@ -433,7 +434,7 @@ public class EpisodeController(
                 await postManager.UpdateFlare(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
             }
 
-            var removeTweetResult = RemoveTweetState.Unknown;
+            var removeTweetResult = RemoveTweetsState.Unknown;
             if (changeState.UnTweet)
             {
                 try
@@ -444,15 +445,32 @@ public class EpisodeController(
                 {
                     logger.LogError(e,
                         $"Error using tweet-manager to remove tweet for episode with id '{episode.Id}'.");
-                    removeTweetResult = RemoveTweetState.Other;
+                    removeTweetResult = RemoveTweetsState.Other;
+                }
+            }
+            var removeBlueskyPostResult = RemovePostState.Unknown;
+            if (changeState.UnTweet)
+            {
+                try
+                {
+                    removeBlueskyPostResult = await blueskyPostManager.RemovePost(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e,
+                        $"Error using bluesky-post-manager to remove post for episode with id '{episode.Id}'.");
+                    removeBlueskyPostResult = RemovePostState.Other;
                 }
             }
 
             var response = req.CreateResponse(HttpStatusCode.Accepted);
-            if (changeState.UnTweet)
+            if (changeState.UnTweet||changeState.UnBlueskyPost)
             {
-                response = await response.WithJsonBody(
-                    new { TweetDeleted = removeTweetResult == RemoveTweetState.Deleted }, c);
+                var respModel = new EpisodePostResponse(
+                    removeTweetResult == RemoveTweetsState.Deleted,
+                    removeBlueskyPostResult == RemovePostState.Deleted
+                    );
+                response = await response.WithJsonBody(respModel, c);
             }
 
             return response;
@@ -794,3 +812,4 @@ public class EpisodeController(
         return failure;
     }
 }
+
