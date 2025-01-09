@@ -440,6 +440,10 @@ public class EpisodeController(
                 try
                 {
                     removeTweetResult = await tweetManager.RemoveTweet(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
+                    if (removeTweetResult!= RemoveTweetState.Deleted)
+                    {
+                        logger.LogWarning("Failure to delete tweet. Result= {removeTweetResult}.", removeTweetResult);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -454,6 +458,10 @@ public class EpisodeController(
                 try
                 {
                     removeBlueskyPostResult = await blueskyPostManager.RemovePost(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
+                    if (removeBlueskyPostResult != RemovePostState.Deleted)
+                    {
+                        logger.LogWarning("Failure to delete bluesky-post. Result= {removeBlueskyPostResult}.", removeBlueskyPostResult);
+                    }
                 }
                 catch (Exception e)
                 {
