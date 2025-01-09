@@ -2,8 +2,6 @@
 using idunno.AtProto;
 using idunno.Bluesky;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Models;
