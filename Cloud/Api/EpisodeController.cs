@@ -41,6 +41,7 @@ public class EpisodeController(
     IContentPublisher contentPublisher,
     IPostManager postManager,
     ITweetManager tweetManager,
+    IBlueskyPostManager blueskyPostManager,
     IBlueskyPoster blueskyPoster,
     IClientPrincipalFactory clientPrincipalFactory,
     IShortnerService shortnerService,
@@ -447,12 +448,29 @@ public class EpisodeController(
                     removeTweetResult = RemoveTweetState.Other;
                 }
             }
-
-            var response = req.CreateResponse(HttpStatusCode.Accepted);
+            var removeBlueskyPostResult = RemovePostState.Unknown;
             if (changeState.UnTweet)
             {
-                response = await response.WithJsonBody(
-                    new { TweetDeleted = removeTweetResult == RemoveTweetState.Deleted }, c);
+                try
+                {
+                    removeBlueskyPostResult = await blueskyPostManager.RemovePost(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e,
+                        $"Error using bluesky-post-manager to remove post for episode with id '{episode.Id}'.");
+                    removeBlueskyPostResult = RemovePostState.Other;
+                }
+            }
+
+            var response = req.CreateResponse(HttpStatusCode.Accepted);
+            if (changeState.UnTweet||changeState.UnBlueskyPost)
+            {
+                var respModel = new EpisodePostResponse(
+                    removeTweetResult == RemoveTweetState.Deleted,
+                    removeBlueskyPostResult == RemovePostState.Deleted
+                    );
+                response = await response.WithJsonBody(respModel, c);
             }
 
             return response;
@@ -794,3 +812,4 @@ public class EpisodeController(
         return failure;
     }
 }
+

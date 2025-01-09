@@ -1,9 +1,14 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using idunno.AtProto.Repo;
+using idunno.AtProto;
+using idunno.Bluesky;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlShortening;
+using RedditPodcastPoster.Bluesky.Factories;
+using System.Globalization;
 
 namespace RedditPodcastPoster.Bluesky;
 
@@ -11,6 +16,7 @@ public class BlueskyPostManager(
     IBlueskyPoster poster,
     IPodcastEpisodeProvider podcastEpisodeProvider,
     IShortnerService shortnerService,
+    BlueskyAgent blueskyAgent,
     ILogger<BlueskyPostManager> logger)
     : IBlueskyPostManager
 {
@@ -28,7 +34,6 @@ public class BlueskyPostManager(
             logger.LogError(ex, "Failure to find podcast-episode.");
             throw;
         }
-
         if (unposted.Any())
         {
             var posted = false;
@@ -38,7 +43,6 @@ public class BlueskyPostManager(
                 {
                     break;
                 }
-
                 try
                 {
                     var shortnerResult = await shortnerService.Write(podcastEpisode);
@@ -68,5 +72,46 @@ public class BlueskyPostManager(
                 }
             }
         }
+    }
+
+    public async Task<RemovePostState> RemovePost(PodcastEpisode podcastEpisode)
+    {
+        Nsid collection = new Nsid("app.bsky.feed.post");
+        var posts = await blueskyAgent.ListRecords<AtProtoRecord>(collection, 100);
+        if (!posts.Succeeded)
+        {
+            logger.LogError("Bluesky list-records failed. Status-code: {statusCode}, error-detail-error: {errorDetailError}, error-detail-message: {errorDetailMessage}.",
+            posts.StatusCode, posts.AtErrorDetail?.Error, posts.AtErrorDetail?.Message);
+        }
+
+        var matchingPosts = posts.Result!.Where(
+                x => x.Value!.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Podcast.Name) &&
+                      x.Value!.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Episode.Length.ToString(BlueskyEmbedCardPostFactory.LengthFormat,
+                         CultureInfo.InvariantCulture)) &&
+                     x.Value!.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Episode.Release.ToString(BlueskyEmbedCardPostFactory.ReleaseFormat))
+            );
+
+        if (!matchingPosts.Any())
+        {
+            return RemovePostState.NotFound;
+        }
+
+        if (matchingPosts.Count() > 1)
+        {
+            logger.LogError(
+                $"Multiple bluesky-posts ({matchingPosts.Count()}) found matching episode-id '{podcastEpisode.Episode.Id}'");
+            return RemovePostState.Other;
+        }
+
+        var deleted = await blueskyAgent.DeleteRecord(collection, matchingPosts.Single().Uri.RecordKey!);
+
+        if (deleted.Succeeded)
+        {
+            return RemovePostState.Deleted;
+        }
+
+        logger.LogError("Bluesky delete-record failed. Status-code: {statusCode}, error-detail-error: {errorDetailError}, error-detail-message: {errorDetailMessage}.",
+        deleted.StatusCode, deleted.AtErrorDetail?.Error, deleted.AtErrorDetail?.Message);
+        return RemovePostState.Other;
     }
 }
