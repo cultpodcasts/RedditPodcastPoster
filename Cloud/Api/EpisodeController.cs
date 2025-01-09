@@ -434,7 +434,7 @@ public class EpisodeController(
                 await postManager.UpdateFlare(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
             }
 
-            var removeTweetResult = RemoveTweetsState.Unknown;
+            var removeTweetResult = RemoveTweetState.Unknown;
             if (changeState.UnTweet)
             {
                 try
@@ -445,7 +445,7 @@ public class EpisodeController(
                 {
                     logger.LogError(e,
                         $"Error using tweet-manager to remove tweet for episode with id '{episode.Id}'.");
-                    removeTweetResult = RemoveTweetsState.Other;
+                    removeTweetResult = RemoveTweetState.Other;
                 }
             }
             var removeBlueskyPostResult = RemovePostState.Unknown;
@@ -467,7 +467,7 @@ public class EpisodeController(
             if (changeState.UnTweet||changeState.UnBlueskyPost)
             {
                 var respModel = new EpisodePostResponse(
-                    removeTweetResult == RemoveTweetsState.Deleted,
+                    removeTweetResult == RemoveTweetState.Deleted,
                     removeBlueskyPostResult == RemovePostState.Deleted
                     );
                 response = await response.WithJsonBody(respModel, c);

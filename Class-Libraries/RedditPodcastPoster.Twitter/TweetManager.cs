@@ -10,7 +10,7 @@ public class TweetManager(
     ILogger<TweetManager> logger
 ) : ITweetManager
 {
-    public async Task<RemoveTweetsState> RemoveTweet(PodcastEpisode podcastEpisode)
+    public async Task<RemoveTweetState> RemoveTweet(PodcastEpisode podcastEpisode)
     {
         var tweetsResponse = await twitterClient.GetTweets();
         if (tweetsResponse.State == GetTweetsState.Retrieved)
@@ -23,30 +23,30 @@ public class TweetManager(
             );
             if (!matchingTweets.Any())
             {
-                return RemoveTweetsState.NotFound;
+                return RemoveTweetState.NotFound;
             }
 
             if (matchingTweets.Count() > 1)
             {
                 logger.LogError(
                     $"Multiple tweets ({matchingTweets.Count()}) found matching episode-id '{podcastEpisode.Episode.Id}'");
-                return RemoveTweetsState.Other;
+                return RemoveTweetState.Other;
             }
 
             var deleted = await twitterClient.DeleteTweet(matchingTweets.Single());
             if (deleted)
             {
-                return RemoveTweetsState.Deleted;
+                return RemoveTweetState.Deleted;
             }
 
-            return RemoveTweetsState.Other;
+            return RemoveTweetState.Other;
         }
 
         if (tweetsResponse.State == GetTweetsState.TooManyRequests)
         {
-            return RemoveTweetsState.TooManyRequests;
+            return RemoveTweetState.TooManyRequests;
         }
 
-        return RemoveTweetsState.Other;
+        return RemoveTweetState.Other;
     }
 }

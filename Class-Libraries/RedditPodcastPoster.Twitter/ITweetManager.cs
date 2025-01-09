@@ -5,5 +5,5 @@ namespace RedditPodcastPoster.Twitter;
 
 public interface ITweetManager
 {
-    Task<RemoveTweetsState> RemoveTweet(PodcastEpisode podcastEpisode);
+    Task<RemoveTweetState> RemoveTweet(PodcastEpisode podcastEpisode);
 }
