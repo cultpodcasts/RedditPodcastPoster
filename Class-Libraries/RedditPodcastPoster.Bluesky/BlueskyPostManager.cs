@@ -86,7 +86,7 @@ public class BlueskyPostManager(
             posts.StatusCode, posts.AtErrorDetail?.Error, posts.AtErrorDetail?.Message);
         }
 
-        var matchingPosts = posts.Result.Where(
+        var matchingPosts = posts.Result!.Where(
                 x => x.Value!.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Podcast.Name) &&
                       x.Value!.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Episode.Length.ToString(BlueskyEmbedCardPostFactory.LengthFormat,
                          CultureInfo.InvariantCulture)) &&
