@@ -236,6 +236,7 @@ public class EpisodeController(
                         {
                             logger.LogError($"Tweet result: '{result}'.");
                             response.FailedTweetContent = result.candidateTweet;
+                            response.Tweeted = false;
                         }
                         else
                         {
@@ -244,6 +245,7 @@ public class EpisodeController(
                     }
                     catch (Exception e)
                     {
+                        response.Tweeted = false;
                         logger.LogError(e,
                             "Failed to tweet for podcast-id: {podcastId} and episode-id {episodeId}.",
                             podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
@@ -258,6 +260,7 @@ public class EpisodeController(
                         if (result != BlueskySendStatus.Success)
                         {
                             logger.LogError($"Bluesky-post result: '{result}'.");
+                            response.BlueskyPosted = false;
                         }
                         else
                         {
@@ -266,6 +269,7 @@ public class EpisodeController(
                     }
                     catch (Exception e)
                     {
+                        response.BlueskyPosted = false;
                         logger.LogError(e,
                             "Failed to bluesky-post for podcast-id: {podcastId} and episode-id {episodeId}.",
                             podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
@@ -291,7 +295,7 @@ public class EpisodeController(
             await contentPublisher.PublishHomepage();
 
             var success = await req.CreateResponse(
-                response.Updated() ? HttpStatusCode.Accepted : HttpStatusCode.BadRequest
+                response.Updated() ? HttpStatusCode.OK : HttpStatusCode.BadRequest
             ).WithJsonBody(response, c);
             return success;
         }
