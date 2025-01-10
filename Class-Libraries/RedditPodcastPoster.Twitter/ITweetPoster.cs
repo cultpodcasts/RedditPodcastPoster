@@ -1,8 +1,9 @@
 ﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Twitter.Models;
 
 namespace RedditPodcastPoster.Twitter;
 
 public interface ITweetPoster
 {
-    Task<TweetSendStatus> PostTweet(PodcastEpisode podcastEpisode, Uri? shortUrl);
+    Task<PostTweetResponse> PostTweet(PodcastEpisode podcastEpisode, Uri? shortUrl);
 }

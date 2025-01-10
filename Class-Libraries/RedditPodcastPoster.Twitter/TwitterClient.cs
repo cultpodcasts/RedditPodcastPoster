@@ -17,7 +17,7 @@ public class TwitterClient(
 {
     private readonly TwitterOptions _options = options.Value;
 
-    public async Task<TweetSendStatus> Send(string tweet)
+    public async Task<PostTweetResponse> Send(string tweet)
     {
         var oauth = new OAuthMessageHandler(_options.ConsumerKey, _options.ConsumerSecret, _options.AccessToken,
             _options.AccessTokenSecret);
@@ -36,7 +36,7 @@ public class TwitterClient(
         if (response.IsSuccessStatusCode)
         {
             logger.LogInformation($"Tweet sent successfully! Tweet: '{tweet}'.");
-            return TweetSendStatus.Sent;
+            return new PostTweetResponse(TweetSendStatus.Sent);
         }
 
         if (response.StatusCode == HttpStatusCode.Forbidden)
@@ -47,14 +47,14 @@ public class TwitterClient(
             {
                 logger.LogError(
                     $"Failed to send tweet. Duplicate-tweet. Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Body: '{await response.Content.ReadAsStringAsync()}', Tweet: '{tweet}'.");
-                return TweetSendStatus.DuplicateForbidden;
+                return new PostTweetResponse(TweetSendStatus.DuplicateForbidden, tweetData.text);
             }
 
             if (responseBody.Contains("too many requests"))
             {
                 logger.LogError(
                     $"Failed to send tweet. Too-many-requests. Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Body: '{await response.Content.ReadAsStringAsync()}', Tweet: '{tweet}'.");
-                return TweetSendStatus.TooManyRequests;
+                return new PostTweetResponse(TweetSendStatus.TooManyRequests, tweetData.text);
             }
         }
         else if (response.StatusCode == HttpStatusCode.TooManyRequests)
@@ -73,13 +73,13 @@ public class TwitterClient(
 
             logger.LogError(
                 $"Failed to send tweet. Too-many-requests. {resetDetails}Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Headers: {JsonSerializer.Serialize(retryAfterHeaders)} Body: '{await response.Content.ReadAsStringAsync()}', Tweet: '{tweet}'.");
-            return TweetSendStatus.TooManyRequests;
+            return new PostTweetResponse(TweetSendStatus.TooManyRequests, tweetData.text);
         }
 
         logger.LogError(
             $"Failed to send tweet. Reason-Phrase: '{response.ReasonPhrase}'. Status-code: '{response.StatusCode}'. Body: '{await response.Content.ReadAsStringAsync()}', Tweet: '{tweet}'.");
 
-        return TweetSendStatus.Failed;
+        return new PostTweetResponse(TweetSendStatus.Failed, tweetData.text);
     }
 
     public async Task<GetTweetsResponseWrapper> GetTweets()

@@ -34,7 +34,7 @@ public class TweetProcessor(
 
                 var tweet = await tweetBuilder.BuildTweet(podcastEpisode, shortnerResult.Url);
                 var tweetStatus = await twitterClient.Send(tweet);
-                var tweeted = tweetStatus == TweetSendStatus.Sent;
+                var tweeted = tweetStatus.TweetSendStatus == TweetSendStatus.Sent;
 
                 if (tweeted)
                 {

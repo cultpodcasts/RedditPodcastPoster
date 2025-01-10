@@ -13,6 +13,8 @@ public class EpisodePublishResponse
     [JsonPropertyName("blueskyPosted")]
     public bool? BlueskyPosted { get; set; }
 
+    [JsonPropertyName("failedTweetContent")]
+    public string? FailedTweetContent { get; set; }
 
     public bool Updated()
     {

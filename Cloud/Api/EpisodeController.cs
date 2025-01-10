@@ -232,9 +232,10 @@ public class EpisodeController(
                     try
                     {
                         var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url);
-                        if (result != TweetSendStatus.Sent)
+                        if (result.TweetSendStatus != TweetSendStatus.Sent)
                         {
                             logger.LogError($"Tweet result: '{result}'.");
+                            response.FailedTweetContent = result.candidateTweet;
                         }
                         else
                         {
@@ -471,16 +472,17 @@ public class EpisodeController(
                 }
             }
 
-            var response = req.CreateResponse(HttpStatusCode.Accepted);
-            if (changeState.UnTweet || changeState.UnBlueskyPost)
+            var respModel = new EpisodeUpdateResponse();
+            if (changeState.UnTweet)
             {
-                var respModel = new EpisodePostResponse(
-                    removeTweetResult == RemoveTweetState.Deleted,
-                    removeBlueskyPostResult == RemovePostState.Deleted
-                    );
-                response = await response.WithJsonBody(respModel, c);
+                respModel.TweetDeleted = removeTweetResult == RemoveTweetState.Deleted;
+                    
             }
-
+            if (changeState.UnBlueskyPost)
+            {
+                respModel.BlueskyPostDeleted = removeBlueskyPostResult == RemovePostState.Deleted;
+            }
+            var response = await req.CreateResponse(HttpStatusCode.Accepted).WithJsonBody(respModel, c);
             return response;
         }
         catch (Exception ex)

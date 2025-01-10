@@ -165,9 +165,9 @@ public class PostProcessor(
     private async Task TweetEpisode(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
         var result = await tweetPoster.PostTweet(podcastEpisode, shortUrl);
-        if (result != TweetSendStatus.Sent)
+        if (result.TweetSendStatus != TweetSendStatus.Sent)
         {
-            switch (result)
+            switch (result.TweetSendStatus)
             {
                 case TweetSendStatus.DuplicateForbidden:
                     logger.LogError("Forbidden to send duplicate-tweet");
