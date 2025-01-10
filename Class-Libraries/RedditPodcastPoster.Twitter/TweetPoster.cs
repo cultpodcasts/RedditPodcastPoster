@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Twitter.Models;
 
 namespace RedditPodcastPoster.Twitter;
 
@@ -11,10 +12,10 @@ public class TweetPoster(
     ILogger<TweetPoster> logger)
     : ITweetPoster
 {
-    public async Task<TweetSendStatus> PostTweet(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    public async Task<PostTweetResponse> PostTweet(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
         var tweet = await tweetBuilder.BuildTweet(podcastEpisode, shortUrl);
-        TweetSendStatus tweetStatus;
+        PostTweetResponse tweetStatus;
         try
         {
             tweetStatus = await twitterClient.Send(tweet);
@@ -26,7 +27,7 @@ public class TweetPoster(
             throw;
         }
 
-        if (tweetStatus is TweetSendStatus.Sent or TweetSendStatus.DuplicateForbidden)
+        if (tweetStatus.TweetSendStatus is TweetSendStatus.Sent or TweetSendStatus.DuplicateForbidden)
         {
             podcastEpisode.Episode.Tweeted = true;
             try

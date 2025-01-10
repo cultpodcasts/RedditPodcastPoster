@@ -47,8 +47,8 @@ public class Tweeter(
                     }
 
                     var tweetStatus = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url);
-                    tweeted = tweetStatus == TweetSendStatus.Sent;
-                    tooManyRequests = tweetStatus == TweetSendStatus.TooManyRequests;
+                    tweeted = tweetStatus.TweetSendStatus == TweetSendStatus.Sent;
+                    tooManyRequests = tweetStatus.TweetSendStatus == TweetSendStatus.TooManyRequests;
                 }
                 catch (Exception ex)
                 {
