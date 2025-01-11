@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/dotnet9
 
 permissions:
   id-token: write
