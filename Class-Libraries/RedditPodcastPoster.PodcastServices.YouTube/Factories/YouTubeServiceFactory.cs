@@ -8,18 +8,11 @@ using RedditPodcastPoster.PodcastServices.YouTube.Strategies;
 namespace RedditPodcastPoster.PodcastServices.YouTube.Factories;
 
 public class YouTubeServiceFactory(
-    IApplicationUsageProvider applicationUsageProvider,
     IYouTubeApiKeyStrategy youTubeApiKeyStrategy,
     ILogger<YouTubeServiceFactory> logger,
     ILogger<YouTubeServiceWrapper> injectedLogger
 ) : IYouTubeServiceFactory
 {
-    public IYouTubeServiceWrapper Create()
-    {
-        logger.LogInformation("Create youtube-service for default-usage.");
-        return Create(applicationUsageProvider.GetApplicationUsage());
-    }
-
     public IYouTubeServiceWrapper Create(ApplicationUsage usage)
     {
         logger.LogInformation("Create youtube-service for usage '{usage}'.", usage);
