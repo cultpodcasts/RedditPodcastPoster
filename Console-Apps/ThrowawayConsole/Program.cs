@@ -1,17 +1,15 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
-using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RedditPodcastPoster.Bluesky;
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.BBC;
+using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Bluesky.Extensions;
 using RedditPodcastPoster.Cloudflare.Extensions;
-using RedditPodcastPoster.CloudflareRedirect;
-using RedditPodcastPoster.CloudflareRedirect.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
@@ -34,6 +32,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
+    .AddBBCServices()
     .AddRepositories()
     .AddBlueskyServices()
     .AddHttpClient()
@@ -50,22 +49,17 @@ builder.Services
 
 using var host = builder.Build();
 
-var repository = host.Services.GetService<IPodcastRepository>()!;
-var component = host.Services.GetService<IBlueskyPostManager>()!;
+var component = host.Services.GetService<IBBCPageMetaDataExtractor>()!;
+var logger = host.Services.GetService<ILogger<Program>>()!;
 
-var episodeId = new Guid(args[0]);
-
-var podcastId = await repository.GetBy(x =>
-    (!x.Removed.IsDefined() || x.Removed == false) &&
-    x.Episodes.Any(ep => ep.Id == episodeId), x => new { guid = x.Id });
-if (podcastId == null)
-{
-    throw new ArgumentException($"Episode with id '{episodeId}' not found.");
-}
-var podcast = await repository.GetBy(x => x.Id == podcastId.guid);
-var episode= podcast!.Episodes.First(ep => ep.Id == episodeId);
-
-await component.RemovePost(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
+var url = new Uri(args[0]);
+var result = await component.GetMetaData(url);
+logger.LogInformation($"title: '{result.Title}'.");
+logger.LogInformation($"description: '{result.Description}'.");
+logger.LogInformation($"duration: '{result.Duration}'.");
+logger.LogInformation($"release: '{result.Release}'.");
+logger.LogInformation($"image: '{result.Image}'.");
+logger.LogInformation($"explicit: '{result.Explicit}'.");
 
 return;
 

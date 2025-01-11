@@ -1,9 +1,3 @@
-﻿using RedditPodcastPoster.PodcastServices.Abstractions;
+﻿namespace RedditPodcastPoster.BBC;
 
-namespace RedditPodcastPoster.BBC;
-
-// ReSharper disable once InconsistentNaming
-public interface IiPlayerPageMetaDataExtractor
-{
-    Task<NonPodcastServiceItemMetaData> GetMetaData(Uri url);
-}
+public interface IiPlayerPageMetaDataExtractor : IMetaDataExtractor { }

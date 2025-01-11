@@ -9,7 +9,8 @@ public static class ServiceCollectionExtensions
         return services
             .AddSingleton<IBBCHttpClientFactory, BBCHttpClientFactory>()
             .AddScoped(s => s.GetService<IBBCHttpClientFactory>()!.Create())
+            .AddScoped<IBBCPageMetaDataExtractor, BBCPageMetaDataExtractor>()
             .AddScoped<IiPlayerPageMetaDataExtractor, iPlayerPageMetaDataExtractor>()
-            .AddScoped<IMetaDataExtractor, MetaDataExtractor>();
+            .AddScoped< ISoundsPageMetaDataExtractor, SoundsPageMetaDataExtractor>();
     }
 }
