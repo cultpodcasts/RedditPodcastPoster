@@ -15,7 +15,7 @@ public class ImageUpdater(
     IAppleEpisodeResolver appleEpisodeResolver,
     IYouTubeServiceWrapper youTubeService,
     IYouTubeVideoService youTubeVideoService,
-    IiPlayerPageMetaDataExtractor iPlayerPageMetaDataExtractor,
+    IBBCPageMetaDataExtractor bbcPageMetaDataExtractor,
     ILogger<ImageUpdater> logger) : IImageUpdater
 {
     public async Task<bool> UpdateImages(Podcast podcast, Episode episode, EpisodeImageUpdateRequest updateRequest, IndexingContext indexingContext)
@@ -88,7 +88,7 @@ public class ImageUpdater(
         {
             try
             {
-                var metaData = await iPlayerPageMetaDataExtractor.GetMetaData(episode.Urls.BBC);
+                var metaData = await bbcPageMetaDataExtractor.GetMetaData(episode.Urls.BBC);
                 episode.Images ??= new EpisodeImages();
                 episode.Images.Other = metaData.Image;
                 updated = true;

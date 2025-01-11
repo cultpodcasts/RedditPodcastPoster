@@ -7,7 +7,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 namespace RedditPodcastPoster.PodcastServices;
 
 public class StreamingServiceMetaDataHandler(
-    IiPlayerPageMetaDataExtractor bbcMetaDataExtractor,
+    IBBCPageMetaDataExtractor bbcPageMetaDataExtractor,
     IInternetArchivePageMetaDataExtractor internetArchivePageMetaDataExtractor,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<StreamingServiceMetaDataHandler> logger
@@ -29,7 +29,7 @@ public class StreamingServiceMetaDataHandler(
         }
         else if (BBCUrlMatcher.IsBBCUrl(url))
         {
-            metaData = await bbcMetaDataExtractor.GetMetaData(url);
+            metaData = await bbcPageMetaDataExtractor.GetMetaData(url);
             publisher = "BBC";
             service = NonPodcastService.BBC;
         }

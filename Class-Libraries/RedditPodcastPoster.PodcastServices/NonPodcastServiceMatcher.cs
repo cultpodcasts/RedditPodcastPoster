@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.PodcastServices;
+﻿using RedditPodcastPoster.BBC;
+
+namespace RedditPodcastPoster.PodcastServices;
 
 public static class NonPodcastServiceMatcher
 {
@@ -9,10 +11,6 @@ public static class NonPodcastServiceMatcher
 
     public static bool MatchesBBC(Uri url)
     {
-        return url.Host.ToLower().Contains("bbc.co.uk") && (
-                url.AbsolutePath.StartsWith("/iplayer/episode") ||
-                url.AbsolutePath.StartsWith("/sounds/play/")
-            );
+        return ServiceMatcher.IsIplayer(url) || ServiceMatcher.IsSounds(url);
     }
-
 }
