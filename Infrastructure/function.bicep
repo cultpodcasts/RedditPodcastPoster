@@ -62,7 +62,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
     serverFarmId: hostingPlan.id
     siteConfig: {
       functionAppScaleLimit: 1
-      linuxFxVersion: 'DOTNET-ISOLATED|8.0'
+      linuxFxVersion: 'DOTNET-ISOLATED|9.0'
     }
   }
 }
