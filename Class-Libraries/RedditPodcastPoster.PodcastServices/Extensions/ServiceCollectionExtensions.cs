@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Extensions;
@@ -9,6 +8,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddPodcastServices(this IServiceCollection services)
     {
         return services
+            .AddScoped<IFlushable, CacheFlusher>()
             .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
             .AddScoped<IPodcastUpdater, PodcastUpdater>()
             .AddScoped<INonPodcastServiceCategoriser, NonPodcastServiceCategoriser>()
