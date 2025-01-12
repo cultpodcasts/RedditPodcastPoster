@@ -47,7 +47,6 @@ public static class Ioc
             .AddScoped(s => new iTunesSearchManager())
             .AddEliminationTerms()
             .AddRedditServices()
-            .AddScoped<IFlushable, CacheFlusher>()
             .AddTwitterServices()
             .AddBlueskyServices()
             .AddSubjectServices()
