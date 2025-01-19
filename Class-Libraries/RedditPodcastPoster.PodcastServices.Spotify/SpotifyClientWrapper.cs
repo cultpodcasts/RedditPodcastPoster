@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using SpotifyAPI.Web;
 
@@ -254,10 +255,11 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
             if (ex.Message.StartsWith("Non existing id:") || ex.Response?.StatusCode == HttpStatusCode.NotFound)
             {
                 logger.LogError(ex,
-                    "{method} Failure with Spotify-API. Item with '{episodeId}' not found. Response: '{responseBody}'.", 
+                    "{method} Failure with Spotify-API. Item with '{episodeId}' not found. Response: '{responseBody}'.",
                     nameof(GetFullEpisode), episodeId, ex.Response?.Body ?? "<null>");
-                throw new EpisodeNotFoundException(episodeId);
+                throw new EpisodeNotFoundException(episodeId, Service.Spotify);
             }
+
             logger.LogError(ex,
                 "{method} Failure with Spotify-API. Response: '{responseBody}'.",
                 nameof(GetFullEpisode), ex.Response?.Body ?? "<null>");
@@ -266,7 +268,7 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "{method} Failure with Spotify-API. Episode-id: '{episodeId}'.", 
+            logger.LogError(ex, "{method} Failure with Spotify-API. Episode-id: '{episodeId}'.",
                 nameof(GetFullEpisode), episodeId);
             return null;
         }
