@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.PodcastServices.Abstractions;
+﻿using RedditPodcastPoster.Models;
 
-public class EpisodeNotFoundException(string spotifyId)
-    : Exception($"Spotify episode with spotify episode-id '{spotifyId}' not found");
+namespace RedditPodcastPoster.PodcastServices.Abstractions;
+
+public class EpisodeNotFoundException(string spotifyId, Service service)
+    : Exception($"{service} episode with {service} episode-id '{spotifyId}' not found");
