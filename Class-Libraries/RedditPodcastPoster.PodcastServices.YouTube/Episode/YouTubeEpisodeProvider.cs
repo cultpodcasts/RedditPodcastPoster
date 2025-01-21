@@ -75,7 +75,8 @@ public class YouTubeEpisodeProvider(
             videoDetails.GetLength() ?? TimeSpan.Zero,
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
             playlistItemSnippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-            playlistItemSnippet.ToYouTubeUrl());
+            playlistItemSnippet.ToYouTubeUrl(),
+            videoDetails.GetImageUrl());
     }
 
     public async Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(YouTubePlaylistId youTubePlaylistId,
@@ -100,7 +101,7 @@ public class YouTubeEpisodeProvider(
             await youTubeVideoService.GetVideoContentDetails(
                 youTubeService,
                 results.Select(x => x.Snippet.ResourceId.VideoId),
-                indexingContext, 
+                indexingContext,
                 true);
         if (videoDetails != null && videoDetails.Any())
         {
@@ -111,27 +112,29 @@ public class YouTubeEpisodeProvider(
                     results
                         .Where(x => x.Snippet != null)
                         .Where(x => x.Snippet.Title != "Deleted video")
-                        .Select(x => 
+                        .Select(x =>
                             new PlaylistItemVideo(
-                                x, 
-                                videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == x.Snippet.ResourceId.VideoId)!
-                                )
+                                x,
+                                videoDetails.SingleOrDefault(videoDetail =>
+                                    videoDetail.Id == x.Snippet.ResourceId.VideoId)!
                             )
+                        )
                         .Where(x => x.VideoDetails?.Snippet != null)
-                        .Where(
-                            x => youTubeChannelId == null ||
-                            x.VideoDetails.Snippet.ChannelId == youTubeChannelId.ChannelId)
+                        .Where(x => youTubeChannelId == null ||
+                                    x.VideoDetails.Snippet.ChannelId == youTubeChannelId.ChannelId)
                         .Select(x => GetEpisode(x.PlaylistItem.Snippet, x.VideoDetails))
                         .ToList();
                 return new GetPlaylistEpisodesResponse(reducedResults, isExpensiveQuery);
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error getting playlist videos. youtube-channel-id: '{youtubeChannelId}', youtube-channel-id-value: '{youtubeChannelIdValue}'",
+                logger.LogError(e,
+                    "Error getting playlist videos. youtube-channel-id: '{youtubeChannelId}', youtube-channel-id-value: '{youtubeChannelIdValue}'",
                     youTubeChannelId,
                     youTubeChannelId?.ChannelId);
             }
         }
+
         return new GetPlaylistEpisodesResponse(null, isExpensiveQuery);
     }
 

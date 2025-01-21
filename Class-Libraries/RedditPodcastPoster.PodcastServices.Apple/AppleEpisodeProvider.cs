@@ -33,7 +33,8 @@ public class AppleEpisodeProvider(
                 x.Duration,
                 x.Explicit,
                 x.Release,
-                x.Url.CleanAppleUrl())
+                x.Url.CleanAppleUrl(),
+                x.Image)
         ).ToList();
     }
 }

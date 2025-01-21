@@ -102,7 +102,10 @@ public class Episode
         };
         if (maxImage != null)
         {
-            episode.Images = new EpisodeImages {Spotify = maxImage};
+            episode.Images = new EpisodeImages
+            {
+                Spotify = maxImage
+            };
         }
 
         return episode;
@@ -116,7 +119,7 @@ public class Episode
         bool @explicit,
         DateTime release,
         Uri youTubeUrl,
-        Uri? image = null)
+        Uri? image)
     {
         var episode = new Episode
         {
@@ -146,9 +149,10 @@ public class Episode
         TimeSpan length,
         bool @explicit,
         DateTime release,
-        Uri url)
+        Uri url,
+        Uri? image)
     {
-        return new Episode
+        var episode = new Episode
         {
             AppleId = appleId,
             Title = title,
@@ -158,5 +162,14 @@ public class Episode
             Release = release,
             Urls = new ServiceUrls {Apple = url}
         };
+        if (image != null)
+        {
+            episode.Images = new EpisodeImages
+            {
+                Apple = image
+            };
+        }
+
+        return episode;
     }
 }
