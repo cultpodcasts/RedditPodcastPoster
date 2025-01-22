@@ -124,12 +124,11 @@ public class PodcastRepository(
         //            episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
         var items = await GetAllBy(x =>
             (!x.Removed.IsDefined() || x.Removed == false) &&
-            x.Episodes.Any(
-                episode =>
-                    episode.Release >= since &&
-                    episode.Posted == false &&
-                    episode.Ignored == false &&
-                    episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
+            x.Episodes.Any(episode =>
+                episode.Release >= since &&
+                episode.Posted == false &&
+                episode.Ignored == false &&
+                episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
         return items.Select(x => x.guid);
     }
 
@@ -147,12 +146,11 @@ public class PodcastRepository(
         //            episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
         var items = await GetAllBy(x =>
             (!x.Removed.IsDefined() || x.Removed == false) &&
-            x.Episodes.Any(
-                episode =>
-                    episode.Release >= since &&
-                    episode.Tweeted == false &&
-                    episode.Ignored == false &&
-                    episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
+            x.Episodes.Any(episode =>
+                episode.Release >= since &&
+                episode.Tweeted == false &&
+                episode.Ignored == false &&
+                episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
         return items.Select(x => x.guid);
     }
 
@@ -170,12 +168,11 @@ public class PodcastRepository(
         //            episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
         var items = await GetAllBy(x =>
             (!x.Removed.IsDefined() || x.Removed == false) &&
-            x.Episodes.Any(
-                episode =>
-                    episode.Release >= since &&
-                    (!episode.BlueskyPosted.IsDefined() || episode.BlueskyPosted == false) &&
-                    episode.Ignored == false &&
-                    episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
+            x.Episodes.Any(episode =>
+                episode.Release >= since &&
+                (!episode.BlueskyPosted.IsDefined() || episode.BlueskyPosted == false) &&
+                episode.Ignored == false &&
+                episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
         return items.Select(x => x.guid);
     }
 
@@ -223,15 +220,36 @@ public class PodcastRepository(
             updated = true;
         }
 
+        if (existingEpisode.Images?.Spotify == null && episodeToMerge.Images?.Spotify != null)
+        {
+            existingEpisode.Images ??= new EpisodeImages();
+            existingEpisode.Images.Spotify ??= episodeToMerge.Images.Spotify;
+            updated = true;
+        }
+
         if (existingEpisode.Urls.Apple == null && episodeToMerge.Urls.Apple != null)
         {
             existingEpisode.Urls.Apple ??= episodeToMerge.Urls.Apple;
             updated = true;
         }
 
+        if (existingEpisode.Images?.Apple == null && episodeToMerge.Images?.Apple != null)
+        {
+            existingEpisode.Images ??= new EpisodeImages();
+            existingEpisode.Images.Apple ??= episodeToMerge.Images.Apple;
+            updated = true;
+        }
+
         if (existingEpisode.Urls.YouTube == null && episodeToMerge.Urls.YouTube != null)
         {
             existingEpisode.Urls.YouTube ??= episodeToMerge.Urls.YouTube;
+            updated = true;
+        }
+
+        if (existingEpisode.Images?.YouTube == null && episodeToMerge.Images?.YouTube != null)
+        {
+            existingEpisode.Images ??= new EpisodeImages();
+            existingEpisode.Images.YouTube ??= episodeToMerge.Images.YouTube;
             updated = true;
         }
 
