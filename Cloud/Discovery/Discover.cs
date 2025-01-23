@@ -99,10 +99,13 @@ public class Discover(
             {
                 var unprocessedDiscoveryReports = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync();
                 var numberOfReports = unprocessedDiscoveryReports.Count();
-                var minProcessed = unprocessedDiscoveryReports.Min(x => x.DiscoveryBegan);
-                var numberOfResults = unprocessedDiscoveryReports.SelectMany(x => x.DiscoveryResults).Count();
-                await notificationPublisher.SendDiscoveryNotification(
-                    new DiscoveryNotification(numberOfReports, minProcessed, numberOfResults));
+                DateTime? minProcessed = null;
+                int? numberOfResults = null;
+                if (numberOfReports > 0)
+                {
+                    minProcessed = unprocessedDiscoveryReports.Min(x => x.DiscoveryBegan);
+                    numberOfResults = unprocessedDiscoveryReports.SelectMany(x => x.DiscoveryResults).Count();
+                }
 
                 await contentPublisher.PublishDiscoveryInfo(new DiscoveryInfo
                 {

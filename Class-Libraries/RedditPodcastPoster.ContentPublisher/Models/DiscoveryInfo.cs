@@ -10,9 +10,9 @@ public class DiscoveryInfo
 
     [JsonPropertyName("numberOfResults")]
     [JsonPropertyOrder(2)]
-    public int NumberOfResults { get; set; }
+    public int? NumberOfResults { get; set; }
 
     [JsonPropertyName("discoveryBegan")]
     [JsonPropertyOrder(3)]
-    public DateTime DiscoveryBegan { get; set; }
+    public DateTime? DiscoveryBegan { get; set; }
 }
