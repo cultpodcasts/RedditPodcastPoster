@@ -1,6 +1,8 @@
 using Api.Dtos;
 using Api.Dtos.Extensions;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.ContentPublisher;
+using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -10,6 +12,7 @@ namespace Api.Services;
 public class DiscoveryResultsService(
     IDiscoveryResultsRepository discoveryResultsRepository,
     IPodcastRepository podcastRepository,
+    IContentPublisher contentPublisher,
     ILogger<DiscoveryResultsService> logger) : IDiscoveryResultsService
 {
     public async Task<DiscoveryResponse> Get(CancellationToken c)
@@ -43,6 +46,27 @@ public class DiscoveryResultsService(
             .ToListAsync();
         var discoveryResults = documentResultSets.SelectMany(x => x.DiscoveryResults);
         return discoveryResults.Where(y => discoverySubmitRequest.ResultIds.Contains(y.Id));
+    }
+
+    public async Task UpdateDiscoveryInfoContent()
+    {
+        try
+        {
+            var unprocessedDiscoveryReports = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync();
+            var numberOfReports = unprocessedDiscoveryReports.Count();
+            var minProcessed = unprocessedDiscoveryReports.Min(x => x.DiscoveryBegan);
+            var numberOfResults = unprocessedDiscoveryReports.SelectMany(x => x.DiscoveryResults).Count();
+            await contentPublisher.PublishDiscoveryInfo(new DiscoveryInfo
+            {
+                DocumentCount = numberOfReports,
+                NumberOfResults = numberOfResults,
+                DiscoveryBegan = minProcessed
+            });
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failure to update discover-info-content.");
+        }
     }
 
     public async Task MarkAsProcessed(Guid[] documentIds, Guid[] acceptedResultIds, Guid[] erroredResultIds)

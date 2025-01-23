@@ -111,6 +111,7 @@ public class DiscoveryCurationController(
                 erroredResults.ToArray());
 
             await searchIndexerService.RunIndexer();
+            await discoveryResultsService.UpdateDiscoveryInfoContent();
 
             var response = new DiscoverySubmitResponse
             {
