@@ -3,6 +3,8 @@ using Azure;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.ContentPublisher;
+using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -18,6 +20,7 @@ public class Discover(
     IDiscoveryResultsRepository discoveryResultsRepository,
     INotificationPublisher notificationPublisher,
     IActivityMarshaller activityMarshaller,
+    IContentPublisher contentPublisher,
     ILogger<Discover> logger) : TaskActivity<DiscoveryContext, DiscoveryContext>
 {
     private readonly DiscoverOptions _discoverOptions =
@@ -100,11 +103,18 @@ public class Discover(
                 var numberOfResults = unprocessedDiscoveryReports.SelectMany(x => x.DiscoveryResults).Count();
                 await notificationPublisher.SendDiscoveryNotification(
                     new DiscoveryNotification(numberOfReports, minProcessed, numberOfResults));
+
+                await contentPublisher.PublishDiscoveryInfo(new DiscoveryInfo
+                {
+                    DocumentCount = numberOfReports,
+                    NumberOfResults = numberOfResults,
+                    DiscoveryBegan = minProcessed
+                });
             }
             catch (Exception e)
             {
                 logger.LogError(e,
-                    $"Failure to persist {nameof(DiscoveryResultsDocument)}. Failure to send notification.");
+                    $"Failure to persist {nameof(DiscoveryResultsDocument)}. Failure to send-notification/publish-discovery-info.");
             }
 
             logger.LogInformation(

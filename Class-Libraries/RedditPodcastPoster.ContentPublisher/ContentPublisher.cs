@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Reddit;
 using Reddit.Things;
+using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using Flair = RedditPodcastPoster.ContentPublisher.Models.Flair;
@@ -79,6 +80,29 @@ public class ContentPublisher(
         catch (Exception ex)
         {
             logger.LogError(ex, $"{nameof(PublishFlairs)} - Failed to upload flairs-content to R2");
+        }
+    }
+
+    public async Task PublishDiscoveryInfo(DiscoveryInfo discoveryInfo)
+    {
+        var json = JsonSerializer.Serialize(discoveryInfo);
+        var request = new PutObjectRequest
+        {
+            BucketName = _contentOptions.BucketName,
+            Key = _contentOptions.DiscoveryInfoKey,
+            ContentBody = json,
+            ContentType = "application/json",
+            DisablePayloadSigning = true
+        };
+
+        try
+        {
+            await client.PutObjectAsync(request);
+            logger.LogInformation($"Completed '{nameof(PublishDiscoveryInfo)}'.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"{nameof(PublishDiscoveryInfo)} - Failed to upload discovery-info-content to R2");
         }
     }
 
