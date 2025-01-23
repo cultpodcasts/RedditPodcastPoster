@@ -67,9 +67,11 @@ public class PodcastService(
             if (podcasts.Count() > 1)
             {
                 podcasts = podcasts.Where(x => x.YouTubePlaylistId == string.Empty);
-                if (podcasts.Count() > 1 && podcasts.Count(x => x.IndexAllEpisodes) == 1)
+                if (podcasts.Count() > 1 && podcasts.Count(x =>
+                        x.IndexAllEpisodes || !string.IsNullOrWhiteSpace(x.EpisodeIncludeTitleRegex)) == 1)
                 {
-                    podcasts = podcasts.Where(x => x.IndexAllEpisodes);
+                    podcasts = podcasts.Where(x =>
+                        x.IndexAllEpisodes || !string.IsNullOrWhiteSpace(x.EpisodeIncludeTitleRegex));
                 }
 
                 if (podcasts.Count() > 1)
