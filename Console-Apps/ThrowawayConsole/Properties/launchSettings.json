@@ -2,7 +2,7 @@
   "profiles": {
     "ThrowawayConsole": {
       "commandName": "Project",
-      "commandLineArgs": ""
+      "commandLineArgs": "ba2889fa-fa8a-4deb-91c1-cc1f03b9b876"
     }
   }
 }

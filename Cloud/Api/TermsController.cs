@@ -47,6 +47,16 @@ public class TermsController(
             }
 
             var titleCasedTerm = Regex.Escape(new CultureInfo("en-GB", false).TextInfo.ToTitleCase(req.Term));
+            if (!titleCasedTerm.StartsWith("("))
+            {
+                titleCasedTerm = @$"\b{titleCasedTerm}";
+            }
+
+            if (!titleCasedTerm.EndsWith(")"))
+            {
+                titleCasedTerm = @$"{titleCasedTerm}\b";
+            }
+
             knownTerms.Terms.Add(req.Term,
                 new Regex(@$"\b{titleCasedTerm}\b", RegexOptions.Compiled | RegexOptions.IgnoreCase));
             await knownTermsRepository.Save(knownTerms);
