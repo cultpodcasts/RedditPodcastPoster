@@ -252,7 +252,7 @@ public class PodcastController(
             podcast.PrimaryPostService = null;
         }
 
-        if (podcastChangeRequest.SpotifyId!=null)
+        if (podcastChangeRequest.SpotifyId != null)
         {
             if (podcastChangeRequest.SpotifyId == string.Empty)
             {
@@ -370,7 +370,12 @@ public class PodcastController(
                     DescriptionRegex = podcast.DescriptionRegex,
                     EpisodeMatchRegex = podcast.EpisodeMatchRegex,
                     EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex,
-                    DefaultSubject = podcast.DefaultSubject
+                    DefaultSubject = podcast.DefaultSubject,
+                    IgnoreAllEpisodes = podcast.IgnoreAllEpisodes ?? false,
+                    YouTubeChannelId = podcast.YouTubeChannelId,
+                    YouTubePlaylistId = podcast.YouTubePlaylistId,
+                    IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
+                    IgnoredSubjects = podcast.IgnoredSubjects
                 };
                 return await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(dto, c);
             }
@@ -518,7 +523,8 @@ public class PodcastController(
                     new PodcastRedirect(
                         change.Name,
                         change.NewName));
-            logger.LogInformation("Result of {method} = {result}", nameof(redirectService.CreatePodcastRedirect), result);
+            logger.LogInformation("Result of {method} = {result}", nameof(redirectService.CreatePodcastRedirect),
+                result);
             if (result)
             {
                 foreach (var podcast in podcastsToUpdate)
