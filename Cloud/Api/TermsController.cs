@@ -58,7 +58,7 @@ public class TermsController(
             }
 
             knownTerms.Terms.Add(req.Term,
-                new Regex(@$"\b{titleCasedTerm}\b", RegexOptions.Compiled | RegexOptions.IgnoreCase));
+                new Regex(titleCasedTerm, RegexOptions.Compiled | RegexOptions.IgnoreCase));
             await knownTermsRepository.Save(knownTerms);
             return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new { }, c);
         }
