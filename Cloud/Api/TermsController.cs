@@ -34,19 +34,20 @@ public class TermsController(
         return HandleRequest(req, ["curate"], termSubmitRequest, Post, Unauthorised, ct);
     }
 
-    private async Task<HttpResponseData> Post(HttpRequestData r, TermSubmitRequest t, ClientPrincipal? _,
+    private async Task<HttpResponseData> Post(HttpRequestData r, TermSubmitRequest req, ClientPrincipal? _,
         CancellationToken c)
     {
         try
         {
             var knownTerms = await knownTermsRepository.Get();
-            if (knownTerms.Terms.Keys.Select(x => x.ToLowerInvariant()).Contains(t.Term.ToLowerInvariant()))
+            if (knownTerms.Terms.Keys.Select(x => x.ToLowerInvariant())
+                .Contains(Regex.Escape(req.Term).ToLowerInvariant()))
             {
                 return r.CreateResponse(HttpStatusCode.Conflict);
             }
 
-            var titleCasedTerm = new CultureInfo("en-GB", false).TextInfo.ToTitleCase(t.Term);
-            knownTerms.Terms.Add(t.Term,
+            var titleCasedTerm = Regex.Escape(new CultureInfo("en-GB", false).TextInfo.ToTitleCase(req.Term));
+            knownTerms.Terms.Add(req.Term,
                 new Regex(@$"\b{titleCasedTerm}\b", RegexOptions.Compiled | RegexOptions.IgnoreCase));
             await knownTermsRepository.Save(knownTerms);
             return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new { }, c);
