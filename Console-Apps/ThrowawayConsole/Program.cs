@@ -10,7 +10,10 @@ using RedditPodcastPoster.Bluesky.Extensions;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
@@ -44,22 +47,19 @@ builder.Services
     .AddCommonServices()
     .AddShortnerServices()
     .AddCloudflareClients()
+    .AddAppleServices()
     .AddDelayedYouTubePublication();
 
 
 using var host = builder.Build();
 
-var component = host.Services.GetService<IBBCPageMetaDataExtractor>()!;
-var logger = host.Services.GetService<ILogger<Program>>()!;
+var repository= host.Services.GetService<IPodcastRepository>()!;
+var podcast = await repository.GetPodcast(Guid.Parse(args[0]));
+var component = host.Services.GetService<IAppleEpisodeRetrievalHandler>()!;
+var indexingContext = new IndexingContext(DateTime.Now.Subtract(TimeSpan.FromDays(2)));
 
-var url = new Uri(args[0]);
-var result = await component.GetMetaData(url);
-logger.LogInformation($"title: '{result.Title}'.");
-logger.LogInformation($"description: '{result.Description}'.");
-logger.LogInformation($"duration: '{result.Duration}'.");
-logger.LogInformation($"release: '{result.Release}'.");
-logger.LogInformation($"image: '{result.Image}'.");
-logger.LogInformation($"explicit: '{result.Explicit}'.");
+
+var (episodes, handled) = await component.GetEpisodes(podcast, indexingContext);
 
 return;
 
