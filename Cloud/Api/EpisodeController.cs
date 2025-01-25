@@ -30,6 +30,7 @@ using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.UrlShortening;
+using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
 
 namespace Api;
 
@@ -127,7 +128,7 @@ public class EpisodeController(
             {
                 var tooManyPodcasts = await req
                     .CreateResponse(HttpStatusCode.Ambiguous)
-                    .WithJsonBody(new { message = $"Multiple podcasts. Count='{podcasts.Count}'." }, c);
+                    .WithJsonBody(new {message = $"Multiple podcasts. Count='{podcasts.Count}'."}, c);
                 return tooManyPodcasts;
             }
 
@@ -163,7 +164,7 @@ public class EpisodeController(
             if (episode.Tweeted || episode.Posted)
             {
                 return await req.CreateResponse(HttpStatusCode.BadRequest).WithJsonBody(
-                    new { message = "Cannot remove episode.", posted = episode.Posted, tweeted = episode.Tweeted }, c);
+                    new {message = "Cannot remove episode.", posted = episode.Posted, tweeted = episode.Tweeted}, c);
             }
 
             var removed = podcasts.Single().Episodes.Remove(episode);
@@ -206,7 +207,7 @@ public class EpisodeController(
 
             var episode = podcast!.Episodes.Single(x => x.Id == publishRequest.EpisodeId);
 
-            var podcastEpisode = new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode);
+            var podcastEpisode = new PodcastEpisode(podcast, episode);
 
             if (publishRequest.EpisodePublishRequest.Post)
             {
@@ -326,7 +327,7 @@ public class EpisodeController(
                         (!ep.Posted || posted) &&
                         (!ep.Tweeted || tweeted) &&
                         (!(ep.BlueskyPosted.IsDefined() && ep.BlueskyPosted == true) || blueskyPosted)),
-                x => new { guid = x.Id }).ToListAsync(c);
+                x => new {guid = x.Id}).ToListAsync(c);
             foreach (var podcastId in podcastIds)
             {
                 var podcast = await podcastRepository.GetBy(x => x.Id == podcastId.guid);
@@ -432,11 +433,11 @@ public class EpisodeController(
 
             if (changeState.UnPost)
             {
-                await postManager.RemoveEpisodePost(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
+                await postManager.RemoveEpisodePost(new PodcastEpisode(podcast, episode));
             }
             else if (changeState.UpdatedSubjects)
             {
-                await postManager.UpdateFlare(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
+                await postManager.UpdateFlare(new PodcastEpisode(podcast, episode));
             }
 
             var removeTweetResult = RemoveTweetState.Unknown;
@@ -444,8 +445,8 @@ public class EpisodeController(
             {
                 try
                 {
-                    removeTweetResult = await tweetManager.RemoveTweet(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
-                    if (removeTweetResult!= RemoveTweetState.Deleted)
+                    removeTweetResult = await tweetManager.RemoveTweet(new PodcastEpisode(podcast, episode));
+                    if (removeTweetResult != RemoveTweetState.Deleted)
                     {
                         logger.LogWarning("Failure to delete tweet. Result= {removeTweetResult}.", removeTweetResult);
                     }
@@ -457,15 +458,17 @@ public class EpisodeController(
                     removeTweetResult = RemoveTweetState.Other;
                 }
             }
+
             var removeBlueskyPostResult = RemovePostState.Unknown;
             if (changeState.UnBlueskyPost)
             {
                 try
                 {
-                    removeBlueskyPostResult = await blueskyPostManager.RemovePost(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
+                    removeBlueskyPostResult = await blueskyPostManager.RemovePost(new PodcastEpisode(podcast, episode));
                     if (removeBlueskyPostResult != RemovePostState.Deleted)
                     {
-                        logger.LogWarning("Failure to delete bluesky-post. Result= {removeBlueskyPostResult}.", removeBlueskyPostResult);
+                        logger.LogWarning("Failure to delete bluesky-post. Result= {removeBlueskyPostResult}.",
+                            removeBlueskyPostResult);
                     }
                 }
                 catch (Exception e)
@@ -480,12 +483,13 @@ public class EpisodeController(
             if (changeState.UnTweet)
             {
                 respModel.TweetDeleted = removeTweetResult == RemoveTweetState.Deleted;
-                    
             }
+
             if (changeState.UnBlueskyPost)
             {
                 respModel.BlueskyPostDeleted = removeBlueskyPostResult == RemovePostState.Deleted;
             }
+
             var response = await req.CreateResponse(HttpStatusCode.Accepted).WithJsonBody(respModel, c);
             return response;
         }
@@ -510,7 +514,7 @@ public class EpisodeController(
             var result = await searchClient.DeleteDocumentsAsync(
                 "id",
                 [episodeId.ToString()],
-                new IndexDocumentsOptions { ThrowOnAnyError = true },
+                new IndexDocumentsOptions {ThrowOnAnyError = true},
                 c);
             var success = result.Value.Results.First().Succeeded;
             if (!success)
@@ -620,7 +624,7 @@ public class EpisodeController(
                 episode.Urls.Spotify = null;
                 if (episode.Images != null)
                 {
-                    episode.Images.YouTube = null;
+                    episode.Images.Spotify = null;
                 }
             }
             else
@@ -784,6 +788,7 @@ public class EpisodeController(
                 episode.Images.Other = episodeChangeRequest.Images.Other;
             }
         }
+
         if (episode.Images != null &&
             episode.Images.YouTube == null &&
             episode.Images.Spotify == null &&
@@ -826,4 +831,3 @@ public class EpisodeController(
         return failure;
     }
 }
-
