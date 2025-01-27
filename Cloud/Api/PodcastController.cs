@@ -294,6 +294,11 @@ public class PodcastController(
             }
         }
 
+        if (podcastChangeRequest.YouTubePlaylistId != null)
+        {
+            podcast.YouTubePlaylistId = podcastChangeRequest.YouTubePlaylistId;
+        }
+
         if (podcastChangeRequest.SkipEnrichingFromYouTube != null)
         {
             podcast.SkipEnrichingFromYouTube = podcastChangeRequest.SkipEnrichingFromYouTube.Value;
@@ -335,6 +340,28 @@ public class PodcastController(
         if (podcastChangeRequest.DefaultSubject != null)
         {
             podcast.DefaultSubject = podcastChangeRequest.DefaultSubject;
+        }
+
+        if (podcastChangeRequest.IgnoreAllEpisodes != null)
+        {
+            if (podcastChangeRequest.IgnoreAllEpisodes.HasValue && podcastChangeRequest.IgnoreAllEpisodes.Value)
+            {
+                podcast.IgnoreAllEpisodes = true;
+            }
+            else
+            {
+                podcast.IgnoreAllEpisodes = null;
+            }
+        }
+
+        if (podcastChangeRequest.IgnoredSubjects != null)
+        {
+            podcast.IgnoredSubjects = podcastChangeRequest.IgnoredSubjects;
+        }
+
+        if (podcastChangeRequest.IgnoredAssociatedSubjects != null)
+        {
+            podcast.IgnoredAssociatedSubjects = podcastChangeRequest.IgnoredAssociatedSubjects;
         }
     }
 
