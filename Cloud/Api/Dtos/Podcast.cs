@@ -71,13 +71,13 @@ public class Podcast
     public string? DefaultSubject { get; set; }
 
     [JsonPropertyName("ignoreAllEpisodes")]
-    public bool IgnoreAllEpisodes { get; set; }
+    public bool? IgnoreAllEpisodes { get; set; }
 
     [JsonPropertyName("youTubeChannelId")]
-    public string YouTubeChannelId { get; set; } = "";
+    public string? YouTubeChannelId { get; set; }
 
     [JsonPropertyName("youTubePlaylistId")]
-    public string YouTubePlaylistId { get; set; } = "";
+    public string? YouTubePlaylistId { get; set; }
 
     [JsonPropertyName("ignoredAssociatedSubjects")]
     public string[]? IgnoredAssociatedSubjects { get; set; }
