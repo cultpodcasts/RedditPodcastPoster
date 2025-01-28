@@ -103,7 +103,7 @@ public class PodcastUpdater(
             filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any() ||
             discoveredYouTubeExpensiveQuery || discoveredSpotifyExpensiveQuery)
         {
-            await podcastRepository.Update(podcast);
+            await podcastRepository.Save(podcast);
         }
 
         return new IndexPodcastResult(

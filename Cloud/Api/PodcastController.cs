@@ -132,7 +132,7 @@ public class PodcastController(
                 await UpdateName(podcast, podcastChangeRequestWrapper.Podcast.Name);
             }
 
-            await podcastRepository.Update(podcast);
+            await podcastRepository.Save(podcast);
             if (podcastChangeRequestWrapper.Podcast.Removed.HasValue &&
                 podcastChangeRequestWrapper.Podcast.Removed.Value)
             {

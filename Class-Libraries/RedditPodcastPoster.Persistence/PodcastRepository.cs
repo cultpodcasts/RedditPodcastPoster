@@ -84,11 +84,6 @@ public class PodcastRepository(
         return dataRepository.Write(podcast);
     }
 
-    public Task Update(Podcast podcast)
-    {
-        return Save(podcast);
-    }
-
     public Task<Podcast?> GetBy(Expression<Func<Podcast, bool>> selector)
     {
         return dataRepository.GetBy(selector);

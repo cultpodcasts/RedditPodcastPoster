@@ -18,14 +18,16 @@ public class PodcastFilter(ILogger<PodcastFilter> logger) : IPodcastFilter
             var matchedTerms = new List<string>();
             foreach (var eliminationTerm in eliminationTerms)
             {
-                remove = titleLower.Contains(eliminationTerm) || descriptionLower.Contains(eliminationTerm);
-                if (remove)
+                var removeForTerm = titleLower.Contains(eliminationTerm) || descriptionLower.Contains(eliminationTerm);
+                if (removeForTerm)
                 {
                     matchedTerms.Add(eliminationTerm);
                     logger.LogInformation(
                         "Removing episode '{episodeTitle}' of podcast '{podcastName}' due to match with '{eliminationTerm}'.",
                         podcastEpisode.Title, podcast.Name, eliminationTerm);
                 }
+
+                remove |= removeForTerm;
             }
 
             if (remove)

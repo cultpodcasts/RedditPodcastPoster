@@ -423,7 +423,7 @@ public class EpisodeController(
                     indexingContext);
             }
 
-            await podcastRepository.Update(podcast);
+            await podcastRepository.Save(podcast);
 
             if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
                 episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
