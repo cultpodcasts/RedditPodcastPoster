@@ -2,7 +2,9 @@
 using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text.EliminationTerms;
 
 namespace EliminateExistingEpisodes;
@@ -49,17 +51,7 @@ public class Processor(
         logger.LogInformation(filterResult.ToString());
         foreach (var episode in filterResult.FilteredEpisodes)
         {
-            var result = await searchClient.DeleteDocumentsAsync(
-                "id",
-                [episode.Episode.Id.ToString()],
-                new IndexDocumentsOptions {ThrowOnAnyError = true},
-                CancellationToken.None);
-            var success = result.Value.Results.First().Succeeded;
-            if (!success)
-            {
-                logger.LogError("Error removing search-item with episode-id '{episodeId}', message: '{mesage}'.",
-                    episode.Episode.Id, result.Value.Results.First().ErrorMessage);
-            }
+            await DeleteSearchDocument(episode.Episode);
         }
 
         if (!string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
@@ -74,10 +66,26 @@ public class Processor(
                     logger.LogInformation(
                         "Removing episode '{episodeTitle}' of podcast '{podcastName}' due to mismatch with '{episodeIncludeTitleRegex}'.",
                         episode.Title, podcast.Name, podcast.EpisodeIncludeTitleRegex);
+                    await DeleteSearchDocument(episode);
                 }
             }
         }
 
         await repository.Save(podcast);
+    }
+
+    private async Task DeleteSearchDocument(Episode episode)
+    {
+        var result = await searchClient.DeleteDocumentsAsync(
+            "id",
+            [episode.Id.ToString()],
+            new IndexDocumentsOptions {ThrowOnAnyError = true},
+            CancellationToken.None);
+        var success = result.Value.Results.First().Succeeded;
+        if (!success)
+        {
+            logger.LogError("Error removing search-item with episode-id '{episodeId}', message: '{mesage}'.",
+                episode.Id, result.Value.Results.First().ErrorMessage);
+        }
     }
 }
