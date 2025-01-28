@@ -32,7 +32,7 @@ public class TweetPoster(
             podcastEpisode.Episode.Tweeted = true;
             try
             {
-                await repository.Update(podcastEpisode.Podcast);
+                await repository.Save(podcastEpisode.Podcast);
             }
             catch (Exception ex)
             {

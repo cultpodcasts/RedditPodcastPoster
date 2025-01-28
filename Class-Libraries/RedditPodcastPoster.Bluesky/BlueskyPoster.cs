@@ -60,7 +60,7 @@ public class BlueskyPoster(
         podcastEpisode.Episode.BlueskyPosted = true;
         try
         {
-            await repository.Update(podcastEpisode.Podcast);
+            await repository.Save(podcastEpisode.Podcast);
         }
         catch (Exception ex)
         {

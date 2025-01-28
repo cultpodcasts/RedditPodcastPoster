@@ -41,7 +41,7 @@ public class TweetProcessor(
                     podcastEpisode.Episode.Tweeted = true;
                     try
                     {
-                        await podcastRepository.Update(podcastEpisode.Podcast);
+                        await podcastRepository.Save(podcastEpisode.Podcast);
                     }
                     catch (Exception ex)
                     {

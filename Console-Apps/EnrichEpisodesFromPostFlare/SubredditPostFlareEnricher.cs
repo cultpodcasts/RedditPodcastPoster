@@ -63,7 +63,7 @@ public class SubredditPostFlareEnricher(
 
         foreach (var podcast in podcasts)
         {
-            await podcastRepository.Update(podcast);
+            await podcastRepository.Save(podcast);
         }
     }
 
