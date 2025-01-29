@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.UrlSubmission;
-using static RedditPodcastPoster.UrlSubmission.SubmitResult;
+using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace Api.Dtos;
 
@@ -44,7 +44,7 @@ public class SubmitUrlResponse
     }
 
     private static SubmitEpisodeDetails? ToSubmitEpisodeDetails(
-        RedditPodcastPoster.UrlSubmission.SubmitEpisodeDetails? resultSubmitEpisodeDetails)
+        RedditPodcastPoster.UrlSubmission.Models.SubmitEpisodeDetails? resultSubmitEpisodeDetails)
     {
         if (resultSubmitEpisodeDetails != null)
         {

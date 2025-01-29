@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Subjects.Models;
 
 namespace CategorisePodcastEpisodes;
 

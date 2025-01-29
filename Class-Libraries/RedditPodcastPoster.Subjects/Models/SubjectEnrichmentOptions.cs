@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Subjects;
+﻿namespace RedditPodcastPoster.Subjects.Models;
 
 public record SubjectEnrichmentOptions(
     string[]? IgnoredAssociatedSubjects = null,

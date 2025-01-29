@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Subjects.HashTags;
 
 namespace RedditPodcastPoster.Subjects.Extensions;

@@ -1,9 +1,9 @@
 ﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Subjects.Models;
 
 namespace RedditPodcastPoster.Subjects;
 
 public interface ISubjectEnricher
 {
-    Task<(string[] Additions, string[] Removals)> EnrichSubjects(Episode episode,
-        SubjectEnrichmentOptions? options = null);
+    Task<EnrichSubjectsResult> EnrichSubjects(Episode episode, SubjectEnrichmentOptions? options = null);
 }

@@ -2,7 +2,7 @@
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
-namespace RedditPodcastPoster.Subjects;
+namespace RedditPodcastPoster.Subjects.Factories;
 
 public class SubjectFactory(
     IPodcastRepository podcastRepository,

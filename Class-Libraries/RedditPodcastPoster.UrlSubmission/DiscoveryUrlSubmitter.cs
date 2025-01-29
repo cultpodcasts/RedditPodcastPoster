@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission;
 
@@ -26,7 +27,8 @@ public class DiscoveryUrlSubmitter(
         Podcast? spotifyPodcast = null, applePodcast = null, youTubePodcast = null;
         if (discoveryResult.Urls.Spotify != null)
         {
-            spotifyPodcast = await podcastService.GetPodcastFromEpisodeUrl(discoveryResult.Urls.Spotify, indexingContext);
+            spotifyPodcast =
+                await podcastService.GetPodcastFromEpisodeUrl(discoveryResult.Urls.Spotify, indexingContext);
         }
 
         if (discoveryResult.Urls.Apple != null)
@@ -36,7 +38,8 @@ public class DiscoveryUrlSubmitter(
 
         if (discoveryResult.Urls.YouTube != null)
         {
-            youTubePodcast = await podcastService.GetPodcastFromEpisodeUrl(discoveryResult.Urls.YouTube, indexingContext);
+            youTubePodcast =
+                await podcastService.GetPodcastFromEpisodeUrl(discoveryResult.Urls.YouTube, indexingContext);
         }
 
         Podcast?[] podcasts = [spotifyPodcast, applePodcast, youTubePodcast];

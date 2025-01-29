@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.UrlSubmission;
+﻿namespace RedditPodcastPoster.UrlSubmission.Models;
 
 public record SubmitOptions(
     Guid? PodcastId,

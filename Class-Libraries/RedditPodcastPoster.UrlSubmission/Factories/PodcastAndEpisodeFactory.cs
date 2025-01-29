@@ -3,8 +3,9 @@ using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Models;
 
-namespace RedditPodcastPoster.UrlSubmission;
+namespace RedditPodcastPoster.UrlSubmission.Factories;
 
 public class PodcastAndEpisodeFactory(
     IEpisodeFactory episodeFactory,

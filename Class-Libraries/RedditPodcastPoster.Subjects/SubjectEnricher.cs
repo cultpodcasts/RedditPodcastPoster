@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Subjects.Models;
 
 namespace RedditPodcastPoster.Subjects;
 
@@ -8,7 +9,7 @@ public class SubjectEnricher(
     ILogger<ISubjectEnricher> logger)
     : ISubjectEnricher
 {
-    public async Task<(string[] Additions, string[] Removals)> EnrichSubjects(Episode episode,
+    public async Task<EnrichSubjectsResult> EnrichSubjects(Episode episode,
         SubjectEnrichmentOptions? options = null)
     {
         var subjectMatches = await subjectMatcher.MatchSubjects(episode, options);
@@ -27,15 +28,16 @@ public class SubjectEnricher(
                 }
             }
 
-            var terms = string.Join(",", additions.Select(x => "'" + x.Subject.Name + "' (" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"));
+            var terms = string.Join(",",
+                additions.Select(x => "'" + x.Subject.Name + "' (" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"));
             if (!episode.Subjects.Any() && additions.Count() > 1)
             {
-                logger.LogWarning("{count} - {terms} : '{episodeTitle}' ({episodeId}).", 
+                logger.LogWarning("{count} - {terms} : '{episodeTitle}' ({episodeId}).",
                     additions.Count(), terms, episode.Title, episode.Id);
             }
             else
             {
-                logger.LogInformation("{count} - {terms} : '{episodeTitle}' ({episodeId}).", 
+                logger.LogInformation("{count} - {terms} : '{episodeTitle}' ({episodeId}).",
                     additions.Count(), terms, episode.Title, episode.Id);
             }
 
@@ -46,6 +48,7 @@ public class SubjectEnricher(
         {
             if (!episode.Subjects.Any() && !string.IsNullOrWhiteSpace(options?.DefaultSubject))
             {
+                additions.Add(new SubjectMatch(new Subject(options.DefaultSubject), []));
                 episode.Subjects = new[] {options.DefaultSubject}.ToList();
                 logger.LogWarning(
                     "Applying default-subject '{defaultSubject}' to episode with title: '{episodeTitle}' ({episodeId}).",
@@ -65,7 +68,7 @@ public class SubjectEnricher(
                 string.Join(",", removals.Select(x => "'" + x + "'")), episode.Title, episode.Id);
         }
 
-        return (additions.Select(x => x.Subject.Name).ToArray(), removals.ToArray());
+        return new EnrichSubjectsResult(additions.Select(x => x.Subject.Name).ToArray(), removals.ToArray());
     }
 
     private (IList<SubjectMatch>, IList<string>) CompareSubjects(

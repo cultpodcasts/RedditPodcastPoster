@@ -11,6 +11,7 @@ using RedditPodcastPoster.Auth0;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Search;
 using RedditPodcastPoster.UrlSubmission;
+using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace Api;
 

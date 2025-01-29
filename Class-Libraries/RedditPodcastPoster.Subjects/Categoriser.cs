@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Subjects.Models;
 
 namespace RedditPodcastPoster.Subjects;
 
@@ -17,7 +18,7 @@ public class Categoriser(
         string? defaultSubject = null)
     {
         var originalSubject = episode.Subjects.ToArray();
-        var results= await subjectEnricher.EnrichSubjects(episode, new SubjectEnrichmentOptions(
+        var results = await subjectEnricher.EnrichSubjects(episode, new SubjectEnrichmentOptions(
             ignoredAssociatedSubjects,
             ignoredSubjects,
             defaultSubject));

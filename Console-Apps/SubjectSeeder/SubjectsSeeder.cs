@@ -6,6 +6,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Subjects.Factories;
 
 namespace SubjectSeeder;
 

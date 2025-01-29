@@ -1,4 +1,5 @@
 ﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Subjects.Models;
 
 namespace RedditPodcastPoster.Subjects;
 
