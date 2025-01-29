@@ -1,6 +1,6 @@
 ﻿using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Subjects;
+namespace RedditPodcastPoster.Subjects.Factories;
 
 public interface ISubjectFactory
 {

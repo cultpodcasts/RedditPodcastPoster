@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.UrlSubmission;
+﻿using RedditPodcastPoster.UrlSubmission.Models;
+
+namespace RedditPodcastPoster.UrlSubmission;
 
 public class SubmitResultAdaptor : ISubmitResultAdaptor
 {

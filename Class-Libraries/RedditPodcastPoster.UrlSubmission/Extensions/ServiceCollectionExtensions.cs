@@ -3,6 +3,7 @@ using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Factories;
 
 namespace RedditPodcastPoster.UrlSubmission.Extensions;
 

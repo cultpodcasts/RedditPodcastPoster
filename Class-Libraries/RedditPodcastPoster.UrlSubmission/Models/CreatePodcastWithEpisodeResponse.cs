@@ -1,6 +1,6 @@
 ﻿using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.UrlSubmission;
+namespace RedditPodcastPoster.UrlSubmission.Models;
 
 public record CreatePodcastWithEpisodeResponse(
     Podcast NewPodcast,

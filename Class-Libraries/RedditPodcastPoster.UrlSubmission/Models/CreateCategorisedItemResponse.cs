@@ -1,6 +1,6 @@
 ﻿using RedditPodcastPoster.UrlSubmission.Categorisation;
 
-namespace RedditPodcastPoster.UrlSubmission;
+namespace RedditPodcastPoster.UrlSubmission.Models;
 
 public record CreateCategorisedItemResponse(
     CategorisedItem CategorisedItem,

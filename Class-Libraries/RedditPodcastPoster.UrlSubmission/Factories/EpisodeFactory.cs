@@ -4,7 +4,7 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 
-namespace RedditPodcastPoster.UrlSubmission;
+namespace RedditPodcastPoster.UrlSubmission.Factories;
 
 public class EpisodeFactory(
     IDescriptionHelper descriptionHelper,

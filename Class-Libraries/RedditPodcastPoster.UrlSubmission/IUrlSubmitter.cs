@@ -1,4 +1,5 @@
 ﻿using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission;
 

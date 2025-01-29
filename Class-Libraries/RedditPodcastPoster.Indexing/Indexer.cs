@@ -2,6 +2,7 @@
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Subjects.Models;
 
 namespace RedditPodcastPoster.Indexing;
 

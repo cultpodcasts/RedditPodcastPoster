@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Factories;
+using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission;
 

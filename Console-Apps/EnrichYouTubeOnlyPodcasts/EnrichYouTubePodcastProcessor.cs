@@ -15,6 +15,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text.EliminationTerms;
 
 namespace EnrichYouTubeOnlyPodcasts;
@@ -62,13 +63,17 @@ public class EnrichYouTubePodcastProcessor(
             {
                 logger.LogError($"Found {podcastIds.Count} podcasts with name '{request.PodcastName}'.");
                 return;
-            } else if (podcastIds.Count == 0)
+            }
+
+            if (podcastIds.Count == 0)
             {
                 logger.LogError($"No podcasts found with name '{request.PodcastName}'.");
                 return;
             }
-            podcastId= podcastIds.First();
-        } else
+
+            podcastId = podcastIds.First();
+        }
+        else
         {
             logger.LogError("No podcast specified.");
             return;
@@ -166,12 +171,13 @@ public class EnrichYouTubePodcastProcessor(
                     episode.Ignored = !((podcast.BypassShortEpisodeChecking.HasValue &&
                                          podcast.BypassShortEpisodeChecking.Value) ||
                                         episode.Length > _postingCriteria.MinimumDuration);
-                    Uri? videoImage = video.GetImageUrl();
+                    var videoImage = video.GetImageUrl();
                     if (videoImage != null)
                     {
                         episode.Images ??= new EpisodeImages();
                         episode.Images.YouTube = videoImage;
                     }
+
                     var results = await subjectEnricher.EnrichSubjects(episode,
                         new SubjectEnrichmentOptions(
                             podcast.IgnoredAssociatedSubjects,
@@ -219,7 +225,8 @@ public class EnrichYouTubePodcastProcessor(
             {
                 await fileRepository.Write(podcast);
                 logger.LogInformation("Writing to file '{filename}'.", podcast.FileKey);
-            } catch(Exception ex2)
+            }
+            catch (Exception ex2)
             {
                 logger.LogError(ex2, "Failed to write to file. Filekey '{filekey}'.", podcast.FileKey);
             }
