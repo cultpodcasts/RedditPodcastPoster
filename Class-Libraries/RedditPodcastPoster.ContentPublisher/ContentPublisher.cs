@@ -54,7 +54,9 @@ public class ContentPublisher(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(PublishSubjects)} - Failed to upload subjects-content to R2");
+            logger.LogError(ex,
+                "{method} - Failed to upload subject-content to R2. BucketName: '{bucketName}', Key: '{key}'.",
+                nameof(PublishSubjects), _contentOptions.BucketName, _contentOptions.SubjectsKey);
         }
     }
 
@@ -79,7 +81,9 @@ public class ContentPublisher(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(PublishFlairs)} - Failed to upload flairs-content to R2");
+            logger.LogError(ex,
+                "{method} - Failed to upload flairs-content to R2. BucketName: '{bucketName}', Key: '{key}'.",
+                nameof(PublishFlairs), _contentOptions.BucketName, _contentOptions.FlairsKey);
         }
     }
 
@@ -102,7 +106,9 @@ public class ContentPublisher(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(PublishDiscoveryInfo)} - Failed to upload discovery-info-content to R2");
+            logger.LogError(ex,
+                "{method} - Failed to upload discovery-info-content to R2. BucketName: '{bucketName}', Key: '{key}', content: '{json}'.",
+                nameof(PublishDiscoveryInfo), _contentOptions.BucketName, _contentOptions.DiscoveryInfoKey, json);
         }
     }
 
@@ -126,7 +132,9 @@ public class ContentPublisher(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(PublishHomepage)} - Failed to upload homepage-content to R2");
+            logger.LogError(ex,
+                "{method} - Failed to upload homepage-content to R2. BucketName: '{bucketName}', Key: '{key}'.",
+                nameof(PublishHomepageToR2), _contentOptions.BucketName, _contentOptions.HomepageKey);
         }
     }
 
@@ -172,7 +180,10 @@ public class ContentPublisher(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(PublishPreProcessedHomepageToR2)} - Failed to upload homepage-content to R2");
+            logger.LogError(ex,
+                "{method} - Failed to upload flairs-content to R2. BucketName: '{bucketName}', Key: '{key}'.",
+                nameof(PublishPreProcessedHomepageToR2), _contentOptions.BucketName,
+                _contentOptions.PreProcessedHomepageKey);
         }
     }
 

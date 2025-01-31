@@ -11,15 +11,19 @@ public class AmazonS3ClientFactory(
     : IAmazonS3ClientFactory
 {
     private readonly CloudFlareOptions _cloudFlareOptions = r2Options.Value;
-    private readonly ILogger<AmazonS3ClientFactory> _logger = logger;
 
     public IAmazonS3 Create()
     {
-        if (string.IsNullOrWhiteSpace(_cloudFlareOptions.AccountId) || 
-            string.IsNullOrWhiteSpace(_cloudFlareOptions.R2AccessKey)||
-            string.IsNullOrWhiteSpace(_cloudFlareOptions.R2SecretKey))
+        var missingAccountId = string.IsNullOrWhiteSpace(_cloudFlareOptions.AccountId);
+        var missingAccessKey = string.IsNullOrWhiteSpace(_cloudFlareOptions.R2AccessKey);
+        var missingSecretKey = string.IsNullOrWhiteSpace(_cloudFlareOptions.R2SecretKey);
+        if (missingAccountId || missingAccessKey || missingSecretKey)
         {
-            throw new InvalidOperationException($"Incomplete {nameof(CloudFlareOptions)} configuration ");
+            logger.LogError(
+                "Incomplete {optionsName} configuration. missingAccountId={missingAccountId}, missingAccessKey={missingAccessKey}, missingSecretKey= {missingSecretKey}.",
+                nameof(CloudFlareOptions), missingAccountId, missingAccessKey, missingSecretKey);
+            throw new InvalidOperationException(
+                $"Incomplete {nameof(CloudFlareOptions)} configuration. missingAccountId={missingAccountId}, missingAccessKey={missingAccessKey}, missingSecretKey= {missingSecretKey}.");
         }
 
         var config = new AmazonS3Config
