@@ -45,6 +45,74 @@ param youTubeApiKey8= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-I
 param youTubeApiKey9= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Youtube-ApiKey-9')
 param youTubeApiKey10= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Youtube-ApiKey-10')
 
+var jobHostLogging= {
+	AzureFunctionsJobHost__Logging__ApplicationInsights__LogLevel__Default: 'Warning'
+	AzureFunctionsJobHost__Logging__Console__LogLevel__Default: 'Warning'
+	AzureFunctionsJobHost__Logging__Debug__LogLevel__Default: 'Warning'
+	AzureFunctionsJobHost__Logging__LogLevel__Default: 'Warning'
+}
+
+var content= {
+	content__BucketName: 'content'
+	content__DiscoveryInfoKey: 'discovery-info'
+	content__FlairsKey: 'flairs'
+	content__HomepageKey: 'homepage'
+	content__PreProcessedHomepageKey: 'homepage-ssr'
+	content__SubjectsKey: 'subjects'
+}
+
+var cosmosDb= {
+	cosmosdb__Container: 'cultpodcasts'
+	cosmosdb__DatabaseId: 'cultpodcasts'
+	cosmosdb__UseGateWay: 'false'
+}
+
+var bluesky= {
+	bluesky__HashTag: 'Cult'
+	bluesky__Identifier: 'cultpodcasts.com'
+	bluesky__WithEpisodeUrl: 'true'
+	bluesky__ReuseSession: 'true'
+}
+
+var discover= {
+	discover__EnrichFromApple: 'true'
+	discover__EnrichFromSpotify: 'true'
+	discover__ExcludeSpotify: 'false'
+	discover__IgnoreTerms__0: 'cult of the lamb'
+	discover__IgnoreTerms__1: 'cult of lamb'
+	discover__IgnoreTerms__10: 'Far Cry'
+	discover__IgnoreTerms__11: 'cult classic'
+	discover__IgnoreTerms__12: 'cult film'
+	discover__IgnoreTerms__13: 'cult movie'
+	discover__IgnoreTerms__2: 'COTL'
+	discover__IgnoreTerms__3: 'cult of the lab'
+	discover__IgnoreTerms__4: 'Cult of the Lamp'
+	discover__IgnoreTerms__5: 'Cult of the Lumb'
+	discover__IgnoreTerms__6: 'Blue Oyster Cult'
+	discover__IgnoreTerms__7: 'Blue Öyster Cult'
+	discover__IgnoreTerms__8: 'Living Colour'
+	discover__IgnoreTerms__9: 'She Sells Sanctuary'
+	discover__IncludeListenNotes: 'true'
+	discover__IncludeTaddy: 'true'
+	discover__IncludeYouTube: 'true'
+	discover__Queries__0__DiscoverService: 'ListenNotes'
+	discover__Queries__0__Term: 'Cult'
+	discover__Queries__1__DiscoverService: 'ListenNotes'
+	discover__Queries__1__Term: 'Cults'
+	discover__Queries__2__DiscoverService: 'Spotify'
+	discover__Queries__2__Term: 'Cult'
+	discover__Queries__3__DiscoverService: 'Spotify'
+	discover__Queries__3__Term: 'Cults'
+	discover__Queries__4__DiscoverService: 'YouTube'
+	discover__Queries__4__Term: 'Cult'
+	discover__Queries__5__DiscoverService: 'YouTube'
+	discover__Queries__5__Term: 'Cults'
+	discover__Queries__6__DiscoverService: 'Taddy'
+	discover__Queries__6__Term: 'Cult'
+	discover__SearchSince: '6:10:00'
+	discover__TaddyOffset: '2:00:00'
+}
+
 var youTubeKeyUsage= {
 	youtube__Applications__0__Name: 'CultPodcasts'
 	youtube__Applications__0__Usage: 'Cli'
@@ -91,135 +159,120 @@ var youTubeKeyUsage= {
 	youtube__Applications__12__DisplayName: 'ApiKey-10 - Cli'
 }
 
-param apiSettings = union(youTubeKeyUsage, {
-	api__Endpoint:	'https://api.cultpodcasts.com'
+var auth0= {
 	auth0__Audience: 'https://api.cultpodcasts.com/'
 	auth0__Domain: 'cultpodcasts.uk.auth0.com'
 	auth0__Issuer: 'https://cultpodcasts.uk.auth0.com/'
+}
+
+var auth0Client= {
 	auth0client__Audience: 'https://api.cultpodcasts.com/'
 	auth0client__Domain: 'cultpodcasts.uk.auth0.com'
-	bluesky__HashTag: 'Cult'
-	bluesky__Identifier: 'cultpodcasts.com'
-	bluesky__WithEpisodeUrl: 'true'
-	content__BucketName: 'content'
-	content__DiscoveryInfoKey: 'discovery-info'
-	content__FlairsKey: 'flairs'
-	content__HomepageKey: 'homepage'
-	content__PreProcessedHomepageKey: 'homepage-ssr'
-	content__SubjectsKey: 'subjects'
-	cosmosdb__Container: 'cultpodcasts'
-	cosmosdb__DatabaseId: 'cultpodcasts'
-	cosmosdb__UseGateWay: 'false'
-	delayedYouTubePublication__EvaluationThreshold: '6:00:00'
-	indexer__ByPassYouTube: 'false'
-	indexer__ReleasedDaysAgo: '2'
-	redirect__KVRedirectNamespaceId: '19eea88f0cb14548bcab925238a68cc4'
+}
+
+var searchIndex= {
 	searchIndex__IndexerName: 'cultpodcasts-indexer'
 	searchIndex__IndexName: 'cultpodcasts'
-	shortner__KVShortnerNamespaceId: '663cd5c74988404dafbf67e1e06b21e8'
-	shortner__ShortnerUrl: 'https://s.cultpodcasts.com'
-	subreddit__SubredditName: 'cultpodcasts'
-	subreddit__SubredditTitleMaxLength: '300'
-	twitter__HashTag: 'Cult'
-	twitter__WithEpisodeUrl: 'true'
-})
+}
 
-param discoverySettings= union(youTubeKeyUsage, {
+var api= {
 	api__Endpoint:	'https://api.cultpodcasts.com'
-	auth0client__Audience: 'https://api.cultpodcasts.com/'
-	auth0client__Domain: 'cultpodcasts.uk.auth0.com'
-	bluesky__HashTag: 'Cult'
-	bluesky__Identifier: 'cultpodcasts.com'
-	bluesky__WithEpisodeUrl: 'true'
-	content__BucketName: 'content'
-	content__DiscoveryInfoKey: 'discovery-info'
-	content__FlairsKey: 'flairs'
-	content__HomepageKey: 'homepage'
-	content__PreProcessedHomepageKey: 'homepage-ssr'
-	content__SubjectsKey: 'subjects'
-	cosmosdb__Container: 'cultpodcasts'
-	cosmosdb__DatabaseId: 'cultpodcasts'
-	cosmosdb__UseGateWay: 'false'
-	delayedYouTubePublication__EvaluationThreshold: '6:00:00'
-	discover__EnrichFromApple: 'true'
-	discover__EnrichFromSpotify: 'true'
-	discover__ExcludeSpotify: 'false'
-	discover__IgnoreTerms__0: 'cult of the lamb'
-	discover__IgnoreTerms__1: 'cult of lamb'
-	discover__IgnoreTerms__10: 'Far Cry'
-	discover__IgnoreTerms__11: 'cult classic'
-	discover__IgnoreTerms__12: 'cult film'
-	discover__IgnoreTerms__13: 'cult movie'
-	discover__IgnoreTerms__2: 'COTL'
-	discover__IgnoreTerms__3: 'cult of the lab'
-	discover__IgnoreTerms__4: 'Cult of the Lamp'
-	discover__IgnoreTerms__5: 'Cult of the Lumb'
-	discover__IgnoreTerms__6: 'Blue Oyster Cult'
-	discover__IgnoreTerms__7: 'Blue Öyster Cult'
-	discover__IgnoreTerms__8: 'Living Colour'
-	discover__IgnoreTerms__9: 'She Sells Sanctuary'
-	discover__IncludeListenNotes: 'true'
-	discover__IncludeTaddy: 'true'
-	discover__IncludeYouTube: 'true'
-	discover__Queries__0__DiscoverService: 'ListenNotes'
-	discover__Queries__0__Term: 'Cult'
-	discover__Queries__1__DiscoverService: 'ListenNotes'
-	discover__Queries__1__Term: 'Cults'
-	discover__Queries__2__DiscoverService: 'Spotify'
-	discover__Queries__2__Term: 'Cult'
-	discover__Queries__3__DiscoverService: 'Spotify'
-	discover__Queries__3__Term: 'Cults'
-	discover__Queries__4__DiscoverService: 'YouTube'
-	discover__Queries__4__Term: 'Cult'
-	discover__Queries__5__DiscoverService: 'YouTube'
-	discover__Queries__5__Term: 'Cults'
-	discover__Queries__6__DiscoverService: 'Taddy'
-	discover__Queries__6__Term: 'Cult'
-	discover__SearchSince: '6:10:00'
-	discover__TaddyOffset: '2:00:00'
-	listenNotes__RequestDelaySeconds: '2'
-	pushSubscriptions__Subject: 'mailto:vapid@cultpodcasts.com'
-	redirect__KVRedirectNamespaceId: '19eea88f0cb14548bcab925238a68cc4'
-	searchIndex__IndexerName: 'cultpodcasts-indexer'
-	searchIndex__IndexName: 'cultpodcasts'
-	shortner__KVShortnerNamespaceId: '663cd5c74988404dafbf67e1e06b21e8'
-	shortner__ShortnerUrl: 'https://s.cultpodcasts.com'
-	subreddit__SubredditName: 'cultpodcasts'
-	subreddit__SubredditTitleMaxLength: '300'
-	twitter__HashTag: 'Cult'
-	twitter__WithEpisodeUrl: 'true'
-})
+}
 
-param indexerSettings= union(youTubeKeyUsage, {
-	api__Endpoint:	'https://api.cultpodcasts.com'
-	auth0client__Audience: 'https://api.cultpodcasts.com/'
-	auth0client__Domain: 'cultpodcasts.uk.auth0.com'
-	bluesky__HashTag: 'Cult'
-	bluesky__Identifier: 'cultpodcasts.com'
-	bluesky__WithEpisodeUrl: 'true'
-	bluesky__ReuseSession: 'true'
-	content__BucketName: 'content'
-	content__DiscoveryInfoKey: 'discovery-info'
-	content__FlairsKey: 'flairs'
-	content__HomepageKey: 'homepage'
-	content__PreProcessedHomepageKey: 'homepage-ssr'
-	content__SubjectsKey: 'subjects'
-	cosmosdb__Container: 'cultpodcasts'
-	cosmosdb__DatabaseId: 'cultpodcasts'
-	cosmosdb__UseGateWay: 'false'
+var delayedPublication= {
 	delayedYouTubePublication__EvaluationThreshold: '6:00:00'
+}
+
+var indexer= {
 	indexer__ByPassYouTube: false
 	indexer__ReleasedDaysAgo: '2'
-	poster__ReleasedDaysAgo: '4'
-	postingCriteria__minimumDuration: '0:9:00'
-	postingCriteria__TweetDays: '2'
-	redirect__KVRedirectNamespaceId: '19eea88f0cb14548bcab925238a68cc4'
-	searchIndex__IndexerName: 'cultpodcasts-indexer'
-	searchIndex__IndexName: 'cultpodcasts'
-	shortner__KVShortnerNamespaceId: '663cd5c74988404dafbf67e1e06b21e8'
-	shortner__ShortnerUrl: 'https://s.cultpodcasts.com'
-	subreddit__SubredditName: 'cultpodcasts'
-	subreddit__SubredditTitleMaxLength: '300'
+}
+
+var twitter= {
 	twitter__HashTag: 'Cult'
 	twitter__WithEpisodeUrl: 'true'
-})
+}
+
+var listenNotes= {
+	listenNotes__RequestDelaySeconds: '2'
+}
+
+var subreddit= {
+	subreddit__SubredditName: 'cultpodcasts'
+	subreddit__SubredditTitleMaxLength: '300'
+}
+
+var shortner= {
+	shortner__KVShortnerNamespaceId: '663cd5c74988404dafbf67e1e06b21e8'
+	shortner__ShortnerUrl: 'https://s.cultpodcasts.com'
+}
+
+var postingCriteria= {
+	postingCriteria__minimumDuration: '0:9:00'
+	postingCriteria__TweetDays: '2'
+}
+
+var redirect= {
+	redirect__KVRedirectNamespaceId: '19eea88f0cb14548bcab925238a68cc4'
+}
+
+var pushSubscriptions= {
+	pushSubscriptions__Subject: 'mailto:vapid@cultpodcasts.com'
+}
+
+var poster= {
+	poster__ReleasedDaysAgo: '4'
+}
+
+param apiSettings = union(
+	youTubeKeyUsage, 
+	jobHostLogging, 
+	content, 
+	cosmosDb, 
+	bluesky, 
+	auth0, 
+	auth0Client, 
+	searchIndex, 
+	api, 
+	delayedPublication, 
+	indexer, 
+	twitter, 
+	subreddit, 
+	shortner, 
+	redirect
+)
+
+param discoverySettings= union(
+	youTubeKeyUsage, 
+	jobHostLogging, 
+	content, 
+	cosmosDb, 
+	bluesky, 
+	discover,
+	auth0Client, 
+	searchIndex, 
+	api, 
+	delayedPublication, 
+	twitter, 
+	listenNotes, 
+	subreddit, 
+	shortner,
+	redirect, 
+	pushSubscriptions)
+
+param indexerSettings= union(
+	youTubeKeyUsage, 
+	jobHostLogging, 
+	content, 
+	cosmosDb, 
+	auth0Client, 
+	searchIndex, 
+	api, 
+	delayedPublication, 
+	indexer, 
+	twitter, 
+	subreddit, 
+	shortner, 
+	postingCriteria, 
+	redirect, 
+	poster)
