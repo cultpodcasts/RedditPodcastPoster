@@ -116,6 +116,11 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
   name: 'ai-${suffix}'
 }
 
+var _auth0Client= {
+    auth0client__ClientId: auth0ClientId
+    auth0client__ClientSecret: auth0ClientSecret
+}
+
 module apiFunction 'function.bicep' = {
   name: '${deployment().name}-api'
   params: {
@@ -127,9 +132,7 @@ module apiFunction 'function.bicep' = {
     runtime: runtime
     suffix: suffix
     publicNetworkAccess: true
-    appSettings: union({
-        auth0client__ClientId: auth0ClientId
-        auth0client__ClientSecret: auth0ClientSecret
+    appSettings: union(_auth0Client, {
         bluesky__Password: blueskyPassword
         cloudflare__AccountId: cloudflareAccountId
         cloudflare__KVApiToken: cloudflareKVApiToken
@@ -187,9 +190,7 @@ module discoveryFunction 'function.bicep' = {
     runtime: runtime
     suffix: suffix
     publicNetworkAccess: false
-    appSettings: union({
-        auth0client__ClientId: auth0ClientId
-        auth0client__ClientSecret: auth0ClientSecret
+    appSettings: union(_auth0Client, {
         bluesky__Password: blueskyPassword
         cloudflare__AccountId: cloudflareAccountId
         cloudflare__KVApiToken: cloudflareKVApiToken
@@ -247,9 +248,7 @@ module indexerFunction 'function.bicep' = {
     runtime: runtime
     suffix: suffix
     publicNetworkAccess: false
-    appSettings: union({
-        auth0client__ClientId: auth0ClientId
-        auth0client__ClientSecret: auth0ClientSecret
+    appSettings: union(_auth0Client, {
         bluesky__Password: blueskyPassword
         cloudflare__AccountId: cloudflareAccountId
         cloudflare__KVApiToken: cloudflareKVApiToken
