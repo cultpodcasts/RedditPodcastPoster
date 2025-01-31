@@ -52,6 +52,28 @@ var jobHostLogging= {
 	AzureFunctionsJobHost__Logging__LogLevel__Default: 'Warning'
 }
 
+var api= {
+	api__Endpoint:	'https://api.cultpodcasts.com'
+}
+
+var auth0= {
+	auth0__Audience: 'https://api.cultpodcasts.com/'
+	auth0__Domain: 'cultpodcasts.uk.auth0.com'
+	auth0__Issuer: 'https://cultpodcasts.uk.auth0.com/'
+}
+
+var auth0Client= {
+	auth0client__Audience: 'https://api.cultpodcasts.com/'
+	auth0client__Domain: 'cultpodcasts.uk.auth0.com'
+}
+
+var bluesky= {
+	bluesky__HashTag: 'Cult'
+	bluesky__Identifier: 'cultpodcasts.com'
+	bluesky__WithEpisodeUrl: 'true'
+	bluesky__ReuseSession: 'true'
+}
+
 var content= {
 	content__BucketName: 'content'
 	content__DiscoveryInfoKey: 'discovery-info'
@@ -67,11 +89,8 @@ var cosmosDb= {
 	cosmosdb__UseGateWay: 'false'
 }
 
-var bluesky= {
-	bluesky__HashTag: 'Cult'
-	bluesky__Identifier: 'cultpodcasts.com'
-	bluesky__WithEpisodeUrl: 'true'
-	bluesky__ReuseSession: 'true'
+var delayedPublication= {
+	delayedYouTubePublication__EvaluationThreshold: '6:00:00'
 }
 
 var discover= {
@@ -111,6 +130,52 @@ var discover= {
 	discover__Queries__6__Term: 'Cult'
 	discover__SearchSince: '6:10:00'
 	discover__TaddyOffset: '2:00:00'
+}
+
+var indexer= {
+	indexer__ByPassYouTube: false
+	indexer__ReleasedDaysAgo: '2'
+}
+
+var listenNotes= {
+	listenNotes__RequestDelaySeconds: '2'
+}
+
+var poster= {
+	poster__ReleasedDaysAgo: '4'
+}
+
+var pushSubscriptions= {
+	pushSubscriptions__Subject: 'mailto:vapid@cultpodcasts.com'
+}
+
+var postingCriteria= {
+	postingCriteria__minimumDuration: '0:9:00'
+	postingCriteria__TweetDays: '2'
+}
+
+var redirect= {
+	redirect__KVRedirectNamespaceId: '19eea88f0cb14548bcab925238a68cc4'
+}
+
+var searchIndex= {
+	searchIndex__IndexerName: 'cultpodcasts-indexer'
+	searchIndex__IndexName: 'cultpodcasts'
+}
+
+var shortner= {
+	shortner__KVShortnerNamespaceId: '663cd5c74988404dafbf67e1e06b21e8'
+	shortner__ShortnerUrl: 'https://s.cultpodcasts.com'
+}
+
+var subreddit= {
+	subreddit__SubredditName: 'cultpodcasts'
+	subreddit__SubredditTitleMaxLength: '300'
+}
+
+var twitter= {
+	twitter__HashTag: 'Cult'
+	twitter__WithEpisodeUrl: 'true'
 }
 
 var youTubeKeyUsage= {
@@ -159,120 +224,57 @@ var youTubeKeyUsage= {
 	youtube__Applications__12__DisplayName: 'ApiKey-10 - Cli'
 }
 
-var auth0= {
-	auth0__Audience: 'https://api.cultpodcasts.com/'
-	auth0__Domain: 'cultpodcasts.uk.auth0.com'
-	auth0__Issuer: 'https://cultpodcasts.uk.auth0.com/'
-}
-
-var auth0Client= {
-	auth0client__Audience: 'https://api.cultpodcasts.com/'
-	auth0client__Domain: 'cultpodcasts.uk.auth0.com'
-}
-
-var searchIndex= {
-	searchIndex__IndexerName: 'cultpodcasts-indexer'
-	searchIndex__IndexName: 'cultpodcasts'
-}
-
-var api= {
-	api__Endpoint:	'https://api.cultpodcasts.com'
-}
-
-var delayedPublication= {
-	delayedYouTubePublication__EvaluationThreshold: '6:00:00'
-}
-
-var indexer= {
-	indexer__ByPassYouTube: false
-	indexer__ReleasedDaysAgo: '2'
-}
-
-var twitter= {
-	twitter__HashTag: 'Cult'
-	twitter__WithEpisodeUrl: 'true'
-}
-
-var listenNotes= {
-	listenNotes__RequestDelaySeconds: '2'
-}
-
-var subreddit= {
-	subreddit__SubredditName: 'cultpodcasts'
-	subreddit__SubredditTitleMaxLength: '300'
-}
-
-var shortner= {
-	shortner__KVShortnerNamespaceId: '663cd5c74988404dafbf67e1e06b21e8'
-	shortner__ShortnerUrl: 'https://s.cultpodcasts.com'
-}
-
-var postingCriteria= {
-	postingCriteria__minimumDuration: '0:9:00'
-	postingCriteria__TweetDays: '2'
-}
-
-var redirect= {
-	redirect__KVRedirectNamespaceId: '19eea88f0cb14548bcab925238a68cc4'
-}
-
-var pushSubscriptions= {
-	pushSubscriptions__Subject: 'mailto:vapid@cultpodcasts.com'
-}
-
-var poster= {
-	poster__ReleasedDaysAgo: '4'
-}
-
 param apiSettings = union(
-	youTubeKeyUsage, 
 	jobHostLogging, 
-	content, 
-	cosmosDb, 
-	bluesky, 
+	api, 
 	auth0, 
 	auth0Client, 
-	searchIndex, 
-	api, 
+	bluesky, 
+	content, 
+	cosmosDb, 
 	delayedPublication, 
 	indexer, 
-	twitter, 
-	subreddit, 
+	redirect,
+	searchIndex, 
 	shortner, 
-	redirect
+	subreddit, 
+	twitter, 
+	youTubeKeyUsage
 )
 
 param discoverySettings= union(
-	youTubeKeyUsage, 
 	jobHostLogging, 
+	api, 
+	auth0Client, 
+	bluesky, 
 	content, 
 	cosmosDb, 
-	bluesky, 
-	discover,
-	auth0Client, 
-	searchIndex, 
-	api, 
 	delayedPublication, 
-	twitter, 
+	discover,
 	listenNotes, 
-	subreddit, 
-	shortner,
+	pushSubscriptions,
 	redirect, 
-	pushSubscriptions)
+	searchIndex, 
+	shortner,
+	subreddit, 
+	twitter, 
+	youTubeKeyUsage
+)
 
 param indexerSettings= union(
-	youTubeKeyUsage, 
 	jobHostLogging, 
-	content, 
-	cosmosDb, 
-	auth0Client, 
-	searchIndex, 
 	api, 
+	auth0Client, 
+	cosmosDb, 
+	content, 
 	delayedPublication, 
 	indexer, 
-	twitter, 
-	subreddit, 
-	shortner, 
+	poster,
 	postingCriteria, 
 	redirect, 
-	poster)
+	searchIndex, 
+	shortner, 
+	subreddit, 
+	twitter, 
+	youTubeKeyUsage 
+)
