@@ -29,7 +29,9 @@ public class AmazonS3ClientFactory(
         var config = new AmazonS3Config
         {
             ServiceURL = $"https://{_cloudFlareOptions.AccountId}.r2.cloudflarestorage.com",
-            ForcePathStyle = true
+            ForcePathStyle = true,
+            RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED,
+            ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED
         };
 
         AWSCredentials credentials =
