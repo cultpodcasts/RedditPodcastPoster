@@ -26,11 +26,12 @@ public class ContentPublisher(
     private readonly ContentOptions _contentOptions = contentOptions.Value;
     private readonly SubredditSettings _subredditSettings = subredditSettings.Value;
 
-    public async Task PublishHomepage()
+    public async Task<PublishHomepageResult> PublishHomepage()
     {
         var homepageContent = await queryExecutor.GetHomePage(CancellationToken.None);
-        await PublishHomepageToR2(homepageContent);
-        await PublishPreProcessedHomepageToR2(homepageContent);
+        var homepagePublished = await PublishHomepageToR2(homepageContent);
+        var preProcessedHomepagePublished = await PublishPreProcessedHomepageToR2(homepageContent);
+        return new PublishHomepageResult(homepagePublished, preProcessedHomepagePublished);
     }
 
     public async Task PublishSubjects()
@@ -112,8 +113,9 @@ public class ContentPublisher(
         }
     }
 
-    private async Task PublishHomepageToR2(HomePageModel homepageContent)
+    private async Task<bool> PublishHomepageToR2(HomePageModel homepageContent)
     {
+        var published = false;
         var homepageContentAsJson = JsonSerializer.Serialize(homepageContent);
 
         var request = new PutObjectRequest
@@ -129,6 +131,7 @@ public class ContentPublisher(
         {
             await client.PutObjectAsync(request);
             logger.LogInformation($"Completed '{nameof(PublishHomepage)}'.");
+            published = true;
         }
         catch (Exception ex)
         {
@@ -136,10 +139,14 @@ public class ContentPublisher(
                 "{method} - Failed to upload homepage-content to R2. BucketName: '{bucketName}', Key: '{key}'.",
                 nameof(PublishHomepageToR2), _contentOptions.BucketName, _contentOptions.HomepageKey);
         }
+
+        return published;
     }
 
-    private async Task PublishPreProcessedHomepageToR2(HomePageModel homepageContent)
+    private async Task<bool> PublishPreProcessedHomepageToR2(HomePageModel homepageContent)
     {
+        var published = false;
+
         var london = TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time");
         const int homepageItems = 20;
         var episodesByDay = homepageContent.RecentEpisodes
@@ -177,6 +184,7 @@ public class ContentPublisher(
         {
             await client.PutObjectAsync(request);
             logger.LogInformation($"Completed '{nameof(PublishPreProcessedHomepageToR2)}'.");
+            published = true;
         }
         catch (Exception ex)
         {
@@ -185,6 +193,8 @@ public class ContentPublisher(
                 nameof(PublishPreProcessedHomepageToR2), _contentOptions.BucketName,
                 _contentOptions.PreProcessedHomepageKey);
         }
+
+        return published;
     }
 
     private Flair ToFlairModel(FlairV2 flair)
