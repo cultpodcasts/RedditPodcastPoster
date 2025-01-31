@@ -1,5 +1,7 @@
 ﻿using System.Net;
 using Api.Configuration;
+using Api.Dtos;
+using Api.Extensions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -31,12 +33,20 @@ public class PublishController(
     {
         try
         {
-            await contentPublisher.PublishHomepage();
-            return req.CreateResponse(HttpStatusCode.OK);
+            var result = await contentPublisher.PublishHomepage();
+            if (!result.HomepagePublished || !result.PreProcessedHomepagePublished)
+            {
+                logger.LogError("{method}: Failed to publish homepage. Result: {result}",
+                    nameof(PublishHomepage), result);
+                return await req.CreateResponse(HttpStatusCode.InternalServerError)
+                    .WithJsonBody(PublishHomepageResponse.ToDto(result), c);
+            }
+
+            return await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(PublishHomepageResponse.ToDto(result), c);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(PublishHomepage)}: Failed to publish homepage.");
+            logger.LogError(ex, "{method}: Failed to publish homepage.", nameof(PublishHomepage));
         }
 
         var failure = req.CreateResponse(HttpStatusCode.InternalServerError);
