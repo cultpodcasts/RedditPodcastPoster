@@ -3,6 +3,7 @@
   "logging": {
     "applicationInsights": {
       "samplingSettings": {
+        "excludedTypes": "Trace",
         "isEnabled": true
       },
       "enableLiveMetricsFilters": true
