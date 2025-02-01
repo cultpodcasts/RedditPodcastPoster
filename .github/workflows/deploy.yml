@@ -96,7 +96,7 @@ jobs:
     - name: Display structure of downloaded files
       run: ls -R -a .
     - name: Publish function
-      run: dotnet publish ${{ env.buildConfiguration }} --no-build build/Cloud/${{ matrix.function }} -o:output/${{ matrix.function }}
+      run: dotnet publish ${{ env.buildConfiguration }} --no-build build -o:output/${{ matrix.function }}
     - name: Archive published-function artifacts
       uses: actions/upload-artifact@v4
       with:
