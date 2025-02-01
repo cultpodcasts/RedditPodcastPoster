@@ -122,20 +122,10 @@ jobs:
     permissions:
       id-token: write #This is required for requesting the JWT
     steps:
-      - name: 'Checkout GitHub Action'
-        uses: actions/checkout@v4
-
-      - name: Setup DotNet ${{ env.DOTNET_VERSION }} Environment
-        uses: actions/setup-dotnet@v1
+      - name: Download api artifact
+        uses: actions/download-artifact@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Build
-        shell: bash
-        run: |
-          pushd './${{ env.API_PACKAGE_PATH }}'
-          dotnet build --configuration Release --output ./output
-          popd
+            name: api
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -150,7 +140,7 @@ jobs:
         with:
           app-name: 'api-infra'
           slot-name: 'Production'
-          package: '${{ env.API_PACKAGE_PATH }}/output'
+          package: '${{ env.API_PACKAGE_PATH }}/bin/Release/net9.0'
 
   discover-build-and-deploy:
     runs-on: ubuntu-latest
@@ -158,20 +148,10 @@ jobs:
     permissions:
       id-token: write #This is required for requesting the JWT
     steps:
-      - name: 'Checkout GitHub Action'
-        uses: actions/checkout@v4
-
-      - name: Setup DotNet ${{ env.DOTNET_VERSION }} Environment
-        uses: actions/setup-dotnet@v1
+      - name: Download api artifact
+        uses: actions/download-artifact@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: 'Resolve Project Dependencies Using Dotnet'
-        shell: bash
-        run: |
-          pushd './${{ env.DISCOVER_PACKAGE_PATH }}'
-          dotnet build --configuration Release --output ./output
-          popd
+            name: discover
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -186,7 +166,7 @@ jobs:
         with:
           app-name: 'discover-infra'
           slot-name: 'Production'
-          package: '${{ env.DISCOVER_PACKAGE_PATH }}/output'
+          package: '${{ env.DISCOVER_PACKAGE_PATH }}/bin/Release/net9.0'
 
   indexer-build-and-deploy:
     runs-on: ubuntu-latest
@@ -194,20 +174,10 @@ jobs:
     permissions:
       id-token: write #This is required for requesting the JWT
     steps:
-      - name: 'Checkout GitHub Action'
-        uses: actions/checkout@v4
-
-      - name: Setup DotNet ${{ env.DOTNET_VERSION }} Environment
-        uses: actions/setup-dotnet@v1
+      - name: Download api artifact
+        uses: actions/download-artifact@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: 'Resolve Project Dependencies Using Dotnet'
-        shell: bash
-        run: |
-          pushd './${{ env.INDEXER_PACKAGE_PATH }}'
-          dotnet build --configuration Release --output ./output
-          popd
+            name: indexer
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -222,4 +192,4 @@ jobs:
         with:
           app-name: 'indexer-infra'
           slot-name: 'Production'
-          package: '${{ env.INDEXER_PACKAGE_PATH }}/output'
+          package: '${{ env.INDEXER_PACKAGE_PATH }}/bin/Release/net9.0'
