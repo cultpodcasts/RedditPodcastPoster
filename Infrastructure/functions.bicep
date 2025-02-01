@@ -122,9 +122,11 @@ var auth0= {
 	auth0__Issuer: 'https://cultpodcasts.uk.auth0.com/'
 }
 
-var _auth0Client= {
+var auth0Client= {
+    auth0client__Audience: 'https://api.cultpodcasts.com/'
     auth0client__ClientId: auth0ClientId
     auth0client__ClientSecret: auth0ClientSecret
+	auth0client__Domain: 'cultpodcasts.uk.auth0.com'
 }
 
 var _bluesky= {
@@ -221,7 +223,7 @@ module apiFunction 'function.bicep' = {
     publicNetworkAccess: true
     appSettings: union(
         auth0,
-        _auth0Client, 
+        auth0Client, 
         _bluesky, 
         _cloudflare, 
         _cosmosdb, 
@@ -252,7 +254,7 @@ module discoveryFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: false
     appSettings: union(
-        _auth0Client, 
+        auth0Client, 
         _cloudflare, 
         _listenNotes, 
         _pushSubscriptions, 
@@ -281,7 +283,7 @@ module indexerFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: false
     appSettings: union(
-        _auth0Client, 
+        auth0Client, 
         _bluesky, 
         _cloudflare, 
         _cosmosdb, 

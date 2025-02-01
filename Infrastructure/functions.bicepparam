@@ -56,17 +56,6 @@ var api= {
 	api__Endpoint:	'https://api.cultpodcasts.com'
 }
 
-var auth0= {
-	auth0__Audience: 'https://api.cultpodcasts.com/'
-	auth0__Domain: 'cultpodcasts.uk.auth0.com'
-	auth0__Issuer: 'https://cultpodcasts.uk.auth0.com/'
-}
-
-var auth0Client= {
-	auth0client__Audience: 'https://api.cultpodcasts.com/'
-	auth0client__Domain: 'cultpodcasts.uk.auth0.com'
-}
-
 var bluesky= {
 	bluesky__HashTag: 'Cult'
 	bluesky__Identifier: 'cultpodcasts.com'
@@ -227,8 +216,6 @@ var youTubeKeyUsage= {
 param apiSettings = union(
 	jobHostLogging, 
 	api, 
-	auth0, 
-	auth0Client, 
 	bluesky, 
 	content, 
 	cosmosDb, 
@@ -245,7 +232,6 @@ param apiSettings = union(
 param discoverySettings= union(
 	jobHostLogging, 
 	api, 
-	auth0Client, 
 	bluesky, 
 	content, 
 	cosmosDb, 
@@ -264,7 +250,6 @@ param discoverySettings= union(
 param indexerSettings= union(
 	jobHostLogging, 
 	api, 
-	auth0Client, 
 	cosmosDb, 
 	content, 
 	delayedPublication, 
