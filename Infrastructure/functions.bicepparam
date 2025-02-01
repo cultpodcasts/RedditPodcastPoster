@@ -45,24 +45,6 @@ param youTubeApiKey8= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-I
 param youTubeApiKey9= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Youtube-ApiKey-9')
 param youTubeApiKey10= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Youtube-ApiKey-10')
 
-var jobHostLogging= {
-	AzureFunctionsJobHost__Logging__ApplicationInsights__LogLevel__Default: 'Warning'
-	AzureFunctionsJobHost__Logging__Console__LogLevel__Default: 'Warning'
-	AzureFunctionsJobHost__Logging__Debug__LogLevel__Default: 'Warning'
-	AzureFunctionsJobHost__Logging__LogLevel__Default: 'Warning'
-}
-
-var api= {
-	api__Endpoint:	'https://api.cultpodcasts.com'
-}
-
-var bluesky= {
-	bluesky__HashTag: 'Cult'
-	bluesky__Identifier: 'cultpodcasts.com'
-	bluesky__WithEpisodeUrl: 'true'
-	bluesky__ReuseSession: 'true'
-}
-
 var content= {
 	content__BucketName: 'content'
 	content__DiscoveryInfoKey: 'discovery-info'
@@ -70,12 +52,6 @@ var content= {
 	content__HomepageKey: 'homepage'
 	content__PreProcessedHomepageKey: 'homepage-ssr'
 	content__SubjectsKey: 'subjects'
-}
-
-var cosmosDb= {
-	cosmosdb__Container: 'cultpodcasts'
-	cosmosdb__DatabaseId: 'cultpodcasts'
-	cosmosdb__UseGateWay: 'false'
 }
 
 var delayedPublication= {
@@ -124,10 +100,6 @@ var discover= {
 var indexer= {
 	indexer__ByPassYouTube: false
 	indexer__ReleasedDaysAgo: '2'
-}
-
-var listenNotes= {
-	listenNotes__RequestDelaySeconds: '2'
 }
 
 var poster= {
@@ -214,11 +186,7 @@ var youTubeKeyUsage= {
 }
 
 param apiSettings = union(
-	jobHostLogging, 
-	api, 
-	bluesky, 
 	content, 
-	cosmosDb, 
 	delayedPublication, 
 	indexer, 
 	redirect,
@@ -230,14 +198,9 @@ param apiSettings = union(
 )
 
 param discoverySettings= union(
-	jobHostLogging, 
-	api, 
-	bluesky, 
 	content, 
-	cosmosDb, 
 	delayedPublication, 
 	discover,
-	listenNotes, 
 	pushSubscriptions,
 	redirect, 
 	searchIndex, 
@@ -248,9 +211,6 @@ param discoverySettings= union(
 )
 
 param indexerSettings= union(
-	jobHostLogging, 
-	api, 
-	cosmosDb, 
 	content, 
 	delayedPublication, 
 	indexer, 

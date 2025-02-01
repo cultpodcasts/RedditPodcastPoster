@@ -119,6 +119,17 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
 var auth0Audience= 'https://api.cultpodcasts.com/'
 var auth0Domain= 'cultpodcasts.uk.auth0.com'
 
+var jobHostLogging= {
+	AzureFunctionsJobHost__Logging__ApplicationInsights__LogLevel__Default: 'Warning'
+	AzureFunctionsJobHost__Logging__Console__LogLevel__Default: 'Warning'
+	AzureFunctionsJobHost__Logging__Debug__LogLevel__Default: 'Warning'
+	AzureFunctionsJobHost__Logging__LogLevel__Default: 'Warning'
+}
+
+var api= {
+	api__Endpoint:	'https://api.cultpodcasts.com'
+}
+
 var auth0= {
 	auth0__Audience: auth0Audience
 	auth0__Domain: 
@@ -132,23 +143,31 @@ var auth0Client= {
 	auth0client__Domain: auth0Domain
 }
 
-var _bluesky= {
+var bluesky= {
+	bluesky__HashTag: 'Cult'
+	bluesky__Identifier: 'cultpodcasts.com'
     bluesky__Password: blueskyPassword
+	bluesky__ReuseSession: 'true'
+	bluesky__WithEpisodeUrl: 'true'
 }
 
-var _cloudflare= {
+var cloudflare= {
     cloudflare__AccountId: cloudflareAccountId
     cloudflare__KVApiToken: cloudflareKVApiToken
     cloudflare__R2AccessKey: cloudflareR2AccessKey
     cloudflare__R2SecretKey: cloudflareR2SecretKey
 }
 
-var _cosmosdb= {
+var cosmosdb= {
     cosmosdb__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken
+	cosmosdb__Container: 'cultpodcasts'
+	cosmosdb__DatabaseId: 'cultpodcasts'
     cosmosdb__Endpoint: cosmosdbEndpoint
+	cosmosdb__UseGateWay: 'false'
 }
 
-var _listenNotes= {
+var listenNotes= {
+	listenNotes__RequestDelaySeconds: '2'
     listenNotes__Key: listenNotesKey
 }
 
@@ -225,12 +244,14 @@ module apiFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: true
     appSettings: union(
+        jobHostLogging,
+        api,
         auth0,
         auth0Client, 
-        _bluesky, 
-        _cloudflare, 
-        _cosmosdb, 
-        _listenNotes, 
+        bluesky, 
+        cloudflare, 
+        cosmosdb, 
+        listenNotes, 
         _pushSubscriptions, 
         _reddit, 
         _redditAdmin, 
@@ -257,9 +278,12 @@ module discoveryFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: false
     appSettings: union(
+        jobHostLogging,
+        api,
         auth0Client, 
-        _cloudflare, 
-        _listenNotes, 
+        cloudflare, 
+        cosmosdb,
+        listenNotes, 
         _pushSubscriptions, 
         _reddit, 
         _redditAdmin, 
@@ -286,11 +310,13 @@ module indexerFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: false
     appSettings: union(
+        jobHostLogging,
+        api,
         auth0Client, 
-        _bluesky, 
-        _cloudflare, 
-        _cosmosdb, 
-        _listenNotes, 
+        bluesky, 
+        cloudflare, 
+        cosmosdb, 
+        listenNotes, 
         _pushSubscriptions, 
         _reddit, 
         _redditAdmin, 
