@@ -59,19 +59,19 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
           name: build-api
-          path: Cloud/Api
+          path: ${{API_PACKAGE_PATH}}
           include-hidden-files: true
     - name: Archive discover-build artifacts
       uses: actions/upload-artifact@v4
       with:
           name: build-discover
-          path: Cloud/Discover
+          path: ${{DISCOVER_PACKAGE_PATH}}
           include-hidden-files: true
     - name: Archive indexer-build artifacts
       uses: actions/upload-artifact@v4
       with:
           name: build-indexer
-          path: Cloud/Indexer
+          path: ${{INDEXER_PACKAGE_PATH}}
           include-hidden-files: true
     - name: Archive bicep artifacts
       uses: actions/upload-artifact@v4
@@ -95,7 +95,6 @@ jobs:
           path: build
     - name: Display structure of downloaded files
       run: ls -R -a .
-      if: needs.build.outputs.infrastructure_changed == 'true'
     - name: Publish function
       run: dotnet publish ${{ env.buildConfiguration }} --no-build build/Cloud/${{ matrix.function }} -o:output/${{ matrix.function }}
     - name: Archive published-function artifacts
