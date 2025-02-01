@@ -43,7 +43,7 @@ jobs:
       with:
         filters: |
           src:
-          - ./Infrastructure
+          - ./Infrastructure/**
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
