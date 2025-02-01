@@ -32,21 +32,18 @@ env:
   artifactInfrastructure: 'infrastructure'
 
 jobs:
-  monitor-infrastructure:
+  build-and-test:
     runs-on: ubuntu-latest
     outputs:
       infrastructre_changed: ${{ steps.infrastructure.outputs.src }}
     steps:
+    - uses: actions/checkout@v4
     - uses: dorny/paths-filter@v3
       id: infrastructure
       with:
         filters: |
           src:
           - 'infrastructure' 
-  build-and-test:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
