@@ -73,7 +73,7 @@ jobs:
     - name: Archive bicep artifacts
       uses: actions/upload-artifact@v4
       with:
-          name: ${{ env.artifactInfastructure }}
+          name: ${{ env.artifactInfrastructure }}
           path: Infrastructure
           include-hidden-files: true
 
