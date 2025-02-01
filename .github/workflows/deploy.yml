@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/parallel-publish
 
 permissions:
   id-token: write
@@ -29,6 +30,7 @@ env:
   artifactDiscover: 'discover'
   artifactIndexer: 'indexer'
   artifactInfrastructure: 'infrastructure'
+  artifactBuild: 'build'
 
 jobs:
   build:
@@ -53,29 +55,10 @@ jobs:
       run: dotnet build ${{ env.buildConfiguration }} --no-restore
     - name: Test
       run: dotnet test ${{ env.buildConfiguration }} --no-build --verbosity normal
-    - name: Publish api
-      run: dotnet publish ${{ env.buildConfiguration }} --no-build ${{ env.API_PACKAGE_PATH }} -o:${{ env.outputApi }}
-    - name: Publish discover
-      run: dotnet publish ${{ env.buildConfiguration }} --no-build ${{ env.DISCOVER_PACKAGE_PATH }} -o:${{ env.outputDiscover }}
-    - name: Publish indexer
-      run: dotnet publish ${{ env.buildConfiguration }} --no-build ${{ env.INDEXER_PACKAGE_PATH }} -o:${{ env.outputIndexer }}
-    - name: Archive api-production artifacts
+    - name: Archive build artifacts
       uses: actions/upload-artifact@v4
       with:
-          name: ${{ env.artifactApi }}
-          path: ${{ env.outputApi }}
-          include-hidden-files: true
-    - name: Archive discover-production artifacts
-      uses: actions/upload-artifact@v4
-      with:
-          name: ${{ env.artifactDiscover }}
-          path: ${{ env.outputDiscover }}
-          include-hidden-files: true
-    - name: Archive indexer-production artifacts
-      uses: actions/upload-artifact@v4
-      with:
-          name: ${{ env.artifactIndexer }}
-          path: ${{ env.outputIndexer }}            
+          name: ${{ env.artifactBuild }}
           include-hidden-files: true
     - name: Archive bicep artifacts
       uses: actions/upload-artifact@v4
@@ -84,9 +67,32 @@ jobs:
           path: Infrastructure
           include-hidden-files: true
 
-  provision:
+  publish:
     runs-on: ubuntu-latest
     needs: [build]
+    continue-on-error: false
+    strategy:
+      matrix:
+        function: [api, discover, indexer]
+    steps:
+    - name: Download build artifact
+      uses: actions/download-artifact@v4
+      with:
+          name: ${{ env.artifactBuild }}
+          path: build
+    - name: Publish function
+      run: dotnet publish ${{ env.buildConfiguration }} --no-build build/Cloud/${{ matrix.function }} -o:output/${{ matrix.function }}
+    - name: Archive published-function artifacts
+      uses: actions/upload-artifact@v4
+      with:
+          name: ${{ matrix.function }}
+          path: output/${{ matrix.function }}
+          include-hidden-files: true
+
+
+  provision:
+    runs-on: ubuntu-latest
+    needs: [build, publish]
     continue-on-error: false
     steps:
     - name: Download bicep artifact
