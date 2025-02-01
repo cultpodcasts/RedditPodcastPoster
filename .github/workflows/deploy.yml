@@ -38,23 +38,29 @@ jobs:
       run: dotnet build --configuration Release --no-restore
     - name: Test
       run: dotnet test --configuration Release --no-build --verbosity normal
+    - name: Publish api
+      run: dotnet publish --configuration Release --no-build ${{ env.API_PACKAGE_PATH }} -o:output/api
+    - name: Publish discover
+      run: dotnet publish --configuration Release --no-build ${{ env.DISCOVER_PACKAGE_PATH }} -o:output/discover
+    - name: Publish indexer
+      run: dotnet publish --configuration Release --no-build ${{ env.INDEXER_PACKAGE_PATH }} -o:output/indexer
     - name: Archive api-production artifacts
       uses: actions/upload-artifact@v4
       with:
           name: api
-          path: ${{ env.API_PACKAGE_PATH }}/bin/Release/net9.0
+          path: output/api
           include-hidden-files: true
     - name: Archive discover-production artifacts
       uses: actions/upload-artifact@v4
       with:
           name: discover
-          path: ${{ env.DISCOVER_PACKAGE_PATH }}/bin/Release/net9.0
+          path: output/discover
           include-hidden-files: true
     - name: Archive indexer-production artifacts
       uses: actions/upload-artifact@v4
       with:
           name: indexer
-          path: ${{ env.INDEXER_PACKAGE_PATH }}/bin/Release/net9.0            
+          path: output/indexer            
           include-hidden-files: true
 
   provision:
@@ -129,7 +135,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
             name: api
-            path: '${{ env.API_PACKAGE_PATH }}/output'
+            path: output/api
       - name: Display structure of downloaded files
         run: ls -R -a .
 
@@ -146,7 +152,7 @@ jobs:
         with:
           app-name: 'api-infra'
           slot-name: 'Production'
-          package: '${{ env.API_PACKAGE_PATH }}/output'
+          package: output/api
 
   discover-deploy:
     runs-on: ubuntu-latest
@@ -158,7 +164,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
             name: discover
-            path: '${{ env.DISCOVER_PACKAGE_PATH }}/output'
+            path: output/discover
       - name: Display structure of downloaded files
         run: ls -R -a .
 
@@ -175,7 +181,7 @@ jobs:
         with:
           app-name: 'discover-infra'
           slot-name: 'Production'
-          package: '${{ env.DISCOVER_PACKAGE_PATH }}/output'
+          package: output/discover
 
   indexer-deploy:
     runs-on: ubuntu-latest
@@ -187,7 +193,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
             name: indexer
-            path: '${{ env.INDEXER_PACKAGE_PATH }}/output'
+            path: output/indexer
       - name: Display structure of downloaded files
         run: ls -R -a .
 
@@ -204,4 +210,4 @@ jobs:
         with:
           app-name: 'indexer-infra'
           slot-name: 'Production'
-          package: '${{ env.INDEXER_PACKAGE_PATH }}/output'
+          package: output/indexer
