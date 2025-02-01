@@ -116,17 +116,20 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
   name: 'ai-${suffix}'
 }
 
+var auth0Audience= 'https://api.cultpodcasts.com/'
+var auth0Domain= 'cultpodcasts.uk.auth0.com'
+
 var auth0= {
-	auth0__Audience: 'https://api.cultpodcasts.com/'
-	auth0__Domain: 'cultpodcasts.uk.auth0.com'
+	auth0__Audience: auth0Audience
+	auth0__Domain: 
 	auth0__Issuer: 'https://cultpodcasts.uk.auth0.com/'
 }
 
 var auth0Client= {
-    auth0client__Audience: 'https://api.cultpodcasts.com/'
+    auth0client__Audience: auth0Audience
     auth0client__ClientId: auth0ClientId
     auth0client__ClientSecret: auth0ClientSecret
-	auth0client__Domain: 'cultpodcasts.uk.auth0.com'
+	auth0client__Domain: auth0Domain
 }
 
 var _bluesky= {
