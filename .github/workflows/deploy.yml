@@ -131,7 +131,7 @@ jobs:
             name: api
             path: '${{ env.API_PACKAGE_PATH }}/output'
       - name: Display structure of downloaded files
-        run: ls -R .
+        run: ls -R -a .
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -160,7 +160,7 @@ jobs:
             name: discover
             path: '${{ env.DISCOVER_PACKAGE_PATH }}/output'
       - name: Display structure of downloaded files
-        run: ls -R .
+        run: ls -R -a .
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -189,7 +189,7 @@ jobs:
             name: indexer
             path: '${{ env.INDEXER_PACKAGE_PATH }}/output'
       - name: Display structure of downloaded files
-        run: ls -R .
+        run: ls -R -a .
 
       - name: Login to Azure
         uses: azure/login@v2
