@@ -100,6 +100,8 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
   name: 'ai-${suffix}'
 }
 
+var runtime = 'dotnet-isolated'
+
 var auth0Audience= 'https://api.cultpodcasts.com/'
 var auth0Domain= 'cultpodcasts.uk.auth0.com'
 
@@ -390,8 +392,6 @@ var indexerSettings= union(
     poster,
     postingCriteria
  )
-
-var runtime = 'dotnet-isolated'
 
 module apiFunction 'function.bicep' = {
   name: '${deployment().name}-api'
