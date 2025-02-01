@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/aot
 
 permissions:
   id-token: write
@@ -21,12 +22,28 @@ env:
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
   INDEXER_PACKAGE_PATH: './Cloud/Indexer' 
   DOTNET_VERSION: '9.0.x' 
+  buildConfiguration: '--configuration Release'
+  outputApi: 'output/api'
+  outputDiscover: 'output/discover'
+  outputIndexer: 'output/indexer'
+  artifactApi: 'api'
+  artifactDiscover: 'discover'
+  artifactIndexer: 'indexer'
+  artifactInfrastructure: 'infrastructure'
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      infrastructure_changed: ${{ steps.changes.outputs.infrastructure }}
     steps:
     - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v3
+      id: changes
+      with:
+        filters: |
+          infrastructure:
+          - ./Infrastructure/**
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
@@ -34,55 +51,58 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build ${{ env.buildConfiguration }} --no-restore
     - name: Test
-      run: dotnet test --configuration Release --no-build --verbosity normal
+      run: dotnet test ${{ env.buildConfiguration }} --no-build --verbosity normal
     - name: Publish api
-      run: dotnet publish --configuration Release --no-build ${{ env.API_PACKAGE_PATH }} -o:output/api
+      run: dotnet publish ${{ env.buildConfiguration }} --no-build ${{ env.API_PACKAGE_PATH }} -o:${{ env.outputApi }}
     - name: Publish discover
-      run: dotnet publish --configuration Release --no-build ${{ env.DISCOVER_PACKAGE_PATH }} -o:output/discover
+      run: dotnet publish ${{ env.buildConfiguration }} --no-build ${{ env.DISCOVER_PACKAGE_PATH }} -o:${{ env.outputDiscover }}
     - name: Publish indexer
-      run: dotnet publish --configuration Release --no-build ${{ env.INDEXER_PACKAGE_PATH }} -o:output/indexer
+      run: dotnet publish ${{ env.buildConfiguration }} --no-build ${{ env.INDEXER_PACKAGE_PATH }} -o:${{ env.outputIndexer }}
     - name: Archive api-production artifacts
       uses: actions/upload-artifact@v4
       with:
-          name: api
-          path: output/api
+          name: ${{ env.artifactApi }}
+          path: ${{ env.outputApi }}
           include-hidden-files: true
     - name: Archive discover-production artifacts
       uses: actions/upload-artifact@v4
       with:
-          name: discover
-          path: output/discover
+          name: ${{ env.artifactDiscover }}
+          path: ${{ env.outputDiscover }}
           include-hidden-files: true
     - name: Archive indexer-production artifacts
       uses: actions/upload-artifact@v4
       with:
-          name: indexer
-          path: output/indexer            
+          name: ${{ env.artifactIndexer }}
+          path: ${{ env.outputIndexer }}            
           include-hidden-files: true
     - name: Archive bicep artifacts
       uses: actions/upload-artifact@v4
       with:
-          name: infrastructure
+          name: ${{ env.artifactInfrastructure }}
           path: Infrastructure
           include-hidden-files: true
 
   provision:
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: [build]
     continue-on-error: false
     steps:
     - name: Download bicep artifact
       uses: actions/download-artifact@v4
+      if: needs.build.outputs.infrastructure_changed == 'true'
       with:
-          name: infrastructure
+          name: ${{ env.artifactInfrastructure }}
           path: Infrastructure
     - name: Display structure of downloaded files
       run: ls -R -a .
-  
+      if: needs.build.outputs.infrastructure_changed == 'true'
+    
     - name: Azure Login
       uses: Azure/login@v2.2.0            
+      if: needs.build.outputs.infrastructure_changed == 'true'
       with:
         client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
@@ -91,6 +111,7 @@ jobs:
     - name: Storage (Deploy Bicep)
       id: bicepstoragedeploy
       uses: azure/bicep-deploy@v1
+      if: needs.build.outputs.infrastructure_changed == 'true'
       with:
         type: deployment
         operation: create
@@ -103,6 +124,7 @@ jobs:
     - name: Application-Insights (Deploy Bicep)
       id: bicepappinsightsdeploy
       uses: azure/bicep-deploy@v1
+      if: needs.build.outputs.infrastructure_changed == 'true'
       with:
         type: deployment
         operation: create
@@ -115,6 +137,7 @@ jobs:
     - name: Functions (Deploy Bicep)
       id: bicepfunctionsdeploy
       uses: azure/bicep-deploy@v1
+      if: needs.build.outputs.infrastructure_changed == 'true'
       with:
         type: deployment
         operation: create
@@ -127,7 +150,7 @@ jobs:
         parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}"}'
 
     - name: Set Function State
-      if: ${{ (env.functionState == 'start') || (env.functionState == 'stop') }}
+      if: ${{ ((env.functionState == 'start') || (env.functionState == 'stop')) && needs.build.outputs.infrastructure_changed == 'true' }}
       uses: Azure/cli@v2.1.0
       with:
         azcliversion: latest
@@ -145,8 +168,8 @@ jobs:
       - name: Download api artifact
         uses: actions/download-artifact@v4
         with:
-            name: api
-            path: output/api
+            name: ${{ env.artifactApi }}
+            path: ${{ env.outputApi }}
       - name: Display structure of downloaded files
         run: ls -R -a .
 
@@ -163,7 +186,7 @@ jobs:
         with:
           app-name: 'api-infra'
           slot-name: 'Production'
-          package: output/api
+          package: ${{ env.outputApi }}
 
   discover-deploy:
     runs-on: ubuntu-latest
@@ -174,8 +197,8 @@ jobs:
       - name: Download api artifact
         uses: actions/download-artifact@v4
         with:
-            name: discover
-            path: output/discover
+            name: ${{ env.artifactDiscover }}
+            path: ${{ env.outputDiscover }}
       - name: Display structure of downloaded files
         run: ls -R -a .
 
@@ -192,7 +215,7 @@ jobs:
         with:
           app-name: 'discover-infra'
           slot-name: 'Production'
-          package: output/discover
+          package: ${{ env.outputDiscover }}
 
   indexer-deploy:
     runs-on: ubuntu-latest
@@ -203,8 +226,8 @@ jobs:
       - name: Download api artifact
         uses: actions/download-artifact@v4
         with:
-            name: indexer
-            path: output/indexer
+            name: ${{ env.artifactIndexer }}
+            path: ${{ env.outputIndexer }}
       - name: Display structure of downloaded files
         run: ls -R -a .
 
@@ -221,4 +244,4 @@ jobs:
         with:
           app-name: 'indexer-infra'
           slot-name: 'Production'
-          package: output/indexer
+          package: ${{ env.outputIndexer }}
