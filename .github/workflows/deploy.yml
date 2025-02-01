@@ -126,6 +126,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
             name: api
+            path: '${{ env.API_PACKAGE_PATH }}/output'
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -140,7 +141,7 @@ jobs:
         with:
           app-name: 'api-infra'
           slot-name: 'Production'
-          package: '${{ env.API_PACKAGE_PATH }}/bin/Release/net9.0'
+          package: '${{ env.API_PACKAGE_PATH }}/output'
 
   discover-build-and-deploy:
     runs-on: ubuntu-latest
@@ -152,6 +153,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
             name: discover
+            path: '${{ env.DISCOVER_PACKAGE_PATH }}/output'
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -166,7 +168,7 @@ jobs:
         with:
           app-name: 'discover-infra'
           slot-name: 'Production'
-          package: '${{ env.DISCOVER_PACKAGE_PATH }}/bin/Release/net9.0'
+          package: '${{ env.DISCOVER_PACKAGE_PATH }}/output'
 
   indexer-build-and-deploy:
     runs-on: ubuntu-latest
@@ -178,6 +180,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
             name: indexer
+            path: '${{ env.INDEXER_PACKAGE_PATH }}/output'
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -192,4 +195,4 @@ jobs:
         with:
           app-name: 'indexer-infra'
           slot-name: 'Production'
-          package: '${{ env.INDEXER_PACKAGE_PATH }}/bin/Release/net9.0'
+          package: '${{ env.INDEXER_PACKAGE_PATH }}/output'
