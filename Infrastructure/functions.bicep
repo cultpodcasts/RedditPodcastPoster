@@ -116,6 +116,12 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
   name: 'ai-${suffix}'
 }
 
+var auth0= {
+	auth0__Audience: 'https://api.cultpodcasts.com/'
+	auth0__Domain: 'cultpodcasts.uk.auth0.com'
+	auth0__Issuer: 'https://cultpodcasts.uk.auth0.com/'
+}
+
 var _auth0Client= {
     auth0client__ClientId: auth0ClientId
     auth0client__ClientSecret: auth0ClientSecret
@@ -214,6 +220,7 @@ module apiFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: true
     appSettings: union(
+        auth0,
         _auth0Client, 
         _bluesky, 
         _cloudflare, 
