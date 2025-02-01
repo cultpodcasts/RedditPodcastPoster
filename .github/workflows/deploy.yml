@@ -55,11 +55,23 @@ jobs:
       run: dotnet build ${{ env.buildConfiguration }} --no-restore
     - name: Test
       run: dotnet test ${{ env.buildConfiguration }} --no-build --verbosity normal
-    - name: Archive build artifacts
+    - name: Archive api-build artifacts
       uses: actions/upload-artifact@v4
       with:
-          name: ${{ env.artifactBuild }}
-          path: .
+          name: build-api
+          path: Cloud/Api
+          include-hidden-files: true
+    - name: Archive discover-build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+          name: build-discover
+          path: Cloud/Discover
+          include-hidden-files: true
+    - name: Archive indexer-build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+          name: build-indexer
+          path: Cloud/Indexer
           include-hidden-files: true
     - name: Archive bicep artifacts
       uses: actions/upload-artifact@v4
@@ -79,8 +91,11 @@ jobs:
     - name: Download build artifact
       uses: actions/download-artifact@v4
       with:
-          name: ${{ env.artifactBuild }}
+          name: build-${{ matrix.function }}
           path: build
+    - name: Display structure of downloaded files
+      run: ls -R -a .
+      if: needs.build.outputs.infrastructure_changed == 'true'
     - name: Publish function
       run: dotnet publish ${{ env.buildConfiguration }} --no-build build/Cloud/${{ matrix.function }} -o:output/${{ matrix.function }}
     - name: Archive published-function artifacts
