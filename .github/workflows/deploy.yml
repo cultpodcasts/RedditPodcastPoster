@@ -88,19 +88,21 @@ jobs:
   provision:
     runs-on: ubuntu-latest
     needs: [build-and-test]
-    if: needs.build-and-test.outputs.outputs.infrastructre_changed == 'true'
     continue-on-error: false
     steps:
     - name: Download bicep artifact
       uses: actions/download-artifact@v4
+      if: needs.build-and-test.outputs.outputs.infrastructre_changed == 'true'
       with:
           name: ${{ env.artifactInfrastructure }}
           path: Infrastructure
     - name: Display structure of downloaded files
       run: ls -R -a .
-  
+      if: needs.build-and-test.outputs.outputs.infrastructre_changed == 'true'
+    
     - name: Azure Login
       uses: Azure/login@v2.2.0            
+      if: needs.build-and-test.outputs.outputs.infrastructre_changed == 'true'
       with:
         client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
@@ -109,6 +111,7 @@ jobs:
     - name: Storage (Deploy Bicep)
       id: bicepstoragedeploy
       uses: azure/bicep-deploy@v1
+      if: needs.build-and-test.outputs.outputs.infrastructre_changed == 'true'
       with:
         type: deployment
         operation: create
@@ -121,6 +124,7 @@ jobs:
     - name: Application-Insights (Deploy Bicep)
       id: bicepappinsightsdeploy
       uses: azure/bicep-deploy@v1
+      if: needs.build-and-test.outputs.outputs.infrastructre_changed == 'true'
       with:
         type: deployment
         operation: create
@@ -133,6 +137,7 @@ jobs:
     - name: Functions (Deploy Bicep)
       id: bicepfunctionsdeploy
       uses: azure/bicep-deploy@v1
+      if: needs.build-and-test.outputs.outputs.infrastructre_changed == 'true'
       with:
         type: deployment
         operation: create
@@ -145,7 +150,7 @@ jobs:
         parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}"}'
 
     - name: Set Function State
-      if: ${{ (env.functionState == 'start') || (env.functionState == 'stop') }}
+      if: (${{ (env.functionState == 'start') || (env.functionState == 'stop') }}) && needs.build-and-test.outputs.outputs.infrastructre_changed == 'true'
       uses: Azure/cli@v2.1.0
       with:
         azcliversion: latest
