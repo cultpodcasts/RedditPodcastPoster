@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
@@ -23,6 +24,12 @@ public class ContentPublisher(
     ILogger<ContentPublisher> logger)
     : IContentPublisher
 {
+    private static readonly JsonSerializerOptions JsonSerializerOptions = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     private readonly ContentOptions _contentOptions = contentOptions.Value;
     private readonly SubredditSettings _subredditSettings = subredditSettings.Value;
 
@@ -37,7 +44,7 @@ public class ContentPublisher(
     public async Task PublishSubjects()
     {
         var subjects = await subjectRepository.GetAll(x => new {name = x.Name}).OrderBy(x => x.name).ToListAsync();
-        var json = JsonSerializer.Serialize(subjects);
+        var json = JsonSerializer.Serialize(subjects, JsonSerializerOptions);
 
         var request = new PutObjectRequest
         {
@@ -65,7 +72,7 @@ public class ContentPublisher(
     {
         var subredditFlairs = redditClient.Subreddit(_subredditSettings.SubredditName).Flairs.LinkFlairV2;
         var models = subredditFlairs.ToDictionary(x => Guid.Parse(x.Id), ToFlairModel);
-        var json = JsonSerializer.Serialize(models);
+        var json = JsonSerializer.Serialize(models, JsonSerializerOptions);
         var request = new PutObjectRequest
         {
             BucketName = _contentOptions.BucketName,
@@ -90,7 +97,7 @@ public class ContentPublisher(
 
     public async Task PublishDiscoveryInfo(DiscoveryInfo discoveryInfo)
     {
-        var json = JsonSerializer.Serialize(discoveryInfo);
+        var json = JsonSerializer.Serialize(discoveryInfo, JsonSerializerOptions);
         var request = new PutObjectRequest
         {
             BucketName = _contentOptions.BucketName,
@@ -116,7 +123,7 @@ public class ContentPublisher(
     private async Task<bool> PublishHomepageToR2(HomePageModel homepageContent)
     {
         var published = false;
-        var homepageContentAsJson = JsonSerializer.Serialize(homepageContent);
+        var homepageContentAsJson = JsonSerializer.Serialize(homepageContent, JsonSerializerOptions);
 
         var request = new PutObjectRequest
         {
@@ -169,7 +176,7 @@ public class ContentPublisher(
             EpisodeCount = homepageContent.EpisodeCount
         };
 
-        var preProcessedHomepageContentAsJson = JsonSerializer.Serialize(preProcessedHomepage);
+        var preProcessedHomepageContentAsJson = JsonSerializer.Serialize(preProcessedHomepage, JsonSerializerOptions);
 
         var request = new PutObjectRequest
         {
