@@ -116,7 +116,7 @@ var api= {
 
 var auth0= {
 	auth0__Audience: auth0Audience
-	auth0__Domain: 
+	auth0__Domain: auth0Domain
 	auth0__Issuer: 'https://cultpodcasts.uk.auth0.com/'
 }
 
