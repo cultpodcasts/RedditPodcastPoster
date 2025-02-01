@@ -59,19 +59,19 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
           name: build-api
-          path: ${{API_PACKAGE_PATH}}
+          path: ${{env.API_PACKAGE_PATH}}
           include-hidden-files: true
     - name: Archive discover-build artifacts
       uses: actions/upload-artifact@v4
       with:
           name: build-discover
-          path: ${{DISCOVER_PACKAGE_PATH}}
+          path: ${{env.DISCOVER_PACKAGE_PATH}}
           include-hidden-files: true
     - name: Archive indexer-build artifacts
       uses: actions/upload-artifact@v4
       with:
           name: build-indexer
-          path: ${{INDEXER_PACKAGE_PATH}}
+          path: ${{env.INDEXER_PACKAGE_PATH}}
           include-hidden-files: true
     - name: Archive bicep artifacts
       uses: actions/upload-artifact@v4
