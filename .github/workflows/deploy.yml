@@ -35,7 +35,7 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build --configuration Release -r linux-x64 --no-restore
     - name: Test
       run: dotnet test --configuration Release --no-build --verbosity normal
     - name: Publish api
