@@ -7,15 +7,6 @@ param suffix string = uniqueString(resourceGroup().id)
 @description('Name for the Storage Account')
 param storageName string
 
-@description('Runtime for the Functions')
-@allowed([
-  'dotnet-isolated'
-  'node'
-  'dotnet'
-  'java'
-])
-param runtime string
-
 @secure()
 param auth0ClientId string
 @secure()
@@ -356,17 +347,15 @@ var youTubeKeyUsage= {
 	youtube__Applications__12__DisplayName: 'ApiKey-10 - Cli'
 }
 
-var apiSettings= union(
+var coreSettings= union(
         jobHostLogging,
         api,
-        auth0,
         auth0Client, 
         bluesky, 
         cloudflare, 
         content,
         cosmosdb, 
         delayedPublication,
-        indexer,
         pushSubscriptions, 
         reddit, 
         redditAdmin, 
@@ -379,60 +368,30 @@ var apiSettings= union(
         twitter, 
         youtube, 
         youTubeKeyUsage
-    )
+)
+
+var apiSettings= union(
+    coreSettings,
+    auth0,
+    indexer
+)
 
 var discoverySettings= union(
-        jobHostLogging,
-        api,
-        auth0,
-        auth0Client, 
-        bluesky, 
-        cloudflare, 
-        content,
-        cosmosdb,
-        delayedPublication,
-        discover,
-        listenNotes, 
-        pushSubscriptions, 
-        reddit, 
-        redditAdmin, 
-        redirect, 
-        searchIndex, 
-        shortner,
-        spotify, 
-        subreddit,
-        taddy, 
-        textanalytics, 
-        twitter, 
-        youtube, 
-        youTubeKeyUsage
-    )
+    coreSettings,
+    auth0,
+    discover,
+    listenNotes,
+    taddy
+)
 
 var indexerSettings= union(
-        jobHostLogging,
-        api,
-        auth0Client, 
-        bluesky, 
-        cloudflare, 
-        content,
-        cosmosdb, 
-        delayedPublication,
-        indexer,
-        poster,
-        postingCriteria,
-        pushSubscriptions, 
-        reddit, 
-        redditAdmin, 
-        redirect, 
-        searchIndex, 
-        shortner,
-        spotify,
-        subreddit,
-        textanalytics, 
-        twitter,
-        youtube, 
-        youTubeKeyUsage
-    )
+    coreSettings,
+	indexer,
+	poster,
+	postingCriteria
+ )
+
+var runtime = 'dotnet-isolated'
 
 module apiFunction 'function.bicep' = {
   name: '${deployment().name}-api'
