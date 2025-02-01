@@ -13,12 +13,24 @@ public class CategorisePodcastEpisodesProcessor(
 {
     public async Task Run(CategorisePodcastEpisodesRequest request)
     {
-        if (!string.IsNullOrWhiteSpace(request.PodcastIds))
+        if (!string.IsNullOrWhiteSpace(request.PodcastIds) || !string.IsNullOrWhiteSpace(request.PodcastPartialMatch))
         {
-            var podcastIds = request.PodcastIds.Split(",");
+            Guid[] podcastIds;
+            if (!string.IsNullOrWhiteSpace(request.PodcastPartialMatch))
+            {
+                var ids = await repository
+                    .GetAllBy(x => x.Name.ToLower().Contains(request.PodcastPartialMatch.ToLower()),
+                        p => new {id = p.Id}).ToArrayAsync();
+                podcastIds = ids.Select(x => x.id).ToArray();
+            }
+            else
+            {
+                podcastIds = request.PodcastIds!.Split(",").Select(Guid.Parse).ToArray();
+            }
+
             foreach (var podcastId in podcastIds)
             {
-                var podcast = await repository.GetPodcast(Guid.Parse(podcastId));
+                var podcast = await repository.GetPodcast(podcastId);
                 if (podcast == null)
                 {
                     throw new ArgumentException($"Podcast with id '{podcastId}' not found.");
