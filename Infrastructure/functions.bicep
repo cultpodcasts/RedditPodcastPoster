@@ -356,18 +356,7 @@ var youTubeKeyUsage= {
 	youtube__Applications__12__DisplayName: 'ApiKey-10 - Cli'
 }
 
-module apiFunction 'function.bicep' = {
-  name: '${deployment().name}-api'
-  params: {
-    name: 'api'
-    location: location
-    applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
-    storageAccountName: storage.name
-    storageAccountId: storage.id
-    runtime: runtime
-    suffix: suffix
-    publicNetworkAccess: true
-    appSettings: union(
+var apiSettings= union(
         jobHostLogging,
         api,
         auth0,
@@ -391,21 +380,8 @@ module apiFunction 'function.bicep' = {
         youtube, 
         youTubeKeyUsage
     )
-  }
-}
 
-module discoveryFunction 'function.bicep' = {
-  name: '${deployment().name}-discover'
-  params: {
-    name: 'discover'
-    location: location
-    applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
-    storageAccountName: storage.name
-    storageAccountId: storage.id
-    runtime: runtime
-    suffix: suffix
-    publicNetworkAccess: false
-    appSettings: union(
+var discoverySettings= union(
         jobHostLogging,
         api,
         auth0,
@@ -431,21 +407,8 @@ module discoveryFunction 'function.bicep' = {
         youtube, 
         youTubeKeyUsage
     )
-  }
-}
 
-module indexerFunction 'function.bicep' = {
-  name: '${deployment().name}-indexer'
-  params: {
-    name: 'indexer'
-    location: location
-    applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
-    storageAccountName: storage.name
-    storageAccountId: storage.id
-    runtime: runtime
-    suffix: suffix
-    publicNetworkAccess: false
-    appSettings: union(
+var indexerSettings= union(
         jobHostLogging,
         api,
         auth0Client, 
@@ -470,7 +433,48 @@ module indexerFunction 'function.bicep' = {
         youtube, 
         youTubeKeyUsage
     )
-  }  
+
+module apiFunction 'function.bicep' = {
+  name: '${deployment().name}-api'
+  params: {
+    name: 'api'
+    location: location
+    applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
+    storageAccountName: storage.name
+    storageAccountId: storage.id
+    runtime: runtime
+    suffix: suffix
+    publicNetworkAccess: true
+    appSettings: apiSettings
+  }
 }
 
+module discoveryFunction 'function.bicep' = {
+  name: '${deployment().name}-discover'
+  params: {
+    name: 'discover'
+    location: location
+    applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
+    storageAccountName: storage.name
+    storageAccountId: storage.id
+    runtime: runtime
+    suffix: suffix
+    publicNetworkAccess: false
+    appSettings: discoverySettings
+  }
+}
 
+module indexerFunction 'function.bicep' = {
+  name: '${deployment().name}-indexer'
+  params: {
+    name: 'indexer'
+    location: location
+    applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
+    storageAccountName: storage.name
+    storageAccountId: storage.id
+    runtime: runtime
+    suffix: suffix
+    publicNetworkAccess: false
+    appSettings: indexerSettings
+  }  
+}
