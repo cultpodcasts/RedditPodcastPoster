@@ -33,17 +33,17 @@ jobs:
       with:
         dotnet-version: 9.0.x
     - name: Restore dependencies
-      run: dotnet restore  -r linux-x64
+      run: dotnet restore
     - name: Build
-      run: dotnet build --configuration Release  -r linux-x64 --no-restore
+      run: dotnet build --configuration Release --no-restore
     - name: Test
       run: dotnet test --configuration Release --no-build --verbosity normal
     - name: Publish api
-      run: dotnet publish --configuration Release --no-build -r linux-x64 -p:PublishReadyToRun=true -p:PublishReadyToRunShowWarnings=true ${{ env.API_PACKAGE_PATH }} -o:output/api
+      run: dotnet publish --configuration Release --no-build ${{ env.API_PACKAGE_PATH }} -o:output/api
     - name: Publish discover
-      run: dotnet publish --configuration Release --no-build -r linux-x64 -p:PublishReadyToRun=true -p:PublishReadyToRunShowWarnings=true ${{ env.DISCOVER_PACKAGE_PATH }} -o:output/discover
+      run: dotnet publish --configuration Release --no-build ${{ env.DISCOVER_PACKAGE_PATH }} -o:output/discover
     - name: Publish indexer
-      run: dotnet publish --configuration Release --no-build -r linux-x64 -p:PublishReadyToRun=true -p:PublishReadyToRunShowWarnings=true ${{ env.INDEXER_PACKAGE_PATH }} -o:output/indexer
+      run: dotnet publish --configuration Release --no-build ${{ env.INDEXER_PACKAGE_PATH }} -o:output/indexer
     - name: Archive api-production artifacts
       uses: actions/upload-artifact@v4
       with:
