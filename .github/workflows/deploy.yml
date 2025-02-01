@@ -42,17 +42,23 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
           name: api
-          path: ${{ env.API_PACKAGE_PATH }}/bin/Release/net9.0
+          path: |
+              ${{ env.API_PACKAGE_PATH }}/bin/Release/net9.0
+              ${{ env.API_PACKAGE_PATH }}/bin/Release/net9.0/.azurefunctions
     - name: Archive discover-production artifacts
       uses: actions/upload-artifact@v4
       with:
           name: discover
-          path: ${{ env.DISCOVER_PACKAGE_PATH }}/bin/Release/net9.0
+          path: |
+              ${{ env.DISCOVER_PACKAGE_PATH }}/bin/Release/net9.0
+              ${{ env.DISCOVER_PACKAGE_PATH }}/bin/Release/net9.0/.azurefunctions
     - name: Archive indexer-production artifacts
       uses: actions/upload-artifact@v4
       with:
           name: indexer
-          path: ${{ env.INDEXER_PACKAGE_PATH }}/bin/Release/net9.0            
+          path: |
+              ${{ env.INDEXER_PACKAGE_PATH }}/bin/Release/net9.0            
+              ${{ env.INDEXER_PACKAGE_PATH }}/bin/Release/net9.0/.azurefunctions            
 
   provision:
     runs-on: ubuntu-latest
