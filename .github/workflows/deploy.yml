@@ -39,11 +39,11 @@ jobs:
     - name: Test
       run: dotnet test --configuration Release --no-build --verbosity normal
     - name: Publish api
-      run: dotnet publish --configuration Release --no-build -r linux-x64 -p:PublishReadyToRun=true ${{ env.API_PACKAGE_PATH }} -o:output/api
+      run: dotnet publish --configuration Release --no-build -p:PublishReadyToRun=true ${{ env.API_PACKAGE_PATH }} -o:output/api
     - name: Publish discover
-      run: dotnet publish --configuration Release --no-build -r linux-x64 -p:PublishReadyToRun=true ${{ env.DISCOVER_PACKAGE_PATH }} -o:output/discover
+      run: dotnet publish --configuration Release --no-build -p:PublishReadyToRun=true ${{ env.DISCOVER_PACKAGE_PATH }} -o:output/discover
     - name: Publish indexer
-      run: dotnet publish --configuration Release --no-build -r linux-x64 -p:PublishReadyToRun=true ${{ env.INDEXER_PACKAGE_PATH }} -o:output/indexer
+      run: dotnet publish --configuration Release --no-build -p:PublishReadyToRun=true ${{ env.INDEXER_PACKAGE_PATH }} -o:output/indexer
     - name: Archive api-production artifacts
       uses: actions/upload-artifact@v4
       with:
