@@ -34,6 +34,8 @@ env:
 jobs:
   monitor-infrastructure:
     runs-on: ubuntu-latest
+    outputs:
+      infrastructre_changed: ${{ steps.infrastructure.outputs.src }}
     steps:
     - uses: dorny/paths-filter@v3
       id: infrastructure
@@ -87,8 +89,8 @@ jobs:
 
   provision:
     runs-on: ubuntu-latest
-    needs: build-and-test
-    if: steps.infrastructure.outputs.src == 'true'
+    needs: [build-and-test]
+    if: needs.monitor-infrastructure.outputs.infrastructure.outputs.infrastructre_changed == 'true'
     continue-on-error: false
     steps:
     - name: Download bicep artifact
