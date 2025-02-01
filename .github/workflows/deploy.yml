@@ -43,9 +43,9 @@ jobs:
       with:
           name: functions
           path: |
-            ./${{ env.API_PACKAGE_PATH }}/bin/Release/net9.0
-            ./${{ env.DISCOVER_PACKAGE_PATH }}/bin/Release/net9.0
-            ./${{ env.INDEXER_PACKAGE_PATH }}/bin/Release/net9.0            
+            ${{ env.API_PACKAGE_PATH }}/bin/Release/net9.0
+            ${{ env.DISCOVER_PACKAGE_PATH }}/bin/Release/net9.0
+            ${{ env.INDEXER_PACKAGE_PATH }}/bin/Release/net9.0            
 
   provision:
     runs-on: ubuntu-latest
