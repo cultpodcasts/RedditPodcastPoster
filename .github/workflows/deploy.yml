@@ -41,7 +41,8 @@ jobs:
       id: infrastructure
       with:
         filters: |
-        src: 'infrastructure/**'
+          src:
+          - 'infrastructure' 
   build-and-test:
     runs-on: ubuntu-latest
     steps:
