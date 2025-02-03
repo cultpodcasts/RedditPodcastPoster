@@ -35,7 +35,8 @@ public class RecentPodcastEpisodeCategoriser(
                     episode,
                     podcast.IgnoredAssociatedSubjects,
                     podcast.IgnoredSubjects,
-                    podcast.DefaultSubject);
+                    podcast.DefaultSubject,
+                    podcast.DescriptionRegex);
 
                 if (updatedEpisode)
                 {

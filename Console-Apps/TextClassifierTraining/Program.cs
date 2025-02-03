@@ -12,6 +12,7 @@ using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Subreddit.Extensions;
+using RedditPodcastPoster.Text.Extensions;
 using TextClassifierTraining;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -35,6 +36,7 @@ builder.Services
     .AddSingleton<TrainingDataProcessor>()
     .AddSingleton<ISubjectCleanser, SubjectCleanser>()
     .AddSubjectServices()
+    .AddTextSanitiser()
     .AddCachedSubjectProvider()
     .AddRedditServices();
 

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
+using RedditPodcastPoster.Text.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -23,7 +24,8 @@ builder.Services
     .AddRepositories()
     .AddScoped<CategorisePodcastEpisodesProcessor>()
     .AddCachedSubjectProvider()
-    .AddSubjectServices();
+    .AddSubjectServices()
+    .AddTextSanitiser();
 
 using var host = builder.Build();
 

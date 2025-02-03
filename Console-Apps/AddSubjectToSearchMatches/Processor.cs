@@ -60,7 +60,8 @@ public class Processor(
                         var subjectEnrichmentOptions = new SubjectEnrichmentOptions(
                             podcast.IgnoredAssociatedSubjects,
                             podcast.IgnoredSubjects,
-                            podcast.DefaultSubject);
+                            podcast.DefaultSubject,
+                            podcast.DescriptionRegex);
                         var subjectMatches = await subjectMatcher.MatchSubjects(
                             podcastEpisode.Episode,
                             subjectEnrichmentOptions

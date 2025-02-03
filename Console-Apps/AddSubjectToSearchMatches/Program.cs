@@ -8,6 +8,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Search.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
+using RedditPodcastPoster.Text.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -25,6 +26,7 @@ builder.Services
     .AddRepositories()
     .AddSearch()
     .AddSubjectServices()
+    .AddTextSanitiser()
     .AddCachedSubjectProvider()
     .AddHttpClient();
 

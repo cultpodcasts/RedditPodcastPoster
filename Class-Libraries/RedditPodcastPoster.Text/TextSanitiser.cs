@@ -77,15 +77,32 @@ public partial class TextSanitiser(
         return podcastName;
     }
 
-    public string SanitiseDescription(string episodeDescription, Regex? regex)
+    public string SanitiseDescription(string episodeDescription, Regex? descriptionRegex)
     {
-        var description = Sanitise(episodeDescription);
-        if (regex != null)
+        var description = ExtractDescription(episodeDescription, descriptionRegex);
+        description = FixCharacters(description);
+        return description;
+    }
+
+    public string ExtractDescription(string episodeDescription, string descriptionRegex)
+    {
+        if (!string.IsNullOrWhiteSpace(descriptionRegex))
         {
-            description = ExtractBody(description, regex);
+            var regex = new Regex(descriptionRegex!, RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            return ExtractDescription(episodeDescription, regex);
         }
 
-        description = FixCharacters(description);
+        return episodeDescription;
+    }
+
+    public string ExtractDescription(string episodeDescription, Regex? descriptionRegex)
+    {
+        var description = Sanitise(episodeDescription);
+        if (descriptionRegex != null)
+        {
+            description = ExtractBody(description, descriptionRegex);
+        }
+
         return description;
     }
 

@@ -4,11 +4,13 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subjects.Models;
+using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.Subjects;
 
 public class SubjectService(
     ISubjectsProvider subjectRepository,
+    ITextSanitiser textSanitiser,
     ILogger<SubjectService> logger
 ) : ISubjectService
 {
@@ -156,7 +158,8 @@ public class SubjectService(
     public async Task<IEnumerable<SubjectMatch>> Match(
         Episode episode,
         string[]? ignoredAssociatedSubjects = null,
-        string[]? ignoredSubjects = null)
+        string[]? ignoredSubjects = null,
+        string? descriptionRegex = null)
     {
         ignoredAssociatedSubjects = ignoredAssociatedSubjects?.Select(x => x.ToLowerInvariant()).ToArray();
         ignoredSubjects = ignoredSubjects?.Select(x => x.ToLowerInvariant()).ToArray();
@@ -164,13 +167,13 @@ public class SubjectService(
         var subjects = await subjectRepository.GetAll().ToListAsync();
         var matches = subjects
             .Select(subject => new SubjectMatch(subject,
-                Matches(episode, subject, false, ignoredAssociatedSubjects, ignoredSubjects)))
+                Matches(episode, subject, false, ignoredAssociatedSubjects, ignoredSubjects, descriptionRegex)))
             .Where(x => x.MatchResults.Any());
         if (!matches.Any())
         {
             matches = subjects
                 .Select(subject => new SubjectMatch(subject,
-                    Matches(episode, subject, true, ignoredAssociatedSubjects, ignoredSubjects)))
+                    Matches(episode, subject, true, ignoredAssociatedSubjects, ignoredSubjects, descriptionRegex)))
                 .Where(x => x.MatchResults.Any());
         }
 
@@ -182,7 +185,8 @@ public class SubjectService(
         Subject subject,
         bool withDescription,
         string[]? ignoredAssociatedSubjects = null,
-        string[]? ignoredSubjects = null)
+        string[]? ignoredSubjects = null,
+        string descriptionRegex = null)
     {
         var matches = new List<MatchResult>();
         var subjectTerm = subject.GetSubjectTerms();
@@ -204,7 +208,9 @@ public class SubjectService(
 
                     if (withDescription)
                     {
-                        var descMatch = GetMatches(term.Term, WebUtility.HtmlDecode(episode.Description));
+                        var episodeDescription =
+                            textSanitiser.ExtractDescription(episode.Description, descriptionRegex);
+                        var descMatch = GetMatches(term.Term, WebUtility.HtmlDecode(episodeDescription));
                         if (descMatch > 0)
                         {
                             matchCtr += descMatch;

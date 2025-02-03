@@ -11,5 +11,6 @@ public interface ISubjectService
     Task<IEnumerable<SubjectMatch>> Match(
         Episode episode,
         string[]? ignoredAssociatedSubjects = null,
-        string[]? ignoredSubjects = null);
+        string[]? ignoredSubjects = null,
+        string descriptionRegex = "");
 }

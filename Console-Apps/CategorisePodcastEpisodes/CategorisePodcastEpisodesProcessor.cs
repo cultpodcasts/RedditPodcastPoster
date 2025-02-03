@@ -54,7 +54,8 @@ public class CategorisePodcastEpisodesProcessor(
                         new SubjectEnrichmentOptions(
                             podcast.IgnoredAssociatedSubjects,
                             podcast.IgnoredSubjects,
-                            podcast.DefaultSubject));
+                            podcast.DefaultSubject,
+                            podcast.DescriptionRegex));
                 }
 
                 if (request.Commit)

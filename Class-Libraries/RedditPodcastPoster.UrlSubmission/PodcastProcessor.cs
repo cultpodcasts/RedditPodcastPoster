@@ -57,7 +57,8 @@ public class PodcastProcessor(
                 new SubjectEnrichmentOptions(
                     categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
                     categorisedItem.MatchingPodcast.IgnoredSubjects,
-                    categorisedItem.MatchingPodcast.DefaultSubject));
+                    categorisedItem.MatchingPodcast.DefaultSubject,
+                    categorisedItem.MatchingPodcast.DescriptionRegex));
             categorisedItem.MatchingPodcast.Episodes.Add(episode);
             categorisedItem.MatchingPodcast.Episodes =
                 categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();

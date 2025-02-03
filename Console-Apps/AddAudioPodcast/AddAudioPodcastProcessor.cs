@@ -96,7 +96,8 @@ public class AddAudioPodcastProcessor(
                     new SubjectEnrichmentOptions(
                         podcast.IgnoredAssociatedSubjects,
                         podcast.IgnoredSubjects,
-                        podcast.DefaultSubject));
+                        podcast.DefaultSubject,
+                        podcast.DescriptionRegex));
             }
 
             await podcastRepository.Save(podcast);

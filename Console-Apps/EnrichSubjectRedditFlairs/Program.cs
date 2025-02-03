@@ -11,6 +11,7 @@ using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Subreddit.Extensions;
+using RedditPodcastPoster.Text.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -31,6 +32,7 @@ builder.Services
     .AddRedditServices()
     .AddSubredditServices(builder.Configuration)
     .AddSubjectServices()
+    .AddTextSanitiser()
     .AddCachedSubjectProvider()
     .AddScoped<ISubjectCleanser, SubjectCleanser>();
 
