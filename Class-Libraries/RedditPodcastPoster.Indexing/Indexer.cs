@@ -89,7 +89,8 @@ public class Indexer(
                     new SubjectEnrichmentOptions(
                         podcast.IgnoredAssociatedSubjects,
                         podcast.IgnoredSubjects,
-                        podcast.DefaultSubject));
+                        podcast.DefaultSubject,
+                        podcast.DescriptionRegex));
                 var result = updatedEpisodes.FirstOrDefault(x => x.EpisodeId == episode.Id);
                 if (result != null)
                 {

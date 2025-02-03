@@ -9,7 +9,8 @@ public class SubjectEnricher(
     ILogger<ISubjectEnricher> logger)
     : ISubjectEnricher
 {
-    public async Task<EnrichSubjectsResult> EnrichSubjects(Episode episode,
+    public async Task<EnrichSubjectsResult> EnrichSubjects(
+        Episode episode,
         SubjectEnrichmentOptions? options = null)
     {
         var subjectMatches = await subjectMatcher.MatchSubjects(episode, options);

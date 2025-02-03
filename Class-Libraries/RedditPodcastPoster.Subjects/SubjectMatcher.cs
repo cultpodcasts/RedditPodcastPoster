@@ -18,7 +18,8 @@ public class SubjectMatcher(
         var subjectMatches = await subjectService.Match(
             episode,
             options?.IgnoredAssociatedSubjects,
-            options?.IgnoredSubjects);
+            options?.IgnoredSubjects,
+            options?.DescriptionRegex);
         var subjectMatch = subjectMatches.OrderByDescending(x => x.MatchResults.Sum(y => y.Matches));
         return subjectMatch.ToList();
     }

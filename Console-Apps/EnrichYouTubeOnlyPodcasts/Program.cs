@@ -31,6 +31,7 @@ builder.Services
     .AddRepositories()
     .AddFileRepository()
     .AddSubjectServices()
+    .AddTextSanitiser()
     .AddCachedSubjectProvider()
     .AddSingleton<EnrichYouTubePodcastProcessor>()
     .AddPostingCriteria()

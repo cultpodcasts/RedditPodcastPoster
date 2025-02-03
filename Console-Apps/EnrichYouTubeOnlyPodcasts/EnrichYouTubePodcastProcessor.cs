@@ -182,7 +182,8 @@ public class EnrichYouTubePodcastProcessor(
                         new SubjectEnrichmentOptions(
                             podcast.IgnoredAssociatedSubjects,
                             podcast.IgnoredSubjects,
-                            podcast.DefaultSubject));
+                            podcast.DefaultSubject,
+                            podcast.DescriptionRegex));
 
                     podcast.Episodes.Add(episode);
                 }

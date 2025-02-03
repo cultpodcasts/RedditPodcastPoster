@@ -26,6 +26,7 @@ builder.Services
     .AddRepositories()
     .AddEliminationTerms()
     .AddSubjectServices()
+    .AddTextSanitiser()
     .AddCachedSubjectProvider()
     .AddSingleton<Sqllite3DatabasePublisher.Sqllite3DatabasePublisher>();
 

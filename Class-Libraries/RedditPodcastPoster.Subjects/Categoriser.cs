@@ -13,15 +13,17 @@ public class Categoriser(
 {
     public async Task<bool> Categorise(
         Episode episode,
-        string[]? ignoredAssociatedSubjects = null,
-        string[]? ignoredSubjects = null,
-        string? defaultSubject = null)
+        string[]? ignoredAssociatedSubjects,
+        string[]? ignoredSubjects,
+        string? defaultSubject,
+        string descriptionRegex)
     {
         var originalSubject = episode.Subjects.ToArray();
         var results = await subjectEnricher.EnrichSubjects(episode, new SubjectEnrichmentOptions(
             ignoredAssociatedSubjects,
             ignoredSubjects,
-            defaultSubject));
+            defaultSubject,
+            descriptionRegex));
         var updated = !originalSubject.SequenceEqual(episode.Subjects);
         return updated;
     }
