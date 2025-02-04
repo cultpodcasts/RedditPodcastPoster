@@ -103,7 +103,7 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
 var runtime = 'dotnet-isolated' // 
 
 var auth0Audience= 'https://api.cultpodcasts.com/'
-var auth0Domain= 'cultpodcasts.uk.auth0.com'
+var auth0Domain= 'auth.cultpodcasts.com'
 
 var jobHostLogging= {
     AzureFunctionsJobHost__Logging__ApplicationInsights__LogLevel__Default: 'Information'
@@ -119,7 +119,7 @@ var api= {
 var auth0= {
     auth0__Audience: auth0Audience
     auth0__Domain: auth0Domain
-    auth0__Issuer: 'https://cultpodcasts.uk.auth0.com/'
+    auth0__Issuer: 'https://auth.cultpodcasts.com/'
 }
 
 var auth0Client= {
