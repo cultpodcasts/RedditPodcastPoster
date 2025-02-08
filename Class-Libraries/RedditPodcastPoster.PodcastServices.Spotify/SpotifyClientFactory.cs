@@ -39,7 +39,8 @@ public class SpotifyClientFactory(
         }
     }
 
-    private async Task<ClientCredentialsTokenResponse?> GetToken(SpotifyClientConfig config,
+    private async Task<ClientCredentialsTokenResponse?> GetToken(
+        SpotifyClientConfig config,
         ClientCredentialsRequest request)
     {
         const int maxTries = 3;
