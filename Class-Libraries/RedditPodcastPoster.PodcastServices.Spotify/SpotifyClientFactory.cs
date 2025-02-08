@@ -23,13 +23,13 @@ public class SpotifyClientFactory(
         var request = new ClientCredentialsRequest(_settings.ClientId, _settings.ClientSecret);
         try
         {
-            var response = await GetToken(config, request);
-            if (response == null)
+            var token = await GetToken(config, request);
+            if (token == null)
             {
                 throw new InvalidOperationException("Failed to get token.");
             }
 
-            return new SpotifyClient(config.WithToken(response.AccessToken));
+            return new SpotifyClient(config.WithToken(token.AccessToken));
         }
         catch (APIException ex)
         {
@@ -46,11 +46,12 @@ public class SpotifyClientFactory(
         const int maxTries = 3;
         var tr = 0;
         ClientCredentialsTokenResponse? token = null;
+        var oAuthClient = new OAuthClient(config);
         while (token == null && tr < maxTries)
         {
             try
             {
-                token = await new OAuthClient(config).RequestToken(request);
+                token = await oAuthClient.RequestToken(request);
             }
             catch (Exception ex)
             {
