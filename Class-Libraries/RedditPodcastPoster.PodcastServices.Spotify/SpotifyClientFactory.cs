@@ -23,7 +23,11 @@ public class SpotifyClientFactory(
         var request = new ClientCredentialsRequest(_settings.ClientId, _settings.ClientSecret);
         try
         {
-            var response = await new OAuthClient(config).RequestToken(request);
+            var response = await GetToken(config, request);
+            if (response == null)
+            {
+                throw new InvalidOperationException("Failed to get token.");
+            }
 
             return new SpotifyClient(config.WithToken(response.AccessToken));
         }
@@ -33,5 +37,30 @@ public class SpotifyClientFactory(
                 $"Failure to create spotify-client. Response-status-code: '{ex.Response?.StatusCode.ToString() ?? "no-status-code"}', response-message: '{ex.Response?.Body ?? "empty-body"}'.");
             throw;
         }
+    }
+
+    private async Task<ClientCredentialsTokenResponse?> GetToken(SpotifyClientConfig config,
+        ClientCredentialsRequest request)
+    {
+        const int maxTries = 3;
+        var tr = 0;
+        ClientCredentialsTokenResponse? token = null;
+        while (token == null && tr < maxTries)
+        {
+            try
+            {
+                token = await new OAuthClient(config).RequestToken(request);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Failed to get spotify-oauth token. Try {tr} of {maxTries}.");
+            }
+            finally
+            {
+                tr++;
+            }
+        }
+
+        return token;
     }
 }
