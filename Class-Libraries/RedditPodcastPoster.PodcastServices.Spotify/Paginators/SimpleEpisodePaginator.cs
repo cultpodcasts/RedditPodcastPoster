@@ -3,7 +3,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using SpotifyAPI.Web;
 using SpotifyAPI.Web.Http;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Paginators;
 
 public class SimpleEpisodePaginator(DateTime? releasedSince, bool isInReverseOrder) : IPaginator
 {

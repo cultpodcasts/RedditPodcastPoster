@@ -5,7 +5,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Client;
 
 public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyClientWrapper> logger)
     : ISpotifyClientWrapper

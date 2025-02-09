@@ -2,7 +2,7 @@
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Paginators;
 
 public interface ISpotifyQueryPaginator
 {

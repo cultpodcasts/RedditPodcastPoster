@@ -1,10 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Paginators;
 
 public class SpotifyQueryPaginator(
     ISpotifyClientWrapper spotifyClientWrapper,

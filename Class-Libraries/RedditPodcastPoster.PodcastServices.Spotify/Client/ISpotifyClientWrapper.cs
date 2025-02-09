@@ -1,7 +1,7 @@
 ﻿using RedditPodcastPoster.PodcastServices.Abstractions;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Client;
 
 public interface ISpotifyClientWrapper
 {

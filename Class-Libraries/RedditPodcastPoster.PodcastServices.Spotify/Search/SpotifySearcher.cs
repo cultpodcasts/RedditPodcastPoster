@@ -3,11 +3,12 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Search;
 
 public class SpotifySearcher(
     ISpotifyClientWrapper spotifyClient,

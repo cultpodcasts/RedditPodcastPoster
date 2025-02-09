@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Spotify.Client;
+using RedditPodcastPoster.PodcastServices.Spotify.Finders;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Providers;
 using RedditPodcastPoster.Text;

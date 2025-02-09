@@ -4,7 +4,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Finders;
 
 public class SearchResultFinder(
 #pragma warning disable CS9113 // Parameter is unread.

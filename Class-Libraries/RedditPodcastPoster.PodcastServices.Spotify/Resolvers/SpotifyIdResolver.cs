@@ -1,6 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 
 public static partial class SpotifyIdResolver
 {

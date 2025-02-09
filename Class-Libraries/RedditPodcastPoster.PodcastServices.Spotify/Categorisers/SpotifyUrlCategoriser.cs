@@ -7,7 +7,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.Text;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Categorisers;
 
 public class SpotifyUrlCategoriser(
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
@@ -26,7 +26,7 @@ public class SpotifyUrlCategoriser(
                 podcast.Episodes.Single(x => x.Urls.Spotify == url)));
         }
 
-        var episodeId = SpotifyIdResolver.GetEpisodeId(url);
+        var episodeId = Resolvers.SpotifyIdResolver.GetEpisodeId(url);
         if (episodeId == null)
         {
             throw new InvalidOperationException($"Unable to find spotify-id in url '{url}'.");
