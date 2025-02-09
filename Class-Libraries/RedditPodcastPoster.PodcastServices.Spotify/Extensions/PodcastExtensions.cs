@@ -1,4 +1,5 @@
 ﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Spotify.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 

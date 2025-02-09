@@ -2,9 +2,11 @@
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Models;
+using RedditPodcastPoster.PodcastServices.Spotify.Providers;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 
 public class SpotifyEpisodeResolver(
     ISpotifyPodcastEpisodesProvider spotifyPodcastEpisodesProvider,

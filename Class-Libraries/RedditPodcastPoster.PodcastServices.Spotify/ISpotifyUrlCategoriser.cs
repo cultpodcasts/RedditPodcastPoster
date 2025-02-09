@@ -1,5 +1,6 @@
 ﻿using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Spotify.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
 

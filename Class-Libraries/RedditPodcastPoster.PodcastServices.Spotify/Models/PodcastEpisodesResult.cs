@@ -1,6 +1,6 @@
 ﻿using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Models;
 
 public class PodcastEpisodesResult(
     IEnumerable<SimpleEpisode> episodes,

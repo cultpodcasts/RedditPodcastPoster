@@ -1,7 +1,7 @@
 ﻿using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Apple;
-using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Categorisation;

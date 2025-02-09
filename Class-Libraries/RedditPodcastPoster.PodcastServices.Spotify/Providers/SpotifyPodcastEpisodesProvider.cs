@@ -1,9 +1,10 @@
 ﻿using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Providers;
 
 public class SpotifyPodcastEpisodesProvider(
     ISpotifyClientWrapper spotifyClientWrapper,

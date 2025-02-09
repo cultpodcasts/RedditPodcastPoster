@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.PodcastServices.Spotify;
+﻿namespace RedditPodcastPoster.PodcastServices.Spotify.Configuration;
 
 public class SpotifySettings
 {

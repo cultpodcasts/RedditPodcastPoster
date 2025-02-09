@@ -1,9 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Spotify.Models;
+using RedditPodcastPoster.PodcastServices.Spotify.Providers;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 
 public class SpotifyPodcastResolver(
     ISpotifyClientWrapper spotifyClientWrapper,

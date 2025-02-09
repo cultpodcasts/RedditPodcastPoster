@@ -2,9 +2,10 @@
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.Text;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Providers;
 
 public class SpotifyEpisodeProvider(
     ISpotifyPodcastEpisodesProvider spotifyPodcastEpisodesProvider,
