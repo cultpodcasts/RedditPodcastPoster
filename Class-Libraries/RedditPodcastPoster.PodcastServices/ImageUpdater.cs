@@ -4,6 +4,8 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Factories;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
@@ -18,7 +20,8 @@ public class ImageUpdater(
     IBBCPageMetaDataExtractor bbcPageMetaDataExtractor,
     ILogger<ImageUpdater> logger) : IImageUpdater
 {
-    public async Task<bool> UpdateImages(Podcast podcast, Episode episode, EpisodeImageUpdateRequest updateRequest, IndexingContext indexingContext)
+    public async Task<bool> UpdateImages(Podcast podcast, Episode episode, EpisodeImageUpdateRequest updateRequest,
+        IndexingContext indexingContext)
     {
         var updated = false;
         if (updateRequest.UpdateSpotifyImage == true && !string.IsNullOrWhiteSpace(episode.SpotifyId))
@@ -37,11 +40,13 @@ public class ImageUpdater(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failure updating image for episode with id '{episodeId}' and spotify-id '{spotifyId}'.",
+                logger.LogError(ex,
+                    "Failure updating image for episode with id '{episodeId}' and spotify-id '{spotifyId}'.",
                     episode.Id,
                     episode.SpotifyId);
             }
         }
+
         if (updateRequest.UpdateAppleImage == true && episode.AppleId != null && podcast.AppleId != null)
         {
             try
@@ -58,17 +63,19 @@ public class ImageUpdater(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failure updating image for episode with id '{episodeId}' and apple-id '{appleId}'.",
+                logger.LogError(ex,
+                    "Failure updating image for episode with id '{episodeId}' and apple-id '{appleId}'.",
                     episode.Id,
                     episode.AppleId);
             }
-
         }
+
         if (updateRequest.UpdateYouTubeImage == true && !string.IsNullOrWhiteSpace(episode.YouTubeId))
         {
             try
             {
-                var video = await youTubeVideoService.GetVideoContentDetails(youTubeService, [episode.YouTubeId], indexingContext, withSnippets: true);
+                var video = await youTubeVideoService.GetVideoContentDetails(youTubeService, [episode.YouTubeId],
+                    indexingContext, true);
                 if (video != null && video.Any())
                 {
                     episode.Images ??= new EpisodeImages();
@@ -78,12 +85,13 @@ public class ImageUpdater(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failure updating image for episode with id '{episodeId}' and youtube-video-id '{youtubeId}'.",
+                logger.LogError(ex,
+                    "Failure updating image for episode with id '{episodeId}' and youtube-video-id '{youtubeId}'.",
                     episode.Id,
                     episode.YouTubeId);
             }
-
         }
+
         if (updateRequest.UpdateBBCImage == true && episode.Urls.BBC != null)
         {
             try
@@ -95,11 +103,13 @@ public class ImageUpdater(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failure updating image for episode with id '{episodeId}' and iplayer-url '{iplayerUrl}'.",
+                logger.LogError(ex,
+                    "Failure updating image for episode with id '{episodeId}' and iplayer-url '{iplayerUrl}'.",
                     episode.Id,
                     episode.Urls.BBC);
             }
         }
+
         return updated;
     }
 }

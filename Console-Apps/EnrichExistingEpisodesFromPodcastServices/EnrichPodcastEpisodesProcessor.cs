@@ -5,6 +5,8 @@ using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Factories;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
@@ -55,14 +57,13 @@ public class EnrichPodcastEpisodesProcessor(
             {
                 throw new InvalidOperationException($"No podcast matching '{request.PodcastName}' could be found.");
             }
-            else if (podcastIds.Count() > 1)
+
+            if (podcastIds.Count() > 1)
             {
                 throw new InvalidOperationException($"Multiple podcasts matching '{request.PodcastName}' were found.");
             }
-            else
-            {
-                podcastId = podcastIds.First();
-            }
+
+            podcastId = podcastIds.First();
         }
         else
         {
@@ -93,8 +94,11 @@ public class EnrichPodcastEpisodesProcessor(
                 !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
                 episode.AppleId == null)
             {
-                var spotifyEpisode = await spotifyEpisodeResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode), indexingContext);
-                if (spotifyEpisode?.FullEpisode != null && spotifyEpisode.FullEpisode.Name.Trim() != episode.Title.Trim())
+                var spotifyEpisode =
+                    await spotifyEpisodeResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode),
+                        indexingContext);
+                if (spotifyEpisode?.FullEpisode != null &&
+                    spotifyEpisode.FullEpisode.Name.Trim() != episode.Title.Trim())
                 {
                     criteria.SpotifyTitle = spotifyEpisode.FullEpisode.Name.Trim();
                 }
@@ -105,7 +109,9 @@ public class EnrichPodcastEpisodesProcessor(
                 episode.AppleId != null &&
                 string.IsNullOrWhiteSpace(episode.SpotifyId))
             {
-                var appleEpisode = await appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(podcast, episode), indexingContext);
+                var appleEpisode =
+                    await appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(podcast, episode),
+                        indexingContext);
                 if (appleEpisode != null && appleEpisode.Title.Trim() != episode.Title.Trim())
                 {
                     criteria.AppleTitle = appleEpisode.Title.Trim();
@@ -125,6 +131,7 @@ public class EnrichPodcastEpisodesProcessor(
                         episode.Images ??= new EpisodeImages();
                         episode.Images.Apple = appleImage;
                     }
+
                     logger.LogInformation($"Enriched from apple: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
                     updated = true;
                 }
@@ -154,6 +161,7 @@ public class EnrichPodcastEpisodesProcessor(
                                     episode.Images ??= new EpisodeImages();
                                     episode.Images.Apple = appleImage;
                                 }
+
                                 logger.LogInformation(
                                     $"Enriched from apple: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
                                 updated = true;
@@ -192,6 +200,7 @@ public class EnrichPodcastEpisodesProcessor(
                         {
                             episode.YouTubeId = match.EpisodeId;
                         }
+
                         var youTubeImage = match.Image;
                         if (youTubeImage != null)
                         {
@@ -217,6 +226,7 @@ public class EnrichPodcastEpisodesProcessor(
                     {
                         episode.SpotifyId = match.EpisodeId;
                     }
+
                     var spotifyImage = match.Image;
                     if (spotifyImage != null)
                     {

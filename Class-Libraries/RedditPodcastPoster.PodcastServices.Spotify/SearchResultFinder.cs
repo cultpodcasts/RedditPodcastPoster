@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 

@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Factories;
 using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
