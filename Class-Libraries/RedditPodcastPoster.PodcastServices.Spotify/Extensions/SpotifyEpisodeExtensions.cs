@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 
 public static class SpotifyEpisodeExtensions
 {

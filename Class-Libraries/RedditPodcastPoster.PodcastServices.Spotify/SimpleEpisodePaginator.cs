@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using SpotifyAPI.Web;
 using SpotifyAPI.Web.Http;
 

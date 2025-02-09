@@ -5,6 +5,8 @@ using RedditPodcastPoster.Bluesky.YouTube;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Factories;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 

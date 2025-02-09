@@ -1,8 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Spotify.Factories;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddSpotifyClient(this IServiceCollection services)
@@ -10,6 +12,7 @@ public static class ServiceCollectionExtensions
         return services
             .AddScoped<ISpotifyClientWrapper, SpotifyClientWrapper>()
             .AddScoped<ISpotifyClientFactory, SpotifyClientFactory>()
+            .AddScoped<ISpotifyClientConfigFactory, SpotifyClientConfigFactory>()
             .AddScoped(s => s.GetService<ISpotifyClientFactory>()!.Create().GetAwaiter().GetResult())
             .BindConfiguration<SpotifySettings>("spotify");
     }

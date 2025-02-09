@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify;
