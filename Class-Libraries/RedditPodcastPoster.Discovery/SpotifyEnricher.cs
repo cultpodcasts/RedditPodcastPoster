@@ -1,7 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Models;
+using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 
 namespace RedditPodcastPoster.Discovery;
 

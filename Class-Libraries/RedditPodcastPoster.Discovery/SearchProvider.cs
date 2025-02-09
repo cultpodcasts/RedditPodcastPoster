@@ -2,7 +2,7 @@
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.ListenNotes;
-using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.Spotify.Search;
 using RedditPodcastPoster.PodcastServices.Taddy;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 

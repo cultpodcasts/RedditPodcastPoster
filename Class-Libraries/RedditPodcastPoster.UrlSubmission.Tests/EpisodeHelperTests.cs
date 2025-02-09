@@ -3,7 +3,7 @@ using FluentAssertions;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Apple;
-using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using Xunit;
