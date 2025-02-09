@@ -9,5 +9,6 @@ public interface IYouTubePlaylistService
     Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
         IYouTubeServiceWrapper youTubeServiceWrapper,
         YouTubePlaylistId playlistId,
-        IndexingContext indexingContext);
+        IndexingContext indexingContext,
+        bool withContentDetails = false);
 }

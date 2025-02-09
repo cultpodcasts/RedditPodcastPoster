@@ -10,11 +10,12 @@ public class TolerantYouTubePlaylistService(
     IYouTubeServiceWrapper youTubeService,
     IYouTubePlaylistService youTubePlaylistService,
     ILogger<TolerantYouTubePlaylistService> logger
-    ) : ITolerantYouTubePlaylistService
+) : ITolerantYouTubePlaylistService
 {
-    public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(YouTubePlaylistId playlistId, IndexingContext indexingContext)
+    public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
+        YouTubePlaylistId playlistId, IndexingContext indexingContext, bool withContentDetails = false)
     {
-        GetPlaylistVideoSnippetsResponse result = new GetPlaylistVideoSnippetsResponse(null);
+        var result = new GetPlaylistVideoSnippetsResponse(null);
         var success = false;
         var rotationExcepted = false;
         while (youTubeService.CanRotate && !success && !rotationExcepted)
@@ -22,7 +23,7 @@ public class TolerantYouTubePlaylistService(
             try
             {
                 result = await youTubePlaylistService.GetPlaylistVideoSnippets(youTubeService, playlistId,
-                    indexingContext);
+                    indexingContext, withContentDetails);
                 success = true;
             }
             catch (YouTubeQuotaException ex)

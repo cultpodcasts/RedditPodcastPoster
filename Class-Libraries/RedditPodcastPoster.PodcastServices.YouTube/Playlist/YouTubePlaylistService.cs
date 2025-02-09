@@ -16,7 +16,7 @@ public class YouTubePlaylistService(
     public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
         IYouTubeServiceWrapper youTubeService,
         YouTubePlaylistId playlistId,
-        IndexingContext indexingContext)
+        IndexingContext indexingContext, bool withContentDetails = false)
     {
         if (indexingContext.SkipYouTubeUrlResolving)
         {
@@ -35,6 +35,12 @@ public class YouTubePlaylistService(
         var nextPageToken = "";
         var firstRun = true;
         var knownToBeInReverseOrder = false;
+        var requestScope = "snippet";
+        if (withContentDetails)
+        {
+            requestScope += ",contentDetails";
+        }
+
         while (
             nextPageToken != null &&
             (firstRun ||
@@ -43,7 +49,7 @@ public class YouTubePlaylistService(
              !knownToBeInReverseOrder
             ))
         {
-            var playlistRequest = youTubeService.YouTubeService.PlaylistItems.List("snippet");
+            var playlistRequest = youTubeService.YouTubeService.PlaylistItems.List(requestScope);
             playlistRequest.PlaylistId = playlistId.PlaylistId;
             playlistRequest.MaxResults = batchSize;
             playlistRequest.PageToken = nextPageToken;

@@ -7,6 +7,6 @@ public interface ICachedTolerantYouTubePlaylistService : IFlushable
 {
     Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
         YouTubePlaylistId playlistId,
-        IndexingContext indexingContext);
-
+        IndexingContext indexingContext,
+        bool withContentDetails = false);
 }
