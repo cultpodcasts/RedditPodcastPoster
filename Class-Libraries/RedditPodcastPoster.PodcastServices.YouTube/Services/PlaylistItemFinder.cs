@@ -1,4 +1,5 @@
-﻿using Google.Apis.YouTube.v3.Data;
+﻿using System.Text.RegularExpressions;
+using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
@@ -7,7 +8,6 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Text;
-using System.Text.RegularExpressions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 
@@ -41,8 +41,9 @@ public partial class PlaylistItemFinder(
             return new FindEpisodeResponse(PlaylistItem: match);
         }
 
+        var videoIds = playlistItems.Select(x => x.ContentDetails.VideoId).ToList();
         var videoDetails =
-            await videoService.GetVideoContentDetails(youTubeService, playlistItems.Select(x => x.ContentDetails.VideoId).ToList(),
+            await videoService.GetVideoContentDetails(youTubeService, videoIds,
                 indexingContext);
 
 
@@ -111,7 +112,9 @@ public partial class PlaylistItemFinder(
                 if (matchingVideoLengthDifferentTicks < VideoDurationTolerance.Ticks)
                 {
                     logger.LogInformation(
-                        $"Matched episode '{episode.Title}' and length: '{episode.Length:g}' with episode '{matchingPair.SearchResult.Snippet.Title}' having length: '{matchingPair.Video?.GetLength():g}'.");
+                        "Matched episode '{episodeTitle}' and length: '{episodeLength:g}' with episode '{snippetTitle}' having length: '{videoLength:g}'.",
+                        episode.Title, episode.Length, matchingPair.PlaylistItem.Snippet.Title,
+                        matchingPair.Video?.GetLength());
                     return matchingPair;
                 }
             }
@@ -204,5 +207,4 @@ public partial class PlaylistItemFinder(
 
     [GeneratedRegex("(?'number'\\d+)")]
     private static partial Regex CreateNumberMatch();
-
 }

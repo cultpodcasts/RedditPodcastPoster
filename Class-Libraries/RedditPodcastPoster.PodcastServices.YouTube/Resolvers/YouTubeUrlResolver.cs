@@ -38,21 +38,22 @@ public class YouTubeItemResolver(
         {
             return await GetPlaylistVideos(request, indexingContext, youTubePublishingDelay);
         }
-        else
-        {
-            return await GetChannelVideos(request, indexingContext, youTubePublishingDelay);
-        }
 
-
+        return await GetChannelVideos(request, indexingContext, youTubePublishingDelay);
     }
 
-    private async Task<FindEpisodeResponse?> GetPlaylistVideos(EnrichmentRequest request, IndexingContext indexingContext, TimeSpan youTubePublishingDelay)
+    private async Task<FindEpisodeResponse?> GetPlaylistVideos(EnrichmentRequest request,
+        IndexingContext indexingContext, TimeSpan youTubePublishingDelay)
     {
         var latestPlaylistItems = await youTubePlaylistService.GetPlaylistVideoSnippets(
             new YouTubePlaylistId(request.Podcast.YouTubePlaylistId),
-            indexingContext);
+            indexingContext,
+            true);
         if (latestPlaylistItems?.Result == null)
+        {
             return null;
+        }
+
         if (latestPlaylistItems.Result.Any())
         {
             if (indexingContext.ReleasedSince.HasValue)
@@ -67,6 +68,7 @@ public class YouTubeItemResolver(
                     "{method} Retrieved {count} items published on YouTube. {releasedSince} is Null.",
                     nameof(GetPlaylistVideos), latestPlaylistItems.Result.Count, nameof(indexingContext.ReleasedSince));
             }
+
             var matchedYouTubeVideo = await playlistItemFinder.FindMatchingYouTubeVideo(
                 request.Episode,
                 latestPlaylistItems.Result,
@@ -74,6 +76,7 @@ public class YouTubeItemResolver(
                 indexingContext);
             return matchedYouTubeVideo;
         }
+
         return new FindEpisodeResponse();
     }
 
