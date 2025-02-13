@@ -51,21 +51,25 @@ public class SimpleEpisodePaginator(DateTime? releasedSince, bool isInReverseOrd
                     yield return item;
                 }
 
-                lastItem = episode;
+                if (episode != null)
+                {
+                    lastItem = episode;
+                }
             }
         }
 
         while (page.Next != null &&
                (!isInReverseOrder ||
                 !releasedSince.HasValue ||
-                (isInReverseOrder && lastItem!.GetReleaseDate() > releasedSince)))
+                firstPage.Items.All(x => x == null) ||
+                (isInReverseOrder && lastItem != null && lastItem.GetReleaseDate() > releasedSince)))
         {
             page = await connector.Get<Paging<T>>(new Uri(page.Next, UriKind.Absolute), cancel).ConfigureAwait(false);
             foreach (var item in page.Items!)
             {
                 if (item is SimpleEpisode episode)
                 {
-                    if (!releasedSince.HasValue || episode.GetReleaseDate() > releasedSince)
+                    if (episode == null || !releasedSince.HasValue || episode.GetReleaseDate() > releasedSince)
                     {
                         yield return item;
                     }
