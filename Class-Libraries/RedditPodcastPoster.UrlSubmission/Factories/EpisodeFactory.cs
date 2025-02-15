@@ -87,8 +87,12 @@ public class EpisodeFactory(
         };
         if (categorisedItem.MatchingPodcast != null)
         {
-            if (categorisedItem.MatchingPodcast.BypassShortEpisodeChecking.HasValue &&
-                categorisedItem.MatchingPodcast.BypassShortEpisodeChecking.Value)
+            if (categorisedItem.MatchingPodcast.HasIgnoreAllEpisodes())
+            {
+                newEpisode.Ignored = true;
+            }
+            else if (categorisedItem.MatchingPodcast.BypassShortEpisodeChecking.HasValue &&
+                     categorisedItem.MatchingPodcast.BypassShortEpisodeChecking.Value)
             {
                 newEpisode.Ignored = false;
             }
