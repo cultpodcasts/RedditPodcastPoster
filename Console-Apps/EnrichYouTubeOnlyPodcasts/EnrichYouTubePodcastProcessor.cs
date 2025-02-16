@@ -168,9 +168,17 @@ public class EnrichYouTubePodcastProcessor(
                     episode.Length > _postingCriteria.MinimumDuration)
                 {
                     episode.Id = Guid.NewGuid();
-                    episode.Ignored = !((podcast.BypassShortEpisodeChecking.HasValue &&
-                                         podcast.BypassShortEpisodeChecking.Value) ||
-                                        episode.Length > _postingCriteria.MinimumDuration);
+                    if (podcast.HasIgnoreAllEpisodes())
+                    {
+                        episode.Ignored = true;
+                    }
+                    else
+                    {
+                        episode.Ignored = !((podcast.BypassShortEpisodeChecking.HasValue &&
+                                             podcast.BypassShortEpisodeChecking.Value) ||
+                                            episode.Length >= _postingCriteria.MinimumDuration);
+                    }
+
                     var videoImage = video.GetImageUrl();
                     if (videoImage != null)
                     {
