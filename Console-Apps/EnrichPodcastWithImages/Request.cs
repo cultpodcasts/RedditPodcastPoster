@@ -2,9 +2,13 @@
 
 namespace EnrichPodcastWithImages;
 
-internal class Request
+public class Request
 {
-    [Value(0, MetaName = "podcast-partial-match",
-        HelpText = "The name, or part-name, of the podcast to enrich with images", Required = true)]
+    [Option('n', "podcast",
+        HelpText = "The name, or part-name, of the podcast to enrich with images", Group = "selector")]
     public string PodcastPartialMatch { get; set; } = "";
+
+    [Option('s', "subject",
+        HelpText = "Subject to enrich with images", Group = "selector")]
+    public string Subject { get; set; } = "";
 }
