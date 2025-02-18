@@ -73,7 +73,8 @@ public class SpotifyPodcastEpisodesProvider(
                     if (indexingContext.SkipExpensiveSpotifyQueries && request.HasExpensiveSpotifyEpisodesQuery)
                     {
                         logger.LogInformation(
-                            $"{nameof(GetAllEpisodes)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveSpotifyQueries)} is set.");
+                            "{nameofGetAllEpisodes} - Skipping pagination of query results as {nameofSkipExpensiveSpotifyQueries} is set.",
+                            nameof(GetAllEpisodes), nameof(indexingContext.SkipExpensiveSpotifyQueries));
                     }
                     else
                     {
@@ -90,7 +91,7 @@ public class SpotifyPodcastEpisodesProvider(
                 else
                 {
                     logger.LogWarning(
-                        $"Null paged-list of episodes found for spotify-show-id '{paging.SpotifyPodcastId}'.");
+                        "Null paged-list of episodes found for spotify-show-id '{pagingSpotifyPodcastId}'.", paging.SpotifyPodcastId);
                 }
             }
 
@@ -122,7 +123,8 @@ public class SpotifyPodcastEpisodesProvider(
         if (indexingContext.SkipSpotifyUrlResolving)
         {
             logger.LogInformation(
-                $"Skipping '{nameof(GetEpisodes)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.SpotifyPodcastId.PodcastId}'.");
+                "Skipping '{nameofGetEpisodes}' as '{nameofSkipSpotifyUrlResolving}' is set. Podcast-Id:'{requestSpotifyPodcastIdPodcastId}'.",
+                nameof(GetEpisodes), nameof(indexingContext.SkipSpotifyUrlResolving), request.SpotifyPodcastId.PodcastId);
             return new PodcastEpisodesResult(new List<SimpleEpisode>());
         }
 
@@ -140,7 +142,7 @@ public class SpotifyPodcastEpisodesProvider(
         if (indexingContext.SkipExpensiveSpotifyQueries && request.HasExpensiveSpotifyEpisodesQuery)
         {
             logger.LogInformation(
-                $"{nameof(GetEpisodes)} - Skipping pagination of query results as {nameof(indexingContext.SkipExpensiveSpotifyQueries)} is set.");
+                "{nameofGetEpisodes} - Skipping pagination of query results as {nameofSkipExpensiveSpotifyQueries} is set.", nameof(GetEpisodes), nameof(indexingContext.SkipExpensiveSpotifyQueries));
             return new PodcastEpisodesResult(pagedEpisodes?.Items ?? new List<SimpleEpisode>());
         }
 

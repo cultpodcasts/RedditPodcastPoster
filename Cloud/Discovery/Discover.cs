@@ -29,11 +29,14 @@ public class Discover(
 
     public override async Task<DiscoveryContext> RunAsync(TaskActivityContext context, DiscoveryContext input)
     {
-        logger.LogInformation($"{nameof(RunAsync)}: discovery-options: {_discoverOptions}");
-        logger.LogInformation($"{nameof(RunAsync)}: discovery-context: {input}");
+        logger.LogInformation("{method}: discovery-options: {discoverOptions}",
+            nameof(RunAsync), _discoverOptions);
+        logger.LogInformation("{method}: discovery-context: {input}",
+            nameof(RunAsync), input);
         var since = DateTime.UtcNow.Subtract(TimeSpan.Parse(_discoverOptions.SearchSince));
         logger.LogInformation(
-            $"Discovering items released since '{since.ToUniversalTime():O}' (local:'{since.ToLocalTime():O}'). ");
+            "Discovering items released since '{since:O}' (local:'{sinceLocal:O}'). ",
+            since.ToUniversalTime(), since.ToLocalTime());
 
         var indexingContext = new IndexingContext(
             since,
@@ -41,7 +44,8 @@ public class Discover(
             SkipPodcastDiscovery: false,
             SkipExpensiveSpotifyQueries: false);
 
-        logger.LogInformation($"{nameof(RunAsync)}: {indexingContext}");
+        logger.LogInformation("{method}: {indexingContext}",
+            nameof(RunAsync), indexingContext);
 
         if (DryRun.IsDiscoverDryRun)
         {
@@ -71,7 +75,8 @@ public class Discover(
 
             var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
             logger.LogInformation(
-                $"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}'), indexing-context: {indexingContext}");
+                "Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBeganLocal():O}'), indexing-context: {indexingContext}",
+                discoveryBegan, discoveryBegan.ToLocalTime(), indexingContext);
 
             var preIndexingContextSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
             var discoveryResults = await discoveryService.GetDiscoveryResults(discoveryConfig, indexingContext);
@@ -91,7 +96,8 @@ public class Discover(
             catch (Exception e)
             {
                 logger.LogError(e,
-                    $"Failure to persist {nameof(DiscoveryResultsDocument)}. Json: '{JsonSerializer.Serialize(discoveryResultsDocument)}'");
+                    "Failure to persist {DiscoveryResultsDocument}. Json: '{document}'",
+                    nameof(DiscoveryResultsDocument), JsonSerializer.Serialize(discoveryResultsDocument));
                 throw;
             }
 
@@ -113,21 +119,31 @@ public class Discover(
                     NumberOfResults = numberOfResults,
                     DiscoveryBegan = minProcessed
                 });
+
+                if (numberOfReports > 0)
+                {
+                    await notificationPublisher.SendDiscoveryNotification(new DiscoveryNotification(numberOfReports,
+                        minProcessed ?? DateTime.MinValue, numberOfResults ?? 0));
+                }
             }
             catch (Exception e)
             {
                 logger.LogError(e,
-                    $"Failure to persist {nameof(DiscoveryResultsDocument)}. Failure to send-notification/publish-discovery-info.");
+                    "Failure to persist {DiscoveryResultsDocument}. Failure to send-notification/publish-discovery-info.",
+                    nameof(DiscoveryResultsDocument));
             }
 
             logger.LogInformation(
-                $"{nameof(RunAsync)} Complete. {nameof(discoveryBegan)}: '{discoveryBegan:O}', document-id: '{discoveryResultsDocument.Id}', results-count: '{discoveryResults.Count()}', indexing-context: {indexingContext}");
+                "{method} Complete. {nameofDiscoveryBegan}: '{discoveryBegan:O}', document-id: '{discoveryResultsDocumentId}', results-count: '{discoveryResultsCount}', indexing-context: {indexingContext}",
+                nameof(RunAsync), nameof(discoveryBegan), discoveryBegan, discoveryResultsDocument.Id,
+                discoveryResults.Count(), indexingContext);
             results = true;
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failure to execute {nameof(Discover)}.{nameof(RunAsync)}.");
+                "Failure to execute {nameofDiscover}.{method}.",
+                nameof(Discover), nameof(RunAsync));
             results = false;
         }
         finally
@@ -151,7 +167,7 @@ public class Discover(
             logger.LogError("Failure occurred");
         }
 
-        logger.LogInformation($"{nameof(RunAsync)} Completed");
+        logger.LogInformation("{method} Completed", nameof(RunAsync));
 
         return input with
         {

@@ -19,9 +19,14 @@ public class SpotifyQueryPaginator(
         if (indexingContext.SkipSpotifyUrlResolving)
         {
             logger.LogInformation(
-                $"Skipping '{nameof(PaginateEpisodes)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set.");
+                "Skipping '{nameofPaginateEpisodes}' as '{nameofSkipSpotifyUrlResolving}' is set.",
+                nameof(PaginateEpisodes), nameof(indexingContext.SkipSpotifyUrlResolving));
             return new PodcastEpisodesResult(new List<SimpleEpisode>());
         }
+        logger.LogInformation(
+            "Running '{nameofPaginateEpisodes}'. Released-since: {releasedSince}.",
+            nameof(PaginateEpisodes), indexingContext.ReleasedSince);
+
 
         if (pagedEpisodes?.Items == null)
         {
@@ -45,6 +50,10 @@ public class SpotifyQueryPaginator(
         }
 
         var isExpensiveQueryFound = !isInReverseTimeOrder;
+
+        logger.LogInformation(
+            "Running '{nameofPaginateEpisodes}'. isExpensiveQueryFound: {isExpensiveQueryFound}.",
+            nameof(PaginateEpisodes), isExpensiveQueryFound);
 
         var episodes = pagedEpisodes.Items.ToList();
 

@@ -124,25 +124,29 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         catch (APITooManyRequestsException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetShowEpisodes)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                "{nameofGetShowEpisodes} Too-Many-Requests Failure with Spotify-API. Retry-after: '{exRetryAfter}'. Response: '{body}'.",
+                nameof(GetShowEpisodes), ex.RetryAfter, ex.Response?.Body ?? "<null>");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (JsonSerializationException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetShowEpisodes)} Failure deserializing response from Spotify-API for show '{showId}'.");
+                "{nameofGetShowEpisodes} Failure deserializing response from Spotify-API for show '{showId}'.",
+                nameof(GetShowEpisodes), showId);
             return null;
         }
         catch (APIException ex)
         {
             logger.LogError(ex,
-                $"{nameof(GetShowEpisodes)} Failure with Spotify-API for show '{showId}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                "{nameofGetShowEpisodes} Failure with Spotify-API for show '{showId}'. Response: '{body}'.",
+                nameof(GetShowEpisodes), showId, ex.Response?.Body ?? "<null>");
             return null;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(GetShowEpisodes)} Failure with Spotify-API. Show-id: '{showId}'.");
+            logger.LogError(ex, "{nameofGetShowEpisodes} Failure with Spotify-API. Show-id: '{showId}'.",
+                nameof(GetShowEpisodes), showId);
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }

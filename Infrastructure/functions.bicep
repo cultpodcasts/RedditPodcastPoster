@@ -167,7 +167,7 @@ var delayedPublication= {
 
 var discover= {
     discover__EnrichFromApple: 'true'
-    discover__EnrichFromSpotify: 'true'
+    discover__EnrichFromSpotify: 'false'
     discover__ExcludeSpotify: 'false'
     discover__IgnoreTerms__0: 'cult of the lamb'
     discover__IgnoreTerms__1: 'cult of lamb'

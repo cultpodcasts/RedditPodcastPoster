@@ -5,8 +5,12 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Providers;
 
 public interface ISpotifyPodcastEpisodesProvider : IFlushable
 {
-    public Task<PodcastEpisodesResult> GetAllEpisodes(FindSpotifyEpisodeRequest request,
-        IndexingContext indexingContext, string market);
+    public Task<PodcastEpisodesResult> GetAllEpisodes(
+        FindSpotifyEpisodeRequest request,
+        IndexingContext indexingContext, 
+        string market);
 
-    Task<PodcastEpisodesResult> GetEpisodes(GetEpisodesRequest request, IndexingContext indexingContext);
+    Task<PodcastEpisodesResult> GetEpisodes(
+        GetEpisodesRequest request, 
+        IndexingContext indexingContext);
 }
