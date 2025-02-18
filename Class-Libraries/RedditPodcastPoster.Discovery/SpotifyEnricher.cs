@@ -13,12 +13,14 @@ public class SpotifyEnricher(
 {
     public async Task Enrich(IEnumerable<EpisodeResult> results, IndexingContext indexingContext)
     {
-        logger.LogInformation($"{nameof(SpotifyEnricher)}.{nameof(Enrich)} initiated");
+        logger.LogInformation("{nameofSpotifyEnricher}.{nameofEnrich} initiated",
+            nameof(SpotifyEnricher), nameof(Enrich));
         var enrichedCtr = 0;
         foreach (var episodeResult in results)
         {
             logger.LogInformation(
-                $"Enriching show-name '{episodeResult.ShowName}' episode-name '{episodeResult.EpisodeName}'.");
+                "Enriching show-name '{episodeResultShowName}' episode-name '{episodeResultEpisodeName}'.",
+                episodeResult.ShowName, episodeResult.EpisodeName);
             var episodeRequest = new FindSpotifyEpisodeRequest(
                 string.Empty,
                 episodeResult.ShowName,
@@ -44,6 +46,7 @@ public class SpotifyEnricher(
             }
         }
 
-        logger.LogInformation($"{nameof(Enrich)} enriched '{enrichedCtr}' results.");
+        logger.LogInformation("{nameofEnrich} enriched '{enrichedCtr}' results.",
+            nameof(Enrich), enrichedCtr);
     }
 }

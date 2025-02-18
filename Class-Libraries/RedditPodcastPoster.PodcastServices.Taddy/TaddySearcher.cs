@@ -18,7 +18,8 @@ public class TaddySearcher(
 {
     public async Task<IList<EpisodeResult>> Search(string term, IndexingContext indexingContext)
     {
-        logger.LogInformation($"{nameof(TaddySearcher)}.{nameof(Search)}: query: '{term}'.");
+        logger.LogInformation("{nameofTaddySearcher}.{nameofSearch}: query: '{term}'.",
+            nameof(TaddySearcher), nameof(Search), term);
 
         var since = indexingContext.ReleasedSince!.Value.Subtract(TaddyParameters.IndexingDelay).ToEpochSeconds();
 
@@ -57,14 +58,16 @@ public class TaddySearcher(
             if (response.Errors != null && response.Errors.Any())
             {
                 logger.LogError(
-                    $"Error querying taddy: {string.Join(", ", response.Errors.Select(x => $"Message: '{x.Message}''"))}");
+                    "Error querying taddy: {errors}",
+                    string.Join(", ", response.Errors.Select(x => $"Message: '{x.Message}''")));
             }
 
             return response.Data.Results.Episodes.Select(ToEpisodeResult).ToList();
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Search)}: Failed to query taddy for '{term}'.");
+            logger.LogError(ex, "{nameofSearch}: Failed to query taddy for '{term}'.",
+                nameof(Search), term);
             return [];
         }
     }

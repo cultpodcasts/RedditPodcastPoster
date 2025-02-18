@@ -167,7 +167,7 @@ var delayedPublication= {
 
 var discover= {
     discover__EnrichFromApple: 'true'
-    discover__EnrichFromSpotify: 'true'
+    discover__EnrichFromSpotify: 'false'
     discover__ExcludeSpotify: 'false'
     discover__IgnoreTerms__0: 'cult of the lamb'
     discover__IgnoreTerms__1: 'cult of lamb'
@@ -200,7 +200,7 @@ var discover= {
     discover__Queries__5__Term: 'Cults'
     discover__Queries__6__DiscoverService: 'Taddy'
     discover__Queries__6__Term: 'Cult'
-    discover__SearchSince: '6:10:00'
+    discover__SearchSince: '8:10:00'
     discover__TaddyOffset: '2:00:00'
 }
 
