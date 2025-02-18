@@ -8,7 +8,7 @@ namespace Discovery;
 public class DiscoveryTrigger(ILogger<DiscoveryTrigger> logger)
 {
     [Function("DiscoveryTrigger")]
-    public async Task Run([TimerTrigger("30 11/6 * * *" /* 30 3/6 * * * */
+    public async Task Run([TimerTrigger("30 3/6 * * *" /* 30 3/6 * * * */
 #if DEBUG
             , RunOnStartup = true
 #endif
@@ -16,7 +16,8 @@ public class DiscoveryTrigger(ILogger<DiscoveryTrigger> logger)
         TimerInfo myTimer,
         [DurableClient] DurableTaskClient client)
     {
-        logger.LogInformation($"{nameof(DiscoveryTrigger)} {nameof(Run)} initiated.");
+        logger.LogInformation("{nameofDiscoveryTrigger} {nameofRun} initiated.",
+            nameof(DiscoveryTrigger), nameof(Run));
         string instanceId;
         try
         {
@@ -25,16 +26,19 @@ public class DiscoveryTrigger(ILogger<DiscoveryTrigger> logger)
         catch (RpcException ex)
         {
             logger.LogCritical(ex,
-                $"Failure to execute '{nameof(client.ScheduleNewOrchestrationInstanceAsync)}' for '{nameof(Orchestration)}'. Status-Code: '{ex.StatusCode}', Status: '{ex.Status}'.");
+                "Failure to execute '{nameofScheduleNewOrchestrationInstanceAsync}' for '{nameofOrchestration}'. Status-Code: '{StatusCode}', Status: '{Status}'.",
+                nameof(client.ScheduleNewOrchestrationInstanceAsync), nameof(Orchestration), ex.StatusCode, ex.Status);
             throw;
         }
         catch (Exception ex)
         {
             logger.LogCritical(ex,
-                $"Failure to execute '{nameof(client.ScheduleNewOrchestrationInstanceAsync)}' for '{nameof(Orchestration)}'.");
+                "Failure to execute '{nameofScheduleNewOrchestrationInstanceAsync}' for '{nameofOrchestration}'.",
+                nameof(client.ScheduleNewOrchestrationInstanceAsync), nameof(Orchestration));
             throw;
         }
 
-        logger.LogInformation($"{nameof(DiscoveryTrigger)} {nameof(Run)} complete. Instance-id= '{instanceId}'.");
+        logger.LogInformation("{nameofDiscoveryTrigger} {nameofRun} complete. Instance-id= '{instanceId}'.",
+            nameof(DiscoveryTrigger), nameof(Run), instanceId);
     }
 }

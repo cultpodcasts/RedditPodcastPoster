@@ -31,8 +31,7 @@ public class Discover(
     {
         logger.LogInformation("{method}: discovery-options: {discoverOptions}",
             nameof(RunAsync), _discoverOptions);
-        logger.LogInformation("{method}: discovery-context: {input}",
-            nameof(RunAsync), input);
+        logger.LogInformation("{method}: discovery-context: {input}", nameof(RunAsync), input);
         var since = DateTime.UtcNow.Subtract(TimeSpan.Parse(_discoverOptions.SearchSince));
         logger.LogInformation(
             "Discovering items released since '{since:O}' (local:'{sinceLocal:O}'). ",
