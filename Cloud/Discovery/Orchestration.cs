@@ -10,13 +10,15 @@ public class Orchestration : TaskOrchestrator<object, DiscoveryContext>
     {
         var logger = context.CreateReplaySafeLogger<Orchestration>();
         logger.LogInformation(
-            $"{nameof(Orchestration)}.{nameof(RunAsync)} initiated. Instance-id: '{context.InstanceId}'.");
+            "{nameofOrchestration}.{nameofRunAsync} initiated. Instance-id: '{contextInstanceId}'.",
+            nameof(Orchestration), nameof(RunAsync), context.InstanceId);
 
         var discoveryContext = new DiscoveryContext(context.NewGuid());
-        logger.LogInformation($"{nameof(RunAsync)}: Pre: discovery-context: {discoveryContext}");
+        logger.LogInformation("{nameofRunAsync}: Pre: discovery-context: {discoveryContext}",
+            nameof(RunAsync), discoveryContext);
         var result = await context.CallDiscoverAsync(discoveryContext);
-        logger.LogInformation($"{nameof(RunAsync)}: Post: discovery-context: {result}");
-        logger.LogInformation($"{nameof(Discover)} complete.");
+        logger.LogInformation("{nameofRunAsync}: Post: discovery-context: {result}", nameof(RunAsync), result);
+        logger.LogInformation("{nameofDiscover} complete.", nameof(Discover));
 
 
         return discoveryContext;
