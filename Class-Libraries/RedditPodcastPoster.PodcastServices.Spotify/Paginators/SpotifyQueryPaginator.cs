@@ -60,7 +60,7 @@ public class SpotifyQueryPaginator(
             "Running '{nameofPaginateEpisodes}'. isExpensiveQueryFound: {isExpensiveQueryFound}.",
             nameof(PaginateEpisodes), isExpensiveQueryFound);
 
-        var episodes = existingPagedEpisodes.ToList();
+        var episodes = existingPagedEpisodes;
 
         if (indexingContext.ReleasedSince == null || isExpensiveQueryFound)
         {
@@ -79,7 +79,6 @@ public class SpotifyQueryPaginator(
         {
             if (episodes.Any())
             {
-                episodes = episodes.Where(x => x.GetReleaseDate() > indexingContext.ReleasedSince).ToList();
                 var seenGrowth = true;
                 while (
                     seenGrowth &&
@@ -100,6 +99,11 @@ public class SpotifyQueryPaginator(
                     }
                 }
             }
+        }
+
+        if (indexingContext.ReleasedSince.HasValue)
+        {
+            episodes = episodes.Where(x => x.GetReleaseDate() > indexingContext.ReleasedSince).ToList();
         }
 
         return new PodcastEpisodesResult(episodes.Where(x => x != null).ToList(), isExpensiveQueryFound);
