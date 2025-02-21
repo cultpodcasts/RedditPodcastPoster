@@ -38,16 +38,11 @@ public class SpotifyPodcastEpisodesProvider(
 
         if (!indexingContext.SkipPodcastDiscovery && !string.IsNullOrWhiteSpace(request.PodcastName))
         {
-            var searchRequest = new SearchRequest(
-                    SearchRequest.Types.Show,
-                    request.PodcastName)
-                {Market = market};
+            var searchRequest = new SearchRequest(SearchRequest.Types.Show, request.PodcastName) {Market = market};
             var simpleShows = await spotifyClientWrapper.GetSimpleShows(searchRequest, indexingContext);
             if (simpleShows.Any())
             {
-                var matchingPodcasts =
-                    searchResultFinder.FindMatchingPodcasts(request.PodcastName, simpleShows);
-
+                var matchingPodcasts = searchResultFinder.FindMatchingPodcasts(request.PodcastName, simpleShows);
                 var showEpisodesRequest = new ShowEpisodesRequest {Market = market};
                 if (indexingContext.ReleasedSince.HasValue)
                 {
@@ -91,7 +86,8 @@ public class SpotifyPodcastEpisodesProvider(
                 else
                 {
                     logger.LogWarning(
-                        "Null paged-list of episodes found for spotify-show-id '{pagingSpotifyPodcastId}'.", paging.SpotifyPodcastId);
+                        "Null paged-list of episodes found for spotify-show-id '{pagingSpotifyPodcastId}'.",
+                        paging.SpotifyPodcastId);
                 }
             }
 
@@ -124,7 +120,8 @@ public class SpotifyPodcastEpisodesProvider(
         {
             logger.LogInformation(
                 "Skipping '{nameofGetEpisodes}' as '{nameofSkipSpotifyUrlResolving}' is set. Podcast-Id:'{requestSpotifyPodcastIdPodcastId}'.",
-                nameof(GetEpisodes), nameof(indexingContext.SkipSpotifyUrlResolving), request.SpotifyPodcastId.PodcastId);
+                nameof(GetEpisodes), nameof(indexingContext.SkipSpotifyUrlResolving),
+                request.SpotifyPodcastId.PodcastId);
             return new PodcastEpisodesResult(new List<SimpleEpisode>());
         }
 
@@ -142,8 +139,9 @@ public class SpotifyPodcastEpisodesProvider(
         if (indexingContext.SkipExpensiveSpotifyQueries && request.HasExpensiveSpotifyEpisodesQuery)
         {
             logger.LogInformation(
-                "{nameofGetEpisodes} - Skipping pagination of query results as {nameofSkipExpensiveSpotifyQueries} is set.", nameof(GetEpisodes), nameof(indexingContext.SkipExpensiveSpotifyQueries));
-            return new PodcastEpisodesResult(pagedEpisodes?.Items ?? new List<SimpleEpisode>());
+                "{nameofGetEpisodes} - Skipping pagination of query results as {nameofSkipExpensiveSpotifyQueries} is set.",
+                nameof(GetEpisodes), nameof(indexingContext.SkipExpensiveSpotifyQueries));
+            return new PodcastEpisodesResult(pagedEpisodes?.Items ?? []);
         }
 
         var results = await spotifyQueryPaginator.PaginateEpisodes(pagedEpisodes, indexingContext);
