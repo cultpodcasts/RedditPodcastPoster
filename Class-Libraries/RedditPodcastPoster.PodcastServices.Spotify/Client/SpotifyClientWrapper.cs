@@ -7,8 +7,10 @@ using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Client;
 
-public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyClientWrapper> logger)
-    : ISpotifyClientWrapper
+public class SpotifyClientWrapper(
+    ISpotifyClient spotifyClient,
+    ILogger<SpotifyClientWrapper> logger
+) : ISpotifyClientWrapper
 {
     public async Task<IList<T>?> Paginate<T>(
         IPaginatable<T> firstPage,
@@ -46,8 +48,7 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
 
     public async Task<IList<T>?> PaginateAll<T>(
         IPaginatable<T> firstPage,
-        IndexingContext indexingContext,
-        IPaginator? paginator = null)
+        IndexingContext indexingContext)
     {
         IList<T>? results;
         try
@@ -79,8 +80,7 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
     public async Task<IList<T>?> PaginateAll<T, T1>(
         IPaginatable<T, T1> firstPage,
         Func<T1, IPaginatable<T, T1>> mapper,
-        IndexingContext indexingContext,
-        IPaginator? paginator = null)
+        IndexingContext indexingContext)
     {
         var results = firstPage.Items ?? new List<T>();
         try
@@ -154,7 +154,9 @@ public class SpotifyClientWrapper(ISpotifyClient spotifyClient, ILogger<SpotifyC
         return results;
     }
 
-    public async Task<List<SimpleShow>> GetSimpleShows(SearchRequest request, IndexingContext indexingContext,
+    public async Task<List<SimpleShow>> GetSimpleShows(
+        SearchRequest request,
+        IndexingContext indexingContext,
         CancellationToken cancel = default)
     {
         var searchResponse = await GetSearchResponse(request, indexingContext, cancel);

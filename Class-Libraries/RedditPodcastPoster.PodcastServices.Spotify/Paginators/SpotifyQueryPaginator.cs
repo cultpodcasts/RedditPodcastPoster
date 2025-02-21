@@ -23,6 +23,7 @@ public class SpotifyQueryPaginator(
                 nameof(PaginateEpisodes), nameof(indexingContext.SkipSpotifyUrlResolving));
             return new PodcastEpisodesResult(new List<SimpleEpisode>());
         }
+
         logger.LogInformation(
             "Running '{nameofPaginateEpisodes}'. Released-since: {releasedSince}.",
             nameof(PaginateEpisodes), indexingContext.ReleasedSince);
@@ -33,11 +34,15 @@ public class SpotifyQueryPaginator(
             return new PodcastEpisodesResult(new List<SimpleEpisode>());
         }
 
+        var existingPagedEpisodes = await spotifyClientWrapper.Paginate(
+            pagedEpisodes,
+            indexingContext,
+            new NullEpisodesLeadInPaginator(40, 3));
+
         var currentMoment = DateTime.Now.AddDays(2);
         var isInReverseTimeOrder = true;
         var ctr = 0;
-        var existingPagedEpisodes = pagedEpisodes.Items.Where(x => x != null).ToArray();
-        while (isInReverseTimeOrder && ctr < existingPagedEpisodes.Length)
+        while (isInReverseTimeOrder && ctr < existingPagedEpisodes.Count)
         {
             var releaseDate = existingPagedEpisodes[ctr].GetReleaseDate();
             isInReverseTimeOrder = currentMoment >= releaseDate;
@@ -55,7 +60,7 @@ public class SpotifyQueryPaginator(
             "Running '{nameofPaginateEpisodes}'. isExpensiveQueryFound: {isExpensiveQueryFound}.",
             nameof(PaginateEpisodes), isExpensiveQueryFound);
 
-        var episodes = pagedEpisodes.Items.ToList();
+        var episodes = existingPagedEpisodes.ToList();
 
         if (indexingContext.ReleasedSince == null || isExpensiveQueryFound)
         {
@@ -72,21 +77,17 @@ public class SpotifyQueryPaginator(
         }
         else
         {
-            IList<SimpleEpisode>? batchEpisodes = new List<SimpleEpisode>();
-            var seenGrowth = true;
-            if (episodes.Any(x => x != null) || (episodes.Any() && episodes.All(x => x == null)))
+            if (episodes.Any())
             {
-                var allNullTries = 0;
-                var tmp = episodes.Any() && episodes.All(x => x == null) && allNullTries < 3;
+                episodes = episodes.Where(x => x.GetReleaseDate() > indexingContext.ReleasedSince).ToList();
+                var seenGrowth = true;
                 while (
-                    (episodes.Any() && episodes.All(x => x == null) && allNullTries < 3) ||
-                    (seenGrowth &&
-                     episodes.Where(x => x != null).OrderByDescending(x => x.ReleaseDate).Last().GetReleaseDate() >=
-                     indexingContext.ReleasedSince)
+                    seenGrowth &&
+                    episodes.Where(x => x != null).OrderByDescending(x => x.ReleaseDate).Last().GetReleaseDate() >=
+                    indexingContext.ReleasedSince
                 )
                 {
-                    var allNull = episodes.All(x => x == null);
-                    var preCount = batchEpisodes.Count;
+                    var preCount = episodes.Count;
                     var items = await spotifyClientWrapper.Paginate(
                         pagedEpisodes,
                         indexingContext,
@@ -94,18 +95,11 @@ public class SpotifyQueryPaginator(
                     );
                     if (items != null)
                     {
-                        batchEpisodes = items;
-                    }
-
-                    seenGrowth = items != null && batchEpisodes.Count > preCount;
-                    if (allNull)
-                    {
-                        allNullTries++;
+                        episodes = items.ToList();
+                        seenGrowth = items != null && episodes.Count > preCount;
                     }
                 }
             }
-
-            episodes.AddRange(batchEpisodes);
         }
 
         return new PodcastEpisodesResult(episodes.Where(x => x != null).ToList(), isExpensiveQueryFound);

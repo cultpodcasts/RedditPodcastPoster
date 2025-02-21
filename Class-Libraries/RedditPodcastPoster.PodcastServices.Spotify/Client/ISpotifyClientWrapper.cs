@@ -13,14 +13,12 @@ public interface ISpotifyClientWrapper
 
     Task<IList<T>?> PaginateAll<T>(
         IPaginatable<T> firstPage,
-        IndexingContext indexingContext,
-        IPaginator? paginator = null);
+        IndexingContext indexingContext);
 
     Task<IList<T>?> PaginateAll<T, T1>(
         IPaginatable<T, T1> firstPage,
         Func<T1, IPaginatable<T, T1>> mapper,
-        IndexingContext indexingContext,
-        IPaginator? paginator = null);
+        IndexingContext indexingContext);
 
     Task<Paging<SimpleEpisode>?> GetShowEpisodes(
         string showId,

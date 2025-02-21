@@ -2,4 +2,4 @@
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Models;
 
-internal record EpisodeFetchResults(string SpotifyPodcastId, Paging<SimpleEpisode>? Episodes);
+public record EpisodeFetchResults(string SpotifyPodcastId, Paging<SimpleEpisode>? Episodes);
