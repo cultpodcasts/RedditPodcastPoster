@@ -27,10 +27,12 @@ public class HashTagProvider(
                 .Where(x => x?.EnrichmentHashTags != null && x.EnrichmentHashTags.Any())
                 .SelectMany(x => x!.EnrichmentHashTags!)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
                 .Distinct()
                 .Select(x => new HashTag(x, (string?)
                     $"#{x
                         .Replace(" ", string.Empty)
+                        .Replace(".", string.Empty)
                         .Replace("'", string.Empty)
                         .Replace("-", string.Empty)}"));
         return enrichmentHashTags.Union(hashTags).ToList();
