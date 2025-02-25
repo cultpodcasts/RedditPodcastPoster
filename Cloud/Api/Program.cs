@@ -3,11 +3,10 @@ using Azure;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
-var host = new HostBuilder()
-#pragma warning disable AZFW0014
+var host = Host.CreateDefaultBuilder(args)
     .ConfigureFunctionsWorkerDefaults(builder =>
-#pragma warning restore AZFW0014
     {
         builder.Services.ConfigureFunctionsApplicationInsights();
     })
@@ -21,6 +20,9 @@ var host = new HostBuilder()
     .ConfigureServices(Ioc.ConfigureServices)
     .ConfigureLogging(logging =>
     {
+#if DEBUG
+        logging.ClearProviders();
+#endif
         logging.AllowAzureFunctionApplicationInsightsTraceLogging();
     })
     .Build();
