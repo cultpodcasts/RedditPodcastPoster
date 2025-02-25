@@ -10,10 +10,6 @@ var host = Host.CreateDefaultBuilder(args)
     {
         builder.Services.ConfigureFunctionsApplicationInsights();
     })
-    //.ConfigureFunctionsWebApplication(builder =>
-    //{
-    //    builder.UseFunctionsAuthorization();
-    //})
     .ConfigureAppConfiguration(builder =>
     {
 #if DEBUG

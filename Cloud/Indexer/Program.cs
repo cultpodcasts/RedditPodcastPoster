@@ -3,16 +3,13 @@ using Indexer;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureFunctionsWorkerDefaults(builder =>
     {
         builder.Services.ConfigureFunctionsApplicationInsights();
     })
-    //.ConfigureFunctionsWebApplication(builder =>
-    //{
-    //    builder.UseFunctionsAuthorization();
-    //})
     .ConfigureAppConfiguration(builder =>
     {
 #if DEBUG
@@ -21,7 +18,13 @@ var host = Host.CreateDefaultBuilder(args)
 #endif
     })
     .ConfigureServices(Ioc.ConfigureServices)
-    .ConfigureLogging(logging => { logging.AllowAzureFunctionApplicationInsightsTraceLogging(); })
+    .ConfigureLogging(logging =>
+    {
+#if DEBUG
+        logging.ClearProviders();
+#endif
+        logging.AllowAzureFunctionApplicationInsightsTraceLogging();
+    })
     .Build();
 
 host.Run();
