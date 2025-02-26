@@ -17,10 +17,10 @@ var host = new HostBuilder()
 #endif
     })
     .ConfigureServices(Ioc.ConfigureServices)
-    .ConfigureLogging(logging =>
-    {
-        logging.AllowAzureFunctionApplicationInsightsTraceLogging();
-    })
+    //.ConfigureLogging(logging =>
+    //{
+    //    logging.AllowAzureFunctionApplicationInsightsTraceLogging();
+    //})
     .Build();
 
 host.Run();
