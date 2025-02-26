@@ -13,7 +13,7 @@ public static class HostFactory
     {
         var config = new ConfigurationBuilder().AddConfiguration<T>();
         var host = new HostBuilder()
-            .ConfigureFunctionsWorkerDefaults(builder => { builder.Services.ConfigureFunctionsApplicationInsights(); })
+//            .ConfigureFunctionsWorkerDefaults(builder => { builder.Services.ConfigureFunctionsApplicationInsights(); })
             .ConfigureAppConfiguration(builder =>
             {
 #if DEBUG
@@ -25,8 +25,9 @@ public static class HostFactory
             {
                 services
                     .AddLogging()
-                    .AddApplicationInsightsTelemetryWorkerService()
-                    .ConfigureFunctionsApplicationInsights();
+                    //.AddApplicationInsightsTelemetryWorkerService()
+                    //.ConfigureFunctionsApplicationInsights()
+                    ;
                 configureServices(services);
             })
             .ConfigureLogging(logging =>
