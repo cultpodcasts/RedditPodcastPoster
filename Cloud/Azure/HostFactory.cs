@@ -3,16 +3,15 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 
 namespace Azure;
 
 public static class HostFactory
 {
-    public static IHost Create<T>(
-        Action<HostBuilderContext, IServiceCollection> configureServices) where T : class
+    public static IHost Create<T>(Action<IServiceCollection> configureServices) where T : class
     {
         var config = new ConfigurationBuilder().AddConfiguration<T>();
-
         var host = new HostBuilder()
             .ConfigureFunctionsWorkerDefaults(builder => { builder.Services.ConfigureFunctionsApplicationInsights(); })
             .ConfigureAppConfiguration(builder =>
@@ -22,7 +21,14 @@ public static class HostFactory
                 builder.AddConfiguration(config);
 #endif
             })
-            .ConfigureServices(configureServices)
+            .ConfigureServices(services=>
+            {
+                services
+                    .AddLogging()
+                    .AddApplicationInsightsTelemetryWorkerService()
+                    .ConfigureFunctionsApplicationInsights();
+                configureServices(services);
+            })
             .ConfigureLogging(logging =>
             {
                 logging.ClearProviders();
@@ -31,4 +37,5 @@ public static class HostFactory
             .Build();
         return host;
     }
+
 }

@@ -1,14 +1,14 @@
 ﻿using Azure;
 using iTunesSearch.Library;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Bluesky.Extensions;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
+using RedditPodcastPoster.InternetArchive.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
@@ -26,14 +26,9 @@ namespace Indexer;
 
 public static class Ioc
 {
-    public static void ConfigureServices(
-        HostBuilderContext hostBuilderContext,
-        IServiceCollection serviceCollection)
+    public static void ConfigureServices(IServiceCollection serviceCollection)
     {
         serviceCollection
-            .AddLogging()
-            .AddApplicationInsightsTelemetryWorkerService()
-            .ConfigureFunctionsApplicationInsights()
             .AddRepositories()
             .AddTextSanitiser()
             .AddYouTubeServices(ApplicationUsage.Indexer)
@@ -60,6 +55,8 @@ public static class Ioc
             .BindConfiguration<IndexerOptions>("indexer")
             .BindConfiguration<PosterOptions>("poster")
             .AddPostingCriteria()
-            .AddDelayedYouTubePublication();
+            .AddDelayedYouTubePublication()
+            .AddBBCServices()
+            .AddInternetArchiveServices();
     }
 }
