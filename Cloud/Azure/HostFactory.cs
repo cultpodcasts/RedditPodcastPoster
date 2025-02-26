@@ -11,7 +11,7 @@ public static class HostFactory
     public static IHost Create<T>(
         Action<HostBuilderContext, IServiceCollection> configureServices) where T : class
     {
-        var config = new ConfigurationBuilder().AddToConfigurationBuilder<T>();
+        var config = new ConfigurationBuilder().AddConfiguration<T>();
 
         var host = new HostBuilder()
             .ConfigureFunctionsWorkerDefaults(builder => { builder.Services.ConfigureFunctionsApplicationInsights(); })
