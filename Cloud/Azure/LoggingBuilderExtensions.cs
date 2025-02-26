@@ -12,9 +12,7 @@ public static class LoggingBuilderExtensions
     {
         loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
         {
-            var defaultRule =
-                Enumerable.FirstOrDefault<LoggerFilterRule>(options.Rules, rule => rule.ProviderName ==
-                                                                                      ProviderName);
+            var defaultRule = options.Rules.FirstOrDefault(rule => rule.ProviderName == ProviderName);
             if (defaultRule is not null)
             {
                 options.Rules.Remove(defaultRule);

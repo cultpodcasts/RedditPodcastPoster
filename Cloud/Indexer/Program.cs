@@ -3,9 +3,8 @@ using Indexer;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
-var host = Host.CreateDefaultBuilder(args)
+var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults(builder =>
     {
         builder.Services.ConfigureFunctionsApplicationInsights();
@@ -20,9 +19,6 @@ var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices(Ioc.ConfigureServices)
     .ConfigureLogging(logging =>
     {
-#if DEBUG
-        logging.ClearProviders();
-#endif
         logging.AllowAzureFunctionApplicationInsightsTraceLogging();
     })
     .Build();

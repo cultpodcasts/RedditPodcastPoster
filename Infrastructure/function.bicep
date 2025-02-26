@@ -78,6 +78,7 @@ module functionAppSetings 'app-settings.bicep' = {
         WEBSITE_CONTENTSHARE: toLower(functionAppName)
         FUNCTIONS_EXTENSION_VERSION: '~4'
         FUNCTIONS_WORKER_RUNTIME: functionWorkerRuntime
+        WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED: '1'
     }, appSettings)
     functionName: functionApp.name
   }
