@@ -106,10 +106,10 @@ var auth0Audience= 'https://api.cultpodcasts.com/'
 var auth0Domain= 'auth.cultpodcasts.com'
 
 var jobHostLogging= {
-    AzureFunctionsJobHost__Logging__ApplicationInsights__LogLevel__Default: 'Warning'
-    AzureFunctionsJobHost__Logging__Console__LogLevel__Default: 'Warning'
-    AzureFunctionsJobHost__Logging__Debug__LogLevel__Default: 'Warning'
-    AzureFunctionsJobHost__Logging__LogLevel__Default: 'Warning'
+    AzureFunctionsJobHost__Logging__ApplicationInsights__LogLevel__Default: 'Information'
+    AzureFunctionsJobHost__Logging__Console__LogLevel__Default: 'Information'
+    AzureFunctionsJobHost__Logging__Debug__LogLevel__Default: 'Information'
+    AzureFunctionsJobHost__Logging__LogLevel__Default: 'Information'
 }
 
 var api= {
