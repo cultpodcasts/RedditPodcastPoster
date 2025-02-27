@@ -6,21 +6,27 @@ namespace Azure;
 
 public static class LoggingBuilderExtensions
 {
-    private const string ProviderName =
-        "Microsoft.Extensions.Logging.ApplicationInsights.ApplicationInsightsLoggerProvider";
-
-    public static void RemoveApplicationInsightsBaselineWarningRule(this ILoggingBuilder loggingBuilder)
+    public static void SetApplicationInsightsBaselineWarningRule(this ILoggingBuilder loggingBuilder, LogLevel logLevel)
     {
-        loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
+        if (logLevel != LogLevel.Warning)
         {
-            var defaultRule = options.Rules.FirstOrDefault(rule =>
-                rule.ProviderName == typeof(ApplicationInsightsLoggerProvider).FullName &&
-                rule.CategoryName == null &&
-                rule is {LogLevel: LogLevel.Warning, Filter: null});
-            if (defaultRule is not null)
+            loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
             {
-                options.Rules.Remove(defaultRule);
-            }
-        });
+                var defaultRule = options.Rules.FirstOrDefault(rule =>
+                    rule.ProviderName == typeof(ApplicationInsightsLoggerProvider).FullName &&
+                    rule.CategoryName == null &&
+                    rule is {LogLevel: LogLevel.Warning, Filter: null});
+                if (defaultRule is not null)
+                {
+                    options.Rules.Remove(defaultRule);
+                    var loggerFilterRule = new LoggerFilterRule(
+                        typeof(ApplicationInsightsLoggerProvider).FullName,
+                        null,
+                        logLevel,
+                        null);
+                    options.Rules.Insert(0, loggerFilterRule);
+                }
+            });
+        }
     }
 }
