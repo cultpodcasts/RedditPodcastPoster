@@ -1,5 +1,4 @@
 ﻿using Microsoft.Azure.Functions.Worker.Builder;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -8,14 +7,11 @@ namespace Azure;
 
 public static class HostFactory
 {
-
-    public static IHost Create<T>(Action<IServiceCollection> configureServices) where T : class
+    public static IHost Create<T>(string[] args, Action<IServiceCollection> configureServices) where T : class
     {
-        var config = new ConfigurationBuilder().AddConfiguration<T>();
-        var builder = FunctionsApplication.CreateBuilder([]);
+        var builder = FunctionsApplication.CreateBuilder(args);
 #if DEBUG
-        builder.Configuration.AddJsonFile("local.settings.json", false);
-        builder.Configuration.AddConfiguration(config);
+        builder.Configuration.AddLocalConfiguration<T>();
 #endif
         builder.Services.AddLogging();
         //builder.Services
