@@ -22,7 +22,6 @@ public static class HostFactory
 #if DEBUG
         builder.Logging.ClearProviders();
 #endif
-        //builder.Logging.AllowAzureFunctionApplicationInsightsTraceLogging();
         return builder.Build();
     }
 }
