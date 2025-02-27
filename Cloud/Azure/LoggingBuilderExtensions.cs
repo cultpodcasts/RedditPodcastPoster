@@ -8,22 +8,26 @@ public static class LoggingBuilderExtensions
 {
     public static void SetApplicationInsightsBaselineWarningRule(this ILoggingBuilder loggingBuilder, LogLevel logLevel)
     {
+        const string? categoryName = null;
+        const Func<string?, string?, LogLevel, bool>? filter = null;
+        var providerName = typeof(ApplicationInsightsLoggerProvider).FullName!;
+
         if (logLevel != LogLevel.Warning)
         {
             loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
             {
                 var defaultRule = options.Rules.FirstOrDefault(rule =>
-                    rule.ProviderName == typeof(ApplicationInsightsLoggerProvider).FullName &&
-                    rule.CategoryName == null &&
-                    rule is {LogLevel: LogLevel.Warning, Filter: null});
+                    rule.ProviderName == providerName &&
+                    rule.CategoryName == categoryName &&
+                    rule is
+                    {
+                        LogLevel: LogLevel.Warning,
+                        Filter: filter
+                    });
                 if (defaultRule is not null)
                 {
                     options.Rules.Remove(defaultRule);
-                    var loggerFilterRule = new LoggerFilterRule(
-                        typeof(ApplicationInsightsLoggerProvider).FullName,
-                        null,
-                        logLevel,
-                        null);
+                    var loggerFilterRule = new LoggerFilterRule(providerName, categoryName, logLevel, filter);
                     options.Rules.Insert(0, loggerFilterRule);
                 }
             });
