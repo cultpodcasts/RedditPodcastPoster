@@ -1,4 +1,5 @@
-﻿using Microsoft.Azure.Functions.Worker.Builder;
+﻿using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,13 +15,12 @@ public static class HostFactory
         builder.Configuration.AddLocalConfiguration<T>();
 #endif
         builder.Services.AddLogging();
-        //builder.Services
-        //    .AddApplicationInsightsTelemetryWorkerService()
-        //    .ConfigureFunctionsApplicationInsights();
-
+        builder.Services
+            .AddApplicationInsightsTelemetryWorkerService()
+            .ConfigureFunctionsApplicationInsights();
         configureServices(builder.Services);
         builder.Logging.ClearProviders();
-        //builder.Logging.AllowAzureFunctionApplicationInsightsTraceLogging();
+//        builder.Logging.AllowAzureFunctionApplicationInsightsTraceLogging();
         return builder.Build();
     }
 }
