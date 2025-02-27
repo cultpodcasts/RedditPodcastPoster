@@ -18,7 +18,6 @@
       "enableLiveMetricsFilters": true
     },
     "logLevel": {
-      "": "Information", 
       "default": "Information",
       "Function": "Information",
       "Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler": "Warning",

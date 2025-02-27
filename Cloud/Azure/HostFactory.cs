@@ -22,6 +22,7 @@ public static class HostFactory
 #if DEBUG
         builder.Logging.ClearProviders();
 #endif
+        builder.Logging.RemoveApplicationInsightsBaselineWarningRule();
         return builder.Build();
     }
 }
