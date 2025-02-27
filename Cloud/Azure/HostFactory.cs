@@ -19,8 +19,10 @@ public static class HostFactory
             .AddApplicationInsightsTelemetryWorkerService()
             .ConfigureFunctionsApplicationInsights();
         configureServices(builder.Services);
+#if DEBUG
         builder.Logging.ClearProviders();
-//        builder.Logging.AllowAzureFunctionApplicationInsightsTraceLogging();
+#endif
+        //builder.Logging.AllowAzureFunctionApplicationInsightsTraceLogging();
         return builder.Build();
     }
 }
