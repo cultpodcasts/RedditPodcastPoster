@@ -15,6 +15,7 @@ public static class HostFactory
         builder.Configuration.AddLocalConfiguration<T>();
 #endif
         builder.Services.AddLogging();
+        builder.Configuration.GetSection("Logging");
         builder.Services
             .AddApplicationInsightsTelemetryWorkerService()
             .ConfigureFunctionsApplicationInsights();
@@ -22,7 +23,7 @@ public static class HostFactory
 #if DEBUG
         builder.Logging.ClearProviders();
 #endif
-//        builder.Logging.SetApplicationInsightsBaselineWarningRule(LogLevel.Information);
+        builder.Logging.SetApplicationInsightsBaselineWarningRule(LogLevel.Information);
         return builder.Build();
     }
 }
