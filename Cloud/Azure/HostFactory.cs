@@ -15,9 +15,9 @@ public static class HostFactory
         builder.Configuration.AddLocalConfiguration<T>();
 #endif
         builder.Services.AddLogging();
-        builder.Services
-            .AddApplicationInsightsTelemetryWorkerService()
-            .ConfigureFunctionsApplicationInsights();
+//        builder.Services
+//            .AddApplicationInsightsTelemetryWorkerService()
+//            .ConfigureFunctionsApplicationInsights();
         configureServices(builder.Services);
 #if DEBUG
         builder.Logging.ClearProviders();
