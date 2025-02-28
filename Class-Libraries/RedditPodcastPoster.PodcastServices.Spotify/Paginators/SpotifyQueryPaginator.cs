@@ -111,7 +111,7 @@ public class SpotifyQueryPaginator(
 
             if (releasedSince.HasValue)
             {
-                episodes = episodes.Where(x => x.GetReleaseDate() >= releasedSince).ToList();
+                episodes = episodes.Where(x => x != null && x.GetReleaseDate() >= releasedSince).ToList();
             }
 
             return new PodcastEpisodesResult(episodes.Where(x => x != null).ToList(), isExpensiveQueryFound);
