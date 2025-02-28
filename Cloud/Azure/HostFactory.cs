@@ -14,7 +14,7 @@ public static class HostFactory
 #if DEBUG
         builder.Configuration.AddLocalConfiguration<T>();
 #endif
-        builder.Services.AddLogging();
+        builder.Services.AddLogging(x => x.RemoveDefaultApplicationInsightsWarningRule());
 //        builder.Configuration.GetSection("Logging");
         builder.Services
             .AddApplicationInsightsTelemetryWorkerService()
@@ -23,7 +23,6 @@ public static class HostFactory
 #if DEBUG
         builder.Logging.ClearProviders();
 #endif
-        builder.Logging.RemoveDefaultApplicationInsightsWarningRule();
         return builder.Build();
     }
 }
