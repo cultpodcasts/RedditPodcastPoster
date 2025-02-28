@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.ApplicationInsights;
+using Microsoft.VisualBasic;
 
 namespace Azure;
 
@@ -13,6 +14,7 @@ public static class LoggingBuilderExtensions
         var providerName = typeof(ApplicationInsightsLoggerProvider).FullName!;
         LogLevel? warning = LogLevel.Warning;
 
+        loggingBuilder.SetMinimumLevel(LogLevel.Information);
         loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
         {
             var defaultRule = options.Rules.FirstOrDefault(rule =>
