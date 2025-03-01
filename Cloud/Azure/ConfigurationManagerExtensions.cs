@@ -4,14 +4,17 @@ namespace Azure;
 
 public static class ConfigurationManagerExtensions
 {
-    public static void AddLocalConfiguration<T>(this IConfigurationManager configurationManager) where T : class {
-        var configurationBuilder = new ConfigurationBuilder();;
-        var config= configurationBuilder
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddUserSecrets<T>()
-            .AddEnvironmentVariables()
-            .Build();
-        configurationManager.AddJsonFile("local.settings.json", false);
-        configurationManager.AddConfiguration(config);
+    private const string UseApplicationInsightsConfigKey = "_UseApplicationInsightsConfig";
+
+    public static bool UseApplicationInsightsConfiguration(this IConfigurationManager configurationManager)
+    {
+        var appInsightsSetting = configurationManager[UseApplicationInsightsConfigKey];
+        if (bool.TryParse(appInsightsSetting ?? false.ToString(), out var settingValue))
+        {
+            return settingValue;
+        }
+
+        throw new ArgumentException(
+            $"Unable to parse as bool configuration with key'{UseApplicationInsightsConfigKey}' has value '{configurationManager[UseApplicationInsightsConfigKey]}'.");
     }
 }

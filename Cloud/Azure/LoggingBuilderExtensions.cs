@@ -6,7 +6,7 @@ namespace Azure;
 
 public static class LoggingBuilderExtensions
 {
-    public static void RemoveDefaultApplicationInsightsWarningRule(this ILoggingBuilder loggingBuilder)
+    public static void SetDefaultApplicationInsightsWarningRule(this ILoggingBuilder loggingBuilder)
     {
         const string? categoryName = null;
         const Func<string?, string?, LogLevel, bool>? filter = null;
