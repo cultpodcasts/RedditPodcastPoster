@@ -404,3 +404,6 @@ Console-Apps/RedditPodcastPoster/Properties/launchSettings.json
 /Console-Apps/Discover/Properties/launchSettings.json
 /Console-Apps/SubjectSeeder/Properties/launchSettings.json
 /Console-Apps/CreateSearchIndex/Properties/launchSettings.json
+/Cloud/Api/appsettings.Development.json
+/Cloud/Discovery/appsettings.Development.json
+/Cloud/Indexer/appsettings.Development.json

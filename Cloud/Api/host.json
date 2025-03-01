@@ -3,13 +3,14 @@
   "logging": {
     "applicationInsights": {
       "samplingSettings": {
-        "excludedTypes": "Trace",
+        "excludedTypes": "Trace;Request",
         "isEnabled": true
       },
       "enableLiveMetricsFilters": true
     },
     "logLevel": {
       "default": "Information",
+      "Host.Results": "Information",
       "Function": "Information",
       "Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler": "Warning",
       "X.Bluesky": "Information"

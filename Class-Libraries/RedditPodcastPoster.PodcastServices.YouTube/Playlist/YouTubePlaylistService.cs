@@ -12,6 +12,7 @@ public class YouTubePlaylistService(
     : IYouTubePlaylistService
 {
     private const int MaxSearchResults = 5;
+    private const string PrivateVideoTitle = "Private video";
 
     public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
         IYouTubeServiceWrapper youTubeService,
@@ -88,7 +89,7 @@ public class YouTubePlaylistService(
                 }
             }
 
-            result.AddRange(playlistItemsListResponse.Items);
+            result.AddRange(playlistItemsListResponse.Items.Where(x => x.Snippet.Title != PrivateVideoTitle));
             nextPageToken = playlistItemsListResponse.NextPageToken;
         }
 

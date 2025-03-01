@@ -23,7 +23,8 @@ public abstract class BaseHttpFunction(
         Func<HttpRequestData, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> unauthorised,
         CancellationToken ct)
     {
-        logger.LogInformation($"{nameof(HandleRequest)} initiated for '{req.Url}' / '{req.Method}'.");
+        logger.LogInformation("{method} initiated for '{url}' / '{method}'.", 
+            nameof(HandleRequest), req.Url, req.Method);
         var isAuthorised = false;
         var roleCtr = 0;
         var clientPrincipal = clientPrincipalFactory.Create(req);
@@ -42,13 +43,13 @@ public abstract class BaseHttpFunction(
 
         if (isAuthorised || roles.Contains("*"))
         {
-            logger.LogInformation($"{nameof(HandleRequest)} Authorised.");
+            logger.LogInformation("{method} Authorised.", nameof(HandleRequest));
             var response = await authorised(req, clientPrincipal, ct);
-            logger.LogInformation($"{nameof(HandleRequest)} Response Gathered.");
+            logger.LogInformation("{method} Response Gathered.", nameof(HandleRequest)); 
             return response;
         }
 
-        logger.LogWarning($"{nameof(HandleRequest)} Unauthorised.");
+        logger.LogWarning("{method} Unauthorised.", nameof(HandleRequest));
         return await unauthorised(req, clientPrincipal, ct);
     }
 
@@ -60,7 +61,8 @@ public abstract class BaseHttpFunction(
         Func<HttpRequestData, T, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> unauthorised,
         CancellationToken ct)
     {
-        logger.LogInformation($"{nameof(HandleRequest)} initiated for '{req.Url}' / '{req.Method}'.");
+        logger.LogInformation("{method} initiated for '{url}' / '{method}'.", 
+            nameof(HandleRequest), req.Url, req.Method);
         var isAuthorised = false;
         var roleCtr = 0;
         var clientPrincipal = clientPrincipalFactory.Create(req);
@@ -76,13 +78,13 @@ public abstract class BaseHttpFunction(
 
         if (isAuthorised)
         {
-            logger.LogInformation($"{nameof(HandleRequest)} Authorised.");
+            logger.LogInformation("{method} Authorised.", nameof(HandleRequest));
             var response = await authorised(req, model, clientPrincipal, ct);
-            logger.LogInformation($"{nameof(HandleRequest)} Response Gathered.");
+            logger.LogInformation("{method} Response Gathered.", nameof(HandleRequest));
             return response;
         }
 
-        logger.LogWarning($"{nameof(HandleRequest)} Unauthorised.");
+        logger.LogWarning("{method} Unauthorised.", nameof(HandleRequest));
         return await unauthorised(req, model, clientPrincipal, ct);
     }
 
@@ -93,17 +95,18 @@ public abstract class BaseHttpFunction(
     Func<HttpRequestData, T, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> unauthorised,
     CancellationToken ct)
     {
-        logger.LogInformation($"{nameof(HandlePublicRequest)} initiated for '{req.Url}' / '{req.Method}'.");
+        logger.LogInformation("{method} initiated for '{url}' / '{method}'.",
+            nameof(HandlePublicRequest), req.Url, req.Method);
         var clientPrincipal = clientPrincipalFactory.Create(req);
         var isAuthorised = clientPrincipal != null;
         if (isAuthorised)
         {
-            logger.LogInformation($"{nameof(HandlePublicRequest)} Authorised.");
+            logger.LogInformation("{method} Authorised.", nameof(HandlePublicRequest));
             var response = await authorised(req, model, clientPrincipal, ct);
-            logger.LogInformation($"{nameof(HandlePublicRequest)} Response Gathered.");
+            logger.LogInformation("{method} Response Gathered.", nameof(HandlePublicRequest));
             return response;
         }
-        logger.LogWarning($"{nameof(HandlePublicRequest)} Unauthorised.");
+        logger.LogWarning("{method} Unauthorised.", nameof(HandlePublicRequest));
         return await unauthorised(req, model, clientPrincipal, ct);
     }
 

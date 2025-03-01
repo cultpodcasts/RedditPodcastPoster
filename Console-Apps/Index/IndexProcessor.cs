@@ -37,7 +37,7 @@ internal class IndexProcessor(
         IEnumerable<Guid> podcastIds;
         if (request.PodcastId.HasValue)
         {
-            podcastIds = new[] {request.PodcastId.Value};
+            podcastIds = [request.PodcastId.Value];
         }
         else if (request.PodcastName != null)
         {

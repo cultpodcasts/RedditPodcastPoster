@@ -16,6 +16,12 @@ public class SpotifyQueryPaginator(
         IPaginatable<SimpleEpisode>? pagedEpisodes,
         IndexingContext indexingContext)
     {
+        var releasedSince = indexingContext.ReleasedSince;
+        if (releasedSince.HasValue)
+        {
+            releasedSince = releasedSince.Value.Date;
+        }
+
         if (indexingContext.SkipSpotifyUrlResolving)
         {
             logger.LogInformation(
@@ -26,7 +32,7 @@ public class SpotifyQueryPaginator(
 
         logger.LogInformation(
             "Running '{nameofPaginateEpisodes}'. Released-since: {releasedSince}.",
-            nameof(PaginateEpisodes), indexingContext.ReleasedSince);
+            nameof(PaginateEpisodes), releasedSince);
 
 
         if (pagedEpisodes?.Items == null)
@@ -64,7 +70,7 @@ public class SpotifyQueryPaginator(
 
             var episodes = existingPagedEpisodes;
 
-            if (indexingContext.ReleasedSince == null || isExpensiveQueryFound)
+            if (releasedSince == null || isExpensiveQueryFound)
             {
                 if (pagedEpisodes.Next != null && pagedEpisodes.Next.Contains("/show/"))
                 {
@@ -85,14 +91,14 @@ public class SpotifyQueryPaginator(
                     while (
                         seenGrowth &&
                         episodes.Where(x => x != null).OrderByDescending(x => x.ReleaseDate).Last().GetReleaseDate() >=
-                        indexingContext.ReleasedSince
+                        releasedSince
                     )
                     {
                         var preCount = episodes.Count;
                         var items = await spotifyClientWrapper.Paginate(
                             pagedEpisodes,
                             indexingContext,
-                            new SimpleEpisodePaginator(indexingContext.ReleasedSince, isInReverseTimeOrder)
+                            new SimpleEpisodePaginator(releasedSince, isInReverseTimeOrder)
                         );
                         if (items != null)
                         {
@@ -103,9 +109,9 @@ public class SpotifyQueryPaginator(
                 }
             }
 
-            if (indexingContext.ReleasedSince.HasValue)
+            if (releasedSince.HasValue)
             {
-                episodes = episodes.Where(x => x.GetReleaseDate() > indexingContext.ReleasedSince).ToList();
+                episodes = episodes.Where(x => x != null && x.GetReleaseDate() >= releasedSince).ToList();
             }
 
             return new PodcastEpisodesResult(episodes.Where(x => x != null).ToList(), isExpensiveQueryFound);

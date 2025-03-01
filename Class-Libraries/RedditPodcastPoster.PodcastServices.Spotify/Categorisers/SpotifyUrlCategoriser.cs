@@ -26,7 +26,7 @@ public class SpotifyUrlCategoriser(
                 podcast.Episodes.Single(x => x.Urls.Spotify == url)));
         }
 
-        var episodeId = Resolvers.SpotifyIdResolver.GetEpisodeId(url);
+        var episodeId = SpotifyIdResolver.GetEpisodeId(url);
         if (episodeId == null)
         {
             throw new InvalidOperationException($"Unable to find spotify-id in url '{url}'.");
@@ -64,7 +64,10 @@ public class SpotifyUrlCategoriser(
         IndexingContext indexingContext)
     {
         var request = FindSpotifyEpisodeRequestFactory.Create(matchingPodcast, criteria);
-        if (!indexingContext.SkipExpensiveSpotifyQueries)
+        var skip = matchingPodcast != null &&
+                   matchingPodcast.HasExpensiveSpotifyEpisodesQuery() &&
+                   indexingContext.SkipExpensiveSpotifyQueries;
+        if (!skip)
         {
             var findEpisodeResponse = await spotifyEpisodeResolver.FindEpisode(request, indexingContext);
 

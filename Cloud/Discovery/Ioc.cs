@@ -1,8 +1,6 @@
 ﻿using Azure;
 using iTunesSearch.Library;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
@@ -19,14 +17,9 @@ namespace Discovery;
 
 public static class Ioc
 {
-    public static void ConfigureServices(
-        HostBuilderContext hostBuilderContext,
-        IServiceCollection serviceCollection)
+    public static void ConfigureServices(IServiceCollection serviceCollection)
     {
         serviceCollection
-            .AddLogging()
-            .AddApplicationInsightsTelemetryWorkerService()
-            .ConfigureFunctionsApplicationInsights()
             .AddRepositories()
             .AddSubjectServices()
             .AddCachedSubjectProvider()

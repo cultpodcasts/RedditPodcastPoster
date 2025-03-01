@@ -1,9 +1,7 @@
 ﻿using Api.Configuration;
 using Api.Services;
 using iTunesSearch.Library;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Auth0.Extensions;
 using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Bluesky.Extensions;
@@ -36,16 +34,11 @@ namespace Api;
 
 public static class Ioc
 {
-    public static void ConfigureServices(
-        HostBuilderContext hostBuilderContext,
-        IServiceCollection serviceCollection)
+    public static void ConfigureServices(IServiceCollection serviceCollection)
     {
         AdminRedditClientFactory.AddAdminRedditClient(serviceCollection);
 
         serviceCollection
-            .AddLogging()
-            .AddApplicationInsightsTelemetryWorkerService()
-            .ConfigureFunctionsApplicationInsights()
             .AddRepositories()
             .AddTextSanitiser()
             .AddYouTubeServices(ApplicationUsage.Api)
