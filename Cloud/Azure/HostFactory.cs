@@ -12,11 +12,10 @@ public static class HostFactory
     {
         var builder = FunctionsApplication.CreateBuilder(args);
         var useAppInsights = builder.Configuration.UseApplicationInsightsConfiguration();
-        Action<ILoggingBuilder> loggingBuilderAction =
-            useAppInsights ? x => x.RemoveDefaultApplicationInsightsWarningRule() : x => { };
-        builder.Services.AddLogging(loggingBuilderAction);
+        builder.Services.AddLogging();
         if (useAppInsights)
         {
+            builder.Logging.RemoveDefaultApplicationInsightsWarningRule();
             builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
             builder.Services
                 .AddApplicationInsightsTelemetryWorkerService()
