@@ -117,6 +117,9 @@ var logging= {
     Logging__LogLevel__Default: 'Information'
     'Logging__LogLevel__X.Bluesky': 'Information'
     'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Information'
+    Logging__ApplicationInsights__SamplingSettings__ExcludedTypes: 'Trace;Request'
+    Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
+    Logging__ApplicationInsights__EnableLiveMetricsFilters: 'true'
 }
 
 var api= {

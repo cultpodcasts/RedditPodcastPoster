@@ -13,7 +13,7 @@ public static class HostFactory
         var builder = FunctionsApplication.CreateBuilder(args);
         var useAppInsights = builder.Configuration.UseApplicationInsightsConfiguration();
         Action<ILoggingBuilder> loggingBuilderAction =
-            useAppInsights ? x => x.SetDefaultApplicationInsightsWarningRule() : x => { };
+            useAppInsights ? x => x.RemoveDefaultApplicationInsightsWarningRule() : x => { };
         builder.Services.AddLogging(loggingBuilderAction);
         if (useAppInsights)
         {

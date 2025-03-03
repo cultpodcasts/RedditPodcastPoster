@@ -6,7 +6,7 @@ namespace Azure;
 
 public static class LoggingBuilderExtensions
 {
-    public static void SetDefaultApplicationInsightsWarningRule(this ILoggingBuilder loggingBuilder)
+    public static void RemoveDefaultApplicationInsightsWarningRule(this ILoggingBuilder loggingBuilder)
     {
         const string? categoryName = null;
         const Func<string?, string?, LogLevel, bool>? filter = null;
@@ -25,8 +25,6 @@ public static class LoggingBuilderExtensions
             if (defaultRule is not null)
             {
                 options.Rules.Remove(defaultRule);
-                loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
-                    options.Rules.Insert(0, new LoggerFilterRule(providerName, null, minLevel, null)));
             }
         });
     }
