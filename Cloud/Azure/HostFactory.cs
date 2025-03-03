@@ -17,6 +17,7 @@ public static class HostFactory
         builder.Services.AddLogging(loggingBuilderAction);
         if (useAppInsights)
         {
+            builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
             builder.Services
                 .AddApplicationInsightsTelemetryWorkerService()
                 .ConfigureFunctionsApplicationInsights();
