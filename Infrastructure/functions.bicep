@@ -115,13 +115,7 @@ var jobHostLogging= {
 var logging= {
     _UseApplicationInsightsConfig: 'false'
     Logging__LogLevel__Default: 'Information'
-    Logging__LogLevel__Api: 'Information'
-    Logging__LogLevel__Indexer: 'Information'
-    Logging__LogLevel__Discover: 'Information'
-    Logging__LogLevel__RedditPodcastPoster: 'Information'
-    'Logging__LogLevel__X.Bluesky': 'Information'
-    'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Information'
-    Logging__ApplicationInsights__SamplingSettings__ExcludedTypes: 'Trace;Request'
+    'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Warning'
     Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
     Logging__ApplicationInsights__EnableLiveMetricsFilters: 'true'
 }

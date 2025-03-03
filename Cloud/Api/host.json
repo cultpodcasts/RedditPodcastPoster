@@ -12,8 +12,7 @@
       "default": "Information",
       "Host.Results": "Information",
       "Function": "Information",
-      "Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler": "Warning",
-      "X.Bluesky": "Information"
+      "Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler": "Warning"
     }
   }
 }
