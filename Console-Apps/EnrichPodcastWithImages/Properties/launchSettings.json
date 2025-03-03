@@ -2,7 +2,7 @@
   "profiles": {
     "EnrichPodcastWithImages": {
       "commandName": "Project",
-      "commandLineArgs": "\"Crime Next Door\""
+      "commandLineArgs": "-s \"EDUCO\""
     }
   }
 }
