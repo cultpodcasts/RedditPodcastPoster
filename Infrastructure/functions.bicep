@@ -110,7 +110,14 @@ var jobHostLogging= {
     AzureFunctionsJobHost__Logging__Console__LogLevel__Default: 'Information'
     AzureFunctionsJobHost__Logging__Debug__LogLevel__Default: 'Information'
     AzureFunctionsJobHost__Logging__LogLevel__Default: 'Information'
-    _UseApplicationInsightsConfig: 'false'
+}
+
+var logging= {
+    _UseApplicationInsightsConfig: 'true'
+    Logging__LogLevel__Default: 'Information'
+    'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Warning'
+    Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
+    Logging__ApplicationInsights__EnableLiveMetricsFilters: 'true'
 }
 
 var api= {
@@ -172,10 +179,6 @@ var discover= {
     discover__ExcludeSpotify: 'false'
     discover__IgnoreTerms__0: 'cult of the lamb'
     discover__IgnoreTerms__1: 'cult of lamb'
-    discover__IgnoreTerms__10: 'Far Cry'
-    discover__IgnoreTerms__11: 'cult classic'
-    discover__IgnoreTerms__12: 'cult film'
-    discover__IgnoreTerms__13: 'cult movie'
     discover__IgnoreTerms__2: 'COTL'
     discover__IgnoreTerms__3: 'cult of the lab'
     discover__IgnoreTerms__4: 'Cult of the Lamp'
@@ -184,6 +187,11 @@ var discover= {
     discover__IgnoreTerms__7: 'Blue Öyster Cult'
     discover__IgnoreTerms__8: 'Living Colour'
     discover__IgnoreTerms__9: 'She Sells Sanctuary'
+    discover__IgnoreTerms__10: 'Far Cry'
+    discover__IgnoreTerms__11: 'cult classic'
+    discover__IgnoreTerms__12: 'cult film'
+    discover__IgnoreTerms__13: 'cult movie'
+    discover__IgnoreTerms__14: 'cult cinema'
     discover__IncludeListenNotes: 'true'
     discover__IncludeTaddy: 'true'
     discover__IncludeYouTube: 'true'
@@ -352,6 +360,7 @@ var youTubeKeyUsage= {
 
 var coreSettings= union(
     jobHostLogging,
+    logging,
     api,
     auth0Client, 
     bluesky, 
