@@ -117,6 +117,7 @@ var logging= {
     Logging__LogLevel__Default: 'Information'
     'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Warning'
     Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
+    Logging__ApplicationInsights__SamplingSettings__ExcludedTypes: ''
     Logging__ApplicationInsights__EnableLiveMetricsFilters: 'true'
 }
 
