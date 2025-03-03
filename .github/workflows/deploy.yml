@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/rework-logging
 
 permissions:
   id-token: write
