@@ -12,7 +12,6 @@ public static class LoggingBuilderExtensions
         const Func<string?, string?, LogLevel, bool>? filter = null;
         var providerName = typeof(ApplicationInsightsLoggerProvider).FullName!;
         LogLevel? warning = LogLevel.Warning;
-        LogLevel? minLevel = LogLevel.Information;
 
         loggingBuilder.SetMinimumLevel(LogLevel.Information);
         loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
