@@ -23,6 +23,7 @@ public class TaddySearcher(
 
         var since = indexingContext.ReleasedSince!.Value.Subtract(TaddyParameters.IndexingDelay).ToEpochSeconds();
 
+        // ReSharper disable once StringLiteralTypo
         var query = $@"
                    {{
                      searchForTerm(

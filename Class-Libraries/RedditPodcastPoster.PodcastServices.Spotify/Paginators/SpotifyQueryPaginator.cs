@@ -9,7 +9,9 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Paginators;
 
 public class SpotifyQueryPaginator(
     ISpotifyClientWrapper spotifyClientWrapper,
-    ILogger<SpotifyQueryPaginator> logger)
+    ILogger<SpotifyQueryPaginator> logger,
+    ILogger<SimpleEpisodePaginator> simpleEpisodePaginatorLogger
+)
     : ISpotifyQueryPaginator
 {
     public async Task<PodcastEpisodesResult> PaginateEpisodes(
@@ -98,7 +100,8 @@ public class SpotifyQueryPaginator(
                         var items = await spotifyClientWrapper.Paginate(
                             pagedEpisodes,
                             indexingContext,
-                            new SimpleEpisodePaginator(releasedSince, isInReverseTimeOrder)
+                            new SimpleEpisodePaginator(releasedSince, isInReverseTimeOrder,
+                                simpleEpisodePaginatorLogger)
                         );
                         if (items != null)
                         {
