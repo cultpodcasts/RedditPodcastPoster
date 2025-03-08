@@ -47,7 +47,7 @@ public class AddAudioPodcastProcessor(
             }
             catch (APITooManyRequestsException e)
             {
-                logger.LogError(e, "{exception}. Retry-after: {retryAfter}.", e.GetType(), e.RetryAfter);
+                logger.LogError(e, "{exception}: Retry-after: {retryAfter}.", e.GetType(), e.RetryAfter);
                 throw;
             }
         }
