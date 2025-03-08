@@ -23,7 +23,7 @@ public partial class CreateSearchIndexProcessor(
 #pragma warning restore CS9113 // Parameter is unread.
 )
 {
-    private const int descriptionSize = 900;
+    private const int DescriptionSize = 800;
     private static readonly Regex Whitespace = CreateWhitespaceRegex();
     private static readonly TimeSpan IndexAtMinutes = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan Frequency = TimeSpan.FromMinutes(30);
@@ -92,7 +92,7 @@ public partial class CreateSearchIndexProcessor(
                             e.id,
                             e.title as episodeTitle,
                             p.name as podcastName,
-                            SUBSTRING (e.description, 0, {descriptionSize}) as episodeDescription,
+                            SUBSTRING (e.description, 0, {DescriptionSize}) as episodeDescription,
                             e.release,
                             e.duration,
                             e.explicit,

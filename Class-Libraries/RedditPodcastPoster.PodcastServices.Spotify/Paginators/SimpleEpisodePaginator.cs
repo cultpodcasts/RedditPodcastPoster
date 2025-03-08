@@ -1,11 +1,16 @@
 ﻿using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using SpotifyAPI.Web;
 using SpotifyAPI.Web.Http;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Paginators;
 
-public class SimpleEpisodePaginator(DateTime? releasedSince, bool isInReverseOrder) : IPaginator
+public class SimpleEpisodePaginator(
+    DateTime? releasedSince,
+    bool isInReverseOrder,
+    ILogger<SimpleEpisodePaginator> logger
+) : IPaginator
 {
     public Task<IList<T>> PaginateAll<T>(IPaginatable<T> firstPage, IAPIConnector connector,
         CancellationToken cancel = new())
@@ -64,7 +69,18 @@ public class SimpleEpisodePaginator(DateTime? releasedSince, bool isInReverseOrd
                 page.Items.All(x => x == null) ||
                 (isInReverseOrder && lastItem != null && lastItem.GetReleaseDate() > releasedSince)))
         {
-            page = await connector.Get<Paging<T>>(new Uri(page.Next, UriKind.Absolute), cancel).ConfigureAwait(false);
+            try
+            {
+                page = await connector.Get<Paging<T>>(new Uri(page.Next, UriKind.Absolute), cancel)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Error paging {pageNext}",
+                    firstPage.Next);
+                yield break;
+            }
+
             foreach (var item in page.Items!)
             {
                 if (item is SimpleEpisode episode)
