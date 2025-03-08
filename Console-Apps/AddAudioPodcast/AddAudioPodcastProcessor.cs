@@ -41,7 +41,15 @@ public class AddAudioPodcastProcessor(
                     $"Found podcasts with spotify-id '{request.PodcastId}'. Podcast-ids: {string.Join(",", matchingPodcasts.Select(x => $"'{x.Id}'"))}.");
             }
 
-            podcast = await GetSpotifyPodcast(request, indexingContext);
+            try
+            {
+                podcast = await GetSpotifyPodcast(request, indexingContext);
+            }
+            catch (APITooManyRequestsException e)
+            {
+                logger.LogError(e, "{exception}. Retry-after: {retryAfter}.", e.GetType(), e.RetryAfter);
+                throw;
+            }
         }
         else
         {
