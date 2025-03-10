@@ -19,6 +19,7 @@ public class BlueskyEmbedCardPostFactory(
     ILogger<IBlueskyEmbedCardPostFactory> logger
 ) : IBlueskyEmbedCardPostFactory
 {
+    private const int MinTitleLength = 10;
     public const string LengthFormat = @"\[h\:mm\:ss\]";
     public const string? ReleaseFormat = "d MMM yyyy";
     private readonly BlueskyOptions _blueskyOptions = blueskyOptions.Value;
@@ -91,7 +92,14 @@ public class BlueskyEmbedCardPostFactory(
 
         if (episodeTitle.Length > permittedTitleLength)
         {
-            episodeTitle = episodeTitle[..Math.Min(episodeTitle.Length, permittedTitleLength - 1)] + "…";
+            var min = Math.Min(episodeTitle.Length, permittedTitleLength - 1);
+            if (min < MinTitleLength)
+            {
+                throw new InvalidOperationException(
+                    $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{tweetBuilder}', calculated title-length: {min} which is less than {MinTitleLength}.");
+            }
+
+            episodeTitle = episodeTitle[..min] + "…";
         }
 
         tweetBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");

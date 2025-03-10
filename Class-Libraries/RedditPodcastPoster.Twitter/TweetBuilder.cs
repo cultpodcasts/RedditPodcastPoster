@@ -19,6 +19,7 @@ public class TweetBuilder(
 #pragma warning restore CS9113 // Parameter is unread.
     : ITweetBuilder
 {
+    private const int MinTitleLength = 10;
     public const string LengthFormat = @"\[h\:mm\:ss\]";
     public const string? ReleaseFormat = "d MMM yyyy";
     private readonly TwitterOptions _twitterOptions = twitterOptions.Value;
@@ -82,7 +83,14 @@ public class TweetBuilder(
 
         if (episodeTitle.Length > permittedTitleLength)
         {
-            episodeTitle = episodeTitle[..Math.Min(episodeTitle.Length, permittedTitleLength - 1)] + "…";
+            var min = Math.Min(episodeTitle.Length, permittedTitleLength - 1);
+            if (min < MinTitleLength)
+            {
+                throw new InvalidOperationException(
+                    $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{tweetBuilder}', calculated title-length: {min} which is less than {MinTitleLength}.");
+            }
+
+            episodeTitle = episodeTitle[..min] + "…";
         }
 
         if (shortUrl != null && _twitterOptions.WithEpisodeUrl && (podcastEpisode.HasMultipleServices() ||
