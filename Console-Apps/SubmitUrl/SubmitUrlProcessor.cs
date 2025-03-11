@@ -36,7 +36,7 @@ public class SubmitUrlProcessor(
             var urls = await File.ReadAllLinesAsync(request.UrlOrFile);
             foreach (var url in urls)
             {
-                logger.LogInformation($"Ingesting '{url}'.");
+                logger.LogInformation("Ingesting '{url}'.", url);
                 var result = await urlSubmitter.Submit(
                     new Uri(url, UriKind.Absolute),
                     indexOptions,

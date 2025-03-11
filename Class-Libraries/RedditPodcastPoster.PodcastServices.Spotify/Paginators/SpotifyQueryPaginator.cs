@@ -26,14 +26,12 @@ public class SpotifyQueryPaginator(
 
         if (indexingContext.SkipSpotifyUrlResolving)
         {
-            logger.LogInformation(
-                "Skipping '{nameofPaginateEpisodes}' as '{nameofSkipSpotifyUrlResolving}' is set.",
+            logger.LogInformation("Skipping '{nameofPaginateEpisodes}' as '{nameofSkipSpotifyUrlResolving}' is set.",
                 nameof(PaginateEpisodes), nameof(indexingContext.SkipSpotifyUrlResolving));
             return new PodcastEpisodesResult(new List<SimpleEpisode>());
         }
 
-        logger.LogInformation(
-            "Running '{nameofPaginateEpisodes}'. Released-since: {releasedSince}.",
+        logger.LogInformation("Running '{nameofPaginateEpisodes}'. Released-since: {releasedSince}.",
             nameof(PaginateEpisodes), releasedSince);
 
 
@@ -66,8 +64,7 @@ public class SpotifyQueryPaginator(
 
             var isExpensiveQueryFound = !isInReverseTimeOrder;
 
-            logger.LogInformation(
-                "Running '{nameofPaginateEpisodes}'. isExpensiveQueryFound: {isExpensiveQueryFound}.",
+            logger.LogInformation("Running '{nameofPaginateEpisodes}'. isExpensiveQueryFound: {isExpensiveQueryFound}.",
                 nameof(PaginateEpisodes), isExpensiveQueryFound);
 
             var episodes = existingPagedEpisodes;
@@ -92,6 +89,7 @@ public class SpotifyQueryPaginator(
                     var seenGrowth = true;
                     while (
                         seenGrowth &&
+                        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
                         episodes.Where(x => x != null).OrderByDescending(x => x.ReleaseDate).Last().GetReleaseDate() >=
                         releasedSince
                     )
@@ -106,6 +104,7 @@ public class SpotifyQueryPaginator(
                         if (items != null)
                         {
                             episodes = items.ToList();
+                            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
                             seenGrowth = items != null && episodes.Count > preCount;
                         }
                     }
@@ -114,9 +113,11 @@ public class SpotifyQueryPaginator(
 
             if (releasedSince.HasValue)
             {
+                // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
                 episodes = episodes.Where(x => x != null && x.GetReleaseDate() >= releasedSince).ToList();
             }
 
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
             return new PodcastEpisodesResult(episodes.Where(x => x != null).ToList(), isExpensiveQueryFound);
         }
 

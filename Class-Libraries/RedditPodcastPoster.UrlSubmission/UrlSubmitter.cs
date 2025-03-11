@@ -21,7 +21,6 @@ public class UrlSubmitter(
         SubmitOptions submitOptions)
     {
         var episodeResult = SubmitResultState.None;
-        SubmitResultState podcastResult;
         try
         {
             Podcast? podcast;
@@ -36,7 +35,7 @@ public class UrlSubmitter(
 
             if (podcast != null && podcast.IsRemoved())
             {
-                logger.LogWarning($"Podcast with id '{podcast.Id}' is removed.");
+                logger.LogWarning("Podcast with id '{podcastId}' is removed.", podcast.Id);
                 return new SubmitResult(episodeResult, SubmitResultState.PodcastRemoved);
             }
 
@@ -49,13 +48,13 @@ public class UrlSubmitter(
         }
         catch (HttpRequestException e)
         {
-            logger.LogError(e, "Error ingesting '{url}'. Http-request-exception with status: '{status}'", url,
-                e.StatusCode);
+            logger.LogError(e, "Error ingesting '{url}'. Http-request-exception with status: '{status}'",
+                url, e.StatusCode);
             throw;
         }
         catch (Exception e)
         {
-            logger.LogError(e, $"Error ingesting '{url}'.", url);
+            logger.LogError(e, "Error ingesting '{url}'.", url);
             return new SubmitResult(SubmitResultState.None, SubmitResultState.None);
         }
     }
