@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Indexing;
+﻿namespace RedditPodcastPoster.Indexing.Models;
 
 public enum IndexStatus
 {

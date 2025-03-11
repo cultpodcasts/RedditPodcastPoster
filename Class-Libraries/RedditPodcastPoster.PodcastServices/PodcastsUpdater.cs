@@ -26,12 +26,14 @@ public class PodcastsUpdater(
         await foreach (var podcastId in podcastIds)
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);
-            if (podcast != null &&
-                (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
+            var performAutoIndex = podcast != null &&
+                                   (podcast.IndexAllEpisodes ||
+                                    !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex));
+            if (performAutoIndex)
             {
                 try
                 {
-                    var result = await podcastUpdater.Update(podcast, indexingContext);
+                    var result = await podcastUpdater.Update(podcast, false, indexingContext);
                     var resultReport = result.ToString();
                     if (!result.Success)
                     {

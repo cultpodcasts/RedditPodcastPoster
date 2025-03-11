@@ -1,5 +1,5 @@
 ﻿using System.Text.Json.Serialization;
-using RedditPodcastPoster.Indexing;
+using RedditPodcastPoster.Indexing.Models;
 
 namespace Api.Dtos;
 
@@ -16,7 +16,7 @@ public class IndexPodcastResponse
     {
         if (indexResponse.UpdatedEpisodes == null)
         {
-            return new IndexPodcastResponse(){IndexStatus = indexResponse.IndexStatus};
+            return new IndexPodcastResponse {IndexStatus = indexResponse.IndexStatus};
         }
 
         return new IndexPodcastResponse
@@ -26,7 +26,7 @@ public class IndexPodcastResponse
         };
     }
 
-    public static IndexedEpisode ToDto(RedditPodcastPoster.Indexing.IndexedEpisode indexedEpisode)
+    public static IndexedEpisode ToDto(RedditPodcastPoster.Indexing.Models.IndexedEpisode indexedEpisode)
     {
         return new IndexedEpisode
         {

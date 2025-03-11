@@ -107,16 +107,6 @@ public class PodcastRepository(
 
     public async Task<IEnumerable<Guid>> GetPodcastsIdsWithUnpostedReleasedSince(DateTime since)
     {
-        //var items = await GetAllBy(x =>
-        //    (!x.Removed.IsDefined() || x.Removed == false) &&
-        //    x.Episodes.Any(
-        //        episode =>
-        //            episode.Release.Ticks >=
-        //            since.Ticks + (x.YouTubePublicationOffset < 0 ? x.YouTubePublicationOffset : 0L) -
-        //            (x.YouTubePublicationOffset > 0 ? x.YouTubePublicationOffset - since.Ticks : 0L) &&
-        //            episode.Posted == false &&
-        //            episode.Ignored == false &&
-        //            episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
         var items = await GetAllBy(x =>
             (!x.Removed.IsDefined() || x.Removed == false) &&
             x.Episodes.Any(episode =>
@@ -129,16 +119,6 @@ public class PodcastRepository(
 
     public async Task<IEnumerable<Guid>> GetPodcastIdsWithUntweetedReleasedSince(DateTime since)
     {
-        //var items = await GetAllBy(x =>
-        //    (!x.Removed.IsDefined() || x.Removed == false) &&
-        //    x.Episodes.Any(
-        //        episode =>
-        //            episode.Release.Ticks >=
-        //            since.Ticks + (x.YouTubePublicationOffset < 0 ? x.YouTubePublicationOffset : 0L) -
-        //            (x.YouTubePublicationOffset > 0 ? x.YouTubePublicationOffset - since.Ticks : 0L) &&
-        //            episode.Tweeted == false &&
-        //            episode.Ignored == false &&
-        //            episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
         var items = await GetAllBy(x =>
             (!x.Removed.IsDefined() || x.Removed == false) &&
             x.Episodes.Any(episode =>
@@ -151,16 +131,6 @@ public class PodcastRepository(
 
     public async Task<IEnumerable<Guid>> GetPodcastIdsWithBlueskyReadyReleasedSince(DateTime since)
     {
-        //var items = await GetAllBy(x =>
-        //    (!x.Removed.IsDefined() || x.Removed == false) &&
-        //    x.Episodes.Any(
-        //        episode =>
-        //            episode.Release.Ticks >=
-        //            since.Ticks + (x.YouTubePublicationOffset < 0 ? x.YouTubePublicationOffset : 0L) -
-        //            (x.YouTubePublicationOffset > 0 ? x.YouTubePublicationOffset - since.Ticks : 0L) &&
-        //            episode.Tweeted == false &&
-        //            episode.Ignored == false &&
-        //            episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
         var items = await GetAllBy(x =>
             (!x.Removed.IsDefined() || x.Removed == false) &&
             x.Episodes.Any(episode =>
@@ -169,6 +139,40 @@ public class PodcastRepository(
                 episode.Ignored == false &&
                 episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
         return items.Select(x => x.guid);
+    }
+
+    public async Task<bool> PodcastHasEpisodesAwaitingEnrichment(Guid podcastId, DateTime since)
+    {
+        var podcastPublishDelay = await GetBy(podcast =>
+                (!podcast.Removed.IsDefined() || podcast.Removed == false) &&
+                podcast.Id == podcastId,
+            x => new {delay = x.YouTubePublicationOffset});
+        if (podcastPublishDelay != null)
+        {
+            if (podcastPublishDelay.delay.HasValue)
+            {
+                var delay = TimeSpan.FromTicks(Math.Abs(podcastPublishDelay.delay.Value));
+                since -= delay;
+            }
+
+            var item = await GetBy(podcast =>
+                    (!podcast.Removed.IsDefined() || podcast.Removed == false) &&
+                    podcast.Id == podcastId &&
+                    podcast.Episodes.Any(episode =>
+                        episode.Release >= since &&
+                        (
+                            (podcast.SpotifyId != string.Empty && episode.SpotifyId == string.Empty) ||
+                            (podcast.YouTubeChannelId != string.Empty && episode.YouTubeId == string.Empty) ||
+                            (podcast.AppleId.IsDefined() && podcast.AppleId > 0 &&
+                             (!episode.AppleId.IsDefined() || episode.AppleId == 0))
+                        )
+                    ),
+                x => new {x.Id, delay = x.YouTubePublicationOffset, eps = x.Episodes.Where(y => y.Release > since)}
+            );
+            return item != null;
+        }
+
+        return false;
     }
 
     private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)

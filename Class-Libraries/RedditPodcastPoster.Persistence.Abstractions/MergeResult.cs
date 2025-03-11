@@ -12,6 +12,8 @@ public class MergeResult(
     public List<(Episode Existing, Episode NewDetails)> MergedEpisodes { get; init; } = mergedEpisodes;
     public List<IEnumerable<Episode>> FailedEpisodes { get; init; } = failedEpisodes;
 
+    public static MergeResult Empty => new([], [], []);
+
     public string MergedEpisodesReport()
     {
         var report = new StringBuilder();

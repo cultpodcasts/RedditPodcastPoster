@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Indexing.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Subjects;
@@ -29,11 +30,17 @@ public class Indexer(
         {
             var canIndex = podcasts.Where(x =>
                 !(x.removed.HasValue && x.removed.Value) &&
-                (x.indexAllEpisodes ||
-                 !string.IsNullOrWhiteSpace(x.episodeIncludeTitleRegex)));
+                (x.indexAllEpisodes || !string.IsNullOrWhiteSpace(x.episodeIncludeTitleRegex)));
             if (!canIndex.Any() || canIndex.Count() > 1)
             {
-                return new IndexResponse(IndexStatus.NotPerformed);
+                if (podcasts.Count == 1 && !canIndex.Any())
+                {
+                    canIndex = [podcasts.Single()];
+                }
+                else
+                {
+                    return new IndexResponse(IndexStatus.NotPerformed);
+                }
             }
 
             return await Index(canIndex.Single().id, indexingContext);
@@ -47,11 +54,25 @@ public class Indexer(
         IndexStatus status;
         var podcast = await podcastRepository.GetPodcast(podcastId);
         IndexedEpisode[]? updatedEpisodes = null;
-        if (podcast != null && !podcast.IsRemoved() &&
-            (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
+
+        var performAutoIndex = podcast != null &&
+                               !podcast.IsRemoved() &&
+                               (podcast.IndexAllEpisodes ||
+                                !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex));
+        var enrichOnly = false;
+        if (!performAutoIndex)
+        {
+            var hasEpisodesToEnrich = await HasEpisodesAwaitingEnrichment(podcastId, indexingContext);
+            if (hasEpisodesToEnrich)
+            {
+                enrichOnly = true;
+            }
+        }
+
+        if (performAutoIndex || enrichOnly)
         {
             logger.LogInformation($"Indexing podcast {podcast.Name}' with podcast-id '{podcastId}'.");
-            var results = await podcastUpdater.Update(podcast, indexingContext);
+            var results = await podcastUpdater.Update(podcast, enrichOnly, indexingContext);
 
             updatedEpisodes = results.MergeResult.AddedEpisodes
                 .Select(x =>
@@ -126,6 +147,18 @@ public class Indexer(
         updatedEpisodes = Collapse(updatedEpisodes);
 
         return new IndexResponse(status, updatedEpisodes);
+    }
+
+    private async Task<bool> HasEpisodesAwaitingEnrichment(Guid podcastId, IndexingContext indexingContext)
+    {
+        if (indexingContext.ReleasedSince == null)
+        {
+            return false;
+        }
+
+        return await podcastRepository.PodcastHasEpisodesAwaitingEnrichment(
+            podcastId,
+            indexingContext.ReleasedSince.Value);
     }
 
     private static IndexedEpisode[]? Collapse(IndexedEpisode[]? episodes)
