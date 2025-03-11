@@ -51,11 +51,12 @@ public class SimpleEpisodePaginator(
         {
             if (item is SimpleEpisode episode)
             {
-                if (!releasedSince.HasValue || episode.GetReleaseDate() > releasedSince)
+                if (!releasedSince.HasValue || episode.GetReleaseDate() >= releasedSince)
                 {
                     yield return item;
                 }
 
+                // ReSharper disable once ConditionIsAlwaysTrueOrFalse
                 if (episode != null)
                 {
                     lastItem = episode;
@@ -67,7 +68,7 @@ public class SimpleEpisodePaginator(
                (!isInReverseOrder ||
                 !releasedSince.HasValue ||
                 page.Items.All(x => x == null) ||
-                (isInReverseOrder && lastItem != null && lastItem.GetReleaseDate() > releasedSince)))
+                (isInReverseOrder && lastItem != null && lastItem.GetReleaseDate() >= releasedSince)))
         {
             try
             {
@@ -85,7 +86,8 @@ public class SimpleEpisodePaginator(
             {
                 if (item is SimpleEpisode episode)
                 {
-                    if (episode == null || !releasedSince.HasValue || episode.GetReleaseDate() > releasedSince)
+                    // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+                    if (episode == null || !releasedSince.HasValue || episode.GetReleaseDate() >= releasedSince)
                     {
                         yield return item;
                     }

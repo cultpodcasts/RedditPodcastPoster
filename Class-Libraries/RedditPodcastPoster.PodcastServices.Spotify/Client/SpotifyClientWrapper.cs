@@ -18,7 +18,7 @@ public class SpotifyClientWrapper(
         IPaginator? paginator = null,
         CancellationToken cancel = default)
     {
-        IList<T>? results = null;
+        IList<T>? results;
         try
         {
             var items = spotifyClient.Paginate(firstPage, paginator, cancel);
@@ -27,19 +27,21 @@ public class SpotifyClientWrapper(
         catch (APITooManyRequestsException ex)
         {
             logger.LogError(ex,
-                $"{nameof(Paginate)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                "{nameofPaginate} Too-Many-Requests Failure with Spotify-API. Retry-after: '{retryAfter}'. Response: '{responseBody}'.",
+                nameof(Paginate), ex.RetryAfter, ex.Response?.Body ?? "<null>");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (APIException ex)
         {
             logger.LogError(ex,
-                $"{nameof(Paginate)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                "{nameofPaginate} Failure with Spotify-API. Response: '{responseBody}'.",
+                nameof(Paginate), ex.Response?.Body ?? "<null>");
             return null;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Paginate)} Failure with Spotify-API.");
+            logger.LogError(ex, "{nameofPaginate} Failure with Spotify-API.", nameof(Paginate));
             return null;
         }
 
@@ -58,19 +60,21 @@ public class SpotifyClientWrapper(
         catch (APITooManyRequestsException ex)
         {
             logger.LogError(ex,
-                $"{nameof(PaginateAll)} Too-Many-Requests Failure with Spotify-API. Retry-after: '{ex.RetryAfter}'. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                "{nameofPaginateAll} Too-Many-Requests Failure with Spotify-API. Retry-after: '{retryAfter}'. Response: '{responseBody}'.",
+                nameof(PaginateAll), ex.RetryAfter, ex.Response?.Body ?? "<null>");
             indexingContext.SkipSpotifyUrlResolving = true;
             return null;
         }
         catch (APIException ex)
         {
             logger.LogError(ex,
-                $"{nameof(PaginateAll)} Failure with Spotify-API. Response: '{ex.Response?.Body ?? "<null>"}'.");
+                "{nameofPaginateAll} Failure with Spotify-API. Response: '{responseBody}'.",
+                nameof(PaginateAll), ex.Response?.Body ?? "<null>");
             return null;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(PaginateAll)} Failure with Spotify-API.");
+            logger.LogError(ex, "{nameofPaginateAll} Failure with Spotify-API.", nameof(PaginateAll));
             return null;
         }
 
@@ -116,7 +120,7 @@ public class SpotifyClientWrapper(
         IndexingContext indexingContext,
         CancellationToken cancel = default)
     {
-        Paging<SimpleEpisode>? results = null;
+        Paging<SimpleEpisode>? results;
         try
         {
             results = await spotifyClient.Shows.GetEpisodes(showId, request, cancel);
@@ -176,7 +180,7 @@ public class SpotifyClientWrapper(
         IndexingContext indexingContext,
         CancellationToken cancel = default)
     {
-        SearchResponse? results = null;
+        SearchResponse? results;
         try
         {
             results = await spotifyClient.Search.Item(request, cancel);
@@ -210,7 +214,7 @@ public class SpotifyClientWrapper(
         IndexingContext indexingContext,
         CancellationToken cancel = default)
     {
-        FullShow? results = null;
+        FullShow? results;
         try
         {
             results = await spotifyClient.Shows.Get(showId, request, cancel);
@@ -243,7 +247,7 @@ public class SpotifyClientWrapper(
         IndexingContext indexingContext,
         CancellationToken cancel = default)
     {
-        FullEpisode? results = null;
+        FullEpisode? results;
         try
         {
             results = await spotifyClient.Episodes.Get(episodeId, request, cancel);
@@ -287,7 +291,7 @@ public class SpotifyClientWrapper(
         IndexingContext indexingContext,
         CancellationToken cancel = default)
     {
-        EpisodesResponse? results = null;
+        EpisodesResponse? results;
         try
         {
             results = await spotifyClient.Episodes.GetSeveral(request, cancel);

@@ -95,6 +95,7 @@ public class SpotifyPodcastEpisodesProvider(
             {
                 return new PodcastEpisodesResult(
                     allEpisodes
+                        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
                         .Where(x => x != null && x.Any())
                         .SelectMany(x => x)
                         .GroupBy(x => x.Id)

@@ -79,6 +79,7 @@ public class UrlCategoriser(
             {
                 if (resolvedSpotifyItem == null && !SpotifyPodcastServiceMatcher.IsMatch(url) &&
                     (string.IsNullOrWhiteSpace(matchingEpisode?.SpotifyId) ||
+                     // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
                      matchingEpisode?.Urls.Spotify == null ||
                      string.IsNullOrWhiteSpace(podcast?.SpotifyId)))
                 {
@@ -105,6 +106,7 @@ public class UrlCategoriser(
 
                 if (resolvedAppleItem == null && !ApplePodcastServiceMatcher.IsMatch(url) &&
                     (matchingEpisode?.AppleId == null ||
+                     // ReSharper disable once ConstantConditionalAccessQualifier
                      matchingEpisode?.Urls.Apple == null ||
                      podcast?.AppleId == null))
                 {
@@ -118,6 +120,7 @@ public class UrlCategoriser(
                         {
                             criteria = criteria with
                             {
+                                // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
                                 Publisher = resolvedSpotifyItem.Publisher ?? string.Empty
                             };
                         }
@@ -139,10 +142,11 @@ public class UrlCategoriser(
 
                 if (resolvedYouTubeItem == null && !YouTubePodcastServiceMatcher.IsMatch(url) &&
                     (string.IsNullOrWhiteSpace(matchingEpisode?.YouTubeId) ||
+                     // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
                      matchingEpisode?.Urls.YouTube == null ||
                      string.IsNullOrWhiteSpace(podcast?.YouTubeChannelId)))
                 {
-                    if ((authority == Service.Spotify || authority == Service.Apple) && podcast != null)
+                    if (authority is Service.Spotify or Service.Apple && podcast != null)
                     {
                         indexingContext = indexingContext with
                         {
