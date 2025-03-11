@@ -13,6 +13,7 @@ using RedditPodcastPoster.Auth0;
 using RedditPodcastPoster.CloudflareRedirect;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Indexing;
+using RedditPodcastPoster.Indexing.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Search;

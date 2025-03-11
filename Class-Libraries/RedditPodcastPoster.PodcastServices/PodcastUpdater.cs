@@ -22,33 +22,57 @@ public class PodcastUpdater(
 {
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
-    public async Task<IndexPodcastResult> Update(Podcast podcast, IndexingContext indexingContext)
+    public async Task<IndexPodcastResult> Update(Podcast podcast, bool enrichOnly, IndexingContext indexingContext)
     {
         var initialSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
         var initialSkipYouTube = indexingContext.SkipYouTubeUrlResolving;
         var knownYouTubeExpensiveQuery = podcast.HasExpensiveYouTubePlaylistQuery();
         var knownSpotifyExpensiveQuery = podcast.HasExpensiveSpotifyEpisodesQuery();
-        var newEpisodes = await episodeProvider.GetEpisodes(
-            podcast,
-            indexingContext);
-
-        if (!(podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value))
+        IList<Episode> episodes;
+        MergeResult mergeResult;
+        if (!enrichOnly)
         {
-            foreach (var newEpisode in newEpisodes)
+            var newEpisodes = await episodeProvider.GetEpisodes(
+                podcast,
+                indexingContext);
+            if (!(podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value))
             {
-                newEpisode.Ignored = newEpisode.Length < _postingCriteria.MinimumDuration;
+                foreach (var newEpisode in newEpisodes)
+                {
+                    newEpisode.Ignored = newEpisode.Length < _postingCriteria.MinimumDuration;
+                }
+
+                if (indexingContext.SkipShortEpisodes)
+                {
+                    EliminateShortEpisodes(newEpisodes);
+                }
             }
 
-            if (indexingContext.SkipShortEpisodes)
+            mergeResult = podcastRepository.Merge(podcast, newEpisodes);
+            episodes = podcast.Episodes;
+
+            if (indexingContext.ReleasedSince.HasValue)
             {
-                EliminateShortEpisodes(newEpisodes);
+                var releasedSince = indexingContext.ReleasedSince.Value;
+                var youTubePublishingDelay = podcast.YouTubePublishingDelay();
+                if (podcast.ReleaseAuthority == Service.YouTube)
+                {
+                    releasedSince += youTubePublishingDelay;
+                }
+
+                episodes = episodes
+                    .Where(x => ReduceToSinceIncorporatingPublishDelay(x, youTubePublishingDelay, releasedSince))
+                    .ToList();
             }
         }
-
-        var mergeResult = podcastRepository.Merge(podcast, newEpisodes);
-        var episodes = podcast.Episodes;
-        if (indexingContext.ReleasedSince.HasValue)
+        else
         {
+            if (!indexingContext.ReleasedSince.HasValue)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot enrich podcast with id '{podcast.Id}' without a released-since");
+            }
+
             var releasedSince = indexingContext.ReleasedSince.Value;
             var youTubePublishingDelay = podcast.YouTubePublishingDelay();
             if (podcast.ReleaseAuthority == Service.YouTube)
@@ -56,21 +80,15 @@ public class PodcastUpdater(
                 releasedSince += youTubePublishingDelay;
             }
 
-            episodes = episodes
-                .Where(x =>
-                {
-                    if (youTubePublishingDelay < TimeSpan.Zero)
-                    {
-                        var cutoff = x.Release + youTubePublishingDelay;
-                        var hasReleasedOnYouTube = DateTime.UtcNow >= cutoff;
-                        return x.Release >= releasedSince && hasReleasedOnYouTube;
-                    }
-
-                    var inTimeframe = x.Release >= releasedSince &&
-                                      x.Release - DateTime.UtcNow < youTubePublishingDelay;
-                    return inTimeframe;
-                })
-                .ToList();
+            episodes = podcast.Episodes
+                .Where(x => ReduceToSinceIncorporatingPublishDelay(x, youTubePublishingDelay, releasedSince))
+                .Where(episode =>
+                    (!string.IsNullOrWhiteSpace(podcast.SpotifyId) && string.IsNullOrWhiteSpace(episode.SpotifyId)) ||
+                    (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
+                     string.IsNullOrWhiteSpace(episode.YouTubeId)) ||
+                    (podcast.AppleId.HasValue && !episode.AppleId.HasValue)
+                ).ToList();
+            mergeResult = MergeResult.Empty;
         }
 
         if (podcast.HasIgnoreAllEpisodes())
@@ -113,6 +131,21 @@ public class PodcastUpdater(
             enrichmentResult,
             initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving,
             initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving);
+    }
+
+    private bool ReduceToSinceIncorporatingPublishDelay(Episode episode, TimeSpan youTubePublishingDelay,
+        DateTime releasedSince)
+    {
+        if (youTubePublishingDelay < TimeSpan.Zero)
+        {
+            var cutoff = episode.Release + youTubePublishingDelay;
+            var hasReleasedOnYouTube = DateTime.UtcNow >= cutoff;
+            return episode.Release >= releasedSince && hasReleasedOnYouTube;
+        }
+
+        var inTimeframe = episode.Release >= releasedSince &&
+                          episode.Release - DateTime.UtcNow < youTubePublishingDelay;
+        return inTimeframe;
     }
 
     private void EliminateShortEpisodes(IList<Episode> episodes)

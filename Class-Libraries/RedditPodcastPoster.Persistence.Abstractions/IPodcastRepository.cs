@@ -18,4 +18,5 @@ public interface IPodcastRepository
     Task<IEnumerable<Guid>> GetPodcastsIdsWithUnpostedReleasedSince(DateTime since);
     Task<IEnumerable<Guid>> GetPodcastIdsWithUntweetedReleasedSince(DateTime since);
     Task<IEnumerable<Guid>> GetPodcastIdsWithBlueskyReadyReleasedSince(DateTime since);
+    Task<bool> PodcastHasEpisodesAwaitingEnrichment(Guid podcastId, DateTime since);
 }
