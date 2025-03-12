@@ -44,16 +44,15 @@ jobs:
         filters: |
           infrastructure:
           - ./Infrastructure/**
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 9.0.x
     - name: Remove Files
       run: |
         rm ./Cloud/Api/appsettings.Development.json
         rm ./Cloud/Discovery/appsettings.Development.json
         rm ./Cloud/Indexer/appsettings.Development.json
-        rm ./DUMMY/appsettings.Development.json
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
