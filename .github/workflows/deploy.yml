@@ -53,6 +53,7 @@ jobs:
         rm ./Cloud/Api/appsettings.Development.json
         rm ./Cloud/Discovery/appsettings.Development.json
         rm ./Cloud/Indexer/appsettings.Development.json
+        rm ./DUMMY/appsettings.Development.json
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
