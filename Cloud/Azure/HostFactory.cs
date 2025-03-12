@@ -11,21 +11,23 @@ public static class HostFactory
     public static IHost Create(string[] args, Action<IServiceCollection> configureServices)
     {
         var builder = FunctionsApplication.CreateBuilder(args);
-        var useAppInsights = builder.Configuration.UseApplicationInsightsConfiguration();
+        var isDevelopment = builder.Configuration.IsDevelopment();
         builder.Services.AddLogging();
-        if (useAppInsights)
+        builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
+        if (isDevelopment)
         {
-            builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
             builder.Services
                 .AddApplicationInsightsTelemetryWorkerService()
                 .ConfigureFunctionsApplicationInsights();
             builder.Logging.RemoveDefaultApplicationInsightsWarningRule();
         }
+        else
+        {
+            builder.Logging.ClearProviders();
+            builder.Logging.AddConsole();
+        }
 
         configureServices(builder.Services);
-#if DEBUG
-        builder.Logging.ClearProviders();
-#endif
         return builder.Build();
     }
 }

@@ -340,7 +340,14 @@ public class PodcastController(
 
         if (podcastChangeRequest.DefaultSubject != null)
         {
-            podcast.DefaultSubject = podcastChangeRequest.DefaultSubject;
+            if (podcastChangeRequest.DefaultSubject == string.Empty)
+            {
+                podcast.DefaultSubject = null;
+            }
+            else
+            {
+                podcast.DefaultSubject = podcastChangeRequest.DefaultSubject;
+            }
         }
 
         if (podcastChangeRequest.IgnoreAllEpisodes != null)
