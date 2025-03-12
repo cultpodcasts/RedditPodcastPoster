@@ -49,12 +49,10 @@ jobs:
       with:
         dotnet-version: 9.0.x
     - name: Remove Files
-      uses: mdmush/remove-files@v1.0.1
-      with:
-        file-paths: |
-          /Cloud/Api/appsettings.Development.json
-          /Cloud/Discovery/appsettings.Development.json
-          /Cloud/Indexer/appsettings.Development.json
+      run: |
+        rm /Cloud/Api/appsettings.Development.json
+        rm /Cloud/Discovery/appsettings.Development.json
+        rm /Cloud/Indexer/appsettings.Development.json
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
