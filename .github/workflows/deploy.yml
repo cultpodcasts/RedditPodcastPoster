@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - bugfix/remove-default-subject
 
 permissions:
   id-token: write
