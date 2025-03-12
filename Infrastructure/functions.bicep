@@ -113,7 +113,6 @@ var jobHostLogging= {
 }
 
 var logging= {
-    _UseApplicationInsightsConfig: 'true'
     Logging__LogLevel__Default: 'Information'
     'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Warning'
     Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
