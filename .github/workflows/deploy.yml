@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - bugfix/remove-default-subject
 
 permissions:
   id-token: write
@@ -47,6 +48,13 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 9.0.x
+    - name: Remove Files
+      uses: mdmush/remove-files@v1.0.1
+      with:
+        file-paths: |
+          /Cloud/Api/appsettings.Development.json
+          /Cloud/Discovery/appsettings.Development.json
+          /Cloud/Indexer/appsettings.Development.json
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
