@@ -20,17 +20,70 @@ public class ApplePodcastService : IApplePodcastService
 
     public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
     {
-        _logger.LogInformation($"{nameof(GetEpisodes)} podcast-id: '{podcastId}'.");
+        _logger.LogInformation("{nameofGetEpisodes} podcast-id: '{podcastId}'.", nameof(GetEpisodes), podcastId);
         var appleEpisodes = await GetEpisodes(podcastId, indexingContext, null);
 
         return appleEpisodes;
     }
 
-    public async Task<AppleEpisode?> GetEpisode(ApplePodcastId podcastId, long episodeId,
-        IndexingContext indexingContext)
+    public async Task<AppleEpisode?> GetEpisode(long episodeId, IndexingContext indexingContext)
     {
-        var episodes = await GetEpisodes(podcastId, indexingContext, x => x.Id == episodeId.ToString());
-        return episodes?.SingleOrDefault(x => x.Id == episodeId);
+        var requestUri =
+            $"/v1/catalog/us/podcast-episodes/{episodeId}?extend=fullDescription&extend[podcasts]=feedUrl&include=podcast";
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient.GetAsync(requestUri);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex,
+                "Failed to request '{requestUri}'. Reason: '{exMessage}', Status-Code: '{statusCode}'.",
+                requestUri, ex.Message, ex.StatusCode);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to request from '{requestUri}'.", requestUri);
+            throw;
+        }
+
+        AppleEpisode? appleEpisode = null;
+
+        if (response.IsSuccessStatusCode)
+        {
+            var appleJson = await response.Content.ReadAsStringAsync();
+            var appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
+            if (appleObject != null && appleObject.Records.Any())
+            {
+                var itemsWithDuration = appleObject.Records.Where(x => x.Attributes.Duration > TimeSpan.Zero);
+                if (!itemsWithDuration.Any())
+                {
+                    _logger.LogError(
+                        "Failure calling apple-api with url '{requestUri}'. No item returned for podcast-episode-query for episode-id '{episodeId}' with duration > 0.",
+                        requestUri, episodeId);
+                    return null;
+                }
+
+                if (itemsWithDuration.Count() > 1)
+                {
+                    _logger.LogError(
+                        "Failure calling apple-api with url '{requestUri}'. Multiple items returned for podcast-episode-query for episode-id '{episodeId}' with duration > 0.",
+                        requestUri, episodeId);
+                    return null;
+                }
+
+                appleEpisode = itemsWithDuration.Single().ToAppleEpisode();
+            }
+        }
+        else
+        {
+            _logger.LogError(
+                "Failure calling apple-api with url '{requestUri}'. Response-code: '{responseStatusCode}', response-content: '{content}'.",
+                requestUri, response.StatusCode, await response.Content.ReadAsStringAsync());
+        }
+
+        return appleEpisode;
     }
 
     private async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId,
@@ -46,12 +99,13 @@ public class ApplePodcastService : IApplePodcastService
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex,
-                $"Failed to request '{requestUri}'. Reason: '{ex.Message}', Status-Code: '{ex.StatusCode}'.");
+                "Failed to request '{requestUri}'. Reason: '{exMessage}', Status-Code: '{statusCode}'.",
+                requestUri, ex.Message, ex.StatusCode);
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Failed to request from '{requestUri}'");
+            _logger.LogError(ex, "Failed to request from '{requestUri}'.", requestUri);
             throw;
         }
 
@@ -101,7 +155,8 @@ public class ApplePodcastService : IApplePodcastService
         else
         {
             _logger.LogError(
-                $"Failure calling apple-api with url '{requestUri}'. Response-code: '{response.StatusCode}', response-content: '{await response.Content.ReadAsStringAsync()}'.");
+                "Failure calling apple-api with url '{requestUri}'. Response-code: '{responseStatusCode}', response-content: '{content}'.",
+                requestUri, response.StatusCode, await response.Content.ReadAsStringAsync());
         }
 
         var appleEpisodes = podcastRecords
@@ -110,7 +165,8 @@ public class ApplePodcastService : IApplePodcastService
         if (podcastRecords.Any() && !appleEpisodes.Any())
         {
             _logger.LogError(
-                $"Missing duration-attribute on all apple-podcast episodes for podcast with apple-podcast-id '{podcastId.PodcastId}'. podcast-records count:'{podcastRecords.Count}',  apple-episodes count:'{appleEpisodes.Count()}'.");
+                "Missing duration-attribute on all apple-podcast episodes for podcast with apple-podcast-id '{podcastId}'. podcast-records count:'{podcastRecordsCount}',  apple-episodes count:'{appleEpisodesCount}'.",
+                podcastId.PodcastId, podcastRecords.Count, appleEpisodes.Count());
             foreach (var json in collectedAppleJson)
             {
                 _logger.LogError(json);
@@ -121,7 +177,8 @@ public class ApplePodcastService : IApplePodcastService
             if (podcastRecords.Count > 0)
             {
                 _logger.LogInformation(
-                    $"Successfully found podcast-episodes with duration. Apple-podcast-id '{podcastId.PodcastId}', items-with-duration: '{appleEpisodes.Count()}/{podcastRecords.Count}'.");
+                    "Successfully found podcast-episodes with duration. Apple-podcast-id '{podcastId}', items-with-duration: '{appleEpisodesCount}/{podcastRecordsCount}'.",
+                    podcastId.PodcastId, appleEpisodes.Count(), podcastRecords.Count);
             }
         }
 
