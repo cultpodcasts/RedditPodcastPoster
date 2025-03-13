@@ -38,7 +38,7 @@ public class AppleEnricher(
                 null,
                 episodeResult.EpisodeName,
                 episodeResult.Released,
-                null, 
+                null,
                 episodeResult.Length);
 
             var appleResult = await appleEpisodeResolver.FindEpisode(
@@ -51,6 +51,7 @@ public class AppleEnricher(
                 episodeResult.PodcastIds.Apple ??= episodeResult.ITunesPodcastId ??
                                                    podcast?.Id ?? AppleIdResolver.GetPodcastId(appleResult.Url);
                 episodeResult.EnrichedTimeFromApple = true;
+                episodeResult.ImageUrl ??= appleResult.Image;
             }
 
             if (podcast != null && string.IsNullOrWhiteSpace(episodeResult.ShowDescription))
