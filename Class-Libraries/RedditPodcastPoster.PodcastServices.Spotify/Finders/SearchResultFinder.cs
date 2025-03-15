@@ -81,14 +81,31 @@ public class SearchResultFinder(
         DateTime? episodeRelease,
         IEnumerable<SimpleEpisode> episodes)
     {
-        var matches = episodes.Where(x => x.Name.Trim() == episodeTitle.Trim());
+        var lowerTitle = episodeTitle.ToLowerInvariant();
+        var matches = episodes.Where(x =>
+        {
+            var itemLowerTitle = x.Name.Trim().ToLowerInvariant();
+            return itemLowerTitle == lowerTitle || itemLowerTitle.Contains(lowerTitle) ||
+                   lowerTitle.Contains(itemLowerTitle);
+        });
         var match = matches.FirstOrDefault();
         if (match == null && episodeRelease.HasValue)
         {
             var sameDateMatches =
                 episodes.Where(x =>
-                    x.ReleaseDate == "0000" || DateOnly.ParseExact(x.ReleaseDate, "yyyy-MM-dd") ==
-                    DateOnly.FromDateTime(episodeRelease.Value));
+                {
+                    var episodeReleaseDateTime = x.GetReleaseDate();
+                    if (episodeReleaseDateTime == DateTime.MinValue)
+                    {
+                        return true;
+                    }
+
+                    var episodeReleaseDate = DateOnly.FromDateTime(episodeReleaseDateTime);
+                    var expectedDateOnly = DateOnly.FromDateTime(episodeRelease.Value);
+                    var dateDiff = Math.Abs(expectedDateOnly.DayNumber - episodeReleaseDate.DayNumber);
+
+                    return episodeReleaseDate == expectedDateOnly || dateDiff <= 1;
+                });
             if (sameDateMatches.Count() > 1)
             {
                 return FuzzyMatcher.Match(episodeTitle, sameDateMatches, x => x.Name, MinFuzzyScore);
