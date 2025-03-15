@@ -10,11 +10,13 @@ public static class PodcastExtensions
             IsYouTubePodcastWithDelayedPosting(podcast))
         {
             var youTubePublishingDelay = podcast.YouTubePublishingDelay();
-            if (youTubePublishingDelay > TimeSpan.Zero && episode.Length> TimeSpan.Zero)
+            if (youTubePublishingDelay > TimeSpan.Zero && episode.Length > TimeSpan.Zero)
             {
                 youTubePublishingDelay = youTubePublishingDelay.Add(episode.Length);
             }
-            if (episode.Release.Add(youTubePublishingDelay) > DateTime.UtcNow)
+
+            var expiry = episode.Release.Add(youTubePublishingDelay);
+            if (expiry > DateTime.UtcNow)
             {
                 return true;
             }

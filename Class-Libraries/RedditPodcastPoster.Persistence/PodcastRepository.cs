@@ -167,7 +167,7 @@ public class PodcastRepository(
                              (!episode.AppleId.IsDefined() || episode.AppleId == 0))
                         )
                     ),
-                x => new {x.Id, delay = x.YouTubePublicationOffset, eps = x.Episodes.Where(y => y.Release > since)}
+                x => new {x.Id}
             );
             return item != null;
         }
