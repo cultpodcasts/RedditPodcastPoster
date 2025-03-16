@@ -35,7 +35,7 @@ public partial class SearchResultFinder(
             return new FindEpisodeResponse(match);
         }
 
-        match = MatchOnEpisodeNumber(episode, searchResults);
+        match = await MatchOnEpisodeNumberAndDuration(episode, searchResults, indexingContext);
         if (match != null)
         {
             return new FindEpisodeResponse(match);
@@ -106,12 +106,13 @@ public partial class SearchResultFinder(
             if (searchResult != null)
             {
                 var matchingPair = new FindEpisodeResponse(searchResult, Video: matchingVideo);
-                var matchingVideoLength = matchingPair.Video!.GetLength() ?? TimeSpan.Zero;
-                var matchingVideoLengthDifferentTicks = Math.Abs((matchingVideoLength - episode.Length).Ticks);
-                if (matchingVideoLengthDifferentTicks < VideoDurationTolerance.Ticks)
+                var video = matchingPair.Video!;
+                if (IsDurationMatch(episode, video))
                 {
                     logger.LogInformation(
-                        $"Matched episode '{episode.Title}' and length: '{episode.Length:g}' with episode '{matchingPair.SearchResult.Snippet.Title}' having length: '{matchingPair.Video?.GetLength():g}'.");
+                        "Matched episode '{episodeTitle}' and length: '{episodeLength:g}' with episode '{snippetTitle}' having length: '{matchingPairVideoLength:g}'.",
+                        episode.Title, episode.Length, matchingPair.SearchResult?.Snippet.Title,
+                        matchingPair.Video?.GetLength());
                     return matchingPair;
                 }
             }
@@ -120,14 +121,24 @@ public partial class SearchResultFinder(
         return null;
     }
 
+    private bool IsDurationMatch(RedditPodcastPoster.Models.Episode episode, Google.Apis.YouTube.v3.Data.Video video)
+    {
+        var matchingVideoLength = video.GetLength() ?? TimeSpan.Zero;
+        var matchingVideoLengthDifferentTicks = Math.Abs((matchingVideoLength - episode.Length).Ticks);
+        var isMatch = matchingVideoLengthDifferentTicks < VideoDurationTolerance.Ticks;
+        return isMatch;
+    }
+
     private SearchResult? MatchOnTextCloseness(RedditPodcastPoster.Models.Episode episode,
         IList<SearchResult> searchResults)
     {
         return FuzzyMatcher.Match(episode.Title, searchResults, x => x.Snippet.Title, MinFuzzyScore);
     }
 
-    private SearchResult? MatchOnEpisodeNumber(RedditPodcastPoster.Models.Episode episode,
-        IList<SearchResult> searchResults)
+    private async Task<SearchResult?> MatchOnEpisodeNumberAndDuration(
+        RedditPodcastPoster.Models.Episode episode,
+        IList<SearchResult> searchResults,
+        IndexingContext indexingContext)
     {
         var episodeNumberMatch = NumberMatch.Match(episode.Title);
         if (episodeNumberMatch.Success)
@@ -142,14 +153,36 @@ public partial class SearchResultFinder(
 
                 if (matchingSearchResult.Count() == 1)
                 {
-                    logger.LogInformation($"Matched on episode-number '{episodeNumber}'.");
-                    return matchingSearchResult.Single();
+                    logger.LogInformation("Matched on episode-number '{episodeNumber}'.", episodeNumber);
+
+                    var videoDetails =
+                        await videoService.GetVideoContentDetails(youTubeService,
+                            searchResults.Select(x => x.Id.VideoId).ToList(),
+                            indexingContext);
+                    var video = videoDetails?.SingleOrDefault();
+                    if (video == null)
+                    {
+                        return null;
+                    }
+
+                    if (IsDurationMatch(episode, video))
+                    {
+                        if (IsDurationMatch(episode, video))
+                        {
+                            logger.LogInformation(
+                                "Matched episode '{episodeTitle}' and length: '{episodeLength:g}' with episode '{snippetTitle}' having length: '{matchingPairVideoLength:g}'.",
+                                episode.Title, episode.Length, matchingSearchResult.Single().Snippet.Title,
+                                video.GetLength());
+                            return matchingSearchResult.Single();
+                        }
+                    }
                 }
 
                 if (matchingSearchResult.Any())
                 {
                     logger.LogInformation(
-                        $"Could not match on number that appears in title '{episodeNumber}' as appears in multiple episode-titles: {string.Join(", ", matchingSearchResult.Select(x => $"'{x}'"))}.");
+                        "Could not match on number that appears in title '{episodeNumber}' as appears in multiple episode-titles: {titles}.",
+                        episodeNumber, string.Join(", ", matchingSearchResult.Select(x => $"'{x}'")));
                 }
             }
         }
@@ -182,27 +215,27 @@ public partial class SearchResultFinder(
         var matchingSearchResult = searchResults.Where(x =>
         {
             var snippetTitle = x.Snippet.Title.Trim().ToLower();
-            return snippetTitle == episodeTitle ||
-                   snippetTitle.Contains(episodeTitle) ||
-                   episodeTitle.Contains(episodeTitle);
+            var contains = snippetTitle == episodeTitle ||
+                           snippetTitle.Contains(episodeTitle) ||
+                           episodeTitle.Contains(snippetTitle);
+            return contains;
         });
 
         if (matchingSearchResult.Count() == 1)
         {
-            logger.LogInformation($"Matched on episode-number '{episode.Title}'.");
+            logger.LogInformation("Matched on episode-number '{episodeTitle}'.", episode.Title);
             return matchingSearchResult.Single();
         }
 
         if (matchingSearchResult.Any())
         {
             logger.LogInformation(
-                $"Matched multiple items on episode-title '{episode.Title}'.");
+                "Matched multiple items on episode-title '{episodeTitle}'.", episode.Title);
         }
 
         return null;
     }
 
-    [GeneratedRegex("(?'number'\\d+)", RegexOptions.Compiled)]
+    [GeneratedRegex("(?'number'\\d{2,})", RegexOptions.Compiled)]
     private static partial Regex CreateNumberMatch();
-
 }
