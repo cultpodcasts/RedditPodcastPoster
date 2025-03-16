@@ -127,7 +127,8 @@ public partial class SearchResultFinder(
         return FuzzyMatcher.Match(episode.Title, searchResults, x => x.Snippet.Title, MinFuzzyScore);
     }
 
-    private SearchResult? MatchOnEpisodeNumber(RedditPodcastPoster.Models.Episode episode,
+    private SearchResult? MatchOnEpisodeNumber(
+        RedditPodcastPoster.Models.Episode episode,
         IList<SearchResult> searchResults)
     {
         var episodeNumberMatch = NumberMatch.Match(episode.Title);
@@ -205,6 +206,6 @@ public partial class SearchResultFinder(
         return null;
     }
 
-    [GeneratedRegex("(?'number'\\d+)", RegexOptions.Compiled)]
+    [GeneratedRegex("(?'number'\\d{2,})", RegexOptions.Compiled)]
     private static partial Regex CreateNumberMatch();
 }
