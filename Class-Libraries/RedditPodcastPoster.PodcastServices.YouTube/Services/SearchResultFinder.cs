@@ -111,7 +111,8 @@ public partial class SearchResultFinder(
                 if (matchingVideoLengthDifferentTicks < VideoDurationTolerance.Ticks)
                 {
                     logger.LogInformation(
-                        $"Matched episode '{episode.Title}' and length: '{episode.Length:g}' with episode '{matchingPair.SearchResult.Snippet.Title}' having length: '{matchingPair.Video?.GetLength():g}'.");
+                        "Matched episode '{episodeTitle}' and length: '{episodeLength:g}' with episode '{snippetTitle}' having length: '{matchingPairVideoLength:g}'.",
+                        episode.Title, episode.Length, matchingPair.SearchResult?.Snippet.Title, matchingPair.Video?.GetLength());
                     return matchingPair;
                 }
             }
@@ -142,14 +143,15 @@ public partial class SearchResultFinder(
 
                 if (matchingSearchResult.Count() == 1)
                 {
-                    logger.LogInformation($"Matched on episode-number '{episodeNumber}'.");
+                    logger.LogInformation("Matched on episode-number '{episodeNumber}'.", episodeNumber);
                     return matchingSearchResult.Single();
                 }
 
                 if (matchingSearchResult.Any())
                 {
                     logger.LogInformation(
-                        $"Could not match on number that appears in title '{episodeNumber}' as appears in multiple episode-titles: {string.Join(", ", matchingSearchResult.Select(x => $"'{x}'"))}.");
+                        "Could not match on number that appears in title '{episodeNumber}' as appears in multiple episode-titles: {titles}.",
+                        episodeNumber, string.Join(", ", matchingSearchResult.Select(x => $"'{x}'")));
                 }
             }
         }
@@ -182,21 +184,22 @@ public partial class SearchResultFinder(
         var matchingSearchResult = searchResults.Where(x =>
         {
             var snippetTitle = x.Snippet.Title.Trim().ToLower();
-            return snippetTitle == episodeTitle ||
-                   snippetTitle.Contains(episodeTitle) ||
-                   episodeTitle.Contains(episodeTitle);
+            var contains = snippetTitle == episodeTitle ||
+                           snippetTitle.Contains(episodeTitle) ||
+                           episodeTitle.Contains(snippetTitle);
+            return contains;
         });
 
         if (matchingSearchResult.Count() == 1)
         {
-            logger.LogInformation($"Matched on episode-number '{episode.Title}'.");
+            logger.LogInformation("Matched on episode-number '{episodeTitle}'.", episode.Title);
             return matchingSearchResult.Single();
         }
 
         if (matchingSearchResult.Any())
         {
             logger.LogInformation(
-                $"Matched multiple items on episode-title '{episode.Title}'.");
+                "Matched multiple items on episode-title '{episodeTitle}'.", episode.Title);
         }
 
         return null;
@@ -204,5 +207,4 @@ public partial class SearchResultFinder(
 
     [GeneratedRegex("(?'number'\\d+)", RegexOptions.Compiled)]
     private static partial Regex CreateNumberMatch();
-
 }
