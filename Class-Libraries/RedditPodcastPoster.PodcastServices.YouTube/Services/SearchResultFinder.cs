@@ -35,7 +35,7 @@ public partial class SearchResultFinder(
             return new FindEpisodeResponse(match);
         }
 
-        match = MatchOnEpisodeNumber(episode, searchResults);
+        match = await MatchOnEpisodeNumber(episode, searchResults, indexingContext);
         if (match != null)
         {
             return new FindEpisodeResponse(match);
@@ -106,13 +106,13 @@ public partial class SearchResultFinder(
             if (searchResult != null)
             {
                 var matchingPair = new FindEpisodeResponse(searchResult, Video: matchingVideo);
-                var matchingVideoLength = matchingPair.Video!.GetLength() ?? TimeSpan.Zero;
-                var matchingVideoLengthDifferentTicks = Math.Abs((matchingVideoLength - episode.Length).Ticks);
-                if (matchingVideoLengthDifferentTicks < VideoDurationTolerance.Ticks)
+                var video = matchingPair.Video!;
+                if (IsDurationMatch(episode, video))
                 {
                     logger.LogInformation(
                         "Matched episode '{episodeTitle}' and length: '{episodeLength:g}' with episode '{snippetTitle}' having length: '{matchingPairVideoLength:g}'.",
-                        episode.Title, episode.Length, matchingPair.SearchResult?.Snippet.Title, matchingPair.Video?.GetLength());
+                        episode.Title, episode.Length, matchingPair.SearchResult?.Snippet.Title,
+                        matchingPair.Video?.GetLength());
                     return matchingPair;
                 }
             }
@@ -121,15 +121,24 @@ public partial class SearchResultFinder(
         return null;
     }
 
+    private bool IsDurationMatch(RedditPodcastPoster.Models.Episode episode, Google.Apis.YouTube.v3.Data.Video video)
+    {
+        var matchingVideoLength = video.GetLength() ?? TimeSpan.Zero;
+        var matchingVideoLengthDifferentTicks = Math.Abs((matchingVideoLength - episode.Length).Ticks);
+        var isMatch = matchingVideoLengthDifferentTicks < VideoDurationTolerance.Ticks;
+        return isMatch;
+    }
+
     private SearchResult? MatchOnTextCloseness(RedditPodcastPoster.Models.Episode episode,
         IList<SearchResult> searchResults)
     {
         return FuzzyMatcher.Match(episode.Title, searchResults, x => x.Snippet.Title, MinFuzzyScore);
     }
 
-    private SearchResult? MatchOnEpisodeNumber(
+    private async Task<SearchResult?> MatchOnEpisodeNumber(
         RedditPodcastPoster.Models.Episode episode,
-        IList<SearchResult> searchResults)
+        IList<SearchResult> searchResults,
+        IndexingContext indexingContext)
     {
         var episodeNumberMatch = NumberMatch.Match(episode.Title);
         if (episodeNumberMatch.Success)
@@ -145,7 +154,28 @@ public partial class SearchResultFinder(
                 if (matchingSearchResult.Count() == 1)
                 {
                     logger.LogInformation("Matched on episode-number '{episodeNumber}'.", episodeNumber);
-                    return matchingSearchResult.Single();
+
+                    var videoDetails =
+                        await videoService.GetVideoContentDetails(youTubeService,
+                            searchResults.Select(x => x.Id.VideoId).ToList(),
+                            indexingContext);
+                    var video = videoDetails?.SingleOrDefault();
+                    if (video == null)
+                    {
+                        return null;
+                    }
+
+                    if (IsDurationMatch(episode, video))
+                    {
+                        if (IsDurationMatch(episode, video))
+                        {
+                            logger.LogInformation(
+                                "Matched episode '{episodeTitle}' and length: '{episodeLength:g}' with episode '{snippetTitle}' having length: '{matchingPairVideoLength:g}'.",
+                                episode.Title, episode.Length, matchingSearchResult.Single().Snippet.Title,
+                                video.GetLength());
+                            return matchingSearchResult.Single();
+                        }
+                    }
                 }
 
                 if (matchingSearchResult.Any())
