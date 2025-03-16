@@ -35,7 +35,7 @@ public partial class SearchResultFinder(
             return new FindEpisodeResponse(match);
         }
 
-        match = await MatchOnEpisodeNumber(episode, searchResults, indexingContext);
+        match = await MatchOnEpisodeNumberAndDuration(episode, searchResults, indexingContext);
         if (match != null)
         {
             return new FindEpisodeResponse(match);
@@ -135,7 +135,7 @@ public partial class SearchResultFinder(
         return FuzzyMatcher.Match(episode.Title, searchResults, x => x.Snippet.Title, MinFuzzyScore);
     }
 
-    private async Task<SearchResult?> MatchOnEpisodeNumber(
+    private async Task<SearchResult?> MatchOnEpisodeNumberAndDuration(
         RedditPodcastPoster.Models.Episode episode,
         IList<SearchResult> searchResults,
         IndexingContext indexingContext)
