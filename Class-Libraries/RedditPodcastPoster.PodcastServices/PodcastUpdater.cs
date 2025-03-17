@@ -133,18 +133,19 @@ public class PodcastUpdater(
             initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving);
     }
 
-    private bool ReduceToSinceIncorporatingPublishDelay(Episode episode, TimeSpan youTubePublishingDelay,
+    private bool ReduceToSinceIncorporatingPublishDelay(
+        Episode episode,
+        TimeSpan youTubePublishingDelay,
         DateTime releasedSince)
     {
+        var cutoff = episode.Release + youTubePublishingDelay;
         if (youTubePublishingDelay < TimeSpan.Zero)
         {
-            var cutoff = episode.Release + youTubePublishingDelay;
             var hasReleasedOnYouTube = DateTime.UtcNow >= cutoff;
             return episode.Release >= releasedSince && hasReleasedOnYouTube;
         }
 
-        var inTimeframe = episode.Release >= releasedSince &&
-                          episode.Release - DateTime.UtcNow < youTubePublishingDelay;
+        var inTimeframe = cutoff > releasedSince;
         return inTimeframe;
     }
 
