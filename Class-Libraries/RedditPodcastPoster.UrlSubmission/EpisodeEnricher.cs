@@ -38,8 +38,7 @@ public class EpisodeEnricher(
 
             if (matchingEpisode != null)
             {
-                if (!matchingEpisode.AppleId.HasValue ||
-                    matchingEpisode.AppleId != categorisedItem.ResolvedAppleItem.EpisodeId)
+                if (!matchingEpisode.AppleId.HasValue && categorisedItem.ResolvedAppleItem.EpisodeId.HasValue)
                 {
                     addedApple = true;
                     matchingEpisode.AppleId = categorisedItem.ResolvedAppleItem.EpisodeId;
@@ -48,8 +47,7 @@ public class EpisodeEnricher(
                         $"Enriched episode '{matchingEpisode.Id}' with apple details with apple-id {categorisedItem.ResolvedAppleItem.EpisodeId}.");
                 }
 
-                if (matchingEpisode.Urls.Apple == null ||
-                    matchingEpisode.Urls.Apple != categorisedItem.ResolvedAppleItem.Url)
+                if (matchingEpisode.Urls.Apple == null && categorisedItem.ResolvedAppleItem.Url != null)
                 {
                     addedApple = true;
                     matchingEpisode.Urls.Apple = categorisedItem.ResolvedAppleItem.Url;
@@ -96,8 +94,8 @@ public class EpisodeEnricher(
 
             if (matchingEpisode != null)
             {
-                if (string.IsNullOrWhiteSpace(matchingEpisode.SpotifyId) ||
-                    matchingEpisode.SpotifyId != categorisedItem.ResolvedSpotifyItem.EpisodeId)
+                if (string.IsNullOrWhiteSpace(matchingEpisode.SpotifyId) &&
+                    !string.IsNullOrWhiteSpace(categorisedItem.ResolvedSpotifyItem.EpisodeId))
                 {
                     addedSpotify = true;
                     matchingEpisode.SpotifyId = categorisedItem.ResolvedSpotifyItem.EpisodeId;
@@ -106,8 +104,7 @@ public class EpisodeEnricher(
                         $"Enriched episode '{matchingEpisode.Id}' with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.EpisodeId}.");
                 }
 
-                if (matchingEpisode.Urls.Spotify == null ||
-                    matchingEpisode.Urls.Spotify != categorisedItem.ResolvedSpotifyItem.Url)
+                if (matchingEpisode.Urls.Spotify == null && categorisedItem.ResolvedSpotifyItem.Url != null)
                 {
                     addedSpotify = true;
                     matchingEpisode.Urls.Spotify = categorisedItem.ResolvedSpotifyItem.Url;
@@ -147,8 +144,8 @@ public class EpisodeEnricher(
 
             if (matchingEpisode != null)
             {
-                if (string.IsNullOrWhiteSpace(matchingEpisode.YouTubeId) ||
-                    matchingEpisode.YouTubeId != categorisedItem.ResolvedYouTubeItem.EpisodeId)
+                if (string.IsNullOrWhiteSpace(matchingEpisode.YouTubeId) &&
+                    !string.IsNullOrWhiteSpace(categorisedItem.ResolvedYouTubeItem.EpisodeId))
                 {
                     addedYouTube = true;
                     matchingEpisode.YouTubeId = categorisedItem.ResolvedYouTubeItem.EpisodeId;
@@ -157,8 +154,7 @@ public class EpisodeEnricher(
                         $"Enriched episode '{matchingEpisode.Id}' with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.EpisodeId}.");
                 }
 
-                if (matchingEpisode.Urls.YouTube == null ||
-                    matchingEpisode.Urls.YouTube != categorisedItem.ResolvedYouTubeItem.Url)
+                if (matchingEpisode.Urls.YouTube == null && categorisedItem.ResolvedYouTubeItem.Url != null)
                 {
                     addedYouTube = true;
                     matchingEpisode.Urls.YouTube = categorisedItem.ResolvedYouTubeItem.Url;
