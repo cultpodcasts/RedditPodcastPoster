@@ -23,7 +23,7 @@ public partial class CreateSearchIndexProcessor(
 #pragma warning restore CS9113 // Parameter is unread.
 )
 {
-    private const int DescriptionSize = 800;
+    private const int DescriptionSize = 700;
     private static readonly Regex Whitespace = CreateWhitespaceRegex();
     private static readonly TimeSpan IndexAtMinutes = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan Frequency = TimeSpan.FromMinutes(30);
@@ -46,7 +46,7 @@ public partial class CreateSearchIndexProcessor(
             var result = await CreateDataSource(request);
         }
 
-        if (!string.IsNullOrWhiteSpace(request.IndexerName) &&
+        if (!string.IsNullOrWhiteSpace(request.IndexerName) && /**/
             !string.IsNullOrWhiteSpace(request.DataSourceName) &&
             !string.IsNullOrWhiteSpace(request.IndexName))
         {
