@@ -12,7 +12,7 @@ public class HalfHourlyOrchestration : TaskOrchestrator<object, IndexerContext>
         logger.LogInformation(
             $"{nameof(HalfHourlyOrchestration)}.{nameof(RunAsync)} initiated. Instance-id: '{context.InstanceId}'.");
 
-        var indexerContext = new IndexerContext(context.NewGuid())
+        var indexerContext = new IndexerContext(context.NewGuid(), context.NewGuid())
         {
             // hold back posting anything not ready
             SkipYouTubeUrlResolving = true,
@@ -28,7 +28,7 @@ public class HalfHourlyOrchestration : TaskOrchestrator<object, IndexerContext>
             await context.CallPublisherAsync(indexerContext with {PublisherOperationId = context.NewGuid()});
         logger.LogInformation($"{nameof(Publisher)} complete.");
 
-        indexerContext = await context.CallBlueskyAsync(indexerContext with { BlueskyOperationId = context.NewGuid() });
+        indexerContext = await context.CallBlueskyAsync(indexerContext with {BlueskyOperationId = context.NewGuid()});
         logger.LogInformation($"{nameof(Bluesky)} complete. All tasks complete.");
 
         return indexerContext;
