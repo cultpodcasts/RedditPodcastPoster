@@ -2,6 +2,7 @@ namespace Indexer;
 
 public record IndexerContext(
     Guid IndexerOperationId,
+    IndexIds? IndexIds = null,
     Guid? CategoriserOperationId = null,
     Guid? PosterOperationId = null,
     Guid? PublisherOperationId = null,

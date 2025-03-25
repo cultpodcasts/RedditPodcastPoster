@@ -14,15 +14,25 @@ public class Indexer(
     IIndexingStrategy indexingStrategy,
     IOptions<IndexerOptions> indexerOptions,
     ILogger<Indexer> logger)
-    : TaskActivity<IndexerContext, IndexerContext>
+    : TaskActivity<IndexerContextWrapper, IndexerContext>
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
 
     public override async Task<IndexerContext> RunAsync(
-        TaskActivityContext context, IndexerContext indexerContext)
+        TaskActivityContext context, IndexerContextWrapper indexerContextWrapper)
     {
         logger.LogInformation(
-            $"{nameof(Indexer)} initiated. task-activity-context-instance-id: '{context.InstanceId}'.");
+            $"{nameof(Indexer)} initiated. task-activity-context-instance-id: '{context.InstanceId}'. Pass: {indexerContextWrapper.Pass}.");
+        var indexerContext= indexerContextWrapper.IndexerContext;
+
+        if (indexerContext.IndexIds == null)
+        {
+            throw new ArgumentException("IndexIds must be provided.");
+        }
+        if (indexerContextWrapper.Pass is < 1 or > 2) {
+            throw new ArgumentException("Pass must be between 1 and the number of IndexIds.");
+        }
+
         logger.LogInformation(indexerContext.ToString());
         logger.LogInformation(_indexerOptions.ToString());
         var indexingContext = _indexerOptions.ToIndexingContext() with
@@ -73,7 +83,8 @@ public class Indexer(
         bool results;
         try
         {
-            results = await podcastsUpdater.UpdatePodcasts(indexingContext);
+            var idsToIndex = indexerContextWrapper.Pass == 1 ? indexerContext.IndexIds.Pass1 : indexerContext.IndexIds.Pass2;
+            results = await podcastsUpdater.UpdatePodcasts(idsToIndex, indexingContext);
         }
         catch (Exception ex)
         {

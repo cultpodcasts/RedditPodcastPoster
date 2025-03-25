@@ -12,9 +12,16 @@ public class HourlyOrchestration : TaskOrchestrator<object, IndexerContext>
         logger.LogInformation(
             $"{nameof(HourlyOrchestration)}.{nameof(RunAsync)} initiated. Instance-id: '{context.InstanceId}'.");
 
-        var indexerContext = new IndexerContext(context.NewGuid());
-        indexerContext = await context.CallIndexerAsync(indexerContext);
-        logger.LogInformation($"{nameof(Indexer)} complete.");
+
+        var indexIds = await context.CallIndexIdProviderAsync(new object());
+        logger.LogInformation($"{nameof(IndexIdProvider)} complete.");
+
+        var indexerContext = new IndexerContext(context.NewGuid(), indexIds);
+        indexerContext = await context.CallIndexerAsync(new IndexerContextWrapper(indexerContext, 1));
+        logger.LogInformation($"{nameof(Indexer)} Pass 1 complete.");
+
+        indexerContext = await context.CallIndexerAsync(new IndexerContextWrapper(indexerContext, 2));
+        logger.LogInformation($"{nameof(Indexer)} Pass 2 complete.");
 
         indexerContext =
             await context.CallCategoriserAsync(indexerContext with {CategoriserOperationId = context.NewGuid()});

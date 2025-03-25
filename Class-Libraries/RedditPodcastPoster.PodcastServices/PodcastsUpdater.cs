@@ -1,29 +1,22 @@
-﻿using Microsoft.Azure.Cosmos.Linq;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices;
 
 public class PodcastsUpdater(
+    IIndexablePodcastIdProvider indexablePodcastIdProvider,
     IPodcastUpdater podcastUpdater,
     IPodcastRepository podcastRepository,
     IFlushable flushableCaches,
     ILogger<PodcastsUpdater> logger)
     : IPodcastsUpdater
 {
-    public async Task<bool> UpdatePodcasts(IndexingContext indexingContext)
+    public async Task<bool> UpdatePodcasts(Guid[] podcastIds, IndexingContext indexingContext)
     {
         var success = true;
-        logger.LogInformation($"{nameof(UpdatePodcasts)} Retrieving podcasts.");
-        var podcastIds = podcastRepository.GetAllBy(
-            podcast => (
-                           (!podcast.Removed.IsDefined() || podcast.Removed == false) &&
-                           podcast.IndexAllEpisodes) ||
-                       podcast.EpisodeIncludeTitleRegex != "",
-            x => x.Id);
         logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
-        await foreach (var podcastId in podcastIds)
+        foreach (var podcastId in podcastIds)
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);
             var performAutoIndex = podcast != null &&
@@ -64,5 +57,11 @@ public class PodcastsUpdater(
 
         logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing complete.");
         return success;
+    }
+
+    public async Task<bool> UpdatePodcasts(IndexingContext indexingContext)
+    {
+        var podcastIds = indexablePodcastIdProvider.GetIndexablePodcastIds();
+        return await UpdatePodcasts(await podcastIds.ToArrayAsync(), indexingContext);
     }
 }
