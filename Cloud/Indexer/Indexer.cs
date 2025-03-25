@@ -23,14 +23,16 @@ public class Indexer(
     {
         logger.LogInformation(
             $"{nameof(Indexer)} initiated. task-activity-context-instance-id: '{context.InstanceId}'. Pass: {indexerContextWrapper.Pass}.");
-        var indexerContext= indexerContextWrapper.IndexerContext;
+        var indexerContext = indexerContextWrapper.IndexerContext;
 
         if (indexerContext.IndexIds == null)
         {
             throw new ArgumentException("IndexIds must be provided.");
         }
-        if (indexerContextWrapper.Pass is < 1 or > 2) {
-            throw new ArgumentException("Pass must be between 1 and the number of IndexIds.");
+
+        if (indexerContextWrapper.Pass is < 1 or > 2)
+        {
+            throw new ArgumentException("Pass must be between 1 and 2.");
         }
 
         logger.LogInformation(indexerContext.ToString());
@@ -61,7 +63,10 @@ public class Indexer(
             };
         }
 
-        var activityBooked = await activityMarshaller.Initiate(indexerContext.IndexerOperationId, nameof(Indexer));
+        var indexerOperationId = indexerContextWrapper.Pass == 1
+            ? indexerContext.IndexerPass1OperationId
+            : indexerContext.IndexerPass2OperationId;
+        var activityBooked = await activityMarshaller.Initiate(indexerOperationId, nameof(Indexer));
         if (activityBooked != ActivityStatus.Initiated)
         {
             if (activityBooked == ActivityStatus.Failed)
@@ -83,7 +88,9 @@ public class Indexer(
         bool results;
         try
         {
-            var idsToIndex = indexerContextWrapper.Pass == 1 ? indexerContext.IndexIds.Pass1 : indexerContext.IndexIds.Pass2;
+            var idsToIndex = indexerContextWrapper.Pass == 1
+                ? indexerContext.IndexIds.Pass1
+                : indexerContext.IndexIds.Pass2;
             results = await podcastsUpdater.UpdatePodcasts(idsToIndex, indexingContext);
         }
         catch (Exception ex)
@@ -96,7 +103,7 @@ public class Indexer(
         {
             try
             {
-                activityBooked = await activityMarshaller.Complete(indexerContext.IndexerOperationId, nameof(Indexer));
+                activityBooked = await activityMarshaller.Complete(indexerOperationId, nameof(Indexer));
                 if (activityBooked != ActivityStatus.Completed)
                 {
                     logger.LogError("Failure to complete activity");

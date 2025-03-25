@@ -1,7 +1,8 @@
 namespace Indexer;
 
 public record IndexerContext(
-    Guid IndexerOperationId,
+    Guid IndexerPass1OperationId,
+    Guid IndexerPass2OperationId,
     IndexIds? IndexIds = null,
     Guid? CategoriserOperationId = null,
     Guid? PosterOperationId = null,
@@ -22,7 +23,8 @@ public record IndexerContext(
 {
     public override string ToString()
     {
-        var indexerOperationId = $"indexer-operation-id: '{IndexerOperationId}'";
+        var indexerPass1OperationId = $"indexer-pass-1-operation-id: '{IndexerPass1OperationId}'";
+        var indexerPass2OperationId = $"indexer-pass-2-operation-id: '{IndexerPass2OperationId}'";
         var categoriserOperationId = CategoriserOperationId.HasValue
             ? $"categoriser-operation-id: '{CategoriserOperationId}'"
             : string.Empty;
@@ -73,6 +75,6 @@ public record IndexerContext(
             : string.Empty;
 
         return
-            $"{nameof(IndexerContext)} Indexer-options {string.Join(", ", new[] {indexerOperationId, categoriserOperationId, posterOperationId, publisherOperationId, tweetOperationId, blueskyOperationId, success, skipYouTubeUrlResolving, youTubeError, skipSpotifyUrlResolving, spotifyError, duplicateIndexerOperation, duplicateCategoriserOperation, duplicatePosterOperation, duplicatePublisherOperation, duplicateTweetOperation, duplicateBlueskyOperation}.Where(x => !string.IsNullOrWhiteSpace(x)))}.";
+            $"{nameof(IndexerContext)} Indexer-options {string.Join(", ", new[] {indexerPass1OperationId, indexerPass2OperationId, categoriserOperationId, posterOperationId, publisherOperationId, tweetOperationId, blueskyOperationId, success, skipYouTubeUrlResolving, youTubeError, skipSpotifyUrlResolving, spotifyError, duplicateIndexerOperation, duplicateCategoriserOperation, duplicatePosterOperation, duplicatePublisherOperation, duplicateTweetOperation, duplicateBlueskyOperation}.Where(x => !string.IsNullOrWhiteSpace(x)))}.";
     }
 }

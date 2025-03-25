@@ -16,7 +16,7 @@ public class HourlyOrchestration : TaskOrchestrator<object, IndexerContext>
         var indexIds = await context.CallIndexIdProviderAsync(new object());
         logger.LogInformation($"{nameof(IndexIdProvider)} complete.");
 
-        var indexerContext = new IndexerContext(context.NewGuid(), indexIds);
+        var indexerContext = new IndexerContext(context.NewGuid(), context.NewGuid(), indexIds);
         indexerContext = await context.CallIndexerAsync(new IndexerContextWrapper(indexerContext, 1));
         logger.LogInformation($"{nameof(Indexer)} Pass 1 complete.");
 
@@ -37,7 +37,7 @@ public class HourlyOrchestration : TaskOrchestrator<object, IndexerContext>
         indexerContext = await context.CallTweetAsync(indexerContext with {TweetOperationId = context.NewGuid()});
         logger.LogInformation($"{nameof(Tweet)} complete. All tasks complete.");
 
-        indexerContext = await context.CallBlueskyAsync(indexerContext with { BlueskyOperationId = context.NewGuid() });
+        indexerContext = await context.CallBlueskyAsync(indexerContext with {BlueskyOperationId = context.NewGuid()});
         logger.LogInformation($"{nameof(Bluesky)} complete. All tasks complete.");
 
         return indexerContext;
