@@ -129,7 +129,7 @@ public class Indexer(
             SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalIndexingContext.SkipSpotifyUrlResolving
         };
 
-        logger.LogInformation($"{nameof(RunAsync)} Completed. Result: {result}");
+        logger.LogInformation($"{nameof(RunAsync)} Completed. Pass: {indexerContextWrapper.Pass}. Result: {result}");
 
         return result;
     }
