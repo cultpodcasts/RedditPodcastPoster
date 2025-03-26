@@ -8,23 +8,42 @@ namespace Indexer;
 public class IndexIdProvider(
     IIndexablePodcastIdProvider indexablePodcastIdProvider,
     ILogger<IndexIdProvider> logger
-) : TaskActivity<object, IndexIds>
+) : TaskActivity<IndexIdProviderRequest, IndexIdProviderResponse>
 {
-    public override async Task<IndexIds> RunAsync(TaskActivityContext context, object input)
+    public override async Task<IndexIdProviderResponse> RunAsync(TaskActivityContext context, IndexIdProviderRequest req)
     {
         logger.LogInformation(
             $"{nameof(IndexIdProvider)} initiated. task-activity-context-instance-id: '{context.InstanceId}'.");
 
-        var allIndexablePodcastIds= await indexablePodcastIdProvider.GetIndexablePodcastIds().ToArrayAsync();
+        if (req.IndexPasses < 1)
+        {
+            throw new ArgumentException("IndexPasses must be greater than 0.");
+        }
+        var allIndexablePodcastIds = await indexablePodcastIdProvider.GetIndexablePodcastIds().ToArrayAsync();
 
-        var halfCount= allIndexablePodcastIds.Length / 2;
-        var list1 = allIndexablePodcastIds.Take(halfCount).ToArray();
-        var list2 = allIndexablePodcastIds.Skip(halfCount).ToArray();
+        var batchSizes = allIndexablePodcastIds.Length / req.IndexPasses;
+        var batches = new List<Guid[]>();
+        for (var i = 0; i < req.IndexPasses; i++)
+        {
+            var batch = allIndexablePodcastIds.Skip(i * batchSizes);
+            if (i < req.IndexPasses - 1)
+            {
+                batch = batch.Take(batchSizes);
+            }
 
-        logger.LogInformation("list1: {list1}", list1);
-        logger.LogInformation("list2: {list2}", list2);
+            var batchArray = batch.ToArray();
+            logger.LogInformation("Batch {i}: {batch}", i + 1, batchArray);
+            batches.Add(batchArray);
+        }
+
+        var batchSum = batches.Sum(batch => batch.Length);
+        if (batchSum != allIndexablePodcastIds.Length)
+        {
+            throw new InvalidOperationException(
+                $"Batch sum {batchSum} does not equal all indexable podcast ids {allIndexablePodcastIds.Length}.");
+        }
 
         logger.LogInformation($"{nameof(RunAsync)} Completed.");
-        return new IndexIds(list1, list2);
+        return new IndexIdProviderResponse(batches.ToArray());
     }
 }

@@ -30,9 +30,15 @@ public class Indexer(
             throw new ArgumentException("IndexIds must be provided.");
         }
 
-        if (indexerContextWrapper.Pass is < 1 or > 2)
+        if (indexerContext.IndexerPassOperationIds == null)
         {
-            throw new ArgumentException("Pass must be between 1 and 2.");
+            throw new ArgumentException("IndexerPassOperationIds must be provided.");
+        }
+
+        var passes = indexerContext.IndexerPassOperationIds.Length;
+        if (indexerContextWrapper.Pass < 1 || indexerContextWrapper.Pass > passes)
+        {
+            throw new ArgumentException($"Pass must be between 1 and {passes}.");
         }
 
         logger.LogInformation(indexerContext.ToString());
@@ -63,9 +69,7 @@ public class Indexer(
             };
         }
 
-        var indexerOperationId = indexerContextWrapper.Pass == 1
-            ? indexerContext.IndexerPass1OperationId
-            : indexerContext.IndexerPass2OperationId;
+        var indexerOperationId = indexerContext.IndexerPassOperationIds[indexerContextWrapper.Pass - 1];
         var activityBooked = await activityMarshaller.Initiate(indexerOperationId, nameof(Indexer));
         if (activityBooked != ActivityStatus.Initiated)
         {
@@ -79,18 +83,18 @@ public class Indexer(
                 };
             }
 
-            return indexerContext with
+            if (indexerContext.DuplicateIndexerPassOperations == null)
             {
-                DuplicateIndexerOperation = true
-            };
+                indexerContext = indexerContext with {DuplicateIndexerPassOperations = new bool[passes]};
+            }
+
+            indexerContext.DuplicateIndexerPassOperations[indexerContextWrapper.Pass - 1] = true;
         }
 
         bool results;
         try
         {
-            var idsToIndex = indexerContextWrapper.Pass == 1
-                ? indexerContext.IndexIds.Pass1
-                : indexerContext.IndexIds.Pass2;
+            var idsToIndex = indexerContext.IndexIds[indexerContextWrapper.Pass - 1];
             results = await podcastsUpdater.UpdatePodcasts(idsToIndex, indexingContext);
         }
         catch (Exception ex)

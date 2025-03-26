@@ -14,7 +14,7 @@ public static class HostFactory
         var isDevelopment = builder.Configuration.IsDevelopment();
         builder.Services.AddLogging();
         builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
-        if (isDevelopment)
+        if (!isDevelopment)
         {
             builder.Services
                 .AddApplicationInsightsTelemetryWorkerService()

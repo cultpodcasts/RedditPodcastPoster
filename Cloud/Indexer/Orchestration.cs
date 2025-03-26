@@ -10,35 +10,38 @@ public class HourlyOrchestration : TaskOrchestrator<object, IndexerContext>
     {
         var logger = context.CreateReplaySafeLogger<HourlyOrchestration>();
         logger.LogInformation(
-            $"{nameof(HourlyOrchestration)}.{nameof(RunAsync)} initiated. Instance-id: '{context.InstanceId}'.");
+            "{nameofHourlyOrchestration}.{nameofRunAsync} initiated. Instance-id: '{contextInstanceId}'.",
+            nameof(HourlyOrchestration), nameof(RunAsync), context.InstanceId);
 
+        const int indexPasses = 4;
+        var indexPassOperationIs = Enumerable.Range(1, indexPasses).Select(_ => context.NewGuid()).ToArray();
 
-        var indexIds = await context.CallIndexIdProviderAsync(new object());
-        logger.LogInformation($"{nameof(IndexIdProvider)} complete.");
+        var indexIds = await context.CallIndexIdProviderAsync(new IndexIdProviderRequest(indexPasses));
+        logger.LogInformation("{nameofIndexIdProvider} complete.", nameof(IndexIdProvider));
 
-        var indexerContext = new IndexerContext(context.NewGuid(), context.NewGuid(), indexIds);
-        indexerContext = await context.CallIndexerAsync(new IndexerContextWrapper(indexerContext, 1));
-        logger.LogInformation($"{nameof(Indexer)} Pass 1 complete.");
-
-        indexerContext = await context.CallIndexerAsync(new IndexerContextWrapper(indexerContext, 2));
-        logger.LogInformation($"{nameof(Indexer)} Pass 2 complete.");
+        var indexerContext = new IndexerContext(indexPassOperationIs, indexIds.PodcastIdBatches);
+        for (var pass = 1; pass <= indexPasses; pass++)
+        {
+            indexerContext = await context.CallIndexerAsync(new IndexerContextWrapper(indexerContext, pass));
+            logger.LogInformation("{nameofIndexer} Pass {pass} complete.", nameof(Indexer), pass);
+        }
 
         indexerContext =
             await context.CallCategoriserAsync(indexerContext with {CategoriserOperationId = context.NewGuid()});
-        logger.LogInformation($"{nameof(Categoriser)} complete.");
+        logger.LogInformation("{nameofCategoriser} complete.", nameof(Categoriser));
 
         indexerContext = await context.CallPosterAsync(indexerContext with {PosterOperationId = context.NewGuid()});
-        logger.LogInformation($"{nameof(Poster)} complete.");
+        logger.LogInformation("{nameofPoster} complete.", nameof(Poster));
 
         indexerContext =
             await context.CallPublisherAsync(indexerContext with {PublisherOperationId = context.NewGuid()});
-        logger.LogInformation($"{nameof(Publisher)} complete.");
+        logger.LogInformation("{nameofPublisher} complete.", nameof(Publisher));
 
         indexerContext = await context.CallTweetAsync(indexerContext with {TweetOperationId = context.NewGuid()});
-        logger.LogInformation($"{nameof(Tweet)} complete. All tasks complete.");
+        logger.LogInformation("{nameofTweet} complete.", nameof(Tweet));
 
         indexerContext = await context.CallBlueskyAsync(indexerContext with {BlueskyOperationId = context.NewGuid()});
-        logger.LogInformation($"{nameof(Bluesky)} complete. All tasks complete.");
+        logger.LogInformation("{nameofBluesky} complete. All tasks complete.", nameof(Bluesky));
 
         return indexerContext;
     }

@@ -67,34 +67,6 @@ public static class GeneratedDurableTaskExtensions
         return (IndexerContext)result!;
     }
 
-    public static Task<IndexerContext> CallBlueskyAsync(this TaskOrchestrationContext ctx, IndexerContext input, TaskOptions? options = null)
-    {
-        return ctx.CallActivityAsync<IndexerContext>("Bluesky", input, options);
-    }
-
-    [Function(nameof(Bluesky))]
-    public static async Task<IndexerContext> Bluesky([ActivityTrigger] IndexerContext input, string instanceId, FunctionContext executionContext)
-    {
-        ITaskActivity activity = ActivatorUtilities.CreateInstance<Bluesky>(executionContext.InstanceServices);
-        TaskActivityContext context = new GeneratedActivityContext("Bluesky", instanceId);
-        object? result = await activity.RunAsync(context, input);
-        return (IndexerContext)result!;
-    }
-
-    public static Task<IndexerContext> CallPosterAsync(this TaskOrchestrationContext ctx, IndexerContext input, TaskOptions? options = null)
-    {
-        return ctx.CallActivityAsync<IndexerContext>("Poster", input, options);
-    }
-
-    [Function(nameof(Poster))]
-    public static async Task<IndexerContext> Poster([ActivityTrigger] IndexerContext input, string instanceId, FunctionContext executionContext)
-    {
-        ITaskActivity activity = ActivatorUtilities.CreateInstance<Poster>(executionContext.InstanceServices);
-        TaskActivityContext context = new GeneratedActivityContext("Poster", instanceId);
-        object? result = await activity.RunAsync(context, input);
-        return (IndexerContext)result!;
-    }
-
     public static Task<IndexerContext> CallCategoriserAsync(this TaskOrchestrationContext ctx, IndexerContext input, TaskOptions? options = null)
     {
         return ctx.CallActivityAsync<IndexerContext>("Categoriser", input, options);
@@ -123,6 +95,48 @@ public static class GeneratedDurableTaskExtensions
         return (IndexerContext)result!;
     }
 
+    public static Task<IndexerContext> CallPosterAsync(this TaskOrchestrationContext ctx, IndexerContext input, TaskOptions? options = null)
+    {
+        return ctx.CallActivityAsync<IndexerContext>("Poster", input, options);
+    }
+
+    [Function(nameof(Poster))]
+    public static async Task<IndexerContext> Poster([ActivityTrigger] IndexerContext input, string instanceId, FunctionContext executionContext)
+    {
+        ITaskActivity activity = ActivatorUtilities.CreateInstance<Poster>(executionContext.InstanceServices);
+        TaskActivityContext context = new GeneratedActivityContext("Poster", instanceId);
+        object? result = await activity.RunAsync(context, input);
+        return (IndexerContext)result!;
+    }
+
+    public static Task<IndexerContext> CallBlueskyAsync(this TaskOrchestrationContext ctx, IndexerContext input, TaskOptions? options = null)
+    {
+        return ctx.CallActivityAsync<IndexerContext>("Bluesky", input, options);
+    }
+
+    [Function(nameof(Bluesky))]
+    public static async Task<IndexerContext> Bluesky([ActivityTrigger] IndexerContext input, string instanceId, FunctionContext executionContext)
+    {
+        ITaskActivity activity = ActivatorUtilities.CreateInstance<Bluesky>(executionContext.InstanceServices);
+        TaskActivityContext context = new GeneratedActivityContext("Bluesky", instanceId);
+        object? result = await activity.RunAsync(context, input);
+        return (IndexerContext)result!;
+    }
+
+    public static Task<IndexIdProviderResponse> CallIndexIdProviderAsync(this TaskOrchestrationContext ctx, IndexIdProviderRequest input, TaskOptions? options = null)
+    {
+        return ctx.CallActivityAsync<IndexIdProviderResponse>("IndexIdProvider", input, options);
+    }
+
+    [Function(nameof(IndexIdProvider))]
+    public static async Task<IndexIdProviderResponse> IndexIdProvider([ActivityTrigger] IndexIdProviderRequest input, string instanceId, FunctionContext executionContext)
+    {
+        ITaskActivity activity = ActivatorUtilities.CreateInstance<IndexIdProvider>(executionContext.InstanceServices);
+        TaskActivityContext context = new GeneratedActivityContext("IndexIdProvider", instanceId);
+        object? result = await activity.RunAsync(context, input);
+        return (IndexIdProviderResponse)result!;
+    }
+
     public static Task<IndexerContext> CallIndexerAsync(this TaskOrchestrationContext ctx, IndexerContextWrapper input, TaskOptions? options = null)
     {
         return ctx.CallActivityAsync<IndexerContext>("Indexer", input, options);
@@ -135,20 +149,6 @@ public static class GeneratedDurableTaskExtensions
         TaskActivityContext context = new GeneratedActivityContext("Indexer", instanceId);
         object? result = await activity.RunAsync(context, input);
         return (IndexerContext)result!;
-    }
-
-    public static Task<IndexIds> CallIndexIdProviderAsync(this TaskOrchestrationContext ctx, object input, TaskOptions? options = null)
-    {
-        return ctx.CallActivityAsync<IndexIds>("IndexIdProvider", input, options);
-    }
-
-    [Function(nameof(IndexIdProvider))]
-    public static async Task<IndexIds> IndexIdProvider([ActivityTrigger] object input, string instanceId, FunctionContext executionContext)
-    {
-        ITaskActivity activity = ActivatorUtilities.CreateInstance<IndexIdProvider>(executionContext.InstanceServices);
-        TaskActivityContext context = new GeneratedActivityContext("IndexIdProvider", instanceId);
-        object? result = await activity.RunAsync(context, input);
-        return (IndexIds)result!;
     }
 
     sealed class GeneratedActivityContext : TaskActivityContext
