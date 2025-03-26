@@ -23,7 +23,7 @@ public class HourlyOrchestration : TaskOrchestrator<object, IndexerContext>
         for (var pass = 1; pass <= indexPasses; pass++)
         {
             indexerContext = await context.CallIndexerAsync(new IndexerContextWrapper(indexerContext, pass));
-            logger.LogInformation("{nameofIndexer} Pass {pass} complete.", nameof(Indexer), pass);
+            logger.LogInformation("{nameofIndexer} complete - Pass {pass}.", nameof(Indexer), pass);
         }
 
         indexerContext =
