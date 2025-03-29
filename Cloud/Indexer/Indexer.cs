@@ -14,15 +14,33 @@ public class Indexer(
     IIndexingStrategy indexingStrategy,
     IOptions<IndexerOptions> indexerOptions,
     ILogger<Indexer> logger)
-    : TaskActivity<IndexerContext, IndexerContext>
+    : TaskActivity<IndexerContextWrapper, IndexerContext>
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
 
     public override async Task<IndexerContext> RunAsync(
-        TaskActivityContext context, IndexerContext indexerContext)
+        TaskActivityContext context, IndexerContextWrapper indexerContextWrapper)
     {
         logger.LogInformation(
-            $"{nameof(Indexer)} initiated. task-activity-context-instance-id: '{context.InstanceId}'.");
+            $"{nameof(Indexer)} initiated. task-activity-context-instance-id: '{context.InstanceId}'. Pass: {indexerContextWrapper.Pass}.");
+        var indexerContext = indexerContextWrapper.IndexerContext;
+
+        if (indexerContext.IndexIds == null)
+        {
+            throw new ArgumentException("IndexIds must be provided.");
+        }
+
+        if (indexerContext.IndexerPassOperationIds == null)
+        {
+            throw new ArgumentException("IndexerPassOperationIds must be provided.");
+        }
+
+        var passes = indexerContext.IndexerPassOperationIds.Length;
+        if (indexerContextWrapper.Pass < 1 || indexerContextWrapper.Pass > passes)
+        {
+            throw new ArgumentException($"Pass must be between 1 and {passes}.");
+        }
+
         logger.LogInformation(indexerContext.ToString());
         logger.LogInformation(_indexerOptions.ToString());
         var indexingContext = _indexerOptions.ToIndexingContext() with
@@ -51,7 +69,8 @@ public class Indexer(
             };
         }
 
-        var activityBooked = await activityMarshaller.Initiate(indexerContext.IndexerOperationId, nameof(Indexer));
+        var indexerOperationId = indexerContext.IndexerPassOperationIds[indexerContextWrapper.Pass - 1];
+        var activityBooked = await activityMarshaller.Initiate(indexerOperationId, nameof(Indexer));
         if (activityBooked != ActivityStatus.Initiated)
         {
             if (activityBooked == ActivityStatus.Failed)
@@ -64,16 +83,19 @@ public class Indexer(
                 };
             }
 
-            return indexerContext with
+            if (indexerContext.DuplicateIndexerPassOperations == null)
             {
-                DuplicateIndexerOperation = true
-            };
+                indexerContext = indexerContext with {DuplicateIndexerPassOperations = new bool[passes]};
+            }
+
+            indexerContext.DuplicateIndexerPassOperations[indexerContextWrapper.Pass - 1] = true;
         }
 
         bool results;
         try
         {
-            results = await podcastsUpdater.UpdatePodcasts(indexingContext);
+            var idsToIndex = indexerContext.IndexIds[indexerContextWrapper.Pass - 1];
+            results = await podcastsUpdater.UpdatePodcasts(idsToIndex, indexingContext);
         }
         catch (Exception ex)
         {
@@ -85,7 +107,7 @@ public class Indexer(
         {
             try
             {
-                activityBooked = await activityMarshaller.Complete(indexerContext.IndexerOperationId, nameof(Indexer));
+                activityBooked = await activityMarshaller.Complete(indexerOperationId, nameof(Indexer));
                 if (activityBooked != ActivityStatus.Completed)
                 {
                     logger.LogError("Failure to complete activity");
@@ -111,7 +133,7 @@ public class Indexer(
             SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalIndexingContext.SkipSpotifyUrlResolving
         };
 
-        logger.LogInformation($"{nameof(RunAsync)} Completed. Result: {result}");
+        logger.LogInformation($"{nameof(RunAsync)} Completed. Pass: {indexerContextWrapper.Pass}. Result: {result}");
 
         return result;
     }

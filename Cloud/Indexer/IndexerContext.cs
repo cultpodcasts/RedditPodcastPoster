@@ -1,7 +1,8 @@
 namespace Indexer;
 
 public record IndexerContext(
-    Guid IndexerOperationId,
+    Guid[]? IndexerPassOperationIds = null,
+    Guid[][]? IndexIds = null,
     Guid? CategoriserOperationId = null,
     Guid? PosterOperationId = null,
     Guid? PublisherOperationId = null,
@@ -12,7 +13,7 @@ public record IndexerContext(
     bool? YouTubeError = null,
     bool? SkipSpotifyUrlResolving = null,
     bool? SpotifyError = null,
-    bool? DuplicateIndexerOperation = null,
+    bool[]? DuplicateIndexerPassOperations = null,
     bool? DuplicateCategoriserOperation = null,
     bool? DuplicatePosterOperation = null,
     bool? DuplicatePublisherOperation = null,
@@ -21,7 +22,13 @@ public record IndexerContext(
 {
     public override string ToString()
     {
-        var indexerOperationId = $"indexer-operation-id: '{IndexerOperationId}'";
+        string? indexerPassOperationIds = null;
+        if (IndexerPassOperationIds != null)
+        {
+            indexerPassOperationIds = string.Join(", ",
+                IndexerPassOperationIds.Select((guid, idx) => $"indexer-pass-{idx + 1}-operation-id: '{guid}'"));
+        }
+
         var categoriserOperationId = CategoriserOperationId.HasValue
             ? $"categoriser-operation-id: '{CategoriserOperationId}'"
             : string.Empty;
@@ -52,8 +59,8 @@ public record IndexerContext(
         var spotifyError = SpotifyError.HasValue
             ? $"spotify-error: '{SpotifyError}'"
             : string.Empty;
-        var duplicateIndexerOperation = DuplicateIndexerOperation.HasValue
-            ? $"duplicate-indexer-operation: '{DuplicateIndexerOperation}'"
+        var duplicateIndexerOperation = DuplicateIndexerPassOperations != null
+            ? $"duplicate-indexer-pass-operation: '{string.Join(", ", DuplicateIndexerPassOperations.Select((dup, idx) => new {duplicate = dup, index = idx}).Where(x => x.duplicate).Select(x => x.index))}'"
             : string.Empty;
         var duplicateCategoriserOperation = DuplicateCategoriserOperation.HasValue
             ? $"duplicate-categoriser-operation: '{DuplicateCategoriserOperation}'"
@@ -71,7 +78,19 @@ public record IndexerContext(
             ? $"duplicate-bluesky-operation: '{DuplicateBlueskyOperation}'"
             : string.Empty;
 
+        var strings = new List<string>
+        {
+            categoriserOperationId, posterOperationId, publisherOperationId, tweetOperationId,
+            blueskyOperationId, success, skipYouTubeUrlResolving, youTubeError, skipSpotifyUrlResolving, spotifyError,
+            duplicateIndexerOperation, duplicateCategoriserOperation, duplicatePosterOperation,
+            duplicatePublisherOperation, duplicateTweetOperation, duplicateBlueskyOperation
+        };
+        if (indexerPassOperationIds != null)
+        {
+            strings.Insert(0, indexerPassOperationIds);
+        }
+
         return
-            $"{nameof(IndexerContext)} Indexer-options {string.Join(", ", new[] {indexerOperationId, categoriserOperationId, posterOperationId, publisherOperationId, tweetOperationId, blueskyOperationId, success, skipYouTubeUrlResolving, youTubeError, skipSpotifyUrlResolving, spotifyError, duplicateIndexerOperation, duplicateCategoriserOperation, duplicatePosterOperation, duplicatePublisherOperation, duplicateTweetOperation, duplicateBlueskyOperation}.Where(x => !string.IsNullOrWhiteSpace(x)))}.";
+            $"{nameof(IndexerContext)} Indexer-options {string.Join(", ", strings.Where(x => !string.IsNullOrWhiteSpace(x)))}.";
     }
 }

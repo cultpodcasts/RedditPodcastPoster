@@ -10,9 +10,10 @@ public class HalfHourlyOrchestration : TaskOrchestrator<object, IndexerContext>
     {
         var logger = context.CreateReplaySafeLogger<HalfHourlyOrchestration>();
         logger.LogInformation(
-            $"{nameof(HalfHourlyOrchestration)}.{nameof(RunAsync)} initiated. Instance-id: '{context.InstanceId}'.");
+            "{nameofHalfHourlyOrchestration}.{nameofRunAsync} initiated. Instance-id: '{contextInstanceId}'.",
+            nameof(HalfHourlyOrchestration), nameof(RunAsync), context.InstanceId);
 
-        var indexerContext = new IndexerContext(context.NewGuid())
+        var indexerContext = new IndexerContext
         {
             // hold back posting anything not ready
             SkipYouTubeUrlResolving = true,
@@ -22,14 +23,14 @@ public class HalfHourlyOrchestration : TaskOrchestrator<object, IndexerContext>
         };
 
         indexerContext = await context.CallPosterAsync(indexerContext with {PosterOperationId = context.NewGuid()});
-        logger.LogInformation($"{nameof(Poster)} complete.");
+        logger.LogInformation("{nameofPoster} complete.", nameof(Poster));
 
         indexerContext =
             await context.CallPublisherAsync(indexerContext with {PublisherOperationId = context.NewGuid()});
-        logger.LogInformation($"{nameof(Publisher)} complete.");
+        logger.LogInformation("{nameofPublisher} complete.", nameof(Publisher));
 
-        indexerContext = await context.CallBlueskyAsync(indexerContext with { BlueskyOperationId = context.NewGuid() });
-        logger.LogInformation($"{nameof(Bluesky)} complete. All tasks complete.");
+        indexerContext = await context.CallBlueskyAsync(indexerContext with {BlueskyOperationId = context.NewGuid()});
+        logger.LogInformation("{nameofBluesky} complete. All tasks complete.", nameof(Bluesky));
 
         return indexerContext;
     }
