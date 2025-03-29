@@ -1,12 +1,10 @@
+using System.Security.Claims;
 using System.Text.Json.Serialization;
 
 namespace RedditPodcastPoster.Auth0;
 
 public class ClientPrincipal
 {
-    public const string ClaimsNameIdentifierType =
-        "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
-
     [JsonPropertyName("auth_typ")]
     public string IdentityProvider { get; set; } = "";
 
@@ -20,8 +18,7 @@ public class ClientPrincipal
     public IEnumerable<ClientPrincipalClaim> Claims { get; set; } = [];
 
     [JsonIgnore]
-    public string? Subject =>
-        Claims.SingleOrDefault(x => x.Type == ClaimsNameIdentifierType)?.Value;
+    public string? Subject => Claims.SingleOrDefault(x => x.Type == ClaimTypes.NameIdentifier)?.Value;
 
     public bool HasScope(string scope)
     {
