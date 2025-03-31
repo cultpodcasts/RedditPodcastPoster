@@ -19,7 +19,7 @@ public static class HostFactory
             builder.Services
                 .AddApplicationInsightsTelemetryWorkerService()
                 .ConfigureFunctionsApplicationInsights();
-            builder.Logging.RemoveDefaultApplicationInsightsWarningRule();
+            //builder.Logging.RemoveDefaultApplicationInsightsWarningRule();
         }
         else
         {
