@@ -18,9 +18,9 @@
       "enableLiveMetricsFilters": true
     },
     "logLevel": {
-      "default": "Information",
-      "Host.Results": "Information", 
-      "Function": "Information"
+      "default": "Warning",
+      "Host.Results": "Warning",
+      "Function": "Warning"
     }
   },
   "functionTimeout": "00:10:00"
