@@ -2,5 +2,10 @@
 
 namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
-public class EpisodeNotFoundException(string spotifyId, Service service)
-    : Exception($"{service} episode with {service} episode-id '{spotifyId}' not found");
+public class EpisodeNotFoundException(string episodeId, Service service)
+    : Exception($"{service} episode with {service} episode-id '{episodeId}' not found")
+{
+    public EpisodeNotFoundException(long episodeId, Service service) : this(episodeId.ToString(), service)
+    {
+    }
+}
