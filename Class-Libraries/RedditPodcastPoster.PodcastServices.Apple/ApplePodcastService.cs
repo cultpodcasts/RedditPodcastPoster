@@ -1,5 +1,7 @@
-﻿using System.Text.Json;
+﻿using System.Net;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
@@ -78,6 +80,13 @@ public class ApplePodcastService : IApplePodcastService
         }
         else
         {
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                _logger.LogError("{method} Failure with Spotify-API. Item with '{episodeId}' not found. Response: '{responseBody}'.",
+                    nameof(GetEpisode), episodeId, await response.Content.ReadAsStringAsync() ?? "<null>");
+                throw new EpisodeNotFoundException(episodeId, Service.Apple);
+            }
+
             _logger.LogError(
                 "Failure calling apple-api with url '{requestUri}'. Response-code: '{responseStatusCode}', response-content: '{content}'.",
                 requestUri, response.StatusCode, await response.Content.ReadAsStringAsync());
