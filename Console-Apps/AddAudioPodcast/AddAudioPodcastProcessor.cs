@@ -67,6 +67,11 @@ public class AddAudioPodcastProcessor(
 
         if (podcast != null)
         {
+            if (request.BypassShortEpisodeChecking)
+            {
+                podcast.BypassShortEpisodeChecking = request.BypassShortEpisodeChecking;
+            }
+
             var result = await podcastUpdater.Update(podcast, false, _indexingContext);
 
             if (!string.IsNullOrWhiteSpace(request.EpisodeTitleRegex))

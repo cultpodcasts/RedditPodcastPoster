@@ -19,10 +19,31 @@ public class PodcastProcessor(
     public async Task<SubmitResult> AddEpisodeToExistingPodcast(
         CategorisedItem categorisedItem)
     {
-        var matchingEpisodes = categorisedItem.MatchingEpisode != null
-            ? [categorisedItem.MatchingEpisode]
-            : categorisedItem.MatchingPodcast!.Episodes.Where(episode =>
-                episodeHelper.IsMatchingEpisode(episode, categorisedItem)).ToArray();
+        Episode[] matchingEpisodes;
+        if (categorisedItem.MatchingEpisode != null)
+        {
+            matchingEpisodes = [categorisedItem.MatchingEpisode];
+        }
+        else
+        {
+            IEnumerable<Episode> candidateEpisodes = categorisedItem.MatchingPodcast!.Episodes;
+
+            if (categorisedItem.Authority == Service.YouTube)
+            {
+                candidateEpisodes = candidateEpisodes.Where(episode => episode.Urls.YouTube == null);
+            }
+            else if (categorisedItem.Authority == Service.Apple)
+            {
+                candidateEpisodes = candidateEpisodes.Where(episode => episode.Urls.Apple == null);
+            }
+            else if (categorisedItem.Authority == Service.Spotify)
+            {
+                candidateEpisodes = candidateEpisodes.Where(episode => episode.Urls.Spotify == null);
+            }
+
+            matchingEpisodes = candidateEpisodes
+                .Where(episode => episodeHelper.IsMatchingEpisode(episode, categorisedItem)).ToArray();
+        }
 
         Episode? matchingEpisode;
         if (matchingEpisodes!.Count() > 1)
