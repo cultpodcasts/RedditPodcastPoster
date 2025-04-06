@@ -28,18 +28,13 @@ public class PodcastProcessor(
         {
             IEnumerable<Episode> candidateEpisodes = categorisedItem.MatchingPodcast!.Episodes;
 
-            if (categorisedItem.Authority == Service.YouTube)
+            candidateEpisodes = categorisedItem.Authority switch
             {
-                candidateEpisodes = candidateEpisodes.Where(episode => episode.Urls.YouTube == null);
-            }
-            else if (categorisedItem.Authority == Service.Apple)
-            {
-                candidateEpisodes = candidateEpisodes.Where(episode => episode.Urls.Apple == null);
-            }
-            else if (categorisedItem.Authority == Service.Spotify)
-            {
-                candidateEpisodes = candidateEpisodes.Where(episode => episode.Urls.Spotify == null);
-            }
+                Service.YouTube => candidateEpisodes.Where(episode => episode.Urls.YouTube == null),
+                Service.Apple => candidateEpisodes.Where(episode => episode.Urls.Apple == null),
+                Service.Spotify => candidateEpisodes.Where(episode => episode.Urls.Spotify == null),
+                _ => candidateEpisodes
+            };
 
             matchingEpisodes = candidateEpisodes
                 .Where(episode => episodeHelper.IsMatchingEpisode(episode, categorisedItem)).ToArray();
