@@ -34,7 +34,17 @@ public class CachedApplePodcastService(
             return podcastEpisodes?.SingleOrDefault(x => x.Id == episodeId);
         }
 
-        return await applePodcastService.GetEpisode(episodeId, indexingContext);
+        AppleEpisode? appleEpisode= null;
+        try
+        {
+            appleEpisode = await applePodcastService.GetEpisode(episodeId, indexingContext);
+        }
+        catch (EpisodeNotFoundException e)
+        {
+            logger.LogError(e, "Episode not found.");
+        }
+
+        return appleEpisode;
     }
 
     public async Task<AppleEpisode?> SingleUseGetEpisode(ApplePodcastId podcastId, long episodeId,

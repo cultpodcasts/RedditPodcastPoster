@@ -16,4 +16,7 @@ public class AddAudioPodcastRequest
 
     [Option('m', "spotify-market", Default = null, Required = false, HelpText = "The Spotify-Market to search against")]
     public string? SpotifyMarket { get; set; }
+
+    [Option('b', "bypass-short-episode-checking", Default = false, HelpText = "Bypass Short Episode Checking")]
+    public bool BypassShortEpisodeChecking { get; set; }
 }
