@@ -12,6 +12,9 @@ public sealed class PublicPodcast : CosmosSelector
     }
 
     [JsonIgnore]
+    public override long Timestamp { get; set; }
+
+    [JsonIgnore]
     public override ModelType ModelType { get; set; }
 
     [JsonIgnore]
