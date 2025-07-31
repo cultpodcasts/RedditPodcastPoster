@@ -32,7 +32,8 @@ public class YouTubeChannelVideosService(
             await youTubeChannelService.GetChannel(channelId, indexingContext, true, true, withContentDetails: true);
         if (channel == null)
         {
-            logger.LogError($"{nameof(GetChannelVideos)}: Unable to find channel with id '{channelId.ChannelId}'.");
+            logger.LogError("{method}: Unable to find channel with id '{channelId}'.",
+                nameof(GetChannelVideos), channelId.ChannelId);
             return null;
         }
 
@@ -49,7 +50,37 @@ public class YouTubeChannelVideosService(
         }
 
         logger.LogError(
-            $"{nameof(GetChannelVideos)}: Unable to find channel-upload-playlist-items for channel-id '{channelId.ChannelId}', playlist-id '{uploadsChannelId}'.");
+            "{method}: Unable to find channel-upload-playlist-items for channel-id '{channelId}', playlist-id '{uploadsChannelId}'.",
+            nameof(GetChannelVideos), channelId.ChannelId, uploadsChannelId);
+        return null;
+    }
+
+    public async Task<Models.ChannelVideos?> GetPlaylistVideos(YouTubeChannelId channelId,
+        YouTubePlaylistId youTubePlaylistId,
+        IndexingContext indexingContext)
+    {
+        var channel =
+            await youTubeChannelService.GetChannel(channelId, indexingContext, true, true, withContentDetails: true);
+        if (channel == null)
+        {
+            logger.LogError("{method}: Unable to find channel with id '{channelId}'.",
+                nameof(GetPlaylistVideos), channelId.ChannelId);
+            return null;
+        }
+
+        var response =
+            await youTubePlaylistService.GetPlaylistVideoSnippets(
+                youTubePlaylistId,
+                indexingContext);
+        if (response.Result != null)
+        {
+            var result = new Models.ChannelVideos(channel, response.Result);
+            return result;
+        }
+
+        logger.LogError(
+            "{method}: Unable to find channel-upload-playlist-items for channel-id '{channelId}', playlist-id '{playlistId}'.",
+            nameof(GetChannelVideos), channelId.ChannelId, youTubePlaylistId.PlaylistId);
         return null;
     }
 }

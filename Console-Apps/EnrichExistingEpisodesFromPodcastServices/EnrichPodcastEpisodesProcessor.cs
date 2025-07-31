@@ -7,6 +7,7 @@ using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify.Categorisers;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Factories;
+using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
@@ -95,9 +96,17 @@ public class EnrichPodcastEpisodesProcessor(
                 !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
                 episode.AppleId == null)
             {
-                var spotifyEpisode =
-                    await spotifyEpisodeResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode),
-                        indexingContext);
+                FindEpisodeResponse? spotifyEpisode= null;
+                var findRequest= FindSpotifyEpisodeRequestFactory.Create(podcast, episode);
+                try
+                {
+                    spotifyEpisode = await spotifyEpisodeResolver.FindEpisode(findRequest, indexingContext);
+                }
+                catch (EpisodeNotFoundException e)
+                {
+                    logger.LogWarning(e, "Episode not found.");
+                }
+
                 if (spotifyEpisode?.FullEpisode != null &&
                     spotifyEpisode.FullEpisode.Name.Trim() != episode.Title.Trim())
                 {
@@ -110,9 +119,17 @@ public class EnrichPodcastEpisodesProcessor(
                 episode.AppleId != null &&
                 string.IsNullOrWhiteSpace(episode.SpotifyId))
             {
-                var appleEpisode =
-                    await appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(podcast, episode),
-                        indexingContext);
+                var findRequest = FindAppleEpisodeRequestFactory.Create(podcast, episode);
+                AppleEpisode? appleEpisode= null;
+                try
+                {
+                    appleEpisode = await appleEpisodeResolver.FindEpisode(findRequest, indexingContext);
+                }
+                catch (EpisodeNotFoundException e)
+                {
+                    logger.LogWarning(e, "Episode not found.");
+                }
+
                 if (appleEpisode != null && appleEpisode.Title.Trim() != episode.Title.Trim())
                 {
                     criteria.AppleTitle = appleEpisode.Title.Trim();

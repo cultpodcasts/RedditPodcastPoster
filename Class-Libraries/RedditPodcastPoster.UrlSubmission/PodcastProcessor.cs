@@ -19,10 +19,40 @@ public class PodcastProcessor(
     public async Task<SubmitResult> AddEpisodeToExistingPodcast(
         CategorisedItem categorisedItem)
     {
-        var matchingEpisodes = categorisedItem.MatchingEpisode != null
-            ? [categorisedItem.MatchingEpisode]
-            : categorisedItem.MatchingPodcast!.Episodes.Where(episode =>
-                episodeHelper.IsMatchingEpisode(episode, categorisedItem)).ToArray();
+        Episode[] matchingEpisodes;
+        if (categorisedItem.MatchingEpisode != null)
+        {
+            matchingEpisodes = [categorisedItem.MatchingEpisode];
+        }
+        else
+        {
+            IEnumerable<Episode> candidateEpisodes = categorisedItem.MatchingPodcast!.Episodes;
+
+            candidateEpisodes = categorisedItem.Authority switch
+            {
+                Service.YouTube => candidateEpisodes.Where(episode =>
+                    episode.Urls.YouTube == null ||
+                    (categorisedItem.ResolvedYouTubeItem != null &&
+                     !string.IsNullOrEmpty(categorisedItem.ResolvedYouTubeItem.EpisodeId) &&
+                     categorisedItem.ResolvedYouTubeItem.EpisodeId != episode.YouTubeId)
+                ),
+                Service.Apple => candidateEpisodes.Where(episode =>
+                    episode.Urls.Apple == null ||
+                    (categorisedItem.ResolvedAppleItem is {EpisodeId: not null} &&
+                     categorisedItem.ResolvedAppleItem.EpisodeId != episode.AppleId)
+                ),
+                Service.Spotify => candidateEpisodes.Where(episode =>
+                    episode.Urls.Spotify == null ||
+                    (categorisedItem.ResolvedSpotifyItem != null &&
+                     !string.IsNullOrEmpty(categorisedItem.ResolvedSpotifyItem.EpisodeId) &&
+                     categorisedItem.ResolvedSpotifyItem.EpisodeId != episode.SpotifyId)
+                ),
+                _ => candidateEpisodes
+            };
+
+            matchingEpisodes = candidateEpisodes
+                .Where(episode => episodeHelper.IsMatchingEpisode(episode, categorisedItem)).ToArray();
+        }
 
         Episode? matchingEpisode;
         if (matchingEpisodes!.Count() > 1)
