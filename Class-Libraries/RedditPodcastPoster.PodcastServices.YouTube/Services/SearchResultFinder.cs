@@ -157,7 +157,7 @@ public partial class SearchResultFinder(
 
                     var videoDetails =
                         await videoService.GetVideoContentDetails(youTubeService,
-                            searchResults.Select(x => x.Id.VideoId).ToList(),
+                            searchResults.Select(x => x.Id.VideoId).Distinct().ToList(),
                             indexingContext);
                     var video = videoDetails?.SingleOrDefault();
                     if (video == null)
