@@ -7,6 +7,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Text;
@@ -18,6 +19,7 @@ public class YouTubeUrlCategoriser(
     IYouTubeChannelService youTubeChannelService,
     IYouTubeVideoService youTubeVideoService,
     IYouTubeChannelVideosService youTubeChannelVideosService,
+    IYouTubePlaylistService youTubePlaylistService,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<YouTubeUrlCategoriser> logger)
 #pragma warning restore CS9113 // Parameter is unread.
@@ -138,6 +140,7 @@ public class YouTubeUrlCategoriser(
     {
         if (!string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId))
         {
+            string channelDescription= "", channelContentOwner= "";
             var mismatchedEpisodes = matchingPodcast.Episodes.Where(x =>
                 (!x.Removed &&
                  string.IsNullOrWhiteSpace(x.YouTubeId) && x.Urls.YouTube != null) ||
@@ -151,13 +154,31 @@ public class YouTubeUrlCategoriser(
                     $"Podcast with id '{matchingPodcast.Id}' has episodes with inconsistent youtube-id && youtube-url. Episode-ids: {string.Join(", ", mismatchedEpisodes.Select(x => x.Id))}");
             }
 
-            var channelUploads =
-                await youTubeChannelVideosService.GetChannelVideos(
-                    new YouTubeChannelId(matchingPodcast.YouTubeChannelId), indexingContext);
+            IList<PlaylistItem>? items = null;
+            if (!string.IsNullOrWhiteSpace(matchingPodcast?.YouTubePlaylistId))
+            {
+                var playlistVideoSnippetsResponse = await youTubePlaylistService.GetPlaylistVideoSnippets(youTubeService, new YouTubePlaylistId(matchingPodcast.YouTubePlaylistId), indexingContext);
+                items = playlistVideoSnippetsResponse.Result;
+            }
+            else
+            {
+                var channelUploads = await youTubeChannelVideosService.GetChannelVideos(new YouTubeChannelId(matchingPodcast.YouTubeChannelId), indexingContext);
+                if (channelUploads!=null)
+                {
+                    items = channelUploads.PlaylistItems;
+                    channelDescription = channelUploads.Channel.Snippet.Description;
+                    channelContentOwner = channelUploads.Channel.ContentOwnerDetails.ContentOwner;
+                }
+            }
+            if (items == null || !items.Any())
+            {
+                return null;
+            }
+
             var podcastEpisodeYouTubeIds = matchingPodcast.Episodes.Where(y => !string.IsNullOrWhiteSpace(y.YouTubeId))
                 .Select(x => x.YouTubeId);
             var unassignedChannelUploads =
-                channelUploads.PlaylistItems.Where(x => !podcastEpisodeYouTubeIds.Contains(x.Id));
+                items.Where(x => !podcastEpisodeYouTubeIds.Contains(x.Id));
             var expectedPublish = criteria.Release + matchingPodcast.YouTubePublishingDelay();
             var publishedWithin = unassignedChannelUploads.Where(x =>
                 x.Snippet.PublishedAtDateTimeOffset > expectedPublish.Subtract(PublishThreshold) &&
@@ -222,8 +243,8 @@ public class YouTubeUrlCategoriser(
                         match.Snippet.ChannelId,
                         match.Snippet.ResourceId.VideoId,
                         match.Snippet.ChannelTitle,
-                        channelUploads.Channel.Snippet.Description, //
-                        channelUploads.Channel.ContentOwnerDetails.ContentOwner, //
+                        channelDescription, //
+                        channelContentOwner, //
                         match.Snippet.Title,
                         match.Snippet.Description,
                         match.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
