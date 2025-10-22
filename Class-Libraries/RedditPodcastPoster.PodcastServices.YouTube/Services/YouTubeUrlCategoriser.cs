@@ -57,39 +57,26 @@ public class YouTubeUrlCategoriser(
             if (episodes != null && episodes.Any())
             {
                 if (episodes.Count > 1)
-                {
                     throw new InvalidOperationException(
                         $"Multiple episodes retrieved from youtube video with url '{url}'.");
-                }
 
                 var description = episodes.First().Snippet.Description;
                 if (pair.Episode.Description.Trim().EndsWith("...") &&
                     description.Length > pair.Episode.Description.Length)
-                {
                     pair.Episode.Description = description;
-                }
             }
 
-            if (!string.IsNullOrWhiteSpace(pair.Podcast.YouTubeChannelId))
-            {
-                return new ResolvedYouTubeItem(pair);
-            }
+            if (!string.IsNullOrWhiteSpace(pair.Podcast.YouTubeChannelId)) return new ResolvedYouTubeItem(pair);
         }
 
         var videoId = YouTubeIdResolver.Extract(url);
-        if (videoId == null)
-        {
-            throw new InvalidOperationException($"Unable to find video-id in url '{url}'.");
-        }
+        if (videoId == null) throw new InvalidOperationException($"Unable to find video-id in url '{url}'.");
 
         var items = await youTubeVideoService.GetVideoContentDetails(youTubeService, [videoId], indexingContext, true);
         if (items != null)
         {
             var item = items.FirstOrDefault();
-            if (item == null)
-            {
-                throw new InvalidOperationException($"Unable to find video with id '{videoId}'.");
-            }
+            if (item == null) throw new InvalidOperationException($"Unable to find video with id '{videoId}'.");
 
             var channel =
                 await youTubeChannelService.GetChannel(new YouTubeChannelId(item.Snippet.ChannelId),
@@ -97,7 +84,6 @@ public class YouTubeUrlCategoriser(
             if (channel != null)
             {
                 if (pair == null)
-                {
                     return new ResolvedYouTubeItem(
                         item.Snippet.ChannelId,
                         item.Id,
@@ -112,7 +98,6 @@ public class YouTubeUrlCategoriser(
                         item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
                         item.GetImageUrl()
                     );
-                }
 
                 if (string.IsNullOrWhiteSpace(pair.Podcast.YouTubeChannelId))
                 {
@@ -124,10 +109,8 @@ public class YouTubeUrlCategoriser(
         else
         {
             if (indexingContext.SkipYouTubeUrlResolving)
-            {
                 throw new InvalidOperationException(
                     $"Error: {nameof(indexingContext.SkipYouTubeUrlResolving)} be true.");
-            }
         }
 
         return null;
@@ -140,7 +123,7 @@ public class YouTubeUrlCategoriser(
     {
         if (!string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId))
         {
-            string channelDescription= "", channelContentOwner= "";
+            string channelDescription = "", channelContentOwner = "";
             var mismatchedEpisodes = matchingPodcast.Episodes.Where(x =>
                 (!x.Removed &&
                  string.IsNullOrWhiteSpace(x.YouTubeId) && x.Urls.YouTube != null) ||
@@ -149,31 +132,30 @@ public class YouTubeUrlCategoriser(
                  YouTubeIdResolver.Extract(x.Urls.YouTube) != x.YouTubeId)
             );
             if (mismatchedEpisodes.Any())
-            {
                 throw new InvalidOperationException(
                     $"Podcast with id '{matchingPodcast.Id}' has episodes with inconsistent youtube-id && youtube-url. Episode-ids: {string.Join(", ", mismatchedEpisodes.Select(x => x.Id))}");
-            }
 
             IList<PlaylistItem>? items = null;
-            if (!string.IsNullOrWhiteSpace(matchingPodcast?.YouTubePlaylistId))
+            if (!string.IsNullOrWhiteSpace(matchingPodcast.YouTubePlaylistId))
             {
-                var playlistVideoSnippetsResponse = await youTubePlaylistService.GetPlaylistVideoSnippets(youTubeService, new YouTubePlaylistId(matchingPodcast.YouTubePlaylistId), indexingContext);
+                var playlistVideoSnippetsResponse = await youTubePlaylistService.GetPlaylistVideoSnippets(
+                    youTubeService, new YouTubePlaylistId(matchingPodcast.YouTubePlaylistId), indexingContext);
                 items = playlistVideoSnippetsResponse.Result;
             }
             else
             {
-                var channelUploads = await youTubeChannelVideosService.GetChannelVideos(new YouTubeChannelId(matchingPodcast.YouTubeChannelId), indexingContext);
-                if (channelUploads!=null)
+                var channelUploads =
+                    await youTubeChannelVideosService.GetChannelVideos(
+                        new YouTubeChannelId(matchingPodcast.YouTubeChannelId), indexingContext);
+                if (channelUploads != null)
                 {
                     items = channelUploads.PlaylistItems;
                     channelDescription = channelUploads.Channel.Snippet.Description;
                     channelContentOwner = channelUploads.Channel.ContentOwnerDetails.ContentOwner;
                 }
             }
-            if (items == null || !items.Any())
-            {
-                return null;
-            }
+
+            if (items == null || !items.Any()) return null;
 
             var podcastEpisodeYouTubeIds = matchingPodcast.Episodes.Where(y => !string.IsNullOrWhiteSpace(y.YouTubeId))
                 .Select(x => x.YouTubeId);
@@ -185,15 +167,11 @@ public class YouTubeUrlCategoriser(
                 x.Snippet.PublishedAtDateTimeOffset < expectedPublish.Add(PublishThreshold));
             PlaylistItem? match;
             if (publishedWithin.Any())
-            {
                 match = FuzzyMatcher.Match(criteria.EpisodeTitle, publishedWithin, x => x.Snippet.Title,
                     MultiplePublicationDateMatchTitleThreshold);
-            }
             else
-            {
                 match = FuzzyMatcher.Match(criteria.EpisodeTitle, unassignedChannelUploads, x => x.Snippet.Title,
                     TitleThreshold);
-            }
 
             if (match == null)
             {
@@ -207,16 +185,13 @@ public class YouTubeUrlCategoriser(
                             [match.Snippet.ResourceId.VideoId],
                             indexingContext
                         );
-                    if (videoContent is {Count: 1})
+                    if (videoContent is { Count: 1 })
                     {
                         var duration = videoContent.Single().GetLength();
                         if (duration.HasValue)
                         {
                             var diff = Math.Abs((duration.Value - criteria.Duration).Ticks);
-                            if (diff > SameTitleDurationThreshold)
-                            {
-                                match = null;
-                            }
+                            if (diff > SameTitleDurationThreshold) match = null;
                         }
                         else
                         {
@@ -235,7 +210,7 @@ public class YouTubeUrlCategoriser(
                 var video = await youTubeVideoService.GetVideoContentDetails(youTubeService,
                     [match.Snippet.ResourceId.VideoId],
                     indexingContext,
-                    withSnippets: true);
+                    true);
                 if (video != null)
                 {
                     var videoContent = video.SingleOrDefault();
@@ -258,12 +233,9 @@ public class YouTubeUrlCategoriser(
         else
         {
             if (matchingPodcast != null)
-            {
                 logger.LogInformation(
-                    $"Podcast with id '{matchingPodcast.YouTubeChannelId}' does not have youtube-id.");
-            }
-
-            return null;
+                    "Podcast with id '{matchingPodcastYouTubeChannelId}' does not have youtube-id.",
+                    matchingPodcast.YouTubeChannelId);
         }
 
         return null;

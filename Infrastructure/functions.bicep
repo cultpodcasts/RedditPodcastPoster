@@ -184,7 +184,7 @@ var discover= {
     discover__IgnoreTerms__4: 'Cult of the Lamp'
     discover__IgnoreTerms__5: 'Cult of the Lumb'
     discover__IgnoreTerms__6: 'Blue Oyster Cult'
-    discover__IgnoreTerms__7: 'Blue Öyster Cult'
+    discover__IgnoreTerms__7: 'Blue Ã–yster Cult'
     discover__IgnoreTerms__8: 'Living Colour'
     discover__IgnoreTerms__9: 'She Sells Sanctuary'
     discover__IgnoreTerms__10: 'Far Cry'
@@ -310,9 +310,9 @@ var youtube= {
     youtube__Applications__6__ApiKey: youTubeApiKey6
     youtube__Applications__7__ApiKey: youTubeApiKey7
     youtube__Applications__8__ApiKey: youTubeApiKey8
-    youtube__Applications__9__ApiKey: youTubeApiKey8
+    youtube__Applications__9__ApiKey: youTubeApiKey11
     youtube__Applications__10__ApiKey: youTubeApiKey9
-    youtube__Applications__11__ApiKey: youTubeApiKey9
+    youtube__Applications__11__ApiKey: youTubeApiKey12
     youtube__Applications__12__ApiKey: youTubeApiKey10
 }
 
