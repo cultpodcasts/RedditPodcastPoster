@@ -314,10 +314,10 @@ var youtube= {
     youtube__Applications__6__ApiKey: youTubeApiKey6
     youtube__Applications__7__ApiKey: youTubeApiKey7
     youtube__Applications__8__ApiKey: youTubeApiKey8
-    youtube__Applications__9__ApiKey: youTubeApiKey11
-    youtube__Applications__10__ApiKey: youTubeApiKey9
-    youtube__Applications__11__ApiKey: youTubeApiKey12
-    youtube__Applications__12__ApiKey: youTubeApiKey10
+    youtube__Applications__9__ApiKey: youTubeApiKey9
+    youtube__Applications__10__ApiKey: youTubeApiKey10
+    youtube__Applications__11__ApiKey: youTubeApiKey11
+    youtube__Applications__12__ApiKey: youTubeApiKey12
 }
 
 var youTubeKeyUsage= {
@@ -355,11 +355,11 @@ var youTubeKeyUsage= {
     youtube__Applications__9__Reattempt: '1'
     youtube__Applications__10_Name: 'CultPodcasts'
     youtube__Applications__10__Usage: 'Indexer'
-    youtube__Applications__10__DisplayName: 'ApiKey-10 (Reattempt 1 in place of Api-Key-4) - Indexer'
+    youtube__Applications__10__DisplayName: 'ApiKey-10 (Reattempt 1 in place of Api-Key-3) - Indexer'
     youtube__Applications__10__Reattempt: '1'
     youtube__Applications__11__Name: 'CultPodcasts'
     youtube__Applications__11__Usage: 'Indexer'
-    youtube__Applications__11__DisplayName: 'ApiKey-11 (Reattempt 1 in place of Api-Key-5) - Indexer'
+    youtube__Applications__11__DisplayName: 'ApiKey-11 (Reattempt 1 in place of Api-Key-4) - Indexer'
     youtube__Applications__11__Reattempt: '1'
     youtube__Applications__12__Name: 'CultPodcasts'
     youtube__Applications__12__Usage: 'Api'
