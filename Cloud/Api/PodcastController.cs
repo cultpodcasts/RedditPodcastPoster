@@ -183,35 +183,21 @@ public class PodcastController(
     private async Task<bool> DeleteEpisodesFromSearchIndex(CancellationToken c,
         RedditPodcastPoster.Models.Podcast podcast)
     {
-        var failure = false;
-        foreach (var documentId in podcast.Episodes.Select(x => x.Id))
+        var episodeIds = podcast.Episodes.Select(x => x.Id.ToString());
+        var result = await searchClient.DeleteDocumentsAsync("id", episodeIds,
+            new IndexDocumentsOptions { ThrowOnAnyError = false }, c);
+        var failure = result.Value.Results.Any(x => !x.Succeeded);
+        if (failure)
         {
-            try
-            {
-                var result = await searchClient.DeleteDocumentsAsync(
-                    "id",
-                    [documentId.ToString()],
-                    new IndexDocumentsOptions { ThrowOnAnyError = true },
-                    c);
-                var success = result.Value.Results.First().Succeeded;
-                if (!success)
-                {
-                    logger.LogError(
-                        $"{nameof(Post)}: Failure to delete search-document with id '{documentId}'.");
-                    logger.LogError(result.Value.Results.First().ErrorMessage);
-                }
-                else
-                {
-                    logger.LogInformation(
-                        $"{nameof(Post)}: Removed episode from podcast with id '{podcast.Id}' with episode-id '{documentId}' from search-index.");
-                }
-            }
-            catch (Exception ex)
-            {
-                failure = true;
-                logger.LogError(ex,
-                    $"{nameof(Post)}: Error removing episode from podcast with id '{podcast.Id}' with episode-id '{documentId}' from search-index.");
-            }
+            logger.LogError(
+                "Removed {successCount} documents. Failed to remove {failureCount} documents with search-index with ids: {documentIds}.",
+                result.Value.Results.Count(x => x.Succeeded),
+                result.Value.Results.Count(x => !x.Succeeded),
+                string.Join(",", episodeIds.Select(x => $"'{x}'")));
+        }
+        else
+        {
+            logger.LogInformation("Removed {successCount} documents. ", result.Value.Results.Count(x => x.Succeeded));
         }
 
         return failure;

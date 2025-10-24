@@ -428,12 +428,6 @@ public class EpisodeController(
 
             await podcastRepository.Save(podcast);
 
-            if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
-                episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
-            {
-                await DeleteSearchEntry(podcast.Name, episodeChangeRequestWrapper.EpisodeId, cp, c);
-            }
-
             if (changeState.UnPost)
             {
                 await postManager.RemoveEpisodePost(new PodcastEpisode(podcast, episode));
@@ -493,14 +487,22 @@ public class EpisodeController(
                 respModel.BlueskyPostDeleted = removeBlueskyPostResult == RemovePostState.Deleted;
             }
 
-            try
+            if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
+                episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
             {
-                await episodeSearchIndexerService.IndexEpisode(episodeChangeRequestWrapper.EpisodeId, c);
+                await DeleteSearchEntry(podcast.Name, episodeChangeRequestWrapper.EpisodeId, cp, c);
             }
-            catch (Exception e)
+            else
             {
-                logger.LogError("Failed to run search-indexer on episode with episode-id '{episodeId}'.",
-                    episodeChangeRequestWrapper.EpisodeId);
+                try
+                {
+                    await episodeSearchIndexerService.IndexEpisode(episodeChangeRequestWrapper.EpisodeId, c);
+                }
+                catch (Exception e)
+                {
+                    logger.LogError("Failed to run search-indexer on episode with episode-id '{episodeId}'.",
+                        episodeChangeRequestWrapper.EpisodeId);
+                }
             }
 
             var response = await req.CreateResponse(HttpStatusCode.Accepted).WithJsonBody(respModel, c);
