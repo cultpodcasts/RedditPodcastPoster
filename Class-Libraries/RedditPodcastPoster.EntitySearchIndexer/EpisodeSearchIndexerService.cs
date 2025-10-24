@@ -40,13 +40,26 @@ public class EpisodeSearchIndexerService(
     public async Task IndexEpisodes(IEnumerable<Guid> episodeIds, CancellationToken c)
     {
         var documents = new List<EpisodeSearchRecord>();
+        var podcasts = new Dictionary<Guid, Podcast>();
         foreach (var episodeId in episodeIds)
         {
-            var podcast = await podcastRepository.GetBy(x => x.Episodes.Any(e => e.Id == episodeId));
-            if (podcast == null)
+            var podcastId =
+                await podcastRepository.GetBy(x => x.Episodes.Any(e => e.Id == episodeId), p => new { Id = p.Id });
+            if (podcastId == null)
             {
                 logger.LogError("Unable to find episode to reindex. Episode-id: '{episodeId}'.", episodeId);
                 continue;
+            }
+
+            Podcast podcast;
+            if (podcasts.ContainsKey(podcastId!.Id))
+            {
+                podcast = podcasts[podcastId.Id];
+            }
+            else
+            {
+                podcast = (await podcastRepository.GetBy(x => x.Id == podcastId.Id))!;
+                podcasts.Add(podcastId.Id, podcast);
             }
 
             var episode = podcast.Episodes.Where(e => e.Id == episodeId);
@@ -68,8 +81,11 @@ public class EpisodeSearchIndexerService(
                     new IndexDocumentsOptions { ThrowOnAnyError = false }, c);
             var failures = result.Value.Results.Where(x => x.Succeeded == false);
             foreach (var failure in failures)
+            {
                 logger.LogError("Failed to index episode with key '{Key}': {ErrorMessage}", failure.Key,
                     failure.ErrorMessage);
+            }
+
             if (failures.Any())
             {
                 throw new RequestFailedException(result.GetRawResponse());
