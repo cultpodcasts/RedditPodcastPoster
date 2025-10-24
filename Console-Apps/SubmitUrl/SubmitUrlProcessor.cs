@@ -49,11 +49,12 @@ public class SubmitUrlProcessor(
             }
         }
 
-        if (!request.NoIndex)
+        updatedEpisodeIds = updatedEpisodeIds.Distinct().ToList();
+        if (!request.NoIndex && updatedEpisodeIds.Count > 0)
         {
             try
             {
-                await episodeSearchIndexer.IndexEpisodes(updatedEpisodeIds.Distinct(), CancellationToken.None);
+                await episodeSearchIndexer.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
             }
             catch (Exception e)
             {

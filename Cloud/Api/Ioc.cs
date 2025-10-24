@@ -24,7 +24,6 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Reddit.Extensions;
-using RedditPodcastPoster.Search.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Twitter.Extensions;
