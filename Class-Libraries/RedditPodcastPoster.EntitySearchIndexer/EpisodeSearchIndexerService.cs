@@ -61,16 +61,23 @@ public class EpisodeSearchIndexerService(
             documents.Add(document);
         }
 
-        var result =
-            await searchClient.MergeOrUploadDocumentsAsync(documents,
-                new IndexDocumentsOptions { ThrowOnAnyError = false }, c);
-        var failures = result.Value.Results.Where(x => x.Succeeded == false);
-        foreach (var failure in failures)
-            logger.LogError("Failed to index episode with key '{Key}': {ErrorMessage}", failure.Key,
-                failure.ErrorMessage);
-        if (failures.Any())
+        if (documents.Count > 0)
         {
-            throw new RequestFailedException(result.GetRawResponse());
+            var result =
+                await searchClient.MergeOrUploadDocumentsAsync(documents,
+                    new IndexDocumentsOptions { ThrowOnAnyError = false }, c);
+            var failures = result.Value.Results.Where(x => x.Succeeded == false);
+            foreach (var failure in failures)
+                logger.LogError("Failed to index episode with key '{Key}': {ErrorMessage}", failure.Key,
+                    failure.ErrorMessage);
+            if (failures.Any())
+            {
+                throw new RequestFailedException(result.GetRawResponse());
+            }
+        }
+        else
+        {
+            logger.LogWarning("No documents to update in search-index");
         }
     }
 }
