@@ -65,7 +65,7 @@ public partial class CreateSearchIndexProcessor(
             .Floor(Frequency)
             .Add(IndexAtMinutes);
 
-        var indexingSchedule = new IndexingSchedule(Frequency) {StartTime = nextIndex};
+        var indexingSchedule = new IndexingSchedule(Frequency) { StartTime = nextIndex };
         var searchIndexer = new SearchIndexer(request.IndexerName, request.DataSourceName, request.IndexName)
         {
             Schedule = indexingSchedule,
@@ -76,7 +76,7 @@ public partial class CreateSearchIndexProcessor(
                 MaxFailedItemsPerBatch = 0,
                 Configuration =
                 {
-                    {"assumeOrderByHighWaterMarkColumn", true}
+                    { "assumeOrderByHighWaterMarkColumn", true }
                 }
             }
         };
@@ -132,10 +132,10 @@ public partial class CreateSearchIndexProcessor(
             Fields = new FieldBuilder
             {
                 Serializer = new JsonObjectSerializer(new JsonSerializerOptions
-                    {PropertyNamingPolicy = JsonNamingPolicy.CamelCase})
+                    { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
             }.Build(typeof(EpisodeSearchRecord)),
             DefaultScoringProfile = string.Empty,
-            CorsOptions = new CorsOptions(["*"]) {MaxAgeInSeconds = 300}
+            CorsOptions = new CorsOptions(["*"]) { MaxAgeInSeconds = 300 }
         };
         return await searchIndexClient.CreateOrUpdateIndexAsync(index);
     }
@@ -146,7 +146,7 @@ public partial class CreateSearchIndexProcessor(
         if (!string.IsNullOrWhiteSpace(request.IndexerName))
         {
             result = await searchIndexerClient.DeleteIndexerAsync(request.IndexerName);
-            if (result.Status != (int) HttpStatusCode.NoContent || result.IsError)
+            if (result.Status != (int)HttpStatusCode.NoContent || result.IsError)
             {
                 throw new InvalidOperationException($"Unable to tear-down indexer '{request.IndexerName}'.");
             }
@@ -155,7 +155,7 @@ public partial class CreateSearchIndexProcessor(
         if (!string.IsNullOrWhiteSpace(request.IndexName))
         {
             result = await searchIndexClient.DeleteIndexAsync(request.IndexName);
-            if (result.Status != (int) HttpStatusCode.NoContent || result.IsError)
+            if (result.Status != (int)HttpStatusCode.NoContent || result.IsError)
             {
                 throw new InvalidOperationException($"Unable to tear-down index '{request.IndexName}'.");
             }
@@ -164,7 +164,7 @@ public partial class CreateSearchIndexProcessor(
         if (!string.IsNullOrWhiteSpace(request.DataSourceName))
         {
             result = await searchIndexerClient.DeleteDataSourceConnectionAsync(request.DataSourceName);
-            if (result.Status != (int) HttpStatusCode.NoContent || result.IsError)
+            if (result.Status != (int)HttpStatusCode.NoContent || result.IsError)
             {
                 throw new InvalidOperationException($"Unable to tear-down data-source '{request.DataSourceName}'.");
             }
