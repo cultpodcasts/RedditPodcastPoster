@@ -8,8 +8,8 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Auth0;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.Search;
 using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Models;
 
@@ -18,7 +18,7 @@ namespace Api;
 public class DiscoveryCurationController(
     IDiscoveryResultsService discoveryResultsService,
     IDiscoveryUrlSubmitter discoveryUrlSubmitter,
-    ISearchIndexerService searchIndexerService,
+    IEpisodeSearchIndexerService searchIndexerService,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<DiscoveryCurationController> logger,
     IOptions<HostingOptions> hostingOptions)
@@ -111,7 +111,18 @@ public class DiscoveryCurationController(
             await discoveryResultsService.MarkAsProcessed(m.DiscoveryResultsDocumentIds, m.ResultIds,
                 erroredResults.ToArray());
 
-            await searchIndexerService.RunIndexer();
+            var episodeIds = submitResults
+                .Where(x => x.EpisodeId != null)
+                .Select(x => x.EpisodeId.Value);
+            try
+            {
+                await searchIndexerService.IndexEpisodes(episodeIds, c);
+            }
+            catch (Exception e)
+            {
+                logger.LogError("Failure to index new discovery items.");
+            }
+
             await discoveryResultsService.UpdateDiscoveryInfoContent();
 
             var response = new DiscoverySubmitResponse
@@ -131,6 +142,6 @@ public class DiscoveryCurationController(
         }
 
         return await r.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(new {Message = "Failure"}, c);
+            .WithJsonBody(new { Message = "Failure" }, c);
     }
 }
