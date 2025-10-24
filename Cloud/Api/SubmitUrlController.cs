@@ -7,9 +7,9 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Auth0;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.Search;
 using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Models;
 
@@ -18,7 +18,7 @@ namespace Api;
 public class SubmitUrlController(
     IPodcastRepository repository,
     IUrlSubmitter urlSubmitter,
-    ISearchIndexerService searchIndexerService,
+    IEpisodeSearchIndexerService episodeSearchIndexerService,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<SubmitUrlController> logger,
     IOptions<HostingOptions> hostingOptions)
@@ -43,15 +43,15 @@ public class SubmitUrlController(
         {
             logger.LogInformation(
                 $"{nameof(Run)}: Handling url-submission: url: '{submitUrlModel.Url}', podcast-id: '{submitUrlModel.PodcastId}', podcast-name: '{submitUrlModel.PodcastName}'.");
-            Guid? podcastId = null;
+            Guid? podcastId;
             if (!string.IsNullOrWhiteSpace(submitUrlModel.PodcastName))
             {
                 var podcastIdWrapper =
-                    await repository.GetBy(x => x.Name == submitUrlModel.PodcastName, x => new {guid = x.Id});
+                    await repository.GetBy(x => x.Name == submitUrlModel.PodcastName, x => new { guid = x.Id });
                 if (podcastIdWrapper == null)
                 {
                     return await req.CreateResponse(HttpStatusCode.NotFound)
-                        .WithJsonBody(new {message = "Podcast with name not found"}, c);
+                        .WithJsonBody(new { message = "Podcast with name not found" }, c);
                 }
 
                 podcastId = podcastIdWrapper.guid;
@@ -72,7 +72,18 @@ public class SubmitUrlController(
                 },
                 submitOptions);
 
-            await searchIndexerService.RunIndexer();
+            if (result.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
+            {
+                try
+                {
+                    await episodeSearchIndexerService.IndexEpisode(result.EpisodeId!.Value, c);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to index episode after submission. EpisodeId: '{EpisodeId}'.",
+                        result.EpisodeId);
+                }
+            }
 
             var success = SubmitUrlResponse.Successful(result);
             var response = await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(success, c);

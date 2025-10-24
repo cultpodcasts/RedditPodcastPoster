@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.Search;
 using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Models;
 
@@ -8,12 +8,12 @@ namespace SubmitUrl;
 
 public class SubmitUrlProcessor(
     IUrlSubmitter urlSubmitter,
-    ISearchIndexerService searchIndexerService,
+    IEpisodeSearchIndexerService episodeSearchIndexer,
     ILogger<SubmitUrlProcessor> logger)
 {
     public async Task Process(SubmitUrlRequest request)
     {
-        var indexOptions = new IndexingContext {SkipPodcastDiscovery = false};
+        var indexOptions = new IndexingContext { SkipPodcastDiscovery = false };
         if (request.AllowExpensiveQueries)
         {
             indexOptions = indexOptions with
@@ -23,31 +23,42 @@ public class SubmitUrlProcessor(
             };
         }
 
+        string[] urls;
         if (!request.SubmitUrlsInFile)
         {
-            var result = await urlSubmitter.Submit(
-                new Uri(request.UrlOrFile, UriKind.Absolute),
-                indexOptions,
-                new SubmitOptions(request.PodcastId, request.MatchOtherServices, !request.DryRun));
-            logger.LogInformation(result.ToString());
+            urls = [request.UrlOrFile];
         }
         else
         {
-            var urls = await File.ReadAllLinesAsync(request.UrlOrFile);
-            foreach (var url in urls)
+            urls = await File.ReadAllLinesAsync(request.UrlOrFile);
+        }
+
+        var updatedEpisodeIds = new List<Guid>();
+
+        foreach (var url in urls)
+        {
+            logger.LogInformation("Ingesting '{url}'.", url);
+            var result = await urlSubmitter.Submit(
+                new Uri(url, UriKind.Absolute),
+                indexOptions,
+                new SubmitOptions(request.PodcastId, request.MatchOtherServices, !request.DryRun));
+            logger.LogInformation(result.ToString());
+            if (result.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
             {
-                logger.LogInformation("Ingesting '{url}'.", url);
-                var result = await urlSubmitter.Submit(
-                    new Uri(url, UriKind.Absolute),
-                    indexOptions,
-                    new SubmitOptions(request.PodcastId, request.MatchOtherServices, !request.DryRun));
-                logger.LogInformation(result.ToString());
+                updatedEpisodeIds.Add(result.EpisodeId!.Value);
             }
         }
 
         if (!request.NoIndex)
         {
-            await searchIndexerService.RunIndexer();
+            try
+            {
+                await episodeSearchIndexer.IndexEpisodes(updatedEpisodeIds.Distinct(), CancellationToken.None);
+            }
+            catch (Exception e)
+            {
+                logger.LogError("Failure indexing changes.");
+            }
         }
     }
 }
