@@ -36,7 +36,7 @@ public class TolerantYouTubeChannelVideoSnippetsService(
                 }
                 catch (Exception e)
                 {
-                    logger.LogError(e, "Error rotating api.");
+                    logger.LogError(e, "Error rotating youtube-api.");
                     rotationExcepted = true;
                 }
             }

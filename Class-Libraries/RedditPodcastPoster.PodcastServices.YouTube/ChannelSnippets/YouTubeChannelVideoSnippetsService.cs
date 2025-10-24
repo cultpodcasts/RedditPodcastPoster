@@ -49,19 +49,21 @@ public class YouTubeChannelVideoSnippetsService(
                 if (ex.HttpStatusCode == HttpStatusCode.Forbidden && ex.Message.Contains("exceeded") &&
                     ex.Message.Contains("quota"))
                 {
-                    logger.LogError(ex, "Exceeded Quota occurred.");
+                    logger.LogWarning(ex, "Exceeded Quota occurred.");
                     throw new YouTubeQuotaException();
                 }
 
                 logger.LogError(ex,
-                    $"Unrecognised google-api-exception. Failed to use {nameof(youTubeServiceWrapper.YouTubeService)}  to obtain latest-channel-snippets for channel-id '{channelId.ChannelId}'.");
+                    "Unrecognised google-api-exception. Failed to use {nameofYouTubeServiceWrapperYouTubeService} to obtain latest-channel-snippets for channel-id '{channelId}'.",
+                    nameof(youTubeServiceWrapper.YouTubeService), channelId.ChannelId);
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return result;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    $"Failed to use {nameof(youTubeServiceWrapper.YouTubeService)} to obtain latest-channel-snippets for channel-id '{channelId.ChannelId}'.");
+                    "Failed to use {nameofYouTubeServiceWrapperYouTubeService)} to obtain latest-channel-snippets for channel-id '{channelId}'.",
+                    nameof(youTubeServiceWrapper.YouTubeService), channelId.ChannelId);
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return result;
             }

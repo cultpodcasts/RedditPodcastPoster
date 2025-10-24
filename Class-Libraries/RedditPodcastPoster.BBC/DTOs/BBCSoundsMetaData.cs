@@ -4,6 +4,12 @@ namespace RedditPodcastPoster.BBC.DTOs;
 
 public class BBCSoundsMetaData
 {
-    [JsonPropertyName("programmes")]
-    public required Programmes Programmes { get; set; }
+    [JsonPropertyName("props")]
+    public required Properties Properties { get; set; }
+
+    [JsonPropertyName("page")]
+    public required string Page { get; set; }
+
+    [JsonPropertyName("query")]
+    public required Query Query { get; set; }
 }

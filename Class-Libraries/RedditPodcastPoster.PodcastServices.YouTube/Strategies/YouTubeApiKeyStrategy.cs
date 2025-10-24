@@ -54,7 +54,7 @@ public class YouTubeApiKeyStrategy(
         if (settingsCount < index)
         {
             throw new InvalidOperationException(
-                $"Inadequate number of youtube-applications registered or usage '{usage.ToString()}'. Applications: '{settingsCount}', Index-requested: '{index}'.");
+                $"Inadequate number of youtube-applications registered for usage '{usage.ToString()}'. Applications: '{settingsCount}', Index-requested: '{index}'.");
         }
 
         var application = usageApplications.Skip(index).First();
