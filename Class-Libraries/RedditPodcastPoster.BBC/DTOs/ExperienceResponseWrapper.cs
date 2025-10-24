@@ -6,5 +6,4 @@ public class ExperienceResponseWrapper
 {
     [JsonPropertyName("data")]
     public ExperienceResponse[] ExperienceResponse { get; set; }
-
 }

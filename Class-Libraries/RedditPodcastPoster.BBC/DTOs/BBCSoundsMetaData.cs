@@ -12,5 +12,4 @@ public class BBCSoundsMetaData
 
     [JsonPropertyName("query")]
     public required Query Query { get; set; }
-
 }
