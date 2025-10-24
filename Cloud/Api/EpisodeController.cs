@@ -16,6 +16,7 @@ using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices;
@@ -48,6 +49,7 @@ public class EpisodeController(
     IClientPrincipalFactory clientPrincipalFactory,
     IShortnerService shortnerService,
     IImageUpdater imageUpdater,
+    IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<EpisodeController> logger,
     IOptions<HostingOptions> hostingOptions)
     : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
@@ -129,7 +131,7 @@ public class EpisodeController(
             {
                 var tooManyPodcasts = await req
                     .CreateResponse(HttpStatusCode.Ambiguous)
-                    .WithJsonBody(new {message = $"Multiple podcasts. Count='{podcasts.Count}'."}, c);
+                    .WithJsonBody(new { message = $"Multiple podcasts. Count='{podcasts.Count}'." }, c);
                 return tooManyPodcasts;
             }
 
@@ -165,7 +167,7 @@ public class EpisodeController(
             if (episode.Tweeted || episode.Posted)
             {
                 return await req.CreateResponse(HttpStatusCode.BadRequest).WithJsonBody(
-                    new {message = "Cannot remove episode.", posted = episode.Posted, tweeted = episode.Tweeted}, c);
+                    new { message = "Cannot remove episode.", posted = episode.Posted, tweeted = episode.Tweeted }, c);
             }
 
             var removed = podcasts.Single().Episodes.Remove(episode);
@@ -328,7 +330,7 @@ public class EpisodeController(
                         (!ep.Posted || posted) &&
                         (!ep.Tweeted || tweeted) &&
                         (!(ep.BlueskyPosted.IsDefined() && ep.BlueskyPosted == true) || blueskyPosted)),
-                x => new {guid = x.Id}).ToListAsync(c);
+                x => new { guid = x.Id }).ToListAsync(c);
             foreach (var podcastId in podcastIds)
             {
                 var podcast = await podcastRepository.GetBy(x => x.Id == podcastId.guid);
@@ -491,6 +493,16 @@ public class EpisodeController(
                 respModel.BlueskyPostDeleted = removeBlueskyPostResult == RemovePostState.Deleted;
             }
 
+            try
+            {
+                await episodeSearchIndexerService.IndexEpisode(episodeChangeRequestWrapper.EpisodeId, c);
+            }
+            catch (Exception e)
+            {
+                logger.LogError("Failed to run search-indexer on episode with episode-id '{episodeId}'.",
+                    episodeChangeRequestWrapper.EpisodeId);
+            }
+
             var response = await req.CreateResponse(HttpStatusCode.Accepted).WithJsonBody(respModel, c);
             return response;
         }
@@ -515,7 +527,7 @@ public class EpisodeController(
             var result = await searchClient.DeleteDocumentsAsync(
                 "id",
                 [episodeId.ToString()],
-                new IndexDocumentsOptions {ThrowOnAnyError = true},
+                new IndexDocumentsOptions { ThrowOnAnyError = true },
                 c);
             var success = result.Value.Results.First().Succeeded;
             if (!success)

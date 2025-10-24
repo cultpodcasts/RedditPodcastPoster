@@ -12,11 +12,12 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Auth0;
 using RedditPodcastPoster.CloudflareRedirect;
 using RedditPodcastPoster.Configuration;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Indexing;
 using RedditPodcastPoster.Indexing.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using RedditPodcastPoster.Search;
+using IndexerState = RedditPodcastPoster.Search.IndexerState;
 using Podcast = Api.Dtos.Podcast;
 using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
 
@@ -24,7 +25,7 @@ namespace Api;
 
 public class PodcastController(
     IIndexer indexer,
-    ISearchIndexerService searchIndexerService,
+    IEpisodeSearchIndexerService searchIndexerService,
     IPodcastRepository podcastRepository,
     SearchClient searchClient,
     IRedirectService redirectService,
@@ -121,7 +122,7 @@ public class PodcastController(
                 logger.LogWarning(
                     $"{nameof(Post)}: Podcast with id '{podcastChangeRequestWrapper.PodcastId}' not found.");
                 return await req.CreateResponse(HttpStatusCode.NotFound)
-                    .WithJsonBody(new {id = podcastChangeRequestWrapper.PodcastId}, c);
+                    .WithJsonBody(new { id = podcastChangeRequestWrapper.PodcastId }, c);
             }
 
             logger.LogInformation(
@@ -167,7 +168,7 @@ public class PodcastController(
         }
 
         var sameNamePodcasts =
-            await podcastRepository.GetAllBy(x => x.Name == podcastName && x.Id != podcast.Id, x => new {id = x.Id})
+            await podcastRepository.GetAllBy(x => x.Name == podcastName && x.Id != podcast.Id, x => new { id = x.Id })
                 .ToListAsync();
         if (sameNamePodcasts.Count > 0)
         {
@@ -190,7 +191,7 @@ public class PodcastController(
                 var result = await searchClient.DeleteDocumentsAsync(
                     "id",
                     [documentId.ToString()],
-                    new IndexDocumentsOptions {ThrowOnAnyError = true},
+                    new IndexDocumentsOptions { ThrowOnAnyError = true },
                     c);
                 var success = result.Value.Results.First().Succeeded;
                 if (!success)
@@ -490,7 +491,17 @@ public class PodcastController(
             var response = await indexer.Index(podcastName, indexingContext);
             if (response.IndexStatus == IndexStatus.Performed)
             {
-                await searchIndexerService.RunIndexer();
+                var episodes = response.UpdatedEpisodes != null
+                    ? response.UpdatedEpisodes.Select(x => x.EpisodeId)
+                    : [];
+                try
+                {
+                    await searchIndexerService.IndexEpisodes(episodes, c);
+                }
+                catch (Exception e)
+                {
+                    logger.LogError("Failure to index updated episodes");
+                }
             }
 
             var status = response.IndexStatus switch
@@ -562,18 +573,29 @@ public class PodcastController(
                 result);
             if (result)
             {
+                var episodeIds = new List<Guid>();
                 foreach (var podcast in podcastsToUpdate)
                 {
                     var oldName = podcast.Name;
                     podcast.Name = change.NewName;
                     await podcastRepository.Save(podcast);
                     logger.LogInformation("Renamed podcast '{oldName}' to '{newName}'.", oldName, change.NewName);
+                    episodeIds.AddRange(podcast.Episodes.Select(x => x.Id));
                 }
 
-                var indexState = await searchIndexerService.RunIndexer();
+                var indexState = IndexerState.Executed;
+                try
+                {
+                    await searchIndexerService.IndexEpisodes(episodeIds.Distinct(), c);
+                }
+                catch (Exception e)
+                {
+                    indexState = IndexerState.Failure;
+                }
+
                 logger.LogInformation("Search-index run-state: {indexState}.", indexState);
                 return await req.CreateResponse(HttpStatusCode.OK)
-                    .WithJsonBody(new {indexState = indexState.ToString()}, c);
+                    .WithJsonBody(new { indexState = indexState.ToString() }, c);
             }
 
             return req.CreateResponse(HttpStatusCode.BadRequest);
