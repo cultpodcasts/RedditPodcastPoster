@@ -12,6 +12,7 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Discovery.Extensions;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Indexing.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
@@ -53,7 +54,6 @@ public static class Ioc
             .AddUrlSubmission()
             .AddDiscoveryRepository()
             .AddScoped<IDiscoveryResultsService, DiscoveryResultsService>()
-            .AddSearch()
             .AddIndexer()
             .AddEliminationTerms()
             .AddContentPublishing()
@@ -69,6 +69,7 @@ public static class Ioc
             .AddBBCServices()
             .AddInternetArchiveServices()
             .AddHttpClient()
+            .AddEpisodeSearchIndexerService()
             .BindConfiguration<HostingOptions>("hosting")
             .BindConfiguration<IndexerOptions>("indexer");
     }

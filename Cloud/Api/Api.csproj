@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.ContentPublisher\RedditPodcastPoster.ContentPublisher.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Discovery\RedditPodcastPoster.Discovery.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.EntitySearchIndexer\RedditPodcastPoster.EntitySearchIndexer.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Indexing\RedditPodcastPoster.Indexing.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices.Apple\RedditPodcastPoster.PodcastServices.Apple.csproj" />
@@ -30,7 +31,6 @@
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices.YouTube\RedditPodcastPoster.PodcastServices.YouTube.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices\RedditPodcastPoster.PodcastServices.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PushSubscriptions\RedditPodcastPoster.PushSubscriptions.csproj" />
-    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Search\RedditPodcastPoster.Search.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Twitter\RedditPodcastPoster.Twitter.csproj" />

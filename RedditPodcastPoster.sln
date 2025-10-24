@@ -212,6 +212,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EliminateExistingEpisodes",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.BBC.Tests", "Class-Libraries\RedditPodcastPoster.BBC.Tests\RedditPodcastPoster.BBC.Tests.csproj", "{1A8C5CDC-D948-45EB-81C2-20C9CE2440AE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.EntitySearchIndexer", "Class-Libraries\RedditPodcastPoster.EntitySearchIndexer\RedditPodcastPoster.EntitySearchIndexer.csproj", "{A67C6EA6-10AC-4F21-AB9E-4259C029E440}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -570,6 +572,10 @@ Global
 		{1A8C5CDC-D948-45EB-81C2-20C9CE2440AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1A8C5CDC-D948-45EB-81C2-20C9CE2440AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1A8C5CDC-D948-45EB-81C2-20C9CE2440AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A67C6EA6-10AC-4F21-AB9E-4259C029E440}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A67C6EA6-10AC-4F21-AB9E-4259C029E440}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A67C6EA6-10AC-4F21-AB9E-4259C029E440}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A67C6EA6-10AC-4F21-AB9E-4259C029E440}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -664,6 +670,7 @@ Global
 		{E4FE6A95-A9E3-46CA-A817-337D3CDF8AD0} = {C870AC3C-8261-4807-AC30-DBEC8C89DCB7}
 		{D63D6185-315C-497A-AD00-7CB12A4CF535} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 		{1A8C5CDC-D948-45EB-81C2-20C9CE2440AE} = {C870AC3C-8261-4807-AC30-DBEC8C89DCB7}
+		{A67C6EA6-10AC-4F21-AB9E-4259C029E440} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}

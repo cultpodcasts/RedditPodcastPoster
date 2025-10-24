@@ -16,7 +16,7 @@ using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.Search.Extensions;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.UrlSubmission.Extensions;
@@ -47,7 +47,7 @@ builder.Services
     .AddCachedSubjectProvider()
     .AddTextSanitiser()
     .AddScoped<SubmitUrlProcessor>()
-    .AddSearch()
+    .AddEpisodeSearchIndexerService()
     .AddBBCServices()
     .AddInternetArchiveServices()
     .AddHttpClient();
