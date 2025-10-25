@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
@@ -38,6 +39,7 @@ builder.Services
     .AddRemoteClient()
     .AddTextSanitiser()
     .AddScoped(s => new iTunesSearchManager())
+    .AddEpisodeSearchIndexerService()
     .AddHttpClient();
 
 using var host = builder.Build();
