@@ -6,8 +6,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
-using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Indexing.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
@@ -17,7 +17,6 @@ using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.Search.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 
@@ -47,7 +46,7 @@ builder.Services
     .AddCachedSubjectProvider()
     .AddTextSanitiser()
     .AddIndexer()
-    .AddSearch()
+    .AddEpisodeSearchIndexerService()
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria();
