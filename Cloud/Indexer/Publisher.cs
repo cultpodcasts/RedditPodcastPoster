@@ -15,12 +15,14 @@ public class Publisher(
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
         logger.LogInformation(
-            $"{nameof(Publisher)} initiated. task-activity-context-instance-id: '{context.InstanceId}'.");
+            "{nameofPublisher} initiated. task-activity-context-instance-id: '{contextInstanceId}'.",
+            nameof(Publisher), context.InstanceId);
+        ;
         logger.LogInformation(indexerContext.ToString());
 
         if (DryRun.IsPublisherDryRun)
         {
-            return indexerContext with {Success = true};
+            return indexerContext with { Success = true };
         }
 
         if (indexerContext.PublisherOperationId == null)
@@ -36,11 +38,12 @@ public class Publisher(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failure to execute {nameof(IContentPublisher)}.{nameof(IContentPublisher.PublishHomepage)}.");
-            return indexerContext with {Success = false};
+                "Failure to execute {nameofIContentPublisher}.{nameofIContentPublisherPublishHomepage}.",
+                nameof(IContentPublisher), nameof(IContentPublisher.PublishHomepage));
+            return indexerContext with { Success = false };
         }
 
-        logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerContext with {Success = true};
+        logger.LogInformation("{nameofRunAsync} Completed", nameof(RunAsync));
+        return indexerContext with { Success = true };
     }
 }
