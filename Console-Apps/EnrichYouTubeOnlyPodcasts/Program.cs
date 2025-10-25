@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
@@ -36,6 +37,7 @@ builder.Services
     .AddSingleton<EnrichYouTubePodcastProcessor>()
     .AddPostingCriteria()
     .AddEliminationTerms()
+    .AddEpisodeSearchIndexerService()
     .AddCommonServices();
 
 using var host = builder.Build();
