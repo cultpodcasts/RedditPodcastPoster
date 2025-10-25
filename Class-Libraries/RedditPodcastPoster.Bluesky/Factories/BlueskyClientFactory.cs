@@ -18,7 +18,8 @@ public class BlueskyClientFactory(
 
     public IEmbedCardBlueskyClient Create()
     {
-        logger.LogInformation($"Creating blue-sky client with reuse-session: '{_options.ReuseSession}'.");
+        logger.LogInformation("Creating blue-sky client with reuse-session: '{optionsReuseSession}'.",
+            _options.ReuseSession);
 
         return new EmbedCardBlueskyClient(
             new BlueskyHttpClientFactory(),
