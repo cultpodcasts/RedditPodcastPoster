@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Configuration;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -32,6 +33,7 @@ public class EnrichYouTubePodcastProcessor(
     IPodcastFilter podcastFilter,
     IFileRepository fileRepository,
     IOptions<PostingCriteria> postingCriteria,
+    IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<EnrichYouTubePodcastProcessor> logger)
 {
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
@@ -56,18 +58,19 @@ public class EnrichYouTubePodcastProcessor(
         }
         else if (request.PodcastName != null)
         {
-            var podcastIds = await podcastRepository.GetAllBy(x =>
-                    x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
-                x => x.Id).ToListAsync();
+            var podcastIds = await podcastRepository
+                .GetAllBy(x => x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
+                    x => x.Id).ToListAsync();
             if (podcastIds.Count > 1)
             {
-                logger.LogError($"Found {podcastIds.Count} podcasts with name '{request.PodcastName}'.");
+                logger.LogError("Found {podcastIdsCount} podcasts with name '{podcastName}'.", podcastIds.Count,
+                    request.PodcastName);
                 return;
             }
 
             if (podcastIds.Count == 0)
             {
-                logger.LogError($"No podcasts found with name '{request.PodcastName}'.");
+                logger.LogError("No podcasts found with name '{podcastName}'.", request.PodcastName);
                 return;
             }
 
@@ -79,19 +82,18 @@ public class EnrichYouTubePodcastProcessor(
             return;
         }
 
-
         var podcast = await podcastRepository.GetPodcast(podcastId);
 
         if (podcast == null)
         {
-            logger.LogError($"Podcast with id '{request.PodcastGuid}' not found.");
+            logger.LogError("Podcast with id '{PodcastGuid}' not found.", request.PodcastGuid);
             return;
         }
 
         if (podcast.YouTubePlaylistQueryIsExpensive.HasValue && podcast.YouTubePlaylistQueryIsExpensive.Value &&
             !request.AcknowledgeExpensiveYouTubePlaylistQuery)
         {
-            logger.LogError($"Query for playlist '{podcast.YouTubePlaylistId}' is expensive.");
+            logger.LogError("Query for playlist '{podcastYouTubePlaylistId}' is expensive.", podcast.YouTubePlaylistId);
             return;
         }
 
@@ -111,8 +113,7 @@ public class EnrichYouTubePodcastProcessor(
         if (string.IsNullOrWhiteSpace(request.PlaylistId))
         {
             var channel =
-                await youTubeChannelService.GetChannel(new YouTubeChannelId(podcast.YouTubeChannelId),
-                    indexOptions);
+                await youTubeChannelService.GetChannel(new YouTubeChannelId(podcast.YouTubeChannelId), indexOptions);
             if (channel == null)
             {
                 throw new InvalidOperationException(
@@ -127,18 +128,17 @@ public class EnrichYouTubePodcastProcessor(
         }
 
         var playlistQueryResponse =
-            await youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(playlistId),
-                indexOptions);
+            await youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(playlistId), indexOptions);
         if (playlistQueryResponse.Result == null)
         {
-            logger.LogError($"Unable to retrieve playlist items from playlist '{playlistId}'.");
+            logger.LogError("Unable to retrieve playlist items from playlist '{playlistId}'.", playlistId);
             return;
         }
 
         if (!string.IsNullOrWhiteSpace(request.PlaylistId) &&
             playlistQueryResponse.IsExpensiveQuery && !request.AcknowledgeExpensiveYouTubePlaylistQuery)
         {
-            logger.LogError($"Querying '{playlistId}' is noted for being an expensive query.");
+            logger.LogError("Querying '{playlistId}' is noted for being an expensive query.", playlistId);
             podcast.YouTubePlaylistQueryIsExpensive = true;
         }
 
@@ -150,10 +150,12 @@ public class EnrichYouTubePodcastProcessor(
 
         if (missingPlaylistVideos == null)
         {
-            logger.LogError($"Unable to retrieve details of videos with ids {string.Join(",", missingVideoIds)}.");
+            logger.LogError("Unable to retrieve details of videos with ids {missingVideoIds}.",
+                string.Join(",", missingVideoIds));
             return;
         }
 
+        List<Guid> updatedEpisodeIds = new();
         foreach (var missingPlaylistItem in missingPlaylistItems)
         {
             var missingPlaylistItemSnippet =
@@ -194,6 +196,7 @@ public class EnrichYouTubePodcastProcessor(
                             podcast.DescriptionRegex));
 
                     podcast.Episodes.Add(episode);
+                    updatedEpisodeIds.Add(episode.Id);
                 }
             }
         }
@@ -210,6 +213,7 @@ public class EnrichYouTubePodcastProcessor(
                 {
                     podcastEpisode.YouTubeId = youTubeItem.Snippet.ResourceId.VideoId;
                     podcastEpisode.Urls.YouTube = youTubeItem.Snippet.ToYouTubeUrl();
+                    updatedEpisodeIds.Add(podcastEpisode.Id);
                 }
             }
         }
@@ -240,6 +244,8 @@ public class EnrichYouTubePodcastProcessor(
                 logger.LogError(ex2, "Failed to write to file. Filekey '{filekey}'.", podcast.FileKey);
             }
         }
+
+        await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
     }
 
     private static bool Matches(Episode episode, PlaylistItem playlistItem, Regex? episodeMatchRegex)

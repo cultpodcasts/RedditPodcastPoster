@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -23,11 +24,13 @@ public class EnrichPodcastEpisodesProcessor(
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
     IAppleEpisodeResolver appleEpisodeResolver,
     IHtmlSanitiser htmlSanitiser,
+    IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<EnrichPodcastEpisodesProcessor> logger)
 {
     public async Task Run(EnrichPodcastEpisodesRequest request)
     {
         IndexingContext indexingContext;
+        List<Guid> updatedEpisodeIds = new();
         if (request.ReleasedSince.HasValue)
         {
             indexingContext = new IndexingContext(DateTimeExtensions.DaysAgo(request.ReleasedSince.Value));
@@ -84,9 +87,10 @@ public class EnrichPodcastEpisodesProcessor(
             episodes = episodes.Where(x => x.Release >= indexingContext.ReleasedSince);
         }
 
-        var updated = false;
+        var podcastUpdated = false;
         foreach (var episode in episodes)
         {
+            var episodeUpdated = false;
             var criteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty, podcast.Publisher,
                 episode.Title, episode.Description, episode.Release, episode.Length);
 
@@ -134,7 +138,7 @@ public class EnrichPodcastEpisodesProcessor(
                     }
 
                     logger.LogInformation($"Enriched from apple: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
-                    updated = true;
+                    episodeUpdated = true;
                 }
                 else
                 {
@@ -165,7 +169,7 @@ public class EnrichPodcastEpisodesProcessor(
 
                                 logger.LogInformation(
                                     $"Enriched from apple: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
-                                updated = true;
+                                episodeUpdated = true;
                             }
                         }
                     }
@@ -211,7 +215,7 @@ public class EnrichPodcastEpisodesProcessor(
 
                         logger.LogInformation(
                             $"Enriched episode with episode-id '{episode.Id}' from youtube: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
-                        updated = true;
+                        episodeUpdated = true;
                     }
                 }
             }
@@ -236,7 +240,7 @@ public class EnrichPodcastEpisodesProcessor(
                     }
 
                     logger.LogInformation($"Enriched from spotify: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
-                    updated = true;
+                    episodeUpdated = true;
                 }
                 else
                 {
@@ -265,18 +269,26 @@ public class EnrichPodcastEpisodesProcessor(
 
                                 logger.LogInformation(
                                     $"Enriched from spotify: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
-                                updated = true;
+                                episodeUpdated = true;
                             }
                         }
                     }
                 }
             }
+
+            if (episodeUpdated)
+            {
+                updatedEpisodeIds.Add(episode.Id);
+            }
+
+            podcastUpdated |= episodeUpdated;
         }
 
-        if (updated)
+        if (podcastUpdated)
         {
             podcast.Episodes = podcast.Episodes.OrderByDescending(x => x.Release).ToList();
             await podcastsRepository.Save(podcast);
+            await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
         }
     }
 }

@@ -1,16 +1,16 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Indexing;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.Search;
 
 namespace Index;
 
 internal class IndexProcessor(
     IPodcastRepository podcastRepository,
     IIndexer indexer,
-    ISearchIndexerService searchIndexerService,
+    IEpisodeSearchIndexerService episodeSearchIndexerService,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<IndexProcessor> logger
 #pragma warning restore CS9113 // Parameter is unread.
@@ -44,21 +44,26 @@ internal class IndexProcessor(
             podcastIds = await podcastRepository.GetAllBy(x =>
                     x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
                 x => x.Id).ToListAsync();
-            logger.LogInformation($"Found {podcastIds.Count()} podcasts.");
+            logger.LogInformation("Found {podcastIdsCount} podcasts.", podcastIds.Count());
         }
         else
         {
             podcastIds = await podcastRepository.GetAllIds().ToArrayAsync();
         }
 
+        List<Guid> updatedEpisodeIds = new();
         foreach (var podcastId in podcastIds)
         {
-            await indexer.Index(podcastId, indexingContext);
+            var response = await indexer.Index(podcastId, indexingContext);
+            if (response.UpdatedEpisodes != null && response.UpdatedEpisodes.Any())
+            {
+                updatedEpisodeIds.AddRange(response.UpdatedEpisodes.Select(x => x.EpisodeId));
+            }
         }
 
-        if (!request.NoIndex)
+        if (!request.NoIndex && updatedEpisodeIds.Any())
         {
-            await searchIndexerService.RunIndexer();
+            await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
         }
     }
 }
