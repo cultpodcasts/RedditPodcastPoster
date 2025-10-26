@@ -46,8 +46,8 @@ public class YouTubeChannelVideoSnippetsService(
             }
             catch (GoogleApiException ex)
             {
-                if (ex.HttpStatusCode == HttpStatusCode.Forbidden && ex.Message.Contains("Exceeded") &&
-                    ex.Message.Contains("Quota"))
+                if (ex.HttpStatusCode == HttpStatusCode.Forbidden && ex.Message.Contains("exceeded") &&
+                    ex.Message.Contains("quota"))
                 {
                     logger.LogWarning(ex, "Exceeded Quota occurred.");
                     throw new YouTubeQuotaException();
