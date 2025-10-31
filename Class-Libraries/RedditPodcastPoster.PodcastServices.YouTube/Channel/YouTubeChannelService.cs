@@ -40,7 +40,8 @@ public class YouTubeChannelService(
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             logger.LogInformation(
-                $"Skipping '{nameof(GetChannel)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
+                "Skipping '{method}' as '{SkipYouTubeUrlResolving}' is set. Channel-id: '{ChannelId}'.",
+                nameof(GetChannel), nameof(indexingContext.SkipYouTubeUrlResolving), channelId.ChannelId);
             return null;
         }
 
@@ -75,12 +76,13 @@ public class YouTubeChannelService(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failed to use {nameof(youTubeService.YouTubeService)} obtaining channel with id '{channelId.ChannelId}' and request-scope '{requestScope}'.");
+                "Failed to use {YouTubeService} obtaining channel with id '{ChannelId}' and request-scope '{requestScope}'.",
+                nameof(youTubeService.YouTubeService), channelId.ChannelId, requestScope);
             indexingContext.SkipYouTubeUrlResolving = true;
             return null;
         }
 
-        var channelContentDetails = result.Items.SingleOrDefault();
+        var channelContentDetails = result.Items?.SingleOrDefault();
         if (channelContentDetails != null)
         {
             _cache[GetWriteCacheKey(channelId.ChannelId, withSnippets, withContentOwnerDetails, withStatistics)] =

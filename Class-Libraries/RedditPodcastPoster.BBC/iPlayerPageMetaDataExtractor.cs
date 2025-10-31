@@ -1,7 +1,9 @@
 ﻿using System.Globalization;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.BBC.DTOs;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.BBC;
@@ -28,14 +30,54 @@ public partial class iPlayerPageMetaDataExtractor(
                 "Page does not have meta-tag <meta property=\"og:type\" content=\"video.episode\"/>");
         }
 
-        var titleNode = document.DocumentNode.SelectSingleNode(@"/html/head/meta[@property='og:title']");
-        var descriptionNode = document.DocumentNode.SelectSingleNode(@"/html/head/meta[@property='og:description']");
-        var title = titleNode?.Attributes["Content"]?.Value;
-        var description = descriptionNode?.Attributes["Content"]?.Value;
-        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(description))
+        var md = GetMetaData(document);
+
+        if (string.IsNullOrWhiteSpace(md.Title) || string.IsNullOrWhiteSpace(md.Description))
         {
             throw new NonPodcastServiceMetaDataExtractionException(url,
-                $"Unable to obtain title and description. Title: '{title}', description: '{description}'.");
+                $"Unable to obtain title and description. Title: '{md.Title}', description: '{md.Description}'.");
+        }
+
+        if (md.Release == null)
+        {
+            throw new NonPodcastServiceMetaDataExtractionException(url, $"Unable to obtain release'.");
+        }
+
+        if (md.Duration == null)
+        {
+            throw new NonPodcastServiceMetaDataExtractionException(url, $"Unable to obtain duration'.");
+        }
+
+
+        return new NonPodcastServiceItemMetaData(md.Title, md.Description, md.Duration, md.Release, md.Image,
+            md.Explicit);
+    }
+
+    private static TextMetaData GetMetaData(HtmlDocument document)
+    {
+        string description;
+
+        var titleNode = document.DocumentNode.SelectSingleNode(@"/html/head/meta[@property='og:title']");
+        var title = titleNode?.Attributes["Content"]?.Value;
+
+        var tvAppClientConfigScriptNode =
+            document.DocumentNode.SelectSingleNode("//script[@id='tvip-script-app-store']");
+        if (tvAppClientConfigScriptNode != null)
+        {
+            var script = tvAppClientConfigScriptNode.InnerText;
+            const string marker = "__IPLAYER_REDUX_STATE__";
+            var start = script.IndexOf(marker) + marker.Length;
+            var json = script.Substring(start, script.LastIndexOf(";") - start).Trim().TrimStart('=').TrimStart();
+
+            var metaData = JsonSerializer.Deserialize<BBCiPlayerMetaData>(json);
+
+            description = metaData.Episode.Synopses.Description;
+        }
+        else
+        {
+            var descriptionNode =
+                document.DocumentNode.SelectSingleNode(@"/html/head/meta[@property='og:description']");
+            description = descriptionNode?.Attributes["Content"]?.Value;
         }
 
         TimeSpan? duration = null;
@@ -78,12 +120,13 @@ public partial class iPlayerPageMetaDataExtractor(
             }
         }
 
+
         var imageContainer =
             document.DocumentNode.SelectNodes("//div[contains(@class, 'hero-image__picture')]/picture/source");
         var maxImage = imageContainer
             .Select(x => x.Attributes["srcset"].Value.Split(" "))
             .Select(x => new
-                {Width = int.Parse(NumericPrefix.Match(x[1]).Groups["numericprefix"].Value), Url = new Uri(x[0])})
+                { Width = int.Parse(NumericPrefix.Match(x[1]).Groups["numericprefix"].Value), Url = new Uri(x[0]) })
             .OrderByDescending(x => x.Width)
             .FirstOrDefault();
         var maxImageUrl = maxImage?.Url;
@@ -97,7 +140,7 @@ public partial class iPlayerPageMetaDataExtractor(
             @explicit = guidanceItems.Any();
         }
 
-        return new NonPodcastServiceItemMetaData(title, description, duration, release, maxImageUrl, @explicit);
+        return new TextMetaData(title, description, release, duration, maxImageUrl, @explicit);
     }
 
     [GeneratedRegex(@"(?<mins>\d+) mins")]
@@ -105,6 +148,16 @@ public partial class iPlayerPageMetaDataExtractor(
 
     [GeneratedRegex(@"((?<hour>\d+)(\:(?<min>\d+))?(?<pm>am|pm) )?(?<date>\d+ \w+ \d+)")]
     private static partial Regex CreateReleaseRegex();
+
     [GeneratedRegex(@"^(?<numericprefix>\d+)")]
     private static partial Regex CreateNumericPrefixRegex();
+
+
+    private record TextMetaData(
+        string Title,
+        string Description,
+        DateTime? Release,
+        TimeSpan? Duration,
+        Uri? Image,
+        bool Explicit);
 }
