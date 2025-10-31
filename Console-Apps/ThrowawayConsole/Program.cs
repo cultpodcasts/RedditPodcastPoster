@@ -1,18 +1,19 @@
-﻿using System.Diagnostics;
-using System.Reflection;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.BBC;
+using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
-using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
+using System.Diagnostics;
+using System.Reflection;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -36,15 +37,16 @@ builder.Services
     .AddSubjectServices()
     .AddRedditServices()
     .AddSpotifyServices()
-    .AddEpisodeSearchIndexerService();
+    .AddBBCServices()
+    .AddHttpClient();
 
 
 using var host = builder.Build();
 
-var service = host.Services.GetService<IEpisodeSearchIndexerService>()!;
+var service = host.Services.GetService<IBBCPageMetaDataExtractor>()!;
 
-var episodeId = Guid.Parse(args[0]);
-await service.IndexEpisode(episodeId, CancellationToken.None);
+Uri.TryCreate(args[0], UriKind.Absolute, out var url);
+var x=await service.GetMetaData(url!);
 
 return;
 

@@ -23,10 +23,10 @@ public class EpisodeSearchRecord
     [SimpleField(IsSortable = true, IsFacetable = false, IsFilterable = false)]
     public required DateTimeOffset Release { get; set; }
 
-    [SimpleField(IsSortable = true, IsFacetable = false, IsFilterable = false)]
+    [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
     public required string Duration { get; set; }
 
-    [SimpleField(IsFilterable = true, IsSortable = false, IsFacetable = false)]
+    [SimpleField(IsFilterable = false, IsSortable = false, IsFacetable = false)]
     public required bool Explicit { get; set; }
 
     [SimpleField(IsSortable = false, IsFilterable = false, IsFacetable = false)]

@@ -30,12 +30,14 @@ public class YouTubeSearcher(
 
     public async Task<IList<EpisodeResult>> Search(string query, IndexingContext indexingContext)
     {
-        logger.LogInformation($"{nameof(YouTubeSearcher)}.{nameof(Search)}: query: '{query}'.");
+        logger.LogInformation("{class}.{method}: query: '{query}'.",
+            nameof(YouTubeSearcher), nameof(Search), query);
         var medium = await Search(query, indexingContext, SearchResource.ListRequest.VideoDurationEnum.Medium);
         var @long = await Search(query, indexingContext, SearchResource.ListRequest.VideoDurationEnum.Long__);
         var episodeResults = medium.Union(@long).Distinct();
         logger.LogInformation(
-            $"{nameof(Search)}: Found {episodeResults.Count(x => x.Released >= indexingContext.ReleasedSince)} items from youtube matching query '{query}'.");
+            "{method}: Found {episodeResultsCount} items from youtube matching query '{query}'.",
+            nameof(Search), episodeResults.Count(x => x.Released >= indexingContext.ReleasedSince), query);
 
         return episodeResults.ToList();
     }
@@ -72,8 +74,8 @@ public class YouTubeSearcher(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex,
-                    $"Failed to use {nameof(youTubeService.YouTubeService)} obtaining episodes using search-term '{query}'.");
+                logger.LogError(ex, "Failed to use {YouTubeService} obtaining episodes using search-term '{query}'.",
+                    nameof(youTubeService.YouTubeService), query);
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return results.Select(x => ToEpisodeResult(x.SearchResult, x.Video, x.Channel));
             }
