@@ -10,7 +10,7 @@ public class JsonSerializerOptionsProvider : IJsonSerializerOptionsProvider
     {
         return new JsonSerializerOptions
         {
-            Converters = {new RegexConverter(), new JsonStringEnumConverter()},
+            Converters = { new RegexConverter(), new JsonStringEnumConverter() },
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
