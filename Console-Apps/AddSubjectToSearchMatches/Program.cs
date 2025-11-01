@@ -5,8 +5,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.Search.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 
@@ -24,17 +24,17 @@ builder.Services
     .AddLogging()
     .AddScoped<Processor>()
     .AddRepositories()
-    .AddSearch()
     .AddSubjectServices()
     .AddTextSanitiser()
     .AddCachedSubjectProvider()
+    .AddEpisodeSearchIndexerService()
     .AddHttpClient();
 
 using var host = builder.Build();
 
 return await Parser.Default.ParseArguments<Request>(args)
-    .MapResult(async addAudioPodcastRequest => await Run(addAudioPodcastRequest),
-        errs => Task.FromResult(-1)); // Invalid arguments
+    .MapResult(async request => await Run(request),
+        errs => Task.FromResult(-1));
 
 async Task<int> Run(Request request)
 {

@@ -1,5 +1,6 @@
 ﻿using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
@@ -11,6 +12,7 @@ public class Processor(
     SearchClient searchClient,
     ISubjectMatcher subjectMatcher,
     IPodcastRepository podcastRepository,
+    IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<Processor> logger)
 {
     public async Task Process(Request request)
@@ -43,12 +45,13 @@ public class Processor(
         var allSearchResultEpisodes = allSearchResults.Select(x =>
             new PodcastEpisode(x.Document.PodcastName!, x.Document.ToEpisodeModel()));
         var podcastEpisodesGroups = allSearchResultEpisodes.GroupBy(x => x.PodcastName!);
+        var updatedEpisodeIds = new List<Guid>();
         foreach (var podcastEpisodeGroup in podcastEpisodesGroups)
         {
             var podcastName = podcastEpisodeGroup.Key;
             var episodes = podcastEpisodeGroup.ToArray();
-
             var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastName).ToListAsync();
+
             foreach (var podcast in podcasts)
             {
                 var podcastChanged = false;
@@ -69,6 +72,7 @@ public class Processor(
                         if (subjectMatches.Any(x => x.Subject.Name == request.Query) &&
                             !repoPodcastEpisode.Subjects.Contains(request.Query))
                         {
+                            updatedEpisodeIds.Add(repoPodcastEpisode.Id);
                             podcastChanged = true;
                             repoPodcastEpisode.Subjects.Add(request.Query);
                             logger.LogWarning(
@@ -88,6 +92,11 @@ public class Processor(
                     await podcastRepository.Save(podcast);
                 }
             }
+        }
+
+        if (updatedEpisodeIds.Any())
+        {
+            await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
         }
     }
 }

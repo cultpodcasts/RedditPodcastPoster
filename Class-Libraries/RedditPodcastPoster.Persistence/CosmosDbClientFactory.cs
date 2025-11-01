@@ -19,19 +19,14 @@ public class CosmosDbClientFactory(
     {
         var cosmosClientOptions = new CosmosClientOptions
         {
-            Serializer =
-                new CosmosSystemTextJsonSerializer(jsonSerializerOptionsProvider.GetJsonSerializerOptions())
+            UseSystemTextJsonSerializerWithOptions = jsonSerializerOptionsProvider.GetJsonSerializerOptions()
         };
         if (_settings.UseGateway.HasValue && _settings.UseGateway.Value)
         {
             cosmosClientOptions.ConnectionMode = ConnectionMode.Gateway;
         }
 
-        CosmosClient client = new(
-            _settings.Endpoint,
-            _settings.AuthKeyOrResourceToken,
-            cosmosClientOptions
-        );
+        CosmosClient client = new(_settings.Endpoint, _settings.AuthKeyOrResourceToken, cosmosClientOptions);
         return client;
     }
 }
