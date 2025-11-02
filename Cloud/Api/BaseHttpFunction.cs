@@ -14,7 +14,7 @@ public abstract class BaseHttpFunction(
     ILogger logger
 )
 {
-    protected HostingOptions HostingOptions = hostingOptions.Value;
+    private readonly HostingOptions _hostingOptions = hostingOptions.Value;
 
     protected async Task<HttpResponseData> HandleRequest(
         HttpRequestData req,
@@ -23,20 +23,20 @@ public abstract class BaseHttpFunction(
         Func<HttpRequestData, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> unauthorised,
         CancellationToken ct)
     {
-        logger.LogInformation("{method} initiated for '{url}' / '{method}'.", 
+        logger.LogInformation("{method} initiated for '{url}' / '{httpMethod}'.", 
             nameof(HandleRequest), req.Url, req.Method);
         var isAuthorised = false;
         var roleCtr = 0;
         var clientPrincipal = clientPrincipalFactory.Create(req);
 
-        if (!HostingOptions.TestMode)
+        if (!_hostingOptions.TestMode)
         {
             while (!isAuthorised && roleCtr < roles.Length)
             {
                 var scope = roles[roleCtr++];
                 if (clientPrincipal != null)
                 {
-                    isAuthorised = clientPrincipal.HasScope(scope) || HostingOptions.UserRoles.Contains(scope);
+                    isAuthorised = clientPrincipal.HasScope(scope) || _hostingOptions.UserRoles.Contains(scope);
                 }
             }
         }
@@ -61,7 +61,7 @@ public abstract class BaseHttpFunction(
         Func<HttpRequestData, T, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> unauthorised,
         CancellationToken ct)
     {
-        logger.LogInformation("{method} initiated for '{url}' / '{method}'.", 
+        logger.LogInformation("{method} initiated for '{url}' / '{httpMethod}'.", 
             nameof(HandleRequest), req.Url, req.Method);
         var isAuthorised = false;
         var roleCtr = 0;
@@ -72,7 +72,7 @@ public abstract class BaseHttpFunction(
             var scope = roles[roleCtr++];
             if (clientPrincipal != null)
             {
-                isAuthorised = clientPrincipal.HasScope(scope) || HostingOptions.UserRoles.Contains(scope);
+                isAuthorised = clientPrincipal.HasScope(scope) || _hostingOptions.UserRoles.Contains(scope);
             }
         }
 
@@ -95,7 +95,7 @@ public abstract class BaseHttpFunction(
     Func<HttpRequestData, T, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> unauthorised,
     CancellationToken ct)
     {
-        logger.LogInformation("{method} initiated for '{url}' / '{method}'.",
+        logger.LogInformation("{method} initiated for '{url}' / '{httpMethod}'.",
             nameof(HandlePublicRequest), req.Url, req.Method);
         var clientPrincipal = clientPrincipalFactory.Create(req);
         var isAuthorised = clientPrincipal != null;
