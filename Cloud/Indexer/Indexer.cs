@@ -85,7 +85,7 @@ public class Indexer(
 
             if (indexerContext.DuplicateIndexerPassOperations == null)
             {
-                indexerContext = indexerContext with {DuplicateIndexerPassOperations = new bool[passes]};
+                indexerContext = indexerContext with { DuplicateIndexerPassOperations = new bool[passes] };
             }
 
             indexerContext.DuplicateIndexerPassOperations[indexerContextWrapper.Pass - 1] = true;

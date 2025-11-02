@@ -34,32 +34,44 @@ internal class IndexProcessor(
             SkipSpotifyUrlResolving = request.SkipSpotifyUrlResolving
         };
 
-        IEnumerable<Guid> podcastIds;
-        if (request.PodcastId.HasValue)
-        {
-            podcastIds = [request.PodcastId.Value];
-        }
-        else if (request.PodcastName != null)
-        {
-            podcastIds = await podcastRepository.GetAllBy(x =>
-                    x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
-                x => x.Id).ToListAsync();
-            logger.LogInformation("Found {podcastIdsCount} podcasts.", podcastIds.Count());
-        }
-        else
-        {
-            podcastIds = await podcastRepository.GetAllIds().ToArrayAsync();
-        }
-
         List<Guid> updatedEpisodeIds = new();
-        foreach (var podcastId in podcastIds)
+        if (request is { PodcastName: not null, UseSinglePodcastNameFlow: true })
         {
-            var response = await indexer.Index(podcastId, indexingContext);
+            var response = await indexer.Index(request.PodcastName, indexingContext);
             if (response.UpdatedEpisodes != null && response.UpdatedEpisodes.Any())
             {
                 updatedEpisodeIds.AddRange(response.UpdatedEpisodes.Select(x => x.EpisodeId));
             }
         }
+        else
+        {
+            IEnumerable<Guid> podcastIds;
+            if (request.PodcastId.HasValue)
+            {
+                podcastIds = [request.PodcastId.Value];
+            }
+            else if (request.PodcastName != null)
+            {
+                podcastIds = await podcastRepository.GetAllBy(x =>
+                        x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
+                    x => x.Id).ToListAsync();
+                logger.LogInformation("Found {podcastIdsCount} podcasts.", podcastIds.Count());
+            }
+            else
+            {
+                podcastIds = await podcastRepository.GetAllIds().ToArrayAsync();
+            }
+
+            foreach (var podcastId in podcastIds)
+            {
+                var response = await indexer.Index(podcastId, indexingContext);
+                if (response.UpdatedEpisodes != null && response.UpdatedEpisodes.Any())
+                {
+                    updatedEpisodeIds.AddRange(response.UpdatedEpisodes.Select(x => x.EpisodeId));
+                }
+            }
+        }
+
 
         if (!request.NoIndex && updatedEpisodeIds.Any())
         {
