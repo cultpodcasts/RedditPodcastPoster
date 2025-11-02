@@ -32,9 +32,7 @@ public class PodcastUpdater(
         MergeResult mergeResult;
         if (!enrichOnly)
         {
-            var newEpisodes = await episodeProvider.GetEpisodes(
-                podcast,
-                indexingContext);
+            var newEpisodes = await episodeProvider.GetEpisodes(podcast, indexingContext);
             if (!(podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value))
             {
                 foreach (var newEpisode in newEpisodes)
@@ -107,14 +105,16 @@ public class PodcastUpdater(
         if (discoveredYouTubeExpensiveQuery)
         {
             logger.LogInformation(
-                $"Expensive YouTube Query found processing '{podcast.Name}' with id '{podcast.Id}' and youtube-channel-id '{podcast.YouTubeChannelId}'.");
+                "Expensive YouTube Query found processing '{podcastName}' with id '{podcast.}' and youtube-channel-id '{podcastYouTubeChannelId}'.",
+                podcast.Name, podcast.Id, podcast.YouTubeChannelId);
         }
 
         var discoveredSpotifyExpensiveQuery = !knownSpotifyExpensiveQuery && podcast.HasExpensiveSpotifyEpisodesQuery();
         if (discoveredSpotifyExpensiveQuery)
         {
             logger.LogInformation(
-                $"Expensive Spotify Query found processing '{podcast.Name}' with id '{podcast.Id}' and spotify-id '{podcast.SpotifyId}'.");
+                "Expensive Spotify Query found processing '{podcastName}' with id '{podcastId}' and spotify-id '{podcastSpotifyId}'.",
+                podcast.Name, podcast.Id, podcast.SpotifyId);
         }
 
         if (mergeResult.MergedEpisodes.Any() || mergeResult.AddedEpisodes.Any() ||

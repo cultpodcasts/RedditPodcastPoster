@@ -74,8 +74,8 @@ public class Indexer(
 
         if (performAutoIndex || enrichOnly)
         {
-            logger.LogInformation("Indexing podcast {podcastName}' with podcast-id '{podcastId}'.", podcast.Name,
-                podcastId);
+            logger.LogInformation("Indexing podcast {podcastName}' with podcast-id '{podcastId}'.",
+                podcast.Name, podcastId);
             var results = await podcastUpdater.Update(podcast, enrichOnly, indexingContext);
 
             updatedEpisodes = results.MergeResult.AddedEpisodes

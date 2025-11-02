@@ -10,6 +10,10 @@ public class IndexRequest
     [Option('n', "podcast-name", Required = false, HelpText = "The name of the podcast to index")]
     public string? PodcastName { get; set; }
 
+    [Option('u', "use-single-podcast-name-flow", Default = false,
+        HelpText = "Use the single matching podcast name flow")]
+    public bool UseSinglePodcastNameFlow { get; set; }
+
     [Option('r', "released-since", Default = 2, HelpText = "Will index episodes released within this many days")]
     public int ReleasedSince { get; set; }
 
@@ -31,7 +35,6 @@ public class IndexRequest
     [Option('i', "skip-spotify-indexing", Default = false, HelpText = "Skip Spotify indexing")]
     public bool SkipSpotifyIndexing { get; set; }
 
-    [Option('i', "no-index", Default = false, HelpText = "Do not reindex search-index")]
+    [Option('x', "no-index", Default = false, HelpText = "Do not reindex search-index")]
     public bool NoIndex { get; set; }
-
 }
