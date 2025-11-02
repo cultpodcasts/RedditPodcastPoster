@@ -102,8 +102,7 @@ public class PodcastController(
     )
     {
         return HandleRequest(req, ["curate"], new PodcastChangeRequestWrapper(podcastId, podcastChangeRequest, true),
-            Post,
-            Unauthorised, ct);
+            Post, Unauthorised, ct);
     }
 
     private async Task<HttpResponseData> Post(
@@ -115,18 +114,20 @@ public class PodcastController(
         try
         {
             logger.LogInformation(
-                $"{nameof(Post)}: Podcast Change Request: episode-id: '{podcastChangeRequestWrapper.PodcastId}'. {JsonSerializer.Serialize(podcastChangeRequestWrapper.Podcast)}");
+                "{method}: Podcast Change Request: episode-id: '{podcastId}'. {podcastChangeRequestWrapper}",
+                nameof(Post), podcastChangeRequestWrapper.PodcastId,
+                JsonSerializer.Serialize(podcastChangeRequestWrapper.Podcast));
             var podcast = await podcastRepository.GetBy(x => x.Id == podcastChangeRequestWrapper.PodcastId);
             if (podcast == null)
             {
-                logger.LogWarning(
-                    $"{nameof(Post)}: Podcast with id '{podcastChangeRequestWrapper.PodcastId}' not found.");
+                logger.LogWarning("{method}: Podcast with id '{podcastId}' not found.", nameof(Post),
+                    podcastChangeRequestWrapper.PodcastId);
                 return await req.CreateResponse(HttpStatusCode.NotFound)
                     .WithJsonBody(new { id = podcastChangeRequestWrapper.PodcastId }, c);
             }
 
-            logger.LogInformation(
-                $"{nameof(Post)}: Updating podcast-id '{podcastChangeRequestWrapper.PodcastId}'.");
+            logger.LogInformation("{method}: Updating podcast-id '{podcastId}'.", nameof(Post),
+                podcastChangeRequestWrapper.PodcastId);
 
             UpdatePodcast(podcast, podcastChangeRequestWrapper.Podcast);
             if (podcastChangeRequestWrapper.AllowNameChange)
@@ -145,7 +146,7 @@ public class PodcastController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Post)}: Failed to update podcast.");
+            logger.LogError(ex, "{method}: Failed to update podcast.", nameof(Post));
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
@@ -365,10 +366,10 @@ public class PodcastController(
     {
         try
         {
-            logger.LogInformation($"{nameof(Get)}: Get podcast with name '{podcastName}'.");
+            logger.LogInformation("{method}: Get podcast with name '{podcastName}'.", nameof(Get), podcastName);
             podcastName = WebUtility.UrlDecode(podcastName);
             var podcastResult = await GetPodcast(podcastName, c);
-            if (podcastResult.RetrievalState == PodcastRetrievalState.Found && podcastResult.Podcast != null)
+            if (podcastResult is { RetrievalState: PodcastRetrievalState.Found, Podcast: not null })
             {
                 var podcast = podcastResult.Podcast;
                 var dto = new Podcast
@@ -418,7 +419,7 @@ public class PodcastController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Get)}: Failed to index-podcast.");
+            logger.LogError(ex, "{method}: Failed to index-podcast.", nameof(Get));
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
@@ -456,7 +457,7 @@ public class PodcastController(
     {
         try
         {
-            logger.LogInformation($"{nameof(Index)}: Index podcast '{podcastName}'.");
+            logger.LogInformation("{method}: Index podcast '{podcastName}'.", nameof(Index), podcastName);
             podcastName = WebUtility.UrlDecode(podcastName);
 
             if (_indexerOptions.ReleasedDaysAgo == null)
@@ -499,14 +500,14 @@ public class PodcastController(
 
             if (status == HttpStatusCode.NotFound)
             {
-                logger.LogWarning($"{nameof(Index)}: Podcast with name '{podcastName}' not found.");
+                logger.LogWarning("{method}: Podcast with name '{podcastName}' not found.", nameof(Index), podcastName);
             }
 
             return await req.CreateResponse(status).WithJsonBody(IndexPodcastResponse.ToDto(response), c);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Index)}: Failed to index-podcast.");
+            logger.LogError(ex, "{method}: Failed to index-podcast.", nameof(Index));
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
@@ -521,24 +522,25 @@ public class PodcastController(
         {
             if (change.NewName.Contains("/"))
             {
-                logger.LogError($"New podcast-name contains invalid-character: '{change.NewName}'.");
+                logger.LogError("New podcast-name contains invalid-character: '{NewName}'.", change.NewName);
                 return req.CreateResponse(HttpStatusCode.InternalServerError);
             }
 
             logger.LogInformation(
-                $"{nameof(Post)}: Podcast Name-Change Request: podcast-name: '{change.Name}'. new-name: '{change.NewName}'.");
+                "{method}: Podcast Name-Change Request: podcast-name: '{name}'. new-name: '{newName}'.",
+                nameof(Post), change.Name, change.NewName);
             var podcasts = await podcastRepository.GetAllBy(x =>
                     x.Name.ToLower() == change.Name.ToLower() || x.Name.ToLower() == change.NewName.ToLower())
                 .ToListAsync(c);
             if (podcasts.Any(x => x.Name.ToLower() == change.NewName.ToLower()))
             {
-                logger.LogError($"Podcast found with new-name '{change.Name}'.");
+                logger.LogError("Podcast found with new-name '{name}'.", change.Name);
                 return req.CreateResponse(HttpStatusCode.Conflict);
             }
 
             if (podcasts.All(x => x.Name != change.Name))
             {
-                logger.LogError($"Podcast not found with name '{change.Name}'.");
+                logger.LogError("Podcast not found with name '{name}'.", change.Name);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
@@ -546,15 +548,12 @@ public class PodcastController(
             if (podcastsToUpdate.Count() > MaxPodcastToRename)
             {
                 logger.LogError(
-                    $"Operation to rename podcasts with name '{change.Name}' to '{change.NewName}' impacts {podcastsToUpdate.Count()} podcasts. Operation rejected.");
+                    "Operation to rename podcasts with name '{name}' to '{newName}' impacts {podcastsToUpdateCount} podcasts. Operation rejected.",
+                    change.Name, change.NewName, podcastsToUpdate.Count());
                 return req.CreateResponse(HttpStatusCode.InternalServerError);
             }
 
-            var result =
-                await redirectService.CreatePodcastRedirect(
-                    new PodcastRedirect(
-                        change.Name,
-                        change.NewName));
+            var result = await redirectService.CreatePodcastRedirect(new PodcastRedirect(change.Name, change.NewName));
             logger.LogInformation("Result of {method} = {result}", nameof(redirectService.CreatePodcastRedirect),
                 result);
             if (result)
@@ -588,7 +587,7 @@ public class PodcastController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Post)}: Failed to rename podcast.");
+            logger.LogError(ex, "{method}: Failed to rename podcast.", nameof(Post));
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
