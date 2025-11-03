@@ -155,10 +155,8 @@ public partial class SearchResultFinder(
                 {
                     logger.LogInformation("Matched on episode-number '{episodeNumber}'.", episodeNumber);
 
-                    var videoDetails =
-                        await videoService.GetVideoContentDetails(youTubeService,
-                            searchResults.Select(x => x.Id.VideoId).Distinct().ToList(),
-                            indexingContext);
+                    var videoDetails = await videoService.GetVideoContentDetails(youTubeService,
+                        searchResults.Select(x => x.Id.VideoId).Distinct().ToList(), indexingContext);
                     var video = videoDetails?.SingleOrDefault();
                     if (video == null)
                     {
@@ -229,8 +227,7 @@ public partial class SearchResultFinder(
 
         if (matchingSearchResult.Any())
         {
-            logger.LogInformation(
-                "Matched multiple items on episode-title '{episodeTitle}'.", episode.Title);
+            logger.LogInformation("Matched multiple items on episode-title '{episodeTitle}'.", episode.Title);
         }
 
         return null;

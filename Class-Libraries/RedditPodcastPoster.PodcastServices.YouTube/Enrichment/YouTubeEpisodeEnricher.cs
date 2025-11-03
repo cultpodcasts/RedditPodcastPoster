@@ -1,5 +1,4 @@
-﻿using System.ComponentModel;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -28,7 +27,9 @@ public class YouTubeEpisodeEnricher(
         {
             var timeSpan = request.Podcast.YouTubePublishingDelay().ToString("g");
             logger.LogInformation(
-                $"{nameof(Enrich)} Bypassing enriching of '{request.Episode.Title}' with release-date of '{request.Episode.Release:R}' from YouTube as is below the {nameof(request.Podcast.YouTubePublishingDelay)} which is '{timeSpan}'.");
+                "'{method}': Bypassing enriching of '{requestEpisodeTitle}' with release-date of '{requestEpisodeRelease:R}' from YouTube as is below the {nameof(request.Podcast.YouTubePublishingDelay)} which is '{timeSpan}'.",
+                nameof(Enrich), request.Episode.Title, request.Episode.Release,
+                nameof(request.Podcast.YouTubePublishingDelay), timeSpan);
             return;
         }
 
@@ -65,9 +66,10 @@ public class YouTubeEpisodeEnricher(
                     enrichmentContext,
                     youTubeItem.SearchResult.Snippet.Title,
                     youTubeItem.SearchResult.ToYouTubeUrl()
-                    );
+                );
             }
-        } else if (youTubeItem?.PlaylistItem != null)
+        }
+        else if (youTubeItem?.PlaylistItem != null)
         {
             if (!string.IsNullOrWhiteSpace(youTubeItem.PlaylistItem.Snippet.ResourceId.VideoId) &&
                 request.Podcast.Episodes.All(x => x.YouTubeId != youTubeItem.PlaylistItem.Snippet.ResourceId.VideoId))
@@ -80,30 +82,32 @@ public class YouTubeEpisodeEnricher(
                     enrichmentContext,
                     youTubeItem.PlaylistItem.Snippet.Title,
                     youTubeItem.PlaylistItem.Snippet.ToYouTubeUrl()
-                    );
+                );
             }
         }
     }
 
     private async Task Enrich(
-        string episodeYouTubeId, 
-        DateTimeOffset? release, 
+        string episodeYouTubeId,
+        DateTimeOffset? release,
         EnrichmentRequest request,
         IndexingContext indexingContext,
         EnrichmentContext enrichmentContext,
         string title,
         Uri url
-        )
+    )
     {
         if (release != null)
         {
             logger.LogInformation(
-                $"{nameof(Enrich)} Found matching YouTube episode: '{episodeYouTubeId}' with title '{title}' and release-date '{release.Value.UtcDateTime:R}'.");
+                "'{method}': Found matching YouTube episode: '{episodeYouTubeId}' with title '{title}' and release-date '{releaseValueUtcDateTime:R}'.",
+                nameof(Enrich), episodeYouTubeId, title, release.Value.UtcDateTime);
         }
         else
         {
             logger.LogInformation(
-                $"{nameof(Enrich)} Found matching YouTube episode: '{episodeYouTubeId}' with title '{title}'.");
+                "'{method}': Found matching YouTube episode: '{episodeYouTubeId}' with title '{title}'.",
+                nameof(Enrich), episodeYouTubeId, title);
         }
 
         request.Episode.YouTubeId = enrichmentContext.YouTubeId = episodeYouTubeId;
