@@ -74,7 +74,7 @@ public class Discover(
 
             var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
             logger.LogInformation(
-                "Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBeganLocal():O}'), indexing-context: {indexingContext}",
+                "Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBeganLocal:O}'), indexing-context: {indexingContext}",
                 discoveryBegan, discoveryBegan.ToLocalTime(), indexingContext);
 
             var preIndexingContextSkipSpotify = indexingContext.SkipSpotifyUrlResolving;

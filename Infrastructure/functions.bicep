@@ -399,7 +399,6 @@ var apiSettings= union(
 
 var discoverySettings= union(
     coreSettings,
-    auth0,
     discover,
     listenNotes,
     taddy
