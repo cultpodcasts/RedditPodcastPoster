@@ -57,4 +57,7 @@ public class EpisodeSearchRecord
 
     [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
     public required string Image { get; set; }
+
+    [SimpleField(IsFilterable = true, IsFacetable = true)]
+    public string Lang { get; set; }
 }
