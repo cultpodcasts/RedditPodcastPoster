@@ -30,8 +30,8 @@ public class PodcastUpdater(
         var knownSpotifyExpensiveQuery = podcast.HasExpensiveSpotifyEpisodesQuery();
         IList<Episode> episodes;
         MergeResult mergeResult;
-        logger.LogInformation("'{method}': Podcast '{podcastName}' {nameOfEnrichOnly}= '{enrichOnly}'.", nameof(Update),
-            podcast.Name, nameof(enrichOnly), enrichOnly);
+        logger.LogInformation("'{method}': Podcast '{podcastName}' {nameOfEnrichOnly}= '{enrichOnly}'.", 
+            nameof(Update), podcast.Name, nameof(enrichOnly), enrichOnly);
         if (!enrichOnly)
         {
             var newEpisodes = await episodeProvider.GetEpisodes(podcast, indexingContext);
@@ -50,7 +50,7 @@ public class PodcastUpdater(
                     podcast.Name, indexingContext.SkipShortEpisodes);
                 if (indexingContext.SkipShortEpisodes)
                 {
-                    EliminateShortEpisodes(newEpisodes);
+                    RemoveIgnoredEpisodes(newEpisodes);
                 }
             }
 
@@ -157,7 +157,7 @@ public class PodcastUpdater(
         return inTimeframe;
     }
 
-    private void EliminateShortEpisodes(IList<Episode> episodes)
+    private void RemoveIgnoredEpisodes(IList<Episode> episodes)
     {
         var shortEpisodes = new List<Episode>();
 
@@ -171,7 +171,7 @@ public class PodcastUpdater(
 
         foreach (var shortEpisode in shortEpisodes)
         {
-            logger.LogInformation("Removing short-episode '{episodeTitle}'.", shortEpisode.Title);
+            logger.LogInformation("Removing ignored-episode '{episodeTitle}'.", shortEpisode.Title);
             episodes.Remove(shortEpisode);
         }
     }
