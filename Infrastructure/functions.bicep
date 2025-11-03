@@ -393,7 +393,8 @@ var coreSettings= union(
 var apiSettings= union(
     coreSettings,
     auth0,
-    indexer
+    indexer,
+    postingCriteria
 )
 
 var discoverySettings= union(

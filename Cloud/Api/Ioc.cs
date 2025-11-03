@@ -70,6 +70,7 @@ public static class Ioc
             .AddHttpClient()
             .AddEpisodeSearchIndexerService()
             .BindConfiguration<HostingOptions>("hosting")
-            .BindConfiguration<IndexerOptions>("indexer");
+            .BindConfiguration<IndexerOptions>("indexer")
+            .AddPostingCriteria();
     }
 }
