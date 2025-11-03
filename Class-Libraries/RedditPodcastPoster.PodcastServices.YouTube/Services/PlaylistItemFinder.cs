@@ -42,9 +42,7 @@ public partial class PlaylistItemFinder(
         }
 
         var videoIds = playlistItems.Select(x => x.ContentDetails.VideoId).ToList();
-        var videoDetails =
-            await videoService.GetVideoContentDetails(youTubeService, videoIds,
-                indexingContext);
+        var videoDetails = await videoService.GetVideoContentDetails(youTubeService, videoIds, indexingContext);
 
 
         var videoMatch = MatchOnEpisodeDuration(episode, playlistItems, videoDetails, indexingContext);
@@ -145,14 +143,15 @@ public partial class PlaylistItemFinder(
 
                 if (matchingSearchResult.Count() == 1)
                 {
-                    logger.LogInformation($"Matched on episode-number '{episodeNumber}'.");
+                    logger.LogInformation("Matched on episode-number '{episodeNumber}'.", episodeNumber);
                     return matchingSearchResult.Single();
                 }
 
                 if (matchingSearchResult.Any())
                 {
                     logger.LogInformation(
-                        $"Could not match on number that appears in title '{episodeNumber}' as appears in multiple episode-titles: {string.Join(", ", matchingSearchResult.Select(x => $"'{x}'"))}.");
+                        "Could not match on number that appears in title '{episodeNumber}' as appears in multiple episode-titles: {titles}.",
+                        episodeNumber, string.Join(", ", matchingSearchResult.Select(x => $"'{x}'")));
                 }
             }
         }
@@ -192,14 +191,13 @@ public partial class PlaylistItemFinder(
 
         if (matchingSearchResult.Count() == 1)
         {
-            logger.LogInformation($"Matched on episode-number '{episode.Title}'.");
+            logger.LogInformation("Matched on episode-title '{episodeTitle}'.", episode.Title);
             return matchingSearchResult.Single();
         }
 
         if (matchingSearchResult.Any())
         {
-            logger.LogInformation(
-                $"Matched multiple items on episode-title '{episode.Title}'.");
+            logger.LogInformation("Matched multiple items on episode-title '{episodeTitle}'.", episode.Title);
         }
 
         return null;

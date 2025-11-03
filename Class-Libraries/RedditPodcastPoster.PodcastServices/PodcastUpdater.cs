@@ -30,6 +30,8 @@ public class PodcastUpdater(
         var knownSpotifyExpensiveQuery = podcast.HasExpensiveSpotifyEpisodesQuery();
         IList<Episode> episodes;
         MergeResult mergeResult;
+        logger.LogInformation("'{method}': Podcast '{podcastName}' {nameOfEnrichOnly}= '{enrichOnly}'.", nameof(Update),
+            podcast.Name, nameof(enrichOnly), enrichOnly);
         if (!enrichOnly)
         {
             var newEpisodes = await episodeProvider.GetEpisodes(podcast, indexingContext);
