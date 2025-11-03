@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices;
@@ -10,6 +11,7 @@ namespace EnrichPodcastWithImages;
 public class Processor(
     IPodcastRepository podcastRepository,
     IImageUpdater imageUpdater,
+    IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<Processor> logger)
 {
     public async Task Run(Request request)
@@ -21,7 +23,7 @@ public class Processor(
             var ids =
                 await podcastRepository.GetAllBy(
                         x => x.Name.ToLower().Contains(request.PodcastPartialMatch.ToLower()),
-                        p => new {id = p.Id})
+                        p => new { id = p.Id })
                     .ToListAsync();
             podcastIds = ids.Select(x => x.id).ToList();
             episodeSelector = episode => true;
@@ -31,7 +33,7 @@ public class Processor(
             var ids =
                 await podcastRepository.GetAllBy(
                         x => x.Episodes.Any(x => x.Subjects.Contains(request.Subject)),
-                        p => new {id = p.Id})
+                        p => new { id = p.Id })
                     .ToListAsync();
             podcastIds = ids.Select(x => x.id).ToList();
             episodeSelector = episode => episode.Subjects.Contains(request.Subject);
@@ -45,6 +47,7 @@ public class Processor(
         }
 
         var indexingContext = new IndexingContext();
+        var updatedEpisodeIds = new List<Guid>();
         foreach (var podcastId in podcastIds)
         {
             var updatedEpisodes = 0;
@@ -64,6 +67,7 @@ public class Processor(
                 var updated = await imageUpdater.UpdateImages(podcast, episode, imageUpdateRequest, indexingContext);
                 if (updated)
                 {
+                    updatedEpisodeIds.Add(episode.Id);
                     updatedEpisodes++;
                 }
             }
@@ -73,6 +77,11 @@ public class Processor(
             {
                 await podcastRepository.Save(podcast);
             }
+        }
+
+        if (updatedEpisodeIds.Any())
+        {
+            await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
         }
     }
 }

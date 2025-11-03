@@ -42,6 +42,7 @@ public class PodcastUpdater(
 
                 if (indexingContext.SkipShortEpisodes)
                 {
+                    logger.LogInformation("Podcast '{podcastName}' has SkipShortEpisodes set.", podcast.Name);
                     EliminateShortEpisodes(newEpisodes);
                 }
             }
@@ -163,6 +164,7 @@ public class PodcastUpdater(
 
         foreach (var shortEpisode in shortEpisodes)
         {
+            logger.LogInformation("Removing short-episode '{episodeTitle}'.", shortEpisode.Title);
             episodes.Remove(shortEpisode);
         }
     }
