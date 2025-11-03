@@ -11,6 +11,9 @@ public class Podcast
     [JsonPropertyName("podcastName")]
     public string? Name { get; set; }
 
+    [JsonPropertyName("language")]
+    public string? Language { get; set; }
+
     [JsonPropertyName("removed")]
     public bool? Removed { get; set; }
 

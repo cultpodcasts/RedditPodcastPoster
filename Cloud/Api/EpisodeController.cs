@@ -179,14 +179,14 @@ public class EpisodeController(
 
             await DeleteSearchEntry(podcasts.Single().Name, episodeId, cp, c);
 
-            logger.LogWarning(
-                $"Delete episode from podcast with id '{podcasts.Single().Id}' and episode-id '{episodeId}'");
+            logger.LogWarning("Delete episode from podcast with id '{podcastId}' and episode-id '{episodeId}'.",
+                podcasts.Single().Id, episodeId);
             await podcastRepository.Save(podcasts.Single());
             return req.CreateResponse(HttpStatusCode.OK);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Delete)}: Failed to delete episode.");
+            logger.LogError(ex, "{method}: Failed to delete episode.", nameof(Delete));
         }
 
         var failure = req.CreateResponse(HttpStatusCode.InternalServerError);
@@ -263,7 +263,7 @@ public class EpisodeController(
                         var result = await blueskyPoster.Post(podcastEpisode, shortnerResult.Url);
                         if (result != BlueskySendStatus.Success)
                         {
-                            logger.LogError($"Bluesky-post result: '{result}'.");
+                            logger.LogError("Bluesky-post result: '{result}'.", result);
                             response.BlueskyPosted = false;
                         }
                         else
@@ -305,7 +305,7 @@ public class EpisodeController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Publish)}: Failed to publish episode.");
+            logger.LogError(ex, "{method}: Failed to publish episode.", nameof(Publish));
         }
 
         var failure = req.CreateResponse(HttpStatusCode.InternalServerError);
@@ -350,7 +350,7 @@ public class EpisodeController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(GetOutgoing)}: Failed to get out-going episodes.");
+            logger.LogError(ex, "{method}: Failed to get out-going episodes.", nameof(GetOutgoing));
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
@@ -403,12 +403,13 @@ public class EpisodeController(
             var episode = podcast?.Episodes.SingleOrDefault(x => x.Id == episodeChangeRequestWrapper.EpisodeId);
             if (episode == null)
             {
-                logger.LogWarning($"Episode with id '{episodeChangeRequestWrapper.EpisodeId}' not found.");
+                logger.LogWarning("Episode with id '{episodeId}' not found.", episodeChangeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
             logger.LogInformation(
-                $"{nameof(Post)} Updating episode-id '{episodeChangeRequestWrapper.EpisodeId}' of podcast with id '{podcast.Id}'. Original-episode: {JsonSerializer.Serialize(episode)}");
+                "{nameof(Post)} Updating episode-id '{episodeId}' of podcast with id '{podcastId}'. Original-episode: {episode}",
+                episodeChangeRequestWrapper.EpisodeId, podcast.Id, JsonSerializer.Serialize(episode));
 
             var changeState = UpdateEpisode(episode, episodeChangeRequestWrapper.EpisodeChangeRequest);
 
@@ -450,8 +451,8 @@ public class EpisodeController(
                 }
                 catch (Exception e)
                 {
-                    logger.LogError(e,
-                        $"Error using tweet-manager to remove tweet for episode with id '{episode.Id}'.");
+                    logger.LogError(e, "Error using tweet-manager to remove tweet for episode with id '{episodeId}'.",
+                        episode.Id);
                     removeTweetResult = RemoveTweetState.Other;
                 }
             }
@@ -471,7 +472,8 @@ public class EpisodeController(
                 catch (Exception e)
                 {
                     logger.LogError(e,
-                        $"Error using bluesky-post-manager to remove post for episode with id '{episode.Id}'.");
+                        "Error using bluesky-post-manager to remove post for episode with id '{episodeId}'.",
+                        episode.Id);
                     removeBlueskyPostResult = RemovePostState.Other;
                 }
             }
@@ -510,7 +512,7 @@ public class EpisodeController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Post)}: Failed to update episode.");
+            logger.LogError(ex, "{method}: Failed to update episode.", nameof(Post));
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
@@ -539,13 +541,15 @@ public class EpisodeController(
             else
             {
                 logger.LogInformation(
-                    $"Removed episode from podcast with id '{podcastName}' with episode-id '{episodeId}' from search-index.");
+                    "Removed episode from podcast with id '{podcastName}' with episode-id '{episodeId}' from search-index.",
+                    podcastName, episodeId);
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Error removing episode from podcast with id '{podcastName}' with episode-id '{episodeId}' from search-index.");
+                "Error removing episode from podcast with id '{podcastName}' with episode-id '{episodeId}' from search-index.",
+                podcastName, episodeId);
         }
     }
 
@@ -656,7 +660,7 @@ public class EpisodeController(
                 }
                 else
                 {
-                    logger.LogError($"Invalid spotify-url: '{episodeChangeRequest.Urls.Spotify}'.");
+                    logger.LogError("Invalid spotify-url: '{spotifyUrl}'.", episodeChangeRequest.Urls.Spotify);
                 }
             }
         }
@@ -686,7 +690,7 @@ public class EpisodeController(
                 }
                 else
                 {
-                    logger.LogError($"Invalid apple-url: '{episodeChangeRequest.Urls.Apple}'.");
+                    logger.LogError("Invalid apple-url: '{appleUrl}'.", episodeChangeRequest.Urls.Apple);
                 }
             }
         }
@@ -715,7 +719,7 @@ public class EpisodeController(
                     }
                     else
                     {
-                        logger.LogError($"Invalid youtube-url: '{episodeChangeRequest.Urls.YouTube}'.");
+                        logger.LogError("Invalid youtube-url: '{youTubeUrl}'.", episodeChangeRequest.Urls.YouTube);
                     }
                 }
             }
@@ -813,6 +817,18 @@ public class EpisodeController(
             episode.Images = null;
         }
 
+        if (episodeChangeRequest.Language != null)
+        {
+            if (episodeChangeRequest.Language == string.Empty)
+            {
+                episode.Language = null;
+            }
+            else
+            {
+                episode.Language = episodeChangeRequest.Language;
+            }
+        }
+
         return changeState;
     }
 
@@ -821,13 +837,13 @@ public class EpisodeController(
     {
         try
         {
-            logger.LogInformation($"{nameof(Get)}: Get episode with id '{episodeId}'.");
+            logger.LogInformation("{method}: Get episode with id '{episodeId}'.", nameof(Get), episodeId);
             var podcast = await podcastRepository.GetBy(x => x.Episodes.Any(ep => ep.Id == episodeId));
             var episode = podcast?.Episodes.SingleOrDefault(x => x.Id == episodeId);
 
             if (episode == null || podcast == null)
             {
-                logger.LogWarning($"{nameof(Get)}: Episode with id '{episodeId}' not found.");
+                logger.LogWarning("{method}: Episode with id '{episodeId}' not found.", nameof(Get), episodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
@@ -838,7 +854,7 @@ public class EpisodeController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Get)}: Failed to get episode.");
+            logger.LogError(ex, "{method}: Failed to get episode.", nameof(Get));
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
