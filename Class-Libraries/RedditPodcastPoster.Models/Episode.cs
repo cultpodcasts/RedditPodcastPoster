@@ -21,6 +21,10 @@ public class Episode
     [JsonPropertyOrder(40)]
     public string Description { get; set; } = "";
 
+    [JsonPropertyName("lang")]
+    [JsonPropertyOrder(45)]
+    public string? Language { get; set; }
+
     [JsonPropertyName("posted")]
     [JsonPropertyOrder(50)]
     public bool Posted { get; set; } = false;

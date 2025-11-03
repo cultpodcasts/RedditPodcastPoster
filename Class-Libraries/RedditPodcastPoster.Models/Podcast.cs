@@ -15,8 +15,12 @@ public sealed class Podcast : CosmosSelector
     [JsonPropertyOrder(20)]
     public string Name { get; set; } = "";
 
-    [JsonPropertyName("removed")]
+    [JsonPropertyName("lang")]
     [JsonPropertyOrder(21)]
+    public string? Language { get; set; }
+
+    [JsonPropertyName("removed")]
+    [JsonPropertyOrder(25)]
     public bool? Removed { get; set; }
 
     [JsonPropertyName("publisher")]
