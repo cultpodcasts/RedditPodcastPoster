@@ -33,16 +33,21 @@ public class PodcastUpdater(
         if (!enrichOnly)
         {
             var newEpisodes = await episodeProvider.GetEpisodes(podcast, indexingContext);
-            if (!(podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value))
+            var checkShortEpisodes =
+                !(podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value);
+            logger.LogInformation("Podcast '{podcastName}' has checkShortEpisodes= '{checkShortEpisodes}'.",
+                podcast.Name, checkShortEpisodes);
+            if (checkShortEpisodes)
             {
                 foreach (var newEpisode in newEpisodes)
                 {
                     newEpisode.Ignored = newEpisode.Length < _postingCriteria.MinimumDuration;
                 }
 
+                logger.LogInformation("Podcast '{podcastName}' has SkipShortEpisodes= '{SkipShortEpisodes}'.",
+                    podcast.Name, indexingContext.SkipShortEpisodes);
                 if (indexingContext.SkipShortEpisodes)
                 {
-                    logger.LogInformation("Podcast '{podcastName}' has SkipShortEpisodes set.", podcast.Name);
                     EliminateShortEpisodes(newEpisodes);
                 }
             }
