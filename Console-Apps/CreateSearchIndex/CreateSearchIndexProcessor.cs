@@ -54,7 +54,7 @@ public partial class CreateSearchIndexProcessor(
 
         if (request.RunIndexer)
         {
-            await searchIndexerService.RunIndexer();
+            var x = await searchIndexerService.RunIndexer();
         }
     }
 
@@ -104,6 +104,7 @@ public partial class CreateSearchIndexProcessor(
                             p.searchTerms as podcastSearchTerms,
                             e.searchTerms as episodeSearchTerms,
                             e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other as image,
+                            e.lang ?? p.lang as lang,
                             p._ts
                             FROM podcasts p
                             JOIN e IN p.episodes
