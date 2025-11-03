@@ -359,6 +359,18 @@ public class PodcastController(
         {
             podcast.IgnoredAssociatedSubjects = podcastChangeRequest.IgnoredAssociatedSubjects;
         }
+
+        if (podcastChangeRequest.Language != null)
+        {
+            if (podcastChangeRequest.Language == string.Empty)
+            {
+                podcast.Language = null;
+            }
+            else
+            {
+                podcast.Language = podcastChangeRequest.Language;
+            }
+        }
     }
 
     private async Task<HttpResponseData> Get(HttpRequestData req, string podcastName, ClientPrincipal? _,
@@ -376,6 +388,7 @@ public class PodcastController(
                 {
                     Id = podcast.Id,
                     Name = podcast.Name,
+                    Language = podcast.Language,
                     Removed = podcast.Removed,
                     IndexAllEpisodes = podcast.IndexAllEpisodes,
                     BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking,
