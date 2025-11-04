@@ -49,7 +49,7 @@ public class PodcastEpisodesPoster(
         var posted = 0;
         foreach (var matchingPodcastEpisode in matchingPodcastEpisodes.OrderBy(x => x.Episode.Release))
         {
-            if (posted > maxPosts)
+            if (posted >= maxPosts)
             {
                 continue;
             }

@@ -171,7 +171,7 @@ public class PodcastUpdater(
 
         foreach (var shortEpisode in shortEpisodes)
         {
-            logger.LogInformation("Removing ignored-episode '{episodeTitle}'.", shortEpisode.Title);
+            logger.LogInformation("Removing short-episode '{episodeTitle}'.", shortEpisode.Title);
             episodes.Remove(shortEpisode);
         }
     }
