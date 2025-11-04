@@ -1,4 +1,6 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 
@@ -14,7 +16,13 @@ public class FoundEpisodeFilter(ILogger<FoundEpisodeFilter> logger) : IFoundEpis
         if (eliminatedEpisodes.Any())
         {
             logger.LogInformation(
-                $"Eliminating episodes of podcast '{podcast.Name}' with id '{podcast.Id}' with titles '{string.Join(", ", eliminatedEpisodes.Select(x => x.Title))}' as they do not match {nameof(podcast.EpisodeIncludeTitleRegex)} of value '{podcast.EpisodeIncludeTitleRegex}'.");
+                "Eliminating {eliminatedEpisodesCount} episodes of podcast '{podcastName}' with id '{podcastId}' with titles [{titles}] as they do not match {nameofPodcastEpisodeIncludeTitleRegex} of value '{podcastEpisodeIncludeTitleRegex}'.",
+                eliminatedEpisodes.Count(), 
+                podcast.Name, 
+                podcast.Id,
+                string.Join(", ", eliminatedEpisodes.Select(x => $"'{x.Title}'")),
+                nameof(podcast.EpisodeIncludeTitleRegex),
+                podcast.EpisodeIncludeTitleRegex);
         }
 
         episodes = episodes.Where(x => includeEpisodeRegex.IsMatch(x.Title)).ToList();
