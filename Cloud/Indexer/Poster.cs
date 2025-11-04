@@ -21,19 +21,20 @@ public class Poster(
 
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        logger.LogInformation(
-            $"{nameof(Poster)} initiated. task-activity-context-instance-id: '{context.InstanceId}'.");
+        logger.LogInformation("{class} initiated. task-activity-context-instance-id: '{contextInstanceId}'.",
+            nameof(Poster), context.InstanceId);
         logger.LogInformation(indexerContext.ToString());
         logger.LogInformation(_posterOptions.ToString());
         logger.LogInformation(_postingCriteria.ToString());
         var baselineDate = DateTimeExtensions.DaysAgo(_posterOptions.ReleasedDaysAgo);
 
         logger.LogInformation(
-            $"{nameof(RunAsync)} Posting with options released-since: '{baselineDate:O}''.");
+            "{method} Posting with options released-since: '{baselineDate:O}', max-posts: '{posterOptionsMaxPosts}'.",
+            nameof(RunAsync), baselineDate, _posterOptions.MaxPosts);
 
         if (DryRun.IsPosterDryRun)
         {
-            return indexerContext with {Success = true};
+            return indexerContext with { Success = true };
         }
 
         if (indexerContext.PosterOperationId == null)
@@ -46,27 +47,29 @@ public class Poster(
         {
             results = await episodeProcessor.PostEpisodesSinceReleaseDate(
                 baselineDate,
-                indexerContext is {SkipYouTubeUrlResolving: false, YouTubeError: false},
-                indexerContext is {SkipSpotifyUrlResolving: false, SpotifyError: false});
+                _posterOptions.MaxPosts,
+                indexerContext is { SkipYouTubeUrlResolving: false, YouTubeError: false },
+                indexerContext is { SkipSpotifyUrlResolving: false, SpotifyError: false });
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failure executing {nameof(IEpisodeProcessor)}.{nameof(IEpisodeProcessor.PostEpisodesSinceReleaseDate)}.");
+                "Failure executing {nameofIEpisodeProcessor}.{nameofIEpisodeProcessorPostEpisodesSinceReleaseDate)}.",
+                nameof(IEpisodeProcessor), nameof(IEpisodeProcessor.PostEpisodesSinceReleaseDate));
             results = ProcessResponse.Fail(ex.Message);
         }
 
         if (!results.Success)
         {
-            logger.LogError($"{nameof(RunAsync)} Failed to process posts. {results}");
+            logger.LogError("{method} Failed to process posts. {results}", nameof(RunAsync), results);
         }
         else
         {
-            logger.LogInformation($"{nameof(RunAsync)} Successfully processed posts. {results}");
+            logger.LogInformation("{method} Successfully processed posts. {results}", nameof(RunAsync), results);
         }
 
-        var result = indexerContext with {Success = results.Success};
-        logger.LogInformation($"{nameof(RunAsync)} Completed. Result: {result}");
+        var result = indexerContext with { Success = results.Success };
+        logger.LogInformation("{method} Completed. Result: {result}", nameof(RunAsync), result);
         return result;
     }
 }

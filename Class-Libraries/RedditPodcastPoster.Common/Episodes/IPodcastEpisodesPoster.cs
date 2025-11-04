@@ -8,5 +8,6 @@ public interface IPodcastEpisodesPoster
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true,
         bool preferYouTube = false,
-        bool ignoreAppleGracePeriod = false);
+        bool ignoreAppleGracePeriod = false,
+        int? maxPosts = int.MaxValue);
 }

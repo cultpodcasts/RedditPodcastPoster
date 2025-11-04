@@ -14,14 +14,15 @@ public class EpisodeProcessor(
 {
     public async Task<ProcessResponse> PostEpisodesSinceReleaseDate(
         DateTime since,
+        int? maxPosts,
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
         logger.LogInformation($"{nameof(PostEpisodesSinceReleaseDate)} Finding episodes released since '{since}'.");
         var podcastIds = await podcastRepository.GetPodcastsIdsWithUnpostedReleasedSince(DateTimeExtensions.DaysAgo(7));
 
-        var matchingPodcastEpisodeResults =
-            await podcastEpisodesPoster.PostNewEpisodes(since, podcastIds, youTubeRefreshed, spotifyRefreshed);
+        var matchingPodcastEpisodeResults = await podcastEpisodesPoster.PostNewEpisodes(since, podcastIds,
+            youTubeRefreshed, spotifyRefreshed, maxPosts: maxPosts);
 
         return processResponsesAdaptor.CreateResponse(matchingPodcastEpisodeResults);
     }
