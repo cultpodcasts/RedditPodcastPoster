@@ -408,8 +408,8 @@ public class EpisodeController(
             }
 
             logger.LogInformation(
-                "{nameof(Post)} Updating episode-id '{episodeId}' of podcast with id '{podcastId}'. Original-episode: {episode}",
-                episodeChangeRequestWrapper.EpisodeId, podcast.Id, JsonSerializer.Serialize(episode));
+                "{method} Updating episode-id '{episodeId}' of podcast with id '{podcastId}'. Original-episode: {episode}",
+                nameof(Post), episodeChangeRequestWrapper.EpisodeId, podcast.Id, JsonSerializer.Serialize(episode));
 
             var changeState = UpdateEpisode(episode, episodeChangeRequestWrapper.EpisodeChangeRequest);
 
