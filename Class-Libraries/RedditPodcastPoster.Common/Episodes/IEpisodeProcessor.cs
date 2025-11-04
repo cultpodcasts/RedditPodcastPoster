@@ -2,5 +2,9 @@
 
 public interface IEpisodeProcessor
 {
-    Task<ProcessResponse> PostEpisodesSinceReleaseDate(DateTime since, bool youTubeRefreshed, bool spotifyRefreshed);
+    Task<ProcessResponse> PostEpisodesSinceReleaseDate(
+        DateTime since,
+        int? maxPosts,
+        bool youTubeRefreshed,
+        bool spotifyRefreshed);
 }

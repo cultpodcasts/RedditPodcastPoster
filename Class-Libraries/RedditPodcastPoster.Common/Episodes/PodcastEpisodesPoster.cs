@@ -25,7 +25,8 @@ public class PodcastEpisodesPoster(
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true,
         bool preferYouTube = false,
-        bool ignoreAppleGracePeriod = false)
+        bool ignoreAppleGracePeriod = false,
+        int? maxPosts = int.MaxValue)
     {
         var podcasts = new List<Podcast>();
         foreach (var podcastId in podcastIds)
@@ -45,8 +46,14 @@ public class PodcastEpisodesPoster(
         var updatedPodcasts = new List<Podcast>();
 
         var matchingPodcastEpisodeResults = new List<ProcessResponse>();
+        var posted = 0;
         foreach (var matchingPodcastEpisode in matchingPodcastEpisodes.OrderBy(x => x.Episode.Release))
         {
+            if (posted > maxPosts)
+            {
+                continue;
+            }
+
             if (!matchingPodcastEpisode.Episode.Posted)
             {
                 if (matchingPodcastEpisode.Episode.Length >= _postingCriteria.MinimumDuration ||
@@ -63,8 +70,13 @@ public class PodcastEpisodesPoster(
                             matchingPodcastEpisode.Episode.AppleId != null ||
                             DateTime.UtcNow >= appleGracePeriodEnds)
                         {
-                            var result = await podcastEpisodePoster.PostPodcastEpisode(
-                                matchingPodcastEpisode, preferYouTube);
+                            var result =
+                                await podcastEpisodePoster.PostPodcastEpisode(matchingPodcastEpisode, preferYouTube);
+                            if (result.Success)
+                            {
+                                posted++;
+                            }
+
                             matchingPodcastEpisodeResults.Add(result);
                             if (result.Success)
                             {

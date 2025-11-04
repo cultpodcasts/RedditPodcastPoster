@@ -42,6 +42,7 @@ public class PodcastProcessor(
         {
             return await episodeProcessor.PostEpisodesSinceReleaseDate(
                 processRequest.ReleaseBaseline.Value,
+                15,
                 youTubeRefreshed,
                 spotifyRefreshed);
         }

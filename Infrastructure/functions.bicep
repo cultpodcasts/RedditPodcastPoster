@@ -233,6 +233,7 @@ var listenNotes= {
 
 var poster= {
     poster__ReleasedDaysAgo: '4'
+    poster__MaxPosts: '15'
 }
 
 var postingCriteria= {
