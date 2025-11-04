@@ -177,7 +177,7 @@ public class EpisodeController(
                     $"Unable to remove episode from Podcast with id '{podcasts.Single().Id}' episode with id '{episodeId}'.");
             }
 
-            await DeleteSearchEntry(podcasts.Single().Name, episodeId, cp, c);
+            await DeleteSearchEntry(podcasts.Single().Name, episodeId, c);
 
             logger.LogWarning("Delete episode from podcast with id '{podcastId}' and episode-id '{episodeId}'.",
                 podcasts.Single().Id, episodeId);
@@ -400,7 +400,14 @@ public class EpisodeController(
                 $"{nameof(Post)} Episode Change Request: episode-id: '{episodeChangeRequestWrapper.EpisodeId}'. {JsonSerializer.Serialize(episodeChangeRequestWrapper.EpisodeChangeRequest)}");
             var podcast = await podcastRepository.GetBy(x =>
                 x.Episodes.Any(ep => ep.Id == episodeChangeRequestWrapper.EpisodeId));
-            var episode = podcast?.Episodes.SingleOrDefault(x => x.Id == episodeChangeRequestWrapper.EpisodeId);
+            if (podcast == null)
+            {
+                logger.LogWarning("Podcast with episode-id '{episodeId}' not found.",
+                    episodeChangeRequestWrapper.EpisodeId);
+                return req.CreateResponse(HttpStatusCode.NotFound);
+            }
+
+            var episode = podcast.Episodes.SingleOrDefault(x => x.Id == episodeChangeRequestWrapper.EpisodeId);
             if (episode == null)
             {
                 logger.LogWarning("Episode with id '{episodeId}' not found.", episodeChangeRequestWrapper.EpisodeId);
@@ -492,7 +499,7 @@ public class EpisodeController(
             if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
                 episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
             {
-                await DeleteSearchEntry(podcast.Name, episodeChangeRequestWrapper.EpisodeId, cp, c);
+                await DeleteSearchEntry(podcast.Name, episodeChangeRequestWrapper.EpisodeId, c);
             }
             else
             {
@@ -502,7 +509,7 @@ public class EpisodeController(
                 }
                 catch (Exception e)
                 {
-                    logger.LogError("Failed to run search-indexer on episode with episode-id '{episodeId}'.",
+                    logger.LogError(e, "Failed to run search-indexer on episode with episode-id '{episodeId}'.",
                         episodeChangeRequestWrapper.EpisodeId);
                 }
             }
@@ -523,7 +530,6 @@ public class EpisodeController(
     private async Task DeleteSearchEntry(
         string podcastName,
         Guid episodeId,
-        ClientPrincipal? _,
         CancellationToken c)
     {
         try
