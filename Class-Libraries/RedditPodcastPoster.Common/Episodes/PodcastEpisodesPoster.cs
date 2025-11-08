@@ -51,7 +51,7 @@ public class PodcastEpisodesPoster(
         {
             if (posted >= maxPosts)
             {
-                continue;
+                break;
             }
 
             if (!matchingPodcastEpisode.Episode.Posted)
