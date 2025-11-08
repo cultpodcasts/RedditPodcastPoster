@@ -47,6 +47,6 @@ public class EpisodeChangeRequest
     [JsonPropertyName("searchTerms")]
     public string? SearchTerms { get; set; }
 
-    [JsonPropertyName("language")]
+    [JsonPropertyName("lang")]
     public string? Language { get; set; }
 }

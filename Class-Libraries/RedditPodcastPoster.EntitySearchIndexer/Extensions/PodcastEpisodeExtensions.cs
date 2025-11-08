@@ -9,6 +9,7 @@ public static class PodcastEpisodeExtensions
     {
         var image = podcastEpisode.Episode.Images?.YouTube ?? podcastEpisode.Episode.Images?.Spotify ??
             podcastEpisode.Episode.Images?.Apple ?? podcastEpisode.Episode.Images?.Other;
+        var podcastEpisodeDescription = podcastEpisode.Episode.Description.Trim();
         return new EpisodeSearchRecord
         {
             Apple = podcastEpisode.Episode.Urls.Apple != null
@@ -16,8 +17,8 @@ public static class PodcastEpisodeExtensions
                 : string.Empty,
             BBC = podcastEpisode.Episode.Urls.BBC != null ? podcastEpisode.Episode.Urls.BBC.ToString() : string.Empty,
             Duration = podcastEpisode.Episode.Length.ToString(),
-            EpisodeDescription = podcastEpisode.Episode.Description.Trim().Substring(0,
-                Math.Min(Constants.DescriptionSize, podcastEpisode.Episode.Description.Length)),
+            EpisodeDescription = podcastEpisodeDescription.Substring(0,
+                Math.Min(Constants.DescriptionSize, podcastEpisodeDescription.Length)),
             EpisodeSearchTerms = podcastEpisode.Episode.SearchTerms ?? string.Empty,
             EpisodeTitle = podcastEpisode.Episode.Title.Trim(),
             Explicit = podcastEpisode.Episode.Explicit,
