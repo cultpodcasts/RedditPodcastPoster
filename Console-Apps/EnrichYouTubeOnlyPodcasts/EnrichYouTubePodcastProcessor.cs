@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.EntitySearchIndexer;
@@ -34,22 +35,17 @@ public class EnrichYouTubePodcastProcessor(
     IFileRepository fileRepository,
     IOptions<PostingCriteria> postingCriteria,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
+    IFoundEpisodeFilter foundEpisodeFilter,
     ILogger<EnrichYouTubePodcastProcessor> logger)
 {
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
     public async Task Run(EnrichYouTubePodcastRequest request)
     {
-        IndexingContext indexOptions;
         logger.LogInformation(_postingCriteria.ToString());
-        if (request.ReleasedSince.HasValue)
-        {
-            indexOptions = new IndexingContext(DateTime.Today.AddDays(-1 * request.ReleasedSince.Value));
-        }
-        else
-        {
-            indexOptions = new IndexingContext();
-        }
+        var indexOptions = request.ReleasedSince.HasValue
+            ? new IndexingContext(DateTime.Today.AddDays(-1 * request.ReleasedSince.Value))
+            : new IndexingContext();
 
         Guid podcastId;
         if (request.PodcastGuid.HasValue)
@@ -63,8 +59,8 @@ public class EnrichYouTubePodcastProcessor(
                     x => x.Id).ToListAsync();
             if (podcastIds.Count > 1)
             {
-                logger.LogError("Found {podcastIdsCount} podcasts with name '{podcastName}'.", podcastIds.Count,
-                    request.PodcastName);
+                logger.LogError("Found {podcastIdsCount} podcasts with name '{podcastName}'. Ids: {ids}.",
+                    podcastIds.Count, request.PodcastName, string.Join(",", podcastIds));
                 return;
             }
 
@@ -109,6 +105,7 @@ public class EnrichYouTubePodcastProcessor(
             episodeMatchRegex = new Regex(podcast.EpisodeMatchRegex, RegexOptions.Compiled);
         }
 
+
         string playlistId;
         if (string.IsNullOrWhiteSpace(request.PlaylistId))
         {
@@ -144,7 +141,8 @@ public class EnrichYouTubePodcastProcessor(
 
         var missingPlaylistItems = playlistQueryResponse.Result.Where(playlistItem =>
             podcast.Episodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();
-        var missingVideoIds = missingPlaylistItems.Select(x => x.Snippet.ResourceId.VideoId).Distinct();
+        IList<string> missingVideoIds =
+            missingPlaylistItems.Select(x => x.Snippet.ResourceId.VideoId).Distinct().ToList();
         var missingPlaylistVideos =
             await youTubeVideoService.GetVideoContentDetails(youTubeService, missingVideoIds, indexOptions, true);
 
@@ -155,7 +153,7 @@ public class EnrichYouTubePodcastProcessor(
             return;
         }
 
-        List<Guid> updatedEpisodeIds = new();
+        IList<Episode> addedEpisodes = new List<Episode>();
         foreach (var missingPlaylistItem in missingPlaylistItems)
         {
             var missingPlaylistItemSnippet =
@@ -194,12 +192,18 @@ public class EnrichYouTubePodcastProcessor(
                             podcast.IgnoredSubjects,
                             podcast.DefaultSubject,
                             podcast.DescriptionRegex));
-
-                    podcast.Episodes.Add(episode);
-                    updatedEpisodeIds.Add(episode.Id);
+                    addedEpisodes.Add(episode);
                 }
             }
         }
+
+        if (addedEpisodes.Any() && !string.IsNullOrEmpty(podcast.EpisodeIncludeTitleRegex))
+        {
+            addedEpisodes = foundEpisodeFilter.ReduceEpisodes(podcast, addedEpisodes);
+        }
+
+        podcast.Episodes.AddRange(addedEpisodes);
+        IList<Guid> updatedEpisodeIds = addedEpisodes.Select(x => x.Id).ToList();
 
         foreach (var podcastEpisode in podcast.Episodes)
         {
@@ -227,25 +231,33 @@ public class EnrichYouTubePodcastProcessor(
             logger.LogWarning(filterResult.ToString());
         }
 
-        try
+
+        if (updatedEpisodeIds.Any())
         {
-            await podcastRepository.Save(podcast);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to write entity to cosmos.");
             try
             {
-                await fileRepository.Write(podcast);
-                logger.LogInformation("Writing to file '{filename}'.", podcast.FileKey);
+                await podcastRepository.Save(podcast);
             }
-            catch (Exception ex2)
+            catch (Exception ex)
             {
-                logger.LogError(ex2, "Failed to write to file. Filekey '{filekey}'.", podcast.FileKey);
+                logger.LogError(ex, "Failed to write entity to cosmos.");
+                try
+                {
+                    await fileRepository.Write(podcast);
+                    logger.LogInformation("Writing to file '{filename}'.", podcast.FileKey);
+                }
+                catch (Exception ex2)
+                {
+                    logger.LogError(ex2, "Failed to write to file. FileKey: '{fileKey}'.", podcast.FileKey);
+                }
             }
-        }
 
-        await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
+            await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
+        }
+        else
+        {
+            logger.LogInformation("No updates made.");
+        }
     }
 
     private static bool Matches(Episode episode, PlaylistItem playlistItem, Regex? episodeMatchRegex)
