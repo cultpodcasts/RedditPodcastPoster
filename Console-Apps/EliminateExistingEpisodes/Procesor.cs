@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text.EliminationTerms;
 
 namespace EliminateExistingEpisodes;
@@ -35,7 +34,8 @@ public class Processor(
 
             if (podcastIds.Count() > 1)
             {
-                throw new InvalidOperationException($"Multiple podcasts matching '{request.PodcastName}' were found.");
+                throw new InvalidOperationException(
+                    $"Multiple podcasts matching '{request.PodcastName}' were found. Ids: {string.Join(", ", podcastIds)}.");
             }
 
             podcastId = podcastIds.First();
@@ -79,7 +79,7 @@ public class Processor(
         var result = await searchClient.DeleteDocumentsAsync(
             "id",
             [episode.Id.ToString()],
-            new IndexDocumentsOptions {ThrowOnAnyError = true},
+            new IndexDocumentsOptions { ThrowOnAnyError = true },
             CancellationToken.None);
         var success = result.Value.Results.First().Succeeded;
         if (!success)

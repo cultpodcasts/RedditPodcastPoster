@@ -57,14 +57,14 @@ public class EnrichPodcastEpisodesProcessor(
             var podcastIds = await podcastsRepository.GetAllBy(x =>
                     x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
                 x => x.Id).ToListAsync();
-            if (podcastIds.Count() == 0)
+            if (!podcastIds.Any())
             {
                 throw new InvalidOperationException($"No podcast matching '{request.PodcastName}' could be found.");
             }
 
             if (podcastIds.Count() > 1)
             {
-                throw new InvalidOperationException($"Multiple podcasts matching '{request.PodcastName}' were found.");
+                throw new InvalidOperationException($"Multiple podcasts matching '{request.PodcastName}' were found. Ids: {string.Join(", ", podcastIds)}.");
             }
 
             podcastId = podcastIds.First();

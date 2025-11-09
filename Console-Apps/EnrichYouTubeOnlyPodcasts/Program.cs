@@ -43,7 +43,7 @@ builder.Services
 using var host = builder.Build();
 
 return await Parser.Default.ParseArguments<EnrichYouTubePodcastRequest>(args)
-    .MapResult(async processRequest => await Run(processRequest), errs => Task.FromResult(-1)); // Invalid arguments
+    .MapResult(async request => await Run(request), errs => Task.FromResult(-1)); // Invalid arguments
 
 async Task<int> Run(EnrichYouTubePodcastRequest request)
 {
