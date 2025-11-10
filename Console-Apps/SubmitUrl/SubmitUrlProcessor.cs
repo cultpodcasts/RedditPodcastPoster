@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using HtmlAgilityPack;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer;
+using RedditPodcastPoster.InternetArchive;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Models;
@@ -9,6 +11,8 @@ namespace SubmitUrl;
 public class SubmitUrlProcessor(
     IUrlSubmitter urlSubmitter,
     IEpisodeSearchIndexerService episodeSearchIndexer,
+    HttpClient httpClient,
+    IInternetArchivePlayListProvider internetArchivePlayListProvider,
     ILogger<SubmitUrlProcessor> logger)
 {
     public async Task Process(SubmitUrlRequest request)
@@ -24,7 +28,17 @@ public class SubmitUrlProcessor(
         }
 
         string[] urls;
-        if (!request.SubmitUrlsInFile)
+        if (request.IsInternetArchivePlaylist &&
+            Uri.TryCreate(request.UrlOrFile, UriKind.Absolute, out var playlistUrl) &&
+            InternetArchiveUrlMatcher.IsInternetArchiveUrl(playlistUrl))
+        {
+            var pageResponse = await httpClient.GetAsync(playlistUrl);
+            var document = new HtmlDocument();
+            document.Load(await pageResponse.Content.ReadAsStreamAsync());
+            var playlist = internetArchivePlayListProvider.GetPlayList(document);
+            urls = playlist.Select(x => new Uri(playlistUrl, x.Orig).ToString()).ToArray();
+        }
+        else if (!request.SubmitUrlsInFile)
         {
             urls = [request.UrlOrFile];
         }
