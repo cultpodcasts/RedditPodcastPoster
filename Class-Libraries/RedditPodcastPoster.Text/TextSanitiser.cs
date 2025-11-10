@@ -18,6 +18,7 @@ public partial class TextSanitiser(
     private static readonly Regex InvalidTitlePrefix = GenerateInvalidTitlePrefix();
     private static readonly Regex MultipleSpaces = GenerateMultipleSpaces();
     private static readonly Regex PostAsteriskLetters = GeneratePostAsteriskLetters();
+    private static readonly Regex SeasonEpisode = GenerateSeasonEpisode();
     private static readonly TextInfo TextInfo = new CultureInfo("en-GB", false).TextInfo;
 
     public string SanitiseTitle(PostModel postModel)
@@ -198,19 +199,20 @@ public partial class TextSanitiser(
 
     private string FixCasing(string input)
     {
+        input = SeasonEpisode.Replace(input, m => m.Value.ToUpper());
         input = input.Replace("W/", "w/");
         input = knownTermsProvider.GetKnownTerms().MaintainKnownTerms(input);
 
         return input;
     }
 
-    [GeneratedRegex("(?'prefix'^[^a-zA-Z\\d\"\\$\\£\\'\\(]+)(?'after'.*$)", RegexOptions.Compiled)]
+    [GeneratedRegex(@"(?'prefix'^[^a-zA-Z\d""\$\£\'\(]+)(?'after'.*$)", RegexOptions.Compiled)]
     private static partial Regex GenerateInvalidTitlePrefix();
 
-    [GeneratedRegex("[#@](\\w+)\\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-GB")]
+    [GeneratedRegex(@"[#@](\w+)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-GB")]
     private static partial Regex GenerateHashTagAtSymbolPatter();
 
-    [GeneratedRegex("^'(?'inquotes'.*)'$", RegexOptions.Compiled)]
+    [GeneratedRegex(@"^'(?'inquotes'.*)'$", RegexOptions.Compiled)]
     private static partial Regex GenerateInQuotes();
 
     [GeneratedRegex(@"\*(?'letter'[A-Z])", RegexOptions.Compiled)]
@@ -219,6 +221,9 @@ public partial class TextSanitiser(
     [GeneratedRegex(@"\s+", RegexOptions.Compiled)]
     private static partial Regex GenerateMultipleSpaces();
 
-    [GeneratedRegex("\\b(?'pre'O)'\\b(?'post'\\w+)\\b", RegexOptions.Compiled)]
+    [GeneratedRegex(@"\b(?'pre'O)'\b(?'post'\w+)\b", RegexOptions.Compiled)]
     private static partial Regex CreateOApostrophe();
+
+    [GeneratedRegex(@"\bS\d+ ?E\d+\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
+    private static partial Regex GenerateSeasonEpisode();
 }

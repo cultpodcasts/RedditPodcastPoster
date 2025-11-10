@@ -234,4 +234,16 @@ public class TextSanitiserTests
         // assert
         result.Should().Be(expected);
     }
+
+    [Theory]
+//    [InlineData("[Prefix] Heading")]
+    [InlineData("S01E01 Heading")]
+    public void SanitiseTitle_WithFormat_IsCorrect(string expected)
+    {
+        // arrange
+        // act
+        var result = Sut.SanitiseTitle(expected, null);
+        // assert
+        result.Should().Be(expected);
+    }
 }
