@@ -12,7 +12,7 @@ namespace RedditPodcastPoster.InternetArchive.Models
         public string Orig { get; set; }
 
         [JsonPropertyName("image"), JsonConverter(typeof(RelativeUriConverter))]
-        public Uri Image { get; set; }
+        public Uri? Image { get; set; }
 
         [JsonPropertyName("duration"), JsonConverter(typeof(CustomTimeSpanConverter))]
         public TimeSpan Duration { get; set; }
@@ -21,7 +21,7 @@ namespace RedditPodcastPoster.InternetArchive.Models
         public Source[] Sources { get; set; }
 
         [JsonPropertyName("tracks")]
-        public Track[] Tracks { get; set; }
+        public Track[]? Tracks { get; set; }
     }
 }
 
