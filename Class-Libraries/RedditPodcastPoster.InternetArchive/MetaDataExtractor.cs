@@ -16,13 +16,8 @@ public class MetaDataExtractor(
     {
         var document = new HtmlDocument();
         document.Load(await pageResponse.Content.ReadAsStreamAsync());
-        var titleNodes = document.DocumentNode.SelectNodes("/html/head/title");
-        if (!titleNodes.Any())
-        {
-            throw new InvalidOperationException($"Cannot extract title from '{url}'.");
-        }
+        var titleNode = document.DocumentNode.SelectSingleNode("//span[@itemprop='name']");
 
-        var titleNode = titleNodes.First();
         var title = titleNode.InnerText;
         Uri? image = null;
         TimeSpan? duration = null;
@@ -30,7 +25,7 @@ public class MetaDataExtractor(
         DateTime? release = null;
         string? publisher = null;
 
-        var items = internetArchivePlayListProvider.GetPlayList(document);
+        var items = internetArchivePlayListProvider.GetPlayList(document).ToList();
 
         if (items.Any())
         {
@@ -54,13 +49,12 @@ public class MetaDataExtractor(
                     }
                     catch (Exception e)
                     {
-                        logger.LogError("Unable to parse '{releaseDate}'", releaseNode.InnerText.Trim());
+                        logger.LogError(e, "Unable to parse '{releaseDate}'", releaseNode.InnerText.Trim());
                     }
                 }
 
-                var publisherNode =
-                    document.DocumentNode.SelectSingleNode(
-                        "//section[contains(@class,'item-upload-info')]/p/a[contains(@class,'item-upload-info__uploader-name')]");
+                var publisherNode = document.DocumentNode.SelectSingleNode(
+                    "//section[contains(@class,'item-upload-info')]/p/a[contains(@class,'item-upload-info__uploader-name')]");
                 if (publisherNode != null)
                 {
                     publisher = publisherNode.InnerText.Trim();
@@ -69,9 +63,9 @@ public class MetaDataExtractor(
             else
             {
                 item = items.SingleOrDefault(x => HttpUtility.UrlDecode(url.ToString()).EndsWith(x.Orig));
+                title = item?.Title;
             }
 
-            title = item.Title;
             if (item.Image != null)
             {
                 image = new Uri(url, item.Image);
