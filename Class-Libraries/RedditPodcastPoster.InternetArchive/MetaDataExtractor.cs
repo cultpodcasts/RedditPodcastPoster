@@ -46,8 +46,15 @@ public class MetaDataExtractor(
                 var releaseNode = document.DocumentNode.SelectSingleNode("//span[@itemprop='uploadDate']");
                 if (releaseNode != null)
                 {
-                    release = DateTime.ParseExact(releaseNode.InnerText.Trim(), "yyyy-MM-dd HH:mm:ss",
-                        CultureInfo.InvariantCulture);
+                    try
+                    {
+                        release = DateTime.ParseExact(releaseNode.InnerText.Trim(), "yyyy-MM-dd HH:mm:ss",
+                            CultureInfo.InvariantCulture);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogError("Unable to parse '{releaseDate}'", releaseNode.InnerText.Trim());
+                    }
                 }
             }
             else
@@ -57,7 +64,11 @@ public class MetaDataExtractor(
 
 
             title = item.Title;
-            image = new Uri(url, item.Image);
+            if (item.Image != null)
+            {
+                image = new Uri(url, item.Image);
+            }
+
             duration = item.Duration;
         }
 
