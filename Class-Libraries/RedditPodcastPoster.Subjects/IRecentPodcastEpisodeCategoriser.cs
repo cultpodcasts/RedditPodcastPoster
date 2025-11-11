@@ -2,5 +2,5 @@
 
 public interface IRecentPodcastEpisodeCategoriser
 {
-    Task Categorise();
+    Task<IList<Guid>> Categorise();
 }

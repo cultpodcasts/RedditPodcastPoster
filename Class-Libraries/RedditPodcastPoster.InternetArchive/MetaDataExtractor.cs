@@ -62,7 +62,6 @@ public class MetaDataExtractor(
                 item = items.SingleOrDefault(x => HttpUtility.UrlDecode(url.ToString()).EndsWith(x.Orig));
             }
 
-
             title = item.Title;
             if (item.Image != null)
             {
