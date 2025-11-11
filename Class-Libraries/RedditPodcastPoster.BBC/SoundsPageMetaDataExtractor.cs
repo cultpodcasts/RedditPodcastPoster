@@ -69,10 +69,10 @@ public partial class SoundsPageMetaDataExtractor : ISoundsPageMetaDataExtractor
             ?.ToList();
         if (maxImages != null && maxImages.Any())
         {
-            var jpg = maxImages.Where(x => x.Url.ToString().EndsWith(".jpg")).FirstOrDefault();
-            var png = maxImages.Where(x => x.Url.ToString().EndsWith(".png")).FirstOrDefault();
-            var webp = maxImages.Where(x => x.Url.ToString().EndsWith(".webp")).FirstOrDefault();
-            var preferredImage = png ?? jpg ?? png;
+            var jpg = maxImages.FirstOrDefault(x => x.Url.ToString().EndsWith(".jpg"));
+            var png = maxImages.FirstOrDefault(x => x.Url.ToString().EndsWith(".png"));
+            var webp = maxImages.FirstOrDefault(x => x.Url.ToString().EndsWith(".webp"));
+            var preferredImage = png ?? jpg ?? webp;
             if (preferredImage != null)
             {
                 maxImage = preferredImage.Url;
