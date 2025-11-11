@@ -18,7 +18,7 @@ public class MetaDataExtractor(
         document.Load(await pageResponse.Content.ReadAsStreamAsync());
         var titleNode = document.DocumentNode.SelectSingleNode("//span[@itemprop='name']");
 
-        var title = titleNode.InnerText;
+        var title = titleNode.InnerText.Trim();
         Uri? image = null;
         TimeSpan? duration = null;
         string? description = null;
@@ -63,7 +63,7 @@ public class MetaDataExtractor(
             else
             {
                 item = items.SingleOrDefault(x => HttpUtility.UrlDecode(url.ToString()).EndsWith(x.Orig));
-                title = item?.Title;
+                title = item?.Title.Trim();
             }
 
             if (item.Image != null)
