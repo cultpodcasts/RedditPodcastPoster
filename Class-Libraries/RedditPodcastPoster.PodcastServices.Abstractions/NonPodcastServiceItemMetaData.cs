@@ -6,4 +6,5 @@ public record NonPodcastServiceItemMetaData(
     TimeSpan? Duration = null,
     DateTime? Release = null,
     Uri? Image = null,
-    bool? Explicit = null);
+    bool? Explicit = null,
+    string? Publisher = null);

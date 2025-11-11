@@ -38,7 +38,8 @@ public class PodcastProcessor(
         }
 
         logger.LogInformation(
-            $"Modifying podcast with name '{categorisedItem.MatchingPodcast!.Name}' and id '{categorisedItem.MatchingPodcast.Id}'.");
+            "Modifying podcast with name '{matchingPodcastName}' and id '{matchingPodcastId}'.",
+            categorisedItem.MatchingPodcast!.Name, categorisedItem.MatchingPodcast.Id);
 
         var (podcastResult, appliedEpisodeResult, submitEpisodeDetails) =
             episodeEnricher.ApplyResolvedPodcastServiceProperties(

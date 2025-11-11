@@ -28,6 +28,7 @@ public class MetaDataExtractor(
         TimeSpan? duration = null;
         string? description = null;
         DateTime? release = null;
+        string? publisher = null;
 
         var items = internetArchivePlayListProvider.GetPlayList(document);
 
@@ -56,6 +57,14 @@ public class MetaDataExtractor(
                         logger.LogError("Unable to parse '{releaseDate}'", releaseNode.InnerText.Trim());
                     }
                 }
+
+                var publisherNode =
+                    document.DocumentNode.SelectSingleNode(
+                        "//section[contains(@class,'item-upload-info')]/p/a[contains(@class,'item-upload-info__uploader-name')]");
+                if (publisherNode != null)
+                {
+                    publisher = publisherNode.InnerText.Trim();
+                }
             }
             else
             {
@@ -71,6 +80,7 @@ public class MetaDataExtractor(
             duration = item.Duration;
         }
 
-        return new NonPodcastServiceItemMetaData(title, description ?? string.Empty, duration, release, image);
+        return new NonPodcastServiceItemMetaData(title, description ?? string.Empty, duration, release, image,
+            Publisher: publisher);
     }
 }

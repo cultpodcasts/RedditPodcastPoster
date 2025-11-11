@@ -21,17 +21,32 @@ public class StreamingServiceMetaDataHandler(
         NonPodcastService service;
         NonPodcastServiceItemMetaData metaData;
         string publisher;
+        Episode? matchingEpisode;
+
         if (InternetArchiveUrlMatcher.IsInternetArchiveUrl(url))
         {
             metaData = await internetArchivePageMetaDataExtractor.GetMetaData(url);
-            publisher = "Internet Archive";
             service = NonPodcastService.InternetArchive;
+            if (podcast?.Episodes.Count(x => x.Urls.InternetArchive == url) > 1)
+            {
+                logger.LogError(
+                    "Multiple episodes of podcast with podcast-id {podcastId} with internet-archive url '{url}'.",
+                    podcast.Id, url);
+            }
+
+            matchingEpisode = podcast?.Episodes.FirstOrDefault(x => x.Urls.InternetArchive == url);
         }
         else if (BBCUrlMatcher.IsBBCUrl(url))
         {
             metaData = await bbcPageMetaDataExtractor.GetMetaData(url);
-            publisher = "BBC";
             service = NonPodcastService.BBC;
+            if (podcast?.Episodes.Count(x => x.Urls.BBC == url) > 1)
+            {
+                logger.LogError("Multiple episodes of podcast with podcast-id {podcastId} with bbc url '{url}'.",
+                    podcast.Id, url);
+            }
+
+            matchingEpisode = podcast?.Episodes.FirstOrDefault(x => x.Urls.BBC == url);
         }
         else
         {
@@ -41,11 +56,11 @@ public class StreamingServiceMetaDataHandler(
         return new ResolvedNonPodcastServiceItem(
             service,
             podcast,
-            null,
+            matchingEpisode,
             url,
             metaData.Title,
             metaData.Description,
-            publisher,
+            metaData.Publisher,
             metaData.Image,
             metaData.Release,
             metaData.Duration,
