@@ -34,34 +34,31 @@ public class MetaDataExtractor(
         if (items.Any())
         {
             PlayListItem? item = null;
-            if (items.Count() > 0)
+            if (items.Count() == 1)
             {
-                if (items.Count() == 1)
+                item = items.Single();
+                var descriptNode = document.DocumentNode.SelectSingleNode("//div[@id='descript']");
+                if (descriptNode != null)
                 {
-                    item = items.Single();
-                    var descriptNode = document.DocumentNode.SelectSingleNode("//div[@id='descript']");
-                    if (descriptNode != null)
-                    {
-                        description = descriptNode.InnerText.Trim();
-                    }
-
-                    var releaseNode = document.DocumentNode.SelectSingleNode("//span[@itemprop='uploadDate']");
-                    if (releaseNode != null)
-                    {
-                        release = DateTime.ParseExact(releaseNode.InnerText.Trim(), "yyyy-MM-dd HH:mm:ss",
-                            CultureInfo.InvariantCulture);
-                    }
-                }
-                else
-                {
-                    item = items.SingleOrDefault(x => HttpUtility.UrlDecode(url.ToString()).EndsWith(x.Orig));
+                    description = descriptNode.InnerText.Trim();
                 }
 
-
-                title = item.Title;
-                image = new Uri(url, item.Image);
-                duration = item.Duration;
+                var releaseNode = document.DocumentNode.SelectSingleNode("//span[@itemprop='uploadDate']");
+                if (releaseNode != null)
+                {
+                    release = DateTime.ParseExact(releaseNode.InnerText.Trim(), "yyyy-MM-dd HH:mm:ss",
+                        CultureInfo.InvariantCulture);
+                }
             }
+            else
+            {
+                item = items.SingleOrDefault(x => HttpUtility.UrlDecode(url.ToString()).EndsWith(x.Orig));
+            }
+
+
+            title = item.Title;
+            image = new Uri(url, item.Image);
+            duration = item.Duration;
         }
 
         return new NonPodcastServiceItemMetaData(title, description ?? string.Empty, duration, release, image);
