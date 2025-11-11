@@ -11,17 +11,17 @@ public class RecentPodcastEpisodeCategoriser(
     ILogger<RecentPodcastEpisodeCategoriser> logger)
     : IRecentPodcastEpisodeCategoriser
 {
-    public async Task Categorise()
+    public async Task<IList<Guid>> Categorise()
     {
         var since = DateTimeExtensions.DaysAgo(7);
-
+        IList<Guid> updatedEpisodes = new List<Guid>();
         var podcasts =
             await podcastRepository.GetAllBy(x =>
                     (!x.Removed.IsDefined() || x.Removed == false) &&
-                    x.Episodes.Any(y => y.Release > since && !y.Subjects.Any()), x => new {guid = x.Id, x.Name})
+                    x.Episodes.Any(y => y.Release > since && !y.Subjects.Any()), x => new { guid = x.Id, x.Name })
                 .ToListAsync();
         logger.LogInformation(
-            $"Categorising podcasts: {string.Join(", ", podcasts.Select(x => $"'{x.Name}' ({x.guid})"))}");
+            "Categorising podcasts: {podcastNamesAndGuids}", string.Join(", ", podcasts.Select(x => $"'{x.Name}' ({x.guid})")));
 
         foreach (var podcastDetails in podcasts)
         {
@@ -30,7 +30,7 @@ public class RecentPodcastEpisodeCategoriser(
             var podcast = await podcastRepository.GetPodcast(podcastDetails.guid);
             foreach (var episode in podcast.Episodes.Where(x => x.Release > since && !x.Subjects.Any()))
             {
-                logger.LogInformation($"Categorise episode '{episode.Title}'.");
+                logger.LogInformation("Categorise episode '{episodeTitle}'.", episode.Title);
                 var updatedEpisode = await categoriser.Categorise(
                     episode,
                     podcast.IgnoredAssociatedSubjects,
@@ -40,8 +40,11 @@ public class RecentPodcastEpisodeCategoriser(
 
                 if (updatedEpisode)
                 {
+                    updatedEpisodes.Add(episode.Id);
                     logger.LogInformation(
-                        $"{nameof(RecentPodcastEpisodeCategoriser)}: Podcast '{podcast.Name}' with id '{podcast.Id}' and episode with id {episode.Id}, updated subjects: '{string.Join(",", episode.Subjects.Select(x => $"'{x}'"))}'.");
+                        "{class}: Podcast '{podcastName}' with id '{podcastId}' and episode with id {episodeId}, updated subjects: {subjects}.",
+                        nameof(RecentPodcastEpisodeCategoriser), podcast.Name, podcast.Id, episode.Id,
+                        string.Join(", ", episode.Subjects.Select(x => $"'{x}'")));
                 }
 
                 updated |= updatedEpisode;
@@ -52,5 +55,7 @@ public class RecentPodcastEpisodeCategoriser(
                 await podcastRepository.Save(podcast);
             }
         }
+
+        return updatedEpisodes;
     }
 }

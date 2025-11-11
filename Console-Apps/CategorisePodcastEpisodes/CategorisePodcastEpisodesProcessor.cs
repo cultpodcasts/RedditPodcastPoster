@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
@@ -9,10 +10,13 @@ public class CategorisePodcastEpisodesProcessor(
     IPodcastRepository repository,
     ISubjectEnricher subjectEnricher,
     IRecentPodcastEpisodeCategoriser recentEpisodeCategoriser,
+    IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<CategorisePodcastEpisodesProcessor> logger)
 {
     public async Task Run(CategorisePodcastEpisodesRequest request)
     {
+        var updatedEpisodeIds = new List<Guid>();
+
         if (!string.IsNullOrWhiteSpace(request.PodcastIds) || !string.IsNullOrWhiteSpace(request.PodcastPartialMatch))
         {
             Guid[] podcastIds;
@@ -20,7 +24,7 @@ public class CategorisePodcastEpisodesProcessor(
             {
                 var ids = await repository
                     .GetAllBy(x => x.Name.ToLower().Contains(request.PodcastPartialMatch.ToLower()),
-                        p => new {id = p.Id}).ToArrayAsync();
+                        p => new { id = p.Id }).ToArrayAsync();
                 podcastIds = ids.Select(x => x.id).ToArray();
             }
             else
@@ -56,6 +60,10 @@ public class CategorisePodcastEpisodesProcessor(
                             podcast.IgnoredSubjects,
                             podcast.DefaultSubject,
                             podcast.DescriptionRegex));
+                    if (results.Additions.Any() || results.Removals.Any())
+                    {
+                        updatedEpisodeIds.Add(podcastEpisode.Id);
+                    }
                 }
 
                 if (request.Commit)
@@ -66,11 +74,14 @@ public class CategorisePodcastEpisodesProcessor(
         }
         else if (request.CategoriseRecent)
         {
-            await recentEpisodeCategoriser.Categorise();
+            var categorisedEpisodeIds = await recentEpisodeCategoriser.Categorise();
+            updatedEpisodeIds.AddRange(categorisedEpisodeIds);
         }
         else
         {
             throw new ArgumentException("Unknown operation", nameof(request));
         }
+
+        await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
     }
 }
