@@ -13,12 +13,13 @@ public class Categoriser(
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
         logger.LogInformation(
-            $"{nameof(Categoriser)} initiated. task-activity-context-instance-id: '{context.InstanceId}'.");
+            "{nameofCategoriser} initiated. task-activity-context-instance-id: '{contextInstanceId}'.",
+            nameof(Categoriser), context.InstanceId);
         logger.LogInformation(indexerContext.ToString());
 
         if (DryRun.IsCategoriserDryRun)
         {
-            return indexerContext with {Success = true};
+            return indexerContext with { Success = true };
         }
 
         if (indexerContext.CategoriserOperationId == null)
@@ -33,11 +34,12 @@ public class Categoriser(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failure to execute {nameof(IRecentPodcastEpisodeCategoriser)}.{nameof(IRecentPodcastEpisodeCategoriser.Categorise)}.");
-            return indexerContext with {Success = false};
+                "Failure to execute {interface}.{method)}.",
+                nameof(IRecentPodcastEpisodeCategoriser), nameof(IRecentPodcastEpisodeCategoriser.Categorise));
+            return indexerContext with { Success = false };
         }
 
-        logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerContext with {Success = true};
+        logger.LogInformation("{method} Completed", nameof(RunAsync));
+        return indexerContext with { Success = true };
     }
 }
