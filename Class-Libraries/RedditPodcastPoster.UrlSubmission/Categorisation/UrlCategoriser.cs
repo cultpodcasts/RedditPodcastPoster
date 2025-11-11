@@ -67,6 +67,10 @@ public class UrlCategoriser(
         else if (NonPodcastServiceMatcher.MatchesBBC(url) || NonPodcastServiceMatcher.MatchesInternetArchive(url))
         {
             resolvedNonPodcastServiceItem = await nonPodcastServiceCategoriser.Resolve(podcast, url, indexingContext);
+            if (resolvedNonPodcastServiceItem != null)
+            {
+                authority = Service.Other;
+            }
         }
         else
         {
@@ -85,7 +89,7 @@ public class UrlCategoriser(
                 {
                     if (authority == Service.Apple)
                     {
-                        indexingContext = indexingContext with {ReleasedSince = criteria.Release.AddDays(-1)};
+                        indexingContext = indexingContext with { ReleasedSince = criteria.Release.AddDays(-1) };
                     }
                     else if (authority == Service.YouTube && podcast != null)
                     {

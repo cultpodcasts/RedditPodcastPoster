@@ -50,7 +50,7 @@ public partial class iPlayerPageMetaDataExtractor(
 
 
         return new NonPodcastServiceItemMetaData(md.Title, md.Description, md.Duration, md.Release, md.Image,
-            md.Explicit);
+            md.Explicit, "BBC");
     }
 
     private static TextMetaData GetMetaData(HtmlDocument document)

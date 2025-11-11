@@ -48,8 +48,8 @@ public class UrlSubmitter(
         }
         catch (HttpRequestException e)
         {
-            logger.LogError(e, "Error ingesting '{url}'. Http-request-exception with status: '{status}'",
-                url, e.StatusCode);
+            logger.LogError(e, "Error ingesting '{url}'. Http-request-exception with status: '{status}'", url,
+                e.StatusCode);
             throw;
         }
         catch (Exception e)

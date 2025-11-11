@@ -1,10 +1,8 @@
-﻿using HtmlAgilityPack;
+﻿using System.Text.Json;
+using System.Text.RegularExpressions;
+using HtmlAgilityPack;
 using RedditPodcastPoster.BBC.DTOs;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using System.Globalization;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 
 namespace RedditPodcastPoster.BBC;
 
@@ -18,9 +16,8 @@ public partial class SoundsPageMetaDataExtractor : ISoundsPageMetaDataExtractor
         document.Load(await pageResponse.Content.ReadAsStreamAsync());
 
         var scripts = document.DocumentNode.SelectNodes("//script");
-        var metaDataScript = scripts.Where(x =>
-                x.Attributes["id"]?.Value == "__NEXT_DATA__" && x.Attributes["type"]?.Value == "application/json")
-            .FirstOrDefault();
+        var metaDataScript = scripts.FirstOrDefault(x =>
+            x.Attributes["id"]?.Value == "__NEXT_DATA__" && x.Attributes["type"]?.Value == "application/json");
         if (metaDataScript != null)
         {
             var metaDataJson = metaDataScript.InnerText;
@@ -43,7 +40,8 @@ public partial class SoundsPageMetaDataExtractor : ISoundsPageMetaDataExtractor
                     currentProgramme.Duration.Length,
                     currentProgramme.Release.Date,
                     maxImage,
-                    currentProgramme.Guidance.HasWarnings
+                    currentProgramme.Guidance.HasWarnings,
+                    "BBC"
                 );
             }
         }
@@ -71,11 +69,14 @@ public partial class SoundsPageMetaDataExtractor : ISoundsPageMetaDataExtractor
             ?.ToList();
         if (maxImages != null && maxImages.Any())
         {
-            var jpg = maxImages.Where(x => x.Url.ToString().EndsWith(".jpg")).FirstOrDefault();
-            var png = maxImages.Where(x => x.Url.ToString().EndsWith(".png")).FirstOrDefault();
-            var webp = maxImages.Where(x => x.Url.ToString().EndsWith(".webp")).FirstOrDefault();
-            var preferredImage = png ?? jpg ?? png;
-            if (preferredImage != null) maxImage = preferredImage.Url;
+            var jpg = maxImages.FirstOrDefault(x => x.Url.ToString().EndsWith(".jpg"));
+            var png = maxImages.FirstOrDefault(x => x.Url.ToString().EndsWith(".png"));
+            var webp = maxImages.FirstOrDefault(x => x.Url.ToString().EndsWith(".webp"));
+            var preferredImage = png ?? jpg ?? webp;
+            if (preferredImage != null)
+            {
+                maxImage = preferredImage.Url;
+            }
         }
 
         return maxImage;

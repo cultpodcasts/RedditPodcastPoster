@@ -23,7 +23,8 @@ public class EpisodeEnricher(
         {
             episodeResult = SubmitResultState.EpisodeAlreadyExists;
             logger.LogInformation(
-                $"Applying to episode with title '{matchingEpisode.Title}' and id '{matchingEpisode.Id}'.");
+                "Applying to episode with title '{matchingEpisodeTitle}' and id '{matchingEpisodeId}'.",
+                matchingEpisode.Title, matchingEpisode.Id);
         }
 
         if (categorisedItem.ResolvedAppleItem != null)
@@ -33,7 +34,8 @@ public class EpisodeEnricher(
                 matchingPodcast.AppleId = categorisedItem.ResolvedAppleItem.ShowId;
                 podcastResult = SubmitResultState.Enriched;
                 logger.LogInformation(
-                    $"Enriched podcast '{matchingPodcast.Id}' with apple details with apple-id {categorisedItem.ResolvedAppleItem.ShowId}.");
+                    "Enriched podcast '{matchingPodcastId}' with apple details with apple-id {resolvedAppleItemShowId}.",
+                    matchingPodcast.Id, categorisedItem.ResolvedAppleItem.ShowId);
             }
 
             if (matchingEpisode != null)
@@ -44,7 +46,8 @@ public class EpisodeEnricher(
                     matchingEpisode.AppleId = categorisedItem.ResolvedAppleItem.EpisodeId;
                     episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
-                        $"Enriched episode '{matchingEpisode.Id}' with apple details with apple-id {categorisedItem.ResolvedAppleItem.EpisodeId}.");
+                        "Enriched episode '{matchingEpisodeId}' with apple details with apple-id {resolvedAppleItemEpisodeId}.",
+                        matchingEpisode.Id, categorisedItem.ResolvedAppleItem.EpisodeId);
                 }
 
                 if (matchingEpisode.Urls.Apple == null && categorisedItem.ResolvedAppleItem.Url != null)
@@ -53,7 +56,8 @@ public class EpisodeEnricher(
                     matchingEpisode.Urls.Apple = categorisedItem.ResolvedAppleItem.Url;
                     episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
-                        $"Enriched episode '{matchingEpisode.Id}' with apple details with apple-url {categorisedItem.ResolvedAppleItem.Url}.");
+                        "Enriched episode '{matchingEpisodeId}' with apple details with apple-url {resolvedAppleItemUrl}.",
+                        matchingEpisode.Id, categorisedItem.ResolvedAppleItem.Url);
                 }
 
                 if (matchingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
@@ -65,7 +69,7 @@ public class EpisodeEnricher(
 
                 var description =
                     descriptionHelper.CollapseDescription(categorisedItem.ResolvedAppleItem.EpisodeDescription) ??
-                    descriptionHelper.EnrichMissingDescription(categorisedItem) ?? string.Empty;
+                    descriptionHelper.EnrichMissingDescription(categorisedItem);
                 if (string.IsNullOrWhiteSpace(matchingEpisode.Description) ||
                     (matchingEpisode.Description.EndsWith("...") &&
                      description.Length > matchingEpisode.Description.Length))
@@ -89,7 +93,8 @@ public class EpisodeEnricher(
                 matchingPodcast.SpotifyId = categorisedItem.ResolvedSpotifyItem.ShowId;
                 podcastResult = SubmitResultState.Enriched;
                 logger.LogInformation(
-                    $"Enriched podcast '{matchingPodcast.Id}' with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.ShowId}.");
+                    "Enriched podcast '{matchingPodcastId}' with spotify details with spotify-id {resolvedSpotifyItemShowId}.",
+                    matchingPodcast.Id, categorisedItem.ResolvedSpotifyItem.ShowId);
             }
 
             if (matchingEpisode != null)
@@ -101,7 +106,8 @@ public class EpisodeEnricher(
                     matchingEpisode.SpotifyId = categorisedItem.ResolvedSpotifyItem.EpisodeId;
                     episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
-                        $"Enriched episode '{matchingEpisode.Id}' with spotify details with spotify-id {categorisedItem.ResolvedSpotifyItem.EpisodeId}.");
+                        "Enriched episode '{matchingEpisodeId}' with spotify details with spotify-id {resolvedSpotifyItemEpisodeId}.",
+                        matchingEpisode.Id, categorisedItem.ResolvedSpotifyItem.EpisodeId);
                 }
 
                 if (matchingEpisode.Urls.Spotify == null && categorisedItem.ResolvedSpotifyItem.Url != null)
@@ -110,12 +116,13 @@ public class EpisodeEnricher(
                     matchingEpisode.Urls.Spotify = categorisedItem.ResolvedSpotifyItem.Url;
                     episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
-                        $"Enriched episode '{matchingEpisode.Id}' with spotify details with spotify-url {categorisedItem.ResolvedSpotifyItem.Url}.");
+                        "Enriched episode '{matchingEpisodeId}' with spotify details with spotify-url {resolvedSpotifyItemUrl}.",
+                        matchingEpisode.Id, categorisedItem.ResolvedSpotifyItem.Url);
                 }
 
                 var description =
                     descriptionHelper.CollapseDescription(categorisedItem.ResolvedSpotifyItem.EpisodeDescription) ??
-                    descriptionHelper.EnrichMissingDescription(categorisedItem) ?? string.Empty;
+                    descriptionHelper.EnrichMissingDescription(categorisedItem);
                 if (matchingEpisode.Description.EndsWith("...") &&
                     description.Length > matchingEpisode.Description.Length)
                 {
@@ -139,7 +146,8 @@ public class EpisodeEnricher(
                 matchingPodcast.YouTubePublicationOffset = Constants.DefaultMatchingPodcastYouTubePublishingDelay.Ticks;
                 podcastResult = SubmitResultState.Enriched;
                 logger.LogInformation(
-                    $"Enriched podcast '{matchingPodcast.Id}' with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.ShowId}.");
+                    "Enriched podcast '{matchingPodcastId}' with youtube details with youtube-id {resolvedYouTubeItemShowId}.",
+                    matchingPodcast.Id, categorisedItem.ResolvedYouTubeItem.ShowId);
             }
 
             if (matchingEpisode != null)
@@ -151,7 +159,8 @@ public class EpisodeEnricher(
                     matchingEpisode.YouTubeId = categorisedItem.ResolvedYouTubeItem.EpisodeId;
                     episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
-                        $"Enriched episode '{matchingEpisode.Id}' with youtube details with youtube-id {categorisedItem.ResolvedYouTubeItem.EpisodeId}.");
+                        "Enriched episode '{matchingEpisodeId}' with youtube details with youtube-id {resolvedYouTubeItemEpisodeId}.",
+                        matchingEpisode.Id, categorisedItem.ResolvedYouTubeItem.EpisodeId);
                 }
 
                 if (matchingEpisode.Urls.YouTube == null && categorisedItem.ResolvedYouTubeItem.Url != null)
@@ -160,7 +169,8 @@ public class EpisodeEnricher(
                     matchingEpisode.Urls.YouTube = categorisedItem.ResolvedYouTubeItem.Url;
                     episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
-                        $"Enriched episode '{matchingEpisode.Id}' with youtube details with youtube-url {categorisedItem.ResolvedYouTubeItem.Url}.");
+                        "Enriched episode '{matchingEpisodeId}' with youtube details with youtube-url {resolvedYouTubeItem.}.",
+                        matchingEpisode.Id, categorisedItem.ResolvedYouTubeItem.Url);
                 }
 
                 if (matchingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
@@ -172,7 +182,7 @@ public class EpisodeEnricher(
 
                 var description =
                     descriptionHelper.CollapseDescription(categorisedItem.ResolvedYouTubeItem.EpisodeDescription) ??
-                    descriptionHelper.EnrichMissingDescription(categorisedItem) ?? string.Empty;
+                    descriptionHelper.EnrichMissingDescription(categorisedItem);
                 if (matchingEpisode.Description.Trim().EndsWith("...") &&
                     description.Length > matchingEpisode.Description.Length)
                 {
@@ -196,7 +206,8 @@ public class EpisodeEnricher(
                 matchingEpisode.Urls.BBC = categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl;
                 episodeResult = SubmitResultState.Enriched;
                 logger.LogInformation(
-                    $"Enriched episode '{matchingEpisode.Id}' with bbc details with bbc-url {categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl}.");
+                    "Enriched episode '{matchingEpisodeId}' with bbc details with bbc-url {resolvedNonPodcastServiceItemBBCUrl}.",
+                    matchingEpisode.Id, categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl);
             }
 
             if (matchingEpisode.Urls.InternetArchive == null &&
@@ -207,7 +218,32 @@ public class EpisodeEnricher(
                     categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl;
                 episodeResult = SubmitResultState.Enriched;
                 logger.LogInformation(
-                    $"Enriched episode '{matchingEpisode.Id}' with internet-archive details with internet-archive-url {categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl}.");
+                    "Enriched episode '{matchingEpisodeId}' with internet-archive details with internet-archive-url {resolvedNonPodcastServiceItemInternetArchiveUrl}.",
+                    matchingEpisode.Id, categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl);
+            }
+
+            if (matchingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
+                categorisedItem.ResolvedNonPodcastServiceItem.Release.HasValue &&
+                categorisedItem.ResolvedNonPodcastServiceItem.Release.Value.TimeOfDay != TimeSpan.Zero)
+            {
+                matchingEpisode.Release = categorisedItem.ResolvedNonPodcastServiceItem.Release.Value;
+                episodeResult = SubmitResultState.Enriched;
+            }
+
+            var description =
+                descriptionHelper.CollapseDescription(categorisedItem.ResolvedNonPodcastServiceItem.Description) ??
+                descriptionHelper.EnrichMissingDescription(categorisedItem);
+            if (matchingEpisode.Description.Trim().EndsWith("...") &&
+                description.Length > matchingEpisode.Description.Length)
+            {
+                matchingEpisode.Description = description;
+                episodeResult = SubmitResultState.Enriched;
+            }
+
+            if (matchingEpisode.Images?.Other == null && categorisedItem.ResolvedNonPodcastServiceItem.Image != null)
+            {
+                matchingEpisode.Images ??= new EpisodeImages();
+                matchingEpisode.Images.YouTube = categorisedItem.ResolvedNonPodcastServiceItem.Image;
             }
         }
 
