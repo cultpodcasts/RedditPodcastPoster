@@ -14,5 +14,6 @@ public class DiscoverySubmitResponse
     public required DiscoverySubmitResponseItem[] Results { get; set; }
 
     [JsonPropertyName("searchIndexerState")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public required SearchIndexerState SearchIndexerState { get; set; }
 }

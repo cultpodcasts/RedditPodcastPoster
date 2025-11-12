@@ -11,5 +11,6 @@ public class EpisodeUpdateResponse
     public bool? BlueskyPostDeleted { get; set; }
 
     [JsonPropertyName("searchIndexerState")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public SearchIndexerState? SearchIndexerState { get; set; }
 }
