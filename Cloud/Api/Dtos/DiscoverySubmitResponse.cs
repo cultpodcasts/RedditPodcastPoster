@@ -12,4 +12,7 @@ public class DiscoverySubmitResponse
 
     [JsonPropertyName("results")]
     public required DiscoverySubmitResponseItem[] Results { get; set; }
+
+    [JsonPropertyName("searchIndexerState")]
+    public required SearchIndexerState SearchIndexerState { get; set; }
 }

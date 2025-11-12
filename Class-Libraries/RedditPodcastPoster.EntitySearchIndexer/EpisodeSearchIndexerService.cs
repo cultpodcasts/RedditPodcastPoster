@@ -13,31 +13,44 @@ public class EpisodeSearchIndexerService(
     SearchClient searchClient,
     ILogger<EpisodeSearchIndexerService> logger) : IEpisodeSearchIndexerService
 {
-    public async Task IndexEpisode(Guid episodeId, CancellationToken c)
+    public async Task<EntitySearchIndexerResponse> IndexEpisode(Guid episodeId, CancellationToken c)
     {
         var podcast = await podcastRepository.GetBy(x => x.Episodes.Any(e => e.Id == episodeId));
         if (podcast == null)
         {
             logger.LogError("Unable to find episode to reindex. Episode-id: '{episodeId}'.", episodeId);
-            return;
+            return new EntitySearchIndexerResponse
+                { EpisodeIndexRequestState = EpisodeIndexRequestState.EpisodeNotFound };
         }
 
         var episode = podcast.Episodes.Where(e => e.Id == episodeId);
         if (episode.Count() > 1)
         {
             logger.LogError("Multiple episodes with Episode-id: '{episodeId}'.", episodeId);
-            return;
+            return new EntitySearchIndexerResponse
+                { EpisodeIndexRequestState = EpisodeIndexRequestState.EpisodeIdConflict };
         }
 
         var document = new PodcastEpisode(podcast, podcast.Episodes.Single(x => x.Id == episodeId))
             .ToEpisodeSearchRecord();
 
-        var result =
-            await searchClient.MergeOrUploadDocumentsAsync([document],
-                new IndexDocumentsOptions { ThrowOnAnyError = true }, c);
+        try
+        {
+            var result =
+                await searchClient.MergeOrUploadDocumentsAsync([document],
+                    new IndexDocumentsOptions { ThrowOnAnyError = true }, c);
+            return new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed };
+        }
+        catch (RequestFailedException ex)
+        {
+            logger.LogError(ex,
+                "Failed to index episode with id '{episodeId}'. Status-code: {statusCode}, message: '{message}'.",
+                episodeId, ex.Status, ex.Message);
+            return new EntitySearchIndexerResponse { IndexerState = IndexerState.Failure };
+        }
     }
 
-    public async Task IndexEpisodes(IEnumerable<Guid> episodeIds, CancellationToken c)
+    public async Task<EntitySearchIndexerResponse> IndexEpisodes(IEnumerable<Guid> episodeIds, CancellationToken c)
     {
         var documents = new List<EpisodeSearchRecord>();
         var podcasts = new Dictionary<Guid, Podcast>();
@@ -79,7 +92,7 @@ public class EpisodeSearchIndexerService(
             var result =
                 await searchClient.MergeOrUploadDocumentsAsync(documents,
                     new IndexDocumentsOptions { ThrowOnAnyError = false }, c);
-            var failures = result.Value.Results.Where(x => x.Succeeded == false);
+            var failures = result.Value.Results.Where(x => x.Succeeded == false).ToArray();
             foreach (var failure in failures)
             {
                 logger.LogError("Failed to index episode with key '{Key}': {ErrorMessage}", failure.Key,
@@ -88,12 +101,19 @@ public class EpisodeSearchIndexerService(
 
             if (failures.Any())
             {
-                throw new RequestFailedException(result.GetRawResponse());
+                var ex = new RequestFailedException(result.GetRawResponse());
+                logger.LogError(ex,
+                    "Failed to index episodes with id '{episodeIds}'. Status-code: {statusCode}, message: '{message}'.",
+                    string.Join(", ", failures.Select(x => $"'{x.Key}'")), ex.Status, ex.Message);
+                return new EntitySearchIndexerResponse { IndexerState = IndexerState.Failure };
             }
+
+            return new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed };
         }
         else
         {
             logger.LogWarning("No documents to update in search-index");
+            return new EntitySearchIndexerResponse { EpisodeIndexRequestState = EpisodeIndexRequestState.NoDocuments };
         }
     }
 }

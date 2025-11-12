@@ -82,7 +82,8 @@ public class DiscoveryCurationController(
             foreach (var discoveryResult in discoveryResults)
             {
                 logger.LogInformation(
-                    $"Submitting discovery-result '{discoveryResult.Id}' with indexing-context: {indexingContext}");
+                    "Submitting discovery-result '{discoveryResultId}' with indexing-context: {indexingContext}",
+                    discoveryResult.Id, indexingContext);
                 try
                 {
                     var result = await discoveryUrlSubmitter.Submit(discoveryResult, indexingContext, submitOptions);
@@ -104,7 +105,8 @@ public class DiscoveryCurationController(
                             DiscoveryItemId = discoveryResult.Id,
                             Message = "Error"
                         });
-                    logger.LogError(ex, $"{nameof(Post)} Failure submitting discovery-result '{discoveryResult.Id}'.");
+                    logger.LogError(ex, "{method} Failure submitting discovery-result '{discoveryResultId}'.",
+                        nameof(Post), discoveryResult.Id);
                 }
             }
 
@@ -114,14 +116,7 @@ public class DiscoveryCurationController(
             var episodeIds = submitResults
                 .Where(x => x.EpisodeId != null)
                 .Select(x => x.EpisodeId.Value);
-            try
-            {
-                await searchIndexerService.IndexEpisodes(episodeIds, c);
-            }
-            catch (Exception e)
-            {
-                logger.LogError("Failure to index new discovery items.");
-            }
+            var indexed = await searchIndexerService.IndexEpisodes(episodeIds, c);
 
             await discoveryResultsService.UpdateDiscoveryInfoContent();
 
@@ -129,7 +124,8 @@ public class DiscoveryCurationController(
             {
                 Message = "Success",
                 ErrorsOccurred = errorsOccured,
-                Results = [.. submitResults]
+                Results = [.. submitResults],
+                SearchIndexerState = indexed.ToDto()
             };
 
             return await r
@@ -138,7 +134,8 @@ public class DiscoveryCurationController(
         }
         catch (Exception e)
         {
-            logger.LogError(e, $"Failure handling post of {nameof(DiscoverySubmitRequest)}");
+            logger.LogError(e, "Failure handling post of {nameofDiscoverySubmitRequest}",
+                nameof(DiscoverySubmitRequest));
         }
 
         return await r.CreateResponse(HttpStatusCode.InternalServerError)

@@ -2,6 +2,6 @@
 
 public interface IEpisodeSearchIndexerService
 {
-    Task IndexEpisode(Guid episodeId, CancellationToken cancellationToken);
-    Task IndexEpisodes(IEnumerable<Guid> episodeIds, CancellationToken cancellationToken);
+    Task<EntitySearchIndexerResponse> IndexEpisode(Guid episodeId, CancellationToken cancellationToken);
+    Task<EntitySearchIndexerResponse> IndexEpisodes(IEnumerable<Guid> episodeIds, CancellationToken cancellationToken);
 }

@@ -17,7 +17,6 @@ using RedditPodcastPoster.Indexing;
 using RedditPodcastPoster.Indexing.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using IndexerState = RedditPodcastPoster.Search.IndexerState;
 using Podcast = Api.Dtos.Podcast;
 using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
 
@@ -136,10 +135,18 @@ public class PodcastController(
             }
 
             await podcastRepository.Save(podcast);
+
             if (podcastChangeRequestWrapper.Podcast.Removed.HasValue &&
                 podcastChangeRequestWrapper.Podcast.Removed.Value)
             {
                 await DeleteEpisodesFromSearchIndex(c, podcast);
+            }
+            else if (podcastChangeRequestWrapper.AllowNameChange)
+            {
+                if (podcast.Episodes.Any())
+                {
+                    await searchIndexerService.IndexEpisodes(podcast.Episodes.Select(x => x.Id), c);
+                }
             }
 
             return req.CreateResponse(HttpStatusCode.Accepted);
@@ -489,19 +496,14 @@ public class PodcastController(
             };
 
             var response = await indexer.Index(podcastName, indexingContext);
+            var indexed = SearchIndexerState.Unknown;
             if (response.IndexStatus == IndexStatus.Performed)
             {
                 var episodes = response.UpdatedEpisodes != null
                     ? response.UpdatedEpisodes.Select(x => x.EpisodeId)
                     : [];
-                try
-                {
-                    await searchIndexerService.IndexEpisodes(episodes, c);
-                }
-                catch (Exception e)
-                {
-                    logger.LogError("Failure to index updated episodes");
-                }
+                var result = await searchIndexerService.IndexEpisodes(episodes, c);
+                indexed = result.ToDto();
             }
 
             var status = response.IndexStatus switch
@@ -516,7 +518,7 @@ public class PodcastController(
                 logger.LogWarning("{method}: Podcast with name '{podcastName}' not found.", nameof(Index), podcastName);
             }
 
-            return await req.CreateResponse(status).WithJsonBody(IndexPodcastResponse.ToDto(response), c);
+            return await req.CreateResponse(status).WithJsonBody(IndexPodcastResponse.ToDto(response, indexed), c);
         }
         catch (Exception ex)
         {
@@ -581,19 +583,12 @@ public class PodcastController(
                     episodeIds.AddRange(podcast.Episodes.Select(x => x.Id));
                 }
 
-                var indexState = IndexerState.Executed;
-                try
-                {
-                    await searchIndexerService.IndexEpisodes(episodeIds.Distinct(), c);
-                }
-                catch (Exception e)
-                {
-                    indexState = IndexerState.Failure;
-                }
+                var indexed = await searchIndexerService.IndexEpisodes(episodeIds.Distinct(), c);
+                var indexState = indexed.ToDto();
 
                 logger.LogInformation("Search-index run-state: {indexState}.", indexState);
                 return await req.CreateResponse(HttpStatusCode.OK)
-                    .WithJsonBody(new { indexState = indexState.ToString() }, c);
+                    .WithJsonBody(new { indexState = indexState }, c);
             }
 
             return req.CreateResponse(HttpStatusCode.BadRequest);
