@@ -13,6 +13,7 @@ public class IndexPodcastResponse
     public required IndexStatus IndexStatus { get; set; }
 
     [JsonPropertyName("searchIndexerState")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public SearchIndexerState SearchIndexerState { get; set; }
 
     public static IndexPodcastResponse ToDto(IndexResponse indexResponse, SearchIndexerState indexed)
