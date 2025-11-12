@@ -503,15 +503,8 @@ public class EpisodeController(
             }
             else
             {
-                try
-                {
-                    await episodeSearchIndexerService.IndexEpisode(episodeChangeRequestWrapper.EpisodeId, c);
-                }
-                catch (Exception e)
-                {
-                    logger.LogError(e, "Failed to run search-indexer on episode with episode-id '{episodeId}'.",
-                        episodeChangeRequestWrapper.EpisodeId);
-                }
+                var indexed = await episodeSearchIndexerService.IndexEpisode(episodeChangeRequestWrapper.EpisodeId, c);
+                respModel.SearchIndexerState = indexed.ToDto();
             }
 
             var response = await req.CreateResponse(HttpStatusCode.Accepted).WithJsonBody(respModel, c);

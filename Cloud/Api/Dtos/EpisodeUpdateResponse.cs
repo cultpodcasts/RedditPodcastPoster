@@ -9,4 +9,7 @@ public class EpisodeUpdateResponse
 
     [JsonPropertyName("blueskyPostDeleted")]
     public bool? BlueskyPostDeleted { get; set; }
+
+    [JsonPropertyName("searchIndexerState")]
+    public SearchIndexerState? SearchIndexerState { get; set; }
 }
