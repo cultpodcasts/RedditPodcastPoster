@@ -2,7 +2,7 @@
 
 public enum SearchIndexerState
 {
-    EpisodeNotFound,
+    EpisodeNotFound = 1,
     EpisodeIdConflict,
     NoDocuments,
     Executed,

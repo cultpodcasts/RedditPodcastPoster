@@ -77,11 +77,11 @@ public class SubjectController(
     {
         try
         {
-            logger.LogInformation($"Get subject '{subjectName}'.");
+            logger.LogInformation("Get subject '{subjectName}'.", subjectName);
             var subject = await subjectRepository.GetBy(x => x.Name == subjectName);
             if (subject == null)
             {
-                logger.LogInformation($"Could not find subject with name '{subjectName}'.");
+                logger.LogInformation("Could not find subject with name '{subjectName}'.", subjectName);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
@@ -92,7 +92,7 @@ public class SubjectController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Get)}: Failed to get subject.");
+            logger.LogError(ex, "{method}: Failed to get subject.", nameof(Get));
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
@@ -106,7 +106,9 @@ public class SubjectController(
         try
         {
             logger.LogInformation(
-                $"{nameof(Post)} Subject Change Request: episode-id: '{subjectChangeRequestWrapper.SubjectId}'. {JsonSerializer.Serialize(subjectChangeRequestWrapper.Subject)}");
+                "{method} Subject Change Request: episode-id: '{SubjectId}'. {subjectJson}",
+                nameof(Post), subjectChangeRequestWrapper.SubjectId,
+                JsonSerializer.Serialize(subjectChangeRequestWrapper.Subject));
             var subject = await subjectRepository.GetBy(x => x.Id == subjectChangeRequestWrapper.SubjectId);
             if (subject == null)
             {
@@ -114,7 +116,8 @@ public class SubjectController(
             }
 
             logger.LogInformation(
-                $"{nameof(Post)} Updating subject-id '{subjectChangeRequestWrapper.SubjectId}'. Original-episode: {JsonSerializer.Serialize(subject)}");
+                "{method} Updating subject-id '{SubjectId}'. Original-episode: {subject}",
+                nameof(Post), subjectChangeRequestWrapper.SubjectId, JsonSerializer.Serialize(subject));
 
             await UpdateSubject(subject, subjectChangeRequestWrapper.Subject);
             await subjectRepository.Save(subject);
@@ -122,7 +125,7 @@ public class SubjectController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Get)}: Failed to update subject.");
+            logger.LogError(ex, "{method}: Failed to update subject.", nameof(Get));
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
@@ -133,11 +136,13 @@ public class SubjectController(
     private async Task<HttpResponseData> Put(HttpRequestData req, Dtos.Subject subject, ClientPrincipal? _,
         CancellationToken ct)
     {
-        logger.LogInformation($"{nameof(Put)}: received subject: {JsonSerializer.Serialize(subject)}");
+        logger.LogInformation("{method}: received subject: {subject}",
+            nameof(Put), JsonSerializer.Serialize(subject));
         if (string.IsNullOrWhiteSpace(subject.Name))
         {
-            logger.LogWarning("Missing name.");
-            return await req.CreateResponse(HttpStatusCode.BadRequest).WithJsonBody(new {message = "Missing name"}, ct);
+            logger.LogWarning("Missing subject-name.");
+            return await req.CreateResponse(HttpStatusCode.BadRequest)
+                .WithJsonBody(new { message = "Missing subject-name" }, ct);
         }
 
         var entity = await subjectFactory.Create(subject.Name);
@@ -146,12 +151,13 @@ public class SubjectController(
         if (matchingSubject != null)
         {
             return await req.CreateResponse(HttpStatusCode.Conflict)
-                .WithJsonBody(new {conflict = matchingSubject.Name}, ct);
+                .WithJsonBody(new { conflict = matchingSubject.Name }, ct);
         }
 
         await subjectRepository.Save(entity);
         await contentPublisher.PublishSubjects();
-        logger.LogInformation($"Created subject '{subject.Name}' with subject-id '{subject.Id}'.");
+        logger.LogInformation("Created subject '{subjectName}' with subject-id '{subjectId}'.",
+            subject.Name, subject.Id);
 
         return await req.CreateResponse(HttpStatusCode.Accepted).WithJsonBody(entity.ToDto(), ct);
     }
@@ -160,50 +166,26 @@ public class SubjectController(
     {
         if (change.Aliases != null)
         {
-            if (!change.Aliases.Any())
-            {
-                subject.Aliases = null;
-            }
-            else
-            {
-                subject.Aliases = change.Aliases;
-            }
+            subject.Aliases = !change.Aliases.Any() ? null : change.Aliases.Select(x => x.Trim()).ToArray();
         }
 
         if (change.AssociatedSubjects != null)
         {
-            if (!change.AssociatedSubjects.Any())
-            {
-                subject.AssociatedSubjects = null;
-            }
-            else
-            {
-                subject.AssociatedSubjects = change.AssociatedSubjects;
-            }
+            subject.AssociatedSubjects = !change.AssociatedSubjects.Any()
+                ? null
+                : change.AssociatedSubjects.Select(x => x.Trim()).ToArray();
         }
 
         if (change.EnrichmentHashTags != null)
         {
-            if (!change.EnrichmentHashTags.Any())
-            {
-                subject.EnrichmentHashTags = null;
-            }
-            else
-            {
-                subject.EnrichmentHashTags = change.EnrichmentHashTags;
-            }
+            subject.EnrichmentHashTags = !change.EnrichmentHashTags.Any()
+                ? null
+                : change.EnrichmentHashTags.Select(x => x.Trim()).ToArray();
         }
 
         if (change.HashTag != null)
         {
-            if (change.HashTag == string.Empty)
-            {
-                subject.HashTag = null;
-            }
-            else
-            {
-                subject.HashTag = change.HashTag.Trim();
-            }
+            subject.HashTag = change.HashTag == string.Empty ? null : change.HashTag.Trim();
         }
 
         if (change.RedditFlairTemplateId != null)
@@ -221,30 +203,16 @@ public class SubjectController(
 
         if (change.RedditFlareText != null)
         {
-            if (change.RedditFlareText == string.Empty)
-            {
-                subject.RedditFlareText = null;
-            }
-            else
-            {
-                subject.RedditFlareText = change.RedditFlareText.Trim();
-            }
+            subject.RedditFlareText = change.RedditFlareText == string.Empty ? null : change.RedditFlareText.Trim();
         }
 
         if (change.SubjectType != null)
         {
-            if (change.SubjectType != SubjectType.Unset)
-            {
-                subject.SubjectType = change.SubjectType;
-            }
-            else
-            {
-                subject.SubjectType = null;
-            }
+            subject.SubjectType = change.SubjectType != SubjectType.Unset ? change.SubjectType : null;
         }
     }
 
-    public async Task UseFlair(Subject subject, Guid flairId)
+    private async Task UseFlair(Subject subject, Guid flairId)
     {
         var subredditFlairs = redditClient.Client
             .Subreddit(_subredditSettings.SubredditName)
@@ -266,7 +234,9 @@ public class SubjectController(
                 subjectUsingFlair.RedditFlareText = flair.Text;
                 await subjectRepository.Save(subjectUsingFlair);
                 logger.LogInformation(
-                    $"Adjusted subject '{subjectUsingFlair.Name}' with id '{subjectUsingFlair.Id}' to have  {nameof(subjectUsingFlair.RedditFlareText)}='{flair.Text}'.");
+                    "Adjusted subject '{subjectUsingFlairName}' with id '{subjectUsingFlairId}' to have  {nameofRedditFlareText}='{flairText}'.",
+                    subjectUsingFlair.Name, subjectUsingFlair.Id, nameof(subjectUsingFlair.RedditFlareText),
+                    flair.Text);
             }
 
             flair.TextEditable = true;
@@ -284,7 +254,7 @@ public class SubjectController(
                 });
             if (!updateResult.TextEditable)
             {
-                logger.LogError($"Error updating flare '{flair.Text}' with id '{flair.Id}'.");
+                logger.LogError("Error updating flare '{flairText}' with id '{flairId}'.", flair.Text, flair.Id);
             }
         }
 

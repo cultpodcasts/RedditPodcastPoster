@@ -48,12 +48,12 @@ public sealed class Subject : CosmosSelector
     public SubjectTerm[] GetSubjectTerms()
     {
         return
-            new[] {new SubjectTerm(Name, SubjectTermType.Name)}
+            new[] { new SubjectTerm(Name, SubjectTermType.Name) }
                 .Concat(Aliases != null
-                    ? Aliases.Select(term => new SubjectTerm(term, SubjectTermType.Alias))
+                    ? Aliases.Select(term => new SubjectTerm(term.Trim(), SubjectTermType.Alias))
                     : Array.Empty<SubjectTerm>())
                 .Concat(AssociatedSubjects != null
-                    ? AssociatedSubjects.Select(term => new SubjectTerm(term, SubjectTermType.AssociatedSubject))
+                    ? AssociatedSubjects.Select(term => new SubjectTerm(term.Trim(), SubjectTermType.AssociatedSubject))
                     : Array.Empty<SubjectTerm>())
                 .ToArray();
     }
