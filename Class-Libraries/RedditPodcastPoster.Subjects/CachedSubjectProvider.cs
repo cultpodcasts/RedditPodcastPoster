@@ -36,7 +36,7 @@ public class CachedSubjectProvider(
         {
             foreach (var subject in _cache.Where(x => string.IsNullOrWhiteSpace(x.Name)))
             {
-                logger.LogError($"Retrieved a subject with empty name, has id {subject.Id}");
+                logger.LogError("Retrieved a subject with empty name, has id {subjectId}", subject.Id);
             }
 
             throw new InvalidOperationException("Retrieved subjects with null/empty name");

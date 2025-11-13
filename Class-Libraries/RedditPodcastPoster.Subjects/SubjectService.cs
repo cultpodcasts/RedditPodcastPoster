@@ -44,12 +44,12 @@ public class SubjectService(
         // does subject-alias match a subject
         if (subject.Aliases != null && subject.Aliases.Any())
         {
-            foreach (var subjectAlias in subject.Aliases)
+            foreach (var subjectAlias in subject.Aliases.Select(x => x.Trim()))
             {
                 if (!string.IsNullOrWhiteSpace(subjectAlias))
                 {
-                    var matchedSubject =
-                        subjects.SingleOrDefault(x => x.Name.ToLowerInvariant() == subjectAlias.ToLowerInvariant());
+                    var matchedSubject = subjects.SingleOrDefault(x =>
+                        x.Name.Trim().ToLowerInvariant() == subjectAlias.ToLowerInvariant());
                     if (matchedSubject != null)
                     {
                         return matchedSubject;
@@ -62,7 +62,7 @@ public class SubjectService(
         if (!string.IsNullOrWhiteSpace(subject.Name))
         {
             var matchedSubject = subjects.Where(x => x.Aliases != null).FirstOrDefault(x =>
-                x.Aliases!.Select(y => y).Contains(subject.Name.ToLowerInvariant()));
+                x.Aliases!.Select(y => y.Trim()).Contains(subject.Name.Trim().ToLowerInvariant()));
             if (matchedSubject != null)
             {
                 return matchedSubject;
@@ -73,14 +73,14 @@ public class SubjectService(
         if (subject.Aliases != null && subject.Aliases.Any())
         {
             var matchedSubjects = new List<Subject>();
-            foreach (var subjectAlias in subject.Aliases)
+            foreach (var subjectAlias in subject.Aliases.Select(x => x.Trim()))
             {
                 if (!string.IsNullOrWhiteSpace(subjectAlias))
                 {
-                    var subjectLower = subjectAlias.ToLowerInvariant();
+                    var subjectLower = subjectAlias.Trim().ToLowerInvariant();
                     var matchedSubjectsForAlias = subjects.Where(x =>
                     {
-                        return x.Aliases != null && x.Aliases.Select(y => y.ToLowerInvariant())
+                        return x.Aliases != null && x.Aliases.Select(y => y.Trim().ToLowerInvariant())
                             .Contains(subjectLower);
                     });
                     if (matchedSubjectsForAlias.Any())
@@ -111,8 +111,8 @@ public class SubjectService(
             var matchedSubject = subjects
                 .Where(x => x.AssociatedSubjects != null)
                 .FirstOrDefault(x =>
-                    x.AssociatedSubjects!.Select(y => y.ToLowerInvariant())
-                        .Contains(subject.Name.ToLowerInvariant()));
+                    x.AssociatedSubjects!.Select(y => y.Trim().ToLowerInvariant())
+                        .Contains(subject.Name.Trim().ToLowerInvariant()));
             if (matchedSubject != null)
             {
                 return matchedSubject;
@@ -132,21 +132,21 @@ public class SubjectService(
         var subjects = await subjectRepository.GetAll().ToListAsync();
 
         var matchedSubject =
-            subjects.SingleOrDefault(x => x.Name.ToLowerInvariant() == subject.ToLowerInvariant());
+            subjects.SingleOrDefault(x => x.Name.Trim().ToLowerInvariant() == subject.Trim().ToLowerInvariant());
         if (matchedSubject != null)
         {
             return matchedSubject;
         }
 
         matchedSubject = subjects.Where(x => x.Aliases != null).FirstOrDefault(x =>
-            x.Aliases!.Select(y => y.ToLowerInvariant()).Contains(subject.ToLowerInvariant()));
+            x.Aliases!.Select(y => y.Trim().ToLowerInvariant()).Contains(subject.Trim().ToLowerInvariant()));
         if (matchedSubject != null)
         {
             return matchedSubject;
         }
 
         matchedSubject = subjects.Where(x => x.AssociatedSubjects != null).FirstOrDefault(x =>
-            x.AssociatedSubjects!.Select(y => y.ToLowerInvariant()).Contains(subject.ToLowerInvariant()));
+            x.AssociatedSubjects!.Select(y => y.Trim().ToLowerInvariant()).Contains(subject.Trim().ToLowerInvariant()));
         if (matchedSubject != null)
         {
             return matchedSubject;
@@ -161,8 +161,8 @@ public class SubjectService(
         string[]? ignoredSubjects = null,
         string? descriptionRegex = null)
     {
-        ignoredAssociatedSubjects = ignoredAssociatedSubjects?.Select(x => x.ToLowerInvariant()).ToArray();
-        ignoredSubjects = ignoredSubjects?.Select(x => x.ToLowerInvariant()).ToArray();
+        ignoredAssociatedSubjects = ignoredAssociatedSubjects?.Select(x => x.Trim().ToLowerInvariant()).ToArray();
+        ignoredSubjects = ignoredSubjects?.Select(x => x.Trim().ToLowerInvariant()).ToArray();
 
         var subjects = await subjectRepository.GetAll().ToListAsync();
         var matches = subjects
@@ -232,7 +232,7 @@ public class SubjectService(
     {
         var include = ignoredAssociatedSubjects == null ||
                       term.SubjectTermType != SubjectTermType.AssociatedSubject ||
-                      !ignoredAssociatedSubjects.Contains(term.Term.ToLowerInvariant());
+                      !ignoredAssociatedSubjects.Select(x => x.Trim()).Contains(term.Term.Trim().ToLowerInvariant());
         return include;
     }
 
