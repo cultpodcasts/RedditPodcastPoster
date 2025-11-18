@@ -2,10 +2,10 @@
 
 internal static class DryRun
 {
-    public static bool IsIndexDryRun = false;
-    public static bool IsCategoriserDryRun = false;
-    public static bool IsPosterDryRun = false;
-    public static bool IsPublisherDryRun = false;
-    public static bool IsTweetDryRun = true;
-    public static bool IsBlueskyDryRun = true;
+    public const bool IsIndexDryRun = false;
+    public const bool IsCategoriserDryRun = false;
+    public const bool IsPosterDryRun = false;
+    public const bool IsPublisherDryRun = false;
+    public const bool IsTweetDryRun = false;
+    public const bool IsBlueskyDryRun = false;
 }
