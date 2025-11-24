@@ -15,7 +15,7 @@ public class FlareManager(
         var flareState = FlareState.Unknown;
         if (subjectNames.Any())
         {
-            var subjects = await subjectRepository.GetByNames(subjectNames).ToArrayAsync();
+            var subjects = await System.Linq.AsyncEnumerable.ToArrayAsync(subjectRepository.GetByNames(subjectNames), System.Threading.CancellationToken.None);
             var redditSubjects = subjects.Where(x => x.RedditFlairTemplateId != null);
             var subject =
                 redditSubjects.FirstOrDefault(x => x.SubjectType is null or SubjectType.Canonical) ??
