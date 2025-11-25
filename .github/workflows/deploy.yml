@@ -4,13 +4,14 @@ on:
   push:
     branches:
       - main
+      - upgrade-to-NET10
 
 permissions:
   id-token: write
   contents: read
 
 env:  
-  DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
+  DEPLOYMENT_RESOURCEGROUP_NAME: DotNet10Infra
   MANAGEMENT_RESOURCEGROUP_NAME: ${{ secrets.MANAGEMENT_RESOURCEGROUP_NAME }}
   AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
   storageName: cultpodcastsstg
@@ -20,7 +21,7 @@ env:
   API_PACKAGE_PATH: './Cloud/Api' 
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
   INDEXER_PACKAGE_PATH: './Cloud/Indexer' 
-  DOTNET_VERSION: '9.0.x' 
+  DOTNET_VERSION: '10.0.x' 
   buildConfiguration: '--configuration Release'
   outputApi: 'output/api'
   outputDiscover: 'output/discover'
