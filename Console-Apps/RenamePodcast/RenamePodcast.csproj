@@ -16,9 +16,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Class-Libraries\\RedditPodcastPoster.CloudflareRedirect\\RedditPodcastPoster.CloudflareRedirect.csproj" />
-    <ProjectReference Include="..\..\Class-Libraries\\RedditPodcastPoster.Configuration\\RedditPodcastPoster.Configuration.csproj" />
-    <ProjectReference Include="..\..\Class-Libraries\\RedditPodcastPoster.Persistence\\RedditPodcastPoster.Persistence.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.CloudflareRedirect\RedditPodcastPoster.CloudflareRedirect.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Configuration\RedditPodcastPoster.Configuration.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj" />
   </ItemGroup>
 
   <ItemGroup>

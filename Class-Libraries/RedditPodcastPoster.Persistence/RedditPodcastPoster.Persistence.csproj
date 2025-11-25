@@ -16,9 +16,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RedditPodcastPoster.Configuration\\RedditPodcastPoster.Configuration.csproj" />
-    <ProjectReference Include="..\RedditPodcastPoster.Models\\RedditPodcastPoster.Models.csproj" />
-    <ProjectReference Include="..\RedditPodcastPoster.Persistence.Abstractions\\RedditPodcastPoster.Persistence.Abstractions.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Configuration\RedditPodcastPoster.Configuration.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Persistence.Abstractions\RedditPodcastPoster.Persistence.Abstractions.csproj" />
   </ItemGroup>
 
 
