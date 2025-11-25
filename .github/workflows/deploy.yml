@@ -160,9 +160,9 @@ jobs:
       with:
         azcliversion: latest
         inlineScript: |
-          az functionapp ${{ env.functionState }} --name api-infra --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-          az functionapp ${{ env.functionState }} --name indexer-infra --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-          az functionapp ${{ env.functionState }} --name discover-infra --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+          az functionapp ${{ env.functionState }} --name api-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+          az functionapp ${{ env.functionState }} --name indexer-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+          az functionapp ${{ env.functionState }} --name discover-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
 
   api-deploy:
     runs-on: ubuntu-latest
