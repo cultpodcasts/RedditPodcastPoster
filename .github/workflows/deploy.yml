@@ -17,7 +17,7 @@ env:
   storageName: cultpodcastsstgnet10
   suffix: infranet10
   location: uksouth
-  functionState: start
+  functionState: stop
   API_PACKAGE_PATH: './Cloud/Api' 
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
   INDEXER_PACKAGE_PATH: './Cloud/Indexer' 
