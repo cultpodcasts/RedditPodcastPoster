@@ -14,8 +14,8 @@ env:
   DEPLOYMENT_RESOURCEGROUP_NAME: DotNet10Infra
   MANAGEMENT_RESOURCEGROUP_NAME: ${{ secrets.MANAGEMENT_RESOURCEGROUP_NAME }}
   AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
-  storageName: cultpodcastsstg
-  suffix: infra
+  storageName: cultpodcastsstgnet10
+  suffix: infranet10
   location: uksouth
   functionState: start
   API_PACKAGE_PATH: './Cloud/Api' 
