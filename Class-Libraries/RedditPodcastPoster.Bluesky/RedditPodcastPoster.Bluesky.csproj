@@ -14,13 +14,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\\RedditPodcastPoster.Common\\RedditPodcastPoster.Common.csproj" />
-    <ProjectReference Include="..\\RedditPodcastPoster.Configuration\\RedditPodcastPoster.Configuration.csproj" />
-    <ProjectReference Include="..\\RedditPodcastPoster.PodcastServices.Spotify\\RedditPodcastPoster.PodcastServices.Spotify.csproj" />
-    <ProjectReference Include="..\\RedditPodcastPoster.PodcastServices.YouTube\\RedditPodcastPoster.PodcastServices.YouTube.csproj" />
-    <ProjectReference Include="..\\RedditPodcastPoster.Subjects\\RedditPodcastPoster.Subjects.csproj" />
-    <ProjectReference Include="..\\RedditPodcastPoster.Text\\RedditPodcastPoster.Text.csproj" />
-    <ProjectReference Include="..\\RedditPodcastPoster.UrlShortening\\RedditPodcastPoster.UrlShortening.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Common\\RedditPodcastPoster.Common.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Configuration\\RedditPodcastPoster.Configuration.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Spotify\\RedditPodcastPoster.PodcastServices.Spotify.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.YouTube\\RedditPodcastPoster.PodcastServices.YouTube.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Subjects\\RedditPodcastPoster.Subjects.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Text\\RedditPodcastPoster.Text.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.UrlShortening\\RedditPodcastPoster.UrlShortening.csproj" />
   </ItemGroup>
 
 </Project>

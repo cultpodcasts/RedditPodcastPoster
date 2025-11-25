@@ -14,9 +14,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\\RedditPodcastPoster.Cloudflare\\RedditPodcastPoster.Cloudflare.csproj" />
-    <ProjectReference Include="..\\RedditPodcastPoster.Configuration\\RedditPodcastPoster.Configuration.csproj" />
-    <ProjectReference Include="..\\RedditPodcastPoster.Models\\RedditPodcastPoster.Models.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Cloudflare\\RedditPodcastPoster.Cloudflare.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Configuration\\RedditPodcastPoster.Configuration.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Models\\RedditPodcastPoster.Models.csproj" />
   </ItemGroup>
 
 </Project>

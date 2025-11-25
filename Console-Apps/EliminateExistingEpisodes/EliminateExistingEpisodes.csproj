@@ -10,15 +10,14 @@
 
   <ItemGroup>
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\\..\\Class-Libraries\\RedditPodcastPoster.Common\\RedditPodcastPoster.Common.csproj" />
-    <ProjectReference Include="..\\..\\Class-Libraries\\RedditPodcastPoster.Persistence\\RedditPodcastPoster.Persistence.csproj" />
-    <ProjectReference Include="..\\..\\Class-Libraries\\RedditPodcastPoster.Search\\RedditPodcastPoster.Search.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\\RedditPodcastPoster.Common\\RedditPodcastPoster.Common.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\\RedditPodcastPoster.Persistence\\RedditPodcastPoster.Persistence.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\\RedditPodcastPoster.Search\\RedditPodcastPoster.Search.csproj" />
   </ItemGroup>
 
 </Project>
