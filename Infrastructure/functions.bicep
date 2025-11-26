@@ -434,7 +434,7 @@ module discoveryFunction 'function.bicep' = {
     name: 'discover'
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
-    storageUrl: [concat(reference(resourceId('Microsoft.Storage/storageAccounts', parameters(storageName))).primaryEndpoints.blob, 'deployment')]
+    storageUrl: concat(reference(resourceId('Microsoft.Storage/storageAccounts', parameters(storageName))).primaryEndpoints.blob, 'deployment')
     runtime: runtime
     runtimeVersion: '10'
     suffix: suffix
