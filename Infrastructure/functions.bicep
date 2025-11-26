@@ -420,7 +420,7 @@ module apiFunction 'function.bicep' = {
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageUrl: '${storage.properties.primaryEndpoints.blob}deployment'
     runtime: runtime
-    runtimeVersion: '10'
+    runtimeVersion: '10.0'
     suffix: suffix
     publicNetworkAccess: true
     instanceMemoryMB: 2048
@@ -436,7 +436,7 @@ module discoveryFunction 'function.bicep' = {
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageUrl: '${storage.properties.primaryEndpoints.blob}deployment'
     runtime: runtime
-    runtimeVersion: '10'
+    runtimeVersion: '10.0'
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
@@ -452,7 +452,7 @@ module indexerFunction 'function.bicep' = {
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageUrl: '${storage.properties.primaryEndpoints.blob}deployment'
     runtime: runtime
-    runtimeVersion: '10'
+    runtimeVersion: '10.0'
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
