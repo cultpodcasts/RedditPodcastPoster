@@ -17,8 +17,8 @@ param runtime string = 'dotnet'
 @allowed([ '8.0', '9.0', '10'])
 param runtimeVersion string = '10' 
 
-@description('Storage-account-blob-endooint for this Function')
-param storageprimaryBlobEndpoint string
+@description('Storage-container-blob-endpoint for this Function')
+param storageUrl string
 
 @description('Storage-account-container-name')
 param storageContainerName string
@@ -69,7 +69,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
       deployment: {
         storage: {
           type: 'blobContainer'
-          value: '${storageprimaryBlobEndpoint}${storageContainerName}'
+          value: '${storageUrl}'
           authentication: {
             type: 'SystemAssignedIdentity'
           }
