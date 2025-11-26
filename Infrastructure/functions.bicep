@@ -418,7 +418,7 @@ module apiFunction 'function.bicep' = {
     name: 'api'
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
-    storageUrl: concat(storage.primaryEndpoints.blob, 'deployment')
+    storageUrl: '${storage.primaryEndpoints.blob}deployment'
     runtime: runtime
     runtimeVersion: '10'
     suffix: suffix
@@ -434,7 +434,7 @@ module discoveryFunction 'function.bicep' = {
     name: 'discover'
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
-    storageUrl: concat(storage.primaryEndpoints.blob, 'deployment')
+    storageUrl: '${storage.primaryEndpoints.blob}deployment'
     runtime: runtime
     runtimeVersion: '10'
     suffix: suffix
@@ -450,7 +450,7 @@ module indexerFunction 'function.bicep' = {
     name: 'indexer'
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
-    storageUrl: concat(storage.primaryEndpoints.blob, 'deployment')
+    storageUrl: '${storage.primaryEndpoints.blob}deployment'
     runtime: runtime
     runtimeVersion: '10'
     suffix: suffix
