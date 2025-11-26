@@ -38,7 +38,6 @@ param instanceMemoryMB int = 2048
 
 var functionAppName = '${name}-${suffix}'
 var hostingPlanName = '${name}-plan-${suffix}'
-var functionWorkerRuntime = runtime
 
 resource hostingPlan 'Microsoft.Web/serverfarms@2022-03-01' = {
   name: hostingPlanName
@@ -89,9 +88,7 @@ module functionAppSetings 'app-settings.bicep' = {
     currentAppSettings: list('${functionApp.id}/config/appsettings', '2020-12-01').properties
     appSettings: union({
         APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsightsConnectionString
-        WEBSITE_CONTENTSHARE: toLower(functionAppName)
         FUNCTIONS_EXTENSION_VERSION: '~4'
-        FUNCTIONS_WORKER_RUNTIME: functionWorkerRuntime
         WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED: '1'
     }, appSettings)
     functionName: functionApp.name
