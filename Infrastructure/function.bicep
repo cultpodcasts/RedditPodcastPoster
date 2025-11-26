@@ -13,11 +13,15 @@ param location string
 ])
 param runtime string = 'dotnet'
 
-@description('Storage-account for this Function')
-param storageAccountName string
+@description('Target language version used by the function app.')
+@allowed([ '8.0', '9.0', '10'])
+param runtimeVersion string = '10' 
 
-@description('Storage-account id')
-param storageAccountId string
+@description('Storage-account-blob-endooint for this Function')
+param storageprimaryBlobEndpoint string
+
+@description('Storage-account-container-name')
+param storageContainerName string
 
 @description('Application-Insights Connection-String for this Function')
 param applicationInsightsConnectionString string
@@ -30,6 +34,10 @@ param publicNetworkAccess bool = false
 
 @description('App-Settings for the Function')
 param appSettings object = {}
+
+@description('The memory size of instances used by the app.')
+@allowed([2048,4096])
+param instanceMemoryMB int = 2048
 
 var functionAppName = '${name}-${suffix}'
 var hostingPlanName = '${name}-plan-${suffix}'
@@ -57,9 +65,24 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
     httpsOnly: true
     publicNetworkAccess: publicNetworkAccess?'Enabled':null
     serverFarmId: hostingPlan.id
-    siteConfig: {
-      functionAppScaleLimit: 1
-      linuxFxVersion: 'DOTNET-ISOLATED|10.0'
+    functionAppConfig: {
+      deployment: {
+        storage: {
+          type: 'blobContainer'
+          value: '${storageprimaryBlobEndpoint}${storageContainerName}'
+          authentication: {
+            type: 'SystemAssignedIdentity'
+          }
+        }
+      }
+      scaleAndConcurrency: {
+        maximumInstanceCount: 1
+        instanceMemoryMB: instanceMemoryMB
+      }
+      runtime: { 
+        name: runtime
+        version: '10'
+      }
     }
   }
 }

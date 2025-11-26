@@ -418,11 +418,13 @@ module apiFunction 'function.bicep' = {
     name: 'api'
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
-    storageAccountName: storage.name
-    storageAccountId: storage.id
+    storageprimaryBlobEndpoint: storage.outputs.primaryBlobEndpoint
+    storageContainerName: 'deployment'
     runtime: runtime
+    runtimeVersion: '10'
     suffix: suffix
     publicNetworkAccess: true
+    instanceMemoryMB: 2048
     appSettings: apiSettings
   }
 }
@@ -433,11 +435,13 @@ module discoveryFunction 'function.bicep' = {
     name: 'discover'
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
-    storageAccountName: storage.name
-    storageAccountId: storage.id
+    storageprimaryBlobEndpoint: storage.outputs.primaryBlobEndpoint
+    storageContainerName: 'deployment'
     runtime: runtime
+    runtimeVersion: '10'
     suffix: suffix
     publicNetworkAccess: false
+    instanceMemoryMB: 2048
     appSettings: discoverySettings
   }
 }
@@ -448,11 +452,13 @@ module indexerFunction 'function.bicep' = {
     name: 'indexer'
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
-    storageAccountName: storage.name
-    storageAccountId: storage.id
+    storageprimaryBlobEndpoint: storage.outputs.primaryBlobEndpoint
+    storageContainerName: 'deployment'
     runtime: runtime
+    runtimeVersion: '10'
     suffix: suffix
     publicNetworkAccess: false
+    instanceMemoryMB: 2048
     appSettings: indexerSettings
   }  
 }
