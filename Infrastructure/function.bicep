@@ -20,9 +20,6 @@ param runtimeVersion string = '10'
 @description('Storage-container-blob-endpoint for this Function')
 param storageUrl string
 
-@description('Storage-account-container-name')
-param storageContainerName string
-
 @description('Application-Insights Connection-String for this Function')
 param applicationInsightsConnectionString string
 
@@ -42,7 +39,6 @@ param instanceMemoryMB int = 2048
 var functionAppName = '${name}-${suffix}'
 var hostingPlanName = '${name}-plan-${suffix}'
 var functionWorkerRuntime = runtime
-var storageKey= listKeys(storageAccountId, '2022-05-01').keys[0].value
 
 resource hostingPlan 'Microsoft.Web/serverfarms@2022-03-01' = {
   name: hostingPlanName
@@ -81,7 +77,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
       }
       runtime: { 
         name: runtime
-        version: '10'
+        version: runtimeVersion
       }
     }
   }
@@ -93,8 +89,6 @@ module functionAppSetings 'app-settings.bicep' = {
     currentAppSettings: list('${functionApp.id}/config/appsettings', '2020-12-01').properties
     appSettings: union({
         APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsightsConnectionString
-        AzureWebJobsStorage: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageKey}'
-        WEBSITE_CONTENTAZUREFILECONNECTIONSTRING: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageKey}'
         WEBSITE_CONTENTSHARE: toLower(functionAppName)
         FUNCTIONS_EXTENSION_VERSION: '~4'
         FUNCTIONS_WORKER_RUNTIME: functionWorkerRuntime
