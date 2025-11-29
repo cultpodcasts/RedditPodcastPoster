@@ -122,7 +122,8 @@ public class YouTubeUrlCategoriser(
                         item.GetLength() ?? TimeSpan.Zero,
                         item.ToYouTubeUrl(),
                         item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
-                        item.GetImageUrl()
+                        item.GetImageUrl(),
+                        playlistId
                     );
                 }
 

@@ -46,6 +46,7 @@ public class PodcastAndEpisodeFactory(
         newPodcast.SpotifyId = categorisedItem.ResolvedSpotifyItem?.ShowId ?? string.Empty;
         newPodcast.AppleId = categorisedItem.ResolvedAppleItem?.ShowId;
         newPodcast.YouTubeChannelId = categorisedItem.ResolvedYouTubeItem?.ShowId ?? string.Empty;
+        newPodcast.YouTubePlaylistId = categorisedItem.ResolvedYouTubeItem?.PlaylistId ?? string.Empty;
 
         if (!string.IsNullOrWhiteSpace(newPodcast.YouTubeChannelId))
         {
