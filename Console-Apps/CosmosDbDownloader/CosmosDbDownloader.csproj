@@ -11,8 +11,6 @@
   <ItemGroup>
     <PackageReference Include="Goblinfactory.Konsole" Version="7.0.0.7-alpha" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="RestSharp" Version="112.1.1-alpha.0.19" />
   </ItemGroup>
 
   <ItemGroup>
