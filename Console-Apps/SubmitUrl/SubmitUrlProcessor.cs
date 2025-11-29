@@ -55,7 +55,8 @@ public class SubmitUrlProcessor(
             var result = await urlSubmitter.Submit(
                 new Uri(url, UriKind.Absolute),
                 indexOptions,
-                new SubmitOptions(request.PodcastId, request.MatchOtherServices, !request.DryRun));
+                new SubmitOptions(request.PodcastId, request.MatchOtherServices, !request.DryRun,
+                    request.CreatePodcast));
             logger.LogInformation(result.ToString());
             if (result.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
             {

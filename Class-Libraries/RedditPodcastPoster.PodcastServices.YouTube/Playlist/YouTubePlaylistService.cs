@@ -1,3 +1,4 @@
+using System.Net;
 using Google;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
@@ -6,7 +7,6 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
-using System.Net;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
@@ -25,21 +25,27 @@ public class YouTubePlaylistService(
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             logger.LogInformation(
-                "Skipping '{nameofGetPlaylistVideoSnippets}' as '{nameofIndexingContextSkipYouTubeUrlResolving}' is set. Channel-id: '{playlistId}'.",
+                "Skipping '{nameofGetPlaylistVideoSnippets}' as '{nameofIndexingContextSkipYouTubeUrlResolving}' is set. Playlist-id: '{playlistId}'.",
                 nameof(GetPlaylistVideoSnippets), nameof(indexingContext.SkipYouTubeUrlResolving),
                 playlistId.PlaylistId);
             return new GetPlaylistVideoSnippetsResponse(null);
         }
 
         var batchSize = MaxSearchResults;
-        if (indexingContext.ReleasedSince.HasValue) batchSize = 3;
+        if (indexingContext.ReleasedSince.HasValue)
+        {
+            batchSize = 3;
+        }
 
         var result = new List<PlaylistItem>();
         var nextPageToken = "";
         var firstRun = true;
         var knownToBeInReverseOrder = false;
         var requestScope = "snippet";
-        if (withContentDetails) requestScope += ",contentDetails";
+        if (withContentDetails)
+        {
+            requestScope += ",contentDetails";
+        }
 
         while (
             nextPageToken != null &&
@@ -111,23 +117,63 @@ public class YouTubePlaylistService(
         }
 
         if (result.Any() && indexingContext.ReleasedSince != null)
+        {
             result = result.Where(x =>
                 x.Snippet.PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
+        }
 
         return new GetPlaylistVideoSnippetsResponse(result, !knownToBeInReverseOrder);
+    }
+
+    public async Task<GetPlaylistInfoResponse> GetPlaylistInfo(IYouTubeServiceWrapper youTubeServiceWrapper,
+        YouTubePlaylistId playlistId,
+        IndexingContext indexingContext)
+    {
+        if (indexingContext.SkipYouTubeUrlResolving)
+        {
+            throw new InvalidOperationException(
+                $"Error obtaining playlist-snippet for playlist-id '{playlistId}'. {nameof(indexingContext.SkipYouTubeUrlResolving)} is set.");
+        }
+
+        var playlistRequest = youTubeServiceWrapper.YouTubeService.Playlists.List("snippet");
+        playlistRequest.Id = playlistId.PlaylistId;
+        playlistRequest.MaxResults = 1;
+
+        var playlistResponse = await playlistRequest.ExecuteAsync();
+
+        if (playlistResponse == null || !playlistResponse.Items.Any())
+        {
+            throw new InvalidOperationException(
+                $"Error obtaining playlist-snippet for playlist-id '{playlistId}'. No result.");
+        }
+
+        if (playlistResponse.Items.Count > 1)
+        {
+            throw new InvalidOperationException(
+                $"Error obtaining playlist-snippet for playlist-id '{playlistId}'. Multiple results: '{playlistResponse.Items.Count}'.");
+        }
+
+        var snippet = playlistResponse.Items.First().Snippet;
+        return new GetPlaylistInfoResponse(snippet.Title, snippet.Description);
     }
 
     private static bool IsReverseDateOrdered(IEnumerable<PlaylistItem> source)
     {
         using var iterator = source.GetEnumerator();
-        if (!iterator.MoveNext()) return true;
+        if (!iterator.MoveNext())
+        {
+            return true;
+        }
 
         var current = iterator.Current.Snippet.PublishedAtDateTimeOffset;
 
         while (iterator.MoveNext())
         {
             var next = iterator.Current.Snippet.PublishedAtDateTimeOffset;
-            if (current < next) return false;
+            if (current < next)
+            {
+                return false;
+            }
 
             current = next;
         }

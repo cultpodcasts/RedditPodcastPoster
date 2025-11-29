@@ -23,20 +23,23 @@ public class UrlSubmitter(
         var episodeResult = SubmitResultState.None;
         try
         {
-            Podcast? podcast;
-            if (submitOptions.PodcastId != null)
+            Podcast? podcast = null;
+            if (!submitOptions.CreatePodcast)
             {
-                podcast = await podcastRepository.GetPodcast(submitOptions.PodcastId.Value);
-            }
-            else
-            {
-                podcast = await podcastService.GetPodcastFromEpisodeUrl(url, indexingContext);
-            }
+                if (submitOptions.PodcastId != null)
+                {
+                    podcast = await podcastRepository.GetPodcast(submitOptions.PodcastId.Value);
+                }
+                else
+                {
+                    podcast = await podcastService.GetPodcastFromEpisodeUrl(url, indexingContext);
+                }
 
-            if (podcast != null && podcast.IsRemoved())
-            {
-                logger.LogWarning("Podcast with id '{podcastId}' is removed.", podcast.Id);
-                return new SubmitResult(episodeResult, SubmitResultState.PodcastRemoved);
+                if (podcast != null && podcast.IsRemoved())
+                {
+                    logger.LogWarning("Podcast with id '{podcastId}' is removed.", podcast.Id);
+                    return new SubmitResult(episodeResult, SubmitResultState.PodcastRemoved);
+                }
             }
 
             var categorisedItem =

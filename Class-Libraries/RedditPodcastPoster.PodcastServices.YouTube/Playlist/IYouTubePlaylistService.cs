@@ -11,4 +11,10 @@ public interface IYouTubePlaylistService
         YouTubePlaylistId playlistId,
         IndexingContext indexingContext,
         bool withContentDetails = false);
+
+    Task<GetPlaylistInfoResponse> GetPlaylistInfo(
+        IYouTubeServiceWrapper youTubeServiceWrapper,
+        YouTubePlaylistId playlistId,
+        IndexingContext indexingContext
+    );
 }
