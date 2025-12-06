@@ -113,7 +113,7 @@ public class PodcastEpisodesPoster(
         }
 
         logger.LogInformation(
-            "{method}: Updated podcasts with ids {ids}, with {postCount} (all-posted: {postedCount}).",
+            "{method}: Updated podcasts with ids {ids}. Episodes posted {postCount} (actual-posted: {postedCount}).",
             nameof(PostNewEpisodes),
             string.Join(',', updatedPodcasts.Select(x => x.Id)),
             postedEpisodes.Count,
