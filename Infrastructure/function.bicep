@@ -19,6 +19,9 @@ param storageAccountName string
 @description('Storage-account id')
 param storageAccountId string
 
+@description('application-insights id')
+param applicationInsightsId string
+
 @description('Target language version used by the function app.')
 @allowed([ '8.0', '9.0', '10.0'])
 param runtimeVersion string = '10.0' 
@@ -59,7 +62,7 @@ resource userAssignedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@
 }
 
 resource roleAssignmentBlobDataOwner 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, storage.id, userAssignedIdentity.id, 'Storage Blob Data Owner')
+  name: guid(subscription().id, storagstorageAccountId, userAssignedIdentity.id, 'Storage Blob Data Owner')
   scope: storage
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataOwnerRoleId)
@@ -69,7 +72,7 @@ resource roleAssignmentBlobDataOwner 'Microsoft.Authorization/roleAssignments@20
 }
 
 resource roleAssignmentBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, storage.id, userAssignedIdentity.id, 'Storage Blob Data Contributor')
+  name: guid(subscription().id, storageAccountId, userAssignedIdentity.id, 'Storage Blob Data Contributor')
   scope: storage
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataContributorRoleId)
@@ -79,7 +82,7 @@ resource roleAssignmentBlob 'Microsoft.Authorization/roleAssignments@2022-04-01'
 }
 
 resource roleAssignmentQueueStorage 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, storage.id, userAssignedIdentity.id, 'Storage Queue Data Contributor')
+  name: guid(subscription().id, storageAccountId, userAssignedIdentity.id, 'Storage Queue Data Contributor')
   scope: storage
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageQueueDataContributorId)
@@ -89,7 +92,7 @@ resource roleAssignmentQueueStorage 'Microsoft.Authorization/roleAssignments@202
 }
 
 resource roleAssignmentTableStorage 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, storage.id, userAssignedIdentity.id, 'Storage Table Data Contributor')
+  name: guid(subscription().id, storageAccountId, userAssignedIdentity.id, 'Storage Table Data Contributor')
   scope: storage
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageTableDataContributorId)
@@ -99,7 +102,7 @@ resource roleAssignmentTableStorage 'Microsoft.Authorization/roleAssignments@202
 }
 
 resource roleAssignmentAppInsights 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, applicationInsights.id, userAssignedIdentity.id, 'Monitoring Metrics Publisher')
+  name: guid(subscription().id, applicationInsightsId, userAssignedIdentity.id, 'Monitoring Metrics Publisher')
   scope: applicationInsights
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', monitoringMetricsPublisherId)
