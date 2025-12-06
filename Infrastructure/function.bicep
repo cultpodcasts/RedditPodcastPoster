@@ -16,6 +16,9 @@ param runtime string = 'dotnet'
 @description('Storage-account for this Function')
 param storageAccountName string
 
+@description('Storage-account id')
+param storageAccountId string
+
 @description('Target language version used by the function app.')
 @allowed([ '8.0', '9.0', '10.0'])
 param runtimeVersion string = '10.0' 
