@@ -268,7 +268,8 @@ public class YouTubeUrlCategoriser(
                         videoContent?.GetLength() ?? TimeSpan.Zero,
                         match.Snippet.ToYouTubeUrl(),
                         videoContent?.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
-                        videoContent?.GetImageUrl());
+                        videoContent?.GetImageUrl(),
+                        string.Empty);
                 }
             }
         }

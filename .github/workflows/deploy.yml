@@ -4,18 +4,17 @@ on:
   push:
     branches:
       - main
-      - upgrade-to-NET10
 
 permissions:
   id-token: write
   contents: read
 
 env:  
-  DEPLOYMENT_RESOURCEGROUP_NAME: DotNet10Infra
+  DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
   MANAGEMENT_RESOURCEGROUP_NAME: ${{ secrets.MANAGEMENT_RESOURCEGROUP_NAME }}
   AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
-  storageName: cultpodcastsstgnet10
-  suffix: infranet10
+  storageName: cultpodcastsstg
+  suffix: infra
   location: uksouth
   functionState: stop
   API_PACKAGE_PATH: './Cloud/Api' 

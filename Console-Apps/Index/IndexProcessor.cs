@@ -64,7 +64,7 @@ internal class IndexProcessor(
 
             foreach (var podcastId in podcastIds)
             {
-                var response = await indexer.Index(podcastId, indexingContext);
+                var response = await indexer.Index(podcastId, indexingContext, request.ForceIndex);
                 if (response.UpdatedEpisodes != null && response.UpdatedEpisodes.Any())
                 {
                     updatedEpisodeIds.AddRange(response.UpdatedEpisodes.Select(x => x.EpisodeId));
