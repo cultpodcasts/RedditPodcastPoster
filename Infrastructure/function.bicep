@@ -13,7 +13,7 @@ param location string
 ])
 param runtime string = 'dotnet'
 
-description('Storage-account for this Function')
+@description('Storage-account for this Function')
 param storageAccountName string
 
 @description('Target language version used by the function app.')
