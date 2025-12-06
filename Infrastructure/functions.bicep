@@ -450,6 +450,8 @@ module indexerFunction 'function.bicep' = {
     name: 'indexer'
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
+    storageAccountName: storage.name
+    storageAccountId: storage.id
     storageUrl: '${storage.properties.primaryEndpoints.blob}deployment'
     runtime: runtime
     runtimeVersion: '10.0'
