@@ -418,60 +418,6 @@ var storageQueueDataContributorId = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
 var storageTableDataContributorId = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
 var monitoringMetricsPublisherId = '3913510d-42f4-4e42-8a64-420c390055eb'
 
-resource userAssignedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: 'user-assigned-identity-data-owner'
-  location: location
-}
-
-resource roleAssignmentBlobDataOwner 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, storage.id, userAssignedIdentity.id, 'Storage Blob Data Owner')
-  scope: storage
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataOwnerRoleId)
-    principalId: userAssignedIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource roleAssignmentBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, storage.id, userAssignedIdentity.id, 'Storage Blob Data Contributor')
-  scope: storage
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataContributorRoleId)
-    principalId: userAssignedIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource roleAssignmentQueueStorage 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, storage.id, userAssignedIdentity.id, 'Storage Queue Data Contributor')
-  scope: storage
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageQueueDataContributorId)
-    principalId: userAssignedIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource roleAssignmentTableStorage 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, storage.id, userAssignedIdentity.id, 'Storage Table Data Contributor')
-  scope: storage
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageTableDataContributorId)
-    principalId: userAssignedIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource roleAssignmentAppInsights 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, applicationInsights.id, userAssignedIdentity.id, 'Monitoring Metrics Publisher')
-  scope: applicationInsights
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', monitoringMetricsPublisherId)
-    principalId: userAssignedIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
 
 module apiFunction 'function.bicep' = {
   name: '${deployment().name}-api'
@@ -487,8 +433,6 @@ module apiFunction 'function.bicep' = {
     publicNetworkAccess: true
     instanceMemoryMB: 2048
     appSettings: apiSettings
-    userAssignedIdentityId: userAssignedIdentity.id
-    userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }
 }
 
@@ -506,8 +450,6 @@ module discoveryFunction 'function.bicep' = {
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: discoverySettings
-    userAssignedIdentityId: userAssignedIdentity.id
-    userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }
 }
 
@@ -525,7 +467,5 @@ module indexerFunction 'function.bicep' = {
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: indexerSettings
-    userAssignedIdentityId: userAssignedIdentity.id
-    userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }  
 }

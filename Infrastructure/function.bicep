@@ -16,9 +16,6 @@ param runtime string = 'dotnet-isolated'
 @description('Storage-account for this Function')
 param storageAccountName string
 
-@description('User-assigned-identity client-id')
-param userAssignedIdentityClientId string
-
 @description('Target language version used by the function app.')
 @allowed([ '8.0', '9.0', '10.0'])
 param runtimeVersion string = '10.0' 
@@ -42,9 +39,6 @@ param appSettings object = {}
 @allowed([2048,4096])
 param instanceMemoryMB int = 2048
 
-@description('User Assigned Identity ID')
-param userAssignedIdentityId string
-
 var functionAppName = '${name}-${suffix}'
 var hostingPlanName = '${name}-plan-${suffix}'
 
@@ -65,12 +59,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   name: functionAppName
   location: location
   kind: 'functionapp,linux'
-  identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${userAssignedIdentityId}':{}
-      }
-    }
+  identity: { type: 'SystemAssigned' }
   properties: {
     reserved: true
     httpsOnly: true
@@ -82,8 +71,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           type: 'blobContainer'
           value: storageUrl
           authentication: {
-            type: 'UserAssignedIdentity'
-            userAssignedIdentityResourceId: userAssignedIdentityId
+            type: 'Managed'
           }
         }
       }
@@ -106,9 +94,7 @@ module functionAppSetings 'app-settings.bicep' = {
     appSettings: union({
         AzureWebJobsStorage__accountName: storageAccountName
         AzureWebJobsStorage__credential : 'managedidentity'
-        AzureWebJobsStorage__clientId: userAssignedIdentityClientId
         APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsightsConnectionString
-        APPLICATIONINSIGHTS_AUTHENTICATION_STRING: 'ClientId=${userAssignedIdentityClientId};Authorization=AAD'
         FUNCTIONS_EXTENSION_VERSION: '~4'
         WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED: '1'
     }, appSettings)
