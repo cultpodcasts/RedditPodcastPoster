@@ -418,6 +418,8 @@ module apiFunction 'function.bicep' = {
     name: 'api'
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
+    storageAccountName: storage.name
+    storageAccountId: storage.id
     storageUrl: '${storage.properties.primaryEndpoints.blob}deployment'
     runtime: runtime
     runtimeVersion: '10.0'
@@ -434,6 +436,8 @@ module discoveryFunction 'function.bicep' = {
     name: 'discover'
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
+    storageAccountName: storage.name
+    storageAccountId: storage.id
     storageUrl: '${storage.properties.primaryEndpoints.blob}deployment'
     runtime: runtime
     runtimeVersion: '10.0'
