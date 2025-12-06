@@ -69,7 +69,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${userAssignedIdentityid}':{}
+      '${userAssignedIdentityId}':{}
       }
     }
   properties: {
@@ -84,7 +84,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           value: storageUrl
           authentication: {
             type: 'UserAssignedIdentity'
-            userAssignedIdentityResourceId: userAssignedIdentityid
+            userAssignedIdentityResourceId: userAssignedIdentityId
           }
         }
       }
