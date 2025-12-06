@@ -46,18 +46,25 @@ public class EpisodePostManager(
             if (result.LinkPost != null)
             {
                 var postModelSubjects = postModel.Subjects;
-                var flareState = await flareManager.SetFlare(postModelSubjects, result.LinkPost);
-                if (flareState == FlareState.NoFlareId)
+                try
                 {
-                    logger.LogError(
-                        "No subject with flair-id for episode with title '{postModelEpisodeTitle}' and episode-id '{postModelId}'.",
-                        postModel.EpisodeTitle, postModel.Id);
+                    var flareState = await flareManager.SetFlare(postModelSubjects, result.LinkPost);
+                    if (flareState == FlareState.NoFlareId)
+                    {
+                        logger.LogError(
+                            "No subject with flair-id for episode with title '{postModelEpisodeTitle}' and episode-id '{postModelId}'.",
+                            postModel.EpisodeTitle, postModel.Id);
+                    }
+                    else
+                    {
+                        logger.LogInformation(
+                            "Episode with title '{postModelEpisodeTitle}' and episode-id '{postModelId}' flare-state: {flareState}.",
+                            postModel.EpisodeTitle, postModel.Id, flareState.ToString());
+                    }
                 }
-                else
+                catch (Exception e)
                 {
-                    logger.LogInformation(
-                        "Episode with title '{postModelEpisodeTitle}' and episode-id '{postModelId}' flare-state: {flareState}.",
-                        postModel.EpisodeTitle, postModel.Id, flareState.ToString());
+                    logger.LogError(e, "Failure to set-flair.");
                 }
 
                 string comments;
