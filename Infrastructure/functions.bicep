@@ -489,6 +489,7 @@ module apiFunction 'function.bicep' = {
     instanceMemoryMB: 2048
     appSettings: apiSettings
     userAssignedIdentityId: userAssignedIdentity.id
+    userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }
 }
 
@@ -508,6 +509,7 @@ module discoveryFunction 'function.bicep' = {
     instanceMemoryMB: 2048
     appSettings: discoverySettings
     userAssignedIdentityId: userAssignedIdentity.id
+    userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }
 }
 
@@ -527,5 +529,6 @@ module indexerFunction 'function.bicep' = {
     instanceMemoryMB: 2048
     appSettings: indexerSettings
     userAssignedIdentityId: userAssignedIdentity.id
+    userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }  
 }

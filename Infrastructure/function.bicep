@@ -19,6 +19,9 @@ param storageAccountName string
 @description('Storage-account id')
 param storageAccountId string
 
+@description('User-assigned-identity client-id')
+param userAssignedIdentityClientId string
+
 @description('Target language version used by the function app.')
 @allowed([ '8.0', '9.0', '10.0'])
 param runtimeVersion string = '10.0' 
@@ -48,7 +51,6 @@ param userAssignedIdentityId string
 var functionAppName = '${name}-${suffix}'
 var hostingPlanName = '${name}-plan-${suffix}'
 
-var storageKey= listKeys(storageAccountId, '2022-05-01').keys[0].value
 
 resource hostingPlan 'Microsoft.Web/serverfarms@2022-03-01' = {
   name: hostingPlanName
@@ -105,8 +107,11 @@ module functionAppSetings 'app-settings.bicep' = {
   params: {
     currentAppSettings: list('${functionApp.id}/config/appsettings', '2020-12-01').properties
     appSettings: union({
-        AzureWebJobsStorage: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageKey}'
+        AzureWebJobsStorage__accountName: storageAccountName
+        AzureWebJobsStorage__credential : 'managedidentity'
+        AzureWebJobsStorage__clientId: userAssignedIdentityClientId
         APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsightsConnectionString
+        APPLICATIONINSIGHTS_AUTHENTICATION_STRING: 'ClientId=${userAssignedIdentityClientId};Authorization=AAD'
         FUNCTIONS_EXTENSION_VERSION: '~4'
         WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED: '1'
     }, appSettings)
