@@ -17,7 +17,7 @@ env:
   storageName: cultpodcastsstg
   suffix: infra
   location: uksouth
-  functionState: stop
+  functionState: start
   API_PACKAGE_PATH: './Cloud/Api' 
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
   INDEXER_PACKAGE_PATH: './Cloud/Indexer' 
