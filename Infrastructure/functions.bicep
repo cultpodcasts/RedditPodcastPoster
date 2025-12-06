@@ -480,7 +480,6 @@ module apiFunction 'function.bicep' = {
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
-    storageAccountId: storage.id
     storageUrl: '${storage.properties.primaryEndpoints.blob}deployment'
     runtime: runtime
     runtimeVersion: '10.0'
@@ -500,7 +499,6 @@ module discoveryFunction 'function.bicep' = {
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
-    storageAccountId: storage.id
     storageUrl: '${storage.properties.primaryEndpoints.blob}deployment'
     runtime: runtime
     runtimeVersion: '10.0'
@@ -520,7 +518,6 @@ module indexerFunction 'function.bicep' = {
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
-    storageAccountId: storage.id
     storageUrl: '${storage.properties.primaryEndpoints.blob}deployment'
     runtime: runtime
     runtimeVersion: '10.0'

@@ -16,9 +16,6 @@ param runtime string = 'dotnet-isolated'
 @description('Storage-account for this Function')
 param storageAccountName string
 
-@description('Storage-account id')
-param storageAccountId string
-
 @description('User-assigned-identity client-id')
 param userAssignedIdentityClientId string
 
