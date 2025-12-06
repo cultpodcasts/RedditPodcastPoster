@@ -87,7 +87,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           value: storageUrl
           authentication: {
             type: 'UserAssignedIdentity'
-            userAssignedIdentityResourceId: userAssignedIdentity.id
+            userAssignedIdentityResourceId: userAssignedIdentityid
           }
         }
       }
