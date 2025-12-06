@@ -104,7 +104,7 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
   name: 'ai-${suffix}'
 }
 
-var runtime = 'dotnet-isolated' // 
+var runtime = 'dotnet-isolated'
 
 var auth0Audience= 'https://api.cultpodcasts.com/'
 var auth0Domain= 'auth.cultpodcasts.com'

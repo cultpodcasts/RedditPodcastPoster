@@ -11,7 +11,7 @@ param location string
   'dotnet'
   'java'
 ])
-param runtime string = 'dotnet'
+param runtime string = 'dotnet-isolated'
 
 @description('Storage-account for this Function')
 param storageAccountName string
