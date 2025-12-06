@@ -44,6 +44,7 @@ public class PodcastEpisodesPoster(
         }
 
         var updatedPodcasts = new List<Podcast>();
+        var postedEpisodes = new List<Episode>();
 
         var matchingPodcastEpisodeResults = new List<ProcessResponse>();
         var posted = 0;
@@ -75,6 +76,7 @@ public class PodcastEpisodesPoster(
                             if (result.Success)
                             {
                                 posted++;
+                                postedEpisodes.Add(matchingPodcastEpisode.Episode);
                             }
 
                             matchingPodcastEpisodeResults.Add(result);
@@ -109,6 +111,13 @@ public class PodcastEpisodesPoster(
         {
             await podcastRepository.Save(podcast);
         }
+
+        logger.LogInformation(
+            "{method}: Updated podcasts with ids {ids}, with {postCount} (all-posted: {postedCount}).",
+            nameof(PostNewEpisodes),
+            string.Join(',', updatedPodcasts.Select(x => x.Id)),
+            postedEpisodes.Count,
+            postedEpisodes.Count(x => x.Posted));
 
         return matchingPodcastEpisodeResults;
     }
