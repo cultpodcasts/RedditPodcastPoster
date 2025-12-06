@@ -71,7 +71,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           type: 'blobContainer'
           value: storageUrl
           authentication: {
-            type: 'Managed'
+            type: 'SystemAssignedIdentity'
           }
         }
       }
