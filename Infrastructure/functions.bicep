@@ -489,6 +489,7 @@ module apiFunction 'function.bicep' = {
     publicNetworkAccess: true
     instanceMemoryMB: 2048
     appSettings: apiSettings
+    userAssignedIdentityId: userAssignedIdentity.id
   }
 }
 
@@ -508,6 +509,7 @@ module discoveryFunction 'function.bicep' = {
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: discoverySettings
+    userAssignedIdentityId: userAssignedIdentity.id
   }
 }
 
@@ -527,5 +529,6 @@ module indexerFunction 'function.bicep' = {
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: indexerSettings
+    userAssignedIdentityId: userAssignedIdentity.id
   }  
 }

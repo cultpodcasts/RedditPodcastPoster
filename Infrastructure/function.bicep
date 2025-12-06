@@ -45,6 +45,9 @@ param appSettings object = {}
 @allowed([2048,4096])
 param instanceMemoryMB int = 2048
 
+@description('User Assigned Identity ID')
+param userAssignedIdentityId string
+
 var functionAppName = '${name}-${suffix}'
 var hostingPlanName = '${name}-plan-${suffix}'
 
@@ -66,6 +69,12 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   name: functionAppName
   location: location
   kind: 'functionapp,linux'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${userAssignedIdentityid}':{}
+      }
+    }
   properties: {
     reserved: true
     httpsOnly: true
@@ -77,7 +86,8 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           type: 'blobContainer'
           value: storageUrl
           authentication: {
-            type: 'SystemAssignedIdentity'
+            type: 'UserAssignedIdentity'
+            userAssignedIdentityResourceId: userAssignedIdentity.id
           }
         }
       }
