@@ -13,9 +13,7 @@ public class PostModel
 
         Episodes = podcastPost.Episodes;
         PodcastName = podcastPost.Name;
-
         IsBundledPost = PodcastPost.Episodes.Count() > 1;
-
         HasYouTubeUrl = firstEpisode.YouTube != null;
         Spotify = firstEpisode.Spotify;
         Apple = firstEpisode.Apple;

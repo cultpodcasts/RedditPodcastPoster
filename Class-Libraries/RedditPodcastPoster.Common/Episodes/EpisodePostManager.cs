@@ -82,7 +82,9 @@ public class EpisodePostManager(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failure in {method}", nameof(PostEpisode));
+            logger.LogError(ex,
+                "Failure in {method} posting episode with episode-id '{episodeId}' and episode-title '{episodeTitle}' from podcast-name '{podcastName}'.",
+                nameof(PostEpisode), postModel.Id, postModel.EpisodeTitle, postModel.PodcastName);
             return RedditPostResult.Fail(ex.Message);
         }
     }
