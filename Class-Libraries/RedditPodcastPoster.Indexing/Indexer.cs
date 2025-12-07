@@ -52,7 +52,7 @@ public class Indexer(
         return new IndexResponse(IndexStatus.NotFound);
     }
 
-    public async Task<IndexResponse> Index(Guid podcastId, IndexingContext indexingContext)
+    public async Task<IndexResponse> Index(Guid podcastId, IndexingContext indexingContext, bool forceIndex= false)
     {
         IndexStatus status;
         var podcast = await podcastRepository.GetPodcast(podcastId);
@@ -72,7 +72,7 @@ public class Indexer(
             }
         }
 
-        if (performAutoIndex || enrichOnly)
+        if (performAutoIndex || enrichOnly || forceIndex)
         {
             logger.LogInformation("Indexing podcast '{podcastName}' with podcast-id '{podcastId}'.", podcast.Name, podcastId);
             var results = await podcastUpdater.Update(podcast, enrichOnly, indexingContext);

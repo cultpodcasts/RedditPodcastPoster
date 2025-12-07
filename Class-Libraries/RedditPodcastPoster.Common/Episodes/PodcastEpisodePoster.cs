@@ -40,8 +40,8 @@ public class PodcastEpisodePoster(
         catch (Exception ex)
         {
             var message =
-                $"Failure to post episode '{podcastEpisode.Episode.Title}' and episode-id '{podcastEpisode.Episode.Id}' for podcast '{podcastEpisode.Podcast.Name}' with podcast-id '{podcastEpisode.Podcast.Id}'";
-            _logger.LogError(ex, $"{message}.");
+                $"Failure to post episode '{podcastEpisode.Episode.Title}' and episode-id '{podcastEpisode.Episode.Id}' for podcast '{podcastEpisode.Podcast.Name}' with podcast-id '{podcastEpisode.Podcast.Id}'.";
+            _logger.LogError(ex, message);
             return ProcessResponse.Fail($"{message} - Exception: '{ex.Message}'.");
         }
     }

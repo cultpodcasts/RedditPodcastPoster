@@ -30,7 +30,10 @@ public class SubmitUrlRequest
     [Option('i', "no-index", Default = false, HelpText = "Do not reindex search-index")]
     public bool NoIndex { get; set; }
 
-    [Option('l', "is-internet-archive-playlist", Default = false, HelpText = "Url contains a playlist of internet-archive urls to submit")]
+    [Option('l', "is-internet-archive-playlist", Default = false,
+        HelpText = "Url contains a playlist of internet-archive urls to submit")]
     public bool IsInternetArchivePlaylist { get; set; }
 
+    [Option('c', "create-podcast", Default = false, HelpText = "Create new podcast")]
+    public bool CreatePodcast { get; set; }
 }

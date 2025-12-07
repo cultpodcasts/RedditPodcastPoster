@@ -63,6 +63,11 @@ public class TaddySearcher(
                     string.Join(", ", response.Errors.Select(x => $"Message: '{x.Message}''")));
             }
 
+            if (response.Data?.Results?.Episodes == null)
+            {
+                throw new InvalidOperationException("Null data-response from taddy.");
+            }
+
             return response.Data.Results.Episodes.Select(ToEpisodeResult).ToList();
         }
         catch (Exception ex)

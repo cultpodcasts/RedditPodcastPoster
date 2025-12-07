@@ -15,7 +15,7 @@ public class FlareManager(
         var flareState = FlareState.Unknown;
         if (subjectNames.Any())
         {
-            var subjects = await subjectRepository.GetByNames(subjectNames).ToArrayAsync();
+            var subjects = await (subjectRepository.GetByNames(subjectNames)).ToArrayAsync();
             var redditSubjects = subjects.Where(x => x.RedditFlairTemplateId != null);
             var subject =
                 redditSubjects.FirstOrDefault(x => x.SubjectType is null or SubjectType.Canonical) ??
@@ -25,7 +25,8 @@ public class FlareManager(
                 var flairTemplateId = subject.RedditFlairTemplateId.ToString();
                 post.SetFlair(subject.RedditFlareText ?? subject.Name, flairTemplateId);
                 logger.LogInformation(
-                    $"Set flair-text '{subject.RedditFlareText ?? subject.Name}' and flair-id '{flairTemplateId}'.");
+                    "Set flair-text '{subject}' and flair-id '{flairTemplateId}'.",
+                    subject.RedditFlareText ?? subject.Name, flairTemplateId);
                 flareState = FlareState.Set;
             }
             else
