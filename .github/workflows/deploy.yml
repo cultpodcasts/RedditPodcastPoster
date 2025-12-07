@@ -20,7 +20,7 @@ env:
   API_PACKAGE_PATH: './Cloud/Api' 
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
   INDEXER_PACKAGE_PATH: './Cloud/Indexer' 
-  DOTNET_VERSION: '9.0.x' 
+  DOTNET_VERSION: '10.0.x' 
   buildConfiguration: '--configuration Release'
   outputApi: 'output/api'
   outputDiscover: 'output/discover'
@@ -159,9 +159,9 @@ jobs:
       with:
         azcliversion: latest
         inlineScript: |
-          az functionapp ${{ env.functionState }} --name api-infra --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-          az functionapp ${{ env.functionState }} --name indexer-infra --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-          az functionapp ${{ env.functionState }} --name discover-infra --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+          az functionapp ${{ env.functionState }} --name api-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+          az functionapp ${{ env.functionState }} --name indexer-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+          az functionapp ${{ env.functionState }} --name discover-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
 
   api-deploy:
     runs-on: ubuntu-latest

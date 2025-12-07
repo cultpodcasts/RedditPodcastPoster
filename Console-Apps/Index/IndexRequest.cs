@@ -37,4 +37,7 @@ public class IndexRequest
 
     [Option('x', "no-index", Default = false, HelpText = "Do not reindex search-index")]
     public bool NoIndex { get; set; }
+
+    [Option('o', "force-index", Default = false, HelpText = "Force index-all-episodes")]
+    public bool ForceIndex { get; set; }
 }

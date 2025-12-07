@@ -104,7 +104,7 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
   name: 'ai-${suffix}'
 }
 
-var runtime = 'dotnet-isolated' // 
+var runtime = 'dotnet-isolated'
 
 var auth0Audience= 'https://api.cultpodcasts.com/'
 var auth0Domain= 'auth.cultpodcasts.com'
@@ -354,7 +354,7 @@ var youTubeKeyUsage= {
     youtube__Applications__9__Usage: 'Indexer'
     youtube__Applications__9__DisplayName: 'ApiKey-9 (Reattempt 1 in place of Api-Key-2) - Indexer'
     youtube__Applications__9__Reattempt: '1'
-    youtube__Applications__10_Name: 'CultPodcasts'
+    youtube__Applications__10__Name: 'CultPodcasts'
     youtube__Applications__10__Usage: 'Indexer'
     youtube__Applications__10__DisplayName: 'ApiKey-10 (Reattempt 1 in place of Api-Key-3) - Indexer'
     youtube__Applications__10__Reattempt: '1'
@@ -412,6 +412,67 @@ var indexerSettings= union(
     postingCriteria
  )
 
+var storageBlobDataOwnerRoleId  = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
+var storageBlobDataContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+var storageQueueDataContributorId = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
+var storageTableDataContributorId = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
+var monitoringMetricsPublisherId = '3913510d-42f4-4e42-8a64-420c390055eb'
+
+resource userAssignedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: 'user-assigned-identity-data-owner'
+  location: location
+}
+
+resource roleAssignmentBlobDataOwner 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(subscription().id, storage.id, userAssignedIdentity.id, 'Storage Blob Data Owner')
+  scope: storage
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataOwnerRoleId)
+    principalId: userAssignedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource roleAssignmentBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(subscription().id, storage.id, userAssignedIdentity.id, 'Storage Blob Data Contributor')
+  scope: storage
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataContributorRoleId)
+    principalId: userAssignedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource roleAssignmentQueueStorage 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(subscription().id, storage.id, userAssignedIdentity.id, 'Storage Queue Data Contributor')
+  scope: storage
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageQueueDataContributorId)
+    principalId: userAssignedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource roleAssignmentTableStorage 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(subscription().id, storage.id, userAssignedIdentity.id, 'Storage Table Data Contributor')
+  scope: storage
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageTableDataContributorId)
+    principalId: userAssignedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource roleAssignmentAppInsights 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(subscription().id, applicationInsights.id, userAssignedIdentity.id, 'Monitoring Metrics Publisher')
+  scope: applicationInsights
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', monitoringMetricsPublisherId)
+    principalId: userAssignedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 module apiFunction 'function.bicep' = {
   name: '${deployment().name}-api'
   params: {
@@ -419,11 +480,15 @@ module apiFunction 'function.bicep' = {
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
-    storageAccountId: storage.id
+    storageUrl: '${storage.properties.primaryEndpoints.blob}api-deployment'
     runtime: runtime
+    runtimeVersion: '10.0'
     suffix: suffix
     publicNetworkAccess: true
+    instanceMemoryMB: 2048
     appSettings: apiSettings
+    userAssignedIdentityId: userAssignedIdentity.id
+    userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }
 }
 
@@ -434,11 +499,15 @@ module discoveryFunction 'function.bicep' = {
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
-    storageAccountId: storage.id
+    storageUrl: '${storage.properties.primaryEndpoints.blob}discovery-deployment'
     runtime: runtime
+    runtimeVersion: '10.0'
     suffix: suffix
     publicNetworkAccess: false
+    instanceMemoryMB: 2048
     appSettings: discoverySettings
+    userAssignedIdentityId: userAssignedIdentity.id
+    userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }
 }
 
@@ -449,10 +518,14 @@ module indexerFunction 'function.bicep' = {
     location: location
     applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
     storageAccountName: storage.name
-    storageAccountId: storage.id
+    storageUrl: '${storage.properties.primaryEndpoints.blob}indexer-deployment'
     runtime: runtime
+    runtimeVersion: '10.0'
     suffix: suffix
     publicNetworkAccess: false
+    instanceMemoryMB: 2048
     appSettings: indexerSettings
+    userAssignedIdentityId: userAssignedIdentity.id
+    userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }  
 }

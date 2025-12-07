@@ -15,19 +15,20 @@ public class EpisodePostManager(
     public async Task<ProcessResponse> Post(PostModel postModel)
     {
         var result = await PostEpisode(postModel);
-        if (result is {Success: false, AlreadyPosted: false})
+        if (result is { Success: false, AlreadyPosted: false })
         {
             return ProcessResponse.Fail(
-                $"Could not post episode with id {postModel.Id}. Results-Message:{result.Message}");
+                $"Could not post episode with id '{postModel.Id}'. Results-Message: '{result.Message}'.");
         }
 
         if (result.AlreadyPosted)
         {
             return ProcessResponse.AlreadyPosted(
-                $"Reddit reports episode {postModel.Id} already posted. Updated repository.");
+                $"Reddit reports episode '{postModel.Id}' already posted. Updated repository.");
         }
 
-        logger.LogInformation($"{nameof(Post)} Posted '{result.Title}' bundled='{postModel.IsBundledPost}'.");
+        logger.LogInformation("{method} Posted '{resultTitle}' bundled='{postModelIsBundledPost}'.",
+            nameof(Post), result.Title, postModel.IsBundledPost);
 
         return ProcessResponse.Successful();
     }
@@ -45,16 +46,25 @@ public class EpisodePostManager(
             if (result.LinkPost != null)
             {
                 var postModelSubjects = postModel.Subjects;
-                var flareState = await flareManager.SetFlare(postModelSubjects, result.LinkPost);
-                if (flareState == FlareState.NoFlareId)
+                try
                 {
-                    logger.LogError(
-                        $"No subject with flair-id for episode with title '{postModel.EpisodeTitle}' and episode-id '{postModel.Id}'.");
+                    var flareState = await flareManager.SetFlare(postModelSubjects, result.LinkPost);
+                    if (flareState == FlareState.NoFlareId)
+                    {
+                        logger.LogError(
+                            "No subject with flair-id for episode with title '{postModelEpisodeTitle}' and episode-id '{postModelId}'.",
+                            postModel.EpisodeTitle, postModel.Id);
+                    }
+                    else
+                    {
+                        logger.LogInformation(
+                            "Episode with title '{postModelEpisodeTitle}' and episode-id '{postModelId}' flare-state: {flareState}.",
+                            postModel.EpisodeTitle, postModel.Id, flareState.ToString());
+                    }
                 }
-                else
+                catch (Exception e)
                 {
-                    logger.LogInformation(
-                        $"Episode with title '{postModel.EpisodeTitle}' and episode-id '{postModel.Id}' flare-state: {flareState.ToString()}.");
+                    logger.LogError(e, "Failure to set-flair.");
                 }
 
                 string comments;
@@ -79,6 +89,9 @@ public class EpisodePostManager(
         }
         catch (Exception ex)
         {
+            logger.LogError(ex,
+                "Failure in {method} posting episode with episode-id '{episodeId}' and episode-title '{episodeTitle}' from podcast-name '{podcastName}'.",
+                nameof(PostEpisode), postModel.Id, postModel.EpisodeTitle, postModel.PodcastName);
             return RedditPostResult.Fail(ex.Message);
         }
     }

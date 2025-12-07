@@ -31,7 +31,7 @@ public class ProcessResponsesAdaptor(ILogger<ProcessResponsesAdaptor> logger) : 
             }
         }
 
-        var result = string.Join(", ", messages);
+        var result = string.Join(", ", messages.Where(x => !string.IsNullOrWhiteSpace(x)));
         return failures ? ProcessResponse.Fail(result) : ProcessResponse.Successful(result);
     }
 }
