@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.6.33712.159
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11222.15 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedditPodcastPoster", "Console-Apps\RedditPodcastPoster\RedditPodcastPoster.csproj", "{C39F980E-0FCC-4630-938A-9A1BAB5CF6A7}"
 EndProject
@@ -215,6 +215,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedditPodcastPoster.EntitySearchIndexer", "Class-Libraries\RedditPodcastPoster.EntitySearchIndexer\RedditPodcastPoster.EntitySearchIndexer.csproj", "{A67C6EA6-10AC-4F21-AB9E-4259C029E440}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WikipediaEpisodeEnricher", "Console-Apps\WikipediaEpisodeEnricher\WikipediaEpisodeEnricher.csproj", "{6E6C0D24-B7F8-4ACC-88D1-367572B1B6BA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RemoveEpisodes", "Console-Apps\RemoveEpisodes\RemoveEpisodes.csproj", "{DD682855-BB92-4D4A-8DF8-784E0D0E6677}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnremoveEpisodes", "Console-Apps\UnremoveEpisodes\UnremoveEpisodes.csproj", "{B8697222-09F8-44AD-AD89-F757BF2956AF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -582,6 +586,14 @@ Global
 		{6E6C0D24-B7F8-4ACC-88D1-367572B1B6BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6E6C0D24-B7F8-4ACC-88D1-367572B1B6BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6E6C0D24-B7F8-4ACC-88D1-367572B1B6BA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD682855-BB92-4D4A-8DF8-784E0D0E6677}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD682855-BB92-4D4A-8DF8-784E0D0E6677}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD682855-BB92-4D4A-8DF8-784E0D0E6677}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD682855-BB92-4D4A-8DF8-784E0D0E6677}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B8697222-09F8-44AD-AD89-F757BF2956AF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B8697222-09F8-44AD-AD89-F757BF2956AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B8697222-09F8-44AD-AD89-F757BF2956AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B8697222-09F8-44AD-AD89-F757BF2956AF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -678,6 +690,8 @@ Global
 		{1A8C5CDC-D948-45EB-81C2-20C9CE2440AE} = {C870AC3C-8261-4807-AC30-DBEC8C89DCB7}
 		{A67C6EA6-10AC-4F21-AB9E-4259C029E440} = {EDA3626A-3E3A-433B-A4E9-4B68918F3036}
 		{6E6C0D24-B7F8-4ACC-88D1-367572B1B6BA} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
+		{DD682855-BB92-4D4A-8DF8-784E0D0E6677} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
+		{B8697222-09F8-44AD-AD89-F757BF2956AF} = {A0B7B88E-119E-4B41-A81D-E824392DD4D4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CE0FF4C1-CD95-4A8E-9C41-A295C85BB9C3}
