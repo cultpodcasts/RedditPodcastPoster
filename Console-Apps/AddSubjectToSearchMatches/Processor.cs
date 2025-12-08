@@ -90,7 +90,7 @@ public class Processor(
 
                 if (podcastChanged)
                 {
-//                    await podcastRepository.Save(podcast);
+                    await podcastRepository.Save(podcast);
                 }
             }
         }
