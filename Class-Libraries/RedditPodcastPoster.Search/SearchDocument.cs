@@ -1,7 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models;
 
-namespace AddSubjectToSearchMatches;
+namespace RedditPodcastPoster.Search;
 
 public class SearchDocument
 {

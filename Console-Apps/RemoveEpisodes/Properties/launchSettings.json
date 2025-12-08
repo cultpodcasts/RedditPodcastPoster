@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "RemoveEpisodes": {
+      "commandName": "Project",
+      "commandLineArgs": "\"\"\"Chris Shelton\"\"\""
+    }
+  }
+}

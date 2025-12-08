@@ -3,27 +3,17 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Search;
-using RedditPodcastPoster.Subjects;
-using RedditPodcastPoster.Subjects.Models;
 
-namespace AddSubjectToSearchMatches;
+namespace RemoveEpisodes;
 
 public class Processor(
-    ISubjectsProvider subjectsProvider,
     SearchClient searchClient,
-    ISubjectMatcher subjectMatcher,
     IPodcastRepository podcastRepository,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<Processor> logger)
 {
     public async Task Process(Request request)
     {
-        var subjects = subjectsProvider.GetAll();
-        if (await subjects.AllAsync(x => x.Name != request.Query))
-        {
-            throw new InvalidOperationException($"No subject with name '{request.Query}' found.");
-        }
-
         var options = new SearchOptions();
         options.Select.Add("id");
         options.Select.Add("episodeTitle");
@@ -59,38 +49,28 @@ public class Processor(
                 foreach (var podcastEpisode in episodes)
                 {
                     var repoPodcastEpisode = podcast.Episodes.SingleOrDefault(x => x.Id == podcastEpisode.Episode.Id);
-                    if (repoPodcastEpisode != null && !repoPodcastEpisode.Subjects.Contains(request.Query))
+                    if (repoPodcastEpisode != null)
                     {
-                        var subjectEnrichmentOptions = new SubjectEnrichmentOptions(
-                            podcast.IgnoredAssociatedSubjects,
-                            podcast.IgnoredSubjects,
-                            podcast.DefaultSubject,
-                            podcast.DescriptionRegex);
-                        var subjectMatches = await subjectMatcher.MatchSubjects(
-                            podcastEpisode.Episode,
-                            subjectEnrichmentOptions
-                        );
-                        if (subjectMatches.Any(x => x.Subject.Name == request.Query) &&
-                            !repoPodcastEpisode.Subjects.Contains(request.Query))
+                        if (!repoPodcastEpisode.Removed)
                         {
-                            updatedEpisodeIds.Add(repoPodcastEpisode.Id);
+                            repoPodcastEpisode.Removed = true;
                             podcastChanged = true;
-                            repoPodcastEpisode.Subjects.Add(request.Query);
-                            logger.LogWarning(
-                                $"Podcast '{podcastName}' episode '{repoPodcastEpisode.Id}' has subject added.");
+                            logger.LogInformation("Removing: '{podcastName}' - '{episodeTitle}'.",
+                                podcastEpisode.PodcastName?[0..Math.Min(podcastEpisode.PodcastName.Length, 40)],
+                                podcastEpisode.Episode.Title?[0..Math.Min(podcastEpisode.Episode.Title.Length, 40)]);
                         }
+                        updatedEpisodeIds.Add(podcastEpisode.Episode.Id);
                     }
-                    else if (repoPodcastEpisode != null &&
-                             repoPodcastEpisode.Subjects.Count(x => x == request.Query) > 1)
+                    else
                     {
-                        logger.LogWarning(
-                            $"Podcast '{podcastName}' episode '{repoPodcastEpisode.Id}' has subject more than once.");
+                        logger.LogError("Unable to find episode with episode-id {episodeId}.",
+                            podcastEpisode.Episode.Id);
                     }
                 }
 
                 if (podcastChanged)
                 {
-//                    await podcastRepository.Save(podcast);
+                    await podcastRepository.Save(podcast);
                 }
             }
         }

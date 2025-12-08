@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "UnremoveEpisodes": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\Users\\jonbr\\OneDrive\\Desktop\\deleted-episodes.txt"
+    }
+  }
+}
