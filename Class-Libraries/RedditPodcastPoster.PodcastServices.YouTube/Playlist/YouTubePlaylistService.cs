@@ -49,11 +49,8 @@ public class YouTubePlaylistService(
 
         while (
             nextPageToken != null &&
-            (firstRun ||
-             (knownToBeInReverseOrder && result.Last().Snippet.PublishedAtDateTimeOffset
-                 .ReleasedSinceDate(indexingContext.ReleasedSince)) ||
-             !knownToBeInReverseOrder
-            ))
+            (firstRun || (knownToBeInReverseOrder && result.Any() && result.Last().Snippet.PublishedAtDateTimeOffset
+                .ReleasedSinceDate(indexingContext.ReleasedSince)) || !knownToBeInReverseOrder))
         {
             var playlistRequest = youTubeServiceWrapper.YouTubeService.PlaylistItems.List(requestScope);
             playlistRequest.PlaylistId = playlistId.PlaylistId;
