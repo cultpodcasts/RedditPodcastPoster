@@ -18,6 +18,11 @@ public class Processor(
 {
     public async Task Process(Request request)
     {
+        if (request.IsDryRun)
+        {
+            logger.LogWarning("Is Dry-run.");
+        }
+
         var subjects = subjectsProvider.GetAll();
         if (await subjects.AllAsync(x => x.Name != request.Query))
         {
@@ -104,14 +109,14 @@ public class Processor(
                     }
                 }
 
-                if (podcastChanged)
+                if (podcastChanged && !request.IsDryRun)
                 {
                     await podcastRepository.Save(podcast);
                 }
             }
         }
 
-        if (updatedEpisodeIds.Any())
+        if (updatedEpisodeIds.Any() && !request.IsDryRun)
         {
             await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
         }

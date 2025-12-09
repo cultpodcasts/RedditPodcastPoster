@@ -15,4 +15,8 @@ public class Request
 
     [Option('n', "not-whole-term", Default = false, HelpText = "Do not treat query as a quoted term.")]
     public bool NotWholeTerm { get; set; }
+
+    [Option('d', "dry-run", Default = false, HelpText = "Do not persist changes to database.")]
+    public bool IsDryRun { get; set; }
+
 }
