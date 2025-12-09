@@ -18,6 +18,11 @@ public class Processor(
 {
     public async Task Process(Request request)
     {
+        if (request.IsDryRun)
+        {
+            logger.LogWarning("Is Dry-run.");
+        }
+
         var subjects = subjectsProvider.GetAll();
         if (await subjects.AllAsync(x => x.Name != request.Query))
         {
@@ -30,7 +35,8 @@ public class Processor(
         options.Select.Add("episodeDescription");
         options.Select.Add("subjects");
         options.Select.Add("podcastName");
-        var results = await searchClient.SearchAsync<SearchDocument>(request.Query, options);
+        var searchQuery = request.NotWholeTerm ? request.Query : $"\"{request.Query}\"";
+        var results = await searchClient.SearchAsync<SearchDocument>(searchQuery, options);
         if (results == null)
         {
             throw new InvalidOperationException("Results are null");
@@ -42,6 +48,15 @@ public class Processor(
         {
             throw new InvalidOperationException("All Search Results is null");
         }
+
+        var message = $"Episodes matching query: {allSearchResults.Count}, throttled at {request.Throttle}.";
+        if (allSearchResults.Count > request.Throttle)
+        {
+            logger.LogError(message);
+            return;
+        }
+
+        logger.LogInformation(message);
 
         var allSearchResultEpisodes = allSearchResults.Select(x =>
             new PodcastEpisode(x.Document.PodcastName!, x.Document.ToEpisodeModel()));
@@ -70,14 +85,20 @@ public class Processor(
                             podcastEpisode.Episode,
                             subjectEnrichmentOptions
                         );
-                        if (subjectMatches.Any(x => x.Subject.Name == request.Query) &&
-                            !repoPodcastEpisode.Subjects.Contains(request.Query))
+                        if (request.AddSubjectWhenNotSubjectMatch ||
+                            (subjectMatches.Any(x => x.Subject.Name == request.Query) &&
+                             !repoPodcastEpisode.Subjects.Contains(request.Query)))
                         {
                             updatedEpisodeIds.Add(repoPodcastEpisode.Id);
                             podcastChanged = true;
                             repoPodcastEpisode.Subjects.Add(request.Query);
                             logger.LogWarning(
                                 $"Podcast '{podcastName}' episode '{repoPodcastEpisode.Id}' has subject added.");
+                        }
+                        else
+                        {
+                            logger.LogWarning(
+                                $"Ignore podcast '{podcastName}' episode '{repoPodcastEpisode.Id}' - subject not added as not a subject match.");
                         }
                     }
                     else if (repoPodcastEpisode != null &&
@@ -88,14 +109,14 @@ public class Processor(
                     }
                 }
 
-                if (podcastChanged)
+                if (podcastChanged && !request.IsDryRun)
                 {
                     await podcastRepository.Save(podcast);
                 }
             }
         }
 
-        if (updatedEpisodeIds.Any())
+        if (updatedEpisodeIds.Any() && !request.IsDryRun)
         {
             await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
         }
