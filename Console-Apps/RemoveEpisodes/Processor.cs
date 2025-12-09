@@ -14,13 +14,19 @@ public class Processor(
 {
     public async Task Process(Request request)
     {
+        if (request.IsDryRun)
+        {
+            logger.LogWarning("Is Dry-run.");
+        }
+
         var options = new SearchOptions();
         options.Select.Add("id");
         options.Select.Add("episodeTitle");
         options.Select.Add("episodeDescription");
         options.Select.Add("subjects");
         options.Select.Add("podcastName");
-        var results = await searchClient.SearchAsync<SearchDocument>(request.Query, options);
+        var searchQuery = request.NotWholeTerm ? request.Query : $"\"{request.Query}\"";
+        var results = await searchClient.SearchAsync<SearchDocument>(searchQuery, options);
         if (results == null)
         {
             throw new InvalidOperationException("Results are null");
@@ -31,6 +37,13 @@ public class Processor(
         if (allSearchResults == null)
         {
             throw new InvalidOperationException("All Search Results is null");
+        }
+
+        var message = $"Episodes matching query: {allSearchResults.Count}, throttled at {request.Throttle}.";
+        if (allSearchResults.Count > request.Throttle)
+        {
+            logger.LogError(message);
+            return;
         }
 
         var allSearchResultEpisodes = allSearchResults.Select(x =>
@@ -59,6 +72,7 @@ public class Processor(
                                 podcastEpisode.PodcastName?[0..Math.Min(podcastEpisode.PodcastName.Length, 40)],
                                 podcastEpisode.Episode.Title?[0..Math.Min(podcastEpisode.Episode.Title.Length, 40)]);
                         }
+
                         updatedEpisodeIds.Add(podcastEpisode.Episode.Id);
                     }
                     else
@@ -68,14 +82,14 @@ public class Processor(
                     }
                 }
 
-                if (podcastChanged)
+                if (podcastChanged && !request.IsDryRun)
                 {
                     await podcastRepository.Save(podcast);
                 }
             }
         }
 
-        if (updatedEpisodeIds.Any())
+        if (updatedEpisodeIds.Any() && !request.IsDryRun)
         {
             await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
         }
