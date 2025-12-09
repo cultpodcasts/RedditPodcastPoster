@@ -155,9 +155,18 @@ public partial class SearchResultFinder(
                 {
                     logger.LogInformation("Matched on episode-number '{episodeNumber}'.", episodeNumber);
 
+                    var requestVideoIds = searchResults.Select(x => x.Id.VideoId).Distinct().ToList();
                     var videoDetails = await videoService.GetVideoContentDetails(youTubeService,
-                        searchResults.Select(x => x.Id.VideoId).Distinct().ToList(), indexingContext);
-                    var video = videoDetails?.SingleOrDefault();
+                        requestVideoIds, indexingContext);
+                    if ((videoDetails?.Count ?? 0) > 1)
+                    {
+                        logger.LogError("{method}: More than one video-detail. Should only request single video-id - uses distinct(). Requested-ids: {requestedIds}. Retrieved-ids: {retrievedIds}",
+                            nameof(MatchOnEpisodeNumberAndDuration),
+                            string.Join(", ", $"'{requestVideoIds}'"),
+                            string.Join(", ", $"'{videoDetails!.Select(x => x.Id)}'"));
+                    }
+
+                    var video = videoDetails?.FirstOrDefault();
                     if (video == null)
                     {
                         return null;
