@@ -37,13 +37,13 @@ public class ContentPublisher(
     {
         var homepageContent = await queryExecutor.GetHomePage(CancellationToken.None);
         var homepagePublished = await PublishHomepageToR2(homepageContent);
-        var preProcessedHomepagePublished = await PublishPreProcessedHomepageToR2(homepageContent);
-        return new PublishHomepageResult(homepagePublished, preProcessedHomepagePublished);
+        //var preProcessedHomepagePublished = await PublishPreProcessedHomepageToR2(homepageContent);
+        return new PublishHomepageResult(homepagePublished /*, preProcessedHomepagePublished */);
     }
 
     public async Task PublishSubjects()
     {
-        var subjects = await subjectRepository.GetAll(x => new {name = x.Name}).OrderBy(x => x.name).ToListAsync();
+        var subjects = await subjectRepository.GetAll(x => new { name = x.Name }).OrderBy(x => x.name).ToListAsync();
         var json = JsonSerializer.Serialize(subjects, JsonSerializerOptions);
 
         var request = new PutObjectRequest

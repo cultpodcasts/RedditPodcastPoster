@@ -10,7 +10,7 @@ public class PublishHomepageResponse
 
 
     [JsonPropertyName("preProcessedHomepagePublished")]
-    public bool PreProcessedHomepagePublished { get; set; }
+    public bool? PreProcessedHomepagePublished { get; set; }
 
     public static PublishHomepageResponse ToDto(PublishHomepageResult result)
     {
