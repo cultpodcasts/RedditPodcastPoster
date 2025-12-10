@@ -1,6 +1,5 @@
 ﻿using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Search;
 
@@ -9,7 +8,6 @@ namespace RemoveEpisodes;
 public class Processor(
     SearchClient searchClient,
     IPodcastRepository podcastRepository,
-    IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<Processor> logger)
 {
     public async Task Process(Request request)
@@ -45,6 +43,8 @@ public class Processor(
             logger.LogError(message);
             return;
         }
+
+        logger.LogInformation(message);
 
         var allSearchResultEpisodes = allSearchResults.Select(x =>
             new PodcastEpisode(x.Document.PodcastName!, x.Document.ToEpisodeModel()));
@@ -91,7 +91,20 @@ public class Processor(
 
         if (updatedEpisodeIds.Any() && !request.IsDryRun)
         {
-            await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
+            var result = await searchClient.DeleteDocumentsAsync(
+                "id",
+                updatedEpisodeIds.Select(x => x.ToString()),
+                new IndexDocumentsOptions { ThrowOnAnyError = false });
+            var success = result.Value.Results.Any(x => x.Succeeded);
+            if (!success)
+            {
+                logger.LogError("Error deleting documents from search-index: {errorMessages}. Ids: {ids}.",
+                    string.Join(", ",
+                        result.Value.Results.Where(x => !x.Succeeded).Select(x => x.ErrorMessage).Distinct()
+                            .Select(x => $"'{x}'")),
+                    string.Join(", ",
+                        result.Value.Results.Select(x => $"'{x.Key}'")));
+            }
         }
     }
 }
