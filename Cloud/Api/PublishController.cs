@@ -34,7 +34,8 @@ public class PublishController(
         try
         {
             var result = await contentPublisher.PublishHomepage();
-            if (!result.HomepagePublished || !result.PreProcessedHomepagePublished)
+            if (!result.HomepagePublished || (result.PreProcessedHomepagePublished.HasValue &&
+                                              !result.PreProcessedHomepagePublished.Value))
             {
                 logger.LogError("{method}: Failed to publish homepage. Result: {result}",
                     nameof(PublishHomepage), result);
