@@ -55,6 +55,7 @@ public class EpisodeController(
     : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     private const string? Route = "episode/{episodeId:guid}";
+    private readonly DateTime pastWeek = DateTime.UtcNow.AddDays(-7);
 
     [Function("EpisodeGet")]
     public Task<HttpResponseData> Get(
@@ -192,7 +193,6 @@ public class EpisodeController(
         var failure = req.CreateResponse(HttpStatusCode.InternalServerError);
         return failure;
     }
-
 
     private async Task<HttpResponseData> Publish(HttpRequestData req, EpisodePublishRequestWrapper publishRequest,
         ClientPrincipal? _, CancellationToken c)
@@ -507,6 +507,11 @@ public class EpisodeController(
                 respModel.SearchIndexerState = indexed.ToDto();
             }
 
+            if (changeState.PublishHomepage)
+            {
+                await contentPublisher.PublishHomepage();
+            }
+
             var response = await req.CreateResponse(HttpStatusCode.Accepted).WithJsonBody(respModel, c);
             return response;
         }
@@ -555,6 +560,7 @@ public class EpisodeController(
     private EpisodeChangeState UpdateEpisode(Episode episode,
         EpisodeChangeRequest episodeChangeRequest)
     {
+        var inPastWeek = episode.Release > pastWeek;
         var changeState = new EpisodeChangeState();
         if (!string.IsNullOrWhiteSpace(episodeChangeRequest.Title))
         {
@@ -579,6 +585,7 @@ public class EpisodeController(
         if (episodeChangeRequest.Release != null)
         {
             episode.Release = episodeChangeRequest.Release.Value;
+            inPastWeek |= episode.Release > pastWeek;
         }
 
         if (episodeChangeRequest.Explicit != null)
@@ -826,6 +833,11 @@ public class EpisodeController(
             {
                 episode.Language = episodeChangeRequest.Language;
             }
+        }
+
+        if (episodeChangeRequest.HasChange && inPastWeek)
+        {
+            changeState.PublishHomepage = true;
         }
 
         return changeState;

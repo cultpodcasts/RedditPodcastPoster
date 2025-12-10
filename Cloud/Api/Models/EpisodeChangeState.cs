@@ -11,4 +11,5 @@ public class EpisodeChangeState
     public bool UpdateAppleImage { get; internal set; }
     public bool UpdateSpotifyImage { get; internal set; }
     public bool UpdateImages => UpdateAppleImage || UpdateBBCImage || UpdateSpotifyImage || UpdateYouTubeImage;
+    public bool PublishHomepage { get; internal set; }
 }
