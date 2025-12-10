@@ -52,13 +52,13 @@ public class PostProcessor(
         {
             var podcastId = await repository.GetBy(x =>
                 (!x.Removed.IsDefined() || x.Removed == false) &&
-                x.Episodes.Any(ep => ep.Id == request.EpisodeId), x => new {guid = x.Id});
+                x.Episodes.Any(ep => ep.Id == request.EpisodeId), x => new { guid = x.Id });
             if (podcastId == null)
             {
                 throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
             }
 
-            podcastIds = new[] {podcastId.guid};
+            podcastIds = [podcastId.guid];
         }
         else if (request.PodcastId.HasValue)
         {
@@ -70,15 +70,15 @@ public class PostProcessor(
                 throw new ArgumentException($"Podcast with id '{request.PodcastId.Value}' not found.");
             }
 
-            podcastIds = new[] {request.PodcastId.Value};
+            podcastIds = [request.PodcastId.Value];
         }
         else if (request.PodcastName != null)
         {
             var ids = await repository.GetAllBy(x =>
                     (!x.Removed.IsDefined() || x.Removed == false) &&
                     x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
-                x => new {guid = x.Id}).ToListAsync();
-            logger.LogInformation($"Found {ids.Count()} podcasts.");
+                x => new { guid = x.Id }).ToListAsync();
+            logger.LogInformation("Found {idsCount} podcasts.", ids.Count());
             podcastIds = ids.Select(x => x.guid).ToArray();
         }
         else
@@ -93,11 +93,7 @@ public class PostProcessor(
 
     private async Task Publish()
     {
-        Task[] publishingTasks =
-        {
-            contentPublisher.PublishHomepage()
-        };
-
+        Task[] publishingTasks = [contentPublisher.PublishHomepage()];
         await Task.WhenAll(publishingTasks);
     }
 
@@ -107,7 +103,7 @@ public class PostProcessor(
         {
             var podcastId = await repository.GetBy(x =>
                 (!x.Removed.IsDefined() || x.Removed == false) &&
-                x.Episodes.Any(ep => ep.Id == request.EpisodeId), x => new {guid = x.Id});
+                x.Episodes.Any(ep => ep.Id == request.EpisodeId), x => new { guid = x.Id });
             if (podcastId == null)
             {
                 throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
@@ -161,7 +157,6 @@ public class PostProcessor(
         }
     }
 
-
     private async Task TweetEpisode(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
         var result = await tweetPoster.PostTweet(podcastEpisode, shortUrl);
@@ -179,7 +174,7 @@ public class PostProcessor(
                     logger.LogError("Failed to send tweet.");
                     break;
                 default:
-                    logger.LogError($"Unknown tweet-send response '{result.ToString()}'.");
+                    logger.LogError("Unknown tweet-send response '{result}'.", result.ToString());
                     break;
             }
         }
@@ -200,7 +195,8 @@ public class PostProcessor(
             if (selectedEpisode.Posted || selectedEpisode.Ignored || selectedEpisode.Removed)
             {
                 logger.LogWarning(
-                    $"Not posting episode with id '{request.EpisodeId}'. Posted: '{selectedEpisode.Posted}', Ignored: '{selectedEpisode.Ignored}', Removed: '{selectedEpisode.Removed}'.");
+                    "Not posting episode with id '{episodeId}'. Posted: '{posted}', Ignored: '{ignored}', Removed: '{removed}'.",
+                    request.EpisodeId, selectedEpisode.Posted, selectedEpisode.Ignored, selectedEpisode.Removed);
             }
             else
             {
