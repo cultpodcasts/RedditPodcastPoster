@@ -26,5 +26,10 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
   }
 }
 
+resource symbolicname 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
+  parent: storageName
+  name: 'indexer-deployment'
+}
+
 output storageAccountName string = storageAccountName
 output storageAccountId string = storageAccount.id
