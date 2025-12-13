@@ -13,6 +13,13 @@ param location string
 param storageName string= 'storage${uniqueString(resourceGroup().id)}'
 var storageAccountName= storageName
 
+@description('Containers') // List your container names here in the array
+param container_names array = [
+  'api-deployment'
+  'discovery-deployment'
+  'indexer-deployment'
+]
+
 resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
   name: storageName
   location: location
@@ -26,5 +33,17 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
   }
 }
 
+resource Blob_Services 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource Containers 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = [for containerName in container_names: {
+  name: containerName
+  parent: Blob_Services
+  properties: {
+    publicAccess: 'None'
+  }
+}]
 output storageAccountName string = storageAccountName
 output storageAccountId string = storageAccount.id
