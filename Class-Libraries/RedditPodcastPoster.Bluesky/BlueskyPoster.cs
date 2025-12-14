@@ -1,17 +1,18 @@
 ﻿using System.Security.Authentication;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using X.Bluesky;
 
 namespace RedditPodcastPoster.Bluesky;
 
 public class BlueskyPoster(
     IPodcastRepository repository,
     IBlueskyEmbedCardPostFactory embedCardPostFactory,
-    IBlueskyClient blueSkyClient,
+    IEmbedCardBlueskyClient blueSkyClient,
+    IEmbedCardRequestFactory embedCardRequestFactory,
     ILogger<BlueskyPoster> logger)
     : IBlueskyPoster
 {
@@ -19,9 +20,23 @@ public class BlueskyPoster(
     {
         var embedPost = await embedCardPostFactory.Create(podcastEpisode, shortUrl);
         BlueskySendStatus sendStatus;
+        var embedCardRequest = await embedCardRequestFactory.CreateEmbedCardRequest(podcastEpisode, embedPost);
         try
         {
-            await blueSkyClient.Post(embedPost.Text, embedPost.Url);
+            if (embedCardRequest != null)
+            {
+                logger.LogInformation(
+                    "Non-Null {nameofEmbedCardRequest} for episode with id '{podcastEpisodeId}'.",
+                    nameof(EmbedCardRequest), podcastEpisode.Episode.Id);
+                await blueSkyClient.Post(embedPost.Text, embedCardRequest);
+            }
+            else
+            {
+                logger.LogError("Null {nameofEmbedCardRequest} for episode with id '{podcastEpisodeId}'.",
+                    nameof(EmbedCardRequest), podcastEpisode.Episode.Id);
+                await blueSkyClient.Post($"{embedPost.Text}{Environment.NewLine}{embedPost.Url}");
+            }
+
             sendStatus = BlueskySendStatus.Success;
             logger.LogInformation($"Posted to bluesky: '{embedPost.Text}'.");
         }
