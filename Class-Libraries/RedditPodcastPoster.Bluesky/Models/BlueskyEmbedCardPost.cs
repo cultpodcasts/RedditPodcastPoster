@@ -1,5 +1,5 @@
-﻿using RedditPodcastPoster.Models;
+﻿using X.Bluesky.Models;
 
 namespace RedditPodcastPoster.Bluesky.Models;
 
-public record BlueskyEmbedCardPost(string Text, Uri Url, Service UrlService);
+public record BlueskyEmbedCardPost(string Text, Uri Url, IReadOnlyCollection<Image>? Images);

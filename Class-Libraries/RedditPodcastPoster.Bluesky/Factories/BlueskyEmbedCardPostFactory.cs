@@ -4,10 +4,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Models;
+using RedditPodcastPoster.Bluesky.Providers;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Text;
+using X.Bluesky.Models;
 
 namespace RedditPodcastPoster.Bluesky.Factories;
 
@@ -16,6 +18,8 @@ public class BlueskyEmbedCardPostFactory(
     IHashTagEnricher hashTagEnricher,
     IHashTagProvider hashTagProvider,
     IOptions<BlueskyOptions> blueskyOptions,
+    IEpisodeThumbnailProvider episodeThumbnailProvider,
+    HttpClient httpClient,
     ILogger<IBlueskyEmbedCardPostFactory> logger
 ) : IBlueskyEmbedCardPostFactory
 {
@@ -137,6 +141,34 @@ public class BlueskyEmbedCardPostFactory(
         }
 
         var tweet = tweetBuilder.ToString();
-        return new BlueskyEmbedCardPost(tweet, url, urlPodcastService);
+
+        var thumbnail = await episodeThumbnailProvider.GetThumbnail(podcastEpisode, urlPodcastService);
+        IReadOnlyCollection<Image>? images = null;
+        if (thumbnail != null)
+        {
+            try
+            {
+                var request = await httpClient.GetAsync(thumbnail);
+                var imageBytes = await request.Content.ReadAsByteArrayAsync();
+                var imageMimeType = request.Content.Headers.ContentType?.MediaType;
+                var image = string.IsNullOrWhiteSpace(imageMimeType)
+                    ? new Image
+                    {
+                        Content = imageBytes
+                    }
+                    : new Image
+                    {
+                        Content = imageBytes,
+                        MimeType = imageMimeType
+                    };
+                images = [image];
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to get thumbnail from url '{url}'.", thumbnail);
+            }
+        }
+
+        return new BlueskyEmbedCardPost(tweet, url, images);
     }
 }

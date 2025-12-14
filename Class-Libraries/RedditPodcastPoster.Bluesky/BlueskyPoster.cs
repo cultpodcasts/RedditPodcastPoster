@@ -19,12 +19,21 @@ public class BlueskyPoster(
     public async Task<BlueskySendStatus> Post(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
         var embedPost = await embedCardPostFactory.Create(podcastEpisode, shortUrl);
-        var post = new Post
-        {
-            Text = embedPost.Text,
-            Url = embedPost.Url,
-            GenerateCardForUrl = true
-        };
+        var post = embedPost.Images == null
+            ? new Post
+            {
+                Text = embedPost.Text,
+                Url = embedPost.Url,
+                GenerateCardForUrl = true
+            }
+            : new Post
+            {
+                Text = embedPost.Text,
+                Url = embedPost.Url,
+                GenerateCardForUrl = true,
+                Images = embedPost.Images
+            };
+
         BlueskySendStatus sendStatus;
         try
         {

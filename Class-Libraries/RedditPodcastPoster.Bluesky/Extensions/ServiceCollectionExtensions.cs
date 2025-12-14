@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Factories;
+using RedditPodcastPoster.Bluesky.Providers;
 using RedditPodcastPoster.Bluesky.YouTube;
 using RedditPodcastPoster.Configuration.Extensions;
 
@@ -20,6 +21,7 @@ public static class ServiceCollectionExtensions
             .AddScoped(s => s.GetService<IBlueskyYouTubeServiceFactory>()!.Create())
             .AddSingleton<IBlueskyAgentFactory, BlueskyAgentFactory>()
             .AddSingleton(x => x.GetService<IBlueskyAgentFactory>()!.Create().GetAwaiter().GetResult())
+            .AddScoped<IEpisodeThumbnailProvider, EpisodeThumbnailProvider>()
             .BindConfiguration<BlueskyOptions>("bluesky");
     }
 }
