@@ -2,4 +2,4 @@
 
 namespace RedditPodcastPoster.Bluesky.Models;
 
-public record BlueskyEmbedCardPost(string Text, Uri Url, IReadOnlyCollection<Image>? Images);
+public record BlueskyEmbedCardPost(string Text, Uri Url, IReadOnlyCollection<Image>? Images = null);
