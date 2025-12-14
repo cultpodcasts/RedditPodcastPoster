@@ -3,7 +3,6 @@
     "Indexer": {
       "commandName": "Project",
       "environmentVariables": {
-        "bluesky__ReuseSession": "true",
         "DOTNET_environment": "Development"
       }
     }
