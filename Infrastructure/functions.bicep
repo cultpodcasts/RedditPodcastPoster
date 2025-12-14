@@ -145,6 +145,7 @@ var bluesky= {
     bluesky__HashTag: 'Cult'
     bluesky__Identifier: 'cultpodcasts.com'
     bluesky__Password: blueskyPassword
+    bluesky__ReuseSession: 'true'
     bluesky__WithEpisodeUrl: 'true'
 }
 

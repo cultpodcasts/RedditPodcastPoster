@@ -26,7 +26,7 @@ public class BlueskyEmbedCardPostFactory(
 
     public async Task<BlueskyEmbedCardPost> Create(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
-        var postModel = (podcastEpisode.Podcast, new[] { podcastEpisode.Episode }).ToPostModel();
+        var postModel = (podcastEpisode.Podcast, new[] {podcastEpisode.Episode}).ToPostModel();
         var episodeTitle = textSanitiser.SanitiseTitle(postModel);
 
         var episodeHashtags = await hashTagProvider.GetHashTags(podcastEpisode.Episode.Subjects);
@@ -47,7 +47,7 @@ public class BlueskyEmbedCardPostFactory(
                         hashtag.MatchingText?.TrimStart('#'));
                 if (addedHashTag)
                 {
-                    hashtagsAdded.Add(hashtag.MatchingText?.ToLowerInvariant() ?? hashtag.Tag.ToLowerInvariant());
+                    hashtagsAdded.Add(hashtag.MatchingText ?? hashtag.Tag);
                 }
             }
         }
@@ -72,7 +72,7 @@ public class BlueskyEmbedCardPostFactory(
                 .Where(x => x.MatchingText == null)
                 .Select(x => x.Tag)
                 .Distinct()
-                .Where(x => !hashtagsAdded.Contains(x.ToLowerInvariant()))
+                .Where(x => !hashtagsAdded.Contains(x))
                 .Select(x => $"#{x.TrimStart('#')}"));
         if (!string.IsNullOrWhiteSpace(endHashTags))
         {

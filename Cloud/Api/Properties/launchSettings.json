@@ -4,6 +4,7 @@
       "commandName": "Project",
       "commandLineArgs": "--port 7060",
       "environmentVariables": {
+        "bluesky__ReuseSession": "true",
         "DOTNET_environment": "Development" 
       }
     }

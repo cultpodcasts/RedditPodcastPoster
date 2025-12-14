@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Configuration;
 using X.Bluesky;
 
@@ -8,14 +9,26 @@ namespace RedditPodcastPoster.Bluesky.Factories;
 public class BlueskyClientFactory(
     IOptions<BlueskyOptions> options,
     ILogger<BlueskyClientFactory> logger,
-    ILogger<BlueskyClient> blueskyClientLogger
+    ILogger<EmbedCardBlueskyClient> blueskyLogger,
+    ILogger<BlueskyClient> blueskyClientLogger,
+    ILogger<MentionResolver> mentionResolver
 ) : IBlueskyClientFactory
 {
     private readonly BlueskyOptions _options = options.Value;
 
-    public IBlueskyClient Create()
+    public IEmbedCardBlueskyClient Create()
     {
-        var uri = new Uri("https://bsky.social");
-        return new BlueskyClient(_options.Identifier, _options.Password, logger: blueskyClientLogger);
+        logger.LogInformation("Creating blue-sky client with reuse-session: '{optionsReuseSession}'.",
+            _options.ReuseSession);
+
+        return new EmbedCardBlueskyClient(
+            new BlueskyHttpClientFactory(),
+            _options.Identifier,
+            _options.Password,
+            ["en", "en-US"],
+            _options.ReuseSession,
+            blueskyLogger,
+            blueskyClientLogger,
+            mentionResolver);
     }
 }
