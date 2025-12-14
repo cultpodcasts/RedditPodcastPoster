@@ -5,7 +5,6 @@ using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using X.Bluesky;
-using X.Bluesky.Models;
 
 namespace RedditPodcastPoster.Bluesky;
 
@@ -19,16 +18,10 @@ public class BlueskyPoster(
     public async Task<BlueskySendStatus> Post(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
         var embedPost = await embedCardPostFactory.Create(podcastEpisode, shortUrl);
-        var post = new Post
-        {
-            Text = embedPost.Text,
-            Url = embedPost.Url,
-            GenerateCardForUrl = true
-        };
         BlueskySendStatus sendStatus;
         try
         {
-            await blueSkyClient.Post(post);
+            await blueSkyClient.Post(embedPost.Text, embedPost.Url);
             sendStatus = BlueskySendStatus.Success;
             logger.LogInformation($"Posted to bluesky: '{embedPost.Text}'.");
         }
