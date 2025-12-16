@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Goblinfactory.Konsole" Version="7.0.0.7-alpha" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.1" />
   </ItemGroup>
 
   <ItemGroup>
