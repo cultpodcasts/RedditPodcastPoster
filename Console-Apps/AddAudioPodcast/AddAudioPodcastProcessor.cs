@@ -2,6 +2,7 @@
 using iTunesSearch.Library;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -22,6 +23,7 @@ public class AddAudioPodcastProcessor(
     ISpotifyPodcastEnricher spotifyPodcastEnricher,
     IPodcastUpdater podcastUpdater,
     iTunesSearchManager iTunesSearchManager,
+    IEpisodeSearchIndexerService episodeSearchIndexerService,
     ISubjectEnricher subjectEnricher,
     ILogger<AddAudioPodcastProcessor> logger)
 {
@@ -29,13 +31,14 @@ public class AddAudioPodcastProcessor(
 
     public async Task Create(AddAudioPodcastRequest request)
     {
-        var indexingContext = new IndexingContext {SkipPodcastDiscovery = false};
+        var newEpisodeIds = new List<Guid>();
+        var indexingContext = new IndexingContext { SkipPodcastDiscovery = false };
         Podcast? podcast = null;
         if (!request.AppleReleaseAuthority)
         {
             var matchingPodcasts = await podcastRepository
-                .GetAllBy(x => x.SpotifyId == request.PodcastId, x => new {x.Id}).ToListAsync();
-            if (matchingPodcasts.Count() > 0)
+                .GetAllBy(x => x.SpotifyId == request.PodcastId, x => new { x.Id }).ToListAsync();
+            if (matchingPodcasts.Any())
             {
                 throw new InvalidOperationException(
                     $"Found podcasts with spotify-id '{request.PodcastId}'. Podcast-ids: {string.Join(",", matchingPodcasts.Select(x => $"'{x.Id}'"))}.");
@@ -55,8 +58,8 @@ public class AddAudioPodcastProcessor(
         {
             var appleId = long.Parse(request.PodcastId);
             var matchingPodcasts =
-                await podcastRepository.GetAllBy(x => x.AppleId == appleId, x => new {x.Id}).ToListAsync();
-            if (matchingPodcasts.Count() > 0)
+                await podcastRepository.GetAllBy(x => x.AppleId == appleId, x => new { x.Id }).ToListAsync();
+            if (matchingPodcasts.Any())
             {
                 throw new InvalidOperationException(
                     $"Found podcasts with apple-id '{request.PodcastId}'. Podcast-ids: {string.Join(",", matchingPodcasts.Select(x => $"'{x.Id}'"))}.");
@@ -119,6 +122,8 @@ public class AddAudioPodcastProcessor(
             {
                 logger.LogError(result.ToString());
             }
+
+            await episodeSearchIndexerService.IndexEpisodes(podcast.Episodes.Select(x => x.Id), CancellationToken.None);
         }
         else
         {
@@ -130,7 +135,7 @@ public class AddAudioPodcastProcessor(
     private async Task<Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
     {
         var spotifyPodcast =
-            await spotifyClient.Shows.Get(request.PodcastId, new ShowRequest {Market = Market.CountryCode});
+            await spotifyClient.Shows.Get(request.PodcastId, new ShowRequest { Market = Market.CountryCode });
         logger.LogInformation("Retrieved spotify podcast");
         var podcast = await podcastRepository.GetBy(x => x.SpotifyId == request.PodcastId);
         if (podcast == null)

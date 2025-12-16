@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -43,6 +44,7 @@ builder.Services
     .AddSubjectServices()
     .AddCachedSubjectProvider()
     .AddTextSanitiser()
+    .AddEpisodeSearchIndexerService()
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria();
