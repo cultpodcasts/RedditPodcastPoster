@@ -16,10 +16,10 @@ public static class HostFactory
         builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
         if (!isDevelopment)
         {
-            //builder.Services
-            //    .AddApplicationInsightsTelemetryWorkerService()
-            //    .ConfigureFunctionsApplicationInsights();
-            //builder.Logging.RemoveDefaultApplicationInsightsWarningRule();
+            builder.Services
+                .AddApplicationInsightsTelemetryWorkerService()
+                .ConfigureFunctionsApplicationInsights();
+            builder.Logging.RemoveDefaultApplicationInsightsWarningRule();
         }
         else
         {
