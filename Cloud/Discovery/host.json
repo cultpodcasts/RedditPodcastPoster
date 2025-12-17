@@ -16,13 +16,6 @@
         "isEnabled": true
       },
       "enableLiveMetricsFilters": true
-    },
-    "logLevel": {
-      "default": "None",
-      "Host.Results": "Information",
-      "Function": "Information",
-      "Azure.Core": "Warning",
-      "Azure.Identity": "Warning"
     }
   },
   "functionTimeout": "00:10:00"
