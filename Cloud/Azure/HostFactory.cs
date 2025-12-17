@@ -14,6 +14,9 @@ public static class HostFactory
         var isDevelopment = builder.Configuration.IsDevelopment();
         builder.Services.AddLogging();
         builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
+
+        builder.Logging.ConsoleWriteConfig();
+
         if (!isDevelopment)
         {
             builder.Services

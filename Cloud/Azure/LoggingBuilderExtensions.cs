@@ -8,6 +8,30 @@ public static class LoggingBuilderExtensions
 {
     extension(ILoggingBuilder loggingBuilder)
     {
+        public void ConsoleWriteConfig()
+        {
+            loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
+            {
+                Console.Out.WriteLine("Logging options:");
+                foreach (var rule in options.Rules)
+                {
+                    var logLevel = new[]
+                    {
+                        LogLevel.Trace, LogLevel.Debug, LogLevel.Information, LogLevel.Warning, LogLevel.Error,
+                        LogLevel.Critical, LogLevel.None
+                    };
+                    var filteredLogLevels = rule.Filter == null
+                        ? []
+                        : logLevel.Where(x => rule.Filter.Invoke(string.Empty, string.Empty, x))
+                            .Select(x => x.ToString());
+
+                    var buffer =
+                        $"'{rule.ProviderName}', '{rule.CategoryName}', '{rule.LogLevel}', '{string.Join(", ", filteredLogLevels)}'";
+                    Console.Out.WriteLine(buffer);
+                }
+            });
+        }
+
         public void RemoveDefaultApplicationInsightsWarningRule()
         {
             loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
