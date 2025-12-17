@@ -11,7 +11,7 @@ public static class HostFactory
     public static IHost Create(string[] args, Action<IServiceCollection> configureServices)
     {
         var builder = FunctionsApplication.CreateBuilder(args);
-        var isDevelopment = false;// builder.Configuration.IsDevelopment();
+        var isDevelopment = builder.Configuration.IsDevelopment();
         builder.Services.AddLogging();
         builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
         if (!isDevelopment)

@@ -6,27 +6,29 @@ namespace Azure;
 
 public static class LoggingBuilderExtensions
 {
-    public static void RemoveDefaultApplicationInsightsWarningRule(this ILoggingBuilder loggingBuilder)
+    extension(ILoggingBuilder loggingBuilder)
     {
-        loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
+        public void RemoveDefaultApplicationInsightsWarningRule()
         {
-            options.Rules.RemoveRuleFirst(rule =>
-                rule.ProviderName == typeof(ApplicationInsightsLoggerProvider).FullName! &&
-                rule.CategoryName == null &&
-                rule is { Filter: null, LogLevel: LogLevel.Warning });
-        });
-    }
+            loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
+            {
+                options.Rules.RemoveRuleFirst(rule =>
+                    rule.ProviderName == typeof(ApplicationInsightsLoggerProvider).FullName! &&
+                    rule.CategoryName == null &&
+                    rule is { Filter: null, LogLevel: LogLevel.Warning });
+            });
+        }
 
-    public static void RemoveInformationRules(this ILoggingBuilder loggingBuilder)
-    {
-        loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
+        public void RemoveInformationRules()
         {
-            options.Rules.RemoveRuleWhere(rule =>
-                rule.ProviderName == null &&
-                rule.CategoryName == null &&
-                rule is { Filter: null, LogLevel: LogLevel.Information });
-        });
-
+            loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
+            {
+                options.Rules.RemoveRuleWhere(rule =>
+                    rule.ProviderName == null &&
+                    rule.CategoryName == null &&
+                    rule is { Filter: null, LogLevel: LogLevel.Information });
+            });
+        }
     }
 
     extension(IList<LoggerFilterRule> rules)
