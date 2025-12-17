@@ -11,7 +11,7 @@ public static class HostFactory
     public static IHost Create(string[] args, Action<IServiceCollection> configureServices)
     {
         var builder = FunctionsApplication.CreateBuilder(args);
-        var isDevelopment = builder.Configuration.IsDevelopment();
+        var isDevelopment = false;// builder.Configuration.IsDevelopment();
         builder.Services.AddLogging();
         builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
         if (!isDevelopment)
@@ -20,6 +20,8 @@ public static class HostFactory
                 .AddApplicationInsightsTelemetryWorkerService()
                 .ConfigureFunctionsApplicationInsights();
             builder.Logging.RemoveDefaultApplicationInsightsWarningRule();
+            builder.Logging.RemoveInformationRules();
+            builder.Logging.SetMinimumLevel(LogLevel.Warning);
         }
         else
         {

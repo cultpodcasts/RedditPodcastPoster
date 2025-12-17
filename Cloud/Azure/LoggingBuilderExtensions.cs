@@ -8,23 +8,45 @@ public static class LoggingBuilderExtensions
 {
     public static void RemoveDefaultApplicationInsightsWarningRule(this ILoggingBuilder loggingBuilder)
     {
-        const string? categoryName = null;
-        const Func<string?, string?, LogLevel, bool>? filter = null;
-        var providerName = typeof(ApplicationInsightsLoggerProvider).FullName!;
-        LogLevel? warning = LogLevel.Warning;
-
-//        loggingBuilder.SetMinimumLevel(LogLevel.Information);
         loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
         {
-            var defaultRule = options.Rules.FirstOrDefault(rule =>
-                rule.ProviderName == providerName &&
-                rule.CategoryName == categoryName &&
-                rule is {Filter: filter} &&
-                rule.LogLevel == warning);
-            if (defaultRule is not null)
-            {
-                options.Rules.Remove(defaultRule);
-            }
+            options.Rules.RemoveRuleFirst(rule =>
+                rule.ProviderName == typeof(ApplicationInsightsLoggerProvider).FullName! &&
+                rule.CategoryName == null &&
+                rule is { Filter: null, LogLevel: LogLevel.Warning });
         });
+    }
+
+    public static void RemoveInformationRules(this ILoggingBuilder loggingBuilder)
+    {
+        loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
+        {
+            options.Rules.RemoveRuleWhere(rule =>
+                rule.ProviderName == null &&
+                rule.CategoryName == null &&
+                rule is { Filter: null, LogLevel: LogLevel.Information });
+        });
+
+    }
+
+    extension(IList<LoggerFilterRule> rules)
+    {
+        private void RemoveRuleWhere(Func<LoggerFilterRule, bool> filter)
+        {
+            var matchingRules = rules.Where(filter).ToArray();
+            foreach (var rule in matchingRules)
+            {
+                rules.Remove(rule);
+            }
+        }
+
+        private void RemoveRuleFirst(Func<LoggerFilterRule, bool> filter)
+        {
+            var matchingRule = rules.FirstOrDefault(filter);
+            if (matchingRule != null)
+            {
+                rules.Remove(matchingRule);
+            }
+        }
     }
 }
