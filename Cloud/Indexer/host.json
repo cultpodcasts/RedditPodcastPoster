@@ -20,7 +20,8 @@
     "logLevel": {
       "default": "Information",
       "Host.Results": "Information",
-      "Function": "Information"
+      "Function": "Information",
+      "Azure.Identity": "Warning"
     }
   },
   "functionTimeout": "00:05:00"

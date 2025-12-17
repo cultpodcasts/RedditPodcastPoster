@@ -12,7 +12,8 @@
       "default": "Information",
       "Host.Results": "Information",
       "Function": "Information",
-      "Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler": "Warning"
+      "Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler": "Warning",
+      "Azure.Identity": "Warning"
     }
   }
 }

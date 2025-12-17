@@ -19,8 +19,9 @@
     },
     "logLevel": {
       "default": "Information",
-      "Host.Results": "Information", 
-      "Function": "Information"
+      "Host.Results": "Information",
+      "Function": "Information",
+      "Azure.Identity": "Warning"
     }
   },
   "functionTimeout": "00:10:00"
