@@ -7,13 +7,14 @@ namespace Azure;
 
 public static class LoggingBuilderExtensions
 {
+    private const string Prefix = "LOGCONFIG: ";
     extension(ILoggingBuilder loggingBuilder)
     {
         public void ConsoleWriteConfig()
         {
             loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
             {
-                var log = new StringBuilder($"Logging options: {options.Rules.Count} rules. ");
+                var log = new StringBuilder($"{Prefix}Logging options: {options.Rules.Count} rules. ");
                 var ctr = 0;
                 foreach (var rule in options.Rules)
                 {
@@ -40,10 +41,14 @@ public static class LoggingBuilderExtensions
         {
             loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
             {
-                options.Rules.RemoveRuleFirst(rule =>
+                var removed= options.Rules.RemoveRuleFirst(rule =>
                     rule.ProviderName == typeof(ApplicationInsightsLoggerProvider).FullName! &&
                     rule.CategoryName == null &&
                     rule is { Filter: null, LogLevel: LogLevel.Warning });
+                if (removed)
+                {
+                    Console.Out.WriteLine($"{Prefix}Removed default-application-insights-warning-rule.");
+                }
             });
         }
 
@@ -51,32 +56,40 @@ public static class LoggingBuilderExtensions
         {
             loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
             {
-                options.Rules.RemoveRuleWhere(rule =>
+                var removed = options.Rules.RemoveRuleWhere(rule =>
                     rule.ProviderName == null &&
                     rule.CategoryName == null &&
                     rule is { Filter: null, LogLevel: LogLevel.Information });
+                Console.Out.WriteLine($"{Prefix}Removed {removed} information-rules.");
             });
         }
     }
 
     extension(IList<LoggerFilterRule> rules)
     {
-        private void RemoveRuleWhere(Func<LoggerFilterRule, bool> filter)
+        private int RemoveRuleWhere(Func<LoggerFilterRule, bool> filter)
         {
             var matchingRules = rules.Where(filter).ToArray();
+            var i = 0;
             foreach (var rule in matchingRules)
             {
                 rules.Remove(rule);
+                i++;
             }
+
+            return i;
         }
 
-        private void RemoveRuleFirst(Func<LoggerFilterRule, bool> filter)
+        private bool RemoveRuleFirst(Func<LoggerFilterRule, bool> filter)
         {
             var matchingRule = rules.FirstOrDefault(filter);
             if (matchingRule != null)
             {
                 rules.Remove(matchingRule);
+                return true;
             }
+
+            return false;
         }
     }
 }

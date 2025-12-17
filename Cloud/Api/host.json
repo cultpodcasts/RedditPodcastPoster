@@ -12,9 +12,7 @@
       "default": "None",
       "Host.Results": "Information",
       "Function": "Information",
-      "Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler": "Warning",
-      "Azure.Core": "Warning",
-      "Azure.Identity": "Warning"
+      "RedditPodcastPoster": "Information"
     }
   }
 }
