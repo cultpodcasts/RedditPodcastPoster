@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System.Text;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.ApplicationInsights;
 
@@ -12,9 +13,11 @@ public static class LoggingBuilderExtensions
         {
             loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
             {
-                Console.Out.WriteLine("Logging options:");
+                var log = new StringBuilder($"Logging options: {options.Rules.Count} rules. ");
+                var ctr = 0;
                 foreach (var rule in options.Rules)
                 {
+                    ctr++;
                     var logLevel = new[]
                     {
                         LogLevel.Trace, LogLevel.Debug, LogLevel.Information, LogLevel.Warning, LogLevel.Error,
@@ -26,9 +29,10 @@ public static class LoggingBuilderExtensions
                             .Select(x => x.ToString());
 
                     var buffer =
-                        $"'{rule.ProviderName}', '{rule.CategoryName}', '{rule.LogLevel}', '{string.Join(", ", filteredLogLevels)}'";
-                    Console.Out.WriteLine(buffer);
+                        $"({ctr}: '{rule.ProviderName}', '{rule.CategoryName}', '{rule.LogLevel}', '{string.Join(", ", filteredLogLevels)}') ";
+                    log.Append(buffer);
                 }
+                Console.Out.WriteLine(log.ToString());
             });
         }
 
