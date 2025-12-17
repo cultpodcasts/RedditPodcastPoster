@@ -7,20 +7,17 @@ namespace RedditPodcastPoster.PushSubscriptions.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    extension(IServiceCollection services)
+    public static IServiceCollection AddPushSubscriptionsRepository(this IServiceCollection services)
     {
-        public IServiceCollection AddPushSubscriptionsRepository()
-        {
-            return services
-                .AddScoped<IPushSubscriptionRepository, PushSubscriptionRepository>();
-        }
+        return services
+            .AddScoped<IPushSubscriptionRepository, PushSubscriptionRepository>();
+    }
 
-        public IServiceCollection AddPushSubscriptions()
-        {
-            return services
-                .AddPushSubscriptionsRepository()
-                .AddScoped<INotificationPublisher, NotificationPublisher>()
-                .BindConfiguration<PushSubscriptionsOptions>("pushSubscriptions");
-        }
+    public static IServiceCollection AddPushSubscriptions(this IServiceCollection services)
+    {
+        return services
+            .AddPushSubscriptionsRepository()
+            .AddScoped<INotificationPublisher, NotificationPublisher>()
+            .BindConfiguration<PushSubscriptionsOptions>("pushSubscriptions");
     }
 }

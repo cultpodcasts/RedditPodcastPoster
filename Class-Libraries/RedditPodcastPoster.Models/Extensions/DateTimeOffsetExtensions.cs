@@ -12,25 +12,22 @@ public static class DateTimeOffsetExtensions
         return true;
     }
 
-    extension(DateTimeOffset dateTime)
+    public static DateTimeOffset Floor(this DateTimeOffset dateTime, TimeSpan interval)
     {
-        public DateTimeOffset Floor(TimeSpan interval)
-        {
-            return dateTime.AddTicks(-(dateTime.Ticks % interval.Ticks));
-        }
+        return dateTime.AddTicks(-(dateTime.Ticks % interval.Ticks));
+    }
 
-        public DateTimeOffset Ceiling(TimeSpan interval)
-        {
-            var overflow = dateTime.Ticks % interval.Ticks;
+    public static DateTimeOffset Ceiling(this DateTimeOffset dateTime, TimeSpan interval)
+    {
+        var overflow = dateTime.Ticks % interval.Ticks;
 
-            return overflow == 0 ? dateTime : dateTime.AddTicks(interval.Ticks - overflow);
-        }
+        return overflow == 0 ? dateTime : dateTime.AddTicks(interval.Ticks - overflow);
+    }
 
-        public DateTimeOffset Round(TimeSpan interval)
-        {
-            var halfIntervalTicks = (interval.Ticks + 1) >> 1;
+    public static DateTimeOffset Round(this DateTimeOffset dateTime, TimeSpan interval)
+    {
+        var halfIntervalTicks = (interval.Ticks + 1) >> 1;
 
-            return dateTime.AddTicks(halfIntervalTicks - (dateTime.Ticks + halfIntervalTicks) % interval.Ticks);
-        }
+        return dateTime.AddTicks(halfIntervalTicks - (dateTime.Ticks + halfIntervalTicks) % interval.Ticks);
     }
 }

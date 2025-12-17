@@ -12,35 +12,32 @@ namespace RedditPodcastPoster.Discovery.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    extension(IServiceCollection services)
+    public static IServiceCollection AddDiscovery(this IServiceCollection services, ApplicationUsage usage)
     {
-        public IServiceCollection AddDiscovery(ApplicationUsage usage)
-        {
-            return services
-                .AddScoped<ISearchProvider, SearchProvider>()
-                .AddScoped<IEpisodeResultsEnricher, EpisodeResultsEnricher>()
-                .AddScoped<IEpisodeResultEnricher, EpisodeResultEnricher>()
-                .AddScoped<ISpotifyEnricher, SpotifyEnricher>()
-                .AddScoped<IAppleEnricher, AppleEnricher>()
-                .AddScoped<IDiscoveryServiceConfigProvider, DiscoveryServiceConfigProvider>()
-                .AddScoped<IDiscoveryService, DiscoveryService>()
-                .AddScoped<IEnrichedEpisodeResultsAdapter, EnrichedEpisodeResultsAdapter>()
-                .AddScoped<IEnrichedEpisodeResultAdapter, EnrichedEpisodeResultAdapter>()
-                .AddScoped<IIgnoreTermsProvider, IgnoreTermsProvider>()
-                .AddDiscoveryRepository()
-                .AddSpotifyServices()
-                .AddAppleServices()
-                .AddYouTubeServices(usage).AddListenNotes()
-                .AddTaddy()
-                .AddTextSanitiser()
-                .BindConfiguration<DiscoverySettings>("discover")
-                .BindConfiguration<IgnoreTermsSettings>("discover");
-        }
+        return services
+            .AddScoped<ISearchProvider, SearchProvider>()
+            .AddScoped<IEpisodeResultsEnricher, EpisodeResultsEnricher>()
+            .AddScoped<IEpisodeResultEnricher, EpisodeResultEnricher>()
+            .AddScoped<ISpotifyEnricher, SpotifyEnricher>()
+            .AddScoped<IAppleEnricher, AppleEnricher>()
+            .AddScoped<IDiscoveryServiceConfigProvider, DiscoveryServiceConfigProvider>()
+            .AddScoped<IDiscoveryService, DiscoveryService>()
+            .AddScoped<IEnrichedEpisodeResultsAdapter, EnrichedEpisodeResultsAdapter>()
+            .AddScoped<IEnrichedEpisodeResultAdapter, EnrichedEpisodeResultAdapter>()
+            .AddScoped<IIgnoreTermsProvider, IgnoreTermsProvider>()
+            .AddDiscoveryRepository()
+            .AddSpotifyServices()
+            .AddAppleServices()
+            .AddYouTubeServices(usage).AddListenNotes()
+            .AddTaddy()
+            .AddTextSanitiser()
+            .BindConfiguration<DiscoverySettings>("discover")
+            .BindConfiguration<IgnoreTermsSettings>("discover");
+    }
 
-        public IServiceCollection AddDiscoveryRepository()
-        {
-            return services
-                .AddScoped<IDiscoveryResultsRepository, DiscoveryResultsRepository>();
-        }
+    public static IServiceCollection AddDiscoveryRepository(this IServiceCollection services)
+    {
+        return services
+            .AddScoped<IDiscoveryResultsRepository, DiscoveryResultsRepository>();
     }
 }
