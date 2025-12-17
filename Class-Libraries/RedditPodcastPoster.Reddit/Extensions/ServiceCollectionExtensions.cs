@@ -5,25 +5,28 @@ namespace RedditPodcastPoster.Reddit.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddRedditServices(this IServiceCollection services)
+    extension(IServiceCollection services)
     {
-        RedditClientFactory.AddRedditClient(services);
+        public IServiceCollection AddRedditServices()
+        {
+            RedditClientFactory.AddRedditClient(services);
 
-        return services
-            .AddScoped<IRedditPostTitleFactory, RedditPostTitleFactory>()
-            .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
-            .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
-            .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
-            .AddScoped<IPostManager, PostManager>()
-            .AddScoped<IPostResolver, PostResolver>()
-            .AddScoped<IFlareManager, FlareManager>()
-            .BindConfiguration<RedditSettings>("reddit")
-            .AddSubredditSettings();
-    }
+            return services
+                .AddScoped<IRedditPostTitleFactory, RedditPostTitleFactory>()
+                .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
+                .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
+                .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
+                .AddScoped<IPostManager, PostManager>()
+                .AddScoped<IPostResolver, PostResolver>()
+                .AddScoped<IFlareManager, FlareManager>()
+                .BindConfiguration<RedditSettings>("reddit")
+                .AddSubredditSettings();
+        }
 
-    public static IServiceCollection AddSubredditSettings(this IServiceCollection services)
-    {
-        return services
-            .BindConfiguration<SubredditSettings>("subreddit");
+        public IServiceCollection AddSubredditSettings()
+        {
+            return services
+                .BindConfiguration<SubredditSettings>("subreddit");
+        }
     }
 }

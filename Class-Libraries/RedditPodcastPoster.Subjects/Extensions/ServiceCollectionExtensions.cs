@@ -7,30 +7,33 @@ namespace RedditPodcastPoster.Subjects.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddSubjectServices(this IServiceCollection services)
+    extension(IServiceCollection services)
     {
-        return services
-                .AddSingleton<ISubjectRepository, SubjectRepository>()
-                .AddScoped<ISubjectService, SubjectService>()
-                .AddScoped<ISubjectEnricher, SubjectEnricher>()
-                .AddScoped<ISubjectMatcher, SubjectMatcher>()
-                .AddSingleton<IRecycledFlareIdProvider, RecycledFlareIdProvider>()
-                .AddScoped<ICategoriser, Categoriser>()
-                .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
-                .AddScoped<ISubjectFactory, SubjectFactory>()
-                .AddScoped<IHashTagProvider, HashTagProvider>()
-            ;
-    }
+        public IServiceCollection AddSubjectServices()
+        {
+            return services
+                    .AddSingleton<ISubjectRepository, SubjectRepository>()
+                    .AddScoped<ISubjectService, SubjectService>()
+                    .AddScoped<ISubjectEnricher, SubjectEnricher>()
+                    .AddScoped<ISubjectMatcher, SubjectMatcher>()
+                    .AddSingleton<IRecycledFlareIdProvider, RecycledFlareIdProvider>()
+                    .AddScoped<ICategoriser, Categoriser>()
+                    .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
+                    .AddScoped<ISubjectFactory, SubjectFactory>()
+                    .AddScoped<IHashTagProvider, HashTagProvider>()
+                ;
+        }
 
-    public static IServiceCollection AddCachedSubjectProvider(this IServiceCollection services)
-    {
-        return services
-            .AddSingleton<ISubjectsProvider, CachedSubjectProvider>();
-    }
+        public IServiceCollection AddCachedSubjectProvider()
+        {
+            return services
+                .AddSingleton<ISubjectsProvider, CachedSubjectProvider>();
+        }
 
-    public static IServiceCollection AddSubjectProvider(this IServiceCollection services)
-    {
-        return services
-            .AddSingleton<ISubjectsProvider, SubjectRepository>();
+        public IServiceCollection AddSubjectProvider()
+        {
+            return services
+                .AddSingleton<ISubjectsProvider, SubjectRepository>();
+        }
     }
 }
