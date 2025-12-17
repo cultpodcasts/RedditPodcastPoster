@@ -13,7 +13,7 @@ public static class LoggingBuilderExtensions
         var providerName = typeof(ApplicationInsightsLoggerProvider).FullName!;
         LogLevel? warning = LogLevel.Warning;
 
-        loggingBuilder.SetMinimumLevel(LogLevel.Information);
+//        loggingBuilder.SetMinimumLevel(LogLevel.Information);
         loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
         {
             var defaultRule = options.Rules.FirstOrDefault(rule =>

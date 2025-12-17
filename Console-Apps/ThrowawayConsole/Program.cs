@@ -7,9 +7,11 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.InternetArchive;
 using RedditPodcastPoster.InternetArchive.Extensions;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
@@ -17,6 +19,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
+using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.UrlSubmission.Extensions;
@@ -50,16 +53,16 @@ builder.Services
     .AddSpotifyServices()
     .AddYouTubeServices(ApplicationUsage.Api)
     .AddScoped(s => new iTunesSearchManager())
+    .AddSubjectServices()
+    .AddSubjectProvider()
     .AddHttpClient();
 
 
 using var host = builder.Build();
 
-var service = host.Services.GetService<IInternetArchivePageMetaDataExtractor>()!;
-
-Uri.TryCreate(args[0], UriKind.Absolute, out var url);
-var x = await service.GetMetaData(url!);
-
+var service = host.Services.GetService<IQueryExecutor>()!;
+var result = await service.GetHomePage( CancellationToken.None);
+var epis = result.RecentEpisodes.Skip(3).Take(1).First();
 return;
 
 string GetBasePath()
