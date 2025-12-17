@@ -5,19 +5,22 @@ namespace RedditPodcastPoster.Auth0.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddAuth0Client(this IServiceCollection services)
+    extension(IServiceCollection services)
     {
-        return services
-            .AddScoped<IAuth0Client, Auth0Client>()
-            .BindConfiguration<Auth0Options>("auth0client");
-    }
+        public IServiceCollection AddAuth0Client()
+        {
+            return services
+                .AddScoped<IAuth0Client, Auth0Client>()
+                .BindConfiguration<Auth0Options>("auth0client");
+        }
 
-    public static IServiceCollection AddAuth0Validation(this IServiceCollection services)
-    {
-        services
-            .AddSingleton<ISigningKeysFactory, SigningKeysFactory>()
-            .AddSingleton<IAuth0TokenValidator, Auth0TokenValidator>()
-            .BindConfiguration<Auth0ValidationOptions>("auth0");
-        return services;
+        public IServiceCollection AddAuth0Validation()
+        {
+            services
+                .AddSingleton<ISigningKeysFactory, SigningKeysFactory>()
+                .AddSingleton<IAuth0TokenValidator, Auth0TokenValidator>()
+                .BindConfiguration<Auth0ValidationOptions>("auth0");
+            return services;
+        }
     }
 }

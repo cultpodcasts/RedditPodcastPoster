@@ -6,14 +6,17 @@ namespace RedditPodcastPoster.Configuration.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddPostingCriteria(this IServiceCollection services)
+    extension(IServiceCollection services)
     {
-        return services.BindConfiguration<PostingCriteria>("postingCriteria");
-    }
+        public IServiceCollection AddPostingCriteria()
+        {
+            return services.BindConfiguration<PostingCriteria>("postingCriteria");
+        }
 
-    public static IServiceCollection AddDelayedYouTubePublication(this IServiceCollection services)
-    {
-        return services.BindConfiguration<DelayedYouTubePublication>("delayedYouTubePublication");
+        public IServiceCollection AddDelayedYouTubePublication()
+        {
+            return services.BindConfiguration<DelayedYouTubePublication>("delayedYouTubePublication");
+        }
     }
 
     public static IConfigurationBuilder AddSecrets(this IConfigurationBuilder configuration, Assembly secretsAssembly)
@@ -30,18 +33,21 @@ public static class ServiceCollectionExtensions
         return configuration;
     }
 
-    public static IServiceCollection BindConfiguration<T>(this IServiceCollection services, string configSection)
-        where T : class
+    extension(IServiceCollection services)
     {
-        services.AddOptions<T>().Configure<IConfiguration>((settings, configuration) =>
+        public IServiceCollection BindConfiguration<T>(string configSection)
+            where T : class
         {
-            configuration.GetSection(configSection).Bind(settings);
-        });
-        return services;
-    }
+            services.AddOptions<T>().Configure<IConfiguration>((settings, configuration) =>
+            {
+                configuration.GetSection(configSection).Bind(settings);
+            });
+            return services;
+        }
 
-    public static IServiceCollection AddDateTimeService(this IServiceCollection services)
-    {
-        return services.AddSingleton<IDateTimeService, DateTimeService>();
+        public IServiceCollection AddDateTimeService()
+        {
+            return services.AddSingleton<IDateTimeService, DateTimeService>();
+        }
     }
 }
