@@ -122,11 +122,6 @@ var logging= {
     Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
     Logging__ApplicationInsights__SamplingSettings__ExcludedTypes: ''
     Logging__ApplicationInsights__EnableLiveMetricsFilters: 'true'
-    Logging__default: 'None'
-    'Logging__Host.Results': 'Information'
-    'Logging__Function': 'Information'
-    'Logging__Azure.Core': 'Warning'
-    'Logging__Azure.Identity': 'Warning'
 }
 
 var api= {
