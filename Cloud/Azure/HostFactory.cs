@@ -20,6 +20,7 @@ public static class HostFactory
                 .AddApplicationInsightsTelemetryWorkerService()
                 .ConfigureFunctionsApplicationInsights();
             builder.Logging.RemoveDefaultApplicationInsightsWarningRule();
+            builder.Logging.RemoveInformationRules();
             builder.Logging.SetMinimumLevel(LogLevel.Warning);
         }
         else
