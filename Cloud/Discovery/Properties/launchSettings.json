@@ -5,7 +5,7 @@
       "commandLineArgs": "--port 7142",
       "launchBrowser": false,
       "environmentVariables": {
-        "DOTNET_environment": "Development",
+        "DOTNET_environment": "Development", 
         "discover__Queries__0__Term": "Cult",
         "discover__Queries__0__DiscoverService": "ListenNotes",
         "discover__Queries__1__Term": "Cults",
@@ -35,17 +35,7 @@
         "discover__IgnoreTerms__12": "cult film",
         "discover__IgnoreTerms__13": "cult movie",
         "pushSubscriptions__Subject": "mailto:vapid@cultpodcasts.com",
-        "listenNotes__RequestDelaySeconds": "2",
-        "Logging__LogLevel__Default": "Information",
-        "Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler": "Warning",
-        "Logging__ApplicationInsights__SamplingSettings__IsEnabled": "true",
-        "Logging__ApplicationInsights__SamplingSettings__ExcludedTypes": "",
-        "Logging__ApplicationInsights__EnableLiveMetricsFilters": "true",
-        "Logging__default": "None",
-        "Logging__Host.Results": "Information",
-        "Logging__Function": "Information",
-        "Logging__Azure.Core": "Warning",
-        "Logging__Azure.Identity": "Warning"
+        "listenNotes__RequestDelaySeconds": "2"
       }
     }
   }
