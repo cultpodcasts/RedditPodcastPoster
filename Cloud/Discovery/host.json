@@ -6,6 +6,10 @@
       "maxConcurrentOrchestratorFunctions": 1,
       "storageProvider": {
         "partitionCount": 1
+      },
+      "tracing": {
+        "distributedTracingEnabled": true,
+        "version": "V2"
       }
     }
   },
