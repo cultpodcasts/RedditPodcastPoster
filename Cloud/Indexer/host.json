@@ -21,7 +21,8 @@
       "default": "None",
       "Host.Results": "Information",
       "Function": "Information",
-      "Azure": "Warning"
+      "Azure.Core": "Warning",
+      "Azure.Identity": "Warning"
     }
   },
   "functionTimeout": "00:05:00"
