@@ -78,11 +78,6 @@ public class PodcastEpisodesPoster(
                             {
                                 posted++;
                                 postedEpisodes.Add(matchingPodcastEpisode.Episode);
-                            }
-
-                            matchingPodcastEpisodeResults.Add(result);
-                            if (result.Success)
-                            {
                                 updatedPodcasts.Add(matchingPodcastEpisode.Podcast);
                             }
                             else
@@ -94,6 +89,8 @@ public class PodcastEpisodesPoster(
                                     break;
                                 }
                             }
+
+                            matchingPodcastEpisodeResults.Add(result);
                         }
                         else
                         {
