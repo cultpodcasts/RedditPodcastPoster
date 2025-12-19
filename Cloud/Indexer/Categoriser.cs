@@ -23,6 +23,10 @@ public class Categoriser(
             logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Categoriser), reason);
             return indexerContext with { Success = true };
         }
+        else
+        {
+            logger.LogInformation("{class} activity enabled. Reason: '{reason}'.", nameof(Categoriser), reason);
+        }
 
         if (indexerContext.CategoriserOperationId == null)
         {

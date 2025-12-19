@@ -23,6 +23,10 @@ public class Tweet(
             logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Tweet), reason);
             return indexerContext with { Success = true };
         }
+        else
+        {
+            logger.LogInformation("{class} activity enabled. Reason: '{reason}'.", nameof(Tweet), reason);
+        }
 
         try
         {

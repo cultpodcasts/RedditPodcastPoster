@@ -23,6 +23,10 @@ public class Bluesky(
             logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Bluesky), reason);
             return indexerContext with { Success = true };
         }
+        else
+        {
+            logger.LogInformation("{class} activity enabled. Reason: '{reason}'.", nameof(Bluesky), reason);
+        }
 
         try
         {

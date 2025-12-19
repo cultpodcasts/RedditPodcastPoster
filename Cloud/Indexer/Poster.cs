@@ -38,6 +38,10 @@ public class Poster(
             logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Poster), reason);
             return indexerContext with { Success = true };
         }
+        else
+        {
+            logger.LogInformation("{class} activity enabled. Reason: '{reason}'.", nameof(Poster), reason);
+        }
 
         if (indexerContext.PosterOperationId == null)
         {
