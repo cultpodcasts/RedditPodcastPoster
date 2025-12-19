@@ -23,7 +23,7 @@ public class SpotifyPodcastResolver(
         if (indexingContext.SkipSpotifyUrlResolving)
         {
             logger.LogInformation(
-                $"Skipping '{nameof(FindPodcast)}' as '{nameof(indexingContext.SkipSpotifyUrlResolving)}' is set. Podcast-Id:'{request.PodcastId}', Podcast-Name:'{request.Name}'.");
+                "Skipping '{FindPodcastName}' as '{IndexingContextSkipSpotifyUrlResolvingName}' is set. Podcast-Id:'{RequestPodcastId}', Podcast-Name:'{RequestName}'.", nameof(FindPodcast), nameof(indexingContext.SkipSpotifyUrlResolving), request.PodcastId, request.Name);
             return null;
         }
 

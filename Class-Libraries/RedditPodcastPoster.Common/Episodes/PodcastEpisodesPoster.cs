@@ -48,6 +48,7 @@ public class PodcastEpisodesPoster(
 
         var matchingPodcastEpisodeResults = new List<ProcessResponse>();
         var posted = 0;
+        var failures = 0;
         foreach (var matchingPodcastEpisode in matchingPodcastEpisodes.OrderBy(x => x.Episode.Release))
         {
             if (posted >= maxPosts)
@@ -77,13 +78,19 @@ public class PodcastEpisodesPoster(
                             {
                                 posted++;
                                 postedEpisodes.Add(matchingPodcastEpisode.Episode);
+                                updatedPodcasts.Add(matchingPodcastEpisode.Podcast);
+                            }
+                            else
+                            {
+                                failures++;
+                                if (failures >= 5)
+                                {
+                                    logger.LogError("Reddit posting failures = {failures}.", failures);
+                                    break;
+                                }
                             }
 
                             matchingPodcastEpisodeResults.Add(result);
-                            if (result.Success)
-                            {
-                                updatedPodcasts.Add(matchingPodcastEpisode.Podcast);
-                            }
                         }
                         else
                         {

@@ -26,7 +26,7 @@ public class RedirectService(
         else
         {
             logger.LogError(
-                $"Unable to create podcast-redirect. Redirect considered unsafe. '{podcastRedirect.OldPodcastName}' -> '{podcastRedirect.NewPodcastName}'.");
+                "Unable to create podcast-redirect. Redirect considered unsafe. '{PodcastRedirectOldPodcastName}' -> '{PodcastRedirectNewPodcastName}'.", podcastRedirect.OldPodcastName, podcastRedirect.NewPodcastName);
         }
         return false;
     }

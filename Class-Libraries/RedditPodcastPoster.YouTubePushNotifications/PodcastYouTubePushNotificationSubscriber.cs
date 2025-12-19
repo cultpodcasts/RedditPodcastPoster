@@ -42,7 +42,7 @@ public class PodcastYouTubePushNotificationSubscriber(
         {
             var body = await result.Content.ReadAsStringAsync();
             logger.LogError(
-                $"Failure to subscribe podcast for youtube push notifications. Callback-url: '{callbackUrl}', topic-url:'{topicUrl}'. Result status-code: '{result.StatusCode.ToString()}', response-body: '{body}'.");
+                "Failure to subscribe podcast for youtube push notifications. Callback-url: '{CallbackUrl}', topic-url:'{TopicUrl}'. Result status-code: '{ToString}', response-body: '{Body}'.", callbackUrl, topicUrl, result.StatusCode.ToString(), body);
         }
     }
 }

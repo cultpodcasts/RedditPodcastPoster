@@ -23,7 +23,7 @@ public class ClientFactory(
         }
 
         logger.LogInformation(
-            $"{nameof(Create)}: Using listen-notes application-key ending '{_options.Key.Substring(_options.Key.Length - 2)}'.");
+            "{CreateName}: Using listen-notes application-key ending '{Substring}'.", nameof(Create), _options.Key.Substring(_options.Key.Length - 2));
         return new Client(_options.Key);
     }
 }

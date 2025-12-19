@@ -35,7 +35,7 @@ public class FileRepository : IFileRepository
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"Could not create storage for {nameof(FileRepository)} named '{container}'.");
+                    _logger.LogError(ex, "Could not create storage for {FileRepositoryName} named '{Container}'.", nameof(FileRepository), container);
                     throw;
                 }
             }

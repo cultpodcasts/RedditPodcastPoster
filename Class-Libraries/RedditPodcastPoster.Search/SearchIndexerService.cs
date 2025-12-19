@@ -18,7 +18,7 @@ public class SearchIndexerService(
 
     public async Task<IndexerStateWrapper> RunIndexer()
     {
-        logger.LogInformation($"Indexing '{_searchIndexConfig.IndexerName}'.");
+        logger.LogInformation("Indexing '{IndexerName}'.", _searchIndexConfig.IndexerName);
         try
         {
             var response = await searchIndexerClient.RunIndexerAsync(_searchIndexConfig.IndexerName);
@@ -26,11 +26,11 @@ public class SearchIndexerService(
             if (response.Status != (int) HttpStatusCode.Accepted)
             {
                 logger.LogError(
-                    $"Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{response.Status}' and reason '{response.ReasonPhrase}'.");
+                    "Failure to run indexer '{IndexerName}' with status '{ResponseStatus}' and reason '{ResponseReasonPhrase}'.", _searchIndexConfig.IndexerName, response.Status, response.ReasonPhrase);
                 return new IndexerStateWrapper(IndexerState.Failure);
             }
 
-            logger.LogInformation($"Ran indexer '{_searchIndexConfig.IndexerName}'.");
+            logger.LogInformation("Ran indexer '{IndexerName}'.", _searchIndexConfig.IndexerName);
             return new IndexerStateWrapper(IndexerState.Executed);
         }
         catch (RequestFailedException ex)
@@ -67,13 +67,13 @@ public class SearchIndexerService(
                         case HttpStatusCode.TooManyRequests:
                         {
                             logger.LogError(
-                                $"Too Many Requests. Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{ex.Status}'.");
+                                "Too Many Requests. Failure to run indexer '{IndexerName}' with status '{ExStatus}'.", _searchIndexConfig.IndexerName, ex.Status);
                             return new IndexerStateWrapper(IndexerState.TooManyRequests, nextRun, lastRan);
                         }
                         case HttpStatusCode.Conflict:
                         {
                             logger.LogError(
-                                $"Indexer already running. Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{ex.Status}'.");
+                                "Indexer already running. Failure to run indexer '{IndexerName}' with status '{ExStatus}'.", _searchIndexConfig.IndexerName, ex.Status);
                             return new IndexerStateWrapper(IndexerState.AlreadyRunning, nextRun, lastRan);
                         }
                         default:
@@ -85,7 +85,7 @@ public class SearchIndexerService(
                 default:
                 {
                     logger.LogError(ex,
-                        $"Failure to run indexer '{_searchIndexConfig.IndexerName}' with status '{ex.Status}' and message '{ex.Message}'.");
+                        "Failure to run indexer '{IndexerName}' with status '{ExStatus}' and message '{ExMessage}'.", _searchIndexConfig.IndexerName, ex.Status, ex.Message);
                     return new IndexerStateWrapper(IndexerState.Failure);
                 }
             }
@@ -93,7 +93,7 @@ public class SearchIndexerService(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failure to run indexer '{_searchIndexConfig.IndexerName}' with message '{ex.Message}'.");
+                "Failure to run indexer '{IndexerName}' with message '{ExMessage}'.", _searchIndexConfig.IndexerName, ex.Message);
             return new IndexerStateWrapper(IndexerState.Failure);
         }
     }

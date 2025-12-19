@@ -46,7 +46,7 @@ public class TweetProcessor(
                     catch (Exception ex)
                     {
                         logger.LogError(ex,
-                            $"Failure to save podcast with podcast-id '{podcastEpisode.Podcast.Id}' to update episode with id '{podcastEpisode.Episode.Id}'.");
+                            "Failure to save podcast with podcast-id '{PodcastId}' to update episode with id '{EpisodeId}'.", podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
                         throw;
                     }
                 }

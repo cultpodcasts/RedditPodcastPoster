@@ -35,7 +35,7 @@ public class Auth0TokenValidator(
             if (claimsPrincipal == null || token == null)
             {
                 logger.LogWarning(
-                    $"Unable to validate token. Claim-principal null: {claimsPrincipal == null}. Validated-token null: {token == null}.");
+                    "Unable to validate token. Claim-principal null: {B}. Validated-token null: {B1}.", claimsPrincipal == null, token == null);
                 return null;
             }
 

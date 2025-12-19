@@ -238,7 +238,7 @@ public class EpisodeController(
                         var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url);
                         if (result.TweetSendStatus != TweetSendStatus.Sent)
                         {
-                            logger.LogError($"Tweet result: '{result}'.");
+                            logger.LogError("Tweet result: '{PostTweetResponse}'.", result);
                             response.FailedTweetContent = result.candidateTweet;
                             response.Tweeted = false;
                         }
@@ -397,7 +397,7 @@ public class EpisodeController(
         try
         {
             logger.LogInformation(
-                $"{nameof(Post)} Episode Change Request: episode-id: '{episodeChangeRequestWrapper.EpisodeId}'. {JsonSerializer.Serialize(episodeChangeRequestWrapper.EpisodeChangeRequest)}");
+                "{PostName} Episode Change Request: episode-id: '{EpisodeId}'. {Serialize}", nameof(Post), episodeChangeRequestWrapper.EpisodeId, JsonSerializer.Serialize(episodeChangeRequestWrapper.EpisodeChangeRequest));
             var podcast = await podcastRepository.GetBy(x =>
                 x.Episodes.Any(ep => ep.Id == episodeChangeRequestWrapper.EpisodeId));
             if (podcast == null)

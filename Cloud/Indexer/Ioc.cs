@@ -54,6 +54,8 @@ public static class Ioc
             .AddHttpClient()
             .BindConfiguration<IndexerOptions>("indexer")
             .BindConfiguration<PosterOptions>("poster")
+            .BindConfiguration<ActivityOptions>("activities")
+            .AddScoped<IActivityOptionsProvider, ActivityOptionsProvider>()
             .AddPostingCriteria()
             .AddDelayedYouTubePublication()
             .AddBBCServices()

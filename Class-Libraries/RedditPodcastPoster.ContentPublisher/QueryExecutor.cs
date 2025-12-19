@@ -200,9 +200,9 @@ public class QueryExecutor(
             descRegex = new Regex(podcastResult.DescriptionRegex, RegexOptions.Singleline);
         }
 
-        podcastResult.EpisodeDescription =
+        var desc =
             textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
-
+        podcastResult.EpisodeDescription = desc;
         //podcastResult.PodcastName = textSanitiser.SanitisePodcastName(podcastResult.PodcastName);
 
         return podcastResult;

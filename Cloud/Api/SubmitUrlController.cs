@@ -42,7 +42,7 @@ public class SubmitUrlController(
         try
         {
             logger.LogInformation(
-                $"{nameof(Run)}: Handling url-submission: url: '{submitUrlModel.Url}', podcast-id: '{submitUrlModel.PodcastId}', podcast-name: '{submitUrlModel.PodcastName}'.");
+                "{RunName}: Handling url-submission: url: '{Url}', podcast-id: '{PodcastId}', podcast-name: '{PodcastName}'.", nameof(Run), submitUrlModel.Url, submitUrlModel.PodcastId, submitUrlModel.PodcastName);
             Guid? podcastId;
             if (!string.IsNullOrWhiteSpace(submitUrlModel.PodcastName))
             {
@@ -91,7 +91,7 @@ public class SubmitUrlController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(Run)}: Failed to submit url '{submitUrlModel.Url}'.");
+            logger.LogError(ex, "{RunName}: Failed to submit url '{Url}'.", nameof(Run), submitUrlModel.Url);
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)

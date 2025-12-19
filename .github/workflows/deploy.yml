@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/storage-deployment-containers
 
 permissions:
   id-token: write

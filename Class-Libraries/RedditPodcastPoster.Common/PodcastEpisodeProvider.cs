@@ -63,7 +63,7 @@ public class PodcastEpisodeProvider(
             var podcast = await repository.GetPodcast(untweetedPodcastId);
             if (podcast == null)
             {
-                logger.LogError($"Podcast with id '{untweetedPodcastId}' not found.");
+                logger.LogError("Podcast with id '{UntweetedPodcastId}' not found.", untweetedPodcastId);
             }
             else
             {

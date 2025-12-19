@@ -6,6 +6,10 @@
       "maxConcurrentOrchestratorFunctions": 1,
       "storageProvider": {
         "partitionCount": 1
+      },
+      "tracing": {
+        "distributedTracingEnabled": true,
+        "version": "V2"
       }
     }
   },
@@ -18,9 +22,11 @@
       "enableLiveMetricsFilters": true
     },
     "logLevel": {
-      "default": "Information",
+      "default": "None",
       "Host.Results": "Information",
-      "Function": "Information"
+      "Function": "Information",
+      "RedditPodcastPoster": "Information",
+      "Indexer": "Information"
     }
   },
   "functionTimeout": "00:05:00"

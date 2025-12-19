@@ -28,7 +28,7 @@ public class AppleUrlCategoriser(
 
         if (podcast == null)
         {
-            logger.LogWarning($"Could not find podcast with name '{criteria.ShowName}'.");
+            logger.LogWarning("Could not find podcast with name '{CriteriaShowName}'.", criteria.ShowName);
             return null;
         }
 
@@ -50,12 +50,12 @@ public class AppleUrlCategoriser(
         if (!string.IsNullOrWhiteSpace(criteria.SpotifyTitle))
         {
             logger.LogWarning(
-                $"Could not find item with episode-title '{criteria.EpisodeTitle}' or spotify-title '{criteria.SpotifyTitle}' and for podcast with name '{criteria.ShowName}'.");
+                "Could not find item with episode-title '{CriteriaEpisodeTitle}' or spotify-title '{CriteriaSpotifyTitle}' and for podcast with name '{CriteriaShowName}'.", criteria.EpisodeTitle, criteria.SpotifyTitle, criteria.ShowName);
         }
         else
         {
             logger.LogWarning(
-                $"Could not find item with episode-title '{criteria.EpisodeTitle}' and for podcast with name '{criteria.ShowName}'.");
+                "Could not find item with episode-title '{CriteriaEpisodeTitle}' and for podcast with name '{CriteriaShowName}'.", criteria.EpisodeTitle, criteria.ShowName);
         }
         return null;
     }

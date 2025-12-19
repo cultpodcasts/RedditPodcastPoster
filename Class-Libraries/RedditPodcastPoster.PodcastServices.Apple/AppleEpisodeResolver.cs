@@ -51,14 +51,13 @@ public class AppleEpisodeResolver(
             {
                 var requestEpisodeTitle = WebUtility.HtmlDecode(request.EpisodeTitle.Trim());
 
-                var matches = podcastEpisodes.Where(
-                    x =>
-                    {
-                        var trimmedEpisodeTitle = WebUtility.HtmlDecode(x.Title.Trim());
-                        return trimmedEpisodeTitle == requestEpisodeTitle ||
-                               trimmedEpisodeTitle.Contains(requestEpisodeTitle) ||
-                               requestEpisodeTitle.Contains(trimmedEpisodeTitle);
-                    });
+                var matches = podcastEpisodes.Where(x =>
+                {
+                    var trimmedEpisodeTitle = WebUtility.HtmlDecode(x.Title.Trim());
+                    return trimmedEpisodeTitle == requestEpisodeTitle ||
+                           trimmedEpisodeTitle.Contains(requestEpisodeTitle) ||
+                           requestEpisodeTitle.Contains(trimmedEpisodeTitle);
+                });
                 var match = matches.MaxBy(x => x.Title);
                 if (match == null)
                 {
@@ -100,7 +99,7 @@ public class AppleEpisodeResolver(
             }
 
             logger.LogInformation(
-                $"Podcast '{request.PodcastName}' cannot be found on Apple Podcasts.");
+                "Podcast '{RequestPodcastName}' cannot be found on Apple Podcasts.", request.PodcastName);
         }
 
         return matchingEpisode;

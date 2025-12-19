@@ -60,6 +60,6 @@ public class AppleEnricher(
             }
         }
 
-        logger.LogInformation($"{nameof(Enrich)} enriched '{enrichedCtr}' results.");
+        logger.LogInformation("{EnrichName} enriched '{EnrichedCtr}' results.", nameof(Enrich), enrichedCtr);
     }
 }

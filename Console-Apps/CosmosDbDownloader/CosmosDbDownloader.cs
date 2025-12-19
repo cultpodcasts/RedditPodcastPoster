@@ -62,7 +62,7 @@ public class CosmosDbDownloader(
                 if (string.IsNullOrWhiteSpace(pushSubscriptionDocument.FileKey))
                 {
                     logger.LogInformation(
-                        $"Push-Subscription-Document with id '{pushSubscriptionDocument.Id}' missing a file-key.");
+                        "Push-Subscription-Document with id '{Guid}' missing a file-key.", pushSubscriptionDocument.Id);
                     pushSubscriptionDocument.FileKey = FileKeyFactory.GetFileKey("ps_" + pushSubscriptionDocument.Id);
                     await cosmosDbRepository.Write(pushSubscriptionDocument);
                 }
@@ -92,7 +92,7 @@ public class CosmosDbDownloader(
                 if (string.IsNullOrWhiteSpace(discoveryResultsDocument.FileKey))
                 {
                     logger.LogInformation(
-                        $"Discovery-Results-Document with id '{discoveryResultsDocument.Id}' missing a file-key.");
+                        "Discovery-Results-Document with id '{Guid}' missing a file-key.", discoveryResultsDocument.Id);
                     discoveryResultsDocument.FileKey = FileKeyFactory.GetFileKey("dr " + discoveryResultsDocument.Id);
                     await cosmosDbRepository.Write(discoveryResultsDocument);
                 }
@@ -120,7 +120,7 @@ public class CosmosDbDownloader(
                 progress.Refresh(ctr, $"Downloaded {subject.FileKey}");
                 if (string.IsNullOrWhiteSpace(subject.FileKey))
                 {
-                    logger.LogInformation($"Subject with id '{subject.Id}' missing a file-key.");
+                    logger.LogInformation("Subject with id '{SubjectId}' missing a file-key.", subject.Id);
                     subject.FileKey = FileKeyFactory.GetFileKey(subject.Name);
                     await cosmosDbRepository.Write(subject);
                 }

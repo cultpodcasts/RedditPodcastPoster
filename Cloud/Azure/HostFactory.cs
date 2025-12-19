@@ -14,12 +14,17 @@ public static class HostFactory
         var isDevelopment = builder.Configuration.IsDevelopment();
         builder.Services.AddLogging();
         builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
+
+        builder.Logging.ConsoleWriteConfig();
+
         if (!isDevelopment)
         {
             builder.Services
                 .AddApplicationInsightsTelemetryWorkerService()
                 .ConfigureFunctionsApplicationInsights();
             builder.Logging.RemoveDefaultApplicationInsightsWarningRule();
+            builder.Logging.RemoveInformationRules();
+            builder.Logging.SetMinimumLevel(LogLevel.Warning);
         }
         else
         {

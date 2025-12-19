@@ -28,7 +28,8 @@ public class SpotifyEpisodeResolver(
         {
             logger.LogInformation(
                 "Skipping '{nameofFindEpisode}' as '{nameofSkipSpotifyUrlResolving}' is set. Podcast-Id:'{requestPodcastSpotifyId}', Podcast-Name:'{requestPodcastName}', Episode-Id:'{requestEpisodeSpotifyId}', Episode-Name:'{requestEpisodeTitle}'.",
-                nameof(FindEpisode), nameof(indexingContext.SkipSpotifyUrlResolving), request.PodcastSpotifyId, request.PodcastName, request.EpisodeSpotifyId, request.EpisodeTitle);
+                nameof(FindEpisode), nameof(indexingContext.SkipSpotifyUrlResolving), request.PodcastSpotifyId,
+                request.PodcastName, request.EpisodeSpotifyId, request.EpisodeTitle);
             return new FindEpisodeResponse(null);
         }
 
@@ -36,7 +37,7 @@ public class SpotifyEpisodeResolver(
         if (!string.IsNullOrWhiteSpace(request.EpisodeSpotifyId))
         {
             var episodeRequest = new EpisodeRequest
-                {Market = market};
+                { Market = market };
             fullEpisode =
                 await spotifyClientWrapper.GetFullEpisode(request.EpisodeSpotifyId, episodeRequest, indexingContext);
             if (fullEpisode != null)
@@ -48,7 +49,7 @@ public class SpotifyEpisodeResolver(
         var podcastEpisodes = await spotifyPodcastEpisodesProvider.GetAllEpisodes(request, indexingContext, market);
 
         SimpleEpisode? matchingEpisode;
-        if (request is {ReleaseAuthority: Service.YouTube, Length: not null})
+        if (request is { ReleaseAuthority: Service.YouTube, Length: not null })
         {
             var ticks = YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
             if (request.YouTubePublishingDelay.HasValue &&
@@ -77,7 +78,7 @@ public class SpotifyEpisodeResolver(
 
         if (matchingEpisode != null)
         {
-            var showRequest = new EpisodeRequest {Market = market};
+            var showRequest = new EpisodeRequest { Market = market };
             fullEpisode = await spotifyClientWrapper.GetFullEpisode(matchingEpisode.Id, showRequest, indexingContext);
         }
 

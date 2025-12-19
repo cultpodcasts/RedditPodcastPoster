@@ -53,7 +53,7 @@ public class Tweeter(
                 catch (Exception ex)
                 {
                     logger.LogError(ex,
-                        $"Unable to tweet episode with id '{podcastEpisode.Episode.Id}' with title '{podcastEpisode.Episode.Title}' from podcast with id '{podcastEpisode.Podcast.Id}' and name '{podcastEpisode.Podcast.Name}'.");
+                        "Unable to tweet episode with id '{EpisodeId}' with title '{EpisodeTitle}' from podcast with id '{PodcastId}' and name '{PodcastName}'.", podcastEpisode.Episode.Id, podcastEpisode.Episode.Title, podcastEpisode.Podcast.Id, podcastEpisode.Podcast.Name);
                 }
             }
         }

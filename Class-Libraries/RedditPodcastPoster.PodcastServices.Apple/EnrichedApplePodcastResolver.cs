@@ -25,11 +25,11 @@ public class EnrichedApplePodcastResolver(
             catch (HttpIOException e)
             {
                 logger.LogError(e,
-                    $"Unable to retrieve apple-podcast-page at url '{applePodcastUrl}', http-request-error: '{e.HttpRequestError}'.");
+                    "Unable to retrieve apple-podcast-page at url '{ApplePodcastUrl}', http-request-error: '{EHttpRequestError}'.", applePodcastUrl, e.HttpRequestError);
             }
             catch (Exception e)
             {
-                logger.LogError(e, $"Unable to retrieve apple-podcast-page at url '{applePodcastUrl}'.");
+                logger.LogError(e, "Unable to retrieve apple-podcast-page at url '{ApplePodcastUrl}'.", applePodcastUrl);
             }
 
             if (applePodcastPage != null)
@@ -54,7 +54,7 @@ public class EnrichedApplePodcastResolver(
                 else
                 {
                     logger.LogError(
-                        $"Unable to locate <script id='schema:show'> tag with inner-text in url '{applePodcastUrl}'.");
+                        "Unable to locate <script id='schema:show'> tag with inner-text in url '{ApplePodcastUrl}'.", applePodcastUrl);
                 }
             }
         }

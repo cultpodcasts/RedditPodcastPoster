@@ -15,11 +15,11 @@ public class PushNotificationHandler(
         {
             var notification = notificationAdaptor.Adapt(xml);
             var serialisedNotification = JsonSerializer.Serialize(notification);
-            logger.LogInformation($"Notification for podcast with id '{podcastId}': {serialisedNotification}");
+            logger.LogInformation("Notification for podcast with id '{PodcastId}': {SerialisedNotification}", podcastId, serialisedNotification);
         }
         catch (Exception e)
         {
-            logger.LogError(e, $"Failure to handle notification for podcast with id '{podcastId}'.");
+            logger.LogError(e, "Failure to handle notification for podcast with id '{PodcastId}'.", podcastId);
         }
 
         return Task.CompletedTask;

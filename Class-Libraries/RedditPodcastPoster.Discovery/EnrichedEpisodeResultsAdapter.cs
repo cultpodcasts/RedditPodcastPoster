@@ -19,7 +19,7 @@ public class EnrichedEpisodeResultsAdapter(
             if (episode.PodcastResults.Any(x => x.IndexAllEpisodes))
             {
                 logger.LogInformation(
-                    $"Eliminated episode '{episode.EpisodeResult.Id}' as found in indexed-podcast with podcast-id: '{string.Join(",", episode.PodcastResults.Select(x => x.PodcastId))}'.");
+                    "Eliminated episode '{EpisodeResultId}' as found in indexed-podcast with podcast-id: '{Join}'.", episode.EpisodeResult.Id, string.Join(",", episode.PodcastResults.Select(x => x.PodcastId)));
                 continue;
             }
 

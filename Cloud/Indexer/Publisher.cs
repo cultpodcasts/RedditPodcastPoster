@@ -9,6 +9,7 @@ namespace Indexer;
 public class Publisher(
     IContentPublisher contentPublisher,
     ISearchIndexerService searchIndexerService,
+    IActivityOptionsProvider activityOptionsProvider,
     ILogger<Publisher> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {
@@ -20,9 +21,14 @@ public class Publisher(
         ;
         logger.LogInformation(indexerContext.ToString());
 
-        if (DryRun.IsPublisherDryRun)
+        if (!activityOptionsProvider.RunPublisher(out var reason))
         {
+            logger.LogWarning("{class} activity disabled. Reason: '{reason}'.", nameof(Publisher), reason);
             return indexerContext with { Success = true };
+        }
+        else
+        {
+            logger.LogInformation("{class} activity enabled. Reason: '{reason}'.", nameof(Publisher), reason);
         }
 
         if (indexerContext.PublisherOperationId == null)

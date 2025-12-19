@@ -17,7 +17,7 @@ public class IgnoreTermsProvider(
             return [];
         }
 
-        logger.LogInformation($"{nameof(IgnoreTermsProvider)} - {nameof(GetIgnoreTerms)}: {_ignoreTerms}");
+        logger.LogInformation("{IgnoreTermsProviderName} - {GetIgnoreTermsName}: {IgnoreTermsSettings}", nameof(IgnoreTermsProvider), nameof(GetIgnoreTerms), _ignoreTerms);
         return _ignoreTerms.IgnoreTerms.Select(x => x.ToLower());
     }
 }

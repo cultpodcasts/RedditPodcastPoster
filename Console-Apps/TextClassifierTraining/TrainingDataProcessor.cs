@@ -41,9 +41,9 @@ public class TrainingDataProcessor(
         }
 
         var redditPosts = await subredditRepository.GetAll().ToArrayAsync();
-        logger.LogInformation($"Total reddit posts: {redditPosts.Count()}");
+        logger.LogInformation("Total reddit posts: {Count}", redditPosts.Count());
         logger.LogInformation(
-            $"Total reddit posts with links: {redditPosts.Count(x => !string.IsNullOrWhiteSpace(x.Url))}");
+            "Total reddit posts with links: {Count}", redditPosts.Count(x => !string.IsNullOrWhiteSpace(x.Url)));
 
         var redditPostMetaDatas =
             redditPosts
@@ -53,10 +53,10 @@ public class TrainingDataProcessor(
                 .Cast<RedditPostMetaData>();
 
         logger.LogInformation(
-            $"Total reddit posts with understood links: {redditPostMetaDatas.Count()}");
+            "Total reddit posts with understood links: {Count}", redditPostMetaDatas.Count());
 
         logger.LogInformation(
-            $"Total reddit posts with flair: {redditPosts.Where(x => !string.IsNullOrWhiteSpace(x.LinkFlairText)).Count()}");
+            "Total reddit posts with flair: {Count}", redditPosts.Where(x => !string.IsNullOrWhiteSpace(x.LinkFlairText)).Count());
 
 
         var podcasts = await podcastRepository.GetAll().ToListAsync();
@@ -118,7 +118,7 @@ public class TrainingDataProcessor(
                 if (unmatched)
                 {
                     logger.LogError(
-                        $"Podcast '{podcastEpisode.Podcast.Name}' id:'{podcastEpisode.Podcast.Id}' Episode-id:'{podcastEpisode.Episode.Id}'.");
+                        "Podcast '{PodcastName}' id:'{PodcastId}' Episode-id:'{EpisodeId}'.", podcastEpisode.Podcast.Name, podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
                 }
             }
             else
@@ -131,7 +131,7 @@ public class TrainingDataProcessor(
                 if (!subjects.Any())
                 {
                     logger.LogError(
-                        $"MISSING: '{podcastEpisode.Episode.Title}' - '{podcastEpisode.Episode.Description}'.");
+                        "MISSING: '{EpisodeTitle}' - '{EpisodeDescription}'.", podcastEpisode.Episode.Title, podcastEpisode.Episode.Description);
                 }
             }
 

@@ -9,10 +9,11 @@
       "enableLiveMetricsFilters": true
     },
     "logLevel": {
-      "default": "Information",
+      "default": "None",
       "Host.Results": "Information",
       "Function": "Information",
-      "Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler": "Warning"
+      "RedditPodcastPoster": "Information",
+      "Api": "Information"
     }
   }
 }

@@ -27,7 +27,7 @@ public class ListenNotesSearcher(
     public async Task<IList<EpisodeResult>> Search(string term, IndexingContext indexingContext)
     {
         logger.LogInformation(
-            $"{nameof(ListenNotesSearcher)}.{nameof(Search)}: query: '{term}'. RequestDelaySeconds='{listenNotesOptions.Value.RequestDelaySeconds}'.");
+            "{ListenNotesSearcherName}.{SearchName}: query: '{Term}'. RequestDelaySeconds='{ValueRequestDelaySeconds}'.", nameof(ListenNotesSearcher), nameof(Search), term, listenNotesOptions.Value.RequestDelaySeconds);
         var results = new List<EpisodeResult>();
         var offset = 0;
         var error = false;
@@ -50,7 +50,7 @@ public class ListenNotesSearcher(
         var first = true;
         while (!error && !@break && (first || results.Last().Released > indexingContext.ReleasedSince))
         {
-            logger.LogInformation($"Querying listen-notes for '{term}'. First={first}.");
+            logger.LogInformation("Querying listen-notes for '{Term}'. First={First}.", term, first);
             if (!first)
             {
                 await Task.Delay(listenNotesRequestDelay);
@@ -68,12 +68,12 @@ public class ListenNotesSearcher(
                 offset = response.NextOffset;
                 @break = offset == 0;
                 results = results.OrderByDescending(x => x.Released).ToList();
-                logger.LogInformation($"Last gathered listen-notes released-date: '{results.Last().Released:G}'.");
+                logger.LogInformation("Last gathered listen-notes released-date: '{DateTime:G}'.", results.Last().Released);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    $"Error calling ListenNotes-api with parameters: query:'{parameters[QueryKey]}', offset:'{parameters[OffsetKey]}'.");
+                    "Error calling ListenNotes-api with parameters: query:'{Parameter}', offset:'{S}'.", parameters[QueryKey], parameters[OffsetKey]);
                 error = true;
             }
         }

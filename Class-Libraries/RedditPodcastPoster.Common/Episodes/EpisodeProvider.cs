@@ -23,7 +23,7 @@ public class EpisodeProvider(
             if (handled)
             {
                 logger.LogInformation(
-                    $"Get Episodes for podcast '{podcast.Name}' handled by '{nameof(ISpotifyEpisodeRetrievalHandler)}'.");
+                    "Get Episodes for podcast '{podcastName}' handled by '{spotifyEpisodeRetrievalHandlerName}'.", podcast.Name, nameof(ISpotifyEpisodeRetrievalHandler));
             }
         }
 
@@ -33,7 +33,7 @@ public class EpisodeProvider(
             if (handled)
             {
                 logger.LogInformation(
-                    $"Get Episodes for podcast '{podcast.Name}' handled by '{nameof(IAppleEpisodeRetrievalHandler)}'.");
+                    "Get Episodes for podcast '{podcastName}' handled by '{appleEpisodeRetrievalHandlerName}'.", podcast.Name, nameof(IAppleEpisodeRetrievalHandler));
             }
         }
 
@@ -44,14 +44,14 @@ public class EpisodeProvider(
             if (handled)
             {
                 logger.LogInformation(
-                    $"Get Episodes for podcast '{podcast.Name}' handled by '{nameof(IYouTubeEpisodeRetrievalHandler)}'.");
+                    "Get Episodes for podcast '{podcastName}' handled by '{youTubeEpisodeRetrievalHandlerName}'.", podcast.Name, nameof(IYouTubeEpisodeRetrievalHandler));
             }
         }
 
         if (!handled)
         {
             logger.LogInformation(
-                $"Unable to handle podcast with name: '{podcast.Name}', id: {podcast.Id}. Spotify-Id: '{podcast.SpotifyId}', Apple-Id: '{podcast.AppleId}', YouTube-ChannelId: '{podcast.YouTubeChannelId}', YouTube-PlayListId: '{podcast.YouTubePlaylistId}'. Expensive-Queries? {nameof(podcast.HasExpensiveSpotifyEpisodesQuery)}= '{podcast.HasExpensiveSpotifyEpisodesQuery()}', {nameof(podcast.HasExpensiveYouTubePlaylistQuery)}= '{podcast.HasExpensiveYouTubePlaylistQuery()}'.");
+                "Unable to handle podcast with name: '{podcastName}', id: {podcastId}. Spotify-Id: '{podcastSpotifyId}', Apple-Id: '{podcastAppleId}', YouTube-ChannelId: '{podcastYouTubeChannelId}', YouTube-PlayListId: '{podcastYouTubePlaylistId}'. Expensive-Queries? {hasExpensiveSpotifyEpisodesQueryName}= '{HasExpensiveSpotifyEpisodesQuery}', {HasExpensiveYouTubePlaylistQueryName}= '{HasExpensiveYouTubePlaylistQuery}'.", podcast.Name, podcast.Id, podcast.SpotifyId, podcast.AppleId, podcast.YouTubeChannelId, podcast.YouTubePlaylistId, nameof(podcast.HasExpensiveSpotifyEpisodesQuery), podcast.HasExpensiveSpotifyEpisodesQuery(), nameof(podcast.HasExpensiveYouTubePlaylistQuery), podcast.HasExpensiveYouTubePlaylistQuery());
         }
 
         if (episodes != null && episodes.Any() && !podcast.IndexAllEpisodes &&

@@ -85,7 +85,7 @@ public class PodcastEpisodeFilter(
         if (!podcastEpisodes.Any())
         {
             logger.LogInformation(
-                $"No Podcast-Episode found ready to tweet for podcast '{podcast.Name}' with podcast-id '{podcast.Id}'.");
+                "No Podcast-Episode found ready to tweet for podcast '{PodcastName}' with podcast-id '{PodcastId}'.", podcast.Name, podcast.Id);
         }
 
         return podcastEpisodes;
@@ -113,7 +113,7 @@ public class PodcastEpisodeFilter(
         if (!podcastEpisodes.Any())
         {
             logger.LogInformation(
-                $"No Podcast-Episode found ready to Bluesky for podcast '{podcast.Name}' with podcast-id '{podcast.Id}'.");
+                "No Podcast-Episode found ready to Bluesky for podcast '{PodcastName}' with podcast-id '{PodcastId}'.", podcast.Name, podcast.Id);
         }
 
         return podcastEpisodes;
@@ -165,7 +165,7 @@ public class PodcastEpisodeFilter(
                 DateTime.UtcNow < podcastEpisode.Episode.Release + podcastEpisode.Podcast.YouTubePublishingDelay())
             {
                 logger.LogInformation(
-                    $"{nameof(EliminateItemsDueToIndexingErrors)} Eliminating episode with episode-id '{podcastEpisode.Episode.Id}' and episode-title '{podcastEpisode.Episode.Title}' from podcast with podcast-id '{podcastEpisode.Podcast.Id}' and podcast-name '{podcastEpisode.Podcast.Name}' due to '{nameof(youTubeRefreshed)}'='{youTubeRefreshed}'.");
+                    "{EliminateItemsDueToIndexingErrorsName} Eliminating episode with episode-id '{EpisodeId}' and episode-title '{EpisodeTitle}' from podcast with podcast-id '{PodcastId}' and podcast-name '{PodcastName}' due to '{YouTubeRefreshedName}'='{YouTubeRefreshed}'.", nameof(EliminateItemsDueToIndexingErrors), podcastEpisode.Episode.Id, podcastEpisode.Episode.Title, podcastEpisode.Podcast.Id, podcastEpisode.Podcast.Name, nameof(youTubeRefreshed), youTubeRefreshed);
                 return false;
             }
         }
@@ -175,7 +175,7 @@ public class PodcastEpisodeFilter(
             string.IsNullOrWhiteSpace(podcastEpisode.Episode.YouTubeId))
         {
             logger.LogInformation(
-                $"{nameof(EliminateItemsDueToIndexingErrors)} Eliminating episode with episode-id '{podcastEpisode.Episode.Id}' and episode-title '{podcastEpisode.Episode.Title}' from podcast with podcast-id '{podcastEpisode.Podcast.Id}' and podcast-name '{podcastEpisode.Podcast.Name}' due to Recently-Expired Delayed Publishing.");
+                "{EliminateItemsDueToIndexingErrorsName} Eliminating episode with episode-id '{EpisodeId}' and episode-title '{EpisodeTitle}' from podcast with podcast-id '{PodcastId}' and podcast-name '{PodcastName}' due to Recently-Expired Delayed Publishing.", nameof(EliminateItemsDueToIndexingErrors), podcastEpisode.Episode.Id, podcastEpisode.Episode.Title, podcastEpisode.Podcast.Id, podcastEpisode.Podcast.Name);
             return false;
         }
 

@@ -32,7 +32,7 @@ public class WebSubStatusProcessor(
             {
                 if (podcast.YouTubeNotificationSubscriptionLeaseExpiry < DateTime.UtcNow)
                 {
-                    logger.LogError($"Podcast '{podcast.Name}' has expired subscription-lease. Id='{podcast.Id}'.");
+                    logger.LogError("Podcast '{PodcastName}' has expired subscription-lease. Id='{PodcastId}'.", podcast.Name, podcast.Id);
                 }
 
                 var (callbackUrl, topicUrl) =
@@ -60,11 +60,11 @@ public class WebSubStatusProcessor(
                 var status = values[1].InnerText;
                 if (status == "verified")
                 {
-                    logger.LogInformation($"Podcast '{podcast.Name}' is verified.");
+                    logger.LogInformation("Podcast '{PodcastName}' is verified.", podcast.Name);
                 }
                 else
                 {
-                    logger.LogError($"Podcast '{podcast.Name}' is '{status}'.");
+                    logger.LogError("Podcast '{PodcastName}' is '{Status}'.", podcast.Name, status);
                 }
             }
         }

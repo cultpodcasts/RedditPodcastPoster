@@ -25,7 +25,7 @@ public class SpotifyEpisodeEnricher(
             request.Podcast.Episodes.All(x => x.SpotifyId != findEpisodeResult.FullEpisode.Id))
         {
             logger.LogInformation(
-                $"{nameof(Enrich)} Found matching Spotify episode: '{findEpisodeResult.FullEpisode.Id}' with title '{findEpisodeResult.FullEpisode.Name}' and release-date '{findEpisodeResult.FullEpisode.ReleaseDate}'.");
+                "{EnrichName} Found matching Spotify episode: '{FullEpisodeId}' with title '{FullEpisodeName}' and release-date '{FullEpisodeReleaseDate}'.", nameof(Enrich), findEpisodeResult.FullEpisode.Id, findEpisodeResult.FullEpisode.Name, findEpisodeResult.FullEpisode.ReleaseDate);
             request.Episode.SpotifyId = findEpisodeResult.FullEpisode.Id;
             var url = findEpisodeResult.FullEpisode.GetUrl();
             request.Episode.Urls.Spotify = url;

@@ -126,7 +126,7 @@ public class EpisodeFactory(
         }
 
         logger.LogInformation(
-            $"Created episode with spotify-id '{categorisedItem.ResolvedSpotifyItem?.EpisodeId}', apple-id '{categorisedItem.ResolvedAppleItem?.EpisodeId}', youtube-id '{categorisedItem.ResolvedYouTubeItem?.EpisodeId}' and episode-id '{newEpisode.Id}'.");
+            "Created episode with spotify-id '{EpisodeId}', apple-id '{L}', youtube-id '{S}' and episode-id '{NewEpisodeId}'.", categorisedItem.ResolvedSpotifyItem?.EpisodeId, categorisedItem.ResolvedAppleItem?.EpisodeId, categorisedItem.ResolvedYouTubeItem?.EpisodeId, newEpisode.Id);
         return newEpisode;
     }
 }

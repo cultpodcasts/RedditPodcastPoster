@@ -44,12 +44,12 @@ public class EmbedCardRequestFactory(
                         ThumbUrl = video.FirstOrDefault().GetImageUrl()
                     };
                     logger.LogInformation(
-                        $"Youtube-thumbnail for youtube-video-id '{podcastEpisode.Episode.YouTubeId}' found '{embedCardRequest.ThumbUrl}'.");
+                        "Youtube-thumbnail for youtube-video-id '{EpisodeYouTubeId}' found '{ThumbUrl}'.", podcastEpisode.Episode.YouTubeId, embedCardRequest.ThumbUrl);
                 }
                 else
                 {
                     logger.LogError(
-                        $"Unable to find video for bluesky-thumbnail with id '{podcastEpisode.Episode.YouTubeId}'. {nameof(indexingContext.SkipYouTubeUrlResolving)}= '{indexingContext.SkipYouTubeUrlResolving}'.");
+                        "Unable to find video for bluesky-thumbnail with id '{EpisodeYouTubeId}'. {IndexingContextSkipYouTubeUrlResolvingName}= '{IndexingContextSkipYouTubeUrlResolving}'.", podcastEpisode.Episode.YouTubeId, nameof(indexingContext.SkipYouTubeUrlResolving), indexingContext.SkipYouTubeUrlResolving);
                     throw new EpisodeNotFoundException(podcastEpisode.Episode.YouTubeId, Service.YouTube);
                 }
 
@@ -71,7 +71,7 @@ public class EmbedCardRequestFactory(
                     {
                         embedCardRequest.ThumbUrl = maxImage;
                         logger.LogInformation(
-                            $"Spotify-thumbnail for spotify-episode-id '{podcastEpisode.Episode.SpotifyId}' found '{embedCardRequest.ThumbUrl}'.");
+                            "Spotify-thumbnail for spotify-episode-id '{EpisodeSpotifyId}' found '{ThumbUrl}'.", podcastEpisode.Episode.SpotifyId, embedCardRequest.ThumbUrl);
                     }
                 }
 

@@ -24,7 +24,8 @@ public class CosmosDbRepository(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Error UpsertItemAsync on document with partition-partitionKey '{partitionKey}' in Database.");
+                "Error UpsertItemAsync on document with partition-partitionKey '{PartitionKey}' in Database.",
+                partitionKey);
             throw;
         }
     }
@@ -34,7 +35,7 @@ public class CosmosDbRepository(
         var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         var query = container
             .GetItemLinqQueryable<T>(
-                requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
+                requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(partitionKey) })
             .Select(expr);
         var items = query.ToFeedIterator();
         if (items.HasMoreResults)
@@ -55,7 +56,7 @@ public class CosmosDbRepository(
             var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
             var query = container
                 .GetItemLinqQueryable<T>(
-                    requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
+                    requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(partitionKey) })
                 .Select(x => x.Id);
             var feedIterator = query.ToFeedIterator();
 
@@ -63,7 +64,7 @@ public class CosmosDbRepository(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(GetAll)}: Error retrieving all-document-ids.");
+            logger.LogError(ex, "{method}: Error retrieving all-document-ids.", nameof(GetAllIds));
             throw;
         }
     }
@@ -78,7 +79,8 @@ public class CosmosDbRepository(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Error ReadItemAsync on document with key '{key}', partition-partitionKey '{partitionKey}'.");
+                "Error ReadItemAsync on document with key '{key}', partition-partitionKey '{PartitionKey}'.", key,
+                partitionKey);
             throw;
         }
     }
@@ -88,7 +90,7 @@ public class CosmosDbRepository(
         var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         var query = container
             .GetItemLinqQueryable<T>(
-                requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
+                requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(partitionKey) })
             .Where(selector);
         var items = query.ToFeedIterator();
         if (items.HasMoreResults)
@@ -110,7 +112,7 @@ public class CosmosDbRepository(
         var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         var query = container
             .GetItemLinqQueryable<T>(
-                requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
+                requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(partitionKey) })
             .Where(selector)
             .Select(expr);
         var items = query.ToFeedIterator();
@@ -133,7 +135,7 @@ public class CosmosDbRepository(
         var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         var query = container
             .GetItemLinqQueryable<T>(
-                requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
+                requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(partitionKey) })
             .Where(selector);
         var items = query.ToFeedIterator();
         if (items.HasMoreResults)
@@ -153,7 +155,7 @@ public class CosmosDbRepository(
         var partitionKey = CosmosSelectorExtensions.GetModelType<T>().ToString();
         var query = container
             .GetItemLinqQueryable<T>(
-                requestOptions: new QueryRequestOptions {PartitionKey = new PartitionKey(partitionKey)})
+                requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(partitionKey) })
             .Where(selector)
             .Select(expr);
 #if DEBUG
@@ -190,7 +192,7 @@ public class CosmosDbRepository(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(GetAll)}: Error retrieving all-documents.");
+            logger.LogError(ex, "{method}: Error retrieving all-documents.", nameof(GetAll));
             throw;
         }
     }
@@ -207,7 +209,7 @@ public class CosmosDbRepository(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{nameof(GetAll)}: Error retrieving all-file-keys.");
+            logger.LogError(ex, "{method}: Error retrieving all-file-keys.", nameof(GetAllFileKeys));
             throw;
         }
     }
@@ -215,6 +217,5 @@ public class CosmosDbRepository(
 
 public class FileKeyWrapper
 {
-    [JsonPropertyName("fileKey")]
-    public string FileKey { get; set; }
+    [JsonPropertyName("fileKey")] public string FileKey { get; set; }
 }

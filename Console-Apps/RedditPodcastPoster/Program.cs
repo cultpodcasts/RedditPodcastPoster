@@ -60,7 +60,7 @@ async Task<int> Run(ProcessRequest request)
     logger!.LogInformation($"{nameof(Run)} initiated.");
     var podcastProcessor = host.Services.GetService<PodcastProcessor>()!;
     var result = await podcastProcessor.Process(request);
-    logger!.LogInformation($"{nameof(Run)} Operation results: '{result}'.");
+    logger!.LogInformation("{RunName} Operation results: '{ProcessResponse}'.", nameof(Run), result);
     logger!.LogInformation($"{nameof(Run)} complete.");
     return result.ToResultCode();
 }

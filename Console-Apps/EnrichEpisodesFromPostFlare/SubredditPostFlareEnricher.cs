@@ -56,7 +56,7 @@ public class SubredditPostFlareEnricher(
                 }
                 else
                 {
-                    logger.LogError($"Unknown podcast service host: {redditPost.Url}");
+                    logger.LogError("Unknown podcast service host: {RedditPostUrl}", redditPost.Url);
                 }
             }
         }
@@ -90,7 +90,7 @@ public class SubredditPostFlareEnricher(
                     var group = redditPost.LinkFlairText.Trim();
                     if (!match.Episode.Subjects.Contains(group))
                     {
-                        logger.LogInformation($"{match.Podcast.Name} - {match.Episode.Title} = {group}");
+                        logger.LogInformation("{Name} - {Title} = {Group}", match.Podcast.Name, match.Episode.Title, group);
                         match.Episode.Subjects.Add(group);
                     }
                 }

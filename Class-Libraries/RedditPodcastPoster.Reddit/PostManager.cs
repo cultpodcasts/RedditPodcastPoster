@@ -14,7 +14,7 @@ public class PostManager(
         var subredditEpisodePosts = postResolver.FindEpisodePosts(podcastEpisode);
         foreach (var subredditEpisodePost in subredditEpisodePosts)
         {
-            logger.LogInformation($"Removing post '{subredditEpisodePost.Title}'.");
+            logger.LogInformation("Removing post '{Title}'.", subredditEpisodePost.Title);
             await subredditEpisodePost.DeleteAsync();
         }
     }

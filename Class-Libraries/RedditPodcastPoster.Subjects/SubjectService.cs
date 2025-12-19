@@ -186,7 +186,7 @@ public class SubjectService(
         bool withDescription,
         string[]? ignoredAssociatedSubjects = null,
         string[]? ignoredSubjects = null,
-        string descriptionRegex = null)
+        string? descriptionRegex = null)
     {
         var matches = new List<MatchResult>();
         var subjectTerm = subject.GetSubjectTerms();
@@ -209,7 +209,7 @@ public class SubjectService(
                     if (withDescription)
                     {
                         var episodeDescription =
-                            textSanitiser.ExtractDescription(episode.Description, descriptionRegex);
+                            textSanitiser.ExtractDescription(episode.Description, descriptionRegex??string.Empty);
                         var descMatch = GetMatches(term.Term, WebUtility.HtmlDecode(episodeDescription));
                         if (descMatch > 0)
                         {

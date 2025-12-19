@@ -22,7 +22,7 @@ public class YouTubeEpisodeRetrievalHandler(
                 if (podcast.HasExpensiveYouTubePlaylistQuery() && indexingContext.SkipExpensiveYouTubeQueries)
                 {
                     logger.LogInformation(
-                        $"Podcast '{podcast.Id}' has known expensive query and will not run this time.");
+                        "Podcast '{PodcastId}' has known expensive query and will not run this time.", podcast.Id);
                     {
                         return new EpisodeRetrievalHandlerResponse(episodes, handled);
                     }

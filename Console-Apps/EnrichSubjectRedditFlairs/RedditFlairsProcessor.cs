@@ -26,7 +26,7 @@ public class RedditFlairsProcessor(
             var (unmatched, cleansedFlair) = await subjectCleanser.CleanSubjects(new List<string> {flair.Text});
             if (unmatched)
             {
-                logger.LogError($"Unmatched flair '{flair.Text}'.");
+                logger.LogError("Unmatched flair '{FlairText}'.", flair.Text);
             }
             else
             {
@@ -35,12 +35,12 @@ public class RedditFlairsProcessor(
                     if (!cleansedFlair.Any())
                     {
                         logger.LogError(
-                            $"Matched flair with subject, but no cleansed-subjects. Flair-text: '{flair.Text}'.");
+                            "Matched flair with subject, but no cleansed-subjects. Flair-text: '{FlairText}'.", flair.Text);
                     }
                     else
                     {
                         logger.LogError(
-                            $"Multiple cleansed flairs for flair '{flair.Text}'. Cleansed-subjects: {string.Join(",", cleansedFlair.Select(x => $"'{x}'"))}. Taking first.");
+                            "Multiple cleansed flairs for flair '{FlairText}'. Cleansed-subjects: {Join}. Taking first.", flair.Text, string.Join(",", cleansedFlair.Select(x => $"'{x}'")));
                         cleansedFlair = cleansedFlair.Take(1).ToList();
                     }
                 }
@@ -50,7 +50,7 @@ public class RedditFlairsProcessor(
                 {
                     if (subject.RedditFlairTemplateId == null)
                     {
-                        logger.LogInformation($"Updating '{subject.Name}' with template-id '{flair.Id}'.");
+                        logger.LogInformation("Updating '{SubjectName}' with template-id '{FlairId}'.", subject.Name, flair.Id);
                         var redditFlairTemplateId = Guid.Parse(flair.Id);
                         subject.RedditFlairTemplateId = redditFlairTemplateId;
                         await repository.Save(subject);
@@ -58,7 +58,7 @@ public class RedditFlairsProcessor(
                 }
                 else
                 {
-                    logger.LogError($"No subject found for cleansed-flair '{cleansedFlair.Single()}'.");
+                    logger.LogError("No subject found for cleansed-flair '{Single}'.", cleansedFlair.Single());
                 }
             }
         }

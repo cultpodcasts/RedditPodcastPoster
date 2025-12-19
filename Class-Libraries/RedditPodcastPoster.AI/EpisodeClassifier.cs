@@ -31,7 +31,7 @@ public class EpisodeClassifier(
             var result = await operation.Value.AsPages().ToListAsync();
             if (result.Count > 1)
             {
-                logger.LogInformation($"Multiple-results: '{result.Count}'.");
+                logger.LogInformation("Multiple-results: '{ResultCount}'.", result.Count);
             }
 
             var page =
@@ -50,7 +50,7 @@ public class EpisodeClassifier(
         }
         else
         {
-            logger.LogError($"Failure to classify logger with title '{episode.Title}' and id '{episode.Id}'.");
+            logger.LogError("Failure to classify logger with title '{EpisodeTitle}' and id '{EpisodeId}'.", episode.Title, episode.Id);
         }
         //}
     }

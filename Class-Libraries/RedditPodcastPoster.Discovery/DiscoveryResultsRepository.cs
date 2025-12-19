@@ -34,7 +34,7 @@ public class DiscoveryResultsRepository(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"{nameof(SetProcessed)} Failure to delete {nameof(DiscoveryResultsDocument)}s with ids: {string.Join(", ", ids)}.");
+                "{SetProcessedName} Failure to delete {DiscoveryResultsDocumentName}s with ids: {Join}.", nameof(SetProcessed), nameof(DiscoveryResultsDocument), string.Join(", ", ids));
         }
     }
 

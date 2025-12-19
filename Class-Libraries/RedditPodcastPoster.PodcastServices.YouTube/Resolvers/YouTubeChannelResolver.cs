@@ -17,11 +17,11 @@ public class YouTubeChannelResolver(
     public async Task<SearchResult?> FindChannelsSnippets(string channelName, string mostRecentlyUploadVideoTitle,
         IndexingContext indexingContext)
     {
-        logger.LogInformation($"YOUTUBE: Find-Channel for channel-name '{channelName}'.");
+        logger.LogInformation("YOUTUBE: Find-Channel for channel-name '{ChannelName}'.", channelName);
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             logger.LogInformation(
-                $"Skipping '{nameof(FindChannelsSnippets)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-name: '{channelName}'.");
+                "Skipping '{FindChannelsSnippetsName}' as '{IndexingContextSkipYouTubeUrlResolvingName}' is set. Channel-name: '{ChannelName}'.", nameof(FindChannelsSnippets), nameof(indexingContext.SkipYouTubeUrlResolving), channelName);
             return null;
         }
 
@@ -39,7 +39,7 @@ public class YouTubeChannelResolver(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failed to use {nameof(youTubeService.YouTubeService)} to obtain channel-snippets for channel-name '{channelName}'.");
+                "Failed to use {YouTubeServiceName} to obtain channel-snippets for channel-name '{ChannelName}'.", nameof(youTubeService.YouTubeService), channelName);
             indexingContext.SkipYouTubeUrlResolving = true;
             return null;
         }
@@ -65,7 +65,7 @@ public class YouTubeChannelResolver(
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    $"Failed to use {nameof(youTubeService.YouTubeService)} to obtain channel-snippets for channel-id '{searchResult.Snippet.ChannelId}' obtained when searching for channel with name '{channelName}'.");
+                    "Failed to use {YouTubeServiceName} to obtain channel-snippets for channel-id '{SnippetChannelId}' obtained when searching for channel with name '{ChannelName}'.", nameof(youTubeService.YouTubeService), searchResult.Snippet.ChannelId, channelName);
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return null;
             }
@@ -77,7 +77,7 @@ public class YouTubeChannelResolver(
                 if (alphaNumericOnly == mostRecentlyUploadVideoTitle)
                 {
                     logger.LogInformation(
-                        $"YOUTUBE: {nameof(FindChannelsSnippets)} - {JsonSerializer.Serialize(searchResult)}");
+                        "YOUTUBE: {FindChannelsSnippetsName} - {Serialize}", nameof(FindChannelsSnippets), JsonSerializer.Serialize(searchResult));
                     return searchResult;
                 }
             }

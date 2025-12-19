@@ -110,15 +110,20 @@ var auth0Audience= 'https://api.cultpodcasts.com/'
 var auth0Domain= 'auth.cultpodcasts.com'
 
 var jobHostLogging= {
-    AzureFunctionsJobHost__Logging__ApplicationInsights__LogLevel__Default: 'Information'
+    AzureFunctionsJobHost__Logging__ApplicationInsights__LogLevel__Default: 'Warning'
     AzureFunctionsJobHost__Logging__Console__LogLevel__Default: 'Information'
-    AzureFunctionsJobHost__Logging__Debug__LogLevel__Default: 'Information'
-    AzureFunctionsJobHost__Logging__LogLevel__Default: 'Information'
+    AzureFunctionsJobHost__Logging__Debug__LogLevel__Default: 'Warning'
+    AzureFunctionsJobHost__Logging__LogLevel__Default: 'Warning'
 }
 
 var logging= {
     Logging__LogLevel__Default: 'Information'
     'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Warning'
+    Logging__LogLevel__Function: 'Information'
+    Logging__LogLevel__RedditPodcastPoster: 'Information'
+    Logging__LogLevel__Indexer: 'Information'
+    Logging__LogLevel__Discovery: 'Information'
+    Logging__LogLevel__Api: 'Information'
     Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
     Logging__ApplicationInsights__SamplingSettings__ExcludedTypes: ''
     Logging__ApplicationInsights__EnableLiveMetricsFilters: 'true'
@@ -290,6 +295,15 @@ var taddy= {
     taddy__Userid: taddyUserId
 }
 
+var indexerActivities= {
+    activities__RunIndex: 'true'
+    activities__RunCategoriser: 'true'
+    activities__RunPoster: 'false'
+    activities__RunPublisher: 'true'
+    activities__RunTweet: 'true'
+    activities__RunBluesky: 'true'
+}
+
 var textanalytics= {
     textanalytics__ApiKey: textanalyticsApiKey
     textanalytics__EndPoint: textanalyticsEndPoint
@@ -409,7 +423,8 @@ var indexerSettings= union(
     coreSettings,
     indexer,
     poster,
-    postingCriteria
+    postingCriteria,
+    indexerActivities
  )
 
 var storageBlobDataOwnerRoleId  = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'

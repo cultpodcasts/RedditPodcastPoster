@@ -105,7 +105,7 @@ public class SearchProvider(
             $"apple-enriched-release: '{items.Count(x => x.EnrichedTimeFromApple)}'"
         ];
 
-        logger.LogInformation($"{string.Join(", ", logItems)}.");
+        logger.LogInformation("{Join}.", string.Join(", ", logItems));
         return items;
     }
 

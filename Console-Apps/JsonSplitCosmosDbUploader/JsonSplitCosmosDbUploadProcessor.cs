@@ -19,15 +19,15 @@ public class JsonSplitCosmosDbUploadProcessor(
         var sourcePodcast = await fileRepository.Read<Podcast>(Path.GetFileNameWithoutExtension(request.FileName));
         if (sourcePodcast != null)
         {
-            logger.LogInformation($"'{sourcePodcast.Episodes.Count}' episodes.");
+            logger.LogInformation("'{EpisodesCount}' episodes.", sourcePodcast.Episodes.Count);
             var jsonSerializerOptions = jsonSerializerOptionsProvider.GetJsonSerializerOptions();
             var json = JsonSerializer.SerializeToUtf8Bytes(sourcePodcast, jsonSerializerOptions);
-            logger.LogInformation($"'{json.Length}' utf-8 bytes.");
+            logger.LogInformation("'{JsonLength}' utf-8 bytes.", json.Length);
             int splitFiles = Convert.ToInt16(Math.Ceiling(json.Length / 2000000f));
-            logger.LogInformation($"Split into '{splitFiles}' files.");
+            logger.LogInformation("Split into '{SplitFiles}' files.", splitFiles);
             int episodesPerFile =
                 Convert.ToInt16(Math.Ceiling(sourcePodcast.Episodes.Count / Convert.ToDouble(splitFiles)));
-            logger.LogInformation($"Episodes per file '{episodesPerFile}'.");
+            logger.LogInformation("Episodes per file '{EpisodesPerFile}'.", episodesPerFile);
 
             for (var i = 0; i < splitFiles; i++)
             {

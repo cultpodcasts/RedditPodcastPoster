@@ -25,7 +25,7 @@ public class Processor(
         var updated = false;
 
         var matchingEpisodes = podcast.Episodes.Where(x => DateOnly.FromDateTime(x.Release) == request.Date);
-        logger.LogInformation($"There are '{matchingEpisodes.Count()}' episodes matching date");
+        logger.LogInformation("There are '{Count}' episodes matching date", matchingEpisodes.Count());
         foreach (var episode in matchingEpisodes)
         {
             if (episode.AppleId.HasValue)
@@ -33,18 +33,18 @@ public class Processor(
                 var appleEpisode = appleEpisodes.SingleOrDefault(x => x.AppleId == episode.AppleId.Value);
                 if (appleEpisode != null)
                 {
-                    logger.LogInformation($"Updating '{episode.Title}' to '{appleEpisode.Release:G}'.");
+                    logger.LogInformation("Updating '{EpisodeTitle}' to '{AppleEpisodeRelease:G}'.", episode.Title, appleEpisode.Release);
                     episode.Release = appleEpisode.Release;
                     updated = true;
                 }
                 else
                 {
-                    logger.LogWarning($"'{episode.Title}' has no matching episode'.");
+                    logger.LogWarning("'{EpisodeTitle}' has no matching episode'.", episode.Title);
                 }
             }
             else
             {
-                logger.LogWarning($"'{episode.Title}' has no apple-id'.");
+                logger.LogWarning("'{EpisodeTitle}' has no apple-id'.", episode.Title);
 
             }
         }

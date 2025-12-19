@@ -48,7 +48,7 @@ public class ActivityMarshaller(
                     }
                     catch (Exception ex2)
                     {
-                        logger.LogError(ex2, $"Failure to clean-up activity with id '{id}'.");
+                        logger.LogError(ex2, "Failure to clean-up activity with id '{id}'.", id);
                     }
 
                     return ActivityStatus.Completed;
@@ -67,7 +67,7 @@ public class ActivityMarshaller(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failure to initialise activity with id '{id}' for operation-type '{operationType}'.");
+                "Failure to initialise activity with id '{id}' for operation-type '{operationType}'.", id, operationType);
             return ActivityStatus.Failed;
         }
     }
@@ -80,7 +80,7 @@ public class ActivityMarshaller(
             var result = await container.Scripts.ExecuteStoredProcedureAsync<Activity>(
                 ActivityBookingProcedureId,
                 new PartitionKey(CosmosSelectorExtensions.GetModelType<Activity>().ToString()),
-                new[] {activity},
+                [activity],
                 new StoredProcedureRequestOptions());
             if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == CompleteStatus)
             {
@@ -111,7 +111,7 @@ public class ActivityMarshaller(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failure to complete activity with id '{id}' for operation-type '{operationType}'.");
+                "Failure to complete activity with id '{id}' for operation-type '{operationType}'.", id, operationType);
             return ActivityStatus.Failed;
         }
     }
