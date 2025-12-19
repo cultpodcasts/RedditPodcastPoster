@@ -293,7 +293,7 @@ var taddy= {
 }
 
 var indexerActivities= {
-    activities__RunIndexer: true;
+    activities__RunIndex: true;
     activities__RunCategoriser: true;
     activities__RunPoster: false;
     activities__RunPublisher: true;
