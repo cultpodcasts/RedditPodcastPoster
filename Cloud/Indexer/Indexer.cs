@@ -61,7 +61,7 @@ public class Indexer(
 
         if (!activityOptionsProvider.RunIndex(out var reason))
         {
-            logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Indexer), reason);
+            logger.LogWarning("{class} activity disabled. Reason: '{reason}'.", nameof(Indexer), reason);
             return indexerContext with
             {
                 Success = true,

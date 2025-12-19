@@ -35,7 +35,7 @@ public class Poster(
 
         if (!activityOptionsProvider.RunPoster(out var reason))
         {
-            logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Poster), reason);
+            logger.LogWarning("{class} activity disabled. Reason: '{reason}'.", nameof(Poster), reason);
             return indexerContext with { Success = true };
         }
         else

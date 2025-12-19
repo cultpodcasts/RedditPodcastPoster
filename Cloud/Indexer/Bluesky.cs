@@ -20,7 +20,7 @@ public class Bluesky(
 
         if (!activityOptionsProvider.RunBluesky(out var reason))
         {
-            logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Bluesky), reason);
+            logger.LogWarning("{class} activity disabled. Reason: '{reason}'.", nameof(Bluesky), reason);
             return indexerContext with { Success = true };
         }
         else

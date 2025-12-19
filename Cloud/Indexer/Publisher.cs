@@ -23,7 +23,7 @@ public class Publisher(
 
         if (!activityOptionsProvider.RunPublisher(out var reason))
         {
-            logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Publisher), reason);
+            logger.LogWarning("{class} activity disabled. Reason: '{reason}'.", nameof(Publisher), reason);
             return indexerContext with { Success = true };
         }
         else

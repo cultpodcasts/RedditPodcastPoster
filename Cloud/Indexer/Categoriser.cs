@@ -20,7 +20,7 @@ public class Categoriser(
 
         if (!activityOptionsProvider.RunCategoriser(out var reason))
         {
-            logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Categoriser), reason);
+            logger.LogWarning("{class} activity disabled. Reason: '{reason}'.", nameof(Categoriser), reason);
             return indexerContext with { Success = true };
         }
         else

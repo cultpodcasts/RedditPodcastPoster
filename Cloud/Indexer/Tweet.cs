@@ -20,7 +20,7 @@ public class Tweet(
 
         if (!activityOptionsProvider.RunTweet(out var reason))
         {
-            logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Tweet), reason);
+            logger.LogWarning("{class} activity disabled. Reason: '{reason}'.", nameof(Tweet), reason);
             return indexerContext with { Success = true };
         }
         else
