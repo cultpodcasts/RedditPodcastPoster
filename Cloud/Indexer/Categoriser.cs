@@ -20,6 +20,7 @@ public class Categoriser(
 
         if (!activityOptionsProvider.RunCategoriser())
         {
+            logger.LogInformation("{class} activity disabled.", nameof(Categoriser));
             return indexerContext with { Success = true };
         }
 

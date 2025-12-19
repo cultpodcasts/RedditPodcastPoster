@@ -23,6 +23,7 @@ public class Publisher(
 
         if (!activityOptionsProvider.RunPublisher())
         {
+            logger.LogInformation("{class} activity disabled.", nameof(Publisher));
             return indexerContext with { Success = true };
         }
 

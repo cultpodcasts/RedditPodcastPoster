@@ -61,6 +61,7 @@ public class Indexer(
 
         if (!activityOptionsProvider.RunIndex())
         {
+            logger.LogInformation("{class} activity disabled.", nameof(Indexer));
             return indexerContext with
             {
                 Success = true,

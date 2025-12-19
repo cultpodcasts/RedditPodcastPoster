@@ -35,6 +35,7 @@ public class Poster(
 
         if (!activityOptionsProvider.RunPoster())
         {
+            logger.LogInformation("{class} activity disabled.", nameof(Poster));
             return indexerContext with { Success = true };
         }
 

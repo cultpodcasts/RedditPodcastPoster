@@ -20,6 +20,7 @@ public class Tweet(
 
         if (!activityOptionsProvider.RunTweet())
         {
+            logger.LogInformation("{class} activity disabled.", nameof(Tweet));
             return indexerContext with { Success = true };
         }
 

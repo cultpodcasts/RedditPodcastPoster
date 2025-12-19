@@ -20,6 +20,7 @@ public class Bluesky(
 
         if (!activityOptionsProvider.RunBluesky())
         {
+            logger.LogInformation("{class} activity disabled.", nameof(Bluesky));
             return indexerContext with { Success = true };
         }
 
