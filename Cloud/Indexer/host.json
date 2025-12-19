@@ -25,7 +25,8 @@
       "default": "None",
       "Host.Results": "Information",
       "Function": "Information",
-      "RedditPodcastPoster": "Information"
+      "RedditPodcastPoster": "Information",
+      "Indexer": "Information"
     }
   },
   "functionTimeout": "00:05:00"
