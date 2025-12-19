@@ -501,7 +501,9 @@ module apiFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: true
     instanceMemoryMB: 2048
-    appSettings: apiSettings
+    appSettings: union({
+        Logging__LogLevel__Api: 'Information'
+    }, apiSettings)
     userAssignedIdentityId: userAssignedIdentity.id
     userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }
@@ -520,7 +522,9 @@ module discoveryFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
-    appSettings: discoverySettings
+    appSettings: union({
+        Logging__LogLevel__Discovery: 'Information'
+    }, discoverySettings)
     userAssignedIdentityId: userAssignedIdentity.id
     userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }
@@ -539,7 +543,9 @@ module indexerFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
-    appSettings: indexerSettings
+    appSettings: union({
+        Logging__LogLevel__Indexer: 'Information'
+    }, indexerSettings)
     userAssignedIdentityId: userAssignedIdentity.id
     userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }  

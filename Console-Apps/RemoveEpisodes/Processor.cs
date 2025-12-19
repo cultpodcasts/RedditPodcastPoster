@@ -12,7 +12,11 @@ public class Processor(
 {
     public async Task Process(Request request)
     {
-        if (request.IsDryRun)
+        if (request.IsNonDryRun)
+        {
+            logger.LogWarning("Is real-run.");
+        }
+        else
         {
             logger.LogWarning("Is Dry-run.");
         }
@@ -82,14 +86,14 @@ public class Processor(
                     }
                 }
 
-                if (podcastChanged && !request.IsDryRun)
+                if (podcastChanged && request.IsNonDryRun)
                 {
                     await podcastRepository.Save(podcast);
                 }
             }
         }
 
-        if (updatedEpisodeIds.Any() && !request.IsDryRun)
+        if (updatedEpisodeIds.Any() && request.IsNonDryRun)
         {
             var result = await searchClient.DeleteDocumentsAsync(
                 "id",
