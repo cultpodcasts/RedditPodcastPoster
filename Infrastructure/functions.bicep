@@ -294,11 +294,11 @@ var taddy= {
 
 var indexerActivities= {
     activities__RunIndex: 'true';
-    activities__RunCategoriser: 'true';
-    activities__RunPoster: 'false';
-    activities__RunPublisher: 'true';
-    activities__RunTweet: 'true';
-    activities__RunBluesky: 'true';
+    activities__RunCategoriser: 'true'
+    activities__RunPoster: 'false'
+    activities__RunPublisher: 'true'
+    activities__RunTweet: 'true'
+    activities__RunBluesky: 'true'
 }
 
 var textanalytics= {
