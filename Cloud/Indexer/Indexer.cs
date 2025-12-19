@@ -71,6 +71,10 @@ public class Indexer(
                 SpotifyError = false
             };
         }
+        else
+        {
+            logger.LogInformation("{class} activity enabled. Reason: '{reason}'.", nameof(Indexer), reason);
+        }
 
         var indexerOperationId = indexerContext.IndexerPassOperationIds[indexerContextWrapper.Pass - 1];
         var activityBooked = await activityMarshaller.Initiate(indexerOperationId, nameof(Indexer));
