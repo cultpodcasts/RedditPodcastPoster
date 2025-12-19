@@ -117,13 +117,10 @@ var jobHostLogging= {
 }
 
 var logging= {
-    Logging__LogLevel__Default: 'Information'
+    Logging__LogLevel__Default: 'Warning'
     'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Warning'
     Logging__LogLevel__Function: 'Information'
     Logging__LogLevel__RedditPodcastPoster: 'Information'
-    Logging__LogLevel__Indexer: 'Information'
-    Logging__LogLevel__Discovery: 'Information'
-    Logging__LogLevel__Api: 'Information'
     Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
     Logging__ApplicationInsights__SamplingSettings__ExcludedTypes: ''
     Logging__ApplicationInsights__EnableLiveMetricsFilters: 'true'
@@ -501,7 +498,9 @@ module apiFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: true
     instanceMemoryMB: 2048
-    appSettings: apiSettings
+    appSettings: union({
+        Logging__LogLevel__Api: 'Information'
+    }, apiSettings)
     userAssignedIdentityId: userAssignedIdentity.id
     userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }
@@ -520,7 +519,9 @@ module discoveryFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
-    appSettings: discoverySettings
+    appSettings: union({
+        Logging__LogLevel__Discovery: 'Information'
+    }, discoverySettings)
     userAssignedIdentityId: userAssignedIdentity.id
     userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }
@@ -539,7 +540,9 @@ module indexerFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
-    appSettings: indexerSettings
+    appSettings: union({
+        Logging__LogLevel__Indexer: 'Information'
+    }, indexerSettings)
     userAssignedIdentityId: userAssignedIdentity.id
     userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
   }  
