@@ -106,7 +106,7 @@ public class BlueskyPostManager(
         if (matchingPosts.Count() > 1)
         {
             logger.LogError(
-                $"Multiple bluesky-posts ({matchingPosts.Count()}) found matching episode-id '{podcastEpisode.Episode.Id}'");
+                "Multiple bluesky-posts ({Count}) found matching episode-id '{EpisodeId}'", matchingPosts.Count(), podcastEpisode.Episode.Id);
             return RemovePostState.Other;
         }
 

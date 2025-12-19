@@ -28,7 +28,7 @@ public class SpotifySearcher(
             };
         }
 
-        logger.LogInformation($"{nameof(SpotifySearcher)}.{nameof(Search)}: query: '{query}'.");
+        logger.LogInformation("{SpotifySearcherName}.{SearchName}: query: '{Query}'.", nameof(SpotifySearcher), nameof(Search), query);
         var results = await spotifyClient.FindEpisodes(
             new SearchRequest(SearchRequest.Types.Episode, query) {Market = Market.CountryCode},
             indexingContext);
@@ -54,13 +54,13 @@ public class SpotifySearcher(
 
                 var episodeResults = fullShows?.Episodes.Select(ToEpisodeResult) ?? Enumerable.Empty<EpisodeResult>();
                 logger.LogInformation(
-                    $"{nameof(Search)}: Found {episodeResults.Count(x => x.Released >= indexingContext.ReleasedSince)} items from spotify matching query '{query}'.");
+                    "{SearchName}: Found {Count} items from spotify matching query '{Query}'.", nameof(Search), episodeResults.Count(x => x.Released >= indexingContext.ReleasedSince), query);
 
                 return episodeResults.ToList();
             }
         }
 
-        logger.LogInformation($"{nameof(Search)}: Found no items from spotify matching query '{query}'.");
+        logger.LogInformation("{SearchName}: Found no items from spotify matching query '{Query}'.", nameof(Search), query);
         return new List<EpisodeResult>();
     }
 

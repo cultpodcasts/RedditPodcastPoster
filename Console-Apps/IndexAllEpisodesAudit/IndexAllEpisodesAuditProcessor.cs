@@ -19,7 +19,7 @@ public class IndexAllEpisodesAuditProcessor(
                 if (since > request.Since)
                 {
                     logger.LogInformation(
-                        $"Podcast '{podcast.Name}' with id '{podcast.Id}'. Most recent episode-release {mostRecentEpisode.Release:d}");
+                        "Podcast '{PodcastName}' with id '{PodcastId}'. Most recent episode-release {DateTime:d}", podcast.Name, podcast.Id, mostRecentEpisode.Release);
                     if (!request.DryRun)
                     {
                         podcast.IndexAllEpisodes = false;

@@ -25,12 +25,12 @@ public class AddYouTubeChannelProcessor(
             indexOptions);
         if (match != null)
         {
-            logger.LogInformation($"Found channel-id: {match.Snippet.ChannelId}");
+            logger.LogInformation("Found channel-id: {SnippetChannelId}", match.Snippet.ChannelId);
             var matchingPodcast = await repository.GetBy(x => x.YouTubeChannelId == match.Snippet.ChannelId);
             if (matchingPodcast != null)
             {
                 logger.LogError(
-                    $"Found existing podcast with YouTube-Id '{match.Snippet.ChannelId}' with Podcast-id '{matchingPodcast.Id}'.");
+                    "Found existing podcast with YouTube-Id '{SnippetChannelId}' with Podcast-id '{MatchingPodcastId}'.", match.Snippet.ChannelId, matchingPodcast.Id);
                 return false;
             }
 
@@ -44,7 +44,7 @@ public class AddYouTubeChannelProcessor(
             newPodcast.ReleaseAuthority = Service.YouTube;
             newPodcast.PrimaryPostService = Service.YouTube;
             await repository.Save(newPodcast);
-            logger.LogInformation($"Created podcast with name '{newPodcast.Name}' and id '{newPodcast.Id}'.");
+            logger.LogInformation("Created podcast with name '{NewPodcastName}' and id '{NewPodcastId}'.", newPodcast.Name, newPodcast.Id);
             return true;
         }
 

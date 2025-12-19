@@ -56,7 +56,7 @@ public class PodcastAndEpisodeFactory(
         var episode = episodeFactory.CreateEpisode(categorisedItem);
         var subjectsResult = await subjectEnricher.EnrichSubjects(episode);
         newPodcast.Episodes.Add(episode);
-        logger.LogInformation($"Created podcast with name '{showName}' with id '{newPodcast.Id}'.");
+        logger.LogInformation("Created podcast with name '{ShowName}' with id '{NewPodcastId}'.", showName, newPodcast.Id);
 
         var submitEpisodeDetails = new SubmitEpisodeDetails(
             episode.Urls.Spotify != null,

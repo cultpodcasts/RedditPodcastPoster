@@ -93,19 +93,19 @@ public class Processor(
                             podcastChanged = true;
                             repoPodcastEpisode.Subjects.Add(request.Query);
                             logger.LogWarning(
-                                $"Podcast '{podcastName}' episode '{repoPodcastEpisode.Id}' has subject added.");
+                                "Podcast '{PodcastName}' episode '{Guid}' has subject added.", podcastName, repoPodcastEpisode.Id);
                         }
                         else
                         {
                             logger.LogWarning(
-                                $"Ignore podcast '{podcastName}' episode '{repoPodcastEpisode.Id}' - subject not added as not a subject match.");
+                                "Ignore podcast '{PodcastName}' episode '{Guid}' - subject not added as not a subject match.", podcastName, repoPodcastEpisode.Id);
                         }
                     }
                     else if (repoPodcastEpisode != null &&
                              repoPodcastEpisode.Subjects.Count(x => x == request.Query) > 1)
                     {
                         logger.LogWarning(
-                            $"Podcast '{podcastName}' episode '{repoPodcastEpisode.Id}' has subject more than once.");
+                            "Podcast '{PodcastName}' episode '{Guid}' has subject more than once.", podcastName, repoPodcastEpisode.Id);
                     }
                 }
 

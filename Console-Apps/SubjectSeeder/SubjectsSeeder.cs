@@ -89,7 +89,7 @@ public class SubjectsSeeder(
                                 subjectUsingFlair.RedditFlareText = flair.Text;
                                 await subjectRepository.Save(subjectUsingFlair);
                                 logger.LogInformation(
-                                    $"Adjusted subject '{subjectUsingFlair.Name}' with id '{subjectUsingFlair.Id}' to have  {nameof(subjectUsingFlair.RedditFlareText)}='{flair.Text}'.");
+                                    "Adjusted subject '{Name}' with id '{Guid}' to have  {RedditFlareTextName}='{FlairText}'.", subjectUsingFlair.Name, subjectUsingFlair.Id, nameof(subjectUsingFlair.RedditFlareText), flair.Text);
                             }
 
                             flair.TextEditable = true;
@@ -107,7 +107,7 @@ public class SubjectsSeeder(
                                 });
                             if (!updateResult.TextEditable)
                             {
-                                logger.LogError($"Error updating flare '{flair.Text}' with id '{flair.Id}'.");
+                                logger.LogError("Error updating flare '{FlairText}' with id '{FlairId}'.", flair.Text, flair.Id);
                             }
                         }
 
@@ -121,7 +121,7 @@ public class SubjectsSeeder(
             }
             else
             {
-                logger.LogError($"Subject '{subject.Name}' matches subject '{match.Name}'.");
+                logger.LogError("Subject '{SubjectName}' matches subject '{MatchName}'.", subject.Name, match.Name);
             }
         }
 

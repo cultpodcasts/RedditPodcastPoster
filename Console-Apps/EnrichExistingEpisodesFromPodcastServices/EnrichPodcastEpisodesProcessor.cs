@@ -137,7 +137,7 @@ public class EnrichPodcastEpisodesProcessor(
                         episode.Images.Apple = appleImage;
                     }
 
-                    logger.LogInformation($"Enriched from apple: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
+                    logger.LogInformation("Enriched from apple: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.", match.EpisodeId, match.Url);
                     episodeUpdated = true;
                 }
                 else
@@ -168,7 +168,7 @@ public class EnrichPodcastEpisodesProcessor(
                                 }
 
                                 logger.LogInformation(
-                                    $"Enriched from apple: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
+                                    "Enriched from apple: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.", match.EpisodeId, match.Url);
                                 episodeUpdated = true;
                             }
                         }
@@ -186,14 +186,14 @@ public class EnrichPodcastEpisodesProcessor(
                     {
                         episode.YouTubeId = youTubeId;
                         logger.LogInformation(
-                            $"Enriched from youtube-url: '{episode.Urls.YouTube}', youtube-id: '{episode.YouTubeId}'.");
+                            "Enriched from youtube-url: '{UrlsYouTube}', youtube-id: '{EpisodeYouTubeId}'.", episode.Urls.YouTube, episode.YouTubeId);
                     }
                 }
                 else if (episode.Urls.YouTube == null && !string.IsNullOrWhiteSpace(episode.YouTubeId))
                 {
                     episode.Urls.YouTube = SearchResultExtensions.ToYouTubeUrl(episode.YouTubeId);
                     logger.LogInformation(
-                        $"Enriched from youtube-id: '{episode.YouTubeId}', Url: '{episode.Urls.YouTube}'.");
+                        "Enriched from youtube-id: '{EpisodeYouTubeId}', Url: '{UrlsYouTube}'.", episode.YouTubeId, episode.Urls.YouTube);
                 }
                 else
                 {
@@ -214,7 +214,7 @@ public class EnrichPodcastEpisodesProcessor(
                         }
 
                         logger.LogInformation(
-                            $"Enriched episode with episode-id '{episode.Id}' from youtube: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
+                            "Enriched episode with episode-id '{EpisodeId}' from youtube: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.", episode.Id, match.EpisodeId, match.Url);
                         episodeUpdated = true;
                     }
                 }
@@ -239,7 +239,7 @@ public class EnrichPodcastEpisodesProcessor(
                         episode.Images.Spotify = spotifyImage;
                     }
 
-                    logger.LogInformation($"Enriched from spotify: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
+                    logger.LogInformation("Enriched from spotify: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.", match.EpisodeId, match.Url);
                     episodeUpdated = true;
                 }
                 else
@@ -268,7 +268,7 @@ public class EnrichPodcastEpisodesProcessor(
                                 }
 
                                 logger.LogInformation(
-                                    $"Enriched from spotify: Id: '{match.EpisodeId}', Url: '{match.Url}'.");
+                                    "Enriched from spotify: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.", match.EpisodeId, match.Url);
                                 episodeUpdated = true;
                             }
                         }

@@ -22,7 +22,7 @@ public class ShortnerService(
 
     public async Task<WriteResult> Write(IEnumerable<PodcastEpisode> podcastEpisodes)
     {
-        logger.LogInformation($"{nameof(Write)}. Writing to KV. Bulk write: {podcastEpisodes.Count()} episodes.");
+        logger.LogInformation("{WriteName}. Writing to KV. Bulk write: {Count} episodes.", nameof(Write), podcastEpisodes.Count());
         var items = podcastEpisodes.Select(x =>
             new ShortUrlRecord(
                 x.Podcast.PodcastNameInSafeUrlForm(),
@@ -44,7 +44,7 @@ public class ShortnerService(
     public async Task<WriteResult> Write(PodcastEpisode podcastEpisode, bool isDryRun = false)
     {
         logger.LogInformation(
-            $"{nameof(Write)}. Writing to KV. Individual write. Episode-id '{podcastEpisode.Episode.Id}'.");
+            "{WriteName}. Writing to KV. Individual write. Episode-id '{EpisodeId}'.", nameof(Write), podcastEpisode.Episode.Id);
         var item = new ShortUrlRecord(
             podcastEpisode.Podcast.PodcastNameInSafeUrlForm(),
             podcastEpisode.Episode.Id,

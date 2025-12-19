@@ -59,7 +59,7 @@ public class PushSubscriptionController(
                     $"ps-{cp.Subject.Replace("|", "-")}-{DateTimeOffset.Now.ToUnixTimeSeconds()}")
             };
             await pushSubscriptionRepository.Save(subscription);
-            logger.LogInformation($"Created push-subscription with id '{subscription.Id}' for user '{cp.Subject}'.");
+            logger.LogInformation("Created push-subscription with id '{SubscriptionId}' for user '{CpSubject}'.", subscription.Id, cp.Subject);
             return req.CreateResponse();
         }
         catch (Exception ex)

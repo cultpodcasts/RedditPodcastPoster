@@ -38,7 +38,7 @@ public class BlueskyPoster(
             }
 
             sendStatus = BlueskySendStatus.Success;
-            logger.LogInformation($"Posted to bluesky: '{embedPost.Text}'.");
+            logger.LogInformation("Posted to bluesky: '{EmbedPostText}'.", embedPost.Text);
         }
         catch (HttpRequestException ex)
         {

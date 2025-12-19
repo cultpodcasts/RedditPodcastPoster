@@ -23,7 +23,7 @@ public class KVClient(
 
     public async Task<KVRecord?> ReadWithMetaData(string key, string namespaceId)
     {
-        logger.LogInformation($"{nameof(ReadWithMetaData)}. Reading from KV. Key '{key}'.");
+        logger.LogInformation("{ReadWithMetaDataName}. Reading from KV. Key '{Key}'.", nameof(ReadWithMetaData), key);
         Uri url = GetReadMetadataUrl(_cloudFlareOptions.AccountId, namespaceId, key);
         var urlS = url.ToString();
         using var request = new HttpRequestMessage();
@@ -34,7 +34,7 @@ public class KVClient(
         if (result.StatusCode != HttpStatusCode.OK)
         {
             logger.LogError(
-                $"{nameof(Write)} KV-write unsuccessful. Read-Key. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
+                "{WriteName} KV-write unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.", nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
         }
 
         var json = await result.Content.ReadAsStringAsync();
@@ -43,7 +43,7 @@ public class KVClient(
 
     public async Task<string?> Read(string key, string namespaceId)
     {
-        logger.LogInformation($"{nameof(ReadWithMetaData)}. Reading from KV. Key '{key}'.");
+        logger.LogInformation("{ReadWithMetaDataName}. Reading from KV. Key '{Key}'.", nameof(ReadWithMetaData), key);
         Uri url = GetReadUrl(_cloudFlareOptions.AccountId, namespaceId, key);
         var urlS = url.ToString();
         using var request = new HttpRequestMessage();
@@ -54,7 +54,7 @@ public class KVClient(
         if (result.StatusCode != HttpStatusCode.OK)
         {
             logger.LogError(
-                $"{nameof(Write)} KV-write unsuccessful. Read-Key. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
+                "{WriteName} KV-write unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.", nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
         }
 
         var text = await result.Content.ReadAsStringAsync();
@@ -79,7 +79,7 @@ public class KVClient(
         if (result.StatusCode != HttpStatusCode.OK)
         {
             logger.LogError(
-                $"{nameof(Write)} KV-write unsuccessful. Write-Bulk. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
+                "{WriteName} KV-write unsuccessful. Write-Bulk. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.", nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
         }
         return new WriteResult(result.StatusCode == HttpStatusCode.OK);
     }
@@ -100,7 +100,7 @@ public class KVClient(
         if (result.StatusCode != HttpStatusCode.OK)
         {
             logger.LogError(
-                $"{nameof(Write)} KV-write unsuccessful. Write-Single. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
+                "{WriteName} KV-write unsuccessful. Write-Single. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.", nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
         }
 
         return new WriteResult(result.StatusCode == HttpStatusCode.OK);
@@ -117,7 +117,7 @@ public class KVClient(
         if (result.StatusCode != HttpStatusCode.OK)
         {
             logger.LogError(
-                $"{nameof(Write)} KV-write unsuccessful. Read-Key. Status-code: {result.StatusCode}. Response-body '{await result.Content.ReadAsStringAsync()}'.");
+                "{WriteName} KV-write unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.", nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
         }
 
         var json = await result.Content.ReadAsStringAsync();

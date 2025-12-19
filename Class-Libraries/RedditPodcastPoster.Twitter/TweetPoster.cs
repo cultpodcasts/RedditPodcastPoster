@@ -23,7 +23,7 @@ public class TweetPoster(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failure to send tweet for podcast-id '{podcastEpisode.Podcast.Id}' episode-id '{podcastEpisode.Episode.Id}', tweet: '{tweet}'.");
+                "Failure to send tweet for podcast-id '{PodcastId}' episode-id '{EpisodeId}', tweet: '{Tweet}'.", podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id, tweet);
             throw;
         }
 
@@ -37,7 +37,7 @@ public class TweetPoster(
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    $"Failure to save podcast with podcast-id '{podcastEpisode.Podcast.Id}' to update episode with id '{podcastEpisode.Episode.Id}'.");
+                    "Failure to save podcast with podcast-id '{PodcastId}' to update episode with id '{EpisodeId}'.", podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
                 throw;
             }
 

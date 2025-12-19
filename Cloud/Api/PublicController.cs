@@ -34,13 +34,13 @@ public class PublicController(ILogger<EpisodeController> logger,
     {
         try
         {
-            logger.LogInformation($"{nameof(Get)}: Get episode with id '{episodeId}'.");
+            logger.LogInformation("{GetName}: Get episode with id '{EpisodeId}'.", nameof(Get), episodeId);
             var podcast = await podcastRepository.GetBy(x => x.Episodes.Any(ep => ep.Id == episodeId));
             var episode = podcast?.Episodes.SingleOrDefault(x => x.Id == episodeId);
 
             if (episode == null || podcast == null || episode.Removed || podcast.IsRemoved())
             {
-                logger.LogWarning($"{nameof(Get)}: Episode with id '{episodeId}' not found.");
+                logger.LogWarning("{GetName}: Episode with id '{EpisodeId}' not found.", nameof(Get), episodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 

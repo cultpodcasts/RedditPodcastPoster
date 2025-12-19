@@ -81,12 +81,12 @@ public class DiscoveryResultsService(
             var document = await discoveryResultsRepository.GetById(documentId);
             if (document == null)
             {
-                logger.LogError($"No {nameof(DiscoveryResultsDocument)} with id '{documentId}'.");
+                logger.LogError("No {DiscoveryResultsDocumentName} with id '{DocumentId}'.", nameof(DiscoveryResultsDocument), documentId);
             }
             else if (document.State != DiscoveryResultsDocumentState.Unprocessed)
             {
                 logger.LogWarning(
-                    $"{nameof(DiscoveryResultsDocument)} with id '{documentId}' is not in unprocessed-state. Has state '{document.State}'.");
+                    "{DiscoveryResultsDocumentName} with id '{DocumentId}' is not in unprocessed-state. Has state '{DiscoveryResultsDocumentState}'.", nameof(DiscoveryResultsDocument), documentId, document.State);
             }
             else if (document.State == DiscoveryResultsDocumentState.Unprocessed)
             {

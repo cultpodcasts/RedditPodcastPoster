@@ -32,7 +32,7 @@ public class YouTubeChannelVideosService(
             await youTubeChannelService.GetChannel(channelId, indexingContext, true, true, withContentDetails: true);
         if (channel == null)
         {
-            logger.LogError($"{nameof(GetChannelVideos)}: Unable to find channel with id '{channelId.ChannelId}'.");
+            logger.LogError("{GetChannelVideosName}: Unable to find channel with id '{ChannelIdChannelId}'.", nameof(GetChannelVideos), channelId.ChannelId);
             return null;
         }
 
@@ -49,7 +49,7 @@ public class YouTubeChannelVideosService(
         }
 
         logger.LogError(
-            $"{nameof(GetChannelVideos)}: Unable to find channel-upload-playlist-items for channel-id '{channelId.ChannelId}', playlist-id '{uploadsChannelId}'.");
+            "{GetChannelVideosName}: Unable to find channel-upload-playlist-items for channel-id '{ChannelIdChannelId}', playlist-id '{UploadsChannelId}'.", nameof(GetChannelVideos), channelId.ChannelId, uploadsChannelId);
         return null;
     }
 }

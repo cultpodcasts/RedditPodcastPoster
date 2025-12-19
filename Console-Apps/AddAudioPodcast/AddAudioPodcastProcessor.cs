@@ -98,7 +98,7 @@ public class AddAudioPodcastProcessor(
                 foreach (var episode in episodesToRemove)
                 {
                     podcast.Episodes.Remove(episode);
-                    logger.LogInformation($"Removed episode '{episode.Title}' due to regex.");
+                    logger.LogInformation("Removed episode '{EpisodeTitle}' due to regex.", episode.Title);
                 }
             }
 
@@ -128,7 +128,7 @@ public class AddAudioPodcastProcessor(
         else
         {
             var source = request.AppleReleaseAuthority ? "Apple" : "Spotify";
-            logger.LogError($"Could not find podcast with id '{request.PodcastId}' using '{source}' as source.");
+            logger.LogError("Could not find podcast with id '{RequestPodcastId}' using '{Source}' as source.", request.PodcastId, source);
         }
     }
 
@@ -160,7 +160,7 @@ public class AddAudioPodcastProcessor(
 
         if (applePodcast == null)
         {
-            logger.LogError($"No apple-podcast found for apple-id '{id}'.");
+            logger.LogError("No apple-podcast found for apple-id '{Id}'.", id);
             return null;
         }
 

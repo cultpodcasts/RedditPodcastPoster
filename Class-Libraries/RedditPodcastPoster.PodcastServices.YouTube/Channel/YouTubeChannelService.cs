@@ -99,7 +99,7 @@ public class YouTubeChannelService(
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             logger.LogInformation(
-                $"Skipping '{nameof(FindChannel)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-name: '{channelName}'.");
+                "Skipping '{FindChannelName}' as '{IndexingContextSkipYouTubeUrlResolvingName}' is set. Channel-name: '{ChannelName}'.", nameof(FindChannel), nameof(indexingContext.SkipYouTubeUrlResolving), channelName);
             return;
         }
 
@@ -115,7 +115,7 @@ public class YouTubeChannelService(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failed to use {nameof(youTubeService.YouTubeService)} obtaining channel with channel-name '{channelName}'.");
+                "Failed to use {YouTubeServiceName} obtaining channel with channel-name '{ChannelName}'.", nameof(youTubeService.YouTubeService), channelName);
             indexingContext.SkipYouTubeUrlResolving = true;
             return;
         }

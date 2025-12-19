@@ -38,7 +38,7 @@ public class RedditLinkPoster(
         }
         catch (RedditAlreadySubmittedException ex)
         {
-            logger.LogError(ex, $"Post already submitted. Link: '{link}' and title '{title}'.");
+            logger.LogError(ex, "Post already submitted. Link: '{Link}' and title '{Title}'.", link, title);
         }
         catch (RedditForbiddenException ex)
         {
@@ -46,13 +46,13 @@ public class RedditLinkPoster(
             var content = (string) (ex.Data["Content"] ?? string.Empty);
 
             logger.LogError(ex,
-                $"Forbidden from posting link '{link}' and title '{title}'. Status: '{statusDescription}', content: '{content}'.");
+                "Forbidden from posting link '{Link}' and title '{Title}'. Status: '{StatusDescription}', content: '{Content}'.", link, title, statusDescription, content);
 
             throw;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error posting link '{link}' and title '{title}'.");
+            logger.LogError(ex, "Error posting link '{Link}' and title '{Title}'.", link, title);
             throw;
         }
 

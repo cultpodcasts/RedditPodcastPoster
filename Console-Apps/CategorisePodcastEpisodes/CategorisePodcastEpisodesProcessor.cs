@@ -40,7 +40,7 @@ public class CategorisePodcastEpisodesProcessor(
                     throw new ArgumentException($"Podcast with id '{podcastId}' not found.");
                 }
 
-                logger.LogInformation($"Processing '{podcastId}' : '{podcast.Name}'.");
+                logger.LogInformation("Processing '{PodcastId}' : '{PodcastName}'.", podcastId, podcast.Name);
                 if (podcast == null)
                 {
                     throw new ArgumentException($"No podcast with id '{podcastId}' found.");

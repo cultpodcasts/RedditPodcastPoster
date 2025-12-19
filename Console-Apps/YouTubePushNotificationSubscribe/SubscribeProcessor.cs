@@ -21,7 +21,7 @@ public class SubscribeProcessor(
                 throw new ArgumentException($"Podcast with id '{request.PodcastId}' not found.");
             }
 
-            logger.LogInformation($"Subscribing podcast with id '{request.PodcastId}'.");
+            logger.LogInformation("Subscribing podcast with id '{RequestPodcastId}'.", request.PodcastId);
             await subscriber.Renew(podcast);
         }
         else if (request.UnsubscribePodcastId.HasValue)
@@ -32,7 +32,7 @@ public class SubscribeProcessor(
                 throw new ArgumentException($"Podcast with id '{request.UnsubscribePodcastId}' not found.");
             }
 
-            logger.LogInformation($"Unsubscribing podcast with id '{request.UnsubscribePodcastId}'.");
+            logger.LogInformation("Unsubscribing podcast with id '{RequestUnsubscribePodcastId}'.", request.UnsubscribePodcastId);
             await subscriber.Unsubscribe(podcast);
         }
         else if (request.RenewAllLeases)

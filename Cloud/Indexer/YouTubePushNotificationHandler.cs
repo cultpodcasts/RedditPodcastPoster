@@ -26,7 +26,7 @@ public class YouTubePushNotificationHandler(
         const string mode = "hub.mode";
 
         _logger.LogInformation(
-            $"{nameof(YouTubeSubscriptionChallenge)} - Podcast-Id: '{podcastId}', url: '{req.Url}'.");
+            "{YouTubeSubscriptionChallengeName} - Podcast-Id: '{PodcastId}', url: '{ReqUrl}'.", nameof(YouTubeSubscriptionChallenge), podcastId, req.Url);
         var queryString = HttpUtility.ParseQueryString(req.Url.Query);
 
         try
@@ -41,7 +41,7 @@ public class YouTubePushNotificationHandler(
                 else
                 {
                     _logger.LogError(
-                        $"Unable to parse Long from url-param '{nameof(hubLeaseSeconds)}' from url '{req.Url}' with value '{leaseSecondsParam}'.");
+                        "Unable to parse Long from url-param '{HubLeaseSecondsName}' from url '{ReqUrl}' with value '{LeaseSecondsParam}'.", nameof(hubLeaseSeconds), req.Url, leaseSecondsParam);
                 }
             }
             else
@@ -53,7 +53,7 @@ public class YouTubePushNotificationHandler(
                 else
                 {
                     _logger.LogError(
-                        $"Missing url-param '{nameof(mode)}' for presumed unsubscribe-message from url '{req.Url}'.");
+                        "Missing url-param '{HubModeName}' for presumed unsubscribe-message from url '{ReqUrl}'.", nameof(mode), req.Url);
                 }
             }
 
@@ -85,7 +85,7 @@ public class YouTubePushNotificationHandler(
         try
         {
             _logger.LogInformation(
-                $"{nameof(YouTubePushNotificationHandler)} - Podcast-Id: '{podcastId}', url: '{req.Url}'.");
+                "{YouTubePushNotificationHandlerName} - Podcast-Id: '{PodcastId}', url: '{ReqUrl}'.", nameof(YouTubePushNotificationHandler), podcastId, req.Url);
             var xml = await XDocument.LoadAsync(req.Body, LoadOptions.None, ct);
             await pushNotificationHandler.Handle(podcastId, xml);
             return req.CreateResponse(HttpStatusCode.Accepted);

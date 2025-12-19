@@ -59,21 +59,21 @@ public class NotificationPublisher(
             try
             {
                 await webPushClient.SendNotificationAsync(subscription, payloadJson, vapidDetails);
-                logger.LogInformation($"Notification sent to '{pushSubscription.User}'.");
+                logger.LogInformation("Notification sent to '{PushSubscriptionUser}'.", pushSubscription.User);
                 sent++;
             }
             catch (WebPushException ex)
             {
                 if (ex.HttpResponseMessage.StatusCode == HttpStatusCode.Gone)
                 {
-                    logger.LogError(ex, $"Subscription with id '{pushSubscription.Id}' has gone.");
+                    logger.LogError(ex, "Subscription with id '{PushSubscriptionId}' has gone.", pushSubscription.Id);
                     try
                     {
                         await pushSubscriptionRepository.Delete(pushSubscription);
                     }
                     catch (Exception e)
                     {
-                        logger.LogError(e, $"Failure to delete push-subscription with id '{pushSubscription.Id}'.");
+                        logger.LogError(e, "Failure to delete push-subscription with id '{PushSubscriptionId}'.", pushSubscription.Id);
                     }
                 }
                 else
@@ -95,11 +95,11 @@ public class NotificationPublisher(
 
         if (sent < pushSubscriptions.Count)
         {
-            logger.LogWarning($"Sent {sent}/{pushSubscriptions.Count} push-notification{plural}.");
+            logger.LogWarning("Sent {Sent}/{PushSubscriptionsCount} push-notification{Plural}.", sent, pushSubscriptions.Count, plural);
         }
         else
         {
-            logger.LogWarning($"Sent {sent} push-notification{plural}.");
+            logger.LogWarning("Sent {Sent} push-notification{Plural}.", sent, plural);
         }
     }
 }

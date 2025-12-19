@@ -13,29 +13,30 @@ public class Bluesky(
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
         logger.LogInformation(
-            $"{nameof(Bluesky)} initiated. task-activity-context-instance-id: '{context.InstanceId}'.");
+            "{BlueskyName} initiated. task-activity-context-instance-id: '{ContextInstanceId}'.", nameof(Bluesky),
+            context.InstanceId);
         logger.LogInformation(indexerContext.ToString());
 
         if (DryRun.IsBlueskyDryRun)
         {
-            return indexerContext with {Success = true};
+            return indexerContext with { Success = true };
         }
 
         try
         {
             await blueskyPostManager.Post(
-                indexerContext is {SkipYouTubeUrlResolving: false, YouTubeError: false},
-                indexerContext is {SkipSpotifyUrlResolving: false, SpotifyError: false});
+                indexerContext is { SkipYouTubeUrlResolving: false, YouTubeError: false },
+                indexerContext is { SkipSpotifyUrlResolving: false, SpotifyError: false });
             logger.LogInformation("Bluesky-post executed");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex,
-                $"Failure to execute {nameof(IBlueskyPostManager)}.{nameof(IBlueskyPostManager.Post)}.");
-            return indexerContext with {Success = false};
+            logger.LogError(ex, "Failure to execute {object}.{method)}.",
+                nameof(IBlueskyPostManager), nameof(IBlueskyPostManager.Post));
+            return indexerContext with { Success = false };
         }
 
-        logger.LogInformation($"{nameof(RunAsync)} Completed");
-        return indexerContext with {Success = true};
+        logger.LogInformation("{method} Completed", nameof(RunAsync));
+        return indexerContext with { Success = true };
     }
 }

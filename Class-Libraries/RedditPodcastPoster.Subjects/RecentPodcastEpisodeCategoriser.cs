@@ -25,7 +25,7 @@ public class RecentPodcastEpisodeCategoriser(
 
         foreach (var podcastDetails in podcasts)
         {
-            logger.LogInformation($"Categorise podcast '{podcastDetails.Name}'.");
+            logger.LogInformation("Categorise podcast '{Name}'.", podcastDetails.Name);
             var updated = false;
             var podcast = await podcastRepository.GetPodcast(podcastDetails.guid);
             foreach (var episode in podcast.Episodes.Where(x => x.Release > since && !x.Subjects.Any()))

@@ -29,7 +29,7 @@ public class TweetManager(
             if (matchingTweets.Count() > 1)
             {
                 logger.LogError(
-                    $"Multiple tweets ({matchingTweets.Count()}) found matching episode-id '{podcastEpisode.Episode.Id}'");
+                    "Multiple tweets ({Count}) found matching episode-id '{EpisodeId}'", matchingTweets.Count(), podcastEpisode.Episode.Id);
                 return RemoveTweetState.Other;
             }
 

@@ -28,7 +28,7 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
         catch (RpcException ex)
         {
             logger.LogCritical(ex,
-                $"Failure to execute '{nameof(client.ScheduleNewOrchestrationInstanceAsync)}' for '{nameof(HourlyOrchestration)}'. Status-Code: '{ex.StatusCode}', Status: '{ex.Status}'.");
+                "Failure to execute '{ScheduleNewOrchestrationInstanceAsyncName}' for '{HourlyOrchestrationName}'. Status-Code: '{ExStatusCode}', Status: '{ExStatus}'.", nameof(client.ScheduleNewOrchestrationInstanceAsync), nameof(HourlyOrchestration), ex.StatusCode, ex.Status);
             throw;
         }
         catch (Exception ex)
@@ -39,7 +39,7 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
         }
 
         logger.LogInformation(
-            $"{nameof(OrchestrationTrigger)} {nameof(RunHourly)} complete. Instance-id= '{instanceId}'.");
+            "{OrchestrationTriggerName} {RunHourlyName} complete. Instance-id= '{InstanceId}'.", nameof(OrchestrationTrigger), nameof(RunHourly), instanceId);
     }
 
 
@@ -62,7 +62,7 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
         catch (RpcException ex)
         {
             logger.LogCritical(ex,
-                $"Failure to execute '{nameof(client.ScheduleNewOrchestrationInstanceAsync)}' for '{nameof(HalfHourlyOrchestration)}'. Status-Code: '{ex.StatusCode}', Status: '{ex.Status}'.");
+                "Failure to execute '{ScheduleNewOrchestrationInstanceAsyncName}' for '{HalfHourlyOrchestrationName}'. Status-Code: '{ExStatusCode}', Status: '{ExStatus}'.", nameof(client.ScheduleNewOrchestrationInstanceAsync), nameof(HalfHourlyOrchestration), ex.StatusCode, ex.Status);
             throw;
         }
         catch (Exception ex)
@@ -73,6 +73,6 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
         }
 
         logger.LogInformation(
-            $"{nameof(OrchestrationTrigger)} {nameof(RunHalfHourly)} complete. Instance-id= '{instanceId}'.");
+            "{OrchestrationTriggerName} {RunHalfHourlyName} complete. Instance-id= '{InstanceId}'.", nameof(OrchestrationTrigger), nameof(RunHalfHourly), instanceId);
     }
 }

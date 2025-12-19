@@ -13,7 +13,7 @@ public class IndexIdProvider(
     public override async Task<IndexIdProviderResponse> RunAsync(TaskActivityContext context, IndexIdProviderRequest req)
     {
         logger.LogInformation(
-            $"{nameof(IndexIdProvider)} initiated. task-activity-context-instance-id: '{context.InstanceId}'.");
+            "{IndexIdProviderName} initiated. task-activity-context-instance-id: '{ContextInstanceId}'.", nameof(IndexIdProvider), context.InstanceId);
 
         if (req.IndexPasses < 1)
         {

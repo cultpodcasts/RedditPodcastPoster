@@ -27,10 +27,10 @@ public class PodcastsSubscriber(
         if (podcastsToSubscribe.Any())
         {
             logger.LogInformation(
-                $"Renewing leases for podcasts with ids {string.Join((string?) ",", (IEnumerable<string?>) podcastsToSubscribe.Select(x => $"'{x.Id}'"))}.");
+                "Renewing leases for podcasts with ids {Join}.", string.Join((string?) ",", (IEnumerable<string?>) podcastsToSubscribe.Select(x => $"'{x.Id}'")));
             foreach (var podcastToSubscribe in podcastsToSubscribe)
             {
-                logger.LogInformation($"Renewing lease for podcast with id '{podcastToSubscribe.Id}'.");
+                logger.LogInformation("Renewing lease for podcast with id '{Guid}'.", podcastToSubscribe.Id);
                 await subscriber.Renew(podcastToSubscribe);
             }
         }
@@ -43,9 +43,9 @@ public class PodcastsSubscriber(
     public async Task UpdateLease(Guid podcastId, long leaseSeconds)
     {
         logger.LogInformation(
-            $"Setting subscription-lease expiry for podcast with id '{podcastId}' to {leaseSeconds}s.");
+            "Setting subscription-lease expiry for podcast with id '{PodcastId}' to {LeaseSeconds}s.", podcastId, leaseSeconds);
         var leaseExpiry = DateTime.UtcNow.AddSeconds(leaseSeconds);
-        logger.LogInformation($"Lease expires: {leaseExpiry:O}");
+        logger.LogInformation("Lease expires: {LeaseExpiry:O}", leaseExpiry);
         var podcast = await podcastRepository.GetPodcast(podcastId);
         if (podcast == null)
         {
@@ -61,7 +61,7 @@ public class PodcastsSubscriber(
     public async Task RemoveLease(Guid podcastId)
     {
         logger.LogInformation(
-            $"Setting subscription-lease expiry for podcast with id '{podcastId}' to null.");
+            "Setting subscription-lease expiry for podcast with id '{PodcastId}' to null.", podcastId);
         var podcast = await podcastRepository.GetPodcast(podcastId);
         if (podcast == null)
         {

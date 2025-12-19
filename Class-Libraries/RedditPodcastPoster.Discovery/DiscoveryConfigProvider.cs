@@ -14,7 +14,7 @@ public class DiscoveryServiceConfigProvider(
     public DiscoveryConfig CreateDiscoveryConfig(GetServiceConfigOptions options)
     {
         logger.LogInformation(
-            $"{nameof(CreateDiscoveryConfig)}: {options} {_discoverySettings}");
+            "{CreateDiscoveryConfigName}: {GetServiceConfigOptions} {DiscoverySettings}", nameof(CreateDiscoveryConfig), options, _discoverySettings);
         var serviceConfigs = new List<ServiceConfig>();
         if (_discoverySettings.Queries != null)
         {
