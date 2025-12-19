@@ -26,12 +26,15 @@ public class ApplePodcastResolver(
             catch (HttpRequestException ex)
             {
                 logger.LogError(ex,
-                    $"Error invoking {nameof(iTunesSearchManager.GetPodcastById)} with id '{request.PodcastAppleId.Value}', status-code: {ex.HttpRequestError}, http-request-error: '{ex.HttpRequestError}'.");
+                    "Error invoking {GetPodcastByIdName} with id '{RequestPodcastAppleId}', status-code: {ExHttpRequestError}, http-request-error: '{EHttpRequestError}'."
+                    , nameof(iTunesSearchManager.GetPodcastById), request.PodcastAppleId.Value, ex.HttpRequestError, ex
+                        .HttpRequestError);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    $"Error invoking {nameof(iTunesSearchManager.GetPodcastById)} with id '{request.PodcastAppleId.Value}'.");
+                    "Error invoking {GetPodcastByIdName} with id '{RequestPodcastAppleId}'.", nameof(iTunesSearchManager
+                        .GetPodcastById), request.PodcastAppleId.Value);
             }
         }
 
@@ -54,12 +57,15 @@ public class ApplePodcastResolver(
                 catch (HttpRequestException ex)
                 {
                     logger.LogError(ex,
-                        $"Error invoking {nameof(iTunesSearchManager.GetPodcasts)} with podcast-name '{request.PodcastName}', status-code: {ex.HttpRequestError}, http-request-error: '{ex.HttpRequestError}'.");
+                        "Error invoking {GetPodcastsName} with podcast-name '{RequestPodcastName}', status-code: {ExHttpRequestError}, http-request-error: '{EHttpRequestError}'."
+                        , nameof(iTunesSearchManager.GetPodcasts), request.PodcastName, ex.HttpRequestError, ex
+                            .HttpRequestError);
                 }
                 catch (Exception e)
                 {
                     logger.LogError(e,
-                        $"Error invoking {nameof(iTunesSearchManager.GetPodcasts)} with podcast-name '{request.PodcastName}'.");
+                        "Error invoking {GetPodcastsName} with podcast-name '{RequestPodcastName}'.", nameof(
+                            iTunesSearchManager.GetPodcasts), request.PodcastName);
                 }
             }
         }

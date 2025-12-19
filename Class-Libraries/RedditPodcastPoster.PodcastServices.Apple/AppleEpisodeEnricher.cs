@@ -47,10 +47,12 @@ public class AppleEpisodeEnricher(
                 request.Episode.Urls.Apple = url;
                 request.Episode.AppleId = appleItem.Id;
                 logger.LogInformation(
-                    $"Episode.Release.TimeOfDay: '{request.Episode.Release.TimeOfDay:G}' podcast-id '{request.Podcast.Id}' with episode with apple-id '{appleItem.Id}'.");
+                    "Episode.Release.TimeOfDay: '{ReleaseTimeOfDay:G}' podcast-id '{PodcastId}' with episode with apple-id '{AppleItemId}'."
+                    , request.Episode.Release.TimeOfDay, request.Podcast.Id, appleItem.Id);
                 if (request.Episode.Release.TimeOfDay == TimeSpan.Zero)
                 {
-                    logger.LogInformation($"Updating Episode.Release.TimeOfDay with: '{appleItem.Release:G}'.");
+                    logger.LogInformation(
+                        "Updating Episode.Release.TimeOfDay with: '{AppleItemRelease:G}'.", appleItem.Release);
                     request.Episode.Release = appleItem.Release;
                     enrichmentContext.Release = appleItem.Release;
                 }

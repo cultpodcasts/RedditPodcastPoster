@@ -15,7 +15,7 @@ public class PodcastsUpdater(
     public async Task<bool> UpdatePodcasts(Guid[] podcastIds, IndexingContext indexingContext)
     {
         var success = true;
-        logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing Starting.");
+        logger.LogInformation("{nameofUpdatePodcasts} Indexing Starting.", nameof(UpdatePodcasts));
         foreach (var podcastId in podcastIds)
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);
@@ -26,17 +26,17 @@ public class PodcastsUpdater(
             {
                 try
                 {
-                    var result = await podcastUpdater.Update(podcast, false, indexingContext);
+                    var result = await podcastUpdater.Update(podcast!, false, indexingContext);
                     var resultReport = result.ToString();
                     if (!result.Success)
                     {
-                        logger.LogError(resultReport);
+                        logger.LogError("{report}",resultReport);
                     }
                     else
                     {
                         if (!string.IsNullOrWhiteSpace(resultReport))
                         {
-                            logger.LogInformation(result.ToString());
+                            logger.LogInformation("{result}",result.ToString());
                         }
                     }
 
@@ -55,7 +55,7 @@ public class PodcastsUpdater(
             }
         }
 
-        logger.LogInformation($"{nameof(UpdatePodcasts)} Indexing complete.");
+        logger.LogInformation("{nameofUpdatePodcasts} Indexing complete.", nameof(UpdatePodcasts));
         return success;
     }
 

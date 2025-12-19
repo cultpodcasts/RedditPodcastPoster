@@ -22,7 +22,8 @@ public class Indexer(
         TaskActivityContext context, IndexerContextWrapper indexerContextWrapper)
     {
         logger.LogInformation(
-            $"{nameof(Indexer)} initiated. task-activity-context-instance-id: '{context.InstanceId}'. Pass: {indexerContextWrapper.Pass}.");
+            "{nameofIndexer} initiated. task-activity-context-instance-id: '{contextInstanceId}'. Pass: {indexerContextWrapperPass}.",
+            nameof(Indexer), context.InstanceId, indexerContextWrapper.Pass);
         var indexerContext = indexerContextWrapper.IndexerContext;
 
         if (indexerContext.IndexIds == null)
@@ -41,8 +42,7 @@ public class Indexer(
             throw new ArgumentException($"Pass must be between 1 and {passes}.");
         }
 
-        logger.LogInformation(indexerContext.ToString());
-        logger.LogInformation(_indexerOptions.ToString());
+        logger.LogInformation("Pre: {indexerContext} {indexerOptions}",indexerContext.ToString(),_indexerOptions.ToString());
         var indexingContext = _indexerOptions.ToIndexingContext() with
         {
             IndexSpotify = indexingStrategy.IndexSpotify(),
@@ -55,7 +55,7 @@ public class Indexer(
 
         var originalIndexingContext = indexerContext with { };
 
-        logger.LogInformation(indexingContext.ToString());
+        logger.LogInformation("Post: {indexerContext}", indexerContext.ToString());
 
         if (DryRun.IsIndexDryRun)
         {
@@ -100,7 +100,8 @@ public class Indexer(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                $"Failure to execute {nameof(IPodcastsUpdater)}.{nameof(IPodcastsUpdater.UpdatePodcasts)}.");
+                "Failure to execute {nameofIPodcastsUpdater}.{nameofIPodcastsUpdater.UpdatePodcasts}.",
+                nameof(IPodcastsUpdater), nameof(IPodcastsUpdater.UpdatePodcasts));
             results = false;
         }
         finally
@@ -133,7 +134,8 @@ public class Indexer(
             SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalIndexingContext.SkipSpotifyUrlResolving
         };
 
-        logger.LogInformation($"{nameof(RunAsync)} Completed. Pass: {indexerContextWrapper.Pass}. Result: {result}");
+        logger.LogInformation("{nameofRunAsync} Completed. Pass: {indexerContextWrapperPass}. Result: {result}",
+            nameof(RunAsync), indexerContextWrapper.Pass, result);
 
         return result;
     }

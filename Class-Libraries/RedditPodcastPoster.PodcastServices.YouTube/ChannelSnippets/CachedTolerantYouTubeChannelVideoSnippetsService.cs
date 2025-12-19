@@ -25,7 +25,9 @@ public class CachedTolerantYouTubeChannelVideoSnippetsService(
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             logger.LogInformation(
-                $"Skipping '{nameof(GetLatestChannelVideoSnippets)}' as '{nameof(indexingContext.SkipYouTubeUrlResolving)}' is set. Channel-id: '{channelId.ChannelId}'.");
+                "Skipping '{GetLatestChannelVideoSnippetsName}' as '{IndexingContextSkipYouTubeUrlResolvingName}' is set. Channel-id: '{ChannelIdChannelId}'."
+                , nameof(GetLatestChannelVideoSnippets), nameof(indexingContext.SkipYouTubeUrlResolving), channelId
+                    .ChannelId);
             return null;
         }
 
