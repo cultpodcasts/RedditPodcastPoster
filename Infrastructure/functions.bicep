@@ -117,7 +117,7 @@ var jobHostLogging= {
 }
 
 var logging= {
-    Logging__LogLevel__Default: 'Information'
+    Logging__LogLevel__Default: 'Warning'
     'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Warning'
     Logging__LogLevel__Function: 'Information'
     Logging__LogLevel__RedditPodcastPoster: 'Information'
