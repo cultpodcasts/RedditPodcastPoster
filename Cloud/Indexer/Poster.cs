@@ -33,9 +33,9 @@ public class Poster(
             "{method} Posting with options released-since: '{baselineDate:O}', max-posts: '{posterOptionsMaxPosts}'.",
             nameof(RunAsync), baselineDate, _posterOptions.MaxPosts);
 
-        if (!activityOptionsProvider.RunPoster())
+        if (!activityOptionsProvider.RunPoster(out var reason))
         {
-            logger.LogInformation("{class} activity disabled.", nameof(Poster));
+            logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Poster), reason);
             return indexerContext with { Success = true };
         }
 

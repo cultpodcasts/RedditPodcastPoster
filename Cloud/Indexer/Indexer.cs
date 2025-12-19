@@ -59,9 +59,9 @@ public class Indexer(
 
         logger.LogInformation("Post: {indexerContext}", indexerContext.ToString());
 
-        if (!activityOptionsProvider.RunIndex())
+        if (!activityOptionsProvider.RunIndex(out var reason))
         {
-            logger.LogInformation("{class} activity disabled.", nameof(Indexer));
+            logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Indexer), reason);
             return indexerContext with
             {
                 Success = true,

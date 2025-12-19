@@ -18,9 +18,9 @@ public class Categoriser(
             nameof(Categoriser), context.InstanceId);
         logger.LogInformation(indexerContext.ToString());
 
-        if (!activityOptionsProvider.RunCategoriser())
+        if (!activityOptionsProvider.RunCategoriser(out var reason))
         {
-            logger.LogInformation("{class} activity disabled.", nameof(Categoriser));
+            logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Categoriser), reason);
             return indexerContext with { Success = true };
         }
 

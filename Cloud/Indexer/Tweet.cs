@@ -18,9 +18,9 @@ public class Tweet(
             context.InstanceId);
         logger.LogInformation(indexerContext.ToString());
 
-        if (!activityOptionsProvider.RunTweet())
+        if (!activityOptionsProvider.RunTweet(out var reason))
         {
-            logger.LogInformation("{class} activity disabled.", nameof(Tweet));
+            logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Tweet), reason);
             return indexerContext with { Success = true };
         }
 

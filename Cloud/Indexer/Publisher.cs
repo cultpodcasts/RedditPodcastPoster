@@ -21,7 +21,7 @@ public class Publisher(
         ;
         logger.LogInformation(indexerContext.ToString());
 
-        if (!activityOptionsProvider.RunPublisher())
+        if (!activityOptionsProvider.RunPublisher(out var reason))
         {
             logger.LogInformation("{class} activity disabled.", nameof(Publisher));
             return indexerContext with { Success = true };

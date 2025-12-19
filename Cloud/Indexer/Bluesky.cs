@@ -18,9 +18,9 @@ public class Bluesky(
             context.InstanceId);
         logger.LogInformation(indexerContext.ToString());
 
-        if (!activityOptionsProvider.RunBluesky())
+        if (!activityOptionsProvider.RunBluesky(out var reason))
         {
-            logger.LogInformation("{class} activity disabled.", nameof(Bluesky));
+            logger.LogInformation("{class} activity disabled. Reason: '{reason}'.", nameof(Bluesky), reason);
             return indexerContext with { Success = true };
         }
 
