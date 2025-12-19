@@ -9,6 +9,7 @@ namespace Indexer;
 public class Publisher(
     IContentPublisher contentPublisher,
     ISearchIndexerService searchIndexerService,
+    IActivityOptionsProvider activityOptionsProvider,
     ILogger<Publisher> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {
@@ -20,7 +21,7 @@ public class Publisher(
         ;
         logger.LogInformation(indexerContext.ToString());
 
-        if (DryRun.IsPublisherDryRun)
+        if (!activityOptionsProvider.RunPublisher())
         {
             return indexerContext with { Success = true };
         }

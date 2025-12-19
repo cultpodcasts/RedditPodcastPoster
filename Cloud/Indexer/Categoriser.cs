@@ -7,6 +7,7 @@ namespace Indexer;
 [DurableTask(nameof(Categoriser))]
 public class Categoriser(
     IRecentPodcastEpisodeCategoriser recentEpisodeCategoriser,
+    IActivityOptionsProvider activityOptionsProvider,
     ILogger<Categoriser> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {
@@ -17,7 +18,7 @@ public class Categoriser(
             nameof(Categoriser), context.InstanceId);
         logger.LogInformation(indexerContext.ToString());
 
-        if (DryRun.IsCategoriserDryRun)
+        if (!activityOptionsProvider.RunCategoriser())
         {
             return indexerContext with { Success = true };
         }

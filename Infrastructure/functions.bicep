@@ -292,6 +292,15 @@ var taddy= {
     taddy__Userid: taddyUserId
 }
 
+var indexerActivities= {
+    activities__RunIndexer: true;
+    activities__RunCategoriser: true;
+    activities__RunPoster: false;
+    activities__RunPublisher: true;
+    activities__RunTweet: true;
+    activities__RunBluesky: true;
+}
+
 var textanalytics= {
     textanalytics__ApiKey: textanalyticsApiKey
     textanalytics__EndPoint: textanalyticsEndPoint
@@ -411,7 +420,8 @@ var indexerSettings= union(
     coreSettings,
     indexer,
     poster,
-    postingCriteria
+    postingCriteria,
+    indexerActivities
  )
 
 var storageBlobDataOwnerRoleId  = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'

@@ -12,6 +12,7 @@ public class Indexer(
     IPodcastsUpdater podcastsUpdater,
     IActivityMarshaller activityMarshaller,
     IIndexingStrategy indexingStrategy,
+    IActivityOptionsProvider activityOptionsProvider,
     IOptions<IndexerOptions> indexerOptions,
     ILogger<Indexer> logger)
     : TaskActivity<IndexerContextWrapper, IndexerContext>
@@ -42,7 +43,8 @@ public class Indexer(
             throw new ArgumentException($"Pass must be between 1 and {passes}.");
         }
 
-        logger.LogInformation("Pre: {indexerContext} {indexerOptions}",indexerContext.ToString(),_indexerOptions.ToString());
+        logger.LogInformation("Pre: {indexerContext} {indexerOptions}", indexerContext.ToString(),
+            _indexerOptions.ToString());
         var indexingContext = _indexerOptions.ToIndexingContext() with
         {
             IndexSpotify = indexingStrategy.IndexSpotify(),
@@ -57,7 +59,7 @@ public class Indexer(
 
         logger.LogInformation("Post: {indexerContext}", indexerContext.ToString());
 
-        if (DryRun.IsIndexDryRun)
+        if (!activityOptionsProvider.RunIndex())
         {
             return indexerContext with
             {

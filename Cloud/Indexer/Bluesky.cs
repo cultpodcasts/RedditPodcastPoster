@@ -7,6 +7,7 @@ namespace Indexer;
 [DurableTask(nameof(Bluesky))]
 public class Bluesky(
     IBlueskyPostManager blueskyPostManager,
+    IActivityOptionsProvider activityOptionsProvider,
     ILogger<Bluesky> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {
@@ -17,7 +18,7 @@ public class Bluesky(
             context.InstanceId);
         logger.LogInformation(indexerContext.ToString());
 
-        if (DryRun.IsBlueskyDryRun)
+        if (!activityOptionsProvider.RunBluesky())
         {
             return indexerContext with { Success = true };
         }

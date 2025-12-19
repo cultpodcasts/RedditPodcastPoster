@@ -11,6 +11,7 @@ namespace Indexer;
 [DurableTask(nameof(Poster))]
 public class Poster(
     IEpisodeProcessor episodeProcessor,
+    IActivityOptionsProvider activityOptionsProvider,
     IOptions<PosterOptions> posterOptions,
     IOptions<PostingCriteria> postingCriteria,
     ILogger<Poster> logger)
@@ -32,7 +33,7 @@ public class Poster(
             "{method} Posting with options released-since: '{baselineDate:O}', max-posts: '{posterOptionsMaxPosts}'.",
             nameof(RunAsync), baselineDate, _posterOptions.MaxPosts);
 
-        if (DryRun.IsPosterDryRun)
+        if (!activityOptionsProvider.RunPoster())
         {
             return indexerContext with { Success = true };
         }
