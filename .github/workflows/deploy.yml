@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/split-logging-config
 
 permissions:
   id-token: write
