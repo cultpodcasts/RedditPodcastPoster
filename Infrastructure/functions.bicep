@@ -119,8 +119,8 @@ var jobHostLogging= {
 var logging= {
     Logging__LogLevel__Default: 'Information'
     'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Warning'
-    'Logging__LogLevel__Function': 'Information'
-    'Logging__LogLevel__RedditPodcastPoster': 'Information'
+    Logging__LogLevel__Function: 'Information'
+    Logging__LogLevel__RedditPodcastPoster: 'Information'
     Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
     Logging__ApplicationInsights__SamplingSettings__ExcludedTypes: ''
     Logging__ApplicationInsights__EnableLiveMetricsFilters: 'true'
