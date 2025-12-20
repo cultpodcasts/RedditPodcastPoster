@@ -19,7 +19,8 @@ public class RedditClientFactory(
         return new RedditClient(
             _redditSettings.AppId,
             appSecret: _redditSettings.AppSecret,
-            refreshToken: _redditSettings.RefreshToken);
+            refreshToken: _redditSettings.RefreshToken,
+            userAgent: _redditSettings.UserAgent);
     }
 
     public static IServiceCollection AddRedditClient(IServiceCollection services)
