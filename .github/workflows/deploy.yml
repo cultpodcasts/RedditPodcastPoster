@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/replace-reddit-net
 
 permissions:
   id-token: write

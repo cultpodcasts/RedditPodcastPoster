@@ -108,6 +108,7 @@ var runtime = 'dotnet-isolated'
 
 var auth0Audience= 'https://api.cultpodcasts.com/'
 var auth0Domain= 'auth.cultpodcasts.com'
+var redditUserAgent= 'CultpodcastsBot/1.0'
 
 var jobHostLogging= {
     AzureFunctionsJobHost__Logging__ApplicationInsights__LogLevel__Default: 'Warning'
@@ -253,12 +254,14 @@ var reddit= {
     reddit__AppId: redditAppId
     reddit__AppSecret: redditAppSecret
     reddit__RefreshToken: redditRefreshToken
+    reddit__UserAgent: redditUserAgent
 }
 
 var redditAdmin= {
     redditAdmin__AppId: redditAdminAppId
     redditAdmin__AppSecret: redditAdminAppSecret
     redditAdmin__RefreshToken: redditAdminRefreshToken
+    redditAdmin__UserAgent: redditUserAgent
 }
 
 var redirect= {
@@ -295,7 +298,7 @@ var taddy= {
 var indexerActivities= {
     activities__RunIndex: 'true'
     activities__RunCategoriser: 'true'
-    activities__RunPoster: 'false'
+    activities__RunPoster: 'true'
     activities__RunPublisher: 'true'
     activities__RunTweet: 'true'
     activities__RunBluesky: 'true'

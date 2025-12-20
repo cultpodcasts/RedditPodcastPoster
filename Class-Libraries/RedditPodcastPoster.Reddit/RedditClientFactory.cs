@@ -20,7 +20,7 @@ public class RedditClientFactory(
             _redditSettings.AppId,
             appSecret: _redditSettings.AppSecret,
             refreshToken: _redditSettings.RefreshToken,
-            userAgent: "CultpodcastsBot/1.0");
+            userAgent: _redditSettings.UserAgent);
     }
 
     public static IServiceCollection AddRedditClient(IServiceCollection services)
