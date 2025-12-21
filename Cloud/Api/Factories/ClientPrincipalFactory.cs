@@ -4,7 +4,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Auth0;
 
-namespace Api;
+namespace Api.Factories;
 
 public class ClientPrincipalFactory(
     IAuth0TokenValidator auth0TokenValidator,
@@ -51,7 +51,7 @@ public class ClientPrincipalFactory(
         var validatedToken = auth0TokenValidator.GetClaimsPrincipal(bearer);
         if (validatedToken == null)
         {
-            logger.LogWarning($"No client-principal.");
+            logger.LogWarning("No client-principal.");
             return null;
         }
 

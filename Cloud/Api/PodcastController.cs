@@ -1,5 +1,6 @@
 ﻿using Api.Configuration;
 using Api.Dtos;
+using Api.Factories;
 using Api.Handlers;
 using Api.Models;
 using Microsoft.Azure.Functions.Worker;
