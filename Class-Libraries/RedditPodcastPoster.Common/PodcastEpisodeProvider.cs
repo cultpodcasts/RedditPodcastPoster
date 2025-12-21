@@ -32,6 +32,17 @@ public class PodcastEpisodeProvider(
             spotifyRefreshed);
     }
 
+    public async Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(Guid podcastId)
+    {
+        logger.LogInformation("Exec {method}, podcast-id: {podcastId} init. Tweet-days: '{tweetDays}'",
+            nameof(GetUntweetedPodcastEpisodes),
+            podcastId,
+            _postingCriteria.TweetDays);
+        return await GetPodcastEpisodes(
+            podcastId,
+            podcastEpisodeFilter.GetMostRecentUntweetedEpisodes);
+    }
+
     public async Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
@@ -45,6 +56,17 @@ public class PodcastEpisodeProvider(
             podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes,
             youTubeRefreshed,
             spotifyRefreshed);
+    }
+
+    public async Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(Guid podcastId)
+    {
+        logger.LogInformation("Exec {method}, podcast-id: {podcastId} init. Tweet-days: '{tweetDays}'",
+            nameof(GetBlueskyReadyPodcastEpisodes),
+            podcastId,
+            _postingCriteria.TweetDays);
+        return await GetPodcastEpisodes(
+            podcastId,
+            podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes);
     }
 
     private async Task<IEnumerable<PodcastEpisode>> GetPodcastEpisodes(
@@ -70,6 +92,25 @@ public class PodcastEpisodeProvider(
                 var filtered = filterEpisodes(podcast, youTubeRefreshed, spotifyRefreshed, _postingCriteria.TweetDays);
                 podcastEpisodes.AddRange(filtered);
             }
+        }
+
+        return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
+    }
+
+    private async Task<IEnumerable<PodcastEpisode>> GetPodcastEpisodes(
+        Guid podcastId,
+        Func<Podcast, int, IEnumerable<PodcastEpisode>> filterEpisodes)
+    {
+        var podcastEpisodes = new List<PodcastEpisode>();
+        var podcast = await repository.GetPodcast(podcastId);
+        if (podcast == null)
+        {
+            logger.LogError("Podcast with id '{UntweetedPodcastId}' not found.", podcastId);
+        }
+        else
+        {
+            var filtered = filterEpisodes(podcast, _postingCriteria.TweetDays);
+            podcastEpisodes.AddRange(filtered);
         }
 
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);

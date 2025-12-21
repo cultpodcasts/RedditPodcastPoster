@@ -16,6 +16,10 @@ public interface IPodcastEpisodeFilter
         bool spotifyRefreshed,
         int numberOfDays);
 
+    IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(
+        Podcast podcast,
+        int numberOfDays);
+
     bool IsRecentlyExpiredDelayedPublishing(
         Podcast podcast,
         Episode episode);
@@ -24,5 +28,9 @@ public interface IPodcastEpisodeFilter
         Podcast podcast,
         bool youTubeRefreshed,
         bool spotifyRefreshed,
+        int numberOfDays);
+
+    IEnumerable<PodcastEpisode> GetMostRecentBlueskyReadyEpisodes(
+        Podcast podcast,
         int numberOfDays);
 }

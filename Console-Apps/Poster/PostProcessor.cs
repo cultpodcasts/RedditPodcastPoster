@@ -2,14 +2,15 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky;
 using RedditPodcastPoster.Bluesky.Models;
+using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Adaptors;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.UrlShortening;
+using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
 
 namespace Poster;
 
@@ -24,6 +25,7 @@ public class PostProcessor(
     IBlueskyPoster blueSkyPoster,
     IBlueskyPostManager blueskyPostManager,
     IShortnerService shortnerService,
+    IPodcastEpisodeProvider podcastEpisodeProvider,
     ILogger<PostProcessor> logger)
 {
     public async Task Process(PostRequest request)
@@ -78,7 +80,7 @@ public class PostProcessor(
                     (!x.Removed.IsDefined() || x.Removed == false) &&
                     x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
                 x => new { guid = x.Id }).ToListAsync();
-            logger.LogInformation("Found {idsCount} podcasts.", ids.Count());
+            logger.LogInformation("Found {idsCount} podcasts.", ids.Count);
             podcastIds = ids.Select(x => x.guid).ToArray();
         }
         else
@@ -110,40 +112,117 @@ public class PostProcessor(
             }
 
             var selectedPodcast = await repository.GetPodcast(podcastId.guid);
-            var selectedEpisode = selectedPodcast.Episodes.Single(x => x.Id == request.EpisodeId);
-            var podcastEpisode = new PodcastEpisode(selectedPodcast, selectedEpisode);
-
-            if (podcastEpisode == null)
+            if (selectedPodcast != null)
             {
-                throw new InvalidOperationException($"Episode with id '{request.EpisodeId}' not found");
-            }
+                var selectedEpisode = selectedPodcast.Episodes.Single(x => x.Id == request.EpisodeId);
+                var podcastEpisode = new PodcastEpisode(selectedPodcast, selectedEpisode);
 
-            var shortnerResult = await shortnerService.Write(podcastEpisode);
-            if (!shortnerResult.Success)
-            {
-                logger.LogError("Unsuccessful shortening-url.");
-            }
+                if (podcastEpisode == null)
+                {
+                    throw new InvalidOperationException($"Episode with id '{request.EpisodeId}' not found");
+                }
 
-            if (!request.SkipTweet)
-            {
-                await TweetEpisode(podcastEpisode, shortnerResult.Url);
-            }
+                var shortnerResult = await shortnerService.Write(podcastEpisode);
+                if (!shortnerResult.Success)
+                {
+                    logger.LogError("Unsuccessful shortening-url.");
+                }
 
-            if (!request.SkipBluesky)
-            {
-                await PostBluesky(podcastEpisode, shortnerResult.Url);
+                if (!request.SkipTweet)
+                {
+                    await TweetEpisode(podcastEpisode, shortnerResult.Url);
+                }
+
+                if (!request.SkipBluesky)
+                {
+                    await PostBluesky(podcastEpisode, shortnerResult.Url);
+                }
             }
         }
         else
         {
-            if (!request.SkipTweet)
+            if (!string.IsNullOrWhiteSpace(request.PodcastName) || request.PodcastId.HasValue)
             {
-                await tweeter.Tweet(true, true);
-            }
+                Guid podcastId;
+                if (!string.IsNullOrWhiteSpace(request.PodcastName))
+                {
+                    var podcasts = await repository.GetAllBy(x =>
+                        (!x.Removed.IsDefined() || x.Removed == false) &&
+                        x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase)
+                    ).ToArrayAsync();
+                    if (podcasts.Any())
+                    {
+                        if (podcasts.Length > 1)
+                        {
+                            podcasts = podcasts.Where(x => x.IndexAllEpisodes || x.EpisodeIncludeTitleRegex != "")
+                                .ToArray();
+                        }
 
-            if (!request.SkipBluesky)
+                        if (!podcasts.Any())
+                        {
+                            throw new InvalidOperationException(
+                                $"Podcast with name '{request.PodcastName}' not found that could have unposted episodes.");
+                        }
+
+                        podcastId = podcasts.First().Id;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Podcast with name '{request.PodcastName}' not found");
+                    }
+                }
+                else
+                {
+                    podcastId = request.PodcastId!.Value;
+                }
+
+                if (!request.SkipTweet)
+                {
+                    var untweetedPodcastEpisodes =
+                        await podcastEpisodeProvider.GetUntweetedPodcastEpisodes(podcastId);
+                    var mostRecent = untweetedPodcastEpisodes.OrderByDescending(x => x.Episode.Release)
+                        .FirstOrDefault();
+                    if (mostRecent != null)
+                    {
+                        var shortnerResult = await shortnerService.Write(mostRecent);
+                        if (!shortnerResult.Success)
+                        {
+                            logger.LogError("Unsuccessful shortening-url.");
+                        }
+
+                        await TweetEpisode(mostRecent, shortnerResult.Url);
+                    }
+                }
+
+                if (!request.SkipBluesky)
+                {
+                    var unPostedPodcastEpisodes =
+                        await podcastEpisodeProvider.GetBlueskyReadyPodcastEpisodes(podcastId);
+                    var mostRecent = unPostedPodcastEpisodes.OrderByDescending(x => x.Episode.Release)
+                        .FirstOrDefault();
+                    if (mostRecent != null)
+                    {
+                        var shortnerResult = await shortnerService.Write(mostRecent);
+                        if (!shortnerResult.Success)
+                        {
+                            logger.LogError("Unsuccessful shortening-url.");
+                        }
+
+                        await PostBluesky(mostRecent, shortnerResult.Url);
+                    }
+                }
+            }
+            else
             {
-                await blueskyPostManager.Post(true, true);
+                if (!request.SkipTweet)
+                {
+                    await tweeter.Tweet(true, true);
+                }
+
+                if (!request.SkipBluesky)
+                {
+                    await blueskyPostManager.Post(true, true);
+                }
             }
         }
     }
