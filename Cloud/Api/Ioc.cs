@@ -78,6 +78,7 @@ public static class Ioc
             .AddScoped<ISearchIndexHandler, SearchIndexHandler>()
             .AddScoped<ISubmitUrlHandler, SubmitUrlHandler>()
             .AddScoped<ISubjectHandler, SubjectHandler>()
+            .AddScoped<ITermsHandler, TermsHandler>()
             .BindConfiguration<HostingOptions>("hosting")
             .BindConfiguration<IndexerOptions>("indexer")
             .AddPostingCriteria();
