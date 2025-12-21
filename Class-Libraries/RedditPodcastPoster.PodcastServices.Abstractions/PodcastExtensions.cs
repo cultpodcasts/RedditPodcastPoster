@@ -6,6 +6,11 @@ public static class PodcastExtensions
 {
     public static bool IsDelayedYouTubePublishing(this Podcast podcast, Episode episode)
     {
+        if (string.IsNullOrWhiteSpace(podcast.SpotifyId) && podcast.AppleId == null)
+        {
+            return false;
+        }
+
         if (IsAudioPodcastAwaitingYouTubeRelease(podcast, episode) ||
             IsYouTubePodcastWithDelayedPosting(podcast))
         {
