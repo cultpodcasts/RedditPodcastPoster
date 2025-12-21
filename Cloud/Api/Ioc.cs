@@ -75,6 +75,7 @@ public static class Ioc
             .AddScoped<IPublicHandler, PublicHandler>()
             .AddScoped<IPublishHandler, PublishHandler>()
             .AddScoped<IPushSubscriptionHandler, PushSubscriptionHandler>()
+            .AddScoped<ISearchIndexHandler, SearchIndexHandler>()
             .BindConfiguration<HostingOptions>("hosting")
             .BindConfiguration<IndexerOptions>("indexer")
             .AddPostingCriteria();
