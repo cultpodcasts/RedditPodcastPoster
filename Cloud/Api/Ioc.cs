@@ -1,4 +1,5 @@
 ﻿using Api.Configuration;
+using Api.Factories;
 using Api.Handlers;
 using Api.Services;
 using iTunesSearch.Library;
@@ -79,6 +80,7 @@ public static class Ioc
             .AddScoped<ISubmitUrlHandler, SubmitUrlHandler>()
             .AddScoped<ISubjectHandler, SubjectHandler>()
             .AddScoped<ITermsHandler, TermsHandler>()
+            .AddScoped<IDiscoveryCurationHandler, DiscoveryCurationHandler>()
             .BindConfiguration<HostingOptions>("hosting")
             .BindConfiguration<IndexerOptions>("indexer")
             .AddPostingCriteria();

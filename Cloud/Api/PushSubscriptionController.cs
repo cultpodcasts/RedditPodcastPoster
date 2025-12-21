@@ -1,4 +1,5 @@
 using Api.Configuration;
+using Api.Factories;
 using Api.Handlers;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;

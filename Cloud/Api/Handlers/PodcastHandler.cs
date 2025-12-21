@@ -506,7 +506,7 @@ public class PodcastHandler(
             }
             if (podcastGetRequest.EpisodeId != null && indexedPodcasts.Length > 1 && podcastGetRequest.EpisodeId.HasValue)
             {
-                var podcastByEpisode = podcasts.Where(x=>x.Episodes.Any(x=>x.Id== podcastGetRequest.EpisodeId));
+                var podcastByEpisode = podcasts.Where(x=>x.Episodes.Any(e=>e.Id== podcastGetRequest.EpisodeId)).ToArray();
                 if (podcastByEpisode.Count()==1)
                 {
                     return new PodcastWrapper(podcastByEpisode.Single(), PodcastRetrievalState.Found);
