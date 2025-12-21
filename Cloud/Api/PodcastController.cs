@@ -1,6 +1,7 @@
 ﻿using Api.Configuration;
 using Api.Dtos;
 using Api.Handlers;
+using Api.Models;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -59,10 +60,27 @@ public class PodcastController(
         HandleRequest(
             req, 
             ["curate"],
-            podcastName, 
+            new PodcastGetRequest(podcastName, null), 
             handler.Get, 
             Unauthorised, 
             ct);
+
+    [Function("PodcastGetWithEpisodeId")]
+    public Task<HttpResponseData> GetWithEpisodeId(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "podcast/{podcastName}/{episodeId}")]
+        HttpRequestData req,
+        string podcastName,
+        Guid episodeId,
+        CancellationToken ct
+    ) =>
+        HandleRequest(
+            req,
+            ["curate"],
+            new PodcastGetRequest(podcastName, episodeId),
+            handler.Get,
+            Unauthorised,
+            ct);
+
 
     [Function("PodcastPost")]
     public Task<HttpResponseData> Post(

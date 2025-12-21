@@ -71,6 +71,7 @@ public static class Ioc
             .AddHttpClient()
             .AddEpisodeSearchIndexerService()
             .AddScoped<IPodcastHandler, PodcastHandler>()
+            .AddScoped<IEpisodeHandler, EpisodeHandler>()
             .BindConfiguration<HostingOptions>("hosting")
             .BindConfiguration<IndexerOptions>("indexer")
             .AddPostingCriteria();

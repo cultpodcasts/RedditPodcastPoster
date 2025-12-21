@@ -89,14 +89,13 @@ public class PodcastHandler(
         return failure;
     }
 
-    public async Task<HttpResponseData> Get(HttpRequestData req, string podcastName, ClientPrincipal? _,
+    public async Task<HttpResponseData> Get(HttpRequestData req, PodcastGetRequest podcastGetRequest, ClientPrincipal? _,
         CancellationToken c)
     {
         try
         {
-            logger.LogInformation("{method}: Get podcast with name '{podcastName}'.", nameof(Get), podcastName);
-            podcastName = WebUtility.UrlDecode(podcastName);
-            var podcastResult = await GetPodcast(podcastName, c);
+            logger.LogInformation("{method}: Get podcast with name '{podcastName}'.", nameof(Get), podcastGetRequest.PodcastName);
+            var podcastResult = await GetPodcast(podcastGetRequest, c);
             if (podcastResult is { RetrievalState: PodcastRetrievalState.Found, Podcast: not null })
             {
                 var podcast = podcastResult.Podcast;
@@ -134,14 +133,14 @@ public class PodcastHandler(
 
             if (podcastResult.RetrievalState == PodcastRetrievalState.NotFound)
             {
-                logger.LogError("Unable to find podcast with name '{name}'.", podcastName);
+                logger.LogError("Unable to find podcast with name '{name}' and episode-id '{episodeId}'.", podcastGetRequest.PodcastName, podcastGetRequest.EpisodeId);
                 return await req.CreateResponse(HttpStatusCode.NotFound)
                     .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve podcast"), c);
             }
 
             if (podcastResult.RetrievalState == PodcastRetrievalState.Conflict)
             {
-                logger.LogError("Multiple podcasts with name '{name}'.", podcastName);
+                logger.LogError("Multiple podcasts with name '{name}' and episode-id '{episodeId}'.", podcastGetRequest.PodcastName, podcastGetRequest.EpisodeId);
                 return await req.CreateResponse(HttpStatusCode.Conflict)
                     .WithJsonBody(SubmitUrlResponse.Failure("Multiple podcasts found"), c);
             }
@@ -485,9 +484,9 @@ public class PodcastHandler(
         }
     }
 
-    private async Task<PodcastWrapper> GetPodcast(string podcastName, CancellationToken c)
+    private async Task<PodcastWrapper> GetPodcast(PodcastGetRequest podcastGetRequest, CancellationToken c)
     {
-        var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastName).ToListAsync(c);
+        var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastGetRequest.PodcastName).ToListAsync(c);
         if (!podcasts.Any())
         {
             return new PodcastWrapper(null, PodcastRetrievalState.NotFound);
@@ -500,10 +499,18 @@ public class PodcastHandler(
 
         if (podcasts.Count > 1)
         {
-            var indexedPodcasts = podcasts.Where(x => x.IndexAllEpisodes).ToArray();
+            var indexedPodcasts = podcasts.Where(x => x.IndexAllEpisodes || !string.IsNullOrWhiteSpace(x.EpisodeIncludeTitleRegex)).ToArray();
             if (indexedPodcasts.Length == 1)
             {
                 return new PodcastWrapper(indexedPodcasts.Single(), PodcastRetrievalState.Found);
+            }
+            if (podcastGetRequest.EpisodeId != null && indexedPodcasts.Length > 1 && podcastGetRequest.EpisodeId.HasValue)
+            {
+                var podcastByEpisode = podcasts.Where(x=>x.Episodes.Any(x=>x.Id== podcastGetRequest.EpisodeId));
+                if (podcastByEpisode.Count()==1)
+                {
+                    return new PodcastWrapper(podcastByEpisode.Single(), PodcastRetrievalState.Found);
+                }
             }
         }
 
