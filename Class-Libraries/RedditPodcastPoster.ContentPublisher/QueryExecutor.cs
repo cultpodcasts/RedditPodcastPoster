@@ -18,6 +18,8 @@ public class QueryExecutor(
 #pragma warning restore CS9113 // Parameter is unread.
     : IQueryExecutor
 {
+    private readonly IEnumerable<Subject> subjects = subjectRepository.GetAll().ToBlockingEnumerable();
+
     public async Task<HomePageModel> GetHomePage(CancellationToken ct)
     {
         var podcastResults = GetRecentPodcasts(container, ct);
@@ -57,10 +59,9 @@ public class QueryExecutor(
         };
     }
 
-    public async Task<SubjectModel> GetSubjects(CancellationToken ct)
+    public SubjectModel GetSubjects()
     {
         var termSubjects = new Dictionary<string, List<string>>();
-        var subjects = await subjectRepository.GetAll().ToArrayAsync(ct);
         foreach (var subject in subjects)
         {
             AddTerm(termSubjects, subject.Name, subject.Name);
@@ -163,7 +164,8 @@ public class QueryExecutor(
                            e.urls.internetArchive as internetArchive,
                            e.duration as length,
                            e.subjects as subjects,
-                           e.images as images
+                           e.images as images,
+                           p.knownTerms as knownTerms
                            FROM
                            podcasts p
                            JOIN
@@ -192,7 +194,12 @@ public class QueryExecutor(
             titleRegex = new Regex(podcastResult.TitleRegex);
         }
 
-        podcastResult.EpisodeTitle = textSanitiser.SanitiseTitle(podcastResult.EpisodeTitle, titleRegex);
+        var subjectKnownTerms = (podcastResult.Subjects ?? [])
+            .Select(x => subjects.SingleOrDefault(y => y.Name == x))
+            .SelectMany(x => x?.KnownTerms ?? []).ToArray();
+
+        podcastResult.EpisodeTitle = textSanitiser.SanitiseTitle(podcastResult.EpisodeTitle, titleRegex,
+            podcastResult.KnownTerms ?? [], subjectKnownTerms);
 
         Regex? descRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.DescriptionRegex))

@@ -20,14 +20,4 @@ public sealed class KnownTerms : CosmosSelector
     public Dictionary<string, Regex> Terms { get; set; } = new();
 
     public override string FileKey => nameof(KnownTerms);
-
-    public string MaintainKnownTerms(string input)
-    {
-        foreach (var term in Terms)
-        {
-            input = term.Value.Replace(input, term.Key);
-        }
-
-        return input;
-    }
 }

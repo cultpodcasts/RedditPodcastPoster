@@ -45,6 +45,11 @@ public sealed class Subject : CosmosSelector
     [JsonPropertyOrder(60)]
     public string[]? EnrichmentHashTags { get; set; }
 
+    [JsonPropertyName("knownTerms")]
+    [JsonPropertyOrder(70)]
+    public string[]? KnownTerms { get; set; } = null;
+
+
     public SubjectTerm[] GetSubjectTerms()
     {
         return

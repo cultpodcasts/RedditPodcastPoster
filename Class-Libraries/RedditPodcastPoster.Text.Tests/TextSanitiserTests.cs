@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using AutoFixture;
 using FluentAssertions;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models;
@@ -10,9 +11,11 @@ namespace RedditPodcastPoster.Text.Tests;
 public class TextSanitiserTests
 {
     private readonly AutoMocker _mocker;
+    private readonly Fixture _fixture;
 
     public TextSanitiserTests()
     {
+        _fixture = new Fixture();
         _mocker = new AutoMocker();
         _mocker.GetMock<IKnownTermsProvider>().Setup(x => x.GetKnownTerms()).Returns(new KnownTerms.KnownTerms());
     }
@@ -92,10 +95,11 @@ public class TextSanitiserTests
     public void SanitiseTitle_WithKnownTerm_MaintainsTerm(string expected)
     {
         // arrange
-        (Podcast, IEnumerable<Episode>) podcastEpisode =
-            (new Podcast(Guid.NewGuid()), new[] {new Episode {Title = expected}});
+        var postModel = _fixture.Build<PostModel>()
+            .With(x => x.EpisodeTitle, expected)
+            .Create();
         // act
-        var result = Sut.SanitiseTitle(podcastEpisode.ToPostModel());
+        var result = Sut.SanitiseTitle(postModel);
         // assert
         result.Should().Be(expected);
     }
@@ -105,10 +109,11 @@ public class TextSanitiserTests
     public void SanitiseBody_WithKnownTerm_RemovesHashTags(string input, string expected)
     {
         // arrange
-        (Podcast, IEnumerable<Episode>) podcastEpisode =
-            (new Podcast(Guid.NewGuid()), new[] {new Episode {Title = input}});
+        var postModel = _fixture.Build<PostModel>()
+            .With(x => x.EpisodeTitle, input)
+            .Create();
         // act
-        var result = Sut.SanitiseTitle(podcastEpisode.ToPostModel());
+        var result = Sut.SanitiseTitle(postModel);
         // assert
         result.Should().Be(expected);
     }
@@ -118,10 +123,11 @@ public class TextSanitiserTests
     public void SanitiseBody_WithKnownTerm_RemovesAtSymbols(string input, string expected)
     {
         // arrange
-        (Podcast, IEnumerable<Episode>) podcastEpisode =
-            (new Podcast(Guid.NewGuid()), new[] {new Episode {Title = input}});
+        var postModel = _fixture.Build<PostModel>()
+            .With(x=>x.EpisodeTitle, input)
+            .Create();
         // act
-        var result = Sut.SanitiseTitle(podcastEpisode.ToPostModel());
+        var result = Sut.SanitiseTitle(postModel);
         // assert
         result.Should().Be(expected);
     }
@@ -141,7 +147,7 @@ public class TextSanitiserTests
     {
         // arrange
         // act
-        var result = Sut.SanitiseTitle(input, null);
+        var result = Sut.SanitiseTitle(input, null, [], []);
         // assert
         result.Should().Be(expected);
     }
@@ -157,7 +163,7 @@ public class TextSanitiserTests
     {
         // arrange
         // act
-        var result = Sut.SanitiseTitle(expected, null);
+        var result = Sut.SanitiseTitle(expected, null, [], []);
         // assert
         result.Should().Be(expected);
     }
@@ -168,7 +174,7 @@ public class TextSanitiserTests
         // arrange
         var expected = "(Term 1) Term 2";
         // act
-        var result = Sut.SanitiseTitle(expected, null);
+        var result = Sut.SanitiseTitle(expected, null, [], []);
         // assert
         result.Should().Be(expected);
     }
@@ -186,7 +192,7 @@ public class TextSanitiserTests
     {
         // arrange
         // act
-        var result = Sut.SanitiseTitle(expected, null);
+        var result = Sut.SanitiseTitle(expected, null, [], []);
         // assert
         result.Should().Be(expected);
     }
@@ -199,7 +205,7 @@ public class TextSanitiserTests
     {
         // arrange
         // act
-        var result = Sut.SanitiseTitle(expected, null);
+        var result = Sut.SanitiseTitle(expected, null, [], []);
         // assert
         result.Should().Be(expected);
     }
@@ -210,7 +216,7 @@ public class TextSanitiserTests
         // arrange
         var expected = "Blah O'Term Blah";
         // act
-        var result = Sut.SanitiseTitle(expected, null);
+        var result = Sut.SanitiseTitle(expected, null, [], []);
         // assert
         result.Should().Be(expected);
     }
@@ -230,7 +236,7 @@ public class TextSanitiserTests
     {
         // arrange
         // act
-        var result = Sut.SanitiseTitle(expected, null);
+        var result = Sut.SanitiseTitle(expected, null, [], []);
         // assert
         result.Should().Be(expected);
     }
@@ -242,7 +248,7 @@ public class TextSanitiserTests
     {
         // arrange
         // act
-        var result = Sut.SanitiseTitle(expected, null);
+        var result = Sut.SanitiseTitle(expected, null, [], []);
         // assert
         result.Should().Be(expected);
     }

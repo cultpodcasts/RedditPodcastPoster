@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Models;
+using RedditPodcastPoster.Common.Factories;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Subjects.HashTags;
@@ -15,8 +16,11 @@ public class BlueskyEmbedCardPostFactory(
     ITextSanitiser textSanitiser,
     IHashTagEnricher hashTagEnricher,
     IHashTagProvider hashTagProvider,
+    IPostModelFactory postModelFactory,
     IOptions<BlueskyOptions> blueskyOptions,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<IBlueskyEmbedCardPostFactory> logger
+#pragma warning restore CS9113 // Parameter is unread.
 ) : IBlueskyEmbedCardPostFactory
 {
     private const int MinTitleLength = 10;
@@ -26,7 +30,7 @@ public class BlueskyEmbedCardPostFactory(
 
     public async Task<BlueskyEmbedCardPost> Create(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
-        var postModel = (podcastEpisode.Podcast, new[] {podcastEpisode.Episode}).ToPostModel();
+        var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, [podcastEpisode.Episode]));
         var episodeTitle = textSanitiser.SanitiseTitle(postModel);
 
         var episodeHashtags = await hashTagProvider.GetHashTags(podcastEpisode.Episode.Subjects);
