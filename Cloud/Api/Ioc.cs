@@ -73,6 +73,7 @@ public static class Ioc
             .AddScoped<IPodcastHandler, PodcastHandler>()
             .AddScoped<IEpisodeHandler, EpisodeHandler>()
             .AddScoped<IPublicHandler, PublicHandler>()
+            .AddScoped<IPublishHandler, PublishHandler>()
             .BindConfiguration<HostingOptions>("hosting")
             .BindConfiguration<IndexerOptions>("indexer")
             .AddPostingCriteria();
