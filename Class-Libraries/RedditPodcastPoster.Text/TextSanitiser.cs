@@ -213,14 +213,14 @@ public partial class TextSanitiser(
         }
 
         foreach (var term in podcastKnownTerms.Select(x =>
-                     new KeyValuePair<string, Regex>(x, new Regex($"\b{x}\b", RegexOptions.IgnoreCase))))
+                     new KeyValuePair<string, Regex>(x, new Regex($@"\b{x}\b", RegexOptions.IgnoreCase))))
         {
             logger.LogInformation("Using podcast term '{podcastTerm}'.", term.Key);
             input = term.Value.Replace(input, term.Key);
         }
 
         foreach (var term in subjectKnownTerms.Select(x =>
-                     new KeyValuePair<string, Regex>(x, new Regex($"\b{x}\b", RegexOptions.IgnoreCase))))
+                     new KeyValuePair<string, Regex>(x, new Regex($@"\b{x}\b", RegexOptions.IgnoreCase))))
         {
             logger.LogInformation("Using subject term '{subjectTerm}'.", term.Key);
             input = term.Value.Replace(input, term.Key);
