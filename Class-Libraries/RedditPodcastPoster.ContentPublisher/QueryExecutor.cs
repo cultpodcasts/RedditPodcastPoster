@@ -199,7 +199,7 @@ public class QueryExecutor(
             .SelectMany(x => x?.KnownTerms ?? []).ToArray();
 
         podcastResult.EpisodeTitle = textSanitiser.SanitiseTitle(podcastResult.EpisodeTitle, titleRegex,
-            podcastResult.KnownTerms, subjectKnownTerms);
+            podcastResult.KnownTerms ?? [], subjectKnownTerms);
 
         Regex? descRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.DescriptionRegex))
