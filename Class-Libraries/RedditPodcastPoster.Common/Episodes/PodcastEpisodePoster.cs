@@ -1,12 +1,13 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Factories;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.Extensions;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
 public class PodcastEpisodePoster(
     IEpisodePostManager episodePostManager,
+    IPostModelFactory postModelFactory,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<PodcastEpisodePoster> logger
 #pragma warning restore CS9113 // Parameter is unread.
@@ -22,9 +23,7 @@ public class PodcastEpisodePoster(
         try
         {
             var episodes = GetEpisodes(podcastEpisode);
-
-            var postModel = (podcastEpisode.Podcast!, episodes).ToPostModel(preferYouTube);
-
+            var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, episodes), preferYouTube);
             var result = await episodePostManager.Post(postModel);
 
             if (result.Success)
@@ -54,7 +53,7 @@ public class PodcastEpisodePoster(
         if (titleMatch.Success)
         {
             var partNumber = titleMatch.Result("${partnumber}");
-            if (matchingPodcastEpisode.Podcast!.Bundles &&
+            if (matchingPodcastEpisode.Podcast.Bundles &&
                 !string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex) &&
                 int.TryParse(partNumber, out _))
             {
@@ -64,7 +63,7 @@ public class PodcastEpisodePoster(
 
         if (!orderedBundleEpisodes.Any())
         {
-            orderedBundleEpisodes = new[] {matchingPodcastEpisode.Episode};
+            orderedBundleEpisodes = new[] { matchingPodcastEpisode.Episode };
         }
 
         return orderedBundleEpisodes;
@@ -72,14 +71,14 @@ public class PodcastEpisodePoster(
 
     private IOrderedEnumerable<Episode> GetOrderedBundleEpisodes(PodcastEpisode matchingPodcastEpisode)
     {
-        if (string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast!.TitleRegex))
+        if (string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex))
         {
             throw new InvalidOperationException(
                 $"Podcast with bundles must provide a {nameof(matchingPodcastEpisode.Podcast.TitleRegex)}. Podcast in error: id='{matchingPodcastEpisode.Podcast.Id}', name='{matchingPodcastEpisode.Podcast.Name}'. Cannot bundle episodes without a Title-Regex to collate bundles");
         }
 
         var podcastTitleRegex = new Regex(matchingPodcastEpisode.Podcast.TitleRegex);
-        var rawTitle = podcastTitleRegex.Match(matchingPodcastEpisode.Episode!.Title).Result("${title}");
+        var rawTitle = podcastTitleRegex.Match(matchingPodcastEpisode.Episode.Title).Result("${title}");
         var bundleEpisodes = matchingPodcastEpisode.Podcast.Episodes
             .Where(x => Math.Abs((matchingPodcastEpisode.Episode.Release - x.Release).Ticks) <
                         BundledEpisodeReleaseThreshold.Ticks)

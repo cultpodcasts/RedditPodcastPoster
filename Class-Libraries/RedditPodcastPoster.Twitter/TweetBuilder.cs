@@ -1,11 +1,12 @@
-﻿using System.Globalization;
-using System.Text;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Common.Factories;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Text;
+using System.Globalization;
+using System.Text;
 
 namespace RedditPodcastPoster.Twitter;
 
@@ -13,6 +14,7 @@ public class TweetBuilder(
     ITextSanitiser textSanitiser,
     IHashTagEnricher hashTagEnricher,
     IHashTagProvider hashTagProvider,
+    IPostModelFactory postModelFactory,
     IOptions<TwitterOptions> twitterOptions,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<TweetBuilder> logger)
@@ -26,7 +28,7 @@ public class TweetBuilder(
 
     public async Task<string> BuildTweet(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
-        var postModel = (podcastEpisode.Podcast, new[] {podcastEpisode.Episode}).ToPostModel();
+        var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, [podcastEpisode.Episode]));
         var episodeTitle = textSanitiser.SanitiseTitle(postModel);
 
         var episodeHashtags = await hashTagProvider.GetHashTags(podcastEpisode.Episode.Subjects);

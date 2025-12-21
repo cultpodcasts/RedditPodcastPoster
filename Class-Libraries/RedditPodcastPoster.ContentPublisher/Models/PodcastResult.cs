@@ -49,4 +49,8 @@ public class PodcastResult
 
     [JsonPropertyName("images")]
     public EpisodeImages? Images { get; set; } = null;
+
+    [JsonPropertyName("knownTerms")]
+    [JsonPropertyOrder(271)]
+    public string[]? KnownTerms { get; set; } = null;
 }

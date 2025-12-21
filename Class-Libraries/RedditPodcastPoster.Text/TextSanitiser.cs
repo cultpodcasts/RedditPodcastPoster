@@ -23,7 +23,8 @@ public partial class TextSanitiser(
 
     public string SanitiseTitle(PostModel postModel)
     {
-        return SanitiseTitle(postModel.EpisodeTitle, postModel.TitleRegex);
+        return SanitiseTitle(postModel.EpisodeTitle, postModel.TitleRegex, postModel.PodcastKnownTerms,
+            postModel.SubjectKnownTerms);
     }
 
     public string SanitisePodcastName(PostModel postModel)
@@ -36,7 +37,8 @@ public partial class TextSanitiser(
         return SanitiseDescription(postModel.EpisodeDescription, postModel.DescriptionRegex);
     }
 
-    public string SanitiseTitle(string episodeTitle, Regex? regex)
+    public string SanitiseTitle(string episodeTitle, Regex? regex, string[] podcastKnownTerms,
+        string[] subjectKnownTerms)
     {
         if (regex != null)
         {
@@ -60,7 +62,7 @@ public partial class TextSanitiser(
             episodeTitle = term.Value.Replace(episodeTitle, term.Key);
         }
 
-        episodeTitle = FixCasing(episodeTitle);
+        episodeTitle = FixCasing(episodeTitle, podcastKnownTerms, subjectKnownTerms);
 
         episodeTitle = episodeTitle.Trim();
         var inQuotesMatch = InQuotes.Match(episodeTitle);
@@ -197,11 +199,32 @@ public partial class TextSanitiser(
         return title.Trim();
     }
 
-    private string FixCasing(string input)
+
+    private string FixCasing(string input, string[] podcastKnownTerms, string[] subjectKnownTerms)
     {
         input = SeasonEpisode.Replace(input, m => m.Value.ToUpper());
         input = input.Replace("W/", "w/");
-        input = knownTermsProvider.GetKnownTerms().MaintainKnownTerms(input);
+        var knownTerms = knownTermsProvider.GetKnownTerms();
+
+
+        foreach (var term in knownTerms.Terms)
+        {
+            input = term.Value.Replace(input, term.Key);
+        }
+
+        foreach (var term in podcastKnownTerms.Select(x =>
+                     new KeyValuePair<string, Regex>(x, new Regex($"\b{x}\b", RegexOptions.IgnoreCase))))
+        {
+            logger.LogInformation("Using podcast term '{podcastTerm}'.", term.Key);
+            input = term.Value.Replace(input, term.Key);
+        }
+
+        foreach (var term in subjectKnownTerms.Select(x =>
+                     new KeyValuePair<string, Regex>(x, new Regex($"\b{x}\b", RegexOptions.IgnoreCase))))
+        {
+            logger.LogInformation("Using subject term '{subjectTerm}'.", term.Key);
+            input = term.Value.Replace(input, term.Key);
+        }
 
         return input;
     }

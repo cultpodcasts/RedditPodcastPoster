@@ -133,6 +133,10 @@ public sealed class Podcast : CosmosSelector
     [JsonPropertyOrder(270)]
     public string? SearchTerms { get; set; }
 
+    [JsonPropertyName("knownTerms")]
+    [JsonPropertyOrder(271)]
+    public string[]? KnownTerms { get; set; } = null;
+
     [JsonPropertyName("episodes")]
     [JsonPropertyOrder(280)]
     public List<Episode> Episodes { get; set; } = [];

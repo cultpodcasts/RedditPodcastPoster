@@ -5,15 +5,20 @@ namespace RedditPodcastPoster.Models;
 
 public class PostModel
 {
-    public PostModel(PodcastPost podcastPost)
+    public PostModel(
+        string podcastName,
+        string podcastTitleRegex,
+        string podcastDescriptionRegex,
+        IEnumerable<EpisodePost> episodes,
+        Service? podcastPrimaryPostService,
+        string[] podcastKnownTerms,
+        string[] subjectKnownTerms)
     {
-        PodcastPost = podcastPost;
-        var episodes = podcastPost.Episodes;
         var firstEpisode = episodes.First();
 
-        Episodes = podcastPost.Episodes;
-        PodcastName = podcastPost.Name;
-        IsBundledPost = PodcastPost.Episodes.Count() > 1;
+        Episodes = episodes;
+        PodcastName = podcastName;
+        IsBundledPost = episodes.Count() > 1;
         HasYouTubeUrl = firstEpisode.YouTube != null;
         Spotify = firstEpisode.Spotify;
         Apple = firstEpisode.Apple;
@@ -27,15 +32,17 @@ public class PostModel
         EpisodeTitle = WebUtility.HtmlDecode(firstEpisode.Title);
         Id = firstEpisode.Id;
         Subjects = firstEpisode.Subjects;
+        PodcastKnownTerms = podcastKnownTerms;
+        SubjectKnownTerms = subjectKnownTerms;
 
-        if (!string.IsNullOrWhiteSpace(podcastPost.TitleRegex))
+        if (!string.IsNullOrWhiteSpace(podcastTitleRegex))
         {
-            TitleRegex = new Regex(podcastPost.TitleRegex, RegexOptions.IgnoreCase);
+            TitleRegex = new Regex(podcastTitleRegex, RegexOptions.IgnoreCase);
         }
 
-        if (!string.IsNullOrWhiteSpace(podcastPost.DescriptionRegex))
+        if (!string.IsNullOrWhiteSpace(podcastDescriptionRegex))
         {
-            DescriptionRegex = new Regex(podcastPost.DescriptionRegex,
+            DescriptionRegex = new Regex(podcastDescriptionRegex,
                 RegexOptions.IgnoreCase | RegexOptions.Singleline);
         }
 
@@ -58,9 +65,9 @@ public class PostModel
             BundledPartNumbers = bundledPartNumbers;
         }
 
-        if (podcastPost.PodcastPrimaryPostService.HasValue)
+        if (podcastPrimaryPostService.HasValue)
         {
-            Link = podcastPost.PodcastPrimaryPostService switch
+            Link = podcastPrimaryPostService switch
             {
                 Service.Apple => firstEpisode.Apple,
                 Service.Spotify => firstEpisode.Spotify,
@@ -76,7 +83,6 @@ public class PostModel
     public DateTime Published { get; init; }
     public IEnumerable<EpisodePost> Episodes { get; set; }
     public bool IsBundledPost { get; init; }
-    public PodcastPost PodcastPost { get; init; }
     public Regex? TitleRegex { get; init; }
     public Regex? DescriptionRegex { get; init; }
     public bool HasYouTubeUrl { get; init; }
@@ -94,4 +100,7 @@ public class PostModel
     public string[] Subjects { get; init; }
     public string Id { get; init; }
     public Uri? Link { get; init; }
+    public string[] SubjectKnownTerms { get; init; }
+    public string[] PodcastKnownTerms { get; init; }
+
 }

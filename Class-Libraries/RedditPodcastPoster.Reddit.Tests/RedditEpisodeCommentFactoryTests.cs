@@ -17,19 +17,18 @@ public class RedditEpisodeCommentFactoryTests
     {
         // arrange
         var postModel = new PostModel(
-            new PodcastPost(_fixture.Create<string>(),
+            _fixture.Create<string>(),
                 string.Empty,
                 string.Empty,
-                new[]
-                {
+                [
                     _fixture
                         .Build<EpisodePost>()
                         .With(x => x.YouTube, _fixture.Create<Uri>())
                         .With(x => x.Spotify, _fixture.Create<Uri>())
                         .With(x => x.Apple, _fixture.Create<Uri>())
                         .Create()
-                },
-                Service.YouTube));
+                ],
+                Service.YouTube, [], []);
         // act
         var comments = Sut.ToComment(postModel);
         // assert
@@ -42,19 +41,18 @@ public class RedditEpisodeCommentFactoryTests
     {
         // arrange
         var postModel = new PostModel(
-            new PodcastPost(_fixture.Create<string>(),
+            _fixture.Create<string>(),
                 string.Empty,
                 string.Empty,
-                new[]
-                {
+                [
                     _fixture
                         .Build<EpisodePost>()
                         .With(x => x.YouTube, (Uri?) null)
                         .With(x => x.Spotify, _fixture.Create<Uri>())
                         .With(x => x.Apple, _fixture.Create<Uri>())
                         .Create()
-                },
-                Service.YouTube));
+                ],
+                Service.YouTube, [], []);
         // act
         var comments = Sut.ToComment(postModel);
         // assert
@@ -66,11 +64,10 @@ public class RedditEpisodeCommentFactoryTests
     {
         // arrange
         var postModel = new PostModel(
-            new PodcastPost(_fixture.Create<string>(),
+            _fixture.Create<string>(),
                 string.Empty,
                 string.Empty,
-                new[]
-                {
+                [
                     _fixture
                         .Build<EpisodePost>()
                         .With(x => x.YouTube, (Uri?) null)
@@ -79,8 +76,8 @@ public class RedditEpisodeCommentFactoryTests
                         .With(x => x.InternetArchive, (Uri?) null)
                         .With(x => x.Apple, _fixture.Create<Uri>())
                         .Create()
-                },
-                Service.YouTube));
+                ],
+                Service.YouTube, [], []);
         // act
         var comments = Sut.ToComment(postModel);
         // assert
@@ -92,19 +89,18 @@ public class RedditEpisodeCommentFactoryTests
     {
         // arrange
         var postModel = new PostModel(
-            new PodcastPost(_fixture.Create<string>(),
+            _fixture.Create<string>(),
                 string.Empty,
                 string.Empty,
-                new[]
-                {
+                [
                     _fixture
                         .Build<EpisodePost>()
                         .With(x => x.YouTube, _fixture.Create<Uri>())
                         .With(x => x.Spotify, _fixture.Create<Uri>())
                         .With(x => x.Apple, _fixture.Create<Uri>())
                         .Create()
-                },
-                Service.Spotify));
+                ],
+                Service.Spotify, [], []);
         // act
         var comments = Sut.ToComment(postModel);
         // assert
@@ -116,19 +112,18 @@ public class RedditEpisodeCommentFactoryTests
     {
         // arrange
         var postModel = new PostModel(
-            new PodcastPost(_fixture.Create<string>(),
+            _fixture.Create<string>(),
                 string.Empty,
                 string.Empty,
-                new[]
-                {
+                [
                     _fixture
                         .Build<EpisodePost>()
                         .With(x => x.YouTube, _fixture.Create<Uri>())
                         .With(x => x.Spotify, _fixture.Create<Uri>())
                         .With(x => x.Apple, _fixture.Create<Uri>())
                         .Create()
-                },
-                Service.Apple));
+                ],
+                Service.Apple, [], []);
         // act
         var comments = Sut.ToComment(postModel);
         // assert

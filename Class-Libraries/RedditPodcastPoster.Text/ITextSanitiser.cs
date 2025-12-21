@@ -8,7 +8,7 @@ public interface ITextSanitiser
     string SanitiseTitle(PostModel postModel);
     string SanitisePodcastName(PostModel postModel);
     string SanitiseDescription(PostModel postModel);
-    string SanitiseTitle(string episodeTitle, Regex? regex);
+    string SanitiseTitle(string episodeTitle, Regex? regex, string[] podcastKnownTerms, string[] subjectKnownTerms);
     string SanitisePodcastName(string podcastName);
     string SanitiseDescription(string episodeDescription, Regex? descriptionRegex);
     string ExtractDescription(string episodeDescription, Regex? descriptionRegex);
