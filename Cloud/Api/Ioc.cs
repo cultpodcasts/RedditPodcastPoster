@@ -1,4 +1,5 @@
 ﻿using Api.Configuration;
+using Api.Handlers;
 using Api.Services;
 using iTunesSearch.Library;
 using Microsoft.Extensions.DependencyInjection;
@@ -69,6 +70,7 @@ public static class Ioc
             .AddInternetArchiveServices()
             .AddHttpClient()
             .AddEpisodeSearchIndexerService()
+            .AddScoped<IPodcastHandler, PodcastHandler>()
             .BindConfiguration<HostingOptions>("hosting")
             .BindConfiguration<IndexerOptions>("indexer")
             .AddPostingCriteria();
