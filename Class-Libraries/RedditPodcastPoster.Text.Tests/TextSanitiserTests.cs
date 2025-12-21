@@ -96,7 +96,8 @@ public class TextSanitiserTests
     {
         // arrange
         var postModel = _fixture.Build<PostModel>()
-            .With(x => x.Episodes, [_fixture.Build<EpisodePost>().With(x => x.Title, expected).Create()]).Create();
+            .With(x => x.EpisodeTitle, expected)
+            .Create();
         // act
         var result = Sut.SanitiseTitle(postModel);
         // assert
@@ -109,7 +110,8 @@ public class TextSanitiserTests
     {
         // arrange
         var postModel = _fixture.Build<PostModel>()
-            .With(x => x.Episodes, [_fixture.Build<EpisodePost>().With(x => x.Title, input).Create()]).Create();
+            .With(x => x.EpisodeTitle, input)
+            .Create();
         // act
         var result = Sut.SanitiseTitle(postModel);
         // assert
@@ -122,7 +124,8 @@ public class TextSanitiserTests
     {
         // arrange
         var postModel = _fixture.Build<PostModel>()
-            .With(x => x.Episodes, [_fixture.Build<EpisodePost>().With(x => x.Title, input).Create()]).Create();
+            .With(x=>x.EpisodeTitle, input)
+            .Create();
         // act
         var result = Sut.SanitiseTitle(postModel);
         // assert
