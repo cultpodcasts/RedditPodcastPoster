@@ -27,6 +27,7 @@ public class Tweeter(
             throw;
         }
 
+        untweeted = untweeted.ToArray();
         if (untweeted.Any())
         {
             var tweeted = false;

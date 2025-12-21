@@ -44,6 +44,29 @@ public class PodcastEpisodeFilter(
     }
 
 
+    public IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(Podcast podcast, int numberOfDays)
+    {
+        var since = DateTimeExtensions.DaysAgo(numberOfDays);
+        var podcastEpisodes =
+            podcast.Episodes
+                .Select(e => new PodcastEpisode(podcast, e))
+                .Where(x =>
+                    x.Episode.Release >= since &&
+                    x.Episode is { Removed: false, Ignored: false, Tweeted: false } &&
+                    (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
+                    !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
+                .OrderByDescending(x => x.Episode.Release)
+                .ToArray();
+        if (!podcastEpisodes.Any())
+        {
+            logger.LogInformation(
+                "No Podcast-Episode found ready to tweet for podcast '{PodcastName}' with podcast-id '{PodcastId}'.",
+                podcast.Name, podcast.Id);
+        }
+
+        return podcastEpisodes;
+    }
+
     public bool IsRecentlyExpiredDelayedPublishing(Podcast podcast, Episode episode)
     {
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
@@ -76,16 +99,18 @@ public class PodcastEpisodeFilter(
                 .Select(e => new PodcastEpisode(podcast, e))
                 .Where(x =>
                     x.Episode.Release >= since &&
-                    x.Episode is {Removed: false, Ignored: false, Tweeted: false} &&
+                    x.Episode is { Removed: false, Ignored: false, Tweeted: false } &&
                     (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
                     !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
                 .Where(x =>
                     EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed))
-                .OrderByDescending(x => x.Episode.Release);
+                .OrderByDescending(x => x.Episode.Release)
+                .ToArray();
         if (!podcastEpisodes.Any())
         {
             logger.LogInformation(
-                "No Podcast-Episode found ready to tweet for podcast '{PodcastName}' with podcast-id '{PodcastId}'.", podcast.Name, podcast.Id);
+                "No Podcast-Episode found ready to tweet for podcast '{PodcastName}' with podcast-id '{PodcastId}'.",
+                podcast.Name, podcast.Id);
         }
 
         return podcastEpisodes;
@@ -104,16 +129,42 @@ public class PodcastEpisodeFilter(
                 .Where(x =>
                     x.Episode.Release >= since &&
                     x.Episode.BlueskyPosted is null or false &&
-                    x.Episode is {Removed: false, Ignored: false} &&
+                    x.Episode is { Removed: false, Ignored: false } &&
                     (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
                     !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
                 .Where(x =>
                     EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed))
-                .OrderByDescending(x => x.Episode.Release);
+                .OrderByDescending(x => x.Episode.Release)
+                .ToArray();
         if (!podcastEpisodes.Any())
         {
             logger.LogInformation(
-                "No Podcast-Episode found ready to Bluesky for podcast '{PodcastName}' with podcast-id '{PodcastId}'.", podcast.Name, podcast.Id);
+                "No Podcast-Episode found ready to Bluesky for podcast '{PodcastName}' with podcast-id '{PodcastId}'.",
+                podcast.Name, podcast.Id);
+        }
+
+        return podcastEpisodes;
+    }
+
+    public IEnumerable<PodcastEpisode> GetMostRecentBlueskyReadyEpisodes(Podcast podcast, int numberOfDays)
+    {
+        var since = DateTimeExtensions.DaysAgo(numberOfDays);
+        var podcastEpisodes =
+            podcast.Episodes
+                .Select(e => new PodcastEpisode(podcast, e))
+                .Where(x =>
+                    x.Episode.Release >= since &&
+                    x.Episode.BlueskyPosted is null or false &&
+                    x.Episode is { Removed: false, Ignored: false } &&
+                    (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
+                    !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
+                .OrderByDescending(x => x.Episode.Release)
+                .ToArray();
+        if (!podcastEpisodes.Any())
+        {
+            logger.LogInformation(
+                "No Podcast-Episode found ready to Bluesky for podcast '{PodcastName}' with podcast-id '{PodcastId}'.",
+                podcast.Name, podcast.Id);
         }
 
         return podcastEpisodes;
@@ -154,7 +205,7 @@ public class PodcastEpisodeFilter(
     private bool EliminateItemsDueToIndexingErrors(
         PodcastEpisode podcastEpisode,
         bool youTubeRefreshed,
-        bool spotifyRefreshed)
+        bool _)
     {
         if (!youTubeRefreshed &&
             !string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId) &&
@@ -165,7 +216,9 @@ public class PodcastEpisodeFilter(
                 DateTime.UtcNow < podcastEpisode.Episode.Release + podcastEpisode.Podcast.YouTubePublishingDelay())
             {
                 logger.LogInformation(
-                    "{EliminateItemsDueToIndexingErrorsName} Eliminating episode with episode-id '{EpisodeId}' and episode-title '{EpisodeTitle}' from podcast with podcast-id '{PodcastId}' and podcast-name '{PodcastName}' due to '{YouTubeRefreshedName}'='{YouTubeRefreshed}'.", nameof(EliminateItemsDueToIndexingErrors), podcastEpisode.Episode.Id, podcastEpisode.Episode.Title, podcastEpisode.Podcast.Id, podcastEpisode.Podcast.Name, nameof(youTubeRefreshed), youTubeRefreshed);
+                    "{EliminateItemsDueToIndexingErrorsName} Eliminating episode with episode-id '{EpisodeId}' and episode-title '{EpisodeTitle}' from podcast with podcast-id '{PodcastId}' and podcast-name '{PodcastName}' due to '{YouTubeRefreshedName}'='{YouTubeRefreshed}'.",
+                    nameof(EliminateItemsDueToIndexingErrors), podcastEpisode.Episode.Id, podcastEpisode.Episode.Title,
+                    podcastEpisode.Podcast.Id, podcastEpisode.Podcast.Name, nameof(youTubeRefreshed), youTubeRefreshed);
                 return false;
             }
         }
@@ -175,7 +228,9 @@ public class PodcastEpisodeFilter(
             string.IsNullOrWhiteSpace(podcastEpisode.Episode.YouTubeId))
         {
             logger.LogInformation(
-                "{EliminateItemsDueToIndexingErrorsName} Eliminating episode with episode-id '{EpisodeId}' and episode-title '{EpisodeTitle}' from podcast with podcast-id '{PodcastId}' and podcast-name '{PodcastName}' due to Recently-Expired Delayed Publishing.", nameof(EliminateItemsDueToIndexingErrors), podcastEpisode.Episode.Id, podcastEpisode.Episode.Title, podcastEpisode.Podcast.Id, podcastEpisode.Podcast.Name);
+                "{EliminateItemsDueToIndexingErrorsName} Eliminating episode with episode-id '{EpisodeId}' and episode-title '{EpisodeTitle}' from podcast with podcast-id '{PodcastId}' and podcast-name '{PodcastName}' due to Recently-Expired Delayed Publishing.",
+                nameof(EliminateItemsDueToIndexingErrors), podcastEpisode.Episode.Id, podcastEpisode.Episode.Title,
+                podcastEpisode.Podcast.Id, podcastEpisode.Podcast.Name);
             return false;
         }
 

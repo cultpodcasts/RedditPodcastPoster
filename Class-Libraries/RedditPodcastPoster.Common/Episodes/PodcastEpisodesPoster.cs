@@ -32,11 +32,15 @@ public class PodcastEpisodesPoster(
         foreach (var podcastId in podcastIds)
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);
-            podcasts.Add(podcast);
+            if (podcast != null)
+            {
+                podcasts.Add(podcast);
+            }
         }
 
         var matchingPodcastEpisodes =
-            podcastEpisodeFilter.GetNewEpisodesReleasedSince(podcasts, since, youTubeRefreshed, spotifyRefreshed);
+            podcastEpisodeFilter.GetNewEpisodesReleasedSince(podcasts, since, youTubeRefreshed, spotifyRefreshed)
+                .ToArray();
 
         if (!matchingPodcastEpisodes.Any())
         {
