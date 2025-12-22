@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text;
 
@@ -11,9 +12,11 @@ public class AppleEpisodeResolver(
     : IAppleEpisodeResolver
 {
     private const int MinFuzzyScore = 65;
+    private const int SameLengthMinFuzzyScore = 35;
     private const int MinSameLengthFuzzyScore = 80;
     private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(30).Ticks;
     private static readonly long BroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
+    private static readonly TimeSpan SameReleaseThreshold = TimeSpan.FromHours(3);
 
     public async Task<AppleEpisode?> FindEpisode(
         FindAppleEpisodeRequest request,
@@ -78,19 +81,28 @@ public class AppleEpisodeResolver(
                                         TimeDifferenceThreshold);
                         if (sameLength.Count() > 1)
                         {
-                            return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title,
-                                MinSameLengthFuzzyScore);
+                            return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title, MinSameLengthFuzzyScore);
                         }
 
-                        match = sameLength.SingleOrDefault(x =>
-                            FuzzyMatcher.IsMatch(request.EpisodeTitle, x, y => y.Title, MinFuzzyScore));
+                        match = sameLength.SingleOrDefault(x => FuzzyMatcher.IsMatch(request.EpisodeTitle, x, y => y.Title, MinFuzzyScore));
 
                         if (match == null)
                         {
-                            sameLength = sampleList
-                                .Where(x => Math.Abs((x.Duration - request.EpisodeLength.Value).Ticks) <
-                                            BroaderTimeDifferenceThreshold);
-                            return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title, MinFuzzyScore);
+                            if (request.Released.HasValue)
+                            {
+                                sameLength = sampleList.Where(x =>
+                                    Math.Abs((x.Release - request.Released!).Value.Ticks) <
+                                    SameReleaseThreshold.Ticks);
+                            }
+
+                            if (request.ReleaseAuthority == Service.YouTube)
+
+                            {
+                                sameLength = sampleList.Where(x => Math.Abs((x.Duration - request.EpisodeLength.Value).Ticks) < BroaderTimeDifferenceThreshold);
+                            }
+
+                            return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title,
+                                SameLengthMinFuzzyScore);
                         }
                     }
                 }

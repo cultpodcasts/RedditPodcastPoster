@@ -36,10 +36,8 @@ public class SpotifyEpisodeResolver(
         FullEpisode? fullEpisode = null;
         if (!string.IsNullOrWhiteSpace(request.EpisodeSpotifyId))
         {
-            var episodeRequest = new EpisodeRequest
-                { Market = market };
-            fullEpisode =
-                await spotifyClientWrapper.GetFullEpisode(request.EpisodeSpotifyId, episodeRequest, indexingContext);
+            var episodeRequest = new EpisodeRequest { Market = market };
+            fullEpisode = await spotifyClientWrapper.GetFullEpisode(request.EpisodeSpotifyId, episodeRequest, indexingContext);
             if (fullEpisode != null)
             {
                 return new FindEpisodeResponse(fullEpisode);
