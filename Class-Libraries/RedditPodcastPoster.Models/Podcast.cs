@@ -1,10 +1,14 @@
 ﻿using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace RedditPodcastPoster.Models;
 
 [CosmosSelector(ModelType.Podcast)]
 public sealed class Podcast : CosmosSelector
 {
+    [JsonIgnore]
+    public static readonly RegexOptions DescriptionFlags = RegexOptions.IgnoreCase | RegexOptions.Singleline;
+
     public Podcast(Guid id)
     {
         Id = id;

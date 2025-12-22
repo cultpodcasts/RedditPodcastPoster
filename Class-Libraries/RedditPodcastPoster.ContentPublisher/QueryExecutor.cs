@@ -204,7 +204,7 @@ public class QueryExecutor(
         Regex? descRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.DescriptionRegex))
         {
-            descRegex = new Regex(podcastResult.DescriptionRegex, RegexOptions.Singleline);
+            descRegex = new Regex(podcastResult.DescriptionRegex, Podcast.DescriptionFlags);
         }
 
         var desc =
