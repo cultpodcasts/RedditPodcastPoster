@@ -42,8 +42,7 @@ public class PostModel
 
         if (!string.IsNullOrWhiteSpace(podcastDescriptionRegex))
         {
-            DescriptionRegex = new Regex(podcastDescriptionRegex,
-                RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            DescriptionRegex = new Regex(podcastDescriptionRegex, Podcast.DescriptionFlags);
         }
 
         if (TitleRegex != null)
@@ -102,5 +101,4 @@ public class PostModel
     public Uri? Link { get; init; }
     public string[] SubjectKnownTerms { get; init; }
     public string[] PodcastKnownTerms { get; init; }
-
 }
