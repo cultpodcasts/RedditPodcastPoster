@@ -15,7 +15,7 @@ public class IndexablePodcastIdProvider(
         var podcastIds = podcastRepository.GetAllBy(
             podcast => ((!podcast.Removed.IsDefined() || podcast.Removed == false) &&
                         podcast.IndexAllEpisodes) ||
-                       podcast.EpisodeIncludeTitleRegex != "",
+                       !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex),
             x => x.Id);
         return podcastIds;
     }

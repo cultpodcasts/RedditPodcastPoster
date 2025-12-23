@@ -12,6 +12,12 @@ public sealed class Podcast : CosmosSelector
     [JsonIgnore]
     public static readonly RegexOptions TitleFlags= RegexOptions.IgnoreCase;
 
+    [JsonIgnore]
+    public static readonly RegexOptions EpisodeMatchFlags=  RegexOptions.Compiled;
+
+    [JsonIgnore]
+    public static readonly RegexOptions EpisodeIncludeTitleFlags = RegexOptions.Compiled | RegexOptions.IgnoreCase;
+
     public Podcast(Guid id)
     {
         Id = id;

@@ -56,8 +56,7 @@ public class Processor(
 
         if (!string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
         {
-            var includeEpisodeRegex = new Regex(podcast.EpisodeIncludeTitleRegex,
-                RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            var includeEpisodeRegex = new Regex(podcast.EpisodeIncludeTitleRegex, Podcast.EpisodeIncludeTitleFlags);
             foreach (var episode in podcast.Episodes.Where(x => !x.Removed))
             {
                 if (!includeEpisodeRegex.IsMatch(episode.Title))
