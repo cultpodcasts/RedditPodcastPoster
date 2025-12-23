@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Amazon.S3;
@@ -119,6 +120,45 @@ public class ContentPublisher(
                 nameof(PublishDiscoveryInfo), _contentOptions.BucketName, _contentOptions.DiscoveryInfoKey, json);
         }
     }
+
+
+    public async Task PublishLanguages()
+    {
+        // "fr", "es", "de", "pt", "tr", "nl"
+        var languages = new[]
+        {
+            CultureInfo.GetCultureInfo("fr"),
+            CultureInfo.GetCultureInfo("es"),
+            CultureInfo.GetCultureInfo("de"),
+            CultureInfo.GetCultureInfo("pt"),
+            CultureInfo.GetCultureInfo("tr"),
+            CultureInfo.GetCultureInfo("nl")
+        };
+        var json = JsonSerializer.Serialize(
+            languages.OrderBy(x => x.EnglishName).ToDictionary(x => x.TwoLetterISOLanguageName, x => x.EnglishName),
+            JsonSerializerOptions);
+        var request = new PutObjectRequest
+        {
+            BucketName = _contentOptions.BucketName,
+            Key = _contentOptions.LanguagesKey,
+            ContentBody = json,
+            ContentType = "application/json",
+            DisablePayloadSigning = true
+        };
+
+        try
+        {
+            await client.PutObjectAsync(request);
+            logger.LogInformation($"Completed '{nameof(PublishLanguages)}'.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "{method} - Failed to upload languages-content to R2. BucketName: '{bucketName}', Key: '{key}'.",
+                nameof(PublishLanguages), _contentOptions.BucketName, _contentOptions.LanguagesKey);
+        }
+    }
+
 
     private async Task<bool> PublishHomepageToR2(HomePageModel homepageContent)
     {

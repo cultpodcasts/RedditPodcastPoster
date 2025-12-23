@@ -167,6 +167,11 @@ public class SubjectHandler(
         {
             subject.SubjectType = change.SubjectType != SubjectType.Unset ? change.SubjectType : null;
         }
+
+        if (change.KnownTerms != null)
+        {
+            subject.KnownTerms = change.KnownTerms.Length > 0 ? change.KnownTerms : null;
+        }
     }
 
     private async Task UseFlair(Subject subject, Guid flairId)

@@ -8,8 +8,7 @@ public class FoundEpisodeFilter(ILogger<FoundEpisodeFilter> logger) : IFoundEpis
 {
     public IList<Episode> ReduceEpisodes(Podcast podcast, IList<Episode> episodes)
     {
-        var includeEpisodeRegex =
-            new Regex(podcast.EpisodeIncludeTitleRegex, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        var includeEpisodeRegex = new Regex(podcast.EpisodeIncludeTitleRegex, Podcast.EpisodeIncludeTitleFlags);
         var eliminatedEpisodes = episodes.Where(x => !includeEpisodeRegex.IsMatch(x.Title));
         if (eliminatedEpisodes.Any())
         {

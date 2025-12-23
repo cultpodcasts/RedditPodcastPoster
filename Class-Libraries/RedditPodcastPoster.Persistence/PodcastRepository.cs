@@ -25,7 +25,7 @@ public class PodcastRepository(
         Regex? episodeMatchRegex = null;
         if (!string.IsNullOrWhiteSpace(podcast.EpisodeMatchRegex))
         {
-            episodeMatchRegex = new Regex(podcast.EpisodeMatchRegex, RegexOptions.Compiled);
+            episodeMatchRegex = new Regex(podcast.EpisodeMatchRegex, Podcast.EpisodeMatchFlags);
         }
 
         var addedEpisodes = new List<Episode>();

@@ -1,12 +1,12 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Globalization;
+using System.Text;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Factories;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Text;
-using System.Globalization;
-using System.Text;
 
 namespace RedditPodcastPoster.Twitter;
 
@@ -57,13 +57,16 @@ public class TweetBuilder(
         var podcastName = textSanitiser.SanitisePodcastName(postModel);
 
         var tweetBuilder = new StringBuilder();
+        var guestHandles = podcastEpisode.Episode.BlueskyHandles is { Length: > 0 }
+            ? " " + string.Join(" ", podcastEpisode.Episode.BlueskyHandles)
+            : string.Empty;
         if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TwitterHandle))
         {
-            tweetBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.TwitterHandle}");
+            tweetBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.TwitterHandle}{guestHandles}");
         }
         else
         {
-            tweetBuilder.AppendLine($"{podcastName}");
+            tweetBuilder.AppendLine($"{podcastName}{guestHandles}");
         }
 
         tweetBuilder.AppendLine(

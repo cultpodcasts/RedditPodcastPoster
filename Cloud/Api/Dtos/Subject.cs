@@ -32,4 +32,7 @@ public class Subject
     [JsonPropertyName("subjectType")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public SubjectType? SubjectType { get; set; }
+
+    [JsonPropertyName("knownTerms")]
+    public string[]? KnownTerms { get; set; }
 }

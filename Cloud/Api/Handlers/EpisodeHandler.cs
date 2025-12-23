@@ -788,6 +788,16 @@ public class EpisodeHandler(
             changeState.PublishHomepage = true;
         }
 
+        if (episodeChangeRequest.TwitterHandles != null)
+        {
+            episode.TwitterHandles = episodeChangeRequest.TwitterHandles.Length > 0 ? episodeChangeRequest.TwitterHandles : null;
+        }
+
+        if (episodeChangeRequest.BlueskyHandles != null)
+        {
+            episode.BlueskyHandles = episodeChangeRequest.BlueskyHandles.Length > 0 ? episodeChangeRequest.BlueskyHandles : null;
+        }
+
         return changeState;
     }
 }

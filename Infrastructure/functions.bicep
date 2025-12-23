@@ -164,6 +164,7 @@ var content= {
     content__DiscoveryInfoKey: 'discovery-info'
     content__FlairsKey: 'flairs'
     content__HomepageKey: 'homepage'
+    content__LanguagesKey: 'languages'
     content__PreProcessedHomepageKey: 'homepage-ssr'
     content__SubjectsKey: 'subjects'
 }

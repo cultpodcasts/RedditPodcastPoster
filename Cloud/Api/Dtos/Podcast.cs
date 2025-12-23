@@ -87,4 +87,7 @@ public class Podcast
 
     [JsonPropertyName("ignoredSubjects")]
     public string[]? IgnoredSubjects { get; set; }
+
+    [JsonPropertyName("knownTerms")]
+    public string[]? KnownTerms { get; set; }
 }

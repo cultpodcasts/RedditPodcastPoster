@@ -1,4 +1,5 @@
-﻿using Microsoft.Azure.Cosmos.Linq;
+﻿using System.Text.Json;
+using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions;
 
@@ -37,13 +38,13 @@ public class Sqllite3DatabasePublisher(
             .GetAllBy(
                 podcast =>
                     ((!podcast.Removed.IsDefined() || podcast.Removed == false) &&
-                     podcast.IndexAllEpisodes) || podcast.EpisodeIncludeTitleRegex != "",
+                     podcast.IndexAllEpisodes) || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex),
                 podcast => new { id = podcast.Id, name = podcast.Name })
             .ToListAsync();
 
         foreach (var podcast in podcasts)
         {
-            logger.LogInformation(System.Text.Json.JsonSerializer.Serialize(podcast));
+            logger.LogInformation(JsonSerializer.Serialize(podcast));
 
             var entity = new Podcast
             {
@@ -60,7 +61,7 @@ public class Sqllite3DatabasePublisher(
 
         foreach (var subject in subjects)
         {
-            logger.LogInformation(System.Text.Json.JsonSerializer.Serialize(subject));
+            logger.LogInformation(JsonSerializer.Serialize(subject));
 
             var entity = new Subject
             {

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 
 namespace RedditPodcastPoster.ContentPublisher.Extensions;
@@ -10,6 +11,7 @@ public static class ServiceCollectionExtensions
         return services
             .AddScoped<IQueryExecutor, QueryExecutor>()
             .AddScoped<IContentPublisher, ContentPublisher>()
-            .BindConfiguration<ContentOptions>("content");
+            .BindConfiguration<ContentOptions>("content")
+            .AddCloudflareClients();
     }
 }

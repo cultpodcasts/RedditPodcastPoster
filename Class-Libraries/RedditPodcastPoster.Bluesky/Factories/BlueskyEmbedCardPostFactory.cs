@@ -58,17 +58,20 @@ public class BlueskyEmbedCardPostFactory(
 
         var podcastName = textSanitiser.SanitisePodcastName(postModel);
 
-        var tweetBuilder = new StringBuilder();
+        var postBuilder = new StringBuilder();
+        var guestHandles = podcastEpisode.Episode.BlueskyHandles is { Length: > 0 }
+            ? " " + string.Join(" ", podcastEpisode.Episode.BlueskyHandles)
+            : string.Empty;
         if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.BlueskyHandle))
         {
-            tweetBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.BlueskyHandle}");
+            postBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.BlueskyHandle}{guestHandles}");
         }
         else
         {
-            tweetBuilder.AppendLine($"{podcastName}");
+            postBuilder.AppendLine($"{podcastName}{guestHandles}");
         }
 
-        tweetBuilder.AppendLine(
+        postBuilder.AppendLine(
             $"{podcastEpisode.Episode.Release.ToString(ReleaseFormat)} {podcastEpisode.Episode.Length.ToString(LengthFormat, CultureInfo.InvariantCulture)}");
 
         var endHashTags = string.Join(" ",
@@ -80,7 +83,7 @@ public class BlueskyEmbedCardPostFactory(
                 .Select(x => $"#{x.TrimStart('#')}"));
         if (!string.IsNullOrWhiteSpace(endHashTags))
         {
-            tweetBuilder.AppendLine(endHashTags);
+            postBuilder.AppendLine(endHashTags);
         }
 
         if (shortUrl != null &&
@@ -89,10 +92,10 @@ public class BlueskyEmbedCardPostFactory(
              podcastEpisode.Podcast.Episodes.Count > 1 ||
              podcastEpisode.Episode.Subjects.Any()))
         {
-            tweetBuilder.AppendLine($"{shortUrl}");
+            postBuilder.AppendLine($"{shortUrl}");
         }
 
-        var permittedTitleLength = 300 - (tweetBuilder.Length + (_blueskyOptions.WithEpisodeUrl ? 26 : 0));
+        var permittedTitleLength = 300 - (postBuilder.Length + (_blueskyOptions.WithEpisodeUrl ? 26 : 0));
 
         if (episodeTitle.Length > permittedTitleLength)
         {
@@ -100,13 +103,13 @@ public class BlueskyEmbedCardPostFactory(
             if (min < MinTitleLength)
             {
                 throw new InvalidOperationException(
-                    $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{tweetBuilder}', calculated title-length: {min} which is less than {MinTitleLength}.");
+                    $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{postBuilder}', calculated title-length: {min} which is less than {MinTitleLength}.");
             }
 
             episodeTitle = episodeTitle[..min] + "…";
         }
 
-        tweetBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");
+        postBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");
         Uri url;
         Service urlPodcastService;
         if (podcastEpisode.Episode.Urls.YouTube != null)
@@ -140,7 +143,7 @@ public class BlueskyEmbedCardPostFactory(
                 $"No url for podcast-id '${podcastEpisode.Podcast.Id}' and episode-id '${podcastEpisode.Episode.Images}'.");
         }
 
-        var tweet = tweetBuilder.ToString();
+        var tweet = postBuilder.ToString();
         return new BlueskyEmbedCardPost(tweet, url, urlPodcastService);
     }
 }

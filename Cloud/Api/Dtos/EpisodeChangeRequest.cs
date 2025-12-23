@@ -35,20 +35,26 @@ public class EpisodeChangeRequest
     [JsonPropertyName("duration")]
     public string? Duration { get; set; }
 
-    [JsonPropertyName("urls")] 
+    [JsonPropertyName("urls")]
     public ServiceUrls? Urls { get; set; }
 
-    [JsonPropertyName("images")] 
+    [JsonPropertyName("images")]
     public ServiceImageUrls? Images { get; set; }
 
     [JsonPropertyName("subjects")]
     public string[]? Subjects { get; set; }
 
-    [JsonPropertyName("searchTerms")] 
+    [JsonPropertyName("searchTerms")]
     public string? SearchTerms { get; set; }
 
-    [JsonPropertyName("lang")] 
+    [JsonPropertyName("lang")]
     public string? Language { get; set; }
+
+    [JsonPropertyName("twitterHandles")]
+    public string[]? TwitterHandles { get; set; }
+
+    [JsonPropertyName("blueskyHandles")]
+    public string[]? BlueskyHandles { get; set; }
 
     [JsonIgnore]
     public bool HasChange =>
@@ -66,5 +72,7 @@ public class EpisodeChangeRequest
         Images != null ||
         Subjects != null ||
         SearchTerms != null ||
-        Language != null;
+        Language != null ||
+        TwitterHandles != null ||
+        BlueskyHandles != null;
 }
