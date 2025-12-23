@@ -85,6 +85,14 @@ public class Episode
     [JsonPropertyOrder(150)]
     public EpisodeImages? Images { get; set; }
 
+    [JsonPropertyName("twitterHandles")]
+    [JsonPropertyOrder(160)]
+    public string[]? TwitterHandles { get; set; }
+
+    [JsonPropertyName("blueskyHandles")]
+    [JsonPropertyOrder(160)]
+    public string[]? BlueskyHandles { get; set; }
+
     public static Episode FromSpotify(string spotifyId,
         string title,
         string description,

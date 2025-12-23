@@ -8,4 +8,5 @@ public interface IContentPublisher
     Task PublishSubjects();
     Task PublishFlairs();
     Task PublishDiscoveryInfo(DiscoveryInfo discoveryInfo);
+    Task PublishLanguages();
 }

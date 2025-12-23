@@ -14,7 +14,8 @@ public static class SubjectExtension
             HashTag = subject.HashTag,
             RedditFlairTemplateId = subject.RedditFlairTemplateId,
             RedditFlareText = subject.RedditFlareText,
-            SubjectType = subject.SubjectType
+            SubjectType = subject.SubjectType,
+            KnownTerms = subject.KnownTerms
         };
     }
 }

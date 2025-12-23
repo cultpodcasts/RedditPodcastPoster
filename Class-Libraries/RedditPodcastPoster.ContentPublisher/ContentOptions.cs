@@ -7,5 +7,6 @@ public class ContentOptions
     public required string PreProcessedHomepageKey { get; set; }
     public required string SubjectsKey { get; set; }
     public required string FlairsKey { get; set; }
+    public required string LanguagesKey { get; set; }
     public required string DiscoveryInfoKey { get; set; }
 }

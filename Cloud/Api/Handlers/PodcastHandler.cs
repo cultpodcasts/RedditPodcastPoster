@@ -126,7 +126,8 @@ public class PodcastHandler(
                     YouTubeChannelId = podcast.YouTubeChannelId,
                     YouTubePlaylistId = podcast.YouTubePlaylistId,
                     IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
-                    IgnoredSubjects = podcast.IgnoredSubjects
+                    IgnoredSubjects = podcast.IgnoredSubjects,
+                    KnownTerms= podcast.KnownTerms
                 };
                 return await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(dto, c);
             }
