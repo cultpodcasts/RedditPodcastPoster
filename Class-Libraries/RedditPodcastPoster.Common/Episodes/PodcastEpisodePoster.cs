@@ -14,7 +14,6 @@ public class PodcastEpisodePoster(
 ) : IPodcastEpisodePoster
 {
     private static readonly TimeSpan BundledEpisodeReleaseThreshold = TimeSpan.FromDays(7);
-    private readonly ILogger<PodcastEpisodePoster> _logger = logger;
 
     public async Task<ProcessResponse> PostPodcastEpisode(
         PodcastEpisode podcastEpisode,
@@ -40,7 +39,7 @@ public class PodcastEpisodePoster(
         {
             var message =
                 $"Failure to post episode '{podcastEpisode.Episode.Title}' and episode-id '{podcastEpisode.Episode.Id}' for podcast '{podcastEpisode.Podcast.Name}' with podcast-id '{podcastEpisode.Podcast.Id}'.";
-            _logger.LogError(ex, message);
+            logger.LogError(ex, message);
             return ProcessResponse.Fail($"{message} - Exception: '{ex.Message}'.");
         }
     }
@@ -48,22 +47,25 @@ public class PodcastEpisodePoster(
     private Episode[] GetEpisodes(PodcastEpisode matchingPodcastEpisode)
     {
         var orderedBundleEpisodes = Array.Empty<Episode>();
-        var titleRegex = new Regex(matchingPodcastEpisode.Podcast.TitleRegex);
-        var titleMatch = titleRegex.Match(matchingPodcastEpisode.Episode.Title);
-        if (titleMatch.Success)
+
+        if (matchingPodcastEpisode.Podcast.Bundles &&
+            !string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex))
         {
-            var partNumber = titleMatch.Result("${partnumber}");
-            if (matchingPodcastEpisode.Podcast.Bundles &&
-                !string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex) &&
-                int.TryParse(partNumber, out _))
+            var titleRegex = new Regex(matchingPodcastEpisode.Podcast.TitleRegex);
+            var titleMatch = titleRegex.Match(matchingPodcastEpisode.Episode.Title);
+            if (titleMatch.Success)
             {
-                orderedBundleEpisodes = GetOrderedBundleEpisodes(matchingPodcastEpisode).ToArray();
+                var partNumber = titleMatch.Result("${partnumber}");
+                if (int.TryParse(partNumber, out _))
+                {
+                    orderedBundleEpisodes = GetOrderedBundleEpisodes(matchingPodcastEpisode).ToArray();
+                }
             }
         }
 
-        if (!orderedBundleEpisodes.Any())
+        if (orderedBundleEpisodes.Length == 0)
         {
-            orderedBundleEpisodes = new[] { matchingPodcastEpisode.Episode };
+            orderedBundleEpisodes = [matchingPodcastEpisode.Episode];
         }
 
         return orderedBundleEpisodes;
