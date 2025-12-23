@@ -51,7 +51,7 @@ public class PodcastEpisodePoster(
         if (matchingPodcastEpisode.Podcast.Bundles &&
             !string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex))
         {
-            var titleRegex = new Regex(matchingPodcastEpisode.Podcast.TitleRegex);
+            var titleRegex = new Regex(matchingPodcastEpisode.Podcast.TitleRegex, Podcast.TitleFlags);
             var titleMatch = titleRegex.Match(matchingPodcastEpisode.Episode.Title);
             if (titleMatch.Success)
             {
@@ -79,7 +79,7 @@ public class PodcastEpisodePoster(
                 $"Podcast with bundles must provide a {nameof(matchingPodcastEpisode.Podcast.TitleRegex)}. Podcast in error: id='{matchingPodcastEpisode.Podcast.Id}', name='{matchingPodcastEpisode.Podcast.Name}'. Cannot bundle episodes without a Title-Regex to collate bundles");
         }
 
-        var podcastTitleRegex = new Regex(matchingPodcastEpisode.Podcast.TitleRegex);
+        var podcastTitleRegex = new Regex(matchingPodcastEpisode.Podcast.TitleRegex, Podcast.TitleFlags);
         var rawTitle = podcastTitleRegex.Match(matchingPodcastEpisode.Episode.Title).Result("${title}");
         var bundleEpisodes = matchingPodcastEpisode.Podcast.Episodes
             .Where(x => Math.Abs((matchingPodcastEpisode.Episode.Release - x.Release).Ticks) <

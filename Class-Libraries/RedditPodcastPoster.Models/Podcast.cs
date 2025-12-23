@@ -9,6 +9,9 @@ public sealed class Podcast : CosmosSelector
     [JsonIgnore]
     public static readonly RegexOptions DescriptionFlags = RegexOptions.IgnoreCase | RegexOptions.Singleline;
 
+    [JsonIgnore]
+    public static readonly RegexOptions TitleFlags= RegexOptions.IgnoreCase;
+
     public Podcast(Guid id)
     {
         Id = id;
