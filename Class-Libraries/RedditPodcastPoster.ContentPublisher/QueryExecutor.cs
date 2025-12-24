@@ -12,13 +12,13 @@ namespace RedditPodcastPoster.ContentPublisher;
 public class QueryExecutor(
     Container container,
     ITextSanitiser textSanitiser,
-    ISubjectRepository subjectRepository,
+    ISubjectsProvider subjectsProvider,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<QueryExecutor> logger)
 #pragma warning restore CS9113 // Parameter is unread.
     : IQueryExecutor
 {
-    private readonly IEnumerable<Subject> subjects = subjectRepository.GetAll().ToBlockingEnumerable();
+    private readonly IEnumerable<Subject> subjects = subjectsProvider.GetAll().ToBlockingEnumerable().ToList();
 
     public async Task<HomePageModel> GetHomePage(CancellationToken ct)
     {

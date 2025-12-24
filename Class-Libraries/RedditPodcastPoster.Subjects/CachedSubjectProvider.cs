@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.Subjects;
 public class CachedSubjectProvider(
     ISubjectRepository subjectRepository,
     ILogger<CachedSubjectProvider> logger)
-    : ICachedSubjectsProvider
+    : ISubjectsProvider
 {
     private IList<Subject> _cache = new List<Subject>();
     private bool _requiresFetch = true;
