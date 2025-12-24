@@ -57,8 +57,8 @@ public class TweetBuilder(
         var podcastName = textSanitiser.SanitisePodcastName(postModel);
 
         var tweetBuilder = new StringBuilder();
-        var guestHandles = podcastEpisode.Episode.BlueskyHandles is { Length: > 0 }
-            ? " " + string.Join(" ", podcastEpisode.Episode.BlueskyHandles)
+        var guestHandles = podcastEpisode.Episode.TwitterHandles is { Length: > 0 }
+            ? " " + string.Join(" ", podcastEpisode.Episode.TwitterHandles)
             : string.Empty;
         if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TwitterHandle))
         {
