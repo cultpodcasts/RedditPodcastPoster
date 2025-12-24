@@ -45,8 +45,8 @@ public class PodcastController(
     ) =>
         HandleRequest(
             req, 
-            ["curate"], 
-            podcastName, 
+            ["curate"],
+            Uri.UnescapeDataString(podcastName), 
             handler.Index, 
             Unauthorised, 
             ct);
@@ -61,7 +61,7 @@ public class PodcastController(
         HandleRequest(
             req, 
             ["curate"],
-            new PodcastGetRequest(podcastName, null), 
+            new PodcastGetRequest(Uri.UnescapeDataString(podcastName), null), 
             handler.Get, 
             Unauthorised, 
             ct);
@@ -77,7 +77,7 @@ public class PodcastController(
         HandleRequest(
             req,
             ["curate"],
-            new PodcastGetRequest(podcastName, episodeId),
+            new PodcastGetRequest(Uri.UnescapeDataString(podcastName), episodeId),
             handler.Get,
             Unauthorised,
             ct);
