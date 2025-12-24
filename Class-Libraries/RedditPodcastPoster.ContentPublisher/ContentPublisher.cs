@@ -132,10 +132,24 @@ public class ContentPublisher(
             CultureInfo.GetCultureInfo("de"),
             CultureInfo.GetCultureInfo("pt"),
             CultureInfo.GetCultureInfo("tr"),
-            CultureInfo.GetCultureInfo("nl")
+            CultureInfo.GetCultureInfo("nl"),
+            CultureInfo.GetCultureInfo("it"),
+            CultureInfo.GetCultureInfo("ja"),
+            CultureInfo.GetCultureInfo("zh"),
+            CultureInfo.GetCultureInfo("ko"),
+            CultureInfo.GetCultureInfo("hi"),
+            CultureInfo.GetCultureInfo("ru"),
+            CultureInfo.GetCultureInfo("he"),
+            CultureInfo.GetCultureInfo("ar"),
+            CultureInfo.GetCultureInfo("bn"),
+            CultureInfo.GetCultureInfo("id"),
+            CultureInfo.GetCultureInfo("fil"),
+            CultureInfo.GetCultureInfo("ur"),
+            CultureInfo.GetCultureInfo("sw")
         };
         var json = JsonSerializer.Serialize(
-            languages.OrderBy(x => x.EnglishName).ToDictionary(x => x.TwoLetterISOLanguageName, x => x.EnglishName),
+            languages.Distinct().OrderBy(x => x.EnglishName)
+                .ToDictionary(x => x.TwoLetterISOLanguageName, x => x.EnglishName),
             JsonSerializerOptions);
         var request = new PutObjectRequest
         {

@@ -38,7 +38,7 @@ public class Sqllite3DatabasePublisher(
             .GetAllBy(
                 podcast =>
                     ((!podcast.Removed.IsDefined() || podcast.Removed == false) &&
-                     podcast.IndexAllEpisodes) || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex),
+                     podcast.IndexAllEpisodes) || podcast.EpisodeIncludeTitleRegex != "",
                 podcast => new { id = podcast.Id, name = podcast.Name })
             .ToListAsync();
 
