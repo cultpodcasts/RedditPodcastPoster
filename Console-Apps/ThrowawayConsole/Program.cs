@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using System.Reflection;
-using iTunesSearch.Library;
+﻿using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -9,8 +7,10 @@ using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.ContentPublisher.Extensions;
+using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.InternetArchive;
 using RedditPodcastPoster.InternetArchive.Extensions;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
@@ -23,6 +23,8 @@ using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.UrlSubmission.Extensions;
+using System.Diagnostics;
+using System.Reflection;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -59,10 +61,26 @@ builder.Services
 
 
 using var host = builder.Build();
+var subjectRepository= host.Services.GetRequiredService<ISubjectRepository>();
+var subjects = await subjectRepository.GetAll().ToListAsync();
 
-var service = host.Services.GetService<IQueryExecutor>()!;
-var result = await service.GetHomePage( CancellationToken.None);
-var epis = result.RecentEpisodes.Skip(3).Take(1).First();
+var podcastResult= new PodcastResult
+{
+    Subjects = new[]
+    {
+       "X", "_America"
+    },
+    PodcastName = "x",
+    EpisodeTitle = "y",
+    EpisodeDescription = "z"
+};
+
+var subjectKnownTerms = (podcastResult.Subjects ?? [])
+    .Select(x => subjects.SingleOrDefault(y => y.Name == x))
+    .SelectMany(x => x?.KnownTerms ?? []).ToArray();
+
+
+
 return;
 
 string GetBasePath()

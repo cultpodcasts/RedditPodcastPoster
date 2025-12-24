@@ -46,6 +46,7 @@ builder.Services
     .AddCloudflareClients()
     .AddShortnerServices()
     .AddYouTubeServices(ApplicationUsage.Cli)
+    .AddCachedSubjectProvider()
     .AddSpotifyServices()
     .AddHttpClient();
 

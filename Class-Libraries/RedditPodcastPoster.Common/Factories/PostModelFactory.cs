@@ -13,7 +13,7 @@ public class PostModelFactory(
     ILogger<PostModelFactory> logger) : IPostModelFactory
 #pragma warning restore CS9113 // Parameter is unread.
 {
-    private IEnumerable<Subject> subjects = subjectsProvider.GetAll().ToBlockingEnumerable();
+    private readonly IEnumerable<Subject> subjects = subjectsProvider.GetAll().ToBlockingEnumerable().ToList();
 
     public PostModel ToPostModel(
         (Podcast Podcast, IEnumerable<Episode> Episodes) podcastEpisodes,
