@@ -166,7 +166,6 @@ public class PodcastHandler(
         try
         {
             logger.LogInformation("{method}: Index podcast '{podcastName}'.", nameof(Index), podcastName);
-            podcastName = WebUtility.UrlDecode(podcastName);
 
             if (_indexerOptions.ReleasedDaysAgo == null)
             {
