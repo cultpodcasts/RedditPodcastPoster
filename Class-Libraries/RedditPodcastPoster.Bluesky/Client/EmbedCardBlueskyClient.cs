@@ -3,8 +3,8 @@ using System.Net.Http.Headers;
 using System.Security.Authentication;
 using System.Text;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Serialization;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using X.Bluesky;
 using X.Bluesky.Models;
 
@@ -12,22 +12,13 @@ namespace RedditPodcastPoster.Bluesky.Client;
 
 public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
 {
-    private readonly BlueskyClient _blueskyClient;
     private readonly IAuthorizationClient _authorizationClient;
+    private readonly BlueskyClient _blueskyClient;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IReadOnlyCollection<string> _languages;
     private readonly ILogger _logger;
     private readonly IMentionResolver _mentionResolver;
 
-    /// <summary>
-    ///     Creates a new instance of the Bluesky client
-    /// </summary>
-    /// <param name="httpClientFactory"></param>
-    /// <param name="identifier">Bluesky identifier</param>
-    /// <param name="password">Bluesky application password</param>
-    /// <param name="languages">Post languages</param>
-    /// <param name="reuseSession">Reuse session</param>
-    /// <param name="logger"></param>
     public EmbedCardBlueskyClient(
         IHttpClientFactory httpClientFactory,
         string identifier,
@@ -37,13 +28,14 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
         ILogger<EmbedCardBlueskyClient> logger,
         ILogger<BlueskyClient> blueskyClientLogger,
         ILogger<MentionResolver> mentionResolver
-        )
+    )
     {
         _logger = logger;
         _httpClientFactory = httpClientFactory;
         var uri = new Uri("https://bsky.social");
         _languages = languages.ToFrozenSet();
-        _blueskyClient = new BlueskyClient(httpClientFactory, identifier, password, languages, reuseSession, blueskyClientLogger);
+        _blueskyClient = new BlueskyClient(httpClientFactory, identifier, password, languages, reuseSession,
+            blueskyClientLogger);
         _mentionResolver = new MentionResolver(_httpClientFactory, uri, mentionResolver);
         _authorizationClient = new AuthorizationClient(httpClientFactory, identifier, password, reuseSession, uri);
     }
@@ -57,7 +49,7 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
             throw new AuthenticationException();
         }
 
-        var (facets, post) = await CreatePostAndFacets(text);
+        var (_, post) = await CreatePostAndFacets(text);
 
         var embedCardBuilder = new EmbedCardBuilder(_httpClientFactory, session, _logger);
 

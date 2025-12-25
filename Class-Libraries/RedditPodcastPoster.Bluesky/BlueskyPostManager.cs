@@ -20,6 +20,8 @@ public class BlueskyPostManager(
     ILogger<BlueskyPostManager> logger)
     : IBlueskyPostManager
 {
+    private const int MaxFailures = 5;
+
     public async Task Post(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
@@ -27,7 +29,8 @@ public class BlueskyPostManager(
         IEnumerable<PodcastEpisode> unposted;
         try
         {
-            unposted = await podcastEpisodeProvider.GetBlueskyReadyPodcastEpisodes(youTubeRefreshed, spotifyRefreshed);
+            unposted = (await podcastEpisodeProvider.GetBlueskyReadyPodcastEpisodes(youTubeRefreshed, spotifyRefreshed))
+                .ToArray();
         }
         catch (Exception ex)
         {
@@ -35,6 +38,7 @@ public class BlueskyPostManager(
             throw;
         }
 
+        var failures = 0;
         if (unposted.Any())
         {
             var posted = false;
@@ -59,6 +63,23 @@ public class BlueskyPostManager(
                         var status = await poster.Post(podcastEpisode, shortnerResult.Url);
                         logger.LogInformation("Bluesky Post complete. Bluesky-post-status: '{status}'.", status);
                         posted = status == BlueskySendStatus.Success;
+
+                        if (!posted)
+                        {
+                            if (status is BlueskySendStatus.Failure or BlueskySendStatus.FailureAuth
+                                or BlueskySendStatus.Unknown)
+                            {
+                                failures++;
+                                if (failures >= MaxFailures)
+                                {
+                                    break;
+                                }
+                            }
+                            else // if (status == BlueskySendStatus.FailureAuth)
+                            {
+                                break;
+                            }
+                        }
                     }
                     catch (EpisodeNotFoundException e)
                     {
@@ -90,23 +111,24 @@ public class BlueskyPostManager(
         }
 
         var matchingPosts = posts.Result!.Where(x =>
-            x.Value!.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Podcast.Name) &&
-            x.Value!.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Episode.Length.ToString(
+            x.Value.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Podcast.Name) &&
+            x.Value.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Episode.Length.ToString(
                 BlueskyEmbedCardPostFactory.LengthFormat,
                 CultureInfo.InvariantCulture)) &&
-            x.Value!.ExtensionData["text"].GetString()!.Contains(
+            x.Value.ExtensionData["text"].GetString()!.Contains(
                 podcastEpisode.Episode.Release.ToString(BlueskyEmbedCardPostFactory.ReleaseFormat))
-        );
+        ).ToArray();
 
         if (!matchingPosts.Any())
         {
             return RemovePostState.NotFound;
         }
 
-        if (matchingPosts.Count() > 1)
+        if (matchingPosts.Length > 1)
         {
             logger.LogError(
-                "Multiple bluesky-posts ({Count}) found matching episode-id '{EpisodeId}'", matchingPosts.Count(), podcastEpisode.Episode.Id);
+                "Multiple bluesky-posts ({Count}) found matching episode-id '{EpisodeId}'", matchingPosts.Length,
+                podcastEpisode.Episode.Id);
             return RemovePostState.Other;
         }
 

@@ -154,7 +154,8 @@ public class PostProcessor(
                     {
                         if (podcasts.Length > 1)
                         {
-                            podcasts = podcasts.Where(x => x.IndexAllEpisodes || x.EpisodeIncludeTitleRegex != "").ToArray();
+                            podcasts = podcasts.Where(x => x.IndexAllEpisodes || x.EpisodeIncludeTitleRegex != "")
+                                .ToArray();
                         }
 
                         if (!podcasts.Any())
