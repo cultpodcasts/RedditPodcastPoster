@@ -12,16 +12,15 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddSubjectServices()
         {
             return services
-                    .AddSingleton<ISubjectRepository, SubjectRepository>()
-                    .AddScoped<ISubjectService, SubjectService>()
-                    .AddScoped<ISubjectEnricher, SubjectEnricher>()
-                    .AddScoped<ISubjectMatcher, SubjectMatcher>()
-                    .AddSingleton<IRecycledFlareIdProvider, RecycledFlareIdProvider>()
-                    .AddScoped<ICategoriser, Categoriser>()
-                    .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
-                    .AddScoped<ISubjectFactory, SubjectFactory>()
-                    .AddScoped<IHashTagProvider, HashTagProvider>()
-                ;
+                .AddSingleton<ISubjectRepository, SubjectRepository>()
+                .AddScoped<ISubjectService, SubjectService>()
+                .AddScoped<ISubjectEnricher, SubjectEnricher>()
+                .AddScoped<ISubjectMatcher, SubjectMatcher>()
+                .AddSingleton<IRecycledFlareIdProvider, RecycledFlareIdProvider>()
+                .AddScoped<ICategoriser, Categoriser>()
+                .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
+                .AddScoped<ISubjectFactory, SubjectFactory>()
+                .AddScoped<IHashTagProvider, HashTagProvider>();
         }
 
         public IServiceCollection AddCachedSubjectProvider()

@@ -25,7 +25,6 @@ public class CachedSubjectProvider(
         }
     }
 
-
     private async Task Fetch()
     {
         logger.LogInformation($"Fetching {nameof(CachedSubjectProvider)}.");
