@@ -12,7 +12,7 @@ public class FoundEpisodeFilter(ILogger<FoundEpisodeFilter> logger) : IFoundEpis
         var eliminatedEpisodes = episodes.Where(x => !includeEpisodeRegex.IsMatch(x.Title));
         if (eliminatedEpisodes.Any())
         {
-            logger.LogInformation(
+            logger.LogWarning(
                 "Eliminating {eliminatedEpisodesCount} episodes of podcast '{podcastName}' with id '{podcastId}' with titles [{titles}] as they do not match {nameofPodcastEpisodeIncludeTitleRegex} of value '{podcastEpisodeIncludeTitleRegex}'.",
                 eliminatedEpisodes.Count(),
                 podcast.Name,

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/hoist-logging-level-to-reduce-logging-analytics-usage
 
 permissions:
   id-token: write

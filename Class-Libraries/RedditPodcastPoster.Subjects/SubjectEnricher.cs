@@ -33,13 +33,13 @@ public class SubjectEnricher(
                 additions.Select(x => "'" + x.Subject.Name + "' (" + x.MatchResults.MaxBy(x => x.Matches)?.Term + ")"));
             if (!episode.Subjects.Any() && additions.Count() > 1)
             {
-                logger.LogWarning("{count} - {terms} : '{episodeTitle}' ({episodeId}).",
-                    additions.Count(), terms, episode.Title, episode.Id);
+                logger.LogWarning("{method}: {count} - {terms} : '{episodeTitle}' ({episodeId}).",
+                 nameof(EnrichSubjects) ,  additions.Count(), terms, episode.Title, episode.Id);
             }
             else
             {
-                logger.LogInformation("{count} - {terms} : '{episodeTitle}' ({episodeId}).",
-                    additions.Count(), terms, episode.Title, episode.Id);
+                logger.LogInformation("{method}: {count} - {terms} : '{episodeTitle}' ({episodeId}).",
+                    nameof(EnrichSubjects), additions.Count(), terms, episode.Title, episode.Id);
             }
 
 
