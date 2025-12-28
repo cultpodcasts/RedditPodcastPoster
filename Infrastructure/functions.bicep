@@ -7,8 +7,6 @@ param suffix string = uniqueString(resourceGroup().id)
 @description('Name for the Storage Account')
 param storageName 
 
-var loggingLevel = 'Warning'
-
 @secure()
 param auth0ClientId string
 @secure()
@@ -106,8 +104,8 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
   name: 'ai-${suffix}'
 }
 
+var loggingLevel = 'Warning'
 var runtime = 'dotnet-isolated'
-
 var auth0Audience= 'https://api.cultpodcasts.com/'
 var auth0Domain= 'auth.cultpodcasts.com'
 var redditUserAgent= 'CultpodcastsBot/1.0'
