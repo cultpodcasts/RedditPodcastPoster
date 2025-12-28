@@ -5,7 +5,7 @@ param location string = resourceGroup().location
 param suffix string = uniqueString(resourceGroup().id)
 
 @description('Name for the Storage Account')
-param storageName 
+param storageName string
 
 @secure()
 param auth0ClientId string
