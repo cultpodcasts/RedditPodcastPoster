@@ -36,7 +36,6 @@ builder.Services
     .BindConfiguration<RedditSettings>("reddit-moderator");
 
 RedditClientFactory.AddRedditClient(builder.Services);
-
 AdminRedditClientFactory.AddAdminRedditClient(builder.Services);
 
 using var host = builder.Build();
