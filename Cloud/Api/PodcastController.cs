@@ -57,13 +57,12 @@ public class PodcastController(
         HttpRequestData req,
         string podcastName,
         CancellationToken ct
-    ) =>
-        HandleRequest(
-            req, 
+    ) => HandleRequest(
+            req,
             ["curate"],
-            new PodcastGetRequest(Uri.UnescapeDataString(podcastName), null), 
-            handler.Get, 
-            Unauthorised, 
+            new PodcastGetRequest(podcastName, null),
+            handler.Get,
+            Unauthorised,
             ct);
 
     [Function("PodcastGetWithEpisodeId")]
@@ -73,15 +72,13 @@ public class PodcastController(
         string podcastName,
         Guid episodeId,
         CancellationToken ct
-    ) =>
-        HandleRequest(
+    ) => HandleRequest(
             req,
             ["curate"],
-            new PodcastGetRequest(Uri.UnescapeDataString(podcastName), episodeId),
+            new PodcastGetRequest(podcastName, episodeId),
             handler.Get,
             Unauthorised,
             ct);
-
 
     [Function("PodcastPost")]
     public Task<HttpResponseData> Post(
