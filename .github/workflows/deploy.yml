@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/clean-up-enrichment
 
 permissions:
   id-token: write
