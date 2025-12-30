@@ -10,10 +10,10 @@
     },
     "logLevel": {
       "default": "None",
-      "Host.Results": "Information",
-      "Function": "Information",
-      "RedditPodcastPoster": "Information",
-      "Api": "Information"
+      "Host.Results": "Warning",
+      "Function": "Warning",
+      "RedditPodcastPoster": "Warning",
+      "Api": "Warning"
     }
   }
 }

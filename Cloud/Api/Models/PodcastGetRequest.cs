@@ -2,8 +2,8 @@
 
 namespace Api.Models;
 
-public class PodcastGetRequest(string podcastName, Guid? EpisodeId) 
+public class PodcastGetRequest(string podcastName, Guid? episodeId) 
 {
-    public string PodcastName => WebUtility.UrlDecode(podcastName);
-    public Guid? EpisodeId { get; init; }
+    public string PodcastName => Uri.UnescapeDataString(podcastName);
+    public Guid? EpisodeId { get; init; } = episodeId;
 }

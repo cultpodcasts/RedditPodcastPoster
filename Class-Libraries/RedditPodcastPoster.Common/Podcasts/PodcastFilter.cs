@@ -22,7 +22,7 @@ public class PodcastFilter(ILogger<PodcastFilter> logger) : IPodcastFilter
                 if (removeForTerm)
                 {
                     matchedTerms.Add(eliminationTerm);
-                    logger.LogInformation(
+                    logger.LogWarning(
                         "Removing episode '{episodeTitle}' of podcast '{podcastName}' due to match with '{eliminationTerm}'.",
                         podcastEpisode.Title, podcast.Name, eliminationTerm);
                 }

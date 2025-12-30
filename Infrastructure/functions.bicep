@@ -104,15 +104,15 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
   name: 'ai-${suffix}'
 }
 
+var loggingLevel = 'Warning'
 var runtime = 'dotnet-isolated'
-
 var auth0Audience= 'https://api.cultpodcasts.com/'
 var auth0Domain= 'auth.cultpodcasts.com'
 var redditUserAgent= 'CultpodcastsBot/1.0'
 
 var jobHostLogging= {
     AzureFunctionsJobHost__Logging__ApplicationInsights__LogLevel__Default: 'Warning'
-    AzureFunctionsJobHost__Logging__Console__LogLevel__Default: 'Information'
+    AzureFunctionsJobHost__Logging__Console__LogLevel__Default: loggingLevel
     AzureFunctionsJobHost__Logging__Debug__LogLevel__Default: 'Warning'
     AzureFunctionsJobHost__Logging__LogLevel__Default: 'Warning'
 }
@@ -120,8 +120,8 @@ var jobHostLogging= {
 var logging= {
     Logging__LogLevel__Default: 'Warning'
     'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Warning'
-    Logging__LogLevel__Function: 'Information'
-    Logging__LogLevel__RedditPodcastPoster: 'Information'
+    Logging__LogLevel__Function: loggingLevel
+    Logging__LogLevel__RedditPodcastPoster: loggingLevel
     Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
     Logging__ApplicationInsights__SamplingSettings__ExcludedTypes: ''
     Logging__ApplicationInsights__EnableLiveMetricsFilters: 'true'
@@ -503,7 +503,7 @@ module apiFunction 'function.bicep' = {
     publicNetworkAccess: true
     instanceMemoryMB: 2048
     appSettings: union({
-        Logging__LogLevel__Api: 'Information'
+        Logging__LogLevel__Api: loggingLevel
     }, apiSettings)
     userAssignedIdentityId: userAssignedIdentity.id
     userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
@@ -524,7 +524,7 @@ module discoveryFunction 'function.bicep' = {
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: union({
-        Logging__LogLevel__Discovery: 'Information'
+        Logging__LogLevel__Discovery: loggingLevel
     }, discoverySettings)
     userAssignedIdentityId: userAssignedIdentity.id
     userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
@@ -545,7 +545,7 @@ module indexerFunction 'function.bicep' = {
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: union({
-        Logging__LogLevel__Indexer: 'Information'
+        Logging__LogLevel__Indexer: loggingLevel
     }, indexerSettings)
     userAssignedIdentityId: userAssignedIdentity.id
     userAssignedIdentityClientId: userAssignedIdentity.properties.clientId

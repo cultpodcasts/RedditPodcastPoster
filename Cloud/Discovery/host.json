@@ -23,10 +23,10 @@
     },
     "logLevel": {
       "default": "None",
-      "Host.Results": "Information",
-      "Function": "Information",
-      "RedditPodcastPoster": "Information",
-      "Discovery": "Information"
+      "Host.Results": "Warning",
+      "Function": "Warning",
+      "RedditPodcastPoster": "Warning",
+      "Discovery": "Warning"
     }
   },
   "functionTimeout": "00:10:00"
