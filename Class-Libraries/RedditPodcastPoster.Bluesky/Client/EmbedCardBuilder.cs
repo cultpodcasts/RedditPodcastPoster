@@ -1,6 +1,8 @@
-using System.Net.Http.Headers;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using RedditPodcastPoster.Bluesky.Models;
+using RedditPodcastPoster.Models;
+using System.Net.Http.Headers;
 using X.Bluesky;
 using X.Bluesky.Models;
 
@@ -21,10 +23,17 @@ public class EmbedCardBuilder(IHttpClientFactory httpClientFactory, Session sess
 
         if (embedCardRequest.ThumbUrl != null)
         {
-            card.Thumb = await UploadImageAndSetThumbAsync(embedCardRequest.ThumbUrl);
-            logger.LogInformation("EmbedCard created");
+            try
+            {
+                card.Thumb = await UploadImageAndSetThumbAsync(embedCardRequest.ThumbUrl);
+                logger.LogInformation("EmbedCard created");
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                logger.LogError(ex, "Not-found when uploading-thumb-image: '{ThumbUrl}'", embedCardRequest.ThumbUrl);
+            }
         }
-
+       
         return card;
     }
 

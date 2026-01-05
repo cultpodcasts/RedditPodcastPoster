@@ -232,7 +232,7 @@ public class PostProcessor(
         var result = await blueSkyPoster.Post(podcastEpisode, shortUrl);
         if (result != BlueskySendStatus.Success)
         {
-            logger.LogError("Forbidden to send duplicate-tweet");
+            logger.LogError("Error sending bluesky post. Reason: '{reason}'.", result);
         }
     }
 
