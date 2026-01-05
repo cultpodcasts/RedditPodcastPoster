@@ -43,11 +43,11 @@ public class BlueskyPoster(
         catch (HttpRequestException ex)
         {
             logger.LogError(ex,
-                "Failure making http-request sending blue-sky post for podcast-id '{podcastId}' episode-id '{episodeId}'. Status-code: '{statusCode}', request-error: '{httpRequestError}'. Post: '{embedPostText}'.",
+                "Failure making http-request sending blue-sky post for podcast-id '{podcastId}' episode-id '{episodeId}'. Status-code: '{statusCode}', request-error: '{httpRequestError}'. Post: '{embedPostText}', Url: '{embedPostUrl}'.",
                 podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id, ex.StatusCode, ex.HttpRequestError,
-                embedPost.Text);
+                embedPost.Text, embedPost.Url);
             return BlueskySendStatus.FailureHttp;
-        }
+    }
         catch (AuthenticationException ex)
         {
             logger.LogError(ex,
