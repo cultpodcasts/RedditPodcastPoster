@@ -17,8 +17,6 @@ public class SpotifyEpisodeResolver(
     ILogger<SpotifyEpisodeResolver> logger)
     : ISpotifyEpisodeResolver
 {
-    private static readonly TimeSpan YouTubeAuthorityToAudioReleaseConsiderationThreshold = TimeSpan.FromDays(14);
-
     public async Task<FindEpisodeResponse> FindEpisode(
         FindSpotifyEpisodeRequest request,
         IndexingContext indexingContext)
@@ -49,7 +47,7 @@ public class SpotifyEpisodeResolver(
         SimpleEpisode? matchingEpisode;
         if (request is { ReleaseAuthority: Service.YouTube, Length: not null })
         {
-            var ticks = YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
+            var ticks = Constants.YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
             if (request.YouTubePublishingDelay.HasValue &&
                 request.YouTubePublishingDelay.Value != TimeSpan.Zero)
             {

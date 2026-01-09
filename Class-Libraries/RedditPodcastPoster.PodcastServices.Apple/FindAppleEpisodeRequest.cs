@@ -9,4 +9,5 @@ public record FindAppleEpisodeRequest(
     string EpisodeTitle,
     DateTime? Released,
     Service? ReleaseAuthority,
-    TimeSpan? EpisodeLength);
+    TimeSpan? EpisodeLength,
+    TimeSpan? YouTubePublishingDelay);
