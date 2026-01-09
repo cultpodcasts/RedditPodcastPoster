@@ -64,14 +64,14 @@ public class AppleEpisodeResolver(
                 var match = matches.MaxBy(x => x.Title);
                 if (match == null)
                 {
-                    IEnumerable<AppleEpisode> sampleList;
+                    IList<AppleEpisode> sampleList;
                     if (reducer != null)
                     {
-                        sampleList = podcastEpisodes.Where(reducer);
+                        sampleList = podcastEpisodes.Where(reducer).ToList();
                     }
                     else
                     {
-                        sampleList = podcastEpisodes;
+                        sampleList = podcastEpisodes.ToList();
                     }
 
                     if (request.EpisodeLength.HasValue)

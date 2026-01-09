@@ -68,7 +68,20 @@ public class AppleUrlCategoriser(
     {
         var findEpisodeRequest = FindAppleEpisodeRequestFactory.Create(matchingPodcast, podcast, criteria);
 
-        var episode = await appleEpisodeResolver.FindEpisode(findEpisodeRequest, indexingContext);
+        var ticks = Constants.YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
+        if (findEpisodeRequest.YouTubePublishingDelay.HasValue &&
+            findEpisodeRequest.YouTubePublishingDelay.Value != TimeSpan.Zero)
+        {
+            var delayTicks = findEpisodeRequest.YouTubePublishingDelay.Value.Ticks;
+            if (delayTicks < 0)
+            {
+                ticks = Math.Abs(delayTicks);
+            }
+        }
+
+        var episode = await appleEpisodeResolver.FindEpisode(findEpisodeRequest, indexingContext,
+                y => findEpisodeRequest.Released.HasValue &&
+                     Math.Abs((y.Release - findEpisodeRequest.Released.Value).Ticks) < ticks);
 
         if (episode != null)
         {

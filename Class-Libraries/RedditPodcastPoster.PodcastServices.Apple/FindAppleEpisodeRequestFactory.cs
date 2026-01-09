@@ -16,7 +16,8 @@ public static class FindAppleEpisodeRequestFactory
             episode.Title,
             release,
             podcast.ReleaseAuthority,
-            episode.Length
+            episode.Length,
+            podcast.YouTubePublishingDelay()
         );
     }
 
@@ -48,7 +49,8 @@ public static class FindAppleEpisodeRequestFactory
             criteria.EpisodeTitle,
             release,
             podcast?.ReleaseAuthority,
-            criteria.Duration);
+            criteria.Duration,
+            podcast?.YouTubePublishingDelay()??null);
     }
 
     public static FindAppleEpisodeRequest Create(long podcastId, long episodeId)
@@ -58,6 +60,7 @@ public static class FindAppleEpisodeRequestFactory
             string.Empty,
             episodeId,
             string.Empty,
+            null,
             null,
             null,
             null);

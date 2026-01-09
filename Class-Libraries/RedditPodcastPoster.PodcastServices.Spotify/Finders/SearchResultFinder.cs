@@ -46,14 +46,14 @@ public class SearchResultFinder(
         });
         if (match == null)
         {
-            IEnumerable<SimpleEpisode> sampleList;
+            IList<SimpleEpisode> sampleList;
             if (reducer != null)
             {
-                sampleList = episodes.Where(reducer);
+                sampleList = episodes.Where(reducer).ToList();
             }
             else
             {
-                sampleList = episodes;
+                sampleList = episodes.ToList();
             }
 
             var sameLength = sampleList.Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < TimeDifferenceThreshold);
@@ -69,8 +69,6 @@ public class SearchResultFinder(
             {
                 sameLength = sampleList.Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < BroaderTimeDifferenceThreshold);
                 return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name, SameLengthMinFuzzyScore);
-
-                //41
             }
         }
 
