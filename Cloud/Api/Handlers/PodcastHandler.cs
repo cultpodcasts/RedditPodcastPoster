@@ -275,7 +275,7 @@ public class PodcastHandler(
 
                 logger.LogInformation("Search-index run-state: {indexState}.", indexState);
                 return await req.CreateResponse(HttpStatusCode.OK)
-                    .WithJsonBody(new { indexState = indexState }, c);
+                    .WithJsonBody(new PodcastRenameResponse { IndexState = indexState }, c);
             }
 
             return req.CreateResponse(HttpStatusCode.BadRequest);
