@@ -98,7 +98,7 @@ public class EpisodeFactory(
             }
             else
             {
-                newEpisode.Ignored = length < _postingCriteria.MinimumDuration;
+                newEpisode.Ignored = length < (categorisedItem.MatchingPodcast.MinimumDuration ?? _postingCriteria.MinimumDuration);
             }
         }
         else

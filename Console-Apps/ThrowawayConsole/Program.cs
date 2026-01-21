@@ -18,6 +18,8 @@ using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.PushSubscriptions;
+using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Extensions;
@@ -57,27 +59,16 @@ builder.Services
     .AddScoped(s => new iTunesSearchManager())
     .AddSubjectServices()
     .AddSubjectProvider()
+    .AddPushSubscriptions()
     .AddHttpClient();
 
 
 using var host = builder.Build();
-var subjectRepository= host.Services.GetRequiredService<ISubjectRepository>();
-var subjects = await subjectRepository.GetAll().ToListAsync();
+var service= host.Services.GetRequiredService<INotificationPublisher>();
+var notification = new DiscoveryNotification(1, DateTime.Now, 999);
+await service.SendDiscoveryNotification(notification);
 
-var podcastResult= new PodcastResult
-{
-    Subjects = new[]
-    {
-       "X", "_America"
-    },
-    PodcastName = "x",
-    EpisodeTitle = "y",
-    EpisodeDescription = "z"
-};
 
-var subjectKnownTerms = (podcastResult.Subjects ?? [])
-    .Select(x => subjects.SingleOrDefault(y => y.Name == x))
-    .SelectMany(x => x?.KnownTerms ?? []).ToArray();
 
 
 

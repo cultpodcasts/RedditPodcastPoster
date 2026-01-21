@@ -62,7 +62,8 @@ public class PodcastEpisodesPoster(
 
             if (!matchingPodcastEpisode.Episode.Posted)
             {
-                if (matchingPodcastEpisode.Episode.Length >= _postingCriteria.MinimumDuration ||
+                if (matchingPodcastEpisode.Episode.Length >=
+                    (matchingPodcastEpisode.Podcast.MinimumDuration ?? _postingCriteria.MinimumDuration) ||
                     (matchingPodcastEpisode.Podcast.BypassShortEpisodeChecking.HasValue &&
                      matchingPodcastEpisode.Podcast.BypassShortEpisodeChecking.Value))
                 {

@@ -56,6 +56,10 @@ public sealed class Podcast : CosmosSelector
     [JsonPropertyOrder(60)]
     public bool? BypassShortEpisodeChecking { get; set; }
 
+    [JsonPropertyName("minimumDuration")]
+    [JsonPropertyOrder(51)]
+    public TimeSpan? MinimumDuration { get; set; } = null;
+
     [JsonPropertyName("releaseAuthority")]
     [JsonPropertyOrder(70)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
