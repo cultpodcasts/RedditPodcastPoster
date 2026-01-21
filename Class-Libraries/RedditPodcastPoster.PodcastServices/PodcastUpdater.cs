@@ -43,7 +43,7 @@ public class PodcastUpdater(
             {
                 foreach (var newEpisode in newEpisodes)
                 {
-                    newEpisode.Ignored = newEpisode.Length < _postingCriteria.MinimumDuration;
+                    newEpisode.Ignored = newEpisode.Length < (podcast.MinimumDuration ?? _postingCriteria.MinimumDuration);
                 }
 
                 logger.LogInformation("Podcast '{podcastName}' has SkipShortEpisodes= '{SkipShortEpisodes}'.",

@@ -129,7 +129,8 @@ public class PodcastHandler(
                     YouTubePlaylistId = podcast.YouTubePlaylistId,
                     IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
                     IgnoredSubjects = podcast.IgnoredSubjects,
-                    KnownTerms = podcast.KnownTerms
+                    KnownTerms = podcast.KnownTerms,
+                    MinimumDuration = podcast.MinimumDuration?.ToString()
                 };
                 return await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(dto, c);
             }
@@ -355,6 +356,22 @@ public class PodcastHandler(
         if (podcastChangeRequest.BypassShortEpisodeChecking != null)
         {
             podcast.BypassShortEpisodeChecking = podcastChangeRequest.BypassShortEpisodeChecking.Value;
+        }
+
+        if (podcastChangeRequest.MinimumDuration != null)
+        {
+            if (string.IsNullOrWhiteSpace(podcastChangeRequest.MinimumDuration))
+            {
+                podcast.MinimumDuration = null;
+            }
+            else
+            {
+                podcast.MinimumDuration = TimeSpan.TryParse(podcastChangeRequest.MinimumDuration, out var duration) ? duration : null;
+                if (podcast.MinimumDuration == null)
+                {
+                    logger.LogWarning("Invalid minimum-duration format; '{minimumDuration}'.", podcastChangeRequest.MinimumDuration);
+                }
+            }
         }
 
         if (podcastChangeRequest.ReleaseAuthority != null)

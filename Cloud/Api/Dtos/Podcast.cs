@@ -90,4 +90,7 @@ public class Podcast
 
     [JsonPropertyName("knownTerms")]
     public string[]? KnownTerms { get; set; }
+
+    [JsonPropertyName("minimumDuration")]
+    public string? MinimumDuration { get; set; }
 }
