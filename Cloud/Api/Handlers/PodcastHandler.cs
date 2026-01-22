@@ -1,6 +1,4 @@
-﻿using System.Net;
-using System.Text.Json;
-using Api.Dtos;
+﻿using Api.Dtos;
 using Api.Extensions;
 using Api.Models;
 using Azure.Search.Documents;
@@ -15,6 +13,9 @@ using RedditPodcastPoster.Indexing;
 using RedditPodcastPoster.Indexing.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using System.Net;
+using System.Reactive.Subjects;
+using System.Text.Json;
 using Podcast = Api.Dtos.Podcast;
 using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
 
@@ -130,7 +131,9 @@ public class PodcastHandler(
                     IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
                     IgnoredSubjects = podcast.IgnoredSubjects,
                     KnownTerms = podcast.KnownTerms,
-                    MinimumDuration = podcast.MinimumDuration?.ToString()
+                    MinimumDuration = podcast.MinimumDuration?.ToString(),
+                    HashTag= podcast.HashTag,
+                    EnrichmentHashTags = podcast.EnrichmentHashTags
                 };
                 return await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(dto, c);
             }
@@ -451,6 +454,18 @@ public class PodcastHandler(
             podcast.BlueskyHandle = string.IsNullOrWhiteSpace(podcastChangeRequest.BlueskyHandle)
                 ? null
                 : podcastChangeRequest.BlueskyHandle;
+        }
+
+        if (podcastChangeRequest.EnrichmentHashTags != null)
+        {
+            podcast.EnrichmentHashTags = !podcastChangeRequest.EnrichmentHashTags.Any()
+                ? null
+                : podcastChangeRequest.EnrichmentHashTags.Select(x => x.Trim()).ToArray();
+        }
+
+        if (podcastChangeRequest.HashTag != null)
+        {
+            podcast.HashTag = podcastChangeRequest.HashTag == string.Empty ? null : podcastChangeRequest.HashTag.Trim();
         }
 
         if (podcastChangeRequest.TitleRegex != null)

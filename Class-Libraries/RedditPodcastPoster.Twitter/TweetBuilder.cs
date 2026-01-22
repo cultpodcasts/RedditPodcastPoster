@@ -32,6 +32,7 @@ public class TweetBuilder(
         var episodeTitle = textSanitiser.SanitiseTitle(postModel);
 
         var episodeHashtags = await hashTagProvider.GetHashTags(podcastEpisode.Episode.Subjects);
+        episodeHashtags = episodeHashtags.Union(podcastEpisode.Podcast.GetHashTags()).ToList();
         if (!string.IsNullOrWhiteSpace(_twitterOptions.HashTag))
         {
             episodeHashtags.Add(new HashTag(_twitterOptions.HashTag, null));
