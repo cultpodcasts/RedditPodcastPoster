@@ -58,6 +58,12 @@ public class Podcast
     [JsonPropertyName("blueskyHandle")]
     public string? BlueskyHandle { get; set; }
 
+    [JsonPropertyName("enrichmentHashTags")]
+    public string[]? EnrichmentHashTags { get; set; }
+
+    [JsonPropertyName("hashTag")]
+    public string? HashTag { get; set; }
+
     [JsonPropertyName("titleRegex")]
     public string? TitleRegex { get; set; }
 

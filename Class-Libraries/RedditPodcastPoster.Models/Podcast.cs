@@ -57,7 +57,7 @@ public sealed class Podcast : CosmosSelector
     public bool? BypassShortEpisodeChecking { get; set; }
 
     [JsonPropertyName("minimumDuration")]
-    [JsonPropertyOrder(51)]
+    [JsonPropertyOrder(61)]
     public TimeSpan? MinimumDuration { get; set; } = null;
 
     [JsonPropertyName("releaseAuthority")]
@@ -117,6 +117,14 @@ public sealed class Podcast : CosmosSelector
     [JsonPropertyName("blueskyHandle")]
     [JsonPropertyOrder(191)]
     public string? BlueskyHandle { get; set; }
+
+    [JsonPropertyName("hashtag")]
+    [JsonPropertyOrder(195)]
+    public string? HashTag { get; set; }
+
+    [JsonPropertyName("enrichmentHashTags")]
+    [JsonPropertyOrder(196)]
+    public string[]? EnrichmentHashTags { get; set; }
 
     [JsonPropertyName("titleRegex")]
     [JsonPropertyOrder(200)]

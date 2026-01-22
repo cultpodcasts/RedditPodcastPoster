@@ -34,6 +34,7 @@ public class BlueskyEmbedCardPostFactory(
         var episodeTitle = textSanitiser.SanitiseTitle(postModel);
 
         var episodeHashtags = await hashTagProvider.GetHashTags(podcastEpisode.Episode.Subjects);
+        episodeHashtags = episodeHashtags.Union(podcastEpisode.Podcast.GetHashTags()).ToList();
         if (!string.IsNullOrWhiteSpace(_blueskyOptions.HashTag))
         {
             episodeHashtags.Add(new HashTag(_blueskyOptions.HashTag, null));

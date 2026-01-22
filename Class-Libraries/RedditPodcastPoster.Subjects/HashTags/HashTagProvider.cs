@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Subjects.Extensions;
 
 namespace RedditPodcastPoster.Subjects.HashTags;
 
@@ -15,26 +16,15 @@ public class HashTagProvider(
     {
         var subjectRetrieval = episodeSubjects.Select(subjectRepository.GetByName).ToArray();
         var subjects = await Task.WhenAll(subjectRetrieval);
-        var hashTags =
-            subjects
+        var hashTags =subjects
                 .Where(x => !string.IsNullOrWhiteSpace(x?.HashTag))
-                .Select(x => x!.HashTag!.Split(" "))
-                .SelectMany(x => x)
-                .Distinct()
-                .Select(x => new HashTag(x!, null));
+                .Select(x=>x.HashTag!)
+                .ToHashTags();
         var enrichmentHashTags =
             subjects
                 .Where(x => x?.EnrichmentHashTags != null && x.EnrichmentHashTags.Any())
                 .SelectMany(x => x!.EnrichmentHashTags!)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(x => x.Trim())
-                .Distinct()
-                .Select(x => new HashTag(x, (string?)
-                    $"#{x
-                        .Replace(" ", string.Empty)
-                        .Replace(".", string.Empty)
-                        .Replace("'", string.Empty)
-                        .Replace("-", string.Empty)}"));
+                .FromEnrichmentHashTagsToHashTags();
         return enrichmentHashTags.Union(hashTags).ToList();
     }
 }
