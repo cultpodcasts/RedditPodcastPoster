@@ -20,7 +20,9 @@ public static class ServiceCollectionExtensions
                 .AddScoped<ICategoriser, Categoriser>()
                 .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
                 .AddScoped<ISubjectFactory, SubjectFactory>()
-                .AddScoped<IHashTagProvider, HashTagProvider>();
+                .AddScoped<IHashTagProvider, HashTagProvider>()
+                .AddSingleton<ICachedSubjectProvider, CachedSubjectProvider>();
+            ;
         }
 
         public IServiceCollection AddCachedSubjectProvider()
