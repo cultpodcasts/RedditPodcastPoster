@@ -1,6 +1,4 @@
-﻿using System.Net;
-using System.Text.Json;
-using Api.Dtos;
+﻿using Api.Dtos;
 using Api.Extensions;
 using Api.Models;
 using Azure.Search.Documents;
@@ -27,9 +25,14 @@ using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.Reddit;
+using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Text;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.UrlShortening;
+using System.Collections.Generic;
+using System.Net;
+using System.Text.Json;
 using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
 
 namespace Api.Handlers;
@@ -47,6 +50,8 @@ public class EpisodeHandler(
     IShortnerService shortnerService,
     IImageUpdater imageUpdater,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
+    ITextSanitiser textSanitiser,
+    ISubjectRepository subjectRepository,
     ILogger<EpisodeHandler> logger) : IEpisodeHandler
 {
     private readonly DateTime pastWeek = DateTime.UtcNow.AddDays(-7);
@@ -275,12 +280,13 @@ public class EpisodeHandler(
             {
                 var podcast = await podcastRepository.GetBy(x => x.Id == podcastId.guid);
                 var unpostedEpisodes =
+                    await Task.WhenAll(
                     podcast!.Episodes.Where(x =>
                             x.Release > since &&
                             (!x.Posted || posted) &&
                             (!x.Tweeted || tweeted) &&
                             (!(x.BlueskyPosted.HasValue && x.BlueskyPosted.Value) || blueskyPosted))
-                        .Select(x => x.Enrich(podcast));
+                        .Select(async x => await x.Enrich(podcast, textSanitiser, subjectRepository)));
                 episodes.AddRange(unpostedEpisodes);
             }
 
@@ -455,7 +461,7 @@ public class EpisodeHandler(
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            var podcastEpisode = episode.Enrich(podcast);
+            var podcastEpisode = await Task.WhenAll(episode.Enrich(podcast, textSanitiser, subjectRepository));
             var success = await req.CreateResponse(HttpStatusCode.OK)
                 .WithJsonBody(podcastEpisode, c);
             return success;

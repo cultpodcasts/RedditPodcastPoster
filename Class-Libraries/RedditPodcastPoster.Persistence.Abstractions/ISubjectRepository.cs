@@ -11,4 +11,6 @@ public interface ISubjectRepository : ISubjectsProvider
     IAsyncEnumerable<Subject> GetByNames(string[] names);
     Task<Subject?> GetBy(Expression<Func<Subject, bool>> selector);
     IAsyncEnumerable<Subject> GetAllBy(Expression<Func<Subject, bool>> selector);
+    IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<Subject, bool>> selector, Expression<Func<Subject, T>> item);
+
 }
