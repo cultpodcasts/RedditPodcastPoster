@@ -34,4 +34,12 @@ public class DiscreteEpisode : Episode
     [JsonPropertyName("image")]
     [JsonPropertyOrder(250)]
     public Uri? Image { get; set; }
+
+    [JsonPropertyName("displayTitle")]
+    [JsonPropertyOrder(31)]
+    public string DisplayTitle { get; set; } = "";
+
+    [JsonPropertyName("displayDescription")]
+    [JsonPropertyOrder(41)]
+    public string DisplayDescription { get; set; } = "";
 }

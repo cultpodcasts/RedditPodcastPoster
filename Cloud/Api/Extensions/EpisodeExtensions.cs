@@ -1,5 +1,8 @@
 ﻿using Api.Dtos;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Text;
 using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace Api.Extensions;
@@ -8,8 +11,9 @@ public static class EpisodeExtensions
 {
     extension(Episode episode)
     {
-        public DiscreteEpisode Enrich(Podcast podcast)
+        public async Task<DiscreteEpisode> Enrich(Podcast podcast, ITextSanitiser textSanitiser, ISubjectRepository subjectRepository)
         {
+            var episodeSubjects = (await subjectRepository.GetAllBy(x => episode.Subjects != null && episode.Subjects.Contains(x.Name), x => x.KnownTerms).ToListAsync()).SelectMany(x => x ?? Array.Empty<string>()).ToArray();
             return new DiscreteEpisode
             {
                 Id = episode.Id,
@@ -40,7 +44,22 @@ public static class EpisodeExtensions
                         episode.Images?.Spotify ?? episode.Images?.Apple ?? episode.Images?.Other,
                 Language = episode.Language,
                 TwitterHandles = episode.TwitterHandles,
-                BlueskyHandles = episode.BlueskyHandles
+                BlueskyHandles = episode.BlueskyHandles,
+                DisplayTitle = textSanitiser.SanitiseTitle(
+                    episode.Title,
+                    string.IsNullOrWhiteSpace(podcast.TitleRegex)
+                        ? null
+                        : new System.Text.RegularExpressions.Regex(
+                            podcast.TitleRegex,
+                            Podcast.TitleFlags),
+                    podcast.KnownTerms ?? Array.Empty<string>(),
+                    episodeSubjects),
+                DisplayDescription = textSanitiser.SanitiseDescription(episode.Description,
+                    string.IsNullOrWhiteSpace(podcast.DescriptionRegex)
+                        ? null
+                        : new System.Text.RegularExpressions.Regex(
+                            podcast.DescriptionRegex,
+                            Podcast.DescriptionFlags))
             };
         }
 

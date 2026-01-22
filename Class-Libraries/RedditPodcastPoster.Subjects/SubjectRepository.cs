@@ -32,6 +32,11 @@ public class SubjectRepository(
         return repository.GetAllBy(selector);
     }
 
+    public IAsyncEnumerable<T> GetAllBy<T>(Expression<Func<Subject, bool>> selector, Expression<Func<Subject, T>> item)
+    {
+        return repository.GetAllBy(selector, item);
+    }
+
     public Task<Subject?> GetByName(string name)
     {
         return repository.GetBy<Subject>(x => x.Name == name);
