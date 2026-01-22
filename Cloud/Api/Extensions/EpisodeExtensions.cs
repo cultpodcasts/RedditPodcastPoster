@@ -11,9 +11,9 @@ public static class EpisodeExtensions
 {
     extension(Episode episode)
     {
-        public async Task<DiscreteEpisode> Enrich(Podcast podcast, ITextSanitiser textSanitiser, ISubjectRepository subjectRepository)
+        public DiscreteEpisode Enrich(Podcast podcast, ITextSanitiser textSanitiser, IEnumerable<RedditPodcastPoster.Models.Subject> subjects)
         {
-            var episodeSubjects = (await subjectRepository.GetAllBy(x => episode.Subjects != null && episode.Subjects.Contains(x.Name), x => x.KnownTerms).ToListAsync()).SelectMany(x => x ?? Array.Empty<string>()).ToArray();
+            var episodeSubjects = subjects.Where(s => episode.Subjects != null && episode.Subjects.Contains(s.Name)).SelectMany(s => s.KnownTerms ?? Array.Empty<string>()).ToArray();
             return new DiscreteEpisode
             {
                 Id = episode.Id,

@@ -51,7 +51,7 @@ public class EpisodeHandler(
     IImageUpdater imageUpdater,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ITextSanitiser textSanitiser,
-    ISubjectRepository subjectRepository,
+    ICachedSubjectProvider subjectsProvider,
     ILogger<EpisodeHandler> logger) : IEpisodeHandler
 {
     private readonly DateTime pastWeek = DateTime.UtcNow.AddDays(-7);
@@ -276,17 +276,19 @@ public class EpisodeHandler(
                         (!ep.Tweeted || tweeted) &&
                         (!(ep.BlueskyPosted.IsDefined() && ep.BlueskyPosted == true) || blueskyPosted)),
                 x => new { guid = x.Id }).ToListAsync(c);
+
+            var subjects = await subjectsProvider.GetAll().ToListAsync();
+
             foreach (var podcastId in podcastIds)
             {
                 var podcast = await podcastRepository.GetBy(x => x.Id == podcastId.guid);
-                var unpostedEpisodes =
-                    await Task.WhenAll(
+                var unpostedEpisodes =                    
                     podcast!.Episodes.Where(x =>
                             x.Release > since &&
                             (!x.Posted || posted) &&
                             (!x.Tweeted || tweeted) &&
                             (!(x.BlueskyPosted.HasValue && x.BlueskyPosted.Value) || blueskyPosted))
-                        .Select(async x => await x.Enrich(podcast, textSanitiser, subjectRepository)));
+                        .Select(s =>  s.Enrich(podcast, textSanitiser, subjects));
                 episodes.AddRange(unpostedEpisodes);
             }
 
@@ -460,8 +462,8 @@ public class EpisodeHandler(
                 logger.LogWarning("{method}: Episode with id '{episodeId}' not found.", nameof(Get), episodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
-
-            var podcastEpisode = await Task.WhenAll(episode.Enrich(podcast, textSanitiser, subjectRepository));
+            var subjects = await subjectsProvider.GetAll().ToListAsync();
+            var podcastEpisode = episode.Enrich(podcast, textSanitiser, subjects);
             var success = await req.CreateResponse(HttpStatusCode.OK)
                 .WithJsonBody(podcastEpisode, c);
             return success;
