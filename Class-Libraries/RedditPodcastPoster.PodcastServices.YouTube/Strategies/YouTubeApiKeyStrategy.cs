@@ -48,7 +48,7 @@ public class YouTubeApiKeyStrategy(
         if (settingsCount == 0)
         {
             throw new InvalidOperationException(
-                $"No youtube-applications registered for usage '{usage.ToString()}' with reattempt '{reattempt}'.");
+                $"No youtube-applications registered for usage '{usage.ToString()}' with reattempt '{reattempt}' (Index-requested: '{index}').");
         }
 
         if (settingsCount < index)
