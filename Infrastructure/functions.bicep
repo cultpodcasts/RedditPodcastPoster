@@ -95,6 +95,8 @@ param youTubeApiKey10 string
 param youTubeApiKey11 string
 @secure()
 param youTubeApiKey12 string
+@secure()
+param youTubeApiKey13 string
 
 resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' existing = {
   name: storageName
@@ -336,8 +338,8 @@ var youtube= {
     youtube__Applications__12__ApiKey: youTubeApiKey12
     youtube__Applications__13__ApiKey: youTubeApiKey13
     youtube__Applications__14__ApiKey: youTubeApiKey13
-    youtube__Applications__14__ApiKey: youTubeApiKey13
-    youtube__Applications__14__ApiKey: youTubeApiKey13
+    youtube__Applications__15__ApiKey: youTubeApiKey13
+    youtube__Applications__16__ApiKey: youTubeApiKey13
 }
 
 var youTubeKeyUsage= {
