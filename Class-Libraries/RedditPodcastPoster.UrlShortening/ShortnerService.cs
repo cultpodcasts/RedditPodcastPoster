@@ -81,4 +81,9 @@ public class ShortnerService(
     {
         return await kvClient.ReadWithMetaData(requestKey, _shortnerOptions.KVShortnerNamespaceId);
     }
+
+    public async Task<DeleteResult> Delete(PodcastEpisode podcastEpisode, bool isDryRun = false)
+    {
+        return await kvClient.Delete(podcastEpisode.Episode.Id.ToBase64(), _shortnerOptions.KVShortnerNamespaceId);
+    }
 }

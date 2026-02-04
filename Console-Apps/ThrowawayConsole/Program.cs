@@ -24,9 +24,11 @@ using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
+using RedditPodcastPoster.UrlShortening;
 using RedditPodcastPoster.UrlSubmission.Extensions;
 using System.Diagnostics;
 using System.Reflection;
+using RedditPodcastPoster.UrlShortening.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -60,17 +62,26 @@ builder.Services
     .AddSubjectServices()
     .AddSubjectProvider()
     .AddPushSubscriptions()
+    .AddShortnerServices()
     .AddHttpClient();
 
 
 using var host = builder.Build();
-var service= host.Services.GetRequiredService<INotificationPublisher>();
-var notification = new DiscoveryNotification(1, DateTime.Now, 999);
-await service.SendDiscoveryNotification(notification);
+var service= host.Services.GetRequiredService<IShortnerService>();
 
-
-
-
+var repository = host.Services.GetRequiredService<IPodcastRepository>();
+var guid = Guid.Parse(args[0]);
+var podcast = await repository!.GetBy(x => x.Episodes.Any(y => y.Id == guid));
+if (podcast == null) return;
+var episode = podcast.Episodes.Single(x => x.Id == guid);
+try
+{
+    var result = await service.Delete(new PodcastEpisode(podcast, episode));
+}
+catch (Exception e)
+{
+        Console.WriteLine($"Error occurred: {e.Message}");
+}
 
 return;
 

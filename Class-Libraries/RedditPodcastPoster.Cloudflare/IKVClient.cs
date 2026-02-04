@@ -7,4 +7,5 @@ public interface IKVClient
     Task<KVRecord?> ReadWithMetaData(string key, string namespaceId);
     Task<string?> Read(string key, string namespaceId);
     Task<IDictionary<string, string>> GetAll(string namespaceId);
+    Task<DeleteResult> Delete(string key, string namespaceId);
 }
