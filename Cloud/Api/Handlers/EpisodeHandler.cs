@@ -1,4 +1,6 @@
-﻿using Api.Dtos;
+﻿using System.Net;
+using System.Text.Json;
+using Api.Dtos;
 using Api.Extensions;
 using Api.Models;
 using Azure.Search.Documents;
@@ -30,9 +32,6 @@ using RedditPodcastPoster.Text;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.UrlShortening;
-using System.Collections.Generic;
-using System.Net;
-using System.Text.Json;
 using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
 
 namespace Api.Handlers;
@@ -118,6 +117,7 @@ public class EpisodeHandler(
             }
 
             await DeleteSearchEntry(podcasts.Single().Name, episodeId, c);
+            await DeleteShortnerEntry(new PodcastEpisode(podcasts.Single(), episode));
 
             logger.LogWarning("Delete episode from podcast with id '{podcastId}' and episode-id '{episodeId}'.",
                 podcasts.Single().Id, episodeId);
@@ -282,13 +282,13 @@ public class EpisodeHandler(
             foreach (var podcastId in podcastIds)
             {
                 var podcast = await podcastRepository.GetBy(x => x.Id == podcastId.guid);
-                var unpostedEpisodes =                    
+                var unpostedEpisodes =
                     podcast!.Episodes.Where(x =>
                             x.Release > since &&
                             (!x.Posted || posted) &&
                             (!x.Tweeted || tweeted) &&
                             (!(x.BlueskyPosted.HasValue && x.BlueskyPosted.Value) || blueskyPosted))
-                        .Select(s =>  s.Enrich(podcast, textSanitiser, subjects));
+                        .Select(s => s.Enrich(podcast, textSanitiser, subjects));
                 episodes.AddRange(unpostedEpisodes);
             }
 
@@ -422,6 +422,7 @@ public class EpisodeHandler(
                 episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
             {
                 await DeleteSearchEntry(podcast.Name, episodeChangeRequestWrapper.EpisodeId, c);
+                await DeleteShortnerEntry(new PodcastEpisode(podcast, episode));
             }
             else
             {
@@ -462,6 +463,7 @@ public class EpisodeHandler(
                 logger.LogWarning("{method}: Episode with id '{episodeId}' not found.", nameof(Get), episodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
+
             var subjects = await subjectsProvider.GetAll().ToListAsync();
             var podcastEpisode = episode.Enrich(podcast, textSanitiser, subjects);
             var success = await req.CreateResponse(HttpStatusCode.OK)
@@ -506,6 +508,11 @@ public class EpisodeHandler(
         }
 
         return (days, posted, tweeted, blueskyPosted);
+    }
+
+    private async Task DeleteShortnerEntry(PodcastEpisode podcastEpisode)
+    {
+        var result = await shortnerService.Delete(podcastEpisode);
     }
 
     private async Task DeleteSearchEntry(
@@ -798,12 +805,16 @@ public class EpisodeHandler(
 
         if (episodeChangeRequest.TwitterHandles != null)
         {
-            episode.TwitterHandles = episodeChangeRequest.TwitterHandles.Length > 0 ? episodeChangeRequest.TwitterHandles : null;
+            episode.TwitterHandles = episodeChangeRequest.TwitterHandles.Length > 0
+                ? episodeChangeRequest.TwitterHandles
+                : null;
         }
 
         if (episodeChangeRequest.BlueskyHandles != null)
         {
-            episode.BlueskyHandles = episodeChangeRequest.BlueskyHandles.Length > 0 ? episodeChangeRequest.BlueskyHandles : null;
+            episode.BlueskyHandles = episodeChangeRequest.BlueskyHandles.Length > 0
+                ? episodeChangeRequest.BlueskyHandles
+                : null;
         }
 
         return changeState;

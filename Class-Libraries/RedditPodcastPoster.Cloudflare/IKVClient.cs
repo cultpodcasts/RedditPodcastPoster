@@ -8,4 +8,5 @@ public interface IKVClient
     Task<string?> Read(string key, string namespaceId);
     Task<IDictionary<string, string>> GetAll(string namespaceId);
     Task<DeleteResult> Delete(string key, string namespaceId);
+    Task<DeleteResult> Delete(IEnumerable<string> keys, string namespaceId);
 }

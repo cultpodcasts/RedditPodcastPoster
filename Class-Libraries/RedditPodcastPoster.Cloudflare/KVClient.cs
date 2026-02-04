@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
@@ -177,6 +178,43 @@ public class KVClient(
                 nameof(Write));
             return new DeleteResult(false);
         }
+    }
+
+    public async Task<DeleteResult> Delete(IEnumerable<string> keys, string namespaceId)
+    {
+        var url = GetKeyBulkDeleteUrl(_cloudFlareOptions.AccountId, namespaceId);
+        using var request = new HttpRequestMessage();
+        request.Method = HttpMethod.Post;
+        request.RequestUri = url;
+        request.Headers.Add("Authorization", $"Bearer {_cloudFlareOptions.KVApiToken}");
+        request.Content = new StringContent(JsonSerializer.Serialize(keys), Encoding.UTF8, "application/json");
+        try
+        {
+            var result = await httpClient.SendAsync(request);
+            if (result.StatusCode != HttpStatusCode.OK)
+            {
+                logger.LogError(
+                    "{WriteName} KV-bulk-delete unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.",
+                    nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
+            }
+
+            return new DeleteResult(result.StatusCode == HttpStatusCode.OK);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "{WriteName} KV-delete unsuccessful. Read-Key. Exception occurred.",
+                nameof(Write));
+            return new DeleteResult(false);
+        }
+    }
+
+
+    private Uri GetKeyBulkDeleteUrl(string accountId, string namespaceId)
+    {
+        return new Uri(
+            $"https://api.cloudflare.com/client/v4/accounts/{accountId}/storage/kv/namespaces/{namespaceId}/bulk/delete");
     }
 
     private Uri GetKeyDeleteUrl(string accountId, string namespaceId, string keyName)
