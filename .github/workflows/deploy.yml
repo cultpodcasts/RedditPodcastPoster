@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/clean-up-enrichment
 
 permissions:
   id-token: write
@@ -169,6 +168,7 @@ jobs:
     needs: provision
     permissions:
       id-token: write #This is required for requesting the JWT
+    continue-on-error: false
     steps:
       - name: Download api artifact
         uses: actions/download-artifact@v4
@@ -198,6 +198,7 @@ jobs:
     needs: provision
     permissions:
       id-token: write #This is required for requesting the JWT
+    continue-on-error: false
     steps:
       - name: Download api artifact
         uses: actions/download-artifact@v4
@@ -227,6 +228,7 @@ jobs:
     needs: provision
     permissions:
       id-token: write #This is required for requesting the JWT
+    continue-on-error: false
     steps:
       - name: Download api artifact
         uses: actions/download-artifact@v4

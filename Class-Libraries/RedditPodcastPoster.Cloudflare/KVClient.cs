@@ -1,10 +1,10 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Configuration;
 
 namespace RedditPodcastPoster.Cloudflare;
 
@@ -12,7 +12,7 @@ public class KVClient(
     HttpClient httpClient,
     IOptions<CloudFlareOptions> cloudFlareOptions,
     ILogger<KVClient> logger
-    ) : IKVClient
+) : IKVClient
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
     {
@@ -24,7 +24,7 @@ public class KVClient(
     public async Task<KVRecord?> ReadWithMetaData(string key, string namespaceId)
     {
         logger.LogInformation("{ReadWithMetaDataName}. Reading from KV. Key '{Key}'.", nameof(ReadWithMetaData), key);
-        Uri url = GetReadMetadataUrl(_cloudFlareOptions.AccountId, namespaceId, key);
+        var url = GetReadMetadataUrl(_cloudFlareOptions.AccountId, namespaceId, key);
         var urlS = url.ToString();
         using var request = new HttpRequestMessage();
         request.Method = HttpMethod.Get;
@@ -34,7 +34,8 @@ public class KVClient(
         if (result.StatusCode != HttpStatusCode.OK)
         {
             logger.LogError(
-                "{WriteName} KV-write unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.", nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
+                "{WriteName} KV-write unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.",
+                nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
         }
 
         var json = await result.Content.ReadAsStringAsync();
@@ -44,7 +45,7 @@ public class KVClient(
     public async Task<string?> Read(string key, string namespaceId)
     {
         logger.LogInformation("{ReadWithMetaDataName}. Reading from KV. Key '{Key}'.", nameof(ReadWithMetaData), key);
-        Uri url = GetReadUrl(_cloudFlareOptions.AccountId, namespaceId, key);
+        var url = GetReadUrl(_cloudFlareOptions.AccountId, namespaceId, key);
         var urlS = url.ToString();
         using var request = new HttpRequestMessage();
         request.Method = HttpMethod.Get;
@@ -54,7 +55,8 @@ public class KVClient(
         if (result.StatusCode != HttpStatusCode.OK)
         {
             logger.LogError(
-                "{WriteName} KV-write unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.", nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
+                "{WriteName} KV-write unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.",
+                nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
         }
 
         var text = await result.Content.ReadAsStringAsync();
@@ -62,6 +64,7 @@ public class KVClient(
         {
             return null;
         }
+
         return text;
     }
 
@@ -79,8 +82,10 @@ public class KVClient(
         if (result.StatusCode != HttpStatusCode.OK)
         {
             logger.LogError(
-                "{WriteName} KV-write unsuccessful. Write-Bulk. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.", nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
+                "{WriteName} KV-write unsuccessful. Write-Bulk. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.",
+                nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
         }
+
         return new WriteResult(result.StatusCode == HttpStatusCode.OK);
     }
 
@@ -100,7 +105,8 @@ public class KVClient(
         if (result.StatusCode != HttpStatusCode.OK)
         {
             logger.LogError(
-                "{WriteName} KV-write unsuccessful. Write-Single. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.", nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
+                "{WriteName} KV-write unsuccessful. Write-Single. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.",
+                nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
         }
 
         return new WriteResult(result.StatusCode == HttpStatusCode.OK);
@@ -117,7 +123,8 @@ public class KVClient(
         if (result.StatusCode != HttpStatusCode.OK)
         {
             logger.LogError(
-                "{WriteName} KV-write unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.", nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
+                "{WriteName} KV-write unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.",
+                nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
         }
 
         var json = await result.Content.ReadAsStringAsync();
@@ -133,15 +140,89 @@ public class KVClient(
                 {
                     throw new InvalidOperationException($"Unable to parse kv-record with key '{key.Name}'.");
                 }
+
                 records.Add(key.Name, value);
             }
+
             return records;
         }
         else
         {
-            throw new InvalidOperationException("Unable to parse kv-key-list respons");
+            throw new InvalidOperationException("Unable to parse kv-key-list response");
         }
     }
+
+    public async Task<DeleteResult> Delete(string keyName, string namespaceId)
+    {
+        var url = GetKeyDeleteUrl(_cloudFlareOptions.AccountId, namespaceId, keyName);
+        using var request = new HttpRequestMessage();
+        request.Method = HttpMethod.Delete;
+        request.RequestUri = url;
+        request.Headers.Add("Authorization", $"Bearer {_cloudFlareOptions.KVApiToken}");
+        try
+        {
+            var result = await httpClient.SendAsync(request);
+            if (result.StatusCode != HttpStatusCode.OK)
+            {
+                logger.LogError(
+                    "{WriteName} KV-delete unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.",
+                    nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
+            }
+
+            return new DeleteResult(result.StatusCode == HttpStatusCode.OK);
+        } catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "{WriteName} KV-delete unsuccessful. Read-Key. Exception occurred.",
+                nameof(Write));
+            return new DeleteResult(false);
+        }
+    }
+
+    public async Task<DeleteResult> Delete(IEnumerable<string> keys, string namespaceId)
+    {
+        var url = GetKeyBulkDeleteUrl(_cloudFlareOptions.AccountId, namespaceId);
+        using var request = new HttpRequestMessage();
+        request.Method = HttpMethod.Post;
+        request.RequestUri = url;
+        request.Headers.Add("Authorization", $"Bearer {_cloudFlareOptions.KVApiToken}");
+        request.Content = new StringContent(JsonSerializer.Serialize(keys), Encoding.UTF8, "application/json");
+        try
+        {
+            var result = await httpClient.SendAsync(request);
+            if (result.StatusCode != HttpStatusCode.OK)
+            {
+                logger.LogError(
+                    "{WriteName} KV-bulk-delete unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.",
+                    nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
+            }
+
+            return new DeleteResult(result.StatusCode == HttpStatusCode.OK);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "{WriteName} KV-delete unsuccessful. Read-Key. Exception occurred.",
+                nameof(Write));
+            return new DeleteResult(false);
+        }
+    }
+
+
+    private Uri GetKeyBulkDeleteUrl(string accountId, string namespaceId)
+    {
+        return new Uri(
+            $"https://api.cloudflare.com/client/v4/accounts/{accountId}/storage/kv/namespaces/{namespaceId}/bulk/delete");
+    }
+
+    private Uri GetKeyDeleteUrl(string accountId, string namespaceId, string keyName)
+    {
+        return new Uri(
+            $"https://api.cloudflare.com/client/v4/accounts/{accountId}/storage/kv/namespaces/{namespaceId}/values/{keyName}");
+    }
+
 
     private Uri GetBulkWriteUrl(string accountId, string namespaceId)
     {
@@ -158,16 +239,18 @@ public class KVClient(
     private Uri GetReadMetadataUrl(string accountId, string namespaceId, string keyName)
     {
         var keyArg = Uri.EscapeDataString(keyName);
-        string uriString = $"https://api.cloudflare.com/client/v4/accounts/{accountId}/storage/kv/namespaces/{namespaceId}/metadata/{keyArg}";
-        Uri uri = new Uri(uriString);
+        var uriString =
+            $"https://api.cloudflare.com/client/v4/accounts/{accountId}/storage/kv/namespaces/{namespaceId}/metadata/{keyArg}";
+        var uri = new Uri(uriString);
         return uri;
     }
 
     private Uri GetReadUrl(string accountId, string namespaceId, string keyName)
     {
         var keyArg = Uri.EscapeDataString(keyName);
-        string uriString = $"https://api.cloudflare.com/client/v4/accounts/{accountId}/storage/kv/namespaces/{namespaceId}/values/{keyArg}";
-        Uri uri = new Uri(uriString);
+        var uriString =
+            $"https://api.cloudflare.com/client/v4/accounts/{accountId}/storage/kv/namespaces/{namespaceId}/values/{keyArg}";
+        var uri = new Uri(uriString);
         return uri;
     }
 
