@@ -165,8 +165,8 @@ public class KVClient(
             if (result.StatusCode != HttpStatusCode.OK)
             {
                 logger.LogError(
-                    "{WriteName} KV-delete unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.",
-                    nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
+                    "{method} KV-delete unsuccessful. Delete-Key '{KeyName}'. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.",
+                    nameof(Delete), keyName, result.StatusCode, await result.Content.ReadAsStringAsync());
             }
 
             return new DeleteResult(result.StatusCode == HttpStatusCode.OK);
@@ -174,8 +174,8 @@ public class KVClient(
         {
             logger.LogError(
                 ex,
-                "{WriteName} KV-delete unsuccessful. Read-Key. Exception occurred.",
-                nameof(Write));
+                "{method} KV-delete unsuccessful. Delete-Key '{KeyName}'. Exception occurred.",
+                nameof(Delete), keyName);
             return new DeleteResult(false);
         }
     }
@@ -194,8 +194,8 @@ public class KVClient(
             if (result.StatusCode != HttpStatusCode.OK)
             {
                 logger.LogError(
-                    "{WriteName} KV-bulk-delete unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.",
-                    nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
+                    "{method} KV-bulk-delete unsuccessful. Delete-Keys. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'. Keys: {Keys}",
+                    nameof(Delete), result.StatusCode, await result.Content.ReadAsStringAsync(), string.Join(", ", keys));
             }
 
             return new DeleteResult(result.StatusCode == HttpStatusCode.OK);
@@ -204,8 +204,8 @@ public class KVClient(
         {
             logger.LogError(
                 ex,
-                "{WriteName} KV-delete unsuccessful. Read-Key. Exception occurred.",
-                nameof(Write));
+                "{method} KV-delete unsuccessful. Delete-Keys. Exception occurred. Keys: {Keys}",
+                nameof(Delete), string.Join(", ", keys));
             return new DeleteResult(false);
         }
     }

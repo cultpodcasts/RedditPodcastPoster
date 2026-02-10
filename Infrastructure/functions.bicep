@@ -152,6 +152,8 @@ var bluesky= {
     bluesky__Password: blueskyPassword
     bluesky__ReuseSession: 'true'
     bluesky__WithEpisodeUrl: 'true'
+    bluesky__MaxFailures: 5
+    bluesky__MaxPosts: 3
 }
 
 var cloudflare= {
