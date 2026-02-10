@@ -1,15 +1,16 @@
-﻿using System.Globalization;
-using idunno.AtProto;
+﻿using idunno.AtProto;
 using idunno.AtProto.Repo;
 using idunno.Bluesky;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlShortening;
+using System.Globalization;
 
 namespace RedditPodcastPoster.Bluesky;
 
@@ -18,12 +19,11 @@ public class BlueskyPostManager(
     IPodcastEpisodeProvider podcastEpisodeProvider,
     IShortnerService shortnerService,
     BlueskyAgent blueskyAgent,
-    IOptions<BlueskyAgentOptions> options,
+    IOptions<BlueskyOptions> options,
     ILogger<BlueskyPostManager> logger)
     : IBlueskyPostManager
 {
-    private const int MaxFailures = 5;
-    private const int MaxPosts = 3;
+    private readonly BlueskyOptions _options = options.Value;
 
     public async Task Post(
         bool youTubeRefreshed,
@@ -47,7 +47,7 @@ public class BlueskyPostManager(
         {
             foreach (var podcastEpisode in unposted)
             {
-                if (posts >= MaxPosts)
+                if (posts >= _options.MaxPosts)
                 {
                     break;
                 }
@@ -73,7 +73,7 @@ public class BlueskyPostManager(
                                 or BlueskySendStatus.Unknown)
                             {
                                 failures++;
-                                if (failures >= MaxFailures)
+                                if (failures >= _options.MaxFailures)
                                 {
                                     break;
                                 }
