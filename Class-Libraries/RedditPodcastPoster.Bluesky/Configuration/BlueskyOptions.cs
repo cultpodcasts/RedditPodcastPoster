@@ -7,4 +7,6 @@ public class BlueskyOptions
     public string? HashTag { get; set; }
     public bool WithEpisodeUrl { get; set; }
     public required bool ReuseSession { get; set; }
+    public required int MaxFailures { get; set; }
+    public required int MaxPosts { get; set; }
 }

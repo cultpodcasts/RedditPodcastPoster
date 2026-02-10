@@ -3,6 +3,8 @@ using idunno.AtProto;
 using idunno.AtProto.Repo;
 using idunno.Bluesky;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common;
@@ -17,10 +19,11 @@ public class BlueskyPostManager(
     IPodcastEpisodeProvider podcastEpisodeProvider,
     IShortnerService shortnerService,
     BlueskyAgent blueskyAgent,
+    IOptions<BlueskyOptions> options,
     ILogger<BlueskyPostManager> logger)
     : IBlueskyPostManager
 {
-    private const int MaxFailures = 5;
+    private readonly BlueskyOptions _options = options.Value;
 
     public async Task Post(
         bool youTubeRefreshed,
@@ -39,12 +42,12 @@ public class BlueskyPostManager(
         }
 
         var failures = 0;
+        var posts = 0;
         if (unposted.Any())
         {
-            var posted = false;
             foreach (var podcastEpisode in unposted)
             {
-                if (posted)
+                if (posts >= _options.MaxPosts)
                 {
                     break;
                 }
@@ -62,7 +65,7 @@ public class BlueskyPostManager(
                     {
                         var status = await poster.Post(podcastEpisode, shortnerResult.Url);
                         logger.LogInformation("Bluesky Post complete. Bluesky-post-status: '{status}'.", status);
-                        posted = status == BlueskySendStatus.Success;
+                        var posted = status == BlueskySendStatus.Success;
 
                         if (!posted)
                         {
@@ -70,7 +73,7 @@ public class BlueskyPostManager(
                                 or BlueskySendStatus.Unknown)
                             {
                                 failures++;
-                                if (failures >= MaxFailures)
+                                if (failures >= _options.MaxFailures)
                                 {
                                     break;
                                 }
@@ -79,6 +82,10 @@ public class BlueskyPostManager(
                             {
                                 break;
                             }
+                        }
+                        else
+                        {
+                            posts++;
                         }
                     }
                     catch (EpisodeNotFoundException e)
