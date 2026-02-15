@@ -27,7 +27,8 @@ builder.Services
     .AddContentPublishing()
     .AddRedditServices()
     .AddTextSanitiser()
-    .AddSubjectServices();
+    .AddSubjectServices()
+    .AddCachedSubjectProvider();
 
 using var host = builder.Build();
 
