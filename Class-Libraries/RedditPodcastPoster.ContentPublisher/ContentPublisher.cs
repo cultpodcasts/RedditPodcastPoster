@@ -124,29 +124,33 @@ public class ContentPublisher(
 
     public async Task PublishLanguages()
     {
-        // "fr", "es", "de", "pt", "tr", "nl"
-        var languages = new[]
+        var languageCodes = new[]
         {
-            CultureInfo.GetCultureInfo("fr"),
-            CultureInfo.GetCultureInfo("es"),
-            CultureInfo.GetCultureInfo("de"),
-            CultureInfo.GetCultureInfo("pt"),
-            CultureInfo.GetCultureInfo("tr"),
-            CultureInfo.GetCultureInfo("nl"),
-            CultureInfo.GetCultureInfo("it"),
-            CultureInfo.GetCultureInfo("ja"),
-            CultureInfo.GetCultureInfo("zh"),
-            CultureInfo.GetCultureInfo("ko"),
-            CultureInfo.GetCultureInfo("hi"),
-            CultureInfo.GetCultureInfo("ru"),
-            CultureInfo.GetCultureInfo("he"),
-            CultureInfo.GetCultureInfo("ar"),
-            CultureInfo.GetCultureInfo("bn"),
-            CultureInfo.GetCultureInfo("id"),
-            CultureInfo.GetCultureInfo("fil"),
-            CultureInfo.GetCultureInfo("ur"),
-            CultureInfo.GetCultureInfo("sw")
+            "fr",
+            "es",
+            "de",
+            "pt",
+            "tr",
+            "nl",
+            "it",
+            "ja",
+            "zh",
+            "ko",
+            "hi",
+            "ru",
+            "he",
+            "ar",
+            "bn",
+            "id",
+            "fil",
+            "ur",
+            "sw",
+            "sk",
+            "cs",
+            "te"
         };
+        var languages = languageCodes.Select(CultureInfo.GetCultureInfo).ToArray();
+
         var json = JsonSerializer.Serialize(
             languages.Distinct().OrderBy(x => x.EnglishName)
                 .ToDictionary(x => x.TwoLetterISOLanguageName, x => x.EnglishName),
