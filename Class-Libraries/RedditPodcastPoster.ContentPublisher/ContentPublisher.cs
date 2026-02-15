@@ -147,7 +147,14 @@ public class ContentPublisher(
             "sw",
             "sk",
             "cs",
-            "te"
+            "te",
+            "af",
+            "fa",
+            "ms",
+            "no",
+            "pa",
+            "th",
+            "uk"
         };
         var languages = languageCodes.Select(CultureInfo.GetCultureInfo).ToArray();
 
