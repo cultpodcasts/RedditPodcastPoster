@@ -34,7 +34,7 @@ public class SubjectEnricher(
             if (!episode.Subjects.Any() && additions.Count() > 1)
             {
                 logger.LogWarning("{method}: {count} - {terms} : '{episodeTitle}' ({episodeId}).",
-                 nameof(EnrichSubjects) ,  additions.Count(), terms, episode.Title, episode.Id);
+                    nameof(EnrichSubjects), additions.Count(), terms, episode.Title, episode.Id);
             }
             else
             {
@@ -50,7 +50,7 @@ public class SubjectEnricher(
             if (!episode.Subjects.Any() && !string.IsNullOrWhiteSpace(options?.DefaultSubject))
             {
                 additions.Add(new SubjectMatch(new Subject(options.DefaultSubject), []));
-                episode.Subjects = new[] {options.DefaultSubject}.ToList();
+                episode.Subjects = new[] { options.DefaultSubject }.ToList();
                 logger.LogWarning(
                     "Applying default-subject '{defaultSubject}' to episode with title: '{episodeTitle}' ({episodeId}).",
                     options.DefaultSubject, episode.Title, episode.Id);

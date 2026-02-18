@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text;
 
@@ -75,23 +76,25 @@ public class SubjectService(
             var matchedSubjects = new List<Subject>();
             foreach (var subjectAlias in subject.Aliases.Select(x => x.Trim()))
             {
-                if (!string.IsNullOrWhiteSpace(subjectAlias))
+                if (string.IsNullOrWhiteSpace(subjectAlias))
                 {
-                    var subjectLower = subjectAlias.Trim().ToLowerInvariant();
-                    var matchedSubjectsForAlias = subjects.Where(x =>
-                    {
-                        return x.Aliases != null && x.Aliases.Select(y => y.Trim().ToLowerInvariant())
-                            .Contains(subjectLower);
-                    });
-                    if (matchedSubjectsForAlias.Any())
-                    {
-                        matchedSubjects.AddRange(matchedSubjectsForAlias);
-                    }
+                    continue;
+                }
+
+                var subjectLower = subjectAlias.Trim().ToLowerInvariant();
+                var matchedSubjectsForAlias = subjects.Where(x =>
+                {
+                    return x.Aliases != null && x.Aliases.Select(y => y.Trim().ToLowerInvariant())
+                        .Contains(subjectLower);
+                }).ToArray();
+                if (matchedSubjectsForAlias.Any())
+                {
+                    matchedSubjects.AddRange(matchedSubjectsForAlias);
                 }
             }
 
             matchedSubjects = matchedSubjects.Distinct().ToList();
-            if (matchedSubjects.Count() > 1)
+            if (matchedSubjects.Count > 1)
             {
                 var message =
                     $"Subject '{subject.Name}' with id '{subject.Id}' with aliases '{string.Join(",", subject.Aliases.Select(x => $"'{x}'"))}' matches multiple subjects: {string.Join(",", matchedSubjects.Select(x => $"'{x.Name}'"))}.";
@@ -99,7 +102,7 @@ public class SubjectService(
                 throw new InvalidOperationException(message);
             }
 
-            if (matchedSubjects.Count() == 1)
+            if (matchedSubjects.Count == 1)
             {
                 return matchedSubjects.First();
             }
@@ -168,13 +171,13 @@ public class SubjectService(
         var matches = subjects
             .Select(subject => new SubjectMatch(subject,
                 Matches(episode, subject, false, ignoredAssociatedSubjects, ignoredSubjects, descriptionRegex)))
-            .Where(x => x.MatchResults.Any());
-        if (!matches.Any() || matches.All(x=>x.Subject.SubjectType== SubjectType.Meta))
+            .Where(x => x.MatchResults.Any()).ToArray();
+        if (!matches.Any() || matches.All(x => x.Subject.SubjectType == SubjectType.Meta || !x.Subject.IsVisible))
         {
             matches = subjects
                 .Select(subject => new SubjectMatch(subject,
                     Matches(episode, subject, true, ignoredAssociatedSubjects, ignoredSubjects, descriptionRegex)))
-                .Where(x => x.MatchResults.Any());
+                .Where(x => x.MatchResults.Any()).ToArray();
         }
 
         return matches;
@@ -209,7 +212,7 @@ public class SubjectService(
                     if (withDescription)
                     {
                         var episodeDescription =
-                            textSanitiser.ExtractDescription(episode.Description, descriptionRegex??string.Empty);
+                            textSanitiser.ExtractDescription(episode.Description, descriptionRegex ?? string.Empty);
                         var descMatch = GetMatches(term.Term, WebUtility.HtmlDecode(episodeDescription));
                         if (descMatch > 0)
                         {

@@ -2,5 +2,5 @@
 
 public static class Constants
 {
-    public const int DescriptionSize = 300;
+    public const int DescriptionSize = 250;
 }
