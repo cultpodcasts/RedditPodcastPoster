@@ -172,8 +172,7 @@ public class SubjectService(
             .Select(subject => new SubjectMatch(subject,
                 Matches(episode, subject, false, ignoredAssociatedSubjects, ignoredSubjects, descriptionRegex)))
             .Where(x => x.MatchResults.Any()).ToArray();
-        if (!matches.Any() || matches.All(x => x.Subject.SubjectType == SubjectType.Meta) ||
-            matches.All(x => !x.Subject.IsVisible))
+        if (!matches.Any() || matches.All(x => x.Subject.SubjectType == SubjectType.Meta || !x.Subject.IsVisible))
         {
             matches = subjects
                 .Select(subject => new SubjectMatch(subject,
