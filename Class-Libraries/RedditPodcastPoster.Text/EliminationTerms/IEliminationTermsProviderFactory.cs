@@ -1,6 +1,7 @@
-﻿namespace RedditPodcastPoster.Text.EliminationTerms;
+﻿using RedditPodcastPoster.DependencyInjection;
 
-public interface IEliminationTermsProviderFactory
+namespace RedditPodcastPoster.Text.EliminationTerms;
+
+public interface IEliminationTermsProviderFactory : IAsyncFactory<IEliminationTermsProvider>
 {
-    Task<IEliminationTermsProvider> Create();
 }

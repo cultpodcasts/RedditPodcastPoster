@@ -1,8 +1,8 @@
-﻿using SpotifyAPI.Web;
+﻿using RedditPodcastPoster.DependencyInjection;
+using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Factories;
 
-public interface ISpotifyClientFactory
+public interface ISpotifyClientFactory : IAsyncFactory<ISpotifyClient>
 {
-    Task<ISpotifyClient> Create();
 }

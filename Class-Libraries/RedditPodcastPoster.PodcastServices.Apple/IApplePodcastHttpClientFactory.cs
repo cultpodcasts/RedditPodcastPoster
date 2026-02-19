@@ -1,6 +1,7 @@
-﻿namespace RedditPodcastPoster.PodcastServices.Apple;
+﻿using RedditPodcastPoster.DependencyInjection;
 
-public interface IApplePodcastHttpClientFactory
+namespace RedditPodcastPoster.PodcastServices.Apple;
+
+public interface IApplePodcastHttpClientFactory : IAsyncFactory<HttpClient>
 {
-    Task<HttpClient> Create();
 }
