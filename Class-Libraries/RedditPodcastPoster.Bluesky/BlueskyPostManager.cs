@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using idunno.AtProto;
 using idunno.AtProto.Repo;
 using idunno.Bluesky;
@@ -8,6 +8,7 @@ using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlShortening;
@@ -18,7 +19,7 @@ public class BlueskyPostManager(
     IBlueskyPoster poster,
     IPodcastEpisodeProvider podcastEpisodeProvider,
     IShortnerService shortnerService,
-    BlueskyAgent blueskyAgent,
+    IAsyncInstance<BlueskyAgent> blueskyAgent,
     IOptions<BlueskyOptions> options,
     ILogger<BlueskyPostManager> logger)
     : IBlueskyPostManager
@@ -108,8 +109,9 @@ public class BlueskyPostManager(
 
     public async Task<RemovePostState> RemovePost(PodcastEpisode podcastEpisode)
     {
+        var agent = await blueskyAgent.GetAsync();
         var collection = new Nsid("app.bsky.feed.post");
-        var posts = await blueskyAgent.ListRecords<AtProtoRecord>(collection, 100);
+        var posts = await agent.ListRecords<AtProtoRecord>(collection, 100);
         if (!posts.Succeeded)
         {
             logger.LogError(
@@ -139,7 +141,7 @@ public class BlueskyPostManager(
             return RemovePostState.Other;
         }
 
-        var deleted = await blueskyAgent.DeleteRecord(collection, matchingPosts.Single().Uri.RecordKey!);
+        var deleted = await agent.DeleteRecord(collection, matchingPosts.Single().Uri.RecordKey!);
 
         if (deleted.Succeeded)
         {

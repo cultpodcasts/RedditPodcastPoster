@@ -2,6 +2,7 @@
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using RedditPodcastPoster.DependencyInjection;
 
 namespace RedditPodcastPoster.Auth0;
 
@@ -22,4 +23,7 @@ public class SigningKeysFactory(IOptions<Auth0ValidationOptions> auth0Validation
         var signingKeys = discoveryDocument.SigningKeys;
         return signingKeys;
     }
+
+    // Implement IAsyncFactory<T>.Create()
+    Task<ICollection<SecurityKey>?> IAsyncFactory<ICollection<SecurityKey>?>.Create() => GetSecurityKeys();
 }
