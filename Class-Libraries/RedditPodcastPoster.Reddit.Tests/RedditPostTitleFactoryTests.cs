@@ -1,7 +1,9 @@
 ﻿using AutoFixture;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
+using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.Text.KnownTerms;
@@ -17,7 +19,14 @@ public class RedditPostTitleFactoryTests
     {
         _fixture = new Fixture();
         _mocker = new AutoMocker();
-        _mocker.GetMock<IKnownTermsProvider>().Setup(x => x.GetKnownTerms()).Returns(new KnownTerms());
+
+        var knownTermsProvider = new Mock<IKnownTermsProvider>();
+        knownTermsProvider.Setup(x => x.GetKnownTerms()).Returns(new KnownTerms());
+
+        var knownTermsInstance = new Mock<IAsyncInstance<IKnownTermsProvider>>();
+        knownTermsInstance.Setup(x => x.GetAsync()).ReturnsAsync(knownTermsProvider.Object);
+
+        _mocker.Use(knownTermsInstance.Object);
         _mocker.Use<ITextSanitiser>(_mocker.CreateInstance<TextSanitiser>());
         _mocker.Use(Options.Create(new SubredditSettings { SubredditTitleMaxLength = 300 }));
     }

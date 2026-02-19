@@ -1,7 +1,9 @@
 ﻿using System.Text.RegularExpressions;
 using AutoFixture;
 using FluentAssertions;
+using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Text.KnownTerms;
@@ -17,7 +19,14 @@ public class TextSanitiserTests
     {
         _fixture = new Fixture();
         _mocker = new AutoMocker();
-        _mocker.GetMock<IKnownTermsProvider>().Setup(x => x.GetKnownTerms()).Returns(new KnownTerms.KnownTerms());
+
+        var knownTermsProvider = new Mock<IKnownTermsProvider>();
+        knownTermsProvider.Setup(x => x.GetKnownTerms()).Returns(new KnownTerms.KnownTerms());
+
+        var knownTermsInstance = new Mock<IAsyncInstance<IKnownTermsProvider>>();
+        knownTermsInstance.Setup(x => x.GetAsync()).ReturnsAsync(knownTermsProvider.Object);
+
+        _mocker.Use(knownTermsInstance.Object);
     }
 
     private TextSanitiser Sut => _mocker.CreateInstance<TextSanitiser>();

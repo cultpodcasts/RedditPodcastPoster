@@ -12,10 +12,10 @@ public static class GeneratedDurableTaskExtensions
     static readonly ITaskOrchestrator singletonHourlyOrchestration = new HourlyOrchestration();
 
     [Function(nameof(HalfHourlyOrchestration))]
-    public static Task<IndexerContext> HalfHourlyOrchestration([OrchestrationTrigger] TaskOrchestrationContext context)
+    public static async Task<IndexerContext> HalfHourlyOrchestration([OrchestrationTrigger] TaskOrchestrationContext context)
     {
-        return singletonHalfHourlyOrchestration.RunAsync(context, context.GetInput<object>())
-            .ContinueWith(t => (IndexerContext)(t.Result ?? default(IndexerContext)!), TaskContinuationOptions.ExecuteSynchronously);
+        var result = await singletonHalfHourlyOrchestration.RunAsync(context, context.GetInput<object>());
+        return (IndexerContext)(result ?? default(IndexerContext)!);
     }
 
     /// <inheritdoc cref="IOrchestrationSubmitter.ScheduleNewOrchestrationInstanceAsync"/>
@@ -33,10 +33,10 @@ public static class GeneratedDurableTaskExtensions
     }
 
     [Function(nameof(HourlyOrchestration))]
-    public static Task<IndexerContext> HourlyOrchestration([OrchestrationTrigger] TaskOrchestrationContext context)
+    public static async Task<IndexerContext> HourlyOrchestration([OrchestrationTrigger] TaskOrchestrationContext context)
     {
-        return singletonHourlyOrchestration.RunAsync(context, context.GetInput<object>())
-            .ContinueWith(t => (IndexerContext)(t.Result ?? default(IndexerContext)!), TaskContinuationOptions.ExecuteSynchronously);
+        var result = await singletonHourlyOrchestration.RunAsync(context, context.GetInput<object>());
+        return (IndexerContext)(result ?? default(IndexerContext)!);
     }
 
     /// <inheritdoc cref="IOrchestrationSubmitter.ScheduleNewOrchestrationInstanceAsync"/>

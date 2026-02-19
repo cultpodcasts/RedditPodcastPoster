@@ -2,16 +2,19 @@
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Text.KnownTerms;
 
 namespace RedditPodcastPoster.Text;
 
 public partial class TextSanitiser(
-    IKnownTermsProvider knownTermsProvider,
+    IAsyncInstance<IKnownTermsProvider> knownTermsProviderInstance,
     ILogger<TextSanitiser> logger)
     : ITextSanitiser
 {
+    private readonly IAsyncInstance<IKnownTermsProvider> _knownTermsProviderInstance = knownTermsProviderInstance;
+
     private static readonly Regex OApostrophe = CreateOApostrophe();
     private static readonly Regex HashtagOrAtSymbols = GenerateHashTagAtSymbolPatter();
     private static readonly Regex InQuotes = GenerateInQuotes();
@@ -204,7 +207,7 @@ public partial class TextSanitiser(
     {
         input = SeasonEpisode.Replace(input, m => m.Value.ToUpper());
         input = input.Replace("W/", "w/");
-        var knownTerms = knownTermsProvider.GetKnownTerms();
+        var knownTerms = _knownTermsProviderInstance.GetAsync().GetAwaiter().GetResult().GetKnownTerms();
 
 
         foreach (var term in knownTerms.Terms)
