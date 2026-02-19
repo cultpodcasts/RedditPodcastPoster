@@ -25,7 +25,7 @@ public class RedditLinkPoster(
             return new PostResponse(null, false);
         }
 
-        var title = redditPostTitleFactory.ConstructPostTitle(postModel);
+        var title = await redditPostTitleFactory.ConstructPostTitle(postModel);
         var post = redditClient
             .Subreddit(_settings.SubredditName)
             .LinkPost(title, link.ToString());

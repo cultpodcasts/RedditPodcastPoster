@@ -13,8 +13,6 @@ public partial class TextSanitiser(
     ILogger<TextSanitiser> logger)
     : ITextSanitiser
 {
-    private readonly IAsyncInstance<IKnownTermsProvider> _knownTermsProviderInstance = knownTermsProviderInstance;
-
     private static readonly Regex OApostrophe = CreateOApostrophe();
     private static readonly Regex HashtagOrAtSymbols = GenerateHashTagAtSymbolPatter();
     private static readonly Regex InQuotes = GenerateInQuotes();
@@ -24,9 +22,9 @@ public partial class TextSanitiser(
     private static readonly Regex SeasonEpisode = GenerateSeasonEpisode();
     private static readonly TextInfo TextInfo = new CultureInfo("en-GB", false).TextInfo;
 
-    public string SanitiseTitle(PostModel postModel)
+    public async Task<string> SanitiseTitle(PostModel postModel)
     {
-        return SanitiseTitle(postModel.EpisodeTitle, postModel.TitleRegex, postModel.PodcastKnownTerms,
+        return await SanitiseTitle(postModel.EpisodeTitle, postModel.TitleRegex, postModel.PodcastKnownTerms,
             postModel.SubjectKnownTerms);
     }
 
@@ -40,7 +38,7 @@ public partial class TextSanitiser(
         return SanitiseDescription(postModel.EpisodeDescription, postModel.DescriptionRegex);
     }
 
-    public string SanitiseTitle(string episodeTitle, Regex? regex, string[] podcastKnownTerms,
+    public async Task<string> SanitiseTitle(string episodeTitle, Regex? regex, string[] podcastKnownTerms,
         string[] subjectKnownTerms)
     {
         if (regex != null)
@@ -65,7 +63,7 @@ public partial class TextSanitiser(
             episodeTitle = term.Value.Replace(episodeTitle, term.Key);
         }
 
-        episodeTitle = FixCasing(episodeTitle, podcastKnownTerms, subjectKnownTerms);
+        episodeTitle = await FixCasing(episodeTitle, podcastKnownTerms, subjectKnownTerms);
 
         episodeTitle = episodeTitle.Trim();
         var inQuotesMatch = InQuotes.Match(episodeTitle);
@@ -203,11 +201,12 @@ public partial class TextSanitiser(
     }
 
 
-    private string FixCasing(string input, string[] podcastKnownTerms, string[] subjectKnownTerms)
+    private async Task<string> FixCasing(string input, string[] podcastKnownTerms, string[] subjectKnownTerms)
     {
         input = SeasonEpisode.Replace(input, m => m.Value.ToUpper());
         input = input.Replace("W/", "w/");
-        var knownTerms = _knownTermsProviderInstance.GetAsync().GetAwaiter().GetResult().GetKnownTerms();
+        var knowTermsProvider = await knownTermsProviderInstance.GetAsync();
+        var knownTerms = knowTermsProvider.GetKnownTerms();
 
 
         foreach (var term in knownTerms.Terms)

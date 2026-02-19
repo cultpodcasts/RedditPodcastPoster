@@ -1,9 +1,9 @@
-﻿using Api.Dtos;
+﻿using System.Text.RegularExpressions;
+using Api.Dtos;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
-using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Text;
 using Podcast = RedditPodcastPoster.Models.Podcast;
+using Subject = RedditPodcastPoster.Models.Subject;
 
 namespace Api.Extensions;
 
@@ -11,9 +11,10 @@ public static class EpisodeExtensions
 {
     extension(Episode episode)
     {
-        public DiscreteEpisode Enrich(Podcast podcast, ITextSanitiser textSanitiser, IEnumerable<RedditPodcastPoster.Models.Subject> subjects)
+        public async Task<DiscreteEpisode> Enrich(Podcast podcast, ITextSanitiser textSanitiser, IEnumerable<Subject> subjects)
         {
-            var episodeSubjects = subjects.Where(s => episode.Subjects != null && episode.Subjects.Contains(s.Name)).SelectMany(s => s.KnownTerms ?? Array.Empty<string>()).ToArray();
+            var episodeSubjects = subjects.Where(s => episode.Subjects != null && episode.Subjects.Contains(s.Name))
+                .SelectMany(s => s.KnownTerms ?? Array.Empty<string>()).ToArray();
             return new DiscreteEpisode
             {
                 Id = episode.Id,
@@ -45,11 +46,11 @@ public static class EpisodeExtensions
                 Language = episode.Language,
                 TwitterHandles = episode.TwitterHandles,
                 BlueskyHandles = episode.BlueskyHandles,
-                DisplayTitle = textSanitiser.SanitiseTitle(
+                DisplayTitle = await textSanitiser.SanitiseTitle(
                     episode.Title,
                     string.IsNullOrWhiteSpace(podcast.TitleRegex)
                         ? null
-                        : new System.Text.RegularExpressions.Regex(
+                        : new Regex(
                             podcast.TitleRegex,
                             Podcast.TitleFlags),
                     podcast.KnownTerms ?? Array.Empty<string>(),
@@ -57,7 +58,7 @@ public static class EpisodeExtensions
                 DisplayDescription = textSanitiser.SanitiseDescription(episode.Description,
                     string.IsNullOrWhiteSpace(podcast.DescriptionRegex)
                         ? null
-                        : new System.Text.RegularExpressions.Regex(
+                        : new Regex(
                             podcast.DescriptionRegex,
                             Podcast.DescriptionFlags))
             };

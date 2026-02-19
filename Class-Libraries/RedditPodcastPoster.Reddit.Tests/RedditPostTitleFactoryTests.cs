@@ -34,7 +34,7 @@ public class RedditPostTitleFactoryTests
     private RedditPostTitleFactory Sut => _mocker.CreateInstance<RedditPostTitleFactory>();
 
     [Fact]
-    public void ConstructPostTitle_WithA_IsCorrect()
+    public async Task ConstructPostTitle_WithA_IsCorrect()
     {
         // arrange
         var postModel = new PostModel(
@@ -48,13 +48,13 @@ public class RedditPostTitleFactoryTests
                     .Create()
             ], _fixture.Create<Service?>(), [], []);
         // act
-        var result = Sut.ConstructPostTitle(postModel);
+        var result = await Sut.ConstructPostTitle(postModel);
         // assert
         result.Should().Contain(" with a ");
     }
 
     [Fact]
-    public void ConstructPostTitle_WithLowerCaseTitle_IsCorrect()
+    public async Task ConstructPostTitle_WithLowerCaseTitle_IsCorrect()
     {
         // arrange
         var postModel = new PostModel(
@@ -69,13 +69,13 @@ public class RedditPostTitleFactoryTests
             ],
             _fixture.Create<Service?>(), [], []);
         // act
-        var result = Sut.ConstructPostTitle(postModel);
+        var result = await Sut.ConstructPostTitle(postModel);
         // assert
         result.Should().Contain("Episode Title");
     }
 
     [Fact]
-    public void ConstructPostTitle_WithAllUpperText_IsCorrect()
+    public async Task ConstructPostTitle_WithAllUpperText_IsCorrect()
     {
         // arrange
         var postModel = new PostModel(
@@ -90,13 +90,13 @@ public class RedditPostTitleFactoryTests
             ],
             _fixture.Create<Service?>(), [], []);
         // act
-        var result = Sut.ConstructPostTitle(postModel);
+        var result = await Sut.ConstructPostTitle(postModel);
         // assert
         result.Should().Contain("Episode Title Upper Text");
     }
 
     [Fact]
-    public void ConstructPostTitle_LowerCasePodCastTitle_IsCorrect()
+    public async Task ConstructPostTitle_LowerCasePodCastTitle_IsCorrect()
     {
         // arrange
         var originalTitle = "podcast title";
@@ -112,7 +112,7 @@ public class RedditPostTitleFactoryTests
             ],
             _fixture.Create<Service?>(), [], []);
         // act
-        var result = Sut.ConstructPostTitle(postModel);
+        var result = await Sut.ConstructPostTitle(postModel);
         // assert
         result.Should().Contain(originalTitle);
     }
@@ -121,7 +121,7 @@ public class RedditPostTitleFactoryTests
     [InlineData(" - ")]
     [InlineData(" ")]
     [InlineData("-")]
-    public void ConstructPostTitle_TitleBeginningWithNonWordCharacter_IsCorrect(string prefix)
+    public async Task ConstructPostTitle_TitleBeginningWithNonWordCharacter_IsCorrect(string prefix)
     {
         // arrange
         var postModel = new PostModel(
@@ -136,7 +136,7 @@ public class RedditPostTitleFactoryTests
             ],
             _fixture.Create<Service?>(), [], []);
         // act
-        var result = Sut.ConstructPostTitle(postModel);
+        var result = await Sut.ConstructPostTitle(postModel);
         // assert
         result.Should().StartWith("\"Proper Title");
     }
