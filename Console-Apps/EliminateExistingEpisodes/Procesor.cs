@@ -2,6 +2,7 @@
 using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text.EliminationTerms;
@@ -11,7 +12,7 @@ namespace EliminateExistingEpisodes;
 public class Processor(
     IPodcastRepository repository,
     IPodcastFilter podcastFilter,
-    IEliminationTermsProvider eliminationTermsProvider,
+    IAsyncInstance<IEliminationTermsProvider> eliminationTermsProviderInstance,
     SearchClient searchClient,
     ILogger<Processor> logger)
 {
@@ -46,6 +47,7 @@ public class Processor(
         }
 
         var podcast = await repository.GetBy(x => x.Id == podcastId);
+        var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
         var filterResult = podcastFilter.Filter(podcast, eliminationTerms.Terms);
         logger.LogInformation(filterResult.ToString());

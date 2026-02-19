@@ -15,9 +15,9 @@ public class RedditPostTitleFactory(
 {
     private readonly SubredditSettings _settings = settings.Value;
 
-    public string ConstructPostTitle(PostModel postModel)
+    public async Task<string> ConstructPostTitle(PostModel postModel)
     {
-        var (title, hasDescription) = ConstructBasePostTitle(postModel);
+        var (title, hasDescription) = await ConstructBasePostTitle(postModel);
         var bundleSuffix = CreateBundleSuffix(postModel.BundledPartNumbers);
         var audioLinksSuffix = "";
         if (postModel.Link != postModel.Spotify &&
@@ -52,9 +52,9 @@ public class RedditPostTitleFactory(
         return title;
     }
 
-    private (string title, bool hasDescription) ConstructBasePostTitle(PostModel postModel)
+    private async Task<(string title, bool hasDescription)> ConstructBasePostTitle(PostModel postModel)
     {
-        var episodeTitle = textSanitiser.SanitiseTitle(postModel);
+        var episodeTitle = await textSanitiser.SanitiseTitle(postModel);
         var podcastName = textSanitiser.SanitisePodcastName(postModel);
         var description = textSanitiser.SanitiseDescription(postModel);
         var title = $"\"{episodeTitle}\", {podcastName}, {postModel.ReleaseDate} {postModel.EpisodeLength}";

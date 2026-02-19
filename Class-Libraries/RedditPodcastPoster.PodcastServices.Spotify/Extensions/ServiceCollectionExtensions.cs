@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Configuration;
@@ -10,6 +11,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Paginators;
 using RedditPodcastPoster.PodcastServices.Spotify.Providers;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.Spotify.Search;
+using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 
@@ -23,7 +25,8 @@ public static class ServiceCollectionExtensions
                 .AddScoped<ISpotifyClientWrapper, SpotifyClientWrapper>()
                 .AddScoped<ISpotifyClientFactory, SpotifyClientFactory>()
                 .AddScoped<ISpotifyClientConfigFactory, SpotifyClientConfigFactory>()
-                .AddScoped(s => s.GetService<ISpotifyClientFactory>()!.Create().GetAwaiter().GetResult())
+                .AddScoped<IAsyncInstance<ISpotifyClient>>(s => 
+                    new AsyncInstance<ISpotifyClient>(s.GetService<ISpotifyClientFactory>()!))
                 .BindConfiguration<SpotifySettings>("spotify");
         }
 

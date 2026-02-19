@@ -1,26 +1,18 @@
 ﻿using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
-public class ApplePodcastService : IApplePodcastService
+public class ApplePodcastService(
+    IAsyncInstance<HttpClient> httpClientProvider,
+    ILogger<ApplePodcastService> logger)
+    : IApplePodcastService
 {
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<ApplePodcastService> _logger;
-
-    public ApplePodcastService(
-        IApplePodcastHttpClientFactory httpClientFactory,
-        ILogger<ApplePodcastService> logger)
-    {
-        _logger = logger;
-        _logger.LogInformation($"{nameof(ApplePodcastService)} Creating http-client");
-        _httpClient = httpClientFactory.Create().GetAwaiter().GetResult();
-    }
-
     public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
     {
-        _logger.LogInformation("{nameofGetEpisodes} podcast-id: '{podcastId}'.", nameof(GetEpisodes), podcastId);
+        logger.LogInformation("{nameofGetEpisodes} podcast-id: '{podcastId}'.", nameof(GetEpisodes), podcastId);
         var appleEpisodes = await GetEpisodes(podcastId, indexingContext, null);
 
         return appleEpisodes;
@@ -28,23 +20,24 @@ public class ApplePodcastService : IApplePodcastService
 
     public async Task<AppleEpisode?> GetEpisode(long episodeId, IndexingContext indexingContext)
     {
+        var httpClient = await httpClientProvider.GetAsync();
         var requestUri =
             $"/v1/catalog/us/podcast-episodes/{episodeId}?extend=fullDescription&extend[podcasts]=feedUrl&include=podcast";
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.GetAsync(requestUri);
+            response = await httpClient.GetAsync(requestUri);
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Failed to request '{requestUri}'. Reason: '{exMessage}', Status-Code: '{statusCode}'.",
                 requestUri, ex.Message, ex.StatusCode);
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to request from '{requestUri}'.", requestUri);
+            logger.LogError(ex, "Failed to request from '{requestUri}'.", requestUri);
             throw;
         }
 
@@ -59,7 +52,7 @@ public class ApplePodcastService : IApplePodcastService
                 var itemsWithDuration = appleObject.Records.Where(x => x.Attributes.Duration > TimeSpan.Zero);
                 if (!itemsWithDuration.Any())
                 {
-                    _logger.LogError(
+                    logger.LogError(
                         "Failure calling apple-api with url '{requestUri}'. No item returned for podcast-episode-query for episode-id '{episodeId}' with duration > 0.",
                         requestUri, episodeId);
                     return null;
@@ -67,7 +60,7 @@ public class ApplePodcastService : IApplePodcastService
 
                 if (itemsWithDuration.Count() > 1)
                 {
-                    _logger.LogError(
+                    logger.LogError(
                         "Failure calling apple-api with url '{requestUri}'. Multiple items returned for podcast-episode-query for episode-id '{episodeId}' with duration > 0.",
                         requestUri, episodeId);
                     return null;
@@ -78,7 +71,7 @@ public class ApplePodcastService : IApplePodcastService
         }
         else
         {
-            _logger.LogError(
+            logger.LogError(
                 "Failure calling apple-api with url '{requestUri}'. Response-code: '{responseStatusCode}', response-content: '{content}'.",
                 requestUri, response.StatusCode, await response.Content.ReadAsStringAsync());
         }
@@ -89,23 +82,24 @@ public class ApplePodcastService : IApplePodcastService
     private async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId,
         IndexingContext indexingContext, Func<Record, bool>? breakEvaluator)
     {
+        var httpClient = await httpClientProvider.GetAsync();
         var inDescendingDateOrder = true;
         var requestUri = $"/v1/catalog/us/podcasts/{podcastId.PodcastId}/episodes";
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.GetAsync(requestUri);
+            response = await httpClient.GetAsync(requestUri);
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Failed to request '{requestUri}'. Reason: '{exMessage}', Status-Code: '{statusCode}'.",
                 requestUri, ex.Message, ex.StatusCode);
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to request from '{requestUri}'.", requestUri);
+            logger.LogError(ex, "Failed to request from '{requestUri}'.", requestUri);
             throw;
         }
 
@@ -141,7 +135,8 @@ public class ApplePodcastService : IApplePodcastService
                            !inDescendingDateOrder)
                       )
                 {
-                    response = await _httpClient.GetAsync((string?) appleObject.Next);
+                    var client = await httpClientProvider.GetAsync();
+                    response = await client.GetAsync((string?) appleObject.Next);
                     if (response.IsSuccessStatusCode)
                     {
                         appleJson = await response.Content.ReadAsStringAsync();
@@ -154,7 +149,7 @@ public class ApplePodcastService : IApplePodcastService
         }
         else
         {
-            _logger.LogError(
+            logger.LogError(
                 "Failure calling apple-api with url '{requestUri}'. Response-code: '{responseStatusCode}', response-content: '{content}'.",
                 requestUri, response.StatusCode, await response.Content.ReadAsStringAsync());
         }
@@ -164,19 +159,19 @@ public class ApplePodcastService : IApplePodcastService
             .Select(x => x.ToAppleEpisode()).ToArray();
         if (podcastRecords.Any() && !appleEpisodes.Any())
         {
-            _logger.LogError(
+            logger.LogError(
                 "Missing duration-attribute on all apple-podcast episodes for podcast with apple-podcast-id '{podcastId}'. podcast-records count:'{podcastRecordsCount}',  apple-episodes count:'{appleEpisodesCount}'.",
                 podcastId.PodcastId, podcastRecords.Count, appleEpisodes.Count());
             foreach (var json in collectedAppleJson)
             {
-                _logger.LogError(json);
+                logger.LogError(json);
             }
         }
         else
         {
             if (podcastRecords.Count > 0)
             {
-                _logger.LogInformation(
+                logger.LogInformation(
                     "Successfully found podcast-episodes with duration. Apple-podcast-id '{podcastId}', items-with-duration: '{appleEpisodesCount}/{podcastRecordsCount}'.",
                     podcastId.PodcastId, appleEpisodes.Count(), podcastRecords.Count);
             }

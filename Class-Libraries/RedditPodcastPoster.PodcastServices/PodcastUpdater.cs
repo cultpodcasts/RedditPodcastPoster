@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Configuration;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -15,7 +16,7 @@ public class PodcastUpdater(
     IEpisodeProvider episodeProvider,
     IPodcastServicesEpisodeEnricher podcastServicesEpisodeEnricher,
     IPodcastFilter podcastFilter,
-    IEliminationTermsProvider eliminationTermsProvider,
+    IAsyncInstance<IEliminationTermsProvider> eliminationTermsProviderInstance,
     IOptions<PostingCriteria> postingCriteria,
     ILogger<PodcastUpdater> logger)
     : IPodcastUpdater
@@ -106,6 +107,7 @@ public class PodcastUpdater(
         }
 
         var enrichmentResult = await podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, episodes, indexingContext);
+        var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
         var filterResult = podcastFilter.Filter(podcast, eliminationTerms.Terms);
 

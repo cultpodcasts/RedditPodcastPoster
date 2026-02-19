@@ -1,8 +1,8 @@
 ﻿using idunno.Bluesky;
+using RedditPodcastPoster.DependencyInjection;
 
 namespace RedditPodcastPoster.Bluesky.Factories;
 
-public interface IBlueskyAgentFactory
+public interface IBlueskyAgentFactory : IAsyncFactory<BlueskyAgent>
 {
-    Task<BlueskyAgent> Create();
 }

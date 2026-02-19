@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Bluesky.Configuration;
+using RedditPodcastPoster.DependencyInjection;
 
 namespace RedditPodcastPoster.Bluesky.Factories;
 
@@ -9,9 +10,9 @@ public class BlueskyAgentFactory(
     IOptions<BlueskyOptions> options,
     ILogger<BlueskyAgentFactory> logger,
     ILoggerFactory loggerFactory
-) : IBlueskyAgentFactory
+) : IBlueskyAgentFactory, IAsyncFactory<BlueskyAgent>
 {
-    private BlueskyOptions _options = options.Value;
+    private readonly BlueskyOptions _options = options.Value;
 
     public async Task<BlueskyAgent> Create()
     {

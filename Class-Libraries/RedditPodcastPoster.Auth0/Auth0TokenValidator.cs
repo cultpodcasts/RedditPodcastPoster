@@ -2,22 +2,21 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using RedditPodcastPoster.DependencyInjection;
 
 namespace RedditPodcastPoster.Auth0;
 
 public class Auth0TokenValidator(
-    ISigningKeysFactory signingKeysFactory,
+    IAsyncInstance<ICollection<SecurityKey>?> securityKeysProvider,
     IOptions<Auth0ValidationOptions> options,
     ILogger<Auth0TokenValidator> logger) : IAuth0TokenValidator
 {
     private readonly Auth0ValidationOptions _options =
         options.Value ?? throw new ArgumentNullException($"Missing '{nameof(Auth0ValidationOptions)}'");
 
-    public ICollection<SecurityKey>? SecurityKeys { get; set; } =
-        signingKeysFactory.GetSecurityKeys().GetAwaiter().GetResult();
-
-    public ValidatedToken? GetClaimsPrincipal(string auth0Bearer)
+    public async Task<ValidatedToken?> GetClaimsPrincipalAsync(string auth0Bearer)
     {
+        var securityKeys = await securityKeysProvider.GetAsync();
         var validationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -25,7 +24,7 @@ public class Auth0TokenValidator(
             ValidateAudience = true,
             ValidAudience = _options.Audience,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKeys = SecurityKeys,
+            IssuerSigningKeys = securityKeys,
             ValidateLifetime = true
         };
         var handler = new JwtSecurityTokenHandler();

@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Reddit;
 
 public interface IRedditPostTitleFactory
 {
-    string ConstructPostTitle(PostModel postModel);
+    Task<string> ConstructPostTitle(PostModel postModel);
 }

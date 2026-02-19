@@ -1,8 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using idunno.Bluesky;
 using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Bluesky.YouTube;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.DependencyInjection;
 
 namespace RedditPodcastPoster.Bluesky.Extensions;
 
@@ -21,7 +23,10 @@ public static class ServiceCollectionExtensions
             .AddScoped<IBlueskyYouTubeServiceFactory, BlueskyYouTubeServiceFactory>()
             .AddScoped(s => s.GetService<IBlueskyYouTubeServiceFactory>()!.Create())
             .AddSingleton<IBlueskyAgentFactory, BlueskyAgentFactory>()
-            .AddSingleton(x=>x.GetService<IBlueskyAgentFactory>()!.Create().GetAwaiter().GetResult())
+            // BlueskyAgent is from external library (idunno.Bluesky), so we use the concrete type here
+            // rather than creating a wrapper interface
+            .AddSingleton<IAsyncInstance<BlueskyAgent>>(x => 
+                new AsyncInstance<BlueskyAgent>(x.GetService<IBlueskyAgentFactory>()!))
             .BindConfiguration<BlueskyOptions>("bluesky");
     }
 }

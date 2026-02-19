@@ -5,10 +5,10 @@ namespace RedditPodcastPoster.Text;
 
 public interface ITextSanitiser
 {
-    string SanitiseTitle(PostModel postModel);
+    Task<string> SanitiseTitle(PostModel postModel);
     string SanitisePodcastName(PostModel postModel);
     string SanitiseDescription(PostModel postModel);
-    string SanitiseTitle(string episodeTitle, Regex? regex, string[] podcastKnownTerms, string[] subjectKnownTerms);
+    Task<string> SanitiseTitle(string episodeTitle, Regex? regex, string[] podcastKnownTerms, string[] subjectKnownTerms);
     string SanitisePodcastName(string podcastName);
     string SanitiseDescription(string episodeDescription, Regex? descriptionRegex);
     string ExtractDescription(string episodeDescription, Regex? descriptionRegex);

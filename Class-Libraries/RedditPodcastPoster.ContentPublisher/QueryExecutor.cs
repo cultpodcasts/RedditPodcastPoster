@@ -32,12 +32,16 @@ public class QueryExecutor(
 
         await Task.WhenAll(tasks);
 
+        var orderedPodcasts = podcastResults.Result
+            .OrderByDescending(x => x.Release)
+            .ToList();
+
+        var sanitizedPodcasts = await Task.WhenAll(orderedPodcasts.Select(Santitise));
+
         return new HomePageModel
         {
             EpisodeCount = count.Result,
-            RecentEpisodes = podcastResults.Result
-                .OrderByDescending(x => x.Release)
-                .Select(Santitise)
+            RecentEpisodes = sanitizedPodcasts
                 .Select(x =>
                     new RecentEpisode
                     {
@@ -186,7 +190,7 @@ public class QueryExecutor(
         return podcastResults;
     }
 
-    private PodcastResult Santitise(PodcastResult podcastResult)
+    private async Task<PodcastResult> Santitise(PodcastResult podcastResult)
     {
         Regex? titleRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.TitleRegex))
@@ -198,7 +202,7 @@ public class QueryExecutor(
             .Select(x => subjects.SingleOrDefault(y => y.Name == x))
             .SelectMany(x => x?.KnownTerms ?? []).ToArray();
 
-        podcastResult.EpisodeTitle = textSanitiser.SanitiseTitle(podcastResult.EpisodeTitle, titleRegex,
+        podcastResult.EpisodeTitle = await textSanitiser.SanitiseTitle(podcastResult.EpisodeTitle, titleRegex,
             podcastResult.KnownTerms ?? [], subjectKnownTerms);
 
         Regex? descRegex = null;

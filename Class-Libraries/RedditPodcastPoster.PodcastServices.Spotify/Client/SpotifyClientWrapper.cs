@@ -1,6 +1,7 @@
-﻿using System.Net;
+using System.Net;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using SpotifyAPI.Web;
@@ -8,7 +9,7 @@ using SpotifyAPI.Web;
 namespace RedditPodcastPoster.PodcastServices.Spotify.Client;
 
 public class SpotifyClientWrapper(
-    ISpotifyClient spotifyClient,
+    IAsyncInstance<ISpotifyClient> spotifyClientProvider,
     ILogger<SpotifyClientWrapper> logger
 ) : ISpotifyClientWrapper
 {
@@ -21,6 +22,7 @@ public class SpotifyClientWrapper(
         IList<T>? results;
         try
         {
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
             var items = spotifyClient.Paginate(firstPage, paginator, cancel);
             results = await items.ToListAsync(cancel);
         }
@@ -55,6 +57,7 @@ public class SpotifyClientWrapper(
         IList<T>? results;
         try
         {
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
             results = await spotifyClient.PaginateAll(firstPage);
         }
         catch (APITooManyRequestsException ex)
@@ -89,6 +92,7 @@ public class SpotifyClientWrapper(
         var results = firstPage.Items ?? new List<T>();
         try
         {
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
             var batch = await spotifyClient.PaginateAll(firstPage, mapper);
             results.AddRange(batch);
         }
@@ -125,6 +129,7 @@ public class SpotifyClientWrapper(
         Paging<SimpleEpisode>? results;
         try
         {
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
             results = await spotifyClient.Shows.GetEpisodes(showId, request, cancel);
         }
         catch (APITooManyRequestsException ex)
@@ -185,6 +190,7 @@ public class SpotifyClientWrapper(
         SearchResponse? results;
         try
         {
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
             results = await spotifyClient.Search.Item(request, cancel);
         }
         catch (APITooManyRequestsException ex)
@@ -222,6 +228,7 @@ public class SpotifyClientWrapper(
         FullShow? results;
         try
         {
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
             results = await spotifyClient.Shows.Get(showId, request, cancel);
         }
         catch (APITooManyRequestsException ex)
@@ -258,6 +265,7 @@ public class SpotifyClientWrapper(
         FullEpisode? results;
         try
         {
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
             results = await spotifyClient.Episodes.Get(episodeId, request, cancel);
         }
         catch (APITooManyRequestsException ex)
@@ -302,6 +310,7 @@ public class SpotifyClientWrapper(
         EpisodesResponse? results;
         try
         {
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
             results = await spotifyClient.Episodes.GetSeveral(request, cancel);
         }
         catch (APITooManyRequestsException ex)
@@ -336,6 +345,7 @@ public class SpotifyClientWrapper(
         Paging<SimpleEpisode, SearchResponse> results;
         try
         {
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
             var response = await spotifyClient.Search.Item(request, cancel);
             results = response.Episodes;
         }

@@ -1,6 +1,7 @@
-﻿namespace RedditPodcastPoster.Text.KnownTerms;
+﻿using RedditPodcastPoster.DependencyInjection;
 
-public interface IKnownTermsProviderFactory
+namespace RedditPodcastPoster.Text.KnownTerms;
+
+public interface IKnownTermsProviderFactory : IAsyncFactory<IKnownTermsProvider>
 {
-    Task<IKnownTermsProvider> Create();
 }

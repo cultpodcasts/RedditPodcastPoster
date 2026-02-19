@@ -1,23 +1,31 @@
 ﻿using System.Text.RegularExpressions;
 using AutoFixture;
 using FluentAssertions;
+using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Text.KnownTerms;
 
 namespace RedditPodcastPoster.Text.Tests;
 
 public class TextSanitiserTests
 {
-    private readonly AutoMocker _mocker;
     private readonly Fixture _fixture;
+    private readonly AutoMocker _mocker;
 
     public TextSanitiserTests()
     {
         _fixture = new Fixture();
         _mocker = new AutoMocker();
-        _mocker.GetMock<IKnownTermsProvider>().Setup(x => x.GetKnownTerms()).Returns(new KnownTerms.KnownTerms());
+
+        var knownTermsProvider = _mocker.GetMock<IKnownTermsProvider>();
+        knownTermsProvider.Setup(x => x.GetKnownTerms()).Returns(new KnownTerms.KnownTerms());
+
+        var knownTermsInstance = _mocker.GetMock<IAsyncInstance<IKnownTermsProvider>>();
+        knownTermsInstance.Setup(x => x.GetAsync()).ReturnsAsync(knownTermsProvider.Object);
+
+        _mocker.Use(knownTermsInstance.Object);
     }
 
     private TextSanitiser Sut => _mocker.CreateInstance<TextSanitiser>();
@@ -92,42 +100,42 @@ public class TextSanitiserTests
     [Theory]
     [InlineData("Understanding Extremist Authoritarian Sects - w/Christian Szurko")]
     [InlineData("The start of the Sentence")]
-    public void SanitiseTitle_WithKnownTerm_MaintainsTerm(string expected)
+    public async Task SanitiseTitle_WithKnownTerm_MaintainsTerm(string expected)
     {
         // arrange
         var postModel = _fixture.Build<PostModel>()
             .With(x => x.EpisodeTitle, expected)
             .Create();
         // act
-        var result = Sut.SanitiseTitle(postModel);
+        var result = await Sut.SanitiseTitle(postModel);
         // assert
         result.Should().Be(expected);
     }
 
     [Theory]
     [InlineData("I Was #Fairgamed! And I Love It!!! ;)", "I was Fairgamed! And I Love it!!! ;)")]
-    public void SanitiseBody_WithKnownTerm_RemovesHashTags(string input, string expected)
+    public async Task SanitiseBody_WithKnownTerm_RemovesHashTags(string input, string expected)
     {
         // arrange
         var postModel = _fixture.Build<PostModel>()
             .With(x => x.EpisodeTitle, input)
             .Create();
         // act
-        var result = Sut.SanitiseTitle(postModel);
+        var result = await Sut.SanitiseTitle(postModel);
         // assert
         result.Should().Be(expected);
     }
 
     [Theory]
     [InlineData("I Was @Fairgamed! And I Love It!!! ;)", "I was Fairgamed! And I Love it!!! ;)")]
-    public void SanitiseBody_WithKnownTerm_RemovesAtSymbols(string input, string expected)
+    public async Task SanitiseBody_WithKnownTerm_RemovesAtSymbols(string input, string expected)
     {
         // arrange
         var postModel = _fixture.Build<PostModel>()
-            .With(x=>x.EpisodeTitle, input)
+            .With(x => x.EpisodeTitle, input)
             .Create();
         // act
-        var result = Sut.SanitiseTitle(postModel);
+        var result = await Sut.SanitiseTitle(postModel);
         // assert
         result.Should().Be(expected);
     }
@@ -143,11 +151,11 @@ public class TextSanitiserTests
     //[InlineData("'What' is it?", "'What' is it?")]
     //[InlineData(@"""What's"" is it?", "'What's' is it?")]
     //[InlineData(@"'What's' is it?", "'What's' is it?")]
-    public void SanitiseTitle_WithLoweredTermAtStart_IsCorrect(string input, string expected)
+    public async Task SanitiseTitle_WithLoweredTermAtStart_IsCorrect(string input, string expected)
     {
         // arrange
         // act
-        var result = Sut.SanitiseTitle(input, null, [], []);
+        var result = await Sut.SanitiseTitle(input, null, [], []);
         // assert
         result.Should().Be(expected);
     }
@@ -159,22 +167,22 @@ public class TextSanitiserTests
     [InlineData("The 90s")]
     [InlineData("The 90's")]
     [InlineData("The Object's")]
-    public void SanitiseTitle_WithDate_IsCorrect(string expected)
+    public async Task SanitiseTitle_WithDate_IsCorrect(string expected)
     {
         // arrange
         // act
-        var result = Sut.SanitiseTitle(expected, null, [], []);
+        var result = await Sut.SanitiseTitle(expected, null, [], []);
         // assert
         result.Should().Be(expected);
     }
 
     [Fact]
-    public void SanitiseTitle_WithBracketAtStart_IsCorrect()
+    public async Task SanitiseTitle_WithBracketAtStart_IsCorrect()
     {
         // arrange
         var expected = "(Term 1) Term 2";
         // act
-        var result = Sut.SanitiseTitle(expected, null, [], []);
+        var result = await Sut.SanitiseTitle(expected, null, [], []);
         // assert
         result.Should().Be(expected);
     }
@@ -188,11 +196,11 @@ public class TextSanitiserTests
     [InlineData("Term1 Term2 | We Term3")]
     [InlineData("Term1 Term2! We Term3")]
     [InlineData("Term1 Term2? We Term3")]
-    public void SanitiseTitle_WhenLowerCaseTermAfterPunctuation_IsCorrect(string expected)
+    public async Task SanitiseTitle_WhenLowerCaseTermAfterPunctuation_IsCorrect(string expected)
     {
         // arrange
         // act
-        var result = Sut.SanitiseTitle(expected, null, [], []);
+        var result = await Sut.SanitiseTitle(expected, null, [], []);
         // assert
         result.Should().Be(expected);
     }
@@ -201,22 +209,22 @@ public class TextSanitiserTests
     [InlineData("Te*ms")]
     [InlineData("Te**ms")]
     [InlineData("Te**ms Te***ms")]
-    public void SanitiseTitle_WithAsteriskedTerms_IsCorrect(string expected)
+    public async Task SanitiseTitle_WithAsteriskedTerms_IsCorrect(string expected)
     {
         // arrange
         // act
-        var result = Sut.SanitiseTitle(expected, null, [], []);
+        var result = await Sut.SanitiseTitle(expected, null, [], []);
         // assert
         result.Should().Be(expected);
     }
 
     [Fact]
-    public void SanitiseTitle_WithOApostrophe_IsCorrect()
+    public async Task SanitiseTitle_WithOApostrophe_IsCorrect()
     {
         // arrange
         var expected = "Blah O'Term Blah";
         // act
-        var result = Sut.SanitiseTitle(expected, null, [], []);
+        var result = await Sut.SanitiseTitle(expected, null, [], []);
         // assert
         result.Should().Be(expected);
     }
@@ -232,11 +240,11 @@ public class TextSanitiserTests
     [InlineData("8th Something")]
     [InlineData("9th Something")]
     [InlineData("10th Something")]
-    public void SanitiseTitle_WithOrdinalPrefix_IsCorrect(string expected)
+    public async Task SanitiseTitle_WithOrdinalPrefix_IsCorrect(string expected)
     {
         // arrange
         // act
-        var result = Sut.SanitiseTitle(expected, null, [], []);
+        var result = await Sut.SanitiseTitle(expected, null, [], []);
         // assert
         result.Should().Be(expected);
     }
@@ -244,11 +252,11 @@ public class TextSanitiserTests
     [Theory]
 //    [InlineData("[Prefix] Heading")]
     [InlineData("S01E01 Heading")]
-    public void SanitiseTitle_WithFormat_IsCorrect(string expected)
+    public async Task SanitiseTitle_WithFormat_IsCorrect(string expected)
     {
         // arrange
         // act
-        var result = Sut.SanitiseTitle(expected, null, [], []);
+        var result = await Sut.SanitiseTitle(expected, null, [], []);
         // assert
         result.Should().Be(expected);
     }

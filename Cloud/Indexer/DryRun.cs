@@ -1,6 +1,4 @@
-﻿using Amazon.S3.Model;
-
-namespace Indexer;
+﻿namespace Indexer;
 
 internal static class DryRun
 {

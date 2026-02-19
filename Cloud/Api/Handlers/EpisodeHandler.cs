@@ -288,8 +288,9 @@ public class EpisodeHandler(
                             (!x.Posted || posted) &&
                             (!x.Tweeted || tweeted) &&
                             (!(x.BlueskyPosted.HasValue && x.BlueskyPosted.Value) || blueskyPosted))
-                        .Select(s => s.Enrich(podcast, textSanitiser, subjects));
-                episodes.AddRange(unpostedEpisodes);
+                        .Select(async s => await s.Enrich(podcast, textSanitiser, subjects));
+                var discreteEpisodes = await Task.WhenAll(unpostedEpisodes);
+                episodes.AddRange(discreteEpisodes);
             }
 
             var success = await req.CreateResponse(HttpStatusCode.OK)
@@ -465,7 +466,7 @@ public class EpisodeHandler(
             }
 
             var subjects = await subjectsProvider.GetAll().ToListAsync();
-            var podcastEpisode = episode.Enrich(podcast, textSanitiser, subjects);
+            var podcastEpisode = await episode.Enrich(podcast, textSanitiser, subjects);
             var success = await req.CreateResponse(HttpStatusCode.OK)
                 .WithJsonBody(podcastEpisode, c);
             return success;

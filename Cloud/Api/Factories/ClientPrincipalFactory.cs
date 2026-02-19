@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Auth0;
+using RedditPodcastPoster.Auth0.Extensions;
 
 namespace Api.Factories;
 
@@ -12,7 +13,7 @@ public class ClientPrincipalFactory(
 {
     private const string Bearer = "Bearer ";
 
-    public ClientPrincipal? Create(HttpRequestData request)
+    public async Task<ClientPrincipal?> CreateAsync(HttpRequestData request)
     {
         var auth = request.Headers.TryGetValues("X-MS-CLIENT-PRINCIPAL", out var claims);
         if (auth)
@@ -32,7 +33,7 @@ public class ClientPrincipalFactory(
             if (claims != null && claims.Any())
             {
                 logger.LogInformation("Has Authorization header.");
-                return GetAuth0ClientPrincipal(claims);
+                return await GetAuth0ClientPrincipalAsync(claims);
             }
 
             logger.LogError("Has Authorization header but no claims.");
@@ -41,14 +42,14 @@ public class ClientPrincipalFactory(
         return null;
     }
 
-    private ClientPrincipal? GetAuth0ClientPrincipal(IEnumerable<string> claims)
+    private async Task<ClientPrincipal?> GetAuth0ClientPrincipalAsync(IEnumerable<string> claims)
     {
         var bearer = claims
             .Where(x => x.StartsWith(Bearer))
             .Select(x => x.Substring(Bearer.Length))
             .First();
 
-        var validatedToken = auth0TokenValidator.GetClaimsPrincipal(bearer);
+        var validatedToken = await auth0TokenValidator.GetClaimsPrincipalAsync(bearer);
         if (validatedToken == null)
         {
             logger.LogWarning("No client-principal.");

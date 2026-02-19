@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Configuration;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -30,7 +31,7 @@ public class EnrichYouTubePodcastProcessor(
     IYouTubeVideoService youTubeVideoService,
     IYouTubeEpisodeProvider youTubeEpisodeProvider,
     ISubjectEnricher subjectEnricher,
-    IEliminationTermsProvider eliminationTermsProvider,
+    IAsyncInstance<IEliminationTermsProvider> eliminationTermsProviderInstance,
     IPodcastFilter podcastFilter,
     IFileRepository fileRepository,
     IOptions<PostingCriteria> postingCriteria,
@@ -224,13 +225,13 @@ public class EnrichYouTubePodcastProcessor(
 
         podcast.Episodes = podcast.Episodes.OrderByDescending(x => x.Release).ToList();
 
+        var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
         var filterResult = podcastFilter.Filter(podcast, eliminationTerms.Terms);
         if (filterResult.FilteredEpisodes.Any())
         {
             logger.LogWarning(filterResult.ToString());
         }
-
 
         if (updatedEpisodeIds.Any())
         {
