@@ -466,7 +466,7 @@ public class EpisodeHandler(
             }
 
             var subjects = await subjectsProvider.GetAll().ToListAsync();
-            var podcastEpisode = episode.Enrich(podcast, textSanitiser, subjects);
+            var podcastEpisode = await episode.Enrich(podcast, textSanitiser, subjects);
             var success = await req.CreateResponse(HttpStatusCode.OK)
                 .WithJsonBody(podcastEpisode, c);
             return success;
