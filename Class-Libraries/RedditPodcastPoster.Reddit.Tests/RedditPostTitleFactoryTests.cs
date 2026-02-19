@@ -20,10 +20,10 @@ public class RedditPostTitleFactoryTests
         _fixture = new Fixture();
         _mocker = new AutoMocker();
 
-        var knownTermsProvider = new Mock<IKnownTermsProvider>();
+        var knownTermsProvider = _mocker.GetMock<IKnownTermsProvider>();
         knownTermsProvider.Setup(x => x.GetKnownTerms()).Returns(new KnownTerms());
 
-        var knownTermsInstance = new Mock<IAsyncInstance<IKnownTermsProvider>>();
+        var knownTermsInstance = _mocker.GetMock<IAsyncInstance<IKnownTermsProvider>>();
         knownTermsInstance.Setup(x => x.GetAsync()).ReturnsAsync(knownTermsProvider.Object);
 
         _mocker.Use(knownTermsInstance.Object);

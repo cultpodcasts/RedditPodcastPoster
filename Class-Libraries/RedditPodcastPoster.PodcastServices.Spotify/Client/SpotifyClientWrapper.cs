@@ -129,7 +129,8 @@ public class SpotifyClientWrapper(
         Paging<SimpleEpisode>? results;
         try
         {
-            results = await (await spotifyClientProvider.GetAsync().ConfigureAwait(false)).Shows.GetEpisodes(showId, request, cancel);
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
+            results = await spotifyClient.Shows.GetEpisodes(showId, request, cancel);
         }
         catch (APITooManyRequestsException ex)
         {
@@ -189,7 +190,8 @@ public class SpotifyClientWrapper(
         SearchResponse? results;
         try
         {
-            results = await (await spotifyClientProvider.GetAsync().ConfigureAwait(false)).Search.Item(request, cancel);
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
+            results = await spotifyClient.Search.Item(request, cancel);
         }
         catch (APITooManyRequestsException ex)
         {
@@ -226,7 +228,8 @@ public class SpotifyClientWrapper(
         FullShow? results;
         try
         {
-            results = await (await spotifyClientProvider.GetAsync().ConfigureAwait(false)).Shows.Get(showId, request, cancel);
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
+            results = await spotifyClient.Shows.Get(showId, request, cancel);
         }
         catch (APITooManyRequestsException ex)
         {
@@ -262,7 +265,8 @@ public class SpotifyClientWrapper(
         FullEpisode? results;
         try
         {
-            results = await (await spotifyClientProvider.GetAsync().ConfigureAwait(false)).Episodes.Get(episodeId, request, cancel);
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
+            results = await spotifyClient.Episodes.Get(episodeId, request, cancel);
         }
         catch (APITooManyRequestsException ex)
         {
@@ -306,7 +310,8 @@ public class SpotifyClientWrapper(
         EpisodesResponse? results;
         try
         {
-            results = await (await spotifyClientProvider.GetAsync().ConfigureAwait(false)).Episodes.GetSeveral(request, cancel);
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
+            results = await spotifyClient.Episodes.GetSeveral(request, cancel);
         }
         catch (APITooManyRequestsException ex)
         {
@@ -340,7 +345,8 @@ public class SpotifyClientWrapper(
         Paging<SimpleEpisode, SearchResponse> results;
         try
         {
-            var response = await (await spotifyClientProvider.GetAsync().ConfigureAwait(false)).Search.Item(request, cancel);
+            var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
+            var response = await spotifyClient.Search.Item(request, cancel);
             results = response.Episodes;
         }
         catch (APITooManyRequestsException ex)

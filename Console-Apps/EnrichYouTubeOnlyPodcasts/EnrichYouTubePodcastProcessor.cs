@@ -40,7 +40,6 @@ public class EnrichYouTubePodcastProcessor(
     ILogger<EnrichYouTubePodcastProcessor> logger)
 {
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
-    private readonly IAsyncInstance<IEliminationTermsProvider> _eliminationTermsProviderInstance = eliminationTermsProviderInstance;
 
     public async Task Run(EnrichYouTubePodcastRequest request)
     {
@@ -226,14 +225,13 @@ public class EnrichYouTubePodcastProcessor(
 
         podcast.Episodes = podcast.Episodes.OrderByDescending(x => x.Release).ToList();
 
-        var eliminationTermsProvider = await _eliminationTermsProviderInstance.GetAsync();
+        var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
         var filterResult = podcastFilter.Filter(podcast, eliminationTerms.Terms);
         if (filterResult.FilteredEpisodes.Any())
         {
             logger.LogWarning(filterResult.ToString());
         }
-
 
         if (updatedEpisodeIds.Any())
         {

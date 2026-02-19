@@ -16,8 +16,6 @@ public class Processor(
     SearchClient searchClient,
     ILogger<Processor> logger)
 {
-    private readonly IAsyncInstance<IEliminationTermsProvider> _eliminationTermsProviderInstance = eliminationTermsProviderInstance;
-
     public async Task Run(Request request)
     {
         Guid podcastId;
@@ -49,7 +47,7 @@ public class Processor(
         }
 
         var podcast = await repository.GetBy(x => x.Id == podcastId);
-        var eliminationTermsProvider = await _eliminationTermsProviderInstance.GetAsync();
+        var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
         var filterResult = podcastFilter.Filter(podcast, eliminationTerms.Terms);
         logger.LogInformation(filterResult.ToString());
