@@ -69,7 +69,7 @@ public class SubjectEnricher(
                 string.Join(",", removals.Select(x => "'" + x + "'")), episode.Title, episode.Id);
         }
 
-        if (!string.IsNullOrWhiteSpace(options.DefaultSubject) && !hadSubjects &&
+        if (!string.IsNullOrWhiteSpace(options?.DefaultSubject) && !hadSubjects &&
             (!episode.Subjects.Any() || episode.Subjects.All(x => x.StartsWith("_"))))
         {
             additions.Insert(0, new SubjectMatch(new Subject(options.DefaultSubject), []));
