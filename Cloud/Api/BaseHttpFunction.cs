@@ -28,7 +28,7 @@ public abstract class BaseHttpFunction(
             nameof(HandleRequest), req.Url, req.Method);
         var isAuthorised = false;
         var roleCtr = 0;
-        var clientPrincipal = clientPrincipalFactory.Create(req);
+        var clientPrincipal = await clientPrincipalFactory.CreateAsync(req);
 
         if (!_hostingOptions.TestMode)
         {
@@ -66,7 +66,7 @@ public abstract class BaseHttpFunction(
             nameof(HandleRequest), req.Url, req.Method);
         var isAuthorised = false;
         var roleCtr = 0;
-        var clientPrincipal = clientPrincipalFactory.Create(req);
+        var clientPrincipal = await clientPrincipalFactory.CreateAsync(req);
 
         while (!isAuthorised && roleCtr < roles.Length)
         {
@@ -98,7 +98,7 @@ public abstract class BaseHttpFunction(
     {
         logger.LogInformation("{method} initiated for '{url}' / '{httpMethod}'.",
             nameof(HandlePublicRequest), req.Url, req.Method);
-        var clientPrincipal = clientPrincipalFactory.Create(req);
+        var clientPrincipal = await clientPrincipalFactory.CreateAsync(req);
         var isAuthorised = clientPrincipal != null;
         if (isAuthorised)
         {

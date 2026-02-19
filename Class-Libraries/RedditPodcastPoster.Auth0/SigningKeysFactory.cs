@@ -25,5 +25,8 @@ public class SigningKeysFactory(IOptions<Auth0ValidationOptions> auth0Validation
     }
 
     // Implement IAsyncFactory<T>.Create()
-    Task<ICollection<SecurityKey>?> IAsyncFactory<ICollection<SecurityKey>?>.Create() => GetSecurityKeys();
+    Task<ICollection<SecurityKey>?> IAsyncFactory<ICollection<SecurityKey>?>.Create()
+    {
+        return GetSecurityKeys();
+    }
 }

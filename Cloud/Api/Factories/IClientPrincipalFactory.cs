@@ -5,5 +5,5 @@ namespace Api.Factories;
 
 public interface IClientPrincipalFactory
 {
-    public ClientPrincipal? Create(HttpRequestData request);
+    Task<ClientPrincipal?> CreateAsync(HttpRequestData request);
 }

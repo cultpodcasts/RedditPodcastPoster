@@ -48,11 +48,4 @@ public class Auth0TokenValidator(
 
         return null;
     }
-
-    public ValidatedToken? GetClaimsPrincipal(string auth0Bearer)
-    {
-        // For backward compatibility, use synchronous wrapper
-        // Note: This blocks on async initialization on first call
-        return GetClaimsPrincipalAsync(auth0Bearer).GetAwaiter().GetResult();
-    }
 }
