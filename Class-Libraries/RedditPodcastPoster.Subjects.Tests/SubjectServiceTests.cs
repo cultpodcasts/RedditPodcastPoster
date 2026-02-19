@@ -1,6 +1,5 @@
 using AutoFixture;
 using FluentAssertions;
-using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -72,7 +71,7 @@ public class SubjectServiceTests
     public async Task Match_WithSubjectAliasMatchingASubjectName_IsCorrect()
     {
         // arrange
-        var subject = _fixture.Build<Subject>().With(x => x.Aliases, new[] {_subjects.Last().Name}).Create();
+        var subject = _fixture.Build<Subject>().With(x => x.Aliases, new[] { _subjects.Last().Name }).Create();
         // act
         var result = await Sut.Match(subject);
         // assert
@@ -83,7 +82,8 @@ public class SubjectServiceTests
     public async Task Match_WithSubjectAliasMatchingASubjectAlias_IsCorrect()
     {
         // arrange
-        var subject = _fixture.Build<Subject>().With(x => x.Aliases, new[] {_subjects.Last().Aliases!.Last()}).Create();
+        var subject = _fixture.Build<Subject>().With(x => x.Aliases, new[] { _subjects.Last().Aliases!.Last() })
+            .Create();
         // act
         var result = await Sut.Match(subject);
         // assert
@@ -96,9 +96,9 @@ public class SubjectServiceTests
         // arrange
         var subject = _fixture.Create<Subject>();
         var firstMatchingAlias =
-            _fixture.Build<Subject>().With(x => x.Aliases, new[] {subject.Aliases!.First()}).Create();
+            _fixture.Build<Subject>().With(x => x.Aliases, new[] { subject.Aliases!.First() }).Create();
         var secondMatchingAlias =
-            _fixture.Build<Subject>().With(x => x.Aliases, new[] {subject.Aliases!.Last()}).Create();
+            _fixture.Build<Subject>().With(x => x.Aliases, new[] { subject.Aliases!.Last() }).Create();
         _subjects = _subjects.Append(firstMatchingAlias).Append(secondMatchingAlias).ToList();
         // act
         Func<Task> act = () => Sut.Match(subject);

@@ -15,7 +15,7 @@ public class SubjectEnricher(
     {
         var subjectMatches = await subjectMatcher.MatchSubjects(episode, options);
         var (additions, removals) = CompareSubjects(episode.Subjects, subjectMatches, options?.DefaultSubject);
-
+        var hadSubjects = episode.Subjects.Any();
         if (additions.Any())
         {
             if (options != null)
@@ -67,6 +67,15 @@ public class SubjectEnricher(
             logger.LogWarning(
                 "Redundant: {redundantTerms} : '{episodeTitle}' ({episodeId}).",
                 string.Join(",", removals.Select(x => "'" + x + "'")), episode.Title, episode.Id);
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.DefaultSubject) && !hadSubjects &&
+            (!episode.Subjects.Any() || episode.Subjects.All(x => x.StartsWith("_"))))
+        {
+            additions.Insert(0, new SubjectMatch(new Subject(options.DefaultSubject), []));
+            logger.LogWarning(
+                "Applying default-subject '{defaultSubject}' to episode with title: '{episodeTitle}' ({episodeId}).",
+                options.DefaultSubject, episode.Title, episode.Id);
         }
 
         return new EnrichSubjectsResult(additions.Select(x => x.Subject.Name).ToArray(), removals.ToArray());
