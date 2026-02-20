@@ -150,10 +150,20 @@ public class PodcastHandler(
 
             if (podcastResult.RetrievalState == PodcastRetrievalState.Conflict)
             {
-                logger.LogError("Multiple podcasts with name '{name}' and episode-id '{episodeId}'.",
-                    podcastGetRequest.PodcastName, podcastGetRequest.EpisodeId);
+                if (podcastResult.AmbiguousPodcasts == null)
+                {
+                    logger.LogError(
+                        "Podcast retrieval in conflict-state without ambiguous-podcasts. name: '{name}' and episode-id: '{episodeId}'.",
+                        podcastGetRequest.PodcastName, podcastGetRequest.EpisodeId);
+                    return await req.CreateResponse(HttpStatusCode.InternalServerError)
+                        .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve podcast"), c);
+                }
+
+                logger.LogError("Multiple podcasts with name '{name}' and episode-id '{episodeId}', ids: {ids}.",
+                    podcastGetRequest.PodcastName, podcastGetRequest.EpisodeId,
+                    string.Join(", ", podcastResult.AmbiguousPodcasts));
                 return await req.CreateResponse(HttpStatusCode.Conflict)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Multiple podcasts found"), c);
+                    .WithJsonBody(podcastResult.AmbiguousPodcasts, c);
             }
         }
         catch (Exception ex)
@@ -572,8 +582,19 @@ public class PodcastHandler(
                     return new PodcastWrapper(podcastByEpisode.Single(), PodcastRetrievalState.Found);
                 }
             }
+
+            var podcastsWithServiceIds = podcasts.Where(x =>
+                !string.IsNullOrWhiteSpace(x.SpotifyId) || !string.IsNullOrWhiteSpace(x.YouTubeChannelId) ||
+                x.AppleId != null);
+            {
+                if (podcastsWithServiceIds.Count() == 1)
+                {
+                    return new PodcastWrapper(podcastsWithServiceIds.Single(), PodcastRetrievalState.Found);
+                }
+
+            }
         }
 
-        return new PodcastWrapper(null, PodcastRetrievalState.Conflict);
+        return new PodcastWrapper(null, PodcastRetrievalState.Conflict, podcasts.Select(p => p.Id));
     }
 }

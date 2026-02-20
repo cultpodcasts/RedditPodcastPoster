@@ -2,4 +2,7 @@
 
 namespace Api.Models;
 
-public record PodcastWrapper(Podcast? Podcast, PodcastRetrievalState RetrievalState);
+public record PodcastWrapper(
+    Podcast? Podcast,
+    PodcastRetrievalState RetrievalState,
+    IEnumerable<Guid>? AmbiguousPodcasts = null);
