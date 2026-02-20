@@ -1,124 +1,248 @@
-<Solution>
-  <Folder Name="/Class-Libraries/">
-    <Project Path="Class-Libraries/RedditPodcastPoster.AI/RedditPodcastPoster.AI.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Auth0/RedditPodcastPoster.Auth0.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.BBC/RedditPodcastPoster.BBC.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Bluesky/RedditPodcastPoster.Bluesky.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Cloudflare/RedditPodcastPoster.Cloudflare.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.CloudflareRedirect/RedditPodcastPoster.CloudflareRedirect.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Common/RedditPodcastPoster.Common.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Configuration/RedditPodcastPoster.Configuration.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.ContentPublisher/RedditPodcastPoster.ContentPublisher.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.DependencyInjection/RedditPodcastPoster.DependencyInjection.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Discovery/RedditPodcastPoster.Discovery.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.EdgeApi/RedditPodcastPoster.EdgeApi.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.EntitySearchIndexer/RedditPodcastPoster.EntitySearchIndexer.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Indexing/RedditPodcastPoster.Indexing.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.InternetArchive/RedditPodcastPoster.InternetArchive.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Models/RedditPodcastPoster.Models.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Persistence.Abstractions/RedditPodcastPoster.Persistence.Abstractions.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Persistence/RedditPodcastPoster.Persistence.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Abstractions/RedditPodcastPoster.PodcastServices.Abstractions.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple/RedditPodcastPoster.PodcastServices.Apple.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.ListenNotes/RedditPodcastPoster.PodcastServices.ListenNotes.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify/RedditPodcastPoster.PodcastServices.Spotify.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Taddy/RedditPodcastPoster.PodcastServices.Taddy.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/RedditPodcastPoster.PodcastServices.YouTube.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices/RedditPodcastPoster.PodcastServices.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.PushSubscriptions/RedditPodcastPoster.PushSubscriptions.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Reddit/RedditPodcastPoster.Reddit.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Search/RedditPodcastPoster.Search.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Subjects/RedditPodcastPoster.Subjects.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Subreddit/RedditPodcastPoster.Subreddit.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Text/RedditPodcastPoster.Text.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Twitter/RedditPodcastPoster.Twitter.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.UrlShortening/RedditPodcastPoster.UrlShortening.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.UrlSubmission/RedditPodcastPoster.UrlSubmission.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.YouTubePushNotifications/RedditPodcastPoster.YouTubePushNotifications.csproj" />
-  </Folder>
-  <Folder Name="/Class-Libraries/Tests/">
-    <Project Path="Class-Libraries/RedditPodcastPoster.BBC.Tests/RedditPodcastPoster.BBC.Tests.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple.Tests/RedditPodcastPoster.PodcastServices.Apple.Tests.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify.Tests/RedditPodcastPoster.PodcastServices.Spotify.Tests.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube.Tests/RedditPodcastPoster.PodcastServices.YouTube.Tests.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Reddit.Tests/RedditPodcastPoster.Reddit.Tests.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Subjects.Tests/RedditPodcastPoster.Subjects.Tests.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.Text.Tests/RedditPodcastPoster.Text.Tests.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.UrlSubmission.Tests/RedditPodcastPoster.UrlSubmission.Tests.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.YouTubePushNotifications.Tests/RedditPodcastPoster.YouTubePushNotifications.Tests.csproj" />
-  </Folder>
-  <Folder Name="/Cloud/">
-    <Project Path="Cloud/Api/Api.csproj" />
-    <Project Path="Cloud/Azure/Azure.csproj" />
-    <Project Path="Cloud/Discovery/Discovery.csproj" />
-    <Project Path="Cloud/Indexer/Indexer.csproj" />
-  </Folder>
-  <Folder Name="/Console-Apps/">
-    <Project Path="Console-Apps/AddAudioPodcast/AddAudioPodcast.csproj" />
-    <Project Path="Console-Apps/AddSubjectToSearchMatches/AddSubjectToSearchMatches.csproj" />
-    <Project Path="Console-Apps/AddYouTubeChannelAsPodcast/AddYouTubeChannelAsPodcast.csproj" />
-    <Project Path="Console-Apps/CategorisePodcastEpisodes/CategorisePodcastEpisodes.csproj" />
-    <Project Path="Console-Apps/CosmosDbDownloader/CosmosDbDownloader.csproj" />
-    <Project Path="Console-Apps/CosmosDbFixer/CosmosDbFixer.csproj" />
-    <Project Path="Console-Apps/CosmosDbUploader/CosmosDbUploader.csproj" />
-    <Project Path="Console-Apps/CreateSearchIndex/CreateSearchIndex.csproj" />
-    <Project Path="Console-Apps/CultPodcasts.DatabasePublisher/CultPodcasts.DatabasePublisher.csproj" />
-    <Project Path="Console-Apps/DeleteSearchDocument/DeleteSearchDocument.csproj" />
-    <Project Path="Console-Apps/Discover/Discover.csproj" />
-    <Project Path="Console-Apps/EliminateExistingEpisodes/EliminateExistingEpisodes.csproj" />
-    <Project Path="Console-Apps/EnrichEpisodesFromPostFlare/EnrichEpisodesFromPostFlare.csproj" />
-    <Project Path="Console-Apps/EnrichExistingEpisodesFromPodcastServices/EnrichExistingEpisodesFromPodcastServices.csproj" />
-    <Project Path="Console-Apps/EnrichPodcastWithImages/EnrichPodcastWithImages.csproj" />
-    <Project Path="Console-Apps/EnrichSubjectRedditFlairs/EnrichSubjectRedditFlairs.csproj" />
-    <Project Path="Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubeOnlyPodcasts.csproj" />
-    <Project Path="Console-Apps/FixDatesFromApple/FixDatesFromApple.csproj" />
-    <Project Path="Console-Apps/FlairPublisher/FlairPublisher.csproj" />
-    <Project Path="Console-Apps/Index/Index.csproj" />
-    <Project Path="Console-Apps/IndexAllEpisodesAudit/IndexAllEpisodesAudit.csproj" />
-    <Project Path="Console-Apps/JsonSplitCosmosDbUploader/JsonSplitCosmosDbUploader.csproj" />
-    <Project Path="Console-Apps/KVWriter/KVWriter.csproj" />
-    <Project Path="Console-Apps/LanguagesPublisher/LanguagesPublisher.csproj" />
-    <Project Path="Console-Apps/LaunchSettingsToAppSettings/LaunchSettingsToAppSettings.csproj" />
-    <Project Path="Console-Apps/MachineAuth0/MachineAuth0.csproj" />
-    <Project Path="Console-Apps/ModelTransformer/ModelTransformer.csproj" />
-    <Project Path="Console-Apps/Poster/Poster.csproj" />
-    <Project Path="Console-Apps/RemoveEpisodes/RemoveEpisodes.csproj" />
-    <Project Path="Console-Apps/RenamePodcast/RenamePodcast.csproj" />
-    <Project Path="Console-Apps/SecretsToFunctionSettings/SecretsToFunctionSettings.csproj" />
-    <Project Path="Console-Apps/SeedEliminationTerms/SeedEliminationTerms.csproj" />
-    <Project Path="Console-Apps/SeedKnownTerms/SeedKnownTerms.csproj" />
-    <Project Path="Console-Apps/Sqllite3DatabasePublisher/Sqllite3DatabasePublisher.csproj" />
-    <Project Path="Console-Apps/SubjectSeeder/SubjectSeeder.csproj" />
-    <Project Path="Console-Apps/SubmitUrl/SubmitUrl.csproj" />
-    <Project Path="Console-Apps/TextClassifierTraining/TextClassifierTraining.csproj" />
-    <Project Path="Console-Apps/ThrowawayConsole/ThrowawayConsole.csproj" />
-    <Project Path="Console-Apps/Tweet/Tweet.csproj" />
-    <Project Path="Console-Apps/UnremoveEpisodes/UnremoveEpisodes.csproj" />
-    <Project Path="Console-Apps/WebsubStatus/WebsubStatus.csproj" />
-    <Project Path="Console-Apps/WikipediaEpisodeEnricher/WikipediaEpisodeEnricher.csproj" />
-    <Project Path="Console-Apps/YouTubePushNotificationSubscribe/YouTubePushNotificationSubscribe.csproj" />
-  </Folder>
-  <Folder Name="/Console-Apps/Tests/">
-    <Project Path="Console-Apps/TextClassifierTraining.Tests/TextClassifierTraining.Tests.csproj" />
-  </Folder>
-  <Folder Name="/Documentation/">
-    <File Path="README.md" />
-  </Folder>
-  <Folder Name="/Infrastructure/">
-    <File Path="Infrastructure/app-settings.bicep" />
-    <File Path="Infrastructure/function-application-insights.bicep" />
-    <File Path="Infrastructure/function-storage.bicep" />
-    <File Path="Infrastructure/function.bicep" />
-    <File Path="Infrastructure/functions.bicep" />
-    <File Path="Infrastructure/functions.bicepparam" />
-  </Folder>
-  <Folder Name="/Third-Party/">
-    <Project Path="Third-Party/sirkris-Reddit.NET-1.5.3/src/Reddit.NET/Reddit.NET.csproj" />
-  </Folder>
-  <Folder Name="/Workflows/">
-    <File Path=".github/workflows/deploy.yml" />
-    <File Path=".github/workflows/dotnet.yml" />
-  </Folder>
-  <Project Path="Console-Apps/RedditPodcastPoster/RedditPodcastPoster.csproj" />
-</Solution>
+<Solution>
+
+  <Folder Name="/Class-Libraries/">
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.AI/RedditPodcastPoster.AI.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Auth0/RedditPodcastPoster.Auth0.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.BBC/RedditPodcastPoster.BBC.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Bluesky/RedditPodcastPoster.Bluesky.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Cloudflare/RedditPodcastPoster.Cloudflare.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.CloudflareRedirect/RedditPodcastPoster.CloudflareRedirect.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Common/RedditPodcastPoster.Common.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Configuration/RedditPodcastPoster.Configuration.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.ContentPublisher/RedditPodcastPoster.ContentPublisher.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.DependencyInjection/RedditPodcastPoster.DependencyInjection.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
+    <Project Path="Class-Libraries/RedditPodcastPoster.Discovery/RedditPodcastPoster.Discovery.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.EdgeApi/RedditPodcastPoster.EdgeApi.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.EntitySearchIndexer/RedditPodcastPoster.EntitySearchIndexer.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Indexing/RedditPodcastPoster.Indexing.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.InternetArchive/RedditPodcastPoster.InternetArchive.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Models/RedditPodcastPoster.Models.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Persistence.Abstractions/RedditPodcastPoster.Persistence.Abstractions.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Persistence/RedditPodcastPoster.Persistence.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Abstractions/RedditPodcastPoster.PodcastServices.Abstractions.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple/RedditPodcastPoster.PodcastServices.Apple.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.ListenNotes/RedditPodcastPoster.PodcastServices.ListenNotes.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify/RedditPodcastPoster.PodcastServices.Spotify.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Taddy/RedditPodcastPoster.PodcastServices.Taddy.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/RedditPodcastPoster.PodcastServices.YouTube.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices/RedditPodcastPoster.PodcastServices.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.PushSubscriptions/RedditPodcastPoster.PushSubscriptions.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Reddit/RedditPodcastPoster.Reddit.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Search/RedditPodcastPoster.Search.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Subjects/RedditPodcastPoster.Subjects.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Subreddit/RedditPodcastPoster.Subreddit.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Text/RedditPodcastPoster.Text.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Twitter/RedditPodcastPoster.Twitter.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.UrlShortening/RedditPodcastPoster.UrlShortening.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.UrlSubmission/RedditPodcastPoster.UrlSubmission.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.YouTubePushNotifications/RedditPodcastPoster.YouTubePushNotifications.csproj" />
+
+  </Folder>
+
+  <Folder Name="/Class-Libraries/Tests/">
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.BBC.Tests/RedditPodcastPoster.BBC.Tests.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple.Tests/RedditPodcastPoster.PodcastServices.Apple.Tests.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify.Tests/RedditPodcastPoster.PodcastServices.Spotify.Tests.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube.Tests/RedditPodcastPoster.PodcastServices.YouTube.Tests.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Reddit.Tests/RedditPodcastPoster.Reddit.Tests.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Subjects.Tests/RedditPodcastPoster.Subjects.Tests.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Text.Tests/RedditPodcastPoster.Text.Tests.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.UrlSubmission.Tests/RedditPodcastPoster.UrlSubmission.Tests.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.YouTubePushNotifications.Tests/RedditPodcastPoster.YouTubePushNotifications.Tests.csproj" />
+
+  </Folder>
+
+  <Folder Name="/Cloud/">
+
+    <Project Path="Cloud/Api/Api.csproj" />
+
+    <Project Path="Cloud/Azure/Azure.csproj" />
+
+    <Project Path="Cloud/Discovery/Discovery.csproj" />
+
+    <Project Path="Cloud/Indexer/Indexer.csproj" />
+
+  </Folder>
+
+  <Folder Name="/Console-Apps/">
+
+    <Project Path="Console-Apps/AddAudioPodcast/AddAudioPodcast.csproj" />
+
+    <Project Path="Console-Apps/AddSubjectToSearchMatches/AddSubjectToSearchMatches.csproj" />
+
+    <Project Path="Console-Apps/AddYouTubeChannelAsPodcast/AddYouTubeChannelAsPodcast.csproj" />
+
+    <Project Path="Console-Apps/CategorisePodcastEpisodes/CategorisePodcastEpisodes.csproj" />
+
+    <Project Path="Console-Apps/CosmosDbDownloader/CosmosDbDownloader.csproj" />
+
+    <Project Path="Console-Apps/CosmosDbFixer/CosmosDbFixer.csproj" />
+
+    <Project Path="Console-Apps/CosmosDbUploader/CosmosDbUploader.csproj" />
+
+    <Project Path="Console-Apps/CreateSearchIndex/CreateSearchIndex.csproj" />
+
+    <Project Path="Console-Apps/CultPodcasts.DatabasePublisher/CultPodcasts.DatabasePublisher.csproj" />
+
+    <Project Path="Console-Apps/DeleteSearchDocument/DeleteSearchDocument.csproj" />
+
+    <Project Path="Console-Apps/Discover/Discover.csproj" />
+
+    <Project Path="Console-Apps/EliminateExistingEpisodes/EliminateExistingEpisodes.csproj" />
+
+    <Project Path="Console-Apps/EnrichEpisodesFromPostFlare/EnrichEpisodesFromPostFlare.csproj" />
+
+    <Project Path="Console-Apps/EnrichExistingEpisodesFromPodcastServices/EnrichExistingEpisodesFromPodcastServices.csproj" />
+
+    <Project Path="Console-Apps/EnrichPodcastWithImages/EnrichPodcastWithImages.csproj" />
+
+    <Project Path="Console-Apps/EnrichSubjectRedditFlairs/EnrichSubjectRedditFlairs.csproj" />
+
+    <Project Path="Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubeOnlyPodcasts.csproj" />
+
+    <Project Path="Console-Apps/FixDatesFromApple/FixDatesFromApple.csproj" />
+
+    <Project Path="Console-Apps/FlairPublisher/FlairPublisher.csproj" />
+
+    <Project Path="Console-Apps/Index/Index.csproj" />
+
+    <Project Path="Console-Apps/IndexAllEpisodesAudit/IndexAllEpisodesAudit.csproj" />
+
+    <Project Path="Console-Apps/JsonSplitCosmosDbUploader/JsonSplitCosmosDbUploader.csproj" />
+
+    <Project Path="Console-Apps/KVWriter/KVWriter.csproj" />
+
+    <Project Path="Console-Apps/LanguagesPublisher/LanguagesPublisher.csproj" />
+
+    <Project Path="Console-Apps/LaunchSettingsToAppSettings/LaunchSettingsToAppSettings.csproj" />
+
+    <Project Path="Console-Apps/MachineAuth0/MachineAuth0.csproj" />
+
+    <Project Path="Console-Apps/ModelTransformer/ModelTransformer.csproj" />
+
+    <Project Path="Console-Apps/Poster/Poster.csproj" />
+
+    <Project Path="Console-Apps/RemoveEpisodes/RemoveEpisodes.csproj" />
+
+    <Project Path="Console-Apps/RenamePodcast/RenamePodcast.csproj" />
+
+    <Project Path="Console-Apps/SecretsToFunctionSettings/SecretsToFunctionSettings.csproj" />
+
+    <Project Path="Console-Apps/SeedEliminationTerms/SeedEliminationTerms.csproj" />
+
+    <Project Path="Console-Apps/SeedKnownTerms/SeedKnownTerms.csproj" />
+
+    <Project Path="Console-Apps/Sqllite3DatabasePublisher/Sqllite3DatabasePublisher.csproj" />
+
+    <Project Path="Console-Apps/SubjectSeeder/SubjectSeeder.csproj" />
+
+    <Project Path="Console-Apps/SubmitUrl/SubmitUrl.csproj" />
+
+    <Project Path="Console-Apps/TextClassifierTraining/TextClassifierTraining.csproj" />
+
+    <Project Path="Console-Apps/ThrowawayConsole/ThrowawayConsole.csproj" />
+
+    <Project Path="Console-Apps/Tweet/Tweet.csproj" />
+
+    <Project Path="Console-Apps/UnremoveEpisodes/UnremoveEpisodes.csproj" />
+
+    <Project Path="Console-Apps/WebsubStatus/WebsubStatus.csproj" />
+
+    <Project Path="Console-Apps/WikipediaEpisodeEnricher/WikipediaEpisodeEnricher.csproj" />
+
+    <Project Path="Console-Apps/YouTubePushNotificationSubscribe/YouTubePushNotificationSubscribe.csproj" />
+
+  </Folder>
+
+  <Folder Name="/Console-Apps/Tests/">
+
+    <Project Path="Console-Apps/TextClassifierTraining.Tests/TextClassifierTraining.Tests.csproj" />
+
+  </Folder>
+
+  <Folder Name="/Documentation/">
+
+    <File Path="README.md" />
+
+  </Folder>
+
+  <Folder Name="/Infrastructure/">
+
+    <File Path="Infrastructure/app-settings.bicep" />
+
+    <File Path="Infrastructure/function-application-insights.bicep" />
+
+    <File Path="Infrastructure/function-storage.bicep" />
+
+    <File Path="Infrastructure/function.bicep" />
+
+    <File Path="Infrastructure/functions.bicep" />
+
+    <File Path="Infrastructure/functions.bicepparam" />
+
+  </Folder>
+
+  <Folder Name="/Third-Party/">
+
+    <Project Path="Third-Party/sirkris-Reddit.NET-1.5.3/src/Reddit.NET/Reddit.NET.csproj" />
+
+  </Folder>
+
+  <Folder Name="/Workflows/">
+
+    <File Path=".github/workflows/deploy.yml" />
+
+    <File Path=".github/workflows/dotnet.yml" />
+
+  </Folder>
+
+  <Project Path="Console-Apps/RedditPodcastPoster/RedditPodcastPoster.csproj" />
+
+</Solution>
+
 
