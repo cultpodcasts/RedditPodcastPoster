@@ -155,7 +155,7 @@ public class PodcastHandler(
                     logger.LogError(
                         "Podcast retrieval in conflict-state without ambiguous-podcasts. name: '{name}' and episode-id: '{episodeId}'.",
                         podcastGetRequest.PodcastName, podcastGetRequest.EpisodeId);
-                    return await req.CreateResponse(HttpStatusCode.InternalServerError)
+                    return await req.CreateResponse(HttpStatusCode.Conflict)
                         .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve podcast"), c);
                 }
 
