@@ -66,21 +66,48 @@ public class PodcastHandler(
 
             await podcastRepository.Save(podcast);
 
+            var failureDeletingFromIndex = false;
+            var failureIndexingEpisodes = false;
             if (podcastChangeRequestWrapper.Podcast.Removed.HasValue &&
                 podcastChangeRequestWrapper.Podcast.Removed.Value)
             {
-                await DeleteEpisodesFromSearchIndex(c, podcast);
+                failureDeletingFromIndex = !await DeleteEpisodesFromSearchIndex(c, podcast);
                 await DeleteEpisodesFromShortner(podcast);
             }
-            else if (podcastChangeRequestWrapper.AllowNameChange)
+            else
             {
-                if (podcast.Episodes.Any())
+                if (podcastChangeRequestWrapper.AllowNameChange)
                 {
-                    await searchIndexerService.IndexEpisodes(podcast.Episodes.Select(x => x.Id), c);
+                    if (podcast.Episodes.Any())
+                    {
+                        try
+                        {
+                            await searchIndexerService.IndexEpisodes(podcast.Episodes.Select(x => x.Id), c);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(ex,
+                                "{method}: Failed to re-index all episodes after podcast rename for podcast-id '{podcastId}'.",
+                                nameof(Post), podcastChangeRequestWrapper.PodcastId);
+                            failureIndexingEpisodes = true;
+                        }
+                    }
                 }
             }
 
-            return req.CreateResponse(HttpStatusCode.Accepted);
+            var httpResponseData = req.CreateResponse(HttpStatusCode.Accepted);
+            if (failureIndexingEpisodes)
+            {
+                httpResponseData =
+                    await httpResponseData.WithJsonBody(new { failureIndexingEpisodes = failureIndexingEpisodes }, c);
+            }
+            else if (failureDeletingFromIndex)
+            {
+                httpResponseData =
+                    await httpResponseData.WithJsonBody(new { failureDeletingFromIndex = failureDeletingFromIndex }, c);
+            }
+
+            return httpResponseData;
         }
         catch (Exception ex)
         {
@@ -336,24 +363,37 @@ public class PodcastHandler(
     private async Task<bool> DeleteEpisodesFromSearchIndex(CancellationToken c,
         RedditPodcastPoster.Models.Podcast podcast)
     {
+        var failure = false;
         var episodeIds = podcast.Episodes.Select(x => x.Id.ToString()).ToArray();
-        var result = await searchClient.DeleteDocumentsAsync("id", episodeIds,
-            new IndexDocumentsOptions { ThrowOnAnyError = false }, c);
-        var failure = result.Value.Results.Any(x => !x.Succeeded);
-        if (failure)
+        try
         {
-            logger.LogError(
-                "Removed {successCount} documents. Failed to remove {failureCount} documents with search-index with ids: {documentIds}.",
-                result.Value.Results.Count(x => x.Succeeded),
-                result.Value.Results.Count(x => !x.Succeeded),
-                string.Join(",", episodeIds.Select(x => $"'{x}'")));
+            var result = await searchClient.DeleteDocumentsAsync("id", episodeIds,
+                new IndexDocumentsOptions { ThrowOnAnyError = false }, c);
+            failure = result.Value.Results.Any(x => !x.Succeeded);
+
+            if (failure)
+            {
+                logger.LogError(
+                    "Removed {successCount} documents. Failed to remove {failureCount} documents with search-index with ids: {documentIds}.",
+                    result.Value.Results.Count(x => x.Succeeded),
+                    result.Value.Results.Count(x => !x.Succeeded),
+                    string.Join(",", episodeIds.Select(x => $"'{x}'")));
+            }
+            else
+            {
+                logger.LogInformation("Removed {successCount} documents. ",
+                    result.Value.Results.Count(x => x.Succeeded));
+            }
         }
-        else
+        catch (Exception ex)
         {
-            logger.LogInformation("Removed {successCount} documents. ", result.Value.Results.Count(x => x.Succeeded));
+            logger.LogError(ex,
+                "Exception while deleting documents with search-index with ids: {documentIds}.",
+                string.Join(",", episodeIds.Select(x => $"'{x}'")));
+            failure = true;
         }
 
-        return failure;
+        return !failure;
     }
 
     private async Task DeleteEpisodesFromShortner(RedditPodcastPoster.Models.Podcast podcast)
@@ -591,7 +631,6 @@ public class PodcastHandler(
                 {
                     return new PodcastWrapper(podcastsWithServiceIds.Single(), PodcastRetrievalState.Found);
                 }
-
             }
         }
 
