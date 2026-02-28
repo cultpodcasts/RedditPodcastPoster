@@ -1,5 +1,6 @@
 using Api.Dtos;
 using Api.Dtos.Extensions;
+using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.ContentPublisher.Models;
@@ -27,7 +28,7 @@ public class DiscoveryResultsService(
             {
                 id = podcast.Id,
                 name = podcast.Name,
-                isVisible = !podcast.IsRemoved(),
+                isVisible = !podcast.Removed.IsDefined() || podcast.Removed == false,
                 visibleEpisodes = podcast.Episodes.Count(e => !e.Removed)
             })
             .ToListAsync(c);
@@ -64,13 +65,14 @@ public class DiscoveryResultsService(
         {
             var unprocessedDiscoveryReports = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync();
             var numberOfReports = unprocessedDiscoveryReports.Count();
-            DateTime? minProcessed= null;
+            DateTime? minProcessed = null;
             int? numberOfResults = null;
             if (numberOfReports > 0)
             {
                 minProcessed = unprocessedDiscoveryReports.Min(x => x.DiscoveryBegan);
                 numberOfResults = unprocessedDiscoveryReports.SelectMany(x => x.DiscoveryResults).Count();
             }
+
             await contentPublisher.PublishDiscoveryInfo(new DiscoveryInfo
             {
                 DocumentCount = numberOfReports,
@@ -91,12 +93,14 @@ public class DiscoveryResultsService(
             var document = await discoveryResultsRepository.GetById(documentId);
             if (document == null)
             {
-                logger.LogError("No {DiscoveryResultsDocumentName} with id '{DocumentId}'.", nameof(DiscoveryResultsDocument), documentId);
+                logger.LogError("No {DiscoveryResultsDocumentName} with id '{DocumentId}'.",
+                    nameof(DiscoveryResultsDocument), documentId);
             }
             else if (document.State != DiscoveryResultsDocumentState.Unprocessed)
             {
                 logger.LogWarning(
-                    "{DiscoveryResultsDocumentName} with id '{DocumentId}' is not in unprocessed-state. Has state '{DiscoveryResultsDocumentState}'.", nameof(DiscoveryResultsDocument), documentId, document.State);
+                    "{DiscoveryResultsDocumentName} with id '{DocumentId}' is not in unprocessed-state. Has state '{DiscoveryResultsDocumentState}'.",
+                    nameof(DiscoveryResultsDocument), documentId, document.State);
             }
             else if (document.State == DiscoveryResultsDocumentState.Unprocessed)
             {
