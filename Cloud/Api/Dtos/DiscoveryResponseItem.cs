@@ -69,5 +69,5 @@ public class DiscoveryResponseItem
 
     [JsonPropertyName("matchingPodcasts")]
     [JsonPropertyOrder(150)]
-    public string[] MatchingPodcasts { get; set; } = [];
+    public DiscoveryPodcast[]? MatchingPodcasts { get; set; }
 }

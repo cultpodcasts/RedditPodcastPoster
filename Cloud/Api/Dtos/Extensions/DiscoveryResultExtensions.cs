@@ -6,7 +6,7 @@ namespace Api.Dtos.Extensions;
 public static class DiscoveryResultExtensions
 {
     public static DiscoveryResponseItem ToDiscoveryResponseItem(this DiscoveryResult item,
-        IDictionary<Guid, string> podcasts)
+        IDictionary<Guid, DiscoveryPodcast> podcasts)
     {
         var result = new DiscoveryResponseItem();
         result.Urls = item.Urls;
@@ -19,14 +19,16 @@ public static class DiscoveryResultExtensions
         result.Id = item.Id;
         result.ImageUrl = item.ImageUrl;
         result.Length = item.Length;
-        result.MatchingPodcasts = item.MatchingPodcastIds
+        var resultMatchingPodcasts = item.MatchingPodcastIds
             .Select(x =>
             {
                 podcasts.TryGetValue(x, out var podcast);
-                return podcast ?? string.Empty;
+                return podcast;
             })
+            .Where(x => x != null)
             .Distinct()
             .ToArray();
+        result.MatchingPodcasts = (resultMatchingPodcasts.Any() ? resultMatchingPodcasts : null)!;
         result.ShowName = item.ShowName;
         result.YouTubeChannelMembers = item.YouTubeChannelMembers;
         result.YouTubeViews = item.YouTubeViews;

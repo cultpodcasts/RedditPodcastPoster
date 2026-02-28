@@ -23,12 +23,22 @@ public class DiscoveryResultsService(
         var results = documents.SelectMany(x => x.DiscoveryResults);
         var podcastIds = results.SelectMany(x => x.MatchingPodcastIds).Distinct();
         var referencedPodcasts = await podcastRepository
-            .GetAllBy(x =>
-                podcastIds.Contains(x.Id), podcast => new {id = podcast.Id, name = podcast.Name})
+            .GetAllBy(x => podcastIds.Contains(x.Id), podcast => new
+            {
+                id = podcast.Id,
+                name = podcast.Name,
+                isVisible = !podcast.IsRemoved(),
+                visibleEpisodes = podcast.Episodes.Count(e => !e.Removed)
+            })
             .ToListAsync(c);
         logger.LogInformation($"{nameof(Get)} Obtained matching podcasts.");
         var podcastsLookup = referencedPodcasts
-            .ToDictionary(pd => pd.id, pd => pd.name);
+            .ToDictionary(pd => pd.id, pd => new DiscoveryPodcast
+            {
+                Name = pd.name,
+                IsVisible = pd.isVisible,
+                VisibleEpisodes = pd.visibleEpisodes
+            });
         var result = new DiscoveryResponse
         {
             Ids = documents.Select(x => x.Id),
