@@ -57,7 +57,7 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore -r ${{ env.TARGET_RUNTIME }}
     - name: Build
-      run: dotnet build --configuration ${{ env.buildConfiguration }} --no-restore
+      run: dotnet build --configuration ${{ env.buildConfiguration }} -r ${{ env.TARGET_RUNTIME }} --no-restore
     - name: Test
       run: dotnet test --configuration ${{ env.buildConfiguration }} --no-build --verbosity normal
     - name: Publish api
