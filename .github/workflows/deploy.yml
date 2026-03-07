@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/runtime-identifier-removal
 
 permissions:
   id-token: write
@@ -22,7 +23,8 @@ env:
   INDEXER_PACKAGE_PATH: './Cloud/Indexer' 
   DOTNET_VERSION: '10.0.x' 
   buildConfiguration: 'Release'
-  runtimeIdentifier: 'linux-x64'
+  TARGET_RUNTIME: 'linux-x64'
+  ENABLE_DEPLOYMENT: 'false'
   outputApi: 'output/api'
   outputDiscover: 'output/discover'
   outputIndexer: 'output/indexer'
@@ -60,11 +62,11 @@ jobs:
     - name: Test
       run: dotnet test --configuration ${{ env.buildConfiguration }} --no-build --verbosity normal
     - name: Publish api
-      run: dotnet publish --configuration ${{ env.buildConfiguration }} --no-build -r ${{ env.runtimeIdentifier }} ${{ env.API_PACKAGE_PATH }} -o:${{ env.outputApi }}
+      run: dotnet publish --configuration ${{ env.buildConfiguration }} --no-build -r ${{ env.TARGET_RUNTIME }} ${{ env.API_PACKAGE_PATH }} -o:${{ env.outputApi }}
     - name: Publish discover
-      run: dotnet publish --configuration ${{ env.buildConfiguration }} --no-build -r ${{ env.runtimeIdentifier }} ${{ env.DISCOVER_PACKAGE_PATH }} -o:${{ env.outputDiscover }}
+      run: dotnet publish --configuration ${{ env.buildConfiguration }} --no-build -r ${{ env.TARGET_RUNTIME }} ${{ env.DISCOVER_PACKAGE_PATH }} -o:${{ env.outputDiscover }}
     - name: Publish indexer
-      run: dotnet publish --configuration ${{ env.buildConfiguration }} --no-build -r ${{ env.runtimeIdentifier }} ${{ env.INDEXER_PACKAGE_PATH }} -o:${{ env.outputIndexer }}
+      run: dotnet publish --configuration ${{ env.buildConfiguration }} --no-build -r ${{ env.TARGET_RUNTIME }} ${{ env.INDEXER_PACKAGE_PATH }} -o:${{ env.outputIndexer }}
     - name: Archive api-production artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -93,6 +95,7 @@ jobs:
   provision:
     runs-on: ubuntu-latest
     needs: [build]
+    if: ${{ env.ENABLE_DEPLOYMENT == 'true' }}
     continue-on-error: false
     steps:
     - name: Download bicep artifact
@@ -167,6 +170,7 @@ jobs:
   api-deploy:
     runs-on: ubuntu-latest
     needs: provision
+    if: ${{ env.ENABLE_DEPLOYMENT == 'true' }}
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -197,6 +201,7 @@ jobs:
   discover-deploy:
     runs-on: ubuntu-latest
     needs: provision
+    if: ${{ env.ENABLE_DEPLOYMENT == 'true' }}
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -227,6 +232,7 @@ jobs:
   indexer-deploy:
     runs-on: ubuntu-latest
     needs: provision
+    if: ${{ env.ENABLE_DEPLOYMENT == 'true' }}
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
