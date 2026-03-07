@@ -65,7 +65,7 @@ jobs:
       with:
         dotnet-version: 9.0.x
     - name: Restore dependencies
-      run: dotnet restore --configuration ${{ env.buildConfiguration }} -r ${{ env.TARGET_RUNTIME }}
+      run: dotnet restore /p:Configuration=Release -r ${{ env.TARGET_RUNTIME }}
     - name: Publish ${{ matrix.project.name }}
       run: dotnet publish --configuration ${{ env.buildConfiguration }} -r ${{ env.TARGET_RUNTIME }} ${{ matrix.project.path }} -o:${{ matrix.project.output }}
     - name: Archive ${{ matrix.project.name }} artifacts
