@@ -37,6 +37,21 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       infrastructure_changed: ${{ steps.changes.outputs.infrastructure }}
+    strategy:
+      matrix:
+        project:
+          - name: api
+            path: './Cloud/Api'
+            output: 'output/api'
+            artifact: 'api'
+          - name: discover
+            path: './Cloud/Discovery'
+            output: 'output/discover'
+            artifact: 'discover'
+          - name: indexer
+            path: './Cloud/Indexer'
+            output: 'output/indexer'
+            artifact: 'indexer'
     steps:
     - uses: actions/checkout@v4
     - uses: dorny/paths-filter@v3
@@ -45,55 +60,59 @@ jobs:
         filters: |
           infrastructure:
           - ./Infrastructure/**
-    - name: Remove Files
-      run: |
-        rm ./Cloud/Api/appsettings.Development.json
-        rm ./Cloud/Discovery/appsettings.Development.json
-        rm ./Cloud/Indexer/appsettings.Development.json
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 9.0.x
     - name: Restore dependencies
       run: dotnet restore -r ${{ env.TARGET_RUNTIME }}
-    - name: Build
-      run: dotnet build --configuration ${{ env.buildConfiguration }} -r ${{ env.TARGET_RUNTIME }} --no-restore
-    - name: Test
-      run: dotnet test --configuration ${{ env.buildConfiguration }} --no-build --verbosity normal
-    - name: Publish api
-      run: dotnet publish --configuration ${{ env.buildConfiguration }} --no-build -r ${{ env.TARGET_RUNTIME }} ${{ env.API_PACKAGE_PATH }} -o:${{ env.outputApi }}
-    - name: Publish discover
-      run: dotnet publish --configuration ${{ env.buildConfiguration }} --no-build -r ${{ env.TARGET_RUNTIME }} ${{ env.DISCOVER_PACKAGE_PATH }} -o:${{ env.outputDiscover }}
-    - name: Publish indexer
-      run: dotnet publish --configuration ${{ env.buildConfiguration }} --no-build -r ${{ env.TARGET_RUNTIME }} ${{ env.INDEXER_PACKAGE_PATH }} -o:${{ env.outputIndexer }}
-    - name: Archive api-production artifacts
+    - name: Build ${{ matrix.project.name }}
+      run: dotnet build --configuration ${{ env.buildConfiguration }} -r ${{ env.TARGET_RUNTIME }} --no-restore ${{ matrix.project.path }}
+    - name: Publish ${{ matrix.project.name }}
+      run: dotnet publish --configuration ${{ env.buildConfiguration }} --no-build -r ${{ env.TARGET_RUNTIME }} ${{ matrix.project.path }} -o:${{ matrix.project.output }}
+    - name: Archive ${{ matrix.project.name }} artifacts
       uses: actions/upload-artifact@v4
       with:
-          name: ${{ env.artifactApi }}
-          path: ${{ env.outputApi }}
-          include-hidden-files: true
-    - name: Archive discover-production artifacts
-      uses: actions/upload-artifact@v4
+        name: ${{ matrix.project.artifact }}
+        path: ${{ matrix.project.output }}
+        include-hidden-files: true
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
       with:
-          name: ${{ env.artifactDiscover }}
-          path: ${{ env.outputDiscover }}
-          include-hidden-files: true
-    - name: Archive indexer-production artifacts
-      uses: actions/upload-artifact@v4
+        dotnet-version: 9.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Run tests
+      run: dotnet test --configuration ${{ env.buildConfiguration }} --no-restore --verbosity normal
+
+  archive-infrastructure:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v3
+      id: changes
       with:
-          name: ${{ env.artifactIndexer }}
-          path: ${{ env.outputIndexer }}            
-          include-hidden-files: true
+        filters: |
+          infrastructure:
+          - ./Infrastructure/**
     - name: Archive bicep artifacts
+      if: steps.changes.outputs.infrastructure == 'true'
       uses: actions/upload-artifact@v4
       with:
-          name: ${{ env.artifactInfrastructure }}
-          path: Infrastructure
-          include-hidden-files: true
+        name: ${{ env.artifactInfrastructure }}
+        path: Infrastructure
+        include-hidden-files: true
 
   provision:
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [build, test, archive-infrastructure]
     if: github.ref == 'refs/heads/main'
     continue-on-error: false
     steps:
