@@ -262,4 +262,16 @@ jobs:
         run: ls -R -a .
 
       - name: Login to Azure
-        uses: azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
+          tenant-id: ${{ secrets.AZURE_Tenant_ID }}
+          subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+
+      - name: 'Run Azure Functions Action'
+        uses: Azure/functions-action@v1
+        id: fa
+        with:
+          app-name: 'indexer-infra'
+          slot-name: 'Production'
+          package: ${{ env.outputIndexer }}
