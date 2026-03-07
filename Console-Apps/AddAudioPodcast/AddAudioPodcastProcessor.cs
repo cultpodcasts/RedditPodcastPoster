@@ -1,5 +1,4 @@
-﻿using System.Text.RegularExpressions;
-using iTunesSearch.Library;
+﻿using iTunesSearch.Library;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.EntitySearchIndexer;
@@ -8,16 +7,18 @@ using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
+using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using SpotifyAPI.Web;
+using System.Text.RegularExpressions;
 
 namespace AddAudioPodcast;
 
 public class AddAudioPodcastProcessor(
     IPodcastRepository podcastRepository,
-    ISpotifyClient spotifyClient,
+    ISpotifyClientWrapper spotifyClient,
     IPodcastFactory podcastFactory,
     IApplePodcastEnricher applePodcastEnricher,
     ISpotifyPodcastEnricher spotifyPodcastEnricher,
@@ -135,7 +136,7 @@ public class AddAudioPodcastProcessor(
     private async Task<Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
     {
         var spotifyPodcast =
-            await spotifyClient.Shows.Get(request.PodcastId, new ShowRequest { Market = Market.CountryCode });
+            await spotifyClient.GetFullShow(request.PodcastId, new ShowRequest { Market = Market.CountryCode }, new IndexingContext());
         logger.LogInformation("Retrieved spotify podcast");
         var podcast = await podcastRepository.GetBy(x => x.SpotifyId == request.PodcastId);
         if (podcast == null)

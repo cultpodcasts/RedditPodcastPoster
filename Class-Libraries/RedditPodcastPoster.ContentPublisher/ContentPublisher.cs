@@ -124,39 +124,14 @@ public class ContentPublisher(
 
     public async Task PublishLanguages()
     {
-        var languageCodes = new[]
+        var allCultures = CultureInfo.GetCultures(CultureTypes.AllCultures);
+        var languages = new[]
         {
-            "fr",
-            "es",
-            "de",
-            "pt",
-            "tr",
-            "nl",
-            "it",
-            "ja",
-            "zh",
-            "ko",
-            "hi",
-            "ru",
-            "he",
-            "ar",
-            "bn",
-            "id",
-            "fil",
-            "ur",
-            "sw",
-            "sk",
-            "cs",
-            "te",
-            "af",
-            "fa",
-            "ms",
-            "no",
-            "pa",
-            "th",
-            "uk"
-        };
-        var languages = languageCodes.Select(CultureInfo.GetCultureInfo).ToArray();
+            "French", "Spanish", "German", "Portuguese", "Turkish", "Dutch", "Italian", "Japanese", "Chinese", "Korean",
+            "Hindi", "Russian", "Hebrew", "Arabic", "Bangla", "Indonesian", "Filipino", "Urdu", "Kiswahili",
+            "Vietnamese", "Slovak", "Czech", "Telugu", "Afrikaans", "Persian", "Malay", "Norwegian", "Punjabi", "Thai",
+            "Ukrainian", "Marathi"
+        }.Select(x => allCultures.Single(y => y.IsNeutralCulture && y.EnglishName == x));
 
         var json = JsonSerializer.Serialize(
             languages.Distinct().OrderBy(x => x.EnglishName)
