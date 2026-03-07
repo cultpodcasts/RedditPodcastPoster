@@ -33,8 +33,9 @@ public class SubmitUrlHandler(
                     await repository.GetBy(x => x.Name == submitUrlModel.PodcastName, x => new { guid = x.Id });
                 if (podcastIdWrapper == null)
                 {
-                    return await req.CreateResponse(HttpStatusCode.NotFound)
+                    var httpResponseData = await req.CreateResponse(HttpStatusCode.NotFound)
                         .WithJsonBody(new { message = "Podcast with name not found" }, c);
+                    return httpResponseData;
                 }
 
                 podcastId = podcastIdWrapper.guid;

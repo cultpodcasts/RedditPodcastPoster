@@ -22,6 +22,7 @@ env:
   INDEXER_PACKAGE_PATH: './Cloud/Indexer' 
   DOTNET_VERSION: '10.0.x' 
   buildConfiguration: '--configuration Release'
+  runtimeIdentifier: 'linux-x64'
   outputApi: 'output/api'
   outputDiscover: 'output/discover'
   outputIndexer: 'output/indexer'
@@ -55,15 +56,15 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build ${{ env.buildConfiguration }} --no-restore
+      run: dotnet build ${{ env.buildConfiguration }} -r ${{ env.runtimeIdentifier }} --no-restore
     - name: Test
-      run: dotnet test ${{ env.buildConfiguration }} --no-build --verbosity normal
+      run: dotnet test ${{ env.buildConfiguration }} -r ${{ env.runtimeIdentifier }} --no-build --verbosity normal
     - name: Publish api
-      run: dotnet publish ${{ env.buildConfiguration }} --no-build ${{ env.API_PACKAGE_PATH }} -o:${{ env.outputApi }}
+      run: dotnet publish ${{ env.buildConfiguration }} --no-build -r ${{ env.runtimeIdentifier }} ${{ env.API_PACKAGE_PATH }} -o:${{ env.outputApi }}
     - name: Publish discover
-      run: dotnet publish ${{ env.buildConfiguration }} --no-build ${{ env.DISCOVER_PACKAGE_PATH }} -o:${{ env.outputDiscover }}
+      run: dotnet publish ${{ env.buildConfiguration }} --no-build -r ${{ env.runtimeIdentifier }} ${{ env.DISCOVER_PACKAGE_PATH }} -o:${{ env.outputDiscover }}
     - name: Publish indexer
-      run: dotnet publish ${{ env.buildConfiguration }} --no-build ${{ env.INDEXER_PACKAGE_PATH }} -o:${{ env.outputIndexer }}
+      run: dotnet publish ${{ env.buildConfiguration }} --no-build -r ${{ env.runtimeIdentifier }} ${{ env.INDEXER_PACKAGE_PATH }} -o:${{ env.outputIndexer }}
     - name: Archive api-production artifacts
       uses: actions/upload-artifact@v4
       with:
