@@ -48,4 +48,4 @@
   <ItemGroup>
     <Using Include="System.Threading.ExecutionContext" Alias="ExecutionContext" />
   </ItemGroup>
-</Project></Project>
+</Project>
