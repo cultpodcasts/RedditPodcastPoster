@@ -55,7 +55,7 @@ jobs:
       with:
         dotnet-version: 9.0.x
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore -r ${{ env.TARGET_RUNTIME }}
     - name: Build
       run: dotnet build --configuration ${{ env.buildConfiguration }} --no-restore
     - name: Test
