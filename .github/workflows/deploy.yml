@@ -56,9 +56,9 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build ${{ env.buildConfiguration }} -r ${{ env.runtimeIdentifier }} --no-restore
+      run: dotnet build ${{ env.buildConfiguration }} --no-restore
     - name: Test
-      run: dotnet test ${{ env.buildConfiguration }} -r ${{ env.runtimeIdentifier }} --no-build --verbosity normal
+      run: dotnet test ${{ env.buildConfiguration }} --no-build --verbosity normal
     - name: Publish api
       run: dotnet publish ${{ env.buildConfiguration }} --no-build -r ${{ env.runtimeIdentifier }} ${{ env.API_PACKAGE_PATH }} -o:${{ env.outputApi }}
     - name: Publish discover
