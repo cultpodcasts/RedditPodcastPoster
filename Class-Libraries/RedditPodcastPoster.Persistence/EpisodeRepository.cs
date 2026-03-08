@@ -2,7 +2,7 @@ using System.Linq.Expressions;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
@@ -12,11 +12,18 @@ public class EpisodeRepository(
     ILogger<EpisodeRepository> logger)
     : IEpisodeRepository
 {
-    private static readonly PartitionKey EpisodePartitionKey = new(ModelType.Episode.ToString());
+    private static PartitionKey ToPartitionKey(Guid podcastId) => new(podcastId.ToString());
 
     public async Task<Episode?> GetEpisode(Guid podcastId, Guid episodeId)
     {
-        return await GetBy(x => x.PodcastId == podcastId && x.Id == episodeId);
+        try
+        {
+            return await container.ReadItemAsync<Episode>(episodeId.ToString(), ToPartitionKey(podcastId));
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
     }
 
     public IAsyncEnumerable<Episode> GetByPodcastId(Guid podcastId)
@@ -26,7 +33,12 @@ public class EpisodeRepository(
 
     public async Task Save(Episode episode)
     {
-        await container.UpsertItemAsync(episode, EpisodePartitionKey);
+        if (episode.PodcastId==Guid.Empty)
+        {
+            throw new InvalidOperationException("Episode.PodcastId must be set before saving.");
+        }
+
+        await container.UpsertItemAsync(episode, ToPartitionKey(episode.PodcastId));
     }
 
     public async Task Save(IEnumerable<Episode> episodes)
@@ -39,26 +51,24 @@ public class EpisodeRepository(
 
     public async Task Delete(Guid podcastId, Guid episodeId)
     {
-        var episode = await GetEpisode(podcastId, episodeId);
-        if (episode == null)
+        try
         {
-            return;
+            await container.DeleteItemAsync<Episode>(episodeId.ToString(), ToPartitionKey(podcastId));
         }
-
-        await container.DeleteItemAsync<Episode>(episodeId.ToString(), EpisodePartitionKey);
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            // idempotent delete
+        }
     }
 
     public async Task<Episode?> GetBy(Expression<Func<Episode, bool>> selector)
     {
         var query = container
-            .GetItemLinqQueryable<Episode>(requestOptions: new QueryRequestOptions
-            {
-                PartitionKey = EpisodePartitionKey
-            })
+            .GetItemLinqQueryable<Episode>(requestOptions: new QueryRequestOptions())
             .Where(selector);
 
         var items = query.ToFeedIterator();
-        if (items.HasMoreResults)
+        while (items.HasMoreResults)
         {
             foreach (var item in await items.ReadNextAsync())
             {
@@ -72,10 +82,7 @@ public class EpisodeRepository(
     public async IAsyncEnumerable<Episode> GetAllBy(Expression<Func<Episode, bool>> selector)
     {
         var query = container
-            .GetItemLinqQueryable<Episode>(requestOptions: new QueryRequestOptions
-            {
-                PartitionKey = EpisodePartitionKey
-            })
+            .GetItemLinqQueryable<Episode>(requestOptions: new QueryRequestOptions())
             .Where(selector);
 
         var items = query.ToFeedIterator();

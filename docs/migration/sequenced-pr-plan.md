@@ -10,6 +10,12 @@
 - Keep current runtime behavior gated so production path is not switched in this PR.
 - Stage note: [`stages/pr1-modeltype-immutability.md`](./stages/pr1-modeltype-immutability.md)
 - Stage note: [`stages/pr1-episode-repository-scaffold.md`](./stages/pr1-episode-repository-scaffold.md)
+- Stage note: [`stages/pr1-episode-repository-podcastid-partition.md`](./stages/pr1-episode-repository-podcastid-partition.md)
+- Stage note: [`stages/pr1-container-factory-explicit-methods.md`](./stages/pr1-container-factory-explicit-methods.md)
+- Stage note: [`stages/pr1-cosmos-settings-required-episodes-container.md`](./stages/pr1-cosmos-settings-required-episodes-container.md)
+- Stage note: [`stages/pr1-container-split-legacy-podcasts-episodes.md`](./stages/pr1-container-split-legacy-podcasts-episodes.md)
+- Stage note: [`stages/pr1-di-explicit-podcast-repository-registration.md`](./stages/pr1-di-explicit-podcast-repository-registration.md)
+- Stage note: [`stages/pr1-v2-models-and-podcast-repository.md`](./stages/pr1-v2-models-and-podcast-repository.md)
 
 ### Exit criteria
 - Solution builds.

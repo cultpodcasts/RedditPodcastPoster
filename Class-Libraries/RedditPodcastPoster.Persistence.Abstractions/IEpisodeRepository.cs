@@ -1,5 +1,5 @@
 using System.Linq.Expressions;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 
 namespace RedditPodcastPoster.Persistence.Abstractions;
 

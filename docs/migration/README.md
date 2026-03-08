@@ -17,6 +17,12 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 
 - PR1: [`stages/pr1-modeltype-immutability.md`](./stages/pr1-modeltype-immutability.md)
 - PR1: [`stages/pr1-episode-repository-scaffold.md`](./stages/pr1-episode-repository-scaffold.md)
+- PR1: [`stages/pr1-episode-repository-podcastid-partition.md`](./stages/pr1-episode-repository-podcastid-partition.md)
+- PR1: [`stages/pr1-container-factory-explicit-methods.md`](./stages/pr1-container-factory-explicit-methods.md)
+- PR1: [`stages/pr1-cosmos-settings-required-episodes-container.md`](./stages/pr1-cosmos-settings-required-episodes-container.md)
+- PR1: [`stages/pr1-container-split-legacy-podcasts-episodes.md`](./stages/pr1-container-split-legacy-podcasts-episodes.md)
+- PR1: [`stages/pr1-di-explicit-podcast-repository-registration.md`](./stages/pr1-di-explicit-podcast-repository-registration.md)
+- PR1: [`stages/pr1-v2-models-and-podcast-repository.md`](./stages/pr1-v2-models-and-podcast-repository.md)
 
 ## Scope Summary
 

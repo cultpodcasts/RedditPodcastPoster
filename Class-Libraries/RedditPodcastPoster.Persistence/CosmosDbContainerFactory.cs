@@ -19,4 +19,24 @@ public class CosmosDbContainerFactory(
     {
         return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
     }
+
+    public Container CreatePodcastsContainer()
+    {
+        if (string.IsNullOrWhiteSpace(_cosmosDbSettings.PodcastsContainer))
+        {
+            throw new InvalidOperationException("Configuration 'cosmosdb:PodcastsContainer' is required.");
+        }
+
+        return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.PodcastsContainer);
+    }
+
+    public Container CreateEpisodesContainer()
+    {
+        if (string.IsNullOrWhiteSpace(_cosmosDbSettings.EpisodesContainer))
+        {
+            throw new InvalidOperationException("Configuration 'cosmosdb:EpisodesContainer' is required.");
+        }
+
+        return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.EpisodesContainer);
+    }
 }

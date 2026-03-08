@@ -19,7 +19,18 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<ICosmosDbRepository, CosmosDbRepository>()
                 .AddSingleton<IEpisodeMatcher, EpisodeMatcher>()
                 .AddSingleton<IPodcastRepository, PodcastRepository>()
-                .AddSingleton<IEpisodeRepository, EpisodeRepository>()
+                .AddSingleton<IPodcastRepositoryV2>(s =>
+                {
+                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PodcastRepositoryV2>>();
+                    return new PodcastRepositoryV2(containerFactory.CreatePodcastsContainer(), logger);
+                })
+                .AddSingleton<IEpisodeRepository>(s =>
+                {
+                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<EpisodeRepository>>();
+                    return new EpisodeRepository(containerFactory.CreateEpisodesContainer(), logger);
+                })
                 .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
                 .BindConfiguration<CosmosDbSettings>("cosmosdb");
