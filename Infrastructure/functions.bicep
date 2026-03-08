@@ -26,6 +26,8 @@ param cosmosdbAuthKeyOrResourceToken string
 @secure()
 param cosmosdbEndpoint string
 @secure()
+param cosmosdbEndpointV2 string
+@secure()
 param listenNotesKey string
 @secure()
 param pushSubscriptionsPrivateKey string
@@ -183,8 +185,8 @@ var cosmosdb= {
 
 var cosmosdbv2= {
     cosmosdbv2__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken
-    cosmosdbv2__DatabaseId: 'cultpodcasts'
-    cosmosdbv2__Endpoint: cosmosdbEndpoint
+    cosmosdbv2__DatabaseId: 'cultpodcasts-db'
+    cosmosdbv2__Endpoint: cosmosdbEndpointV2
     cosmosdbv2__PodcastsContainer: 'Podcasts'
     cosmosdbv2__EpisodesContainer: 'Episodes'
     cosmosdbv2__SubjectsContainer: 'Subjects'
