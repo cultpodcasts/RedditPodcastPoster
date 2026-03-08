@@ -7,7 +7,6 @@
 - Add EpisodeRepository Cosmos implementation for Episodes (partition key /podcastId).
 - Remove Episodes from Podcast.
 - Add PodcastId and search-required denormalized podcast metadata fields to Episode.
-- Add compact URL identifier fields to Episode (ytid, spid, apid, appid, aslug).
 - Keep current runtime behavior gated so production path is not switched in this PR.
 - Stage note: [`stages/pr1-modeltype-immutability.md`](./stages/pr1-modeltype-immutability.md)
 
@@ -31,8 +30,9 @@ Key changes:
 - Replace podcast.Episodes reads/mutations with IEpisodeRepository queries/commands.
 - Replace search datasource query from embedded-episode join (JOIN e IN p.episodes) to Episodes container query.
 - Move high-watermark semantics from podcast timestamp to episode timestamp (e._ts).
-- Reduce search index payload by replacing full URLs with compact identifier fields.
+- Reduce search index payload by replacing full URLs with compact keys mapped from existing IDs.
 - Introduce reduced-key search schema (CompactSearchRecord) with schema version marker (sv).
+- Derive Apple slug from Apple URL via regex instead of storing additional slug member on Episode.
 - Introduce/enable feature flag (for example UseRelationshipModel) for controlled rollout.
 
 ### Exit criteria
@@ -44,7 +44,8 @@ Key changes:
 
 ### Scope
 - Update UI/search consumers to accept reduced-key CompactSearchRecord.
-- Reconstruct URLs client-side from compact identifiers (ytid, spid, Apple tuple).
+- Reconstruct URLs client-side from compact keys mapped from existing IDs (`sid`/`yid`/`aid`).
+- Derive Apple slug from Apple URL via regex when needed.
 - Support dual-read compatibility for old and new key names during rollout.
 
 ### Exit criteria
@@ -76,7 +77,7 @@ Also add/verify fan-out sync flow so podcast metadata updates refresh denormaliz
 
 ### Scope
 - Add migration job from legacy CultPodcasts to Podcasts + Episodes.
-- Populate denormalized episode metadata fields and compact identifiers during migration/backfill.
+- Populate denormalized episode metadata fields during migration/backfill.
 - Freeze writes to legacy container.
 - Run backfill and reconciliation.
 - Enable relationship-model flag in production.

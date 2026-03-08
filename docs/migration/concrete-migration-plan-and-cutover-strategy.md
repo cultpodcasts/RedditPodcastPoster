@@ -11,12 +11,8 @@
 - Add foreign key `podcastId` (GUID) linking to `Podcast.id`.
 - Keep current episode fields (`release`, `posted`, `tweeted`, `blueskyPosted`, etc.).
 - Denormalize mutable podcast metadata needed for search (`podcastName`, `podcastSearchTerms`, language strategy).
-- Add compact search-reference fields for URL reconstruction and uniqueness:
-  - `ytid` = YouTube video ID
-  - `spid` = Spotify episode ID
-  - `apid` = Apple episode ID
-  - `appid` = Apple podcast ID
-  - `aslug` = Apple episode-name slug
+- Do not add duplicate compact ID members for Spotify/YouTube/Apple IDs already present on `Episode`.
+- Derive Apple episode slug from the Apple URL using regex when needed.
 
 ### `Episode` search-output contract (`CompactSearchRecord`)
 - Reduce key names and payload size for search-index records consumed by UI.
@@ -30,7 +26,10 @@
   - `ex` (explicit)
   - `s` (subjects)
   - `l` (lang)
-  - `ytid`, `spid`, `apid`, `appid`, `aslug`
+  - `sid` (maps from `episode.spotifyId`)
+  - `yid` (maps from `episode.youTubeId`)
+  - `aid` (maps from `episode.appleId`)
+  - `as` (Apple slug derived from `episode.urls.apple`)
 - Keep an explicit schema/version marker (for example `sv = 2`) for UI compatibility.
 
 ## 2. Migration Phases
@@ -53,7 +52,6 @@
      - Write podcast metadata to `Podcasts`.
      - Write each embedded episode to `Episodes` with `podcastId = podcast.id`.
      - Populate denormalized episode search fields (`podcastName`, `podcastSearchTerms`, language fallback).
-     - Populate compact identifier fields (`ytid`, `spid`, `apid`, `appid`, `aslug`).
 
 5. **Reconciliation pass**
    - Validate:
@@ -62,7 +60,7 @@
      - Per-podcast episode counts.
      - Sampled field parity for status flags and IDs.
      - Search field parity for denormalized metadata.
-     - Compact identifier parity for URL reconstruction.
+     - URL primitive parity for `spotifyId`, `youTubeId`, `appleId` and derived Apple slug.
 
 6. **Shadow-read validation**
    - In non-prod and then prod read-compare mode, compare legacy vs target-model responses for critical endpoints.
@@ -109,15 +107,18 @@ Current query assumes embedded episodes (`FROM podcasts p JOIN e IN p.episodes`)
 ### Required strategy
 - Point the search index datasource container at `Episodes`.
 - Query only episodes (`FROM episodes e`) with high-watermark on `e._ts`.
-- Replace full URL fields in index output with compact IDs:
-  - use `ytid`, `spid`, and Apple tuple (`appid`, `aslug`, `apid`) as URL reconstruction primitives.
+- Replace full URL fields in index output with compact keys sourced from existing episode IDs:
+  - `sid` from `spotifyId`
+  - `yid` from `youTubeId`
+  - `aid` from `appleId`
+  - `as` derived by regex from `urls.apple`
 - Reduce index key names per `CompactSearchRecord` contract.
 
 ### UI integration strategy
-- UI reconstructs URLs client-side from compact IDs:
-  - YouTube: `https://www.youtube.com/watch?v={ytid}`
-  - Spotify: `https://open.spotify.com/episode/{spid}`
-  - Apple: `https://podcasts.apple.com/podcast/id{appid}?i={apid}` (or slug-enabled route using `aslug`)
+- UI reconstructs URLs client-side from compact keys:
+  - YouTube: `https://www.youtube.com/watch?v={yid}`
+  - Spotify: `https://open.spotify.com/episode/{sid}`
+  - Apple: `https://podcasts.apple.com/podcast/id{podcastAppleId}?i={aid}` or slug-enabled route using `as`
 - UI handles schema version (`sv`) to support migration from old key names.
 
 ### Operational implications
@@ -165,4 +166,4 @@ Current query assumes embedded episodes (`FROM podcasts p JOIN e IN p.episodes`)
 - Validate sampled episode field equivalence (including posted/tweeted/removed flags).
 - Validate search document parity (document count and sampled field parity) before and after query migration.
 - Validate podcast metadata fan-out updates are applied to episodes and reflected in search output.
-- Validate URL reconstruction parity from compact identifiers in UI-facing records.
+- Validate URL reconstruction parity from compact keys sourced from existing IDs and Apple URL regex slug derivation.

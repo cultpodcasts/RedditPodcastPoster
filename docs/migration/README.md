@@ -23,7 +23,8 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 - Persist episodes in `Episodes` container with partition key `/podcastId`.
 - Persist podcasts in `Podcasts` container with partition key `/id`.
 - Keep search-required podcast metadata denormalized on episode records.
-- Reduce search-index payload by storing compact identifier fields instead of full URLs.
+- Reduce search-index payload with compact keys mapped from existing episode IDs (`spotifyId`, `youTubeId`, `appleId`).
+- Derive Apple slug from Apple URL by regex when needed.
 - Preserve rollback safety with legacy `CultPodcasts` write-freeze and staged cutover.
 
 ## Critical Concerns to Track
@@ -33,7 +34,7 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
   - Method: `CreateDataSource`
 - Replace embedded query shape (`JOIN e IN p.episodes`) with direct `Episodes` query.
 - Ensure podcast metadata changes fan out to affected episodes so search fields stay consistent.
-- Ensure UI consumers support reduced-key `CompactSearchRecord` and URL reconstruction from compact IDs.
+- Ensure UI consumers support reduced-key `CompactSearchRecord` and URL reconstruction from compact keys.
 
 ## Completion Gates
 
