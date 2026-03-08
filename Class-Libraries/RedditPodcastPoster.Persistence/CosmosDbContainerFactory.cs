@@ -39,4 +39,54 @@ public class CosmosDbContainerFactory(
 
         return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.EpisodesContainer);
     }
+
+    public Container CreateSubjectsContainer()
+    {
+        if (string.IsNullOrWhiteSpace(_cosmosDbSettings.SubjectsContainer))
+        {
+            throw new InvalidOperationException("Configuration 'cosmosdb:SubjectsContainer' is required.");
+        }
+
+        return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.SubjectsContainer);
+    }
+
+    public Container CreateActivitiesContainer()
+    {
+        if (string.IsNullOrWhiteSpace(_cosmosDbSettings.ActivitiesContainer))
+        {
+            throw new InvalidOperationException("Configuration 'cosmosdb:ActivitiesContainer' is required.");
+        }
+
+        return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.ActivitiesContainer);
+    }
+
+    public Container CreateDiscoveryContainer()
+    {
+        if (string.IsNullOrWhiteSpace(_cosmosDbSettings.DiscoveryContainer))
+        {
+            throw new InvalidOperationException("Configuration 'cosmosdb:DiscoveryContainer' is required.");
+        }
+
+        return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.DiscoveryContainer);
+    }
+
+    public Container CreateLookupContainer()
+    {
+        if (string.IsNullOrWhiteSpace(_cosmosDbSettings.LookupContainer))
+        {
+            throw new InvalidOperationException("Configuration 'cosmosdb:LookupContainer' is required.");
+        }
+
+        return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.LookupContainer);
+    }
+
+    public Container CreatePushSubscriptionsContainer()
+    {
+        if (string.IsNullOrWhiteSpace(_cosmosDbSettings.PushSubscriptionsContainer))
+        {
+            throw new InvalidOperationException("Configuration 'cosmosdb:PushSubscriptionsContainer' is required.");
+        }
+
+        return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.PushSubscriptionsContainer);
+    }
 }

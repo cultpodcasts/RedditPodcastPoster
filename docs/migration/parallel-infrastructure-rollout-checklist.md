@@ -30,7 +30,8 @@ Deploy a parallel Azure environment from this branch, migrate data to new Cosmos
   - `subjects`
   - `activities`
   - `discovery`
-  - `lookup` (contains the single `KnownTerms` item with `KnownTerms` type)
+  - `lookup` (contains single-item documents such as `KnownTerms` and `EliminationTerms`)
+  - `pushSubscriptions`
 
 ## 3. Update parameter file (`Infrastructure/functions.bicepparam`)
 

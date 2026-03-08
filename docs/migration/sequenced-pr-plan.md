@@ -18,6 +18,9 @@
 - Stage note: [`stages/pr1-v2-models-and-podcast-repository.md`](./stages/pr1-v2-models-and-podcast-repository.md)
 - Stage note: [`stages/pr1-legacy-to-v2-migration-service.md`](./stages/pr1-legacy-to-v2-migration-service.md)
 - Stage note: [`stages/pr1-migration-service-moved-to-console-app.md`](./stages/pr1-migration-service-moved-to-console-app.md)
+- Stage note: [`stages/pr1-expanded-container-settings-and-factory-methods.md`](./stages/pr1-expanded-container-settings-and-factory-methods.md)
+- Stage note: [`stages/pr1-v2-repositories-subjects-discovery-activities-lookup.md`](./stages/pr1-v2-repositories-subjects-discovery-activities-lookup.md)
+- Stage note: [`stages/pr1-pushsubscriptions-container-and-v2-repository.md`](./stages/pr1-pushsubscriptions-container-and-v2-repository.md)
 
 ### Exit criteria
 - Solution builds.
