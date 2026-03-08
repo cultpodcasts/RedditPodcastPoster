@@ -10,7 +10,7 @@
 - Registered `IPushSubscriptionRepositoryV2` in persistence DI using `CreatePushSubscriptionsContainer()`.
 
 ## Lookup alignment
-- `lookup` container is used for single-item lookup documents such as `KnownTerms` and `EliminationTerms`.
+- `LookUps` container is used for single-item lookup documents such as typed `KnownTerms` and `EliminationTerms`.
 
 ## Purpose
 - Ensure parallel infrastructure has an explicit push-subscriptions data path.

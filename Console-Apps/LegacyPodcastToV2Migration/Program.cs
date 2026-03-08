@@ -40,7 +40,7 @@ var processor = host.Services.GetRequiredService<LegacyPodcastToV2MigrationProce
 
 if (false)
 {
-    var result = await processor.Run();
+    var result = await processor.Run(LegacyPodcastToV2MigrationSections.OnlyPodcastsAndEpisodes);
     Console.WriteLine($"Podcasts migrated: {result.PodcastsMigrated}");
     Console.WriteLine($"Episodes migrated: {result.EpisodesMigrated}");
     Console.WriteLine($"Failed podcasts: {result.FailedPodcastIds.Count}");
@@ -48,22 +48,22 @@ if (false)
 }
 
 var podcastParity = await processor.VerifySampledPodcastParity(sampleSize: 1000);
-var subjectParity = await processor.VerifySampledSubjectParity(sampleSize: 1000);
-var discoveryParity = await processor.VerifySampledDiscoveryParity(sampleSize: 100);
-var lookupParity = await processor.VerifyLookupParity();
-var pushParity = await processor.VerifySampledPushSubscriptionParity(sampleSize: 25);
-var episodeParity = await processor.VerifySampledEpisodeParity(sampleSize: 1000);
-
 Console.WriteLine($"Podcast parity sampled: {podcastParity.SampledCount}");
 Console.WriteLine($"Podcast parity matches: {podcastParity.MatchingCount}");
 Console.WriteLine($"Podcast parity missing in target: {podcastParity.MissingInTargetIds.Count}");
 Console.WriteLine($"Podcast parity mismatches: {podcastParity.MismatchedIds.Count}");
 
+var subjectParity = await processor.VerifySampledSubjectParity(sampleSize: 1000);
 PrintEntityParity(subjectParity);
+var discoveryParity = await processor.VerifySampledDiscoveryParity(sampleSize: 100);
 PrintEntityParity(discoveryParity);
+var lookupParity = await processor.VerifyLookupParity();
 PrintEntityParity(lookupParity);
+var pushParity = await processor.VerifySampledPushSubscriptionParity(sampleSize: 25);
 PrintEntityParity(pushParity);
+var episodeParity = await processor.VerifySampledEpisodeParity(sampleSize: 1000);
 PrintEntityParity(episodeParity);
+
 
 static void PrintEntityParity(EntityParityVerificationResult parity)
 {

@@ -16,4 +16,4 @@
 
 ## Behavior
 - Podcasts path uses configured default container (`cosmosdb:Container`).
-- Episodes path uses `cosmosdb:EpisodesContainer` when set; otherwise falls back to default container.
+- Episodes path uses required `cosmosdb:EpisodesContainer`; missing/whitespace throws `InvalidOperationException`.

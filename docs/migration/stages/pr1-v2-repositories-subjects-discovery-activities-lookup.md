@@ -21,7 +21,7 @@ Registered the new repositories in persistence `AddRepositories()` using explici
 - `CreateSubjectsContainer()`
 - `CreateDiscoveryContainer()`
 - `CreateActivitiesContainer()`
-- `CreateLookupContainer()`
+- `CreateLookupContainer()` (targets the `LookUps` container)
 
 ## Lookup details
 `ILookupRepositoryV2` / `LookupRepositoryV2` is intentionally read-focused and exposes:
@@ -31,3 +31,5 @@ Registered the new repositories in persistence `AddRepositories()` using explici
 `GetEliminationTerms()` now defensively checks both:
 - `Id == EliminationTerms._Id`
 - `ModelType == ModelType.EliminationTerms`
+
+Single-item lookup documents (including typed `KnownTerms` and `EliminationTerms`) are stored in the `LookUps` container.

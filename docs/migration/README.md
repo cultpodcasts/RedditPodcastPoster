@@ -37,8 +37,12 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 - Move from embedded `episodes` array in `Podcast` to discrete `Episode` entities.
 - Persist episodes in `Episodes` container with partition key `/podcastId`.
 - Persist podcasts in `Podcasts` container with partition key `/id`.
+- Persist lookup data in `LookUps` container (including typed `KnownTerms` and `EliminationTerms`).
+- Persist subscriptions in dedicated `PushSubscriptions` container.
+- Use explicit factory methods `CreatePodcastsContainer()` and `CreateEpisodesContainer()` for primary relationship-model containers.
 - Keep search-required podcast metadata denormalized on episode records.
 - Reduce search-index payload with compact keys mapped from existing episode IDs (`spotifyId`, `youTubeId`, `appleId`).
+- Use `CompactSearchRecord` as the reduced-key search payload contract.
 - Derive Apple slug from Apple URL by regex when needed.
 - Preserve rollback safety with legacy `CultPodcasts` write-freeze and staged cutover.
 
@@ -57,5 +61,8 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 - Data parity validated (podcast count, episode count, per-podcast counts).
 - Search index parity validated after datasource query migration.
 - Search-index storage reduction validated.
-- UI compatibility validated for reduced-key search record contract.
+- UI compatibility validated for `CompactSearchRecord` reduced-key search record contract.
+- `LookUps` container in use for `KnownTerms` and `EliminationTerms`.
+- Dedicated `PushSubscriptions` container in use.
+- Explicit container factory methods `CreatePodcastsContainer()` and `CreateEpisodesContainer()` are in use.
 - Production reads/writes on target relationship-model containers.

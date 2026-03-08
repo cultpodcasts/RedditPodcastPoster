@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text.KnownTerms;
+using System.Text.Json;
 using LegacyEpisode = RedditPodcastPoster.Models.Episode;
 using LegacyPodcast = RedditPodcastPoster.Models.Podcast;
 using V2Episode = RedditPodcastPoster.Models.V2.Episode;
@@ -37,6 +38,7 @@ public sealed record LegacyPodcastToV2MigrationSections(
     bool MigrateDiscovery = true)
 {
     public static LegacyPodcastToV2MigrationSections All { get; } = new();
+    public static  LegacyPodcastToV2MigrationSections OnlyPodcastsAndEpisodes { get; } = new(MigrateLookup: false, MigratePushSubscriptions: false, MigrateSubjects: false, MigrateDiscovery: false);
 }
 
 public class LegacyPodcastToV2MigrationProcessor(
@@ -244,13 +246,18 @@ public class LegacyPodcastToV2MigrationProcessor(
                 continue;
             }
 
-            if (IsPodcastFieldParityMatch(legacyPodcast, targetPodcast))
+            var mismatchFields = GetPodcastFieldMismatches(legacyPodcast, targetPodcast);
+            if (mismatchFields.Count == 0)
             {
                 matchingCount++;
             }
             else
             {
                 mismatched.Add(podcastId);
+                logger.LogWarning(
+                    "Podcast parity mismatch for podcast id '{PodcastId}'. Mismatched fields: {MismatchedFields}",
+                    podcastId,
+                    string.Join(", ", mismatchFields));
             }
         }
 
@@ -566,42 +573,91 @@ public class LegacyPodcastToV2MigrationProcessor(
 
     private static bool IsPodcastFieldParityMatch(LegacyPodcast legacyPodcast, V2Podcast migratedPodcast)
     {
-        return legacyPodcast.Id == migratedPodcast.Id &&
-               legacyPodcast.Name == migratedPodcast.Name &&
-               legacyPodcast.Language == migratedPodcast.Language &&
-               legacyPodcast.Removed == migratedPodcast.Removed &&
-               legacyPodcast.Publisher == migratedPodcast.Publisher &&
-               legacyPodcast.Bundles == migratedPodcast.Bundles &&
-               legacyPodcast.IndexAllEpisodes == migratedPodcast.IndexAllEpisodes &&
-               legacyPodcast.IgnoreAllEpisodes == migratedPodcast.IgnoreAllEpisodes &&
-               legacyPodcast.BypassShortEpisodeChecking == migratedPodcast.BypassShortEpisodeChecking &&
-               legacyPodcast.MinimumDuration == migratedPodcast.MinimumDuration &&
-               legacyPodcast.ReleaseAuthority == migratedPodcast.ReleaseAuthority &&
-               legacyPodcast.PrimaryPostService == migratedPodcast.PrimaryPostService &&
-               legacyPodcast.SpotifyId == migratedPodcast.SpotifyId &&
-               legacyPodcast.SpotifyMarket == migratedPodcast.SpotifyMarket &&
-               legacyPodcast.SpotifyEpisodesQueryIsExpensive == migratedPodcast.SpotifyEpisodesQueryIsExpensive &&
-               legacyPodcast.AppleId == migratedPodcast.AppleId &&
-               legacyPodcast.YouTubeChannelId == migratedPodcast.YouTubeChannelId &&
-               legacyPodcast.YouTubePlaylistId == migratedPodcast.YouTubePlaylistId &&
-               legacyPodcast.YouTubePublicationOffset == migratedPodcast.YouTubePublicationOffset &&
-               legacyPodcast.YouTubePlaylistQueryIsExpensive == migratedPodcast.YouTubePlaylistQueryIsExpensive &&
-               legacyPodcast.SkipEnrichingFromYouTube == migratedPodcast.SkipEnrichingFromYouTube &&
-               legacyPodcast.YouTubeNotificationSubscriptionLeaseExpiry == migratedPodcast.YouTubeNotificationSubscriptionLeaseExpiry &&
-               legacyPodcast.TwitterHandle == migratedPodcast.TwitterHandle &&
-               legacyPodcast.BlueskyHandle == migratedPodcast.BlueskyHandle &&
-               legacyPodcast.HashTag == migratedPodcast.HashTag &&
-               SequenceEqual(legacyPodcast.EnrichmentHashTags, migratedPodcast.EnrichmentHashTags) &&
-               legacyPodcast.TitleRegex == migratedPodcast.TitleRegex &&
-               legacyPodcast.DescriptionRegex == migratedPodcast.DescriptionRegex &&
-               legacyPodcast.EpisodeMatchRegex == migratedPodcast.EpisodeMatchRegex &&
-               legacyPodcast.EpisodeIncludeTitleRegex == migratedPodcast.EpisodeIncludeTitleRegex &&
-               SequenceEqual(legacyPodcast.IgnoredAssociatedSubjects, migratedPodcast.IgnoredAssociatedSubjects) &&
-               SequenceEqual(legacyPodcast.IgnoredSubjects, migratedPodcast.IgnoredSubjects) &&
-               legacyPodcast.DefaultSubject == migratedPodcast.DefaultSubject &&
-               legacyPodcast.SearchTerms == migratedPodcast.SearchTerms &&
-               legacyPodcast.KnownTerms == migratedPodcast.KnownTerms &&
-               legacyPodcast.FileKey == migratedPodcast.FileKey;
+        return GetPodcastFieldMismatches(legacyPodcast, migratedPodcast).Count == 0;
+    }
+
+    private static IReadOnlyList<string> GetPodcastFieldMismatches(LegacyPodcast legacyPodcast, V2Podcast migratedPodcast)
+    {
+        var expectedPodcast = ToV2Podcast(legacyPodcast);
+        using var expectedDocument = JsonSerializer.SerializeToDocument(expectedPodcast);
+        using var actualDocument = JsonSerializer.SerializeToDocument(migratedPodcast);
+
+        var mismatches = new List<string>();
+        CollectJsonMismatches(expectedDocument.RootElement, actualDocument.RootElement, "$", mismatches);
+        return mismatches;
+    }
+
+    private static void CollectJsonMismatches(JsonElement expected, JsonElement actual, string path, List<string> mismatches)
+    {
+        if (expected.ValueKind != actual.ValueKind)
+        {
+            mismatches.Add($"{path} (type: expected {expected.ValueKind}, actual {actual.ValueKind})");
+            return;
+        }
+
+        switch (expected.ValueKind)
+        {
+            case JsonValueKind.Object:
+                var expectedProperties = expected.EnumerateObject().ToDictionary(x => x.Name, x => x.Value);
+                var actualProperties = actual.EnumerateObject().ToDictionary(x => x.Name, x => x.Value);
+
+                foreach (var (propertyName, expectedValue) in expectedProperties)
+                {
+                    if (propertyName == "_ts")
+                    {
+                        continue;
+                    }
+
+                    var propertyPath = $"{path}.{propertyName}";
+                    if (!actualProperties.TryGetValue(propertyName, out var actualValue))
+                    {
+                        mismatches.Add($"{propertyPath} (missing in target)");
+                        continue;
+                    }
+
+                    CollectJsonMismatches(expectedValue, actualValue, propertyPath, mismatches);
+                }
+
+                foreach (var propertyName in actualProperties.Keys)
+                {
+                    if (propertyName == "_ts")
+                    {
+                        continue;
+                    }
+
+                    if (!expectedProperties.ContainsKey(propertyName))
+                    {
+                        mismatches.Add($"{path}.{propertyName} (unexpected in target)");
+                    }
+                }
+
+                return;
+
+            case JsonValueKind.Array:
+                var expectedArray = expected.EnumerateArray().ToArray();
+                var actualArray = actual.EnumerateArray().ToArray();
+
+                if (expectedArray.Length != actualArray.Length)
+                {
+                    mismatches.Add($"{path} (length: expected {expectedArray.Length}, actual {actualArray.Length})");
+                    return;
+                }
+
+                for (var i = 0; i < expectedArray.Length; i++)
+                {
+                    CollectJsonMismatches(expectedArray[i], actualArray[i], $"{path}[{i}]", mismatches);
+                }
+
+                return;
+
+            default:
+                if (expected.GetRawText() != actual.GetRawText())
+                {
+                    mismatches.Add($"{path} (expected {expected.GetRawText()}, actual {actual.GetRawText()})");
+                }
+
+                return;
+        }
     }
 
     private static bool IsSubjectParityMatch(RedditPodcastPoster.Models.Subject legacy, RedditPodcastPoster.Models.Subject target)
@@ -750,6 +806,25 @@ public class LegacyPodcastToV2MigrationProcessor(
                AreEpisodeImagesEqual(expected.Images, target.Images) &&
                SequenceEqual(expected.TwitterHandles, target.TwitterHandles) &&
                SequenceEqual(expected.BlueskyHandles, target.BlueskyHandles);
+    }
+
+    private static bool AreServiceUrlsEqual(RedditPodcastPoster.Models.ServiceUrls? left, RedditPodcastPoster.Models.ServiceUrls? right)
+    {
+        if (left == null && right == null)
+        {
+            return true;
+        }
+
+        if (left == null || right == null)
+        {
+            return false;
+        }
+
+        return left.Spotify == right.Spotify &&
+               left.Apple == right.Apple &&
+               left.YouTube == right.YouTube &&
+               left.InternetArchive == right.InternetArchive &&
+               left.BBC == right.BBC;
     }
 
     private static bool AreEpisodeImagesEqual(RedditPodcastPoster.Models.EpisodeImages? left, RedditPodcastPoster.Models.EpisodeImages? right)
