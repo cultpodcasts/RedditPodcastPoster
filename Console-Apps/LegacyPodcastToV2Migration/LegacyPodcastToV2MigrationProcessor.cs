@@ -557,6 +557,9 @@ public class LegacyPodcastToV2MigrationProcessor(
             PodcastName = legacyPodcast.Name,
             PodcastSearchTerms = legacyPodcast.SearchTerms,
             SearchLanguage = legacyEpisode.Language ?? legacyPodcast.Language,
+            Images = legacyEpisode.Images,
+            TwitterHandles = legacyEpisode.TwitterHandles,
+            BlueskyHandles = legacyEpisode.BlueskyHandles,
             PodcastMetadataVersion = null
         };
     }
@@ -743,7 +746,28 @@ public class LegacyPodcastToV2MigrationProcessor(
                expected.SearchTerms == target.SearchTerms &&
                expected.PodcastName == target.PodcastName &&
                expected.PodcastSearchTerms == target.PodcastSearchTerms &&
-               expected.SearchLanguage == target.SearchLanguage;
+               expected.SearchLanguage == target.SearchLanguage &&
+               AreEpisodeImagesEqual(expected.Images, target.Images) &&
+               SequenceEqual(expected.TwitterHandles, target.TwitterHandles) &&
+               SequenceEqual(expected.BlueskyHandles, target.BlueskyHandles);
+    }
+
+    private static bool AreEpisodeImagesEqual(RedditPodcastPoster.Models.EpisodeImages? left, RedditPodcastPoster.Models.EpisodeImages? right)
+    {
+        if (left == null && right == null)
+        {
+            return true;
+        }
+
+        if (left == null || right == null)
+        {
+            return false;
+        }
+
+        return left.YouTube == right.YouTube &&
+               left.Spotify == right.Spotify &&
+               left.Apple == right.Apple &&
+               left.Other == right.Other;
     }
 
     private static bool AreServiceUrlsEqual(RedditPodcastPoster.Models.ServiceUrls left, RedditPodcastPoster.Models.ServiceUrls right)

@@ -92,6 +92,18 @@ public class Episode
     [JsonPropertyOrder(93)]
     public long? PodcastMetadataVersion { get; set; }
 
+    [JsonPropertyName("images")]
+    [JsonPropertyOrder(150)]
+    public EpisodeImages? Images { get; set; }
+
+    [JsonPropertyName("twitterHandles")]
+    [JsonPropertyOrder(160)]
+    public string[]? TwitterHandles { get; set; }
+
+    [JsonPropertyName("blueskyHandles")]
+    [JsonPropertyOrder(161)]
+    public string[]? BlueskyHandles { get; set; }
+
     [JsonPropertyName("_ts")]
     public long Timestamp { get; set; }
 }

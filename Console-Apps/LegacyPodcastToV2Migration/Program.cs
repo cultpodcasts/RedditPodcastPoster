@@ -36,11 +36,16 @@ builder.Services
 using var host = builder.Build();
 
 var processor = host.Services.GetRequiredService<LegacyPodcastToV2MigrationProcessor>();
-//var result = await processor.Run();
-//Console.WriteLine($"Podcasts migrated: {result.PodcastsMigrated}");
-//Console.WriteLine($"Episodes migrated: {result.EpisodesMigrated}");
-//Console.WriteLine($"Failed podcasts: {result.FailedPodcastIds.Count}");
-//Console.WriteLine($"Failed episodes: {result.FailedEpisodeIds.Count}");
+
+
+if (false)
+{
+    var result = await processor.Run();
+    Console.WriteLine($"Podcasts migrated: {result.PodcastsMigrated}");
+    Console.WriteLine($"Episodes migrated: {result.EpisodesMigrated}");
+    Console.WriteLine($"Failed podcasts: {result.FailedPodcastIds.Count}");
+    Console.WriteLine($"Failed episodes: {result.FailedEpisodeIds.Count}");
+}
 
 var podcastParity = await processor.VerifySampledPodcastParity(sampleSize: 1000);
 var subjectParity = await processor.VerifySampledSubjectParity(sampleSize: 1000);
