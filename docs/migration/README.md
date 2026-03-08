@@ -13,6 +13,10 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 3. **Delivery sequencing by PR**
    - [`sequenced-pr-plan.md`](./sequenced-pr-plan.md)
 
+## Stage Notes
+
+- PR1: [`stages/pr1-modeltype-immutability.md`](./stages/pr1-modeltype-immutability.md)
+
 ## Scope Summary
 
 - Move from embedded `episodes` array in `Podcast` to discrete `Episode` entities.

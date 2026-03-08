@@ -41,7 +41,6 @@ public class PodcastRepository(
                 if (existingEpisode == null)
                 {
                     episodeToMerge.Id = Guid.NewGuid();
-                    episodeToMerge.ModelType = ModelType.Episode;
                     podcast.Episodes.Add(episodeToMerge);
                     addedEpisodes.Add(episodeToMerge);
                 }

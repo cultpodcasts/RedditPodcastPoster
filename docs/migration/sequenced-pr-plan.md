@@ -9,6 +9,7 @@
 - Add PodcastId and search-required denormalized podcast metadata fields to Episode.
 - Add compact URL identifier fields to Episode (ytid, spid, apid, appid, aslug).
 - Keep current runtime behavior gated so production path is not switched in this PR.
+- Stage note: [`stages/pr1-modeltype-immutability.md`](./stages/pr1-modeltype-immutability.md)
 
 ### Exit criteria
 - Solution builds.
