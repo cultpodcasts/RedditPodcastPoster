@@ -13,6 +13,9 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 3. **Delivery sequencing by PR**
    - [`sequenced-pr-plan.md`](./sequenced-pr-plan.md)
 
+4. **Parallel infrastructure rollout (deploy + migration + cutover)**
+   - [`parallel-infrastructure-rollout-checklist.md`](./parallel-infrastructure-rollout-checklist.md)
+
 ## Stage Notes
 
 - PR1: [`stages/pr1-modeltype-immutability.md`](./stages/pr1-modeltype-immutability.md)
