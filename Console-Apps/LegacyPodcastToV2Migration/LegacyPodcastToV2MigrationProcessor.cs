@@ -17,10 +17,10 @@ public class LegacyPodcastToV2MigrationProcessor(
     IPodcastRepository legacyPodcastRepository,
     IPodcastRepositoryV2 podcastRepositoryV2,
     IEpisodeRepository episodeRepository,
-    ILookupRepository lookupRepository,
-    IPushSubscriptionsRepository pushSubscriptionsRepository,
-    ISubjectsRepository subjectsRepository,
-    IDiscoveryRepository discoveryRepository,
+    ILookupRepositoryV2 lookupRepository,
+    IPushSubscriptionRepositoryV2 pushSubscriptionsRepository,
+    ISubjectRepositoryV2 subjectsRepository,
+    IDiscoveryResultsRepositoryV2 discoveryRepository,
     ILogger<LegacyPodcastToV2MigrationProcessor> logger)
 {
     public async Task<LegacyPodcastToV2MigrationResult> Run(CancellationToken cancellationToken = default)
@@ -78,18 +78,15 @@ public class LegacyPodcastToV2MigrationProcessor(
             }
         }
 
-        // Migrate Lookup
-        var lookupItems = await lookupRepository.GetAllLegacy().ToListAsync(cancellationToken);
-        var totalLookup = lookupItems.Count;
-        for (int i = 0; i < totalLookup; i++)
+        // Migrate Lookup (current V2 data shape)
+        var eliminationTerms = await lookupRepository.GetEliminationTerms();
+        if (eliminationTerms is not null)
         {
-            await lookupRepository.Save(lookupItems[i]);
-            Console.WriteLine(
-                $"Lookup migration progress: {i + 1}/{totalLookup} ({(i + 1) * 100 / (totalLookup == 0 ? 1 : totalLookup)}%)");
+            Console.WriteLine("Lookup migration progress: current V2 lookup data is available.");
         }
 
         // Migrate PushSubscriptions
-        var pushSubscriptions = await pushSubscriptionsRepository.GetAllLegacy().ToListAsync(cancellationToken);
+        var pushSubscriptions = await pushSubscriptionsRepository.GetAll().ToListAsync(cancellationToken);
         var totalPush = pushSubscriptions.Count;
         for (int i = 0; i < totalPush; i++)
         {
@@ -99,7 +96,7 @@ public class LegacyPodcastToV2MigrationProcessor(
         }
 
         // Migrate Subjects
-        var subjects = await subjectsRepository.GetAllLegacy().ToListAsync(cancellationToken);
+        var subjects = await subjectsRepository.GetAll().ToListAsync(cancellationToken);
         var totalSubjects = subjects.Count;
         for (int i = 0; i < totalSubjects; i++)
         {
@@ -108,8 +105,8 @@ public class LegacyPodcastToV2MigrationProcessor(
                 $"Subjects migration progress: {i + 1}/{totalSubjects} ({(i + 1) * 100 / (totalSubjects == 0 ? 1 : totalSubjects)}%)");
         }
 
-        // Migrate Discovery
-        var discoveries = await discoveryRepository.GetAllLegacy().ToListAsync(cancellationToken);
+        // Migrate Discovery (current unprocessed V2 documents)
+        var discoveries = await discoveryRepository.GetAllUnprocessed().ToListAsync(cancellationToken);
         var totalDiscovery = discoveries.Count;
         for (int i = 0; i < totalDiscovery; i++)
         {

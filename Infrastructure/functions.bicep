@@ -178,14 +178,21 @@ var cosmosdb= {
     cosmosdb__Container: 'cultpodcasts'
     cosmosdb__DatabaseId: 'cultpodcasts'
     cosmosdb__Endpoint: cosmosdbEndpoint
-    cosmosdb__PodcastsContainer: 'Podcasts'
-    cosmosdb__EpisodesContainer: 'Episodes'
-    cosmosdb__SubjectsContainer: 'Subjects'
-    cosmosdb__ActivitiesContainer: 'Activity'
-    cosmosdb__DiscoveryContainer: 'Discovery'
-    cosmosdb__LookUpsContainer: 'LookUps'
-    cosmosdb__PushSubscriptionsContainer: 'PushSubscriptions'
     cosmosdb__UseGateWay: 'false'
+}
+
+var cosmosdbv2= {
+    cosmosdbv2__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken
+    cosmosdbv2__DatabaseId: 'cultpodcasts'
+    cosmosdbv2__Endpoint: cosmosdbEndpoint
+    cosmosdbv2__PodcastsContainer: 'Podcasts'
+    cosmosdbv2__EpisodesContainer: 'Episodes'
+    cosmosdbv2__SubjectsContainer: 'Subjects'
+    cosmosdbv2__ActivitiesContainer: 'Activity'
+    cosmosdbv2__DiscoveryContainer: 'Discovery'
+    cosmosdbv2__LookUpsContainer: 'LookUps'
+    cosmosdbv2__PushSubscriptionsContainer: 'PushSubscriptions'
+    cosmosdbv2__UseGateway: 'false'
 }
 
 var delayedPublication= {
@@ -421,7 +428,8 @@ var coreSettings= union(
     bluesky, 
     cloudflare, 
     content,
-    cosmosdb, 
+    cosmosdb,
+    cosmosdbv2,
     delayedPublication,
     pushSubscriptions, 
     reddit, 
