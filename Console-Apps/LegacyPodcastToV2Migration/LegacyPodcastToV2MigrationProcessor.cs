@@ -557,10 +557,10 @@ public class LegacyPodcastToV2MigrationProcessor(
             PodcastName = legacyPodcast.Name,
             PodcastSearchTerms = legacyPodcast.SearchTerms,
             SearchLanguage = legacyEpisode.Language ?? legacyPodcast.Language,
+            PodcastMetadataVersion = null,
             Images = legacyEpisode.Images,
             TwitterHandles = legacyEpisode.TwitterHandles,
-            BlueskyHandles = legacyEpisode.BlueskyHandles,
-            PodcastMetadataVersion = null
+            BlueskyHandles = legacyEpisode.BlueskyHandles
         };
     }
 
@@ -600,7 +600,7 @@ public class LegacyPodcastToV2MigrationProcessor(
                SequenceEqual(legacyPodcast.IgnoredSubjects, migratedPodcast.IgnoredSubjects) &&
                legacyPodcast.DefaultSubject == migratedPodcast.DefaultSubject &&
                legacyPodcast.SearchTerms == migratedPodcast.SearchTerms &&
-               SequenceEqual(legacyPodcast.KnownTerms, migratedPodcast.KnownTerms) &&
+               legacyPodcast.KnownTerms == migratedPodcast.KnownTerms &&
                legacyPodcast.FileKey == migratedPodcast.FileKey;
     }
 
@@ -768,13 +768,6 @@ public class LegacyPodcastToV2MigrationProcessor(
                left.Spotify == right.Spotify &&
                left.Apple == right.Apple &&
                left.Other == right.Other;
-    }
-
-    private static bool AreServiceUrlsEqual(RedditPodcastPoster.Models.ServiceUrls left, RedditPodcastPoster.Models.ServiceUrls right)
-    {
-        return left.Spotify == right.Spotify &&
-               left.Apple == right.Apple &&
-               left.YouTube == right.YouTube;
     }
 
     private static bool SequenceEqual(string[]? left, string[]? right)
