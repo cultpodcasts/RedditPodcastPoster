@@ -16,6 +16,7 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 ## Stage Notes
 
 - PR1: [`stages/pr1-modeltype-immutability.md`](./stages/pr1-modeltype-immutability.md)
+- PR1: [`stages/pr1-episode-repository-scaffold.md`](./stages/pr1-episode-repository-scaffold.md)
 
 ## Scope Summary
 

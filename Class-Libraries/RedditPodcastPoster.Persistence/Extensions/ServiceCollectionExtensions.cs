@@ -19,6 +19,7 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<ICosmosDbRepository, CosmosDbRepository>()
                 .AddSingleton<IEpisodeMatcher, EpisodeMatcher>()
                 .AddSingleton<IPodcastRepository, PodcastRepository>()
+                .AddSingleton<IEpisodeRepository, EpisodeRepository>()
                 .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
                 .BindConfiguration<CosmosDbSettings>("cosmosdb");

@@ -1,5 +1,9 @@
 # Implementation Checklist Mapped to This Repository
 
+> Stage notes:
+> - [`stages/pr1-modeltype-immutability.md`](./stages/pr1-modeltype-immutability.md)
+> - [`stages/pr1-episode-repository-scaffold.md`](./stages/pr1-episode-repository-scaffold.md)
+
 ## Phase 1: New Persistence Contracts
 
 ### `Class-Libraries/RedditPodcastPoster.Persistence.Abstractions/IPodcastRepository.cs`

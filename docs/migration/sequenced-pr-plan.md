@@ -9,6 +9,7 @@
 - Add PodcastId and search-required denormalized podcast metadata fields to Episode.
 - Keep current runtime behavior gated so production path is not switched in this PR.
 - Stage note: [`stages/pr1-modeltype-immutability.md`](./stages/pr1-modeltype-immutability.md)
+- Stage note: [`stages/pr1-episode-repository-scaffold.md`](./stages/pr1-episode-repository-scaffold.md)
 
 ### Exit criteria
 - Solution builds.
