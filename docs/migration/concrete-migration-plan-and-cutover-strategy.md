@@ -11,6 +11,27 @@
 - Add foreign key `podcastId` (GUID) linking to `Podcast.id`.
 - Keep current episode fields (`release`, `posted`, `tweeted`, `blueskyPosted`, etc.).
 - Denormalize mutable podcast metadata needed for search (`podcastName`, `podcastSearchTerms`, language strategy).
+- Add compact search-reference fields for URL reconstruction and uniqueness:
+  - `ytid` = YouTube video ID
+  - `spid` = Spotify episode ID
+  - `apid` = Apple episode ID
+  - `appid` = Apple podcast ID
+  - `aslug` = Apple episode-name slug
+
+### `Episode` search-output contract (`CompactSearchRecord`)
+- Reduce key names and payload size for search-index records consumed by UI.
+- Contract should expose compact properties, for example:
+  - `id` (episode id)
+  - `t` (episode title)
+  - `pn` (podcast name)
+  - `d` (truncated description)
+  - `r` (release)
+  - `du` (duration)
+  - `ex` (explicit)
+  - `s` (subjects)
+  - `l` (lang)
+  - `ytid`, `spid`, `apid`, `appid`, `aslug`
+- Keep an explicit schema/version marker (for example `sv = 2`) for UI compatibility.
 
 ## 2. Migration Phases
 
@@ -32,6 +53,7 @@
      - Write podcast metadata to `Podcasts`.
      - Write each embedded episode to `Episodes` with `podcastId = podcast.id`.
      - Populate denormalized episode search fields (`podcastName`, `podcastSearchTerms`, language fallback).
+     - Populate compact identifier fields (`ytid`, `spid`, `apid`, `appid`, `aslug`).
 
 5. **Reconciliation pass**
    - Validate:
@@ -40,6 +62,7 @@
      - Per-podcast episode counts.
      - Sampled field parity for status flags and IDs.
      - Search field parity for denormalized metadata.
+     - Compact identifier parity for URL reconstruction.
 
 6. **Shadow-read validation**
    - In non-prod and then prod read-compare mode, compare legacy vs target-model responses for critical endpoints.
@@ -79,17 +102,23 @@ Benefits:
 - Simplified rollback (flip feature flag to legacy reads).
 - No partial-schema risk in existing `CultPodcasts` container.
 
-## 5. Search Index Data Source Concern (`CreateDataSource`)
+## 5. Search Index Data Source and Payload Minimization
 
 Current query assumes embedded episodes (`FROM podcasts p JOIN e IN p.episodes`). That query becomes invalid after detaching episodes.
 
 ### Required strategy
 - Point the search index datasource container at `Episodes`.
 - Query only episodes (`FROM episodes e`) with high-watermark on `e._ts`.
-- Keep all search-required fields on `Episode` records:
-  - `podcastName`
-  - `podcastSearchTerms`
-  - `lang` (direct or fallback value precomputed on episode)
+- Replace full URL fields in index output with compact IDs:
+  - use `ytid`, `spid`, and Apple tuple (`appid`, `aslug`, `apid`) as URL reconstruction primitives.
+- Reduce index key names per `CompactSearchRecord` contract.
+
+### UI integration strategy
+- UI reconstructs URLs client-side from compact IDs:
+  - YouTube: `https://www.youtube.com/watch?v={ytid}`
+  - Spotify: `https://open.spotify.com/episode/{spid}`
+  - Apple: `https://podcasts.apple.com/podcast/id{appid}?i={apid}` (or slug-enabled route using `aslug`)
+- UI handles schema version (`sv`) to support migration from old key names.
 
 ### Operational implications
 - Podcast metadata changes (for example rename/searchTerms changes) must trigger fan-out updates to affected episodes.
@@ -116,6 +145,7 @@ Current query assumes embedded episodes (`FROM podcasts p JOIN e IN p.episodes`)
 - Remove `Podcast.Episodes` property and resolve all compile errors.
 - Replace embedded navigation/query patterns with episode-repository operations.
 - Replace search index datasource query in `CreateSearchIndexProcessor.CreateDataSource` to episode-container query semantics.
+- Implement `CompactSearchRecord` shape with reduced key names.
 
 ### Static verification
 - Zero usages of:
@@ -135,3 +165,4 @@ Current query assumes embedded episodes (`FROM podcasts p JOIN e IN p.episodes`)
 - Validate sampled episode field equivalence (including posted/tweeted/removed flags).
 - Validate search document parity (document count and sampled field parity) before and after query migration.
 - Validate podcast metadata fan-out updates are applied to episodes and reflected in search output.
+- Validate URL reconstruction parity from compact identifiers in UI-facing records.

@@ -19,19 +19,23 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 - Persist episodes in `Episodes` container with partition key `/podcastId`.
 - Persist podcasts in `Podcasts` container with partition key `/id`.
 - Keep search-required podcast metadata denormalized on episode records.
+- Reduce search-index payload by storing compact identifier fields instead of full URLs.
 - Preserve rollback safety with legacy `CultPodcasts` write-freeze and staged cutover.
 
-## Critical Concern to Track
+## Critical Concerns to Track
 
 - Search index datasource query migration in:
   - `Console-Apps/CreateSearchIndex/CreateSearchIndexProcessor.cs`
   - Method: `CreateDataSource`
 - Replace embedded query shape (`JOIN e IN p.episodes`) with direct `Episodes` query.
 - Ensure podcast metadata changes fan out to affected episodes so search fields stay consistent.
+- Ensure UI consumers support reduced-key `CompactSearchRecord` and URL reconstruction from compact IDs.
 
 ## Completion Gates
 
 - No runtime dependency on `Podcast.Episodes`.
 - Data parity validated (podcast count, episode count, per-podcast counts).
 - Search index parity validated after datasource query migration.
+- Search-index storage reduction validated.
+- UI compatibility validated for reduced-key search record contract.
 - Production reads/writes on target relationship-model containers.
