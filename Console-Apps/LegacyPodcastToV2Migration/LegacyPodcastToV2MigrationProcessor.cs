@@ -630,7 +630,62 @@ public class LegacyPodcastToV2MigrationProcessor(
                legacy.SearchSince == target.SearchSince &&
                legacy.PreSkipSpotifyUrlResolving == target.PreSkipSpotifyUrlResolving &&
                legacy.PostSkipSpotifyUrlResolving == target.PostSkipSpotifyUrlResolving &&
-               legacy.DiscoveryResults.Count() == target.DiscoveryResults.Count();
+               AreDiscoveryResultsEqual(legacy.DiscoveryResults, target.DiscoveryResults);
+    }
+
+    private static bool AreDiscoveryResultsEqual(
+        IEnumerable<RedditPodcastPoster.Models.DiscoveryResult> left,
+        IEnumerable<RedditPodcastPoster.Models.DiscoveryResult> right)
+    {
+        var leftList = left.ToList();
+        var rightList = right.ToList();
+
+        if (leftList.Count != rightList.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < leftList.Count; i++)
+        {
+            if (!IsDiscoveryResultEqual(leftList[i], rightList[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsDiscoveryResultEqual(
+        RedditPodcastPoster.Models.DiscoveryResult left,
+        RedditPodcastPoster.Models.DiscoveryResult right)
+    {
+        return left.Id == right.Id &&
+               left.EpisodeName == right.EpisodeName &&
+               left.ShowName == right.ShowName &&
+               left.Released == right.Released &&
+               left.Length == right.Length &&
+               left.ShowDescription == right.ShowDescription &&
+               left.Description == right.Description &&
+               left.State == right.State &&
+               AreDiscoveryResultUrlsEqual(left.Urls, right.Urls) &&
+               SequenceEqual(left.Subjects, right.Subjects) &&
+               left.YouTubeViews == right.YouTubeViews &&
+               left.YouTubeChannelMembers == right.YouTubeChannelMembers &&
+               left.ImageUrl == right.ImageUrl &&
+               SequenceEqual(left.Sources, right.Sources) &&
+               left.EnrichedTimeFromApple == right.EnrichedTimeFromApple &&
+               left.EnrichedUrlFromSpotify == right.EnrichedUrlFromSpotify &&
+               SequenceEqual(left.MatchingPodcastIds, right.MatchingPodcastIds);
+    }
+
+    private static bool AreDiscoveryResultUrlsEqual(
+        RedditPodcastPoster.Models.DiscoveryResultUrls left,
+        RedditPodcastPoster.Models.DiscoveryResultUrls right)
+    {
+        return left.Spotify == right.Spotify &&
+               left.Apple == right.Apple &&
+               left.YouTube == right.YouTube;
     }
 
     private static bool IsKnownTermsParityMatch(KnownTerms legacy, KnownTerms target)
@@ -684,7 +739,7 @@ public class LegacyPodcastToV2MigrationProcessor(
                expected.AppleId == target.AppleId &&
                expected.YouTubeId == target.YouTubeId &&
                AreServiceUrlsEqual(expected.Urls, target.Urls) &&
-               expected.Subjects.SequenceEqual(target.Subjects) &&
+               SequenceEqual(expected.Subjects, target.Subjects) &&
                expected.SearchTerms == target.SearchTerms &&
                expected.PodcastName == target.PodcastName &&
                expected.PodcastSearchTerms == target.PodcastSearchTerms &&
@@ -699,6 +754,21 @@ public class LegacyPodcastToV2MigrationProcessor(
     }
 
     private static bool SequenceEqual(string[]? left, string[]? right)
+    {
+        if (left == null && right == null)
+        {
+            return true;
+        }
+
+        if (left == null || right == null)
+        {
+            return false;
+        }
+
+        return left.SequenceEqual(right);
+    }
+
+    private static bool SequenceEqual<T>(IEnumerable<T>? left, IEnumerable<T>? right)
     {
         if (left == null && right == null)
         {

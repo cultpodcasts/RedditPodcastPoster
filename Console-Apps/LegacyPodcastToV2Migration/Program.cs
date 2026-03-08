@@ -1,5 +1,5 @@
-using System.Reflection;
 using LegacyPodcastToV2Migration;
+using Microsoft.Azure.Cosmos.Serialization.HybridRow;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -11,6 +11,7 @@ using RedditPodcastPoster.PushSubscriptions;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.KnownTerms;
+using System.Reflection;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -35,19 +36,18 @@ builder.Services
 using var host = builder.Build();
 
 var processor = host.Services.GetRequiredService<LegacyPodcastToV2MigrationProcessor>();
-var result = await processor.Run(new LegacyPodcastToV2MigrationSections(MigratePodcastsAndEpisodes: false, MigratePushSubscriptions: false, MigrateLookup: false, MigrateSubjects: false));
+//var result = await processor.Run();
+//Console.WriteLine($"Podcasts migrated: {result.PodcastsMigrated}");
+//Console.WriteLine($"Episodes migrated: {result.EpisodesMigrated}");
+//Console.WriteLine($"Failed podcasts: {result.FailedPodcastIds.Count}");
+//Console.WriteLine($"Failed episodes: {result.FailedEpisodeIds.Count}");
 
-var podcastParity = await processor.VerifySampledPodcastParity(sampleSize: 25);
-var subjectParity = await processor.VerifySampledSubjectParity(sampleSize: 25);
-var discoveryParity = await processor.VerifySampledDiscoveryParity(sampleSize: 25);
+var podcastParity = await processor.VerifySampledPodcastParity(sampleSize: 1000);
+var subjectParity = await processor.VerifySampledSubjectParity(sampleSize: 1000);
+var discoveryParity = await processor.VerifySampledDiscoveryParity(sampleSize: 100);
 var lookupParity = await processor.VerifyLookupParity();
 var pushParity = await processor.VerifySampledPushSubscriptionParity(sampleSize: 25);
-var episodeParity = await processor.VerifySampledEpisodeParity(sampleSize: 25);
-
-Console.WriteLine($"Podcasts migrated: {result.PodcastsMigrated}");
-Console.WriteLine($"Episodes migrated: {result.EpisodesMigrated}");
-Console.WriteLine($"Failed podcasts: {result.FailedPodcastIds.Count}");
-Console.WriteLine($"Failed episodes: {result.FailedEpisodeIds.Count}");
+var episodeParity = await processor.VerifySampledEpisodeParity(sampleSize: 1000);
 
 Console.WriteLine($"Podcast parity sampled: {podcastParity.SampledCount}");
 Console.WriteLine($"Podcast parity matches: {podcastParity.MatchingCount}");

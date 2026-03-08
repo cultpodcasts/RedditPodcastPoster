@@ -17,12 +17,19 @@
   - `IDiscoveryResultsRepositoryV2`
   - `ILookupRepositoryV2`
   - `IPushSubscriptionRepositoryV2`
-- Migration mapping currently carries expanded podcast metadata into `Models.V2.Podcast` and maps episode records into discrete target `Episode` entities.
+- Migration mapping carries expanded podcast metadata into `Models.V2.Podcast` and maps episode records into discrete target `Episode` entities.
+- Sampled parity verification tooling is implemented for:
+  - podcasts
+  - subjects
+  - discovery (deep checks including arrays and url objects)
+  - lookups
+  - push subscriptions
+  - episodes
 
 ### In Progress
 - Runtime migration from embedded-episode patterns to full repository relationship model is partially complete.
 - Search/query migration is partially complete; full datasource/query and payload-contract parity is not yet fully verified.
-- Cutover verification is partially complete; migration has run, but remaining parity/operational gates are still open.
+- Cutover verification is partially complete; sampled parity tooling exists, but full end-to-end production gates are still open.
 
 ### Remaining
 - Remove runtime dependency on embedded `Podcast.Episodes` across API/core/console paths.
