@@ -53,7 +53,7 @@ public static class ServiceCollectionExtensions
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LookupRepositoryV2>>();
-                    return new LookupRepositoryV2(containerFactory.CreateLookupContainer(), logger);
+                    return new LookupRepositoryV2(containerFactory.CreateLookUpsContainer(), logger);
                 })
                 .AddSingleton<IPushSubscriptionRepositoryV2>(s =>
                 {

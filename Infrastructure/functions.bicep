@@ -178,6 +178,13 @@ var cosmosdb= {
     cosmosdb__Container: 'cultpodcasts'
     cosmosdb__DatabaseId: 'cultpodcasts'
     cosmosdb__Endpoint: cosmosdbEndpoint
+    cosmosdb__PodcastsContainer: 'Podcasts'
+    cosmosdb__EpisodesContainer: 'Episodes'
+    cosmosdb__SubjectsContainer: 'Subjects'
+    cosmosdb__ActivitiesContainer: 'Activity'
+    cosmosdb__DiscoveryContainer: 'Discovery'
+    cosmosdb__LookUpsContainer: 'LookUps'
+    cosmosdb__PushSubscriptionsContainer: 'PushSubscriptions'
     cosmosdb__UseGateWay: 'false'
 }
 

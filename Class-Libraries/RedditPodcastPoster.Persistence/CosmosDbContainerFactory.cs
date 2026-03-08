@@ -70,14 +70,14 @@ public class CosmosDbContainerFactory(
         return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.DiscoveryContainer);
     }
 
-    public Container CreateLookupContainer()
+    public Container CreateLookUpsContainer()
     {
-        if (string.IsNullOrWhiteSpace(_cosmosDbSettings.LookupContainer))
+        if (string.IsNullOrWhiteSpace(_cosmosDbSettings.LookUpsContainer))
         {
-            throw new InvalidOperationException("Configuration 'cosmosdb:LookupContainer' is required.");
+            throw new InvalidOperationException("Configuration 'cosmosdb:LookUpsContainer' is required.");
         }
 
-        return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.LookupContainer);
+        return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.LookUpsContainer);
     }
 
     public Container CreatePushSubscriptionsContainer()

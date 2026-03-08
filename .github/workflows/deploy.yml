@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - feature/runtime-identifier-removal
+      - feature/detach-episodes-from-podcast-entity-in-cosmos-db
 
 permissions:
   id-token: write
@@ -12,12 +12,14 @@ permissions:
 
 env:  
   DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
+  DATABASE_RESOURCEGROUP_NAME: ${{ secrets.DATABASE_RESOURCEGROUP_NAME }}
   MANAGEMENT_RESOURCEGROUP_NAME: ${{ secrets.MANAGEMENT_RESOURCEGROUP_NAME }}
   AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
   storageName: cultpodcastsstg
   suffix: infra
   location: uksouth
   functionState: start
+  COSMOS_DEPLOYMENT_NAME: infra-cosmos
   API_PACKAGE_PATH: './Cloud/Api' 
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
   INDEXER_PACKAGE_PATH: './Cloud/Indexer' 
@@ -172,6 +174,19 @@ jobs:
         template-file: ./Infrastructure/functions.bicep
         parameters-file: ./Infrastructure/functions.bicepparam
         parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}"}'
+    - name: Cosmos DB (Deploy Bicep)
+      id: bicepcosmosdeploy
+      uses: azure/bicep-deploy@v1
+      if: needs.build.outputs.infrastructure_changed == 'true'
+      with:
+        type: deployment
+        operation: create
+        name: ${{ env.COSMOS_DEPLOYMENT_NAME }}
+        scope: resourceGroup
+        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+        resource-group-name: ${{ env.DATABASE_RESOURCEGROUP_NAME }}
+        template-file: ./infra/cosmos-db.bicep
+        parameters: '{"location":"${{ env.location }}", "cosmosAccountName":"${{ secrets.COSMOS_ACCOUNT_NAME }}"}'
 
     - name: Set Function State
       if: ${{ ((env.functionState == 'start') || (env.functionState == 'stop')) && needs.build.outputs.infrastructure_changed == 'true' }}
@@ -275,3 +290,4 @@ jobs:
           app-name: 'indexer-infra'
           slot-name: 'Production'
           package: ${{ env.outputIndexer }}
+
