@@ -21,6 +21,7 @@
 - [ ] Add `PodcastId` member.
 - [ ] Ensure JSON metadata and persistence attributes are aligned with Cosmos model.
 - [ ] Add/search-support denormalized fields needed by indexer query (`podcastName`, `podcastSearchTerms`, language strategy).
+- [ ] Add metadata sync marker for drift detection (for example `podcastMetadataVersion` or `podcastMetadataUpdatedAt`).
 
 ## Phase 2: Cosmos Repositories and Container Wiring
 
@@ -49,6 +50,7 @@
 ### `Cloud/Api/Handlers/PodcastHandler.cs`
 - [ ] Replace `podcast.Episodes` usage for counts, selection, and indexing lists.
 - [ ] Query episodes through `IEpisodeRepository` by `podcastId`.
+- [ ] Trigger episode metadata fan-out updates when podcast properties affecting search are changed.
 
 ### `Class-Libraries/RedditPodcastPoster.EntitySearchIndexer/EpisodeSearchIndexerService.cs`
 - [ ] Source episodes via `IEpisodeRepository`.
@@ -85,6 +87,7 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 - [ ] Read legacy `CultPodcasts` documents.
 - [ ] Emit podcasts into `Podcasts`.
 - [ ] Emit episodes into `Episodes` with `podcastId`.
+- [ ] Populate denormalized episode metadata fields needed for search.
 - [ ] Write reconciliation outputs (counts and mismatch details).
 
 ## Phase 6: Verification and Cutover Readiness
@@ -98,6 +101,7 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 - [ ] Validate publish/delete/unremove/index/tweet flows.
 - [ ] Validate podcast retrieval and rename side effects.
 - [ ] Validate search indexing continues to produce expected records after datasource query migration.
+- [ ] Validate podcast metadata updates fan out to episodes and surface in search results.
 
 ### Data parity
 - [ ] Match podcast totals.
@@ -107,4 +111,5 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 
 ### Operational readiness
 - [ ] Validate RU and latency profile on `Episodes`.
+- [ ] Validate RU and latency profile of fan-out metadata updates.
 - [ ] Confirm no writes reach legacy container post-cutover.

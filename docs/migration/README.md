@@ -18,6 +18,7 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 - Move from embedded `episodes` array in `Podcast` to discrete `Episode` entities.
 - Persist episodes in `Episodes` container with partition key `/podcastId`.
 - Persist podcasts in `Podcasts` container with partition key `/id`.
+- Keep search-required podcast metadata denormalized on episode records.
 - Preserve rollback safety with legacy `CultPodcasts` write-freeze and staged cutover.
 
 ## Critical Concern to Track
@@ -25,7 +26,8 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 - Search index datasource query migration in:
   - `Console-Apps/CreateSearchIndex/CreateSearchIndexProcessor.cs`
   - Method: `CreateDataSource`
-- Replace embedded query shape (`JOIN e IN p.episodes`) with direct `Episodes` query and `e._ts` high-watermark semantics.
+- Replace embedded query shape (`JOIN e IN p.episodes`) with direct `Episodes` query.
+- Ensure podcast metadata changes fan out to affected episodes so search fields stay consistent.
 
 ## Completion Gates
 

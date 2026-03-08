@@ -6,7 +6,7 @@
 - Add `IEpisodeRepository` abstraction.
 - Add `EpisodeRepository` Cosmos implementation for `Episodes` (partition key `/podcastId`).
 - Remove `Episodes` from `Podcast`.
-- Add `PodcastId` to `Episode`.
+- Add `PodcastId` and search-required denormalized podcast metadata fields to `Episode`.
 - Keep current runtime behavior gated so production path is not switched in this PR.
 
 ### Exit criteria
@@ -33,7 +33,7 @@ Key changes:
 ### Exit criteria
 - API parity tests pass in legacy and relationship-model modes.
 - Critical episode workflows function with new repositories.
-- Search indexer produces expected records with the migrated datasource query.
+- Search indexer produces expected records from episodes datasource.
 
 ## PR3 — Console and Processor Migration
 
@@ -48,14 +48,18 @@ Migrate processor/tooling code paths from embedded episodes to `IEpisodeReposito
 - `KVWriter`
 - `TextClassifierTraining`
 
+Also add/verify fan-out sync flow so podcast metadata updates refresh denormalized episode fields.
+
 ### Exit criteria
 - Processor smoke tests pass.
 - Runtime paths no longer rely on `Podcast.Episodes`.
+- Podcast metadata fan-out sync works for rename/search term/language updates.
 
 ## PR4 — Data Migration and Production Cutover
 
 ### Scope
 - Add migration job from legacy `CultPodcasts` to `Podcasts` + `Episodes`.
+- Populate denormalized episode metadata fields during migration/backfill.
 - Freeze writes to legacy container.
 - Run backfill and reconciliation.
 - Enable relationship-model flag in production.
@@ -71,6 +75,7 @@ Migrate processor/tooling code paths from embedded episodes to `IEpisodeReposito
 - Zero runtime references to `Podcast.Episodes`.
 - Functional parity verified for publish/delete/index/rename/tweet flows.
 - Search datasource parity verified (document counts and sampled fields).
+- Podcast metadata updates correctly fan out to episode search fields.
 - RU and latency within acceptable thresholds.
 - Legacy container receives no writes after cutover.
 

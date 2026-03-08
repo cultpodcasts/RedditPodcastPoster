@@ -10,6 +10,7 @@
 - Store each episode as a discrete document.
 - Add foreign key `podcastId` (GUID) linking to `Podcast.id`.
 - Keep current episode fields (`release`, `posted`, `tweeted`, `blueskyPosted`, etc.).
+- Denormalize mutable podcast metadata needed for search (`podcastName`, `podcastSearchTerms`, language strategy).
 
 ## 2. Migration Phases
 
@@ -30,6 +31,7 @@
    - For each legacy podcast document:
      - Write podcast metadata to `Podcasts`.
      - Write each embedded episode to `Episodes` with `podcastId = podcast.id`.
+     - Populate denormalized episode search fields (`podcastName`, `podcastSearchTerms`, language fallback).
 
 5. **Reconciliation pass**
    - Validate:
@@ -37,6 +39,7 @@
      - Total episode count.
      - Per-podcast episode counts.
      - Sampled field parity for status flags and IDs.
+     - Search field parity for denormalized metadata.
 
 6. **Shadow-read validation**
    - In non-prod and then prod read-compare mode, compare legacy vs target-model responses for critical endpoints.
@@ -83,14 +86,14 @@ Current query assumes embedded episodes (`FROM podcasts p JOIN e IN p.episodes`)
 ### Required strategy
 - Point the search index datasource container at `Episodes`.
 - Query only episodes (`FROM episodes e`) with high-watermark on `e._ts`.
-- Preserve index fields currently sourced from podcast by denormalizing these fields onto episode documents:
+- Keep all search-required fields on `Episode` records:
   - `podcastName`
   - `podcastSearchTerms`
-  - language fallback value (or ensure `e.lang` is always populated).
+  - `lang` (direct or fallback value precomputed on episode)
 
 ### Operational implications
-- Podcast metadata changes (for example rename/searchTerms changes) must trigger episode rehydration/reindex for affected podcast IDs.
-- Indexer change-detection policy remains `_ts`, but now tracks episode document mutations.
+- Podcast metadata changes (for example rename/searchTerms changes) must trigger fan-out updates to affected episodes.
+- Indexer change-detection policy remains `_ts`, now tracking episode document mutations.
 
 ## 6. Cutover and Rollback
 
@@ -131,3 +134,4 @@ Current query assumes embedded episodes (`FROM podcasts p JOIN e IN p.episodes`)
 - Match podcast count, episode count, and per-podcast counts.
 - Validate sampled episode field equivalence (including posted/tweeted/removed flags).
 - Validate search document parity (document count and sampled field parity) before and after query migration.
+- Validate podcast metadata fan-out updates are applied to episodes and reflected in search output.
