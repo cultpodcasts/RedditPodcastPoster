@@ -21,6 +21,16 @@ public class LookupRepositoryV2(
         return GetBy<TKnownTerms>(x => x.ModelType == ModelType.KnownTerms);
     }
 
+    public async Task SaveEliminationTerms(EliminationTerms eliminationTerms)
+    {
+        await lookupContainer.UpsertItemAsync(eliminationTerms, new PartitionKey(eliminationTerms.Id.ToString()));
+    }
+
+    public async Task SaveKnownTerms<TKnownTerms>(TKnownTerms knownTerms) where TKnownTerms : CosmosSelector
+    {
+        await lookupContainer.UpsertItemAsync(knownTerms, new PartitionKey(knownTerms.Id.ToString()));
+    }
+
     private async Task<T?> GetById<T>(Guid id) where T : CosmosSelector
     {
         try

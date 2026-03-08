@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
-namespace RedditPodcastPoster.Persistence;
+namespace RedditPodcastPoster.Subjects;
 
 public class SubjectRepositoryV2(
     Container subjectsContainer,

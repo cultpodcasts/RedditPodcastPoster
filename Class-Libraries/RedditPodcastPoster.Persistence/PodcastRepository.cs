@@ -73,6 +73,12 @@ public class PodcastRepository(
         return dataRepository.GetAllIds<Podcast>();
     }
 
+    public async Task<int> GetTotalCount()
+    {
+        var allIds = await dataRepository.GetAllIds<Podcast>().ToListAsync();
+        return allIds.Count;
+    }
+
     public IAsyncEnumerable<string> GetAllFileKeys()
     {
         return dataRepository.GetAllFileKeys<Podcast>();

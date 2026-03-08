@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
-namespace RedditPodcastPoster.Persistence;
+namespace RedditPodcastPoster.PushSubscriptions;
 
 public class PushSubscriptionRepositoryV2(
     Container pushSubscriptionsContainer,

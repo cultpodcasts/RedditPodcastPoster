@@ -37,18 +37,6 @@ public static class ServiceCollectionExtensions
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<EpisodeRepository>>();
                     return new EpisodeRepository(containerFactory.CreateEpisodesContainer(), logger);
                 })
-                .AddSingleton<ISubjectRepositoryV2>(s =>
-                {
-                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
-                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SubjectRepositoryV2>>();
-                    return new SubjectRepositoryV2(containerFactory.CreateSubjectsContainer(), logger);
-                })
-                .AddSingleton<IDiscoveryResultsRepositoryV2>(s =>
-                {
-                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
-                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<DiscoveryResultsRepositoryV2>>();
-                    return new DiscoveryResultsRepositoryV2(containerFactory.CreateDiscoveryContainer(), logger);
-                })
                 .AddSingleton<IActivityRepositoryV2>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
@@ -60,12 +48,6 @@ public static class ServiceCollectionExtensions
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LookupRepositoryV2>>();
                     return new LookupRepositoryV2(containerFactory.CreateLookUpsContainer(), logger);
-                })
-                .AddSingleton<IPushSubscriptionRepositoryV2>(s =>
-                {
-                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
-                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PushSubscriptionRepositoryV2>>();
-                    return new PushSubscriptionRepositoryV2(containerFactory.CreatePushSubscriptionsContainer(), logger);
                 })
                 .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()

@@ -38,13 +38,11 @@ public class CosmosDbRepository(
                 requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(partitionKey) })
             .Select(expr);
         var items = query.ToFeedIterator();
-        if (items.HasMoreResults)
+        while (items.HasMoreResults)
         {
             foreach (var item in await items.ReadNextAsync())
             {
-                {
-                    yield return item;
-                }
+                yield return item;
             }
         }
     }
@@ -93,13 +91,11 @@ public class CosmosDbRepository(
                 requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(partitionKey) })
             .Where(selector);
         var items = query.ToFeedIterator();
-        if (items.HasMoreResults)
+        while (items.HasMoreResults)
         {
             foreach (var item in await items.ReadNextAsync())
             {
-                {
-                    return item;
-                }
+                return item;
             }
         }
 
@@ -116,13 +112,11 @@ public class CosmosDbRepository(
             .Where(selector)
             .Select(expr);
         var items = query.ToFeedIterator();
-        if (items.HasMoreResults)
+        while (items.HasMoreResults)
         {
             foreach (var item in await items.ReadNextAsync())
             {
-                {
-                    return item;
-                }
+                return item;
             }
         }
 
@@ -138,13 +132,11 @@ public class CosmosDbRepository(
                 requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(partitionKey) })
             .Where(selector);
         var items = query.ToFeedIterator();
-        if (items.HasMoreResults)
+        while (items.HasMoreResults)
         {
             foreach (var item in await items.ReadNextAsync())
             {
-                {
-                    yield return item;
-                }
+                yield return item;
             }
         }
     }
@@ -162,13 +154,11 @@ public class CosmosDbRepository(
         var sql = query.ToString();
 #endif
         var items = query.ToFeedIterator();
-        if (items.HasMoreResults)
+        while (items.HasMoreResults)
         {
             foreach (var item in await items.ReadNextAsync())
             {
-                {
-                    yield return item;
-                }
+                yield return item;
             }
         }
     }

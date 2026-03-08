@@ -21,7 +21,14 @@ public static class ServiceCollectionExtensions
                 .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
                 .AddScoped<ISubjectFactory, SubjectFactory>()
                 .AddScoped<IHashTagProvider, HashTagProvider>()
-                .AddSingleton<ICachedSubjectProvider, CachedSubjectProvider>();
+                .AddSingleton<ICachedSubjectProvider, CachedSubjectProvider>()
+                .AddSingleton<ISubjectRepositoryV2>(s =>
+                {
+                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SubjectRepositoryV2>>();
+                    return new SubjectRepositoryV2(containerFactory.CreateSubjectsContainer(), logger);
+                })
+
             ;
         }
 

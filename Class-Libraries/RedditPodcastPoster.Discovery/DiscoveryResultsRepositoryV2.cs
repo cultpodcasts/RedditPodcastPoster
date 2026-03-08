@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
-namespace RedditPodcastPoster.Persistence;
+namespace RedditPodcastPoster.Discovery;
 
 public class DiscoveryResultsRepositoryV2(
     Container discoveryContainer,
@@ -15,6 +15,11 @@ public class DiscoveryResultsRepositoryV2(
     {
         await discoveryContainer.UpsertItemAsync(discoveryResultsDocument,
             new PartitionKey(discoveryResultsDocument.Id.ToString()));
+    }
+
+    public IAsyncEnumerable<DiscoveryResultsDocument> GetAll()
+    {
+        return GetByIdsInternal(x => true);
     }
 
     public IAsyncEnumerable<DiscoveryResultsDocument> GetAllUnprocessed()

@@ -1,5 +1,8 @@
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Text.KnownTerms;
 using LegacyEpisode = RedditPodcastPoster.Models.Episode;
 using LegacyPodcast = RedditPodcastPoster.Models.Podcast;
 using V2Episode = RedditPodcastPoster.Models.V2.Episode;
@@ -13,106 +16,178 @@ public sealed record LegacyPodcastToV2MigrationResult(
     IReadOnlyCollection<Guid> FailedPodcastIds,
     IReadOnlyCollection<Guid> FailedEpisodeIds);
 
+public sealed record LegacyPodcastToV2MigrationSections(
+    bool MigratePodcastsAndEpisodes = true,
+    bool MigrateLookup = true,
+    bool MigratePushSubscriptions = true,
+    bool MigrateSubjects = true,
+    bool MigrateDiscovery = true)
+{
+    public static LegacyPodcastToV2MigrationSections All { get; } = new();
+}
+
 public class LegacyPodcastToV2MigrationProcessor(
     IPodcastRepository legacyPodcastRepository,
     IPodcastRepositoryV2 podcastRepositoryV2,
     IEpisodeRepository episodeRepository,
     ILookupRepositoryV2 lookupRepository,
+    IEliminationTermsRepository eliminationTermsRepository,
+    IKnownTermsRepository knownTermsRepository,
+    IPushSubscriptionRepository legacyPushSubscriptionsRepository,
     IPushSubscriptionRepositoryV2 pushSubscriptionsRepository,
+    ISubjectRepository legacySubjectsRepository,
     ISubjectRepositoryV2 subjectsRepository,
+    IDiscoveryResultsRepository legacyDiscoveryRepository,
     IDiscoveryResultsRepositoryV2 discoveryRepository,
+    ICosmosDbContainerFactory legacyContainerFactory,
     ILogger<LegacyPodcastToV2MigrationProcessor> logger)
 {
-    public async Task<LegacyPodcastToV2MigrationResult> Run(CancellationToken cancellationToken = default)
+    public async Task<LegacyPodcastToV2MigrationResult> Run(
+        LegacyPodcastToV2MigrationSections? sections = null,
+        CancellationToken cancellationToken = default)
     {
+        sections ??= LegacyPodcastToV2MigrationSections.All;
+
         var podcastsMigrated = 0;
         var episodesMigrated = 0;
         var failedPodcastIds = new List<Guid>();
         var failedEpisodeIds = new List<Guid>();
 
         // Migrate Podcasts and Episodes
-        var legacyPodcasts = await legacyPodcastRepository.GetAll().ToListAsync(cancellationToken);
-        var totalPodcasts = legacyPodcasts.Count;
-        var totalEpisodes = legacyPodcasts.Sum(p => p.Episodes.Count);
-        var migratedEpisodes = 0;
-
-        for (int i = 0; i < legacyPodcasts.Count; i++)
+        var totalPodcasts = await legacyPodcastRepository.GetTotalCount();
+        var totalEpisodes = await GetLegacyEpisodeCount(legacyContainerFactory.Create(), cancellationToken);
+        if (sections.MigratePodcastsAndEpisodes)
         {
-            var legacyPodcast = legacyPodcasts[i];
-            cancellationToken.ThrowIfCancellationRequested();
-            try
-            {
-                var podcastV2 = ToV2Podcast(legacyPodcast);
-                await podcastRepositoryV2.Save(podcastV2);
-                podcastsMigrated++;
-                Console.WriteLine(
-                    $"Podcast migration progress: {podcastsMigrated}/{totalPodcasts} ({podcastsMigrated * 100 / totalPodcasts}%)");
+            var legacyPodcasts = await legacyPodcastRepository.GetAll().ToListAsync(cancellationToken);
+            var migratedEpisodes = 0;
 
-                if (legacyPodcast.Episodes.Count > 0)
+            for (int i = 0; i < legacyPodcasts.Count; i++)
+            {
+                var legacyPodcast = legacyPodcasts[i];
+                cancellationToken.ThrowIfCancellationRequested();
+                try
                 {
-                    var episodeBatch = legacyPodcast.Episodes.Select(e => ToV2Episode(legacyPodcast, e)).ToArray();
-                    try
+                    var podcastV2 = ToV2Podcast(legacyPodcast);
+                    await podcastRepositoryV2.Save(podcastV2);
+                    podcastsMigrated++;
+                    Console.WriteLine(
+                        $"Podcast migration progress: {podcastsMigrated}/{totalPodcasts} ({podcastsMigrated * 100 / totalPodcasts}%)");
+
+                    if (legacyPodcast.Episodes.Count > 0)
                     {
-                        await episodeRepository.Save(episodeBatch);
-                        migratedEpisodes += episodeBatch.Length;
-                        episodesMigrated += episodeBatch.Length;
-                        Console.WriteLine(
-                            $"Episode migration progress: {migratedEpisodes}/{totalEpisodes} ({migratedEpisodes * 100 / (totalEpisodes == 0 ? 1 : totalEpisodes)}%)");
-                    }
-                    catch (Exception ex)
-                    {
-                        failedEpisodeIds.AddRange(episodeBatch.Select(x => x.Id));
-                        logger.LogError(ex,
-                            "Failed to migrate episodes for legacy podcast id '{PodcastId}' with count '{EpisodeCount}'.",
-                            legacyPodcast.Id, episodeBatch.Length);
+                        var episodeBatch = legacyPodcast.Episodes.Select(e => ToV2Episode(legacyPodcast, e)).ToArray();
+                        try
+                        {
+                            await episodeRepository.Save(episodeBatch);
+                            migratedEpisodes += episodeBatch.Length;
+                            episodesMigrated += episodeBatch.Length;
+                            Console.WriteLine(
+                                $"Episode migration progress: {migratedEpisodes}/{totalEpisodes} ({migratedEpisodes * 100 / (totalEpisodes == 0 ? 1 : totalEpisodes)}%)");
+                        }
+                        catch (Exception ex)
+                        {
+                            failedEpisodeIds.AddRange(episodeBatch.Select(x => x.Id));
+                            logger.LogError(ex,
+                                "Failed to migrate episodes for legacy podcast id '{PodcastId}' with count '{EpisodeCount}'.",
+                                legacyPodcast.Id, episodeBatch.Length);
+                        }
                     }
                 }
+                catch (Exception ex)
+                {
+                    failedPodcastIds.Add(legacyPodcast.Id);
+                    failedEpisodeIds.AddRange(legacyPodcast.Episodes.Select(x => x.Id));
+                    logger.LogError(ex,
+                        "Failed to migrate legacy podcast id '{PodcastId}' and its episodes.",
+                        legacyPodcast.Id);
+                }
+            }
+        }
+        else
+        {
+            Console.WriteLine("Skipping Podcasts and Episodes migration.");
+        }
+
+        if (sections.MigrateLookup)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                var eliminationTerms = await eliminationTermsRepository.Get();
+                await lookupRepository.SaveEliminationTerms(eliminationTerms);
+                Console.WriteLine("Lookup migration progress: EliminationTerms migrated.");
             }
             catch (Exception ex)
             {
-                failedPodcastIds.Add(legacyPodcast.Id);
-                failedEpisodeIds.AddRange(legacyPodcast.Episodes.Select(x => x.Id));
-                logger.LogError(ex,
-                    "Failed to migrate legacy podcast id '{PodcastId}' and its episodes.",
-                    legacyPodcast.Id);
+                logger.LogError(ex, "Failed to migrate EliminationTerms into v2 LookUps repository.");
+            }
+
+            try
+            {
+                var knownTerms = await knownTermsRepository.Get();
+                await lookupRepository.SaveKnownTerms(knownTerms);
+                Console.WriteLine("Lookup migration progress: KnownTerms migrated.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to migrate KnownTerms into v2 LookUps repository.");
             }
         }
-
-        // Migrate Lookup (current V2 data shape)
-        var eliminationTerms = await lookupRepository.GetEliminationTerms();
-        if (eliminationTerms is not null)
+        else
         {
-            Console.WriteLine("Lookup migration progress: current V2 lookup data is available.");
+            Console.WriteLine("Skipping Lookup migration.");
         }
 
-        // Migrate PushSubscriptions
-        var pushSubscriptions = await pushSubscriptionsRepository.GetAll().ToListAsync(cancellationToken);
-        var totalPush = pushSubscriptions.Count;
-        for (int i = 0; i < totalPush; i++)
+        if (sections.MigratePushSubscriptions)
         {
-            await pushSubscriptionsRepository.Save(pushSubscriptions[i]);
-            Console.WriteLine(
-                $"PushSubscriptions migration progress: {i + 1}/{totalPush} ({(i + 1) * 100 / (totalPush == 0 ? 1 : totalPush)}%)");
+            // Migrate PushSubscriptions
+            var pushSubscriptions = await legacyPushSubscriptionsRepository.GetAll().ToListAsync(cancellationToken);
+            var totalPush = pushSubscriptions.Count;
+            for (int i = 0; i < totalPush; i++)
+            {
+                await pushSubscriptionsRepository.Save(pushSubscriptions[i]);
+                Console.WriteLine(
+                    $"PushSubscriptions migration progress: {i + 1}/{totalPush} ({(i + 1) * 100 / (totalPush == 0 ? 1 : totalPush)}%)");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Skipping PushSubscriptions migration.");
         }
 
-        // Migrate Subjects
-        var subjects = await subjectsRepository.GetAll().ToListAsync(cancellationToken);
-        var totalSubjects = subjects.Count;
-        for (int i = 0; i < totalSubjects; i++)
+        if (sections.MigrateSubjects)
         {
-            await subjectsRepository.Save(subjects[i]);
-            Console.WriteLine(
-                $"Subjects migration progress: {i + 1}/{totalSubjects} ({(i + 1) * 100 / (totalSubjects == 0 ? 1 : totalSubjects)}%)");
+            // Migrate Subjects
+            var subjects = await legacySubjectsRepository.GetAll().ToListAsync(cancellationToken);
+            var totalSubjects = subjects.Count;
+            for (int i = 0; i < totalSubjects; i++)
+            {
+                await subjectsRepository.Save(subjects[i]);
+                Console.WriteLine(
+                    $"Subjects migration progress: {i + 1}/{totalSubjects} ({(i + 1) * 100 / (totalSubjects == 0 ? 1 : totalSubjects)}%)");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Skipping Subjects migration.");
         }
 
-        // Migrate Discovery (current unprocessed V2 documents)
-        var discoveries = await discoveryRepository.GetAllUnprocessed().ToListAsync(cancellationToken);
-        var totalDiscovery = discoveries.Count;
-        for (int i = 0; i < totalDiscovery; i++)
+        if (sections.MigrateDiscovery)
         {
-            await discoveryRepository.Save(discoveries[i]);
-            Console.WriteLine(
-                $"Discovery migration progress: {i + 1}/{totalDiscovery} ({(i + 1) * 100 / (totalDiscovery == 0 ? 1 : totalDiscovery)}%)");
+            // Migrate Discovery (all legacy documents)
+            var discoveries = await legacyDiscoveryRepository.GetAll().ToListAsync(cancellationToken);
+            var totalDiscovery = discoveries.Count;
+            for (int i = 0; i < totalDiscovery; i++)
+            {
+                await discoveryRepository.Save(discoveries[i]);
+                Console.WriteLine(
+                    $"Discovery migration progress: {i + 1}/{totalDiscovery} ({(i + 1) * 100 / (totalDiscovery == 0 ? 1 : totalDiscovery)}%)");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Skipping Discovery migration.");
         }
 
         return new LegacyPodcastToV2MigrationResult(
@@ -120,6 +195,21 @@ public class LegacyPodcastToV2MigrationProcessor(
             EpisodesMigrated: episodesMigrated,
             FailedPodcastIds: failedPodcastIds,
             FailedEpisodeIds: failedEpisodeIds);
+    }
+
+    private static async Task<int> GetLegacyEpisodeCount(Container legacyContainer, CancellationToken cancellationToken)
+    {
+        const string queryText = "SELECT VALUE SUM(ARRAY_LENGTH(c.episodes)) FROM c WHERE c.type = 'Podcast'";
+        var iterator = legacyContainer.GetItemQueryIterator<int?>(new QueryDefinition(queryText));
+
+        while (iterator.HasMoreResults)
+        {
+            var response = await iterator.ReadNextAsync(cancellationToken);
+            var count = response.FirstOrDefault();
+            return count ?? 0;
+        }
+
+        return 0;
     }
 
     private static V2Podcast ToV2Podcast(LegacyPodcast legacyPodcast)
