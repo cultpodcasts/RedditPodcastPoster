@@ -9,4 +9,8 @@ public sealed record LegacyCosmosContext(
 public sealed record TargetCosmosContext(
     CosmosClient Client,
     Container PodcastsContainer,
-    Container EpisodesContainer);
+    Container EpisodesContainer,
+    Container LookupContainer,
+    Container PushSubscriptionsContainer,
+    Container SubjectsContainer,
+    Container DiscoveryContainer);

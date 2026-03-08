@@ -17,6 +17,10 @@ public class LegacyPodcastToV2MigrationProcessor(
     IPodcastRepository legacyPodcastRepository,
     IPodcastRepositoryV2 podcastRepositoryV2,
     IEpisodeRepository episodeRepository,
+    ILookupRepository lookupRepository,
+    IPushSubscriptionsRepository pushSubscriptionsRepository,
+    ISubjectsRepository subjectsRepository,
+    IDiscoveryRepository discoveryRepository,
     ILogger<LegacyPodcastToV2MigrationProcessor> logger)
 {
     public async Task<LegacyPodcastToV2MigrationResult> Run(CancellationToken cancellationToken = default)
@@ -26,15 +30,23 @@ public class LegacyPodcastToV2MigrationProcessor(
         var failedPodcastIds = new List<Guid>();
         var failedEpisodeIds = new List<Guid>();
 
-        await foreach (var legacyPodcast in legacyPodcastRepository.GetAll())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
+        // Migrate Podcasts and Episodes
+        var legacyPodcasts = await legacyPodcastRepository.GetAll().ToListAsync(cancellationToken);
+        var totalPodcasts = legacyPodcasts.Count;
+        var totalEpisodes = legacyPodcasts.Sum(p => p.Episodes.Count);
+        var migratedEpisodes = 0;
 
+        for (int i = 0; i < legacyPodcasts.Count; i++)
+        {
+            var legacyPodcast = legacyPodcasts[i];
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 var podcastV2 = ToV2Podcast(legacyPodcast);
                 await podcastRepositoryV2.Save(podcastV2);
                 podcastsMigrated++;
+                Console.WriteLine(
+                    $"Podcast migration progress: {podcastsMigrated}/{totalPodcasts} ({podcastsMigrated * 100 / totalPodcasts}%)");
 
                 if (legacyPodcast.Episodes.Count > 0)
                 {
@@ -42,7 +54,10 @@ public class LegacyPodcastToV2MigrationProcessor(
                     try
                     {
                         await episodeRepository.Save(episodeBatch);
+                        migratedEpisodes += episodeBatch.Length;
                         episodesMigrated += episodeBatch.Length;
+                        Console.WriteLine(
+                            $"Episode migration progress: {migratedEpisodes}/{totalEpisodes} ({migratedEpisodes * 100 / (totalEpisodes == 0 ? 1 : totalEpisodes)}%)");
                     }
                     catch (Exception ex)
                     {
@@ -61,6 +76,46 @@ public class LegacyPodcastToV2MigrationProcessor(
                     "Failed to migrate legacy podcast id '{PodcastId}' and its episodes.",
                     legacyPodcast.Id);
             }
+        }
+
+        // Migrate Lookup
+        var lookupItems = await lookupRepository.GetAllLegacy().ToListAsync(cancellationToken);
+        var totalLookup = lookupItems.Count;
+        for (int i = 0; i < totalLookup; i++)
+        {
+            await lookupRepository.Save(lookupItems[i]);
+            Console.WriteLine(
+                $"Lookup migration progress: {i + 1}/{totalLookup} ({(i + 1) * 100 / (totalLookup == 0 ? 1 : totalLookup)}%)");
+        }
+
+        // Migrate PushSubscriptions
+        var pushSubscriptions = await pushSubscriptionsRepository.GetAllLegacy().ToListAsync(cancellationToken);
+        var totalPush = pushSubscriptions.Count;
+        for (int i = 0; i < totalPush; i++)
+        {
+            await pushSubscriptionsRepository.Save(pushSubscriptions[i]);
+            Console.WriteLine(
+                $"PushSubscriptions migration progress: {i + 1}/{totalPush} ({(i + 1) * 100 / (totalPush == 0 ? 1 : totalPush)}%)");
+        }
+
+        // Migrate Subjects
+        var subjects = await subjectsRepository.GetAllLegacy().ToListAsync(cancellationToken);
+        var totalSubjects = subjects.Count;
+        for (int i = 0; i < totalSubjects; i++)
+        {
+            await subjectsRepository.Save(subjects[i]);
+            Console.WriteLine(
+                $"Subjects migration progress: {i + 1}/{totalSubjects} ({(i + 1) * 100 / (totalSubjects == 0 ? 1 : totalSubjects)}%)");
+        }
+
+        // Migrate Discovery
+        var discoveries = await discoveryRepository.GetAllLegacy().ToListAsync(cancellationToken);
+        var totalDiscovery = discoveries.Count;
+        for (int i = 0; i < totalDiscovery; i++)
+        {
+            await discoveryRepository.Save(discoveries[i]);
+            Console.WriteLine(
+                $"Discovery migration progress: {i + 1}/{totalDiscovery} ({(i + 1) * 100 / (totalDiscovery == 0 ? 1 : totalDiscovery)}%)");
         }
 
         return new LegacyPodcastToV2MigrationResult(

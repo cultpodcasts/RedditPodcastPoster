@@ -160,6 +160,7 @@
     <Project Path="Console-Apps/LanguagesPublisher/LanguagesPublisher.csproj" />
 
     <Project Path="Console-Apps/LaunchSettingsToAppSettings/LaunchSettingsToAppSettings.csproj" />
+    <Project Path="Console-Apps/LegacyPodcastToV2Migration/LegacyPodcastToV2Migration.csproj" />
 
     <Project Path="Console-Apps/MachineAuth0/MachineAuth0.csproj" />
 
