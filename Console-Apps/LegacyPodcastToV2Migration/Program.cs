@@ -35,9 +35,35 @@ builder.Services
 using var host = builder.Build();
 
 var processor = host.Services.GetRequiredService<LegacyPodcastToV2MigrationProcessor>();
-var result = await processor.Run(new LegacyPodcastToV2MigrationSections(MigratePodcastsAndEpisodes: false, MigratePushSubscriptions:false, MigrateLookup:false, MigrateSubjects:false));
+var result = await processor.Run(new LegacyPodcastToV2MigrationSections(MigratePodcastsAndEpisodes: false, MigratePushSubscriptions: false, MigrateLookup: false, MigrateSubjects: false));
+
+var podcastParity = await processor.VerifySampledPodcastParity(sampleSize: 25);
+var subjectParity = await processor.VerifySampledSubjectParity(sampleSize: 25);
+var discoveryParity = await processor.VerifySampledDiscoveryParity(sampleSize: 25);
+var lookupParity = await processor.VerifyLookupParity();
+var pushParity = await processor.VerifySampledPushSubscriptionParity(sampleSize: 25);
+var episodeParity = await processor.VerifySampledEpisodeParity(sampleSize: 25);
 
 Console.WriteLine($"Podcasts migrated: {result.PodcastsMigrated}");
 Console.WriteLine($"Episodes migrated: {result.EpisodesMigrated}");
 Console.WriteLine($"Failed podcasts: {result.FailedPodcastIds.Count}");
 Console.WriteLine($"Failed episodes: {result.FailedEpisodeIds.Count}");
+
+Console.WriteLine($"Podcast parity sampled: {podcastParity.SampledCount}");
+Console.WriteLine($"Podcast parity matches: {podcastParity.MatchingCount}");
+Console.WriteLine($"Podcast parity missing in target: {podcastParity.MissingInTargetIds.Count}");
+Console.WriteLine($"Podcast parity mismatches: {podcastParity.MismatchedIds.Count}");
+
+PrintEntityParity(subjectParity);
+PrintEntityParity(discoveryParity);
+PrintEntityParity(lookupParity);
+PrintEntityParity(pushParity);
+PrintEntityParity(episodeParity);
+
+static void PrintEntityParity(EntityParityVerificationResult parity)
+{
+    Console.WriteLine($"{parity.EntityName} parity sampled: {parity.SampledCount}");
+    Console.WriteLine($"{parity.EntityName} parity matches: {parity.MatchingCount}");
+    Console.WriteLine($"{parity.EntityName} parity missing in target: {parity.MissingInTargetIds.Count}");
+    Console.WriteLine($"{parity.EntityName} parity mismatches: {parity.MismatchedIds.Count}");
+}

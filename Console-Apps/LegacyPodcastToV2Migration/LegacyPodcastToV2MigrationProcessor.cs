@@ -16,6 +16,19 @@ public sealed record LegacyPodcastToV2MigrationResult(
     IReadOnlyCollection<Guid> FailedPodcastIds,
     IReadOnlyCollection<Guid> FailedEpisodeIds);
 
+public sealed record PodcastParityVerificationResult(
+    int SampledCount,
+    int MatchingCount,
+    IReadOnlyCollection<Guid> MissingInTargetIds,
+    IReadOnlyCollection<Guid> MismatchedIds);
+
+public sealed record EntityParityVerificationResult(
+    string EntityName,
+    int SampledCount,
+    int MatchingCount,
+    IReadOnlyCollection<string> MissingInTargetIds,
+    IReadOnlyCollection<string> MismatchedIds);
+
 public sealed record LegacyPodcastToV2MigrationSections(
     bool MigratePodcastsAndEpisodes = true,
     bool MigrateLookup = true,
@@ -197,6 +210,269 @@ public class LegacyPodcastToV2MigrationProcessor(
             FailedEpisodeIds: failedEpisodeIds);
     }
 
+    public async Task<PodcastParityVerificationResult> VerifySampledPodcastParity(
+        int sampleSize = 25,
+        CancellationToken cancellationToken = default)
+    {
+        if (sampleSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sampleSize), "Sample size must be greater than zero.");
+        }
+
+        var sampledIds = (await legacyPodcastRepository.GetAllIds().ToListAsync(cancellationToken))
+            .Take(sampleSize)
+            .ToList();
+
+        var missingInTarget = new List<Guid>();
+        var mismatched = new List<Guid>();
+        var matchingCount = 0;
+
+        foreach (var podcastId in sampledIds)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var legacyPodcast = await legacyPodcastRepository.GetPodcast(podcastId);
+            if (legacyPodcast == null)
+            {
+                continue;
+            }
+
+            var targetPodcast = await podcastRepositoryV2.GetPodcast(podcastId);
+            if (targetPodcast == null)
+            {
+                missingInTarget.Add(podcastId);
+                continue;
+            }
+
+            if (IsPodcastFieldParityMatch(legacyPodcast, targetPodcast))
+            {
+                matchingCount++;
+            }
+            else
+            {
+                mismatched.Add(podcastId);
+            }
+        }
+
+        return new PodcastParityVerificationResult(
+            SampledCount: sampledIds.Count,
+            MatchingCount: matchingCount,
+            MissingInTargetIds: missingInTarget,
+            MismatchedIds: mismatched);
+    }
+
+    public async Task<EntityParityVerificationResult> VerifySampledSubjectParity(
+        int sampleSize = 25,
+        CancellationToken cancellationToken = default)
+    {
+        var sampled = (await legacySubjectsRepository.GetAll().ToListAsync(cancellationToken))
+            .Take(sampleSize)
+            .ToList();
+
+        var missing = new List<string>();
+        var mismatched = new List<string>();
+        var matching = 0;
+
+        foreach (var legacySubject in sampled)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var target = await subjectsRepository.GetBy(x => x.Id == legacySubject.Id);
+            if (target == null)
+            {
+                missing.Add(legacySubject.Id.ToString());
+                continue;
+            }
+
+            if (IsSubjectParityMatch(legacySubject, target))
+            {
+                matching++;
+            }
+            else
+            {
+                mismatched.Add(legacySubject.Id.ToString());
+            }
+        }
+
+        return new EntityParityVerificationResult(
+            EntityName: "Subjects",
+            SampledCount: sampled.Count,
+            MatchingCount: matching,
+            MissingInTargetIds: missing,
+            MismatchedIds: mismatched);
+    }
+
+    public async Task<EntityParityVerificationResult> VerifySampledDiscoveryParity(
+        int sampleSize = 25,
+        CancellationToken cancellationToken = default)
+    {
+        var sampled = (await legacyDiscoveryRepository.GetAll().ToListAsync(cancellationToken))
+            .Take(sampleSize)
+            .ToList();
+
+        var missing = new List<string>();
+        var mismatched = new List<string>();
+        var matching = 0;
+
+        foreach (var legacyDiscovery in sampled)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var target = await discoveryRepository.GetById(legacyDiscovery.Id);
+            if (target == null)
+            {
+                missing.Add(legacyDiscovery.Id.ToString());
+                continue;
+            }
+
+            if (IsDiscoveryParityMatch(legacyDiscovery, target))
+            {
+                matching++;
+            }
+            else
+            {
+                mismatched.Add(legacyDiscovery.Id.ToString());
+            }
+        }
+
+        return new EntityParityVerificationResult(
+            EntityName: "Discovery",
+            SampledCount: sampled.Count,
+            MatchingCount: matching,
+            MissingInTargetIds: missing,
+            MismatchedIds: mismatched);
+    }
+
+    public async Task<EntityParityVerificationResult> VerifyLookupParity(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var sampledCount = 0;
+        var matching = 0;
+        var missing = new List<string>();
+        var mismatched = new List<string>();
+
+        sampledCount++;
+        var legacyElimination = await eliminationTermsRepository.Get();
+        var targetElimination = await lookupRepository.GetEliminationTerms();
+        if (targetElimination == null)
+        {
+            missing.Add("EliminationTerms");
+        }
+        else if (legacyElimination.Terms.SequenceEqual(targetElimination.Terms))
+        {
+            matching++;
+        }
+        else
+        {
+            mismatched.Add("EliminationTerms");
+        }
+
+        sampledCount++;
+        var legacyKnownTerms = await knownTermsRepository.Get();
+        var targetKnownTerms = await lookupRepository.GetKnownTerms<KnownTerms>();
+        if (targetKnownTerms == null)
+        {
+            missing.Add("KnownTerms");
+        }
+        else if (IsKnownTermsParityMatch(legacyKnownTerms, targetKnownTerms))
+        {
+            matching++;
+        }
+        else
+        {
+            mismatched.Add("KnownTerms");
+        }
+
+        return new EntityParityVerificationResult(
+            EntityName: "LookUps",
+            SampledCount: sampledCount,
+            MatchingCount: matching,
+            MissingInTargetIds: missing,
+            MismatchedIds: mismatched);
+    }
+
+    public async Task<EntityParityVerificationResult> VerifySampledPushSubscriptionParity(
+        int sampleSize = 25,
+        CancellationToken cancellationToken = default)
+    {
+        var sampled = (await legacyPushSubscriptionsRepository.GetAll().ToListAsync(cancellationToken))
+            .Take(sampleSize)
+            .ToList();
+        var targetMap = (await pushSubscriptionsRepository.GetAll().ToListAsync(cancellationToken))
+            .ToDictionary(x => x.Id, x => x);
+
+        var missing = new List<string>();
+        var mismatched = new List<string>();
+        var matching = 0;
+
+        foreach (var legacyPush in sampled)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!targetMap.TryGetValue(legacyPush.Id, out var targetPush))
+            {
+                missing.Add(legacyPush.Id.ToString());
+                continue;
+            }
+
+            if (IsPushSubscriptionParityMatch(legacyPush, targetPush))
+            {
+                matching++;
+            }
+            else
+            {
+                mismatched.Add(legacyPush.Id.ToString());
+            }
+        }
+
+        return new EntityParityVerificationResult(
+            EntityName: "PushSubscriptions",
+            SampledCount: sampled.Count,
+            MatchingCount: matching,
+            MissingInTargetIds: missing,
+            MismatchedIds: mismatched);
+    }
+
+    public async Task<EntityParityVerificationResult> VerifySampledEpisodeParity(
+        int sampleSize = 25,
+        CancellationToken cancellationToken = default)
+    {
+        var sampled = (await legacyPodcastRepository.GetAll().ToListAsync(cancellationToken))
+            .SelectMany(podcast => podcast.Episodes.Select(episode => new { podcast, episode }))
+            .Take(sampleSize)
+            .ToList();
+
+        var missing = new List<string>();
+        var mismatched = new List<string>();
+        var matching = 0;
+
+        foreach (var sample in sampled)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var expected = ToV2Episode(sample.podcast, sample.episode);
+            var target = await episodeRepository.GetEpisode(sample.podcast.Id, sample.episode.Id);
+            if (target == null)
+            {
+                missing.Add(sample.episode.Id.ToString());
+                continue;
+            }
+
+            if (IsEpisodeParityMatch(expected, target))
+            {
+                matching++;
+            }
+            else
+            {
+                mismatched.Add(sample.episode.Id.ToString());
+            }
+        }
+
+        return new EntityParityVerificationResult(
+            EntityName: "Episodes",
+            SampledCount: sampled.Count,
+            MatchingCount: matching,
+            MissingInTargetIds: missing,
+            MismatchedIds: mismatched);
+    }
+
     private static async Task<int> GetLegacyEpisodeCount(Container legacyContainer, CancellationToken cancellationToken)
     {
         const string queryText = "SELECT VALUE SUM(ARRAY_LENGTH(c.episodes)) FROM c WHERE c.type = 'Podcast'";
@@ -283,5 +559,157 @@ public class LegacyPodcastToV2MigrationProcessor(
             SearchLanguage = legacyEpisode.Language ?? legacyPodcast.Language,
             PodcastMetadataVersion = null
         };
+    }
+
+    private static bool IsPodcastFieldParityMatch(LegacyPodcast legacyPodcast, V2Podcast migratedPodcast)
+    {
+        return legacyPodcast.Id == migratedPodcast.Id &&
+               legacyPodcast.Name == migratedPodcast.Name &&
+               legacyPodcast.Language == migratedPodcast.Language &&
+               legacyPodcast.Removed == migratedPodcast.Removed &&
+               legacyPodcast.Publisher == migratedPodcast.Publisher &&
+               legacyPodcast.Bundles == migratedPodcast.Bundles &&
+               legacyPodcast.IndexAllEpisodes == migratedPodcast.IndexAllEpisodes &&
+               legacyPodcast.IgnoreAllEpisodes == migratedPodcast.IgnoreAllEpisodes &&
+               legacyPodcast.BypassShortEpisodeChecking == migratedPodcast.BypassShortEpisodeChecking &&
+               legacyPodcast.MinimumDuration == migratedPodcast.MinimumDuration &&
+               legacyPodcast.ReleaseAuthority == migratedPodcast.ReleaseAuthority &&
+               legacyPodcast.PrimaryPostService == migratedPodcast.PrimaryPostService &&
+               legacyPodcast.SpotifyId == migratedPodcast.SpotifyId &&
+               legacyPodcast.SpotifyMarket == migratedPodcast.SpotifyMarket &&
+               legacyPodcast.SpotifyEpisodesQueryIsExpensive == migratedPodcast.SpotifyEpisodesQueryIsExpensive &&
+               legacyPodcast.AppleId == migratedPodcast.AppleId &&
+               legacyPodcast.YouTubeChannelId == migratedPodcast.YouTubeChannelId &&
+               legacyPodcast.YouTubePlaylistId == migratedPodcast.YouTubePlaylistId &&
+               legacyPodcast.YouTubePublicationOffset == migratedPodcast.YouTubePublicationOffset &&
+               legacyPodcast.YouTubePlaylistQueryIsExpensive == migratedPodcast.YouTubePlaylistQueryIsExpensive &&
+               legacyPodcast.SkipEnrichingFromYouTube == migratedPodcast.SkipEnrichingFromYouTube &&
+               legacyPodcast.YouTubeNotificationSubscriptionLeaseExpiry == migratedPodcast.YouTubeNotificationSubscriptionLeaseExpiry &&
+               legacyPodcast.TwitterHandle == migratedPodcast.TwitterHandle &&
+               legacyPodcast.BlueskyHandle == migratedPodcast.BlueskyHandle &&
+               legacyPodcast.HashTag == migratedPodcast.HashTag &&
+               SequenceEqual(legacyPodcast.EnrichmentHashTags, migratedPodcast.EnrichmentHashTags) &&
+               legacyPodcast.TitleRegex == migratedPodcast.TitleRegex &&
+               legacyPodcast.DescriptionRegex == migratedPodcast.DescriptionRegex &&
+               legacyPodcast.EpisodeMatchRegex == migratedPodcast.EpisodeMatchRegex &&
+               legacyPodcast.EpisodeIncludeTitleRegex == migratedPodcast.EpisodeIncludeTitleRegex &&
+               SequenceEqual(legacyPodcast.IgnoredAssociatedSubjects, migratedPodcast.IgnoredAssociatedSubjects) &&
+               SequenceEqual(legacyPodcast.IgnoredSubjects, migratedPodcast.IgnoredSubjects) &&
+               legacyPodcast.DefaultSubject == migratedPodcast.DefaultSubject &&
+               legacyPodcast.SearchTerms == migratedPodcast.SearchTerms &&
+               SequenceEqual(legacyPodcast.KnownTerms, migratedPodcast.KnownTerms) &&
+               legacyPodcast.FileKey == migratedPodcast.FileKey;
+    }
+
+    private static bool IsSubjectParityMatch(RedditPodcastPoster.Models.Subject legacy, RedditPodcastPoster.Models.Subject target)
+    {
+        return legacy.Id == target.Id &&
+               legacy.Name == target.Name &&
+               legacy.SubjectType == target.SubjectType &&
+               SequenceEqual(legacy.Aliases, target.Aliases) &&
+               SequenceEqual(legacy.AssociatedSubjects, target.AssociatedSubjects) &&
+               legacy.RedditFlairTemplateId == target.RedditFlairTemplateId &&
+               legacy.RedditFlareText == target.RedditFlareText &&
+               legacy.HashTag == target.HashTag &&
+               SequenceEqual(legacy.EnrichmentHashTags, target.EnrichmentHashTags) &&
+               SequenceEqual(legacy.KnownTerms, target.KnownTerms);
+    }
+
+    private static bool IsDiscoveryParityMatch(RedditPodcastPoster.Models.DiscoveryResultsDocument legacy, RedditPodcastPoster.Models.DiscoveryResultsDocument target)
+    {
+        return legacy.Id == target.Id &&
+               legacy.State == target.State &&
+               legacy.DiscoveryBegan == target.DiscoveryBegan &&
+               legacy.ExcludeSpotify == target.ExcludeSpotify &&
+               legacy.IncludeYouTube == target.IncludeYouTube &&
+               legacy.IncludeListenNotes == target.IncludeListenNotes &&
+               legacy.IncludeTaddy == target.IncludeTaddy &&
+               legacy.EnrichListenNotesFromSpotify == target.EnrichListenNotesFromSpotify &&
+               legacy.EnrichFromSpotify == target.EnrichFromSpotify &&
+               legacy.EnrichFromApple == target.EnrichFromApple &&
+               legacy.SearchSince == target.SearchSince &&
+               legacy.PreSkipSpotifyUrlResolving == target.PreSkipSpotifyUrlResolving &&
+               legacy.PostSkipSpotifyUrlResolving == target.PostSkipSpotifyUrlResolving &&
+               legacy.DiscoveryResults.Count() == target.DiscoveryResults.Count();
+    }
+
+    private static bool IsKnownTermsParityMatch(KnownTerms legacy, KnownTerms target)
+    {
+        if (legacy.Terms.Count != target.Terms.Count)
+        {
+            return false;
+        }
+
+        foreach (var (key, value) in legacy.Terms)
+        {
+            if (!target.Terms.TryGetValue(key, out var targetValue))
+            {
+                return false;
+            }
+
+            if (value.ToString() != targetValue.ToString() || value.Options != targetValue.Options)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsPushSubscriptionParityMatch(RedditPodcastPoster.Models.PushSubscription legacy, RedditPodcastPoster.Models.PushSubscription target)
+    {
+        return legacy.Id == target.Id &&
+               legacy.User == target.User &&
+               legacy.Endpoint == target.Endpoint &&
+               legacy.ExpirationTime == target.ExpirationTime &&
+               legacy.Auth == target.Auth &&
+               legacy.P256Dh == target.P256Dh;
+    }
+
+    private static bool IsEpisodeParityMatch(V2Episode expected, V2Episode target)
+    {
+        return expected.Id == target.Id &&
+               expected.PodcastId == target.PodcastId &&
+               expected.Title == target.Title &&
+               expected.Description == target.Description &&
+               expected.Release == target.Release &&
+               expected.Length == target.Length &&
+               expected.Explicit == target.Explicit &&
+               expected.Posted == target.Posted &&
+               expected.Tweeted == target.Tweeted &&
+               expected.BlueskyPosted == target.BlueskyPosted &&
+               expected.Ignored == target.Ignored &&
+               expected.Removed == target.Removed &&
+               expected.SpotifyId == target.SpotifyId &&
+               expected.AppleId == target.AppleId &&
+               expected.YouTubeId == target.YouTubeId &&
+               AreServiceUrlsEqual(expected.Urls, target.Urls) &&
+               expected.Subjects.SequenceEqual(target.Subjects) &&
+               expected.SearchTerms == target.SearchTerms &&
+               expected.PodcastName == target.PodcastName &&
+               expected.PodcastSearchTerms == target.PodcastSearchTerms &&
+               expected.SearchLanguage == target.SearchLanguage;
+    }
+
+    private static bool AreServiceUrlsEqual(RedditPodcastPoster.Models.ServiceUrls left, RedditPodcastPoster.Models.ServiceUrls right)
+    {
+        return left.Spotify == right.Spotify &&
+               left.Apple == right.Apple &&
+               left.YouTube == right.YouTube;
+    }
+
+    private static bool SequenceEqual(string[]? left, string[]? right)
+    {
+        if (left == null && right == null)
+        {
+            return true;
+        }
+
+        if (left == null || right == null)
+        {
+            return false;
+        }
+
+        return left.SequenceEqual(right);
     }
 }
