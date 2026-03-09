@@ -147,3 +147,4 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 - [ ] Validate RU and latency profile of fan-out metadata updates.
 - [ ] Validate search-index storage reduction after schema/key minimization.
 - [ ] Confirm no writes reach legacy container post-cutover.
+- [ ] Perform final adapter review for all `servicePodcast`, `serviceEpisode`, `legacyPodcast`, and `legacyEpisode` instances, and eliminate non-migration-path usages.
