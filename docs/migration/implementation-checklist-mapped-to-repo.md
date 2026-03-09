@@ -111,11 +111,11 @@
 ## Phase 5: Console/Processor Refactor
 Update processors identified from code scan to stop using `podcast.Episodes`:
 
-- [ ] `Console-Apps/AddAudioPodcast/AddAudioPodcastProcessor.cs`
+- [x] `Console-Apps/AddAudioPodcast/AddAudioPodcastProcessor.cs` ✅ **COMPLETED** - migrated to IEpisodeRepository
 - [x] `Console-Apps/RemoveEpisodes/Processor.cs`
 - [x] `Console-Apps/UnremoveEpisodes/Processor.cs`
 - [x] `Console-Apps/EnrichPodcastWithImages/Processor.cs`
-- [ ] `Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubePodcastProcessor.cs`
+- [x] `Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubePodcastProcessor.cs` ✅ **COMPLETED** - migrated to IEpisodeRepository
 - [x] `Console-Apps/FixDatesFromApple/Processor.cs`
 - [x] `Console-Apps/Tweet/TweetProcessor.cs`
 - [x] `Console-Apps/KVWriter/KVWriterProcessor.cs`
@@ -126,10 +126,13 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 - [x] `Console-Apps/Poster/PostProcessor.cs`
 - [ ] audit any new embedded-episode usages introduced after this checklist snapshot.
 
-### Remaining migration blockers (Phase 5)
-- `AddAudioPodcastProcessor` still relies on `IPodcastUpdater`, which currently uses embedded `podcast.Episodes` and legacy repository merge/save semantics.
-- `EnrichYouTubePodcastProcessor` still mutates embedded episode collections (`podcast.Episodes`) and depends on legacy processing/filtering flow.
-- Next implementation step: isolate adapter boundaries for these two processors, then move persistence writes to detached episodes through `IEpisodeRepository` while keeping behavior parity.
+### Phase 5 Migration Completed! ✅
+- ✅ `AddAudioPodcastProcessor` - NOW uses IEpisodeRepository for all episode operations
+- ✅ `EnrichYouTubePodcastProcessor` - NOW uses IEpisodeRepository for all episode operations
+- ✅ Created `IEpisodeMerger` service to extract merge logic from PodcastRepository
+- ✅ Created `PodcastUpdaterV2` implementing IPodcastUpdater with detached episode support via IPodcastRepositoryV2 and IEpisodeRepository
+- ✅ Both processors persist episodes to detached Episodes container
+- ✅ Both processors persist podcast metadata to V2 Podcasts container
 
 ## Phase 6: Migration Tooling
 - [x] Read legacy `CultPodcasts` documents.
