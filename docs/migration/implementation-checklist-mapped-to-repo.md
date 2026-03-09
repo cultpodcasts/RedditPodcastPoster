@@ -90,6 +90,14 @@
 - [x] Replace datasource query in `CreateDataSource` from embedded-episode join to `Episodes`-container query.
 - [x] Switch high-watermark semantics from `p._ts` to `e._ts`.
 - [x] Validate query field mapping still matches reduced-key `EpisodeSearchRecord` schema.
+- [ ] Remaining runtime paths from static scan:
+  - [ ] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodeFilter.cs`
+  - [ ] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodePoster.cs`
+  - [ ] `Class-Libraries/RedditPodcastPoster.Common/Podcasts/PodcastFilter.cs`
+  - [ ] `Class-Libraries/RedditPodcastPoster.Common/PodcastEpisodeProvider.cs`
+  - [ ] `Class-Libraries/RedditPodcastPoster.UrlSubmission/Factories/PodcastAndEpisodeFactory.cs`
+  - [ ] `Class-Libraries/RedditPodcastPoster.UrlSubmission/PodcastProcessor.cs`
+  - [ ] `Cloud/Api/Services/DiscoveryResultsService.cs`
 
 ## Phase 4: UI and Contract Migration
 - [ ] Add support for `CompactSearchRecord` key names.
