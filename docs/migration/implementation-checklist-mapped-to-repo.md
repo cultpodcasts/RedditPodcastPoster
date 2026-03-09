@@ -112,12 +112,12 @@
 Update processors identified from code scan to stop using `podcast.Episodes`:
 
 - [ ] `Console-Apps/AddAudioPodcast/AddAudioPodcastProcessor.cs`
-- [ ] `Console-Apps/RemoveEpisodes/Processor.cs`
-- [ ] `Console-Apps/UnremoveEpisodes/Processor.cs`
-- [ ] `Console-Apps/EnrichPodcastWithImages/Processor.cs`
+- [x] `Console-Apps/RemoveEpisodes/Processor.cs`
+- [x] `Console-Apps/UnremoveEpisodes/Processor.cs`
+- [x] `Console-Apps/EnrichPodcastWithImages/Processor.cs`
 - [ ] `Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubePodcastProcessor.cs`
-- [ ] `Console-Apps/FixDatesFromApple/Processor.cs`
-- [ ] `Console-Apps/Tweet/TweetProcessor.cs`
+- [x] `Console-Apps/FixDatesFromApple/Processor.cs`
+- [x] `Console-Apps/Tweet/TweetProcessor.cs`
 - [ ] `Console-Apps/KVWriter/KVWriterProcessor.cs`
 - [ ] `Console-Apps/TextClassifierTraining/TrainingDataProcessor.cs`
 - [ ] other remaining files returned by static scan for `.Episodes` usage.
