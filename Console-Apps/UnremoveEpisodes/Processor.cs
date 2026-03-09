@@ -1,5 +1,4 @@
 ﻿using System.Text.RegularExpressions;
-using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -7,8 +6,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace UnremoveEpisodes;
 
 public partial class Processor(
-    SearchClient searchClient,
-    IPodcastRepository podcastRepository,
+    IEpisodeRepository episodeRepository,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<Processor> logger)
 {
@@ -25,28 +23,26 @@ public partial class Processor(
             {
                 var podcastName = match.Groups["podcast"].Value;
                 var episodeTitle = match.Groups["episode"].Value;
-                var podcast = await podcastRepository.GetBy(x =>
-                    x.Name.StartsWith(podcastName) && x.Episodes.Any(y => y.Title.StartsWith(episodeTitle)));
-                if (podcast != null)
-                {
-                    var episodeMatches = podcast.Episodes.Where(x => x.Title.StartsWith(episodeTitle) && x.Removed);
-                    if (episodeMatches.Count() != 1)
-                    {
-                        logger.LogError("No singular ({count}) episode with title: '{episodeLine}'",
-                            episodeMatches.Count(), episodeLine);
-                    }
-                    else
-                    {
-                        var episode= episodeMatches.Single();
-                        episode.Removed = false;
-                        updatedEpisodeIds.Add(episode.Id);
-                        await podcastRepository.Save(podcast);
-                    }
 
+                var episodeMatches = await episodeRepository
+                    .GetAllBy(x =>
+                        x.PodcastName != null &&
+                        x.PodcastName.StartsWith(podcastName) &&
+                        x.Title.StartsWith(episodeTitle) &&
+                        x.Removed)
+                    .ToListAsync();
+
+                if (episodeMatches.Count != 1)
+                {
+                    logger.LogError("No singular ({count}) episode with title: '{episodeLine}'",
+                        episodeMatches.Count, episodeLine);
                 }
                 else
                 {
-                    logger.LogError("Failed to find podcast for episode-line: '{episodeLine}'", episodeLine);
+                    var episode = episodeMatches.Single();
+                    episode.Removed = false;
+                    updatedEpisodeIds.Add(episode.Id);
+                    await episodeRepository.Save(episode);
                 }
             }
             else
@@ -54,7 +50,6 @@ public partial class Processor(
                 logger.LogError("Failed to match '{episodeLine}'", episodeLine);
             }
         }
-
 
         if (updatedEpisodeIds.Any())
         {
