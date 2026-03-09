@@ -16,6 +16,7 @@ namespace Poster;
 
 public class PostProcessor(
     IPodcastRepository repository,
+    IEpisodeRepository episodeRepository,
     ITweeter tweeter,
     IPodcastEpisodesPoster podcastEpisodesPoster,
     IProcessResponsesAdaptor processResponsesAdaptor,
@@ -52,12 +53,18 @@ public class PostProcessor(
 
         if (request.EpisodeId.HasValue)
         {
-            var podcastId = await repository.GetBy(x =>
-                (!x.Removed.IsDefined() || x.Removed == false) &&
-                x.Episodes.Any(ep => ep.Id == request.EpisodeId), x => new { guid = x.Id });
-            if (podcastId == null)
+            var episode = await episodeRepository.GetBy(x => x.Id == request.EpisodeId.Value);
+            if (episode == null)
             {
                 throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
+            }
+
+            var podcastId = await repository.GetBy(x =>
+                (!x.Removed.IsDefined() || x.Removed == false) &&
+                x.Id == episode.PodcastId, x => new { guid = x.Id });
+            if (podcastId == null)
+            {
+                throw new ArgumentException($"Podcast with id '{episode.PodcastId}' not found for episode-id '{request.EpisodeId.Value}'.");
             }
 
             podcastIds = [podcastId.guid];
@@ -103,12 +110,18 @@ public class PostProcessor(
     {
         if (request.EpisodeId.HasValue)
         {
-            var podcastId = await repository.GetBy(x =>
-                (!x.Removed.IsDefined() || x.Removed == false) &&
-                x.Episodes.Any(ep => ep.Id == request.EpisodeId), x => new { guid = x.Id });
-            if (podcastId == null)
+            var episode = await episodeRepository.GetBy(x => x.Id == request.EpisodeId.Value);
+            if (episode == null)
             {
                 throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
+            }
+
+            var podcastId = await repository.GetBy(x =>
+                (!x.Removed.IsDefined() || x.Removed == false) &&
+                x.Id == episode.PodcastId, x => new { guid = x.Id });
+            if (podcastId == null)
+            {
+                throw new ArgumentException($"Podcast with id '{episode.PodcastId}' not found for episode-id '{request.EpisodeId.Value}'.");
             }
 
             var selectedPodcast = await repository.GetPodcast(podcastId.guid);
