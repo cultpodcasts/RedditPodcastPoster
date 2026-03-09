@@ -6,11 +6,14 @@ using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text.EliminationTerms;
+using V2Episode = RedditPodcastPoster.Models.V2.Episode;
+using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace EliminateExistingEpisodes;
 
 public class Processor(
-    IPodcastRepository repository,
+    IPodcastRepositoryV2 repository,
+    IEpisodeRepository episodeRepository,
     IPodcastFilter podcastFilter,
     IAsyncInstance<IEliminationTermsProvider> eliminationTermsProviderInstance,
     SearchClient searchClient,
@@ -26,8 +29,9 @@ public class Processor(
         else if (request.PodcastName != null)
         {
             var podcastIds = await repository.GetAllBy(x =>
-                    x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
-                x => x.Id).ToListAsync();
+                    x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase))
+                .Select(x => x.Id)
+                .ToListAsync();
             if (!podcastIds.Any())
             {
                 throw new InvalidOperationException($"No podcast matching '{request.PodcastName}' could be found.");
@@ -47,46 +51,139 @@ public class Processor(
         }
 
         var podcast = await repository.GetBy(x => x.Id == podcastId);
-        var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
-        var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
-        var filterResult = podcastFilter.Filter(podcast, eliminationTerms.Terms);
-        logger.LogInformation(filterResult.ToString());
-        foreach (var episode in filterResult.FilteredEpisodes)
+        if (podcast == null)
         {
-            await DeleteSearchDocument(episode.Episode);
+            throw new InvalidOperationException($"Podcast with id '{podcastId}' not found.");
         }
 
-        if (!string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
+        var episodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();
+        var servicePodcast = CreateServicePodcast(podcast, episodes);
+
+        var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
+        var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
+        var filterResult = podcastFilter.Filter(servicePodcast, eliminationTerms.Terms);
+        logger.LogInformation(filterResult.ToString());
+        foreach (var filteredEpisode in filterResult.FilteredEpisodes)
         {
-            var includeEpisodeRegex = new Regex(podcast.EpisodeIncludeTitleRegex, Podcast.EpisodeIncludeTitleFlags);
-            foreach (var episode in podcast.Episodes.Where(x => !x.Removed))
+            await DeleteSearchDocument(filteredEpisode.Episode.Id);
+        }
+
+        if (!string.IsNullOrWhiteSpace(servicePodcast.EpisodeIncludeTitleRegex))
+        {
+            var includeEpisodeRegex = new Regex(servicePodcast.EpisodeIncludeTitleRegex, Podcast.EpisodeIncludeTitleFlags);
+            foreach (var serviceEpisode in servicePodcast.Episodes.Where(x => !x.Removed))
             {
-                if (!includeEpisodeRegex.IsMatch(episode.Title))
+                if (!includeEpisodeRegex.IsMatch(serviceEpisode.Title))
                 {
-                    episode.Removed = true;
+                    serviceEpisode.Removed = true;
                     logger.LogInformation(
                         "Removing episode '{episodeTitle}' of podcast '{podcastName}' due to mismatch with '{episodeIncludeTitleRegex}'.",
-                        episode.Title, podcast.Name, podcast.EpisodeIncludeTitleRegex);
-                    await DeleteSearchDocument(episode);
+                        serviceEpisode.Title, servicePodcast.Name, servicePodcast.EpisodeIncludeTitleRegex);
+                    await DeleteSearchDocument(serviceEpisode.Id);
                 }
             }
         }
 
-        await repository.Save(podcast);
+        var episodesById = episodes.ToDictionary(x => x.Id);
+        foreach (var serviceEpisode in servicePodcast.Episodes)
+        {
+            if (episodesById.TryGetValue(serviceEpisode.Id, out var detachedEpisode) &&
+                detachedEpisode.Removed != serviceEpisode.Removed)
+            {
+                detachedEpisode.Removed = serviceEpisode.Removed;
+                await episodeRepository.Save(detachedEpisode);
+            }
+        }
     }
 
-    private async Task DeleteSearchDocument(Episode episode)
+    private async Task DeleteSearchDocument(Guid episodeId)
     {
         var result = await searchClient.DeleteDocumentsAsync(
             "id",
-            [episode.Id.ToString()],
+            [episodeId.ToString()],
             new IndexDocumentsOptions { ThrowOnAnyError = true },
             CancellationToken.None);
         var success = result.Value.Results.First().Succeeded;
         if (!success)
         {
             logger.LogError("Error removing search-item with episode-id '{episodeId}', message: '{mesage}'.",
-                episode.Id, result.Value.Results.First().ErrorMessage);
+                episodeId, result.Value.Results.First().ErrorMessage);
         }
+    }
+
+    private static Podcast CreateServicePodcast(V2Podcast podcast, IEnumerable<V2Episode> episodes)
+    {
+        return new Podcast(podcast.Id)
+        {
+            Name = podcast.Name,
+            Language = podcast.Language,
+            Removed = podcast.Removed,
+            Publisher = podcast.Publisher,
+            Bundles = podcast.Bundles,
+            IndexAllEpisodes = podcast.IndexAllEpisodes,
+            IgnoreAllEpisodes = podcast.IgnoreAllEpisodes,
+            BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking,
+            MinimumDuration = podcast.MinimumDuration,
+            ReleaseAuthority = podcast.ReleaseAuthority,
+            PrimaryPostService = podcast.PrimaryPostService,
+            SpotifyId = podcast.SpotifyId,
+            SpotifyMarket = podcast.SpotifyMarket,
+            SpotifyEpisodesQueryIsExpensive = podcast.SpotifyEpisodesQueryIsExpensive,
+            AppleId = podcast.AppleId,
+            YouTubeChannelId = podcast.YouTubeChannelId,
+            YouTubePlaylistId = podcast.YouTubePlaylistId,
+            YouTubePublicationOffset = podcast.YouTubePublicationOffset,
+            YouTubePlaylistQueryIsExpensive = podcast.YouTubePlaylistQueryIsExpensive,
+            SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube,
+            YouTubeNotificationSubscriptionLeaseExpiry = podcast.YouTubeNotificationSubscriptionLeaseExpiry,
+            TwitterHandle = podcast.TwitterHandle,
+            BlueskyHandle = podcast.BlueskyHandle,
+            HashTag = podcast.HashTag,
+            EnrichmentHashTags = podcast.EnrichmentHashTags,
+            TitleRegex = podcast.TitleRegex,
+            DescriptionRegex = podcast.DescriptionRegex,
+            EpisodeMatchRegex = podcast.EpisodeMatchRegex,
+            EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex,
+            IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
+            IgnoredSubjects = podcast.IgnoredSubjects,
+            DefaultSubject = podcast.DefaultSubject,
+            SearchTerms = podcast.SearchTerms,
+            KnownTerms = podcast.KnownTerms,
+            FileKey = podcast.FileKey,
+            Timestamp = podcast.Timestamp,
+            Episodes = episodes.Select(ToLegacyEpisode).ToList()
+        };
+    }
+
+    private static Episode ToLegacyEpisode(V2Episode episode)
+    {
+        return new Episode
+        {
+            Id = episode.Id,
+            PodcastId = episode.PodcastId,
+            PodcastName = episode.PodcastName,
+            PodcastSearchTerms = episode.PodcastSearchTerms,
+            SearchLanguage = episode.SearchLanguage,
+            Title = episode.Title,
+            Description = episode.Description,
+            Release = episode.Release,
+            Length = episode.Length,
+            Explicit = episode.Explicit,
+            Posted = episode.Posted,
+            Tweeted = episode.Tweeted,
+            BlueskyPosted = episode.BlueskyPosted,
+            Ignored = episode.Ignored,
+            Removed = episode.Removed,
+            SpotifyId = episode.SpotifyId,
+            AppleId = episode.AppleId,
+            YouTubeId = episode.YouTubeId,
+            Urls = episode.Urls,
+            Subjects = episode.Subjects,
+            SearchTerms = episode.SearchTerms,
+            Images = episode.Images,
+            Language = episode.SearchLanguage,
+            TwitterHandles = episode.TwitterHandles,
+            BlueskyHandles = episode.BlueskyHandles
+        };
     }
 }
