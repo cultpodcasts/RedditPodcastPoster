@@ -112,7 +112,9 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 - [x] `Console-Apps/TextClassifierTraining/TrainingDataProcessor.cs`
 - [x] `Console-Apps/IndexAllEpisodesAudit/IndexAllEpisodesAuditProcessor.cs`
 - [x] `Console-Apps/EliminateExistingEpisodes/Procesor.cs`
-- [ ] other remaining files returned by static scan for `.Episodes` usage.
+- [ ] `Console-Apps/EnrichExistingEpisodesFromPodcastServices/EnrichPodcastEpisodesProcessor.cs`
+- [ ] `Console-Apps/Poster/PostProcessor.cs`
+- [ ] audit any new embedded-episode usages introduced after this checklist snapshot.
 
 ## Phase 6: Migration Tooling
 - [x] Read legacy `CultPodcasts` documents.
