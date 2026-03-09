@@ -17,7 +17,7 @@ public partial class CreateSearchIndexProcessor(
     SearchIndexClient searchIndexClient,
     SearchIndexerClient searchIndexerClient,
     ISearchIndexerService searchIndexerService,
-    IOptions<CosmosDbSettings> cosmosDbSettings,
+    IOptions<CosmosDbSettingsV2> cosmosDbSettings,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<CreateSearchIndexProcessor> logger
 #pragma warning restore CS9113 // Parameter is unread.
@@ -26,7 +26,7 @@ public partial class CreateSearchIndexProcessor(
     private static readonly Regex Whitespace = CreateWhitespaceRegex();
     private static readonly TimeSpan IndexAtMinutes = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan Frequency = TimeSpan.FromMinutes(30);
-    private readonly CosmosDbSettings _cosmosDbSettings = cosmosDbSettings.Value;
+    private readonly CosmosDbSettingsV2 _cosmosDbSettings = cosmosDbSettings.Value;
 
     public async Task Process(CreateSearchIndexRequest request)
     {
@@ -90,7 +90,7 @@ public partial class CreateSearchIndexProcessor(
         var query = @$"SELECT
                             e.id,
                             e.title as episodeTitle,
-                            p.name as podcastName,
+                            e.podcastName as podcastName,
                             SUBSTRING (e.description, 0, {Constants.DescriptionSize}) as episodeDescription,
                             e.release,
                             e.duration,
@@ -101,19 +101,17 @@ public partial class CreateSearchIndexProcessor(
                             e.urls.bbc,
                             e.urls.internetArchive,
                             e.subjects as subjects,
-                            p.searchTerms as podcastSearchTerms,
+                            e.podcastSearchTerms as podcastSearchTerms,
                             e.searchTerms as episodeSearchTerms,
                             e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other as image,
-                            e.lang ?? p.lang as lang,
-                            p._ts
-                            FROM podcasts p
-                            JOIN e IN p.episodes
-                            WHERE ((NOT IS_DEFINED(p.removed)) OR p.removed=false)
-                              and e.removed = false 
-                              and p._ts >= @HighWaterMark
-                            ORDER BY p._ts";
+                            e.searchLang as lang,
+                            e._ts
+                            FROM episodes e
+                            WHERE ((NOT IS_DEFINED(e.removed)) OR e.removed=false)
+                              and e._ts >= @HighWaterMark
+                            ORDER BY e._ts";
         query = Whitespace.Replace(query, " ").Trim();
-        var searchIndexDataContainer = new SearchIndexerDataContainer(_cosmosDbSettings.Container)
+        var searchIndexDataContainer = new SearchIndexerDataContainer(_cosmosDbSettings.EpisodesContainer)
         {
             Query = query
         };
