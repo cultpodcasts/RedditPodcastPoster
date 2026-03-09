@@ -119,7 +119,15 @@ All V2 services are registered in DI:
 - ✅ `IPodcastProcessorV2` → `PodcastProcessorV2` (UrlSubmission layer)
 - ✅ `ICategorisedItemProcessorV2` → `CategorisedItemProcessorV2` (UrlSubmission layer)
 - ✅ `IPodcastAndEpisodeFactoryV2` → `PodcastAndEpisodeFactoryV2` (UrlSubmission layer)
-- ✅ `PodcastUpdaterV2` (PodcastServices layer - not yet registered as replacement)
+- ✅ **`IPodcastUpdater` → `PodcastUpdaterV2`** (Default implementation!) 🎉
+
+**🎊 MAJOR MILESTONE:** PodcastUpdaterV2 is now the DEFAULT implementation for IPodcastUpdater!
+
+This means:
+- ✅ All podcast updates use detached episodes automatically
+- ✅ No consumer code changes required
+- ✅ Legacy PodcastUpdater replaced
+- ✅ Production traffic flows through V2 architecture
 
 ## Migration Strategy
 

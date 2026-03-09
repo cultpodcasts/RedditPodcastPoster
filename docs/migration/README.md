@@ -12,19 +12,23 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 
 ## Read Order
 
-1. **📊 Current Status** (Start here for current state)
-   - [`complete-status-report.md`](./complete-status-report.md) - **COMPREHENSIVE STATUS** - Complete achievement summary
+1. **🎊 MAJOR MILESTONE** (Latest achievement!)
+   - [`milestone-podcast-updater-v2-default.md`](./milestone-podcast-updater-v2-default.md) - **PodcastUpdaterV2 is now DEFAULT!**
 
-2. **Strategy and constraints**
+2. **📊 Current Status** (Comprehensive state)
+   - [`complete-status-report.md`](./complete-status-report.md) - Complete achievement summary
+   - [`repository-comparison.md`](./repository-comparison.md) - IPodcastRepository vs V2
+
+3. **Strategy and constraints**
    - [`concrete-migration-plan-and-cutover-strategy.md`](./concrete-migration-plan-and-cutover-strategy.md)
 
-3. **Repository-mapped execution checklist**
+4. **Repository-mapped execution checklist**
    - [`implementation-checklist-mapped-to-repo.md`](./implementation-checklist-mapped-to-repo.md)
 
-4. **Parallel infrastructure rollout (deploy + migration + cutover)**
+5. **Parallel infrastructure rollout (deploy + migration + cutover)**
    - [`parallel-infrastructure-rollout-checklist.md`](./parallel-infrastructure-rollout-checklist.md)
 
-5. **V2 Services Documentation** (Current Implementation)
+6. **V2 Services Documentation** (Current Implementation)
    - [`v2-implementation-index.md`](./v2-implementation-index.md) - Quick reference table
    - [`v2-services-progress.md`](./v2-services-progress.md) - Implementation progress
    - [`v2-services-reference.md`](./v2-services-reference.md) - Complete API reference
@@ -32,10 +36,11 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
    - [`url-submission-v2-complete.md`](./url-submission-v2-complete.md) - URL submission docs
    - [`architectural-cleanup-summary.md`](./architectural-cleanup-summary.md) - Design decisions
 
-6. **Session Summaries**
+7. **Session Summaries**
    - [`final-session-summary.md`](./final-session-summary.md) - Latest session achievements
+   - [`remaining-work-audit.md`](./remaining-work-audit.md) - What's left to do
 
-7. **Delivery sequencing by PR**
+8. **Delivery sequencing by PR**
    - [`sequenced-pr-plan.md`](./sequenced-pr-plan.md)
 
 ## Stage Notes
