@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace IndexAllEpisodesAudit;
@@ -13,8 +14,7 @@ public class IndexAllEpisodesAuditProcessor(
         var indexAllEpisodePodcasts = await podcastRepository.GetAllBy(x => x.IndexAllEpisodes).ToListAsync();
         foreach (var podcast in indexAllEpisodePodcasts)
         {
-            var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
-            var mostRecentEpisode = episodes.MaxBy(x => x.Release);
+            var mostRecentEpisode = await GetMostRecentEpisode(podcast.Id);
 
             if (mostRecentEpisode != null)
             {
@@ -32,5 +32,11 @@ public class IndexAllEpisodesAuditProcessor(
                 }
             }
         }
+    }
+
+    private async Task<Episode?> GetMostRecentEpisode(Guid podcastId)
+    {
+        var episodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();
+        return episodes.MaxBy(x => x.Release);
     }
 }
