@@ -7,7 +7,7 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 - Migration + sampled parity checks are implemented and passing.
 - Search datasource has been migrated to detached episodes query (`FROM episodes e`) with `e._ts` high-watermark semantics.
 - `podcastRemoved` hydration/filtering is implemented for episode search filtering.
-- `PodcastHandler` now uses `IPodcastRepositoryV2` and detached-episode fan-out updates through `IEpisodeRepository`.
+- `PodcastHandler` now uses the target podcast repository and detached-episode fan-out updates through `IEpisodeRepository`.
 - Remaining work is focused on full runtime removal of embedded-episode assumptions and reduced-key search contract rollout (`CompactSearchRecord`).
 
 ## Read Order

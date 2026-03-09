@@ -51,7 +51,7 @@ Key changes:
 - Completed:
   - `CreateSearchIndexProcessor.CreateDataSource` now queries detached episodes (`FROM episodes e`) and uses `e._ts` high-watermark.
   - Search datasource filter now includes `e.podcastRemoved` support.
-  - `PodcastHandler` migrated to `IPodcastRepositoryV2` and detached episode metadata hydration with `IEpisodeRepository`.
+  - `PodcastHandler` migrated to the target podcast repository and detached episode metadata hydration with `IEpisodeRepository`.
 - Remaining in PR2:
   - finish all episode/podcast runtime paths still relying on embedded episode assumptions.
   - finalize reduced-key search contract (`CompactSearchRecord`) implementation and validation.
