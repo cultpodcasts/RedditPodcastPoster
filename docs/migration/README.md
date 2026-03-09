@@ -12,24 +12,30 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 
 ## Read Order
 
-1. **Strategy and constraints**
+1. **📊 Current Status** (Start here for current state)
+   - [`complete-status-report.md`](./complete-status-report.md) - **COMPREHENSIVE STATUS** - Complete achievement summary
+
+2. **Strategy and constraints**
    - [`concrete-migration-plan-and-cutover-strategy.md`](./concrete-migration-plan-and-cutover-strategy.md)
 
-2. **Repository-mapped execution checklist**
+3. **Repository-mapped execution checklist**
    - [`implementation-checklist-mapped-to-repo.md`](./implementation-checklist-mapped-to-repo.md)
 
-3. **Parallel infrastructure rollout (deploy + migration + cutover)**
+4. **Parallel infrastructure rollout (deploy + migration + cutover)**
    - [`parallel-infrastructure-rollout-checklist.md`](./parallel-infrastructure-rollout-checklist.md)
 
-4. **V2 Services Documentation** (Current Implementation)
-   - [`v2-implementation-index.md`](./v2-implementation-index.md) - **START HERE** - Complete service inventory
-   - [`v2-services-progress.md`](./v2-services-progress.md) - Implementation progress tracker
+5. **V2 Services Documentation** (Current Implementation)
+   - [`v2-implementation-index.md`](./v2-implementation-index.md) - Quick reference table
+   - [`v2-services-progress.md`](./v2-services-progress.md) - Implementation progress
    - [`v2-services-reference.md`](./v2-services-reference.md) - Complete API reference
-   - [`podcast-episode-v2-guide.md`](./podcast-episode-v2-guide.md) - PodcastEpisodeV2 usage guide
-   - [`architectural-cleanup-summary.md`](./architectural-cleanup-summary.md) - Design decisions & cleanup
-   - [`current-session-summary.md`](./current-session-summary.md) - Latest session summary
+   - [`podcast-episode-v2-guide.md`](./podcast-episode-v2-guide.md) - PodcastEpisodeV2 usage
+   - [`url-submission-v2-complete.md`](./url-submission-v2-complete.md) - URL submission docs
+   - [`architectural-cleanup-summary.md`](./architectural-cleanup-summary.md) - Design decisions
 
-5. **Delivery sequencing by PR**
+6. **Session Summaries**
+   - [`final-session-summary.md`](./final-session-summary.md) - Latest session achievements
+
+7. **Delivery sequencing by PR**
    - [`sequenced-pr-plan.md`](./sequenced-pr-plan.md)
 
 ## Stage Notes

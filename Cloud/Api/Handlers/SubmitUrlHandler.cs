@@ -13,8 +13,8 @@ using RedditPodcastPoster.UrlSubmission.Models;
 namespace Api.Handlers;
 
 public class SubmitUrlHandler(
-    IPodcastRepository repository,
-    IUrlSubmitter urlSubmitter,
+    IPodcastRepositoryV2 repository,
+    IUrlSubmitterV2 urlSubmitter,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<SubmitUrlHandler> logger) : ISubmitUrlHandler
 {
@@ -29,16 +29,15 @@ public class SubmitUrlHandler(
             Guid? podcastId;
             if (!string.IsNullOrWhiteSpace(submitUrlModel.PodcastName))
             {
-                var podcastIdWrapper =
-                    await repository.GetBy(x => x.Name == submitUrlModel.PodcastName, x => new { guid = x.Id });
-                if (podcastIdWrapper == null)
+                var podcast = await repository.GetBy(x => x.Name == submitUrlModel.PodcastName);
+                if (podcast == null)
                 {
                     var httpResponseData = await req.CreateResponse(HttpStatusCode.NotFound)
                         .WithJsonBody(new { message = "Podcast with name not found" }, c);
                     return httpResponseData;
                 }
 
-                podcastId = podcastIdWrapper.guid;
+                podcastId = podcast.Id;
             }
             else
             {

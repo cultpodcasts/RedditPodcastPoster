@@ -239,22 +239,23 @@ public class Consumer(IServiceV2 service)
 ### Console Processors
 - ✅ `AddAudioPodcastProcessor` - uses `PodcastUpdaterV2`
 - ✅ `EnrichYouTubePodcastProcessor` - uses `IEpisodeRepository` directly
+- ✅ `TweetProcessor` - Uses V2 repositories + extension methods
+- ✅ `PostProcessor` - Uses `IPodcastEpisodeProviderV2` + `.ToLegacy()` at boundaries
 
-### Ready for V2 Provider Migration
-These consumers can now be updated to use V2 providers:
-- `Console-Apps/Tweet/TweetProcessor.cs`
-- `Console-Apps/Poster/PostProcessor.cs`
-- API handlers using `IPodcastEpisodeProvider`
+### ✅ API Handlers
+1. **SubmitUrlHandler** - Uses `IUrlSubmitterV2` and `IPodcastRepositoryV2` → detached episodes
+2. **EpisodeHandler** - Already uses `IPodcastRepositoryV2` and `IEpisodeRepository` → detached episodes
 
-## Next Session Tasks
-
-1. **Migrate Tweet/Post consumers** to use `IPodcastEpisodeProviderV2`
-2. **Create `IPodcastEpisodePosterV2`** for bundled episode posting
-3. **Migrate URL submission services** to V2
-4. **Update API handlers** to use V2 providers
-5. **Add comprehensive tests** for V2 services
+### 🔄 Remaining Consumers
+- Other API handlers (if they use legacy services)
+- Any remaining console processors
 
 ---
 
-Last Updated: Current session
-Branch: `feature/detach-episodes-from-podcast-entity-in-cosmos-db`
+## Next Session Tasks
+
+1. **Add unit tests** for V2 services ⚠️ **HIGH PRIORITY**
+2. **Integration tests** against Cosmos DB
+3. **Audit remaining API handlers** for legacy service usage
+4. **Performance testing** of V2 services
+5. **Register PodcastUpdaterV2** as default `IPodcastUpdater`
