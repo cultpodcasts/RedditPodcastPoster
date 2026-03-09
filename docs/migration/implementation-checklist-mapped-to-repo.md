@@ -17,7 +17,7 @@
   - `IDiscoveryResultsRepositoryV2`
   - `ILookupRepositoryV2`
   - `IPushSubscriptionRepositoryV2`
-- Migration mapping carries expanded podcast metadata into `Models.V2.Podcast` and maps episode records into discrete target `Episode` entities.
+- Migration mapping carries expanded podcast metadata into the target podcast model and maps episode records into discrete target `Episode` entities.
 - Sampled parity verification tooling is implemented for:
   - podcasts
   - subjects
@@ -30,7 +30,7 @@
   - query shape switched from `JOIN e IN p.episodes` to `FROM episodes e`
   - high-watermark semantics now use `e._ts`
 - Episode projection now carries `podcastRemoved` and search filtering uses it in datasource query.
-- `Cloud/Api/Handlers/PodcastHandler.cs` now uses `IPodcastRepositoryV2` with detached episode hydration via `IEpisodeRepository` for podcast metadata fan-out.
+- `Cloud/Api/Handlers/PodcastHandler.cs` now uses the target podcast repository with detached episode hydration via `IEpisodeRepository` for podcast metadata fan-out.
 - Runtime/API de-embedding progress includes:
   - `Cloud/Api/Handlers/EpisodeHandler.cs` migrated `Get` endpoint to detached episode + podcast repositories.
   - `Cloud/Api/Handlers/PublicHandler.cs` migrated to detached episode + podcast repositories.
@@ -75,9 +75,9 @@
 ## Phase 3: API/Core Refactor
 - [ ] Replace podcast-embedded episode lookup and mutation.
 - [x] Use `IEpisodeRepository` for episode lifecycle operations.
-- [x] Use `IPodcastRepository` only for podcast metadata retrieval.
+- [x] Use target podcast repository only for podcast metadata retrieval.
 - [x] Replace `podcast.Episodes` usage for counts, selection, and indexing lists.
-- [x] Query episodes through `IEpisodeRepository` by `podcastId`.
+- [x] Query episodes through `IEpisodeRepository` by `podcastId`
 - [x] Trigger episode metadata fan-out updates when podcast properties affecting search are changed.
 - [x] Source episodes via `IEpisodeRepository`.
 - [ ] Ensure index writes map to reduced-key `CompactSearchRecord` contract.
