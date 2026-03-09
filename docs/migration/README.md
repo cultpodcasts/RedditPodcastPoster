@@ -7,38 +7,40 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 - Migration + sampled parity checks are implemented and passing.
 - Search datasource has been migrated to detached episodes query (`FROM episodes e`) with `e._ts` high-watermark semantics.
 - `podcastRemoved` hydration/filtering is implemented for episode search filtering.
-- `PodcastHandler` now uses the target podcast repository and detached-episode fan-out updates through `IEpisodeRepository`.
-- Remaining work is focused on full runtime removal of embedded-episode assumptions and reduced-key search contract rollout (`CompactSearchRecord`).
+- Runtime update flow now uses `PodcastUpdater` as the default `IPodcastUpdater` implementation over detached episodes (`IEpisodeRepository`).
+- Build is currently green after latest migration pass.
+- Remaining work is focused on final legacy decommissioning outside `PodcastRepository` and `LegacyPodcastToV2Migration`, plus reduced-key search contract rollout (`CompactSearchRecord`).
 
 ## Read Order
 
-1. **🎊 MAJOR MILESTONE** (Latest achievement!)
-   - [`milestone-podcast-updater-v2-default.md`](./milestone-podcast-updater-v2-default.md) - **PodcastUpdaterV2 is now DEFAULT!**
+1. **🎊 Current Updater Milestone**
+   - [`milestone-podcast-updater-v2-default.md`](./milestone-podcast-updater-v2-default.md) - Historical milestone reference
+   - Note: default updater is now `PodcastUpdater` (V2 contracts), not `PodcastUpdaterV2`.
 
 2. **📊 Current Status** (Comprehensive state)
    - [`complete-status-report.md`](./complete-status-report.md) - Complete achievement summary
-   - [`repository-comparison.md`](./repository-comparison.md) - IPodcastRepository vs V2
+   - [`repository-comparison.md`](./repository-comparison.md) - `IPodcastRepository` vs `IPodcastRepositoryV2`
 
 3. **Strategy and constraints**
    - [`concrete-migration-plan-and-cutover-strategy.md`](./concrete-migration-plan-and-cutover-strategy.md)
 
-4. **Repository-mapped execution checklist**
+4. **Repository-mapped execution checklist + decommission targets**
    - [`implementation-checklist-mapped-to-repo.md`](./implementation-checklist-mapped-to-repo.md)
 
 5. **Parallel infrastructure rollout (deploy + migration + cutover)**
    - [`parallel-infrastructure-rollout-checklist.md`](./parallel-infrastructure-rollout-checklist.md)
 
-6. **V2 Services Documentation** (Current Implementation)
+6. **Service documentation**
    - [`v2-implementation-index.md`](./v2-implementation-index.md) - Quick reference table
    - [`v2-services-progress.md`](./v2-services-progress.md) - Implementation progress
    - [`v2-services-reference.md`](./v2-services-reference.md) - Complete API reference
-   - [`podcast-episode-v2-guide.md`](./podcast-episode-v2-guide.md) - PodcastEpisodeV2 usage
+   - [`podcast-episode-v2-guide.md`](./podcast-episode-v2-guide.md) - `PodcastEpisodeV2` usage
    - [`url-submission-v2-complete.md`](./url-submission-v2-complete.md) - URL submission docs
    - [`architectural-cleanup-summary.md`](./architectural-cleanup-summary.md) - Design decisions
 
 7. **Session Summaries**
    - [`final-session-summary.md`](./final-session-summary.md) - Latest session achievements
-   - [`remaining-work-audit.md`](./remaining-work-audit.md) - What's left to do
+   - [`remaining-work-audit.md`](./remaining-work-audit.md) - What’s left to do (including decommission list)
 
 8. **Delivery sequencing by PR**
    - [`sequenced-pr-plan.md`](./sequenced-pr-plan.md)

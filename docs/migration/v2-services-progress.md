@@ -1,7 +1,12 @@
 # V2 Services Migration Progress
 
 ## Overview
-This document tracks the creation of V2 service variants that work with detached episodes via `IEpisodeRepository` instead of the embedded `podcast.Episodes` collection.
+This document tracks the creation and adoption of detached-episode services via `IEpisodeRepository`.
+
+## Current status update
+- Runtime default updater is now `PodcastUpdater` (detached episode flow).
+- Historical references to `PodcastUpdaterV2` as default should be treated as milestone history, not current runtime state.
+- Current priority is decommissioning remaining legacy runtime contracts outside `PodcastRepository` and `LegacyPodcastToV2Migration`.
 
 ## Completed V2 Services
 
@@ -61,9 +66,9 @@ This document tracks the creation of V2 service variants that work with detached
 - Purpose: Merges episodes without mutating embedded collections
 - Returns `EpisodeMergeResult` with V2 episodes to save
 
-**6. PodcastUpdaterV2**
+**6. PodcastUpdater (default updater)**
 - Location: `Class-Libraries\RedditPodcastPoster.PodcastServices\`
-- Purpose: Implements `IPodcastUpdater` with V2 repositories
+- Purpose: Implements `IPodcastUpdater` with detached episode repositories
 - Uses `IPodcastRepositoryV2` and `IEpisodeRepository`
 
 ### ✅ URL Submission Services
@@ -119,22 +124,14 @@ All V2 services are registered in DI:
 - ✅ `IPodcastProcessorV2` → `PodcastProcessorV2` (UrlSubmission layer)
 - ✅ `ICategorisedItemProcessorV2` → `CategorisedItemProcessorV2` (UrlSubmission layer)
 - ✅ `IPodcastAndEpisodeFactoryV2` → `PodcastAndEpisodeFactoryV2` (UrlSubmission layer)
-- ✅ **`IPodcastUpdater` → `PodcastUpdaterV2`** (Default implementation!) 🎉
-
-**🎊 MAJOR MILESTONE:** PodcastUpdaterV2 is now the DEFAULT implementation for IPodcastUpdater!
-
-This means:
-- ✅ All podcast updates use detached episodes automatically
-- ✅ No consumer code changes required
-- ✅ Legacy PodcastUpdater replaced
-- ✅ Production traffic flows through V2 architecture
+- ✅ **`IPodcastUpdater` → `PodcastUpdater`** (current default)
 
 ## Migration Strategy
 
-### Current State: Dual-Track Support
-- ✅ Legacy services (`IPodcastEpisodeFilter`, `IPodcastEpisodeProvider`) still registered
-- ✅ V2 services registered alongside legacy
-- ✅ Consumers can choose which version to use
+### Current State: Decommission Phase
+- ✅ Detached-episode services are active across core runtime flows.
+- 🔄 Legacy contracts remain at a small set of boundaries (social + shortener + selected helpers).
+- 🔄 Active work is removing those boundaries and retiring legacy service variants.
 
 ### Next Steps
 
@@ -196,17 +193,15 @@ public class Consumer(IServiceV2 service)
 ```
 
 ### Key Principles
-- ✅ V2 interfaces return **only** V2 models (`PodcastEpisodeV2`)
-- ✅ No method name suffixes (`*V2`) - the interface name indicates it's V2
-- ✅ Conversion happens at **boundaries** (consumer's responsibility)
-- ✅ Clean separation: use legacy OR V2, not both in same interface
+- ✅ Interfaces and implementations should converge on detached-episode contracts.
+- ✅ Conversion happens only at explicit boundaries that are still pending decommission.
+- ✅ Current migration goal is removal of those boundaries.
 
 ### Key Benefits
 - ✅ Works with detached episodes
-- ✅ Maintains compatibility with existing logic
+- ✅ Maintains compatibility with existing logic during transition
 - ✅ Can be tested independently
-- ✅ Gradual migration path
-- ✅ Legacy and V2 coexist safely
+- ✅ Clear path to final legacy runtime decommission
 
 ## Testing Strategy
 

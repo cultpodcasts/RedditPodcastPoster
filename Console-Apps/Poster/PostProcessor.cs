@@ -1,18 +1,16 @@
-﻿using Microsoft.Azure.Cosmos.Linq;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky;
 using RedditPodcastPoster.Bluesky.Models;
-using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Adaptors;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.UrlShortening;
 using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
-using V2Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace Poster;
 
@@ -64,7 +62,8 @@ public class PostProcessor(
             var podcastId = await repository.GetBy(x => x.Removed != true && x.Id == episode.PodcastId);
             if (podcastId == null)
             {
-                throw new ArgumentException($"Podcast with id '{episode.PodcastId}' not found for episode-id '{request.EpisodeId.Value}'.");
+                throw new ArgumentException(
+                    $"Podcast with id '{episode.PodcastId}' not found for episode-id '{request.EpisodeId.Value}'.");
             }
 
             podcastIds = [podcastId.Id];
@@ -126,7 +125,8 @@ public class PostProcessor(
             var selectedPodcast = await repository.GetBy(x => x.Removed != true && x.Id == episode.PodcastId);
             if (selectedPodcast == null)
             {
-                throw new ArgumentException($"Podcast with id '{episode.PodcastId}' not found for episode-id '{request.EpisodeId.Value}'.");
+                throw new ArgumentException(
+                    $"Podcast with id '{episode.PodcastId}' not found for episode-id '{request.EpisodeId.Value}'.");
             }
 
             var selectedEpisode = episode.ToLegacyEpisode();
@@ -297,7 +297,7 @@ public class PostProcessor(
             }
             else
             {
-                var podcastEpisode = new RedditPodcastPoster.Models.PodcastEpisodeV2(selectedPodcast, detachedEpisode);
+                var podcastEpisode = new PodcastEpisodeV2(selectedPodcast, detachedEpisode);
                 var result = await podcastEpisodePoster.PostPodcastEpisode(
                     podcastEpisode, request.YouTubePrimaryPostService);
                 if (!result.Success)

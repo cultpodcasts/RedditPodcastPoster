@@ -142,7 +142,7 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 - ✅ `AddAudioPodcastProcessor` - NOW uses IEpisodeRepository for all episode operations
 - ✅ `EnrichYouTubePodcastProcessor` - NOW uses IEpisodeRepository for all episode operations
 - ✅ Created `IEpisodeMerger` service to extract merge logic from PodcastRepository
-- ✅ Created `PodcastUpdaterV2` implementing IPodcastUpdater with detached episode support via IPodcastRepositoryV2 and IEpisodeRepository
+- ✅ `PodcastUpdater` is the active `IPodcastUpdater` implementation using detached episodes (`IPodcastRepositoryV2` + `IEpisodeRepository`)
 - ✅ Both processors persist episodes to detached Episodes container
 - ✅ Both processors persist podcast metadata to V2 Podcasts container
 
@@ -172,3 +172,24 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 - [ ] Validate search-index storage reduction after schema/key minimization.
 - [ ] Confirm no writes reach legacy container post-cutover.
 - [ ] Perform final adapter review for all `servicePodcast`, `serviceEpisode`, `legacyPodcast`, and `legacyEpisode` instances, and eliminate non-migration-path usages.
+
+## Phase 8: Legacy Decommissioning Targets (Current Priority)
+- [ ] Migrate `ITweetPoster` signatures and implementations to `PodcastEpisodeV2`.
+- [ ] Migrate `IBlueskyPoster` signatures and implementations to `PodcastEpisodeV2`.
+- [ ] Migrate `IShortnerService` signatures and implementations to `PodcastEpisodeV2`.
+- [ ] Remove runtime `.ToLegacy()` boundaries in:
+  - [ ] `Console-Apps/Poster/PostProcessor.cs`
+  - [ ] `Class-Libraries/RedditPodcastPoster.Twitter/Tweeter.cs`
+  - [ ] `Class-Libraries/RedditPodcastPoster.Bluesky/BlueskyPostManager.cs`
+  - [ ] `Cloud/Api/Handlers/EpisodeHandler.cs`
+- [ ] Remove temporary legacy compatibility overloads once no callers remain:
+  - [ ] `Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify/Factories/FindSpotifyEpisodeRequestFactory.cs`
+  - [ ] `Class-Libraries/RedditPodcastPoster.PodcastServices.Apple/FindAppleEpisodeRequestFactory.cs`
+- [ ] Remove obsolete conversion helpers once no callers remain:
+  - [ ] `ToLegacyPodcast`
+  - [ ] `ToLegacyEpisode`
+  - [ ] `PodcastEpisodeV2.ToLegacy()`
+- [ ] Decommission legacy service variants after consumer migration:
+  - [ ] `IPodcastEpisodeProvider` / `PodcastEpisodeProvider`
+  - [ ] `IPodcastEpisodePoster` / `PodcastEpisodePoster`
+- [ ] Confirm final rule: legacy model runtime usage remains only in `PodcastRepository` and `LegacyPodcastToV2Migration`.
