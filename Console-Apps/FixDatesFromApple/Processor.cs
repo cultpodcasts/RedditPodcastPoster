@@ -6,7 +6,8 @@ using RedditPodcastPoster.PodcastServices.Apple;
 namespace FixDatesFromApple;
 
 public class Processor(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     IAppleEpisodeProvider appleEpisodeProvider,
     ILogger<Processor> logger
 )
@@ -24,8 +25,12 @@ public class Processor(
             new IndexingContext());
         var updated = false;
 
-        var matchingEpisodes = podcast.Episodes.Where(x => DateOnly.FromDateTime(x.Release) == request.Date);
-        logger.LogInformation("There are '{Count}' episodes matching date", matchingEpisodes.Count());
+        var matchingEpisodes = await episodeRepository
+            .GetByPodcastId(podcast.Id)
+            .Where(x => DateOnly.FromDateTime(x.Release) == request.Date)
+            .ToListAsync();
+
+        logger.LogInformation("There are '{Count}' episodes matching date", matchingEpisodes.Count);
         foreach (var episode in matchingEpisodes)
         {
             if (episode.AppleId.HasValue)
@@ -33,8 +38,10 @@ public class Processor(
                 var appleEpisode = appleEpisodes.SingleOrDefault(x => x.AppleId == episode.AppleId.Value);
                 if (appleEpisode != null)
                 {
-                    logger.LogInformation("Updating '{EpisodeTitle}' to '{AppleEpisodeRelease:G}'.", episode.Title, appleEpisode.Release);
+                    logger.LogInformation("Updating '{EpisodeTitle}' to '{AppleEpisodeRelease:G}'.", episode.Title,
+                        appleEpisode.Release);
                     episode.Release = appleEpisode.Release;
+                    await episodeRepository.Save(episode);
                     updated = true;
                 }
                 else
@@ -45,13 +52,12 @@ public class Processor(
             else
             {
                 logger.LogWarning("'{EpisodeTitle}' has no apple-id'.", episode.Title);
-
             }
         }
 
-        if (updated)
+        if (!updated)
         {
-            await podcastRepository.Save(podcast);
+            logger.LogInformation("No detached episodes were updated for podcast-id '{PodcastId}'.", podcast.Id);
         }
     }
 }
