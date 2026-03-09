@@ -1,6 +1,5 @@
 using Api.Dtos;
 using Api.Dtos.Extensions;
-using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.ContentPublisher.Models;
