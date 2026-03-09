@@ -126,6 +126,11 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 - [x] `Console-Apps/Poster/PostProcessor.cs`
 - [ ] audit any new embedded-episode usages introduced after this checklist snapshot.
 
+### Remaining migration blockers (Phase 5)
+- `AddAudioPodcastProcessor` still relies on `IPodcastUpdater`, which currently uses embedded `podcast.Episodes` and legacy repository merge/save semantics.
+- `EnrichYouTubePodcastProcessor` still mutates embedded episode collections (`podcast.Episodes`) and depends on legacy processing/filtering flow.
+- Next implementation step: isolate adapter boundaries for these two processors, then move persistence writes to detached episodes through `IEpisodeRepository` while keeping behavior parity.
+
 ## Phase 6: Migration Tooling
 - [x] Read legacy `CultPodcasts` documents.
 - [x] Emit podcasts into `Podcasts`.
