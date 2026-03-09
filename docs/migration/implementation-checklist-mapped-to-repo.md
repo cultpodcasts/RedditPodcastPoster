@@ -1,5 +1,7 @@
 # Implementation Checklist Mapped to This Repository
 
+> Naming note: this checklist uses target-model terminology in prose. Explicit type/interface names are listed only where implementation mapping is required.
+
 ## Current Status Snapshot (code-based)
 
 ### Done
@@ -11,12 +13,12 @@
   - subjects
   - discovery (all documents)
 - Target repositories for split model are implemented and wired:
-  - `IPodcastRepositoryV2` / `PodcastRepositoryV2`
-  - `IEpisodeRepository` / `EpisodeRepository`
-  - `ISubjectRepositoryV2`
-  - `IDiscoveryResultsRepositoryV2`
-  - `ILookupRepositoryV2`
-  - `IPushSubscriptionRepositoryV2`
+  - target podcast repository (`IPodcastRepositoryV2` / `PodcastRepositoryV2`)
+  - target episode repository (`IEpisodeRepository` / `EpisodeRepository`)
+  - target subject repository (`ISubjectRepositoryV2`)
+  - target discovery repository (`IDiscoveryResultsRepositoryV2`)
+  - target lookup repository (`ILookupRepositoryV2`)
+  - target push-subscription repository (`IPushSubscriptionRepositoryV2`)
 - Migration mapping carries expanded podcast metadata into the target podcast model and maps episode records into discrete target `Episode` entities.
 - Sampled parity verification tooling is implemented for:
   - podcasts
@@ -77,7 +79,7 @@
 - [x] Use `IEpisodeRepository` for episode lifecycle operations.
 - [x] Use target podcast repository only for podcast metadata retrieval.
 - [x] Replace `podcast.Episodes` usage for counts, selection, and indexing lists.
-- [x] Query episodes through `IEpisodeRepository` by `podcastId`
+- [x] Query episodes through `IEpisodeRepository` by `podcastId`.
 - [x] Trigger episode metadata fan-out updates when podcast properties affecting search are changed.
 - [x] Source episodes via `IEpisodeRepository`.
 - [ ] Ensure index writes map to reduced-key `CompactSearchRecord` contract.
