@@ -4,16 +4,20 @@
 
 ### ✅ Fully Implemented V2 Services
 
-All services use detached episodes via `IEpisodeRepository` and return/accept `PodcastEpisodeV2`.
+All services use detached episodes via `IEpisodeRepository` and work with `PodcastEpisodeV2`.
 
-| Service | Interface | Implementation | Returns | Purpose |
-|---------|-----------|----------------|---------|---------|
+| Service | Interface | Implementation | Returns/Accepts | Purpose |
+|---------|-----------|----------------|-----------------|---------|
 | **Episode Filter** | `IPodcastEpisodeFilterV2` | `PodcastEpisodeFilterV2` | `PodcastEpisodeV2` | Filter episodes by criteria |
 | **Episode Provider** | `IPodcastEpisodeProviderV2` | `PodcastEpisodeProviderV2` | `PodcastEpisodeV2` | Provide episodes across podcasts |
-| **Episode Poster** | `IPodcastEpisodePosterV2` | `PodcastEpisodePosterV2` | `ProcessResponse` | Post episodes to Reddit |
+| **Episode Poster** | `IPodcastEpisodePosterV2` | `PodcastEpisodePosterV2` | `PodcastEpisodeV2` | Post episodes to Reddit |
 | **Podcast Filter** | `IPodcastFilterV2` | `PodcastFilterV2` | `FilterResult` | Filter by elimination terms |
 | **Episode Merger** | `IEpisodeMerger` | `EpisodeMerger` | `EpisodeMergeResult` | Merge episodes |
 | **Podcast Updater** | `PodcastUpdaterV2` | (implements `IPodcastUpdater`) | `IndexPodcastResult` | Update podcast & episodes |
+| **URL Submitter** | `IUrlSubmitterV2` | `UrlSubmitterV2` | `SubmitResult` | Submit URLs for ingestion |
+| **Podcast Processor** | `IPodcastProcessorV2` | `PodcastProcessorV2` | `SubmitResult` | Add episode to podcast |
+| **Categorised Item Processor** | `ICategorisedItemProcessorV2` | `CategorisedItemProcessorV2` | `SubmitResult` | Process categorised URLs |
+| **Podcast & Episode Factory** | `IPodcastAndEpisodeFactoryV2` | `PodcastAndEpisodeFactoryV2` | `CreatePodcastWithEpisodeResponseV2` | Create podcast with episode |
 
 ---
 
@@ -89,6 +93,26 @@ MergeEpisodes(Podcast, IEnumerable<Episode>, IEnumerable<Episode>) → EpisodeMe
 Update(Podcast, bool, IndexingContext) → IndexPodcastResult
 ```
 
+### IUrlSubmitterV2
+```csharp
+SubmitUrl(PodcastEpisodeV2, UrlSubmitOptions) → SubmitResult
+```
+
+### IPodcastProcessorV2
+```csharp
+AddEpisodeToPodcast(PodcastEpisodeV2, Podcast, bool) → SubmitResult
+```
+
+### ICategorisedItemProcessorV2
+```csharp
+ProcessCategorisedUrl(CategorisedUrl, Podcast, Episode) → SubmitResult
+```
+
+### IPodcastAndEpisodeFactoryV2
+```csharp
+CreatePodcastWithEpisode(Podcast, Episode) → CreatePodcastWithEpisodeResponseV2
+```
+
 ---
 
 ## Extension Methods
@@ -122,7 +146,11 @@ services
     .AddSingleton<IPodcastEpisodeFilterV2, PodcastEpisodeFilterV2>()
     .AddScoped<IPodcastEpisodeProviderV2, PodcastEpisodeProviderV2>()
     .AddScoped<IPodcastEpisodePosterV2, PodcastEpisodePosterV2>()
-    .AddSingleton<IPodcastFilterV2, PodcastFilterV2>();
+    .AddSingleton<IPodcastFilterV2, PodcastFilterV2>()
+    .AddScoped<IUrlSubmitterV2, UrlSubmitterV2>()
+    .AddScoped<IPodcastProcessorV2, PodcastProcessorV2>()
+    .AddScoped<ICategorisedItemProcessorV2, CategorisedItemProcessorV2>()
+    .AddScoped<IPodcastAndEpisodeFactoryV2, PodcastAndEpisodeFactoryV2>();
 ```
 
 **Note:** `PodcastUpdaterV2` not yet registered as default `IPodcastUpdater` implementation.
@@ -172,6 +200,10 @@ services
 - `IPodcastEpisodePosterV2.cs`
 - `IPodcastFilterV2.cs`
 - `IEpisodeMerger.cs`
+- `IUrlSubmitterV2.cs`
+- `IPodcastProcessorV2.cs`
+- `ICategorisedItemProcessorV2.cs`
+- `IPodcastAndEpisodeFactoryV2.cs`
 
 **Services (Implementations):**
 - `PodcastEpisodeFilterV2.cs`
@@ -180,6 +212,10 @@ services
 - `PodcastFilterV2.cs`
 - `EpisodeMerger.cs`
 - `PodcastUpdaterV2.cs`
+- `UrlSubmitterV2.cs`
+- `PodcastProcessorV2.cs`
+- `CategorisedItemProcessorV2.cs`
+- `PodcastAndEpisodeFactoryV2.cs`
 
 **Documentation:**
 - `v2-services-progress.md`

@@ -66,6 +66,47 @@ This document tracks the creation of V2 service variants that work with detached
 - Purpose: Implements `IPodcastUpdater` with V2 repositories
 - Uses `IPodcastRepositoryV2` and `IEpisodeRepository`
 
+### ✅ URL Submission Services
+
+**7. IPodcastAndEpisodeFactoryV2 / PodcastAndEpisodeFactoryV2**
+- Location: `Class-Libraries\RedditPodcastPoster.UrlSubmission\Factories\`
+- Purpose: Creates new podcasts with initial episodes
+- **Returns:** `CreatePodcastWithEpisodeResponseV2` with V2 models
+- Features:
+  - Creates podcast and episode from categorised URL
+  - Enriches subjects for new episode
+  - Persists directly to V2 repositories
+- Dependencies: `IEpisodeFactory`, `IPodcastFactory`, `IPodcastRepositoryV2`, `IEpisodeRepository`, `ISubjectEnricher`
+
+**8. IPodcastProcessorV2 / PodcastProcessorV2**
+- Location: `Class-Libraries\RedditPodcastPoster.UrlSubmission\`
+- Purpose: Adds episodes to existing podcasts
+- Features:
+  - Matches episodes using fuzzy matching
+  - Creates new episode if no match found
+  - Updates existing episode if match found
+  - Persists episodes via `IEpisodeRepository`
+  - Persists podcast metadata via `IPodcastRepositoryV2`
+- Dependencies: `IEpisodeHelper`, `IEpisodeEnricher`, `IEpisodeFactory`, `ISubjectEnricher`, repositories
+
+**9. ICategorisedItemProcessorV2 / CategorisedItemProcessorV2**
+- Location: `Class-Libraries\RedditPodcastPoster.UrlSubmission\`
+- Purpose: Processes categorised URLs (router between create/update)
+- Features:
+  - Routes to factory for new podcasts
+  - Routes to processor for existing podcasts
+  - Handles persistence flags
+- Dependencies: `IPodcastProcessorV2`, `IPodcastAndEpisodeFactoryV2`, `IPodcastRepositoryV2`
+
+**10. IUrlSubmitterV2 / UrlSubmitterV2**
+- Location: `Class-Libraries\RedditPodcastPoster.UrlSubmission\`
+- Purpose: Main URL submission entry point
+- Features:
+  - Categorises URLs using existing categoriser
+  - Processes via categorised item processor
+  - Error handling and logging
+- Dependencies: `IPodcastRepositoryV2`, `IPodcastService`, `IUrlCategoriser`, `ICategorisedItemProcessorV2`
+
 ## Registration Status
 
 All V2 services are registered in DI:
@@ -74,6 +115,10 @@ All V2 services are registered in DI:
 - ✅ `IPodcastEpisodeProviderV2` → `PodcastEpisodeProviderV2` (Common layer)
 - ✅ `IPodcastEpisodePosterV2` → `PodcastEpisodePosterV2` (Common layer)
 - ✅ `IPodcastFilterV2` → `PodcastFilterV2` (Common layer)
+- ✅ `IUrlSubmitterV2` → `UrlSubmitterV2` (UrlSubmission layer)
+- ✅ `IPodcastProcessorV2` → `PodcastProcessorV2` (UrlSubmission layer)
+- ✅ `ICategorisedItemProcessorV2` → `CategorisedItemProcessorV2` (UrlSubmission layer)
+- ✅ `IPodcastAndEpisodeFactoryV2` → `PodcastAndEpisodeFactoryV2` (UrlSubmission layer)
 - ✅ `PodcastUpdaterV2` (PodcastServices layer - not yet registered as replacement)
 
 ## Migration Strategy
