@@ -24,7 +24,7 @@ public partial class PlaylistItemFinder(
     private static readonly TimeSpan VideoDurationToleranceForPublicationDate = TimeSpan.FromMinutes(5);
 
     public async Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(
-        RedditPodcastPoster.Models.Episode episode,
+        RedditPodcastPoster.Models.V2.Episode episode,
         IList<PlaylistItem> playlistItems,
         TimeSpan? youTubePublishDelay,
         IndexingContext indexingContext)
@@ -92,7 +92,7 @@ public partial class PlaylistItemFinder(
     }
 
     private FindEpisodeResponse? MatchOnEpisodeDuration(
-        RedditPodcastPoster.Models.Episode episode,
+        RedditPodcastPoster.Models.V2.Episode episode,
         IList<PlaylistItem> searchResults,
         IList<Google.Apis.YouTube.v3.Data.Video>? videoDetails,
         IndexingContext indexingContext)
@@ -121,13 +121,13 @@ public partial class PlaylistItemFinder(
         return null;
     }
 
-    private PlaylistItem? MatchOnTextCloseness(RedditPodcastPoster.Models.Episode episode,
+    private PlaylistItem? MatchOnTextCloseness(RedditPodcastPoster.Models.V2.Episode episode,
         IList<PlaylistItem> searchResults)
     {
         return FuzzyMatcher.Match(episode.Title, searchResults, x => x.Snippet.Title, MinFuzzyScore);
     }
 
-    private PlaylistItem? MatchOnEpisodeNumber(RedditPodcastPoster.Models.Episode episode,
+    private PlaylistItem? MatchOnEpisodeNumber(RedditPodcastPoster.Models.V2.Episode episode,
         IList<PlaylistItem> searchResults)
     {
         var episodeNumberMatch = NumberMatch.Match(episode.Title);
@@ -160,7 +160,7 @@ public partial class PlaylistItemFinder(
     }
 
     private PlaylistItem? MatchOnPublishTimeComparedToPublishDelay(
-        RedditPodcastPoster.Models.Episode episode,
+        RedditPodcastPoster.Models.V2.Episode episode,
         IList<PlaylistItem> searchResults,
         TimeSpan youTubePublishDelay)
     {
@@ -177,7 +177,7 @@ public partial class PlaylistItemFinder(
         return null;
     }
 
-    private PlaylistItem? MatchOnExactTitle(RedditPodcastPoster.Models.Episode episode,
+    private PlaylistItem? MatchOnExactTitle(RedditPodcastPoster.Models.V2.Episode episode,
         IList<PlaylistItem> searchResults)
     {
         var episodeTitle = episode.Title.Trim().ToLower();

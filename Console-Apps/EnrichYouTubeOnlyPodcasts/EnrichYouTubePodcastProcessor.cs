@@ -8,6 +8,7 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
@@ -169,7 +170,7 @@ public class EnrichYouTubePodcastProcessor(
                 video.Id == missingPlaylistItemSnippet.ResourceId.VideoId);
             if (video != null)
             {
-                var episode = youTubeEpisodeProvider.GetEpisode(missingPlaylistItemSnippet, video);
+                var episode = ToLegacyEpisode(youTubeEpisodeProvider.GetEpisode(missingPlaylistItemSnippet, video));
                 if (request.IncludeShort ||
                     (podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value) ||
                     episode.Length >= (podcast.MinimumDuration ?? _postingCriteria.MinimumDuration))
@@ -206,7 +207,10 @@ public class EnrichYouTubePodcastProcessor(
 
         if (addedEpisodes.Any() && !string.IsNullOrEmpty(podcast.EpisodeIncludeTitleRegex))
         {
-            addedEpisodes = foundEpisodeFilter.ReduceEpisodes(podcast, addedEpisodes);
+            var reducedV2Episodes = foundEpisodeFilter.ReduceEpisodes(
+                podcast.ToV2Podcast(),
+                addedEpisodes.Select(e => ToV2Episode(podcast, e)).ToList());
+            addedEpisodes = reducedV2Episodes.Select(ToLegacyEpisode).ToList();
         }
 
         // Add new episodes to working list
@@ -245,7 +249,10 @@ public class EnrichYouTubePodcastProcessor(
 
         var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
-        var filterResult = podcastFilter.Filter(tempPodcast, eliminationTerms.Terms);
+        var filterResult = podcastFilter.Filter(
+            podcast.ToV2Podcast(),
+            existingEpisodes.Select(e => ToV2Episode(podcast, e)),
+            eliminationTerms.Terms);
         if (filterResult.FilteredEpisodes.Any())
         {
             logger.LogWarning(filterResult.ToString());

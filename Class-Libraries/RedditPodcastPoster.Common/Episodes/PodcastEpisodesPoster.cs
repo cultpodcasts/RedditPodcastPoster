@@ -1,13 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
 public class PodcastEpisodesPoster(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
     IPodcastEpisodeFilter podcastEpisodeFilter,
     IPodcastEpisodePoster podcastEpisodePoster,
     IOptions<PostingCriteria> postingCriteria,
@@ -39,8 +39,8 @@ public class PodcastEpisodesPoster(
         }
 
         var matchingPodcastEpisodes =
-            podcastEpisodeFilter.GetNewEpisodesReleasedSince(podcasts, since, youTubeRefreshed, spotifyRefreshed)
-                .ToArray();
+            (await podcastEpisodeFilter.GetNewEpisodesReleasedSince(podcasts, since, youTubeRefreshed,
+                spotifyRefreshed)).ToArray();
 
         if (!matchingPodcastEpisodes.Any())
         {

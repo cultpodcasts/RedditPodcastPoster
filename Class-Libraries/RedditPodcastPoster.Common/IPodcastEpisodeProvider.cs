@@ -4,17 +4,17 @@ namespace RedditPodcastPoster.Common;
 
 public interface IPodcastEpisodeProvider
 {
-    Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(
+    Task<IEnumerable<PodcastEpisodeV2>> GetUntweetedPodcastEpisodes(
         bool youTubeRefreshed,
         bool spotifyRefreshed);
 
-    Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(
+    Task<IEnumerable<PodcastEpisodeV2>> GetUntweetedPodcastEpisodes(
         Guid podcastId);
 
-    Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(
+    Task<IEnumerable<PodcastEpisodeV2>> GetBlueskyReadyPodcastEpisodes(
         bool youTubeRefreshed,
         bool spotifyRefreshed);
 
-    Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(
+    Task<IEnumerable<PodcastEpisodeV2>> GetBlueskyReadyPodcastEpisodes(
         Guid podcastId);
 }

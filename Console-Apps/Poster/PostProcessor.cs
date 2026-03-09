@@ -284,24 +284,20 @@ public class PostProcessor(
                 throw new ArgumentException($"Podcast with id '{podcastIds.Single()}' not found.");
             }
 
-            var selectedEpisode = detachedEpisode.ToLegacyEpisode();
-            var selectedPodcastLegacy = selectedPodcast.ToLegacyPodcast();
-
-            if (selectedEpisode.Ignored && request.FlipIgnored)
+            if (detachedEpisode.Ignored && request.FlipIgnored)
             {
-                selectedEpisode.Ignored = false;
                 detachedEpisode.Ignored = false;
             }
 
-            if (selectedEpisode.Posted || selectedEpisode.Ignored || selectedEpisode.Removed)
+            if (detachedEpisode.Posted || detachedEpisode.Ignored || detachedEpisode.Removed)
             {
                 logger.LogWarning(
                     "Not posting episode with id '{episodeId}'. Posted: '{posted}', Ignored: '{ignored}', Removed: '{removed}'.",
-                    request.EpisodeId, selectedEpisode.Posted, selectedEpisode.Ignored, selectedEpisode.Removed);
+                    request.EpisodeId, detachedEpisode.Posted, detachedEpisode.Ignored, detachedEpisode.Removed);
             }
             else
             {
-                var podcastEpisode = new PodcastEpisode(selectedPodcastLegacy, selectedEpisode);
+                var podcastEpisode = new RedditPodcastPoster.Models.PodcastEpisodeV2(selectedPodcast, detachedEpisode);
                 var result = await podcastEpisodePoster.PostPodcastEpisode(
                     podcastEpisode, request.YouTubePrimaryPostService);
                 if (!result.Success)
@@ -309,9 +305,6 @@ public class PostProcessor(
                     logger.LogError(result.ToString());
                 }
 
-                detachedEpisode.Posted = selectedEpisode.Posted;
-                detachedEpisode.Ignored = selectedEpisode.Ignored;
-                detachedEpisode.Removed = selectedEpisode.Removed;
                 await episodeRepository.Save(detachedEpisode);
             }
         }

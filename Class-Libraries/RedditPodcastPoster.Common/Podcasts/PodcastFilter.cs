@@ -1,16 +1,16 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.Common.Podcasts;
 
 public class PodcastFilter(ILogger<PodcastFilter> logger) : IPodcastFilter
 {
-    public FilterResult Filter(Podcast podcast, List<string> eliminationTerms)
+    public FilterResult Filter(Podcast podcast,IEnumerable<Episode> episodes, List<string> eliminationTerms)
     {
         var filteredEpisodes = new List<FilteredEpisode>();
         var episodesToRemove = new List<Episode>();
-        foreach (var podcastEpisode in podcast.Episodes.Where(x => !x.Removed))
+        foreach (var podcastEpisode in episodes.Where(x => !x.Removed))
         {
             var remove = false;
             var titleLower = podcastEpisode.Title.ToLower();

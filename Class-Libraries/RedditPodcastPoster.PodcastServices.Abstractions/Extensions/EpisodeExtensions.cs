@@ -12,3 +12,14 @@ public static class EpisodeExtensions
             episode.Release.TimeOfDay != TimeSpan.Zero;
     }
 }
+
+public static class EpisodeV2Extensions
+{
+    public static bool HasAccurateReleaseTime(this Models.V2.Episode episode)
+    {
+        return
+            episode.Urls.Apple != null &&
+            episode.AppleId != null &&
+            episode.Release.TimeOfDay != TimeSpan.Zero;
+    }
+}

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
@@ -13,12 +14,13 @@ using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using SpotifyAPI.Web;
 using System.Text.RegularExpressions;
+using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
 using V2Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace AddAudioPodcast;
 
 public class AddAudioPodcastProcessor(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
     IEpisodeRepository episodeRepository,
     ISpotifyClientWrapper spotifyClient,
     IPodcastFactory podcastFactory,
@@ -35,15 +37,15 @@ public class AddAudioPodcastProcessor(
     public async Task Create(AddAudioPodcastRequest request)
     {
         var indexingContext = new IndexingContext { SkipPodcastDiscovery = false };
-        Podcast? podcast = null;
+        V2Podcast? podcast = null;
         if (!request.AppleReleaseAuthority)
         {
             var matchingPodcasts = await podcastRepository
-                .GetAllBy(x => x.SpotifyId == request.PodcastId, x => new { x.Id }).ToListAsync();
+                .GetAllBy(x => x.SpotifyId == request.PodcastId).ToListAsync();
             if (matchingPodcasts.Any())
             {
                 throw new InvalidOperationException(
-                    $"Found podcasts with spotify-id '{request.PodcastId}'. Podcast-ids: {string.Join(",", matchingPodcasts.Select(x => $"'{x.Id}'"))}.");
+                    $"Found podcasts with spotify-id '{request.PodcastId}'. Podcast-ids: {string.Join(",", matchingPodcasts.Select(x => x.Id))}.");
             }
 
             try
@@ -60,11 +62,11 @@ public class AddAudioPodcastProcessor(
         {
             var appleId = long.Parse(request.PodcastId);
             var matchingPodcasts =
-                await podcastRepository.GetAllBy(x => x.AppleId == appleId, x => new { x.Id }).ToListAsync();
+                await podcastRepository.GetAllBy(x => x.AppleId == appleId).ToListAsync();
             if (matchingPodcasts.Any())
             {
                 throw new InvalidOperationException(
-                    $"Found podcasts with apple-id '{request.PodcastId}'. Podcast-ids: {string.Join(",", matchingPodcasts.Select(x => $"'{x.Id}'"))}.");
+                    $"Found podcasts with apple-id '{request.PodcastId}'. Podcast-ids: {string.Join(",", matchingPodcasts.Select(x => x.Id))}.");
             }
 
             podcast = await GetApplePodcast(request, indexingContext);
@@ -74,7 +76,6 @@ public class AddAudioPodcastProcessor(
         {
             var result = await podcastUpdater.Update(podcast, false, _indexingContext);
 
-            // Get episodes from detached repository
             var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
             var legacyEpisodes = episodes.Select(ToLegacyEpisode).ToList();
 
@@ -85,7 +86,7 @@ public class AddAudioPodcastProcessor(
 
                 podcast.IndexAllEpisodes = false;
                 podcast.EpisodeIncludeTitleRegex = request.EpisodeTitleRegex;
-                
+
                 var episodesToRemove = new List<V2Episode>();
                 foreach (var episode in episodes)
                 {
@@ -94,38 +95,28 @@ public class AddAudioPodcastProcessor(
                     {
                         episodesToRemove.Add(episode);
                     }
-#if DEBUG
-                    else
-                    {
-                        var matchedTerm = match.Groups[0].Value;
-                    }
-#endif
                 }
 
-                // Remove episodes from detached repository
                 foreach (var episode in episodesToRemove)
                 {
                     await episodeRepository.Delete(episode.PodcastId, episode.Id);
                     logger.LogInformation("Removed episode '{EpisodeTitle}' due to regex.", episode.Title);
                 }
 
-                // Update working list
                 episodes = episodes.Except(episodesToRemove).ToList();
                 legacyEpisodes = episodes.Select(ToLegacyEpisode).ToList();
             }
 
-            // Enrich subjects for remaining episodes
             var episodesToUpdate = new List<V2Episode>();
             foreach (var legacyEpisode in legacyEpisodes)
             {
-                var results = await subjectEnricher.EnrichSubjects(legacyEpisode,
+                await subjectEnricher.EnrichSubjects(legacyEpisode,
                     new SubjectEnrichmentOptions(
                         podcast.IgnoredAssociatedSubjects,
                         podcast.IgnoredSubjects,
                         podcast.DefaultSubject,
                         podcast.DescriptionRegex));
-                
-                // Convert back to V2 and add to update list
+
                 var v2Episode = episodes.FirstOrDefault(e => e.Id == legacyEpisode.Id);
                 if (v2Episode != null)
                 {
@@ -134,7 +125,6 @@ public class AddAudioPodcastProcessor(
                 }
             }
 
-            // Save updated episodes
             if (episodesToUpdate.Any())
             {
                 await episodeRepository.Save(episodesToUpdate);
@@ -160,7 +150,7 @@ public class AddAudioPodcastProcessor(
         }
     }
 
-    private async Task<Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
+    private async Task<V2Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
     {
         var spotifyPodcast =
             await spotifyClient.GetFullShow(request.PodcastId, new ShowRequest { Market = Market.CountryCode }, new IndexingContext());
@@ -168,7 +158,8 @@ public class AddAudioPodcastProcessor(
         var podcast = await podcastRepository.GetBy(x => x.SpotifyId == request.PodcastId);
         if (podcast == null)
         {
-            podcast = await podcastFactory.Create(spotifyPodcast.Name);
+            var legacyPodcast = await podcastFactory.Create(spotifyPodcast.Name);
+            podcast = ToV2Podcast(legacyPodcast);
             podcast.SpotifyId = spotifyPodcast.Id;
             podcast.Bundles = false;
             podcast.Publisher = spotifyPodcast.Publisher.Trim();
@@ -180,7 +171,7 @@ public class AddAudioPodcastProcessor(
         return podcast;
     }
 
-    private async Task<Podcast?> GetApplePodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
+    private async Task<V2Podcast?> GetApplePodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
     {
         var id = long.Parse(request.PodcastId);
         var applePodcast = (await iTunesSearchManager.GetPodcastById(id)).Podcasts.SingleOrDefault();
@@ -195,16 +186,107 @@ public class AddAudioPodcastProcessor(
         var podcast = await podcastRepository.GetBy(x => x.AppleId == id);
         if (podcast == null)
         {
-            podcast = await podcastFactory.Create(applePodcast.Name);
+            var legacyPodcast = await podcastFactory.Create(applePodcast.Name);
+            podcast = ToV2Podcast(legacyPodcast);
             podcast.AppleId = applePodcast.Id;
             podcast.Bundles = false;
             podcast.Publisher = applePodcast.ArtistName.Trim();
             podcast.ReleaseAuthority = Service.Apple;
 
-            await spotifyPodcastEnricher.AddIdAndUrls(podcast, indexingContext);
+            var legacyForSpotifyEnricher = ToLegacyPodcast(podcast);
+            await spotifyPodcastEnricher.AddIdAndUrls(legacyForSpotifyEnricher, indexingContext);
+            podcast.SpotifyId = legacyForSpotifyEnricher.SpotifyId;
+            podcast.SpotifyEpisodesQueryIsExpensive = legacyForSpotifyEnricher.SpotifyEpisodesQueryIsExpensive;
         }
 
         return podcast;
+    }
+
+    private static V2Podcast ToV2Podcast(Podcast podcast)
+    {
+        return new V2Podcast
+        {
+            Id = podcast.Id,
+            Name = podcast.Name,
+            Language = podcast.Language,
+            Removed = podcast.Removed,
+            Publisher = podcast.Publisher,
+            Bundles = podcast.Bundles,
+            IndexAllEpisodes = podcast.IndexAllEpisodes,
+            IgnoreAllEpisodes = podcast.IgnoreAllEpisodes,
+            BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking,
+            MinimumDuration = podcast.MinimumDuration,
+            ReleaseAuthority = podcast.ReleaseAuthority,
+            PrimaryPostService = podcast.PrimaryPostService,
+            SpotifyId = podcast.SpotifyId,
+            SpotifyMarket = podcast.SpotifyMarket,
+            SpotifyEpisodesQueryIsExpensive = podcast.SpotifyEpisodesQueryIsExpensive,
+            AppleId = podcast.AppleId,
+            YouTubeChannelId = podcast.YouTubeChannelId,
+            YouTubePlaylistId = podcast.YouTubePlaylistId,
+            YouTubePublicationOffset = podcast.YouTubePublicationOffset,
+            YouTubePlaylistQueryIsExpensive = podcast.YouTubePlaylistQueryIsExpensive,
+            SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube,
+            YouTubeNotificationSubscriptionLeaseExpiry = podcast.YouTubeNotificationSubscriptionLeaseExpiry,
+            TwitterHandle = podcast.TwitterHandle,
+            BlueskyHandle = podcast.BlueskyHandle,
+            HashTag = podcast.HashTag,
+            EnrichmentHashTags = podcast.EnrichmentHashTags,
+            TitleRegex = podcast.TitleRegex,
+            DescriptionRegex = podcast.DescriptionRegex,
+            EpisodeMatchRegex = podcast.EpisodeMatchRegex,
+            EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex,
+            IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
+            IgnoredSubjects = podcast.IgnoredSubjects,
+            DefaultSubject = podcast.DefaultSubject,
+            SearchTerms = podcast.SearchTerms,
+            KnownTerms = podcast.KnownTerms,
+            FileKey = podcast.FileKey,
+            Timestamp = podcast.Timestamp
+        };
+    }
+
+    private static Podcast ToLegacyPodcast(V2Podcast podcast)
+    {
+        return new Podcast(podcast.Id)
+        {
+            Name = podcast.Name,
+            Language = podcast.Language,
+            Removed = podcast.Removed,
+            Publisher = podcast.Publisher,
+            Bundles = podcast.Bundles,
+            IndexAllEpisodes = podcast.IndexAllEpisodes,
+            IgnoreAllEpisodes = podcast.IgnoreAllEpisodes,
+            BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking,
+            MinimumDuration = podcast.MinimumDuration,
+            ReleaseAuthority = podcast.ReleaseAuthority,
+            PrimaryPostService = podcast.PrimaryPostService,
+            SpotifyId = podcast.SpotifyId,
+            SpotifyMarket = podcast.SpotifyMarket,
+            SpotifyEpisodesQueryIsExpensive = podcast.SpotifyEpisodesQueryIsExpensive,
+            AppleId = podcast.AppleId,
+            YouTubeChannelId = podcast.YouTubeChannelId,
+            YouTubePlaylistId = podcast.YouTubePlaylistId,
+            YouTubePublicationOffset = podcast.YouTubePublicationOffset,
+            YouTubePlaylistQueryIsExpensive = podcast.YouTubePlaylistQueryIsExpensive,
+            SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube,
+            YouTubeNotificationSubscriptionLeaseExpiry = podcast.YouTubeNotificationSubscriptionLeaseExpiry,
+            TwitterHandle = podcast.TwitterHandle,
+            BlueskyHandle = podcast.BlueskyHandle,
+            HashTag = podcast.HashTag,
+            EnrichmentHashTags = podcast.EnrichmentHashTags,
+            TitleRegex = podcast.TitleRegex,
+            DescriptionRegex = podcast.DescriptionRegex,
+            EpisodeMatchRegex = podcast.EpisodeMatchRegex,
+            EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex,
+            IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
+            IgnoredSubjects = podcast.IgnoredSubjects,
+            DefaultSubject = podcast.DefaultSubject,
+            SearchTerms = podcast.SearchTerms,
+            KnownTerms = podcast.KnownTerms,
+            FileKey = podcast.FileKey,
+            Timestamp = podcast.Timestamp
+        };
     }
 
     private static Episode ToLegacyEpisode(V2Episode v2Episode)

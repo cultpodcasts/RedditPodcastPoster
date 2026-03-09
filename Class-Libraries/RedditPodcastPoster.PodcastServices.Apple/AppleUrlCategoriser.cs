@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
@@ -12,7 +12,7 @@ public class AppleUrlCategoriser(
 {
     public async Task<ResolvedAppleItem?> Resolve(
         PodcastServiceSearchCriteria criteria,
-        Podcast? matchingPodcast,
+        Models.V2.Podcast? matchingPodcast,
         IndexingContext indexingContext)
     {
         var publisher = !string.IsNullOrWhiteSpace(matchingPodcast?.Publisher)
@@ -61,7 +61,7 @@ public class AppleUrlCategoriser(
     }
     
     private async Task<ResolvedAppleItem?> FindEpisode(
-        Podcast? matchingPodcast, 
+        Models.V2.Podcast? matchingPodcast, 
         iTunesSearch.Library.Models.Podcast podcast,
         PodcastServiceSearchCriteria criteria,
         IndexingContext indexingContext)
@@ -102,12 +102,11 @@ public class AppleUrlCategoriser(
         return null;
     }
 
-    public async Task<ResolvedAppleItem> Resolve(Podcast? podcast, Uri url, IndexingContext indexingContext)
+    public async Task<ResolvedAppleItem> Resolve(Podcast? podcast,IEnumerable<Episode> episodes, Uri url, IndexingContext indexingContext)
     {
-        if (podcast != null && podcast.Episodes.Any(x => x.Urls.Apple == url))
+        if (podcast != null && episodes.Any(x => x.Urls.Apple == url))
         {
-            return new ResolvedAppleItem(new Models.PodcastEpisode(podcast,
-                podcast.Episodes.Single(x => x.Urls.Apple == url)));
+            return new ResolvedAppleItem(new Models.PodcastEpisodeV2(podcast, episodes.Single(x => x.Urls.Apple == url)));
         }
 
         var podcastId = AppleIdResolver.GetPodcastId(url);

@@ -2,12 +2,16 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Factories;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence.Abstractions;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
 public class PodcastEpisodePoster(
     IEpisodePostManager episodePostManager,
     IPostModelFactory postModelFactory,
+    IEpisodeRepository episodeRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<PodcastEpisodePoster> logger
 #pragma warning restore CS9113 // Parameter is unread.
@@ -16,12 +20,12 @@ public class PodcastEpisodePoster(
     private static readonly TimeSpan BundledEpisodeReleaseThreshold = TimeSpan.FromDays(7);
 
     public async Task<ProcessResponse> PostPodcastEpisode(
-        PodcastEpisode podcastEpisode,
+        PodcastEpisodeV2 podcastEpisode,
         bool preferYouTube = false)
     {
         try
         {
-            var episodes = GetEpisodes(podcastEpisode);
+            var episodes = await GetEpisodes(podcastEpisode);
             var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, episodes), preferYouTube);
             var result = await episodePostManager.Post(postModel);
 
@@ -44,7 +48,7 @@ public class PodcastEpisodePoster(
         }
     }
 
-    private Episode[] GetEpisodes(PodcastEpisode matchingPodcastEpisode)
+    private async Task<Episode[]> GetEpisodes(PodcastEpisodeV2 matchingPodcastEpisode)
     {
         var orderedBundleEpisodes = Array.Empty<Episode>();
 
@@ -58,7 +62,7 @@ public class PodcastEpisodePoster(
                 var partNumber = titleMatch.Result("${partnumber}");
                 if (int.TryParse(partNumber, out _))
                 {
-                    orderedBundleEpisodes = GetOrderedBundleEpisodes(matchingPodcastEpisode).ToArray();
+                    orderedBundleEpisodes = (await GetOrderedBundleEpisodes(matchingPodcastEpisode)).ToArray();
                 }
             }
         }
@@ -71,7 +75,7 @@ public class PodcastEpisodePoster(
         return orderedBundleEpisodes;
     }
 
-    private IOrderedEnumerable<Episode> GetOrderedBundleEpisodes(PodcastEpisode matchingPodcastEpisode)
+    private async Task<IOrderedEnumerable<Episode>> GetOrderedBundleEpisodes(PodcastEpisodeV2 matchingPodcastEpisode)
     {
         if (string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex))
         {
@@ -81,7 +85,8 @@ public class PodcastEpisodePoster(
 
         var podcastTitleRegex = new Regex(matchingPodcastEpisode.Podcast.TitleRegex, Podcast.TitleFlags);
         var rawTitle = podcastTitleRegex.Match(matchingPodcastEpisode.Episode.Title).Result("${title}");
-        var bundleEpisodes = matchingPodcastEpisode.Podcast.Episodes
+        var episodes = await episodeRepository.GetByPodcastId(matchingPodcastEpisode.Podcast.Id).ToListAsync();
+        var bundleEpisodes = episodes
             .Where(x => Math.Abs((matchingPodcastEpisode.Episode.Release - x.Release).Ticks) <
                         BundledEpisodeReleaseThreshold.Ticks)
             .Where(x => x.Title.Contains(rawTitle) && podcastTitleRegex.Match(x.Title).Success);

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
@@ -51,9 +50,8 @@ public class PodcastFilterV2(
 
             if (remove)
             {
-                // Convert to legacy for FilteredEpisode
-                var legacyEpisode = ToLegacyEpisode(v2Episode);
-                filteredEpisodes.Add(new FilteredEpisode(legacyEpisode, matchedTerms.ToArray()));
+                // Use V2 episode directly in filter results
+                filteredEpisodes.Add(new FilteredEpisode(v2Episode, matchedTerms.ToArray()));
                 
                 // Mark as removed and add to update list
                 v2Episode.Removed = true;
@@ -68,33 +66,5 @@ public class PodcastFilterV2(
         }
 
         return new FilterResult(filteredEpisodes);
-    }
-
-    private static Episode ToLegacyEpisode(Models.V2.Episode v2Episode)
-    {
-        return new Episode
-        {
-            Id = v2Episode.Id,
-            Title = v2Episode.Title,
-            Description = v2Episode.Description,
-            Release = v2Episode.Release,
-            Length = v2Episode.Length,
-            Explicit = v2Episode.Explicit,
-            Posted = v2Episode.Posted,
-            Tweeted = v2Episode.Tweeted,
-            BlueskyPosted = v2Episode.BlueskyPosted,
-            Ignored = v2Episode.Ignored,
-            Removed = v2Episode.Removed,
-            SpotifyId = v2Episode.SpotifyId,
-            AppleId = v2Episode.AppleId,
-            YouTubeId = v2Episode.YouTubeId,
-            Urls = v2Episode.Urls,
-            Subjects = v2Episode.Subjects,
-            SearchTerms = v2Episode.SearchTerms,
-            Language = v2Episode.SearchLanguage,
-            Images = v2Episode.Images,
-            TwitterHandles = v2Episode.TwitterHandles,
-            BlueskyHandles = v2Episode.BlueskyHandles
-        };
     }
 }

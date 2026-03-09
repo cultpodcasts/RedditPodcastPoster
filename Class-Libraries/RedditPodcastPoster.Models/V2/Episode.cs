@@ -110,4 +110,96 @@ public class Episode
 
     [JsonPropertyName("_ts")]
     public long Timestamp { get; set; }
+
+    public static Episode FromSpotify(string spotifyId,
+    string title,
+    string description,
+    TimeSpan length,
+    bool @explicit,
+    DateTime release,
+    Uri spotifyUrl,
+    Uri? maxImage)
+    {
+        var episode = new Episode
+        {
+            SpotifyId = spotifyId,
+            Title = title,
+            Description = description,
+            Length = length,
+            Explicit = @explicit,
+            Release = release,
+            Urls = new ServiceUrls { Spotify = spotifyUrl }
+        };
+        if (maxImage != null)
+        {
+            episode.Images = new EpisodeImages
+            {
+                Spotify = maxImage
+            };
+        }
+
+        return episode;
+    }
+
+    public static Episode FromYouTube(
+        string youTubeId,
+        string title,
+        string description,
+        TimeSpan length,
+        bool @explicit,
+        DateTime release,
+        Uri youTubeUrl,
+        Uri? image)
+    {
+        var episode = new Episode
+        {
+            YouTubeId = youTubeId,
+            Title = title,
+            Description = description,
+            Length = length,
+            Explicit = @explicit,
+            Release = release,
+            Urls = new ServiceUrls { YouTube = youTubeUrl }
+        };
+        if (image != null)
+        {
+            episode.Images = new EpisodeImages
+            {
+                YouTube = image
+            };
+        }
+
+        return episode;
+    }
+
+    public static Episode FromApple(
+        long appleId,
+        string title,
+        string description,
+        TimeSpan length,
+        bool @explicit,
+        DateTime release,
+        Uri url,
+        Uri? image)
+    {
+        var episode = new Episode
+        {
+            AppleId = appleId,
+            Title = title,
+            Description = description,
+            Length = length,
+            Explicit = @explicit,
+            Release = release,
+            Urls = new ServiceUrls { Apple = url }
+        };
+        if (image != null)
+        {
+            episode.Images = new EpisodeImages
+            {
+                Apple = image
+            };
+        }
+
+        return episode;
+    }
 }

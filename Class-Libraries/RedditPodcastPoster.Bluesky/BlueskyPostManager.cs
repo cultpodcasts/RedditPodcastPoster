@@ -10,6 +10,7 @@ using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlShortening;
 
@@ -30,7 +31,7 @@ public class BlueskyPostManager(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        IEnumerable<PodcastEpisode> unposted;
+        IEnumerable<PodcastEpisodeV2> unposted;
         try
         {
             unposted = (await podcastEpisodeProvider.GetBlueskyReadyPodcastEpisodes(youTubeRefreshed, spotifyRefreshed))
@@ -55,7 +56,8 @@ public class BlueskyPostManager(
 
                 try
                 {
-                    var shortnerResult = await shortnerService.Write(podcastEpisode);
+                    var legacyPodcastEpisode = podcastEpisode.ToLegacy();
+                    var shortnerResult = await shortnerService.Write(legacyPodcastEpisode);
                     if (!shortnerResult.Success)
                     {
                         logger.LogError("Unsuccessful shortening-url.");
@@ -64,7 +66,7 @@ public class BlueskyPostManager(
                     logger.LogInformation("Bluesky Post init.");
                     try
                     {
-                        var status = await poster.Post(podcastEpisode, shortnerResult.Url);
+                        var status = await poster.Post(legacyPodcastEpisode, shortnerResult.Url);
                         logger.LogInformation("Bluesky Post complete. Bluesky-post-status: '{status}'.", status);
                         var posted = status == BlueskySendStatus.Success;
 
@@ -79,7 +81,7 @@ public class BlueskyPostManager(
                                     break;
                                 }
                             }
-                            else // if (status == BlueskySendStatus.FailureAuth)
+                            else
                             {
                                 break;
                             }

@@ -1,6 +1,9 @@
 ﻿using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using Podcast = RedditPodcastPoster.Models.Podcast;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using LegacyEpisode = RedditPodcastPoster.Models.Episode;
+using LegacyPodcast = RedditPodcastPoster.Models.Podcast;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
@@ -21,7 +24,32 @@ public static class FindAppleEpisodeRequestFactory
         );
     }
 
+    public static FindAppleEpisodeRequest Create(LegacyPodcast podcast, LegacyEpisode episode)
+    {
+        var release = CalculateRelativeRelease(podcast, episode.Release);
+        return new FindAppleEpisodeRequest(
+            podcast.AppleId,
+            podcast.Name,
+            episode.AppleId,
+            episode.Title,
+            release,
+            podcast.ReleaseAuthority,
+            episode.Length,
+            podcast.YouTubePublishingDelay()
+        );
+    }
+
     private static DateTime CalculateRelativeRelease(Podcast podcast, DateTime release)
+    {
+        if (podcast.ReleaseAuthority == Service.YouTube && podcast.YouTubePublishingDelay() != TimeSpan.Zero)
+        {
+            release -= podcast.YouTubePublishingDelay();
+        }
+
+        return release;
+    }
+
+    private static DateTime CalculateRelativeRelease(LegacyPodcast podcast, DateTime release)
     {
         if (podcast.ReleaseAuthority == Service.YouTube && podcast.YouTubePublishingDelay() != TimeSpan.Zero)
         {

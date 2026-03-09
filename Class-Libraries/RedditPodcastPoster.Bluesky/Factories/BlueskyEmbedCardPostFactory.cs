@@ -30,7 +30,8 @@ public class BlueskyEmbedCardPostFactory(
 
     public async Task<BlueskyEmbedCardPost> Create(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
-        var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, [podcastEpisode.Episode]));
+        var v2PodcastEpisode = podcastEpisode.ToV2();
+        var postModel = postModelFactory.ToPostModel((v2PodcastEpisode.Podcast, [v2PodcastEpisode.Episode]));
         var episodeTitle = await textSanitiser.SanitiseTitle(postModel);
 
         var episodeHashtags = await hashTagProvider.GetHashTags(podcastEpisode.Episode.Subjects);
@@ -104,7 +105,7 @@ public class BlueskyEmbedCardPostFactory(
             if (min < MinTitleLength)
             {
                 throw new InvalidOperationException(
-                    $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{postBuilder}', calculated title-length: {min} which is less than {MinTitleLength}.");
+                    $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{postModel}', calculated title-length: {min} which is less than {MinTitleLength}.");
             }
 
             episodeTitle = episodeTitle[..min] + "…";

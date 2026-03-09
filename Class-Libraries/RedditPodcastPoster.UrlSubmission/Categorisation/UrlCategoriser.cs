@@ -9,6 +9,8 @@ using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
+using V2Episode = RedditPodcastPoster.Models.V2.Episode;
+using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.UrlSubmission.Categorisation;
 
@@ -47,7 +49,9 @@ public class UrlCategoriser(
         }
         else if (ApplePodcastServiceMatcher.IsMatch(url))
         {
-            resolvedAppleItem = await appleUrlCategoriser.Resolve(podcast, url, indexingContext);
+            var v2Podcast = podcast != null ? ToV2Podcast(podcast) : null;
+            var v2Episodes = podcast?.Episodes.Select(e => ToV2Episode(podcast, e)) ?? Enumerable.Empty<V2Episode>();
+            resolvedAppleItem = await appleUrlCategoriser.Resolve(v2Podcast, v2Episodes, url, indexingContext);
             criteria = resolvedAppleItem.ToPodcastServiceSearchCriteria();
             matchingEpisode =
                 podcast?.Episodes.SingleOrDefault(x => x.Urls.Apple == url || x.AppleId == resolvedAppleItem.EpisodeId);
@@ -83,7 +87,6 @@ public class UrlCategoriser(
             {
                 if (resolvedSpotifyItem == null && !SpotifyPodcastServiceMatcher.IsMatch(url) &&
                     (string.IsNullOrWhiteSpace(matchingEpisode?.SpotifyId) ||
-                     // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
                      matchingEpisode?.Urls.Spotify == null ||
                      string.IsNullOrWhiteSpace(podcast?.SpotifyId)))
                 {
@@ -107,10 +110,8 @@ public class UrlCategoriser(
                     }
                 }
 
-
                 if (resolvedAppleItem == null && !ApplePodcastServiceMatcher.IsMatch(url) &&
                     (matchingEpisode?.AppleId == null ||
-                     // ReSharper disable once ConstantConditionalAccessQualifier
                      matchingEpisode?.Urls.Apple == null ||
                      podcast?.AppleId == null))
                 {
@@ -124,7 +125,6 @@ public class UrlCategoriser(
                         {
                             criteria = criteria with
                             {
-                                // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
                                 Publisher = resolvedSpotifyItem.Publisher ?? string.Empty
                             };
                         }
@@ -137,7 +137,7 @@ public class UrlCategoriser(
                         };
                     }
 
-                    resolvedAppleItem = await appleUrlCategoriser.Resolve(criteria, podcast, indexingContext);
+                    resolvedAppleItem = await appleUrlCategoriser.Resolve(criteria, podcast != null ? ToV2Podcast(podcast) : null, indexingContext);
                     if (resolvedAppleItem != null)
                     {
                         criteria = criteria.Merge(resolvedAppleItem);
@@ -146,7 +146,6 @@ public class UrlCategoriser(
 
                 if (resolvedYouTubeItem == null && !YouTubePodcastServiceMatcher.IsMatch(url) &&
                     (string.IsNullOrWhiteSpace(matchingEpisode?.YouTubeId) ||
-                     // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
                      matchingEpisode?.Urls.YouTube == null ||
                      string.IsNullOrWhiteSpace(podcast?.YouTubeChannelId)))
                 {
@@ -195,5 +194,56 @@ public class UrlCategoriser(
         }
 
         throw new InvalidOperationException($"Unable to handle url '{url}'.");
+    }
+
+    private static V2Podcast ToV2Podcast(Podcast podcast)
+    {
+        return new V2Podcast
+        {
+            Id = podcast.Id,
+            Name = podcast.Name,
+            Publisher = podcast.Publisher,
+            ReleaseAuthority = podcast.ReleaseAuthority,
+            SpotifyId = podcast.SpotifyId,
+            SpotifyMarket = podcast.SpotifyMarket,
+            SpotifyEpisodesQueryIsExpensive = podcast.SpotifyEpisodesQueryIsExpensive,
+            AppleId = podcast.AppleId,
+            YouTubeChannelId = podcast.YouTubeChannelId,
+            YouTubePlaylistId = podcast.YouTubePlaylistId,
+            YouTubePublicationOffset = podcast.YouTubePublicationOffset,
+            YouTubePlaylistQueryIsExpensive = podcast.YouTubePlaylistQueryIsExpensive
+        };
+    }
+
+    private static V2Episode ToV2Episode(Podcast podcast, Episode episode)
+    {
+        return new V2Episode
+        {
+            Id = episode.Id,
+            PodcastId = podcast.Id,
+            Title = episode.Title,
+            Description = episode.Description,
+            Release = episode.Release,
+            Length = episode.Length,
+            Explicit = episode.Explicit,
+            Posted = episode.Posted,
+            Tweeted = episode.Tweeted,
+            BlueskyPosted = episode.BlueskyPosted,
+            Ignored = episode.Ignored,
+            Removed = episode.Removed,
+            SpotifyId = episode.SpotifyId,
+            AppleId = episode.AppleId,
+            YouTubeId = episode.YouTubeId,
+            Urls = episode.Urls,
+            Subjects = episode.Subjects ?? [],
+            SearchTerms = episode.SearchTerms,
+            SearchLanguage = episode.Language,
+            PodcastName = podcast.Name,
+            PodcastSearchTerms = podcast.SearchTerms,
+            PodcastRemoved = podcast.Removed,
+            Images = episode.Images,
+            TwitterHandles = episode.TwitterHandles,
+            BlueskyHandles = episode.BlueskyHandles
+        };
     }
 }

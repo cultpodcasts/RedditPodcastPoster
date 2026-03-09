@@ -21,7 +21,7 @@ public class YouTubeEpisodeProvider(
 #pragma warning restore CS9113 // Parameter is unread.
     : IYouTubeEpisodeProvider
 {
-    public async Task<IList<RedditPodcastPoster.Models.Episode>?> GetEpisodes(
+    public async Task<IList<RedditPodcastPoster.Models.V2.Episode>?> GetEpisodes(
         YouTubeChannelId request,
         IndexingContext indexingContext,
         IEnumerable<string> knownIds)
@@ -51,10 +51,10 @@ public class YouTubeEpisodeProvider(
         return null;
     }
 
-    public RedditPodcastPoster.Models.Episode GetEpisode(SearchResult searchResult,
+    public RedditPodcastPoster.Models.V2.Episode GetEpisode(SearchResult searchResult,
         Google.Apis.YouTube.v3.Data.Video videoDetails)
     {
-        return RedditPodcastPoster.Models.Episode.FromYouTube(
+        return RedditPodcastPoster.Models.V2.Episode.FromYouTube(
             searchResult.Id.VideoId,
             searchResult.Snippet.Title.Trim(),
             videoDetails.Snippet.Description.Trim(),
@@ -65,10 +65,10 @@ public class YouTubeEpisodeProvider(
             videoDetails.GetImageUrl());
     }
 
-    public RedditPodcastPoster.Models.Episode GetEpisode(PlaylistItemSnippet playlistItemSnippet,
+    public RedditPodcastPoster.Models.V2.Episode GetEpisode(PlaylistItemSnippet playlistItemSnippet,
         Google.Apis.YouTube.v3.Data.Video videoDetails)
     {
-        return RedditPodcastPoster.Models.Episode.FromYouTube(
+        return RedditPodcastPoster.Models.V2.Episode.FromYouTube(
             playlistItemSnippet.ResourceId.VideoId,
             playlistItemSnippet.Title.Trim(),
             videoDetails.Snippet.Description.Trim(),
@@ -105,7 +105,7 @@ public class YouTubeEpisodeProvider(
                 true);
         if (videoDetails != null && videoDetails.Any())
         {
-            List<RedditPodcastPoster.Models.Episode> reducedResults;
+            List<RedditPodcastPoster.Models.V2.Episode> reducedResults;
             try
             {
                 reducedResults =

@@ -1,10 +1,22 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models;
+using System.Text.RegularExpressions;
 
 namespace RedditPodcastPoster.Models.V2;
 
 public class Podcast
 {
+    [JsonIgnore]
+    public static readonly RegexOptions DescriptionFlags = RegexOptions.IgnoreCase | RegexOptions.Singleline;
+
+    [JsonIgnore]
+    public static readonly RegexOptions TitleFlags = RegexOptions.IgnoreCase;
+
+    [JsonIgnore]
+    public static readonly RegexOptions EpisodeMatchFlags = RegexOptions.Compiled;
+
+    [JsonIgnore]
+    public static readonly RegexOptions EpisodeIncludeTitleFlags = RegexOptions.Compiled | RegexOptions.IgnoreCase;
+
     [JsonPropertyName("id")]
     [JsonPropertyOrder(1)]
     public Guid Id { get; set; }
@@ -153,4 +165,34 @@ public class Podcast
 
     [JsonPropertyName("_ts")]
     public long Timestamp { get; set; }
+
+    public bool HasExpensiveYouTubePlaylistQuery()
+    {
+        return YouTubePlaylistQueryIsExpensive.HasValue && YouTubePlaylistQueryIsExpensive.Value;
+    }
+
+    public bool HasExpensiveSpotifyEpisodesQuery()
+    {
+        return SpotifyEpisodesQueryIsExpensive.HasValue && SpotifyEpisodesQueryIsExpensive.Value;
+    }
+
+    public TimeSpan YouTubePublishingDelay()
+    {
+        if (YouTubePublicationOffset == null)
+        {
+            return TimeSpan.Zero;
+        }
+
+        return TimeSpan.FromTicks(YouTubePublicationOffset.Value);
+    }
+
+    public bool IsRemoved()
+    {
+        return Removed.HasValue && Removed.Value;
+    }
+
+    public bool HasIgnoreAllEpisodes()
+    {
+        return IgnoreAllEpisodes.HasValue && IgnoreAllEpisodes.Value;
+    }
 }

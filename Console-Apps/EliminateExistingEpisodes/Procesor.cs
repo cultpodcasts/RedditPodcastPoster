@@ -61,7 +61,7 @@ public class Processor(
 
         var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
-        var filterResult = podcastFilter.Filter(servicePodcast, eliminationTerms.Terms);
+        var filterResult = podcastFilter.Filter(podcast, episodes, eliminationTerms.Terms);
         logger.LogInformation(filterResult.ToString());
         foreach (var filteredEpisode in filterResult.FilteredEpisodes)
         {
@@ -85,12 +85,22 @@ public class Processor(
         }
 
         var episodesById = episodes.ToDictionary(x => x.Id);
+        foreach (var filteredEpisode in filterResult.FilteredEpisodes)
+        {
+            if (episodesById.TryGetValue(filteredEpisode.Episode.Id, out var detachedEpisode))
+            {
+                detachedEpisode.Removed = true;
+                await episodeRepository.Save(detachedEpisode);
+            }
+        }
+
         foreach (var serviceEpisode in servicePodcast.Episodes)
         {
-            if (episodesById.TryGetValue(serviceEpisode.Id, out var detachedEpisode) &&
-                detachedEpisode.Removed != serviceEpisode.Removed)
+            if (serviceEpisode.Removed &&
+                episodesById.TryGetValue(serviceEpisode.Id, out var detachedEpisode) &&
+                !detachedEpisode.Removed)
             {
-                detachedEpisode.Removed = serviceEpisode.Removed;
+                detachedEpisode.Removed = true;
                 await episodeRepository.Save(detachedEpisode);
             }
         }

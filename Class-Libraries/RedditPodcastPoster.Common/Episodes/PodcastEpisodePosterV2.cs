@@ -2,8 +2,8 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Factories;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
@@ -27,11 +27,7 @@ public class PodcastEpisodePosterV2(
         {
             var v2Episodes = await GetEpisodesV2(podcastEpisode);
             
-            // Convert to legacy for PostModelFactory (temporary until factory supports V2)
-            var legacyPodcast = podcastEpisode.Podcast.ToLegacyPodcast();
-            var legacyEpisodes = v2Episodes.Select(e => e.ToLegacyEpisode()).ToArray();
-            
-            var postModel = postModelFactory.ToPostModel((legacyPodcast, legacyEpisodes), preferYouTube);
+            var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, v2Episodes), preferYouTube);
             var result = await episodePostManager.Post(postModel);
 
             if (result.Success)

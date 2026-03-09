@@ -16,6 +16,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -127,11 +128,12 @@ public class EpisodeHandler(
                     $"Podcast for episode-id '{publishRequest.EpisodeId}' not found or removed.");
             }
 
-            var podcastEpisode = CreatePodcastEpisode(podcast, episode);
+            var podcastEpisodeV2 = new PodcastEpisodeV2(podcast, episode);
+            var podcastEpisode = podcastEpisodeV2.ToLegacy();
 
             if (publishRequest.EpisodePublishRequest.Post)
             {
-                var result = await podcastEpisodePoster.PostPodcastEpisode(podcastEpisode);
+                var result = await podcastEpisodePoster.PostPodcastEpisode(podcastEpisodeV2);
                 if (!result.Success)
                 {
                     logger.LogError(result.ToString());

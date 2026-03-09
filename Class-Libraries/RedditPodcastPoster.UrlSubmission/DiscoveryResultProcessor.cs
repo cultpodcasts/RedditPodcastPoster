@@ -130,7 +130,7 @@ public class DiscoveryResultProcessor(
             categorisedItem = categorisedItem with
             {
                 ResolvedAppleItem =
-                await appleUrlCategoriser.Resolve(null, urls.Apple!, indexingContext)
+                await appleUrlCategoriser.Resolve(null, Enumerable.Empty<RedditPodcastPoster.Models.V2.Episode>(), urls.Apple!, indexingContext)
             };
         }
 

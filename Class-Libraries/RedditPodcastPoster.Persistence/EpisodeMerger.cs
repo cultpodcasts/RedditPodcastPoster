@@ -1,30 +1,29 @@
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using LegacyPodcast = RedditPodcastPoster.Models.Podcast;
-using LegacyEpisode = RedditPodcastPoster.Models.Episode;
-using V2Episode = RedditPodcastPoster.Models.V2.Episode;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Persistence;
 
 public class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
 {
-    public async Task<EpisodeMergeResult> MergeEpisodes(
-        LegacyPodcast podcast,
-        IEnumerable<LegacyEpisode> existingEpisodes,
-        IEnumerable<LegacyEpisode> episodesToMerge)
+    public  EpisodeMergeResult MergeEpisodes(
+        Podcast podcast,
+        IEnumerable<Episode> existingEpisodes,
+        IEnumerable<Episode> episodesToMerge)
     {
         Regex? episodeMatchRegex = null;
         if (!string.IsNullOrWhiteSpace(podcast.EpisodeMatchRegex))
         {
-            episodeMatchRegex = new Regex(podcast.EpisodeMatchRegex, LegacyPodcast.EpisodeMatchFlags);
+            episodeMatchRegex = new Regex(podcast.EpisodeMatchRegex, Podcast.EpisodeMatchFlags);
         }
 
         var existingList = existingEpisodes.ToList();
-        var addedEpisodes = new List<LegacyEpisode>();
-        var mergedEpisodes = new List<(LegacyEpisode Existing, LegacyEpisode NewDetails)>();
-        var failedEpisodes = new List<IEnumerable<LegacyEpisode>>();
-        var episodesToSave = new List<V2Episode>();
+        var addedEpisodes = new List<Episode>();
+        var mergedEpisodes = new List<(Episode Existing, Episode NewDetails)>();
+        var failedEpisodes = new List<IEnumerable<Episode>>();
+        var episodesToSave = new List<Episode>();
 
         foreach (var episodeToMerge in episodesToMerge)
         {
@@ -38,7 +37,7 @@ public class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
                     // New episode
                     episodeToMerge.Id = Guid.NewGuid();
                     addedEpisodes.Add(episodeToMerge);
-                    episodesToSave.Add(ToV2Episode(podcast, episodeToMerge));
+                    episodesToSave.Add(episodeToMerge);
                     existingList.Add(episodeToMerge); // Add to list for subsequent matching
                 }
                 else
@@ -48,7 +47,7 @@ public class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
                     if (updated)
                     {
                         mergedEpisodes.Add((Existing: existingEpisode, NewDetails: episodeToMerge));
-                        episodesToSave.Add(ToV2Episode(podcast, existingEpisode));
+                        episodesToSave.Add(existingEpisode);
                     }
                 }
             }
@@ -61,7 +60,7 @@ public class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
         return new EpisodeMergeResult(episodesToSave, addedEpisodes, mergedEpisodes, failedEpisodes);
     }
 
-    private bool Match(LegacyEpisode episode, LegacyEpisode episodeToMerge, Regex? episodeMatchRegex)
+    private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)
     {
         if (!string.IsNullOrWhiteSpace(episode.SpotifyId) && !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
         {
@@ -96,7 +95,7 @@ public class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
         return episodeMatcher.IsMatch(episode, episodeToMerge, episodeMatchRegex);
     }
 
-    private bool MergeInPlace(LegacyEpisode existingEpisode, LegacyEpisode episodeToMerge)
+    private bool MergeInPlace(Episode existingEpisode, Episode episodeToMerge)
     {
         var updated = false;
         if (existingEpisode.Urls.Spotify == null && episodeToMerge.Urls.Spotify != null)
@@ -173,38 +172,5 @@ public class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
         }
 
         return updated;
-    }
-
-    private static V2Episode ToV2Episode(LegacyPodcast podcast, LegacyEpisode episode)
-    {
-        return new Models.V2.Episode
-        {
-            Id = episode.Id,
-            PodcastId = podcast.Id,
-            Title = episode.Title,
-            Description = episode.Description,
-            Release = episode.Release,
-            Length = episode.Length,
-            Explicit = episode.Explicit,
-            Posted = episode.Posted,
-            Tweeted = episode.Tweeted,
-            BlueskyPosted = episode.BlueskyPosted,
-            Ignored = episode.Ignored,
-            Removed = episode.Removed,
-            SpotifyId = episode.SpotifyId,
-            AppleId = episode.AppleId,
-            YouTubeId = episode.YouTubeId,
-            Urls = episode.Urls,
-            Subjects = episode.Subjects ?? [],
-            SearchTerms = episode.SearchTerms,
-            PodcastName = podcast.Name,
-            PodcastSearchTerms = podcast.SearchTerms,
-            SearchLanguage = episode.Language ?? podcast.Language,
-            PodcastMetadataVersion = null,
-            PodcastRemoved = podcast.Removed,
-            Images = episode.Images,
-            TwitterHandles = episode.TwitterHandles,
-            BlueskyHandles = episode.BlueskyHandles
-        };
     }
 }

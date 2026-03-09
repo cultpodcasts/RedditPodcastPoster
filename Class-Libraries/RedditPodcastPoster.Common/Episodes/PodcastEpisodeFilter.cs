@@ -3,11 +3,15 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
 public class PodcastEpisodeFilter(
+    IEpisodeRepository episodeRepository,
     IOptions<DelayedYouTubePublication> delayedYouTubePublicationSettings,
     ILogger<PodcastEpisodeFilter> logger)
     : IPodcastEpisodeFilter
@@ -15,18 +19,18 @@ public class PodcastEpisodeFilter(
     private readonly DelayedYouTubePublication _delayedYouTubePublicationSettings =
         delayedYouTubePublicationSettings.Value;
 
-    public IEnumerable<PodcastEpisode> GetNewEpisodesReleasedSince(
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetNewEpisodesReleasedSince(
         IEnumerable<Podcast> podcasts,
         DateTime since,
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        var matchingPodcasts = podcasts.Where(podcast =>
-            podcast.Episodes.Any(episode => IsReadyToPost(podcast, episode, since)));
-        var resolvedPodcastEpisodeSince = new List<PodcastEpisode>();
-        foreach (var matchingPodcast in matchingPodcasts)
+        var resolvedPodcastEpisodeSince = new List<PodcastEpisodeV2>();
+        foreach (var matchingPodcast in podcasts)
         {
-            var matchingEpisodes = matchingPodcast.Episodes
+            var episodes = await episodeRepository.GetByPodcastId(matchingPodcast.Id).ToListAsync();
+
+            var matchingEpisodes = episodes
                 .Where(episode => IsReadyToPost(matchingPodcast, episode, since));
             foreach (var matchingEpisode in matchingEpisodes)
             {
@@ -34,7 +38,7 @@ public class PodcastEpisodeFilter(
 
                 if (post)
                 {
-                    resolvedPodcastEpisodeSince.Add(new PodcastEpisode(matchingPodcast, matchingEpisode));
+                    resolvedPodcastEpisodeSince.Add(new PodcastEpisodeV2(matchingPodcast, matchingEpisode));
                 }
             }
         }
@@ -44,12 +48,13 @@ public class PodcastEpisodeFilter(
     }
 
 
-    public IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(Podcast podcast, int numberOfDays)
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentUntweetedEpisodes(Podcast podcast, int numberOfDays)
     {
         var since = DateTimeExtensions.DaysAgo(numberOfDays);
-        var podcastEpisodes =
-            podcast.Episodes
-                .Select(e => new PodcastEpisode(podcast, e))
+        var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+
+        var podcastEpisodes =episodes
+                .Select(e => new PodcastEpisodeV2(podcast, e))
                 .Where(x =>
                     x.Episode.Release >= since &&
                     x.Episode is { Removed: false, Ignored: false, Tweeted: false } &&
@@ -87,16 +92,17 @@ public class PodcastEpisodeFilter(
         return false;
     }
 
-    public IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentUntweetedEpisodes(
         Podcast podcast,
         bool youTubeRefreshed,
         bool spotifyRefreshed,
         int numberOfDays)
     {
         var since = DateTimeExtensions.DaysAgo(numberOfDays);
-        var podcastEpisodes =
-            podcast.Episodes
-                .Select(e => new PodcastEpisode(podcast, e))
+        var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+
+        var podcastEpisodes =episodes
+                .Select(e => new PodcastEpisodeV2(podcast, e))
                 .Where(x =>
                     x.Episode.Release >= since &&
                     x.Episode is { Removed: false, Ignored: false, Tweeted: false } &&
@@ -116,16 +122,17 @@ public class PodcastEpisodeFilter(
         return podcastEpisodes;
     }
 
-    public IEnumerable<PodcastEpisode> GetMostRecentBlueskyReadyEpisodes(
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentBlueskyReadyEpisodes(
         Podcast podcast,
         bool youTubeRefreshed,
         bool spotifyRefreshed,
         int numberOfDays)
     {
         var since = DateTimeExtensions.DaysAgo(numberOfDays);
-        var podcastEpisodes =
-            podcast.Episodes
-                .Select(e => new PodcastEpisode(podcast, e))
+        var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+
+        var podcastEpisodes =episodes
+                .Select(e => new PodcastEpisodeV2(podcast, e))
                 .Where(x =>
                     x.Episode.Release >= since &&
                     x.Episode.BlueskyPosted is null or false &&
@@ -146,12 +153,13 @@ public class PodcastEpisodeFilter(
         return podcastEpisodes;
     }
 
-    public IEnumerable<PodcastEpisode> GetMostRecentBlueskyReadyEpisodes(Podcast podcast, int numberOfDays)
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentBlueskyReadyEpisodes(Podcast podcast, int numberOfDays)
     {
         var since = DateTimeExtensions.DaysAgo(numberOfDays);
-        var podcastEpisodes =
-            podcast.Episodes
-                .Select(e => new PodcastEpisode(podcast, e))
+        var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+
+        var podcastEpisodes =episodes
+                .Select(e => new PodcastEpisodeV2(podcast, e))
                 .Where(x =>
                     x.Episode.Release >= since &&
                     x.Episode.BlueskyPosted is null or false &&
@@ -203,7 +211,7 @@ public class PodcastEpisodeFilter(
     }
 
     private bool EliminateItemsDueToIndexingErrors(
-        PodcastEpisode podcastEpisode,
+        PodcastEpisodeV2 podcastEpisode,
         bool youTubeRefreshed,
         bool _)
     {

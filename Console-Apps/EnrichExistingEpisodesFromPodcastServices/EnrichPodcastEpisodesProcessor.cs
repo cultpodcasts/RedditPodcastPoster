@@ -131,7 +131,7 @@ public class EnrichPodcastEpisodesProcessor(
 
             if (servicePodcast.AppleId != null && (episode.AppleId == null || episode.Urls.Apple == null))
             {
-                var match = await appleUrlCategoriser.Resolve(criteria, servicePodcast, indexingContext);
+                var match = await appleUrlCategoriser.Resolve(criteria, podcast, indexingContext);
                 if (match != null)
                 {
                     episode.Urls.Apple ??= match.Url;
@@ -162,7 +162,7 @@ public class EnrichPodcastEpisodesProcessor(
                                 htmlSanitiser.Sanitise(spotifyEpisode.FullEpisode.HtmlDescription),
                                 spotifyEpisode.FullEpisode.GetReleaseDate(),
                                 spotifyEpisode.FullEpisode.GetDuration());
-                            match = await appleUrlCategoriser.Resolve(refinedCriteria, servicePodcast, indexingContext);
+                            match = await appleUrlCategoriser.Resolve(refinedCriteria, podcast, indexingContext);
                             if (match != null)
                             {
                                 episode.Urls.Apple ??= match.Url;

@@ -28,7 +28,8 @@ public class TweetBuilder(
 
     public async Task<string> BuildTweet(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
-        var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, [podcastEpisode.Episode]));
+        var v2PodcastEpisode = podcastEpisode.ToV2();
+        var postModel = postModelFactory.ToPostModel((v2PodcastEpisode.Podcast, [v2PodcastEpisode.Episode]));
         var episodeTitle = await textSanitiser.SanitiseTitle(postModel);
 
         var episodeHashtags = await hashTagProvider.GetHashTags(podcastEpisode.Episode.Subjects);

@@ -29,7 +29,7 @@ public class ResolvedAppleItem
         Image = image;
     }
 
-    public ResolvedAppleItem(Models.PodcastEpisode podcastEpisode)
+    public ResolvedAppleItem(Models.PodcastEpisodeV2 podcastEpisode)
     {
         ShowId = podcastEpisode.Podcast.AppleId;
         EpisodeId = podcastEpisode.Episode.AppleId;

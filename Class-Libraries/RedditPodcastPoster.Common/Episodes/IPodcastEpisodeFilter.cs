@@ -1,22 +1,24 @@
 ﻿using RedditPodcastPoster.Models;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
 public interface IPodcastEpisodeFilter
 {
-    IEnumerable<PodcastEpisode> GetNewEpisodesReleasedSince(
+    Task<IEnumerable<PodcastEpisodeV2>> GetNewEpisodesReleasedSince(
         IEnumerable<Podcast> podcasts,
         DateTime since,
         bool youTubeRefreshed,
         bool spotifyRefreshed);
 
-    IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(
+    Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentUntweetedEpisodes(
         Podcast podcast,
         bool youTubeRefreshed,
         bool spotifyRefreshed,
         int numberOfDays);
 
-    IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(
+    Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentUntweetedEpisodes(
         Podcast podcast,
         int numberOfDays);
 
@@ -24,13 +26,13 @@ public interface IPodcastEpisodeFilter
         Podcast podcast,
         Episode episode);
 
-    IEnumerable<PodcastEpisode> GetMostRecentBlueskyReadyEpisodes(
+    Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentBlueskyReadyEpisodes(
         Podcast podcast,
         bool youTubeRefreshed,
         bool spotifyRefreshed,
         int numberOfDays);
 
-    IEnumerable<PodcastEpisode> GetMostRecentBlueskyReadyEpisodes(
+    Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentBlueskyReadyEpisodes(
         Podcast podcast,
         int numberOfDays);
 }

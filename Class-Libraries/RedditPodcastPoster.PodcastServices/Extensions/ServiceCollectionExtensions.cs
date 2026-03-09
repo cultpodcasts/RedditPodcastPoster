@@ -12,7 +12,7 @@ public static class ServiceCollectionExtensions
             return services
                 .AddScoped<IFlushable, CacheFlusher>()
                 .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
-                .AddScoped<IPodcastUpdater, PodcastUpdaterV2>()
+                .AddScoped<IPodcastUpdater, PodcastUpdater>()
                 .AddScoped<INonPodcastServiceCategoriser, NonPodcastServiceCategoriser>()
                 .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>()
                 .AddScoped<IStreamingServiceMetaDataHandler, StreamingServiceMetaDataHandler>()

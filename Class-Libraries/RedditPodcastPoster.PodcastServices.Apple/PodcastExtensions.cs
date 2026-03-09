@@ -9,3 +9,11 @@ public static class PodcastExtensions
         return new FindApplePodcastRequest(podcast.AppleId, podcast.Name, podcast.Publisher);
     }
 }
+
+public static class PodcastV2Extensions
+{
+    public static FindApplePodcastRequest ToFindApplePodcastRequest(this Models.V2.Podcast podcast)
+    {
+        return new FindApplePodcastRequest(podcast.AppleId, podcast.Name, podcast.Publisher);
+    }
+}
