@@ -6,13 +6,16 @@ using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subreddit;
 using TextClassifierTraining.Models;
+using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using V2Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace TextClassifierTraining;
 
 public class TrainingDataProcessor(
     ISubredditPostProvider subredditPostProvider,
     ISubredditRepository subredditRepository,
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     ISubjectCleanser subjectCleanser,
     ISubjectService subjectService,
     ILogger<TrainingDataProcessor> logger)
@@ -61,8 +64,12 @@ public class TrainingDataProcessor(
 
         var podcasts = await podcastRepository.GetAll().ToListAsync();
 
-        var podcastEpisodes = podcasts.SelectMany(podcast => podcast.Episodes,
-            (podcast, episode) => new PodcastEpisode(podcast, episode));
+        var podcastEpisodes = new List<(V2Podcast Podcast, V2Episode Episode)>();
+        foreach (var podcast in podcasts)
+        {
+            var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+            podcastEpisodes.AddRange(episodes.Select(episode => (podcast, episode)));
+        }
 
         var labels = new Labels
         {
@@ -124,9 +131,10 @@ public class TrainingDataProcessor(
             else
             {
                 subjects = (await subjectService.Match(
-                        podcastEpisode.Episode,
+                        ToLegacyEpisode(podcastEpisode.Episode),
                         podcastEpisode.Podcast.IgnoredAssociatedSubjects,
-                        podcastEpisode.Podcast.IgnoredSubjects))
+                        podcastEpisode.Podcast.IgnoredSubjects,
+                        podcastEpisode.Podcast.DescriptionRegex))
                     .OrderByDescending(x => x.MatchResults.Sum(y => y.Matches)).Select(x => x.Subject.Name).ToList();
                 if (!subjects.Any())
                 {
@@ -146,17 +154,11 @@ ${podcastEpisode.Episode.Description}");
                 {
                     if (!labels.Assets.Classes.Select(x => x.Category.ToLower()).Contains(subject))
                     {
-                        labels.Assets.Classes.Add(new Class {Category = subject});
+                        labels.Assets.Classes.Add(new Class { Category = subject });
                     }
                 }
 
-                var documentSubjects = subjects.Distinct().Select(x => new Class {Category = x.ToLower()}).ToList();
-
-                //if (documentSubjects.Count > 1)
-                //{
-                //    _logger.LogInformation(
-                //        $"'{flairedEpisode.Item1.Name}' episode {flairedEpisode.Item2.Id} multiple-subjects: {string.Join(", ", subjects.Select(x => $"'{x}'"))}.");
-                //}
+                var documentSubjects = subjects.Distinct().Select(x => new Class { Category = x.ToLower() }).ToList();
 
                 labels.Assets.Documents.Add(new Document
                 {
@@ -174,5 +176,36 @@ ${podcastEpisode.Episode.Description}");
                 JsonSerializer.Serialize(labels, jsonOptions);
             await File.WriteAllTextAsync(Path.Combine(TrainingDataLocation, LabelsFilename), jsonString);
         }
+    }
+
+    private static Episode ToLegacyEpisode(V2Episode episode)
+    {
+        return new Episode
+        {
+            Id = episode.Id,
+            PodcastId = episode.PodcastId,
+            PodcastName = episode.PodcastName,
+            PodcastSearchTerms = episode.PodcastSearchTerms,
+            SearchLanguage = episode.SearchLanguage,
+            Title = episode.Title,
+            Description = episode.Description,
+            Release = episode.Release,
+            Length = episode.Length,
+            Explicit = episode.Explicit,
+            Posted = episode.Posted,
+            Tweeted = episode.Tweeted,
+            BlueskyPosted = episode.BlueskyPosted,
+            Ignored = episode.Ignored,
+            Removed = episode.Removed,
+            SpotifyId = episode.SpotifyId,
+            AppleId = episode.AppleId,
+            YouTubeId = episode.YouTubeId,
+            Urls = episode.Urls,
+            Subjects = episode.Subjects,
+            SearchTerms = episode.SearchTerms,
+            Images = episode.Images,
+            TwitterHandles = episode.TwitterHandles,
+            BlueskyHandles = episode.BlueskyHandles
+        };
     }
 }
