@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.UrlShortening;
@@ -30,7 +29,7 @@ public class TweetProcessor(
 
             if (mostRecentEpisode != null)
             {
-                var podcastEpisode = CreatePodcastEpisode(podcast, mostRecentEpisode, podcastEpisodes);
+                var podcastEpisode = CreatePodcastEpisode(podcast, mostRecentEpisode);
                 var shortnerResult = await shortnerService.Write(podcastEpisode);
                 if (!shortnerResult.Success)
                 {
@@ -81,12 +80,8 @@ public class TweetProcessor(
         }
     }
 
-    private static PodcastEpisode CreatePodcastEpisode(V2Podcast podcast, V2Episode episode, IEnumerable<V2Episode> allEpisodes)
+    private static PodcastEpisodeV2 CreatePodcastEpisode(V2Podcast podcast, V2Episode episode)
     {
-        // Use extension method for conversion
-        var legacyPodcast = podcast.ToLegacyPodcast();
-        legacyPodcast.Episodes = allEpisodes.Select(e => e.ToLegacyEpisode()).ToList();
-        
-        return new PodcastEpisode(legacyPodcast, episode.ToLegacyEpisode());
+        return new PodcastEpisodeV2(podcast, episode);
     }
 }

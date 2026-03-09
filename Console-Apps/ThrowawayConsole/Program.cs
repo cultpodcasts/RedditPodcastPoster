@@ -64,18 +64,25 @@ builder.Services
 using var host = builder.Build();
 var service = host.Services.GetRequiredService<IShortnerService>();
 
-var repository = host.Services.GetRequiredService<IPodcastRepository>();
+var episodeRepository = host.Services.GetRequiredService<IEpisodeRepository>();
+var podcastRepository = host.Services.GetRequiredService<IPodcastRepositoryV2>();
+
 var guid = Guid.Parse(args[0]);
-var podcast = await repository!.GetBy(x => x.Episodes.Any(y => y.Id == guid));
+var episode = await episodeRepository.GetBy(x => x.Id == guid);
+if (episode == null)
+{
+    return;
+}
+
+var podcast = await podcastRepository.GetPodcast(episode.PodcastId);
 if (podcast == null)
 {
     return;
 }
 
-var episode = podcast.Episodes.Single(x => x.Id == guid);
 try
 {
-    var result = await service.Delete([new PodcastEpisode(podcast, episode)]);
+    var result = await service.Delete([new PodcastEpisodeV2(podcast, episode)]);
 }
 catch (Exception e)
 {

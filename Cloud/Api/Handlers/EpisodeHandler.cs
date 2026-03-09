@@ -90,7 +90,7 @@ public class EpisodeHandler(
             await episodeRepository.Delete(episode.PodcastId, episode.Id);
 
             await DeleteSearchEntry(podcast.Name, episodeId, c);
-            await DeleteShortnerEntry(CreatePodcastEpisode(podcast, episode));
+            await DeleteShortnerEntry(new PodcastEpisodeV2(podcast, episode));
 
             logger.LogWarning(
                 "Delete detached episode from podcast with id '{podcastId}' and episode-id '{episodeId}'.",

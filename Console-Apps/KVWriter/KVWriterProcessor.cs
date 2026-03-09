@@ -22,7 +22,7 @@ public class KVWriterProcessor(
             var podcasts = await podcastRepository.GetAll().ToListAsync();
             logger.LogInformation("Process podcasts");
 
-            var podcastEpisodes = new List<PodcastEpisode>();
+            var podcastEpisodes = new List<PodcastEpisodeV2>();
             foreach (var podcast in podcasts)
             {
                 var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
@@ -68,21 +68,8 @@ public class KVWriterProcessor(
         }
     }
 
-    private static PodcastEpisode CreatePodcastEpisode(V2Podcast podcast, V2Episode episode)
+    private static PodcastEpisodeV2 CreatePodcastEpisode(V2Podcast podcast, V2Episode episode)
     {
-        var servicePodcast = new Podcast(podcast.Id)
-        {
-            Name = podcast.Name
-        };
-
-        var serviceEpisode = new Episode
-        {
-            Id = episode.Id,
-            Title = episode.Title,
-            Release = episode.Release,
-            Length = episode.Length
-        };
-
-        return new PodcastEpisode(servicePodcast, serviceEpisode);
+        return new PodcastEpisodeV2(podcast, episode);
     }
 }

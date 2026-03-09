@@ -432,18 +432,8 @@ public class PodcastHandler(
     private async Task DeleteEpisodesFromShortner(V2Podcast podcast, CancellationToken c)
     {
         var detachedEpisodes = await GetDetachedEpisodesByPodcastId(podcast.Id, c);
-        var legacyPodcast = new LegacyPodcast(podcast.Id) { Name = podcast.Name };
 
-        var podcastEpisodes = detachedEpisodes.Select(e =>
-            new PodcastEpisode(
-                legacyPodcast,
-                new LegacyEpisode
-                {
-                    Id = e.Id,
-                    Title = e.Title,
-                    Release = e.Release,
-                    Length = e.Length
-                }));
+        var podcastEpisodes = detachedEpisodes.Select(e => new PodcastEpisodeV2(podcast, e));
 
         await shortnerService.Delete(podcastEpisodes);
     }
