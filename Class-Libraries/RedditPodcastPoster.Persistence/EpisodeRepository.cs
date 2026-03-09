@@ -31,6 +31,29 @@ public class EpisodeRepository(
         return GetAllBy(x => x.PodcastId == podcastId);
     }
 
+    public async Task<Episode?> GetMostRecentByPodcastId(Guid podcastId)
+    {
+        var query = container
+            .GetItemLinqQueryable<Episode>(requestOptions: new QueryRequestOptions
+            {
+                PartitionKey = ToPartitionKey(podcastId)
+            })
+            .Where(x => x.PodcastId == podcastId)
+            .OrderByDescending(x => x.Release)
+            .Take(1);
+
+        var items = query.ToFeedIterator();
+        while (items.HasMoreResults)
+        {
+            foreach (var item in await items.ReadNextAsync())
+            {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
     public async Task Save(Episode episode)
     {
         if (episode.PodcastId==Guid.Empty)
