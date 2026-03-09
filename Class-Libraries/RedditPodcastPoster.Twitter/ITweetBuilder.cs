@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Twitter;
 
 public interface ITweetBuilder
 {
-    Task<string> BuildTweet(PodcastEpisode podcastEpisode, Uri? shortUrl);
+    Task<string> BuildTweet(PodcastEpisodeV2 podcastEpisode, Uri? shortUrl);
 }

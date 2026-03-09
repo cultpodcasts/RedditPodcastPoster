@@ -10,7 +10,6 @@ using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlShortening;
 
@@ -56,8 +55,7 @@ public class BlueskyPostManager(
 
                 try
                 {
-                    var legacyPodcastEpisode = podcastEpisode.ToLegacy();
-                    var shortnerResult = await shortnerService.Write(legacyPodcastEpisode);
+                    var shortnerResult = await shortnerService.Write(podcastEpisode);
                     if (!shortnerResult.Success)
                     {
                         logger.LogError("Unsuccessful shortening-url.");
@@ -66,7 +64,7 @@ public class BlueskyPostManager(
                     logger.LogInformation("Bluesky Post init.");
                     try
                     {
-                        var status = await poster.Post(legacyPodcastEpisode, shortnerResult.Url);
+                        var status = await poster.Post(podcastEpisode, shortnerResult.Url);
                         logger.LogInformation("Bluesky Post complete. Bluesky-post-status: '{status}'.", status);
                         var posted = status == BlueskySendStatus.Success;
 

@@ -6,5 +6,5 @@ namespace RedditPodcastPoster.Bluesky.Factories;
 
 public interface IEmbedCardRequestFactory
 {
-    Task<EmbedCardRequest?> CreateEmbedCardRequest(PodcastEpisode podcastEpisode, BlueskyEmbedCardPost embedPost);
+    Task<EmbedCardRequest?> CreateEmbedCardRequest(PodcastEpisodeV2 podcastEpisode, BlueskyEmbedCardPost embedPost);
 }

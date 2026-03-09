@@ -6,13 +6,13 @@ using RedditPodcastPoster.Twitter.Models;
 namespace RedditPodcastPoster.Twitter;
 
 public class TweetPoster(
-    IPodcastRepository repository,
+    IEpisodeRepository episodeRepository,
     ITweetBuilder tweetBuilder,
     ITwitterClient twitterClient,
     ILogger<TweetPoster> logger)
     : ITweetPoster
 {
-    public async Task<PostTweetResponse> PostTweet(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    public async Task<PostTweetResponse> PostTweet(PodcastEpisodeV2 podcastEpisode, Uri? shortUrl)
     {
         var tweet = await tweetBuilder.BuildTweet(podcastEpisode, shortUrl);
         PostTweetResponse tweetStatus;
@@ -32,12 +32,12 @@ public class TweetPoster(
             podcastEpisode.Episode.Tweeted = true;
             try
             {
-                await repository.Save(podcastEpisode.Podcast);
+                await episodeRepository.Save(podcastEpisode.Episode);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    "Failure to save podcast with podcast-id '{PodcastId}' to update episode with id '{EpisodeId}'.", podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
+                    "Failure to save episode with podcast-id '{PodcastId}' and episode-id '{EpisodeId}' after tweet update.", podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
                 throw;
             }
 

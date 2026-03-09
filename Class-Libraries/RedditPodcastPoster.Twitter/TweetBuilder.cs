@@ -26,10 +26,9 @@ public class TweetBuilder(
     public const string? ReleaseFormat = "d MMM yyyy";
     private readonly TwitterOptions _twitterOptions = twitterOptions.Value;
 
-    public async Task<string> BuildTweet(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    public async Task<string> BuildTweet(PodcastEpisodeV2 podcastEpisode, Uri? shortUrl)
     {
-        var v2PodcastEpisode = podcastEpisode.ToV2();
-        var postModel = postModelFactory.ToPostModel((v2PodcastEpisode.Podcast, [v2PodcastEpisode.Episode]));
+        var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, [podcastEpisode.Episode]));
         var episodeTitle = await textSanitiser.SanitiseTitle(postModel);
 
         var episodeHashtags = await hashTagProvider.GetHashTags(podcastEpisode.Episode.Subjects);
@@ -101,7 +100,6 @@ public class TweetBuilder(
         }
 
         if (shortUrl != null && _twitterOptions.WithEpisodeUrl && (podcastEpisode.HasMultipleServices() ||
-                                                                   podcastEpisode.Podcast.Episodes.Count > 1 ||
                                                                    podcastEpisode.Episode.Subjects.Any()))
         {
             tweetBuilder.Append($"{shortUrl}{Environment.NewLine}");

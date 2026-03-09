@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.UrlShortening;
 
 namespace RedditPodcastPoster.Twitter;
@@ -42,14 +41,13 @@ public class Tweeter(
 
                 try
                 {
-                    var legacyPodcastEpisode = podcastEpisode.ToLegacy();
-                    var shortnerResult = await shortnerService.Write(legacyPodcastEpisode);
+                    var shortnerResult = await shortnerService.Write(podcastEpisode);
                     if (!shortnerResult.Success)
                     {
                         logger.LogError("Unsuccessful shortening-url.");
                     }
 
-                    var tweetStatus = await tweetPoster.PostTweet(legacyPodcastEpisode, shortnerResult.Url);
+                    var tweetStatus = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url);
                     tweeted = tweetStatus.TweetSendStatus == TweetSendStatus.Sent;
                     tooManyRequests = tweetStatus.TweetSendStatus == TweetSendStatus.TooManyRequests;
                 }

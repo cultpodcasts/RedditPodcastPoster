@@ -129,7 +129,6 @@ public class EpisodeHandler(
             }
 
             var podcastEpisodeV2 = new PodcastEpisodeV2(podcast, episode);
-            var podcastEpisode = podcastEpisodeV2.ToLegacy();
 
             if (publishRequest.EpisodePublishRequest.Post)
             {
@@ -144,7 +143,7 @@ public class EpisodeHandler(
 
             if (publishRequest.EpisodePublishRequest.Tweet || publishRequest.EpisodePublishRequest.BlueskyPost)
             {
-                var shortnerResult = await shortnerService.Write(podcastEpisode);
+                var shortnerResult = await shortnerService.Write(podcastEpisodeV2);
                 if (!shortnerResult.Success)
                 {
                     logger.LogError("Unsuccessful shortening-url.");
@@ -154,7 +153,7 @@ public class EpisodeHandler(
                 {
                     try
                     {
-                        var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url);
+                        var result = await tweetPoster.PostTweet(podcastEpisodeV2, shortnerResult.Url);
                         if (result.TweetSendStatus != TweetSendStatus.Sent)
                         {
                             logger.LogError("Tweet result: '{PostTweetResponse}'.", result);
@@ -179,7 +178,7 @@ public class EpisodeHandler(
                 {
                     try
                     {
-                        var result = await blueskyPoster.Post(podcastEpisode, shortnerResult.Url);
+                        var result = await blueskyPoster.Post(podcastEpisodeV2, shortnerResult.Url);
                         if (result != BlueskySendStatus.Success)
                         {
                             logger.LogError("Bluesky-post result: '{result}'.", result);
@@ -403,7 +402,7 @@ public class EpisodeHandler(
                 episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
             {
                 await DeleteSearchEntry(podcast.Name, episodeChangeRequestWrapper.EpisodeId, c);
-                await DeleteShortnerEntry(podcastEpisode);
+                await DeleteShortnerEntry(new PodcastEpisodeV2(podcast, episode));
             }
             else
             {
@@ -554,7 +553,7 @@ public class EpisodeHandler(
         return (days, posted, tweeted, blueskyPosted);
     }
 
-    private async Task DeleteShortnerEntry(PodcastEpisode podcastEpisode)
+    private async Task DeleteShortnerEntry(PodcastEpisodeV2 podcastEpisode)
     {
         var result = await shortnerService.Delete(podcastEpisode);
     }

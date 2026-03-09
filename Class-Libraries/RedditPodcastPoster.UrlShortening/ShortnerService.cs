@@ -20,7 +20,7 @@ public class ShortnerService(
 
     private readonly ShortnerOptions _shortnerOptions = shortnerOptions.Value;
 
-    public async Task<WriteResult> Write(IEnumerable<PodcastEpisode> podcastEpisodes)
+    public async Task<WriteResult> Write(IEnumerable<PodcastEpisodeV2> podcastEpisodes)
     {
         logger.LogInformation("{WriteName}. Writing to KV. Bulk write: {Count} episodes.", nameof(Write), podcastEpisodes.Count());
         var items = podcastEpisodes.Select(x =>
@@ -41,7 +41,7 @@ public class ShortnerService(
         return await kvClient.Write(kvRecords, _shortnerOptions.KVShortnerNamespaceId);
     }
 
-    public async Task<WriteResult> Write(PodcastEpisode podcastEpisode, bool isDryRun = false)
+    public async Task<WriteResult> Write(PodcastEpisodeV2 podcastEpisode, bool isDryRun = false)
     {
         logger.LogInformation(
             "{WriteName}. Writing to KV. Individual write. Episode-id '{EpisodeId}'.", nameof(Write), podcastEpisode.Episode.Id);
@@ -82,12 +82,12 @@ public class ShortnerService(
         return await kvClient.ReadWithMetaData(requestKey, _shortnerOptions.KVShortnerNamespaceId);
     }
 
-    public async Task<DeleteResult> Delete(PodcastEpisode podcastEpisode)
+    public async Task<DeleteResult> Delete(PodcastEpisodeV2 podcastEpisode)
     {
         return await kvClient.Delete(podcastEpisode.Episode.Id.ToBase64(), _shortnerOptions.KVShortnerNamespaceId);
     }
 
-    public async Task<DeleteResult> Delete(IEnumerable<PodcastEpisode> podcastEpisodes)
+    public async Task<DeleteResult> Delete(IEnumerable<PodcastEpisodeV2> podcastEpisodes)
     {
         return await kvClient.Delete(podcastEpisodes.Select(x=>x.Episode.Id.ToBase64()), _shortnerOptions.KVShortnerNamespaceId);
     }

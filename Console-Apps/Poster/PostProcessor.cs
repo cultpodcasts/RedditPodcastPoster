@@ -6,11 +6,9 @@ using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.UrlShortening;
-using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
 
 namespace Poster;
 
@@ -129,8 +127,7 @@ public class PostProcessor(
                     $"Podcast with id '{episode.PodcastId}' not found for episode-id '{request.EpisodeId.Value}'.");
             }
 
-            var selectedEpisode = episode.ToLegacyEpisode();
-            var podcastEpisode = new PodcastEpisode(selectedPodcast.ToLegacyPodcast(), selectedEpisode);
+            var podcastEpisode = new PodcastEpisodeV2(selectedPodcast, episode);
 
             var shortnerResult = await shortnerService.Write(podcastEpisode);
             if (!shortnerResult.Success)
@@ -193,13 +190,13 @@ public class PostProcessor(
                         .FirstOrDefault();
                     if (mostRecent != null)
                     {
-                        var shortnerResult = await shortnerService.Write(mostRecent.ToLegacy());
+                        var shortnerResult = await shortnerService.Write(mostRecent);
                         if (!shortnerResult.Success)
                         {
                             logger.LogError("Unsuccessful shortening-url.");
                         }
 
-                        await TweetEpisode(mostRecent.ToLegacy(), shortnerResult.Url);
+                        await TweetEpisode(mostRecent, shortnerResult.Url);
                     }
                 }
 
@@ -211,13 +208,13 @@ public class PostProcessor(
                         .FirstOrDefault();
                     if (mostRecent != null)
                     {
-                        var shortnerResult = await shortnerService.Write(mostRecent.ToLegacy());
+                        var shortnerResult = await shortnerService.Write(mostRecent);
                         if (!shortnerResult.Success)
                         {
                             logger.LogError("Unsuccessful shortening-url.");
                         }
 
-                        await PostBluesky(mostRecent.ToLegacy(), shortnerResult.Url);
+                        await PostBluesky(mostRecent, shortnerResult.Url);
                     }
                 }
             }
@@ -236,7 +233,7 @@ public class PostProcessor(
         }
     }
 
-    private async Task PostBluesky(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    private async Task PostBluesky(PodcastEpisodeV2 podcastEpisode, Uri? shortUrl)
     {
         var result = await blueSkyPoster.Post(podcastEpisode, shortUrl);
         if (result != BlueskySendStatus.Success)
@@ -245,7 +242,7 @@ public class PostProcessor(
         }
     }
 
-    private async Task TweetEpisode(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    private async Task TweetEpisode(PodcastEpisodeV2 podcastEpisode, Uri? shortUrl)
     {
         var result = await tweetPoster.PostTweet(podcastEpisode, shortUrl);
         if (result.TweetSendStatus != TweetSendStatus.Sent)

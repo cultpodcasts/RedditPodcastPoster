@@ -28,10 +28,9 @@ public class BlueskyEmbedCardPostFactory(
     public const string? ReleaseFormat = "d MMM yyyy";
     private readonly BlueskyOptions _blueskyOptions = blueskyOptions.Value;
 
-    public async Task<BlueskyEmbedCardPost> Create(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    public async Task<BlueskyEmbedCardPost> Create(PodcastEpisodeV2 podcastEpisode, Uri? shortUrl)
     {
-        var v2PodcastEpisode = podcastEpisode.ToV2();
-        var postModel = postModelFactory.ToPostModel((v2PodcastEpisode.Podcast, [v2PodcastEpisode.Episode]));
+        var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, [podcastEpisode.Episode]));
         var episodeTitle = await textSanitiser.SanitiseTitle(postModel);
 
         var episodeHashtags = await hashTagProvider.GetHashTags(podcastEpisode.Episode.Subjects);
@@ -91,7 +90,6 @@ public class BlueskyEmbedCardPostFactory(
         if (shortUrl != null &&
             _blueskyOptions.WithEpisodeUrl &&
             (podcastEpisode.HasMultipleServices() ||
-             podcastEpisode.Podcast.Episodes.Count > 1 ||
              podcastEpisode.Episode.Subjects.Any()))
         {
             postBuilder.AppendLine($"{shortUrl}");

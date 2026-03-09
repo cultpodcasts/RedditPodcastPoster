@@ -21,7 +21,7 @@ public class EmbedCardRequestFactory(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : IEmbedCardRequestFactory
 {
-    public async Task<EmbedCardRequest?> CreateEmbedCardRequest(PodcastEpisode podcastEpisode,
+    public async Task<EmbedCardRequest?> CreateEmbedCardRequest(PodcastEpisodeV2 podcastEpisode,
         BlueskyEmbedCardPost embedPost)
     {
         EmbedCardRequest? embedCardRequest = null;

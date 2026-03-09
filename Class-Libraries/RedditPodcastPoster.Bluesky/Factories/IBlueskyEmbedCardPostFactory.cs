@@ -5,5 +5,5 @@ namespace RedditPodcastPoster.Bluesky.Factories;
 
 public interface IBlueskyEmbedCardPostFactory
 {
-    Task<BlueskyEmbedCardPost> Create(PodcastEpisode podcastEpisode, Uri? shortUrl);
+    Task<BlueskyEmbedCardPost> Create(PodcastEpisodeV2 podcastEpisode, Uri? shortUrl);
 }
