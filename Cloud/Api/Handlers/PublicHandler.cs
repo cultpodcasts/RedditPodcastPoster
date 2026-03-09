@@ -9,8 +9,9 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace Api.Handlers;
 
 public class PublicHandler(
-    IPodcastRepository podcastRepository,
-    ILogger<PublicHandler> logger):IPublicHandler
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
+    ILogger<PublicHandler> logger) : IPublicHandler
 {
     public async Task<HttpResponseData> Get(HttpRequestData req, Guid episodeId, ClientPrincipal? _,
         CancellationToken c)
@@ -18,18 +19,39 @@ public class PublicHandler(
         try
         {
             logger.LogInformation("{GetName}: Get episode with id '{EpisodeId}'.", nameof(Get), episodeId);
-            var podcast = await podcastRepository.GetBy(x => x.Episodes.Any(ep => ep.Id == episodeId));
-            var episode = podcast?.Episodes.SingleOrDefault(x => x.Id == episodeId);
 
-            if (episode == null || podcast == null || episode.Removed || podcast.IsRemoved())
+            var episode = await episodeRepository.GetBy(x => x.Id == episodeId);
+            if (episode == null || episode.Removed)
             {
                 logger.LogWarning("{GetName}: Episode with id '{EpisodeId}' not found.", nameof(Get), episodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            var podcastEpisode = episode.EnrichPublic(podcast);
+            var podcast = await podcastRepository.GetPodcast(episode.PodcastId);
+            if (podcast == null || podcast.Removed == true)
+            {
+                logger.LogWarning("{GetName}: Podcast with id '{PodcastId}' for episode '{EpisodeId}' not found.",
+                    nameof(Get), episode.PodcastId, episodeId);
+                return req.CreateResponse(HttpStatusCode.NotFound);
+            }
+
+            var publicEpisode = new PublicEpisode
+            {
+                PodcastName = podcast.Name,
+                Id = episode.Id,
+                Title = episode.Title,
+                Description = episode.Description,
+                Release = episode.Release,
+                Length = episode.Length,
+                Explicit = episode.Explicit,
+                Urls = episode.Urls,
+                Subjects = episode.Subjects,
+                Image = episode.Images?.YouTube ??
+                        episode.Images?.Spotify ?? episode.Images?.Apple ?? episode.Images?.Other
+            };
+
             var success = await req.CreateResponse(HttpStatusCode.OK)
-                .WithJsonBody(podcastEpisode, c);
+                .WithJsonBody(publicEpisode, c);
             return success;
         }
         catch (Exception ex)
