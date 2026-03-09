@@ -1,11 +1,11 @@
 ﻿using System.Net;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Api.Dtos;
 using Api.Extensions;
 using Api.Models;
 using Azure.Search.Documents;
 using Azure.Search.Documents.Models;
-using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Auth0;
@@ -32,12 +32,17 @@ using RedditPodcastPoster.Text;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.UrlShortening;
+using Podcast = RedditPodcastPoster.Models.Podcast;
 using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
+using Subject = RedditPodcastPoster.Models.Subject;
+using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using V2Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace Api.Handlers;
 
 public class EpisodeHandler(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepositoryV2,
+    IEpisodeRepository episodeRepository,
     SearchClient searchClient,
     IPodcastEpisodePoster podcastEpisodePoster,
     ITweetPoster tweetPoster,
@@ -63,45 +68,17 @@ public class EpisodeHandler(
     {
         try
         {
-            var podcasts = await podcastRepository
-                .GetAllBy(x => x.Episodes.Any(e => e.Id == episodeId))
-                .ToListAsync(c);
-            if (podcasts.Count > 1)
+            var episode = await episodeRepository.GetBy(x => x.Id == episodeId);
+            if (episode == null)
             {
-                var tooManyPodcasts = await req
-                    .CreateResponse(HttpStatusCode.Ambiguous)
-                    .WithJsonBody(new { message = $"Multiple podcasts. Count='{podcasts.Count}'." }, c);
-                return tooManyPodcasts;
+                return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            if (podcasts.Count == 0)
+            var podcast = await podcastRepositoryV2.GetPodcast(episode.PodcastId);
+            if (podcast == null)
             {
-                var notFound = req
-                    .CreateResponse(HttpStatusCode.NotFound);
-                return notFound;
+                return req.CreateResponse(HttpStatusCode.NotFound);
             }
-
-            var count = podcasts.Single().Episodes.Count(x => x.Id == episodeId);
-            if (count > 1)
-            {
-                var tooManyEpisodes = await req
-                    .CreateResponse(HttpStatusCode.Ambiguous)
-                    .WithJsonBody(
-                        new
-                        {
-                            message =
-                                $"Podcast with id '{podcasts.Single().Id}' has multiple episodes with id. Count='{count}'."
-                        }, c);
-                return tooManyEpisodes;
-            }
-
-            if (count == 0)
-            {
-                throw new InvalidOperationException(
-                    $"Podcast with id '{podcasts.Single().Id}' expected to have episode with id '{episodeId}' but not found.");
-            }
-
-            var episode = podcasts.Single().Episodes.Single(x => x.Id == episodeId);
 
             if (episode.Tweeted || episode.Posted)
             {
@@ -109,19 +86,14 @@ public class EpisodeHandler(
                     new { message = "Cannot remove episode.", posted = episode.Posted, tweeted = episode.Tweeted }, c);
             }
 
-            var removed = podcasts.Single().Episodes.Remove(episode);
-            if (!removed)
-            {
-                throw new InvalidOperationException(
-                    $"Unable to remove episode from Podcast with id '{podcasts.Single().Id}' episode with id '{episodeId}'.");
-            }
+            await episodeRepository.Delete(episode.PodcastId, episode.Id);
 
-            await DeleteSearchEntry(podcasts.Single().Name, episodeId, c);
-            await DeleteShortnerEntry(new PodcastEpisode(podcasts.Single(), episode));
+            await DeleteSearchEntry(podcast.Name, episodeId, c);
+            await DeleteShortnerEntry(CreatePodcastEpisode(podcast, episode));
 
-            logger.LogWarning("Delete episode from podcast with id '{podcastId}' and episode-id '{episodeId}'.",
-                podcasts.Single().Id, episodeId);
-            await podcastRepository.Save(podcasts.Single());
+            logger.LogWarning(
+                "Delete detached episode from podcast with id '{podcastId}' and episode-id '{episodeId}'.",
+                podcast.Id, episodeId);
             return req.CreateResponse(HttpStatusCode.OK);
         }
         catch (Exception ex)
@@ -142,17 +114,20 @@ public class EpisodeHandler(
         try
         {
             var response = new EpisodePublishResponse();
-            var podcast = await podcastRepository.GetBy(x =>
-                (!x.Removed.IsDefined() || x.Removed == false) &&
-                x.Episodes.Any(ep => ep.Id == publishRequest.EpisodeId));
-            if (podcast == null)
+            var episode = await episodeRepository.GetBy(x => x.Id == publishRequest.EpisodeId);
+            if (episode == null)
             {
-                throw new ArgumentException($"Podcast with episode-id '{publishRequest.EpisodeId}' not found.");
+                throw new ArgumentException($"Episode with id '{publishRequest.EpisodeId}' not found.");
             }
 
-            var episode = podcast.Episodes.Single(x => x.Id == publishRequest.EpisodeId);
+            var podcast = await podcastRepositoryV2.GetPodcast(episode.PodcastId);
+            if (podcast == null || podcast.Removed == true)
+            {
+                throw new ArgumentException(
+                    $"Podcast for episode-id '{publishRequest.EpisodeId}' not found or removed.");
+            }
 
-            var podcastEpisode = new PodcastEpisode(podcast, episode);
+            var podcastEpisode = CreatePodcastEpisode(podcast, episode);
 
             if (publishRequest.EpisodePublishRequest.Post)
             {
@@ -194,7 +169,7 @@ public class EpisodeHandler(
                         response.Tweeted = false;
                         logger.LogError(e,
                             "Failed to tweet for podcast-id: {podcastId} and episode-id {episodeId}.",
-                            podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
+                            podcast.Id, episode.Id);
                     }
                 }
 
@@ -218,7 +193,7 @@ public class EpisodeHandler(
                         response.BlueskyPosted = false;
                         logger.LogError(e,
                             "Failed to bluesky-post for podcast-id: {podcastId} and episode-id {episodeId}.",
-                            podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
+                            podcast.Id, episode.Id);
                     }
                 }
             }
@@ -235,7 +210,7 @@ public class EpisodeHandler(
                     episode.Removed = false;
                 }
 
-                await podcastRepository.Save(podcast);
+                await episodeRepository.Save(episode);
             }
 
             await contentPublisher.PublishHomepage();
@@ -265,32 +240,30 @@ public class EpisodeHandler(
 
             var episodes = new List<DiscreteEpisode>();
             var since = DateTimeExtensions.DaysAgo(days);
-            var podcastIds = await podcastRepository.GetAllBy(x =>
-                    (
-                        !x.Removed.IsDefined() ||
-                        x.Removed == false
-                    ) &&
-                    x.Episodes.Any(ep =>
-                        ep.Release > since &&
-                        (!ep.Posted || posted) &&
-                        (!ep.Tweeted || tweeted) &&
-                        (!(ep.BlueskyPosted.IsDefined() && ep.BlueskyPosted == true) || blueskyPosted)),
-                x => new { guid = x.Id }).ToListAsync(c);
-
             var subjects = await subjectsProvider.GetAll().ToListAsync();
+            var podcastCache = new Dictionary<Guid, V2Podcast>();
 
-            foreach (var podcastId in podcastIds)
+            await foreach (var episode in episodeRepository.GetAllBy(ep =>
+                                   ep.Release > since &&
+                                   !ep.Removed &&
+                                   (!ep.Posted || posted) &&
+                                   (!ep.Tweeted || tweeted) &&
+                                   (!(ep.BlueskyPosted.HasValue && ep.BlueskyPosted.Value) || blueskyPosted))
+                               .WithCancellation(c))
             {
-                var podcast = await podcastRepository.GetBy(x => x.Id == podcastId.guid);
-                var unpostedEpisodes =
-                    podcast!.Episodes.Where(x =>
-                            x.Release > since &&
-                            (!x.Posted || posted) &&
-                            (!x.Tweeted || tweeted) &&
-                            (!(x.BlueskyPosted.HasValue && x.BlueskyPosted.Value) || blueskyPosted))
-                        .Select(async s => await s.Enrich(podcast, textSanitiser, subjects));
-                var discreteEpisodes = await Task.WhenAll(unpostedEpisodes);
-                episodes.AddRange(discreteEpisodes);
+                if (!podcastCache.TryGetValue(episode.PodcastId, out var podcast))
+                {
+                    var loaded = await podcastRepositoryV2.GetPodcast(episode.PodcastId);
+                    if (loaded == null || loaded.Removed == true)
+                    {
+                        continue;
+                    }
+
+                    podcast = loaded;
+                    podcastCache[episode.PodcastId] = podcast;
+                }
+
+                episodes.Add(await ToDiscreteEpisode(episode, podcast, subjects));
             }
 
             var success = await req.CreateResponse(HttpStatusCode.OK)
@@ -319,19 +292,19 @@ public class EpisodeHandler(
                 nameof(Post),
                 episodeChangeRequestWrapper.EpisodeId,
                 JsonSerializer.Serialize(episodeChangeRequestWrapper.EpisodeChangeRequest));
-            var podcast = await podcastRepository.GetBy(x =>
-                x.Episodes.Any(ep => ep.Id == episodeChangeRequestWrapper.EpisodeId));
-            if (podcast == null)
-            {
-                logger.LogWarning("Podcast with episode-id '{episodeId}' not found.",
-                    episodeChangeRequestWrapper.EpisodeId);
-                return req.CreateResponse(HttpStatusCode.NotFound);
-            }
 
-            var episode = podcast.Episodes.SingleOrDefault(x => x.Id == episodeChangeRequestWrapper.EpisodeId);
+            var episode = await episodeRepository.GetBy(x => x.Id == episodeChangeRequestWrapper.EpisodeId);
             if (episode == null)
             {
                 logger.LogWarning("Episode with id '{episodeId}' not found.", episodeChangeRequestWrapper.EpisodeId);
+                return req.CreateResponse(HttpStatusCode.NotFound);
+            }
+
+            var podcast = await podcastRepositoryV2.GetPodcast(episode.PodcastId);
+            if (podcast == null)
+            {
+                logger.LogWarning("Podcast with id '{podcastId}' not found for episode-id '{episodeId}'.",
+                    episode.PodcastId, episodeChangeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
@@ -344,26 +317,31 @@ public class EpisodeHandler(
             var indexingContext = new IndexingContext();
             if (changeState.UpdateImages)
             {
+                var serviceEpisode = CreateServiceEpisode(episode);
                 await imageUpdater.UpdateImages(
-                    podcast,
-                    episode,
+                    CreateServicePodcast(podcast),
+                    serviceEpisode,
                     new EpisodeImageUpdateRequest(
                         changeState.UpdateSpotifyImage,
                         changeState.UpdateAppleImage,
                         changeState.UpdateYouTubeImage,
                         changeState.UpdateBBCImage),
                     indexingContext);
+
+                ApplyServiceEpisodeUpdates(episode, serviceEpisode);
             }
 
-            await podcastRepository.Save(podcast);
+            await episodeRepository.Save(episode);
+
+            var podcastEpisode = CreatePodcastEpisode(podcast, episode);
 
             if (changeState.UnPost)
             {
-                await postManager.RemoveEpisodePost(new PodcastEpisode(podcast, episode));
+                await postManager.RemoveEpisodePost(podcastEpisode);
             }
             else if (changeState.UpdatedSubjects)
             {
-                await postManager.UpdateFlare(new PodcastEpisode(podcast, episode));
+                await postManager.UpdateFlare(podcastEpisode);
             }
 
             var removeTweetResult = RemoveTweetState.Unknown;
@@ -371,7 +349,7 @@ public class EpisodeHandler(
             {
                 try
                 {
-                    removeTweetResult = await tweetManager.RemoveTweet(new PodcastEpisode(podcast, episode));
+                    removeTweetResult = await tweetManager.RemoveTweet(podcastEpisode);
                     if (removeTweetResult != RemoveTweetState.Deleted)
                     {
                         logger.LogWarning("Failure to delete tweet. Result= {removeTweetResult}.",
@@ -392,7 +370,7 @@ public class EpisodeHandler(
             {
                 try
                 {
-                    removeBlueskyPostResult = await blueskyPostManager.RemovePost(new PodcastEpisode(podcast, episode));
+                    removeBlueskyPostResult = await blueskyPostManager.RemovePost(podcastEpisode);
                     if (removeBlueskyPostResult != RemovePostState.Deleted)
                     {
                         logger.LogWarning("Failure to delete bluesky-post. Result= {removeBlueskyPostResult}.",
@@ -423,7 +401,7 @@ public class EpisodeHandler(
                 episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
             {
                 await DeleteSearchEntry(podcast.Name, episodeChangeRequestWrapper.EpisodeId, c);
-                await DeleteShortnerEntry(new PodcastEpisode(podcast, episode));
+                await DeleteShortnerEntry(podcastEpisode);
             }
             else
             {
@@ -456,19 +434,26 @@ public class EpisodeHandler(
         {
             logger.LogInformation("{method}: Get episode with id '{episodeId}'.", nameof(Get),
                 episodeId);
-            var podcast = await podcastRepository.GetBy(x => x.Episodes.Any(ep => ep.Id == episodeId));
-            var episode = podcast?.Episodes.SingleOrDefault(x => x.Id == episodeId);
 
-            if (episode == null || podcast == null)
+            var episode = await episodeRepository.GetBy(x => x.Id == episodeId);
+            if (episode == null)
             {
                 logger.LogWarning("{method}: Episode with id '{episodeId}' not found.", nameof(Get), episodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
+            var podcast = await podcastRepositoryV2.GetPodcast(episode.PodcastId);
+            if (podcast == null)
+            {
+                logger.LogWarning("{method}: Podcast with id '{podcastId}' not found for episode-id '{episodeId}'.",
+                    nameof(Get), episode.PodcastId, episodeId);
+                return req.CreateResponse(HttpStatusCode.NotFound);
+            }
+
             var subjects = await subjectsProvider.GetAll().ToListAsync();
-            var podcastEpisode = await episode.Enrich(podcast, textSanitiser, subjects);
+            var discreteEpisode = await ToDiscreteEpisode(episode, podcast, subjects);
             var success = await req.CreateResponse(HttpStatusCode.OK)
-                .WithJsonBody(podcastEpisode, c);
+                .WithJsonBody(discreteEpisode, c);
             return success;
         }
         catch (Exception ex)
@@ -479,6 +464,62 @@ public class EpisodeHandler(
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
             .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve episode"), c);
         return failure;
+    }
+
+    private async Task<DiscreteEpisode> ToDiscreteEpisode(V2Episode episode, V2Podcast podcast,
+        IEnumerable<Subject> subjects)
+    {
+        var episodeSubjects = subjects
+            .Where(s => episode.Subjects.Contains(s.Name))
+            .SelectMany(s => s.KnownTerms ?? Array.Empty<string>())
+            .ToArray();
+
+        var titleRegex = string.IsNullOrWhiteSpace(podcast.TitleRegex)
+            ? null
+            : new Regex(podcast.TitleRegex, RegexOptions.IgnoreCase);
+
+        var descriptionRegex = string.IsNullOrWhiteSpace(podcast.DescriptionRegex)
+            ? null
+            : new Regex(podcast.DescriptionRegex, RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+        return new DiscreteEpisode
+        {
+            Id = episode.Id,
+            PodcastName = podcast.Name,
+            Title = episode.Title,
+            Description = episode.Description,
+            Posted = episode.Posted,
+            Tweeted = episode.Tweeted,
+            BlueskyPosted = episode.BlueskyPosted,
+            Ignored = episode.Ignored,
+            Release = episode.Release,
+            Removed = episode.Removed,
+            Length = episode.Length,
+            Explicit = episode.Explicit,
+            SpotifyId = episode.SpotifyId,
+            AppleId = episode.AppleId,
+            YouTubeId = episode.YouTubeId,
+            Urls = episode.Urls,
+            Images = episode.Images,
+            Subjects = episode.Subjects,
+            SearchTerms = episode.SearchTerms,
+            YouTubePodcast = !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId),
+            SpotifyPodcast = !string.IsNullOrWhiteSpace(podcast.SpotifyId),
+            ApplePodcast = podcast.AppleId != null,
+            ReleaseAuthority = podcast.ReleaseAuthority,
+            PrimaryPostService = podcast.PrimaryPostService,
+            Image =
+                episode.Images?.YouTube ?? episode.Images?.Spotify ?? episode.Images?.Apple ?? episode.Images?.Other,
+            Language = episode.SearchLanguage,
+            TwitterHandles = episode.TwitterHandles,
+            BlueskyHandles = episode.BlueskyHandles,
+            DisplayTitle = await textSanitiser.SanitiseTitle(
+                episode.Title,
+                titleRegex,
+                podcast.KnownTerms ?? Array.Empty<string>(),
+                episodeSubjects),
+            DisplayDescription = textSanitiser.SanitiseDescription(episode.Description, descriptionRegex)
+        };
     }
 
     private (int days, bool posted, bool tweeted, bool blueskyPosted) ParseOutgoingQuery(HttpRequestData req)
@@ -548,7 +589,7 @@ public class EpisodeHandler(
         }
     }
 
-    private EpisodeChangeState UpdateEpisode(Episode episode,
+    private EpisodeChangeState UpdateEpisode(V2Episode episode,
         EpisodeChangeRequest episodeChangeRequest)
     {
         var inPastWeek = episode.Release > pastWeek;
@@ -796,7 +837,8 @@ public class EpisodeHandler(
 
         if (episodeChangeRequest.Language != null)
         {
-            episode.Language = episodeChangeRequest.Language == string.Empty ? null : episodeChangeRequest.Language;
+            episode.SearchLanguage =
+                episodeChangeRequest.Language == string.Empty ? null : episodeChangeRequest.Language;
         }
 
         if (episodeChangeRequest.HasChange && inPastWeek)
@@ -819,5 +861,106 @@ public class EpisodeHandler(
         }
 
         return changeState;
+    }
+
+    private static Episode CreateServiceEpisode(V2Episode episode)
+    {
+        return new Episode
+        {
+            Id = episode.Id,
+            PodcastId = episode.PodcastId,
+            Title = episode.Title,
+            Description = episode.Description,
+            Release = episode.Release,
+            Length = episode.Length,
+            Explicit = episode.Explicit,
+            Posted = episode.Posted,
+            Tweeted = episode.Tweeted,
+            BlueskyPosted = episode.BlueskyPosted,
+            Ignored = episode.Ignored,
+            Removed = episode.Removed,
+            SpotifyId = episode.SpotifyId,
+            AppleId = episode.AppleId,
+            YouTubeId = episode.YouTubeId,
+            Urls = episode.Urls,
+            Subjects = episode.Subjects,
+            SearchTerms = episode.SearchTerms,
+            Images = episode.Images,
+            Language = episode.SearchLanguage,
+            TwitterHandles = episode.TwitterHandles,
+            BlueskyHandles = episode.BlueskyHandles
+        };
+    }
+
+    private static Podcast CreateServicePodcast(V2Podcast podcast)
+    {
+        return new Podcast(podcast.Id)
+        {
+            Name = podcast.Name,
+            Language = podcast.Language,
+            Removed = podcast.Removed,
+            Publisher = podcast.Publisher,
+            Bundles = podcast.Bundles,
+            IndexAllEpisodes = podcast.IndexAllEpisodes,
+            IgnoreAllEpisodes = podcast.IgnoreAllEpisodes,
+            BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking,
+            MinimumDuration = podcast.MinimumDuration,
+            ReleaseAuthority = podcast.ReleaseAuthority,
+            PrimaryPostService = podcast.PrimaryPostService,
+            SpotifyId = podcast.SpotifyId,
+            SpotifyMarket = podcast.SpotifyMarket,
+            SpotifyEpisodesQueryIsExpensive = podcast.SpotifyEpisodesQueryIsExpensive,
+            AppleId = podcast.AppleId,
+            YouTubeChannelId = podcast.YouTubeChannelId,
+            YouTubePlaylistId = podcast.YouTubePlaylistId,
+            YouTubePublicationOffset = podcast.YouTubePublicationOffset,
+            YouTubePlaylistQueryIsExpensive = podcast.YouTubePlaylistQueryIsExpensive,
+            SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube,
+            YouTubeNotificationSubscriptionLeaseExpiry = podcast.YouTubeNotificationSubscriptionLeaseExpiry,
+            TwitterHandle = podcast.TwitterHandle,
+            BlueskyHandle = podcast.BlueskyHandle,
+            HashTag = podcast.HashTag,
+            EnrichmentHashTags = podcast.EnrichmentHashTags,
+            TitleRegex = podcast.TitleRegex,
+            DescriptionRegex = podcast.DescriptionRegex,
+            EpisodeMatchRegex = podcast.EpisodeMatchRegex,
+            EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex,
+            IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
+            IgnoredSubjects = podcast.IgnoredSubjects,
+            DefaultSubject = podcast.DefaultSubject,
+            SearchTerms = podcast.SearchTerms,
+            KnownTerms = podcast.KnownTerms,
+            FileKey = podcast.FileKey,
+            Timestamp = podcast.Timestamp
+        };
+    }
+
+    private static void ApplyServiceEpisodeUpdates(V2Episode target, Episode source)
+    {
+        target.Title = source.Title;
+        target.Description = source.Description;
+        target.Release = source.Release;
+        target.Length = source.Length;
+        target.Explicit = source.Explicit;
+        target.Posted = source.Posted;
+        target.Tweeted = source.Tweeted;
+        target.BlueskyPosted = source.BlueskyPosted;
+        target.Ignored = source.Ignored;
+        target.Removed = source.Removed;
+        target.SpotifyId = source.SpotifyId;
+        target.AppleId = source.AppleId;
+        target.YouTubeId = source.YouTubeId;
+        target.Urls = source.Urls;
+        target.Subjects = source.Subjects;
+        target.SearchTerms = source.SearchTerms;
+        target.Images = source.Images;
+        target.SearchLanguage = source.Language;
+        target.TwitterHandles = source.TwitterHandles;
+        target.BlueskyHandles = source.BlueskyHandles;
+    }
+
+    private static PodcastEpisode CreatePodcastEpisode(V2Podcast podcast, V2Episode episode)
+    {
+        return new PodcastEpisode(CreateServicePodcast(podcast), CreateServiceEpisode(episode));
     }
 }
