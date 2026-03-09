@@ -94,12 +94,19 @@
 - [x] Switch high-watermark semantics from `p._ts` to `e._ts`.
 - [x] Validate query field mapping still matches reduced-key `EpisodeSearchRecord` schema.
 - [ ] Remaining runtime paths from static scan:
-  - [ ] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodeFilter.cs`
-  - [ ] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodePoster.cs`
-  - [ ] `Class-Libraries/RedditPodcastPoster.Common/Podcasts/PodcastFilter.cs`
-  - [ ] `Class-Libraries/RedditPodcastPoster.Common/PodcastEpisodeProvider.cs`
-  - [ ] `Class-Libraries/RedditPodcastPoster.UrlSubmission/Factories/PodcastAndEpisodeFactory.cs`
-  - [ ] `Class-Libraries/RedditPodcastPoster.UrlSubmission/PodcastProcessor.cs`
+  - [ ] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodeFilter.cs` → ✅ **V2 variant created**: `IPodcastEpisodeFilterV2` / `PodcastEpisodeFilterV2`
+  - [ ] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodePoster.cs` → 🔄 **V2 variant in progress**
+  - [ ] `Class-Libraries/RedditPodcastPoster.Common/Podcasts/PodcastFilter.cs` → 🔄 **V2 variant needed**
+  - [ ] `Class-Libraries/RedditPodcastPoster.Common/PodcastEpisodeProvider.cs` → ✅ **V2 variant created**: `IPodcastEpisodeProviderV2` / `PodcastEpisodeProviderV2`
+  - [ ] `Class-Libraries/RedditPodcastPoster.UrlSubmission/Factories/PodcastAndEpisodeFactory.cs` → 🔄 **V2 variant needed**
+  - [ ] `Class-Libraries/RedditPodcastPoster.UrlSubmission/PodcastProcessor.cs` → 🔄 **V2 variant needed**
+
+### V2 Service Migration Strategy ✅
+- ✅ Created V2 variants of core services to work alongside legacy implementations
+- ✅ V2 services use `IPodcastRepositoryV2` and `IEpisodeRepository` for detached episodes
+- ✅ All V2 services registered in DI for gradual consumer migration
+- ✅ Legacy services remain functional during transition
+- 📋 See `docs/migration/v2-services-progress.md` for detailed V2 service documentation
 
 ## Phase 4: UI and Contract Migration
 - [ ] Add support for `CompactSearchRecord` key names.
