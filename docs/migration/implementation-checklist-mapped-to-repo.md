@@ -37,6 +37,18 @@
   - `Cloud/Api/Handlers/EpisodeHandler.cs` migrated `Get` endpoint to detached episode + podcast repositories.
   - `Cloud/Api/Handlers/PublicHandler.cs` migrated to detached episode + podcast repositories.
   - `Cloud/Api/Services/DiscoveryResultsService.cs` migrated to target podcast + detached episode repositories for visible episode counts.
+- Console de-embedding progress includes:
+  - `Console-Apps/RemoveEpisodes/Processor.cs`
+  - `Console-Apps/UnremoveEpisodes/Processor.cs`
+  - `Console-Apps/EnrichPodcastWithImages/Processor.cs`
+  - `Console-Apps/FixDatesFromApple/Processor.cs`
+  - `Console-Apps/Tweet/TweetProcessor.cs`
+  - `Console-Apps/KVWriter/KVWriterProcessor.cs`
+  - `Console-Apps/TextClassifierTraining/TrainingDataProcessor.cs`
+  - `Console-Apps/IndexAllEpisodesAudit/IndexAllEpisodesAuditProcessor.cs`
+  - `Console-Apps/EliminateExistingEpisodes/Procesor.cs`
+  - `Console-Apps/Poster/PostProcessor.cs`
+  - `Console-Apps/EnrichExistingEpisodesFromPodcastServices/EnrichPodcastEpisodesProcessor.cs`
 
 ## Phase 1: New Persistence Contracts
 - [ ] Remove episode-embedded query methods from podcast abstraction.
@@ -110,6 +122,7 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 - [x] `Console-Apps/TextClassifierTraining/TrainingDataProcessor.cs`
 - [x] `Console-Apps/IndexAllEpisodesAudit/IndexAllEpisodesAuditProcessor.cs`
 - [x] `Console-Apps/EliminateExistingEpisodes/Procesor.cs`
+- [x] `Console-Apps/EnrichExistingEpisodesFromPodcastServices/EnrichPodcastEpisodesProcessor.cs`
 - [x] `Console-Apps/Poster/PostProcessor.cs`
 - [ ] audit any new embedded-episode usages introduced after this checklist snapshot.
 
