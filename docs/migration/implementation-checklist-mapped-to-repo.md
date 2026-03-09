@@ -36,16 +36,7 @@
 - Runtime/API de-embedding progress includes:
   - `Cloud/Api/Handlers/EpisodeHandler.cs` migrated `Get` endpoint to detached episode + podcast repositories.
   - `Cloud/Api/Handlers/PublicHandler.cs` migrated to detached episode + podcast repositories.
-- Console de-embedding progress includes:
-  - `Console-Apps/RemoveEpisodes/Processor.cs`
-  - `Console-Apps/UnremoveEpisodes/Processor.cs`
-  - `Console-Apps/EnrichPodcastWithImages/Processor.cs`
-  - `Console-Apps/FixDatesFromApple/Processor.cs`
-  - `Console-Apps/Tweet/TweetProcessor.cs`
-  - `Console-Apps/KVWriter/KVWriterProcessor.cs`
-  - `Console-Apps/TextClassifierTraining/TrainingDataProcessor.cs`
-  - `Console-Apps/IndexAllEpisodesAudit/IndexAllEpisodesAuditProcessor.cs`
-  - `Console-Apps/EliminateExistingEpisodes/Procesor.cs`
+  - `Cloud/Api/Services/DiscoveryResultsService.cs` migrated to target podcast + detached episode repositories for visible episode counts.
 
 ## Phase 1: New Persistence Contracts
 - [ ] Remove episode-embedded query methods from podcast abstraction.
@@ -97,7 +88,6 @@
   - [ ] `Class-Libraries/RedditPodcastPoster.Common/PodcastEpisodeProvider.cs`
   - [ ] `Class-Libraries/RedditPodcastPoster.UrlSubmission/Factories/PodcastAndEpisodeFactory.cs`
   - [ ] `Class-Libraries/RedditPodcastPoster.UrlSubmission/PodcastProcessor.cs`
-  - [ ] `Cloud/Api/Services/DiscoveryResultsService.cs`
 
 ## Phase 4: UI and Contract Migration
 - [ ] Add support for `CompactSearchRecord` key names.
