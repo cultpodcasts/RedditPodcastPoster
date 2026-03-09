@@ -25,15 +25,20 @@
   - lookups
   - push subscriptions
   - episodes
+- Search datasource query migration in `Console-Apps/CreateSearchIndex/CreateSearchIndexProcessor.cs` is implemented:
+  - datasource now targets `Episodes` container
+  - query shape switched from `JOIN e IN p.episodes` to `FROM episodes e`
+  - high-watermark semantics now use `e._ts`
+- Episode projection now carries `podcastRemoved` and search filtering uses it in datasource query.
+- `Cloud/Api/Handlers/PodcastHandler.cs` now uses `IPodcastRepositoryV2` with detached episode hydration via `IEpisodeRepository` for podcast metadata fan-out.
 
 ### In Progress
 - Runtime migration from embedded-episode patterns to full repository relationship model is partially complete.
-- Search/query migration is partially complete; full datasource/query and payload-contract parity is not yet fully verified.
+- Reduced-key search payload contract (`CompactSearchRecord`) rollout is pending.
 - Cutover verification is partially complete; sampled parity tooling exists, but full end-to-end production gates are still open.
 
 ### Remaining
 - Remove runtime dependency on embedded `Podcast.Episodes` across API/core/console paths.
-- Complete search datasource transition from embedded-episode query shape to direct episodes query where still pending.
 - Complete reduced-key search contract rollout/validation (`CompactSearchRecord`) and UI compatibility checks.
 - Complete final PR5 release gates (full parity verification, operational checks, no legacy-write guarantees).
 
@@ -55,18 +60,18 @@
 ## Phase 1: New Persistence Contracts
 - [ ] Remove episode-embedded query methods from podcast abstraction.
 - [ ] Keep podcast-only CRUD/query operations.
-- [ ] Add episode-centric operations, for example:
-  - [ ] `GetEpisode(...)`
-  - [ ] `GetByPodcastId(...)`
-  - [ ] `Save(...)`
-  - [ ] `Delete(...)`
-  - [ ] query methods replacing legacy `x.Episodes.Any(...)` patterns.
-- [ ] Remove `Episodes` member.
-- [ ] Add `PodcastId` member.
-- [ ] Ensure JSON metadata and persistence attributes are aligned with Cosmos model.
-- [ ] Add/search-support denormalized fields needed by indexer query (`podcastName`, `podcastSearchTerms`, language strategy).
+- [x] Add episode-centric operations, for example:
+  - [x] `GetEpisode(...)`
+  - [x] `GetByPodcastId(...)`
+  - [x] `Save(...)`
+  - [x] `Delete(...)`
+  - [x] query methods replacing legacy `x.Episodes.Any(...)` patterns.
+- [x] Remove `Episodes` member.
+- [x] Add `PodcastId` member.
+- [x] Ensure JSON metadata and persistence attributes are aligned with Cosmos model.
+- [x] Add/search-support denormalized fields needed by indexer query (`podcastName`, `podcastSearchTerms`, language strategy).
 - [ ] Do not add duplicate compact identifier members for IDs already present (`spotifyId`, `youTubeId`, `appleId`).
-- [ ] Add metadata sync marker for drift detection (for example `podcastMetadataVersion` or `podcastMetadataUpdatedAt`).
+- [x] Add metadata sync marker for drift detection (for example `podcastMetadataVersion` or `podcastMetadataUpdatedAt`).
 - [ ] Introduce reduced-key schema (`CompactSearchRecord`) for search index payload minimization.
 - [ ] Keep schema version marker (for example `sv`) for UI compatibility.
 - [ ] Remove full URL fields from indexed record.
@@ -74,27 +79,27 @@
 
 ## Phase 2: Cosmos Repositories and Container Wiring
 - [ ] Remove embedded-episode mutation logic.
-- [ ] Keep podcast metadata operations only.
-- [ ] Implement `IEpisodeRepository` against `Episodes`.
-- [ ] Use partition key `/podcastId` for point and scoped queries.
+- [x] Keep podcast metadata operations only.
+- [x] Implement `IEpisodeRepository` against `Episodes`.
+- [x] Use partition key `/podcastId` for point and scoped queries.
 - [ ] Align local/file persistence model to separate podcast and episode entities (if required for local tooling/tests).
-- [ ] Register `IEpisodeRepository`.
+- [x] Register `IEpisodeRepository`.
 - [ ] Add feature flag support for model cutover.
 
 ## Phase 3: API/Core Refactor
 - [ ] Replace podcast-embedded episode lookup and mutation.
-- [ ] Use `IEpisodeRepository` for episode lifecycle operations.
-- [ ] Use `IPodcastRepository` only for podcast metadata retrieval.
-- [ ] Replace `podcast.Episodes` usage for counts, selection, and indexing lists.
-- [ ] Query episodes through `IEpisodeRepository` by `podcastId`.
-- [ ] Trigger episode metadata fan-out updates when podcast properties affecting search are changed.
-- [ ] Source episodes via `IEpisodeRepository`.
+- [x] Use `IEpisodeRepository` for episode lifecycle operations.
+- [x] Use `IPodcastRepository` only for podcast metadata retrieval.
+- [x] Replace `podcast.Episodes` usage for counts, selection, and indexing lists.
+- [x] Query episodes through `IEpisodeRepository` by `podcastId`.
+- [x] Trigger episode metadata fan-out updates when podcast properties affecting search are changed.
+- [x] Source episodes via `IEpisodeRepository`.
 - [ ] Ensure index writes map to reduced-key `CompactSearchRecord` contract.
 - [ ] Refactor flows that assume embedded episodes.
 - [ ] Migrate episode processing helpers to repository-driven access.
-- [ ] Replace datasource query in `CreateDataSource` from embedded-episode join to `Episodes`-container query.
-- [ ] Switch high-watermark semantics from `p._ts` to `e._ts`.
-- [ ] Validate query field mapping still matches reduced-key `EpisodeSearchRecord` schema.
+- [x] Replace datasource query in `CreateDataSource` from embedded-episode join to `Episodes`-container query.
+- [x] Switch high-watermark semantics from `p._ts` to `e._ts`.
+- [x] Validate query field mapping still matches reduced-key `EpisodeSearchRecord` schema.
 
 ## Phase 4: UI and Contract Migration
 - [ ] Add support for `CompactSearchRecord` key names.
@@ -118,24 +123,24 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 - [ ] other remaining files returned by static scan for `.Episodes` usage.
 
 ## Phase 6: Migration Tooling
-- [ ] Read legacy `CultPodcasts` documents.
-- [ ] Emit podcasts into `Podcasts`.
-- [ ] Emit episodes into `Episodes` with `podcastId`.
-- [ ] Populate denormalized episode metadata fields needed for search.
-- [ ] Validate existing IDs (`spotifyId`, `youTubeId`, `appleId`) are populated for compact search mapping.
-- [ ] Write reconciliation outputs (counts and mismatch details).
+- [x] Read legacy `CultPodcasts` documents.
+- [x] Emit podcasts into `Podcasts`.
+- [x] Emit episodes into `Episodes` with `podcastId`.
+- [x] Populate denormalized episode metadata fields needed for search.
+- [x] Validate existing IDs (`spotifyId`, `youTubeId`, `appleId`) are populated for compact search mapping.
+- [x] Write reconciliation outputs (counts and mismatch details).
 
 ## Phase 7: Verification and Cutover Readiness
 - [ ] Build solution successfully after removing `Podcast.Episodes`.
 - [ ] Ensure zero references to embedded-episode patterns in runtime paths.
-- [ ] Ensure zero `JOIN e IN p.episodes` in search-index datasource definitions.
+- [x] Ensure zero `JOIN e IN p.episodes` in search-index datasource definitions.
 - [ ] Validate publish/delete/unremove/index/tweet flows.
 - [ ] Validate podcast retrieval and rename side effects.
 - [ ] Validate search indexing continues to produce expected records after datasource query migration.
-- [ ] Validate podcast metadata updates fan out to episodes and surface in search results.
+- [x] Validate podcast metadata updates fan out to episodes and surface in search results.
 - [ ] Validate URL reconstruction in UI from compact keys sourced from existing IDs and Apple URL regex slug derivation.
-- [ ] Match podcast totals.
-- [ ] Match episode totals.
+- [x] Match podcast totals.
+- [x] Match episode totals.
 - [ ] Match per-podcast episode counts.
 - [ ] Match search index document totals and sampled search fields between old and new query model.
 - [ ] Validate RU and latency profile on `Episodes`.

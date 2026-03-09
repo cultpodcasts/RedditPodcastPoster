@@ -47,6 +47,15 @@ Key changes:
 - Derive Apple slug from Apple URL via regex instead of storing additional slug member on Episode.
 - Introduce/enable feature flag (for example UseRelationshipModel) for controlled rollout.
 
+### Progress update
+- Completed:
+  - `CreateSearchIndexProcessor.CreateDataSource` now queries detached episodes (`FROM episodes e`) and uses `e._ts` high-watermark.
+  - Search datasource filter now includes `e.podcastRemoved` support.
+  - `PodcastHandler` migrated to `IPodcastRepositoryV2` and detached episode metadata hydration with `IEpisodeRepository`.
+- Remaining in PR2:
+  - finish all episode/podcast runtime paths still relying on embedded episode assumptions.
+  - finalize reduced-key search contract (`CompactSearchRecord`) implementation and validation.
+
 ### Exit criteria
 - API parity tests pass in legacy and relationship-model modes.
 - Critical episode workflows function with new repositories.
