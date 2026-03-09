@@ -92,6 +92,10 @@ public class Episode
     [JsonPropertyOrder(93)]
     public long? PodcastMetadataVersion { get; set; }
 
+    [JsonPropertyName("podcastRemoved")]
+    [JsonPropertyOrder(94)]
+    public bool? PodcastRemoved { get; set; }
+
     [JsonPropertyName("images")]
     [JsonPropertyOrder(150)]
     public EpisodeImages? Images { get; set; }

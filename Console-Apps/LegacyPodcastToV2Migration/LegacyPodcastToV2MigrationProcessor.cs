@@ -565,6 +565,7 @@ public class LegacyPodcastToV2MigrationProcessor(
             PodcastSearchTerms = legacyPodcast.SearchTerms,
             SearchLanguage = legacyEpisode.Language ?? legacyPodcast.Language,
             PodcastMetadataVersion = null,
+            PodcastRemoved = legacyPodcast.Removed,
             Images = legacyEpisode.Images,
             TwitterHandles = legacyEpisode.TwitterHandles,
             BlueskyHandles = legacyEpisode.BlueskyHandles
@@ -803,6 +804,7 @@ public class LegacyPodcastToV2MigrationProcessor(
                expected.PodcastName == target.PodcastName &&
                expected.PodcastSearchTerms == target.PodcastSearchTerms &&
                expected.SearchLanguage == target.SearchLanguage &&
+               expected.PodcastRemoved == target.PodcastRemoved &&
                AreEpisodeImagesEqual(expected.Images, target.Images) &&
                SequenceEqual(expected.TwitterHandles, target.TwitterHandles) &&
                SequenceEqual(expected.BlueskyHandles, target.BlueskyHandles);

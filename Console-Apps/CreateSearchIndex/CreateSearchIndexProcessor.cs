@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Azure;
@@ -107,7 +107,8 @@ public partial class CreateSearchIndexProcessor(
                             e.searchLang as lang,
                             e._ts
                             FROM episodes e
-                            WHERE ((NOT IS_DEFINED(e.removed)) OR e.removed=false)
+                            WHERE ((NOT IS_DEFINED(e.podcastRemoved)) OR e.podcastRemoved=false)
+                              and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)
                               and e._ts >= @HighWaterMark
                             ORDER BY e._ts";
         query = Whitespace.Replace(query, " ").Trim();

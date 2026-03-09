@@ -9,3 +9,6 @@
 
 ## Container Creation
 - User prefers explicit container factory methods `CreatePodcastsContainer()` and `CreateEpisodesContainer()` instead of `Create(string containerName)`.
+
+## Tooling Preferences
+- User does not want unrelated secret-management tooling invoked during code-edit/debug tasks; only use tools directly relevant to the requested change.
