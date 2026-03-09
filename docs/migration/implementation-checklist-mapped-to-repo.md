@@ -174,14 +174,14 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 - [ ] Perform final adapter review for all `servicePodcast`, `serviceEpisode`, `legacyPodcast`, and `legacyEpisode` instances, and eliminate non-migration-path usages.
 
 ## Phase 8: Legacy Decommissioning Targets (Current Priority)
-- [ ] Migrate `ITweetPoster` signatures and implementations to `PodcastEpisodeV2`.
-- [ ] Migrate `IBlueskyPoster` signatures and implementations to `PodcastEpisodeV2`.
-- [ ] Migrate `IShortnerService` signatures and implementations to `PodcastEpisodeV2`.
-- [ ] Remove runtime `.ToLegacy()` boundaries in:
-  - [ ] `Console-Apps/Poster/PostProcessor.cs`
-  - [ ] `Class-Libraries/RedditPodcastPoster.Twitter/Tweeter.cs`
-  - [ ] `Class-Libraries/RedditPodcastPoster.Bluesky/BlueskyPostManager.cs`
-  - [ ] `Cloud/Api/Handlers/EpisodeHandler.cs`
+- [x] Migrate `ITweetPoster` signatures and implementations to `PodcastEpisodeV2`.
+- [x] Migrate `IBlueskyPoster` signatures and implementations to `PodcastEpisodeV2`.
+- [x] Migrate `IShortnerService` signatures and implementations to `PodcastEpisodeV2`.
+- [x] Remove runtime `.ToLegacy()` boundaries in:
+  - [x] `Console-Apps/Poster/PostProcessor.cs`
+  - [x] `Class-Libraries/RedditPodcastPoster.Twitter/Tweeter.cs`
+  - [x] `Class-Libraries/RedditPodcastPoster.Bluesky/BlueskyPostManager.cs`
+  - [x] `Cloud/Api/Handlers/EpisodeHandler.cs`
 - [ ] Remove temporary legacy compatibility overloads once no callers remain:
   - [ ] `Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify/Factories/FindSpotifyEpisodeRequestFactory.cs`
   - [ ] `Class-Libraries/RedditPodcastPoster.PodcastServices.Apple/FindAppleEpisodeRequestFactory.cs`

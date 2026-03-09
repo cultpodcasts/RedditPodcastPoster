@@ -8,6 +8,7 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 - Search datasource has been migrated to detached episodes query (`FROM episodes e`) with `e._ts` high-watermark semantics.
 - `podcastRemoved` hydration/filtering is implemented for episode search filtering.
 - Runtime update flow now uses `PodcastUpdater` as the default `IPodcastUpdater` implementation over detached episodes (`IEpisodeRepository`).
+- Social + shortener contract chain now uses detached episode pairs in active runtime paths.
 - Build is currently green after latest migration pass.
 - Remaining work is focused on final legacy decommissioning outside `PodcastRepository` and `LegacyPodcastToV2Migration`, plus reduced-key search contract rollout (`CompactSearchRecord`).
 

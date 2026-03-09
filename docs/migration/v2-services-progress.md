@@ -6,7 +6,8 @@ This document tracks the creation and adoption of detached-episode services via 
 ## Current status update
 - Runtime default updater is now `PodcastUpdater` (detached episode flow).
 - Historical references to `PodcastUpdaterV2` as default should be treated as milestone history, not current runtime state.
-- Current priority is decommissioning remaining legacy runtime contracts outside `PodcastRepository` and `LegacyPodcastToV2Migration`.
+- Social + shortener contract chain now uses `PodcastEpisodeV2` end-to-end in active runtime paths.
+- Current decommission focus is removal of remaining compatibility helpers/overloads and retirement of legacy duplicate service variants.
 
 ## Completed V2 Services
 
@@ -130,8 +131,8 @@ All V2 services are registered in DI:
 
 ### Current State: Decommission Phase
 - ✅ Detached-episode services are active across core runtime flows.
-- 🔄 Legacy contracts remain at a small set of boundaries (social + shortener + selected helpers).
-- 🔄 Active work is removing those boundaries and retiring legacy service variants.
+- ✅ Social + shortener boundaries have been migrated to `PodcastEpisodeV2` contracts.
+- 🔄 Active work is removing compatibility helpers/overloads and retiring legacy duplicate variants.
 
 ### Next Steps
 
@@ -223,14 +224,13 @@ public class Consumer(IServiceV2 service)
 ## Known Limitations
 
 ### Temporary Limitations
-1. V2 services still use legacy `Podcast` and `Episode` models internally for compatibility
-2. Some logic duplication between legacy and V2 implementations
-3. Conversion overhead from V2 to legacy models
+1. Some compatibility helpers still exist during final decommission sequencing.
+2. Some logic duplication remains between legacy and detached implementations.
 
 ### Future Improvements
-1. Refactor internal logic to work directly with V2 models
-2. Extract shared filtering logic into common utilities
-3. Remove conversion methods once legacy removed
+1. Remove remaining compatibility helpers once last callers are migrated.
+2. Retire legacy duplicate service variants.
+3. Remove conversion methods once legacy runtime usage is fully constrained to `PodcastRepository` and `LegacyPodcastToV2Migration`.
 
 ## Build Status
 ✅ **All code compiles successfully**
@@ -240,25 +240,25 @@ public class Consumer(IServiceV2 service)
 ## Completed Migrations
 
 ### Console Processors
-- ✅ `AddAudioPodcastProcessor` - uses `PodcastUpdaterV2`
+- ✅ `AddAudioPodcastProcessor` - uses detached repositories
 - ✅ `EnrichYouTubePodcastProcessor` - uses `IEpisodeRepository` directly
-- ✅ `TweetProcessor` - Uses V2 repositories + extension methods
-- ✅ `PostProcessor` - Uses `IPodcastEpisodeProviderV2` + `.ToLegacy()` at boundaries
+- ✅ `TweetProcessor` - Uses detached repositories and detached pair contracts
+- ✅ `PostProcessor` - Uses detached episode provider and detached social/shortener contracts
 
 ### ✅ API Handlers
-1. **SubmitUrlHandler** - Uses `IUrlSubmitterV2` and `IPodcastRepositoryV2` → detached episodes
-2. **EpisodeHandler** - Already uses `IPodcastRepositoryV2` and `IEpisodeRepository` → detached episodes
+1. **SubmitUrlHandler** - Uses detached repositories/services
+2. **EpisodeHandler** - Uses detached episode + podcast repositories and detached social/shortener contracts
 
 ### 🔄 Remaining Consumers
-- Other API handlers (if they use legacy services)
-- Any remaining console processors
+- Any remaining runtime callers of legacy duplicate provider/poster services
+- Any remaining callers of temporary compatibility overloads
 
 ---
 
 ## Next Session Tasks
 
-1. **Add unit tests** for V2 services ⚠️ **HIGH PRIORITY**
-2. **Integration tests** against Cosmos DB
-3. **Audit remaining API handlers** for legacy service usage
-4. **Performance testing** of V2 services
-5. **Register PodcastUpdaterV2** as default `IPodcastUpdater`
+1. Remove temporary compatibility overloads (`FindSpotifyEpisodeRequestFactory`, `FindAppleEpisodeRequestFactory`)
+2. Remove obsolete conversion helpers when no longer referenced
+3. Retire legacy provider/poster duplicate services
+4. Add unit and integration coverage for decommissioned paths
+5. Continue `CompactSearchRecord` rollout work
