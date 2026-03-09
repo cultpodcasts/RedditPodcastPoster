@@ -22,7 +22,7 @@ public class PodcastEpisodeFilterV2(
     private readonly DelayedYouTubePublication _delayedYouTubePublicationSettings =
         delayedYouTubePublicationSettings.Value;
 
-    public async Task<IEnumerable<PodcastEpisodeV2>> GetNewEpisodesReleasedSinceV2(
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetNewEpisodesReleasedSince(
         Guid podcastId,
         DateTime since,
         bool youTubeRefreshed,
@@ -60,7 +60,7 @@ public class PodcastEpisodeFilterV2(
             EliminateItemsDueToIndexingErrors(x.ToLegacy(), youTubeRefreshed, spotifyRefreshed));
     }
 
-    public async Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentUntweetedEpisodesV2(
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentUntweetedEpisodes(
         Guid podcastId,
         int numberOfDays)
     {
@@ -95,7 +95,7 @@ public class PodcastEpisodeFilterV2(
         return podcastEpisodes;
     }
 
-    public async Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentBlueskyReadyEpisodesV2(
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentBlueskyReadyEpisodes(
         Guid podcastId,
         int numberOfDays)
     {
@@ -129,32 +129,6 @@ public class PodcastEpisodeFilterV2(
         }
 
         return podcastEpisodes;
-    }
-
-    public async Task<IEnumerable<PodcastEpisode>> GetNewEpisodesReleasedSince(
-        Guid podcastId,
-        DateTime since,
-        bool youTubeRefreshed,
-        bool spotifyRefreshed)
-    {
-        var v2Results = await GetNewEpisodesReleasedSinceV2(podcastId, since, youTubeRefreshed, spotifyRefreshed);
-        return v2Results.Select(x => x.ToLegacy());
-    }
-
-    public async Task<IEnumerable<PodcastEpisode>> GetMostRecentUntweetedEpisodes(
-        Guid podcastId,
-        int numberOfDays)
-    {
-        var v2Results = await GetMostRecentUntweetedEpisodesV2(podcastId, numberOfDays);
-        return v2Results.Select(x => x.ToLegacy());
-    }
-
-    public async Task<IEnumerable<PodcastEpisode>> GetMostRecentBlueskyReadyEpisodes(
-        Guid podcastId,
-        int numberOfDays)
-    {
-        var v2Results = await GetMostRecentBlueskyReadyEpisodesV2(podcastId, numberOfDays);
-        return v2Results.Select(x => x.ToLegacy());
     }
 
     public bool IsRecentlyExpiredDelayedPublishing(Podcast podcast, Episode episode)

@@ -7,6 +7,7 @@ using RedditPodcastPoster.Common.Adaptors;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher;
+using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.UrlShortening;
@@ -27,7 +28,7 @@ public class PostProcessor(
     IBlueskyPoster blueSkyPoster,
     IBlueskyPostManager blueskyPostManager,
     IShortnerService shortnerService,
-    IPodcastEpisodeProvider podcastEpisodeProvider,
+    IPodcastEpisodeProviderV2 podcastEpisodeProvider,
     ILogger<PostProcessor> logger)
 {
     public async Task Process(PostRequest request)
@@ -128,8 +129,8 @@ public class PostProcessor(
                 throw new ArgumentException($"Podcast with id '{episode.PodcastId}' not found for episode-id '{request.EpisodeId.Value}'.");
             }
 
-            var selectedEpisode = ToLegacyEpisode(episode);
-            var podcastEpisode = new PodcastEpisode(ToLegacyPodcast(selectedPodcast), selectedEpisode);
+            var selectedEpisode = episode.ToLegacyEpisode();
+            var podcastEpisode = new PodcastEpisode(selectedPodcast.ToLegacyPodcast(), selectedEpisode);
 
             var shortnerResult = await shortnerService.Write(podcastEpisode);
             if (!shortnerResult.Success)
@@ -192,13 +193,13 @@ public class PostProcessor(
                         .FirstOrDefault();
                     if (mostRecent != null)
                     {
-                        var shortnerResult = await shortnerService.Write(mostRecent);
+                        var shortnerResult = await shortnerService.Write(mostRecent.ToLegacy());
                         if (!shortnerResult.Success)
                         {
                             logger.LogError("Unsuccessful shortening-url.");
                         }
 
-                        await TweetEpisode(mostRecent, shortnerResult.Url);
+                        await TweetEpisode(mostRecent.ToLegacy(), shortnerResult.Url);
                     }
                 }
 
@@ -210,13 +211,13 @@ public class PostProcessor(
                         .FirstOrDefault();
                     if (mostRecent != null)
                     {
-                        var shortnerResult = await shortnerService.Write(mostRecent);
+                        var shortnerResult = await shortnerService.Write(mostRecent.ToLegacy());
                         if (!shortnerResult.Success)
                         {
                             logger.LogError("Unsuccessful shortening-url.");
                         }
 
-                        await PostBluesky(mostRecent, shortnerResult.Url);
+                        await PostBluesky(mostRecent.ToLegacy(), shortnerResult.Url);
                     }
                 }
             }
@@ -283,8 +284,8 @@ public class PostProcessor(
                 throw new ArgumentException($"Podcast with id '{podcastIds.Single()}' not found.");
             }
 
-            var selectedEpisode = ToLegacyEpisode(detachedEpisode);
-            var selectedPodcastLegacy = ToLegacyPodcast(selectedPodcast);
+            var selectedEpisode = detachedEpisode.ToLegacyEpisode();
+            var selectedPodcastLegacy = selectedPodcast.ToLegacyPodcast();
 
             if (selectedEpisode.Ignored && request.FlipIgnored)
             {
@@ -336,80 +337,5 @@ public class PostProcessor(
                 }
             }
         }
-    }
-
-    private static RedditPodcastPoster.Models.Podcast ToLegacyPodcast(RedditPodcastPoster.Models.V2.Podcast podcast)
-    {
-        return new RedditPodcastPoster.Models.Podcast(podcast.Id)
-        {
-            Name = podcast.Name,
-            Language = podcast.Language,
-            Removed = podcast.Removed,
-            Publisher = podcast.Publisher,
-            Bundles = podcast.Bundles,
-            IndexAllEpisodes = podcast.IndexAllEpisodes,
-            IgnoreAllEpisodes = podcast.IgnoreAllEpisodes,
-            BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking,
-            MinimumDuration = podcast.MinimumDuration,
-            ReleaseAuthority = podcast.ReleaseAuthority,
-            PrimaryPostService = podcast.PrimaryPostService,
-            SpotifyId = podcast.SpotifyId,
-            SpotifyMarket = podcast.SpotifyMarket,
-            SpotifyEpisodesQueryIsExpensive = podcast.SpotifyEpisodesQueryIsExpensive,
-            AppleId = podcast.AppleId,
-            YouTubeChannelId = podcast.YouTubeChannelId,
-            YouTubePlaylistId = podcast.YouTubePlaylistId,
-            YouTubePublicationOffset = podcast.YouTubePublicationOffset,
-            YouTubePlaylistQueryIsExpensive = podcast.YouTubePlaylistQueryIsExpensive,
-            SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube,
-            YouTubeNotificationSubscriptionLeaseExpiry = podcast.YouTubeNotificationSubscriptionLeaseExpiry,
-            TwitterHandle = podcast.TwitterHandle,
-            BlueskyHandle = podcast.BlueskyHandle,
-            HashTag = podcast.HashTag,
-            EnrichmentHashTags = podcast.EnrichmentHashTags,
-            TitleRegex = podcast.TitleRegex,
-            DescriptionRegex = podcast.DescriptionRegex,
-            EpisodeMatchRegex = podcast.EpisodeMatchRegex,
-            EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex,
-            IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
-            IgnoredSubjects = podcast.IgnoredSubjects,
-            DefaultSubject = podcast.DefaultSubject,
-            SearchTerms = podcast.SearchTerms,
-            KnownTerms = podcast.KnownTerms,
-            FileKey = podcast.FileKey,
-            Timestamp = podcast.Timestamp
-        };
-    }
-
-    private static RedditPodcastPoster.Models.Episode ToLegacyEpisode(V2Episode episode)
-    {
-        return new RedditPodcastPoster.Models.Episode
-        {
-            Id = episode.Id,
-            PodcastId = episode.PodcastId,
-            PodcastName = episode.PodcastName,
-            PodcastSearchTerms = episode.PodcastSearchTerms,
-            SearchLanguage = episode.SearchLanguage,
-            Title = episode.Title,
-            Description = episode.Description,
-            Release = episode.Release,
-            Length = episode.Length,
-            Explicit = episode.Explicit,
-            Posted = episode.Posted,
-            Tweeted = episode.Tweeted,
-            BlueskyPosted = episode.BlueskyPosted,
-            Ignored = episode.Ignored,
-            Removed = episode.Removed,
-            SpotifyId = episode.SpotifyId,
-            AppleId = episode.AppleId,
-            YouTubeId = episode.YouTubeId,
-            Urls = episode.Urls,
-            Subjects = episode.Subjects,
-            SearchTerms = episode.SearchTerms,
-            Images = episode.Images,
-            Language = episode.SearchLanguage,
-            TwitterHandles = episode.TwitterHandles,
-            BlueskyHandles = episode.BlueskyHandles
-        };
     }
 }

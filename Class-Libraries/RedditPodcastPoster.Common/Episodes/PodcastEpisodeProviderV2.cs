@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
-using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
@@ -19,7 +18,7 @@ public class PodcastEpisodeProviderV2(
 {
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
-    public async Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetUntweetedPodcastEpisodes(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
@@ -27,29 +26,25 @@ public class PodcastEpisodeProviderV2(
             nameof(GetUntweetedPodcastEpisodes),
             _postingCriteria.TweetDays);
 
-        var dateTime = DateTimeExtensions.DaysAgo(_postingCriteria.TweetDays);
-        
-        // Get all podcast IDs from V2 repository
         var allPodcasts = await podcastRepository.GetAll().ToListAsync();
-        var podcastEpisodes = new List<PodcastEpisode>();
+        var podcastEpisodes = new List<PodcastEpisodeV2>();
 
         foreach (var podcast in allPodcasts)
         {
             var filtered = await podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
                 podcast.Id,
                 _postingCriteria.TweetDays);
-            
-            // Filter based on refresh status
+
             var validEpisodes = filtered.Where(pe =>
                 EliminateItemsDueToIndexingErrors(pe, youTubeRefreshed, spotifyRefreshed));
-            
+
             podcastEpisodes.AddRange(validEpisodes);
         }
 
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
     }
 
-    public async Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(Guid podcastId)
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetUntweetedPodcastEpisodes(Guid podcastId)
     {
         logger.LogInformation("Exec {method}, podcast-id: {podcastId} init. Tweet-days: '{tweetDays}'",
             nameof(GetUntweetedPodcastEpisodes),
@@ -63,7 +58,7 @@ public class PodcastEpisodeProviderV2(
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
     }
 
-    public async Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetBlueskyReadyPodcastEpisodes(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
@@ -72,24 +67,24 @@ public class PodcastEpisodeProviderV2(
             _postingCriteria.TweetDays);
 
         var allPodcasts = await podcastRepository.GetAll().ToListAsync();
-        var podcastEpisodes = new List<PodcastEpisode>();
+        var podcastEpisodes = new List<PodcastEpisodeV2>();
 
         foreach (var podcast in allPodcasts)
         {
             var filtered = await podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes(
                 podcast.Id,
                 _postingCriteria.TweetDays);
-            
+
             var validEpisodes = filtered.Where(pe =>
                 EliminateItemsDueToIndexingErrors(pe, youTubeRefreshed, spotifyRefreshed));
-            
+
             podcastEpisodes.AddRange(validEpisodes);
         }
 
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
     }
 
-    public async Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(Guid podcastId)
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetBlueskyReadyPodcastEpisodes(Guid podcastId)
     {
         logger.LogInformation("Exec {method}, podcast-id: {podcastId} init. Tweet-days: '{tweetDays}'",
             nameof(GetBlueskyReadyPodcastEpisodes),
@@ -104,7 +99,7 @@ public class PodcastEpisodeProviderV2(
     }
 
     private bool EliminateItemsDueToIndexingErrors(
-        PodcastEpisode podcastEpisode,
+        PodcastEpisodeV2 podcastEpisode,
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {

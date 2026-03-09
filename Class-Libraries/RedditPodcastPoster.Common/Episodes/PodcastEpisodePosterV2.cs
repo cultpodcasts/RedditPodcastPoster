@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Factories;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Common.Episodes;
@@ -19,42 +20,30 @@ public class PodcastEpisodePosterV2(
     private static readonly TimeSpan BundledEpisodeReleaseThreshold = TimeSpan.FromDays(7);
 
     public async Task<ProcessResponse> PostPodcastEpisode(
-        PodcastEpisode podcastEpisode,
+        PodcastEpisodeV2 podcastEpisode,
         bool preferYouTube = false)
     {
         try
         {
-            var episodes = await GetEpisodes(podcastEpisode);
-            var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, episodes), preferYouTube);
+            var v2Episodes = await GetEpisodesV2(podcastEpisode);
+            
+            // Convert to legacy for PostModelFactory (temporary until factory supports V2)
+            var legacyPodcast = podcastEpisode.Podcast.ToLegacyPodcast();
+            var legacyEpisodes = v2Episodes.Select(e => e.ToLegacyEpisode()).ToArray();
+            
+            var postModel = postModelFactory.ToPostModel((legacyPodcast, legacyEpisodes), preferYouTube);
             var result = await episodePostManager.Post(postModel);
 
             if (result.Success)
             {
-                // Load V2 episodes and mark as posted
-                var episodeIds = episodes.Select(e => e.Id).ToList();
-                var v2Episodes = new List<Models.V2.Episode>();
-
-                foreach (var episodeId in episodeIds)
+                // Mark V2 episodes as posted
+                foreach (var v2Episode in v2Episodes)
                 {
-                    var v2Episode = await episodeRepository.GetEpisode(podcastEpisode.Podcast.Id, episodeId);
-                    if (v2Episode != null)
-                    {
-                        v2Episode.Posted = true;
-                        v2Episodes.Add(v2Episode);
-                    }
-                    else
-                    {
-                        logger.LogWarning(
-                            "Episode with id '{EpisodeId}' not found in detached repository for podcast '{PodcastId}'.",
-                            episodeId, podcastEpisode.Podcast.Id);
-                    }
+                    v2Episode.Posted = true;
                 }
 
                 // Save updated episodes
-                if (v2Episodes.Any())
-                {
-                    await episodeRepository.Save(v2Episodes);
-                }
+                await episodeRepository.Save(v2Episodes);
             }
 
             return result;
@@ -68,9 +57,9 @@ public class PodcastEpisodePosterV2(
         }
     }
 
-    private async Task<Episode[]> GetEpisodes(PodcastEpisode matchingPodcastEpisode)
+    private async Task<List<Models.V2.Episode>> GetEpisodesV2(PodcastEpisodeV2 matchingPodcastEpisode)
     {
-        var orderedBundleEpisodes = Array.Empty<Episode>();
+        var orderedBundleEpisodes = new List<Models.V2.Episode>();
 
         if (matchingPodcastEpisode.Podcast.Bundles &&
             !string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex))
@@ -82,12 +71,12 @@ public class PodcastEpisodePosterV2(
                 var partNumber = titleMatch.Result("${partnumber}");
                 if (int.TryParse(partNumber, out _))
                 {
-                    orderedBundleEpisodes = (await GetOrderedBundleEpisodes(matchingPodcastEpisode)).ToArray();
+                    orderedBundleEpisodes = (await GetOrderedBundleEpisodesV2(matchingPodcastEpisode)).ToList();
                 }
             }
         }
 
-        if (orderedBundleEpisodes.Length == 0)
+        if (orderedBundleEpisodes.Count == 0)
         {
             orderedBundleEpisodes = [matchingPodcastEpisode.Episode];
         }
@@ -95,7 +84,7 @@ public class PodcastEpisodePosterV2(
         return orderedBundleEpisodes;
     }
 
-    private async Task<IOrderedEnumerable<Episode>> GetOrderedBundleEpisodes(PodcastEpisode matchingPodcastEpisode)
+    private async Task<IOrderedEnumerable<Models.V2.Episode>> GetOrderedBundleEpisodesV2(PodcastEpisodeV2 matchingPodcastEpisode)
     {
         if (string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex))
         {
@@ -108,9 +97,8 @@ public class PodcastEpisodePosterV2(
         
         // Load episodes from detached repository
         var v2Episodes = await episodeRepository.GetByPodcastId(matchingPodcastEpisode.Podcast.Id).ToListAsync();
-        var legacyEpisodes = v2Episodes.Select(ToLegacyEpisode).ToList();
 
-        var bundleEpisodes = legacyEpisodes
+        var bundleEpisodes = v2Episodes
             .Where(x => Math.Abs((matchingPodcastEpisode.Episode.Release - x.Release).Ticks) <
                         BundledEpisodeReleaseThreshold.Ticks)
             .Where(x => x.Title.Contains(rawTitle) && podcastTitleRegex.Match(x.Title).Success);
@@ -124,33 +112,5 @@ public class PodcastEpisodePosterV2(
         );
         
         return orderedBundleEpisodes;
-    }
-
-    private static Episode ToLegacyEpisode(Models.V2.Episode v2Episode)
-    {
-        return new Episode
-        {
-            Id = v2Episode.Id,
-            Title = v2Episode.Title,
-            Description = v2Episode.Description,
-            Release = v2Episode.Release,
-            Length = v2Episode.Length,
-            Explicit = v2Episode.Explicit,
-            Posted = v2Episode.Posted,
-            Tweeted = v2Episode.Tweeted,
-            BlueskyPosted = v2Episode.BlueskyPosted,
-            Ignored = v2Episode.Ignored,
-            Removed = v2Episode.Removed,
-            SpotifyId = v2Episode.SpotifyId,
-            AppleId = v2Episode.AppleId,
-            YouTubeId = v2Episode.YouTubeId,
-            Urls = v2Episode.Urls,
-            Subjects = v2Episode.Subjects,
-            SearchTerms = v2Episode.SearchTerms,
-            Language = v2Episode.SearchLanguage,
-            Images = v2Episode.Images,
-            TwitterHandles = v2Episode.TwitterHandles,
-            BlueskyHandles = v2Episode.BlueskyHandles
-        };
     }
 }

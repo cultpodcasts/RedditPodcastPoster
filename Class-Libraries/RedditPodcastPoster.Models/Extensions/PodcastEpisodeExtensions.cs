@@ -37,27 +37,9 @@ public static class PodcastEpisodeExtensions
     }
 
     /// <summary>
-    /// Converts a V2 PodcastEpisode to legacy PodcastEpisode.
+    /// Converts a V2 Podcast to legacy Podcast (without episodes).
     /// </summary>
-    public static PodcastEpisode ToLegacy(this PodcastEpisodeV2 v2PodcastEpisode)
-    {
-        var legacyPodcast = ToLegacyPodcast(v2PodcastEpisode.Podcast);
-        var legacyEpisode = v2PodcastEpisode.Episode.ToLegacyEpisode();
-        return new PodcastEpisode(legacyPodcast, legacyEpisode);
-    }
-
-    /// <summary>
-    /// Converts a legacy PodcastEpisode to V2 PodcastEpisode.
-    /// Note: This should only be used during transition - prefer loading from V2 repositories.
-    /// </summary>
-    public static PodcastEpisodeV2 ToV2(this PodcastEpisode legacyPodcastEpisode)
-    {
-        var v2Podcast = ToV2Podcast(legacyPodcastEpisode.Podcast);
-        var v2Episode = ToV2Episode(legacyPodcastEpisode.Podcast, legacyPodcastEpisode.Episode);
-        return new PodcastEpisodeV2(v2Podcast, v2Episode);
-    }
-
-    private static Podcast ToLegacyPodcast(Models.V2.Podcast v2Podcast)
+    public static Podcast ToLegacyPodcast(this Models.V2.Podcast v2Podcast)
     {
         return new Podcast(v2Podcast.Id)
         {
@@ -99,6 +81,27 @@ public static class PodcastEpisodeExtensions
             Timestamp = v2Podcast.Timestamp,
             Episodes = [] // Empty - episodes are detached in V2
         };
+    }
+
+    /// <summary>
+    /// Converts a V2 PodcastEpisode to legacy PodcastEpisode.
+    /// </summary>
+    public static PodcastEpisode ToLegacy(this PodcastEpisodeV2 v2PodcastEpisode)
+    {
+        var legacyPodcast = v2PodcastEpisode.Podcast.ToLegacyPodcast();
+        var legacyEpisode = v2PodcastEpisode.Episode.ToLegacyEpisode();
+        return new PodcastEpisode(legacyPodcast, legacyEpisode);
+    }
+
+    /// <summary>
+    /// Converts a legacy PodcastEpisode to V2 PodcastEpisode.
+    /// Note: This should only be used during transition - prefer loading from V2 repositories.
+    /// </summary>
+    public static PodcastEpisodeV2 ToV2(this PodcastEpisode legacyPodcastEpisode)
+    {
+        var v2Podcast = ToV2Podcast(legacyPodcastEpisode.Podcast);
+        var v2Episode = ToV2Episode(legacyPodcastEpisode.Podcast, legacyPodcastEpisode.Episode);
+        return new PodcastEpisodeV2(v2Podcast, v2Episode);
     }
 
     private static Models.V2.Podcast ToV2Podcast(Podcast legacyPodcast)
