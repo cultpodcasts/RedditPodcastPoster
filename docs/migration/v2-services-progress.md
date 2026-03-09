@@ -10,17 +10,19 @@ This document tracks the creation of V2 service variants that work with detached
 **1. IPodcastEpisodeFilterV2 / PodcastEpisodeFilterV2**
 - Location: `Class-Libraries\RedditPodcastPoster.Common\Episodes\`
 - Purpose: Filters episodes from detached `IEpisodeRepository`
+- **Returns:** `PodcastEpisodeV2` (V2 models only)
 - Key Methods:
   - `GetNewEpisodesReleasedSince()` - Episodes ready to post
   - `GetMostRecentUntweetedEpisodes()` - Episodes needing tweets
   - `GetMostRecentBlueskyReadyEpisodes()` - Episodes ready for Bluesky
   - `IsRecentlyExpiredDelayedPublishing()` - Delayed publishing check
 - Dependencies: `IPodcastRepositoryV2`, `IEpisodeRepository`
-- Converts V2 models to legacy for compatibility
+- Converts V2 models to legacy internally for business logic compatibility
 
 **2. IPodcastEpisodeProviderV2 / PodcastEpisodeProviderV2**
 - Location: `Class-Libraries\RedditPodcastPoster.Common\Episodes\`
 - Purpose: Provides podcast episodes across all podcasts
+- **Returns:** `PodcastEpisodeV2` (V2 models only)
 - Key Methods:
   - `GetUntweetedPodcastEpisodes()` - All untweeted episodes
   - `GetUntweetedPodcastEpisodes(Guid)` - For specific podcast
@@ -32,6 +34,7 @@ This document tracks the creation of V2 service variants that work with detached
 **3. IPodcastEpisodePosterV2 / PodcastEpisodePosterV2**
 - Location: `Class-Libraries\RedditPodcastPoster.Common\Episodes\`
 - Purpose: Posts podcast episodes and updates posted status in detached repository
+- **Accepts:** `PodcastEpisodeV2` (V2 models only)
 - Key Methods:
   - `PostPodcastEpisode()` - Posts episode(s) and marks as posted
 - Features:
@@ -102,36 +105,48 @@ All V2 services are registered in DI:
 All V2 services follow this pattern:
 
 ```csharp
+// V2 Interface - Returns ONLY V2 models
+public interface IServiceV2
+{
+    Task<IEnumerable<PodcastEpisodeV2>> GetEpisodes(Guid podcastId);
+    // No legacy methods - pure V2
+}
+
+// V2 Implementation
 public class ServiceV2(
     IPodcastRepositoryV2 podcastRepository,
-    IEpisodeRepository episodeRepository,
-    // other deps
+    IEpisodeRepository episodeRepository
 ) : IServiceV2
 {
-    public async Task<Result> MethodAsync(Guid podcastId)
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetEpisodes(Guid podcastId)
     {
-        // 1. Load V2 podcast
+        // 1. Load V2 models
         var v2Podcast = await podcastRepository.GetBy(x => x.Id == podcastId);
-        
-        // 2. Load detached episodes
         var v2Episodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();
         
-        // 3. Convert to legacy for compatibility with existing logic
-        var legacyPodcast = ToLegacyPodcast(v2Podcast, legacyEpisodes);
-        var legacyEpisodes = v2Episodes.Select(ToLegacyEpisode).ToList();
-        
-        // 4. Perform operations
-        // ...
-        
-        // 5. Save changes via V2 repositories
-        await episodeRepository.Save(updatedEpisodes);
-        await podcastRepository.Save(v2Podcast);
+        // 2. Create V2 pairs directly - no conversion!
+        return v2Episodes.Select(e => new PodcastEpisodeV2(v2Podcast, e));
     }
-    
-    private static Episode ToLegacyEpisode(Models.V2.Episode v2) { /* ... */ }
-    private static Podcast ToLegacyPodcast(Models.V2.Podcast v2, List<Episode> episodes) { /* ... */ }
+}
+
+// Consumer - Convert at boundary if needed
+public class Consumer(IServiceV2 service)
+{
+    public async Task Process()
+    {
+        var v2Episodes = await service.GetEpisodes(podcastId);
+        
+        // If legacy models needed, convert at boundary:
+        var legacyEpisodes = v2Episodes.Select(x => x.ToLegacy());
+    }
 }
 ```
+
+### Key Principles
+- ✅ V2 interfaces return **only** V2 models (`PodcastEpisodeV2`)
+- ✅ No method name suffixes (`*V2`) - the interface name indicates it's V2
+- ✅ Conversion happens at **boundaries** (consumer's responsibility)
+- ✅ Clean separation: use legacy OR V2, not both in same interface
 
 ### Key Benefits
 - ✅ Works with detached episodes

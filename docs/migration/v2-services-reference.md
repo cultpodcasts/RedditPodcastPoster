@@ -32,16 +32,17 @@ All V2 services follow a consistent pattern:
 
 #### IPodcastEpisodeFilterV2
 **Purpose:** Filter episodes based on various criteria (tweets, Bluesky, posting)
+**Returns:** `PodcastEpisodeV2` (V2 models only - no legacy methods)
 
 **Methods:**
 ```csharp
-Task<IEnumerable<PodcastEpisode>> GetNewEpisodesReleasedSince(
+Task<IEnumerable<PodcastEpisodeV2>> GetNewEpisodesReleasedSince(
     Guid podcastId, DateTime since, bool youTubeRefreshed, bool spotifyRefreshed);
 
-Task<IEnumerable<PodcastEpisode>> GetMostRecentUntweetedEpisodes(
+Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentUntweetedEpisodes(
     Guid podcastId, int numberOfDays);
 
-Task<IEnumerable<PodcastEpisode>> GetMostRecentBlueskyReadyEpisodes(
+Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentBlueskyReadyEpisodes(
     Guid podcastId, int numberOfDays);
 
 bool IsRecentlyExpiredDelayedPublishing(Podcast podcast, Episode episode);
@@ -53,8 +54,11 @@ public class MyService(IPodcastEpisodeFilterV2 filter)
 {
     public async Task ProcessPodcast(Guid podcastId)
     {
-        var episodes = await filter.GetMostRecentUntweetedEpisodes(podcastId, 7);
-        // Process episodes...
+        // Returns V2 models
+        var v2Episodes = await filter.GetMostRecentUntweetedEpisodes(podcastId, 7);
+        
+        // Convert to legacy if needed at boundary
+        var legacyEpisodes = v2Episodes.Select(x => x.ToLegacy());
     }
 }
 ```
@@ -65,18 +69,19 @@ public class MyService(IPodcastEpisodeFilterV2 filter)
 
 #### IPodcastEpisodeProviderV2
 **Purpose:** Provide episodes across podcasts or for specific podcast
+**Returns:** `PodcastEpisodeV2` (V2 models only - no legacy methods)
 
 **Methods:**
 ```csharp
-Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(
+Task<IEnumerable<PodcastEpisodeV2>> GetUntweetedPodcastEpisodes(
     bool youTubeRefreshed, bool spotifyRefreshed);
 
-Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(Guid podcastId);
+Task<IEnumerable<PodcastEpisodeV2>> GetUntweetedPodcastEpisodes(Guid podcastId);
 
-Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(
+Task<IEnumerable<PodcastEpisodeV2>> GetBlueskyReadyPodcastEpisodes(
     bool youTubeRefreshed, bool spotifyRefreshed);
 
-Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(Guid podcastId);
+Task<IEnumerable<PodcastEpisodeV2>> GetBlueskyReadyPodcastEpisodes(Guid podcastId);
 ```
 
 **Usage Example:**
@@ -85,13 +90,15 @@ public class TweetService(IPodcastEpisodeProviderV2 provider)
 {
     public async Task TweetNewEpisodes()
     {
-        var episodes = await provider.GetUntweetedPodcastEpisodes(
+        // Returns V2 models
+        var v2Episodes = await provider.GetUntweetedPodcastEpisodes(
             youTubeRefreshed: true, 
             spotifyRefreshed: true);
         
-        foreach (var episode in episodes)
+        foreach (var v2Episode in v2Episodes)
         {
-            // Tweet episode...
+            // Work with V2 models directly, or convert if needed
+            var legacy = v2Episode.ToLegacy();
         }
     }
 }
@@ -103,11 +110,12 @@ public class TweetService(IPodcastEpisodeProviderV2 provider)
 
 #### IPodcastEpisodePosterV2
 **Purpose:** Post episodes to Reddit and update posted status
+**Accepts:** `PodcastEpisodeV2` (V2 models only - no legacy methods)
 
 **Methods:**
 ```csharp
 Task<ProcessResponse> PostPodcastEpisode(
-    PodcastEpisode podcastEpisode, 
+    PodcastEpisodeV2 podcastEpisode, 
     bool preferYouTube = false);
 ```
 
@@ -126,11 +134,13 @@ public class PostingService(
 {
     public async Task PostNewEpisodes()
     {
-        var episodes = await provider.GetUntweetedPodcastEpisodes(true, true);
+        // Provider returns V2 models
+        var v2Episodes = await provider.GetUntweetedPodcastEpisodes(true, true);
         
-        foreach (var episode in episodes)
+        foreach (var v2Episode in v2Episodes)
         {
-            var result = await poster.PostPodcastEpisode(episode, preferYouTube: false);
+            // Poster accepts V2 models directly
+            var result = await poster.PostPodcastEpisode(v2Episode, preferYouTube: false);
             if (result.Success)
             {
                 // Episode posted and marked!

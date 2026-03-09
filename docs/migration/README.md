@@ -18,16 +18,19 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 2. **Repository-mapped execution checklist**
    - [`implementation-checklist-mapped-to-repo.md`](./implementation-checklist-mapped-to-repo.md)
 
-3. **Delivery sequencing by PR**
-   - [`sequenced-pr-plan.md`](./sequenced-pr-plan.md)
-
-4. **Parallel infrastructure rollout (deploy + migration + cutover)**
+3. **Parallel infrastructure rollout (deploy + migration + cutover)**
    - [`parallel-infrastructure-rollout-checklist.md`](./parallel-infrastructure-rollout-checklist.md)
 
-5. **V2 Services Documentation**
+4. **V2 Services Documentation** (Current Implementation)
+   - [`v2-implementation-index.md`](./v2-implementation-index.md) - **START HERE** - Complete service inventory
    - [`v2-services-progress.md`](./v2-services-progress.md) - Implementation progress tracker
    - [`v2-services-reference.md`](./v2-services-reference.md) - Complete API reference
    - [`podcast-episode-v2-guide.md`](./podcast-episode-v2-guide.md) - PodcastEpisodeV2 usage guide
+   - [`architectural-cleanup-summary.md`](./architectural-cleanup-summary.md) - Design decisions & cleanup
+   - [`current-session-summary.md`](./current-session-summary.md) - Latest session summary
+
+5. **Delivery sequencing by PR**
+   - [`sequenced-pr-plan.md`](./sequenced-pr-plan.md)
 
 ## Stage Notes
 

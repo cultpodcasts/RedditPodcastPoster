@@ -94,10 +94,10 @@
 - [x] Switch high-watermark semantics from `p._ts` to `e._ts`.
 - [x] Validate query field mapping still matches reduced-key `EpisodeSearchRecord` schema.
 - [ ] Remaining runtime paths from static scan:
-  - [ ] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodeFilter.cs` → ✅ **V2 variant created**: `IPodcastEpisodeFilterV2` / `PodcastEpisodeFilterV2`
-  - [ ] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodePoster.cs` → 🔄 **V2 variant in progress**
-  - [ ] `Class-Libraries/RedditPodcastPoster.Common/Podcasts/PodcastFilter.cs` → 🔄 **V2 variant needed**
-  - [ ] `Class-Libraries/RedditPodcastPoster.Common/PodcastEpisodeProvider.cs` → ✅ **V2 variant created**: `IPodcastEpisodeProviderV2` / `PodcastEpisodeProviderV2`
+  - [x] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodeFilter.cs` → ✅ **V2 variant created**: `IPodcastEpisodeFilterV2` / `PodcastEpisodeFilterV2` (returns `PodcastEpisodeV2`)
+  - [x] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodePoster.cs` → ✅ **V2 variant created**: `IPodcastEpisodePosterV2` / `PodcastEpisodePosterV2` (accepts `PodcastEpisodeV2`)
+  - [x] `Class-Libraries/RedditPodcastPoster.Common/Podcasts/PodcastFilter.cs` → ✅ **V2 variant created**: `IPodcastFilterV2` / `PodcastFilterV2`
+  - [x] `Class-Libraries/RedditPodcastPoster.Common/PodcastEpisodeProvider.cs` → ✅ **V2 variant created**: `IPodcastEpisodeProviderV2` / `PodcastEpisodeProviderV2` (returns `PodcastEpisodeV2`)
   - [ ] `Class-Libraries/RedditPodcastPoster.UrlSubmission/Factories/PodcastAndEpisodeFactory.cs` → 🔄 **V2 variant needed**
   - [ ] `Class-Libraries/RedditPodcastPoster.UrlSubmission/PodcastProcessor.cs` → 🔄 **V2 variant needed**
 
@@ -106,7 +106,11 @@
 - ✅ V2 services use `IPodcastRepositoryV2` and `IEpisodeRepository` for detached episodes
 - ✅ All V2 services registered in DI for gradual consumer migration
 - ✅ Legacy services remain functional during transition
-- 📋 See `docs/migration/v2-services-progress.md` for detailed V2 service documentation
+- ✅ **V2 interfaces return ONLY V2 models** (`PodcastEpisodeV2`) - no dual methods
+- ✅ **Conversion explicit at boundaries** using `.ToLegacy()` extension methods
+- ✅ Created `PodcastEpisodeV2` model for native V2 model pairing
+- 📋 See `docs/migration/v2-implementation-index.md` for complete service inventory
+- 📋 See `docs/migration/architectural-cleanup-summary.md` for design decisions
 
 ## Phase 4: UI and Contract Migration
 - [ ] Add support for `CompactSearchRecord` key names.

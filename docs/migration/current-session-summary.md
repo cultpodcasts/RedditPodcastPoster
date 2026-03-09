@@ -41,14 +41,48 @@
 
 ## 🏗️ Architecture Improvements
 
-### Before (Legacy)
+### Design Evolution This Session
+
+**Initial Approach (Confusing):**
+```csharp
+public interface IPodcastEpisodeProviderV2
+{
+    // V2 methods with suffix
+    Task<IEnumerable<PodcastEpisodeV2>> GetUntweetedPodcastEpisodesV2(...);
+    
+    // Legacy wrapper methods
+    Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(...);
+}
+```
+❌ Problem: Mixed concerns, confusing API surface
+
+**Final Approach (Clean):**
+```csharp
+// V2 interface - V2 models only
+public interface IPodcastEpisodeProviderV2
+{
+    Task<IEnumerable<PodcastEpisodeV2>> GetUntweetedPodcastEpisodes(...);
+    // No legacy methods, no *V2 suffix
+}
+
+// Legacy interface - legacy models only
+public interface IPodcastEpisodeProvider
+{
+    Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(...);
+}
+```
+✅ Solution: Clear separation, single responsibility per interface
+
+### Architecture Layers
+
+**Before (Legacy):**
 ```
 Podcast { Episodes[] } → PodcastEpisode(Podcast, Episode)
     ↓
 Single container: CultPodcasts
 ```
 
-### After (V2)
+**After (V2):**
 ```
 V2.Podcast (Podcasts container)
 V2.Episode (Episodes container, partitioned by podcastId)
@@ -56,23 +90,9 @@ V2.Episode (Episodes container, partitioned by podcastId)
 PodcastEpisodeV2(V2.Podcast, V2.Episode)
 ```
 
-### Dual-Track (Current State)
+**Conversion at Boundaries:**
 ```
-┌─────────────────────────────────────────────────┐
-│              Service Layer                       │
-├─────────────────────────────────────────────────┤
-│  Legacy Services          V2 Services            │
-│  ✓ IPodcastEpisodeFilter  ✓ IPodcastEpisodeFilterV2     │
-│  ✓ IPodcastEpisodeProvider ✓ IPodcastEpisodeProviderV2  │
-│  ✓ IPodcastEpisodePoster  ✓ IPodcastEpisodePosterV2    │
-│  ✓ IPodcastFilter         ✓ IPodcastFilterV2           │
-└─────────────────────────────────────────────────┘
-         ↓                            ↓
-┌─────────────────────┐   ┌──────────────────────┐
-│ Legacy Containers   │   │   V2 Containers      │
-│  • CultPodcasts     │   │  • Podcasts          │
-│                     │   │  • Episodes          │
-└─────────────────────┘   └──────────────────────┘
+Consumer → IServiceV2 → PodcastEpisodeV2 → .ToLegacy() if needed
 ```
 
 ---
@@ -150,26 +170,10 @@ PodcastEpisodeV2(V2.Podcast, V2.Episode)
 
 1. **Complete V2 Service Layer** - All core episode operations have V2 variants
 2. **PodcastEpisodeV2** - Native V2 model pairing eliminates conversion overhead
-3. **Dual-Track Support** - Legacy and V2 coexist safely
-4. **Comprehensive Documentation** - 4 migration docs covering all aspects
-5. **Production Ready** - Zero build errors, all services registered
-
----
-
-## 🎯 Success Criteria Met
-
-- ✅ No `podcast.Episodes` access in migrated services
-- ✅ All services use `IEpisodeRepository` for detached episodes
-- ✅ All services use `IPodcastRepositoryV2` for podcast metadata
-- ✅ Backward compatibility maintained via dual-track approach
-- ✅ Build successful with zero errors
-- ✅ All services registered and ready for use
-
----
-
-**Branch:** `feature/detach-episodes-from-podcast-entity-in-cosmos-db`
-**Build Status:** ✅ **SUCCESSFUL**
-**Ready for:** Consumer migration and testing
+3. **Clean Architecture** - V2 interfaces return only V2 models (no dual methods)
+4. **Conversion at Boundaries** - Explicit `.ToLegacy()` calls where needed
+5. **Comprehensive Documentation** - 4 migration docs covering all aspects
+6. **Production Ready** - Zero build errors, all services registered
 
 ---
 
@@ -177,8 +181,17 @@ PodcastEpisodeV2(V2.Podcast, V2.Episode)
 
 1. **Type aliases prevent ambiguity** - Using `LegacyPodcast` and `V2Podcast` aliases
 2. **V2 services need V2 models** - PodcastEpisodeV2 eliminates conversion churn
-3. **Dual-track migration is safe** - Legacy and V2 can coexist
-4. **Document as you go** - Comprehensive docs make future work easier
+3. **Pure interfaces are cleaner** - V2 interface = V2 models only, no legacy methods
+4. **No method name suffixes needed** - Interface name indicates version (IPodcastEpisodeProviderV2)
+5. **Dual-track migration is safe** - Legacy and V2 can coexist with clear boundaries
+6. **Document as you go** - Comprehensive docs make future work easier
+7. **Architecture feedback matters** - Removing dual methods clarified the design
+
+---
+
+**Branch:** `feature/detach-episodes-from-podcast-entity-in-cosmos-db`
+**Build Status:** ✅ **SUCCESSFUL**
+**Ready for:** Consumer migration and testing
 
 ---
 
