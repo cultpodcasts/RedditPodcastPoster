@@ -7,7 +7,8 @@ namespace RemoveEpisodes;
 
 public class Processor(
     SearchClient searchClient,
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     ILogger<Processor> logger)
 {
     public async Task Process(Request request)
@@ -50,10 +51,18 @@ public class Processor(
 
         logger.LogInformation(message);
 
-        var allSearchResultEpisodes = allSearchResults.Select(x =>
-            new PodcastEpisode(x.Document.PodcastName!, x.Document.ToEpisodeModel()));
-        var podcastEpisodesGroups = allSearchResultEpisodes.GroupBy(x => x.PodcastName!);
+        var allSearchResultEpisodes = allSearchResults
+            .Where(x => !string.IsNullOrWhiteSpace(x.Document.PodcastName))
+            .Select(x => new
+            {
+                PodcastName = x.Document.PodcastName!,
+                EpisodeId = x.Document.Id,
+                EpisodeTitle = x.Document.EpisodeTitle
+            });
+
+        var podcastEpisodesGroups = allSearchResultEpisodes.GroupBy(x => x.PodcastName);
         var updatedEpisodeIds = new List<Guid>();
+
         foreach (var podcastEpisodeGroup in podcastEpisodesGroups)
         {
             var podcastName = podcastEpisodeGroup.Key;
@@ -62,33 +71,33 @@ public class Processor(
 
             foreach (var podcast in podcasts)
             {
-                var podcastChanged = false;
                 foreach (var podcastEpisode in episodes)
                 {
-                    var repoPodcastEpisode = podcast.Episodes.SingleOrDefault(x => x.Id == podcastEpisode.Episode.Id);
-                    if (repoPodcastEpisode != null)
+                    var repoEpisode = await episodeRepository.GetBy(x =>
+                        x.Id == podcastEpisode.EpisodeId && x.PodcastId == podcast.Id);
+
+                    if (repoEpisode != null)
                     {
-                        if (!repoPodcastEpisode.Removed)
+                        if (!repoEpisode.Removed)
                         {
-                            repoPodcastEpisode.Removed = true;
-                            podcastChanged = true;
+                            repoEpisode.Removed = true;
                             logger.LogInformation("Removing: '{podcastName}' - '{episodeTitle}'.",
-                                podcastEpisode.PodcastName?[0..Math.Min(podcastEpisode.PodcastName.Length, 40)],
-                                podcastEpisode.Episode.Title?[0..Math.Min(podcastEpisode.Episode.Title.Length, 40)]);
+                                podcastEpisode.PodcastName[0..Math.Min(podcastEpisode.PodcastName.Length, 40)],
+                                podcastEpisode.EpisodeTitle[0..Math.Min(podcastEpisode.EpisodeTitle.Length, 40)]);
+
+                            if (request.IsNonDryRun)
+                            {
+                                await episodeRepository.Save(repoEpisode);
+                            }
                         }
 
-                        updatedEpisodeIds.Add(podcastEpisode.Episode.Id);
+                        updatedEpisodeIds.Add(podcastEpisode.EpisodeId);
                     }
                     else
                     {
-                        logger.LogError("Unable to find episode with episode-id {episodeId}.",
-                            podcastEpisode.Episode.Id);
+                        logger.LogError("Unable to find episode with episode-id {episodeId} in podcast-id {podcastId}.",
+                            podcastEpisode.EpisodeId, podcast.Id);
                     }
-                }
-
-                if (podcastChanged && request.IsNonDryRun)
-                {
-                    await podcastRepository.Save(podcast);
                 }
             }
         }
