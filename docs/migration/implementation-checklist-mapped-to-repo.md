@@ -44,6 +44,7 @@
   - `Console-Apps/Tweet/TweetProcessor.cs`
   - `Console-Apps/KVWriter/KVWriterProcessor.cs`
   - `Console-Apps/TextClassifierTraining/TrainingDataProcessor.cs`
+  - `Console-Apps/IndexAllEpisodesAudit/IndexAllEpisodesAuditProcessor.cs`
 
 ## Phase 1: New Persistence Contracts
 - [ ] Remove episode-embedded query methods from podcast abstraction.
@@ -108,6 +109,7 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 - [x] `Console-Apps/Tweet/TweetProcessor.cs`
 - [x] `Console-Apps/KVWriter/KVWriterProcessor.cs`
 - [x] `Console-Apps/TextClassifierTraining/TrainingDataProcessor.cs`
+- [x] `Console-Apps/IndexAllEpisodesAudit/IndexAllEpisodesAuditProcessor.cs`
 - [ ] other remaining files returned by static scan for `.Episodes` usage.
 
 ## Phase 6: Migration Tooling
