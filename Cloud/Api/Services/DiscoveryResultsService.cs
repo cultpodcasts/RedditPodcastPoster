@@ -12,7 +12,8 @@ namespace Api.Services;
 
 public class DiscoveryResultsService(
     IDiscoveryResultsRepository discoveryResultsRepository,
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     IContentPublisher contentPublisher,
     ILogger<DiscoveryResultsService> logger) : IDiscoveryResultsService
 {
@@ -22,23 +23,36 @@ public class DiscoveryResultsService(
         var documents = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync(c);
         logger.LogInformation($"{nameof(Get)} Obtained unprocessed documents.");
         var results = documents.SelectMany(x => x.DiscoveryResults);
-        var podcastIds = results.SelectMany(x => x.MatchingPodcastIds).Distinct();
+        var podcastIds = results.SelectMany(x => x.MatchingPodcastIds).Distinct().ToArray();
+
         var referencedPodcasts = await podcastRepository
-            .GetAllBy(x => podcastIds.Contains(x.Id), podcast => new
+            .GetAllBy(x => podcastIds.Contains(x.Id))
+            .Select(podcast => new
             {
                 id = podcast.Id,
                 name = podcast.Name,
-                isVisible = !podcast.Removed.IsDefined() || podcast.Removed == false,
-                visibleEpisodes = podcast.Episodes.Count(e => !e.Removed)
+                isVisible = podcast.Removed != true
             })
             .ToListAsync(c);
+
+        var visibleEpisodeCounts = new Dictionary<Guid, int>();
+        await foreach (var episode in episodeRepository
+                           .GetAllBy(x => podcastIds.Contains(x.PodcastId) && !x.Removed)
+                           .WithCancellation(c))
+        {
+            if (!visibleEpisodeCounts.TryAdd(episode.PodcastId, 1))
+            {
+                visibleEpisodeCounts[episode.PodcastId]++;
+            }
+        }
+
         logger.LogInformation($"{nameof(Get)} Obtained matching podcasts.");
         var podcastsLookup = referencedPodcasts
             .ToDictionary(pd => pd.id, pd => new DiscoveryPodcast
             {
                 Name = pd.name,
                 IsVisible = pd.isVisible,
-                VisibleEpisodes = pd.visibleEpisodes
+                VisibleEpisodes = visibleEpisodeCounts.TryGetValue(pd.id, out var count) ? count : 0
             });
         var result = new DiscoveryResponse
         {
