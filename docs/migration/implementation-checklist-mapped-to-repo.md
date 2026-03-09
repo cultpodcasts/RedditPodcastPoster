@@ -31,31 +31,17 @@
   - high-watermark semantics now use `e._ts`
 - Episode projection now carries `podcastRemoved` and search filtering uses it in datasource query.
 - `Cloud/Api/Handlers/PodcastHandler.cs` now uses `IPodcastRepositoryV2` with detached episode hydration via `IEpisodeRepository` for podcast metadata fan-out.
-
-### In Progress
-- Runtime migration from embedded-episode patterns to full repository relationship model is partially complete.
-- Reduced-key search payload contract (`CompactSearchRecord`) rollout is pending.
-- Cutover verification is partially complete; sampled parity tooling exists, but full end-to-end production gates are still open.
-
-### Remaining
-- Remove runtime dependency on embedded `Podcast.Episodes` across API/core/console paths.
-- Complete reduced-key search contract rollout/validation (`CompactSearchRecord`) and UI compatibility checks.
-- Complete final PR5 release gates (full parity verification, operational checks, no legacy-write guarantees).
-
-> Stage notes:
-> - [`stages/pr1-modeltype-immutability.md`](./stages/pr1-modeltype-immutability.md)
-> - [`stages/pr1-episode-repository-scaffold.md`](./stages/pr1-episode-repository-scaffold.md)
-> - [`stages/pr1-episode-repository-podcastid-partition.md`](./stages/pr1-episode-repository-podcastid-partition.md)
-> - [`stages/pr1-container-factory-explicit-methods.md`](./stages/pr1-container-factory-explicit-methods.md)
-> - [`stages/pr1-cosmos-settings-required-episodes-container.md`](./stages/pr1-cosmos-settings-required-episodes-container.md)
-> - [`stages/pr1-container-split-legacy-podcasts-episodes.md`](./stages/pr1-container-split-legacy-podcasts-episodes.md)
-> - [`stages/pr1-di-explicit-podcast-repository-registration.md`](./stages/pr1-di-explicit-podcast-repository-registration.md)
-> - [`stages/pr1-v2-models-and-podcast-repository.md`](./stages/pr1-v2-models-and-podcast-repository.md)
-> - [`stages/pr1-legacy-to-v2-migration-service.md`](./stages/pr1-legacy-to-v2-migration-service.md)
-> - [`stages/pr1-migration-service-moved-to-console-app.md`](./stages/pr1-migration-service-moved-to-console-app.md)
-> - [`stages/pr1-expanded-container-settings-and-factory-methods.md`](./stages/pr1-expanded-container-settings-and-factory-methods.md)
-> - [`stages/pr1-v2-repositories-subjects-discovery-activities-lookup.md`](./stages/pr1-v2-repositories-subjects-discovery-activities-lookup.md)
-> - [`stages/pr1-pushsubscriptions-container-and-v2-repository.md`](./stages/pr1-pushsubscriptions-container-and-v2-repository.md)
+- Runtime/API de-embedding progress includes:
+  - `Cloud/Api/Handlers/EpisodeHandler.cs` migrated `Get` endpoint to detached episode + podcast repositories.
+  - `Cloud/Api/Handlers/PublicHandler.cs` migrated to detached episode + podcast repositories.
+- Console de-embedding progress includes:
+  - `Console-Apps/RemoveEpisodes/Processor.cs`
+  - `Console-Apps/UnremoveEpisodes/Processor.cs`
+  - `Console-Apps/EnrichPodcastWithImages/Processor.cs`
+  - `Console-Apps/FixDatesFromApple/Processor.cs`
+  - `Console-Apps/Tweet/TweetProcessor.cs`
+  - `Console-Apps/KVWriter/KVWriterProcessor.cs`
+  - `Console-Apps/TextClassifierTraining/TrainingDataProcessor.cs`
 
 ## Phase 1: New Persistence Contracts
 - [ ] Remove episode-embedded query methods from podcast abstraction.
@@ -118,8 +104,8 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 - [ ] `Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubePodcastProcessor.cs`
 - [x] `Console-Apps/FixDatesFromApple/Processor.cs`
 - [x] `Console-Apps/Tweet/TweetProcessor.cs`
-- [ ] `Console-Apps/KVWriter/KVWriterProcessor.cs`
-- [ ] `Console-Apps/TextClassifierTraining/TrainingDataProcessor.cs`
+- [x] `Console-Apps/KVWriter/KVWriterProcessor.cs`
+- [x] `Console-Apps/TextClassifierTraining/TrainingDataProcessor.cs`
 - [ ] other remaining files returned by static scan for `.Episodes` usage.
 
 ## Phase 6: Migration Tooling
