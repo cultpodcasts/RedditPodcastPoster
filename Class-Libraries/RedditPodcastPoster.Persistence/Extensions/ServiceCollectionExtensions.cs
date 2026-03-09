@@ -24,6 +24,7 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IDataRepository, CosmosDbRepository>()
                 .AddSingleton<ICosmosDbRepository, CosmosDbRepository>()
                 .AddSingleton<IEpisodeMatcher, EpisodeMatcher>()
+                .AddSingleton<IEpisodeMerger, EpisodeMerger>()
                 .AddSingleton<IPodcastRepository, PodcastRepository>()
                 .AddSingleton<IPodcastRepositoryV2>(s =>
                 {

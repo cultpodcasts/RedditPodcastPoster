@@ -13,11 +13,13 @@ using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using SpotifyAPI.Web;
 using System.Text.RegularExpressions;
+using V2Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace AddAudioPodcast;
 
 public class AddAudioPodcastProcessor(
     IPodcastRepository podcastRepository,
+    IEpisodeRepository episodeRepository,
     ISpotifyClientWrapper spotifyClient,
     IPodcastFactory podcastFactory,
     IApplePodcastEnricher applePodcastEnricher,
@@ -32,7 +34,6 @@ public class AddAudioPodcastProcessor(
 
     public async Task Create(AddAudioPodcastRequest request)
     {
-        var newEpisodeIds = new List<Guid>();
         var indexingContext = new IndexingContext { SkipPodcastDiscovery = false };
         Podcast? podcast = null;
         if (!request.AppleReleaseAuthority)
@@ -73,6 +74,10 @@ public class AddAudioPodcastProcessor(
         {
             var result = await podcastUpdater.Update(podcast, false, _indexingContext);
 
+            // Get episodes from detached repository
+            var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+            var legacyEpisodes = episodes.Select(ToLegacyEpisode).ToList();
+
             if (!string.IsNullOrWhiteSpace(request.EpisodeTitleRegex))
             {
                 var includeEpisodesRegex = new Regex(request.EpisodeTitleRegex,
@@ -80,8 +85,9 @@ public class AddAudioPodcastProcessor(
 
                 podcast.IndexAllEpisodes = false;
                 podcast.EpisodeIncludeTitleRegex = request.EpisodeTitleRegex;
-                List<Episode> episodesToRemove = new();
-                foreach (var episode in podcast.Episodes)
+                
+                var episodesToRemove = new List<V2Episode>();
+                foreach (var episode in episodes)
                 {
                     var match = includeEpisodesRegex.Match(episode.Title);
                     if (!match.Success)
@@ -96,21 +102,42 @@ public class AddAudioPodcastProcessor(
 #endif
                 }
 
+                // Remove episodes from detached repository
                 foreach (var episode in episodesToRemove)
                 {
-                    podcast.Episodes.Remove(episode);
+                    await episodeRepository.Delete(episode.PodcastId, episode.Id);
                     logger.LogInformation("Removed episode '{EpisodeTitle}' due to regex.", episode.Title);
                 }
+
+                // Update working list
+                episodes = episodes.Except(episodesToRemove).ToList();
+                legacyEpisodes = episodes.Select(ToLegacyEpisode).ToList();
             }
 
-            foreach (var episode in podcast.Episodes)
+            // Enrich subjects for remaining episodes
+            var episodesToUpdate = new List<V2Episode>();
+            foreach (var legacyEpisode in legacyEpisodes)
             {
-                var results = await subjectEnricher.EnrichSubjects(episode,
+                var results = await subjectEnricher.EnrichSubjects(legacyEpisode,
                     new SubjectEnrichmentOptions(
                         podcast.IgnoredAssociatedSubjects,
                         podcast.IgnoredSubjects,
                         podcast.DefaultSubject,
                         podcast.DescriptionRegex));
+                
+                // Convert back to V2 and add to update list
+                var v2Episode = episodes.FirstOrDefault(e => e.Id == legacyEpisode.Id);
+                if (v2Episode != null)
+                {
+                    v2Episode.Subjects = legacyEpisode.Subjects ?? [];
+                    episodesToUpdate.Add(v2Episode);
+                }
+            }
+
+            // Save updated episodes
+            if (episodesToUpdate.Any())
+            {
+                await episodeRepository.Save(episodesToUpdate);
             }
 
             await podcastRepository.Save(podcast);
@@ -124,7 +151,7 @@ public class AddAudioPodcastProcessor(
                 logger.LogError(result.ToString());
             }
 
-            await episodeSearchIndexerService.IndexEpisodes(podcast.Episodes.Select(x => x.Id), CancellationToken.None);
+            await episodeSearchIndexerService.IndexEpisodes(episodes.Select(x => x.Id), CancellationToken.None);
         }
         else
         {
@@ -178,5 +205,33 @@ public class AddAudioPodcastProcessor(
         }
 
         return podcast;
+    }
+
+    private static Episode ToLegacyEpisode(V2Episode v2Episode)
+    {
+        return new Episode
+        {
+            Id = v2Episode.Id,
+            Title = v2Episode.Title,
+            Description = v2Episode.Description,
+            Release = v2Episode.Release,
+            Length = v2Episode.Length,
+            Explicit = v2Episode.Explicit,
+            Posted = v2Episode.Posted,
+            Tweeted = v2Episode.Tweeted,
+            BlueskyPosted = v2Episode.BlueskyPosted,
+            Ignored = v2Episode.Ignored,
+            Removed = v2Episode.Removed,
+            SpotifyId = v2Episode.SpotifyId,
+            AppleId = v2Episode.AppleId,
+            YouTubeId = v2Episode.YouTubeId,
+            Urls = v2Episode.Urls,
+            Subjects = v2Episode.Subjects,
+            SearchTerms = v2Episode.SearchTerms,
+            Language = v2Episode.SearchLanguage,
+            Images = v2Episode.Images,
+            TwitterHandles = v2Episode.TwitterHandles,
+            BlueskyHandles = v2Episode.BlueskyHandles
+        };
     }
 }
