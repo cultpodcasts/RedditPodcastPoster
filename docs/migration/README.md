@@ -24,6 +24,11 @@ This is the single entrypoint for the migration from embedded `Podcast.Episodes`
 4. **Parallel infrastructure rollout (deploy + migration + cutover)**
    - [`parallel-infrastructure-rollout-checklist.md`](./parallel-infrastructure-rollout-checklist.md)
 
+5. **V2 Services Documentation**
+   - [`v2-services-progress.md`](./v2-services-progress.md) - Implementation progress tracker
+   - [`v2-services-reference.md`](./v2-services-reference.md) - Complete API reference
+   - [`podcast-episode-v2-guide.md`](./podcast-episode-v2-guide.md) - PodcastEpisodeV2 usage guide
+
 ## Stage Notes
 
 - PR1: [`stages/pr1-modeltype-immutability.md`](./stages/pr1-modeltype-immutability.md)

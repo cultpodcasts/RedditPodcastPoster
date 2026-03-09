@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
@@ -21,121 +22,139 @@ public class PodcastEpisodeFilterV2(
     private readonly DelayedYouTubePublication _delayedYouTubePublicationSettings =
         delayedYouTubePublicationSettings.Value;
 
-    public async Task<IEnumerable<PodcastEpisode>> GetNewEpisodesReleasedSince(
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetNewEpisodesReleasedSinceV2(
         Guid podcastId,
         DateTime since,
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        var podcast = await podcastRepository.GetBy(x => x.Id == podcastId);
-        if (podcast == null)
+        var v2Podcast = await podcastRepository.GetBy(x => x.Id == podcastId);
+        if (v2Podcast == null)
         {
             logger.LogWarning("Podcast with id '{PodcastId}' not found.", podcastId);
-            return Enumerable.Empty<PodcastEpisode>();
+            return Enumerable.Empty<PodcastEpisodeV2>();
         }
 
-        // Get episodes from detached repository
-        var episodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();
-        var legacyEpisodes = episodes.Select(ToLegacyEpisode).ToList();
+        var v2Episodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();
 
-        // Create legacy podcast for compatibility with existing logic
-        var legacyPodcast = ToLegacyPodcast(podcast, legacyEpisodes);
+        // Create legacy for filtering logic (temporary until refactored)
+        var legacyPodcast = ToLegacyPodcast(v2Podcast, v2Episodes.Select(ToLegacyEpisode).ToList());
+        var legacyEpisodes = v2Episodes.Select(ToLegacyEpisode).ToList();
 
         var matchingEpisodes = legacyEpisodes
             .Where(episode => IsReadyToPost(legacyPodcast, episode, since));
 
-        var resolvedPodcastEpisodes = new List<PodcastEpisode>();
+        var resolvedEpisodes = new List<PodcastEpisodeV2>();
         foreach (var matchingEpisode in matchingEpisodes)
         {
             var post = !legacyPodcast.IsDelayedYouTubePublishing(matchingEpisode);
 
             if (post)
             {
-                resolvedPodcastEpisodes.Add(new PodcastEpisode(legacyPodcast, matchingEpisode));
+                var v2Episode = v2Episodes.First(e => e.Id == matchingEpisode.Id);
+                resolvedEpisodes.Add(new PodcastEpisodeV2(v2Podcast, v2Episode));
             }
         }
 
-        return resolvedPodcastEpisodes.Where(x =>
-            EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed));
+        return resolvedEpisodes.Where(x =>
+            EliminateItemsDueToIndexingErrors(x.ToLegacy(), youTubeRefreshed, spotifyRefreshed));
+    }
+
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentUntweetedEpisodesV2(
+        Guid podcastId,
+        int numberOfDays)
+    {
+        var v2Podcast = await podcastRepository.GetBy(x => x.Id == podcastId);
+        if (v2Podcast == null)
+        {
+            logger.LogWarning("Podcast with id '{PodcastId}' not found.", podcastId);
+            return Enumerable.Empty<PodcastEpisodeV2>();
+        }
+
+        var v2Episodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();
+        var legacyPodcast = ToLegacyPodcast(v2Podcast, v2Episodes.Select(ToLegacyEpisode).ToList());
+
+        var since = DateTimeExtensions.DaysAgo(numberOfDays);
+        var podcastEpisodes = v2Episodes
+            .Where(e =>
+                e.Release >= since &&
+                e is { Removed: false, Ignored: false, Tweeted: false } &&
+                (e.Urls.YouTube != null || e.Urls.Spotify != null))
+            .Select(e => new PodcastEpisodeV2(v2Podcast, e))
+            .Where(pe => !legacyPodcast.IsDelayedYouTubePublishing(pe.Episode.ToLegacyEpisode()))
+            .OrderByDescending(x => x.Episode.Release)
+            .ToArray();
+
+        if (!podcastEpisodes.Any())
+        {
+            logger.LogInformation(
+                "No Podcast-Episode found ready to tweet for podcast '{PodcastName}' with podcast-id '{PodcastId}'.",
+                v2Podcast.Name, podcastId);
+        }
+
+        return podcastEpisodes;
+    }
+
+    public async Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentBlueskyReadyEpisodesV2(
+        Guid podcastId,
+        int numberOfDays)
+    {
+        var v2Podcast = await podcastRepository.GetBy(x => x.Id == podcastId);
+        if (v2Podcast == null)
+        {
+            logger.LogWarning("Podcast with id '{PodcastId}' not found.", podcastId);
+            return Enumerable.Empty<PodcastEpisodeV2>();
+        }
+
+        var v2Episodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();
+        var legacyPodcast = ToLegacyPodcast(v2Podcast, v2Episodes.Select(ToLegacyEpisode).ToList());
+
+        var since = DateTimeExtensions.DaysAgo(numberOfDays);
+        var podcastEpisodes = v2Episodes
+            .Where(e =>
+                e.Release >= since &&
+                e is { Removed: false, Ignored: false } &&
+                (!e.BlueskyPosted.HasValue || !e.BlueskyPosted.Value) &&
+                (e.Urls.YouTube != null || e.Urls.Spotify != null))
+            .Select(e => new PodcastEpisodeV2(v2Podcast, e))
+            .Where(pe => !legacyPodcast.IsDelayedYouTubePublishing(pe.Episode.ToLegacyEpisode()))
+            .OrderByDescending(x => x.Episode.Release)
+            .ToArray();
+
+        if (!podcastEpisodes.Any())
+        {
+            logger.LogInformation(
+                "No Podcast-Episode found ready for Bluesky for podcast '{PodcastName}' with podcast-id '{PodcastId}'.",
+                v2Podcast.Name, podcastId);
+        }
+
+        return podcastEpisodes;
+    }
+
+    public async Task<IEnumerable<PodcastEpisode>> GetNewEpisodesReleasedSince(
+        Guid podcastId,
+        DateTime since,
+        bool youTubeRefreshed,
+        bool spotifyRefreshed)
+    {
+        var v2Results = await GetNewEpisodesReleasedSinceV2(podcastId, since, youTubeRefreshed, spotifyRefreshed);
+        return v2Results.Select(x => x.ToLegacy());
     }
 
     public async Task<IEnumerable<PodcastEpisode>> GetMostRecentUntweetedEpisodes(
         Guid podcastId,
         int numberOfDays)
     {
-        var podcast = await podcastRepository.GetBy(x => x.Id == podcastId);
-        if (podcast == null)
-        {
-            logger.LogWarning("Podcast with id '{PodcastId}' not found.", podcastId);
-            return Enumerable.Empty<PodcastEpisode>();
-        }
-
-        // Get episodes from detached repository
-        var episodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();
-        var legacyEpisodes = episodes.Select(ToLegacyEpisode).ToList();
-
-        var legacyPodcast = ToLegacyPodcast(podcast, legacyEpisodes);
-
-        var since = DateTimeExtensions.DaysAgo(numberOfDays);
-        var podcastEpisodes =
-            legacyEpisodes
-                .Select(e => new PodcastEpisode(legacyPodcast, e))
-                .Where(x =>
-                    x.Episode.Release >= since &&
-                    x.Episode is { Removed: false, Ignored: false, Tweeted: false } &&
-                    (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
-                    !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
-                .OrderByDescending(x => x.Episode.Release)
-                .ToArray();
-
-        if (!podcastEpisodes.Any())
-        {
-            logger.LogInformation(
-                "No Podcast-Episode found ready to tweet for podcast '{PodcastName}' with podcast-id '{PodcastId}'.",
-                podcast.Name, podcastId);
-        }
-
-        return podcastEpisodes;
+        var v2Results = await GetMostRecentUntweetedEpisodesV2(podcastId, numberOfDays);
+        return v2Results.Select(x => x.ToLegacy());
     }
 
     public async Task<IEnumerable<PodcastEpisode>> GetMostRecentBlueskyReadyEpisodes(
         Guid podcastId,
         int numberOfDays)
     {
-        var podcast = await podcastRepository.GetBy(x => x.Id == podcastId);
-        if (podcast == null)
-        {
-            logger.LogWarning("Podcast with id '{PodcastId}' not found.", podcastId);
-            return Enumerable.Empty<PodcastEpisode>();
-        }
-
-        // Get episodes from detached repository
-        var episodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();
-        var legacyEpisodes = episodes.Select(ToLegacyEpisode).ToList();
-
-        var legacyPodcast = ToLegacyPodcast(podcast, legacyEpisodes);
-
-        var since = DateTimeExtensions.DaysAgo(numberOfDays);
-        var podcastEpisodes =
-            legacyEpisodes
-                .Select(e => new PodcastEpisode(legacyPodcast, e))
-                .Where(x =>
-                    x.Episode.Release >= since &&
-                    x.Episode is { Removed: false, Ignored: false } &&
-                    (!x.Episode.BlueskyPosted.HasValue || !x.Episode.BlueskyPosted.Value) &&
-                    (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
-                    !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
-                .OrderByDescending(x => x.Episode.Release)
-                .ToArray();
-
-        if (!podcastEpisodes.Any())
-        {
-            logger.LogInformation(
-                "No Podcast-Episode found ready for Bluesky for podcast '{PodcastName}' with podcast-id '{PodcastId}'.",
-                podcast.Name, podcastId);
-        }
-
-        return podcastEpisodes;
+        var v2Results = await GetMostRecentBlueskyReadyEpisodesV2(podcastId, numberOfDays);
+        return v2Results.Select(x => x.ToLegacy());
     }
 
     public bool IsRecentlyExpiredDelayedPublishing(Podcast podcast, Episode episode)

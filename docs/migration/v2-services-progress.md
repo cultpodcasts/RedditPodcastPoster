@@ -29,14 +29,36 @@ This document tracks the creation of V2 service variants that work with detached
 - Dependencies: `IPodcastRepositoryV2`, `IPodcastEpisodeFilterV2`
 - Uses V2 filter for episode retrieval
 
+**3. IPodcastEpisodePosterV2 / PodcastEpisodePosterV2**
+- Location: `Class-Libraries\RedditPodcastPoster.Common\Episodes\`
+- Purpose: Posts podcast episodes and updates posted status in detached repository
+- Key Methods:
+  - `PostPodcastEpisode()` - Posts episode(s) and marks as posted
+- Features:
+  - Supports bundled episodes using title regex
+  - Loads episodes from detached repository for bundling
+  - Updates episode `Posted` status via `IEpisodeRepository`
+- Dependencies: `IEpisodePostManager`, `IPostModelFactory`, `IEpisodeRepository`
+
+**4. IPodcastFilterV2 / PodcastFilterV2**
+- Location: `Class-Libraries\RedditPodcastPoster.Common\Podcasts\`
+- Purpose: Filters episodes based on elimination terms
+- Key Methods:
+  - `Filter()` - Filters episodes and marks matching ones as removed
+- Features:
+  - Checks episode titles and descriptions against elimination terms
+  - Updates episode `Removed` status via `IEpisodeRepository`
+  - Returns `FilterResult` with filtered episodes
+- Dependencies: `IPodcastRepositoryV2`, `IEpisodeRepository`
+
 ### ✅ Infrastructure Services (from previous session)
 
-**3. IEpisodeMerger / EpisodeMerger**
+**5. IEpisodeMerger / EpisodeMerger**
 - Location: `Class-Libraries\RedditPodcastPoster.Persistence\`
 - Purpose: Merges episodes without mutating embedded collections
 - Returns `EpisodeMergeResult` with V2 episodes to save
 
-**4. PodcastUpdaterV2**
+**6. PodcastUpdaterV2**
 - Location: `Class-Libraries\RedditPodcastPoster.PodcastServices\`
 - Purpose: Implements `IPodcastUpdater` with V2 repositories
 - Uses `IPodcastRepositoryV2` and `IEpisodeRepository`
@@ -47,6 +69,8 @@ All V2 services are registered in DI:
 - ✅ `IEpisodeMerger` → `EpisodeMerger` (Persistence layer)
 - ✅ `IPodcastEpisodeFilterV2` → `PodcastEpisodeFilterV2` (Common layer)
 - ✅ `IPodcastEpisodeProviderV2` → `PodcastEpisodeProviderV2` (Common layer)
+- ✅ `IPodcastEpisodePosterV2` → `PodcastEpisodePosterV2` (Common layer)
+- ✅ `IPodcastFilterV2` → `PodcastFilterV2` (Common layer)
 - ✅ `PodcastUpdaterV2` (PodcastServices layer - not yet registered as replacement)
 
 ## Migration Strategy
