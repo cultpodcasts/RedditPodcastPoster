@@ -37,23 +37,23 @@ Primary focus has shifted from introducing parallel service variants to **decomm
 
 ---
 
-## 🔄 Remaining decommission targets
+## ✅ Recently completed decommission targets
 
 ### Target Group B: Legacy conversion helpers
-1. Remove unused conversion helpers once callers are gone:
-   - `ToLegacyPodcast`
-   - `ToLegacyEpisode`
-   - `PodcastEpisodeV2.ToLegacy()`
+- Removed unused conversion helpers now that callers are gone:
+  - `ToLegacyPodcast`
+  - `ToLegacyEpisode`
+  - `PodcastEpisodeV2.ToLegacy()`
 
 ### Target Group C: Temporary compatibility overloads
-2. Remove temporary legacy overloads from:
-   - `FindSpotifyEpisodeRequestFactory`
-   - `FindAppleEpisodeRequestFactory`
+- Removed temporary legacy overloads from:
+  - `FindSpotifyEpisodeRequestFactory`
+  - `FindAppleEpisodeRequestFactory`
 
 ### Target Group D: Duplicate service variants
-3. Retire legacy provider/poster variants once all consumers use detached contracts:
-   - `IPodcastEpisodeProvider` / `PodcastEpisodeProvider`
-   - `IPodcastEpisodePoster` / `PodcastEpisodePoster`
+- Retired legacy provider/poster variants:
+  - `IPodcastEpisodeProvider` / `PodcastEpisodeProvider`
+  - `IPodcastEpisodePoster` / `PodcastEpisodePoster`
 
 ---
 

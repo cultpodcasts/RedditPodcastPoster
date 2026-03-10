@@ -4,7 +4,7 @@ namespace RedditPodcastPoster.Common.Episodes;
 
 /// <summary>
 /// V2 version of IPodcastEpisodePoster that works with detached episodes via IEpisodeRepository.
-/// Accepts PodcastEpisodeV2 with V2 models. For legacy PodcastEpisode, use IPodcastEpisodePoster.
+/// Accepts PodcastEpisodeV2 with V2 models.
 /// </summary>
 public interface IPodcastEpisodePosterV2
 {

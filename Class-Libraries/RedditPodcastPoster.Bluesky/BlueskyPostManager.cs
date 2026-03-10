@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Bluesky.Models;
-using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -17,7 +17,7 @@ namespace RedditPodcastPoster.Bluesky;
 
 public class BlueskyPostManager(
     IBlueskyPoster poster,
-    IPodcastEpisodeProvider podcastEpisodeProvider,
+    IPodcastEpisodeProviderV2 podcastEpisodeProvider,
     IShortnerService shortnerService,
     IAsyncInstance<BlueskyAgent> blueskyAgent,
     IOptions<BlueskyOptions> options,

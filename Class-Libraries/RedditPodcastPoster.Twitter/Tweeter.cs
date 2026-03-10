@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.UrlShortening;
 
@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.Twitter;
 
 public class Tweeter(
     ITweetPoster tweetPoster,
-    IPodcastEpisodeProvider podcastEpisodeProvider,
+    IPodcastEpisodeProviderV2 podcastEpisodeProvider,
     IShortnerService shortnerService,
     ILogger<Tweeter> logger)
     : ITweeter

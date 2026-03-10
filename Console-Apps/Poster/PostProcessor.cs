@@ -19,7 +19,7 @@ public class PostProcessor(
     IPodcastEpisodesPoster podcastEpisodesPoster,
     IProcessResponsesAdaptor processResponsesAdaptor,
     IContentPublisher contentPublisher,
-    IPodcastEpisodePoster podcastEpisodePoster,
+    IPodcastEpisodePosterV2 podcastEpisodePoster,
     ITweetPoster tweetPoster,
     IBlueskyPoster blueSkyPoster,
     IBlueskyPostManager blueskyPostManager,

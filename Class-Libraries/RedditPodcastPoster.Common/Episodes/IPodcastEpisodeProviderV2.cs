@@ -3,8 +3,8 @@ using RedditPodcastPoster.Models;
 namespace RedditPodcastPoster.Common.Episodes;
 
 /// <summary>
-/// V2 version of IPodcastEpisodeProvider that works with detached episodes via IEpisodeRepository.
-/// Returns PodcastEpisodeV2 with V2 models. For legacy PodcastEpisode, use IPodcastEpisodeProvider.
+/// Provider for podcast episodes backed by detached `IEpisodeRepository` entities.
+/// Returns `PodcastEpisodeV2` values.
 /// </summary>
 public interface IPodcastEpisodeProviderV2
 {

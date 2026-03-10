@@ -9,7 +9,7 @@ namespace RedditPodcastPoster.Common.Episodes;
 public class PodcastEpisodesPoster(
     IPodcastRepositoryV2 podcastRepository,
     IPodcastEpisodeFilter podcastEpisodeFilter,
-    IPodcastEpisodePoster podcastEpisodePoster,
+    IPodcastEpisodePosterV2 podcastEpisodePoster,
     IOptions<PostingCriteria> postingCriteria,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<PodcastEpisodesPoster> logger

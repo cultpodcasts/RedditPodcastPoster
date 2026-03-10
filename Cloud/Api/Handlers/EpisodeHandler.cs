@@ -42,7 +42,7 @@ public class EpisodeHandler(
     IPodcastRepositoryV2 podcastRepositoryV2,
     IEpisodeRepository episodeRepository,
     SearchClient searchClient,
-    IPodcastEpisodePoster podcastEpisodePoster,
+    IPodcastEpisodePosterV2 podcastEpisodePoster,
     ITweetPoster tweetPoster,
     IContentPublisher contentPublisher,
     IPostManager postManager,
