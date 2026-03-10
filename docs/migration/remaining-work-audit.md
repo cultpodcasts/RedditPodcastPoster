@@ -27,13 +27,13 @@ Primary focus has shifted from introducing parallel service variants to **decomm
    - Added saves for filtered episodes (marked as removed)
    - Added saves for merged and newly added episodes
 
-2. **PodcastProcessorV2 incomplete field mapping** ✅ FIXED
+2. **PodcastProcessor detached-model field mapping** ✅ FIXED
    - Expanded from 4 hardcoded fields to complete property copy
    - Now preserves: URLs, Description, Release, Images, Subjects, SearchTerms
 
 3. **EnrichPodcastEpisodesProcessor conversion patterns** ✅ VERIFIED
    - Already uses clean detached episode pattern
-   - Works directly with V2 episodes, no round-trip conversions needed
+   - Works directly with detached episodes, no round-trip conversions needed
 
 ---
 

@@ -9,7 +9,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 namespace RedditPodcastPoster.Common.Episodes;
 
 /// <summary>
-/// V2 implementation that filters episodes from detached IEpisodeRepository.
+/// Filters episodes from detached `IEpisodeRepository` records.
 /// </summary>
 public class PodcastEpisodeFilterV2(
     IPodcastRepositoryV2 podcastRepository,
