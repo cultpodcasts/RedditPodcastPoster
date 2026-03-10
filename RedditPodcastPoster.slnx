@@ -19,6 +19,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.Configuration/RedditPodcastPoster.Configuration.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.ContentPublisher/RedditPodcastPoster.ContentPublisher.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.DependencyInjection.Abstractions/RedditPodcastPoster.DependencyInjection.Abstractions.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.DependencyInjection/RedditPodcastPoster.DependencyInjection.csproj">
       <Build Solution="Debug|*" Project="false" />

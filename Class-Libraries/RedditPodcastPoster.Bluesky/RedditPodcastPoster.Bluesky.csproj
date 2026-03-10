@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Configuration\RedditPodcastPoster.Configuration.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.DependencyInjection.Abstractions\RedditPodcastPoster.DependencyInjection.Abstractions.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.DependencyInjection\RedditPodcastPoster.DependencyInjection.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Spotify\RedditPodcastPoster.PodcastServices.Spotify.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.YouTube\RedditPodcastPoster.PodcastServices.YouTube.csproj" />
