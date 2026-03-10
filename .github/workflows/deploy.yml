@@ -66,8 +66,6 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-        include-prerelease: true
-        check-latest: true
     - name: Restore dependencies
       run: dotnet restore /p:Configuration=Release -r ${{ env.TARGET_RUNTIME }}
     - name: Publish ${{ matrix.project.name }}
@@ -88,8 +86,6 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-        include-prerelease: true
-        check-latest: true
     - name: Restore dependencies
       run: dotnet restore
     - name: Run tests
