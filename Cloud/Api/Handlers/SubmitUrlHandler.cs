@@ -59,12 +59,12 @@ public class SubmitUrlHandler(
             {
                 try
                 {
-                    await episodeSearchIndexerService.IndexEpisode(result.EpisodeId!.Value, c);
+                    await episodeSearchIndexerService.IndexEpisode(result.Episode!.Id, c);
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Failed to index episode after submission. EpisodeId: '{EpisodeId}'.",
-                        result.EpisodeId);
+                        result.Episode!.Id);
                 }
             }
 

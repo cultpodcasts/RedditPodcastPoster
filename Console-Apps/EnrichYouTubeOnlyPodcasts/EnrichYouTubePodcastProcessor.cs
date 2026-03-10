@@ -21,13 +21,14 @@ using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text.EliminationTerms;
-using V2Episode = RedditPodcastPoster.Models.V2.Episode;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace EnrichYouTubeOnlyPodcasts;
 
 public class EnrichYouTubePodcastProcessor(
     IYouTubeServiceWrapper youTubeService,
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
     IEpisodeRepository episodeRepository,
     ITolerantYouTubePlaylistService youTubePlaylistService,
     IYouTubeChannelService youTubeChannelService,
@@ -36,7 +37,6 @@ public class EnrichYouTubePodcastProcessor(
     ISubjectEnricher subjectEnricher,
     IAsyncInstance<IEliminationTermsProvider> eliminationTermsProviderInstance,
     IPodcastFilter podcastFilter,
-    IFileRepository fileRepository,
     IOptions<PostingCriteria> postingCriteria,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     IFoundEpisodeFilter foundEpisodeFilter,
@@ -59,8 +59,7 @@ public class EnrichYouTubePodcastProcessor(
         else if (request.PodcastName != null)
         {
             var podcastIds = await podcastRepository
-                .GetAllBy(x => x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
-                    x => x.Id).ToListAsync();
+                .GetAllBy(x => x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase)).Select(x=>x.Id).ToListAsync();
             if (podcastIds.Count > 1)
             {
                 logger.LogError("Found {podcastIdsCount} podcasts with name '{podcastName}'. Ids: {ids}.",
@@ -145,7 +144,7 @@ public class EnrichYouTubePodcastProcessor(
 
         // Get existing episodes from detached repository
         var existingEpisodesV2 = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
-        var existingEpisodes = existingEpisodesV2.Select(ToLegacyEpisode).ToList();
+        var existingEpisodes = existingEpisodesV2.ToList();
 
         var missingPlaylistItems = playlistQueryResponse.Result.Where(playlistItem =>
             existingEpisodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();
@@ -170,7 +169,7 @@ public class EnrichYouTubePodcastProcessor(
                 video.Id == missingPlaylistItemSnippet.ResourceId.VideoId);
             if (video != null)
             {
-                var episode = ToLegacyEpisode(youTubeEpisodeProvider.GetEpisode(missingPlaylistItemSnippet, video));
+                var episode = youTubeEpisodeProvider.GetEpisode(missingPlaylistItemSnippet, video);
                 if (request.IncludeShort ||
                     (podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value) ||
                     episode.Length >= (podcast.MinimumDuration ?? _postingCriteria.MinimumDuration))
@@ -207,10 +206,8 @@ public class EnrichYouTubePodcastProcessor(
 
         if (addedEpisodes.Any() && !string.IsNullOrEmpty(podcast.EpisodeIncludeTitleRegex))
         {
-            var reducedV2Episodes = foundEpisodeFilter.ReduceEpisodes(
-                podcast.ToV2Podcast(),
-                addedEpisodes.Select(e => ToV2Episode(podcast, e)).ToList());
-            addedEpisodes = reducedV2Episodes.Select(ToLegacyEpisode).ToList();
+            addedEpisodes = foundEpisodeFilter.ReduceEpisodes(podcast, addedEpisodes)
+                .ToList().ToList();
         }
 
         // Add new episodes to working list
@@ -240,18 +237,11 @@ public class EnrichYouTubePodcastProcessor(
             }
         }
 
-        // Create a temporary podcast with episodes for filtering
-        var tempPodcast = new Podcast(podcast.Id)
-        {
-            Name = podcast.Name,
-            Episodes = existingEpisodes.OrderByDescending(x => x.Release).ToList()
-        };
-
         var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
         var filterResult = podcastFilter.Filter(
-            podcast.ToV2Podcast(),
-            existingEpisodes.Select(e => ToV2Episode(podcast, e)),
+            podcast,
+            existingEpisodes,
             eliminationTerms.Terms);
         if (filterResult.FilteredEpisodes.Any())
         {
@@ -263,13 +253,13 @@ public class EnrichYouTubePodcastProcessor(
             try
             {
                 // Convert and save all new and updated episodes to detached repository
-                var episodesToSave = new List<V2Episode>();
+                var episodesToSave = new List<Episode>();
                 
                 // Add newly added episodes
-                episodesToSave.AddRange(addedEpisodes.Select(e => ToV2Episode(podcast, e)));
+                episodesToSave.AddRange(addedEpisodes);
                 
                 // Add updated existing episodes
-                episodesToSave.AddRange(episodesToUpdate.Select(e => ToV2Episode(podcast, e)));
+                episodesToSave.AddRange(episodesToUpdate);
                 
                 if (episodesToSave.Any())
                 {
@@ -281,15 +271,15 @@ public class EnrichYouTubePodcastProcessor(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to write entity to cosmos.");
-                try
-                {
-                    await fileRepository.Write(podcast);
-                    logger.LogInformation("Writing to file '{filename}'.", podcast.FileKey);
-                }
-                catch (Exception ex2)
-                {
-                    logger.LogError(ex2, "Failed to write to file. FileKey: '{fileKey}'.", podcast.FileKey);
-                }
+                //try
+                //{
+                //    await fileRepository.Write(podcast);
+                //    logger.LogInformation("Writing to file '{filename}'.", podcast.FileKey);
+                //}
+                //catch (Exception ex2)
+                //{
+                //    logger.LogError(ex2, "Failed to write to file. FileKey: '{fileKey}'.", podcast.FileKey);
+                //}
             }
 
             await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
@@ -336,64 +326,4 @@ public class EnrichYouTubePodcastProcessor(
         return false;
     }
 
-    private static Episode ToLegacyEpisode(V2Episode v2Episode)
-    {
-        return new Episode
-        {
-            Id = v2Episode.Id,
-            Title = v2Episode.Title,
-            Description = v2Episode.Description,
-            Release = v2Episode.Release,
-            Length = v2Episode.Length,
-            Explicit = v2Episode.Explicit,
-            Posted = v2Episode.Posted,
-            Tweeted = v2Episode.Tweeted,
-            BlueskyPosted = v2Episode.BlueskyPosted,
-            Ignored = v2Episode.Ignored,
-            Removed = v2Episode.Removed,
-            SpotifyId = v2Episode.SpotifyId,
-            AppleId = v2Episode.AppleId,
-            YouTubeId = v2Episode.YouTubeId,
-            Urls = v2Episode.Urls,
-            Subjects = v2Episode.Subjects,
-            SearchTerms = v2Episode.SearchTerms,
-            Language = v2Episode.SearchLanguage,
-            Images = v2Episode.Images,
-            TwitterHandles = v2Episode.TwitterHandles,
-            BlueskyHandles = v2Episode.BlueskyHandles
-        };
-    }
-
-    private static V2Episode ToV2Episode(Podcast podcast, Episode episode)
-    {
-        return new V2Episode
-        {
-            Id = episode.Id,
-            PodcastId = podcast.Id,
-            Title = episode.Title,
-            Description = episode.Description,
-            Release = episode.Release,
-            Length = episode.Length,
-            Explicit = episode.Explicit,
-            Posted = episode.Posted,
-            Tweeted = episode.Tweeted,
-            BlueskyPosted = episode.BlueskyPosted,
-            Ignored = episode.Ignored,
-            Removed = episode.Removed,
-            SpotifyId = episode.SpotifyId,
-            AppleId = episode.AppleId,
-            YouTubeId = episode.YouTubeId,
-            Urls = episode.Urls,
-            Subjects = episode.Subjects ?? [],
-            SearchTerms = episode.SearchTerms,
-            PodcastName = podcast.Name,
-            PodcastSearchTerms = podcast.SearchTerms,
-            SearchLanguage = episode.Language ?? podcast.Language,
-            PodcastMetadataVersion = null,
-            PodcastRemoved = podcast.Removed,
-            Images = episode.Images,
-            TwitterHandles = episode.TwitterHandles,
-            BlueskyHandles = episode.BlueskyHandles
-        };
-    }
 }

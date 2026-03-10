@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Common.Podcasts;
 
@@ -31,6 +32,6 @@ public class PodcastFactory(
             } while (_fileKeys.Contains(fileKey));
         }
 
-        return new Podcast(Guid.NewGuid()) {Name = podcastName, FileKey = fileKey};
+        return new Podcast { Id = Guid.NewGuid(), Name = podcastName, FileKey = fileKey };
     }
 }

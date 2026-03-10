@@ -84,9 +84,9 @@ public class Episode
     [JsonPropertyOrder(91)]
     public string? PodcastSearchTerms { get; set; }
 
-    [JsonPropertyName("searchLang")]
-    [JsonPropertyOrder(92)]
-    public string? SearchLanguage { get; set; }
+    [JsonPropertyName("lang")]
+    [JsonPropertyOrder(45)]
+    public string? Language { get; set; }
 
     [JsonPropertyName("podcastMetadataVersion")]
     [JsonPropertyOrder(93)]

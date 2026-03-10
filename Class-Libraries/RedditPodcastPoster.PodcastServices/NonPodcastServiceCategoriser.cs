@@ -1,14 +1,15 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.BBC;
 using RedditPodcastPoster.InternetArchive;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices;
 
 public class NonPodcastServiceCategoriser(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     IHttpClientFactory httpClientFactory,
     IStreamingServiceMetaDataHandler streamingServiceMetaDataHandler,
@@ -26,18 +27,18 @@ public class NonPodcastServiceCategoriser(
             if (BBCUrlMatcher.IsBBCUrl(url))
             {
                 service = NonPodcastService.BBC;
-                var wrappedIds = await podcastRepository
-                    .GetAllBy(p => p.Episodes.Any(episode => episode.Urls.BBC == url), x => new {id = x.Id})
+                matchingPodcastIds = await episodeRepository
+                    .GetAllBy(episode => episode.Urls.BBC == url)
+                    .Select(x=>x.Id)
                     .ToListAsync();
-                matchingPodcastIds = wrappedIds.Select(x => x.id).ToList();
             }
             else if (InternetArchiveUrlMatcher.IsInternetArchiveUrl(url))
             {
                 service = NonPodcastService.InternetArchive;
-                var wrappedIds = await podcastRepository
-                    .GetAllBy(p => p.Episodes.Any(episode => episode.Urls.InternetArchive == url), x => new {id = x.Id})
+                matchingPodcastIds = await episodeRepository
+                    .GetAllBy(episode => episode.Urls.InternetArchive == url)
+                    .Select(x => x.Id)
                     .ToListAsync();
-                matchingPodcastIds = wrappedIds.Select(x => x.id).ToList();
             }
             else
             {
@@ -57,11 +58,14 @@ public class NonPodcastServiceCategoriser(
                 IEnumerable<Episode> episodes;
                 if (service == NonPodcastService.BBC)
                 {
-                    episodes = podcast!.Episodes.Where(x => x.Urls.BBC == url);
+                    episodes = await episodeRepository.GetAllBy(x => x.Urls.BBC == url && x.PodcastId == podcast.Id)
+                        .ToListAsync();
+
                 }
                 else
                 {
-                    episodes = podcast!.Episodes.Where(x => x.Urls.InternetArchive == url);
+                    episodes = await episodeRepository
+                        .GetAllBy(x => x.Urls.InternetArchive == url && x.PodcastId == podcast.Id).ToListAsync();
                 }
 
                 if (episodes.Count() > 1)
@@ -73,7 +77,8 @@ public class NonPodcastServiceCategoriser(
                 return new ResolvedNonPodcastServiceItem(service, podcast, episodes.Single());
             }
         }
+        var podcastEpisodes= await episodeRepository.GetAllBy(x => x.PodcastId == podcast.Id).ToListAsync();
 
-        return await streamingServiceMetaDataHandler.ResolveServiceItem(podcast, url);
+        return await streamingServiceMetaDataHandler.ResolveServiceItem(podcast, podcastEpisodes, url);
     }
 }

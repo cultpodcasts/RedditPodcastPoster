@@ -107,7 +107,7 @@ public class BlueskyPostManager(
         }
     }
 
-    public async Task<RemovePostState> RemovePost(PodcastEpisode podcastEpisode)
+    public async Task<RemovePostState> RemovePost(PodcastEpisodeV2 podcastEpisode)
     {
         var agent = await blueskyAgent.GetAsync();
         var collection = new Nsid("app.bsky.feed.post");

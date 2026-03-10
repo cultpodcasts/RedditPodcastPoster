@@ -77,7 +77,6 @@ public class AddAudioPodcastProcessor(
             var result = await podcastUpdater.Update(podcast, false, _indexingContext);
 
             var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
-            var legacyEpisodes = episodes.Select(ToLegacyEpisode).ToList();
 
             if (!string.IsNullOrWhiteSpace(request.EpisodeTitleRegex))
             {
@@ -104,23 +103,22 @@ public class AddAudioPodcastProcessor(
                 }
 
                 episodes = episodes.Except(episodesToRemove).ToList();
-                legacyEpisodes = episodes.Select(ToLegacyEpisode).ToList();
             }
 
             var episodesToUpdate = new List<V2Episode>();
-            foreach (var legacyEpisode in legacyEpisodes)
+            foreach (var episode in episodes)
             {
-                await subjectEnricher.EnrichSubjects(legacyEpisode,
+                await subjectEnricher.EnrichSubjects(episode,
                     new SubjectEnrichmentOptions(
                         podcast.IgnoredAssociatedSubjects,
                         podcast.IgnoredSubjects,
                         podcast.DefaultSubject,
                         podcast.DescriptionRegex));
 
-                var v2Episode = episodes.FirstOrDefault(e => e.Id == legacyEpisode.Id);
+                var v2Episode = episodes.FirstOrDefault(e => e.Id == episode.Id);
                 if (v2Episode != null)
                 {
-                    v2Episode.Subjects = legacyEpisode.Subjects ?? [];
+                    v2Episode.Subjects = episode.Subjects ?? [];
                     episodesToUpdate.Add(v2Episode);
                 }
             }
@@ -158,8 +156,7 @@ public class AddAudioPodcastProcessor(
         var podcast = await podcastRepository.GetBy(x => x.SpotifyId == request.PodcastId);
         if (podcast == null)
         {
-            var legacyPodcast = await podcastFactory.Create(spotifyPodcast.Name);
-            podcast = ToV2Podcast(legacyPodcast);
+            podcast = await podcastFactory.Create(spotifyPodcast.Name);
             podcast.SpotifyId = spotifyPodcast.Id;
             podcast.Bundles = false;
             podcast.Publisher = spotifyPodcast.Publisher.Trim();
@@ -186,8 +183,7 @@ public class AddAudioPodcastProcessor(
         var podcast = await podcastRepository.GetBy(x => x.AppleId == id);
         if (podcast == null)
         {
-            var legacyPodcast = await podcastFactory.Create(applePodcast.Name);
-            podcast = ToV2Podcast(legacyPodcast);
+            podcast = await podcastFactory.Create(applePodcast.Name);
             podcast.AppleId = applePodcast.Id;
             podcast.Bundles = false;
             podcast.Publisher = applePodcast.ArtistName.Trim();
@@ -310,7 +306,7 @@ public class AddAudioPodcastProcessor(
             Urls = v2Episode.Urls,
             Subjects = v2Episode.Subjects,
             SearchTerms = v2Episode.SearchTerms,
-            Language = v2Episode.SearchLanguage,
+            Language = v2Episode.Language,
             Images = v2Episode.Images,
             TwitterHandles = v2Episode.TwitterHandles,
             BlueskyHandles = v2Episode.BlueskyHandles

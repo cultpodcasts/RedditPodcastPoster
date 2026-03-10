@@ -25,10 +25,6 @@ public class Episode
     [JsonPropertyOrder(27)]
     public string? PodcastSearchTerms { get; set; }
 
-    [JsonPropertyName("searchLang")]
-    [JsonPropertyOrder(28)]
-    public string? SearchLanguage { get; set; }
-
     [JsonPropertyName("title")]
     [JsonPropertyOrder(30)]
     public string Title { get; set; } = "";

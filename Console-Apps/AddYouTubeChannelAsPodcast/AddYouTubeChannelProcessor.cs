@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
@@ -46,8 +45,7 @@ public class AddYouTubeChannelProcessor(
             newPodcast.PrimaryPostService = Service.YouTube;
             
             // Convert to V2 for saving
-            var v2Podcast = newPodcast.ToV2Podcast();
-            await repository.Save(v2Podcast);
+            await repository.Save(newPodcast);
             
             logger.LogInformation("Created podcast with name '{NewPodcastName}' and id '{NewPodcastId}'.", newPodcast.Name, newPodcast.Id);
             return true;

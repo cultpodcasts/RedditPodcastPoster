@@ -8,7 +8,8 @@ namespace RedditPodcastPoster.UrlSubmission;
 
 public class CategorisedItemProcessor(
     IPodcastProcessor podcastProcessor,
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     IPodcastAndEpisodeFactory podcastAndEpisodeFactory,
     ILogger<CategorisedItem> logger) : ICategorisedItemProcessor
 {
@@ -34,10 +35,11 @@ public class CategorisedItemProcessor(
             submitResult = new SubmitResult(SubmitResultState.Created,
                 SubmitResultState.Created,
                 result.SubmitEpisodeDetails,
-                result.NewEpisode.Id);
+                result.NewEpisode);
             if (submitOptions.PersistToDatabase)
             {
                 await podcastRepository.Save(result.NewPodcast);
+                await episodeRepository.Save(result.NewEpisode);
             }
             else
             {

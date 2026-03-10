@@ -173,7 +173,6 @@ public class Processor(
             PodcastId = episode.PodcastId,
             PodcastName = episode.PodcastName,
             PodcastSearchTerms = episode.PodcastSearchTerms,
-            SearchLanguage = episode.SearchLanguage,
             Title = episode.Title,
             Description = episode.Description,
             Release = episode.Release,
@@ -191,7 +190,7 @@ public class Processor(
             Subjects = episode.Subjects,
             SearchTerms = episode.SearchTerms,
             Images = episode.Images,
-            Language = episode.SearchLanguage,
+            Language = episode.Language,
             TwitterHandles = episode.TwitterHandles,
             BlueskyHandles = episode.BlueskyHandles
         };

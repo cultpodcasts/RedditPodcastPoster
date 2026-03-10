@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text;
@@ -21,7 +21,7 @@ public class PodcastProcessor(
     {
         var matchingEpisodes = categorisedItem.MatchingEpisode != null
             ? [categorisedItem.MatchingEpisode]
-            : categorisedItem.MatchingPodcast!.Episodes.Where(episode =>
+            : categorisedItem.MatchingPodcastEpisodes!.Where(episode =>
                 episodeHelper.IsMatchingEpisode(episode, categorisedItem)).ToArray();
 
         Episode? matchingEpisode;
@@ -47,12 +47,12 @@ public class PodcastProcessor(
                 categorisedItem,
                 matchingEpisode);
 
-        Guid episodeId;
         SubmitResultState episodeResult;
+        Episode? episode=null;
         if (matchingEpisode == null)
         {
             episodeResult = SubmitResultState.Created;
-            var episode = episodeFactory.CreateEpisode(categorisedItem);
+            episode = episodeFactory.CreateEpisode(categorisedItem);
             var subjectsResult = await subjectEnricher.EnrichSubjects(
                 episode,
                 new SubjectEnrichmentOptions(
@@ -60,10 +60,6 @@ public class PodcastProcessor(
                     categorisedItem.MatchingPodcast.IgnoredSubjects,
                     categorisedItem.MatchingPodcast.DefaultSubject,
                     categorisedItem.MatchingPodcast.DescriptionRegex));
-            categorisedItem.MatchingPodcast.Episodes.Add(episode);
-            categorisedItem.MatchingPodcast.Episodes =
-                categorisedItem.MatchingPodcast.Episodes.OrderByDescending(x => x.Release).ToList();
-            episodeId = episode.Id;
             submitEpisodeDetails = new SubmitEpisodeDetails(
                 episode.Urls.Spotify != null,
                 episode.Urls.Apple != null,
@@ -75,9 +71,9 @@ public class PodcastProcessor(
         else
         {
             episodeResult = appliedEpisodeResult;
-            episodeId = matchingEpisode.Id;
+            episode = matchingEpisode;
         }
 
-        return new SubmitResult(episodeResult, podcastResult, submitEpisodeDetails, episodeId);
+        return new SubmitResult(episodeResult, podcastResult, submitEpisodeDetails, episode);
     }
 }

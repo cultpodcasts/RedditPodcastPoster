@@ -29,7 +29,7 @@ public static class PodcastEpisodeExtensions
             Urls = v2Episode.Urls,
             Subjects = v2Episode.Subjects,
             SearchTerms = v2Episode.SearchTerms,
-            Language = v2Episode.SearchLanguage,
+            Language = v2Episode.Language,
             Images = v2Episode.Images,
             TwitterHandles = v2Episode.TwitterHandles,
             BlueskyHandles = v2Episode.BlueskyHandles
@@ -175,7 +175,7 @@ public static class PodcastEpisodeExtensions
             SearchTerms = episode.SearchTerms,
             PodcastName = podcast.Name,
             PodcastSearchTerms = podcast.SearchTerms,
-            SearchLanguage = episode.Language ?? podcast.Language,
+            Language = episode.Language ?? podcast.Language,
             PodcastMetadataVersion = null,
             PodcastRemoved = podcast.Removed,
             Images = episode.Images,

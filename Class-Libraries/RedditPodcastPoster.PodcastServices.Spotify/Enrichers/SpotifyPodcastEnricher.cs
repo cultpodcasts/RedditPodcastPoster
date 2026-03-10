@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Factories;
@@ -39,12 +40,16 @@ public class SpotifyPodcastEnricher(
 
         if (!string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
+            var podcastV2 = podcast.ToV2Podcast();
             foreach (var podcastEpisode in podcast.Episodes)
             {
                 if (string.IsNullOrWhiteSpace(podcastEpisode.SpotifyId))
                 {
                     var findEpisodeResponse = await spotifyIdResolver.FindEpisode(
-                        FindSpotifyEpisodeRequestFactory.Create(podcast, podcastEpisode), indexingContext);
+                        FindSpotifyEpisodeRequestFactory.Create(
+                            podcastV2,
+                            new PodcastEpisode(podcast, podcastEpisode).ToV2().Episode),
+                        indexingContext);
                     if (!string.IsNullOrWhiteSpace(findEpisodeResponse.FullEpisode?.Id))
                     {
                         podcastEpisode.SpotifyId = findEpisodeResponse.FullEpisode.Id;

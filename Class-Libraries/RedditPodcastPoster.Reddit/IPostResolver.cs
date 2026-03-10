@@ -5,5 +5,5 @@ namespace RedditPodcastPoster.Reddit;
 
 public interface IPostResolver
 {
-    IEnumerable<Post> FindEpisodePosts(PodcastEpisode podcastEpisode);
+    IEnumerable<Post> FindEpisodePosts(PodcastEpisodeV2 podcastEpisode);
 }

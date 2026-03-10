@@ -131,7 +131,7 @@ public class TrainingDataProcessor(
             else
             {
                 subjects = (await subjectService.Match(
-                        ToLegacyEpisode(podcastEpisode.Episode),
+                        podcastEpisode.Episode,
                         podcastEpisode.Podcast.IgnoredAssociatedSubjects,
                         podcastEpisode.Podcast.IgnoredSubjects,
                         podcastEpisode.Podcast.DescriptionRegex))
@@ -186,7 +186,7 @@ ${podcastEpisode.Episode.Description}");
             PodcastId = episode.PodcastId,
             PodcastName = episode.PodcastName,
             PodcastSearchTerms = episode.PodcastSearchTerms,
-            SearchLanguage = episode.SearchLanguage,
+            Language = episode.Language,
             Title = episode.Title,
             Description = episode.Description,
             Release = episode.Release,

@@ -68,13 +68,10 @@ public class Processor(
 
             foreach (var episode in episodes)
             {
-                var servicePodcast = CreateServicePodcast(podcast);
-                var serviceEpisode = CreateServiceEpisode(episode);
-                var imageUpdateRequest = (servicePodcast, serviceEpisode).ToEpisodeImageUpdateRequest();
-                var updated = await imageUpdater.UpdateImages(servicePodcast, serviceEpisode, imageUpdateRequest, indexingContext);
+                var imageUpdateRequest = (podcast, episode).ToEpisodeImageUpdateRequest();
+                var updated = await imageUpdater.UpdateImages(podcast, episode, imageUpdateRequest, indexingContext);
                 if (updated)
                 {
-                    ApplyServiceEpisodeUpdates(episode, serviceEpisode);
                     await episodeRepository.Save(episode);
                     updatedEpisodeIds.Add(episode.Id);
                     updatedEpisodes++;
@@ -141,7 +138,7 @@ public class Processor(
             PodcastId = episode.PodcastId,
             PodcastName = episode.PodcastName,
             PodcastSearchTerms = episode.PodcastSearchTerms,
-            SearchLanguage = episode.SearchLanguage,
+            Language = episode.Language,
             Title = episode.Title,
             Description = episode.Description,
             Release = episode.Release,
@@ -159,7 +156,6 @@ public class Processor(
             Subjects = episode.Subjects,
             SearchTerms = episode.SearchTerms,
             Images = episode.Images,
-            Language = episode.SearchLanguage,
             TwitterHandles = episode.TwitterHandles,
             BlueskyHandles = episode.BlueskyHandles
         };
@@ -184,7 +180,7 @@ public class Processor(
         target.Subjects = source.Subjects;
         target.SearchTerms = source.SearchTerms;
         target.Images = source.Images;
-        target.SearchLanguage = source.Language;
+        target.Language = source.Language;
         target.TwitterHandles = source.TwitterHandles;
         target.BlueskyHandles = source.BlueskyHandles;
     }

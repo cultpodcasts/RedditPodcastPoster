@@ -16,7 +16,7 @@ public class PostResolver(
 {
     private readonly SubredditSettings _subredditSettings = subredditSettings.Value;
 
-    public IEnumerable<Post> FindEpisodePosts(PodcastEpisode podcastEpisode)
+    public IEnumerable<Post> FindEpisodePosts(PodcastEpisodeV2 podcastEpisode)
     {
         var subredditPosts = redditClient.Subreddit(_subredditSettings.SubredditName).Posts.New;
         var subredditEpisodePosts = subredditPosts

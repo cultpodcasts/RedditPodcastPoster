@@ -10,7 +10,7 @@ public class TweetManager(
     ILogger<TweetManager> logger
 ) : ITweetManager
 {
-    public async Task<RemoveTweetState> RemoveTweet(PodcastEpisode podcastEpisode)
+    public async Task<RemoveTweetState> RemoveTweet(PodcastEpisodeV2 podcastEpisode)
     {
         var tweetsResponse = await twitterClient.GetTweets();
         if (tweetsResponse.State == GetTweetsState.Retrieved)

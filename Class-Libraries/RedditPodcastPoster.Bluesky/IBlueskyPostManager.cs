@@ -8,5 +8,5 @@ public interface IBlueskyPostManager
         bool youTubeRefreshed,
         bool spotifyRefreshed);
 
-    Task<Models.RemovePostState> RemovePost(PodcastEpisode podcastEpisode);
+    Task<Models.RemovePostState> RemovePost(PodcastEpisodeV2 podcastEpisode);
 }

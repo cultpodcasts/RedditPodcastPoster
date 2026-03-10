@@ -6,6 +6,8 @@ using RedditPodcastPoster.PodcastServices.Spotify.Factories;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.Text;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Categorisers;
 
@@ -15,49 +17,6 @@ public class SpotifyUrlCategoriser(
     ILogger<SpotifyUrlCategoriser> logger)
     : ISpotifyUrlCategoriser
 {
-    public async Task<ResolvedSpotifyItem> Resolve(
-        Podcast? podcast,
-        Uri url,
-        IndexingContext indexingContext)
-    {
-        if (podcast != null && podcast.Episodes.Any(x => x.Urls.Spotify == url))
-        {
-            return new ResolvedSpotifyItem(new PodcastEpisode(podcast,
-                podcast.Episodes.Single(x => x.Urls.Spotify == url)));
-        }
-
-        var episodeId = SpotifyIdResolver.GetEpisodeId(url);
-        if (episodeId == null)
-        {
-            throw new InvalidOperationException($"Unable to find spotify-id in url '{url}'.");
-        }
-
-        var findEpisodeResponse = await spotifyEpisodeResolver.FindEpisode(
-            FindSpotifyEpisodeRequestFactory.Create(episodeId),
-            indexingContext);
-        if (findEpisodeResponse.FullEpisode != null)
-        {
-            return new ResolvedSpotifyItem(
-                findEpisodeResponse.FullEpisode.Show.Id,
-                findEpisodeResponse.FullEpisode.Id,
-                findEpisodeResponse.FullEpisode.Show.Name,
-                findEpisodeResponse.FullEpisode.Show.Description,
-                findEpisodeResponse.FullEpisode.Show.Publisher,
-                findEpisodeResponse.FullEpisode.Name,
-                htmlSanitiser.Sanitise(findEpisodeResponse.FullEpisode.HtmlDescription),
-                findEpisodeResponse.FullEpisode.GetReleaseDate(),
-                findEpisodeResponse.FullEpisode.GetDuration(),
-                new Uri(findEpisodeResponse.FullEpisode.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute),
-                findEpisodeResponse.FullEpisode.Explicit,
-                findEpisodeResponse.FullEpisode.GetBestImageUrl());
-        }
-
-        logger.LogError("Skipping finding-episode as '{property}' is set.",
-            nameof(indexingContext.SkipExpensiveSpotifyQueries));
-
-        throw new InvalidOperationException($"Could not find item with spotify-id '{episodeId}'.");
-    }
-
     public async Task<ResolvedSpotifyItem?> Resolve(
         PodcastServiceSearchCriteria criteria,
         Podcast? matchingPodcast,
@@ -73,7 +32,7 @@ public class SpotifyUrlCategoriser(
 
             if (findEpisodeResponse.FullEpisode == null && !string.IsNullOrWhiteSpace(criteria.AppleTitle))
             {
-                var altCriteria = criteria with {EpisodeTitle = criteria.AppleTitle};
+                var altCriteria = criteria with { EpisodeTitle = criteria.AppleTitle };
                 request = FindSpotifyEpisodeRequestFactory.Create(matchingPodcast, altCriteria);
                 findEpisodeResponse = await spotifyEpisodeResolver.FindEpisode(request, indexingContext);
             }
@@ -115,5 +74,49 @@ public class SpotifyUrlCategoriser(
         }
 
         return null;
+    }
+
+    public async Task<ResolvedSpotifyItem> Resolve(
+        Podcast? podcast,
+        IEnumerable<Episode> episodes,
+        Uri url,
+        IndexingContext indexingContext)
+    {
+        if (podcast != null && episodes.Any(x => x.Urls.Spotify == url))
+        {
+            return new ResolvedSpotifyItem(new PodcastEpisodeV2(podcast,
+                episodes.Single(x => x.Urls.Spotify == url)));
+        }
+
+        var episodeId = SpotifyIdResolver.GetEpisodeId(url);
+        if (episodeId == null)
+        {
+            throw new InvalidOperationException($"Unable to find spotify-id in url '{url}'.");
+        }
+
+        var findEpisodeResponse = await spotifyEpisodeResolver.FindEpisode(
+            FindSpotifyEpisodeRequestFactory.Create(episodeId),
+            indexingContext);
+        if (findEpisodeResponse.FullEpisode != null)
+        {
+            return new ResolvedSpotifyItem(
+                findEpisodeResponse.FullEpisode.Show.Id,
+                findEpisodeResponse.FullEpisode.Id,
+                findEpisodeResponse.FullEpisode.Show.Name,
+                findEpisodeResponse.FullEpisode.Show.Description,
+                findEpisodeResponse.FullEpisode.Show.Publisher,
+                findEpisodeResponse.FullEpisode.Name,
+                htmlSanitiser.Sanitise(findEpisodeResponse.FullEpisode.HtmlDescription),
+                findEpisodeResponse.FullEpisode.GetReleaseDate(),
+                findEpisodeResponse.FullEpisode.GetDuration(),
+                new Uri(findEpisodeResponse.FullEpisode.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute),
+                findEpisodeResponse.FullEpisode.Explicit,
+                findEpisodeResponse.FullEpisode.GetBestImageUrl());
+        }
+
+        logger.LogError("Skipping finding-episode as '{property}' is set.",
+            nameof(indexingContext.SkipExpensiveSpotifyQueries));
+
+        throw new InvalidOperationException($"Could not find item with spotify-id '{episodeId}'.");
     }
 }

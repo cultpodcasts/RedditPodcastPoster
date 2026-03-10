@@ -60,7 +60,7 @@ public class SubmitUrlProcessor(
             logger.LogInformation(result.ToString());
             if (result.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
             {
-                updatedEpisodeIds.Add(result.EpisodeId!.Value);
+                updatedEpisodeIds.Add(result.Episode!.Id);
             }
         }
 

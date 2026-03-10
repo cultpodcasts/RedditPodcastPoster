@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.JsonSplitCosmosDbUploader;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace JsonSplitCosmosDbUploader;
@@ -10,13 +10,16 @@ namespace JsonSplitCosmosDbUploader;
 public class JsonSplitCosmosDbUploadProcessor(
     IFileRepository fileRepository,
     IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepositoryV2,
+    IEpisodeRepository episodeRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
     IPodcastFactory podcastFactory,
     ILogger<JsonSplitCosmosDbUploadProcessor> logger)
 {
     public async Task Run(JsonSplitCosmosDbUploadRequest request)
     {
-        var sourcePodcast = await fileRepository.Read<Podcast>(Path.GetFileNameWithoutExtension(request.FileName));
+        throw new NotImplementedException("Not implemented during migration");
+        var sourcePodcast = await fileRepository.Read<RedditPodcastPoster.Models.Podcast>(Path.GetFileNameWithoutExtension(request.FileName));
         if (sourcePodcast != null)
         {
             logger.LogInformation("'{EpisodesCount}' episodes.", sourcePodcast.Episodes.Count);
@@ -53,10 +56,17 @@ public class JsonSplitCosmosDbUploadProcessor(
                 podcast.YouTubePlaylistId = sourcePodcast.YouTubePlaylistId;
                 podcast.YouTubePlaylistQueryIsExpensive = sourcePodcast.YouTubePlaylistQueryIsExpensive;
                 podcast.YouTubePublicationOffset = sourcePodcast.YouTubePublicationOffset;
-                podcast.Episodes = sourcePodcast.Episodes.Skip((splitFiles - (i + 1)) * episodesPerFile)
-                    .Take(episodesPerFile)
-                    .OrderByDescending(x => x.Release).ToList();
-                await podcastRepository.Save(podcast);
+
+                await podcastRepositoryV2.Save(podcast);
+
+                //var episodes= sourcePodcast.Episodes.Select(x=>new RedditPodcastPoster.Models.V2.Episode()
+                //{
+
+                //})
+                //var episodes = sourcePodcast.Episodes.Skip((splitFiles - (i + 1)) * episodesPerFile)
+                //    .Take(episodesPerFile)
+                //    .OrderByDescending(x => x.Release).ToList();
+
             }
         }
     }

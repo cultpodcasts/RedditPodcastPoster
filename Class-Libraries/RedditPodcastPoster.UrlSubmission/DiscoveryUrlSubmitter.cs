@@ -2,6 +2,7 @@
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission.Models;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.UrlSubmission;
 
@@ -55,6 +56,6 @@ public class DiscoveryUrlSubmitter(
 
 
         var state = submitResultAdaptor.ToDiscoverySubmitResultState(submitResult);
-        return new DiscoverySubmitResult(state, submitResult.EpisodeId);
+        return new DiscoverySubmitResult(state, submitResult.Episode);
     }
 }

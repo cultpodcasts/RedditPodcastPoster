@@ -198,7 +198,7 @@ public class PodcastEpisodeFilterV2(
             Urls = v2Episode.Urls,
             Subjects = v2Episode.Subjects,
             SearchTerms = v2Episode.SearchTerms,
-            Language = v2Episode.SearchLanguage,
+            Language = v2Episode.Language,
             Images = v2Episode.Images,
             TwitterHandles = v2Episode.TwitterHandles,
             BlueskyHandles = v2Episode.BlueskyHandles

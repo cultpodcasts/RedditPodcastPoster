@@ -11,7 +11,7 @@ using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
-using Podcast = RedditPodcastPoster.Models.Podcast;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.UrlSubmission;
 
@@ -117,6 +117,6 @@ public class PodcastService(
         }
 
         var v2Podcast = v2Podcasts.SingleOrDefault();
-        return v2Podcast?.ToLegacyPodcast();
+        return v2Podcast;
     }
 }

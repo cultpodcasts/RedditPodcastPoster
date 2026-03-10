@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace RedditPodcastPoster.UrlSubmission.Factories;
 

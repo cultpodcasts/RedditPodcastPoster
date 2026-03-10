@@ -20,7 +20,7 @@ public class SubmitUrlResponse
                 ToSubmitEpisodeResponse(result.EpisodeResult),
                 ToSubmitEpisodeResponse(result.PodcastResult),
                 ToSubmitEpisodeDetails(result.SubmitEpisodeDetails),
-                result.EpisodeId
+                result.Episode?.Id
             )
         };
     }

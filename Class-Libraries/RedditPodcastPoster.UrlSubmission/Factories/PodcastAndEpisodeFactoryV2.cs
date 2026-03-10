@@ -132,7 +132,7 @@ public class PodcastAndEpisodeFactoryV2(
             SearchTerms = episode.SearchTerms,
             PodcastName = newPodcast.Name,
             PodcastSearchTerms = newPodcast.SearchTerms,
-            SearchLanguage = episode.Language ?? newPodcast.Language,
+            Language = episode.Language ?? newPodcast.Language,
             PodcastMetadataVersion = null,
             PodcastRemoved = newPodcast.Removed,
             Images = episode.Images,

@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
@@ -104,7 +104,7 @@ public class PodcastProcessorV2(
                 SearchTerms = episode.SearchTerms,
                 PodcastName = categorisedItem.MatchingPodcast.Name,
                 PodcastSearchTerms = categorisedItem.MatchingPodcast.SearchTerms,
-                SearchLanguage = episode.Language ?? categorisedItem.MatchingPodcast.Language,
+                Language = episode.Language ?? categorisedItem.MatchingPodcast.Language,
                 PodcastMetadataVersion = null,
                 PodcastRemoved = categorisedItem.MatchingPodcast.Removed,
                 Images = episode.Images,
@@ -125,7 +125,6 @@ public class PodcastProcessorV2(
         else
         {
             episodeResult = appliedEpisodeResult;
-            episodeId = matchingEpisode.Id;
 
             // If episode was updated, save changes to detached repository
             if (appliedEpisodeResult == SubmitResultState.Enriched)
@@ -149,7 +148,7 @@ public class PodcastProcessorV2(
             await podcastRepository.Save(v2Podcast);
         }
 
-        return new SubmitResult(episodeResult, podcastResult, submitEpisodeDetails, episodeId);
+        return new SubmitResult(episodeResult, podcastResult, submitEpisodeDetails, matchingEpisode);
     }
 
     private static Episode ToLegacyEpisode(V2Episode v2Episode)
@@ -173,7 +172,7 @@ public class PodcastProcessorV2(
             Urls = v2Episode.Urls,
             Subjects = v2Episode.Subjects,
             SearchTerms = v2Episode.SearchTerms,
-            Language = v2Episode.SearchLanguage,
+            Language = v2Episode.Language,
             Images = v2Episode.Images,
             TwitterHandles = v2Episode.TwitterHandles,
             BlueskyHandles = v2Episode.BlueskyHandles

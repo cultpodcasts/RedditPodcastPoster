@@ -108,9 +108,8 @@ public class Indexer(
             
             foreach (var episode in episodes)
             {
-                var legacyEpisode = episode.ToLegacyEpisode();
                 var subjectsResult = await subjectEnricher.EnrichSubjects(
-                    legacyEpisode,
+                    episode,
                     new SubjectEnrichmentOptions(
                         podcast.IgnoredAssociatedSubjects,
                         podcast.IgnoredSubjects,

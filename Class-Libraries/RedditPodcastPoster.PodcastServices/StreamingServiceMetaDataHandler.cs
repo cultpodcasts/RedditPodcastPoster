@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.BBC;
 using RedditPodcastPoster.InternetArchive;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices;
@@ -16,6 +16,7 @@ public class StreamingServiceMetaDataHandler(
 {
     public async Task<ResolvedNonPodcastServiceItem> ResolveServiceItem(
         Podcast? podcast,
+        IEnumerable<Episode> episodes,
         Uri url)
     {
         NonPodcastService service;
@@ -27,26 +28,26 @@ public class StreamingServiceMetaDataHandler(
         {
             metaData = await internetArchivePageMetaDataExtractor.GetMetaData(url);
             service = NonPodcastService.InternetArchive;
-            if (podcast?.Episodes.Count(x => x.Urls.InternetArchive == url) > 1)
+            if (episodes.Count(x => x.Urls.InternetArchive == url) > 1)
             {
                 logger.LogError(
                     "Multiple episodes of podcast with podcast-id {podcastId} with internet-archive url '{url}'.",
                     podcast.Id, url);
             }
 
-            matchingEpisode = podcast?.Episodes.FirstOrDefault(x => x.Urls.InternetArchive == url);
+            matchingEpisode = episodes.FirstOrDefault(x => x.Urls.InternetArchive == url);
         }
         else if (BBCUrlMatcher.IsBBCUrl(url))
         {
             metaData = await bbcPageMetaDataExtractor.GetMetaData(url);
             service = NonPodcastService.BBC;
-            if (podcast?.Episodes.Count(x => x.Urls.BBC == url) > 1)
+            if (episodes.Count(x => x.Urls.BBC == url) > 1)
             {
                 logger.LogError("Multiple episodes of podcast with podcast-id {podcastId} with bbc url '{url}'.",
                     podcast.Id, url);
             }
 
-            matchingEpisode = podcast?.Episodes.FirstOrDefault(x => x.Urls.BBC == url);
+            matchingEpisode = episodes.FirstOrDefault(x => x.Urls.BBC == url);
         }
         else
         {

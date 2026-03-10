@@ -4,6 +4,7 @@ using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Subjects.Models;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace RedditPodcastPoster.Subjects.Tests;
 

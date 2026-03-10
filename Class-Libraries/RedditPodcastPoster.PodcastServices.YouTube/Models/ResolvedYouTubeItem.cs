@@ -34,7 +34,7 @@ public class ResolvedYouTubeItem
         PlaylistId = playlistId;
     }
 
-    public ResolvedYouTubeItem(PodcastEpisode podcastEpisode)
+    public ResolvedYouTubeItem(PodcastEpisodeV2 podcastEpisode)
     {
         ShowId = podcastEpisode.Podcast.YouTubeChannelId;
         EpisodeId = podcastEpisode.Episode.YouTubeId;
