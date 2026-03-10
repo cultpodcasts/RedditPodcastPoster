@@ -5,7 +5,7 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Extensions;
 
 public static class PodcastEpisodeExtensions
 {
-    public static EpisodeSearchRecord ToEpisodeSearchRecord(this PodcastEpisode podcastEpisode)
+    public static EpisodeSearchRecord ToEpisodeSearchRecord(this PodcastEpisodeV2 podcastEpisode)
     {
         var image = podcastEpisode.Episode.Images?.YouTube ?? podcastEpisode.Episode.Images?.Spotify ??
             podcastEpisode.Episode.Images?.Apple ?? podcastEpisode.Episode.Images?.Other;

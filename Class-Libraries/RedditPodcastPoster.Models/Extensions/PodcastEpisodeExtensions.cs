@@ -1,7 +1,7 @@
 namespace RedditPodcastPoster.Models.Extensions;
 
 /// <summary>
-/// Extension methods for converting between PodcastEpisode and PodcastEpisodeV2.
+/// Extension methods for model conversion.
 /// </summary>
 public static class PodcastEpisodeExtensions
 {
@@ -49,50 +49,6 @@ public static class PodcastEpisodeExtensions
             KnownTerms = legacyPodcast.KnownTerms,
             FileKey = legacyPodcast.FileKey,
             Timestamp = legacyPodcast.Timestamp
-        };
-    }
-
-    /// <summary>
-    /// Converts a legacy PodcastEpisode to V2 PodcastEpisode.
-    /// Note: This should only be used during transition - prefer loading from V2 repositories.
-    /// </summary>
-    public static PodcastEpisodeV2 ToV2(this PodcastEpisode legacyPodcastEpisode)
-    {
-        var v2Podcast = legacyPodcastEpisode.Podcast.ToV2Podcast();
-        var v2Episode = ToV2Episode(legacyPodcastEpisode.Podcast, legacyPodcastEpisode.Episode);
-        return new PodcastEpisodeV2(v2Podcast, v2Episode);
-    }
-
-    private static Models.V2.Episode ToV2Episode(Podcast podcast, Episode episode)
-    {
-        return new Models.V2.Episode
-        {
-            Id = episode.Id,
-            PodcastId = podcast.Id,
-            Title = episode.Title,
-            Description = episode.Description,
-            Release = episode.Release,
-            Length = episode.Length,
-            Explicit = episode.Explicit,
-            Posted = episode.Posted,
-            Tweeted = episode.Tweeted,
-            BlueskyPosted = episode.BlueskyPosted,
-            Ignored = episode.Ignored,
-            Removed = episode.Removed,
-            SpotifyId = episode.SpotifyId,
-            AppleId = episode.AppleId,
-            YouTubeId = episode.YouTubeId,
-            Urls = episode.Urls,
-            Subjects = episode.Subjects ?? [],
-            SearchTerms = episode.SearchTerms,
-            PodcastName = podcast.Name,
-            PodcastSearchTerms = podcast.SearchTerms,
-            Language = episode.Language ?? podcast.Language,
-            PodcastMetadataVersion = null,
-            PodcastRemoved = podcast.Removed,
-            Images = episode.Images,
-            TwitterHandles = episode.TwitterHandles,
-            BlueskyHandles = episode.BlueskyHandles
         };
     }
 }

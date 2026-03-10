@@ -4,22 +4,32 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
-public class EpisodeResolver(IPodcastRepository podcastRepository, ILogger<EpisodeResolver> logger)
+public class EpisodeResolver(
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
+    ILogger<EpisodeResolver> logger)
     : IEpisodeResolver
 {
     private readonly ILogger<EpisodeResolver> _logger = logger;
 
-    public async Task<PodcastEpisode> ResolveServiceUrl(Uri url)
+    public async Task<PodcastEpisodeV2> ResolveServiceUrl(Uri url)
     {
-        var matchingPodcast = await podcastRepository.GetBy(x =>
-            x.Episodes.Select(y => y.Urls.Spotify).Contains(url) ||
-            x.Episodes.Select(y => y.Urls.Apple).Contains(url) ||
-            x.Episodes.Select(y => y.Urls.YouTube).Contains(url)
-        );
-        var matchingEpisode = matchingPodcast?.Episodes
-            .SingleOrDefault(x => x.Urls.Spotify == url || x.Urls.Apple == url || x.Urls.YouTube == url);
-        return new PodcastEpisode(
-            matchingPodcast ?? throw new InvalidOperationException($"Missing matching podcast for '{url}'."),
-            matchingEpisode ?? throw new InvalidOperationException($"Missing matching episode for '{url}'."));
+        var matchingEpisode = await episodeRepository.GetBy(x =>
+            x.Urls.Spotify == url || x.Urls.Apple == url || x.Urls.YouTube == url);
+
+        if (matchingEpisode == null)
+        {
+            _logger.LogError("Missing matching episode for '{Url}'.", url);
+            throw new InvalidOperationException($"Missing matching episode for '{url}'.");
+        }
+
+        var matchingPodcast = await podcastRepository.GetPodcast(matchingEpisode.PodcastId);
+        if (matchingPodcast == null)
+        {
+            _logger.LogError("Missing matching podcast for '{Url}' and podcast-id '{PodcastId}'.", url, matchingEpisode.PodcastId);
+            throw new InvalidOperationException($"Missing matching podcast for '{url}'.");
+        }
+
+        return new PodcastEpisodeV2(matchingPodcast, matchingEpisode);
     }
 }

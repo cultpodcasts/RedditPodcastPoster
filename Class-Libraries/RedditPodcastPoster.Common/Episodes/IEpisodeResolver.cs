@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Common.Episodes;
 
 public interface IEpisodeResolver
 {
-    Task<PodcastEpisode> ResolveServiceUrl(Uri url);
+    Task<PodcastEpisodeV2> ResolveServiceUrl(Uri url);
 }
