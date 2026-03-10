@@ -43,7 +43,7 @@ Primary focus has shifted from introducing parallel service variants to **decomm
 - Removed unused conversion helpers now that callers are gone:
   - `ToLegacyPodcast`
   - `ToLegacyEpisode`
-  - `PodcastEpisodeV2.ToLegacy()`
+  - `PodcastEpisode.ToLegacy()`
 
 ### Target Group C: Temporary compatibility overloads
 - Removed temporary legacy overloads from:
@@ -51,17 +51,18 @@ Primary focus has shifted from introducing parallel service variants to **decomm
   - `FindAppleEpisodeRequestFactory`
 
 ### Target Group D: Duplicate service variants
-- Retired legacy provider/poster variants and standardized on canonical detached-episode contracts:
-  - `IPodcastEpisodeProvider` / `PodcastEpisodeProvider` (formerly `IPodcastEpisodeProviderV2` / `PodcastEpisodeProviderV2`)
-  - `IPodcastEpisodePoster` / `PodcastEpisodePoster` (formerly `IPodcastEpisodePosterV2` / `PodcastEpisodePosterV2`)
+- Retired duplicate provider/poster variants and standardized on canonical detached-episode contracts:
+  - `IPodcastEpisodeProvider` / `PodcastEpisodeProvider`
+  - `IPodcastEpisodePoster` / `PodcastEpisodePoster`
 
-### Target Group E: Legacy `PodcastEpisode` usage outside allowed boundaries
-- Migrated additional runtime paths to detached V2 contracts (`PodcastEpisodeV2` + V2 models):
+### Target Group E: Legacy episode-pair usage outside allowed boundaries
+- Migrated additional runtime paths to detached contracts (`PodcastEpisode` + detached podcast/episode models):
   - `IEpisodeResolver` / `EpisodeResolver`
   - `EpisodeSearchIndexerService` and its mapping extension
   - `PodcastEpisodesExtension` (legacy extension block removed)
-  - `SpotifyPodcastEnricher` (legacy `PodcastEpisode` construction removed)
-- Removed legacy `RedditPodcastPoster.Models/PodcastEpisode.cs` from active codepaths.
+  - `SpotifyPodcastEnricher` (legacy episode-pair construction removed)
+- Removed legacy embedded-model `RedditPodcastPoster.Models/PodcastEpisode.cs` from active codepaths.
+- Promoted detached model pair to canonical `PodcastEpisode` naming.
 - Build is green after these migrations.
 
 ---
