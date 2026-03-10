@@ -105,6 +105,7 @@ public class LegacyPodcastToV2MigrationProcessor(
                             logger.LogError(ex,
                                 "Failed to migrate episodes for legacy podcast id '{PodcastId}' with count '{EpisodeCount}'.",
                                 legacyPodcast.Id, episodeBatch.Length);
+                            throw;
                         }
                     }
                 }
@@ -115,6 +116,7 @@ public class LegacyPodcastToV2MigrationProcessor(
                     logger.LogError(ex,
                         "Failed to migrate legacy podcast id '{PodcastId}' and its episodes.",
                         legacyPodcast.Id);
+                    throw;
                 }
             }
         }
@@ -136,6 +138,8 @@ public class LegacyPodcastToV2MigrationProcessor(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to migrate EliminationTerms into v2 LookUps repository.");
+                throw;
+
             }
 
             try
@@ -147,6 +151,8 @@ public class LegacyPodcastToV2MigrationProcessor(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to migrate KnownTerms into v2 LookUps repository.");
+                throw;
+
             }
         }
         else
