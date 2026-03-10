@@ -38,11 +38,11 @@ public static class ServiceCollectionExtensions
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<EpisodeRepository>>();
                     return new EpisodeRepository(containerFactory.CreateEpisodesContainer(), logger);
                 })
-                .AddSingleton<IActivityRepositoryV2>(s =>
+                .AddSingleton<IActivityRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
-                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ActivityRepositoryV2>>();
-                    return new ActivityRepositoryV2(containerFactory.CreateActivitiesContainer(), logger);
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ActivityRepository>>();
+                    return new ActivityRepository(containerFactory.CreateActivitiesContainer(), logger);
                 })
                 .AddSingleton<ILookupRepositoryV2>(s =>
                 {

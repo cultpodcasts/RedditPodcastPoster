@@ -3,7 +3,7 @@ using Activity = RedditPodcastPoster.Models.V2.Activity;
 
 namespace RedditPodcastPoster.Persistence.Abstractions;
 
-public interface IActivityRepositoryV2
+public interface IActivityRepository
 {
     Task Save(Activity activity);
     Task<Activity?> Get(Guid activityId);

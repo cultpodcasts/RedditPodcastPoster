@@ -7,10 +7,10 @@ using Activity = RedditPodcastPoster.Models.V2.Activity;
 
 namespace RedditPodcastPoster.Persistence;
 
-public class ActivityRepositoryV2(
+public class ActivityRepository(
     Container activitiesContainer,
-    ILogger<ActivityRepositoryV2> logger)
-    : IActivityRepositoryV2
+    ILogger<ActivityRepository> logger)
+    : IActivityRepository
 {
     public async Task Save(Activity activity)
     {
