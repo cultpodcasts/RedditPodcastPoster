@@ -1,9 +1,9 @@
-﻿using iTunesSearch.Library;
+﻿using System.Text.RegularExpressions;
+using iTunesSearch.Library;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
@@ -13,7 +13,6 @@ using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using SpotifyAPI.Web;
-using System.Text.RegularExpressions;
 using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
 using V2Episode = RedditPodcastPoster.Models.V2.Episode;
 
@@ -144,14 +143,16 @@ public class AddAudioPodcastProcessor(
         else
         {
             var source = request.AppleReleaseAuthority ? "Apple" : "Spotify";
-            logger.LogError("Could not find podcast with id '{RequestPodcastId}' using '{Source}' as source.", request.PodcastId, source);
+            logger.LogError("Could not find podcast with id '{RequestPodcastId}' using '{Source}' as source.",
+                request.PodcastId, source);
         }
     }
 
     private async Task<V2Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
     {
         var spotifyPodcast =
-            await spotifyClient.GetFullShow(request.PodcastId, new ShowRequest { Market = Market.CountryCode }, new IndexingContext());
+            await spotifyClient.GetFullShow(request.PodcastId, new ShowRequest { Market = Market.CountryCode },
+                new IndexingContext());
         logger.LogInformation("Retrieved spotify podcast");
         var podcast = await podcastRepository.GetBy(x => x.SpotifyId == request.PodcastId);
         if (podcast == null)
@@ -195,120 +196,5 @@ public class AddAudioPodcastProcessor(
         }
 
         return podcast;
-    }
-
-    private static V2Podcast ToV2Podcast(Podcast podcast)
-    {
-        return new V2Podcast
-        {
-            Id = podcast.Id,
-            Name = podcast.Name,
-            Language = podcast.Language,
-            Removed = podcast.Removed,
-            Publisher = podcast.Publisher,
-            Bundles = podcast.Bundles,
-            IndexAllEpisodes = podcast.IndexAllEpisodes,
-            IgnoreAllEpisodes = podcast.IgnoreAllEpisodes,
-            BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking,
-            MinimumDuration = podcast.MinimumDuration,
-            ReleaseAuthority = podcast.ReleaseAuthority,
-            PrimaryPostService = podcast.PrimaryPostService,
-            SpotifyId = podcast.SpotifyId,
-            SpotifyMarket = podcast.SpotifyMarket,
-            SpotifyEpisodesQueryIsExpensive = podcast.SpotifyEpisodesQueryIsExpensive,
-            AppleId = podcast.AppleId,
-            YouTubeChannelId = podcast.YouTubeChannelId,
-            YouTubePlaylistId = podcast.YouTubePlaylistId,
-            YouTubePublicationOffset = podcast.YouTubePublicationOffset,
-            YouTubePlaylistQueryIsExpensive = podcast.YouTubePlaylistQueryIsExpensive,
-            SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube,
-            YouTubeNotificationSubscriptionLeaseExpiry = podcast.YouTubeNotificationSubscriptionLeaseExpiry,
-            TwitterHandle = podcast.TwitterHandle,
-            BlueskyHandle = podcast.BlueskyHandle,
-            HashTag = podcast.HashTag,
-            EnrichmentHashTags = podcast.EnrichmentHashTags,
-            TitleRegex = podcast.TitleRegex,
-            DescriptionRegex = podcast.DescriptionRegex,
-            EpisodeMatchRegex = podcast.EpisodeMatchRegex,
-            EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex,
-            IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
-            IgnoredSubjects = podcast.IgnoredSubjects,
-            DefaultSubject = podcast.DefaultSubject,
-            SearchTerms = podcast.SearchTerms,
-            KnownTerms = podcast.KnownTerms,
-            FileKey = podcast.FileKey,
-            Timestamp = podcast.Timestamp
-        };
-    }
-
-    private static Podcast ToLegacyPodcast(V2Podcast podcast)
-    {
-        return new Podcast(podcast.Id)
-        {
-            Name = podcast.Name,
-            Language = podcast.Language,
-            Removed = podcast.Removed,
-            Publisher = podcast.Publisher,
-            Bundles = podcast.Bundles,
-            IndexAllEpisodes = podcast.IndexAllEpisodes,
-            IgnoreAllEpisodes = podcast.IgnoreAllEpisodes,
-            BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking,
-            MinimumDuration = podcast.MinimumDuration,
-            ReleaseAuthority = podcast.ReleaseAuthority,
-            PrimaryPostService = podcast.PrimaryPostService,
-            SpotifyId = podcast.SpotifyId,
-            SpotifyMarket = podcast.SpotifyMarket,
-            SpotifyEpisodesQueryIsExpensive = podcast.SpotifyEpisodesQueryIsExpensive,
-            AppleId = podcast.AppleId,
-            YouTubeChannelId = podcast.YouTubeChannelId,
-            YouTubePlaylistId = podcast.YouTubePlaylistId,
-            YouTubePublicationOffset = podcast.YouTubePublicationOffset,
-            YouTubePlaylistQueryIsExpensive = podcast.YouTubePlaylistQueryIsExpensive,
-            SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube,
-            YouTubeNotificationSubscriptionLeaseExpiry = podcast.YouTubeNotificationSubscriptionLeaseExpiry,
-            TwitterHandle = podcast.TwitterHandle,
-            BlueskyHandle = podcast.BlueskyHandle,
-            HashTag = podcast.HashTag,
-            EnrichmentHashTags = podcast.EnrichmentHashTags,
-            TitleRegex = podcast.TitleRegex,
-            DescriptionRegex = podcast.DescriptionRegex,
-            EpisodeMatchRegex = podcast.EpisodeMatchRegex,
-            EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex,
-            IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
-            IgnoredSubjects = podcast.IgnoredSubjects,
-            DefaultSubject = podcast.DefaultSubject,
-            SearchTerms = podcast.SearchTerms,
-            KnownTerms = podcast.KnownTerms,
-            FileKey = podcast.FileKey,
-            Timestamp = podcast.Timestamp
-        };
-    }
-
-    private static Episode ToLegacyEpisode(V2Episode v2Episode)
-    {
-        return new Episode
-        {
-            Id = v2Episode.Id,
-            Title = v2Episode.Title,
-            Description = v2Episode.Description,
-            Release = v2Episode.Release,
-            Length = v2Episode.Length,
-            Explicit = v2Episode.Explicit,
-            Posted = v2Episode.Posted,
-            Tweeted = v2Episode.Tweeted,
-            BlueskyPosted = v2Episode.BlueskyPosted,
-            Ignored = v2Episode.Ignored,
-            Removed = v2Episode.Removed,
-            SpotifyId = v2Episode.SpotifyId,
-            AppleId = v2Episode.AppleId,
-            YouTubeId = v2Episode.YouTubeId,
-            Urls = v2Episode.Urls,
-            Subjects = v2Episode.Subjects,
-            SearchTerms = v2Episode.SearchTerms,
-            Language = v2Episode.Language,
-            Images = v2Episode.Images,
-            TwitterHandles = v2Episode.TwitterHandles,
-            BlueskyHandles = v2Episode.BlueskyHandles
-        };
     }
 }
