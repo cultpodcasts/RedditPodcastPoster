@@ -563,7 +563,7 @@ public class LegacyPodcastToV2MigrationProcessor(
             SearchTerms = legacyEpisode.SearchTerms,
             PodcastName = legacyPodcast.Name,
             PodcastSearchTerms = legacyPodcast.SearchTerms,
-            Language = legacyEpisode.Language ?? legacyPodcast.Language,
+            Language = legacyEpisode.Language,
             PodcastMetadataVersion = null,
             PodcastRemoved = legacyPodcast.Removed,
             Images = legacyEpisode.Images,
