@@ -2,7 +2,7 @@
 
 ## 🔍 Current Audit Focus
 
-Primary focus is decommissioning remaining legacy runtime usage outside:
+Primary focus has shifted from introducing parallel service variants to **decommissioning legacy runtime usage** outside:
 - `PodcastRepository`
 - `LegacyPodcastToV2Migration`
 
@@ -12,13 +12,28 @@ Primary focus is decommissioning remaining legacy runtime usage outside:
 
 - Detached episode persistence model is active.
 - `PodcastUpdater` is the active default updater over detached episodes.
-- Build is green after latest migration pass.
-- Major console/API runtime paths now use `IPodcastRepositoryV2` + `IEpisodeRepository`.
-- **Decommission Target Group A complete:**
-  - `ITweetPoster` migrated to `PodcastEpisodeV2`.
-  - `IBlueskyPoster` migrated to `PodcastEpisodeV2`.
-  - `IShortnerService` migrated to `PodcastEpisodeV2`.
-  - `.ToLegacy()` social/shortener boundaries removed from primary call sites.
+- **Full V2 detached episode migration completed** (commit 62b53e1).
+- Social + shortener boundaries have been migrated to `PodcastEpisodeV2` contracts.
+- All episode persistence points reviewed and fixed/verified.
+- Build is green after latest fixes.
+
+---
+
+## ✅ **LATEST FIX CYCLE COMPLETED**
+
+### Critical Issues Fixed
+1. **PodcastUpdater missing episode persistence** ✅ FIXED
+   - Added saves for enriched episodes after `EnrichEpisodes()` call
+   - Added saves for filtered episodes (marked as removed)
+   - Added saves for merged and newly added episodes
+
+2. **PodcastProcessorV2 incomplete field mapping** ✅ FIXED
+   - Expanded from 4 hardcoded fields to complete property copy
+   - Now preserves: URLs, Description, Release, Images, Subjects, SearchTerms
+
+3. **EnrichPodcastEpisodesProcessor conversion patterns** ✅ VERIFIED
+   - Already uses clean detached episode pattern
+   - Works directly with V2 episodes, no round-trip conversions needed
 
 ---
 

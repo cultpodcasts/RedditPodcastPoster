@@ -116,6 +116,31 @@ public class PodcastUpdater(
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
         var filterResult = podcastFilter.Filter(podcast, podcastEpisodes, eliminationTerms.Terms);
 
+        // Persist enriched episodes
+        if (enrichmentResult.UpdatedEpisodes.Any())
+        {
+            await episodeRepository.Save(enrichmentResult.UpdatedEpisodes.Select(x => x.Episode));
+        }
+
+        // Persist filtered episodes (marked as removed)
+        if (filterResult.FilteredEpisodes.Any())
+        {
+            await episodeRepository.Save(filterResult.FilteredEpisodes.Select(x => x.Episode));
+        }
+
+        // Persist merged episodes
+        if (mergeResult.MergedEpisodes.Any())
+        {
+            // Save the updated "NewDetails" version of merged episodes
+            await episodeRepository.Save(mergeResult.MergedEpisodes.Select(x => x.NewDetails));
+        }
+        
+        // Persist newly added episodes
+        if (mergeResult.AddedEpisodes.Any())
+        {
+            await episodeRepository.Save(mergeResult.AddedEpisodes);
+        }
+
         var discoveredYouTubeExpensiveQuery = !knownYouTubeExpensiveQuery && podcast.HasExpensiveYouTubePlaylistQuery();
         if (discoveredYouTubeExpensiveQuery)
         {
