@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "LegacyPodcastToV2Migration": {
+      "commandName": "Project"
+    }
+  }
+}

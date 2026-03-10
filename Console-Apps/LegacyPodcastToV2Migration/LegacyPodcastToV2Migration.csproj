@@ -6,14 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UserSecretsId>e4eaaf12-4507-4875-857d-a8d4032107f3</UserSecretsId>
-    <!-- Ensure a Windows app host exe is produced for the debug profile so VS can find the
-         debugger executable (prevents "debug executable does not exist" dialogs). -->
-    <UseAppHost>true</UseAppHost>
-  </PropertyGroup>
-  <!-- Produce a platform-specific app host for Debug so Visual Studio finds the .exe
-       without changing Release publishing behavior. Adjust RID if necessary for your dev machine. -->
-  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>
