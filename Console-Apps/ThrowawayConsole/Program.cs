@@ -62,32 +62,11 @@ builder.Services
 
 
 using var host = builder.Build();
-var service = host.Services.GetRequiredService<IShortnerService>();
 
 var episodeRepository = host.Services.GetRequiredService<IEpisodeRepository>();
 var podcastRepository = host.Services.GetRequiredService<IPodcastRepositoryV2>();
 
-var guid = Guid.Parse(args[0]);
-var episode = await episodeRepository.GetBy(x => x.Id == guid);
-if (episode == null)
-{
-    return;
-}
-
-var podcast = await podcastRepository.GetPodcast(episode.PodcastId);
-if (podcast == null)
-{
-    return;
-}
-
-try
-{
-    var result = await service.Delete([new PodcastEpisode(podcast, episode)]);
-}
-catch (Exception e)
-{
-    Console.WriteLine($"Error occurred: {e.Message}");
-}
+var allPodcasts = await podcastRepository.GetPodcast(Guid.Parse("eb14e2f1-dc1c-4479-ab88-695c80f9a8b7"));
 
 return;
 
