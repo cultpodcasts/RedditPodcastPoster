@@ -34,8 +34,6 @@ builder.Services
     .AddSingleton<IKnownTermsRepository, KnownTermsRepository>()
     .AddSingleton<LegacyPodcastToV2MigrationProcessor>();
 
-Console.WriteLine("Starting Legacy Podcast to V2 Migration Tool");
-Console.ReadKey();
 // Support a teardown flag to delete target v2 containers before running migration/parity checks.
 var teardown = builder.Configuration.GetValue<bool>("teardown", false);
 
