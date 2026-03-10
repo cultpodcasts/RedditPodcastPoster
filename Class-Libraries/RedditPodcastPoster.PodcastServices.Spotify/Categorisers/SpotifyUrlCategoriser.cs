@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
@@ -84,7 +84,7 @@ public class SpotifyUrlCategoriser(
     {
         if (podcast != null && episodes.Any(x => x.Urls.Spotify == url))
         {
-            return new ResolvedSpotifyItem(new PodcastEpisodeV2(podcast,
+            return new ResolvedSpotifyItem(new PodcastEpisode(podcast,
                 episodes.Single(x => x.Urls.Spotify == url)));
         }
 

@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.PodcastServices.Apple;
+namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class ResolvedAppleItem
 {
@@ -29,7 +29,7 @@ public class ResolvedAppleItem
         Image = image;
     }
 
-    public ResolvedAppleItem(Models.PodcastEpisodeV2 podcastEpisode)
+    public ResolvedAppleItem(Models.PodcastEpisode podcastEpisode)
     {
         ShowId = podcastEpisode.Podcast.AppleId;
         EpisodeId = podcastEpisode.Episode.AppleId;

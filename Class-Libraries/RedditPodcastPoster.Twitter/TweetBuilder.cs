@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -26,7 +26,7 @@ public class TweetBuilder(
     public const string? ReleaseFormat = "d MMM yyyy";
     private readonly TwitterOptions _twitterOptions = twitterOptions.Value;
 
-    public async Task<string> BuildTweet(PodcastEpisodeV2 podcastEpisode, Uri? shortUrl)
+    public async Task<string> BuildTweet(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
         var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, [podcastEpisode.Episode]));
         var episodeTitle = await textSanitiser.SanitiseTitle(postModel);

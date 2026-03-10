@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.UrlShortening;
@@ -16,7 +16,7 @@ public class Tweeter(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        IEnumerable<PodcastEpisodeV2> untweeted;
+        IEnumerable<PodcastEpisode> untweeted;
         try
         {
             untweeted = await podcastEpisodeProvider.GetUntweetedPodcastEpisodes(youTubeRefreshed, spotifyRefreshed);

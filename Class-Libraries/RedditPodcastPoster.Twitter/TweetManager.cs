@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Twitter.Models;
@@ -10,7 +10,7 @@ public class TweetManager(
     ILogger<TweetManager> logger
 ) : ITweetManager
 {
-    public async Task<RemoveTweetState> RemoveTweet(PodcastEpisodeV2 podcastEpisode)
+    public async Task<RemoveTweetState> RemoveTweet(PodcastEpisode podcastEpisode)
     {
         var tweetsResponse = await twitterClient.GetTweets();
         if (tweetsResponse.State == GetTweetsState.Retrieved)

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Reflection;
 using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
@@ -82,7 +82,7 @@ if (podcast == null)
 
 try
 {
-    var result = await service.Delete([new PodcastEpisodeV2(podcast, episode)]);
+    var result = await service.Delete([new PodcastEpisode(podcast, episode)]);
 }
 catch (Exception e)
 {

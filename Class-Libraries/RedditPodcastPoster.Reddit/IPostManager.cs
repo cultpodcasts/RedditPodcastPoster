@@ -4,6 +4,6 @@ namespace RedditPodcastPoster.Reddit;
 
 public interface IPostManager
 {
-    Task RemoveEpisodePost(PodcastEpisodeV2 podcastEpisode);
-    Task UpdateFlare(PodcastEpisodeV2 podcastEpisode);
+    Task RemoveEpisodePost(PodcastEpisode podcastEpisode);
+    Task UpdateFlare(PodcastEpisode podcastEpisode);
 }

@@ -1,11 +1,11 @@
-﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Search;
 
 namespace RedditPodcastPoster.EntitySearchIndexer.Extensions;
 
 public static class PodcastEpisodeExtensions
 {
-    public static EpisodeSearchRecord ToEpisodeSearchRecord(this PodcastEpisodeV2 podcastEpisode)
+    public static EpisodeSearchRecord ToEpisodeSearchRecord(this PodcastEpisode podcastEpisode)
     {
         var image = podcastEpisode.Episode.Images?.YouTube ?? podcastEpisode.Episode.Images?.Spotify ??
             podcastEpisode.Episode.Images?.Apple ?? podcastEpisode.Episode.Images?.Other;

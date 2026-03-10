@@ -1,13 +1,13 @@
-﻿using RedditPodcastPoster.Cloudflare;
+using RedditPodcastPoster.Cloudflare;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.UrlShortening;
 
 public interface IShortnerService
 {
-    Task<WriteResult> Write(IEnumerable<PodcastEpisodeV2> podcastEpisodes);
-    Task<WriteResult> Write(PodcastEpisodeV2 podcastEpisode, bool isDryRun = false);
+    Task<WriteResult> Write(IEnumerable<PodcastEpisode> podcastEpisodes);
+    Task<WriteResult> Write(PodcastEpisode podcastEpisode, bool isDryRun = false);
     Task<KVRecord?> Read(string requestKey);
-    Task<DeleteResult> Delete(PodcastEpisodeV2 podcastEpisode);
-    Task<DeleteResult> Delete(IEnumerable<PodcastEpisodeV2> podcastEpisodes);
+    Task<DeleteResult> Delete(PodcastEpisode podcastEpisode);
+    Task<DeleteResult> Delete(IEnumerable<PodcastEpisode> podcastEpisodes);
 }

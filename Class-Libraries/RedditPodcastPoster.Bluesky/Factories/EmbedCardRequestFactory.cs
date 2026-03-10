@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.YouTube;
@@ -21,7 +21,7 @@ public class EmbedCardRequestFactory(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : IEmbedCardRequestFactory
 {
-    public async Task<EmbedCardRequest?> CreateEmbedCardRequest(PodcastEpisodeV2 podcastEpisode,
+    public async Task<EmbedCardRequest?> CreateEmbedCardRequest(PodcastEpisode podcastEpisode,
         BlueskyEmbedCardPost embedPost)
     {
         EmbedCardRequest? embedCardRequest = null;

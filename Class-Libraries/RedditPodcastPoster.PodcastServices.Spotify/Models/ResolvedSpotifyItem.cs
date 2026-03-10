@@ -1,10 +1,10 @@
-﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Models;
 
 public class ResolvedSpotifyItem
 {
-    public ResolvedSpotifyItem(PodcastEpisodeV2 podcastEpisode)
+    public ResolvedSpotifyItem(PodcastEpisode podcastEpisode)
     {
         ShowId = podcastEpisode.Podcast.SpotifyId;
         EpisodeId = podcastEpisode.Episode.SpotifyId;

@@ -12,8 +12,8 @@ Primary focus has shifted from introducing parallel service variants to **decomm
 
 - Detached episode persistence model is active.
 - `PodcastUpdater` is the active default updater over detached episodes.
-- **Full V2 detached episode migration completed** (commit 62b53e1).
-- Social + shortener boundaries have been migrated to `PodcastEpisodeV2` contracts.
+- **Full detached episode migration completed** (commit 62b53e1).
+- Social + shortener boundaries have been migrated to `PodcastEpisode` contracts.
 - All episode persistence points reviewed and fixed/verified.
 - Build is green after latest fixes.
 

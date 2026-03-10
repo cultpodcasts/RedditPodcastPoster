@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Twitter;
@@ -80,8 +80,8 @@ public class TweetProcessor(
         }
     }
 
-    private static PodcastEpisodeV2 CreatePodcastEpisode(V2Podcast podcast, V2Episode episode)
+    private static PodcastEpisode CreatePodcastEpisode(V2Podcast podcast, V2Episode episode)
     {
-        return new PodcastEpisodeV2(podcast, episode);
+        return new PodcastEpisode(podcast, episode);
     }
 }

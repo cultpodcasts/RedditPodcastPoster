@@ -18,7 +18,7 @@ public class PodcastEpisodeProvider(
 {
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
-    public async Task<IEnumerable<PodcastEpisodeV2>> GetUntweetedPodcastEpisodes(
+    public async Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
@@ -27,7 +27,7 @@ public class PodcastEpisodeProvider(
             _postingCriteria.TweetDays);
 
         var allPodcasts = await podcastRepository.GetAll().ToListAsync();
-        var podcastEpisodes = new List<PodcastEpisodeV2>();
+        var podcastEpisodes = new List<PodcastEpisode>();
 
         foreach (var podcast in allPodcasts)
         {
@@ -44,7 +44,7 @@ public class PodcastEpisodeProvider(
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
     }
 
-    public async Task<IEnumerable<PodcastEpisodeV2>> GetUntweetedPodcastEpisodes(Guid podcastId)
+    public async Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(Guid podcastId)
     {
         logger.LogInformation("Exec {method}, podcast-id: {podcastId} init. Tweet-days: '{tweetDays}'",
             nameof(GetUntweetedPodcastEpisodes),
@@ -58,7 +58,7 @@ public class PodcastEpisodeProvider(
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
     }
 
-    public async Task<IEnumerable<PodcastEpisodeV2>> GetBlueskyReadyPodcastEpisodes(
+    public async Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
@@ -67,7 +67,7 @@ public class PodcastEpisodeProvider(
             _postingCriteria.TweetDays);
 
         var allPodcasts = await podcastRepository.GetAll().ToListAsync();
-        var podcastEpisodes = new List<PodcastEpisodeV2>();
+        var podcastEpisodes = new List<PodcastEpisode>();
 
         foreach (var podcast in allPodcasts)
         {
@@ -84,7 +84,7 @@ public class PodcastEpisodeProvider(
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
     }
 
-    public async Task<IEnumerable<PodcastEpisodeV2>> GetBlueskyReadyPodcastEpisodes(Guid podcastId)
+    public async Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(Guid podcastId)
     {
         logger.LogInformation("Exec {method}, podcast-id: {podcastId} init. Tweet-days: '{tweetDays}'",
             nameof(GetBlueskyReadyPodcastEpisodes),
@@ -99,7 +99,7 @@ public class PodcastEpisodeProvider(
     }
 
     private static bool EliminateItemsDueToIndexingErrors(
-        PodcastEpisodeV2 podcastEpisode,
+        PodcastEpisode podcastEpisode,
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
@@ -116,3 +116,4 @@ public class PodcastEpisodeProvider(
         return !(eliminateForYouTube || eliminateForSpotify);
     }
 }
+

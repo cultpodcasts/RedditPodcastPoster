@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common.Adaptors;
@@ -127,7 +127,7 @@ public class PostProcessor(
                     $"Podcast with id '{episode.PodcastId}' not found for episode-id '{request.EpisodeId.Value}'.");
             }
 
-            var podcastEpisode = new PodcastEpisodeV2(selectedPodcast, episode);
+            var podcastEpisode = new PodcastEpisode(selectedPodcast, episode);
 
             var shortnerResult = await shortnerService.Write(podcastEpisode);
             if (!shortnerResult.Success)
@@ -233,7 +233,7 @@ public class PostProcessor(
         }
     }
 
-    private async Task PostBluesky(PodcastEpisodeV2 podcastEpisode, Uri? shortUrl)
+    private async Task PostBluesky(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
         var result = await blueSkyPoster.Post(podcastEpisode, shortUrl);
         if (result != BlueskySendStatus.Success)
@@ -242,7 +242,7 @@ public class PostProcessor(
         }
     }
 
-    private async Task TweetEpisode(PodcastEpisodeV2 podcastEpisode, Uri? shortUrl)
+    private async Task TweetEpisode(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
         var result = await tweetPoster.PostTweet(podcastEpisode, shortUrl);
         if (result.TweetSendStatus != TweetSendStatus.Sent)
@@ -294,7 +294,7 @@ public class PostProcessor(
             }
             else
             {
-                var podcastEpisode = new PodcastEpisodeV2(selectedPodcast, detachedEpisode);
+                var podcastEpisode = new PodcastEpisode(selectedPodcast, detachedEpisode);
                 var result = await podcastEpisodePoster.PostPodcastEpisode(
                     podcastEpisode, request.YouTubePrimaryPostService);
                 if (!result.Success)

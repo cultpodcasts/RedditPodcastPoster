@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Models;
 
@@ -34,7 +34,7 @@ public class ResolvedYouTubeItem
         PlaylistId = playlistId;
     }
 
-    public ResolvedYouTubeItem(PodcastEpisodeV2 podcastEpisode)
+    public ResolvedYouTubeItem(PodcastEpisode podcastEpisode)
     {
         ShowId = podcastEpisode.Podcast.YouTubeChannelId;
         EpisodeId = podcastEpisode.Episode.YouTubeId;

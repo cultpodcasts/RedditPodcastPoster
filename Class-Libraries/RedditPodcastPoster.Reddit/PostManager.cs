@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Reddit;
@@ -9,7 +9,7 @@ public class PostManager(
     ILogger<PostManager> logger
 ) : IPostManager
 {
-    public async Task RemoveEpisodePost(PodcastEpisodeV2 podcastEpisode)
+    public async Task RemoveEpisodePost(PodcastEpisode podcastEpisode)
     {
         var subredditEpisodePosts = postResolver.FindEpisodePosts(podcastEpisode);
         foreach (var subredditEpisodePost in subredditEpisodePosts)
@@ -19,7 +19,7 @@ public class PostManager(
         }
     }
 
-    public async Task UpdateFlare(PodcastEpisodeV2 podcastEpisode)
+    public async Task UpdateFlare(PodcastEpisode podcastEpisode)
     {
         var subredditEpisodePosts = postResolver.FindEpisodePosts(podcastEpisode);
         foreach (var subredditEpisodePost in subredditEpisodePosts)

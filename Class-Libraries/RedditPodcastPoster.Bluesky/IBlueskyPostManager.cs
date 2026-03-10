@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Bluesky;
 
@@ -8,5 +8,5 @@ public interface IBlueskyPostManager
         bool youTubeRefreshed,
         bool spotifyRefreshed);
 
-    Task<Models.RemovePostState> RemovePost(PodcastEpisodeV2 podcastEpisode);
+    Task<Models.RemovePostState> RemovePost(PodcastEpisode podcastEpisode);
 }

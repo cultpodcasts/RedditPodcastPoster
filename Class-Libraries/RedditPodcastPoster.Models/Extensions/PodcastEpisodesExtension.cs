@@ -1,8 +1,8 @@
-﻿namespace RedditPodcastPoster.Models.Extensions;
+namespace RedditPodcastPoster.Models.Extensions;
 
 public static class PodcastEpisodesExtension
 {
-    extension(PodcastEpisodeV2 podcastEpisode)
+    extension(PodcastEpisode podcastEpisode)
     {
         public bool HasMultipleServices()
         {

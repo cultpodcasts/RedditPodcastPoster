@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Reddit;
 using Reddit.Controllers;
@@ -16,7 +16,7 @@ public class PostResolver(
 {
     private readonly SubredditSettings _subredditSettings = subredditSettings.Value;
 
-    public IEnumerable<Post> FindEpisodePosts(PodcastEpisodeV2 podcastEpisode)
+    public IEnumerable<Post> FindEpisodePosts(PodcastEpisode podcastEpisode)
     {
         var subredditPosts = redditClient.Subreddit(_subredditSettings.SubredditName).Posts.New;
         var subredditEpisodePosts = subredditPosts

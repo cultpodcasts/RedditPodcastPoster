@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Twitter.Models;
@@ -12,7 +12,7 @@ public class TweetPoster(
     ILogger<TweetPoster> logger)
     : ITweetPoster
 {
-    public async Task<PostTweetResponse> PostTweet(PodcastEpisodeV2 podcastEpisode, Uri? shortUrl)
+    public async Task<PostTweetResponse> PostTweet(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
         var tweet = await tweetBuilder.BuildTweet(podcastEpisode, shortUrl);
         PostTweetResponse tweetStatus;

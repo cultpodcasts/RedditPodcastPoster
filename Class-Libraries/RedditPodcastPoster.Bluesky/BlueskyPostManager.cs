@@ -30,7 +30,7 @@ public class BlueskyPostManager(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        IEnumerable<PodcastEpisodeV2> unposted;
+        IEnumerable<PodcastEpisode> unposted;
         try
         {
             unposted = (await podcastEpisodeProvider.GetBlueskyReadyPodcastEpisodes(youTubeRefreshed, spotifyRefreshed))
@@ -107,7 +107,7 @@ public class BlueskyPostManager(
         }
     }
 
-    public async Task<RemovePostState> RemovePost(PodcastEpisodeV2 podcastEpisode)
+    public async Task<RemovePostState> RemovePost(PodcastEpisode podcastEpisode)
     {
         var agent = await blueskyAgent.GetAsync();
         var collection = new Nsid("app.bsky.feed.post");
@@ -154,3 +154,4 @@ public class BlueskyPostManager(
         return RemovePostState.Other;
     }
 }
+

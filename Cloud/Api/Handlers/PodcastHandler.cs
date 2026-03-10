@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.Json;
 using Api.Dtos;
 using Api.Extensions;
@@ -433,7 +433,7 @@ public class PodcastHandler(
     {
         var detachedEpisodes = await GetDetachedEpisodesByPodcastId(podcast.Id, c);
 
-        var podcastEpisodes = detachedEpisodes.Select(e => new PodcastEpisodeV2(podcast, e));
+        var podcastEpisodes = detachedEpisodes.Select(e => new PodcastEpisode(podcast, e));
 
         await shortnerService.Delete(podcastEpisodes);
     }

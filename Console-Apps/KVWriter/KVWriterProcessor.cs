@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.UrlShortening;
@@ -22,7 +22,7 @@ public class KVWriterProcessor(
             var podcasts = await podcastRepository.GetAll().ToListAsync();
             logger.LogInformation("Process podcasts");
 
-            var podcastEpisodes = new List<PodcastEpisodeV2>();
+            var podcastEpisodes = new List<PodcastEpisode>();
             foreach (var podcast in podcasts)
             {
                 var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
@@ -68,8 +68,8 @@ public class KVWriterProcessor(
         }
     }
 
-    private static PodcastEpisodeV2 CreatePodcastEpisode(V2Podcast podcast, V2Episode episode)
+    private static PodcastEpisode CreatePodcastEpisode(V2Podcast podcast, V2Episode episode)
     {
-        return new PodcastEpisodeV2(podcast, episode);
+        return new PodcastEpisode(podcast, episode);
     }
 }

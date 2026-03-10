@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Api.Dtos;
@@ -87,7 +87,7 @@ public class EpisodeHandler(
             await episodeRepository.Delete(episode.PodcastId, episode.Id);
 
             await DeleteSearchEntry(podcast.Name, episodeId, c);
-            await DeleteShortnerEntry(new PodcastEpisodeV2(podcast, episode));
+            await DeleteShortnerEntry(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
 
             logger.LogWarning(
                 "Delete detached episode from podcast with id '{podcastId}' and episode-id '{episodeId}'.",
@@ -125,11 +125,11 @@ public class EpisodeHandler(
                     $"Podcast for episode-id '{publishRequest.EpisodeId}' not found or removed.");
             }
 
-            var podcastEpisodeV2 = new PodcastEpisodeV2(podcast, episode);
+            var podcastEpisode = new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode);
 
             if (publishRequest.EpisodePublishRequest.Post)
             {
-                var result = await podcastEpisodePoster.PostPodcastEpisode(podcastEpisodeV2);
+                var result = await podcastEpisodePoster.PostPodcastEpisode(podcastEpisode);
                 if (!result.Success)
                 {
                     logger.LogError(result.ToString());
@@ -140,7 +140,7 @@ public class EpisodeHandler(
 
             if (publishRequest.EpisodePublishRequest.Tweet || publishRequest.EpisodePublishRequest.BlueskyPost)
             {
-                var shortnerResult = await shortnerService.Write(podcastEpisodeV2);
+                var shortnerResult = await shortnerService.Write(podcastEpisode);
                 if (!shortnerResult.Success)
                 {
                     logger.LogError("Unsuccessful shortening-url.");
@@ -150,7 +150,7 @@ public class EpisodeHandler(
                 {
                     try
                     {
-                        var result = await tweetPoster.PostTweet(podcastEpisodeV2, shortnerResult.Url);
+                        var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url);
                         if (result.TweetSendStatus != TweetSendStatus.Sent)
                         {
                             logger.LogError("Tweet result: '{PostTweetResponse}'.", result);
@@ -175,7 +175,7 @@ public class EpisodeHandler(
                 {
                     try
                     {
-                        var result = await blueskyPoster.Post(podcastEpisodeV2, shortnerResult.Url);
+                        var result = await blueskyPoster.Post(podcastEpisode, shortnerResult.Url);
                         if (result != BlueskySendStatus.Success)
                         {
                             logger.LogError("Bluesky-post result: '{result}'.", result);
@@ -328,7 +328,7 @@ public class EpisodeHandler(
 
             await episodeRepository.Save(episode);
 
-            var podcastEpisode = new PodcastEpisodeV2(podcast, episode);
+            var podcastEpisode = new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode);
 
             if (changeState.UnPost)
             {
@@ -396,7 +396,7 @@ public class EpisodeHandler(
                 episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
             {
                 await DeleteSearchEntry(podcast.Name, episodeChangeRequestWrapper.EpisodeId, c);
-                await DeleteShortnerEntry(new PodcastEpisodeV2(podcast, episode));
+                await DeleteShortnerEntry(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
             }
             else
             {
@@ -547,7 +547,7 @@ public class EpisodeHandler(
         return (days, posted, tweeted, blueskyPosted);
     }
 
-    private async Task DeleteShortnerEntry(PodcastEpisodeV2 podcastEpisode)
+    private async Task DeleteShortnerEntry(RedditPodcastPoster.Models.PodcastEpisode podcastEpisode)
     {
         var result = await shortnerService.Delete(podcastEpisode);
     }

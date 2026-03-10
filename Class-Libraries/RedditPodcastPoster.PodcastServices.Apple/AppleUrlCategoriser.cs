@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
@@ -106,7 +106,7 @@ public class AppleUrlCategoriser(
     {
         if (podcast != null && episodes.Any(x => x.Urls.Apple == url))
         {
-            return new ResolvedAppleItem(new Models.PodcastEpisodeV2(podcast, episodes.Single(x => x.Urls.Apple == url)));
+            return new ResolvedAppleItem(new Models.PodcastEpisode(podcast, episodes.Single(x => x.Urls.Apple == url)));
         }
 
         var podcastId = AppleIdResolver.GetPodcastId(url);

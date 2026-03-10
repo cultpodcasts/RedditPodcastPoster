@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
@@ -12,7 +12,7 @@ public class EpisodeResolver(
 {
     private readonly ILogger<EpisodeResolver> _logger = logger;
 
-    public async Task<PodcastEpisodeV2> ResolveServiceUrl(Uri url)
+    public async Task<PodcastEpisode> ResolveServiceUrl(Uri url)
     {
         var matchingEpisode = await episodeRepository.GetBy(x =>
             x.Urls.Spotify == url || x.Urls.Apple == url || x.Urls.YouTube == url);
@@ -30,6 +30,6 @@ public class EpisodeResolver(
             throw new InvalidOperationException($"Missing matching podcast for '{url}'.");
         }
 
-        return new PodcastEpisodeV2(matchingPodcast, matchingEpisode);
+        return new PodcastEpisode(matchingPodcast, matchingEpisode);
     }
 }

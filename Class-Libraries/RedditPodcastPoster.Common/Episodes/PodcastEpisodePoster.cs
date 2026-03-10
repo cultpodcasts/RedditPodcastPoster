@@ -20,7 +20,7 @@ public class PodcastEpisodePoster(
     private static readonly TimeSpan BundledEpisodeReleaseThreshold = TimeSpan.FromDays(7);
 
     public async Task<ProcessResponse> PostPodcastEpisode(
-        PodcastEpisodeV2 podcastEpisode,
+        PodcastEpisode podcastEpisode,
         bool preferYouTube = false)
     {
         try
@@ -51,7 +51,7 @@ public class PodcastEpisodePoster(
         }
     }
 
-    private async Task<List<Models.V2.Episode>> GetEpisodes(PodcastEpisodeV2 matchingPodcastEpisode)
+    private async Task<List<Models.V2.Episode>> GetEpisodes(PodcastEpisode matchingPodcastEpisode)
     {
         var orderedBundleEpisodes = new List<Models.V2.Episode>();
 
@@ -78,7 +78,7 @@ public class PodcastEpisodePoster(
         return orderedBundleEpisodes;
     }
 
-    private async Task<IOrderedEnumerable<Models.V2.Episode>> GetOrderedBundleEpisodes(PodcastEpisodeV2 matchingPodcastEpisode)
+    private async Task<IOrderedEnumerable<Models.V2.Episode>> GetOrderedBundleEpisodes(PodcastEpisode matchingPodcastEpisode)
     {
         if (string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex))
         {
@@ -107,3 +107,4 @@ public class PodcastEpisodePoster(
         return orderedBundleEpisodes;
     }
 }
+

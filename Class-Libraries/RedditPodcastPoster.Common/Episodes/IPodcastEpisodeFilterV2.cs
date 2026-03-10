@@ -4,14 +4,14 @@ namespace RedditPodcastPoster.Common.Episodes;
 
 /// <summary>
 /// V2 version of IPodcastEpisodeFilter that works with detached episodes via IEpisodeRepository.
-/// Returns PodcastEpisodeV2 with V2 models. For legacy PodcastEpisode, use IPodcastEpisodeFilter.
+/// Returns PodcastEpisode with V2 models. For legacy PodcastEpisode, use IPodcastEpisodeFilter.
 /// </summary>
 public interface IPodcastEpisodeFilterV2
 {
     /// <summary>
     /// Gets episodes that are ready to post based on release date and other criteria.
     /// </summary>
-    Task<IEnumerable<PodcastEpisodeV2>> GetNewEpisodesReleasedSince(
+    Task<IEnumerable<PodcastEpisode>> GetNewEpisodesReleasedSince(
         Guid podcastId,
         DateTime since,
         bool youTubeRefreshed,
@@ -20,14 +20,14 @@ public interface IPodcastEpisodeFilterV2
     /// <summary>
     /// Gets the most recent episodes that haven't been tweeted yet.
     /// </summary>
-    Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentUntweetedEpisodes(
+    Task<IEnumerable<PodcastEpisode>> GetMostRecentUntweetedEpisodes(
         Guid podcastId,
         int numberOfDays);
 
     /// <summary>
     /// Gets the most recent episodes that are ready for Bluesky posting.
     /// </summary>
-    Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentBlueskyReadyEpisodes(
+    Task<IEnumerable<PodcastEpisode>> GetMostRecentBlueskyReadyEpisodes(
         Guid podcastId,
         int numberOfDays);
 
@@ -36,3 +36,4 @@ public interface IPodcastEpisodeFilterV2
     /// </summary>
     bool IsRecentlyExpiredDelayedPublishing(Podcast podcast, Episode episode);
 }
+

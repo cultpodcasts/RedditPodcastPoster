@@ -1,4 +1,4 @@
-﻿using Azure;
+using Azure;
 using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
@@ -33,7 +33,7 @@ public class EpisodeSearchIndexerService(
                 { EpisodeIndexRequestState = EpisodeIndexRequestState.EpisodeNotFound };
         }
 
-        var document = new PodcastEpisodeV2(podcast, episode).ToEpisodeSearchRecord();
+        var document = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
 
         try
         {
@@ -76,7 +76,7 @@ public class EpisodeSearchIndexerService(
                 podcasts.Add(episode.PodcastId, podcast);
             }
 
-            var document = new PodcastEpisodeV2(podcast, episode).ToEpisodeSearchRecord();
+            var document = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
             documents.Add(document);
         }
 

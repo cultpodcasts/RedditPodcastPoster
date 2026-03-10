@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -28,7 +28,7 @@ public class BlueskyEmbedCardPostFactory(
     public const string? ReleaseFormat = "d MMM yyyy";
     private readonly BlueskyOptions _blueskyOptions = blueskyOptions.Value;
 
-    public async Task<BlueskyEmbedCardPost> Create(PodcastEpisodeV2 podcastEpisode, Uri? shortUrl)
+    public async Task<BlueskyEmbedCardPost> Create(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
         var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, [podcastEpisode.Episode]));
         var episodeTitle = await textSanitiser.SanitiseTitle(postModel);

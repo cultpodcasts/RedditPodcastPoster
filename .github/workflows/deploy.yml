@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - feature/detach-episodes-from-podcast-entity-in-cosmos-db
+      - feature/my-diversion-then-ai-bringing-back-in
 
 permissions:
   id-token: write

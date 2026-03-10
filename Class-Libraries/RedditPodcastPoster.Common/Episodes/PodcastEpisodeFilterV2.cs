@@ -21,7 +21,7 @@ public class PodcastEpisodeFilterV2(
     private readonly DelayedYouTubePublication _delayedYouTubePublicationSettings =
         delayedYouTubePublicationSettings.Value;
 
-    public async Task<IEnumerable<PodcastEpisodeV2>> GetNewEpisodesReleasedSince(
+    public async Task<IEnumerable<PodcastEpisode>> GetNewEpisodesReleasedSince(
         Guid podcastId,
         DateTime since,
         bool youTubeRefreshed,
@@ -31,7 +31,7 @@ public class PodcastEpisodeFilterV2(
         if (v2Podcast == null)
         {
             logger.LogWarning("Podcast with id '{PodcastId}' not found.", podcastId);
-            return Enumerable.Empty<PodcastEpisodeV2>();
+            return Enumerable.Empty<PodcastEpisode>();
         }
 
         var v2Episodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();
@@ -39,14 +39,14 @@ public class PodcastEpisodeFilterV2(
         var matchingEpisodes = v2Episodes
             .Where(episode => IsReadyToPost(episode, since));
 
-        var resolvedEpisodes = new List<PodcastEpisodeV2>();
+        var resolvedEpisodes = new List<PodcastEpisode>();
         foreach (var matchingEpisode in matchingEpisodes)
         {
             var post = !v2Podcast.IsDelayedYouTubePublishing(matchingEpisode);
 
             if (post)
             {
-                resolvedEpisodes.Add(new PodcastEpisodeV2(v2Podcast, matchingEpisode));
+                resolvedEpisodes.Add(new PodcastEpisode(v2Podcast, matchingEpisode));
             }
         }
 
@@ -54,7 +54,7 @@ public class PodcastEpisodeFilterV2(
             EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed));
     }
 
-    public async Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentUntweetedEpisodes(
+    public async Task<IEnumerable<PodcastEpisode>> GetMostRecentUntweetedEpisodes(
         Guid podcastId,
         int numberOfDays)
     {
@@ -62,7 +62,7 @@ public class PodcastEpisodeFilterV2(
         if (v2Podcast == null)
         {
             logger.LogWarning("Podcast with id '{PodcastId}' not found.", podcastId);
-            return Enumerable.Empty<PodcastEpisodeV2>();
+            return Enumerable.Empty<PodcastEpisode>();
         }
 
         var v2Episodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();
@@ -73,7 +73,7 @@ public class PodcastEpisodeFilterV2(
                 e.Release >= since &&
                 e is { Removed: false, Ignored: false, Tweeted: false } &&
                 (e.Urls.YouTube != null || e.Urls.Spotify != null))
-            .Select(e => new PodcastEpisodeV2(v2Podcast, e))
+            .Select(e => new PodcastEpisode(v2Podcast, e))
             .Where(pe => !v2Podcast.IsDelayedYouTubePublishing(pe.Episode))
             .OrderByDescending(x => x.Episode.Release)
             .ToArray();
@@ -88,7 +88,7 @@ public class PodcastEpisodeFilterV2(
         return podcastEpisodes;
     }
 
-    public async Task<IEnumerable<PodcastEpisodeV2>> GetMostRecentBlueskyReadyEpisodes(
+    public async Task<IEnumerable<PodcastEpisode>> GetMostRecentBlueskyReadyEpisodes(
         Guid podcastId,
         int numberOfDays)
     {
@@ -96,7 +96,7 @@ public class PodcastEpisodeFilterV2(
         if (v2Podcast == null)
         {
             logger.LogWarning("Podcast with id '{PodcastId}' not found.", podcastId);
-            return Enumerable.Empty<PodcastEpisodeV2>();
+            return Enumerable.Empty<PodcastEpisode>();
         }
 
         var v2Episodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();
@@ -108,7 +108,7 @@ public class PodcastEpisodeFilterV2(
                 e is { Removed: false, Ignored: false } &&
                 (!e.BlueskyPosted.HasValue || !e.BlueskyPosted.Value) &&
                 (e.Urls.YouTube != null || e.Urls.Spotify != null))
-            .Select(e => new PodcastEpisodeV2(v2Podcast, e))
+            .Select(e => new PodcastEpisode(v2Podcast, e))
             .Where(pe => !v2Podcast.IsDelayedYouTubePublishing(pe.Episode))
             .OrderByDescending(x => x.Episode.Release)
             .ToArray();
@@ -152,7 +152,7 @@ public class PodcastEpisodeFilterV2(
     }
 
     private static bool EliminateItemsDueToIndexingErrors(
-        PodcastEpisodeV2 podcastEpisode,
+        PodcastEpisode podcastEpisode,
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
@@ -169,3 +169,4 @@ public class PodcastEpisodeFilterV2(
         return !(eliminateForYouTube || eliminateForSpotify);
     }
 }
+

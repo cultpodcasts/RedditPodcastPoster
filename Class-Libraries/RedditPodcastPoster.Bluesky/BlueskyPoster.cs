@@ -1,4 +1,4 @@
-﻿using System.Security.Authentication;
+using System.Security.Authentication;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Factories;
@@ -16,7 +16,7 @@ public class BlueskyPoster(
     ILogger<BlueskyPoster> logger)
     : IBlueskyPoster
 {
-    public async Task<BlueskySendStatus> Post(PodcastEpisodeV2 podcastEpisode, Uri? shortUrl)
+    public async Task<BlueskySendStatus> Post(PodcastEpisode podcastEpisode, Uri? shortUrl)
     {
         var embedPost = await embedCardPostFactory.Create(podcastEpisode, shortUrl);
         BlueskySendStatus sendStatus;

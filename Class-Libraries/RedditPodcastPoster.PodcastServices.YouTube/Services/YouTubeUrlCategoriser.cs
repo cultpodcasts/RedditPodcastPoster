@@ -1,4 +1,4 @@
-﻿using Google.Apis.YouTube.v3.Data;
+using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -38,7 +38,7 @@ public class YouTubeUrlCategoriser(
         Uri url,
         IndexingContext indexingContext)
     {
-        PodcastEpisodeV2? pair = null;
+        PodcastEpisode? pair = null;
         if (podcast != null && podcastEpisodes.Any(x => x.Urls.YouTube == url))
         {
             var storedEpisodes = podcastEpisodes.Where(x => x.Urls.YouTube == url);
@@ -51,7 +51,7 @@ public class YouTubeUrlCategoriser(
             }
 
             var episode = storedEpisodes.Single();
-            pair = new PodcastEpisodeV2(podcast, episode);
+            pair = new PodcastEpisode(podcast, episode);
 
             var episodes =
                 await youTubeVideoService.GetVideoContentDetails(youTubeService, [YouTubeIdResolver.Extract(url)!],

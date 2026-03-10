@@ -4,11 +4,12 @@ namespace RedditPodcastPoster.Common.Episodes;
 
 /// <summary>
 /// Posts podcast episodes backed by detached `IEpisodeRepository` entities.
-/// Accepts `PodcastEpisodeV2` values.
+/// Accepts `PodcastEpisode` values.
 /// </summary>
 public interface IPodcastEpisodePoster
 {
     Task<ProcessResponse> PostPodcastEpisode(
-        PodcastEpisodeV2 podcastEpisode,
+        PodcastEpisode podcastEpisode,
         bool preferYouTube = false);
 }
+
