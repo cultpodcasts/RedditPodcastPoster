@@ -188,11 +188,10 @@ public class AddAudioPodcastProcessor(
             podcast.Bundles = false;
             podcast.Publisher = applePodcast.ArtistName.Trim();
             podcast.ReleaseAuthority = Service.Apple;
-
-            var legacyForSpotifyEnricher = ToLegacyPodcast(podcast);
-            await spotifyPodcastEnricher.AddIdAndUrls(legacyForSpotifyEnricher, indexingContext);
-            podcast.SpotifyId = legacyForSpotifyEnricher.SpotifyId;
-            podcast.SpotifyEpisodesQueryIsExpensive = legacyForSpotifyEnricher.SpotifyEpisodesQueryIsExpensive;
+            var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+            await spotifyPodcastEnricher.AddIdAndUrls(podcast, episodes, indexingContext);
+            podcast.SpotifyId = podcast.SpotifyId;
+            podcast.SpotifyEpisodesQueryIsExpensive = podcast.SpotifyEpisodesQueryIsExpensive;
         }
 
         return podcast;

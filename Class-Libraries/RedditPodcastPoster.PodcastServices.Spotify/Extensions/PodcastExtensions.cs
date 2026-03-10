@@ -1,16 +1,16 @@
-﻿using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 
 public static class PodcastExtensions
 {
-    public static FindSpotifyPodcastRequest ToFindSpotifyPodcastRequest(this Podcast podcast)
+    public static FindSpotifyPodcastRequest ToFindSpotifyPodcastRequest(this Podcast podcast, IEnumerable<Episode> episodes)
     {
         return new FindSpotifyPodcastRequest(
             podcast.SpotifyId, 
             podcast.Name,
-            podcast.Episodes.Select(episode =>
+            episodes.Select(episode =>
                 new FindSpotifyPodcastRequestEpisodes(episode.Release, episode.Urls.Spotify, episode.Title)).ToList());
     }
 }

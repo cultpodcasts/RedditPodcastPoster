@@ -1,12 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.Extensions;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Factories;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
-using V2Episode = RedditPodcastPoster.Models.V2.Episode;
-using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 
@@ -18,13 +15,13 @@ public class SpotifyPodcastEnricher(
 #pragma warning restore CS9113 // Parameter is unread.
     : ISpotifyPodcastEnricher
 {
-    public async Task<bool> AddIdAndUrls(Podcast podcast, IndexingContext indexingContext)
+    public async Task<bool> AddIdAndUrls(Podcast podcast, IEnumerable<Episode> episodes, IndexingContext indexingContext)
     {
         var podcastShouldUpdate = false;
         if (string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
             var matchedPodcast =
-                await spotifyPodcastResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest(), indexingContext);
+                await spotifyPodcastResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest(episodes), indexingContext);
             if (matchedPodcast != null)
             {
                 if (!string.IsNullOrWhiteSpace(matchedPodcast.Id))
@@ -42,15 +39,14 @@ public class SpotifyPodcastEnricher(
 
         if (!string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
-            var podcastV2 = podcast.ToV2Podcast();
-            foreach (var podcastEpisode in podcast.Episodes)
+            foreach (var podcastEpisode in episodes)
             {
                 if (string.IsNullOrWhiteSpace(podcastEpisode.SpotifyId))
                 {
                     var findEpisodeResponse = await spotifyIdResolver.FindEpisode(
                         FindSpotifyEpisodeRequestFactory.Create(
-                            podcastV2,
-                            ToV2Episode(podcastV2, podcastEpisode)),
+                            podcast,
+                            podcastEpisode),
                         indexingContext);
                     if (!string.IsNullOrWhiteSpace(findEpisodeResponse.FullEpisode?.Id))
                     {
@@ -69,36 +65,4 @@ public class SpotifyPodcastEnricher(
         return podcastShouldUpdate;
     }
 
-    private static V2Episode ToV2Episode(V2Podcast podcast, Episode episode)
-    {
-        return new V2Episode
-        {
-            Id = episode.Id,
-            PodcastId = podcast.Id,
-            Title = episode.Title,
-            Description = episode.Description,
-            Release = episode.Release,
-            Length = episode.Length,
-            Explicit = episode.Explicit,
-            Posted = episode.Posted,
-            Tweeted = episode.Tweeted,
-            BlueskyPosted = episode.BlueskyPosted,
-            Ignored = episode.Ignored,
-            Removed = episode.Removed,
-            SpotifyId = episode.SpotifyId,
-            AppleId = episode.AppleId,
-            YouTubeId = episode.YouTubeId,
-            Urls = episode.Urls,
-            Subjects = episode.Subjects ?? [],
-            SearchTerms = episode.SearchTerms,
-            PodcastName = podcast.Name,
-            PodcastSearchTerms = podcast.SearchTerms,
-            Language = episode.Language ?? podcast.Language,
-            PodcastMetadataVersion = null,
-            PodcastRemoved = podcast.Removed,
-            Images = episode.Images,
-            TwitterHandles = episode.TwitterHandles,
-            BlueskyHandles = episode.BlueskyHandles
-        };
-    }
 }
