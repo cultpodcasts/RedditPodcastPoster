@@ -16,15 +16,14 @@ using RedditPodcastPoster.Indexing.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.UrlShortening;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
 using Podcast = Api.Dtos.Podcast;
 using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
 using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
-using LegacyPodcast = RedditPodcastPoster.Models.Podcast;
-using LegacyEpisode = RedditPodcastPoster.Models.Episode;
 
 namespace Api.Handlers;
 
-public class PodcastHandler(    
+public class PodcastHandler(
     IIndexer indexer,
     IEpisodeSearchIndexerService searchIndexerService,
     IPodcastRepositoryV2 podcastRepository,
@@ -336,7 +335,7 @@ public class PodcastHandler(
             .WithJsonBody(SubmitUrlResponse.Failure("Unable to rename podcast"), c);
         return failure;
     }
-        
+
     private async Task HydrateDetachedEpisodePodcastProjection(V2Podcast podcast, CancellationToken c)
     {
         await foreach (var episode in episodeRepository.GetByPodcastId(podcast.Id).WithCancellation(c))
@@ -359,9 +358,9 @@ public class PodcastHandler(
         return ids;
     }
 
-    private async Task<List<RedditPodcastPoster.Models.V2.Episode>> GetDetachedEpisodesByPodcastId(Guid podcastId, CancellationToken c)
+    private async Task<List<Episode>> GetDetachedEpisodesByPodcastId(Guid podcastId, CancellationToken c)
     {
-        var episodes = new List<RedditPodcastPoster.Models.V2.Episode>();
+        var episodes = new List<Episode>();
         await foreach (var episode in episodeRepository.GetByPodcastId(podcastId).WithCancellation(c))
         {
             episodes.Add(episode);
@@ -377,7 +376,7 @@ public class PodcastHandler(
             throw new InvalidOperationException(
                 "Supplied podcast-name is null/empty");
         }
-            
+
         var sameNamePodcasts =
             await podcastRepository.GetAllBy(x => x.Name == podcastName && x.Id != podcast.Id)
                 .ToListAsync();

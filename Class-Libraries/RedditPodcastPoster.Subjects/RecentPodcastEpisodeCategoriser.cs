@@ -1,8 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
-using V2Episode = RedditPodcastPoster.Models.V2.Episode;
-using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Subjects;
 
@@ -18,7 +17,7 @@ public class RecentPodcastEpisodeCategoriser(
         var since = DateTimeExtensions.DaysAgo(7);
         IList<Guid> updatedEpisodes = new List<Guid>();
 
-        var uncategorisedByPodcast = new Dictionary<Guid, List<V2Episode>>();
+        var uncategorisedByPodcast = new Dictionary<Guid, List<Episode>>();
         await foreach (var episode in episodeRepository.GetAllBy(x => x.Release > since && !x.Subjects.Any()))
         {
             if (!uncategorisedByPodcast.TryGetValue(episode.PodcastId, out var episodes))
@@ -35,7 +34,7 @@ public class RecentPodcastEpisodeCategoriser(
             return updatedEpisodes;
         }
 
-        var podcastsToCategorise = new List<(Guid Id, string Name, V2Podcast Podcast, List<V2Episode> Episodes)>();
+        var podcastsToCategorise = new List<(Guid Id, string Name, Podcast Podcast, List<Episode> Episodes)>();
         foreach (var (podcastId, episodes) in uncategorisedByPodcast)
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);

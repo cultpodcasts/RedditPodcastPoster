@@ -5,8 +5,8 @@ using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
-using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
-using V2Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using Episode= RedditPodcastPoster.Models.V2.Episode;
 
 namespace RedditPodcastPoster.UrlSubmission.Factories;
 
@@ -69,7 +69,7 @@ public class PodcastAndEpisodeFactoryV2(
         logger.LogInformation("Created podcast with name '{ShowName}' with id '{NewPodcastId}'.", showName, newPodcast.Id);
 
         // Convert to V2 models
-        var v2Podcast = new V2Podcast
+        var v2Podcast = new Podcast
         {
             Id = newPodcast.Id,
             Name = newPodcast.Name,
@@ -110,7 +110,7 @@ public class PodcastAndEpisodeFactoryV2(
             Timestamp = newPodcast.Timestamp
         };
 
-        var v2Episode = new V2Episode
+        var v2Episode = new Episode
         {
             Id = episode.Id,
             PodcastId = newPodcast.Id,

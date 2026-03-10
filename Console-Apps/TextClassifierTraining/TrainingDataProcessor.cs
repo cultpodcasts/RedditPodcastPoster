@@ -1,13 +1,10 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subreddit;
 using TextClassifierTraining.Models;
-using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
-using V2Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace TextClassifierTraining;
 
@@ -59,12 +56,13 @@ public class TrainingDataProcessor(
             "Total reddit posts with understood links: {Count}", redditPostMetaDatas.Count());
 
         logger.LogInformation(
-            "Total reddit posts with flair: {Count}", redditPosts.Where(x => !string.IsNullOrWhiteSpace(x.LinkFlairText)).Count());
+            "Total reddit posts with flair: {Count}",
+            redditPosts.Count(x => !string.IsNullOrWhiteSpace(x.LinkFlairText)));
 
 
         var podcasts = await podcastRepository.GetAll().ToListAsync();
 
-        var podcastEpisodes = new List<(V2Podcast Podcast, V2Episode Episode)>();
+        var podcastEpisodes = new List<(RedditPodcastPoster.Models.V2.Podcast Podcast, RedditPodcastPoster.Models.V2.Episode Episode)>();
         foreach (var podcast in podcasts)
         {
             var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
@@ -125,7 +123,8 @@ public class TrainingDataProcessor(
                 if (unmatched)
                 {
                     logger.LogError(
-                        "Podcast '{PodcastName}' id:'{PodcastId}' Episode-id:'{EpisodeId}'.", podcastEpisode.Podcast.Name, podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
+                        "Podcast '{PodcastName}' id:'{PodcastId}' Episode-id:'{EpisodeId}'.",
+                        podcastEpisode.Podcast.Name, podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
                 }
             }
             else
@@ -139,7 +138,8 @@ public class TrainingDataProcessor(
                 if (!subjects.Any())
                 {
                     logger.LogError(
-                        "MISSING: '{EpisodeTitle}' - '{EpisodeDescription}'.", podcastEpisode.Episode.Title, podcastEpisode.Episode.Description);
+                        "MISSING: '{EpisodeTitle}' - '{EpisodeDescription}'.", podcastEpisode.Episode.Title,
+                        podcastEpisode.Episode.Description);
                 }
             }
 
@@ -176,36 +176,5 @@ ${podcastEpisode.Episode.Description}");
                 JsonSerializer.Serialize(labels, jsonOptions);
             await File.WriteAllTextAsync(Path.Combine(TrainingDataLocation, LabelsFilename), jsonString);
         }
-    }
-
-    private static Episode ToLegacyEpisode(V2Episode episode)
-    {
-        return new Episode
-        {
-            Id = episode.Id,
-            PodcastId = episode.PodcastId,
-            PodcastName = episode.PodcastName,
-            PodcastSearchTerms = episode.PodcastSearchTerms,
-            Language = episode.Language,
-            Title = episode.Title,
-            Description = episode.Description,
-            Release = episode.Release,
-            Length = episode.Length,
-            Explicit = episode.Explicit,
-            Posted = episode.Posted,
-            Tweeted = episode.Tweeted,
-            BlueskyPosted = episode.BlueskyPosted,
-            Ignored = episode.Ignored,
-            Removed = episode.Removed,
-            SpotifyId = episode.SpotifyId,
-            AppleId = episode.AppleId,
-            YouTubeId = episode.YouTubeId,
-            Urls = episode.Urls,
-            Subjects = episode.Subjects,
-            SearchTerms = episode.SearchTerms,
-            Images = episode.Images,
-            TwitterHandles = episode.TwitterHandles,
-            BlueskyHandles = episode.BlueskyHandles
-        };
     }
 }

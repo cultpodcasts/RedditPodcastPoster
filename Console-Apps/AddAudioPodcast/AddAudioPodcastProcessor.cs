@@ -13,8 +13,8 @@ using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using SpotifyAPI.Web;
-using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
-using V2Episode = RedditPodcastPoster.Models.V2.Episode;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace AddAudioPodcast;
 
@@ -36,7 +36,7 @@ public class AddAudioPodcastProcessor(
     public async Task Create(AddAudioPodcastRequest request)
     {
         var indexingContext = new IndexingContext { SkipPodcastDiscovery = false };
-        V2Podcast? podcast = null;
+        Podcast? podcast = null;
         if (!request.AppleReleaseAuthority)
         {
             var matchingPodcasts = await podcastRepository
@@ -85,7 +85,7 @@ public class AddAudioPodcastProcessor(
                 podcast.IndexAllEpisodes = false;
                 podcast.EpisodeIncludeTitleRegex = request.EpisodeTitleRegex;
 
-                var episodesToRemove = new List<V2Episode>();
+                var episodesToRemove = new List<Episode>();
                 foreach (var episode in episodes)
                 {
                     var match = includeEpisodesRegex.Match(episode.Title);
@@ -104,7 +104,7 @@ public class AddAudioPodcastProcessor(
                 episodes = episodes.Except(episodesToRemove).ToList();
             }
 
-            var episodesToUpdate = new List<V2Episode>();
+            var episodesToUpdate = new List<Episode>();
             foreach (var episode in episodes)
             {
                 await subjectEnricher.EnrichSubjects(episode,
@@ -148,7 +148,7 @@ public class AddAudioPodcastProcessor(
         }
     }
 
-    private async Task<V2Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
+    private async Task<Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
     {
         var spotifyPodcast =
             await spotifyClient.GetFullShow(request.PodcastId, new ShowRequest { Market = Market.CountryCode },
@@ -169,7 +169,7 @@ public class AddAudioPodcastProcessor(
         return podcast;
     }
 
-    private async Task<V2Podcast?> GetApplePodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
+    private async Task<Podcast?> GetApplePodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
     {
         var id = long.Parse(request.PodcastId);
         var applePodcast = (await iTunesSearchManager.GetPodcastById(id)).Podcasts.SingleOrDefault();

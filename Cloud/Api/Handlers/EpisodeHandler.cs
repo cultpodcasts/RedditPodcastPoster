@@ -33,8 +33,8 @@ using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.UrlShortening;
 using Subject = RedditPodcastPoster.Models.Subject;
-using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
-using V2Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace Api.Handlers;
 
@@ -239,7 +239,7 @@ public class EpisodeHandler(
             var episodes = new List<DiscreteEpisode>();
             var since = DateTimeExtensions.DaysAgo(days);
             var subjects = await subjectsProvider.GetAll().ToListAsync();
-            var podcastCache = new Dictionary<Guid, V2Podcast>();
+            var podcastCache = new Dictionary<Guid, Podcast>();
 
             await foreach (var episode in episodeRepository.GetAllBy(ep =>
                                    ep.Release > since &&
@@ -461,7 +461,7 @@ public class EpisodeHandler(
         return failure;
     }
 
-    private async Task<DiscreteEpisode> ToDiscreteEpisode(V2Episode episode, V2Podcast podcast,
+    private async Task<DiscreteEpisode> ToDiscreteEpisode(Episode episode, Podcast podcast,
         IEnumerable<Subject> subjects)
     {
         var episodeSubjects = subjects
@@ -584,7 +584,7 @@ public class EpisodeHandler(
         }
     }
 
-    private EpisodeChangeState UpdateEpisode(V2Episode episode,
+    private EpisodeChangeState UpdateEpisode(Episode episode,
         EpisodeChangeRequest episodeChangeRequest)
     {
         var inPastWeek = episode.Release > pastWeek;

@@ -2,8 +2,8 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.UrlShortening;
-using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
-using V2Episode = RedditPodcastPoster.Models.V2.Episode;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace KVWriter;
 
@@ -68,7 +68,7 @@ public class KVWriterProcessor(
         }
     }
 
-    private static PodcastEpisode CreatePodcastEpisode(V2Podcast podcast, V2Episode episode)
+    private static PodcastEpisode CreatePodcastEpisode(Podcast podcast, Episode episode)
     {
         return new PodcastEpisode(podcast, episode);
     }
