@@ -1,0 +1,10 @@
+<Project>
+  <!-- Ensure low-level dependency-injection projects are built before other projects to avoid CS0006 metadata not found errors. -->
+  <Target Name="EnsureDependencyInjectionBuilt" BeforeTargets="Build"
+          Condition="'$(MSBuildProjectName)' != 'RedditPodcastPoster.DependencyInjection' and '$(MSBuildProjectName)' != 'RedditPodcastPoster.DependencyInjection.Abstractions'">
+    <Message Importance="Low" Text="Building dependency-injection projects before $(MSBuildProjectName)..." />
+    <MSBuild Projects="$(MSBuildThisFileDirectory)Class-Libraries\RedditPodcastPoster.DependencyInjection.Abstractions\RedditPodcastPoster.DependencyInjection.Abstractions.csproj;$(MSBuildThisFileDirectory)Class-Libraries\RedditPodcastPoster.DependencyInjection\RedditPodcastPoster.DependencyInjection.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration);Platform=$(Platform)" />
+  </Target>
+</Project>
