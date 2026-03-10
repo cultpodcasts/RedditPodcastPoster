@@ -60,6 +60,7 @@ resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2025-05-01-previ
 
 resource database 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2023-04-15' = {
   parent: cosmosDbAccount
+  name: 'cultpodcasts-db'
   properties: {
     resource: {
       id: 'cultpodcasts-db'
