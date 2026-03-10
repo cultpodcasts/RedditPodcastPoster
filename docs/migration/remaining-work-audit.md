@@ -55,6 +55,15 @@ Primary focus has shifted from introducing parallel service variants to **decomm
   - `IPodcastEpisodeProvider` / `PodcastEpisodeProvider`
   - `IPodcastEpisodePoster` / `PodcastEpisodePoster`
 
+### Target Group E: Legacy `PodcastEpisode` usage outside allowed boundaries
+- Migrated additional runtime paths to detached V2 contracts (`PodcastEpisodeV2` + V2 models):
+  - `IEpisodeResolver` / `EpisodeResolver`
+  - `EpisodeSearchIndexerService` and its mapping extension
+  - `PodcastEpisodesExtension` (legacy extension block removed)
+  - `SpotifyPodcastEnricher` (legacy `PodcastEpisode` construction removed)
+- Removed legacy `RedditPodcastPoster.Models/PodcastEpisode.cs` from active codepaths.
+- Build is green after these migrations.
+
 ---
 
 ## ⚠️ Still pending (non-decommission)
