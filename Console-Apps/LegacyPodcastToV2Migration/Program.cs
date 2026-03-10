@@ -1,5 +1,3 @@
-using System.Net;
-using System.Reflection;
 using LegacyPodcastToV2Migration;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
@@ -7,12 +5,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Discovery.Extensions;
+using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PushSubscriptions;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.KnownTerms;
+using System.Net;
+using System.Reflection;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -39,7 +40,7 @@ var teardown = builder.Configuration.GetValue<bool>("teardown", false);
 
 if (teardown)
 {
-    var settings = builder.Configuration.GetSection("MigrationCosmosSettings").Get<MigrationCosmosSettings>();
+    var settings = builder.Configuration.GetSection("cosmosdbv2").Get<CosmosDbSettingsV2>();
     if (settings == null)
     {
         Console.WriteLine("MigrationCosmosSettings not configured. Aborting teardown.");

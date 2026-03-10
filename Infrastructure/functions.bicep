@@ -24,6 +24,8 @@ param cloudflareR2SecretKey string
 @secure()
 param cosmosdbAuthKeyOrResourceToken string
 @secure()
+param cosmosdbAuthKeyOrResourceTokenV2 string
+@secure()
 param cosmosdbEndpoint string
 @secure()
 param cosmosdbEndpointV2 string
@@ -184,7 +186,7 @@ var cosmosdb= {
 }
 
 var cosmosdbv2= {
-    cosmosdbv2__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken
+    cosmosdbv2__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceTokenV2
     cosmosdbv2__DatabaseId: 'cultpodcasts-db'
     cosmosdbv2__Endpoint: cosmosdbEndpointV2
     cosmosdbv2__PodcastsContainer: 'Podcasts'

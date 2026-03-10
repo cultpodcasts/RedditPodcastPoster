@@ -18,7 +18,7 @@ env:
   storageName: cultpodcastsstg
   suffix: infra
   location: uksouth
-  functionState: start
+  functionState: stop
   COSMOS_DEPLOYMENT_NAME: infra-cosmos
   API_PACKAGE_PATH: './Cloud/Api' 
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
@@ -113,7 +113,7 @@ jobs:
   provision:
     runs-on: ubuntu-latest
     needs: [build, test, archive-infrastructure]
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/my-diversion-then-ai-bringing-back-in'
     continue-on-error: false
     steps:
     - name: Download bicep artifact
@@ -201,7 +201,7 @@ jobs:
   api-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/my-diversion-then-ai-bringing-back-in'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -232,7 +232,7 @@ jobs:
   discover-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/my-diversion-then-ai-bringing-back-in'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -263,7 +263,7 @@ jobs:
   indexer-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/my-diversion-then-ai-bringing-back-in'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false

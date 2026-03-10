@@ -218,6 +218,7 @@
   <Folder Name="/Infrastructure/">
 
     <File Path="Infrastructure/app-settings.bicep" />
+    <File Path="Infrastructure/cosmos-db.bicep" />
 
     <File Path="Infrastructure/function-application-insights.bicep" />
 
