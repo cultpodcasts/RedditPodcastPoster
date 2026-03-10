@@ -145,7 +145,7 @@ jobs:
         scope: resourceGroup
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DATABASE_RESOURCEGROUP_NAME }}
-        template-file: ./infrastructure/cosmos-db.bicep
+        template-file: ./Infrastructure/cosmos-db.bicep
         parameters: '{"location":"${{ env.location }}", "cosmosAccountName":"${{ secrets.COSMOS_ACCOUNT_NAME }}"}'
     - name: Storage (Deploy Bicep)
       id: bicepstoragedeploy
