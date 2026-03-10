@@ -20,13 +20,13 @@ public static class ServiceCollectionExtensions
             .AddScoped<IEpisodeProcessor, EpisodeProcessor>()
             .AddScoped<IEpisodePostManager, EpisodePostManager>()
             .AddScoped<IPodcastEpisodesPoster, PodcastEpisodesPoster>()
-            .AddScoped<IPodcastEpisodePosterV2, PodcastEpisodePosterV2>()
+            .AddScoped<IPodcastEpisodePoster, PodcastEpisodePoster>()
             .AddSingleton<IPodcastFilter, PodcastFilter>()
             .AddSingleton<IPodcastFilterV2, PodcastFilterV2>()
             .AddSingleton<IPodcastEpisodeFilter, PodcastEpisodeFilter>()
             .AddSingleton<IPodcastEpisodeFilterV2, PodcastEpisodeFilterV2>()
             .AddSingleton<IProcessResponsesAdaptor, ProcessResponsesAdaptor>()
-            .AddScoped<IPodcastEpisodeProviderV2, PodcastEpisodeProviderV2>()
+            .AddScoped<IPodcastEpisodeProvider, PodcastEpisodeProvider>()
             .AddScoped<IPostModelFactory, PostModelFactory>()
             .AddScoped<IPodcastFactory, PodcastFactory>();
     }

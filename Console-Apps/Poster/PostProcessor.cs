@@ -19,12 +19,12 @@ public class PostProcessor(
     IPodcastEpisodesPoster podcastEpisodesPoster,
     IProcessResponsesAdaptor processResponsesAdaptor,
     IContentPublisher contentPublisher,
-    IPodcastEpisodePosterV2 podcastEpisodePoster,
+    IPodcastEpisodePoster podcastEpisodePoster,
     ITweetPoster tweetPoster,
     IBlueskyPoster blueSkyPoster,
     IBlueskyPostManager blueskyPostManager,
     IShortnerService shortnerService,
-    IPodcastEpisodeProviderV2 podcastEpisodeProvider,
+    IPodcastEpisodeProvider podcastEpisodeProvider,
     ILogger<PostProcessor> logger)
 {
     public async Task Process(PostRequest request)

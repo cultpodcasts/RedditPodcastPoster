@@ -17,7 +17,7 @@ namespace RedditPodcastPoster.Bluesky;
 
 public class BlueskyPostManager(
     IBlueskyPoster poster,
-    IPodcastEpisodeProviderV2 podcastEpisodeProvider,
+    IPodcastEpisodeProvider podcastEpisodeProvider,
     IShortnerService shortnerService,
     IAsyncInstance<BlueskyAgent> blueskyAgent,
     IOptions<BlueskyOptions> options,

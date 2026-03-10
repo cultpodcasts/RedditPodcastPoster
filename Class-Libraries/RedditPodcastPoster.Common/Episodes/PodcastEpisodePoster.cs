@@ -8,14 +8,14 @@ using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 namespace RedditPodcastPoster.Common.Episodes;
 
 /// <summary>
-/// V2 implementation that posts podcast episodes and updates their status in detached IEpisodeRepository.
+/// Implementation that posts podcast episodes and updates their status in detached IEpisodeRepository.
 /// </summary>
-public class PodcastEpisodePosterV2(
+public class PodcastEpisodePoster(
     IEpisodePostManager episodePostManager,
     IPostModelFactory postModelFactory,
     IEpisodeRepository episodeRepository,
-    ILogger<PodcastEpisodePosterV2> logger
-) : IPodcastEpisodePosterV2
+    ILogger<PodcastEpisodePoster> logger
+) : IPodcastEpisodePoster
 {
     private static readonly TimeSpan BundledEpisodeReleaseThreshold = TimeSpan.FromDays(7);
 
@@ -25,21 +25,19 @@ public class PodcastEpisodePosterV2(
     {
         try
         {
-            var v2Episodes = await GetEpisodesV2(podcastEpisode);
-            
-            var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, v2Episodes), preferYouTube);
+            var episodes = await GetEpisodes(podcastEpisode);
+
+            var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, episodes), preferYouTube);
             var result = await episodePostManager.Post(postModel);
 
             if (result.Success)
             {
-                // Mark V2 episodes as posted
-                foreach (var v2Episode in v2Episodes)
+                foreach (var episode in episodes)
                 {
-                    v2Episode.Posted = true;
+                    episode.Posted = true;
                 }
 
-                // Save updated episodes
-                await episodeRepository.Save(v2Episodes);
+                await episodeRepository.Save(episodes);
             }
 
             return result;
@@ -53,7 +51,7 @@ public class PodcastEpisodePosterV2(
         }
     }
 
-    private async Task<List<Models.V2.Episode>> GetEpisodesV2(PodcastEpisodeV2 matchingPodcastEpisode)
+    private async Task<List<Models.V2.Episode>> GetEpisodes(PodcastEpisodeV2 matchingPodcastEpisode)
     {
         var orderedBundleEpisodes = new List<Models.V2.Episode>();
 
@@ -67,7 +65,7 @@ public class PodcastEpisodePosterV2(
                 var partNumber = titleMatch.Result("${partnumber}");
                 if (int.TryParse(partNumber, out _))
                 {
-                    orderedBundleEpisodes = (await GetOrderedBundleEpisodesV2(matchingPodcastEpisode)).ToList();
+                    orderedBundleEpisodes = (await GetOrderedBundleEpisodes(matchingPodcastEpisode)).ToList();
                 }
             }
         }
@@ -80,7 +78,7 @@ public class PodcastEpisodePosterV2(
         return orderedBundleEpisodes;
     }
 
-    private async Task<IOrderedEnumerable<Models.V2.Episode>> GetOrderedBundleEpisodesV2(PodcastEpisodeV2 matchingPodcastEpisode)
+    private async Task<IOrderedEnumerable<Models.V2.Episode>> GetOrderedBundleEpisodes(PodcastEpisodeV2 matchingPodcastEpisode)
     {
         if (string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex))
         {
@@ -90,15 +88,14 @@ public class PodcastEpisodePosterV2(
 
         var podcastTitleRegex = new Regex(matchingPodcastEpisode.Podcast.TitleRegex, Podcast.TitleFlags);
         var rawTitle = podcastTitleRegex.Match(matchingPodcastEpisode.Episode.Title).Result("${title}");
-        
-        // Load episodes from detached repository
-        var v2Episodes = await episodeRepository.GetByPodcastId(matchingPodcastEpisode.Podcast.Id).ToListAsync();
 
-        var bundleEpisodes = v2Episodes
+        var episodes = await episodeRepository.GetByPodcastId(matchingPodcastEpisode.Podcast.Id).ToListAsync();
+
+        var bundleEpisodes = episodes
             .Where(x => Math.Abs((matchingPodcastEpisode.Episode.Release - x.Release).Ticks) <
                         BundledEpisodeReleaseThreshold.Ticks)
             .Where(x => x.Title.Contains(rawTitle) && podcastTitleRegex.Match(x.Title).Success);
-        
+
         var orderedBundleEpisodes = bundleEpisodes.OrderBy(x =>
             {
                 var match = podcastTitleRegex.Match(x.Title);
@@ -106,7 +103,7 @@ public class PodcastEpisodePosterV2(
                 return int.Parse(partNumber);
             }
         );
-        
+
         return orderedBundleEpisodes;
     }
 }

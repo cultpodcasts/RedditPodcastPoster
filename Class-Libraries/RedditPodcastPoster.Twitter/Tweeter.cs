@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.Twitter;
 
 public class Tweeter(
     ITweetPoster tweetPoster,
-    IPodcastEpisodeProviderV2 podcastEpisodeProvider,
+    IPodcastEpisodeProvider podcastEpisodeProvider,
     IShortnerService shortnerService,
     ILogger<Tweeter> logger)
     : ITweeter

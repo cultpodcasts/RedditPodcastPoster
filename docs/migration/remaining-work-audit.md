@@ -51,9 +51,9 @@ Primary focus has shifted from introducing parallel service variants to **decomm
   - `FindAppleEpisodeRequestFactory`
 
 ### Target Group D: Duplicate service variants
-- Retired legacy provider/poster variants:
-  - `IPodcastEpisodeProvider` / `PodcastEpisodeProvider`
-  - `IPodcastEpisodePoster` / `PodcastEpisodePoster`
+- Retired legacy provider/poster variants and standardized on canonical detached-episode contracts:
+  - `IPodcastEpisodeProvider` / `PodcastEpisodeProvider` (formerly `IPodcastEpisodeProviderV2` / `PodcastEpisodeProviderV2`)
+  - `IPodcastEpisodePoster` / `PodcastEpisodePoster` (formerly `IPodcastEpisodePosterV2` / `PodcastEpisodePosterV2`)
 
 ### Target Group E: Legacy `PodcastEpisode` usage outside allowed boundaries
 - Migrated additional runtime paths to detached V2 contracts (`PodcastEpisodeV2` + V2 models):

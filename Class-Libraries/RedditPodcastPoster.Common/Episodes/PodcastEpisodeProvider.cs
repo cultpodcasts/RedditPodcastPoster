@@ -7,14 +7,14 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Common.Episodes;
 
 /// <summary>
-/// V2 implementation that provides podcast episodes from detached IEpisodeRepository.
+/// Implementation that provides podcast episodes from detached IEpisodeRepository.
 /// </summary>
-public class PodcastEpisodeProviderV2(
+public class PodcastEpisodeProvider(
     IPodcastRepositoryV2 podcastRepository,
     IPodcastEpisodeFilterV2 podcastEpisodeFilter,
     IOptions<PostingCriteria> postingCriteria,
-    ILogger<PodcastEpisodeProviderV2> logger
-) : IPodcastEpisodeProviderV2
+    ILogger<PodcastEpisodeProvider> logger
+) : IPodcastEpisodeProvider
 {
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
@@ -98,7 +98,7 @@ public class PodcastEpisodeProviderV2(
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
     }
 
-    private bool EliminateItemsDueToIndexingErrors(
+    private static bool EliminateItemsDueToIndexingErrors(
         PodcastEpisodeV2 podcastEpisode,
         bool youTubeRefreshed,
         bool spotifyRefreshed)
