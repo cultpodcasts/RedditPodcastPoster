@@ -104,7 +104,7 @@ public partial class CreateSearchIndexProcessor(
                             e.podcastSearchTerms as podcastSearchTerms,
                             e.searchTerms as episodeSearchTerms,
                             e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other as image,
-                            e.searchLang as lang,
+                            e.lang as lang,
                             e._ts
                             FROM episodes e
                             WHERE ((NOT IS_DEFINED(e.podcastRemoved)) OR e.podcastRemoved=false)
