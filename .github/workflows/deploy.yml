@@ -23,7 +23,7 @@ env:
   API_PACKAGE_PATH: './Cloud/Api' 
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
   INDEXER_PACKAGE_PATH: './Cloud/Indexer' 
-  DOTNET_VERSION: '10.0.x' 
+  DOTNET_VERSION: '9.0.x' 
   buildConfiguration: 'Release'
   TARGET_RUNTIME: 'linux-x64'
   outputApi: 'output/api'
@@ -65,7 +65,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 9.0.x
+        dotnet-version: ${{ env.DOTNET_VERSION }}
     - name: Restore dependencies
       run: dotnet restore /p:Configuration=Release -r ${{ env.TARGET_RUNTIME }}
     - name: Publish ${{ matrix.project.name }}
@@ -85,7 +85,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 9.0.x
+        dotnet-version: ${{ env.DOTNET_VERSION }}
     - name: Restore dependencies
       run: dotnet restore
     - name: Run tests
