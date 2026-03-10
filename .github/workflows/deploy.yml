@@ -134,6 +134,19 @@ jobs:
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
 
+    - name: Cosmos DB (Deploy Bicep)
+      id: bicepcosmosdeploy
+      uses: azure/bicep-deploy@v1
+      if: needs.build.outputs.infrastructure_changed == 'true'
+      with:
+        type: deployment
+        operation: create
+        name: ${{ env.COSMOS_DEPLOYMENT_NAME }}
+        scope: resourceGroup
+        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+        resource-group-name: ${{ env.DATABASE_RESOURCEGROUP_NAME }}
+        template-file: ./infrastructure/cosmos-db.bicep
+        parameters: '{"location":"${{ env.location }}", "cosmosAccountName":"${{ secrets.COSMOS_ACCOUNT_NAME }}"}'
     - name: Storage (Deploy Bicep)
       id: bicepstoragedeploy
       uses: azure/bicep-deploy@v1
@@ -174,19 +187,6 @@ jobs:
         template-file: ./Infrastructure/functions.bicep
         parameters-file: ./Infrastructure/functions.bicepparam
         parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}"}'
-    - name: Cosmos DB (Deploy Bicep)
-      id: bicepcosmosdeploy
-      uses: azure/bicep-deploy@v1
-      if: needs.build.outputs.infrastructure_changed == 'true'
-      with:
-        type: deployment
-        operation: create
-        name: ${{ env.COSMOS_DEPLOYMENT_NAME }}
-        scope: resourceGroup
-        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
-        resource-group-name: ${{ env.DATABASE_RESOURCEGROUP_NAME }}
-        template-file: ./infra/cosmos-db.bicep
-        parameters: '{"location":"${{ env.location }}", "cosmosAccountName":"${{ secrets.COSMOS_ACCOUNT_NAME }}"}'
 
     - name: Set Function State
       if: ${{ ((env.functionState == 'start') || (env.functionState == 'stop')) && needs.build.outputs.infrastructure_changed == 'true' }}
