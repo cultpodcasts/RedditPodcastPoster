@@ -19,7 +19,7 @@ public class ContentPublisher(
     IQueryExecutor queryExecutor,
     IAmazonS3 client,
     IOptions<ContentOptions> contentOptions,
-    ISubjectRepository subjectRepository,
+    ISubjectRepositoryV2 subjectRepository,
     RedditClient redditClient,
     IOptions<SubredditSettings> subredditSettings,
     ILogger<ContentPublisher> logger)
@@ -44,7 +44,10 @@ public class ContentPublisher(
 
     public async Task PublishSubjects()
     {
-        var subjects = await subjectRepository.GetAll(x => new { name = x.Name }).OrderBy(x => x.name).ToListAsync();
+        var subjects = await subjectRepository.GetAll()
+            .Select(x => new { name = x.Name })
+            .OrderBy(x => x.name)
+            .ToListAsync();
         var json = JsonSerializer.Serialize(subjects, JsonSerializerOptions);
 
         var request = new PutObjectRequest

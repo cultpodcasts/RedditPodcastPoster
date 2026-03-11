@@ -4,14 +4,14 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Text.EliminationTerms;
 
 public class EliminationTermsProviderFactory(
-    IEliminationTermsRepository eliminationTermsRepository,
+    ILookupRepositoryV2 lookupRepository,
     ILogger<EliminationTermsProviderFactory> logger)
     : IEliminationTermsProviderFactory
 {
     public async Task<IEliminationTermsProvider> Create()
     {
         logger.LogInformation($"{nameof(Create)} - Creating {nameof(EliminationTermsProvider)}");
-        var knownTerms = await eliminationTermsRepository.Get();
-        return new EliminationTermsProvider(knownTerms);
+        var terms = await lookupRepository.GetEliminationTerms();
+        return new EliminationTermsProvider(terms ?? new RedditPodcastPoster.Models.EliminationTerms());
     }
 }

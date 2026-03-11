@@ -1,16 +1,17 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Text.KnownTerms;
 
 public class KnownTermsProviderFactory(
-    IKnownTermsRepository knownTermsRepository,
+    ILookupRepositoryV2 lookupRepository,
     ILogger<KnownTermsProviderFactory> logger)
     : IKnownTermsProviderFactory
 {
     public async Task<IKnownTermsProvider> Create()
     {
         logger.LogInformation($"{nameof(Create)} - Creating {nameof(KnownTermsProvider)}");
-        var knownTerms = await knownTermsRepository.Get();
-        return new KnownTermsProvider(knownTerms);
+        var knownTerms = await lookupRepository.GetKnownTerms<KnownTerms>();
+        return new KnownTermsProvider(knownTerms ?? new KnownTerms());
     }
 }

@@ -11,7 +11,7 @@ using RedditPodcastPoster.Subjects.Factories;
 namespace SubjectSeeder;
 
 public class SubjectsSeeder(
-    ISubjectRepository subjectRepository,
+    ISubjectRepositoryV2 subjectRepository,
     ISubjectService subjectService,
     ISubjectFactory subjectFactory,
     IAdminRedditClient redditClient,
