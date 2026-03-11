@@ -112,13 +112,13 @@ public class Episode
     public long Timestamp { get; set; }
 
     public static Episode FromSpotify(string spotifyId,
-    string title,
-    string description,
-    TimeSpan length,
-    bool @explicit,
-    DateTime release,
-    Uri spotifyUrl,
-    Uri? maxImage)
+        string title,
+        string description,
+        TimeSpan length,
+        bool @explicit,
+        DateTime release,
+        Uri spotifyUrl,
+        Uri? maxImage)
     {
         var episode = new Episode
         {
@@ -201,5 +201,44 @@ public class Episode
         }
 
         return episode;
+    }
+
+    public (bool, bool) SetPodcastProperties(Podcast podcast)
+    {
+        var updated = false;
+        if (PodcastId != podcast.Id)
+        {
+            PodcastId = podcast.Id;
+            updated = true;
+        }
+
+        var podcastName = podcast.Name.Trim();
+        if (PodcastName != podcastName)
+        {
+            PodcastName = podcastName;
+            updated = true;
+        }
+
+        if (PodcastRemoved != podcast.Removed)
+        {
+            PodcastRemoved = podcast.Removed;
+            updated = true;
+        }
+
+        var podcastSearchTerms = podcast.SearchTerms?.Trim();
+        if (PodcastSearchTerms != podcastSearchTerms)
+        {
+            PodcastSearchTerms = podcastSearchTerms;
+            updated = true;
+        }
+
+        var updatedMetadata = false;
+        if (PodcastMetadataVersion != podcast.Timestamp)
+        {
+            PodcastMetadataVersion = podcast.Timestamp;
+            updatedMetadata = true;
+        }
+
+        return (updated, updatedMetadata);
     }
 }

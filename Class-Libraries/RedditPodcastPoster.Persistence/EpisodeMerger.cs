@@ -8,7 +8,7 @@ namespace RedditPodcastPoster.Persistence;
 
 public class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
 {
-    public  EpisodeMergeResult MergeEpisodes(
+    public EpisodeMergeResult MergeEpisodes(
         Podcast podcast,
         IEnumerable<Episode> existingEpisodes,
         IEnumerable<Episode> episodesToMerge)
@@ -36,6 +36,7 @@ public class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
                 {
                     // New episode
                     episodeToMerge.Id = Guid.NewGuid();
+                    var (updatedPodcastProperties, updatedTimestamp) = episodeToMerge.SetPodcastProperties(podcast);
                     addedEpisodes.Add(episodeToMerge);
                     episodesToSave.Add(episodeToMerge);
                     existingList.Add(episodeToMerge); // Add to list for subsequent matching
@@ -44,6 +45,8 @@ public class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
                 {
                     // Merge with existing
                     var updated = MergeInPlace(existingEpisode, episodeToMerge);
+                    var (updatedPodcastProperties, updatedTimestamp) = existingEpisode.SetPodcastProperties(podcast);
+
                     if (updated)
                     {
                         mergedEpisodes.Add((Existing: existingEpisode, NewDetails: episodeToMerge));
@@ -59,6 +62,7 @@ public class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
 
         return new EpisodeMergeResult(episodesToSave, addedEpisodes, mergedEpisodes, failedEpisodes);
     }
+
 
     private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)
     {
