@@ -5,7 +5,7 @@ using RedditPodcastPoster.Subjects.Extensions;
 namespace RedditPodcastPoster.Subjects.HashTags;
 
 public class HashTagProvider(
-    ISubjectRepository subjectRepository,
+    ISubjectRepositoryV2 subjectRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<HashTagProvider> logger
 #pragma warning restore CS9113 // Parameter is unread.
@@ -16,10 +16,10 @@ public class HashTagProvider(
     {
         var subjectRetrieval = episodeSubjects.Select(subjectRepository.GetByName).ToArray();
         var subjects = await Task.WhenAll(subjectRetrieval);
-        var hashTags =subjects
-                .Where(x => !string.IsNullOrWhiteSpace(x?.HashTag))
-                .Select(x=>x.HashTag!)
-                .ToHashTags();
+        var hashTags = subjects
+            .Where(x => !string.IsNullOrWhiteSpace(x?.HashTag))
+            .Select(x => x.HashTag!)
+            .ToHashTags();
         var enrichmentHashTags =
             subjects
                 .Where(x => x?.EnrichmentHashTags != null && x.EnrichmentHashTags.Any())

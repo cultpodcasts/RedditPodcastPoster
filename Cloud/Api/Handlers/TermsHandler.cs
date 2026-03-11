@@ -6,12 +6,13 @@ using Api.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Auth0;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text.KnownTerms;
 
 namespace Api.Handlers;
 
 public class TermsHandler(
-    IKnownTermsRepository knownTermsRepository,
+    ILookupRepositoryV2 lookupRepository,
     ILogger<TermsHandler> logger) : ITermsHandler
 {
     public async Task<HttpResponseData> Post(HttpRequestData r, TermSubmitRequest req, ClientPrincipal? _,
@@ -19,7 +20,7 @@ public class TermsHandler(
     {
         try
         {
-            var knownTerms = await knownTermsRepository.Get();
+            var knownTerms = await lookupRepository.GetKnownTerms<KnownTerms>() ?? new KnownTerms();
             if (knownTerms.Terms.Keys.Select(x => x.ToLowerInvariant())
                 .Contains(Regex.Escape(req.Term).ToLowerInvariant()))
             {
@@ -39,7 +40,7 @@ public class TermsHandler(
 
             knownTerms.Terms.Add(req.Term,
                 new Regex(titleCasedTerm, RegexOptions.Compiled | RegexOptions.IgnoreCase));
-            await knownTermsRepository.Save(knownTerms);
+            await lookupRepository.SaveKnownTerms(knownTerms);
             return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new { }, c);
         }
         catch (Exception ex)
