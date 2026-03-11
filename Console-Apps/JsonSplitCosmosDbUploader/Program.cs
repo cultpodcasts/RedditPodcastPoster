@@ -22,7 +22,6 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
-    .AddLegacyPodcastRepository()
     .AddFileRepository("podcast")
     .AddCommonServices()
     .AddScoped<JsonSplitCosmosDbUploadProcessor>();

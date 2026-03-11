@@ -1,15 +1,14 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.JsonSplitCosmosDbUploader;
-using RedditPodcastPoster.Models.V2;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace JsonSplitCosmosDbUploader;
 
 public class JsonSplitCosmosDbUploadProcessor(
     IFileRepository fileRepository,
-    IPodcastRepository podcastRepository,
     IPodcastRepositoryV2 podcastRepositoryV2,
     IEpisodeRepository episodeRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
@@ -19,7 +18,7 @@ public class JsonSplitCosmosDbUploadProcessor(
     public async Task Run(JsonSplitCosmosDbUploadRequest request)
     {
         throw new NotImplementedException("Not implemented during migration");
-        var sourcePodcast = await fileRepository.Read<RedditPodcastPoster.Models.Podcast>(Path.GetFileNameWithoutExtension(request.FileName));
+        var sourcePodcast = await fileRepository.Read<Podcast>(Path.GetFileNameWithoutExtension(request.FileName));
         if (sourcePodcast != null)
         {
             logger.LogInformation("'{EpisodesCount}' episodes.", sourcePodcast.Episodes.Count);
@@ -66,7 +65,6 @@ public class JsonSplitCosmosDbUploadProcessor(
                 //var episodes = sourcePodcast.Episodes.Skip((splitFiles - (i + 1)) * episodesPerFile)
                 //    .Take(episodesPerFile)
                 //    .OrderByDescending(x => x.Release).ToList();
-
             }
         }
     }
