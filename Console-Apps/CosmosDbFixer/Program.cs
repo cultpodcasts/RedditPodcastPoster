@@ -18,7 +18,6 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
-    .AddLegacyPodcastRepository()
     .AddScoped<CosmosDbFixer.CosmosDbFixer>();
 
 
