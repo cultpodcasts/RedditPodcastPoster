@@ -6,7 +6,7 @@ using YouTubePushNotificationSubcribe;
 namespace YouTubePushNotificationSubscribe;
 
 public class SubscribeProcessor(
-    IPodcastRepository repository,
+    IPodcastRepositoryV2 repository,
     IPodcastsSubscriber podcastsSubscriber,
     IPodcastYouTubePushNotificationSubscriber subscriber,
     ILogger<SubscribeProcessor> logger)
@@ -32,7 +32,8 @@ public class SubscribeProcessor(
                 throw new ArgumentException($"Podcast with id '{request.UnsubscribePodcastId}' not found.");
             }
 
-            logger.LogInformation("Unsubscribing podcast with id '{RequestUnsubscribePodcastId}'.", request.UnsubscribePodcastId);
+            logger.LogInformation("Unsubscribing podcast with id '{RequestUnsubscribePodcastId}'.",
+                request.UnsubscribePodcastId);
             await subscriber.Unsubscribe(podcast);
         }
         else if (request.RenewAllLeases)
