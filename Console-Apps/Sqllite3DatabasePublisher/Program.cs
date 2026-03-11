@@ -24,7 +24,6 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
-    .AddLegacyPodcastRepository()
     .AddEliminationTerms()
     .AddSubjectServices()
     .AddTextSanitiser()
