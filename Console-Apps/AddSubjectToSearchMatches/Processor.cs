@@ -12,7 +12,8 @@ public class Processor(
     ISubjectsProvider subjectsProvider,
     SearchClient searchClient,
     ISubjectMatcher subjectMatcher,
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<Processor> logger)
 {
@@ -70,10 +71,10 @@ public class Processor(
 
             foreach (var podcast in podcasts)
             {
-                var podcastChanged = false;
                 foreach (var podcastEpisode in episodes)
                 {
-                    var repoPodcastEpisode = podcast.Episodes.SingleOrDefault(x => x.Id == podcastEpisode.Episode.Id);
+                    var episodeChanged = false;
+                    var repoPodcastEpisode = await episodeRepository.GetBy(x => x.Id == podcastEpisode.Episode.Id);
                     if (repoPodcastEpisode != null && !repoPodcastEpisode.Subjects.Contains(request.Query))
                     {
                         var subjectEnrichmentOptions = new SubjectEnrichmentOptions(
@@ -90,7 +91,7 @@ public class Processor(
                              !repoPodcastEpisode.Subjects.Contains(request.Query)))
                         {
                             updatedEpisodeIds.Add(repoPodcastEpisode.Id);
-                            podcastChanged = true;
+                            episodeChanged = true;
                             repoPodcastEpisode.Subjects.Add(request.Query);
                             logger.LogWarning(
                                 "Podcast '{PodcastName}' episode '{Guid}' has subject added.", podcastName, repoPodcastEpisode.Id);
@@ -107,12 +108,13 @@ public class Processor(
                         logger.LogWarning(
                             "Podcast '{PodcastName}' episode '{Guid}' has subject more than once.", podcastName, repoPodcastEpisode.Id);
                     }
+                    if (episodeChanged&& !request.IsDryRun)
+                    {
+                        await episodeRepository.Save(repoPodcastEpisode);
+                    }
+
                 }
 
-                if (podcastChanged && !request.IsDryRun)
-                {
-                    await podcastRepository.Save(podcast);
-                }
             }
         }
 
