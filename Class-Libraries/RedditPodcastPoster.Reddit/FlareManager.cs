@@ -6,7 +6,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Reddit;
 
 public class FlareManager(
-    ISubjectRepository subjectRepository,
+    ISubjectRepositoryV2 subjectRepository,
     ILogger<FlareManager> logger
 ) : IFlareManager
 {
@@ -15,7 +15,13 @@ public class FlareManager(
         var flareState = FlareState.Unknown;
         if (subjectNames.Any())
         {
-            var subjects = await (subjectRepository.GetByNames(subjectNames)).ToArrayAsync();
+            var normalizedSubjectNames = subjectNames
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            var subjects = await subjectRepository
+                .GetAllBy(x => Enumerable.Contains(normalizedSubjectNames, x.Name))
+                .ToArrayAsync();
             var redditSubjects = subjects.Where(x => x.RedditFlairTemplateId != null);
             var subject =
                 redditSubjects.FirstOrDefault(x => x.SubjectType is null or SubjectType.Canonical) ??
