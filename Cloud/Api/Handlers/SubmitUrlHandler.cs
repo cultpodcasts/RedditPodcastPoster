@@ -14,7 +14,7 @@ namespace Api.Handlers;
 
 public class SubmitUrlHandler(
     IPodcastRepositoryV2 repository,
-    IUrlSubmitterV2 urlSubmitter,
+    IUrlSubmitter urlSubmitter,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<SubmitUrlHandler> logger) : ISubmitUrlHandler
 {
@@ -55,16 +55,27 @@ public class SubmitUrlHandler(
                 },
                 submitOptions);
 
+            var episodeId = result.Episode?.Id;
             if (result.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
             {
-                try
+                if (episodeId.HasValue)
                 {
-                    await episodeSearchIndexerService.IndexEpisode(result.Episode!.Id, c);
+                    try
+                    {
+                        await episodeSearchIndexerService.IndexEpisode(episodeId.Value, c);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed to index episode after submission. EpisodeId: '{EpisodeId}'.",
+                            episodeId.Value);
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    logger.LogError(ex, "Failed to index episode after submission. EpisodeId: '{EpisodeId}'.",
-                        result.Episode!.Id);
+                    logger.LogError(
+                        "Submit result indicated episode state '{EpisodeResult}' but no episode id was returned. Url: '{Url}'.",
+                        result.EpisodeResult,
+                        submitUrlModel.Url);
                 }
             }
 

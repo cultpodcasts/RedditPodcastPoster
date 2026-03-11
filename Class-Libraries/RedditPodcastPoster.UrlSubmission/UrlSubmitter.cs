@@ -47,6 +47,28 @@ public class UrlSubmitter(
 
             var submitResult = await categorisedItemProcessor.ProcessCategorisedItem(categorisedItem, submitOptions);
 
+            if (submitResult.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
+            {
+                if (submitResult.Episode == null)
+                {
+                    logger.LogError(
+                        "Submit completed with episode state '{EpisodeResult}' but no episode instance. Url: '{Url}', PodcastId: '{PodcastId}', CreatePodcast: {CreatePodcast}. Result: {SubmitResult}.",
+                        submitResult.EpisodeResult,
+                        url,
+                        submitOptions.PodcastId,
+                        submitOptions.CreatePodcast,
+                        submitResult);
+                }
+                else
+                {
+                    logger.LogInformation(
+                        "Submit completed with episode state '{EpisodeResult}' and episode id '{EpisodeId}'. Url: '{Url}'.",
+                        submitResult.EpisodeResult,
+                        submitResult.Episode.Id,
+                        url);
+                }
+            }
+
             return submitResult;
         }
         catch (HttpRequestException e)
