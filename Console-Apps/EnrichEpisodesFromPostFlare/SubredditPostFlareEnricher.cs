@@ -4,19 +4,22 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subreddit;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace EnrichEpisodesFromPostFlare;
 
 public class SubredditPostFlareEnricher(
     ISubredditPostProvider subredditPostProvider,
     ISubredditRepository subredditRepository,
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     ILogger<CosmosDbRepository> logger)
 {
-    private readonly Regex AppleUrl = new(@"\?i=(?'epsiodeid'\d+)", RegexOptions.Compiled);
-    private readonly Regex SpotifyUrl = new("episode/(?'episodeid'[a-zA-Z0-9]+)/?", RegexOptions.Compiled);
-    private readonly Regex YouTubeShortUrl = new(@"/(?'episodeid'\w+)$", RegexOptions.Compiled);
-    private readonly Regex YouTubeUrl = new(@"v=(?'episodeid'\w+)", RegexOptions.Compiled);
+    private static readonly Regex AppleUrl = new(@"\?i=(?'epsiodeid'\d+)", RegexOptions.Compiled);
+    private static readonly Regex SpotifyUrl = new("episode/(?'episodeid'[a-zA-Z0-9]+)/?", RegexOptions.Compiled);
+    private static readonly Regex YouTubeShortUrl = new(@"/(?'episodeid'\w+)$", RegexOptions.Compiled);
+    private static readonly Regex YouTubeUrl = new(@"v=(?'episodeid'\w+)", RegexOptions.Compiled);
 
     public async Task Run(bool createLocalRedditPostsRepository)
     {
@@ -31,6 +34,15 @@ public class SubredditPostFlareEnricher(
 
         var redditPosts = subredditRepository.GetAll();
         var podcasts = await podcastRepository.GetAll().ToListAsync();
+        var podcastsById = podcasts.ToDictionary(x => x.Id, x => x);
+
+        var episodes = new List<Episode>();
+        foreach (var podcast in podcasts)
+        {
+            episodes.AddRange(await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync());
+        }
+
+        var updatedEpisodeIds = new HashSet<Guid>();
 
         await foreach (var redditPost in redditPosts.Where(x => !string.IsNullOrWhiteSpace(x.LinkFlairText)))
         {
@@ -40,19 +52,23 @@ public class SubredditPostFlareEnricher(
                 var host = postUrl.Host;
                 if (host.Contains("spotify"))
                 {
-                    ApplyFlareToMatchingPodcastServiceUrls(SpotifyUrl, redditPost, podcasts, urls => urls.Spotify);
+                    ApplyFlareToMatchingPodcastServiceUrls(SpotifyUrl, redditPost, podcastsById, episodes,
+                        urls => urls.Spotify, updatedEpisodeIds);
                 }
                 else if (host.Contains("apple"))
                 {
-                    ApplyFlareToMatchingPodcastServiceUrls(AppleUrl, redditPost, podcasts, urls => urls.Apple);
+                    ApplyFlareToMatchingPodcastServiceUrls(AppleUrl, redditPost, podcastsById, episodes,
+                        urls => urls.Apple, updatedEpisodeIds);
                 }
                 else if (host.Contains("youtube"))
                 {
-                    ApplyFlareToMatchingPodcastServiceUrls(YouTubeUrl, redditPost, podcasts, urls => urls.YouTube);
+                    ApplyFlareToMatchingPodcastServiceUrls(YouTubeUrl, redditPost, podcastsById, episodes,
+                        urls => urls.YouTube, updatedEpisodeIds);
                 }
                 else if (host.Contains("youtu.be"))
                 {
-                    ApplyFlareToMatchingPodcastServiceUrls(YouTubeShortUrl, redditPost, podcasts, urls => urls.YouTube);
+                    ApplyFlareToMatchingPodcastServiceUrls(YouTubeShortUrl, redditPost, podcastsById, episodes,
+                        urls => urls.YouTube, updatedEpisodeIds);
                 }
                 else
                 {
@@ -61,14 +77,19 @@ public class SubredditPostFlareEnricher(
             }
         }
 
-        foreach (var podcast in podcasts)
+        foreach (var episode in episodes.Where(x => updatedEpisodeIds.Contains(x.Id)))
         {
-            await podcastRepository.Save(podcast);
+            await episodeRepository.Save(episode);
         }
     }
 
-    private void ApplyFlareToMatchingPodcastServiceUrls(Regex regex, RedditPost redditPost, List<Podcast> podcasts,
-        Func<ServiceUrls, Uri?> Accessor)
+    private void ApplyFlareToMatchingPodcastServiceUrls(
+        Regex regex,
+        RedditPost redditPost,
+        IReadOnlyDictionary<Guid, Podcast> podcastsById,
+        List<Episode> episodes,
+        Func<ServiceUrls, Uri?> accessor,
+        HashSet<Guid> updatedEpisodeIds)
     {
         var idMatch = regex.Match(redditPost.Url);
         if (idMatch.Success)
@@ -76,22 +97,24 @@ public class SubredditPostFlareEnricher(
             var serviceId = idMatch.Groups["episodeid"].Value;
             if (!string.IsNullOrWhiteSpace(serviceId))
             {
-                var matches = podcasts.SelectMany(podcast => podcast.Episodes.Where(episode =>
+                var matches = episodes.Where(episode =>
                 {
-                    if (Accessor(episode.Urls) == null)
-                    {
-                        return false;
-                    }
+                    var serviceUrl = accessor(episode.Urls);
+                    return serviceUrl != null && serviceUrl.ToString().Contains(serviceId);
+                });
 
-                    return Accessor(episode.Urls)!.ToString().Contains(serviceId);
-                }), (podcast, episode) => new {Podcast = podcast, Episode = episode});
                 foreach (var match in matches)
                 {
                     var group = redditPost.LinkFlairText.Trim();
-                    if (!match.Episode.Subjects.Contains(group))
+                    if (!match.Subjects.Contains(group))
                     {
-                        logger.LogInformation("{Name} - {Title} = {Group}", match.Podcast.Name, match.Episode.Title, group);
-                        match.Episode.Subjects.Add(group);
+                        var podcastName = podcastsById.TryGetValue(match.PodcastId, out var podcast)
+                            ? podcast.Name
+                            : match.PodcastName;
+
+                        logger.LogInformation("{Name} - {Title} = {Group}", podcastName, match.Title, group);
+                        match.Subjects.Add(group);
+                        updatedEpisodeIds.Add(match.Id);
                     }
                 }
             }

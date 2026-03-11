@@ -25,7 +25,6 @@ builder.Services
     .AddLogging()
     .AddFileRepository()
     .AddRepositories()
-    .AddLegacyPodcastRepository()
     .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
     .AddSingleton(new JsonSerializerOptions
     {
