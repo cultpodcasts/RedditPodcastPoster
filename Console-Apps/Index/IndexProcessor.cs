@@ -8,7 +8,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 namespace Index;
 
 internal class IndexProcessor(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
     IIndexer indexer,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
 #pragma warning disable CS9113 // Parameter is unread.
@@ -52,14 +52,15 @@ internal class IndexProcessor(
             }
             else if (request.PodcastName != null)
             {
-                podcastIds = await podcastRepository.GetAllBy(x =>
-                        x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
-                    x => x.Id).ToListAsync();
+                podcastIds = await podcastRepository
+                    .GetAllBy(x => x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase))
+                    .Select(x => x.Id)
+                    .ToListAsync();
                 logger.LogInformation("Found {podcastIdsCount} podcasts.", podcastIds.Count());
             }
             else
             {
-                podcastIds = await podcastRepository.GetAllIds().ToArrayAsync();
+                podcastIds = await podcastRepository.GetAll().Select(x => x.Id).ToArrayAsync();
             }
 
             foreach (var podcastId in podcastIds)
