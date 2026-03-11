@@ -11,7 +11,7 @@ public class AppleEpisodeRetrievalHandler(
 {
     private readonly ILogger<AppleEpisodeRetrievalHandler> _logger = logger;
 
-    public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IEnumerable<Episode> episodes, IndexingContext indexingContext)
+    public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IndexingContext indexingContext)
     {
         var handled = false;
         IList<Episode> newEpisodes = new List<Episode>();

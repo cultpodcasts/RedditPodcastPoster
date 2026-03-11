@@ -13,7 +13,7 @@ public class SpotifyEpisodeRetrievalHandler(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : ISpotifyEpisodeRetrievalHandler
 {
-    public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IEnumerable<Episode> episodes, IndexingContext indexingContext)
+    public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IndexingContext indexingContext)
     {
         var handled = false;
 

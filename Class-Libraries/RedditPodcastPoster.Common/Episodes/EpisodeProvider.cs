@@ -21,7 +21,7 @@ public class EpisodeProvider(
         if (indexingContext.IndexSpotify && podcast.ReleaseAuthority is null or Service.Spotify &&
             !string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
-            (newEpisodes, handled) = await spotifyEpisodeRetrievalHandler.GetEpisodes(podcast, episodes, indexingContext);
+            (newEpisodes, handled) = await spotifyEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
             if (handled)
             {
                 logger.LogInformation(
@@ -32,7 +32,7 @@ public class EpisodeProvider(
 
         if (!handled && podcast.ReleaseAuthority != Service.YouTube && podcast.AppleId != null)
         {
-            (newEpisodes, handled) = await appleEpisodeRetrievalHandler.GetEpisodes(podcast, episodes, indexingContext);
+            (newEpisodes, handled) = await appleEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
             if (handled)
             {
                 logger.LogInformation(
