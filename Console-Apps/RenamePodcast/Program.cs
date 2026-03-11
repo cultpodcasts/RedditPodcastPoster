@@ -22,6 +22,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
+    .AddLegacyPodcastRepository()
     .AddCloudflareClients()
     .AddRedirectServices()
     .AddScoped<RenamePodcastProcessor>()

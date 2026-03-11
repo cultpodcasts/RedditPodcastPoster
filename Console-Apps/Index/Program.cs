@@ -34,6 +34,7 @@ builder.Services
     .AddLogging()
     .AddSingleton<IndexProcessor>()
     .AddRepositories()
+    .AddLegacyPodcastRepository()
     .AddCommonServices()
     .AddPodcastServices()
     .AddAppleServices()

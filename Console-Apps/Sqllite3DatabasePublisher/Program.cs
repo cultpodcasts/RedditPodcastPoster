@@ -24,6 +24,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
+    .AddLegacyPodcastRepository()
     .AddEliminationTerms()
     .AddSubjectServices()
     .AddTextSanitiser()
@@ -46,6 +47,8 @@ async Task<int> Run(Request request)
     await processor!.Run(request);
     return 0;
 }
+
+
 
 
 

@@ -28,6 +28,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
+    .AddLegacyPodcastRepository()
     .AddPushSubscriptionsRepository()
     .AddSubjectServices()
     .AddDiscoveryRepository()

@@ -1,5 +1,5 @@
-﻿using RedditPodcastPoster.Models;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+﻿using RedditPodcastPoster.PodcastServices.Abstractions;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Discovery;
 

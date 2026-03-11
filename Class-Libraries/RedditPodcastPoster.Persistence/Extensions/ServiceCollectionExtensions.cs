@@ -25,7 +25,6 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<ICosmosDbRepository, CosmosDbRepository>()
                 .AddSingleton<IEpisodeMatcher, EpisodeMatcher>()
                 .AddSingleton<IEpisodeMerger, EpisodeMerger>()
-                .AddSingleton<IPodcastRepository, PodcastRepository>()
                 .AddSingleton<IPodcastRepositoryV2>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
@@ -54,6 +53,12 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
                 .BindConfiguration<CosmosDbSettings>("cosmosdb")
                 .BindConfiguration<CosmosDbSettingsV2>("cosmosdbv2");
+        }
+
+        public IServiceCollection AddLegacyPodcastRepository()
+        {
+            return services
+                .AddSingleton<IPodcastRepository, PodcastRepository>();
         }
 
         public IServiceCollection AddFileRepository(string containerName = "",

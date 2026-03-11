@@ -5,7 +5,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Subjects.Factories;
 
 public class SubjectFactory(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
     ILogger<SubjectFactory> logger) : ISubjectFactory
 {
     private static string[]? _fileKeys;
@@ -21,7 +21,7 @@ public class SubjectFactory(
             throw new ArgumentNullException(nameof(subjectName));
         }
 
-        _fileKeys ??= await podcastRepository.GetAllFileKeys().ToArrayAsync();
+        _fileKeys ??= await podcastRepository.GetAll().Select(x => x.FileKey).ToArrayAsync();
 
         subjectName = subjectName.Trim();
         var fileKey = FileKeyFactory.GetFileKey(subjectName);
@@ -35,7 +35,7 @@ public class SubjectFactory(
             } while (_fileKeys.Contains(fileKey));
         }
 
-        var subject = new Subject(subjectName) {FileKey = fileKey};
+        var subject = new Subject(subjectName) { FileKey = fileKey };
 
         if (!string.IsNullOrWhiteSpace(aliases))
         {
