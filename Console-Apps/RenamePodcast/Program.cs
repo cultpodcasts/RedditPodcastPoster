@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,7 +22,6 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
-    .AddLegacyPodcastRepository()
     .AddCloudflareClients()
     .AddRedirectServices()
     .AddScoped<RenamePodcastProcessor>()
