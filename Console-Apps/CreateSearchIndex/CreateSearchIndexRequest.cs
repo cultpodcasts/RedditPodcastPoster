@@ -18,4 +18,12 @@ public class CreateSearchIndexRequest
 
     [Option('r', "run-indexer", Required = false, Default = false, HelpText = "Run the indexer")]
     public bool RunIndexer { get; set; }
+
+    [Option("run-indexer-max-attempts", Required = false, Default = 10,
+        HelpText = "Max automated rerun attempts when indexer times out")]
+    public int RunIndexerMaxAttempts { get; set; }
+
+    [Option("run-indexer-poll-seconds", Required = false, Default = 10,
+        HelpText = "Polling interval in seconds when monitoring indexer execution")]
+    public int RunIndexerPollSeconds { get; set; }
 }
