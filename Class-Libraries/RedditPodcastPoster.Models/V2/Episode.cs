@@ -84,6 +84,10 @@ public class Episode
     [JsonPropertyOrder(91)]
     public string? PodcastSearchTerms { get; set; }
 
+    [JsonPropertyName("podcastLanguage")]
+    [JsonPropertyOrder(92)]
+    public string? PodcastLanguage { get; set; }
+
     [JsonPropertyName("lang")]
     [JsonPropertyOrder(45)]
     public string? Language { get; set; }
@@ -229,6 +233,13 @@ public class Episode
         if (PodcastSearchTerms != podcastSearchTerms)
         {
             PodcastSearchTerms = podcastSearchTerms;
+            updated = true;
+        }
+
+        var podcastLanguage = podcast.Language?.Trim();
+        if (PodcastLanguage != podcastLanguage)
+        {
+            PodcastLanguage = podcastLanguage;
             updated = true;
         }
 
