@@ -57,6 +57,8 @@ public class LegacyPodcastToV2MigrationProcessor(
     ICosmosDbContainerFactory legacyContainerFactory,
     ILogger<LegacyPodcastToV2MigrationProcessor> logger)
 {
+    private static readonly TimeSpan ProgressUpdateInterval = TimeSpan.FromSeconds(5);
+
     public async Task<LegacyPodcastToV2MigrationResult> Run(
         LegacyPodcastToV2MigrationSections? sections = null,
         CancellationToken cancellationToken = default)
@@ -67,6 +69,13 @@ public class LegacyPodcastToV2MigrationProcessor(
         var episodesMigrated = 0;
         var failedPodcastIds = new List<Guid>();
         var failedEpisodeIds = new List<Guid>();
+
+        var podcastProgressLastUpdate = DateTime.MinValue;
+        var episodeProgressLastUpdate = DateTime.MinValue;
+        var pushProgressLastUpdate = DateTime.MinValue;
+        var subjectProgressLastUpdate = DateTime.MinValue;
+        var discoveryProgressLastUpdate = DateTime.MinValue;
+        var podcastEpisodesProgressLastUpdate = DateTime.MinValue;
 
         // Migrate Podcasts and Episodes
         var totalPodcasts = await legacyPodcastRepository.GetTotalCount();
@@ -85,8 +94,6 @@ public class LegacyPodcastToV2MigrationProcessor(
                     var podcastV2 = ToV2Podcast(legacyPodcast);
                     await podcastRepositoryV2.Save(podcastV2);
                     podcastsMigrated++;
-                    Console.WriteLine(
-                        $"Podcast migration progress: {podcastsMigrated}/{totalPodcasts} ({podcastsMigrated * 100 / totalPodcasts}%)");
 
                     if (legacyPodcast.Episodes.Count > 0)
                     {
@@ -96,8 +103,6 @@ public class LegacyPodcastToV2MigrationProcessor(
                             await episodeRepository.Save(episodeBatch);
                             migratedEpisodes += episodeBatch.Length;
                             episodesMigrated += episodeBatch.Length;
-                            Console.WriteLine(
-                                $"Episode migration progress: {migratedEpisodes}/{totalEpisodes} ({migratedEpisodes * 100 / (totalEpisodes == 0 ? 1 : totalEpisodes)}%)");
                         }
                         catch (Exception ex)
                         {
@@ -108,6 +113,11 @@ public class LegacyPodcastToV2MigrationProcessor(
                             throw;
                         }
                     }
+
+                    WriteProgress(
+                        $"Migration progress: podcasts {podcastsMigrated}/{totalPodcasts} ({Percent(podcastsMigrated, totalPodcasts)}%), episodes {migratedEpisodes}/{totalEpisodes} ({Percent(migratedEpisodes, totalEpisodes)}%)",
+                        ref podcastEpisodesProgressLastUpdate,
+                        force: podcastsMigrated == totalPodcasts);
                 }
                 catch (Exception ex)
                 {
@@ -119,6 +129,8 @@ public class LegacyPodcastToV2MigrationProcessor(
                     throw;
                 }
             }
+
+            Console.WriteLine();
         }
         else
         {
@@ -168,9 +180,12 @@ public class LegacyPodcastToV2MigrationProcessor(
             for (int i = 0; i < totalPush; i++)
             {
                 await pushSubscriptionsRepository.Save(pushSubscriptions[i]);
-                Console.WriteLine(
-                    $"PushSubscriptions migration progress: {i + 1}/{totalPush} ({(i + 1) * 100 / (totalPush == 0 ? 1 : totalPush)}%)");
+                WriteProgress(
+                    $"PushSubscriptions migration progress: {i + 1}/{totalPush} ({Percent(i + 1, totalPush)}%)",
+                    ref pushProgressLastUpdate,
+                    force: i + 1 == totalPush);
             }
+            Console.WriteLine();
         }
         else
         {
@@ -185,9 +200,12 @@ public class LegacyPodcastToV2MigrationProcessor(
             for (int i = 0; i < totalSubjects; i++)
             {
                 await subjectsRepository.Save(subjects[i]);
-                Console.WriteLine(
-                    $"Subjects migration progress: {i + 1}/{totalSubjects} ({(i + 1) * 100 / (totalSubjects == 0 ? 1 : totalSubjects)}%)");
+                WriteProgress(
+                    $"Subjects migration progress: {i + 1}/{totalSubjects} ({Percent(i + 1, totalSubjects)}%)",
+                    ref subjectProgressLastUpdate,
+                    force: i + 1 == totalSubjects);
             }
+            Console.WriteLine();
         }
         else
         {
@@ -202,9 +220,12 @@ public class LegacyPodcastToV2MigrationProcessor(
             for (int i = 0; i < totalDiscovery; i++)
             {
                 await discoveryRepository.Save(discoveries[i]);
-                Console.WriteLine(
-                    $"Discovery migration progress: {i + 1}/{totalDiscovery} ({(i + 1) * 100 / (totalDiscovery == 0 ? 1 : totalDiscovery)}%)");
+                WriteProgress(
+                    $"Discovery migration progress: {i + 1}/{totalDiscovery} ({Percent(i + 1, totalDiscovery)}%)",
+                    ref discoveryProgressLastUpdate,
+                    force: i + 1 == totalDiscovery);
             }
+            Console.WriteLine();
         }
         else
         {
@@ -216,6 +237,29 @@ public class LegacyPodcastToV2MigrationProcessor(
             EpisodesMigrated: episodesMigrated,
             FailedPodcastIds: failedPodcastIds,
             FailedEpisodeIds: failedEpisodeIds);
+    }
+
+    private static int Percent(int current, int total)
+    {
+        return current * 100 / (total == 0 ? 1 : total);
+    }
+
+    private static void WriteProgress(string message, ref DateTime lastUpdateUtc, bool force = false)
+    {
+        var now = DateTime.UtcNow;
+        if (!force && now - lastUpdateUtc < ProgressUpdateInterval)
+        {
+            return;
+        }
+
+        var width = Math.Max(Console.WindowWidth - 1, 20);
+        if (message.Length > width)
+        {
+            message = message[..width];
+        }
+
+        Console.Write($"\r{message.PadRight(width)}");
+        lastUpdateUtc = now;
     }
 
     public async Task<PodcastParityVerificationResult> VerifySampledPodcastParity(
@@ -468,13 +512,19 @@ public class LegacyPodcastToV2MigrationProcessor(
                 continue;
             }
 
-            if (IsEpisodeParityMatch(expected, target))
+            var mismatchFields = GetEpisodeFieldMismatches(expected, target);
+            if (mismatchFields.Count == 0)
             {
                 matching++;
             }
             else
             {
                 mismatched.Add(sample.episode.Id.ToString());
+                logger.LogWarning(
+                    "Episode parity mismatch for episode id '{EpisodeId}' (podcast-id '{PodcastId}'). Mismatched fields: {MismatchedFields}",
+                    sample.episode.Id,
+                    sample.podcast.Id,
+                    string.Join(", ", mismatchFields));
             }
         }
 
@@ -569,6 +619,7 @@ public class LegacyPodcastToV2MigrationProcessor(
             SearchTerms = legacyEpisode.SearchTerms,
             PodcastName = legacyPodcast.Name,
             PodcastSearchTerms = legacyPodcast.SearchTerms,
+            PodcastLanguage = legacyPodcast.Language,
             Language = legacyEpisode.Language,
             PodcastMetadataVersion = null,
             PodcastRemoved = legacyPodcast.Removed,
@@ -787,33 +838,44 @@ public class LegacyPodcastToV2MigrationProcessor(
                legacy.P256Dh == target.P256Dh;
     }
 
+    private static IReadOnlyList<string> GetEpisodeFieldMismatches(V2Episode expected, V2Episode target)
+    {
+        var mismatches = new List<string>();
+
+        if (expected.Id != target.Id) mismatches.Add(nameof(V2Episode.Id));
+        if (expected.PodcastId != target.PodcastId) mismatches.Add(nameof(V2Episode.PodcastId));
+        if (expected.Title != target.Title) mismatches.Add(nameof(V2Episode.Title));
+        if (expected.Description != target.Description) mismatches.Add(nameof(V2Episode.Description));
+        if (expected.Release != target.Release) mismatches.Add(nameof(V2Episode.Release));
+        if (expected.Length != target.Length) mismatches.Add(nameof(V2Episode.Length));
+        if (expected.Explicit != target.Explicit) mismatches.Add(nameof(V2Episode.Explicit));
+        if (expected.Posted != target.Posted) mismatches.Add(nameof(V2Episode.Posted));
+        if (expected.Tweeted != target.Tweeted) mismatches.Add(nameof(V2Episode.Tweeted));
+        if (expected.BlueskyPosted != target.BlueskyPosted) mismatches.Add(nameof(V2Episode.BlueskyPosted));
+        if (expected.Ignored != target.Ignored) mismatches.Add(nameof(V2Episode.Ignored));
+        if (expected.Removed != target.Removed) mismatches.Add(nameof(V2Episode.Removed));
+        if (expected.SpotifyId != target.SpotifyId) mismatches.Add(nameof(V2Episode.SpotifyId));
+        if (expected.AppleId != target.AppleId) mismatches.Add(nameof(V2Episode.AppleId));
+        if (expected.YouTubeId != target.YouTubeId) mismatches.Add(nameof(V2Episode.YouTubeId));
+        if (!AreServiceUrlsEqual(expected.Urls, target.Urls)) mismatches.Add(nameof(V2Episode.Urls));
+        if (!SequenceEqual(expected.Subjects, target.Subjects)) mismatches.Add(nameof(V2Episode.Subjects));
+        if (expected.SearchTerms != target.SearchTerms) mismatches.Add(nameof(V2Episode.SearchTerms));
+        if (expected.PodcastName != target.PodcastName) mismatches.Add(nameof(V2Episode.PodcastName));
+        if (expected.PodcastSearchTerms != target.PodcastSearchTerms) mismatches.Add(nameof(V2Episode.PodcastSearchTerms));
+        if (expected.PodcastLanguage != target.PodcastLanguage) mismatches.Add(nameof(V2Episode.PodcastLanguage));
+        if (expected.Language != target.Language) mismatches.Add(nameof(V2Episode.Language));
+        if (expected.PodcastMetadataVersion != target.PodcastMetadataVersion) mismatches.Add(nameof(V2Episode.PodcastMetadataVersion));
+        if (expected.PodcastRemoved != target.PodcastRemoved) mismatches.Add(nameof(V2Episode.PodcastRemoved));
+        if (!AreEpisodeImagesEqual(expected.Images, target.Images)) mismatches.Add(nameof(V2Episode.Images));
+        if (!SequenceEqual(expected.TwitterHandles, target.TwitterHandles)) mismatches.Add(nameof(V2Episode.TwitterHandles));
+        if (!SequenceEqual(expected.BlueskyHandles, target.BlueskyHandles)) mismatches.Add(nameof(V2Episode.BlueskyHandles));
+
+        return mismatches;
+    }
+
     private static bool IsEpisodeParityMatch(V2Episode expected, V2Episode target)
     {
-        return expected.Id == target.Id &&
-               expected.PodcastId == target.PodcastId &&
-               expected.Title == target.Title &&
-               expected.Description == target.Description &&
-               expected.Release == target.Release &&
-               expected.Length == target.Length &&
-               expected.Explicit == target.Explicit &&
-               expected.Posted == target.Posted &&
-               expected.Tweeted == target.Tweeted &&
-               expected.BlueskyPosted == target.BlueskyPosted &&
-               expected.Ignored == target.Ignored &&
-               expected.Removed == target.Removed &&
-               expected.SpotifyId == target.SpotifyId &&
-               expected.AppleId == target.AppleId &&
-               expected.YouTubeId == target.YouTubeId &&
-               AreServiceUrlsEqual(expected.Urls, target.Urls) &&
-               SequenceEqual(expected.Subjects, target.Subjects) &&
-               expected.SearchTerms == target.SearchTerms &&
-               expected.PodcastName == target.PodcastName &&
-               expected.PodcastSearchTerms == target.PodcastSearchTerms &&
-               expected.Language == target.Language &&
-               expected.PodcastRemoved == target.PodcastRemoved &&
-               AreEpisodeImagesEqual(expected.Images, target.Images) &&
-               SequenceEqual(expected.TwitterHandles, target.TwitterHandles) &&
-               SequenceEqual(expected.BlueskyHandles, target.BlueskyHandles);
+        return GetEpisodeFieldMismatches(expected, target).Count == 0;
     }
 
     private static bool AreServiceUrlsEqual(RedditPodcastPoster.Models.ServiceUrls? left, RedditPodcastPoster.Models.ServiceUrls? right)

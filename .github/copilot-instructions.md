@@ -8,9 +8,20 @@
 - EliminationTerms should be stored in the `LookUps` container, and infrastructure should include a dedicated `PushSubscriptions` container.
 - Prefer using `PodcastEpisodeV2` and V2 models across the codebase, except in `PodcastRepository` and `LegacyPodcastToV2Migration`.
 - Prefer migrating code to V2 podcast/episode models everywhere possible; keep legacy models only in `PodcastRepository` and `LegacyPodcastToV2Migration`.
+- The project is not using soft-delete for Azure Search indexing.
+- Episode ID is globally unique in this project.
 
 ## Container Creation
 - User prefers explicit container factory methods `CreatePodcastsContainer()` and `CreateEpisodesContainer()` instead of `Create(string containerName)`.
 
 ## Tooling Preferences
 - User does not want unrelated secret-management tooling invoked during code-edit/debug tasks; only use tools directly relevant to the requested change.
+
+## Azure Search Indexing
+- When automating Azure Search indexer reruns, wait for the newly triggered run to start (using status start-time correlation) before evaluating completion to avoid premature retriggers and 409 conflicts.
+
+## Migration Verification
+- When resetting the V2 database for migration verification, use the built-in teardown flags of the `LegacyPodcastToV2Migration` app rather than manual deletes.
+
+## Debugging Preferences
+- User prefers evidence and ongoing debugging notes to be added to `debug-session-summary.md` instead of being expanded in chat.
