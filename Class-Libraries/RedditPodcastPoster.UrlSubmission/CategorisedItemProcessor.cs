@@ -22,7 +22,16 @@ public class CategorisedItemProcessor(
 
             if (submitOptions.PersistToDatabase)
             {
-                await podcastRepository.Save(categorisedItem.MatchingPodcast);
+                if (submitResult is { PodcastResult: SubmitResultState.Enriched })
+                {
+                    await podcastRepository.Save(categorisedItem.MatchingPodcast);
+                }
+
+                if (submitResult is
+                    { Episode: not null, EpisodeResult: SubmitResultState.Created or SubmitResultState.Enriched })
+                {
+                    await episodeRepository.Save(submitResult.Episode);
+                }
             }
             else
             {

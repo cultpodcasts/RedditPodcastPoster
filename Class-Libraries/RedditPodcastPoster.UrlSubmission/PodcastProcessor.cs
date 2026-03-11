@@ -48,11 +48,12 @@ public class PodcastProcessor(
                 matchingEpisode);
 
         SubmitResultState episodeResult;
-        Episode? episode=null;
+        Episode? episode = null;
         if (matchingEpisode == null)
         {
             episodeResult = SubmitResultState.Created;
             episode = episodeFactory.CreateEpisode(categorisedItem);
+            episode.SetPodcastProperties(categorisedItem.MatchingPodcast);
             var subjectsResult = await subjectEnricher.EnrichSubjects(
                 episode,
                 new SubjectEnrichmentOptions(
