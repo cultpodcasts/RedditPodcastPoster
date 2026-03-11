@@ -5,7 +5,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Persistence;
 
 public class EliminationTermsRepository(
-    IDataRepository dataRepository,
+    ILookupRepositoryV2 lookupRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<EliminationTermsRepository> logger)
 #pragma warning restore CS9113 // Parameter is unread.
@@ -13,11 +13,11 @@ public class EliminationTermsRepository(
 {
     public async Task<EliminationTerms> Get()
     {
-        return (await dataRepository.Read<EliminationTerms>(EliminationTerms._Id.ToString()))!;
+        return (await lookupRepository.GetEliminationTerms())!;
     }
 
     public async Task Save(EliminationTerms terms)
     {
-        await dataRepository.Write(terms);
+        await lookupRepository.SaveEliminationTerms(terms);
     }
 }

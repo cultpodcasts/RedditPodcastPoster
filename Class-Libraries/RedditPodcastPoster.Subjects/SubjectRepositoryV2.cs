@@ -10,7 +10,7 @@ namespace RedditPodcastPoster.Subjects;
 public class SubjectRepositoryV2(
     Container subjectsContainer,
     ILogger<SubjectRepositoryV2> logger)
-    : ISubjectRepositoryV2
+    : ISubjectRepositoryV2, ISubjectsProvider
 {
     public async Task Save(Subject subject)
     {

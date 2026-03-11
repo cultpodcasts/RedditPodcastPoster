@@ -12,7 +12,6 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddPushSubscriptionsRepository()
         {
             return services
-                .AddScoped<IPushSubscriptionRepository, PushSubscriptionRepository>()
                 .AddSingleton<IPushSubscriptionRepositoryV2>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();

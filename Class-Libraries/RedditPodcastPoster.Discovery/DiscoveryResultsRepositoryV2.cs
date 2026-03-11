@@ -59,8 +59,8 @@ public class DiscoveryResultsRepositoryV2(
 
     public IAsyncEnumerable<DiscoveryResultsDocument> GetByIds(IEnumerable<Guid> ids)
     {
-        var idSet = ids.ToHashSet();
-        return GetByIdsInternal(x => idSet.Contains(x.Id));
+        var idArray = ids.Distinct().ToArray();
+        return GetByIdsInternal(x => Enumerable.Contains(idArray, x.Id));
     }
 
     private async IAsyncEnumerable<DiscoveryResultsDocument> GetByIdsInternal(

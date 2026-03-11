@@ -3,14 +3,13 @@ using Api.Dtos.Extensions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.ContentPublisher.Models;
-using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace Api.Services;
 
 public class DiscoveryResultsService(
-    IDiscoveryResultsRepository discoveryResultsRepository,
+    IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
     IPodcastRepositoryV2 podcastRepository,
     IEpisodeRepository episodeRepository,
     IContentPublisher contentPublisher,

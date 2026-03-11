@@ -41,7 +41,6 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddDiscoveryRepository()
         {
             return services
-                .AddScoped<IDiscoveryResultsRepository, DiscoveryResultsRepository>()
                 .AddSingleton<IDiscoveryResultsRepositoryV2>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();

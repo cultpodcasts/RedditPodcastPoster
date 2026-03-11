@@ -8,8 +8,10 @@
 - EliminationTerms should be stored in the `LookUps` container, and infrastructure should include a dedicated `PushSubscriptions` container.
 - Prefer using `PodcastEpisodeV2` and V2 models across the codebase, except in `PodcastRepository` and `LegacyPodcastToV2Migration`.
 - Prefer migrating code to V2 podcast/episode models everywhere possible; keep legacy models only in `PodcastRepository` and `LegacyPodcastToV2Migration`.
+- Use V2 repository implementations when both legacy and V2 repositories exist in this codebase.
 - The project is not using soft-delete for Azure Search indexing.
 - Episode ID is globally unique in this project.
+- Documents under `docs/migration` must be kept up to date when making related changes.
 
 ## Container Creation
 - User prefers explicit container factory methods `CreatePodcastsContainer()` and `CreateEpisodesContainer()` instead of `Create(string containerName)`.
