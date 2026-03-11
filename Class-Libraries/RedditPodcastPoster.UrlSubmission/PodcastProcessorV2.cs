@@ -61,7 +61,6 @@ public class PodcastProcessorV2(
                 categorisedItem,
                 matchingEpisode);
 
-        Guid episodeId;
         SubmitResultState episodeResult;
         if (matchingEpisode == null)
         {
@@ -77,8 +76,18 @@ public class PodcastProcessorV2(
                     categorisedItem.MatchingPodcast.DescriptionRegex));
 
             // Save new episode to detached repository
-            episode.PodcastId = categorisedItem.MatchingPodcast.Id;
-            await episodeRepository.Save(episode);
+            var (updatedPodcastProperties, updatedTimestamp) =
+                episode.SetPodcastProperties(categorisedItem.MatchingPodcast);
+            try
+            {
+                await episodeRepository.Save(episode);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to save updated episode to repository (1). EpisodeId: '{EpisodeId}'.",
+                    episode.Id);
+                throw;
+            }
 
             submitEpisodeDetails = new SubmitEpisodeDetails(
                 episode.Urls.Spotify != null,
@@ -95,15 +104,26 @@ public class PodcastProcessorV2(
             // If episode was updated, save changes to detached repository
             if (appliedEpisodeResult == SubmitResultState.Enriched)
             {
-                var v2Episode = existingEpisodes.First(e => e.Id == matchingEpisode.Id);
+                var episode = existingEpisodes.First(e => e.Id == matchingEpisode.Id);
 
                 // Update V2 episode with changes from matching episode
-                v2Episode.SpotifyId = matchingEpisode.SpotifyId;
-                v2Episode.AppleId = matchingEpisode.AppleId;
-                v2Episode.YouTubeId = matchingEpisode.YouTubeId;
-                v2Episode.Urls = matchingEpisode.Urls;
+                episode.SpotifyId = matchingEpisode.SpotifyId;
+                episode.AppleId = matchingEpisode.AppleId;
+                episode.YouTubeId = matchingEpisode.YouTubeId;
+                episode.Urls = matchingEpisode.Urls;
+                var (updatedPodcastProperties, updatedTimestamp) =
+                    episode.SetPodcastProperties(categorisedItem.MatchingPodcast);
 
-                await episodeRepository.Save(v2Episode);
+                try
+                {
+                    await episodeRepository.Save(episode);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to save updated episode to repository (2). EpisodeId: '{EpisodeId}'.",
+                        episode.Id);
+                    throw;
+                }
             }
         }
 

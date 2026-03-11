@@ -1,12 +1,11 @@
 using Api.Configuration;
 using Api.Dtos;
+using Api.Factories;
 using Api.Handlers;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Text;
-using Api.Factories;
 
 namespace Api;
 
@@ -24,13 +23,11 @@ public class SubmitUrlController(
         FunctionContext executionContext,
         [FromBody] SubmitUrlRequest submitUrlModel,
         CancellationToken ct
-    ) =>
-        HandleRequest(
-            req, 
-            ["submit"], 
-            submitUrlModel, 
-            submitUrlHandler.Post, 
-            Unauthorised, 
+    ) => HandleRequest(
+            req,
+            ["submit"],
+            submitUrlModel,
+            submitUrlHandler.Post,
+            Unauthorised,
             ct);
 }
-
