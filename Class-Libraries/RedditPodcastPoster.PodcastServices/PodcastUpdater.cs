@@ -37,8 +37,8 @@ public class PodcastUpdater(
             nameof(Update), podcast.Name, nameof(enrichOnly), enrichOnly);
         if (!enrichOnly)
         {
-            var existingEpisodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
-            var newEpisodes = await episodeProvider.GetEpisodes(podcast, existingEpisodes, indexingContext);
+            episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+            var newEpisodes = await episodeProvider.GetEpisodes(podcast, episodes, indexingContext);
             var checkShortEpisodes =
                 !(podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value);
             logger.LogInformation("Podcast '{podcastName}' has checkShortEpisodes= '{checkShortEpisodes}'.",
@@ -58,8 +58,7 @@ public class PodcastUpdater(
                 }
             }
             
-            episodes=  await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
-            mergeResult = episodeMerger.MergeEpisodes(podcast, newEpisodes, episodes);
+            mergeResult = episodeMerger.MergeEpisodes(podcast, episodes, newEpisodes);
 
             if (indexingContext.ReleasedSince.HasValue)
             {
