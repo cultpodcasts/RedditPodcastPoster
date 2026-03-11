@@ -7,7 +7,6 @@ using Azure.Core.Serialization;
 using Azure.Search.Documents;
 using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
-using Azure.Search.Documents.Models;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -28,38 +27,13 @@ public partial class CreateSearchIndexProcessor(
 #pragma warning restore CS9113 // Parameter is unread.
 )
 {
-    private const string ActiveEpisodesFilter = "((NOT IS_DEFINED(e.podcastRemoved)) OR e.podcastRemoved=false) and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
+    private const string ActiveEpisodesFilter =
+        "((NOT IS_DEFINED(e.podcastRemoved)) OR e.podcastRemoved=false) and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
+
     private static readonly Regex Whitespace = CreateWhitespaceRegex();
     private static readonly TimeSpan IndexAtMinutes = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan Frequency = TimeSpan.FromMinutes(30);
     private readonly CosmosDbSettingsV2 _cosmosDbSettings = cosmosDbSettings.Value;
-
-    private sealed class EpisodeDuplicateSample
-    {
-        [JsonPropertyName("id")]
-        public string Id { get; set; } = string.Empty;
-
-        [JsonPropertyName("podcastId")]
-        public string PodcastId { get; set; } = string.Empty;
-
-        [JsonPropertyName("title")]
-        public string Title { get; set; } = string.Empty;
-
-        [JsonPropertyName("release")]
-        public DateTime? Release { get; set; }
-
-        [JsonPropertyName("spotifyId")]
-        public string? SpotifyId { get; set; }
-
-        [JsonPropertyName("appleId")]
-        public long? AppleId { get; set; }
-
-        [JsonPropertyName("youTubeId")]
-        public string? YouTubeId { get; set; }
-
-        [JsonPropertyName("podcastName")]
-        public string? PodcastName { get; set; }
-    }
 
     public async Task Process(CreateSearchIndexRequest request)
     {
@@ -122,7 +96,8 @@ public partial class CreateSearchIndexProcessor(
 
         if (string.IsNullOrWhiteSpace(request.IndexerName))
         {
-            logger.LogWarning("Run-indexer requested without --indexer name. Running single trigger without monitoring.");
+            logger.LogWarning(
+                "Run-indexer requested without --indexer name. Running single trigger without monitoring.");
             var x = await searchIndexerService.RunIndexer();
             logger.LogInformation("Indexer trigger result: {IndexerState}.", x.IndexerState);
             LogFinalSummary($"NoIndexerName:{x.IndexerState}");
@@ -341,7 +316,8 @@ public partial class CreateSearchIndexProcessor(
         return await searchIndexerClient.CreateOrUpdateIndexerAsync(searchIndexer);
     }
 
-    private async Task<Azure.Response<SearchIndexerDataSourceConnection>> CreateDataSource(CreateSearchIndexRequest request)
+    private async Task<Azure.Response<SearchIndexerDataSourceConnection>> CreateDataSource(
+        CreateSearchIndexRequest request)
     {
         var connectionString =
             $"AccountEndpoint={_cosmosDbSettings.Endpoint};Database={_cosmosDbSettings.DatabaseId};AccountKey={_cosmosDbSettings.AuthKeyOrResourceToken}";
@@ -472,8 +448,7 @@ public partial class CreateSearchIndexProcessor(
 
     private static bool IsRetryableFailure(IndexerExecutionResult result)
     {
-        return result.Status == IndexerExecutionStatus.TransientFailure ||
-               IsTimeoutResult(result);
+        return IsTimeoutResult(result);
     }
 
     private static bool IsTimeoutResult(IndexerExecutionResult result)
@@ -573,7 +548,8 @@ public partial class CreateSearchIndexProcessor(
             return $"youtube:{item.YouTubeId}";
         }
 
-        if (string.IsNullOrWhiteSpace(item.PodcastId) || string.IsNullOrWhiteSpace(item.Title) || !item.Release.HasValue)
+        if (string.IsNullOrWhiteSpace(item.PodcastId) || string.IsNullOrWhiteSpace(item.Title) ||
+            !item.Release.HasValue)
         {
             return null;
         }
@@ -609,4 +585,31 @@ public partial class CreateSearchIndexProcessor(
 
     [GeneratedRegex(@"\s+", RegexOptions.Multiline | RegexOptions.Compiled)]
     private static partial Regex CreateWhitespaceRegex();
+
+    private sealed class EpisodeDuplicateSample
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = string.Empty;
+
+        [JsonPropertyName("podcastId")]
+        public string PodcastId { get; set; } = string.Empty;
+
+        [JsonPropertyName("title")]
+        public string Title { get; set; } = string.Empty;
+
+        [JsonPropertyName("release")]
+        public DateTime? Release { get; set; }
+
+        [JsonPropertyName("spotifyId")]
+        public string? SpotifyId { get; set; }
+
+        [JsonPropertyName("appleId")]
+        public long? AppleId { get; set; }
+
+        [JsonPropertyName("youTubeId")]
+        public string? YouTubeId { get; set; }
+
+        [JsonPropertyName("podcastName")]
+        public string? PodcastName { get; set; }
+    }
 }

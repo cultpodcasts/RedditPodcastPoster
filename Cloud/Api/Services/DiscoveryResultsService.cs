@@ -24,24 +24,24 @@ public class DiscoveryResultsService(
         var results = documents.SelectMany(x => x.DiscoveryResults);
         var podcastIds = results.SelectMany(x => x.MatchingPodcastIds).Distinct().ToArray();
 
-        var referencedPodcasts = await podcastRepository
-            .GetAllBy(x => podcastIds.Contains(x.Id))
-            .Select(podcast => new
-            {
-                id = podcast.Id,
-                name = podcast.Name,
-                isVisible = podcast.Removed != true
-            })
-            .ToListAsync(c);
+        IReadOnlyList<(Guid id, string name, bool isVisible)> referencedPodcasts = podcastIds.Length == 0
+            ? []
+            : await podcastRepository
+                .GetAllBy(x => Enumerable.Contains(podcastIds, x.Id))
+                .Select(podcast => (podcast.Id, podcast.Name, podcast.Removed != true))
+                .ToListAsync(c);
 
         var visibleEpisodeCounts = new Dictionary<Guid, int>();
-        await foreach (var episode in episodeRepository
-                           .GetAllBy(x => podcastIds.Contains(x.PodcastId) && !x.Removed)
-                           .WithCancellation(c))
+        if (podcastIds.Length > 0)
         {
-            if (!visibleEpisodeCounts.TryAdd(episode.PodcastId, 1))
+            await foreach (var episode in episodeRepository
+                               .GetAllBy(x => Enumerable.Contains(podcastIds, x.PodcastId) && !x.Removed)
+                               .WithCancellation(c))
             {
-                visibleEpisodeCounts[episode.PodcastId]++;
+                if (!visibleEpisodeCounts.TryAdd(episode.PodcastId, 1))
+                {
+                    visibleEpisodeCounts[episode.PodcastId]++;
+                }
             }
         }
 
