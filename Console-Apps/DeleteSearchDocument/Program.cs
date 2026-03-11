@@ -21,7 +21,6 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
-    .AddLegacyPodcastRepository()
     .AddSearch()
     .AddScoped<DeleteSearchDocumentProcessor>();
 
