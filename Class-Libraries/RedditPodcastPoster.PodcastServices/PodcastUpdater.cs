@@ -130,8 +130,8 @@ public class PodcastUpdater(
         // Persist merged episodes
         if (mergeResult.MergedEpisodes.Any())
         {
-            // Save the updated "NewDetails" version of merged episodes
-            await episodeRepository.Save(mergeResult.MergedEpisodes.Select(x => x.NewDetails));
+            // Save the in-place merged existing episodes
+            await episodeRepository.Save(mergeResult.MergedEpisodes.Select(x => x.Existing));
         }
         
         // Persist newly added episodes
