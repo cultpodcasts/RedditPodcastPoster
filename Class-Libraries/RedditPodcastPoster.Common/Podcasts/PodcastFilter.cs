@@ -6,7 +6,7 @@ namespace RedditPodcastPoster.Common.Podcasts;
 
 public class PodcastFilter(ILogger<PodcastFilter> logger) : IPodcastFilter
 {
-    public FilterResult Filter(Podcast podcast,IEnumerable<Episode> episodes, List<string> eliminationTerms)
+    public FilterResult Filter(Podcast podcast, IEnumerable<Episode> episodes, List<string> eliminationTerms)
     {
         var filteredEpisodes = new List<FilteredEpisode>();
         var episodesToRemove = new List<Episode>();
