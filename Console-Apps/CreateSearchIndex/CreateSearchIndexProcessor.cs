@@ -329,16 +329,16 @@ public partial class CreateSearchIndexProcessor(
                             e.release,
                             e.duration,
                             e.explicit,
-                            e.urls.spotify != null ? e.urls.spotify : e.urls.spotify.x as spotify,
-                            e.urls.apple != null ? e.urls.apple : e.urls.apple.x as apple,
-                            e.urls.youtube != null ? e.urls.youtube : e.urls.youtube.x as youtube,
-                            e.urls.bbc != null ? e.urls.bbc : e.urls.bbc.x as bbc,
-                            e.urls.internetArchive != null ? e.urls.internetArchive : e.urls.internetArchive.x as internetArchive,
+                            e.urls.spotify,
+                            e.urls.apple,
+                            e.urls.youtube,
+                            e.urls.bbc,
+                            e.urls.internetArchive,
                             e.subjects as subjects,
                             e.podcastSearchTerms as podcastSearchTerms,
                             e.searchTerms as episodeSearchTerms,
                             e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other as image,
-                            e.lang ?? e.podcastLanguage ?? e.lang.x as lang,
+                            e.lang ?? e.podcastLanguage as lang,
                             e._ts
                             FROM episodes e
                             WHERE {ActiveEpisodesFilter}
