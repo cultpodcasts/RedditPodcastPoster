@@ -32,6 +32,6 @@ builder.Services
 
 using var host = builder.Build();
 
-var processor = host.Services.GetService<IContentPublisher>()!;
+var processor = host.Services.GetService<ILanguagesPublisher>()!;
 await processor.PublishLanguages();
 return 0;

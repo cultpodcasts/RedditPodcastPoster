@@ -8,7 +8,7 @@ using RedditPodcastPoster.ContentPublisher;
 
 namespace Api.Handlers;
 
-public class PublishHandler(IContentPublisher contentPublisher,
+public class PublishHandler(IHomepagePublisher contentPublisher,
     ILogger<PublishHandler>logger) : IPublishHandler
 {
     public async Task<HttpResponseData> PublishHomepage(HttpRequestData req, ClientPrincipal? cp, CancellationToken c)

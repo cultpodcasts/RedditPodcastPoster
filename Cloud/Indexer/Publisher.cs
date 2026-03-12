@@ -7,7 +7,7 @@ namespace Indexer;
 
 [DurableTask(nameof(Publisher))]
 public class Publisher(
-    IContentPublisher contentPublisher,
+    IHomepagePublisher contentPublisher,
     ISearchIndexerService searchIndexerService,
     IActivityOptionsProvider activityOptionsProvider,
     ILogger<Publisher> logger)
@@ -44,8 +44,8 @@ public class Publisher(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                "Failure to execute {nameofIContentPublisher}.{nameofIContentPublisherPublishHomepage}.",
-                nameof(IContentPublisher), nameof(IContentPublisher.PublishHomepage));
+                "Failure to execute {PublisherContract}.{PublishHomepageMethod}.",
+                nameof(IHomepagePublisher), nameof(IHomepagePublisher.PublishHomepage));
             return indexerContext with { Success = false };
         }
 

@@ -10,4 +10,7 @@ public interface IPodcastRepositoryV2
     IAsyncEnumerable<Podcast> GetAll();
     Task<Podcast?> GetBy(Expression<Func<Podcast, bool>> selector);
     IAsyncEnumerable<Podcast> GetAllBy(Expression<Func<Podcast, bool>> selector);
+    IAsyncEnumerable<TProjection> GetAllBy<TProjection>(
+        Expression<Func<Podcast, bool>> selector,
+        Expression<Func<Podcast, TProjection>> projection);
 }

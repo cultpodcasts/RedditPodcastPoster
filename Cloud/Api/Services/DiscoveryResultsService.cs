@@ -12,7 +12,7 @@ public class DiscoveryResultsService(
     IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
     IPodcastRepositoryV2 podcastRepository,
     IEpisodeRepository episodeRepository,
-    IContentPublisher contentPublisher,
+    IDiscoveryPublisher contentPublisher,
     ILogger<DiscoveryResultsService> logger) : IDiscoveryResultsService
 {
     public async Task<DiscoveryResponse> Get(CancellationToken c)

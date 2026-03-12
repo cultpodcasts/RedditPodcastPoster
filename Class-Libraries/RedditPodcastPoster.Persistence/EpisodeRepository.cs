@@ -153,4 +153,34 @@ public class EpisodeRepository(
             }
         }
     }
+
+    public async IAsyncEnumerable<TProjection> GetAllBy<TProjection>(
+        Expression<Func<Episode, bool>> selector,
+        Expression<Func<Episode, TProjection>> projection)
+    {
+        var query = container
+            .GetItemLinqQueryable<Episode>(requestOptions: new QueryRequestOptions())
+            .Where(selector)
+            .Select(projection);
+
+        var items = query.ToFeedIterator();
+        while (items.HasMoreResults)
+        {
+            FeedResponse<TProjection> response;
+            try
+            {
+                response = await items.ReadNextAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "{method}: error retrieving projected episodes.", nameof(GetAllBy));
+                throw;
+            }
+
+            foreach (var item in response)
+            {
+                yield return item;
+            }
+        }
+    }
 }

@@ -18,7 +18,7 @@ public class PostProcessor(
     ITweeter tweeter,
     IPodcastEpisodesPoster podcastEpisodesPoster,
     IProcessResponsesAdaptor processResponsesAdaptor,
-    IContentPublisher contentPublisher,
+    IHomepagePublisher contentPublisher,
     IPodcastEpisodePoster podcastEpisodePoster,
     ITweetPoster tweetPoster,
     IBlueskyPoster blueSkyPoster,

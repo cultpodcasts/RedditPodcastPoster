@@ -44,7 +44,7 @@ public class EpisodeHandler(
     SearchClient searchClient,
     IPodcastEpisodePoster podcastEpisodePoster,
     ITweetPoster tweetPoster,
-    IContentPublisher contentPublisher,
+    IHomepagePublisher contentPublisher,
     IPostManager postManager,
     ITweetManager tweetManager,
     IBlueskyPostManager blueskyPostManager,

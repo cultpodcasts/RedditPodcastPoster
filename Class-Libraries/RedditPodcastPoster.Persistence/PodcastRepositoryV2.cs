@@ -100,4 +100,34 @@ public class PodcastRepositoryV2(
             }
         }
     }
+
+    public async IAsyncEnumerable<TProjection> GetAllBy<TProjection>(
+        Expression<Func<Podcast, bool>> selector,
+        Expression<Func<Podcast, TProjection>> projection)
+    {
+        var query = podcastsContainer
+            .GetItemLinqQueryable<Podcast>(requestOptions: new QueryRequestOptions())
+            .Where(selector)
+            .Select(projection);
+
+        var iterator = query.ToFeedIterator();
+        while (iterator.HasMoreResults)
+        {
+            FeedResponse<TProjection> response;
+            try
+            {
+                response = await iterator.ReadNextAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "{method}: error retrieving projected podcasts.", nameof(GetAllBy));
+                throw;
+            }
+
+            foreach (var item in response)
+            {
+                yield return item;
+            }
+        }
+    }
 }

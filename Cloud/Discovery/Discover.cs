@@ -21,7 +21,7 @@ public class Discover(
     IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
     INotificationPublisher notificationPublisher,
     IActivityMarshaller activityMarshaller,
-    IContentPublisher contentPublisher,
+    IDiscoveryPublisher contentPublisher,
     ILogger<Discover> logger) : TaskActivity<DiscoveryContext, DiscoveryContext>
 {
     private readonly DiscoverOptions _discoverOptions =

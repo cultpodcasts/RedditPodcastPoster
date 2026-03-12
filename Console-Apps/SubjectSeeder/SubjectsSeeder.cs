@@ -17,7 +17,7 @@ public class SubjectsSeeder(
     IAdminRedditClient redditClient,
     IRecycledFlareIdProvider recycledFlareIdProvider,
     IOptions<SubredditSettings> subredditSettings,
-    IContentPublisher contentPublisher,
+    ISubjectsPublisher contentPublisher,
     ILogger<SubjectsSeeder> logger)
 {
     private const int MaxSubredditFlairs = 320;
