@@ -145,6 +145,7 @@
     <Project Path="Console-Apps/EnrichSubjectRedditFlairs/EnrichSubjectRedditFlairs.csproj" />
 
     <Project Path="Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubeOnlyPodcasts.csproj" />
+    <Project Path="Console-Apps/EpisodeDriftDetector/EpisodeDriftDetector.csproj" />
 
     <Project Path="Console-Apps/FixDatesFromApple/FixDatesFromApple.csproj" />
 
