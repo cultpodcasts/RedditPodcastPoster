@@ -27,3 +27,6 @@
 
 ## Debugging Preferences
 - User prefers evidence and ongoing debugging notes to be added to `debug-session-summary.md` instead of being expanded in chat.
+
+## Episode Management
+- Use `podcast.Removed` as the canonical removal flag; do not trust episode-level `podcastRemoved` values when deciding whether an episode can be tweeted or posted.
