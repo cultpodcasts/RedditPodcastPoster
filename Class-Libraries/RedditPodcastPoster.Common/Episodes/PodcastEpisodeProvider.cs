@@ -1,8 +1,11 @@
+using System.Linq.Expressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
@@ -11,6 +14,7 @@ namespace RedditPodcastPoster.Common.Episodes;
 /// </summary>
 public class PodcastEpisodeProvider(
     IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     IPodcastEpisodeFilter podcastEpisodeFilter,
     IOptions<PostingCriteria> postingCriteria,
     ILogger<PodcastEpisodeProvider> logger
@@ -18,30 +22,22 @@ public class PodcastEpisodeProvider(
 {
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
-    public async Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(
+    public Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        logger.LogInformation("Exec {method} init. Tweet-days: '{tweetDays}'",
+        var releasedSince = GetReleasedSince();
+        return GetReadyPodcastEpisodes(
             nameof(GetUntweetedPodcastEpisodes),
-            _postingCriteria.TweetDays);
-
-        var allPodcasts = await podcastRepository.GetAll().ToListAsync();
-        var podcastEpisodes = new List<PodcastEpisode>();
-
-        foreach (var podcast in allPodcasts)
-        {
-            var filtered = await podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
+            x => x.Release >= releasedSince &&
+                 !x.Tweeted &&
+                 !x.Ignored &&
+                 !x.Removed,
+            podcast => podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
                 podcast,
-                _postingCriteria.TweetDays);
-
-            var validEpisodes = filtered.Where(pe =>
-                EliminateItemsDueToIndexingErrors(pe, youTubeRefreshed, spotifyRefreshed));
-
-            podcastEpisodes.AddRange(validEpisodes);
-        }
-
-        return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
+                youTubeRefreshed,
+                spotifyRefreshed,
+                _postingCriteria.TweetDays));
     }
 
     public async Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(Guid podcastId)
@@ -65,30 +61,22 @@ public class PodcastEpisodeProvider(
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
     }
 
-    public async Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(
+    public Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        logger.LogInformation("Exec {method} init. Tweet-days: '{tweetDays}'",
+        var releasedSince = GetReleasedSince();
+        return GetReadyPodcastEpisodes(
             nameof(GetBlueskyReadyPodcastEpisodes),
-            _postingCriteria.TweetDays);
-
-        var allPodcasts = await podcastRepository.GetAll().ToListAsync();
-        var podcastEpisodes = new List<PodcastEpisode>();
-
-        foreach (var podcast in allPodcasts)
-        {
-            var filtered = await podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes(
+            x => x.Release >= releasedSince &&
+                 x.BlueskyPosted != true &&
+                 !x.Ignored &&
+                 !x.Removed,
+            podcast => podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes(
                 podcast,
-                _postingCriteria.TweetDays);
-
-            var validEpisodes = filtered.Where(pe =>
-                EliminateItemsDueToIndexingErrors(pe, youTubeRefreshed, spotifyRefreshed));
-
-            podcastEpisodes.AddRange(validEpisodes);
-        }
-
-        return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
+                youTubeRefreshed,
+                spotifyRefreshed,
+                _postingCriteria.TweetDays));
     }
 
     public async Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(Guid podcastId)
@@ -112,22 +100,42 @@ public class PodcastEpisodeProvider(
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
     }
 
-    private static bool EliminateItemsDueToIndexingErrors(
-        PodcastEpisode podcastEpisode,
-        bool youTubeRefreshed,
-        bool spotifyRefreshed)
+    private async Task<IEnumerable<PodcastEpisode>> GetReadyPodcastEpisodes(
+        string methodName,
+        Expression<Func<Episode, bool>> selector,
+        Func<Podcast, Task<IEnumerable<PodcastEpisode>>> getReadyEpisodes)
     {
-        var eliminateForYouTube =
-            podcastEpisode.Podcast.ReleaseAuthority == Service.YouTube &&
-            !youTubeRefreshed &&
-            podcastEpisode.Episode.Urls.YouTube == null;
+        logger.LogInformation("Exec {method} init. Tweet-days: '{tweetDays}'",
+            methodName,
+            _postingCriteria.TweetDays);
 
-        var eliminateForSpotify =
-            podcastEpisode.Podcast.ReleaseAuthority == Service.Spotify &&
-            !spotifyRefreshed &&
-            podcastEpisode.Episode.Urls.Spotify == null;
+        var podcastIds = new HashSet<Guid>(await episodeRepository.GetAllBy(selector)
+            .Select(x => x.PodcastId)
+            .ToArrayAsync());
 
-        return !(eliminateForYouTube || eliminateForSpotify);
+        var podcastEpisodes = new List<PodcastEpisode>();
+        foreach (var podcastId in podcastIds)
+        {
+            var podcast = await podcastRepository.GetPodcast(podcastId);
+            if (podcast == null)
+            {
+                logger.LogError("Podcast with id '{podcastId}' not found.", podcastId);
+                continue;
+            }
+
+            var filtered = await getReadyEpisodes(podcast);
+            podcastEpisodes.AddRange(filtered);
+        }
+
+        return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
+    }
+
+    private DateTime GetReleasedSince()
+    {
+        return DateOnly
+            .FromDateTime(DateTime.UtcNow)
+            .AddDays(_postingCriteria.TweetDays * -1)
+            .ToDateTime(TimeOnly.MinValue);
     }
 }
 
