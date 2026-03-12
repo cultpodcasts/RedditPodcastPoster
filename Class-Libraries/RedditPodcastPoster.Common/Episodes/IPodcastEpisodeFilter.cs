@@ -7,19 +7,21 @@ namespace RedditPodcastPoster.Common.Episodes;
 public interface IPodcastEpisodeFilter
 {
     Task<IEnumerable<PodcastEpisode>> GetNewEpisodesReleasedSince(
-        IEnumerable<Podcast> podcasts,
+        IEnumerable<PodcastEpisode> podcastEpisodes,
         DateTime since,
         bool youTubeRefreshed,
         bool spotifyRefreshed);
 
     Task<IEnumerable<PodcastEpisode>> GetMostRecentUntweetedEpisodes(
         Podcast podcast,
+        IEnumerable<Episode> episodes,
         bool youTubeRefreshed,
         bool spotifyRefreshed,
         int numberOfDays);
 
     Task<IEnumerable<PodcastEpisode>> GetMostRecentUntweetedEpisodes(
         Podcast podcast,
+        IEnumerable<Episode> episodes,
         int numberOfDays);
 
     bool IsRecentlyExpiredDelayedPublishing(
@@ -28,11 +30,13 @@ public interface IPodcastEpisodeFilter
 
     Task<IEnumerable<PodcastEpisode>> GetMostRecentBlueskyReadyEpisodes(
         Podcast podcast,
+        IEnumerable<Episode> episodes,
         bool youTubeRefreshed,
         bool spotifyRefreshed,
         int numberOfDays);
 
     Task<IEnumerable<PodcastEpisode>> GetMostRecentBlueskyReadyEpisodes(
         Podcast podcast,
+        IEnumerable<Episode> episodes,
         int numberOfDays);
 }
