@@ -11,7 +11,7 @@ namespace RedditPodcastPoster.Common.Episodes;
 /// </summary>
 public class PodcastEpisodeProvider(
     IPodcastRepositoryV2 podcastRepository,
-    IPodcastEpisodeFilterV2 podcastEpisodeFilter,
+    IPodcastEpisodeFilter podcastEpisodeFilter,
     IOptions<PostingCriteria> postingCriteria,
     ILogger<PodcastEpisodeProvider> logger
 ) : IPodcastEpisodeProvider
@@ -32,7 +32,7 @@ public class PodcastEpisodeProvider(
         foreach (var podcast in allPodcasts)
         {
             var filtered = await podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
-                podcast.Id,
+                podcast,
                 _postingCriteria.TweetDays);
 
             var validEpisodes = filtered.Where(pe =>
@@ -51,8 +51,15 @@ public class PodcastEpisodeProvider(
             podcastId,
             _postingCriteria.TweetDays);
 
+        var podcast = await podcastRepository.GetPodcast(podcastId);
+        if (podcast == null)
+        {
+            logger.LogError("Podcast with id '{podcastId}' not found.", podcastId);
+            return Enumerable.Empty<PodcastEpisode>();
+        }
+
         var podcastEpisodes = await podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
-            podcastId,
+            podcast,
             _postingCriteria.TweetDays);
 
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
@@ -72,7 +79,7 @@ public class PodcastEpisodeProvider(
         foreach (var podcast in allPodcasts)
         {
             var filtered = await podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes(
-                podcast.Id,
+                podcast,
                 _postingCriteria.TweetDays);
 
             var validEpisodes = filtered.Where(pe =>
@@ -91,8 +98,14 @@ public class PodcastEpisodeProvider(
             podcastId,
             _postingCriteria.TweetDays);
 
+        var podcast = await podcastRepository.GetPodcast(podcastId);
+        if (podcast == null)
+        {
+            return Enumerable.Empty<PodcastEpisode>();
+        }
+
         var podcastEpisodes = await podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes(
-            podcastId,
+            podcast,
             _postingCriteria.TweetDays);
 
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
