@@ -21,6 +21,14 @@ public class TweetProcessor(
         var podcast = await podcastRepository.GetPodcast(request.PodcastId);
         if (podcast != null)
         {
+            if (podcast.Removed == true)
+            {
+                var message =
+                    $"Podcast '{podcast.Name}' with id '{podcast.Id}' is removed and cannot be tweeted.";
+                logger.LogError(message);
+                throw new InvalidOperationException(message);
+            }
+
             var podcastEpisodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
             var mostRecentEpisode =
                 podcastEpisodes
