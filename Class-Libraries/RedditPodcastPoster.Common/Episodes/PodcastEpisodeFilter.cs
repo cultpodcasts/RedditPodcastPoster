@@ -144,6 +144,14 @@ public class PodcastEpisodeFilter(
         bool spotifyRefreshed,
         int numberOfDays)
     {
+        if (podcast.Removed == true)
+        {
+            logger.LogInformation(
+                "No Podcast-Episode found ready to Bluesky for removed podcast '{PodcastName}' with podcast-id '{PodcastId}'.",
+                podcast.Name, podcast.Id);
+            return Enumerable.Empty<PodcastEpisode>();
+        }
+
         var since = DateTimeExtensions.DaysAgo(numberOfDays);
         var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
 
@@ -171,6 +179,14 @@ public class PodcastEpisodeFilter(
 
     public async Task<IEnumerable<PodcastEpisode>> GetMostRecentBlueskyReadyEpisodes(Podcast podcast, int numberOfDays)
     {
+        if (podcast.Removed == true)
+        {
+            logger.LogInformation(
+                "No Podcast-Episode found ready to Bluesky for removed podcast '{PodcastName}' with podcast-id '{PodcastId}'.",
+                podcast.Name, podcast.Id);
+            return Enumerable.Empty<PodcastEpisode>();
+        }
+
         var since = DateTimeExtensions.DaysAgo(numberOfDays);
         var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
 
