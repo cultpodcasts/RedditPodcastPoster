@@ -52,6 +52,7 @@ Key changes:
   - `CreateSearchIndexProcessor.CreateDataSource` now queries detached episodes (`FROM episodes e`) and uses `e._ts` high-watermark.
   - Search datasource filter now includes `e.podcastRemoved` support.
   - `PodcastHandler` migrated to the target podcast repository and detached episode metadata hydration with `IEpisodeRepository`.
+  - Homepage projection path updated to avoid constructor-based Cosmos LINQ projections; call sites now use constructor-free projection expressions that the provider can translate.
 - Remaining in PR2:
   - finish all episode/podcast runtime paths still relying on embedded episode assumptions.
   - finalize reduced-key search contract (`CompactSearchRecord`) implementation and validation.

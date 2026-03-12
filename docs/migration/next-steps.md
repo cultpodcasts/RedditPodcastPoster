@@ -1,35 +1,18 @@
-Migration next steps - generated
+Migration next steps - updated
 
 Summary:
-- Reviewed `docs/migration/README.md` and scanned repository for related artifacts.
+- Applied a production-affecting fix for Cosmos LINQ projection translation in homepage publishing.
 
-Findings:
-- Aligned/implemented:
-  - Search index data-source is using detached `episodes` (file: `Console-Apps/CreateSearchIndex/CreateSearchIndexProcessor.cs`).
-  - `PodcastUpdater` exists and uses V2 episode/podcast flows (`Class-Libraries/RedditPodcastPoster.PodcastServices/PodcastUpdater.cs`).
-  - `KnownTerms` seeder and `PushSubscription` model/handler exist (partial infra for `LookUps` and `PushSubscriptions`).
-  - `EpisodeSearchRecord` exists for the search schema.
+Completed in this update:
+- Restored server-side projection path in `Class-Libraries/RedditPodcastPoster.Persistence/EpisodeRepository.cs` (`.Where(...).Select(projection)` before iterator materialization).
+- Updated constructor-based projection call sites in `Class-Libraries/RedditPodcastPoster.ContentPublisher/HomepagePublisher.cs` to anonymous-type projections that Cosmos can translate.
+- Added debugging evidence in `docs/migration/debug-session-summary.md`.
 
-- Partial/unclear:
-  - Persistence of `KnownTerms` and `EliminationTerms` into a `LookUps` container not clearly discovered; implementations referencing repository abstractions exist but concrete container wiring needs verification.
+Why this was required:
+- Cosmos LINQ provider throws `Constructor invocation is not supported` for constructor-based projection expressions (for example, record primary-constructor projections) during query translation.
 
-- Missing / gaps vs README completion gates (descope: optimizing-data-stored-in-search-index):
-  - No explicit `CreatePodcastsContainer()` / `CreateEpisodesContainer()` factory methods found.
-  - No explicit evidence that `LookUps` container name is in use by the concrete persistence implementation.
-
-Scope change:
-- The team decided to descope `optimising-data-stored-in-search-index` (no work on `CompactSearchRecord` or reduced-key search payload at this time). The checks and tasks below reflect that decision.
-
-Recommended next concrete task (highest priority):
-1. Implement explicit container factory methods `CreatePodcastsContainer()` and `CreateEpisodesContainer()` in the Cosmos container factory and wire them into DI; this is a required completion gate in the README.
-
-Follow-ups (after priority task):
-2. Verify and, if missing, implement persistence to `LookUps` container for `KnownTerms` and `EliminationTerms`.
-3. Ensure there is a dedicated `PushSubscriptions` container and that handlers persist to it.
-4. Update `docs/migration/README.md` to mark items that are already implemented (e.g., CreateDataSource for episodes, PodcastUpdater) and clarify remaining gaps.
-
-Suggested immediate PR scope (small, safe):
-- Add `CreatePodcastsContainer()` and `CreateEpisodesContainer()` methods in the existing Cosmos container factory class and wire them into DI.
-- Add unit-tests or integration smoke check to ensure the factory returns containers with expected names/config.
-
-If you want, I can implement the priority task now (add the two factory methods and wire DI).
+Recommended immediate follow-ups:
+1. Run `Poster` publish flow end-to-end and verify homepage generation succeeds without `DocumentQueryException`.
+2. Capture RU and latency comparison for homepage publish before/after to confirm expected server-side projection efficiency.
+3. Add a small regression test around projection-query patterns to prevent reintroducing constructor-based Cosmos projections.
+4. Continue migration gates from `docs/migration/README.md` (container factory and `LookUps` verification items remain relevant).

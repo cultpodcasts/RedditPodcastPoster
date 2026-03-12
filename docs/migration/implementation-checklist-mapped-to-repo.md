@@ -64,7 +64,7 @@
 - [x] Ensure JSON metadata and persistence attributes are aligned with Cosmos model.
 - [x] Add/search-support denormalized fields needed by indexer query (`podcastName`, `podcastSearchTerms`, language strategy).
 - [ ] Do not add duplicate compact identifier members for IDs already present (`spotifyId`, `youTubeId`, `appleId`).
-- [x] Add metadata sync marker for drift detection (for example `podcastMetadataVersion` or `podcastMetadataUpdatedAt`).
+- [x] Add metadata sync marker for drift detection (`podcastMetadataVersion` stores `podcast._ts` at last sync time; `Episode.SetPodcastProperties()` updates it). Drift detector tool: `Console-Apps/EpisodeDriftDetector` — scans all episodes, reports metadata drift and missing IDs derivable from service URLs, `--correct` to apply fixes.
 - [ ] Introduce reduced-key schema (`CompactSearchRecord`) for search index payload minimization.
 - [ ] Keep schema version marker (for example `sv`) for UI compatibility.
 - [ ] Remove full URL fields from indexed record.
@@ -87,38 +87,35 @@
 - [x] Query episodes through `IEpisodeRepository` by `podcastId`.
 - [x] Trigger episode metadata fan-out updates when podcast properties affecting search are changed.
 - [x] Source episodes via `IEpisodeRepository`.
-- [ ] Ensure index writes map to reduced-key `CompactSearchRecord` contract.
 - [ ] Refactor flows that assume embedded episodes.
 - [ ] Migrate episode processing helpers to repository-driven access.
 - [x] Replace datasource query in `CreateDataSource` from embedded-episode join to `Episodes`-container query.
 - [x] Switch high-watermark semantics from `p._ts` to `e._ts`.
 - [x] Validate query field mapping still matches reduced-key `EpisodeSearchRecord` schema.
 - [ ] Remaining runtime paths from static scan:
-  - [x] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodeFilter.cs` → ✅ **V2 variant created**: `IPodcastEpisodeFilterV2` / `PodcastEpisodeFilterV2` (returns `PodcastEpisodeV2`)
-  - [x] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodePoster.cs` → ✅ **V2 variant created**: `IPodcastEpisodePosterV2` / `PodcastEpisodePosterV2` (accepts `PodcastEpisodeV2`)
-  - [x] `Class-Libraries/RedditPodcastPoster.Common/Podcasts/PodcastFilter.cs` → ✅ **V2 variant created**: `IPodcastFilterV2` / `PodcastFilterV2`
-  - [x] `Class-Libraries/RedditPodcastPoster.Common/PodcastEpisodeProvider.cs` → ✅ **V2 variant created**: `IPodcastEpisodeProviderV2` / `PodcastEpisodeProviderV2` (returns `PodcastEpisodeV2`)
-  - [x] `Class-Libraries/RedditPodcastPoster.UrlSubmission/Factories/PodcastAndEpisodeFactory.cs` → ✅ **V2 variant created**: `IPodcastAndEpisodeFactoryV2` / `PodcastAndEpisodeFactoryV2`
-  - [x] `Class-Libraries/RedditPodcastPoster.UrlSubmission/PodcastProcessor.cs` → ✅ **V2 variant created**: `IPodcastProcessorV2` / `PodcastProcessorV2`
+  - [x] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodeFilter.cs` — `IPodcastEpisodeFilter` is canonical; `IPodcastEpisodeFilterV2` / `PodcastEpisodeFilterV2` were created then **deleted** — `PodcastEpisodeProvider` migrated back to `IPodcastEpisodeFilter`
+  - [x] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodePoster.cs` — `IPodcastEpisodePoster` is canonical (evolved to detached-model interface)
+  - [x] `Class-Libraries/RedditPodcastPoster.Common/Podcasts/PodcastFilter.cs` — `IPodcastFilter` is canonical (already uses V2 models); `IPodcastFilterV2` / `PodcastFilterV2` were created then **deleted** (had no consumers; wrong pattern for callers)
+  - [x] `Class-Libraries/RedditPodcastPoster.Common/Episodes/PodcastEpisodeProvider.cs` — `IPodcastEpisodeProvider` / `PodcastEpisodeProvider` is canonical (evolved, uses `IEpisodeRepository` + `IPodcastRepositoryV2`)
+  - [x] `Class-Libraries/RedditPodcastPoster.UrlSubmission/Factories/PodcastAndEpisodeFactory.cs` — canonical `PodcastAndEpisodeFactory`
+  - [x] `Class-Libraries/RedditPodcastPoster.UrlSubmission/PodcastProcessor.cs` — canonical `PodcastProcessor`
 
 ### V2 Service Migration Strategy ✅ COMPLETE
-- ✅ Created V2 variants of ALL core services
-- ✅ V2 services use `IPodcastRepositoryV2` and `IEpisodeRepository` for detached episodes
-- ✅ All V2 services registered in DI for gradual consumer migration
-- ✅ Legacy services remain functional during transition
-- ✅ **V2 interfaces work ONLY with V2 models** (`PodcastEpisodeV2`) - clean separation
-- ✅ **Conversion explicit at boundaries** using `.ToLegacy()` extension methods
-- ✅ Created `PodcastEpisodeV2` model for native V2 model pairing
-- ✅ **URL submission V2 services complete** - entire ingestion pipeline now has V2 support
-- 📋 See `docs/migration/v2-implementation-index.md` for complete service inventory
-- 📋 See `docs/migration/architectural-cleanup-summary.md` for design decisions
+- ✅ All core services operate on detached V2 model (`IPodcastRepositoryV2` + `IEpisodeRepository`)
+- ✅ `PodcastEpisodeV2` dissolved into canonical `PodcastEpisode` (detached pair)
+- ✅ `.ToLegacy()` conversion helpers removed
+- ✅ Redundant V2 filter variants (`IPodcastFilterV2`, `IPodcastEpisodeFilterV2`) deleted after confirming V1 already uses V2 models
+- ✅ `PodcastEpisodeProvider` consolidated onto `IPodcastEpisodeFilter` (battle-tested logic)
+- ✅ URL submission pipeline uses canonical detached contracts throughout
 
 ## Phase 4: UI and Contract Migration
-- [ ] Add support for `CompactSearchRecord` key names.
-- [ ] Reconstruct URLs client-side from compact keys mapped from existing IDs (`sid`/`yid`/`aid`).
-- [ ] Derive Apple slug (`as`) from Apple URL using regex when needed.
-- [ ] Support schema version (`sv`) during transition.
-- [ ] Keep backward compatibility with legacy search record keys during rollout window.
+- [x] ~~Add support for `CompactSearchRecord` key names.~~ — **descoped**
+- [x] ~~Reconstruct URLs client-side from compact keys.~~ — **descoped**
+- [x] ~~Derive Apple slug from Apple URL using regex.~~ — **descoped**
+- [x] ~~Support schema version during transition.~~ — **descoped**
+- [x] ~~Keep backward compatibility with legacy search record keys.~~ — **descoped**
+
+> Phase 4 descoped. `EpisodeSearchRecord` retains full URL fields. `Podcast.Episodes` intentionally retained on legacy `Podcast` model; V2 does not carry this relationship.
 
 ## Phase 5: Console/Processor Refactor
 Update processors identified from code scan to stop using `podcast.Episodes`:
@@ -155,23 +152,22 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
 - [x] Write reconciliation outputs (counts and mismatch details).
 
 ## Phase 7: Verification and Cutover Readiness
-- [ ] Build solution successfully after removing `Podcast.Episodes`.
-- [ ] Ensure zero references to embedded-episode patterns in runtime paths.
+- [x] Build solution — **green**
+- [ ] Ensure zero references to embedded-episode patterns in runtime paths (outside `PodcastRepository` / `LegacyPodcastToV2Migration`)
 - [x] Ensure zero `JOIN e IN p.episodes` in search-index datasource definitions.
-- [ ] Validate publish/delete/unremove/index/tweet flows.
+- [ ] Validate publish/delete/unremove/index/tweet flows end-to-end.
 - [ ] Validate podcast retrieval and rename side effects.
 - [ ] Validate search indexing continues to produce expected records after datasource query migration.
 - [x] Validate podcast metadata updates fan out to episodes and surface in search results.
-- [ ] Validate URL reconstruction in UI from compact keys sourced from existing IDs and Apple URL regex slug derivation.
+- [x] `Podcast.Episodes` intentionally retained on legacy model — not a removal gate.
 - [x] Match podcast totals.
 - [x] Match episode totals.
 - [ ] Match per-podcast episode counts.
 - [ ] Match search index document totals and sampled search fields between old and new query model.
 - [ ] Validate RU and latency profile on `Episodes`.
-- [ ] Validate RU and latency profile of fan-out metadata updates.
-- [ ] Validate search-index storage reduction after schema/key minimization.
-- [ ] Confirm no writes reach legacy container post-cutover.
-- [ ] Perform final adapter review for all `servicePodcast`, `serviceEpisode`, `legacyPodcast`, and `legacyEpisode` instances, and eliminate non-migration-path usages.
+- [ ] Validate RU and latency of fan-out metadata updates.
+- [ ] Confirm no writes reach legacy `CultPodcasts` container in production.
+- [ ] Perform final adapter review — eliminate non-migration-path `servicePodcast` / `serviceEpisode` / `legacyPodcast` / `legacyEpisode` usages.
 
 ## Phase 8: Legacy Decommissioning Targets (Current Priority)
 - [x] Migrate `ITweetPoster` signatures and implementations to `PodcastEpisodeV2`.
@@ -182,14 +178,52 @@ Update processors identified from code scan to stop using `podcast.Episodes`:
   - [x] `Class-Libraries/RedditPodcastPoster.Twitter/Tweeter.cs`
   - [x] `Class-Libraries/RedditPodcastPoster.Bluesky/BlueskyPostManager.cs`
   - [x] `Cloud/Api/Handlers/EpisodeHandler.cs`
-- [ ] Remove temporary legacy compatibility overloads once no callers remain:
-  - [ ] `Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify/Factories/FindSpotifyEpisodeRequestFactory.cs`
-  - [ ] `Class-Libraries/RedditPodcastPoster.PodcastServices.Apple/FindAppleEpisodeRequestFactory.cs`
-- [ ] Remove obsolete conversion helpers once no callers remain:
-  - [ ] `ToLegacyPodcast`
-  - [ ] `ToLegacyEpisode`
-  - [ ] `PodcastEpisodeV2.ToLegacy()`
-- [ ] Decommission legacy service variants after consumer migration:
-  - [ ] `IPodcastEpisodeProvider` / `PodcastEpisodeProvider`
-  - [ ] `IPodcastEpisodePoster` / `PodcastEpisodePoster`
-- [ ] Confirm final rule: legacy model runtime usage remains only in `PodcastRepository` and `LegacyPodcastToV2Migration`.
+- [x] Remove temporary legacy compatibility overloads once no callers remain:
+  - [x] `Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify/Factories/FindSpotifyEpisodeRequestFactory.cs` — migrated to V2 model aliases; no legacy overloads remain
+  - [x] `Class-Libraries/RedditPodcastPoster.PodcastServices.Apple/FindAppleEpisodeRequestFactory.cs` — migrated to V2 model aliases; no legacy overloads remain
+- [x] Remove obsolete conversion helpers once no callers remain:
+  - [x] `ToLegacyPodcast` — removed
+  - [x] `ToLegacyEpisode` — removed
+  - [x] `PodcastEpisodeV2.ToLegacy()` — removed (PodcastEpisodeV2 dissolved into canonical PodcastEpisode)
+- [x] `IPodcastEpisodeProvider` / `PodcastEpisodeProvider` — **evolved** into canonical detached-model interface; uses new `PodcastEpisode` pair; NOT retired — active primary interface
+- [x] `IPodcastEpisodePoster` / `PodcastEpisodePoster` — **evolved** into canonical detached-model interface; NOT retired — active primary interface
+- [x] Confirm final rule: legacy model runtime usage remains only in `PodcastRepository` and `LegacyPodcastToV2Migration` ✅ verified
+
+## Phase 9: Tooling (V2 backup/restore)
+- [x] `CosmosDbDownloader --use-v2` — downloads all V2 containers to local files:
+  - `podcast/{fileKey}.json` via `IPodcastRepositoryV2`
+  - `episode/{episodeId}.json` via `IEpisodeRepository`
+  - `subject/`, `eliminationterms/`, `knownterms/`, `discoveryresultsdocument/`, `pushsubscription/` via respective V2 repositories
+- [x] `CosmosDbUploader --use-v2` — uploads local files to all V2 containers (symmetric inverse of downloader)
+- [x] `PublicDatabasePublisher --use-v2` — publishes public database from V2 Podcasts + Episodes containers
+
+## Remaining open items
+
+### Phase 3
+- [ ] `Refactor flows that assume embedded episodes` — `JsonSplitCosmosDbUploadProcessor` still accesses `podcast.Episodes` (intentional pre-V2 bulk-import tool; assess for retirement)
+
+### Phase 4 (CompactSearchRecord) — **descoped**
+- ~~Add support for `CompactSearchRecord` key names in search index schema~~
+- ~~Reconstruct URLs client-side from compact keys~~
+- ~~Derive Apple slug from Apple URL using regex~~
+- ~~Support schema version during transition~~
+
+> `CompactSearchRecord` has been descoped. `EpisodeSearchRecord` retains full URL fields.
+> `Podcast.Episodes` intentionally remains on the legacy `Podcast` model; V2 does not carry this relationship.
+
+### Phase 7 verification gates — **unrun**
+- [ ] Ensure zero references to embedded-episode patterns in runtime paths
+- [ ] Validate publish/delete/unremove/index/tweet flows end-to-end
+- [ ] Validate podcast retrieval and rename side effects
+- [ ] Match per-podcast episode counts
+- [ ] Match search index document totals and sampled search fields
+- [ ] Validate RU and latency profile on `Episodes`
+- [ ] Validate RU and latency of fan-out metadata updates
+- [ ] Validate search-index storage reduction after schema/key minimization
+- [ ] Confirm no writes reach legacy container post-cutover
+
+### Tests — **none exist for V2 paths**
+- [ ] Unit tests for `PodcastUpdater`, `EpisodeRepository`, `EpisodeSearchIndexerService`
+- [ ] Unit tests for `PodcastEpisodeProvider`, `PodcastEpisodePoster`
+- [ ] Integration tests for homepage publish flow
+- [ ] Regression test for Cosmos LINQ projection patterns (no constructor-based projections)

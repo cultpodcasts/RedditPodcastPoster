@@ -1,5 +1,13 @@
 # Current Session Summary - V2 Services & PodcastEpisodeV2
 
+## Latest Update - Cosmos LINQ Projection Constraint (Applied)
+
+- Root cause identified for homepage publish failure: `Microsoft.Azure.Cosmos.Linq.DocumentQueryException` with message `Constructor invocation is not supported`.
+- Cause: constructor-based projection expressions (record primary constructors) were being translated by Cosmos LINQ provider in repository `GetAllBy(...).Select(...)` queries.
+- Fix direction applied: keep server-side projection, but replace constructor-based projection expressions with anonymous-type projection expressions at query call sites.
+- Repository behavior remains efficient (Cosmos projects on server); no fallback to in-memory projection of full episode documents.
+- Validation: solution build succeeded after applying the change.
+
 ## 🎉 Major Milestone Achieved
 
 ### ✅ Complete V2 Service Ecosystem Built
