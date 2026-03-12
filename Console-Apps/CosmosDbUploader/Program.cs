@@ -1,10 +1,14 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
+using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.PushSubscriptions.Extensions;
+using RedditPodcastPoster.Subjects.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -22,12 +26,33 @@ builder.Services
     .AddLogging()
     .AddFileRepository(string.Empty, true)
     .AddRepositories()
-    .AddSingleton<CosmosDbUploader.CosmosDbUploader>();
+    .AddSubjectServices()
+    .AddDiscoveryRepository()
+    .AddPushSubscriptionsRepository()
+    .AddSingleton<CosmosDbUploader.CosmosDbUploader>()
+    .AddSingleton<CosmosDbUploader.CosmosDbUploaderV2>();
 
 using var host = builder.Build();
-var processor = host.Services.GetService<CosmosDbUploader.CosmosDbUploader>();
-await processor!.Run();
 
+return await Parser.Default.ParseArguments<CosmosDbUploader.UploaderRequest>(args)
+    .MapResult(async request => await Run(request),
+        errs => Task.FromResult(-1));
+
+async Task<int> Run(CosmosDbUploader.UploaderRequest request)
+{
+    if (request.UseV2)
+    {
+        var uploader = host.Services.GetRequiredService<CosmosDbUploader.CosmosDbUploaderV2>();
+        await uploader.Run();
+    }
+    else
+    {
+        var uploader = host.Services.GetRequiredService<CosmosDbUploader.CosmosDbUploader>();
+        await uploader.Run();
+    }
+
+    return 0;
+}
 
 string GetBasePath()
 {
