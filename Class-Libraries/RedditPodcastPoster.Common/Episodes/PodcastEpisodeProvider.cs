@@ -101,6 +101,7 @@ public class PodcastEpisodeProvider(
         var podcast = await podcastRepository.GetPodcast(podcastId);
         if (podcast == null)
         {
+            logger.LogError("Podcast with id '{podcastId}' not found.", podcastId);
             return Enumerable.Empty<PodcastEpisode>();
         }
 
