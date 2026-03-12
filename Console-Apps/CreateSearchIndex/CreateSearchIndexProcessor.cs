@@ -329,16 +329,16 @@ public partial class CreateSearchIndexProcessor(
                             e.release,
                             e.duration,
                             e.explicit,
-                            e.urls.spotify,
-                            e.urls.apple,
-                            e.urls.youtube,
-                            e.urls.bbc,
-                            e.urls.internetArchive,
+                            e.urls.spotify != null ? e.urls.spotify : e.urls.spotify.x as spotify,
+                            e.urls.apple != null ? e.urls.apple : e.urls.apple.x as apple,
+                            e.urls.youtube != null ? e.urls.youtube : e.urls.youtube.x as youtube,
+                            e.urls.bbc != null ? e.urls.bbc : e.urls.bbc.x as bbc,
+                            e.urls.internetArchive != null ? e.urls.internetArchive : e.urls.internetArchive.x as internetArchive,
                             e.subjects as subjects,
                             e.podcastSearchTerms as podcastSearchTerms,
                             e.searchTerms as episodeSearchTerms,
                             e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other as image,
-                            e.lang ?? e.podcastLanguage as lang,
+                            e.lang ?? e.podcastLanguage ?? e.lang.x as lang,
                             e._ts
                             FROM episodes e
                             WHERE {ActiveEpisodesFilter}
@@ -448,7 +448,7 @@ public partial class CreateSearchIndexProcessor(
 
     private static bool IsRetryableFailure(IndexerExecutionResult result)
     {
-        return IsTimeoutResult(result);
+        return IsTimeoutResult(result) || IsQuotaResult(result);
     }
 
     private static bool IsTimeoutResult(IndexerExecutionResult result)
@@ -461,6 +461,17 @@ public partial class CreateSearchIndexProcessor(
         var message = result.ErrorMessage ?? string.Empty;
         return message.Contains("time", StringComparison.OrdinalIgnoreCase) &&
                message.Contains("out", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsQuotaResult(IndexerExecutionResult result)
+    {
+        if (result.Status != IndexerExecutionStatus.TransientFailure)
+        {
+            return false;
+        }
+
+        var message = result.ErrorMessage ?? string.Empty;
+        return message.Contains("quota", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<long> GetIndexedDocumentCount()
