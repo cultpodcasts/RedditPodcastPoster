@@ -48,14 +48,25 @@ public class Indexer(
 
     public async Task<IndexResponse> Index(Guid podcastId, IndexingContext indexingContext, bool forceIndex= false)
     {
-        IndexStatus status;
         var podcast = await podcastRepository.GetPodcast(podcastId);
+        if (podcast == null)
+        {
+            return new IndexResponse(IndexStatus.NotFound);
+        }
+
+        if (podcast.Removed == true)
+        {
+            logger.LogWarning("Podcast '{PodcastName}' with id '{PodcastId}' is removed and will not be indexed.",
+                podcast.Name,
+                podcast.Id);
+            return new IndexResponse(IndexStatus.NotPerformed);
+        }
+
+        IndexStatus status;
         IndexedEpisode[]? updatedEpisodes = null;
 
-        var performAutoIndex = podcast != null &&
-                               !(podcast.Removed.HasValue && podcast.Removed.Value) &&
-                               (podcast.IndexAllEpisodes ||
-                                !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex));
+        var performAutoIndex = podcast.IndexAllEpisodes ||
+                               !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex);
         var enrichOnly = false;
         if (!performAutoIndex)
         {
@@ -128,26 +139,11 @@ public class Indexer(
         }
         else
         {
-            if (podcast != null)
-            {
-                if (podcast.Removed.HasValue && podcast.Removed.Value)
-                {
-                    logger.LogWarning("Podcast '{podcast.Name}' with id '{podcast.Id}' is removed.", podcast.Name,
-                        podcast.Id);
-                }
-                else
-                {
-                    logger.LogWarning(
-                        "Podcast '{podcastName}' with id '{podcastId}' ignored. index-all-episodes '{podcastIndexAllEpisodes}', episode-include-title-regex: '{podcastEpisodeIncludeTitleRegex}'.",
-                        podcast.Name, podcast.Id, podcast.IndexAllEpisodes, podcast.EpisodeIncludeTitleRegex);
-                }
+            logger.LogWarning(
+                "Podcast '{podcastName}' with id '{podcastId}' ignored. index-all-episodes '{podcastIndexAllEpisodes}', episode-include-title-regex: '{podcastEpisodeIncludeTitleRegex}'.",
+                podcast.Name, podcast.Id, podcast.IndexAllEpisodes, podcast.EpisodeIncludeTitleRegex);
 
-                status = IndexStatus.NotPerformed;
-            }
-            else
-            {
-                status = IndexStatus.NotFound;
-            }
+            status = IndexStatus.NotPerformed;
         }
 
         updatedEpisodes = Collapse(updatedEpisodes);
