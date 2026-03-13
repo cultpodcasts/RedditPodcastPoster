@@ -65,10 +65,10 @@ public class PodcastAndEpisodeFactory(
             subjectsResult.Additions,
             episode.Urls.BBC != null,
             episode.Urls.InternetArchive != null);
-        episode.PodcastId= newPodcast.Id;
-        episode.PodcastName= newPodcast.Name;
-        episode.PodcastRemoved= newPodcast.Removed;
-        episode.PodcastSearchTerms= newPodcast.SearchTerms;
+        episode.PodcastId = newPodcast.Id;
+        episode.PodcastName = newPodcast.Name;
+        episode.PodcastRemoved = newPodcast.Removed;
+        episode.PodcastSearchTerms = newPodcast.SearchTerms;
         return new CreatePodcastWithEpisodeResponse(newPodcast, episode, submitEpisodeDetails);
     }
 }
