@@ -130,14 +130,15 @@ public class PodcastEpisodeFilter(
     {
         if (podcast.Removed == true)
         {
-            logger.LogInformation(
+            logger.LogWarning(
                 "No Podcast-Episode found ready to Bluesky for removed podcast '{PodcastName}' with podcast-id '{PodcastId}'.",
                 podcast.Name, podcast.Id);
             return Task.FromResult(Enumerable.Empty<PodcastEpisode>());
         }
 
         var since = DateTimeExtensions.DaysAgo(numberOfDays);
-        var podcastEpisodes = episodes
+        var episodeArray = episodes.ToArray();
+        var podcastEpisodes = episodeArray
             .Select(e => new PodcastEpisode(podcast, e))
             .Where(x =>
                 x.Episode.Release >= since &&
@@ -150,9 +151,9 @@ public class PodcastEpisodeFilter(
             .ToArray();
         if (!podcastEpisodes.Any())
         {
-            logger.LogInformation(
-                "No Podcast-Episode found ready to Bluesky for podcast '{PodcastName}' with podcast-id '{PodcastId}'.",
-                podcast.Name, podcast.Id);
+            logger.LogWarning(
+                "No Podcast-Episode found ready to Bluesky for podcast '{PodcastName}' with podcast-id '{PodcastId}'. Candidate-episodes: {candidateCount}, released-since: '{releasedSince:u}', youTubeRefreshed: {youTubeRefreshed}, spotifyRefreshed: {spotifyRefreshed}.",
+                podcast.Name, podcast.Id, episodeArray.Length, since, youTubeRefreshed, spotifyRefreshed);
         }
 
         return Task.FromResult<IEnumerable<PodcastEpisode>>(podcastEpisodes);
@@ -165,14 +166,15 @@ public class PodcastEpisodeFilter(
     {
         if (podcast.Removed == true)
         {
-            logger.LogInformation(
+            logger.LogWarning(
                 "No Podcast-Episode found ready to Bluesky for removed podcast '{PodcastName}' with podcast-id '{PodcastId}'.",
                 podcast.Name, podcast.Id);
             return Task.FromResult(Enumerable.Empty<PodcastEpisode>());
         }
 
         var since = DateTimeExtensions.DaysAgo(numberOfDays);
-        var podcastEpisodes = episodes
+        var episodeArray = episodes.ToArray();
+        var podcastEpisodes = episodeArray
             .Select(e => new PodcastEpisode(podcast, e))
             .Where(x =>
                 x.Episode.Release >= since &&
@@ -184,9 +186,9 @@ public class PodcastEpisodeFilter(
             .ToArray();
         if (!podcastEpisodes.Any())
         {
-            logger.LogInformation(
-                "No Podcast-Episode found ready to Bluesky for podcast '{PodcastName}' with podcast-id '{PodcastId}'.",
-                podcast.Name, podcast.Id);
+            logger.LogWarning(
+                "No Podcast-Episode found ready to Bluesky for podcast '{PodcastName}' with podcast-id '{PodcastId}'. Candidate-episodes: {candidateCount}, released-since: '{releasedSince:u}'.",
+                podcast.Name, podcast.Id, episodeArray.Length, since);
         }
 
         return Task.FromResult<IEnumerable<PodcastEpisode>>(podcastEpisodes);

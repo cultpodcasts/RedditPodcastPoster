@@ -46,10 +46,20 @@ public class BlueskyPostManager(
         var posts = 0;
         if (unposted.Any())
         {
+            logger.LogWarning(
+                "Bluesky posting run started with {candidateCount} candidate episodes. Max-posts: {maxPosts}, Max-failures: {maxFailures}.",
+                unposted.Count(),
+                _options.MaxPosts,
+                _options.MaxFailures);
+
             foreach (var podcastEpisode in unposted)
             {
                 if (posts >= _options.MaxPosts)
                 {
+                    logger.LogWarning(
+                        "Stopping Bluesky posting because max-posts limit was reached. Posts: {posts}, Max-posts: {maxPosts}.",
+                        posts,
+                        _options.MaxPosts);
                     break;
                 }
 
@@ -70,17 +80,32 @@ public class BlueskyPostManager(
 
                         if (!posted)
                         {
+                            logger.LogWarning(
+                                "Bluesky post not sent for podcast '{podcastName}' (podcast-id '{podcastId}') episode-id '{episodeId}'. Status: {status}.",
+                                podcastEpisode.Podcast.Name,
+                                podcastEpisode.Podcast.Id,
+                                podcastEpisode.Episode.Id,
+                                status);
+
                             if (status is BlueskySendStatus.Failure or BlueskySendStatus.FailureAuth
                                 or BlueskySendStatus.Unknown)
                             {
                                 failures++;
                                 if (failures >= _options.MaxFailures)
                                 {
+                                    logger.LogWarning(
+                                        "Stopping Bluesky posting because failure threshold was reached. Failures: {failures}, Max-failures: {maxFailures}.",
+                                        failures,
+                                        _options.MaxFailures);
                                     break;
                                 }
                             }
                             else
                             {
+                                logger.LogWarning(
+                                    "Stopping Bluesky posting due to non-retriable status '{status}' for episode-id '{episodeId}'.",
+                                    status,
+                                    podcastEpisode.Episode.Id);
                                 break;
                             }
                         }
@@ -104,6 +129,29 @@ public class BlueskyPostManager(
                         podcastEpisode.Podcast.Name);
                 }
             }
+        }
+        else
+        {
+            logger.LogWarning(
+                "Bluesky posting skipped because no candidate episodes were returned from the provider. youTubeRefreshed: {youTubeRefreshed}, spotifyRefreshed: {spotifyRefreshed}.",
+                youTubeRefreshed,
+                spotifyRefreshed);
+        }
+
+        if (posts == 0)
+        {
+            logger.LogWarning(
+                "Bluesky posting run completed with zero posts. Candidate-count: {candidateCount}, failures: {failures}.",
+                unposted.Count(),
+                failures);
+        }
+        else
+        {
+            logger.LogWarning(
+                "Bluesky posting run completed. Posts: {posts}, candidate-count: {candidateCount}, failures: {failures}.",
+                posts,
+                unposted.Count(),
+                failures);
         }
     }
 

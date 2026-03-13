@@ -29,6 +29,7 @@ public class PodcastEpisodeProvider(
         var releasedSince = GetReleasedSince();
         return GetReadyPodcastEpisodes(
             nameof(GetUntweetedPodcastEpisodes),
+            releasedSince,
             x => x.Release >= releasedSince &&
                  !x.Tweeted &&
                  !x.Ignored &&
@@ -74,6 +75,7 @@ public class PodcastEpisodeProvider(
         var releasedSince = GetReleasedSince();
         return GetReadyPodcastEpisodes(
             nameof(GetBlueskyReadyPodcastEpisodes),
+            releasedSince,
             x => x.Release >= releasedSince &&
                  x.BlueskyPosted != true &&
                  !x.Ignored &&
@@ -114,6 +116,7 @@ public class PodcastEpisodeProvider(
 
     private async Task<IEnumerable<PodcastEpisode>> GetReadyPodcastEpisodes(
         string methodName,
+        DateTime releasedSince,
         Expression<Func<Episode, bool>> selector,
         Func<Podcast, IEnumerable<Episode>, Task<IEnumerable<PodcastEpisode>>> getReadyEpisodes)
     {
@@ -122,6 +125,14 @@ public class PodcastEpisodeProvider(
             _postingCriteria.TweetDays);
 
         var candidateEpisodes = await episodeRepository.GetAllBy(selector).ToArrayAsync();
+        if (!candidateEpisodes.Any() && methodName == nameof(GetBlueskyReadyPodcastEpisodes))
+        {
+            logger.LogWarning(
+                "No candidate episodes found for Bluesky posting. Released-since: '{releasedSince:u}', tweet-days: '{tweetDays}'.",
+                releasedSince,
+                _postingCriteria.TweetDays);
+        }
+
         var podcastEpisodes = new List<PodcastEpisode>();
         foreach (var podcastEpisodeGroup in candidateEpisodes.GroupBy(x => x.PodcastId))
         {
@@ -132,7 +143,16 @@ public class PodcastEpisodeProvider(
                 continue;
             }
 
-            var filtered = await getReadyEpisodes(podcast, podcastEpisodeGroup);
+            var filtered = (await getReadyEpisodes(podcast, podcastEpisodeGroup)).ToArray();
+            if (!filtered.Any() && methodName == nameof(GetBlueskyReadyPodcastEpisodes))
+            {
+                logger.LogWarning(
+                    "No Bluesky-ready episodes after filtering for podcast '{podcastName}' with id '{podcastId}'. Candidate-count: {candidateCount}.",
+                    podcast.Name,
+                    podcast.Id,
+                    podcastEpisodeGroup.Count());
+            }
+
             podcastEpisodes.AddRange(filtered);
         }
 
