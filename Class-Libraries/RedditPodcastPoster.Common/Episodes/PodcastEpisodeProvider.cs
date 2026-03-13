@@ -57,7 +57,7 @@ public class PodcastEpisodeProvider(
         }
 
         var episodes = await episodeRepository.GetByPodcastId(podcastId)
-            .Where(x => x.Release >= GetReleasedSince() && !x.Tweeted && !x.Ignored && !x.Removed)
+            .Where(x => x.Release >= GetReleasedSince() && x is { Tweeted: false, Ignored: false, Removed: false })
             .ToArrayAsync();
 
         var podcastEpisodes = await podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
@@ -77,7 +77,6 @@ public class PodcastEpisodeProvider(
             nameof(GetBlueskyReadyPodcastEpisodes),
             releasedSince,
             x => x.Release >= releasedSince &&
-                 x.BlueskyPosted != true &&
                  !x.Ignored &&
                  !x.Removed,
             (podcast, episodes) => podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes(
@@ -103,7 +102,7 @@ public class PodcastEpisodeProvider(
         }
 
         var episodes = await episodeRepository.GetByPodcastId(podcastId)
-            .Where(x => x.Release >= GetReleasedSince() && x.BlueskyPosted != true && !x.Ignored && !x.Removed)
+            .Where(x => x.Release >= GetReleasedSince() && x is { Ignored: false, Removed: false })
             .ToArrayAsync();
 
         var podcastEpisodes = await podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes(
