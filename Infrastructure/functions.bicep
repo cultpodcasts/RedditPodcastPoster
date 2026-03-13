@@ -157,7 +157,7 @@ var bluesky= {
     bluesky__ReuseSession: 'true'
     bluesky__WithEpisodeUrl: 'true'
     bluesky__MaxFailures: 5
-    bluesky__MaxPosts: 3
+    bluesky__MaxPosts: 5
 }
 
 var cloudflare= {
