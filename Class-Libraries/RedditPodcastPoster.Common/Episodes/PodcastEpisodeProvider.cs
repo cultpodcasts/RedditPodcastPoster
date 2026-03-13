@@ -132,6 +132,17 @@ public class PodcastEpisodeProvider(
                 _postingCriteria.TweetDays);
         }
 
+        if (methodName == nameof(GetBlueskyReadyPodcastEpisodes))
+        {
+            logger.LogWarning(
+                "Bluesky candidate episode ids before podcast filtering: {episodeIds}.",
+                string.Join(",", candidateEpisodes.Select(x => x.Id)));
+        }
+
+        var totalCandidateEpisodeCount = candidateEpisodes.Length;
+        var removedPodcastCandidateCount = 0;
+        var filteredOutEpisodeCount = 0;
+
         var podcastEpisodes = new List<PodcastEpisode>();
         foreach (var podcastEpisodeGroup in candidateEpisodes.GroupBy(x => x.PodcastId))
         {
@@ -142,17 +153,41 @@ public class PodcastEpisodeProvider(
                 continue;
             }
 
-            var filtered = (await getReadyEpisodes(podcast, podcastEpisodeGroup)).ToArray();
+            var groupEpisodes = podcastEpisodeGroup.ToArray();
+            if (methodName == nameof(GetBlueskyReadyPodcastEpisodes) && podcast.Removed == true)
+            {
+                removedPodcastCandidateCount += groupEpisodes.Length;
+                logger.LogWarning(
+                    "Skipping candidate episodes because podcast is removed. Podcast '{podcastName}' ({podcastId}), episode-ids: {episodeIds}.",
+                    podcast.Name,
+                    podcast.Id,
+                    string.Join(",", groupEpisodes.Select(x => x.Id)));
+            }
+
+            var filtered = (await getReadyEpisodes(podcast, groupEpisodes)).ToArray();
+            filteredOutEpisodeCount += Math.Max(0, groupEpisodes.Length - filtered.Length);
+
             if (!filtered.Any() && methodName == nameof(GetBlueskyReadyPodcastEpisodes))
             {
                 logger.LogWarning(
-                    "No Bluesky-ready episodes after filtering for podcast '{podcastName}' with id '{podcastId}'. Candidate-count: {candidateCount}.",
+                    "No Bluesky-ready episodes after filtering for podcast '{podcastName}' with id '{podcastId}'. Candidate episode-ids: {episodeIds}.",
                     podcast.Name,
                     podcast.Id,
-                    podcastEpisodeGroup.Count());
+                    string.Join(",", groupEpisodes.Select(x => x.Id)));
             }
 
             podcastEpisodes.AddRange(filtered);
+        }
+
+        if (methodName == nameof(GetBlueskyReadyPodcastEpisodes))
+        {
+            logger.LogWarning(
+                "Bluesky candidate summary. Total-candidates: {totalCandidates}, removed-podcast-candidates: {removedPodcastCandidates}, filtered-out-candidates: {filteredOutCandidates}, ready-candidates: {readyCandidates}. Ready episode-ids: {readyEpisodeIds}.",
+                totalCandidateEpisodeCount,
+                removedPodcastCandidateCount,
+                filteredOutEpisodeCount,
+                podcastEpisodes.Count,
+                string.Join(",", podcastEpisodes.Select(x => x.Episode.Id)));
         }
 
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
