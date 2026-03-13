@@ -62,7 +62,7 @@ public class DiscoveryCurationHandler(
                         new DiscoverySubmitResponseItem
                         {
                             DiscoveryItemId = discoveryResult.Id,
-                            EpisodeId = result.EpisodeId,
+                            EpisodeId = result.Episode?.Id,
                             Message = result.State.ToString()
                         });
                 }

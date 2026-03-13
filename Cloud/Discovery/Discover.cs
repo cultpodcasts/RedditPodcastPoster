@@ -7,6 +7,7 @@ using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PushSubscriptions;
 
@@ -17,10 +18,10 @@ public class Discover(
     IOptions<DiscoverOptions> discoverOptions,
     IDiscoveryServiceConfigProvider discoveryConfigProvider,
     IDiscoveryService discoveryService,
-    IDiscoveryResultsRepository discoveryResultsRepository,
+    IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
     INotificationPublisher notificationPublisher,
     IActivityMarshaller activityMarshaller,
-    IContentPublisher contentPublisher,
+    IDiscoveryPublisher contentPublisher,
     ILogger<Discover> logger) : TaskActivity<DiscoveryContext, DiscoveryContext>
 {
     private readonly DiscoverOptions _discoverOptions =

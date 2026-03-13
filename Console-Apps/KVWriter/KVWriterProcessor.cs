@@ -1,12 +1,15 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.UrlShortening;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace KVWriter;
 
 public class KVWriterProcessor(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     IShortnerService shortnerService,
     ILogger<KVWriterProcessor> logger
 )
@@ -18,10 +21,16 @@ public class KVWriterProcessor(
             logger.LogInformation("Getting podcasts");
             var podcasts = await podcastRepository.GetAll().ToListAsync();
             logger.LogInformation("Process podcasts");
-            var podcastEpisodes =
-                podcasts.SelectMany(p => p.Episodes.Select(e => new PodcastEpisode(p, e)));
-            podcastEpisodes = podcastEpisodes.Skip(request.ItemsToSkip).Take(request.ItemsToTake.Value);
-            var result = await shortnerService.Write(podcastEpisodes);
+
+            var podcastEpisodes = new List<PodcastEpisode>();
+            foreach (var podcast in podcasts)
+            {
+                var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+                podcastEpisodes.AddRange(episodes.Select(e => CreatePodcastEpisode(podcast, e)));
+            }
+
+            var batch = podcastEpisodes.Skip(request.ItemsToSkip).Take(request.ItemsToTake.Value);
+            var result = await shortnerService.Write(batch);
             if (!result.Success)
             {
                 logger.LogError("Failure");
@@ -33,17 +42,23 @@ public class KVWriterProcessor(
         }
         else if (request.EpisodeId != null)
         {
-            var podcast = await podcastRepository.GetBy(x => x.Episodes.Any(ep => ep.Id == request.EpisodeId));
-            if (podcast == null)
+            var episode = await episodeRepository.GetBy(x => x.Id == request.EpisodeId.Value);
+            if (episode == null)
             {
-                throw new ArgumentException($"No podcast found with episode-id '{request.EpisodeId!.Value}'.",
+                throw new ArgumentException($"No episode found with episode-id '{request.EpisodeId.Value}'.",
                     nameof(request.EpisodeId));
             }
 
-            var result = await shortnerService.Write(
-                new PodcastEpisode(podcast, podcast.Episodes.Single(x => x.Id == request.EpisodeId)), request.IsDryRun
-            );
-        } else if (request.Key != null)
+            var podcast = await podcastRepository.GetPodcast(episode.PodcastId);
+            if (podcast == null)
+            {
+                throw new ArgumentException($"No podcast found with podcast-id '{episode.PodcastId}' for episode-id '{request.EpisodeId.Value}'.",
+                    nameof(request.EpisodeId));
+            }
+
+            var result = await shortnerService.Write(CreatePodcastEpisode(podcast, episode), request.IsDryRun);
+        }
+        else if (request.Key != null)
         {
             var result = await shortnerService.Read(request.Key);
         }
@@ -51,5 +66,10 @@ public class KVWriterProcessor(
         {
             throw new ArgumentException("No operation specified");
         }
+    }
+
+    private static PodcastEpisode CreatePodcastEpisode(Podcast podcast, Episode episode)
+    {
+        return new PodcastEpisode(podcast, episode);
     }
 }

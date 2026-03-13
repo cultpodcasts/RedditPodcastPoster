@@ -1,10 +1,12 @@
-﻿namespace RedditPodcastPoster.UrlSubmission.Models;
+﻿using RedditPodcastPoster.Models.V2;
+
+namespace RedditPodcastPoster.UrlSubmission.Models;
 
 public record SubmitResult(
     SubmitResultState EpisodeResult,
     SubmitResultState PodcastResult,
     SubmitEpisodeDetails? SubmitEpisodeDetails = null,
-    Guid? EpisodeId = null
+    Episode? Episode = null
 )
 {
     public override string ToString()
@@ -15,9 +17,9 @@ public record SubmitResult(
             $"episode-Result: '{EpisodeResult.ToString()}'"
         };
 
-        if (EpisodeId != null)
+        if (Episode != null)
         {
-            results.Add($"episode-id: '{EpisodeId}'");
+            results.Add($"episode-id: '{Episode.Id}'");
         }
 
         if (SubmitEpisodeDetails != null)

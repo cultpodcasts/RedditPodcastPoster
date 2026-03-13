@@ -6,16 +6,16 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Episode;
 
 public interface IYouTubeEpisodeProvider
 {
-    Task<IList<RedditPodcastPoster.Models.Episode>?> GetEpisodes(
+    Task<IList<RedditPodcastPoster.Models.V2.Episode>?> GetEpisodes(
         YouTubeChannelId request,
         IndexingContext indexingContext,
         IEnumerable<string> knownIds);
 
-    RedditPodcastPoster.Models.Episode GetEpisode(
+    RedditPodcastPoster.Models.V2.Episode GetEpisode(
         SearchResult searchResult,
         Google.Apis.YouTube.v3.Data.Video videoDetails);
 
-    RedditPodcastPoster.Models.Episode GetEpisode(
+    RedditPodcastPoster.Models.V2.Episode GetEpisode(
         PlaylistItemSnippet playlistItemSnippet,
         Google.Apis.YouTube.v3.Data.Video videoDetails);
 

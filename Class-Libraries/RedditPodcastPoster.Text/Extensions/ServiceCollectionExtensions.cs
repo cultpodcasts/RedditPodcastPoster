@@ -17,7 +17,6 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IKnownTermsProviderFactory, KnownTermsProviderFactory>()
                 .AddSingleton<IAsyncInstance<IKnownTermsProvider>>(s =>
                     new AsyncInstance<IKnownTermsProvider>(s.GetService<IKnownTermsProviderFactory>()!))
-                .AddSingleton<IKnownTermsRepository, KnownTermsRepository>()
                 .AddSingleton<IHashTagEnricher, HashTagEnricher>();
         }
 

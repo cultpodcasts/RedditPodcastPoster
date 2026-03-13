@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Reflection;
 using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
@@ -62,25 +62,11 @@ builder.Services
 
 
 using var host = builder.Build();
-var service = host.Services.GetRequiredService<IShortnerService>();
 
-var repository = host.Services.GetRequiredService<IPodcastRepository>();
-var guid = Guid.Parse(args[0]);
-var podcast = await repository!.GetBy(x => x.Episodes.Any(y => y.Id == guid));
-if (podcast == null)
-{
-    return;
-}
+var episodeRepository = host.Services.GetRequiredService<IEpisodeRepository>();
+var podcastRepository = host.Services.GetRequiredService<IPodcastRepositoryV2>();
 
-var episode = podcast.Episodes.Single(x => x.Id == guid);
-try
-{
-    var result = await service.Delete([new PodcastEpisode(podcast, episode)]);
-}
-catch (Exception e)
-{
-    Console.WriteLine($"Error occurred: {e.Message}");
-}
+var allPodcasts = await podcastRepository.GetPodcast(Guid.Parse("eb14e2f1-dc1c-4479-ab88-695c80f9a8b7"));
 
 return;
 

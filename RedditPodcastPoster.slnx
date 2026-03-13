@@ -19,6 +19,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.Configuration/RedditPodcastPoster.Configuration.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.ContentPublisher/RedditPodcastPoster.ContentPublisher.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.DependencyInjection.Abstractions/RedditPodcastPoster.DependencyInjection.Abstractions.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.DependencyInjection/RedditPodcastPoster.DependencyInjection.csproj">
       <Build Solution="Debug|*" Project="false" />
@@ -144,6 +145,7 @@
     <Project Path="Console-Apps/EnrichSubjectRedditFlairs/EnrichSubjectRedditFlairs.csproj" />
 
     <Project Path="Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubeOnlyPodcasts.csproj" />
+    <Project Path="Console-Apps/EpisodeDriftDetector/EpisodeDriftDetector.csproj" />
 
     <Project Path="Console-Apps/FixDatesFromApple/FixDatesFromApple.csproj" />
 
@@ -160,6 +162,9 @@
     <Project Path="Console-Apps/LanguagesPublisher/LanguagesPublisher.csproj" />
 
     <Project Path="Console-Apps/LaunchSettingsToAppSettings/LaunchSettingsToAppSettings.csproj" />
+    <Project Path="Console-Apps/LegacyPodcastToV2Migration/LegacyPodcastToV2Migration.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
 
     <Project Path="Console-Apps/MachineAuth0/MachineAuth0.csproj" />
 
@@ -214,6 +219,7 @@
   <Folder Name="/Infrastructure/">
 
     <File Path="Infrastructure/app-settings.bicep" />
+    <File Path="Infrastructure/cosmos-db.bicep" />
 
     <File Path="Infrastructure/function-application-insights.bicep" />
 

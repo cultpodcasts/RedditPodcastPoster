@@ -1,13 +1,16 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.UrlShortening;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace Tweet;
 
 public class TweetProcessor(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     ITweetBuilder tweetBuilder,
     ITwitterClient twitterClient,
     IShortnerService shortnerService,
@@ -18,14 +21,23 @@ public class TweetProcessor(
         var podcast = await podcastRepository.GetPodcast(request.PodcastId);
         if (podcast != null)
         {
+            if (podcast.Removed == true)
+            {
+                var message =
+                    $"Podcast '{podcast.Name}' with id '{podcast.Id}' is removed and cannot be tweeted.";
+                logger.LogError(message);
+                throw new InvalidOperationException(message);
+            }
+
+            var podcastEpisodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
             var mostRecentEpisode =
-                podcast.Episodes
-                    .Where(x => x is {Tweeted: false, Ignored: false, Removed: false})
+                podcastEpisodes
+                    .Where(x => x is { Tweeted: false, Ignored: false, Removed: false })
                     .MaxBy(x => x.Release);
 
             if (mostRecentEpisode != null)
             {
-                var podcastEpisode = new PodcastEpisode(podcast, mostRecentEpisode);
+                var podcastEpisode = CreatePodcastEpisode(podcast, mostRecentEpisode);
                 var shortnerResult = await shortnerService.Write(podcastEpisode);
                 if (!shortnerResult.Success)
                 {
@@ -38,15 +50,16 @@ public class TweetProcessor(
 
                 if (tweeted)
                 {
-                    podcastEpisode.Episode.Tweeted = true;
+                    mostRecentEpisode.Tweeted = true;
                     try
                     {
-                        await podcastRepository.Save(podcastEpisode.Podcast);
+                        await episodeRepository.Save(mostRecentEpisode);
                     }
                     catch (Exception ex)
                     {
                         logger.LogError(ex,
-                            "Failure to save podcast with podcast-id '{PodcastId}' to update episode with id '{EpisodeId}'.", podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
+                            "Failure to save episode with id '{EpisodeId}' for podcast-id '{PodcastId}'.",
+                            mostRecentEpisode.Id, podcast.Id);
                         throw;
                     }
                 }
@@ -73,5 +86,10 @@ public class TweetProcessor(
             logger.LogError(message);
             throw new Exception(message);
         }
+    }
+
+    private static PodcastEpisode CreatePodcastEpisode(Podcast podcast, Episode episode)
+    {
+        return new PodcastEpisode(podcast, episode);
     }
 }

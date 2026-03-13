@@ -1,5 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common;
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.UrlShortening;
 

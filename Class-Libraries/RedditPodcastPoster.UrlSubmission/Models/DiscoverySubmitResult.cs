@@ -1,6 +1,8 @@
-﻿namespace RedditPodcastPoster.UrlSubmission.Models;
+﻿using RedditPodcastPoster.Models.V2;
+
+namespace RedditPodcastPoster.UrlSubmission.Models;
 
 public record DiscoverySubmitResult(
     DiscoverySubmitResultState State,
-    Guid? EpisodeId = null
+    Episode? Episode = null
 );

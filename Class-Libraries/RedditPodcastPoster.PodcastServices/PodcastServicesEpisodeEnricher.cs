@@ -5,6 +5,8 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.PodcastServices.YouTube.Enrichment;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.PodcastServices;
 
@@ -20,6 +22,7 @@ public class PodcastServicesEpisodeEnricher(
 {
     public async Task<EnrichmentResults> EnrichEpisodes(
         Podcast podcast,
+        IEnumerable<Episode> episodes,
         IList<Episode> newEpisodes,
         IndexingContext indexingContext
     )
@@ -28,7 +31,7 @@ public class PodcastServicesEpisodeEnricher(
         foreach (var episode in newEpisodes)
         {
             var enrichmentContext = new EnrichmentContext();
-            var enrichmentRequest = new EnrichmentRequest(podcast, episode);
+            var enrichmentRequest = new EnrichmentRequest(podcast, episodes, episode);
             foreach (Service service in Enum.GetValues(typeof(Service)))
             {
                 switch (service)
@@ -61,7 +64,7 @@ public class PodcastServicesEpisodeEnricher(
         {
             if (podcast.YouTubePublishingDelay() > TimeSpan.Zero)
             {
-                var delayedEpisodes = podcast.Episodes
+                var delayedEpisodes = episodes
                     .Where(episode => podcastEpisodeFilter.IsRecentlyExpiredDelayedPublishing(podcast, episode))
                     .Where(delayedEpisode => !newEpisodes.Contains(delayedEpisode))
                     .Where(delayedEpisode => delayedEpisode.Urls.YouTube == null ||
@@ -69,7 +72,7 @@ public class PodcastServicesEpisodeEnricher(
                 foreach (var delayedEpisode in delayedEpisodes)
                 {
                     var enrichmentContext = new EnrichmentContext();
-                    var enrichmentRequest = new EnrichmentRequest(podcast, delayedEpisode);
+                    var enrichmentRequest = new EnrichmentRequest(podcast,episodes, delayedEpisode);
                     await youTubeEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
                     if (enrichmentContext.Updated)
                     {

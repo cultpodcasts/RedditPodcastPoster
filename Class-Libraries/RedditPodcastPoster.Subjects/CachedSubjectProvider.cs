@@ -5,7 +5,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Subjects;
 
 public class CachedSubjectProvider(
-    ISubjectRepository subjectRepository,
+    ISubjectRepositoryV2 subjectRepository,
     ILogger<CachedSubjectProvider> logger)
     : ISubjectsProvider, ICachedSubjectProvider
 {

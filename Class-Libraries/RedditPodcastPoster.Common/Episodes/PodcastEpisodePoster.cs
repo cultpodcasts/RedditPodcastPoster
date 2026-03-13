@@ -1,16 +1,20 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Factories;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence.Abstractions;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
+/// <summary>
+/// Implementation that posts podcast episodes and updates their status in detached IEpisodeRepository.
+/// </summary>
 public class PodcastEpisodePoster(
     IEpisodePostManager episodePostManager,
     IPostModelFactory postModelFactory,
-#pragma warning disable CS9113 // Parameter is unread.
+    IEpisodeRepository episodeRepository,
     ILogger<PodcastEpisodePoster> logger
-#pragma warning restore CS9113 // Parameter is unread.
 ) : IPodcastEpisodePoster
 {
     private static readonly TimeSpan BundledEpisodeReleaseThreshold = TimeSpan.FromDays(7);
@@ -21,7 +25,8 @@ public class PodcastEpisodePoster(
     {
         try
         {
-            var episodes = GetEpisodes(podcastEpisode);
+            var episodes = await GetEpisodes(podcastEpisode);
+
             var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, episodes), preferYouTube);
             var result = await episodePostManager.Post(postModel);
 
@@ -31,6 +36,8 @@ public class PodcastEpisodePoster(
                 {
                     episode.Posted = true;
                 }
+
+                await episodeRepository.Save(episodes);
             }
 
             return result;
@@ -44,9 +51,9 @@ public class PodcastEpisodePoster(
         }
     }
 
-    private Episode[] GetEpisodes(PodcastEpisode matchingPodcastEpisode)
+    private async Task<List<Models.V2.Episode>> GetEpisodes(PodcastEpisode matchingPodcastEpisode)
     {
-        var orderedBundleEpisodes = Array.Empty<Episode>();
+        var orderedBundleEpisodes = new List<Models.V2.Episode>();
 
         if (matchingPodcastEpisode.Podcast.Bundles &&
             !string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex))
@@ -58,12 +65,12 @@ public class PodcastEpisodePoster(
                 var partNumber = titleMatch.Result("${partnumber}");
                 if (int.TryParse(partNumber, out _))
                 {
-                    orderedBundleEpisodes = GetOrderedBundleEpisodes(matchingPodcastEpisode).ToArray();
+                    orderedBundleEpisodes = (await GetOrderedBundleEpisodes(matchingPodcastEpisode)).ToList();
                 }
             }
         }
 
-        if (orderedBundleEpisodes.Length == 0)
+        if (orderedBundleEpisodes.Count == 0)
         {
             orderedBundleEpisodes = [matchingPodcastEpisode.Episode];
         }
@@ -71,7 +78,7 @@ public class PodcastEpisodePoster(
         return orderedBundleEpisodes;
     }
 
-    private IOrderedEnumerable<Episode> GetOrderedBundleEpisodes(PodcastEpisode matchingPodcastEpisode)
+    private async Task<IOrderedEnumerable<Models.V2.Episode>> GetOrderedBundleEpisodes(PodcastEpisode matchingPodcastEpisode)
     {
         if (string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex))
         {
@@ -81,10 +88,14 @@ public class PodcastEpisodePoster(
 
         var podcastTitleRegex = new Regex(matchingPodcastEpisode.Podcast.TitleRegex, Podcast.TitleFlags);
         var rawTitle = podcastTitleRegex.Match(matchingPodcastEpisode.Episode.Title).Result("${title}");
-        var bundleEpisodes = matchingPodcastEpisode.Podcast.Episodes
+
+        var episodes = await episodeRepository.GetByPodcastId(matchingPodcastEpisode.Podcast.Id).ToListAsync();
+
+        var bundleEpisodes = episodes
             .Where(x => Math.Abs((matchingPodcastEpisode.Episode.Release - x.Release).Ticks) <
                         BundledEpisodeReleaseThreshold.Ticks)
             .Where(x => x.Title.Contains(rawTitle) && podcastTitleRegex.Match(x.Title).Success);
+
         var orderedBundleEpisodes = bundleEpisodes.OrderBy(x =>
             {
                 var match = podcastTitleRegex.Match(x.Title);
@@ -92,6 +103,8 @@ public class PodcastEpisodePoster(
                 return int.Parse(partNumber);
             }
         );
+
         return orderedBundleEpisodes;
     }
 }
+

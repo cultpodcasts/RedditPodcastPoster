@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace RedditPodcastPoster.Models;
 
@@ -11,7 +11,19 @@ public class Episode
     [JsonPropertyName("type")]
     [JsonPropertyOrder(20)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public ModelType ModelType { get; set; } = ModelType.Episode;
+    public ModelType ModelType { get; } = ModelType.Episode;
+
+    [JsonPropertyName("podcastId")]
+    [JsonPropertyOrder(25)]
+    public Guid? PodcastId { get; set; }
+
+    [JsonPropertyName("podcastName")]
+    [JsonPropertyOrder(26)]
+    public string? PodcastName { get; set; }
+
+    [JsonPropertyName("podcastSearchTerms")]
+    [JsonPropertyOrder(27)]
+    public string? PodcastSearchTerms { get; set; }
 
     [JsonPropertyName("title")]
     [JsonPropertyOrder(30)]
@@ -68,6 +80,11 @@ public class Episode
     [JsonPropertyName("youTubeId")]
     [JsonPropertyOrder(82)]
     public string YouTubeId { get; set; } = "";
+
+
+    [JsonPropertyName("podcastMetadataVersion")]
+    [JsonPropertyOrder(88)]
+    public long? PodcastMetadataVersion { get; set; }
 
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(100)]

@@ -2,7 +2,7 @@
 using Google.Apis.YouTube.v3.Data;
 using Moq;
 using Moq.AutoMock;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
@@ -21,7 +21,7 @@ public class YouTubeUrlCategoriserTests
     public async Task Resolve()
     {
         // arrange
-        var episodes = new List<RedditPodcastPoster.Models.Episode>
+        var episodes = new List<RedditPodcastPoster.Models.V2.Episode>
         {
             new()
             {
@@ -30,7 +30,7 @@ public class YouTubeUrlCategoriserTests
         };
         var criteria = _fixture.Build<PodcastServiceSearchCriteria>().With(x => x.EpisodeTitle, episodes.First().Title)
             .Create();
-        var matchingPodcast = _fixture.Build<Podcast>().With(x => x.Episodes, episodes).Create();
+        var matchingPodcast = _fixture.Create<Podcast>();
         var indexingContext = _fixture.Create<IndexingContext>();
         _mocker.GetMock<IYouTubeChannelVideosService>().Setup(x =>
             x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>())).ReturnsAsync(
@@ -52,6 +52,7 @@ public class YouTubeUrlCategoriserTests
         var result = await Sut.Resolve(
             criteria,
             matchingPodcast,
+            episodes,
             indexingContext);
         // assert
     }

@@ -1,15 +1,17 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.JsonSplitCosmosDbUploader;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using V2Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace JsonSplitCosmosDbUploader;
 
 public class JsonSplitCosmosDbUploadProcessor(
     IFileRepository fileRepository,
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepositoryV2,
+    IEpisodeRepository episodeRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
     IPodcastFactory podcastFactory,
     ILogger<JsonSplitCosmosDbUploadProcessor> logger)
@@ -53,10 +55,51 @@ public class JsonSplitCosmosDbUploadProcessor(
                 podcast.YouTubePlaylistId = sourcePodcast.YouTubePlaylistId;
                 podcast.YouTubePlaylistQueryIsExpensive = sourcePodcast.YouTubePlaylistQueryIsExpensive;
                 podcast.YouTubePublicationOffset = sourcePodcast.YouTubePublicationOffset;
-                podcast.Episodes = sourcePodcast.Episodes.Skip((splitFiles - (i + 1)) * episodesPerFile)
+                podcast.Language = sourcePodcast.Language;
+
+                await podcastRepositoryV2.Save(podcast);
+
+                var sourceEpisodes = sourcePodcast.Episodes
+                    .Skip(i * episodesPerFile)
                     .Take(episodesPerFile)
-                    .OrderByDescending(x => x.Release).ToList();
-                await podcastRepository.Save(podcast);
+                    .OrderByDescending(x => x.Release)
+                    .ToArray();
+
+                var episodes = sourceEpisodes.Select(episode => new V2Episode
+                {
+                    Id = episode.Id,
+                    PodcastId = podcast.Id,
+                    Title = episode.Title,
+                    Description = episode.Description,
+                    Release = episode.Release,
+                    Length = episode.Length,
+                    Explicit = episode.Explicit,
+                    Posted = episode.Posted,
+                    Tweeted = episode.Tweeted,
+                    BlueskyPosted = episode.BlueskyPosted,
+                    Ignored = episode.Ignored,
+                    Removed = episode.Removed,
+                    SpotifyId = episode.SpotifyId,
+                    AppleId = episode.AppleId,
+                    YouTubeId = episode.YouTubeId,
+                    Urls = episode.Urls,
+                    Subjects = episode.Subjects,
+                    SearchTerms = episode.SearchTerms,
+                    PodcastName = podcast.Name,
+                    PodcastSearchTerms = podcast.SearchTerms,
+                    PodcastLanguage = podcast.Language,
+                    Language = episode.Language,
+                    PodcastMetadataVersion = null,
+                    PodcastRemoved = podcast.Removed,
+                    Images = episode.Images,
+                    TwitterHandles = episode.TwitterHandles,
+                    BlueskyHandles = episode.BlueskyHandles
+                }).ToArray();
+
+                if (episodes.Any())
+                {
+                    await episodeRepository.Save(episodes);
+                }
             }
         }
     }

@@ -31,6 +31,6 @@ builder.Services
 
 using var host = builder.Build();
 
-var processor = host.Services.GetService<IContentPublisher>()!;
+var processor = host.Services.GetService<ISubjectsPublisher>()!;
 await processor.PublishFlairs();
 return 0;

@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Providers;
@@ -17,7 +17,7 @@ public class SpotifyEpisodeRetrievalHandler(
     {
         var handled = false;
 
-        IList<Episode> episodes = new List<Episode>();
+        IList<Episode> newEpisodes = new List<Episode>();
         if (!string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
             var getEpisodesRequest = new GetEpisodesRequest(new SpotifyPodcastId(podcast.SpotifyId),
@@ -26,7 +26,7 @@ public class SpotifyEpisodeRetrievalHandler(
             var getEpisodesResult = await spotifyEpisodeProvider.GetEpisodes(getEpisodesRequest, indexingContext);
             if (getEpisodesResult.Results != null && getEpisodesResult.Results.Any())
             {
-                episodes = getEpisodesResult.Results;
+                newEpisodes = getEpisodesResult.Results;
             }
 
             if (getEpisodesResult.ExpensiveQueryFound)
@@ -40,6 +40,6 @@ public class SpotifyEpisodeRetrievalHandler(
             }
         }
 
-        return new EpisodeRetrievalHandlerResponse(episodes, handled);
+        return new EpisodeRetrievalHandlerResponse(newEpisodes, handled);
     }
 }

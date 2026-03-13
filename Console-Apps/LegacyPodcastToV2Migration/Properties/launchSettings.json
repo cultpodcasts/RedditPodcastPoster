@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "LegacyPodcastToV2Migration": {
+      "commandName": "Project",
+      "commandLineArgs": "--teardown true"
+    }
+  }
+}

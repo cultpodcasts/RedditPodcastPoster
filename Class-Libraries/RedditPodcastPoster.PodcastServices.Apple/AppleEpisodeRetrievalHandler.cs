@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
@@ -14,19 +14,19 @@ public class AppleEpisodeRetrievalHandler(
     public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IndexingContext indexingContext)
     {
         var handled = false;
-        IList<Episode> episodes = new List<Episode>();
+        IList<Episode> newEpisodes = new List<Episode>();
         if (podcast.AppleId != null)
         {
             var foundEpisodes = await appleEpisodeProvider.GetEpisodes(
                 new ApplePodcastId(podcast.AppleId.Value), indexingContext);
             if (foundEpisodes != null)
             {
-                episodes = foundEpisodes;
+                newEpisodes = foundEpisodes;
             }
 
             handled = true;
         }
 
-        return new EpisodeRetrievalHandlerResponse(episodes, handled);
+        return new EpisodeRetrievalHandlerResponse(newEpisodes, handled);
     }
 }

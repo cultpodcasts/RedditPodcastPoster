@@ -1,36 +1,42 @@
-﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
 public interface IPodcastEpisodeFilter
 {
-    IEnumerable<PodcastEpisode> GetNewEpisodesReleasedSince(
-        IEnumerable<Podcast> podcasts,
+    Task<IEnumerable<PodcastEpisode>> GetNewEpisodesReleasedSince(
+        IEnumerable<PodcastEpisode> podcastEpisodes,
         DateTime since,
         bool youTubeRefreshed,
         bool spotifyRefreshed);
 
-    IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(
+    Task<IEnumerable<PodcastEpisode>> GetMostRecentUntweetedEpisodes(
         Podcast podcast,
+        IEnumerable<Episode> episodes,
         bool youTubeRefreshed,
         bool spotifyRefreshed,
         int numberOfDays);
 
-    IEnumerable<PodcastEpisode> GetMostRecentUntweetedEpisodes(
+    Task<IEnumerable<PodcastEpisode>> GetMostRecentUntweetedEpisodes(
         Podcast podcast,
+        IEnumerable<Episode> episodes,
         int numberOfDays);
 
     bool IsRecentlyExpiredDelayedPublishing(
         Podcast podcast,
         Episode episode);
 
-    IEnumerable<PodcastEpisode> GetMostRecentBlueskyReadyEpisodes(
+    Task<IEnumerable<PodcastEpisode>> GetMostRecentBlueskyReadyEpisodes(
         Podcast podcast,
+        IEnumerable<Episode> episodes,
         bool youTubeRefreshed,
         bool spotifyRefreshed,
         int numberOfDays);
 
-    IEnumerable<PodcastEpisode> GetMostRecentBlueskyReadyEpisodes(
+    Task<IEnumerable<PodcastEpisode>> GetMostRecentBlueskyReadyEpisodes(
         Podcast podcast,
+        IEnumerable<Episode> episodes,
         int numberOfDays);
 }

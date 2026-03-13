@@ -11,13 +11,13 @@ using RedditPodcastPoster.Subjects.Factories;
 namespace SubjectSeeder;
 
 public class SubjectsSeeder(
-    ISubjectRepository subjectRepository,
+    ISubjectRepositoryV2 subjectRepository,
     ISubjectService subjectService,
     ISubjectFactory subjectFactory,
     IAdminRedditClient redditClient,
     IRecycledFlareIdProvider recycledFlareIdProvider,
     IOptions<SubredditSettings> subredditSettings,
-    IContentPublisher contentPublisher,
+    ISubjectsPublisher contentPublisher,
     ILogger<SubjectsSeeder> logger)
 {
     private const int MaxSubredditFlairs = 320;

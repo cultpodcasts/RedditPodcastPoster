@@ -12,7 +12,13 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddPushSubscriptionsRepository()
         {
             return services
-                .AddScoped<IPushSubscriptionRepository, PushSubscriptionRepository>();
+                .AddSingleton<IPushSubscriptionRepositoryV2>(s =>
+                {
+                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PushSubscriptionRepositoryV2>>();
+                    return new PushSubscriptionRepositoryV2(containerFactory.CreatePushSubscriptionsContainer(), logger);
+                })
+                ;
         }
 
         public IServiceCollection AddPushSubscriptions()

@@ -1,0 +1,131 @@
+# Sequenced PR Plan
+
+## PR1 — New Model and Repository Foundations (No Behavior Switch)
+
+### Scope
+- Add IEpisodeRepository abstraction.
+- Add EpisodeRepository Cosmos implementation for Episodes (partition key /podcastId).
+- Remove Episodes from Podcast.
+- Add PodcastId and search-required denormalized podcast metadata fields to Episode.
+- Keep current runtime behavior gated so production path is not switched in this PR.
+- Stage note: [`stages/pr1-modeltype-immutability.md`](./stages/pr1-modeltype-immutability.md)
+- Stage note: [`stages/pr1-episode-repository-scaffold.md`](./stages/pr1-episode-repository-scaffold.md)
+- Stage note: [`stages/pr1-episode-repository-podcastid-partition.md`](./stages/pr1-episode-repository-podcastid-partition.md)
+- Stage note: [`stages/pr1-container-factory-explicit-methods.md`](./stages/pr1-container-factory-explicit-methods.md)
+- Stage note: [`stages/pr1-cosmos-settings-required-episodes-container.md`](./stages/pr1-cosmos-settings-required-episodes-container.md)
+- Stage note: [`stages/pr1-container-split-legacy-podcasts-episodes.md`](./stages/pr1-container-split-legacy-podcasts-episodes.md)
+- Stage note: [`stages/pr1-di-explicit-podcast-repository-registration.md`](./stages/pr1-di-explicit-podcast-repository-registration.md)
+- Stage note: [`stages/pr1-v2-models-and-podcast-repository.md`](./stages/pr1-v2-models-and-podcast-repository.md)
+- Stage note: [`stages/pr1-legacy-to-v2-migration-service.md`](./stages/pr1-legacy-to-v2-migration-service.md)
+- Stage note: [`stages/pr1-migration-service-moved-to-console-app.md`](./stages/pr1-migration-service-moved-to-console-app.md)
+- Stage note: [`stages/pr1-expanded-container-settings-and-factory-methods.md`](./stages/pr1-expanded-container-settings-and-factory-methods.md)
+- Stage note: [`stages/pr1-v2-repositories-subjects-discovery-activities-lookup.md`](./stages/pr1-v2-repositories-subjects-discovery-activities-lookup.md)
+- Stage note: [`stages/pr1-pushsubscriptions-container-and-v2-repository.md`](./stages/pr1-pushsubscriptions-container-and-v2-repository.md)
+
+### Exit criteria
+- Solution builds.
+- New repository tests pass.
+- No production behavior change yet.
+
+## PR2 — API, Core Handler, and Search Datasource Migration
+
+### Scope
+Refactor to use repository relationship model in:
+- Cloud/Api/Handlers/EpisodeHandler.cs
+- Cloud/Api/Handlers/PodcastHandler.cs
+- Class-Libraries/RedditPodcastPoster.EntitySearchIndexer/EpisodeSearchIndexerService.cs
+- Class-Libraries/RedditPodcastPoster.Indexing/Indexer.cs
+- Console-Apps/CreateSearchIndex/CreateSearchIndexProcessor.cs (CreateDataSource query migration)
+- Class-Libraries/RedditPodcastPoster.Search/EpisodeSearchRecord.cs (reduced-key schema)
+
+Key changes:
+- Replace podcast.Episodes reads/mutations with IEpisodeRepository queries/commands.
+- Replace search datasource query from embedded-episode join (JOIN e IN p.episodes) to Episodes container query.
+- Move high-watermark semantics from podcast timestamp to episode timestamp (e._ts).
+- Reduce search index payload by replacing full URLs with compact keys mapped from existing IDs.
+- Introduce reduced-key search schema (CompactSearchRecord) with schema version marker (sv).
+- Derive Apple slug from Apple URL via regex instead of storing additional slug member on Episode.
+- Introduce/enable feature flag (for example UseRelationshipModel) for controlled rollout.
+
+### Progress update
+- Completed:
+  - `CreateSearchIndexProcessor.CreateDataSource` now queries detached episodes (`FROM episodes e`) and uses `e._ts` high-watermark.
+  - Search datasource filter now includes `e.podcastRemoved` support.
+  - `PodcastHandler` migrated to the target podcast repository and detached episode metadata hydration with `IEpisodeRepository`.
+  - Homepage projection path updated to avoid constructor-based Cosmos LINQ projections; call sites now use constructor-free projection expressions that the provider can translate.
+- Remaining in PR2:
+  - finish all episode/podcast runtime paths still relying on embedded episode assumptions.
+  - finalize reduced-key search contract (`CompactSearchRecord`) implementation and validation.
+
+### Exit criteria
+- API parity tests pass in legacy and relationship-model modes.
+- Critical episode workflows function with new repositories.
+- Search indexer produces expected records from episodes datasource with reduced payload.
+
+## PR3 — UI Contract and Consumer Migration
+
+### Scope
+- Update UI/search consumers to accept reduced-key CompactSearchRecord.
+- Reconstruct URLs client-side from compact keys mapped from existing IDs (`sid`/`yid`/`aid`).
+- Derive Apple slug from Apple URL via regex when needed.
+- Support dual-read compatibility for old and new key names during rollout.
+
+### Exit criteria
+- UI renders search results from CompactSearchRecord.
+- URL reconstruction matches expected external links.
+- Backward compatibility works during migration window.
+
+## PR4 — Console and Processor Migration
+
+### Scope
+Migrate processor/tooling code paths from embedded episodes to IEpisodeRepository, including high-impact processors:
+- AddAudioPodcast
+- RemoveEpisodes
+- UnremoveEpisodes
+- Tweet
+- Enrich*
+- FixDatesFromApple
+- KVWriter
+- TextClassifierTraining
+
+Also add/verify fan-out sync flow so podcast metadata updates refresh denormalized episode fields.
+
+### Exit criteria
+- Processor smoke tests pass.
+- Runtime paths no longer rely on Podcast.Episodes.
+- Podcast metadata fan-out sync works for rename/search term/language updates.
+
+## PR5 — Data Migration and Production Cutover
+
+### Scope
+- Add migration job from legacy CultPodcasts to Podcasts + Episodes.
+- Populate denormalized episode metadata fields during migration/backfill.
+- Freeze writes to legacy container.
+- Run backfill and reconciliation.
+- Enable relationship-model flag in production.
+- Keep legacy container immutable for rollback window.
+
+### Exit criteria
+- Data parity checks pass.
+- Production reads/writes use target containers.
+- Rollback procedure documented and tested.
+
+## Release Gates for PR5
+
+- Zero runtime references to Podcast.Episodes.
+- Functional parity verified for publish/delete/index/rename/tweet flows.
+- Search datasource parity verified (document counts and sampled fields).
+- Podcast metadata updates correctly fan out to episode search fields.
+- Search-index payload size reduction validated.
+- UI compatibility with reduced-key CompactSearchRecord validated.
+- RU and latency within acceptable thresholds.
+- Legacy container receives no writes after cutover.
+
+## Rollback Strategy
+
+1. Disable relationship-model flag.
+2. Restore reads to legacy path (if needed).
+3. Re-enable legacy search record contract in UI/consumers if needed.
+4. Analyze mismatches using reconciliation outputs.
+5. Fix and rerun targeted migration before next cutover attempt.
+

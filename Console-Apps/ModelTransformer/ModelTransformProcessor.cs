@@ -35,7 +35,6 @@ public class ModelTransformProcessor(ISplitFileRepository splitFileRepository, I
             newPodcast.Episodes = oldPodcast.Episodes.Select(oldEpisode => new Episode
                 {
                     Id = oldEpisode.Id,
-                    ModelType = oldEpisode.ModelType,
                     AppleId = oldEpisode.AppleId,
                     Description = oldEpisode.Description,
                     Explicit = oldEpisode.Explicit,

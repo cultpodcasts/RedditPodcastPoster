@@ -22,7 +22,6 @@ public class SearchIndexerService(
         try
         {
             var response = await searchIndexerClient.RunIndexerAsync(_searchIndexConfig.IndexerName);
-            response = await searchIndexerClient.RunIndexerAsync(_searchIndexConfig.IndexerName);
             if (response.Status != (int) HttpStatusCode.Accepted)
             {
                 logger.LogError(
@@ -79,8 +78,6 @@ public class SearchIndexerService(
                         default:
                             throw new InvalidOperationException($"Indeterminate status-code: '{statusCode}'");
                     }
-
-                    break;
                 }
                 default:
                 {

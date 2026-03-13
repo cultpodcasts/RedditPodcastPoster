@@ -57,12 +57,18 @@ builder.Services
 
 using var host = builder.Build();
 
-var service = host.Services.GetService<IPodcastRepository>()!;
-var httpClient = host.Services.GetService<HttpClient>();
+var podcastRepository = host.Services.GetService<IPodcastRepositoryV2>()!;
+var episodeRepository = host.Services.GetService<IEpisodeRepository>()!;
+var httpClient = host.Services.GetService<HttpClient>()!;
 
 Uri.TryCreate(args[1], UriKind.Absolute, out var url);
-var x = await service.GetPodcast(new Guid(args[0]));
+var podcast = await podcastRepository.GetPodcast(new Guid(args[0]));
+if (podcast == null)
+{
+    throw new InvalidOperationException($"Podcast with id '{args[0]}' not found.");
+}
 
+var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
 
 var document = new HtmlDocument();
 httpClient.DefaultRequestHeaders.Add("user-agent",
@@ -77,7 +83,7 @@ if (pageResponse.StatusCode != HttpStatusCode.OK)
 document.Load(await pageResponse.Content.ReadAsStreamAsync());
 var seasonHeadingIds = new[] { "Season_1_(2016–17)", "Season_2_(2017)", "Season_3_(2018–19)" };
 
-foreach (var episode in x.Episodes)
+foreach (var episode in episodes)
 {
     var components = episode.Title.Split("E").Select(x => x.TrimStart('S'));
     var season = int.Parse(components.First());
@@ -97,9 +103,8 @@ foreach (var episode in x.Episodes)
         var seasonEpisodeCells = node.SelectNodes($"tbody/tr/td[1]");
         var seasonTitleCells = node.SelectNodes($"tbody/tr/td[2]");
         //        var cell = seasonEpisodeCells.Where(x => x.InnerText.Trim() == seasonEpisode.ToString()).SingleOrDefault();
-        var cell = seasonTitleCells.Where(x =>
-            episode.Title.ToLowerInvariant()
-                .EndsWith(HtmlEntity.DeEntitize(x.InnerText).ToLowerInvariant().Trim().Trim('\"'))).SingleOrDefault();
+        var cell = seasonTitleCells.SingleOrDefault(x => episode.Title.ToLowerInvariant()
+            .EndsWith(HtmlEntity.DeEntitize(x.InnerText).ToLowerInvariant().Trim().Trim('\"')));
         if (cell != null)
         {
             var titleCell = cell;
@@ -112,6 +117,7 @@ foreach (var episode in x.Episodes)
             var description = descriptionCell.InnerText.Trim();
             episode.Description = description;
             episode.Release = releaseDate;
+            await episodeRepository.Save(episode);
         }
         else
         {
@@ -124,7 +130,6 @@ foreach (var episode in x.Episodes)
     }
 }
 
-await service.Save(x);
 return;
 
 string GetBasePath()

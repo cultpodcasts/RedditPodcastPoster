@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 
 namespace RedditPodcastPoster.UrlSubmission.Factories;

@@ -8,6 +8,7 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
@@ -20,12 +21,15 @@ using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text.EliminationTerms;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace EnrichYouTubeOnlyPodcasts;
 
 public class EnrichYouTubePodcastProcessor(
     IYouTubeServiceWrapper youTubeService,
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     ITolerantYouTubePlaylistService youTubePlaylistService,
     IYouTubeChannelService youTubeChannelService,
     IYouTubeVideoService youTubeVideoService,
@@ -33,7 +37,6 @@ public class EnrichYouTubePodcastProcessor(
     ISubjectEnricher subjectEnricher,
     IAsyncInstance<IEliminationTermsProvider> eliminationTermsProviderInstance,
     IPodcastFilter podcastFilter,
-    IFileRepository fileRepository,
     IOptions<PostingCriteria> postingCriteria,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     IFoundEpisodeFilter foundEpisodeFilter,
@@ -56,8 +59,7 @@ public class EnrichYouTubePodcastProcessor(
         else if (request.PodcastName != null)
         {
             var podcastIds = await podcastRepository
-                .GetAllBy(x => x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
-                    x => x.Id).ToListAsync();
+                .GetAllBy(x => x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase)).Select(x=>x.Id).ToListAsync();
             if (podcastIds.Count > 1)
             {
                 logger.LogError("Found {podcastIdsCount} podcasts with name '{podcastName}'. Ids: {ids}.",
@@ -140,8 +142,12 @@ public class EnrichYouTubePodcastProcessor(
             podcast.YouTubePlaylistQueryIsExpensive = true;
         }
 
+        // Get existing episodes from detached repository
+        var existingEpisodesV2 = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+        var existingEpisodes = existingEpisodesV2.ToList();
+
         var missingPlaylistItems = playlistQueryResponse.Result.Where(playlistItem =>
-            podcast.Episodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();
+            existingEpisodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();
         IList<string> missingVideoIds =
             missingPlaylistItems.Select(x => x.Snippet.ResourceId.VideoId).Distinct().ToList();
         var missingPlaylistVideos =
@@ -200,13 +206,17 @@ public class EnrichYouTubePodcastProcessor(
 
         if (addedEpisodes.Any() && !string.IsNullOrEmpty(podcast.EpisodeIncludeTitleRegex))
         {
-            addedEpisodes = foundEpisodeFilter.ReduceEpisodes(podcast, addedEpisodes);
+            addedEpisodes = foundEpisodeFilter.ReduceEpisodes(podcast, addedEpisodes)
+                .ToList().ToList();
         }
 
-        podcast.Episodes.AddRange(addedEpisodes);
+        // Add new episodes to working list
+        existingEpisodes.AddRange(addedEpisodes);
         IList<Guid> updatedEpisodeIds = addedEpisodes.Select(x => x.Id).ToList();
 
-        foreach (var podcastEpisode in podcast.Episodes)
+        // Update existing episodes that are missing YouTube information
+        var episodesToUpdate = new List<Episode>();
+        foreach (var podcastEpisode in existingEpisodes)
         {
             if (string.IsNullOrWhiteSpace(podcastEpisode.YouTubeId) || podcastEpisode.Urls.YouTube == null)
             {
@@ -218,16 +228,21 @@ public class EnrichYouTubePodcastProcessor(
                 {
                     podcastEpisode.YouTubeId = youTubeItem.Snippet.ResourceId.VideoId;
                     podcastEpisode.Urls.YouTube = youTubeItem.Snippet.ToYouTubeUrl();
-                    updatedEpisodeIds.Add(podcastEpisode.Id);
+                    episodesToUpdate.Add(podcastEpisode);
+                    if (!updatedEpisodeIds.Contains(podcastEpisode.Id))
+                    {
+                        updatedEpisodeIds.Add(podcastEpisode.Id);
+                    }
                 }
             }
         }
 
-        podcast.Episodes = podcast.Episodes.OrderByDescending(x => x.Release).ToList();
-
         var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
-        var filterResult = podcastFilter.Filter(podcast, eliminationTerms.Terms);
+        var filterResult = podcastFilter.Filter(
+            podcast,
+            existingEpisodes,
+            eliminationTerms.Terms);
         if (filterResult.FilteredEpisodes.Any())
         {
             logger.LogWarning(filterResult.ToString());
@@ -237,20 +252,34 @@ public class EnrichYouTubePodcastProcessor(
         {
             try
             {
+                // Convert and save all new and updated episodes to detached repository
+                var episodesToSave = new List<Episode>();
+                
+                // Add newly added episodes
+                episodesToSave.AddRange(addedEpisodes);
+                
+                // Add updated existing episodes
+                episodesToSave.AddRange(episodesToUpdate);
+                
+                if (episodesToSave.Any())
+                {
+                    await episodeRepository.Save(episodesToSave);
+                }
+
                 await podcastRepository.Save(podcast);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to write entity to cosmos.");
-                try
-                {
-                    await fileRepository.Write(podcast);
-                    logger.LogInformation("Writing to file '{filename}'.", podcast.FileKey);
-                }
-                catch (Exception ex2)
-                {
-                    logger.LogError(ex2, "Failed to write to file. FileKey: '{fileKey}'.", podcast.FileKey);
-                }
+                //try
+                //{
+                //    await fileRepository.Write(podcast);
+                //    logger.LogInformation("Writing to file '{filename}'.", podcast.FileKey);
+                //}
+                //catch (Exception ex2)
+                //{
+                //    logger.LogError(ex2, "Failed to write to file. FileKey: '{fileKey}'.", podcast.FileKey);
+                //}
             }
 
             await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
@@ -296,4 +325,5 @@ public class EnrichYouTubePodcastProcessor(
 
         return false;
     }
+
 }

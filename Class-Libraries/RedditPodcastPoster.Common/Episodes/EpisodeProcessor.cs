@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Azure.Cosmos.Linq;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Adaptors;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -6,7 +7,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Common.Episodes;
 
 public class EpisodeProcessor(
-    IPodcastRepository podcastRepository,
+    IEpisodeRepository episodeRepository,
     IPodcastEpisodesPoster podcastEpisodesPoster,
     IProcessResponsesAdaptor processResponsesAdaptor,
     ILogger<EpisodeProcessor> logger)
@@ -20,7 +21,18 @@ public class EpisodeProcessor(
     {
         logger.LogInformation("{PostEpisodesSinceReleaseDateName} Finding episodes released since '{DateTime}'.",
             nameof(PostEpisodesSinceReleaseDate), since);
-        var podcastIds = await podcastRepository.GetPodcastsIdsWithUnpostedReleasedSince(DateTimeExtensions.DaysAgo(7));
+
+        var unpostedEpisodeThreshold = DateTimeExtensions.DaysAgo(7);
+        var podcastIds = await episodeRepository
+            .GetAllBy(x =>
+                x.Release >= unpostedEpisodeThreshold &&
+                !x.Posted &&
+                !x.Ignored &&
+                !x.Removed &&
+                (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false))
+            .Select(x => x.PodcastId)
+            .Distinct()
+            .ToArrayAsync();
 
         var matchingPodcastEpisodeResults = await podcastEpisodesPoster.PostNewEpisodes(since, podcastIds,
             youTubeRefreshed, spotifyRefreshed, maxPosts: maxPosts);

@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.Cloudflare;
+using RedditPodcastPoster.Cloudflare;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.UrlShortening;

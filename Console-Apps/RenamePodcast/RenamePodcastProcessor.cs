@@ -5,7 +5,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RenamePodcast;
 
 public class RenamePodcastProcessor(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
     IRedirectService redirectService,
     ILogger<RenamePodcastProcessor> logger)
 {

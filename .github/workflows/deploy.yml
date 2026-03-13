@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/runtime-identifier-removal
 
 permissions:
   id-token: write
@@ -12,12 +11,14 @@ permissions:
 
 env:  
   DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
+  DATABASE_RESOURCEGROUP_NAME: ${{ secrets.DATABASE_RESOURCEGROUP_NAME }}
   MANAGEMENT_RESOURCEGROUP_NAME: ${{ secrets.MANAGEMENT_RESOURCEGROUP_NAME }}
   AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
   storageName: cultpodcastsstg
   suffix: infra
   location: uksouth
   functionState: start
+  COSMOS_DEPLOYMENT_NAME: infra-cosmos
   API_PACKAGE_PATH: './Cloud/Api' 
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
   INDEXER_PACKAGE_PATH: './Cloud/Indexer' 
@@ -63,7 +64,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 9.0.x
+        dotnet-version: ${{ env.DOTNET_VERSION }}
     - name: Restore dependencies
       run: dotnet restore /p:Configuration=Release -r ${{ env.TARGET_RUNTIME }}
     - name: Publish ${{ matrix.project.name }}
@@ -83,7 +84,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 9.0.x
+        dotnet-version: ${{ env.DOTNET_VERSION }}
     - name: Restore dependencies
       run: dotnet restore
     - name: Run tests
@@ -132,6 +133,19 @@ jobs:
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
 
+    - name: Cosmos DB (Deploy Bicep)
+      id: bicepcosmosdeploy
+      uses: azure/bicep-deploy@v1
+      if: needs.build.outputs.infrastructure_changed == 'true'
+      with:
+        type: deployment
+        operation: create
+        name: ${{ env.COSMOS_DEPLOYMENT_NAME }}
+        scope: resourceGroup
+        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+        resource-group-name: ${{ env.DATABASE_RESOURCEGROUP_NAME }}
+        template-file: ./Infrastructure/cosmos-db.bicep
+        parameters: '{"location":"${{ env.location }}", "cosmosAccountName":"${{ secrets.COSMOS_ACCOUNT_NAME }}"}'
     - name: Storage (Deploy Bicep)
       id: bicepstoragedeploy
       uses: azure/bicep-deploy@v1
@@ -275,3 +289,4 @@ jobs:
           app-name: 'indexer-infra'
           slot-name: 'Production'
           package: ${{ env.outputIndexer }}
+

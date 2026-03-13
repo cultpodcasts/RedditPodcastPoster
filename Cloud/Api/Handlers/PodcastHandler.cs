@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.Json;
 using Api.Dtos;
 using Api.Extensions;
@@ -16,15 +16,18 @@ using RedditPodcastPoster.Indexing.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.UrlShortening;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
 using Podcast = Api.Dtos.Podcast;
 using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
+using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace Api.Handlers;
 
 public class PodcastHandler(
     IIndexer indexer,
     IEpisodeSearchIndexerService searchIndexerService,
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     SearchClient searchClient,
     IRedirectService redirectService,
     IOptions<IndexerOptions> indexerOptions,
@@ -65,6 +68,7 @@ public class PodcastHandler(
             }
 
             await podcastRepository.Save(podcast);
+            await HydrateDetachedEpisodePodcastProjection(podcast, c);
 
             var failureDeletingFromIndex = false;
             var failureIndexingEpisodes = false;
@@ -72,25 +76,23 @@ public class PodcastHandler(
                 podcastChangeRequestWrapper.Podcast.Removed.Value)
             {
                 failureDeletingFromIndex = !await DeleteEpisodesFromSearchIndex(c, podcast);
-                await DeleteEpisodesFromShortner(podcast);
+                await DeleteEpisodesFromShortner(podcast, c);
             }
-            else
+            else if (podcastChangeRequestWrapper.AllowNameChange)
             {
-                if (podcastChangeRequestWrapper.AllowNameChange)
+                var episodeIds = await GetEpisodeIdsByPodcastId(podcast.Id, c);
+                if (episodeIds.Count > 0)
                 {
-                    if (podcast.Episodes.Any())
+                    try
                     {
-                        try
-                        {
-                            await searchIndexerService.IndexEpisodes(podcast.Episodes.Select(x => x.Id), c);
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogError(ex,
-                                "{method}: Failed to re-index all episodes after podcast rename for podcast-id '{podcastId}'.",
-                                nameof(Post), podcastChangeRequestWrapper.PodcastId);
-                            failureIndexingEpisodes = true;
-                        }
+                        await searchIndexerService.IndexEpisodes(episodeIds, c);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex,
+                            "{method}: Failed to re-index all episodes after podcast rename for podcast-id '{podcastId}'.",
+                            nameof(Post), podcastChangeRequestWrapper.PodcastId);
+                        failureIndexingEpisodes = true;
                     }
                 }
             }
@@ -309,8 +311,9 @@ public class PodcastHandler(
                     var oldName = podcast.Name;
                     podcast.Name = change.NewName;
                     await podcastRepository.Save(podcast);
+                    await HydrateDetachedEpisodePodcastProjection(podcast, c);
                     logger.LogInformation("Renamed podcast '{oldName}' to '{newName}'.", oldName, change.NewName);
-                    episodeIds.AddRange(podcast.Episodes.Select(x => x.Id));
+                    episodeIds.AddRange(await GetEpisodeIdsByPodcastId(podcast.Id, c));
                 }
 
                 var indexed = await searchIndexerService.IndexEpisodes(episodeIds.Distinct(), c);
@@ -333,14 +336,41 @@ public class PodcastHandler(
         return failure;
     }
 
-    private async Task UpdateName(RedditPodcastPoster.Models.Podcast podcast, string? podcastName)
+    private async Task HydrateDetachedEpisodePodcastProjection(V2Podcast podcast, CancellationToken c)
     {
-        if (podcast.Episodes.Count > 1)
+        await foreach (var episode in episodeRepository.GetByPodcastId(podcast.Id).WithCancellation(c))
         {
-            throw new InvalidOperationException(
-                "Cannot rename a podcast with more than one episode. Use rename-endpoint");
+            episode.PodcastName = podcast.Name;
+            episode.PodcastSearchTerms = podcast.SearchTerms;
+            episode.PodcastRemoved = podcast.Removed;
+            await episodeRepository.Save(episode);
+        }
+    }
+
+    private async Task<List<Guid>> GetEpisodeIdsByPodcastId(Guid podcastId, CancellationToken c)
+    {
+        var ids = new List<Guid>();
+        await foreach (var episode in episodeRepository.GetByPodcastId(podcastId).WithCancellation(c))
+        {
+            ids.Add(episode.Id);
         }
 
+        return ids;
+    }
+
+    private async Task<List<Episode>> GetDetachedEpisodesByPodcastId(Guid podcastId, CancellationToken c)
+    {
+        var episodes = new List<Episode>();
+        await foreach (var episode in episodeRepository.GetByPodcastId(podcastId).WithCancellation(c))
+        {
+            episodes.Add(episode);
+        }
+
+        return episodes;
+    }
+
+    private async Task UpdateName(V2Podcast podcast, string? podcastName)
+    {
         if (string.IsNullOrWhiteSpace(podcastName))
         {
             throw new InvalidOperationException(
@@ -348,23 +378,25 @@ public class PodcastHandler(
         }
 
         var sameNamePodcasts =
-            await podcastRepository.GetAllBy(x => x.Name == podcastName && x.Id != podcast.Id, x => new { id = x.Id })
+            await podcastRepository.GetAllBy(x => x.Name == podcastName && x.Id != podcast.Id)
                 .ToListAsync();
         if (sameNamePodcasts.Count > 0)
         {
             throw new InvalidOperationException(
-                $"Other podcasts have requested name '{podcastName}'. Podcast-ids: {string.Join(", ", sameNamePodcasts.Select(x => $"'{x.id}'"))}.");
+                $"Other podcasts have requested name '{podcastName}'. Podcast-ids: {string.Join(", ", sameNamePodcasts.Select(x => $"'{x.Id}'"))}.");
         }
 
         podcast.Name = podcastName.Trim();
         podcast.FileKey = FileKeyFactory.GetFileKey(podcast.Name);
     }
 
-    private async Task<bool> DeleteEpisodesFromSearchIndex(CancellationToken c,
-        RedditPodcastPoster.Models.Podcast podcast)
+    private async Task<bool> DeleteEpisodesFromSearchIndex(CancellationToken c, V2Podcast podcast)
     {
         var failure = false;
-        var episodeIds = podcast.Episodes.Select(x => x.Id.ToString()).ToArray();
+        var episodeIds = (await GetEpisodeIdsByPodcastId(podcast.Id, c))
+            .Select(x => x.ToString())
+            .ToArray();
+
         try
         {
             var result = await searchClient.DeleteDocumentsAsync("id", episodeIds,
@@ -396,13 +428,17 @@ public class PodcastHandler(
         return !failure;
     }
 
-    private async Task DeleteEpisodesFromShortner(RedditPodcastPoster.Models.Podcast podcast)
+    private async Task DeleteEpisodesFromShortner(V2Podcast podcast, CancellationToken c)
     {
-        var result = await shortnerService.Delete(podcast.Episodes.Select(x => new PodcastEpisode(podcast, x)));
+        var detachedEpisodes = await GetDetachedEpisodesByPodcastId(podcast.Id, c);
+
+        var podcastEpisodes = detachedEpisodes.Select(e => new PodcastEpisode(podcast, e));
+
+        await shortnerService.Delete(podcastEpisodes);
     }
 
 
-    private void UpdatePodcast(RedditPodcastPoster.Models.Podcast podcast, Podcast podcastChangeRequest)
+    private void UpdatePodcast(V2Podcast podcast, Podcast podcastChangeRequest)
     {
         if (podcastChangeRequest.Removed != null)
         {
@@ -603,35 +639,26 @@ public class PodcastHandler(
             return new PodcastWrapper(podcasts.Single(), PodcastRetrievalState.Found);
         }
 
-        if (podcasts.Count > 1)
+        if (podcastGetRequest.EpisodeId.HasValue)
         {
-            var indexedPodcasts = podcasts
-                .Where(x => x.IndexAllEpisodes || !string.IsNullOrWhiteSpace(x.EpisodeIncludeTitleRegex)).ToArray();
-            if (indexedPodcasts.Length == 1)
+            var episode = await episodeRepository.GetBy(x => x.Id == podcastGetRequest.EpisodeId.Value);
+            if (episode != null)
             {
-                return new PodcastWrapper(indexedPodcasts.Single(), PodcastRetrievalState.Found);
-            }
-
-            if (podcastGetRequest.EpisodeId != null && indexedPodcasts.Length > 1 &&
-                podcastGetRequest.EpisodeId.HasValue)
-            {
-                var podcastByEpisode = podcasts.Where(x => x.Episodes.Any(e => e.Id == podcastGetRequest.EpisodeId))
-                    .ToArray();
-                if (podcastByEpisode.Count() == 1)
+                var podcastByEpisode = podcasts.SingleOrDefault(x => x.Id == episode.PodcastId);
+                if (podcastByEpisode != null)
                 {
-                    return new PodcastWrapper(podcastByEpisode.Single(), PodcastRetrievalState.Found);
+                    return new PodcastWrapper(podcastByEpisode, PodcastRetrievalState.Found);
                 }
             }
+        }
 
-            var podcastsWithServiceIds = podcasts.Where(x =>
-                !string.IsNullOrWhiteSpace(x.SpotifyId) || !string.IsNullOrWhiteSpace(x.YouTubeChannelId) ||
-                x.AppleId != null);
-            {
-                if (podcastsWithServiceIds.Count() == 1)
-                {
-                    return new PodcastWrapper(podcastsWithServiceIds.Single(), PodcastRetrievalState.Found);
-                }
-            }
+        var podcastsWithServiceIds = podcasts.Where(x =>
+            !string.IsNullOrWhiteSpace(x.SpotifyId) ||
+            !string.IsNullOrWhiteSpace(x.YouTubeChannelId) ||
+            x.AppleId != null).ToArray();
+        if (podcastsWithServiceIds.Length == 1)
+        {
+            return new PodcastWrapper(podcastsWithServiceIds.Single(), PodcastRetrievalState.Found);
         }
 
         return new PodcastWrapper(null, PodcastRetrievalState.Conflict, podcasts.Select(p => p.Id));

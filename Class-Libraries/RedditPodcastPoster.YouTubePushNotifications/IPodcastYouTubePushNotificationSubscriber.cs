@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.Models;
+﻿using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.YouTubePushNotifications;
 

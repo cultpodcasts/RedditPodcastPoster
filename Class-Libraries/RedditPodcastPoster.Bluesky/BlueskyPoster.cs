@@ -1,4 +1,4 @@
-﻿using System.Security.Authentication;
+using System.Security.Authentication;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Factories;
@@ -9,7 +9,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Bluesky;
 
 public class BlueskyPoster(
-    IPodcastRepository repository,
+    IEpisodeRepository episodeRepository,
     IBlueskyEmbedCardPostFactory embedCardPostFactory,
     IEmbedCardBlueskyClient blueSkyClient,
     IEmbedCardRequestFactory embedCardRequestFactory,
@@ -47,7 +47,7 @@ public class BlueskyPoster(
                 podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id, ex.StatusCode, ex.HttpRequestError,
                 embedPost.Text, embedPost.Url);
             return BlueskySendStatus.FailureHttp;
-    }
+        }
         catch (AuthenticationException ex)
         {
             logger.LogError(ex,
@@ -57,7 +57,7 @@ public class BlueskyPoster(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                "Failure to send blue-sky post for podcast-id '{podcast.Id}' episode-id '{episodeId}', post: '{embedPostText}'.",
+                "Failure to send blue-sky post for podcast-id '{podcastId}' episode-id '{episodeId}', post: '{embedPostText}'.",
                 podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id, embedPost.Text);
             return BlueskySendStatus.Failure;
         }
@@ -65,12 +65,12 @@ public class BlueskyPoster(
         podcastEpisode.Episode.BlueskyPosted = true;
         try
         {
-            await repository.Save(podcastEpisode.Podcast);
+            await episodeRepository.Save(podcastEpisode.Episode);
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
-                "Failure to save podcast with podcast-id '{podcast.Id}' to update episode with id '{episodeId}'.",
+                "Failure to save episode with podcast-id '{PodcastId}' and episode-id '{EpisodeId}' after bluesky update.",
                 podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
             throw;
         }

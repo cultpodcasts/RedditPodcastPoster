@@ -1,11 +1,12 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Common.Podcasts;
 
 public class PodcastFactory(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
     ILogger<PodcastFactory> logger) : IPodcastFactory
 {
     private static string[]? _fileKeys;
@@ -17,7 +18,7 @@ public class PodcastFactory(
             throw new ArgumentNullException(nameof(podcastName));
         }
 
-        _fileKeys ??= await podcastRepository.GetAllFileKeys().ToArrayAsync();
+        _fileKeys ??= await podcastRepository.GetAll().Select(x => x.FileKey).ToArrayAsync();
 
         podcastName = podcastName.Trim();
         var fileKey = FileKeyFactory.GetFileKey(podcastName);
@@ -31,6 +32,6 @@ public class PodcastFactory(
             } while (_fileKeys.Contains(fileKey));
         }
 
-        return new Podcast(Guid.NewGuid()) {Name = podcastName, FileKey = fileKey};
+        return new Podcast { Id = Guid.NewGuid(), Name = podcastName, FileKey = fileKey };
     }
 }

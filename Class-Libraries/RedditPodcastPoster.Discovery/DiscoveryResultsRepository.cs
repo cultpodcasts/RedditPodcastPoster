@@ -17,6 +17,11 @@ public class DiscoveryResultsRepository(
         return repository.Write(discoveryResultsDocument);
     }
 
+    public IAsyncEnumerable<DiscoveryResultsDocument> GetAll()
+    {
+        return repository.GetAll<DiscoveryResultsDocument>();
+    }
+
     public IAsyncEnumerable<DiscoveryResultsDocument> GetAllUnprocessed()
     {
         return repository.GetAllBy<DiscoveryResultsDocument>(x => x.State == DiscoveryResultsDocumentState.Unprocessed);

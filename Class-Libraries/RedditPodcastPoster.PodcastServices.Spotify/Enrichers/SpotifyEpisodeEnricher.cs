@@ -22,7 +22,7 @@ public class SpotifyEpisodeEnricher(
         var findSpotifyEpisodeRequest = FindSpotifyEpisodeRequestFactory.Create(request.Podcast, request.Episode);
         var findEpisodeResult = await spotifyEpisodeResolver.FindEpisode(findSpotifyEpisodeRequest, indexingContext);
         if (findEpisodeResult.FullEpisode != null &&
-            request.Podcast.Episodes.All(x => x.SpotifyId != findEpisodeResult.FullEpisode.Id))
+            request.Episodes.All(x => x.SpotifyId != findEpisodeResult.FullEpisode.Id))
         {
             logger.LogInformation(
                 "{EnrichName} Found matching Spotify episode: '{FullEpisodeId}' with title '{FullEpisodeName}' and release-date '{FullEpisodeReleaseDate}'.", nameof(Enrich), findEpisodeResult.FullEpisode.Id, findEpisodeResult.FullEpisode.Name, findEpisodeResult.FullEpisode.ReleaseDate);

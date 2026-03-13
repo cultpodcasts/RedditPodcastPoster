@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.YouTube;

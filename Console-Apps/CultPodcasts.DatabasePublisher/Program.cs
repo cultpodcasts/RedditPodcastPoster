@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using CommandLine;
 using CultPodcasts.DatabasePublisher;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,8 +22,27 @@ builder.Services
     .AddFileRepository()
     .AddRepositories()
     .AddSafeFileWriter()
-    .AddSingleton<PublicDatabasePublisher>();
+    .AddSingleton<PublicDatabasePublisher>()
+    .AddSingleton<PublicDatabasePublisherV2>();
 
 using var host = builder.Build();
-var processor = host.Services.GetService<PublicDatabasePublisher>();
-await processor!.Run();
+
+return await Parser.Default.ParseArguments<PublisherRequest>(args)
+    .MapResult(async request => await Run(request),
+        errs => Task.FromResult(-1));
+
+async Task<int> Run(PublisherRequest request)
+{
+    if (request.UseV2)
+    {
+        var publisher = host.Services.GetRequiredService<PublicDatabasePublisherV2>();
+        await publisher.Run();
+    }
+    else
+    {
+        var publisher = host.Services.GetRequiredService<PublicDatabasePublisher>();
+        await publisher.Run();
+    }
+
+    return 0;
+}

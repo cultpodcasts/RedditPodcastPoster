@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -100,7 +100,6 @@ public class TweetBuilder(
         }
 
         if (shortUrl != null && _twitterOptions.WithEpisodeUrl && (podcastEpisode.HasMultipleServices() ||
-                                                                   podcastEpisode.Podcast.Episodes.Count > 1 ||
                                                                    podcastEpisode.Episode.Subjects.Any()))
         {
             tweetBuilder.Append($"{shortUrl}{Environment.NewLine}");

@@ -1,14 +1,14 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text.KnownTerms;
 
 namespace SeedKnownTerms;
 
 public class KnownTermsSeeder(
-    IKnownTermsRepository knownTermsRepository,
+    ILookupRepositoryV2 lookupRepository,
 #pragma warning disable CS9113 // Parameter is unread.
-    ILogger<CosmosDbRepository> logger
+    ILogger<KnownTermsSeeder> logger
 #pragma warning restore CS9113 // Parameter is unread.
 )
 {
@@ -33,8 +33,8 @@ public class KnownTermsSeeder(
             persisted.Terms.Add(knownTerm.Key, knownTerm.Value);
         }
 
-        await knownTermsRepository.Save(persisted);
+        await lookupRepository.SaveKnownTerms(persisted);
 
-        persisted = await knownTermsRepository.Get();
+        persisted = (await lookupRepository.GetKnownTerms<KnownTerms>()) ?? new KnownTerms();
     }
 }

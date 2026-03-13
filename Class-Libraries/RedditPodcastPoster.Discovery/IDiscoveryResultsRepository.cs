@@ -5,6 +5,7 @@ namespace RedditPodcastPoster.Discovery;
 public interface IDiscoveryResultsRepository
 {
     Task Save(DiscoveryResultsDocument discoveryResultsDocument);
+    IAsyncEnumerable<DiscoveryResultsDocument> GetAll();
     IAsyncEnumerable<DiscoveryResultsDocument> GetAllUnprocessed();
     Task SetProcessed(IEnumerable<Guid> ids);
     Task<DiscoveryResultsDocument?> GetById(Guid documentId);

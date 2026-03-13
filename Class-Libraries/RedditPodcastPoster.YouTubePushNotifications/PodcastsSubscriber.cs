@@ -4,7 +4,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.YouTubePushNotifications;
 
 public class PodcastsSubscriber(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
     IPodcastYouTubePushNotificationSubscriber subscriber,
     ILogger<PodcastsSubscriber> logger)
     : IPodcastsSubscriber
@@ -27,7 +27,8 @@ public class PodcastsSubscriber(
         if (podcastsToSubscribe.Any())
         {
             logger.LogInformation(
-                "Renewing leases for podcasts with ids {Join}.", string.Join((string?) ",", (IEnumerable<string?>) podcastsToSubscribe.Select(x => $"'{x.Id}'")));
+                "Renewing leases for podcasts with ids {Join}.",
+                string.Join((string?)",", (IEnumerable<string?>)podcastsToSubscribe.Select(x => $"'{x.Id}'")));
             foreach (var podcastToSubscribe in podcastsToSubscribe)
             {
                 logger.LogInformation("Renewing lease for podcast with id '{Guid}'.", podcastToSubscribe.Id);
@@ -43,7 +44,8 @@ public class PodcastsSubscriber(
     public async Task UpdateLease(Guid podcastId, long leaseSeconds)
     {
         logger.LogInformation(
-            "Setting subscription-lease expiry for podcast with id '{PodcastId}' to {LeaseSeconds}s.", podcastId, leaseSeconds);
+            "Setting subscription-lease expiry for podcast with id '{PodcastId}' to {LeaseSeconds}s.", podcastId,
+            leaseSeconds);
         var leaseExpiry = DateTime.UtcNow.AddSeconds(leaseSeconds);
         logger.LogInformation("Lease expires: {LeaseExpiry:O}", leaseExpiry);
         var podcast = await podcastRepository.GetPodcast(podcastId);

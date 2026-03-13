@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -9,7 +9,8 @@ using RedditPodcastPoster.PodcastServices.Extensions;
 namespace EnrichPodcastWithImages;
 
 public class Processor(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     IImageUpdater imageUpdater,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<Processor> logger)
@@ -20,22 +21,21 @@ public class Processor(
         Func<Episode, bool> episodeSelector;
         if (!string.IsNullOrWhiteSpace(request.PodcastPartialMatch))
         {
-            var ids =
-                await podcastRepository.GetAllBy(
-                        x => x.Name.ToLower().Contains(request.PodcastPartialMatch.ToLower()),
-                        p => new { id = p.Id })
-                    .ToListAsync();
-            podcastIds = ids.Select(x => x.id).ToList();
-            episodeSelector = episode => true;
+            var ids = await podcastRepository.GetAllBy(
+                    x => x.Name.ToLower().Contains(request.PodcastPartialMatch.ToLower()))
+                .ToListAsync();
+            podcastIds = ids.Select(x => x.Id).ToList();
+            episodeSelector = _ => true;
         }
         else
         {
-            var ids =
-                await podcastRepository.GetAllBy(
-                        x => x.Episodes.Any(x => x.Subjects.Contains(request.Subject)),
-                        p => new { id = p.Id })
-                    .ToListAsync();
-            podcastIds = ids.Select(x => x.id).ToList();
+            var ids = new HashSet<Guid>();
+            await foreach (var episode in episodeRepository.GetAllBy(x => x.Subjects.Contains(request.Subject)))
+            {
+                ids.Add(episode.PodcastId);
+            }
+
+            podcastIds = ids.ToList();
             episodeSelector = episode => episode.Subjects.Contains(request.Subject);
         }
 
@@ -60,23 +60,23 @@ public class Processor(
             }
 
             logger.LogInformation("Enriching podcast '{podcastName}'.", podcast.Name);
-            var episodes = podcast.Episodes.Where(episodeSelector);
+            var episodes = await episodeRepository.GetByPodcastId(podcastId)
+                .Where(episodeSelector)
+                .ToListAsync();
+
             foreach (var episode in episodes)
             {
                 var imageUpdateRequest = (podcast, episode).ToEpisodeImageUpdateRequest();
                 var updated = await imageUpdater.UpdateImages(podcast, episode, imageUpdateRequest, indexingContext);
                 if (updated)
                 {
+                    await episodeRepository.Save(episode);
                     updatedEpisodeIds.Add(episode.Id);
                     updatedEpisodes++;
                 }
             }
 
             logger.LogInformation("Updated {updatedEpisodes} episodes.", updatedEpisodes);
-            if (updatedEpisodes > 0)
-            {
-                await podcastRepository.Save(podcast);
-            }
         }
 
         if (updatedEpisodeIds.Any())

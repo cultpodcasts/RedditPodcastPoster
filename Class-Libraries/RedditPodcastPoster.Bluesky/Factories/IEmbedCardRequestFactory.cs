@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.Bluesky.Client;
+using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Models;
 

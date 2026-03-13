@@ -1,4 +1,5 @@
-﻿using iTunesSearch.Library;
+﻿using System.Text.RegularExpressions;
+using iTunesSearch.Library;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.EntitySearchIndexer;
@@ -12,12 +13,14 @@ using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using SpotifyAPI.Web;
-using System.Text.RegularExpressions;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace AddAudioPodcast;
 
 public class AddAudioPodcastProcessor(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     ISpotifyClientWrapper spotifyClient,
     IPodcastFactory podcastFactory,
     IApplePodcastEnricher applePodcastEnricher,
@@ -32,17 +35,16 @@ public class AddAudioPodcastProcessor(
 
     public async Task Create(AddAudioPodcastRequest request)
     {
-        var newEpisodeIds = new List<Guid>();
         var indexingContext = new IndexingContext { SkipPodcastDiscovery = false };
         Podcast? podcast = null;
         if (!request.AppleReleaseAuthority)
         {
             var matchingPodcasts = await podcastRepository
-                .GetAllBy(x => x.SpotifyId == request.PodcastId, x => new { x.Id }).ToListAsync();
+                .GetAllBy(x => x.SpotifyId == request.PodcastId).ToListAsync();
             if (matchingPodcasts.Any())
             {
                 throw new InvalidOperationException(
-                    $"Found podcasts with spotify-id '{request.PodcastId}'. Podcast-ids: {string.Join(",", matchingPodcasts.Select(x => $"'{x.Id}'"))}.");
+                    $"Found podcasts with spotify-id '{request.PodcastId}'. Podcast-ids: {string.Join(",", matchingPodcasts.Select(x => x.Id))}.");
             }
 
             try
@@ -59,11 +61,11 @@ public class AddAudioPodcastProcessor(
         {
             var appleId = long.Parse(request.PodcastId);
             var matchingPodcasts =
-                await podcastRepository.GetAllBy(x => x.AppleId == appleId, x => new { x.Id }).ToListAsync();
+                await podcastRepository.GetAllBy(x => x.AppleId == appleId).ToListAsync();
             if (matchingPodcasts.Any())
             {
                 throw new InvalidOperationException(
-                    $"Found podcasts with apple-id '{request.PodcastId}'. Podcast-ids: {string.Join(",", matchingPodcasts.Select(x => $"'{x.Id}'"))}.");
+                    $"Found podcasts with apple-id '{request.PodcastId}'. Podcast-ids: {string.Join(",", matchingPodcasts.Select(x => x.Id))}.");
             }
 
             podcast = await GetApplePodcast(request, indexingContext);
@@ -73,6 +75,8 @@ public class AddAudioPodcastProcessor(
         {
             var result = await podcastUpdater.Update(podcast, false, _indexingContext);
 
+            var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+
             if (!string.IsNullOrWhiteSpace(request.EpisodeTitleRegex))
             {
                 var includeEpisodesRegex = new Regex(request.EpisodeTitleRegex,
@@ -80,37 +84,47 @@ public class AddAudioPodcastProcessor(
 
                 podcast.IndexAllEpisodes = false;
                 podcast.EpisodeIncludeTitleRegex = request.EpisodeTitleRegex;
-                List<Episode> episodesToRemove = new();
-                foreach (var episode in podcast.Episodes)
+
+                var episodesToRemove = new List<Episode>();
+                foreach (var episode in episodes)
                 {
                     var match = includeEpisodesRegex.Match(episode.Title);
                     if (!match.Success)
                     {
                         episodesToRemove.Add(episode);
                     }
-#if DEBUG
-                    else
-                    {
-                        var matchedTerm = match.Groups[0].Value;
-                    }
-#endif
                 }
 
                 foreach (var episode in episodesToRemove)
                 {
-                    podcast.Episodes.Remove(episode);
+                    await episodeRepository.Delete(episode.PodcastId, episode.Id);
                     logger.LogInformation("Removed episode '{EpisodeTitle}' due to regex.", episode.Title);
                 }
+
+                episodes = episodes.Except(episodesToRemove).ToList();
             }
 
-            foreach (var episode in podcast.Episodes)
+            var episodesToUpdate = new List<Episode>();
+            foreach (var episode in episodes)
             {
-                var results = await subjectEnricher.EnrichSubjects(episode,
+                await subjectEnricher.EnrichSubjects(episode,
                     new SubjectEnrichmentOptions(
                         podcast.IgnoredAssociatedSubjects,
                         podcast.IgnoredSubjects,
                         podcast.DefaultSubject,
                         podcast.DescriptionRegex));
+
+                var v2Episode = episodes.FirstOrDefault(e => e.Id == episode.Id);
+                if (v2Episode != null)
+                {
+                    v2Episode.Subjects = episode.Subjects ?? [];
+                    episodesToUpdate.Add(v2Episode);
+                }
+            }
+
+            if (episodesToUpdate.Any())
+            {
+                await episodeRepository.Save(episodesToUpdate);
             }
 
             await podcastRepository.Save(podcast);
@@ -124,19 +138,21 @@ public class AddAudioPodcastProcessor(
                 logger.LogError(result.ToString());
             }
 
-            await episodeSearchIndexerService.IndexEpisodes(podcast.Episodes.Select(x => x.Id), CancellationToken.None);
+            await episodeSearchIndexerService.IndexEpisodes(episodes.Select(x => x.Id), CancellationToken.None);
         }
         else
         {
             var source = request.AppleReleaseAuthority ? "Apple" : "Spotify";
-            logger.LogError("Could not find podcast with id '{RequestPodcastId}' using '{Source}' as source.", request.PodcastId, source);
+            logger.LogError("Could not find podcast with id '{RequestPodcastId}' using '{Source}' as source.",
+                request.PodcastId, source);
         }
     }
 
     private async Task<Podcast> GetSpotifyPodcast(AddAudioPodcastRequest request, IndexingContext indexingContext)
     {
         var spotifyPodcast =
-            await spotifyClient.GetFullShow(request.PodcastId, new ShowRequest { Market = Market.CountryCode }, new IndexingContext());
+            await spotifyClient.GetFullShow(request.PodcastId, new ShowRequest { Market = Market.CountryCode },
+                new IndexingContext());
         logger.LogInformation("Retrieved spotify podcast");
         var podcast = await podcastRepository.GetBy(x => x.SpotifyId == request.PodcastId);
         if (podcast == null)
@@ -173,8 +189,10 @@ public class AddAudioPodcastProcessor(
             podcast.Bundles = false;
             podcast.Publisher = applePodcast.ArtistName.Trim();
             podcast.ReleaseAuthority = Service.Apple;
-
-            await spotifyPodcastEnricher.AddIdAndUrls(podcast, indexingContext);
+            var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+            await spotifyPodcastEnricher.AddIdAndUrls(podcast, episodes, indexingContext);
+            podcast.SpotifyId = podcast.SpotifyId;
+            podcast.SpotifyEpisodesQueryIsExpensive = podcast.SpotifyEpisodesQueryIsExpensive;
         }
 
         return podcast;

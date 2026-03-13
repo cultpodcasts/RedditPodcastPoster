@@ -56,7 +56,7 @@ public class YouTubeEpisodeEnricher(
         if (youTubeItem?.SearchResult != null)
         {
             if (!string.IsNullOrWhiteSpace(youTubeItem.SearchResult.Id.VideoId) &&
-                request.Podcast.Episodes.All(x => x.YouTubeId != youTubeItem.SearchResult.Id.VideoId))
+                request.Episodes.All(x => x.YouTubeId != youTubeItem.SearchResult.Id.VideoId))
             {
                 await Enrich(
                     youTubeItem.SearchResult.Id.VideoId,
@@ -72,7 +72,7 @@ public class YouTubeEpisodeEnricher(
         else if (youTubeItem?.PlaylistItem != null)
         {
             if (!string.IsNullOrWhiteSpace(youTubeItem.PlaylistItem.Snippet.ResourceId.VideoId) &&
-                request.Podcast.Episodes.All(x => x.YouTubeId != youTubeItem.PlaylistItem.Snippet.ResourceId.VideoId))
+                request.Episodes.All(x => x.YouTubeId != youTubeItem.PlaylistItem.Snippet.ResourceId.VideoId))
             {
                 await Enrich(
                     youTubeItem.PlaylistItem.Snippet.ResourceId.VideoId,

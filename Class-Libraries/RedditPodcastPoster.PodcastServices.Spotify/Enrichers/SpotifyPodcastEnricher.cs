@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Factories;
@@ -15,13 +15,13 @@ public class SpotifyPodcastEnricher(
 #pragma warning restore CS9113 // Parameter is unread.
     : ISpotifyPodcastEnricher
 {
-    public async Task<bool> AddIdAndUrls(Podcast podcast, IndexingContext indexingContext)
+    public async Task<bool> AddIdAndUrls(Podcast podcast, IEnumerable<Episode> episodes, IndexingContext indexingContext)
     {
         var podcastShouldUpdate = false;
         if (string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
             var matchedPodcast =
-                await spotifyPodcastResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest(), indexingContext);
+                await spotifyPodcastResolver.FindPodcast(podcast.ToFindSpotifyPodcastRequest(episodes), indexingContext);
             if (matchedPodcast != null)
             {
                 if (!string.IsNullOrWhiteSpace(matchedPodcast.Id))
@@ -39,12 +39,15 @@ public class SpotifyPodcastEnricher(
 
         if (!string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
-            foreach (var podcastEpisode in podcast.Episodes)
+            foreach (var podcastEpisode in episodes)
             {
                 if (string.IsNullOrWhiteSpace(podcastEpisode.SpotifyId))
                 {
                     var findEpisodeResponse = await spotifyIdResolver.FindEpisode(
-                        FindSpotifyEpisodeRequestFactory.Create(podcast, podcastEpisode), indexingContext);
+                        FindSpotifyEpisodeRequestFactory.Create(
+                            podcast,
+                            podcastEpisode),
+                        indexingContext);
                     if (!string.IsNullOrWhiteSpace(findEpisodeResponse.FullEpisode?.Id))
                     {
                         podcastEpisode.SpotifyId = findEpisodeResponse.FullEpisode.Id;
@@ -61,4 +64,5 @@ public class SpotifyPodcastEnricher(
 
         return podcastShouldUpdate;
     }
+
 }

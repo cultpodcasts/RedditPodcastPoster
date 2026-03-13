@@ -13,7 +13,7 @@ using RedditPodcastPoster.UrlSubmission.Models;
 namespace Api.Handlers;
 
 public class SubmitUrlHandler(
-    IPodcastRepository repository,
+    IPodcastRepositoryV2 repository,
     IUrlSubmitter urlSubmitter,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<SubmitUrlHandler> logger) : ISubmitUrlHandler
@@ -29,16 +29,15 @@ public class SubmitUrlHandler(
             Guid? podcastId;
             if (!string.IsNullOrWhiteSpace(submitUrlModel.PodcastName))
             {
-                var podcastIdWrapper =
-                    await repository.GetBy(x => x.Name == submitUrlModel.PodcastName, x => new { guid = x.Id });
-                if (podcastIdWrapper == null)
+                var podcast = await repository.GetBy(x => x.Name == submitUrlModel.PodcastName);
+                if (podcast == null)
                 {
                     var httpResponseData = await req.CreateResponse(HttpStatusCode.NotFound)
                         .WithJsonBody(new { message = "Podcast with name not found" }, c);
                     return httpResponseData;
                 }
 
-                podcastId = podcastIdWrapper.guid;
+                podcastId = podcast.Id;
             }
             else
             {
@@ -56,16 +55,27 @@ public class SubmitUrlHandler(
                 },
                 submitOptions);
 
+            var episodeId = result.Episode?.Id;
             if (result.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
             {
-                try
+                if (episodeId.HasValue)
                 {
-                    await episodeSearchIndexerService.IndexEpisode(result.EpisodeId!.Value, c);
+                    try
+                    {
+                        await episodeSearchIndexerService.IndexEpisode(episodeId.Value, c);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed to index episode after submission. EpisodeId: '{EpisodeId}'.",
+                            episodeId.Value);
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    logger.LogError(ex, "Failed to index episode after submission. EpisodeId: '{EpisodeId}'.",
-                        result.EpisodeId);
+                    logger.LogError(
+                        "Submit result indicated episode state '{EpisodeResult}' but no episode id was returned. Url: '{Url}'.",
+                        result.EpisodeResult,
+                        submitUrlModel.Url);
                 }
             }
 

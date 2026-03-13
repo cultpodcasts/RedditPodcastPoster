@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Twitter.Models;
@@ -6,7 +6,7 @@ using RedditPodcastPoster.Twitter.Models;
 namespace RedditPodcastPoster.Twitter;
 
 public class TweetPoster(
-    IPodcastRepository repository,
+    IEpisodeRepository episodeRepository,
     ITweetBuilder tweetBuilder,
     ITwitterClient twitterClient,
     ILogger<TweetPoster> logger)
@@ -32,12 +32,12 @@ public class TweetPoster(
             podcastEpisode.Episode.Tweeted = true;
             try
             {
-                await repository.Save(podcastEpisode.Podcast);
+                await episodeRepository.Save(podcastEpisode.Episode);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    "Failure to save podcast with podcast-id '{PodcastId}' to update episode with id '{EpisodeId}'.", podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
+                    "Failure to save episode with podcast-id '{PodcastId}' and episode-id '{EpisodeId}' after tweet update.", podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
                 throw;
             }
 

@@ -1,12 +1,11 @@
 ﻿using System.Text.Json;
-using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace Sqllite3DatabasePublisher;
 
 public class Sqllite3DatabasePublisher(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
     ISubjectRepository subjectRepository,
     DatabaseContext databaseContext,
 #pragma warning disable CS9113 // Parameter is unread.
@@ -37,9 +36,13 @@ public class Sqllite3DatabasePublisher(
         var podcasts = await podcastRepository
             .GetAllBy(
                 podcast =>
-                    ((!podcast.Removed.IsDefined() || podcast.Removed == false) &&
-                     podcast.IndexAllEpisodes) || podcast.EpisodeIncludeTitleRegex != "",
-                podcast => new { id = podcast.Id, name = podcast.Name })
+                //    ((!podcast.Removed.IsDefined() || podcast.Removed == false) &&
+                //     podcast.IndexAllEpisodes) || podcast.EpisodeIncludeTitleRegex != "",
+                //podcast => new { id = podcast.Id, name = podcast.Name })
+
+                    ((!podcast.Removed.HasValue || podcast.Removed == false) &&
+                     podcast.IndexAllEpisodes) || podcast.EpisodeIncludeTitleRegex != string.Empty)
+            .Select(podcast => new { id = podcast.Id, name = podcast.Name })
             .ToListAsync();
 
         foreach (var podcast in podcasts)

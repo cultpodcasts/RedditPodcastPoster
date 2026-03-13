@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
@@ -55,7 +56,6 @@ public class PodcastAndEpisodeFactory(
 
         var episode = episodeFactory.CreateEpisode(categorisedItem);
         var subjectsResult = await subjectEnricher.EnrichSubjects(episode);
-        newPodcast.Episodes.Add(episode);
         logger.LogInformation("Created podcast with name '{ShowName}' with id '{NewPodcastId}'.", showName, newPodcast.Id);
 
         var submitEpisodeDetails = new SubmitEpisodeDetails(
@@ -65,6 +65,10 @@ public class PodcastAndEpisodeFactory(
             subjectsResult.Additions,
             episode.Urls.BBC != null,
             episode.Urls.InternetArchive != null);
+        episode.PodcastId = newPodcast.Id;
+        episode.PodcastName = newPodcast.Name;
+        episode.PodcastRemoved = newPodcast.Removed;
+        episode.PodcastSearchTerms = newPodcast.SearchTerms;
         return new CreatePodcastWithEpisodeResponse(newPodcast, episode, submitEpisodeDetails);
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.PodcastServices.Abstractions;
+﻿using RedditPodcastPoster.Models.V2;
+
+namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public interface IPodcastServiceEpisodeEnricher
 {

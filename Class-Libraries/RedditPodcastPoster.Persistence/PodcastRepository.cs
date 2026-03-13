@@ -41,7 +41,6 @@ public class PodcastRepository(
                 if (existingEpisode == null)
                 {
                     episodeToMerge.Id = Guid.NewGuid();
-                    episodeToMerge.ModelType = ModelType.Episode;
                     podcast.Episodes.Add(episodeToMerge);
                     addedEpisodes.Add(episodeToMerge);
                 }
@@ -72,6 +71,12 @@ public class PodcastRepository(
     public IAsyncEnumerable<Guid> GetAllIds()
     {
         return dataRepository.GetAllIds<Podcast>();
+    }
+
+    public async Task<int> GetTotalCount()
+    {
+        var allIds = await dataRepository.GetAllIds<Podcast>().ToListAsync();
+        return allIds.Count;
     }
 
     public IAsyncEnumerable<string> GetAllFileKeys()

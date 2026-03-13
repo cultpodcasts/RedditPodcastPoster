@@ -1,4 +1,4 @@
-﻿using Reddit.Controllers;
+using Reddit.Controllers;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Reddit;

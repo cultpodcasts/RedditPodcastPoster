@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

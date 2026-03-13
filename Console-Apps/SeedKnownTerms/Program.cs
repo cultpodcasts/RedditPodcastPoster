@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.Text.KnownTerms;
 using SeedKnownTerms;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -20,7 +19,6 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
-    .AddScoped<IKnownTermsRepository, KnownTermsRepository>()
     .AddSingleton<KnownTermsSeeder>();
 
 using var host = builder.Build();

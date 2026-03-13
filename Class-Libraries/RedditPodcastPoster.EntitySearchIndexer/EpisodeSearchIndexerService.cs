@@ -1,44 +1,44 @@
-﻿using Azure;
+using Azure;
 using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Search;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.EntitySearchIndexer;
 
 public class EpisodeSearchIndexerService(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     SearchClient searchClient,
     ILogger<EpisodeSearchIndexerService> logger) : IEpisodeSearchIndexerService
 {
     public async Task<EntitySearchIndexerResponse> IndexEpisode(Guid episodeId, CancellationToken c)
     {
-        var podcast = await podcastRepository.GetBy(x => x.Episodes.Any(e => e.Id == episodeId));
-        if (podcast == null)
+        var episode = await episodeRepository.GetBy(x => x.Id == episodeId);
+        if (episode == null)
         {
             logger.LogError("Unable to find episode to reindex. Episode-id: '{episodeId}'.", episodeId);
             return new EntitySearchIndexerResponse
                 { EpisodeIndexRequestState = EpisodeIndexRequestState.EpisodeNotFound };
         }
 
-        var episode = podcast.Episodes.Where(e => e.Id == episodeId);
-        if (episode.Count() > 1)
+        var podcast = await podcastRepository.GetPodcast(episode.PodcastId);
+        if (podcast == null)
         {
-            logger.LogError("Multiple episodes with Episode-id: '{episodeId}'.", episodeId);
+            logger.LogError("Unable to find podcast to reindex. Podcast-id: '{podcastId}'.", episode.PodcastId);
             return new EntitySearchIndexerResponse
-                { EpisodeIndexRequestState = EpisodeIndexRequestState.EpisodeIdConflict };
+                { EpisodeIndexRequestState = EpisodeIndexRequestState.EpisodeNotFound };
         }
 
-        var document = new PodcastEpisode(podcast, podcast.Episodes.Single(x => x.Id == episodeId))
-            .ToEpisodeSearchRecord();
+        var document = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
 
         try
         {
-            var result =
-                await searchClient.MergeOrUploadDocumentsAsync([document],
-                    new IndexDocumentsOptions { ThrowOnAnyError = true }, c);
+            await searchClient.MergeOrUploadDocumentsAsync([document],
+                new IndexDocumentsOptions { ThrowOnAnyError = true }, c);
             return new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed };
         }
         catch (RequestFailedException ex)
@@ -54,36 +54,29 @@ public class EpisodeSearchIndexerService(
     {
         var documents = new List<EpisodeSearchRecord>();
         var podcasts = new Dictionary<Guid, Podcast>();
+
         foreach (var episodeId in episodeIds)
         {
-            var podcastId =
-                await podcastRepository.GetBy(x => x.Episodes.Any(e => e.Id == episodeId), p => new { Id = p.Id });
-            if (podcastId == null)
+            var episode = await episodeRepository.GetBy(x => x.Id == episodeId);
+            if (episode == null)
             {
                 logger.LogError("Unable to find episode to reindex. Episode-id: '{episodeId}'.", episodeId);
                 continue;
             }
 
-            Podcast podcast;
-            if (podcasts.ContainsKey(podcastId!.Id))
+            if (!podcasts.TryGetValue(episode.PodcastId, out var podcast))
             {
-                podcast = podcasts[podcastId.Id];
-            }
-            else
-            {
-                podcast = (await podcastRepository.GetBy(x => x.Id == podcastId.Id))!;
-                podcasts.Add(podcastId.Id, podcast);
+                podcast = await podcastRepository.GetPodcast(episode.PodcastId);
+                if (podcast == null)
+                {
+                    logger.LogError("Unable to find podcast to reindex. Podcast-id: '{podcastId}'.", episode.PodcastId);
+                    continue;
+                }
+
+                podcasts.Add(episode.PodcastId, podcast);
             }
 
-            var episode = podcast.Episodes.Where(e => e.Id == episodeId);
-            if (episode.Count() > 1)
-            {
-                logger.LogError("Multiple episodes with Episode-id: '{episodeId}'.", episodeId);
-                continue;
-            }
-
-            var document = new PodcastEpisode(podcast, podcast.Episodes.Single(x => x.Id == episodeId))
-                .ToEpisodeSearchRecord();
+            var document = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
             documents.Add(document);
         }
 
@@ -110,10 +103,8 @@ public class EpisodeSearchIndexerService(
 
             return new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed };
         }
-        else
-        {
-            logger.LogWarning("No documents to update in search-index");
-            return new EntitySearchIndexerResponse { EpisodeIndexRequestState = EpisodeIndexRequestState.NoDocuments };
-        }
+
+        logger.LogWarning("No documents to update in search-index");
+        return new EntitySearchIndexerResponse { EpisodeIndexRequestState = EpisodeIndexRequestState.NoDocuments };
     }
 }

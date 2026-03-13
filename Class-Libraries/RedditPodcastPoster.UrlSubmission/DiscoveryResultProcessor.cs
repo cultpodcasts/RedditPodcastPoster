@@ -9,6 +9,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.UrlSubmission;
 
@@ -111,7 +112,7 @@ public class DiscoveryResultProcessor(
             categorisedItem = categorisedItem with
             {
                 ResolvedSpotifyItem =
-                await spotifyUrlCategoriser.Resolve(null, urls.Spotify!, indexingContext)
+                await spotifyUrlCategoriser.Resolve(null, [], urls.Spotify!, indexingContext)
             };
         }
 
@@ -130,7 +131,7 @@ public class DiscoveryResultProcessor(
             categorisedItem = categorisedItem with
             {
                 ResolvedAppleItem =
-                await appleUrlCategoriser.Resolve(null, urls.Apple!, indexingContext)
+                await appleUrlCategoriser.Resolve(null, [], urls.Apple!, indexingContext)
             };
         }
 
@@ -145,7 +146,7 @@ public class DiscoveryResultProcessor(
         {
             categorisedItem = categorisedItem with
             {
-                ResolvedYouTubeItem = await youTubeUrlCategoriser.Resolve(null, urls.YouTube!, indexingContext)
+                ResolvedYouTubeItem = await youTubeUrlCategoriser.Resolve(null, [],urls.YouTube!, indexingContext)
             };
         }
 

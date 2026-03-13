@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Indexing.Models;
+using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Subjects;
@@ -8,7 +9,8 @@ using RedditPodcastPoster.Subjects.Models;
 namespace RedditPodcastPoster.Indexing;
 
 public class Indexer(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     IPodcastUpdater podcastUpdater,
     ISubjectEnricher subjectEnricher,
     ILogger<Indexer> logger
@@ -16,22 +18,14 @@ public class Indexer(
 {
     public async Task<IndexResponse> Index(string podcastName, IndexingContext indexingContext)
     {
-        var podcasts = await podcastRepository.GetAllBy(
-            x => x.Name == podcastName,
-            x => new
-            {
-                id = x.Id, name = x.Name,
-                indexAllEpisodes = x.IndexAllEpisodes,
-                episodeIncludeTitleRegex = x.EpisodeIncludeTitleRegex,
-                removed = x.Removed,
-                bypassShortEpisodeChecking = x.BypassShortEpisodeChecking ?? false
-            }).ToListAsync();
+        var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastName).ToListAsync();
 
         if (podcasts.Any())
         {
             var canIndex = podcasts.Where(x =>
-                !(x.removed.HasValue && x.removed.Value) &&
-                (x.indexAllEpisodes || !string.IsNullOrWhiteSpace(x.episodeIncludeTitleRegex)));
+                !(x.Removed.HasValue && x.Removed.Value) &&
+                (x.IndexAllEpisodes || !string.IsNullOrWhiteSpace(x.EpisodeIncludeTitleRegex)));
+            
             if (!canIndex.Any() || canIndex.Count() > 1)
             {
                 if (podcasts.Count == 1 && !canIndex.Any())
@@ -45,8 +39,8 @@ public class Indexer(
             }
 
             var podcast = canIndex.Single();
-            return await Index(podcast.id,
-                indexingContext with { SkipShortEpisodes = !podcast.bypassShortEpisodeChecking });
+            return await Index(podcast.Id,
+                indexingContext with { SkipShortEpisodes = !(podcast.BypassShortEpisodeChecking ?? false) });
         }
 
         return new IndexResponse(IndexStatus.NotFound);
@@ -54,14 +48,25 @@ public class Indexer(
 
     public async Task<IndexResponse> Index(Guid podcastId, IndexingContext indexingContext, bool forceIndex= false)
     {
-        IndexStatus status;
         var podcast = await podcastRepository.GetPodcast(podcastId);
+        if (podcast == null)
+        {
+            return new IndexResponse(IndexStatus.NotFound);
+        }
+
+        if (podcast.Removed == true)
+        {
+            logger.LogWarning("Podcast '{PodcastName}' with id '{PodcastId}' is removed and will not be indexed.",
+                podcast.Name,
+                podcast.Id);
+            return new IndexResponse(IndexStatus.NotPerformed);
+        }
+
+        IndexStatus status;
         IndexedEpisode[]? updatedEpisodes = null;
 
-        var performAutoIndex = podcast != null &&
-                               !podcast.IsRemoved() &&
-                               (podcast.IndexAllEpisodes ||
-                                !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex));
+        var performAutoIndex = podcast.IndexAllEpisodes ||
+                               !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex);
         var enrichOnly = false;
         if (!performAutoIndex)
         {
@@ -75,6 +80,8 @@ public class Indexer(
         if (performAutoIndex || enrichOnly || forceIndex)
         {
             logger.LogInformation("Indexing podcast '{podcastName}' with podcast-id '{podcastId}'.", podcast.Name, podcastId);
+            
+            // Pass V2 podcast directly - no conversion needed!
             var results = await podcastUpdater.Update(podcast, enrichOnly, indexingContext);
 
             updatedEpisodes = results.MergeResult.AddedEpisodes
@@ -105,7 +112,11 @@ public class Indexer(
                 logger.LogInformation(resultsMessage);
             }
 
-            var episodes = podcast.Episodes.Where(x => x.Release >= indexingContext.ReleasedSince);
+            // Load episodes from detached repository for subject enrichment
+            var episodes = await episodeRepository.GetByPodcastId(podcastId)
+                .Where(x => x.Release >= indexingContext.ReleasedSince)
+                .ToListAsync();
+            
             foreach (var episode in episodes)
             {
                 var subjectsResult = await subjectEnricher.EnrichSubjects(
@@ -115,6 +126,7 @@ public class Indexer(
                         podcast.IgnoredSubjects,
                         podcast.DefaultSubject,
                         podcast.DescriptionRegex));
+                
                 var result = updatedEpisodes.FirstOrDefault(x => x.EpisodeId == episode.Id);
                 if (result != null)
                 {
@@ -122,31 +134,16 @@ public class Indexer(
                 }
             }
 
-            await podcastRepository.Save(podcast);
+            // Note: PodcastUpdaterV2 already saved podcast and episodes
             status = IndexStatus.Performed;
         }
         else
         {
-            if (podcast != null)
-            {
-                if (podcast.IsRemoved())
-                {
-                    logger.LogWarning("Podcast '{podcast.Name}' with id '{podcast.Id}' is removed.", podcast.Name,
-                        podcast.Id);
-                }
-                else
-                {
-                    logger.LogWarning(
-                        "Podcast '{podcastName}' with id '{podcastId}' ignored. index-all-episodes '{podcastIndexAllEpisodes}', episode-include-title-regex: '{podcastEpisodeIncludeTitleRegex}'.",
-                        podcast.Name, podcast.Id, podcast.IndexAllEpisodes, podcast.EpisodeIncludeTitleRegex);
-                }
+            logger.LogWarning(
+                "Podcast '{podcastName}' with id '{podcastId}' ignored. index-all-episodes '{podcastIndexAllEpisodes}', episode-include-title-regex: '{podcastEpisodeIncludeTitleRegex}'.",
+                podcast.Name, podcast.Id, podcast.IndexAllEpisodes, podcast.EpisodeIncludeTitleRegex);
 
-                status = IndexStatus.NotPerformed;
-            }
-            else
-            {
-                status = IndexStatus.NotFound;
-            }
+            status = IndexStatus.NotPerformed;
         }
 
         updatedEpisodes = Collapse(updatedEpisodes);
@@ -156,14 +153,12 @@ public class Indexer(
 
     private async Task<bool> HasEpisodesAwaitingEnrichment(Guid podcastId, IndexingContext indexingContext)
     {
-        if (indexingContext.ReleasedSince == null)
-        {
-            return false;
-        }
-
-        return await podcastRepository.PodcastHasEpisodesAwaitingEnrichment(
-            podcastId,
-            indexingContext.ReleasedSince.Value);
+        // Use IEpisodeRepository instead of legacy repository method
+        var episodes = await episodeRepository.GetByPodcastId(podcastId)
+            .Where(x => x.Release >= indexingContext.ReleasedSince)
+            .ToListAsync();
+        
+        return episodes.Any();
     }
 
     private static IndexedEpisode[]? Collapse(IndexedEpisode[]? episodes)

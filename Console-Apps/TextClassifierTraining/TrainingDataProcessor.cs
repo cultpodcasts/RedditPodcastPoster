@@ -1,7 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subreddit;
@@ -12,7 +11,8 @@ namespace TextClassifierTraining;
 public class TrainingDataProcessor(
     ISubredditPostProvider subredditPostProvider,
     ISubredditRepository subredditRepository,
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     ISubjectCleanser subjectCleanser,
     ISubjectService subjectService,
     ILogger<TrainingDataProcessor> logger)
@@ -56,13 +56,18 @@ public class TrainingDataProcessor(
             "Total reddit posts with understood links: {Count}", redditPostMetaDatas.Count());
 
         logger.LogInformation(
-            "Total reddit posts with flair: {Count}", redditPosts.Where(x => !string.IsNullOrWhiteSpace(x.LinkFlairText)).Count());
+            "Total reddit posts with flair: {Count}",
+            redditPosts.Count(x => !string.IsNullOrWhiteSpace(x.LinkFlairText)));
 
 
         var podcasts = await podcastRepository.GetAll().ToListAsync();
 
-        var podcastEpisodes = podcasts.SelectMany(podcast => podcast.Episodes,
-            (podcast, episode) => new PodcastEpisode(podcast, episode));
+        var podcastEpisodes = new List<(RedditPodcastPoster.Models.V2.Podcast Podcast, RedditPodcastPoster.Models.V2.Episode Episode)>();
+        foreach (var podcast in podcasts)
+        {
+            var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+            podcastEpisodes.AddRange(episodes.Select(episode => (podcast, episode)));
+        }
 
         var labels = new Labels
         {
@@ -118,7 +123,8 @@ public class TrainingDataProcessor(
                 if (unmatched)
                 {
                     logger.LogError(
-                        "Podcast '{PodcastName}' id:'{PodcastId}' Episode-id:'{EpisodeId}'.", podcastEpisode.Podcast.Name, podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
+                        "Podcast '{PodcastName}' id:'{PodcastId}' Episode-id:'{EpisodeId}'.",
+                        podcastEpisode.Podcast.Name, podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
                 }
             }
             else
@@ -126,12 +132,14 @@ public class TrainingDataProcessor(
                 subjects = (await subjectService.Match(
                         podcastEpisode.Episode,
                         podcastEpisode.Podcast.IgnoredAssociatedSubjects,
-                        podcastEpisode.Podcast.IgnoredSubjects))
+                        podcastEpisode.Podcast.IgnoredSubjects,
+                        podcastEpisode.Podcast.DescriptionRegex))
                     .OrderByDescending(x => x.MatchResults.Sum(y => y.Matches)).Select(x => x.Subject.Name).ToList();
                 if (!subjects.Any())
                 {
                     logger.LogError(
-                        "MISSING: '{EpisodeTitle}' - '{EpisodeDescription}'.", podcastEpisode.Episode.Title, podcastEpisode.Episode.Description);
+                        "MISSING: '{EpisodeTitle}' - '{EpisodeDescription}'.", podcastEpisode.Episode.Title,
+                        podcastEpisode.Episode.Description);
                 }
             }
 
@@ -146,17 +154,11 @@ ${podcastEpisode.Episode.Description}");
                 {
                     if (!labels.Assets.Classes.Select(x => x.Category.ToLower()).Contains(subject))
                     {
-                        labels.Assets.Classes.Add(new Class {Category = subject});
+                        labels.Assets.Classes.Add(new Class { Category = subject });
                     }
                 }
 
-                var documentSubjects = subjects.Distinct().Select(x => new Class {Category = x.ToLower()}).ToList();
-
-                //if (documentSubjects.Count > 1)
-                //{
-                //    _logger.LogInformation(
-                //        $"'{flairedEpisode.Item1.Name}' episode {flairedEpisode.Item2.Id} multiple-subjects: {string.Join(", ", subjects.Select(x => $"'{x}'"))}.");
-                //}
+                var documentSubjects = subjects.Distinct().Select(x => new Class { Category = x.ToLower() }).ToList();
 
                 labels.Assets.Documents.Add(new Document
                 {

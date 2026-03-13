@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
@@ -9,6 +10,8 @@ using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.UrlSubmission.Categorisation;
 
@@ -16,6 +19,7 @@ public class UrlCategoriser(
     ISpotifyUrlCategoriser spotifyUrlCategoriser,
     IAppleUrlCategoriser appleUrlCategoriser,
     IYouTubeUrlCategoriser youTubeUrlCategoriser,
+    IEpisodeRepository episodeRepository,
     INonPodcastServiceCategoriser nonPodcastServiceCategoriser,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<UrlCategoriser> logger)
@@ -36,30 +40,34 @@ public class UrlCategoriser(
         Service authority = 0;
 
         Episode? matchingEpisode = null;
+        List<Episode> episodes=[];
+        if (podcast != null)
+        {
+            episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+        }
 
         if (SpotifyPodcastServiceMatcher.IsMatch(url))
         {
-            resolvedSpotifyItem = await spotifyUrlCategoriser.Resolve(podcast, url, indexingContext);
-            matchingEpisode = podcast?.Episodes.SingleOrDefault(x =>
+            resolvedSpotifyItem = await spotifyUrlCategoriser.Resolve(podcast, episodes, url, indexingContext);
+            matchingEpisode = episodes.SingleOrDefault(x =>
                 x.Urls.Spotify == url || x.SpotifyId == resolvedSpotifyItem.EpisodeId);
             criteria = resolvedSpotifyItem.ToPodcastServiceSearchCriteria();
             authority = Service.Spotify;
         }
         else if (ApplePodcastServiceMatcher.IsMatch(url))
         {
-            resolvedAppleItem = await appleUrlCategoriser.Resolve(podcast, url, indexingContext);
+            resolvedAppleItem = await appleUrlCategoriser.Resolve(podcast, episodes, url, indexingContext);
             criteria = resolvedAppleItem.ToPodcastServiceSearchCriteria();
-            matchingEpisode =
-                podcast?.Episodes.SingleOrDefault(x => x.Urls.Apple == url || x.AppleId == resolvedAppleItem.EpisodeId);
+            matchingEpisode = episodes.SingleOrDefault(x => x.Urls.Apple == url || x.AppleId == resolvedAppleItem.EpisodeId);
             authority = Service.Apple;
         }
         else if (YouTubePodcastServiceMatcher.IsMatch(url))
         {
-            resolvedYouTubeItem = await youTubeUrlCategoriser.Resolve(podcast, url, indexingContext);
+            resolvedYouTubeItem = await youTubeUrlCategoriser.Resolve(podcast, episodes,url, indexingContext);
             if (resolvedYouTubeItem != null)
             {
                 criteria = resolvedYouTubeItem.ToPodcastServiceSearchCriteria();
-                matchingEpisode = podcast?.Episodes.SingleOrDefault(x =>
+                matchingEpisode = episodes.SingleOrDefault(x =>
                     x.Urls.YouTube == url || x.YouTubeId == resolvedYouTubeItem.EpisodeId);
                 authority = Service.YouTube;
             }
@@ -83,7 +91,6 @@ public class UrlCategoriser(
             {
                 if (resolvedSpotifyItem == null && !SpotifyPodcastServiceMatcher.IsMatch(url) &&
                     (string.IsNullOrWhiteSpace(matchingEpisode?.SpotifyId) ||
-                     // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
                      matchingEpisode?.Urls.Spotify == null ||
                      string.IsNullOrWhiteSpace(podcast?.SpotifyId)))
                 {
@@ -107,10 +114,8 @@ public class UrlCategoriser(
                     }
                 }
 
-
                 if (resolvedAppleItem == null && !ApplePodcastServiceMatcher.IsMatch(url) &&
                     (matchingEpisode?.AppleId == null ||
-                     // ReSharper disable once ConstantConditionalAccessQualifier
                      matchingEpisode?.Urls.Apple == null ||
                      podcast?.AppleId == null))
                 {
@@ -124,7 +129,6 @@ public class UrlCategoriser(
                         {
                             criteria = criteria with
                             {
-                                // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
                                 Publisher = resolvedSpotifyItem.Publisher ?? string.Empty
                             };
                         }
@@ -146,7 +150,6 @@ public class UrlCategoriser(
 
                 if (resolvedYouTubeItem == null && !YouTubePodcastServiceMatcher.IsMatch(url) &&
                     (string.IsNullOrWhiteSpace(matchingEpisode?.YouTubeId) ||
-                     // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
                      matchingEpisode?.Urls.YouTube == null ||
                      string.IsNullOrWhiteSpace(podcast?.YouTubeChannelId)))
                 {
@@ -159,16 +162,16 @@ public class UrlCategoriser(
                     }
 
                     resolvedYouTubeItem =
-                        await youTubeUrlCategoriser.Resolve(criteria, podcast, indexingContext);
+                        await youTubeUrlCategoriser.Resolve(criteria, podcast, episodes, indexingContext);
                     if (resolvedYouTubeItem != null)
                     {
                         criteria = criteria.Merge(resolvedYouTubeItem);
                     }
                 }
             }
-
             return new CategorisedItem(
                 podcast,
+                episodes,
                 matchingEpisode,
                 resolvedSpotifyItem,
                 resolvedAppleItem,
@@ -181,6 +184,7 @@ public class UrlCategoriser(
         {
             return new CategorisedItem(
                 resolvedNonPodcastServiceItem.Podcast,
+                episodes,
                 resolvedNonPodcastServiceItem.Episode,
                 null,
                 null,
@@ -196,4 +200,6 @@ public class UrlCategoriser(
 
         throw new InvalidOperationException($"Unable to handle url '{url}'.");
     }
+
+
 }

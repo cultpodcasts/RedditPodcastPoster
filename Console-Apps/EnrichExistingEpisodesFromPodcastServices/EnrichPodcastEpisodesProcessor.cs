@@ -17,7 +17,8 @@ using RedditPodcastPoster.Text;
 namespace EnrichExistingEpisodesFromPodcastServices;
 
 public class EnrichPodcastEpisodesProcessor(
-    IPodcastRepository podcastsRepository,
+    IPodcastRepositoryV2 podcastsRepository,
+    IEpisodeRepository episodeRepository,
     ISpotifyUrlCategoriser spotifyUrlCategoriser,
     IAppleUrlCategoriser appleUrlCategoriser,
     IYouTubeUrlCategoriser youTubeUrlCategoriser,
@@ -55,8 +56,9 @@ public class EnrichPodcastEpisodesProcessor(
         else if (request.PodcastName != null)
         {
             var podcastIds = await podcastsRepository.GetAllBy(x =>
-                    x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase),
-                x => x.Id).ToListAsync();
+                    x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase))
+                .Select(x => x.Id)
+                .ToListAsync();
             if (!podcastIds.Any())
             {
                 throw new InvalidOperationException($"No podcast matching '{request.PodcastName}' could be found.");
@@ -64,7 +66,8 @@ public class EnrichPodcastEpisodesProcessor(
 
             if (podcastIds.Count() > 1)
             {
-                throw new InvalidOperationException($"Multiple podcasts matching '{request.PodcastName}' were found. Ids: {string.Join(", ", podcastIds)}.");
+                throw new InvalidOperationException(
+                    $"Multiple podcasts matching '{request.PodcastName}' were found. Ids: {string.Join(", ", podcastIds)}.");
             }
 
             podcastId = podcastIds.First();
@@ -74,36 +77,38 @@ public class EnrichPodcastEpisodesProcessor(
             throw new InvalidOperationException("A podcast-id or podcast-name must be provided.");
         }
 
-
         var podcast = await podcastsRepository.GetPodcast(podcastId);
         if (podcast == null)
         {
             throw new ArgumentException($"No podcast found with id '{request.PodcastId}'.");
         }
 
-        IEnumerable<Episode> episodes = podcast.Episodes;
+        var episodesQuery = episodeRepository.GetByPodcastId(podcastId);
         if (request.ReleasedSince.HasValue)
         {
-            episodes = episodes.Where(x => x.Release >= indexingContext.ReleasedSince);
+            episodesQuery = episodeRepository.GetAllBy(x =>
+                x.PodcastId == podcastId && x.Release >= indexingContext.ReleasedSince);
         }
 
-        var podcastUpdated = false;
-        foreach (var episode in episodes)
+        var currentEpisodes = await episodeRepository.GetAllBy(x => x.PodcastId == podcastId).ToListAsync();
+
+        await foreach (var detachedEpisode in episodesQuery)
         {
             var episodeUpdated = false;
             var criteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty, podcast.Publisher,
-                episode.Title, episode.Description, episode.Release, episode.Length);
+                detachedEpisode.Title, detachedEpisode.Description, detachedEpisode.Release, detachedEpisode.Length);
 
             if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
                 !string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
-                !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
-                episode.AppleId == null)
+                !string.IsNullOrWhiteSpace(detachedEpisode.SpotifyId) &&
+                detachedEpisode.AppleId == null)
             {
                 var spotifyEpisode =
-                    await spotifyEpisodeResolver.FindEpisode(FindSpotifyEpisodeRequestFactory.Create(podcast, episode),
+                    await spotifyEpisodeResolver.FindEpisode(
+                        FindSpotifyEpisodeRequestFactory.Create(podcast, detachedEpisode),
                         indexingContext);
                 if (spotifyEpisode?.FullEpisode != null &&
-                    spotifyEpisode.FullEpisode.Name.Trim() != episode.Title.Trim())
+                    spotifyEpisode.FullEpisode.Name.Trim() != detachedEpisode.Title.Trim())
                 {
                     criteria.SpotifyTitle = spotifyEpisode.FullEpisode.Name.Trim();
                 }
@@ -111,43 +116,47 @@ public class EnrichPodcastEpisodesProcessor(
 
             if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
                 podcast.AppleId != null &&
-                episode.AppleId != null &&
-                string.IsNullOrWhiteSpace(episode.SpotifyId))
+                detachedEpisode.AppleId != null &&
+                string.IsNullOrWhiteSpace(detachedEpisode.SpotifyId))
             {
                 var appleEpisode =
-                    await appleEpisodeResolver.FindEpisode(FindAppleEpisodeRequestFactory.Create(podcast, episode),
+                    await appleEpisodeResolver.FindEpisode(
+                        FindAppleEpisodeRequestFactory.Create(podcast, detachedEpisode),
                         indexingContext);
-                if (appleEpisode != null && appleEpisode.Title.Trim() != episode.Title.Trim())
+                if (appleEpisode != null && appleEpisode.Title.Trim() != detachedEpisode.Title.Trim())
                 {
                     criteria.AppleTitle = appleEpisode.Title.Trim();
                 }
             }
 
-            if (podcast.AppleId != null && (episode.AppleId == null || episode.Urls.Apple == null))
+            if (podcast.AppleId != null && (detachedEpisode.AppleId == null || detachedEpisode.Urls.Apple == null))
             {
                 var match = await appleUrlCategoriser.Resolve(criteria, podcast, indexingContext);
                 if (match != null)
                 {
-                    episode.Urls.Apple ??= match.Url;
-                    episode.AppleId ??= match.EpisodeId;
+                    detachedEpisode.Urls.Apple ??= match.Url;
+                    detachedEpisode.AppleId ??= match.EpisodeId;
                     var appleImage = match.Image;
                     if (appleImage != null)
                     {
-                        episode.Images ??= new EpisodeImages();
-                        episode.Images.Apple = appleImage;
+                        detachedEpisode.Images ??= new EpisodeImages();
+                        detachedEpisode.Images.Apple = appleImage;
                     }
 
-                    logger.LogInformation("Enriched from apple: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.", match.EpisodeId, match.Url);
+                    logger.LogInformation("Enriched from apple: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.",
+                        match.EpisodeId,
+                        match.Url);
                     episodeUpdated = true;
                 }
                 else
                 {
-                    if ((!string.IsNullOrWhiteSpace(episode.SpotifyId) || episode.Urls.Spotify != null) &&
+                    if ((!string.IsNullOrWhiteSpace(detachedEpisode.SpotifyId) ||
+                         detachedEpisode.Urls.Spotify != null) &&
                         podcast.ReleaseAuthority == Service.YouTube)
                     {
                         var spotifyEpisode =
                             await spotifyEpisodeResolver.FindEpisode(
-                                FindSpotifyEpisodeRequestFactory.Create(podcast, episode), indexingContext);
+                                FindSpotifyEpisodeRequestFactory.Create(podcast, detachedEpisode), indexingContext);
                         if (spotifyEpisode.FullEpisode != null)
                         {
                             var refinedCriteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty,
@@ -158,17 +167,18 @@ public class EnrichPodcastEpisodesProcessor(
                             match = await appleUrlCategoriser.Resolve(refinedCriteria, podcast, indexingContext);
                             if (match != null)
                             {
-                                episode.Urls.Apple ??= match.Url;
-                                episode.AppleId ??= match.EpisodeId;
+                                detachedEpisode.Urls.Apple ??= match.Url;
+                                detachedEpisode.AppleId ??= match.EpisodeId;
                                 var appleImage = match.Image;
                                 if (appleImage != null)
                                 {
-                                    episode.Images ??= new EpisodeImages();
-                                    episode.Images.Apple = appleImage;
+                                    detachedEpisode.Images ??= new EpisodeImages();
+                                    detachedEpisode.Images.Apple = appleImage;
                                 }
 
                                 logger.LogInformation(
-                                    "Enriched from apple: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.", match.EpisodeId, match.Url);
+                                    "Enriched from apple: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.", match.EpisodeId,
+                                    match.Url);
                                 episodeUpdated = true;
                             }
                         }
@@ -177,98 +187,108 @@ public class EnrichPodcastEpisodesProcessor(
             }
 
             if (podcast.YouTubeChannelId != null &&
-                (string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.Urls.YouTube == null))
+                (string.IsNullOrWhiteSpace(detachedEpisode.YouTubeId) || detachedEpisode.Urls.YouTube == null))
             {
-                if (string.IsNullOrWhiteSpace(episode.YouTubeId) && episode.Urls.YouTube != null)
+                if (string.IsNullOrWhiteSpace(detachedEpisode.YouTubeId) && detachedEpisode.Urls.YouTube != null)
                 {
-                    var youTubeId = YouTubeIdResolver.Extract(episode.Urls.YouTube);
+                    var youTubeId = YouTubeIdResolver.Extract(detachedEpisode.Urls.YouTube);
                     if (!string.IsNullOrWhiteSpace(youTubeId))
                     {
-                        episode.YouTubeId = youTubeId;
+                        detachedEpisode.YouTubeId = youTubeId;
                         logger.LogInformation(
-                            "Enriched from youtube-url: '{UrlsYouTube}', youtube-id: '{EpisodeYouTubeId}'.", episode.Urls.YouTube, episode.YouTubeId);
+                            "Enriched from youtube-url: '{UrlsYouTube}', youtube-id: '{EpisodeYouTubeId}'.",
+                            detachedEpisode.Urls.YouTube, detachedEpisode.YouTubeId);
                     }
                 }
-                else if (episode.Urls.YouTube == null && !string.IsNullOrWhiteSpace(episode.YouTubeId))
+                else if (detachedEpisode.Urls.YouTube == null && !string.IsNullOrWhiteSpace(detachedEpisode.YouTubeId))
                 {
-                    episode.Urls.YouTube = SearchResultExtensions.ToYouTubeUrl(episode.YouTubeId);
+                    detachedEpisode.Urls.YouTube = SearchResultExtensions.ToYouTubeUrl(detachedEpisode.YouTubeId);
                     logger.LogInformation(
-                        "Enriched from youtube-id: '{EpisodeYouTubeId}', Url: '{UrlsYouTube}'.", episode.YouTubeId, episode.Urls.YouTube);
+                        "Enriched from youtube-id: '{EpisodeYouTubeId}', Url: '{UrlsYouTube}'.",
+                        detachedEpisode.YouTubeId,
+                        detachedEpisode.Urls.YouTube);
                 }
                 else
                 {
-                    var match = await youTubeUrlCategoriser.Resolve(criteria, podcast, indexingContext);
+                    var match = await youTubeUrlCategoriser.Resolve(criteria, podcast, currentEpisodes,
+                        indexingContext);
                     if (match != null)
                     {
-                        episode.Urls.YouTube ??= match.Url;
-                        if (string.IsNullOrWhiteSpace(episode.YouTubeId))
+                        detachedEpisode.Urls.YouTube ??= match.Url;
+                        if (string.IsNullOrWhiteSpace(detachedEpisode.YouTubeId))
                         {
-                            episode.YouTubeId = match.EpisodeId;
+                            detachedEpisode.YouTubeId = match.EpisodeId;
                         }
 
                         var youTubeImage = match.Image;
                         if (youTubeImage != null)
                         {
-                            episode.Images ??= new EpisodeImages();
-                            episode.Images.YouTube = youTubeImage;
+                            detachedEpisode.Images ??= new EpisodeImages();
+                            detachedEpisode.Images.YouTube = youTubeImage;
                         }
 
                         logger.LogInformation(
-                            "Enriched episode with episode-id '{EpisodeId}' from youtube: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.", episode.Id, match.EpisodeId, match.Url);
+                            "Enriched episode with episode-id '{EpisodeId}' from youtube: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.",
+                            detachedEpisode.Id, match.EpisodeId, match.Url);
                         episodeUpdated = true;
                     }
                 }
             }
 
             if (podcast.SpotifyId != null &&
-                (string.IsNullOrWhiteSpace(episode.SpotifyId) || episode.Urls.Spotify == null))
+                (string.IsNullOrWhiteSpace(detachedEpisode.SpotifyId) || detachedEpisode.Urls.Spotify == null))
             {
                 var match = await spotifyUrlCategoriser.Resolve(criteria, podcast, indexingContext);
                 if (match != null)
                 {
-                    episode.Urls.Spotify ??= match.Url;
-                    if (string.IsNullOrWhiteSpace(episode.SpotifyId))
+                    detachedEpisode.Urls.Spotify ??= match.Url;
+                    if (string.IsNullOrWhiteSpace(detachedEpisode.SpotifyId))
                     {
-                        episode.SpotifyId = match.EpisodeId;
+                        detachedEpisode.SpotifyId = match.EpisodeId;
                     }
 
                     var spotifyImage = match.Image;
                     if (spotifyImage != null)
                     {
-                        episode.Images ??= new EpisodeImages();
-                        episode.Images.Spotify = spotifyImage;
+                        detachedEpisode.Images ??= new EpisodeImages();
+                        detachedEpisode.Images.Spotify = spotifyImage;
                     }
 
-                    logger.LogInformation("Enriched from spotify: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.", match.EpisodeId, match.Url);
+                    logger.LogInformation("Enriched from spotify: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.",
+                        match.EpisodeId,
+                        match.Url);
                     episodeUpdated = true;
                 }
                 else
                 {
-                    if ((episode.AppleId != null || episode.Urls.Apple != null) &&
+                    if ((detachedEpisode.AppleId != null || detachedEpisode.Urls.Apple != null) &&
                         podcast.ReleaseAuthority == Service.YouTube)
                     {
                         var appleEpisode =
                             await appleEpisodeResolver.FindEpisode(
-                                FindAppleEpisodeRequestFactory.Create(podcast, episode), indexingContext);
+                                FindAppleEpisodeRequestFactory.Create(podcast, detachedEpisode), indexingContext);
                         if (appleEpisode != null)
                         {
                             var refinedCriteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty,
-                                podcast.Publisher, appleEpisode.Title, appleEpisode.Description, appleEpisode.Release,
+                                podcast.Publisher, appleEpisode.Title, appleEpisode.Description,
+                                appleEpisode.Release,
                                 appleEpisode.Duration);
                             match = await spotifyUrlCategoriser.Resolve(refinedCriteria, podcast, indexingContext);
                             if (match != null)
                             {
-                                episode.Urls.Spotify ??= match.Url;
-                                episode.SpotifyId = match.EpisodeId;
+                                detachedEpisode.Urls.Spotify ??= match.Url;
+                                detachedEpisode.SpotifyId = match.EpisodeId;
                                 var spotifyImage = match.Image;
                                 if (spotifyImage != null)
                                 {
-                                    episode.Images ??= new EpisodeImages();
-                                    episode.Images.Spotify = spotifyImage;
+                                    detachedEpisode.Images ??= new EpisodeImages();
+                                    detachedEpisode.Images.Spotify = spotifyImage;
                                 }
 
                                 logger.LogInformation(
-                                    "Enriched from spotify: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.", match.EpisodeId, match.Url);
+                                    "Enriched from spotify: Id: '{MatchEpisodeId}', Url: '{MatchUrl}'.",
+                                    match.EpisodeId,
+                                    match.Url);
                                 episodeUpdated = true;
                             }
                         }
@@ -278,16 +298,13 @@ public class EnrichPodcastEpisodesProcessor(
 
             if (episodeUpdated)
             {
-                updatedEpisodeIds.Add(episode.Id);
+                await episodeRepository.Save(detachedEpisode);
+                updatedEpisodeIds.Add(detachedEpisode.Id);
             }
-
-            podcastUpdated |= episodeUpdated;
         }
 
-        if (podcastUpdated)
+        if (updatedEpisodeIds.Any())
         {
-            podcast.Episodes = podcast.Episodes.OrderByDescending(x => x.Release).ToList();
-            await podcastsRepository.Save(podcast);
             await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
         }
     }

@@ -12,8 +12,8 @@ public class SigningKeysFactory(IOptions<Auth0ValidationOptions> auth0Validation
                                                        throw new ArgumentNullException(
                                                            $"Missing '{nameof(Auth0ValidationOptions)}'.");
 
-    // Implement IAsyncFactory<T>.Create()
-    async Task<ICollection<SecurityKey>?> IAsyncFactory<ICollection<SecurityKey>?>.Create()
+    // Implement IAsyncFactory<T>.Create() as a public method to avoid explicit interface resolution
+    public async Task<ICollection<SecurityKey>?> Create()
     {
         var configurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
             $"https://{_options.Domain}/.well-known/openid-configuration",

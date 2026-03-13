@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.PodcastServices.Apple;
+namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class ResolvedAppleItem
 {

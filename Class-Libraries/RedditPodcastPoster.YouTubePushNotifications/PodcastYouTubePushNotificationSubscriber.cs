@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.YouTubePushNotifications;
 
@@ -42,7 +42,8 @@ public class PodcastYouTubePushNotificationSubscriber(
         {
             var body = await result.Content.ReadAsStringAsync();
             logger.LogError(
-                "Failure to subscribe podcast for youtube push notifications. Callback-url: '{CallbackUrl}', topic-url:'{TopicUrl}'. Result status-code: '{ToString}', response-body: '{Body}'.", callbackUrl, topicUrl, result.StatusCode.ToString(), body);
+                "Failure to subscribe podcast for youtube push notifications. Callback-url: '{CallbackUrl}', topic-url:'{TopicUrl}'. Result status-code: '{ToString}', response-body: '{Body}'.",
+                callbackUrl, topicUrl, result.StatusCode.ToString(), body);
         }
     }
 }

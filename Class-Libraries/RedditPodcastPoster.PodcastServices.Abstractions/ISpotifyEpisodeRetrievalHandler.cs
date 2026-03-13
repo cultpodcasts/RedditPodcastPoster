@@ -1,5 +1,8 @@
-﻿namespace RedditPodcastPoster.PodcastServices.Abstractions;
+﻿using RedditPodcastPoster.Models.V2;
 
-public interface ISpotifyEpisodeRetrievalHandler : IEpisodeRetrievalHandler
+namespace RedditPodcastPoster.PodcastServices.Abstractions;
+
+public interface ISpotifyEpisodeRetrievalHandler
 {
+    Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IndexingContext indexingContext);
 }

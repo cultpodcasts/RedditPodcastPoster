@@ -12,7 +12,12 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddSubjectServices()
         {
             return services
-                .AddSingleton<ISubjectRepository, SubjectRepository>()
+                .AddSingleton<ISubjectRepositoryV2>(s =>
+                {
+                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SubjectRepositoryV2>>();
+                    return new SubjectRepositoryV2(containerFactory.CreateSubjectsContainer(), logger);
+                })
                 .AddScoped<ISubjectService, SubjectService>()
                 .AddScoped<ISubjectEnricher, SubjectEnricher>()
                 .AddScoped<ISubjectMatcher, SubjectMatcher>()
@@ -22,7 +27,6 @@ public static class ServiceCollectionExtensions
                 .AddScoped<ISubjectFactory, SubjectFactory>()
                 .AddScoped<IHashTagProvider, HashTagProvider>()
                 .AddSingleton<ICachedSubjectProvider, CachedSubjectProvider>();
-            ;
         }
 
         public IServiceCollection AddCachedSubjectProvider()
@@ -34,7 +38,8 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddSubjectProvider()
         {
             return services
-                .AddSingleton<ISubjectsProvider, SubjectRepository>();
+                .AddSingleton<ISubjectsProvider>(s =>
+                    (ISubjectsProvider)s.GetRequiredService<ISubjectRepositoryV2>());
         }
     }
 }

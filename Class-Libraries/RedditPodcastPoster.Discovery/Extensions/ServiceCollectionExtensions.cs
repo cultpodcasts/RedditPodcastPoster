@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
@@ -40,7 +41,12 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddDiscoveryRepository()
         {
             return services
-                .AddScoped<IDiscoveryResultsRepository, DiscoveryResultsRepository>();
+                .AddSingleton<IDiscoveryResultsRepositoryV2>(s =>
+                {
+                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<DiscoveryResultsRepositoryV2>>();
+                    return new DiscoveryResultsRepositoryV2(containerFactory.CreateDiscoveryContainer(), logger);
+                });
         }
     }
 }

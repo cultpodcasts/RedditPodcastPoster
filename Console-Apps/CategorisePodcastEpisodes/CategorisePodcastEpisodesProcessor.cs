@@ -7,7 +7,8 @@ using RedditPodcastPoster.Subjects.Models;
 namespace CategorisePodcastEpisodes;
 
 public class CategorisePodcastEpisodesProcessor(
-    IPodcastRepository repository,
+    IPodcastRepositoryV2 repository,
+    IEpisodeRepository episodeRepository,
     ISubjectEnricher subjectEnricher,
     IRecentPodcastEpisodeCategoriser recentEpisodeCategoriser,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
@@ -22,10 +23,9 @@ public class CategorisePodcastEpisodesProcessor(
             Guid[] podcastIds;
             if (!string.IsNullOrWhiteSpace(request.PodcastPartialMatch))
             {
-                var ids = await repository
-                    .GetAllBy(x => x.Name.ToLower().Contains(request.PodcastPartialMatch.ToLower()),
-                        p => new { id = p.Id }).ToArrayAsync();
-                podcastIds = ids.Select(x => x.id).ToArray();
+                podcastIds = await repository
+                    .GetAllBy(x => x.Name.ToLower().Contains(request.PodcastPartialMatch.ToLower())).Select(x => x.Id)
+                    .ToArrayAsync();
             }
             else
             {
@@ -46,7 +46,9 @@ public class CategorisePodcastEpisodesProcessor(
                     throw new ArgumentException($"No podcast with id '{podcastId}' found.");
                 }
 
-                foreach (var podcastEpisode in podcast.Episodes)
+                var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+
+                foreach (var podcastEpisode in episodes)
                 {
                     if (request.ResetSubjects)
                     {

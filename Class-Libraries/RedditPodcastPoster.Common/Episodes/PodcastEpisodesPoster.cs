@@ -3,11 +3,14 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
 public class PodcastEpisodesPoster(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
     IPodcastEpisodeFilter podcastEpisodeFilter,
     IPodcastEpisodePoster podcastEpisodePoster,
     IOptions<PostingCriteria> postingCriteria,
@@ -28,19 +31,22 @@ public class PodcastEpisodesPoster(
         bool ignoreAppleGracePeriod = false,
         int? maxPosts = int.MaxValue)
     {
-        var podcasts = new List<Podcast>();
+        var candidatePodcastEpisodes = new List<PodcastEpisode>();
         foreach (var podcastId in podcastIds)
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);
-            if (podcast != null)
+            if (podcast == null)
             {
-                podcasts.Add(podcast);
+                continue;
             }
+
+            var episodes = await episodeRepository.GetByPodcastId(podcastId).ToArrayAsync();
+            candidatePodcastEpisodes.AddRange(episodes.Select(episode => new PodcastEpisode(podcast, episode)));
         }
 
         var matchingPodcastEpisodes =
-            podcastEpisodeFilter.GetNewEpisodesReleasedSince(podcasts, since, youTubeRefreshed, spotifyRefreshed)
-                .ToArray();
+            (await podcastEpisodeFilter.GetNewEpisodesReleasedSince(candidatePodcastEpisodes, since, youTubeRefreshed,
+                spotifyRefreshed)).ToArray();
 
         if (!matchingPodcastEpisodes.Any())
         {

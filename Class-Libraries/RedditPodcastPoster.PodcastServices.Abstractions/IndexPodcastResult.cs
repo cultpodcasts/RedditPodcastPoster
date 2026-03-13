@@ -1,12 +1,12 @@
 ﻿using System.Text;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public record IndexPodcastResult(
     Podcast Podcast,
-    MergeResult MergeResult,
+    EpisodeMergeResult MergeResult,
     FilterResult FilterResult,
     EnrichmentResults EnrichmentResult,
     bool SpotifyBypassed,

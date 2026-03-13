@@ -7,7 +7,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace WebsubStatus;
 
 public class WebSubStatusProcessor(
-    IPodcastRepository podcastRepository,
+    IPodcastRepositoryV2 podcastRepository,
     IPodcastYouTubePushNotificationUrlAdaptor podcastYouTubePushNotificationUrlAdaptor,
     HttpClient httpClient,
 #pragma warning disable CS9113 // Parameter is unread.
@@ -19,7 +19,7 @@ public class WebSubStatusProcessor(
 
     public async Task Process(WebSubStatusRequest request)
     {
-        var podcastIds = await podcastRepository.GetAllIds().ToArrayAsync();
+        var podcastIds = await podcastRepository.GetAll().Select(x => x.Id).ToArrayAsync();
         foreach (var podcastId in podcastIds)
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);

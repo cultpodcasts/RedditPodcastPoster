@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -90,7 +90,6 @@ public class BlueskyEmbedCardPostFactory(
         if (shortUrl != null &&
             _blueskyOptions.WithEpisodeUrl &&
             (podcastEpisode.HasMultipleServices() ||
-             podcastEpisode.Podcast.Episodes.Count > 1 ||
              podcastEpisode.Episode.Subjects.Any()))
         {
             postBuilder.AppendLine($"{shortUrl}");

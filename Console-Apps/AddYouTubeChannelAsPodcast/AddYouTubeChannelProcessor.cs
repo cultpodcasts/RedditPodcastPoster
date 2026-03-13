@@ -13,7 +13,7 @@ public class AddYouTubeChannelProcessor(
     IYouTubeChannelResolver youTubeChannelResolver,
     IYouTubeChannelService youTubeChannelService,
     PodcastFactory podcastFactory,
-    IPodcastRepository repository,
+    IPodcastRepositoryV2 repository,
     ILogger<AddYouTubeChannelProcessor> logger)
 {
     public async Task<bool> Run(Args request)
@@ -43,7 +43,10 @@ public class AddYouTubeChannelProcessor(
             newPodcast.YouTubeChannelId = match.Snippet.ChannelId;
             newPodcast.ReleaseAuthority = Service.YouTube;
             newPodcast.PrimaryPostService = Service.YouTube;
+            
+            // Convert to V2 for saving
             await repository.Save(newPodcast);
+            
             logger.LogInformation("Created podcast with name '{NewPodcastName}' and id '{NewPodcastId}'.", newPodcast.Name, newPodcast.Id);
             return true;
         }

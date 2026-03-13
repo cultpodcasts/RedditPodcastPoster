@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using Episode = RedditPodcastPoster.Models.Episode;
+using Episode = RedditPodcastPoster.Models.V2.Episode;
 using PostModel = RedditPodcastPoster.Models.PostModel;
 
 namespace RedditPodcastPoster.Common.Factories;
@@ -16,7 +16,7 @@ public class PostModelFactory(
     private readonly IEnumerable<Subject> subjects = subjectsProvider.GetAll().ToBlockingEnumerable().ToList();
 
     public PostModel ToPostModel(
-        (Podcast Podcast, IEnumerable<Episode> Episodes) podcastEpisodes,
+        (Models.V2.Podcast Podcast, IEnumerable<Episode> Episodes) podcastEpisodes,
         bool preferYouTube = false)
     {
         var subjectKnownTerms = podcastEpisodes.Episodes

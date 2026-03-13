@@ -24,7 +24,11 @@ param cloudflareR2SecretKey string
 @secure()
 param cosmosdbAuthKeyOrResourceToken string
 @secure()
+param cosmosdbAuthKeyOrResourceTokenV2 string
+@secure()
 param cosmosdbEndpoint string
+@secure()
+param cosmosdbEndpointV2 string
 @secure()
 param listenNotesKey string
 @secure()
@@ -153,7 +157,7 @@ var bluesky= {
     bluesky__ReuseSession: 'true'
     bluesky__WithEpisodeUrl: 'true'
     bluesky__MaxFailures: 5
-    bluesky__MaxPosts: 3
+    bluesky__MaxPosts: 5
 }
 
 var cloudflare= {
@@ -179,6 +183,20 @@ var cosmosdb= {
     cosmosdb__DatabaseId: 'cultpodcasts'
     cosmosdb__Endpoint: cosmosdbEndpoint
     cosmosdb__UseGateWay: 'false'
+}
+
+var cosmosdbv2= {
+    cosmosdbv2__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceTokenV2
+    cosmosdbv2__DatabaseId: 'cultpodcasts-db'
+    cosmosdbv2__Endpoint: cosmosdbEndpointV2
+    cosmosdbv2__PodcastsContainer: 'Podcasts'
+    cosmosdbv2__EpisodesContainer: 'Episodes'
+    cosmosdbv2__SubjectsContainer: 'Subjects'
+    cosmosdbv2__ActivitiesContainer: 'Activity'
+    cosmosdbv2__DiscoveryContainer: 'Discovery'
+    cosmosdbv2__LookUpsContainer: 'LookUps'
+    cosmosdbv2__PushSubscriptionsContainer: 'PushSubscriptions'
+    cosmosdbv2__UseGateway: 'false'
 }
 
 var delayedPublication= {
@@ -414,7 +432,8 @@ var coreSettings= union(
     bluesky, 
     cloudflare, 
     content,
-    cosmosdb, 
+    cosmosdb,
+    cosmosdbv2,
     delayedPublication,
     pushSubscriptions, 
     reddit, 

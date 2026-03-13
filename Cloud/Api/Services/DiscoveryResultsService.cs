@@ -1,19 +1,18 @@
 using Api.Dtos;
 using Api.Dtos.Extensions;
-using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.ContentPublisher.Models;
-using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace Api.Services;
 
 public class DiscoveryResultsService(
-    IDiscoveryResultsRepository discoveryResultsRepository,
-    IPodcastRepository podcastRepository,
-    IContentPublisher contentPublisher,
+    IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
+    IPodcastRepositoryV2 podcastRepository,
+    IEpisodeRepository episodeRepository,
+    IDiscoveryPublisher contentPublisher,
     ILogger<DiscoveryResultsService> logger) : IDiscoveryResultsService
 {
     public async Task<DiscoveryResponse> Get(CancellationToken c)
@@ -22,23 +21,36 @@ public class DiscoveryResultsService(
         var documents = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync(c);
         logger.LogInformation($"{nameof(Get)} Obtained unprocessed documents.");
         var results = documents.SelectMany(x => x.DiscoveryResults);
-        var podcastIds = results.SelectMany(x => x.MatchingPodcastIds).Distinct();
-        var referencedPodcasts = await podcastRepository
-            .GetAllBy(x => podcastIds.Contains(x.Id), podcast => new
+        var podcastIds = results.SelectMany(x => x.MatchingPodcastIds).Distinct().ToArray();
+
+        IReadOnlyList<(Guid id, string name, bool isVisible)> referencedPodcasts = podcastIds.Length == 0
+            ? []
+            : await podcastRepository
+                .GetAllBy(x => Enumerable.Contains(podcastIds, x.Id))
+                .Select(podcast => (podcast.Id, podcast.Name, podcast.Removed != true))
+                .ToListAsync(c);
+
+        var visibleEpisodeCounts = new Dictionary<Guid, int>();
+        if (podcastIds.Length > 0)
+        {
+            await foreach (var episode in episodeRepository
+                               .GetAllBy(x => Enumerable.Contains(podcastIds, x.PodcastId) && !x.Removed)
+                               .WithCancellation(c))
             {
-                id = podcast.Id,
-                name = podcast.Name,
-                isVisible = !podcast.Removed.IsDefined() || podcast.Removed == false,
-                visibleEpisodes = podcast.Episodes.Count(e => !e.Removed)
-            })
-            .ToListAsync(c);
+                if (!visibleEpisodeCounts.TryAdd(episode.PodcastId, 1))
+                {
+                    visibleEpisodeCounts[episode.PodcastId]++;
+                }
+            }
+        }
+
         logger.LogInformation($"{nameof(Get)} Obtained matching podcasts.");
         var podcastsLookup = referencedPodcasts
             .ToDictionary(pd => pd.id, pd => new DiscoveryPodcast
             {
                 Name = pd.name,
                 IsVisible = pd.isVisible,
-                VisibleEpisodes = pd.visibleEpisodes
+                VisibleEpisodes = visibleEpisodeCounts.TryGetValue(pd.id, out var count) ? count : 0
             });
         var result = new DiscoveryResponse
         {

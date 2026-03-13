@@ -9,8 +9,10 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddContentPublishing(this IServiceCollection services)
     {
         return services
-            .AddScoped<IQueryExecutor, QueryExecutor>()
-            .AddScoped<IContentPublisher, ContentPublisher>()
+            .AddScoped<IHomepagePublisher, HomepagePublisher>()
+            .AddScoped<ISubjectsPublisher, SubjectsPublisher>()
+            .AddScoped<IDiscoveryPublisher, DiscoveryPublisher>()
+            .AddScoped<ILanguagesPublisher, LanguagesPublisher>()
             .BindConfiguration<ContentOptions>("content")
             .AddCloudflareClients();
     }
