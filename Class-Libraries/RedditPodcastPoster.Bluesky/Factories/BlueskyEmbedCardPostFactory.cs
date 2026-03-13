@@ -103,7 +103,7 @@ public class BlueskyEmbedCardPostFactory(
             if (min < MinTitleLength)
             {
                 throw new InvalidOperationException(
-                    $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{postModel}', calculated title-length: {min} which is less than {MinTitleLength}.");
+                    $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{postBuilder}', calculated title-length: {min} which is less than {MinTitleLength}.");
             }
 
             episodeTitle = episodeTitle[..min] + "…";

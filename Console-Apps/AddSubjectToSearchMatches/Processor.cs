@@ -108,7 +108,7 @@ public class Processor(
                         logger.LogWarning(
                             "Podcast '{PodcastName}' episode '{Guid}' has subject more than once.", podcastName, repoPodcastEpisode.Id);
                     }
-                    if (episodeChanged&& !request.IsDryRun)
+                    if (episodeChanged && !request.IsDryRun)
                     {
                         await episodeRepository.Save(repoPodcastEpisode);
                     }

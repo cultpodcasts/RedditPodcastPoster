@@ -24,73 +24,48 @@ public class CosmosDbContainerFactory(
         return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
     }
 
-    public Container CreatePodcastsContainer()
+    private Container GetV2Container(string containerName, string settingName)
     {
-        if (string.IsNullOrWhiteSpace(_cosmosDbSettingsV2.PodcastsContainer))
+        if (string.IsNullOrWhiteSpace(containerName))
         {
-            throw new InvalidOperationException("Configuration 'cosmosdbv2:PodcastsContainer' is required.");
+            throw new InvalidOperationException($"Configuration '{settingName}' is required.");
         }
 
-        return v2CosmosClient.GetContainer(_cosmosDbSettingsV2.DatabaseId, _cosmosDbSettingsV2.PodcastsContainer);
+        return v2CosmosClient.GetContainer(_cosmosDbSettingsV2.DatabaseId, containerName);
+    }
+
+    public Container CreatePodcastsContainer()
+    {
+        return GetV2Container(_cosmosDbSettingsV2.PodcastsContainer, "cosmosdbv2:PodcastsContainer");
     }
 
     public Container CreateEpisodesContainer()
     {
-        if (string.IsNullOrWhiteSpace(_cosmosDbSettingsV2.EpisodesContainer))
-        {
-            throw new InvalidOperationException("Configuration 'cosmosdbv2:EpisodesContainer' is required.");
-        }
-
-        return v2CosmosClient.GetContainer(_cosmosDbSettingsV2.DatabaseId, _cosmosDbSettingsV2.EpisodesContainer);
+        return GetV2Container(_cosmosDbSettingsV2.EpisodesContainer, "cosmosdbv2:EpisodesContainer");
     }
 
     public Container CreateSubjectsContainer()
     {
-        if (string.IsNullOrWhiteSpace(_cosmosDbSettingsV2.SubjectsContainer))
-        {
-            throw new InvalidOperationException("Configuration 'cosmosdbv2:SubjectsContainer' is required.");
-        }
-
-        return v2CosmosClient.GetContainer(_cosmosDbSettingsV2.DatabaseId, _cosmosDbSettingsV2.SubjectsContainer);
+        return GetV2Container(_cosmosDbSettingsV2.SubjectsContainer, "cosmosdbv2:SubjectsContainer");
     }
 
     public Container CreateActivitiesContainer()
     {
-        if (string.IsNullOrWhiteSpace(_cosmosDbSettingsV2.ActivitiesContainer))
-        {
-            throw new InvalidOperationException("Configuration 'cosmosdbv2:ActivitiesContainer' is required.");
-        }
-
-        return v2CosmosClient.GetContainer(_cosmosDbSettingsV2.DatabaseId, _cosmosDbSettingsV2.ActivitiesContainer);
+        return GetV2Container(_cosmosDbSettingsV2.ActivitiesContainer, "cosmosdbv2:ActivitiesContainer");
     }
 
     public Container CreateDiscoveryContainer()
     {
-        if (string.IsNullOrWhiteSpace(_cosmosDbSettingsV2.DiscoveryContainer))
-        {
-            throw new InvalidOperationException("Configuration 'cosmosdbv2:DiscoveryContainer' is required.");
-        }
-
-        return v2CosmosClient.GetContainer(_cosmosDbSettingsV2.DatabaseId, _cosmosDbSettingsV2.DiscoveryContainer);
+        return GetV2Container(_cosmosDbSettingsV2.DiscoveryContainer, "cosmosdbv2:DiscoveryContainer");
     }
 
     public Container CreateLookUpsContainer()
     {
-        if (string.IsNullOrWhiteSpace(_cosmosDbSettingsV2.LookUpsContainer))
-        {
-            throw new InvalidOperationException("Configuration 'cosmosdbv2:LookUpsContainer' is required.");
-        }
-
-        return v2CosmosClient.GetContainer(_cosmosDbSettingsV2.DatabaseId, _cosmosDbSettingsV2.LookUpsContainer);
+        return GetV2Container(_cosmosDbSettingsV2.LookUpsContainer, "cosmosdbv2:LookUpsContainer");
     }
 
     public Container CreatePushSubscriptionsContainer()
     {
-        if (string.IsNullOrWhiteSpace(_cosmosDbSettingsV2.PushSubscriptionsContainer))
-        {
-            throw new InvalidOperationException("Configuration 'cosmosdbv2:PushSubscriptionsContainer' is required.");
-        }
-
-        return v2CosmosClient.GetContainer(_cosmosDbSettingsV2.DatabaseId, _cosmosDbSettingsV2.PushSubscriptionsContainer);
+        return GetV2Container(_cosmosDbSettingsV2.PushSubscriptionsContainer, "cosmosdbv2:PushSubscriptionsContainer");
     }
 }
