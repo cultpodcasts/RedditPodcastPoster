@@ -29,7 +29,7 @@ public class NonPodcastServiceCategoriser(
                 service = NonPodcastService.BBC;
                 matchingPodcastIds = await episodeRepository
                     .GetAllBy(episode => episode.Urls.BBC == url)
-                    .Select(x=>x.Id)
+                    .Select(x => x.PodcastId)
                     .ToListAsync();
             }
             else if (InternetArchiveUrlMatcher.IsInternetArchiveUrl(url))
@@ -37,7 +37,7 @@ public class NonPodcastServiceCategoriser(
                 service = NonPodcastService.InternetArchive;
                 matchingPodcastIds = await episodeRepository
                     .GetAllBy(episode => episode.Urls.InternetArchive == url)
-                    .Select(x => x.Id)
+                    .Select(x => x.PodcastId)
                     .ToListAsync();
             }
             else
