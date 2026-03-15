@@ -61,6 +61,27 @@ public class PodcastProcessor(
                     categorisedItem.MatchingPodcast.IgnoredSubjects,
                     categorisedItem.MatchingPodcast.DefaultSubject,
                     categorisedItem.MatchingPodcast.DescriptionRegex));
+
+            if (!episode.Subjects.Any())
+            {
+                logger.LogError(
+                    "{method}: No subjects applied to new episode '{episodeTitle}' ({episodeId}) for podcast '{podcastName}' ({podcastId}). Configured default-subject: '{defaultSubject}'.",
+                    nameof(AddEpisodeToExistingPodcast), episode.Title, episode.Id,
+                    categorisedItem.MatchingPodcast.Name, categorisedItem.MatchingPodcast.Id,
+                    categorisedItem.MatchingPodcast.DefaultSubject ?? "(none)");
+            }
+            else if (!string.IsNullOrWhiteSpace(categorisedItem.MatchingPodcast.DefaultSubject) &&
+                     episode.Subjects.Count == 1 &&
+                     string.Equals(episode.Subjects[0], categorisedItem.MatchingPodcast.DefaultSubject,
+                         StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogWarning(
+                    "{method}: No specific subjects matched for new episode '{episodeTitle}' ({episodeId}) for podcast '{podcastName}' ({podcastId}); applied default-subject '{defaultSubject}'.",
+                    nameof(AddEpisodeToExistingPodcast), episode.Title, episode.Id,
+                    categorisedItem.MatchingPodcast.Name, categorisedItem.MatchingPodcast.Id,
+                    categorisedItem.MatchingPodcast.DefaultSubject);
+            }
+
             submitEpisodeDetails = new SubmitEpisodeDetails(
                 episode.Urls.Spotify != null,
                 episode.Urls.Apple != null,
@@ -73,6 +94,20 @@ public class PodcastProcessor(
         {
             episodeResult = appliedEpisodeResult;
             episode = matchingEpisode;
+            if (!episode.Subjects.Any())
+            {
+                var subjectsResult = await subjectEnricher.EnrichSubjects(
+                    episode,
+                    new SubjectEnrichmentOptions(
+                        categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
+                        categorisedItem.MatchingPodcast.IgnoredSubjects,
+                        categorisedItem.MatchingPodcast.DefaultSubject,
+                        categorisedItem.MatchingPodcast.DescriptionRegex));
+                if (episode.Subjects.Any())
+                {
+                    episodeResult = SubmitResultState.Enriched;
+                }
+            }
         }
 
         return new SubmitResult(episodeResult, podcastResult, submitEpisodeDetails, episode);

@@ -1,6 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Azure.Cosmos.Linq;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Indexing.Models;
-using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Subjects;
@@ -18,35 +18,31 @@ public class Indexer(
 {
     public async Task<IndexResponse> Index(string podcastName, IndexingContext indexingContext)
     {
-        var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastName).ToListAsync();
+        var canIndex = await podcastRepository.GetAllBy(x => x.Name == podcastName)
+            .Where(x => (!x.Removed.IsDefined() || x.Removed == false) &&
+                        (x.IndexAllEpisodes || x.EpisodeIncludeTitleRegex == ""))
+            .ToListAsync();
 
-        if (podcasts.Any())
+
+        if (canIndex.Any() && canIndex.Count() <= 1)
         {
-            var canIndex = podcasts.Where(x =>
-                !(x.Removed.HasValue && x.Removed.Value) &&
-                (x.IndexAllEpisodes || !string.IsNullOrWhiteSpace(x.EpisodeIncludeTitleRegex)));
-            
-            if (!canIndex.Any() || canIndex.Count() > 1)
-            {
-                if (podcasts.Count == 1 && !canIndex.Any())
-                {
-                    canIndex = [podcasts.Single()];
-                }
-                else
-                {
-                    return new IndexResponse(IndexStatus.NotPerformed);
-                }
-            }
+            return new IndexResponse(IndexStatus.NotFound);
+        }
 
+        if (canIndex.Count == 1 && !canIndex.Any())
+        {
+            canIndex = [canIndex.Single()];
             var podcast = canIndex.Single();
             return await Index(podcast.Id,
                 indexingContext with { SkipShortEpisodes = !(podcast.BypassShortEpisodeChecking ?? false) });
         }
-
-        return new IndexResponse(IndexStatus.NotFound);
+        else
+        {
+            return new IndexResponse(IndexStatus.NotPerformed);
+        }
     }
 
-    public async Task<IndexResponse> Index(Guid podcastId, IndexingContext indexingContext, bool forceIndex= false)
+    public async Task<IndexResponse> Index(Guid podcastId, IndexingContext indexingContext, bool forceIndex = false)
     {
         var podcast = await podcastRepository.GetPodcast(podcastId);
         if (podcast == null)
@@ -79,21 +75,22 @@ public class Indexer(
 
         if (performAutoIndex || enrichOnly || forceIndex)
         {
-            logger.LogInformation("Indexing podcast '{podcastName}' with podcast-id '{podcastId}'.", podcast.Name, podcastId);
-            
+            logger.LogInformation("Indexing podcast '{podcastName}' with podcast-id '{podcastId}'.", podcast.Name,
+                podcastId);
+
             // Pass V2 podcast directly - no conversion needed!
             var results = await podcastUpdater.Update(podcast, enrichOnly, indexingContext);
 
             updatedEpisodes = results.MergeResult.AddedEpisodes
                 .Select(x =>
                     new IndexedEpisode(
-                        x.Id,
+                        x,
                         x.Urls.Spotify != null,
                         x.Urls.Apple != null,
                         x.Urls.YouTube != null))
                 .Concat(results.EnrichmentResult.UpdatedEpisodes.Select(x =>
                     new IndexedEpisode(
-                        x.Episode.Id,
+                        x.Episode,
                         x.EnrichmentContext.SpotifyUrlUpdated,
                         x.EnrichmentContext.AppleUrlUpdated,
                         x.EnrichmentContext.YouTubeUrlUpdated)))
@@ -112,29 +109,25 @@ public class Indexer(
                 logger.LogInformation(resultsMessage);
             }
 
-            // Load episodes from detached repository for subject enrichment
-            var episodes = await episodeRepository.GetByPodcastId(podcastId)
-                .Where(x => x.Release >= indexingContext.ReleasedSince)
-                .ToListAsync();
-            
-            foreach (var episode in episodes)
+            foreach (var indexedEpisode in updatedEpisodes)
             {
                 var subjectsResult = await subjectEnricher.EnrichSubjects(
-                    episode,
+                    indexedEpisode.Episode,
                     new SubjectEnrichmentOptions(
                         podcast.IgnoredAssociatedSubjects,
                         podcast.IgnoredSubjects,
                         podcast.DefaultSubject,
                         podcast.DescriptionRegex));
-                
-                var result = updatedEpisodes.FirstOrDefault(x => x.EpisodeId == episode.Id);
-                if (result != null)
+
+                var result = updatedEpisodes.FirstOrDefault(x => x.Episode.Id == indexedEpisode.Episode.Id);
+                result?.Subjects = subjectsResult.Additions;
+
+                if (subjectsResult.Additions.Any() || subjectsResult.Removals.Any())
                 {
-                    result.Subjects = subjectsResult.Additions;
+                    await episodeRepository.Save(indexedEpisode.Episode);
                 }
             }
 
-            // Note: PodcastUpdaterV2 already saved podcast and episodes
             status = IndexStatus.Performed;
         }
         else
@@ -157,7 +150,7 @@ public class Indexer(
         var episodes = await episodeRepository.GetByPodcastId(podcastId)
             .Where(x => x.Release >= indexingContext.ReleasedSince)
             .ToListAsync();
-        
+
         return episodes.Any();
     }
 
@@ -169,12 +162,12 @@ public class Indexer(
         }
 
         var results = new List<IndexedEpisode>();
-        var groupedEpisodes = episodes.GroupBy(x => x.EpisodeId);
+        var groupedEpisodes = episodes.GroupBy(x => x.Episode.Id);
         foreach (var groupedEpisode in groupedEpisodes)
         {
             var items = groupedEpisode.ToList();
             var result = new IndexedEpisode(
-                items.First().EpisodeId,
+                items.First().Episode,
                 items.Any(x => x.Spotify),
                 items.Any(x => x.Apple),
                 items.Any(x => x.YouTube));

@@ -34,13 +34,13 @@ internal class IndexProcessor(
             SkipSpotifyUrlResolving = request.SkipSpotifyUrlResolving
         };
 
-        List<Guid> updatedEpisodeIds = new();
+        List<Guid> updatedEpisodeIds = [];
         if (request is { PodcastName: not null, UseSinglePodcastNameFlow: true })
         {
             var response = await indexer.Index(request.PodcastName, indexingContext);
             if (response.UpdatedEpisodes != null && response.UpdatedEpisodes.Any())
             {
-                updatedEpisodeIds.AddRange(response.UpdatedEpisodes.Select(x => x.EpisodeId));
+                updatedEpisodeIds.AddRange(response.UpdatedEpisodes.Select(x => x.Episode.Id));
             }
         }
         else
@@ -68,7 +68,7 @@ internal class IndexProcessor(
                 var response = await indexer.Index(podcastId, indexingContext, request.ForceIndex);
                 if (response.UpdatedEpisodes != null && response.UpdatedEpisodes.Any())
                 {
-                    updatedEpisodeIds.AddRange(response.UpdatedEpisodes.Select(x => x.EpisodeId));
+                    updatedEpisodeIds.AddRange(response.UpdatedEpisodes.Select(x => x.Episode.Id));
                 }
             }
         }
