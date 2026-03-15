@@ -1,6 +1,8 @@
-﻿namespace RedditPodcastPoster.Indexing.Models;
+﻿using RedditPodcastPoster.Models.V2;
 
-public record IndexedEpisode(Guid EpisodeId, bool Spotify, bool Apple, bool YouTube)
+namespace RedditPodcastPoster.Indexing.Models;
+
+public record IndexedEpisode(Episode Episode, bool Spotify, bool Apple, bool YouTube)
 {
     public string[] Subjects { get; set; } = [];
 }

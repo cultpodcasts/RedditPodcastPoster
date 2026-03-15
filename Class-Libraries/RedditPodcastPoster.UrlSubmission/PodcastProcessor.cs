@@ -73,6 +73,20 @@ public class PodcastProcessor(
         {
             episodeResult = appliedEpisodeResult;
             episode = matchingEpisode;
+            if (!episode.Subjects.Any())
+            {
+                var subjectsResult = await subjectEnricher.EnrichSubjects(
+                    episode,
+                    new SubjectEnrichmentOptions(
+                        categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
+                        categorisedItem.MatchingPodcast.IgnoredSubjects,
+                        categorisedItem.MatchingPodcast.DefaultSubject,
+                        categorisedItem.MatchingPodcast.DescriptionRegex));
+                if (episode.Subjects.Any())
+                {
+                    episodeResult = SubmitResultState.Enriched;
+                }
+            }
         }
 
         return new SubmitResult(episodeResult, podcastResult, submitEpisodeDetails, episode);
