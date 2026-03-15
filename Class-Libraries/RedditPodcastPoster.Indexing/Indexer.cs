@@ -18,9 +18,9 @@ public class Indexer(
 {
     public async Task<IndexResponse> Index(string podcastName, IndexingContext indexingContext)
     {
-        var canIndex = await podcastRepository.GetAllBy(x => x.Name == podcastName)
-            .Where(x => (!x.Removed.IsDefined() || x.Removed == false) &&
-                        (x.IndexAllEpisodes || x.EpisodeIncludeTitleRegex == ""))
+        var canIndex = await podcastRepository.GetAllBy(x =>
+                x.Name == podcastName && (!x.Removed.IsDefined() || x.Removed == false) &&
+                (x.IndexAllEpisodes || x.EpisodeIncludeTitleRegex == ""))
             .ToListAsync();
 
 
