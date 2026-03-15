@@ -1,5 +1,4 @@
-﻿using Microsoft.Azure.Cosmos.Linq;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Indexing.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -18,28 +17,31 @@ public class Indexer(
 {
     public async Task<IndexResponse> Index(string podcastName, IndexingContext indexingContext)
     {
-        var canIndex = await podcastRepository.GetAllBy(x =>
-                x.Name == podcastName && (!x.Removed.IsDefined() || x.Removed == false) &&
-                (x.IndexAllEpisodes || x.EpisodeIncludeTitleRegex == ""))
-            .ToListAsync();
+        var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastName).ToListAsync();
 
-
-        if (canIndex.Any() && canIndex.Count() <= 1)
+        if (podcasts.Any())
         {
-            return new IndexResponse(IndexStatus.NotFound);
-        }
+            var canIndex = podcasts.Where(x =>
+                !(x.Removed.HasValue && x.Removed.Value) &&
+                (x.IndexAllEpisodes || !string.IsNullOrWhiteSpace(x.EpisodeIncludeTitleRegex))).ToArray();
+            if (!canIndex.Any() || canIndex.Count() > 1)
+            {
+                if (podcasts.Count == 1 && !canIndex.Any())
+                {
+                    canIndex = [podcasts.Single()];
+                }
+                else
+                {
+                    return new IndexResponse(IndexStatus.NotPerformed);
+                }
+            }
 
-        if (canIndex.Count == 1 && !canIndex.Any())
-        {
-            canIndex = [canIndex.Single()];
             var podcast = canIndex.Single();
             return await Index(podcast.Id,
-                indexingContext with { SkipShortEpisodes = !(podcast.BypassShortEpisodeChecking ?? false) });
+                indexingContext with { SkipShortEpisodes = !podcast.BypassShortEpisodeChecking ?? false });
         }
-        else
-        {
-            return new IndexResponse(IndexStatus.NotPerformed);
-        }
+
+        return new IndexResponse(IndexStatus.NotFound);
     }
 
     public async Task<IndexResponse> Index(Guid podcastId, IndexingContext indexingContext, bool forceIndex = false)
