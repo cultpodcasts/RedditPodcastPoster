@@ -37,7 +37,7 @@ public class IndexPodcastResponse
     {
         return new IndexedEpisode
         {
-            EpisodeId = indexedEpisode.EpisodeId,
+            EpisodeId = indexedEpisode.Episode.Id,
             Spotify = indexedEpisode.Spotify,
             Apple = indexedEpisode.Apple,
             YouTube = indexedEpisode.YouTube,

@@ -232,7 +232,7 @@ public class PodcastHandler(
             if (response.IndexStatus == IndexStatus.Performed)
             {
                 var episodes = response.UpdatedEpisodes != null
-                    ? response.UpdatedEpisodes.Select(x => x.EpisodeId)
+                    ? response.UpdatedEpisodes.Select(x => x.Episode.Id)
                     : [];
                 var result = await searchIndexerService.IndexEpisodes(episodes, c);
                 indexed = result.ToDto();
