@@ -108,6 +108,11 @@ public class PodcastUpdater(
             {
                 episode.Ignored = true;
             }
+
+            foreach (var episode in mergeResult.AddedEpisodes)
+            {
+                episode.Ignored = true;
+            }
         }
         var podcastEpisodes= await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
         var enrichmentResult = await podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, podcastEpisodes, episodes, indexingContext);
