@@ -104,7 +104,7 @@ public class PodcastUpdater(
 
         if (podcast.HasIgnoreAllEpisodes())
         {
-            foreach (var episode in episodes)
+            foreach (var episode in mergeResult.AddedEpisodes)
             {
                 episode.Ignored = true;
             }
