@@ -43,49 +43,49 @@ public class EpisodePostManager(
                 return RedditPostResult.FailAlreadyPosted();
             }
 
-            if (result.LinkPost != null)
+            if (result.LinkPost == null)
             {
-                var postModelSubjects = postModel.Subjects;
-                try
-                {
-                    var flareState = await flareManager.SetFlare(postModelSubjects, result.LinkPost);
-                    if (flareState == FlareState.NoFlareId)
-                    {
-                        logger.LogError(
-                            "No subject with flair-id for episode with title '{postModelEpisodeTitle}' and episode-id '{postModelId}'.",
-                            postModel.EpisodeTitle, postModel.Id);
-                    }
-                    else
-                    {
-                        logger.LogInformation(
-                            "Episode with title '{postModelEpisodeTitle}' and episode-id '{postModelId}' flare-state: {flareState}.",
-                            postModel.EpisodeTitle, postModel.Id, flareState.ToString());
-                    }
-                }
-                catch (Exception e)
-                {
-                    logger.LogError(e, "Failure to set-flair.");
-                }
+                return RedditPostResult.Fail("No post to reply to.");
+            }
 
-                string comments;
-                if (postModel.IsBundledPost)
+            var postModelSubjects = postModel.Subjects;
+            try
+            {
+                var flareState = await flareManager.SetFlare(postModelSubjects, result.LinkPost);
+                if (flareState == FlareState.NoFlareId)
                 {
-                    comments = redditBundleCommentFactory.ToComment(postModel);
+                    logger.LogError(
+                        "No subject with flair-id for episode with title '{postModelEpisodeTitle}' and episode-id '{postModelId}'.",
+                        postModel.EpisodeTitle, postModel.Id);
                 }
                 else
                 {
-                    comments = redditEpisodeCommentFactory.ToComment(postModel);
+                    logger.LogInformation(
+                        "Episode with title '{postModelEpisodeTitle}' and episode-id '{postModelId}' flare-state: {flareState}.",
+                        postModel.EpisodeTitle, postModel.Id, flareState.ToString());
                 }
-
-                if (!string.IsNullOrWhiteSpace(comments.Trim()))
-                {
-                    await result.LinkPost.ReplyAsync(comments);
-                }
-
-                return RedditPostResult.Successful(result.LinkPost.Title);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Failure to set-flair.");
             }
 
-            return RedditPostResult.Fail("No post to reply to.");
+            string comments;
+            if (postModel.IsBundledPost)
+            {
+                comments = redditBundleCommentFactory.ToComment(postModel);
+            }
+            else
+            {
+                comments = redditEpisodeCommentFactory.ToComment(postModel);
+            }
+
+            if (!string.IsNullOrWhiteSpace(comments.Trim()))
+            {
+                await result.LinkPost.ReplyAsync(comments);
+            }
+
+            return RedditPostResult.Successful(result.LinkPost.Title);
         }
         catch (Exception ex)
         {
