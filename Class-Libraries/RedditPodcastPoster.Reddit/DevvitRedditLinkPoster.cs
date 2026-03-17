@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models;
@@ -26,17 +29,19 @@ public class DevvitRedditLinkPoster(
         {
             PodcastName = postModel.PodcastName,
             Title = title,
-            Description = Truncate(postModel.EpisodeDescription, _devvitSettings.DescriptionMaxLength),
-            ReleaseDateTime = postModel.Published.ToUniversalTime().ToString("O"),
-            Duration = postModel.EpisodeLength,
+            Description = postModel.EpisodeDescription,
+            ReleaseDateTime = postModel.Published.ToUniversalTime(),
+            Duration = ParseDuration(postModel.EpisodeLength),
             SubredditName = _subredditSettings.SubredditName,
             ServiceLinks = new DevvitServiceLinks
             {
-                Youtube = postModel.YouTube?.ToString(),
-                Spotify = postModel.Spotify?.ToString(),
-                ApplePodcasts = postModel.Apple?.ToString()
+                YouTube = postModel.YouTube,
+                Spotify = postModel.Spotify,
+                Apple = postModel.Apple
             }
         };
+
+        TruncateDescriptionIfPostDataLimitExceeded(request, _devvitSettings.PostDataMaxBytes);
 
         var response = await devvitClient.CreateEpisodePost(request);
         logger.LogInformation("Devvit post created. PostId: '{PostId}', Url: '{PostUrl}'.", response.PostId,
@@ -45,18 +50,88 @@ public class DevvitRedditLinkPoster(
         return new PostResponse(null, true);
     }
 
-    private static string Truncate(string value, int maxLength)
+    private void TruncateDescriptionIfPostDataLimitExceeded(DevvitEpisodeCreateRequest request, int maxBytes)
+    {
+        if (maxBytes <= 0 || IsWithinPostDataLimit(request, maxBytes))
+        {
+            return;
+        }
+
+        var originalDescription = request.Description;
+        if (string.IsNullOrWhiteSpace(originalDescription))
+        {
+            return;
+        }
+
+        var low = 0;
+        var high = originalDescription.Length;
+        string? best = null;
+
+        while (low <= high)
+        {
+            var mid = (low + high) / 2;
+            request.Description = BuildDescriptionCandidate(originalDescription, mid);
+
+            if (IsWithinPostDataLimit(request, maxBytes))
+            {
+                best = request.Description;
+                low = mid + 1;
+            }
+            else
+            {
+                high = mid - 1;
+            }
+        }
+
+        request.Description = best ?? string.Empty;
+
+        if (!IsWithinPostDataLimit(request, maxBytes))
+        {
+            logger.LogWarning(
+                "Devvit payload still exceeds configured postData limit of '{MaxBytes}' bytes after description truncation.",
+                maxBytes);
+        }
+    }
+
+    private static bool IsWithinPostDataLimit(DevvitEpisodeCreateRequest request, int maxBytes)
+    {
+        var json = JsonSerializer.Serialize(request);
+        var length = Encoding.UTF8.GetByteCount(json);
+        return length <= maxBytes;
+    }
+
+    private static string BuildDescriptionCandidate(string description, int maxLength)
     {
         if (maxLength <= 0)
         {
             return string.Empty;
         }
 
-        if (string.IsNullOrWhiteSpace(value) || value.Length <= maxLength)
+        if (description.Length <= maxLength)
         {
-            return value;
+            return description;
         }
 
-        return string.Concat(value.AsSpan(0, maxLength - 1), "…");
+        if (maxLength == 1)
+        {
+            return "…";
+        }
+
+        return string.Concat(description.AsSpan(0, maxLength - 1), "…");
+    }
+
+    private static TimeSpan ParseDuration(string duration)
+    {
+        if (TimeSpan.TryParseExact(duration, @"\[h\:mm\:ss\]", CultureInfo.InvariantCulture, out var parsed))
+        {
+            return parsed;
+        }
+
+        if (TimeSpan.TryParse(duration, CultureInfo.InvariantCulture, out parsed))
+        {
+            return parsed;
+        }
+
+        return TimeSpan.Zero;
     }
 }

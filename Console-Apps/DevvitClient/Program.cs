@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Auth0.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Reddit;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -21,9 +22,11 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddAuth0Client()
+    .AddRepositories()
     .BindConfiguration<DevvitSettings>("devvit")
-    .AddHttpClient<IDevvitClient, RedditPodcastPoster.Reddit.DevvitClient>()
-    .AddSingleton<DevvitClientProcessor>();
+    .AddHttpClient<IDevvitClient, RedditPodcastPoster.Reddit.DevvitClient>();
+
+builder.Services.AddSingleton<DevvitClientProcessor>();
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<DevvitClientRequest>(args)

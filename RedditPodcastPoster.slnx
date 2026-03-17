@@ -131,6 +131,7 @@
     <Project Path="Console-Apps/CultPodcasts.DatabasePublisher/CultPodcasts.DatabasePublisher.csproj" />
 
     <Project Path="Console-Apps/DeleteSearchDocument/DeleteSearchDocument.csproj" />
+    <Project Path="Console-Apps/DevvitClient/DevvitClient.csproj" />
 
     <Project Path="Console-Apps/Discover/Discover.csproj" />
 
