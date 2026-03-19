@@ -8,7 +8,6 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
@@ -59,7 +58,8 @@ public class EnrichYouTubePodcastProcessor(
         else if (request.PodcastName != null)
         {
             var podcastIds = await podcastRepository
-                .GetAllBy(x => x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase)).Select(x=>x.Id).ToListAsync();
+                .GetAllBy(x => x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase))
+                .Select(x => x.Id).ToListAsync();
             if (podcastIds.Count > 1)
             {
                 logger.LogError("Found {podcastIdsCount} podcasts with name '{podcastName}'. Ids: {ids}.",
@@ -89,7 +89,8 @@ public class EnrichYouTubePodcastProcessor(
             return;
         }
 
-        if (podcast.YouTubePlaylistQueryIsExpensive.HasValue && podcast.YouTubePlaylistQueryIsExpensive.Value &&
+        if (string.IsNullOrWhiteSpace(request.PlaylistId) && podcast.YouTubePlaylistQueryIsExpensive.HasValue &&
+            podcast.YouTubePlaylistQueryIsExpensive.Value &&
             !request.AcknowledgeExpensiveYouTubePlaylistQuery)
         {
             logger.LogError("Query for playlist '{podcastYouTubePlaylistId}' is expensive.", podcast.YouTubePlaylistId);
@@ -139,7 +140,7 @@ public class EnrichYouTubePodcastProcessor(
             playlistQueryResponse.IsExpensiveQuery && !request.AcknowledgeExpensiveYouTubePlaylistQuery)
         {
             logger.LogError("Querying '{playlistId}' is noted for being an expensive query.", playlistId);
-            podcast.YouTubePlaylistQueryIsExpensive = true;
+            return;
         }
 
         // Get existing episodes from detached repository
@@ -183,7 +184,8 @@ public class EnrichYouTubePodcastProcessor(
                     {
                         episode.Ignored = !((podcast.BypassShortEpisodeChecking.HasValue &&
                                              podcast.BypassShortEpisodeChecking.Value) ||
-                                            episode.Length >= (podcast.MinimumDuration ?? _postingCriteria.MinimumDuration));
+                                            episode.Length >= (podcast.MinimumDuration ??
+                                                               _postingCriteria.MinimumDuration));
                     }
 
                     var videoImage = video.GetImageUrl();
@@ -199,6 +201,7 @@ public class EnrichYouTubePodcastProcessor(
                             podcast.IgnoredSubjects,
                             podcast.DefaultSubject,
                             podcast.DescriptionRegex));
+                    episode.SetPodcastProperties(podcast);
                     addedEpisodes.Add(episode);
                 }
             }
@@ -254,13 +257,13 @@ public class EnrichYouTubePodcastProcessor(
             {
                 // Convert and save all new and updated episodes to detached repository
                 var episodesToSave = new List<Episode>();
-                
+
                 // Add newly added episodes
                 episodesToSave.AddRange(addedEpisodes);
-                
+
                 // Add updated existing episodes
                 episodesToSave.AddRange(episodesToUpdate);
-                
+
                 if (episodesToSave.Any())
                 {
                     await episodeRepository.Save(episodesToSave);
@@ -325,5 +328,4 @@ public class EnrichYouTubePodcastProcessor(
 
         return false;
     }
-
 }
