@@ -79,7 +79,7 @@ public class Discover(
                 discoveryBegan, discoveryBegan.ToLocalTime(), indexingContext);
 
             var preIndexingContextSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
-            var discoveryResults = await discoveryService.GetDiscoveryResults(discoveryConfig, indexingContext);
+            var discoveryResults = await discoveryService.GetDiscoveryResults(discoveryConfig, indexingContext).ToListAsync();
             var discoveryResultsDocument = new DiscoveryResultsDocument(discoveryBegan, discoveryResults)
             {
                 SearchSince = _discoverOptions.SearchSince
@@ -104,7 +104,7 @@ public class Discover(
             try
             {
                 var unprocessedDiscoveryReports = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync();
-                var numberOfReports = unprocessedDiscoveryReports.Count();
+                var numberOfReports = unprocessedDiscoveryReports.Count;
                 DateTime? minProcessed = null;
                 int? numberOfResults = null;
                 if (numberOfReports > 0)
@@ -136,7 +136,7 @@ public class Discover(
             logger.LogInformation(
                 "{method} Complete. {nameofDiscoveryBegan}: '{discoveryBegan:O}', document-id: '{discoveryResultsDocumentId}', results-count: '{discoveryResultsCount}', indexing-context: {indexingContext}",
                 nameof(RunAsync), nameof(discoveryBegan), discoveryBegan, discoveryResultsDocument.Id,
-                discoveryResults.Count(), indexingContext);
+                discoveryResults.Count, indexingContext);
             results = true;
         }
         catch (Exception ex)

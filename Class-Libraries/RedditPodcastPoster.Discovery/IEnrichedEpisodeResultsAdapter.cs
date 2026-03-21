@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.Discovery;
 
 public interface IEnrichedEpisodeResultsAdapter
 {
-    IAsyncEnumerable<DiscoveryResult> ToDiscoveryResults(IEnumerable<EnrichedEpisodeResult> episodeResults);
+    IAsyncEnumerable<DiscoveryResult> ToDiscoveryResults(IAsyncEnumerable<EnrichedEpisodeResult> episodeResults);
 }

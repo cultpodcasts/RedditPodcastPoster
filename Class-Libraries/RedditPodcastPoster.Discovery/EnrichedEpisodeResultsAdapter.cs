@@ -8,13 +8,13 @@ public class EnrichedEpisodeResultsAdapter(
     IEnrichedEpisodeResultAdapter enrichedEpisodeResultAdapter,
     ILogger<EnrichedEpisodeResultsAdapter> logger) : IEnrichedEpisodeResultsAdapter
 {
-    public async IAsyncEnumerable<DiscoveryResult> ToDiscoveryResults(IEnumerable<EnrichedEpisodeResult> episodeResults)
+    public async IAsyncEnumerable<DiscoveryResult> ToDiscoveryResults(IAsyncEnumerable<EnrichedEpisodeResult> episodeResults)
     {
         logger.LogInformation($"{nameof(ToDiscoveryResults)} initiated.");
 
         var ignoreTerms = ignoreTermsProvider.GetIgnoreTerms();
 
-        foreach (var episode in episodeResults)
+        await foreach (var episode in episodeResults)
         {
             if (episode.PodcastResults.Any(x => x.IndexAllEpisodes))
             {
