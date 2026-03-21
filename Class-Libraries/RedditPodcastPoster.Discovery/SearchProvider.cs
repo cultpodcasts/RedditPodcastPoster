@@ -27,6 +27,8 @@ public class SearchProvider(
         var results = new List<EpisodeResult>();
         foreach (var config in discoveryConfig.ServiceConfigs)
         {
+            var indexingContextBeforeIteration = indexingContext with { };
+
             IList<EpisodeResult> serviceResults;
             switch (config.DiscoverService)
             {
@@ -82,6 +84,16 @@ public class SearchProvider(
                     break;
             }
 
+            var indexingContextChanges = indexingContextBeforeIteration.GetIndexingContextChanges(indexingContext);
+            if (indexingContextChanges.Count > 0)
+            {
+                logger.LogInformation(
+                    "{discoverService}: indexing-context changed: {changes}.",
+                    config.DiscoverService,
+                    string.Join(", ", indexingContextChanges));
+            }
+
+            logger.LogInformation("{discoverService} yielded {count} results", config.DiscoverService, serviceResults.Count);
             results.AddRange(serviceResults);
         }
 
@@ -92,7 +104,8 @@ public class SearchProvider(
                 x.Released >= indexingContext.ReleasedSince)
             .GroupBy(x => x.EpisodeName)
             .Select(Coalesce)
-            .OrderBy(x => x.Released);
+            .OrderBy(x => x.Released)
+            .ToList();
 
         string[] logItems =
         [
