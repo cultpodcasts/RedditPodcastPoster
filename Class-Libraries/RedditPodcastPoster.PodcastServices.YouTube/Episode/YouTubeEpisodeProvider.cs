@@ -30,8 +30,7 @@ public class YouTubeEpisodeProvider(
             await youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(request, indexingContext);
         if (youTubeVideos != null)
         {
-            var youTubeVideoIds = youTubeVideos.Select(x => x.Id.VideoId);
-            youTubeVideoIds = youTubeVideoIds.Where(x => !knownIds.Contains(x));
+            var youTubeVideoIds = youTubeVideos.Select(x => x.Id.VideoId).Where(x => !knownIds.Contains(x)).ToArray();
 
             if (youTubeVideoIds.Any())
             {
@@ -80,10 +79,10 @@ public class YouTubeEpisodeProvider(
     }
 
     public async Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(YouTubePlaylistId youTubePlaylistId,
-        YouTubeChannelId? youTubeChannelId, IndexingContext indexingContext)
+        YouTubeChannelId? youTubeChannelId, IndexingContext indexingContext, bool expensivePlaylist = false)
     {
         var playlistQueryResponse = await youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(
-            youTubePlaylistId.PlaylistId), indexingContext);
+            youTubePlaylistId.PlaylistId), indexingContext, expensivePlaylist);
         var isExpensiveQuery = playlistQueryResponse.IsExpensiveQuery;
         if (playlistQueryResponse.Result == null || !playlistQueryResponse.Result.Any())
         {
@@ -105,25 +104,23 @@ public class YouTubeEpisodeProvider(
                 true);
         if (videoDetails != null && videoDetails.Any())
         {
-            List<RedditPodcastPoster.Models.V2.Episode> reducedResults;
             try
             {
-                reducedResults =
-                    results
-                        .Where(x => x.Snippet != null)
-                        .Where(x => x.Snippet.Title != "Deleted video")
-                        .Select(x =>
-                            new PlaylistItemVideo(
-                                x,
-                                videoDetails.SingleOrDefault(videoDetail =>
-                                    videoDetail.Id == x.Snippet.ResourceId.VideoId)!
-                            )
+                var reducedResults = results
+                    .Where(x => x.Snippet != null)
+                    .Where(x => x.Snippet.Title != "Deleted video")
+                    .Select(x =>
+                        new PlaylistItemVideo(
+                            x,
+                            videoDetails.SingleOrDefault(videoDetail =>
+                                videoDetail.Id == x.Snippet.ResourceId.VideoId)!
                         )
-                        .Where(x => x.VideoDetails?.Snippet != null)
-                        .Where(x => youTubeChannelId == null ||
-                                    x.VideoDetails.Snippet.ChannelId == youTubeChannelId.ChannelId)
-                        .Select(x => GetEpisode(x.PlaylistItem.Snippet, x.VideoDetails))
-                        .ToList();
+                    )
+                    .Where(x => x.VideoDetails?.Snippet != null)
+                    .Where(x => youTubeChannelId == null ||
+                                x.VideoDetails.Snippet.ChannelId == youTubeChannelId.ChannelId)
+                    .Select(x => GetEpisode(x.PlaylistItem.Snippet, x.VideoDetails))
+                    .ToList();
                 return new GetPlaylistEpisodesResponse(reducedResults, isExpensiveQuery);
             }
             catch (Exception e)
@@ -138,5 +135,5 @@ public class YouTubeEpisodeProvider(
         return new GetPlaylistEpisodesResponse(null, isExpensiveQuery);
     }
 
-    public record PlaylistItemVideo(PlaylistItem PlaylistItem, Google.Apis.YouTube.v3.Data.Video VideoDetails);
+    private record PlaylistItemVideo(PlaylistItem PlaylistItem, Google.Apis.YouTube.v3.Data.Video VideoDetails);
 }

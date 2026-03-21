@@ -33,16 +33,16 @@ public class YouTubeUrlCategoriser(
     private static readonly TimeSpan PublishThreshold = TimeSpan.FromDays(2);
 
     public async Task<ResolvedYouTubeItem?> Resolve(
-        Podcast? podcast, IEnumerable<RedditPodcastPoster.Models.V2.Episode> podcastEpisodes,
-
+        Podcast? podcast,
+        IList<RedditPodcastPoster.Models.V2.Episode> podcastEpisodes,
         Uri url,
         IndexingContext indexingContext)
     {
         PodcastEpisode? pair = null;
         if (podcast != null && podcastEpisodes.Any(x => x.Urls.YouTube == url))
         {
-            var storedEpisodes = podcastEpisodes.Where(x => x.Urls.YouTube == url);
-            if (storedEpisodes.Count() > 1)
+            var storedEpisodes = podcastEpisodes.Where(x => x.Urls.YouTube == url).ToArray();
+            if (storedEpisodes.Length > 1)
             {
                 var ex = new InvalidOperationException(
                     $"Podcast '{podcast.Name}' with podcast-id '{podcast.Id}' has multiple episodes with url '{url}'.");
@@ -93,9 +93,8 @@ public class YouTubeUrlCategoriser(
                 throw new InvalidOperationException($"Unable to find video with id '{videoId}'.");
             }
 
-            var channel =
-                await youTubeChannelService.GetChannel(new YouTubeChannelId(item.Snippet.ChannelId),
-                    indexingContext, true, true);
+            var channel = await youTubeChannelService.GetChannel(new YouTubeChannelId(item.Snippet.ChannelId),
+                indexingContext, true, true);
             var snippetChannelTitle = item.Snippet.ChannelTitle;
             var snippetDescription = channel!.Snippet.Description;
 
@@ -151,7 +150,7 @@ public class YouTubeUrlCategoriser(
     public async Task<ResolvedYouTubeItem?> Resolve(
         PodcastServiceSearchCriteria criteria,
         Podcast? matchingPodcast,
-        IEnumerable<RedditPodcastPoster.Models.V2.Episode> episodes,
+        IList<RedditPodcastPoster.Models.V2.Episode> episodes,
         IndexingContext indexingContext)
     {
         if (!string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId))
@@ -163,7 +162,7 @@ public class YouTubeUrlCategoriser(
                 (x.Urls.YouTube == null && !string.IsNullOrWhiteSpace(x.YouTubeId)) ||
                 (!string.IsNullOrWhiteSpace(x.YouTubeId) && x.Urls.YouTube != null &&
                  YouTubeIdResolver.Extract(x.Urls.YouTube) != x.YouTubeId)
-            );
+            ).ToArray();
             if (mismatchedEpisodes.Any())
             {
                 throw new InvalidOperationException(
@@ -174,7 +173,8 @@ public class YouTubeUrlCategoriser(
             if (!string.IsNullOrWhiteSpace(matchingPodcast.YouTubePlaylistId))
             {
                 var playlistVideoSnippetsResponse = await youTubePlaylistService.GetPlaylistVideoSnippets(
-                    youTubeService, new YouTubePlaylistId(matchingPodcast.YouTubePlaylistId), indexingContext);
+                    youTubeService, new YouTubePlaylistId(matchingPodcast.YouTubePlaylistId), indexingContext,
+                    expensivePlaylist: matchingPodcast.HasExpensiveYouTubePlaylistQuery());
                 items = playlistVideoSnippetsResponse.Result;
             }
             else
@@ -198,11 +198,12 @@ public class YouTubeUrlCategoriser(
             var podcastEpisodeYouTubeIds = episodes.Where(y => !string.IsNullOrWhiteSpace(y.YouTubeId))
                 .Select(x => x.YouTubeId);
             var unassignedChannelUploads =
-                items.Where(x => !podcastEpisodeYouTubeIds.Contains(x.Id));
+                items.Where(x => !podcastEpisodeYouTubeIds.Contains(x.Id)).ToArray();
             var expectedPublish = criteria.Release + matchingPodcast.YouTubePublishingDelay();
             var publishedWithin = unassignedChannelUploads.Where(x =>
-                x.Snippet.PublishedAtDateTimeOffset > expectedPublish.Subtract(PublishThreshold) &&
-                x.Snippet.PublishedAtDateTimeOffset < expectedPublish.Add(PublishThreshold));
+                    x.Snippet.PublishedAtDateTimeOffset > expectedPublish.Subtract(PublishThreshold) &&
+                    x.Snippet.PublishedAtDateTimeOffset < expectedPublish.Add(PublishThreshold))
+                .ToArray();
             PlaylistItem? match;
             if (publishedWithin.Any())
             {

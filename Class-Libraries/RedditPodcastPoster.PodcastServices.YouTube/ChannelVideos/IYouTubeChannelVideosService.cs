@@ -7,5 +7,6 @@ public interface IYouTubeChannelVideosService : IFlushable
 {
     Task<Models.ChannelVideos?> GetChannelVideos(
         YouTubeChannelId channelId,
-        IndexingContext indexingContext);
+        IndexingContext indexingContext,
+        bool expensivePlaylist = false);
 }

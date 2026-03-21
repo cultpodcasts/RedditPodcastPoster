@@ -22,5 +22,6 @@ public interface IYouTubeEpisodeProvider
     Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(
         YouTubePlaylistId youTubePlaylistId,
         YouTubeChannelId? youTubeChannelId,
-        IndexingContext indexingContext);
+        IndexingContext indexingContext, 
+        bool expensivePlaylist = false);
 }

@@ -21,7 +21,8 @@ public class YouTubeChannelVideosService(
     }
 
     public async Task<Models.ChannelVideos?> GetChannelVideos(YouTubeChannelId channelId,
-        IndexingContext indexingContext)
+        IndexingContext indexingContext,
+        bool expensivePlaylist = false)
     {
         if (_cache.TryGetValue(channelId.ChannelId, out var cachedVideos))
         {
@@ -32,15 +33,14 @@ public class YouTubeChannelVideosService(
             await youTubeChannelService.GetChannel(channelId, indexingContext, true, true, withContentDetails: true);
         if (channel == null)
         {
-            logger.LogError("{GetChannelVideosName}: Unable to find channel with id '{ChannelIdChannelId}'.", nameof(GetChannelVideos), channelId.ChannelId);
+            logger.LogError("{GetChannelVideosName}: Unable to find channel with id '{ChannelIdChannelId}'.",
+                nameof(GetChannelVideos), channelId.ChannelId);
             return null;
         }
 
         var uploadsChannelId = channel.ContentDetails.RelatedPlaylists.Uploads;
-        var response =
-            await youTubePlaylistService.GetPlaylistVideoSnippets(
-                new YouTubePlaylistId(uploadsChannelId),
-                indexingContext);
+        var response = await youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(uploadsChannelId),
+            indexingContext, expensivePlaylist: expensivePlaylist);
         if (response.Result != null)
         {
             var result = new Models.ChannelVideos(channel, response.Result);
@@ -49,7 +49,8 @@ public class YouTubeChannelVideosService(
         }
 
         logger.LogError(
-            "{GetChannelVideosName}: Unable to find channel-upload-playlist-items for channel-id '{ChannelIdChannelId}', playlist-id '{UploadsChannelId}'.", nameof(GetChannelVideos), channelId.ChannelId, uploadsChannelId);
+            "{GetChannelVideosName}: Unable to find channel-upload-playlist-items for channel-id '{ChannelIdChannelId}', playlist-id '{UploadsChannelId}'.",
+            nameof(GetChannelVideos), channelId.ChannelId, uploadsChannelId);
         return null;
     }
 }

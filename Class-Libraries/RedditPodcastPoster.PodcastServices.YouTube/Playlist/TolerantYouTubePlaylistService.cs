@@ -13,7 +13,8 @@ public class TolerantYouTubePlaylistService(
 ) : ITolerantYouTubePlaylistService
 {
     public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
-        YouTubePlaylistId playlistId, IndexingContext indexingContext, bool withContentDetails = false)
+        YouTubePlaylistId playlistId, IndexingContext indexingContext, bool withContentDetails = false,
+        bool expensivePlaylist = false)
     {
         var result = new GetPlaylistVideoSnippetsResponse(null);
         var success = false;
@@ -23,10 +24,10 @@ public class TolerantYouTubePlaylistService(
             try
             {
                 result = await youTubePlaylistService.GetPlaylistVideoSnippets(youTubeService, playlistId,
-                    indexingContext, withContentDetails);
+                    indexingContext, withContentDetails, expensivePlaylist);
                 success = true;
             }
-            catch (YouTubeQuotaException ex)
+            catch (YouTubeQuotaException)
             {
                 logger.LogInformation(
                     "Quota exceeded observed. Rotating api-key .");
