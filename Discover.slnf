@@ -1,0 +1,13 @@
+{
+  "solution": {
+    "path": "RedditPodcastPoster.slnx",
+    "projects": [
+      "Class-Libraries\\RedditPodcastPoster.Common\\RedditPodcastPoster.Common.csproj",
+      "Class-Libraries\\RedditPodcastPoster.Discovery\\RedditPodcastPoster.Discovery.csproj",
+      "Class-Libraries\\RedditPodcastPoster.PodcastServices.ListenNotes\\RedditPodcastPoster.PodcastServices.ListenNotes.csproj",
+      "Class-Libraries\\RedditPodcastPoster.PodcastServices.Spotify\\RedditPodcastPoster.PodcastServices.Spotify.csproj",
+      "Class-Libraries\\RedditPodcastPoster.PodcastServices\\RedditPodcastPoster.PodcastServices.csproj",
+      "Console-Apps\\Discover\\Discover.csproj"
+    ]
+  }
+}

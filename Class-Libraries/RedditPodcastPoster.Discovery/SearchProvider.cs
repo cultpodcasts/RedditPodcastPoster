@@ -85,15 +85,24 @@ public class SearchProvider(
             }
 
             var indexingContextChanges = indexingContextBeforeIteration.GetIndexingContextChanges(indexingContext);
+            if (serviceResults.Count == 0)
+            {
+                logger.LogWarning(
+                    "{method}: No episodes found from discover-service '{discoverService}'.",
+                    nameof(GetEpisodes),
+                    config.DiscoverService.ToString());
+            }
+
             if (indexingContextChanges.Count > 0)
             {
-                logger.LogInformation(
-                    "{discoverService}: indexing-context changed: {changes}.",
-                    config.DiscoverService,
+                logger.LogWarning(
+                    "indexing-context changed using discover-service '{discoverService}': {changes}.",
+                    config.DiscoverService.ToString(),
                     string.Join(", ", indexingContextChanges));
             }
 
-            logger.LogInformation("{discoverService} yielded {count} results", config.DiscoverService, serviceResults.Count);
+            logger.LogInformation("{discoverService} yielded {count} results", config.DiscoverService,
+                serviceResults.Count);
             results.AddRange(serviceResults);
         }
 
