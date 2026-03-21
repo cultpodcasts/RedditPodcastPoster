@@ -8,5 +8,6 @@ public interface ITolerantYouTubePlaylistService
     public Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
         YouTubePlaylistId playlistId,
         IndexingContext indexingContext,
-        bool withContentDetails = false);
+        bool withContentDetails = false,
+        bool expensivePlaylist = false);
 }

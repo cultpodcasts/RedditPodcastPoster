@@ -10,7 +10,8 @@ public interface IYouTubePlaylistService
         IYouTubeServiceWrapper youTubeServiceWrapper,
         YouTubePlaylistId playlistId,
         IndexingContext indexingContext,
-        bool withContentDetails = false);
+        bool withContentDetails = false,
+        bool expensivePlaylist = false);
 
     Task<GetPlaylistInfoResponse> GetPlaylistInfo(
         IYouTubeServiceWrapper youTubeServiceWrapper,

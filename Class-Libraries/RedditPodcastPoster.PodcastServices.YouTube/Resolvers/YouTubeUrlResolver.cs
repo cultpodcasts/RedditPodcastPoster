@@ -46,9 +46,8 @@ public class YouTubeItemResolver(
         IndexingContext indexingContext, TimeSpan youTubePublishingDelay)
     {
         var latestPlaylistItems = await youTubePlaylistService.GetPlaylistVideoSnippets(
-            new YouTubePlaylistId(request.Podcast.YouTubePlaylistId),
-            indexingContext,
-            true);
+            new YouTubePlaylistId(request.Podcast.YouTubePlaylistId), indexingContext, true,
+            request.Podcast.HasExpensiveYouTubePlaylistQuery());
         if (latestPlaylistItems?.Result == null)
         {
             return null;

@@ -20,7 +20,9 @@ public class YouTubePlaylistService(
     public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
         IYouTubeServiceWrapper youTubeServiceWrapper,
         YouTubePlaylistId playlistId,
-        IndexingContext indexingContext, bool withContentDetails = false)
+        IndexingContext indexingContext,
+        bool withContentDetails = false,
+        bool expensivePlaylist = false)
     {
         if (indexingContext.SkipYouTubeUrlResolving)
         {
@@ -89,22 +91,29 @@ public class YouTubePlaylistService(
             if (firstRun)
             {
                 firstRun = false;
-                if (indexingContext.ReleasedSince.HasValue)
+                if (expensivePlaylist)
                 {
-                    knownToBeInReverseOrder = IsReverseDateOrdered(playlistItemsListResponse.Items);
-                    if (knownToBeInReverseOrder)
+                    batchSize = 10;
+                }
+                else
+                {
+                    if (indexingContext.ReleasedSince.HasValue)
                     {
-                        batchSize = 1;
-                        logger.LogInformation(
-                            "Playlist '{playlistId}' appears to be in reverse-date order. Setting batch-size to '{batchSize}'.",
-                            playlistId.PlaylistId, batchSize);
-                    }
-                    else
-                    {
-                        batchSize = 10;
-                        logger.LogInformation(
-                            "Playlist '{playlistId}' is not in reverse-date order. Setting batch-size to '{batchSize}'.",
-                            playlistId.PlaylistId, batchSize);
+                        knownToBeInReverseOrder = IsReverseDateOrdered(playlistItemsListResponse.Items);
+                        if (knownToBeInReverseOrder)
+                        {
+                            batchSize = 1;
+                            logger.LogInformation(
+                                "Playlist '{playlistId}' appears to be in reverse-date order. Setting batch-size to '{batchSize}'.",
+                                playlistId.PlaylistId, batchSize);
+                        }
+                        else
+                        {
+                            batchSize = 10;
+                            logger.LogInformation(
+                                "Playlist '{playlistId}' is not in reverse-date order. Setting batch-size to '{batchSize}'.",
+                                playlistId.PlaylistId, batchSize);
+                        }
                     }
                 }
             }

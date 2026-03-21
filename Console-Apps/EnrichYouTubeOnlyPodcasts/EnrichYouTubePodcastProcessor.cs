@@ -129,7 +129,8 @@ public class EnrichYouTubePodcastProcessor(
         }
 
         var playlistQueryResponse =
-            await youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(playlistId), indexOptions);
+            await youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(playlistId), indexOptions,
+                expensivePlaylist: podcast.HasExpensiveYouTubePlaylistQuery());
         if (playlistQueryResponse.Result == null)
         {
             logger.LogError("Unable to retrieve playlist items from playlist '{playlistId}'.", playlistId);
@@ -209,8 +210,7 @@ public class EnrichYouTubePodcastProcessor(
 
         if (addedEpisodes.Any() && !string.IsNullOrEmpty(podcast.EpisodeIncludeTitleRegex))
         {
-            addedEpisodes = foundEpisodeFilter.ReduceEpisodes(podcast, addedEpisodes)
-                .ToList().ToList();
+            addedEpisodes = foundEpisodeFilter.ReduceEpisodes(podcast, addedEpisodes).ToArray();
         }
 
         // Add new episodes to working list

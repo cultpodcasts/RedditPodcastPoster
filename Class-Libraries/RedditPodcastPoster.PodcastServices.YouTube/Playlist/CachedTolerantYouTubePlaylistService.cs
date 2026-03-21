@@ -17,7 +17,8 @@ public class CachedTolerantYouTubePlaylistService(
     public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
         YouTubePlaylistId playlistId,
         IndexingContext indexingContext,
-        bool withContentDetails = false)
+        bool withContentDetails = false,
+        bool expensivePlaylist = false)
     {
         if (Cache.TryGetValue(playlistId.PlaylistId + withContentDetails, out var playlistItems))
         {
@@ -33,7 +34,7 @@ public class CachedTolerantYouTubePlaylistService(
         }
 
         var result = await tolerantYouTubePlaylistService.GetPlaylistVideoSnippets(
-            playlistId, indexingContext, withContentDetails);
+            playlistId, indexingContext, withContentDetails, expensivePlaylist);
 
         if (result?.Result != null)
         {
