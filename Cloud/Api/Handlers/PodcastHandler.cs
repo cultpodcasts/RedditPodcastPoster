@@ -641,13 +641,12 @@ public class PodcastHandler(
 
         if (podcastGetRequest.EpisodeId.HasValue)
         {
-            var episode = await episodeRepository.GetBy(x => x.Id == podcastGetRequest.EpisodeId.Value);
-            if (episode != null)
+            foreach (var candidatePodcast in podcasts)
             {
-                var podcastByEpisode = podcasts.SingleOrDefault(x => x.Id == episode.PodcastId);
-                if (podcastByEpisode != null)
+                var episode = await episodeRepository.GetEpisode(candidatePodcast.Id, podcastGetRequest.EpisodeId.Value);
+                if (episode != null)
                 {
-                    return new PodcastWrapper(podcastByEpisode, PodcastRetrievalState.Found);
+                    return new PodcastWrapper(candidatePodcast, PodcastRetrievalState.Found);
                 }
             }
         }
