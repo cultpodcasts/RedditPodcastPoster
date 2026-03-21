@@ -58,14 +58,16 @@ public class NonPodcastServiceCategoriser(
                 IEnumerable<Episode> episodes;
                 if (service == NonPodcastService.BBC)
                 {
-                    episodes = await episodeRepository.GetAllBy(x => x.Urls.BBC == url && x.PodcastId == podcast.Id)
+                    episodes = await episodeRepository
+                        .GetByPodcastId(podcast.Id, x => x.Urls.BBC == url)
                         .ToListAsync();
 
                 }
                 else
                 {
                     episodes = await episodeRepository
-                        .GetAllBy(x => x.Urls.InternetArchive == url && x.PodcastId == podcast.Id).ToListAsync();
+                        .GetByPodcastId(podcast.Id, x => x.Urls.InternetArchive == url)
+                        .ToListAsync();
                 }
 
                 if (episodes.Count() > 1)
@@ -77,7 +79,7 @@ public class NonPodcastServiceCategoriser(
                 return new ResolvedNonPodcastServiceItem(service, podcast, episodes.Single());
             }
         }
-        var podcastEpisodes= await episodeRepository.GetAllBy(x => x.PodcastId == podcast.Id).ToListAsync();
+        var podcastEpisodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
 
         return await streamingServiceMetaDataHandler.ResolveServiceItem(podcast, podcastEpisodes, url);
     }

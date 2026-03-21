@@ -86,11 +86,12 @@ public class EnrichPodcastEpisodesProcessor(
         var episodesQuery = episodeRepository.GetByPodcastId(podcastId);
         if (request.ReleasedSince.HasValue)
         {
-            episodesQuery = episodeRepository.GetAllBy(x =>
-                x.PodcastId == podcastId && x.Release >= indexingContext.ReleasedSince);
+            episodesQuery = episodeRepository.GetByPodcastId(
+                podcastId,
+                x => x.Release >= indexingContext.ReleasedSince);
         }
 
-        var currentEpisodes = await episodeRepository.GetAllBy(x => x.PodcastId == podcastId).ToListAsync();
+        var currentEpisodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();
 
         await foreach (var detachedEpisode in episodesQuery)
         {
