@@ -92,17 +92,23 @@ public class SearchProvider(
                     nameof(GetEpisodes),
                     config.DiscoverService.ToString());
             }
+            else
+            {
+                logger.LogInformation("{method}: discover-service '{discoverService}' yielded {count} results",
+                    nameof(GetEpisodes),
+                    config.DiscoverService,
+                    serviceResults.Count);
+            }
 
             if (indexingContextChanges.Count > 0)
             {
                 logger.LogWarning(
-                    "indexing-context changed using discover-service '{discoverService}': {changes}.",
+                    "{method}: indexing-context changed using discover-service '{discoverService}': {changes}.",
+                    nameof(GetEpisodes),
                     config.DiscoverService.ToString(),
                     string.Join(", ", indexingContextChanges));
             }
 
-            logger.LogInformation("{discoverService} yielded {count} results", config.DiscoverService,
-                serviceResults.Count);
             results.AddRange(serviceResults);
         }
 
@@ -127,7 +133,9 @@ public class SearchProvider(
             $"apple-enriched-release: '{items.Count(x => x.EnrichedTimeFromApple)}'"
         ];
 
-        logger.LogInformation("{Join}.", string.Join(", ", logItems));
+        logger.LogInformation("{method}: Search-results: {Join}.",
+            nameof(GetEpisodes),
+            string.Join(", ", logItems));
         return items;
     }
 
