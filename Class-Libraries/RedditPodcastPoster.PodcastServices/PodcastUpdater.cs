@@ -33,11 +33,32 @@ public class PodcastUpdater(
         var knownSpotifyExpensiveQuery = podcast.HasExpensiveSpotifyEpisodesQuery();
         IList<Models.V2.Episode> episodes;
         EpisodeMergeResult mergeResult;
+        var youTubePublishingDelay = podcast.YouTubePublishingDelay();
+
+        if (!indexingContext.ReleasedSince.HasValue)
+        {
+            throw new InvalidOperationException(
+                $"Cannot index podcast with id '{podcast.Id}' without a released-since");
+        }
+
+        var releasedSince = indexingContext.ReleasedSince.Value;
+        if (podcast.ReleaseAuthority == Service.YouTube)
+        {
+            releasedSince += youTubePublishingDelay;
+        }
+
+        var repositoryReleasedSince = youTubePublishingDelay < TimeSpan.Zero
+            ? releasedSince
+            : releasedSince - youTubePublishingDelay;
+
         logger.LogInformation("'{method}': Podcast '{podcastName}' {nameOfEnrichOnly}= '{enrichOnly}'.", 
             nameof(Update), podcast.Name, nameof(enrichOnly), enrichOnly);
         if (!enrichOnly)
         {
-            episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+            episodes = await episodeRepository
+                .GetByPodcastId(podcast.Id, x => x.Release >= repositoryReleasedSince)
+                .ToListAsync();
+
             var newEpisodes = await episodeProvider.GetEpisodes(podcast, episodes, indexingContext);
             var checkShortEpisodes =
                 !(podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value);
@@ -60,36 +81,15 @@ public class PodcastUpdater(
             
             mergeResult = episodeMerger.MergeEpisodes(podcast, episodes, newEpisodes);
 
-            if (indexingContext.ReleasedSince.HasValue)
-            {
-                var releasedSince = indexingContext.ReleasedSince.Value;
-                var youTubePublishingDelay = podcast.YouTubePublishingDelay();
-                if (podcast.ReleaseAuthority == Service.YouTube)
-                {
-                    releasedSince += youTubePublishingDelay;
-                }
-
-                episodes = episodes
-                    .Where(x => ReduceToSinceIncorporatingPublishDelay(x, youTubePublishingDelay, releasedSince))
-                    .ToList();
-            }
+            episodes = episodes
+                .Where(x => ReduceToSinceIncorporatingPublishDelay(x, youTubePublishingDelay, releasedSince))
+                .ToList();
         }
         else
         {
-            if (!indexingContext.ReleasedSince.HasValue)
-            {
-                throw new InvalidOperationException(
-                    $"Cannot enrich podcast with id '{podcast.Id}' without a released-since");
-            }
-
-            var releasedSince = indexingContext.ReleasedSince.Value;
-            var youTubePublishingDelay = podcast.YouTubePublishingDelay();
-            if (podcast.ReleaseAuthority == Service.YouTube)
-            {
-                releasedSince += youTubePublishingDelay;
-            }
-
-            episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+            episodes = await episodeRepository
+                .GetByPodcastId(podcast.Id, x => x.Release >= repositoryReleasedSince)
+                .ToListAsync();
 
             episodes = episodes
                 .Where(x => ReduceToSinceIncorporatingPublishDelay(x, youTubePublishingDelay, releasedSince))
@@ -109,11 +109,11 @@ public class PodcastUpdater(
                 episode.Ignored = true;
             }
         }
-        var podcastEpisodes= await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
-        var enrichmentResult = await podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, podcastEpisodes, episodes, indexingContext);
+
+        var enrichmentResult = await podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, episodes, episodes, indexingContext);
         var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
-        var filterResult = podcastFilter.Filter(podcast, podcastEpisodes, eliminationTerms.Terms);
+        var filterResult = podcastFilter.Filter(podcast, episodes, eliminationTerms.Terms);
 
         // Persist enriched episodes
         if (enrichmentResult.UpdatedEpisodes.Any())

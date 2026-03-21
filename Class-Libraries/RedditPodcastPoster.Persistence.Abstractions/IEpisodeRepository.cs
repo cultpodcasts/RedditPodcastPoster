@@ -7,6 +7,7 @@ public interface IEpisodeRepository
 {
     Task<Episode?> GetEpisode(Guid podcastId, Guid episodeId);
     IAsyncEnumerable<Episode> GetByPodcastId(Guid podcastId);
+    IAsyncEnumerable<Episode> GetByPodcastId(Guid podcastId, Expression<Func<Episode, bool>> selector);
     Task<Episode?> GetMostRecentByPodcastId(Guid podcastId);
     Task Save(Episode episode);
     Task Save(IEnumerable<Episode> episodes);
