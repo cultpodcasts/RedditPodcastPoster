@@ -5,7 +5,7 @@ namespace RedditPodcastPoster.Discovery;
 
 public interface IDiscoveryService
 {
-    Task<IEnumerable<DiscoveryResult>> GetDiscoveryResults(
+    IAsyncEnumerable<DiscoveryResult> GetDiscoveryResults(
         DiscoveryConfig discoveryConfig,
         IndexingContext indexingContext);
 }

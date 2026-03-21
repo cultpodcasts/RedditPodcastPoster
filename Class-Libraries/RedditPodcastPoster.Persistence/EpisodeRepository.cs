@@ -56,6 +56,37 @@ public class EpisodeRepository(
         }
     }
 
+    public async IAsyncEnumerable<Episode> GetByPodcastId(Guid podcastId, Expression<Func<Episode, bool>> selector)
+    {
+        var query = container
+            .GetItemLinqQueryable<Episode>(requestOptions: new QueryRequestOptions
+            {
+                PartitionKey = ToPartitionKey(podcastId)
+            })
+            .Where(x => x.PodcastId == podcastId)
+            .Where(selector);
+
+        var items = query.ToFeedIterator();
+        while (items.HasMoreResults)
+        {
+            FeedResponse<Episode> response;
+            try
+            {
+                response = await items.ReadNextAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "{method}: error retrieving episodes by podcast-id with additional filter.", nameof(GetByPodcastId));
+                throw;
+            }
+
+            foreach (var item in response)
+            {
+                yield return item;
+            }
+        }
+    }
+
     public async Task<Episode?> GetMostRecentByPodcastId(Guid podcastId)
     {
         var query = container

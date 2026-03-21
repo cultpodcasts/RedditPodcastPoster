@@ -74,7 +74,9 @@ public class Processor(
                 foreach (var podcastEpisode in episodes)
                 {
                     var episodeChanged = false;
-                    var repoPodcastEpisode = await episodeRepository.GetBy(x => x.Id == podcastEpisode.Episode.Id);
+                    var repoPodcastEpisode = await episodeRepository.GetEpisode(
+                        podcast.Id,
+                        podcastEpisode.Episode.Id);
                     if (repoPodcastEpisode != null && !repoPodcastEpisode.Subjects.Contains(request.Query))
                     {
                         var subjectEnrichmentOptions = new SubjectEnrichmentOptions(

@@ -269,16 +269,16 @@ public class PostProcessor(
     {
         if (request.EpisodeId.HasValue)
         {
-            var detachedEpisode = await episodeRepository.GetBy(x => x.Id == request.EpisodeId.Value);
-            if (detachedEpisode == null)
-            {
-                throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
-            }
-
             var selectedPodcast = await repository.GetPodcast(podcastIds.Single());
             if (selectedPodcast == null)
             {
                 throw new ArgumentException($"Podcast with id '{podcastIds.Single()}' not found.");
+            }
+
+            var detachedEpisode = await episodeRepository.GetEpisode(selectedPodcast.Id, request.EpisodeId.Value);
+            if (detachedEpisode == null)
+            {
+                throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
             }
 
             if (detachedEpisode.Ignored && request.FlipIgnored)

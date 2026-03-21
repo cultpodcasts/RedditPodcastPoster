@@ -73,8 +73,9 @@ public class Processor(
             {
                 foreach (var podcastEpisode in episodes)
                 {
-                    var repoEpisode = await episodeRepository.GetBy(x =>
-                        x.Id == podcastEpisode.EpisodeId && x.PodcastId == podcast.Id);
+                    var repoEpisode = await episodeRepository.GetEpisode(
+                        podcast.Id,
+                        podcastEpisode.EpisodeId);
 
                     if (repoEpisode != null)
                     {
