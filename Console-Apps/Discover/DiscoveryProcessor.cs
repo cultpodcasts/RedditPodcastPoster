@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace Discover;
@@ -9,7 +10,7 @@ public class DiscoveryProcessor(
     IDiscoveryServiceConfigProvider discoveryConfigProvider,
     IDiscoveryService discoveryService,
     IDiscoveryResultConsoleLogger discoveryResultConsoleLogger,
-    IDiscoveryResultsRepository discoveryResultsRepository,
+    IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<DiscoveryProcessor> logger
 #pragma warning restore CS9113 // Parameter is unread.

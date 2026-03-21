@@ -41,8 +41,8 @@ return await Parser.Default.ParseArguments<DiscoveryRequest>(args)
 
 async Task<int> Run(DiscoveryRequest request)
 {
-    var urlSubmitter = host.Services.GetService<DiscoveryProcessor>()!;
-    var result = await urlSubmitter.Process(request);
+    var processor = host.Services.GetService<DiscoveryProcessor>()!;
+    var result = await processor.Process(request);
     if (result.Initiation.HasValue)
     {
         var initiation = $"{result.Initiation:O}";
