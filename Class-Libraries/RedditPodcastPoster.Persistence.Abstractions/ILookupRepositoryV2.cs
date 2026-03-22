@@ -8,4 +8,6 @@ public interface ILookupRepositoryV2
     Task<TKnownTerms?> GetKnownTerms<TKnownTerms>() where TKnownTerms : CosmosSelector;
     Task SaveEliminationTerms(EliminationTerms eliminationTerms);
     Task SaveKnownTerms<TKnownTerms>(TKnownTerms knownTerms) where TKnownTerms : CosmosSelector;
+    Task<HomePageCache?> GetHomePageCache();
+    Task SaveHomePageCache(HomePageCache homePageCache);
 }

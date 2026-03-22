@@ -32,6 +32,9 @@ public enum ModelType
     Discovery = 9,
 
     [JsonPropertyName(nameof(PushSubscription))]
-    PushSubscription = 10
+    PushSubscription = 10,
+
+    [JsonPropertyName(nameof(HomePageCache))]
+    HomePageCache = 11
 
 }

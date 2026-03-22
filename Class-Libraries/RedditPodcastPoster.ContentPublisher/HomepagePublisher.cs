@@ -10,7 +10,6 @@ using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
 using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.ContentPublisher;
@@ -22,6 +21,7 @@ public class HomepagePublisher(
     ISubjectsProvider subjectsProvider,
     IAmazonS3 client,
     IOptions<ContentOptions> contentOptions,
+    ILookupRepositoryV2 lookupRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<HomepagePublisher> logger)
 #pragma warning restore CS9113 // Parameter is unread.
@@ -43,6 +43,12 @@ public class HomepagePublisher(
         return new PublishHomepageResult(homepagePublished);
     }
 
+    private static bool IsRefreshWindow()
+    {
+        var utcNow = DateTime.UtcNow;
+        return utcNow is { DayOfWeek: DayOfWeek.Monday, Hour: 0, Minute: < 20 };
+    }
+
     private async Task<HomePageModel> GetHomePage(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -52,13 +58,7 @@ public class HomepagePublisher(
             .GetAllBy(
                 x => !x.Removed,
                 x => new { x.PodcastRemoved })
-            .ToListAsync()
-            .AsTask();
-        var durationEpisodesTask = episodeRepository
-            .GetAllBy(
-                x => !x.Removed && !x.Ignored,
-                x => new { x.PodcastRemoved, x.Length })
-            .ToListAsync()
+            .ToListAsync(cancellationToken: ct)
             .AsTask();
         var recentEpisodesTask = episodeRepository
             .GetAllBy(
@@ -77,15 +77,41 @@ public class HomepagePublisher(
                     x.Subjects,
                     x.Images
                 })
-            .ToListAsync()
+            .ToListAsync(cancellationToken: ct)
             .AsTask();
 
-        await Task.WhenAll(countEpisodesTask, durationEpisodesTask, recentEpisodesTask);
+        var shouldRefreshDurationCache = IsRefreshWindow();
+        HomePageCache? homePageCache = null;
+        if (!shouldRefreshDurationCache)
+        {
+            homePageCache = await lookupRepository.GetHomePageCache();
+            shouldRefreshDurationCache = homePageCache == null;
+        }
+
+        long durationTicks;
+        if (shouldRefreshDurationCache)
+        {
+            var durationEpisodesTask = episodeRepository
+                .GetAllBy(
+                    x => !x.Removed && !x.Ignored,
+                    x => new { x.PodcastRemoved, x.Length })
+                .ToListAsync(cancellationToken: ct)
+                .AsTask();
+            await Task.WhenAll(countEpisodesTask, durationEpisodesTask, recentEpisodesTask);
+            durationTicks = durationEpisodesTask.Result
+                .Where(x => x.PodcastRemoved != true)
+                .Sum(x => x.Length.Ticks);
+            await lookupRepository.SaveHomePageCache(new HomePageCache
+                { TotalDuration = TimeSpan.FromTicks(durationTicks) });
+        }
+        else
+        {
+            await Task.WhenAll(countEpisodesTask, recentEpisodesTask);
+            durationTicks = homePageCache!.TotalDuration.Ticks;
+        }
 
         var activeEpisodeCount = countEpisodesTask.Result.Count(x => x.PodcastRemoved != true);
-        var durationTicks = durationEpisodesTask.Result
-            .Where(x => x.PodcastRemoved != true)
-            .Sum(x => x.Length.Ticks);
+
         var recentEpisodes = recentEpisodesTask.Result
             .Where(x => x.PodcastRemoved != true)
             .ToList();
@@ -96,11 +122,11 @@ public class HomepagePublisher(
         var podcasts = recentPodcastIds.Length == 0
             ? new Dictionary<Guid, dynamic>()
             : (await podcastRepository
-                    .GetAllBy(
-                        x => Enumerable.Contains(recentPodcastIds, x.Id),
-                        x => new { x.Id, x.Name, x.TitleRegex, x.DescriptionRegex, x.KnownTerms })
-                    .ToListAsync())
-                .ToDictionary(x => x.Id, x => (dynamic)x);
+                .GetAllBy(
+                    x => Enumerable.Contains(recentPodcastIds, x.Id),
+                    x => new { x.Id, x.Name, x.TitleRegex, x.DescriptionRegex, x.KnownTerms })
+                .ToListAsync(cancellationToken: ct))
+            .ToDictionary(x => x.Id, x => (dynamic)x);
 
         var orderedPodcasts = recentEpisodes
             .Select(episode =>
@@ -179,7 +205,8 @@ public class HomepagePublisher(
             descRegex = new Regex(podcastResult.DescriptionRegex, Podcast.DescriptionFlags);
         }
 
-        podcastResult.EpisodeDescription = textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
+        podcastResult.EpisodeDescription =
+            textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
         return podcastResult;
     }
 
