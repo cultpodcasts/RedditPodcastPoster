@@ -21,6 +21,11 @@ public class LookupRepositoryV2(
         return GetBy<TKnownTerms>(x => x.ModelType == ModelType.KnownTerms);
     }
 
+    public Task<HomePageCache?> GetHomePageCache()
+    {
+        return GetBy<HomePageCache>(x => x.ModelType == ModelType.HomePageCache);
+    }
+
     public async Task SaveEliminationTerms(EliminationTerms eliminationTerms)
     {
         await lookupContainer.UpsertItemAsync(eliminationTerms, new PartitionKey(eliminationTerms.Id.ToString()));
@@ -29,6 +34,11 @@ public class LookupRepositoryV2(
     public async Task SaveKnownTerms<TKnownTerms>(TKnownTerms knownTerms) where TKnownTerms : CosmosSelector
     {
         await lookupContainer.UpsertItemAsync(knownTerms, new PartitionKey(knownTerms.Id.ToString()));
+    }
+
+    public async Task SaveHomePageCache(HomePageCache homePageCache)
+    {
+        await lookupContainer.UpsertItemAsync(homePageCache, new PartitionKey(homePageCache.Id.ToString()));
     }
 
     private async Task<T?> GetById<T>(Guid id) where T : CosmosSelector

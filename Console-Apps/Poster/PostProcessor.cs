@@ -106,8 +106,7 @@ public class PostProcessor(
 
     private async Task Publish()
     {
-        Task[] publishingTasks = [contentPublisher.PublishHomepage()];
-        await Task.WhenAll(publishingTasks);
+        await contentPublisher.PublishHomepage();
     }
 
     private async Task PostToSocial(PostRequest request)

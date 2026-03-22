@@ -10,7 +10,6 @@ using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
 using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.ContentPublisher;
@@ -22,9 +21,8 @@ public class HomepagePublisher(
     ISubjectsProvider subjectsProvider,
     IAmazonS3 client,
     IOptions<ContentOptions> contentOptions,
-#pragma warning disable CS9113 // Parameter is unread.
+    ILookupRepositoryV2 lookupRepository,
     ILogger<HomepagePublisher> logger)
-#pragma warning restore CS9113 // Parameter is unread.
     : IHomepagePublisher
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
@@ -43,6 +41,12 @@ public class HomepagePublisher(
         return new PublishHomepageResult(homepagePublished);
     }
 
+    private static bool IsRefreshWindow()
+    {
+        var utcNow = DateTime.UtcNow;
+        return utcNow is { DayOfWeek: DayOfWeek.Monday, Hour: 0, Minute: < 20 };
+    }
+
     private async Task<HomePageModel> GetHomePage(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -50,22 +54,15 @@ public class HomepagePublisher(
         var recentCutoff = DateTime.UtcNow.AddDays(-7);
         var countEpisodesTask = episodeRepository
             .GetAllBy(
-                x => !x.Removed,
-                x => new { x.PodcastRemoved })
-            .ToListAsync()
-            .AsTask();
-        var durationEpisodesTask = episodeRepository
-            .GetAllBy(
-                x => !x.Removed && !x.Ignored,
-                x => new { x.PodcastRemoved, x.Length })
-            .ToListAsync()
+                x => !x.Removed && x.PodcastRemoved != true,
+                x => x.Id)
+            .ToListAsync(ct)
             .AsTask();
         var recentEpisodesTask = episodeRepository
             .GetAllBy(
-                x => !x.Removed && !x.Ignored && x.Release >= recentCutoff,
+                x => !x.Removed && !x.Ignored && x.Release >= recentCutoff && x.PodcastRemoved != true,
                 x => new
                 {
-                    x.PodcastRemoved,
                     x.PodcastId,
                     x.PodcastName,
                     EpisodeId = x.Id,
@@ -77,30 +74,33 @@ public class HomepagePublisher(
                     x.Subjects,
                     x.Images
                 })
-            .ToListAsync()
+            .ToListAsync(ct)
             .AsTask();
 
-        await Task.WhenAll(countEpisodesTask, durationEpisodesTask, recentEpisodesTask);
+        var durationTicks = await ResolveDurationTicks(countEpisodesTask, recentEpisodesTask, ct);
 
-        var activeEpisodeCount = countEpisodesTask.Result.Count(x => x.PodcastRemoved != true);
-        var durationTicks = durationEpisodesTask.Result
-            .Where(x => x.PodcastRemoved != true)
-            .Sum(x => x.Length.Ticks);
-        var recentEpisodes = recentEpisodesTask.Result
-            .Where(x => x.PodcastRemoved != true)
-            .ToList();
+        var activeEpisodeCount = countEpisodesTask.Result.Count;
+
+        var recentEpisodes = recentEpisodesTask.Result;
         var recentPodcastIds = recentEpisodes
             .Select(x => x.PodcastId)
             .Distinct()
             .ToArray();
         var podcasts = recentPodcastIds.Length == 0
-            ? new Dictionary<Guid, dynamic>()
+            ? new Dictionary<Guid, PodcastEntry>()
             : (await podcastRepository
-                    .GetAllBy(
-                        x => Enumerable.Contains(recentPodcastIds, x.Id),
-                        x => new { x.Id, x.Name, x.TitleRegex, x.DescriptionRegex, x.KnownTerms })
-                    .ToListAsync())
-                .ToDictionary(x => x.Id, x => (dynamic)x);
+                .GetAllBy(
+                    x => Enumerable.Contains(recentPodcastIds, x.Id),
+                    x => new PodcastEntry
+                    {
+                        Id = x.Id,
+                        Name = x.Name,
+                        TitleRegex = x.TitleRegex,
+                        DescriptionRegex = x.DescriptionRegex,
+                        KnownTerms = x.KnownTerms
+                    })
+                .ToListAsync(ct))
+            .ToDictionary(x => x.Id);
 
         var orderedPodcasts = recentEpisodes
             .Select(episode =>
@@ -134,23 +134,56 @@ public class HomepagePublisher(
         return new HomePageModel
         {
             EpisodeCount = activeEpisodeCount,
-            RecentEpisodes = sanitizedPodcasts.Select(x => new RecentEpisode
-            {
-                EpisodeId = x.EpisodeId,
-                EpisodeDescription = WebUtility.HtmlDecode(x.EpisodeDescription),
-                EpisodeTitle = WebUtility.HtmlDecode(x.EpisodeTitle),
-                PodcastName = x.PodcastName,
-                Release = x.Release,
-                Spotify = x.Spotify,
-                Apple = x.Apple,
-                YouTube = x.YouTube,
-                BBC = x.BBC,
-                InternetArchive = x.InternetArchive,
-                Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
-                Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null,
-                Image = x.Images?.YouTube ?? x.Images?.Spotify ?? x.Images?.Apple ?? x.Images?.Other
-            }),
+            RecentEpisodes = sanitizedPodcasts.Select(ToRecentEpisode),
             TotalDuration = TimeSpan.FromTicks(durationTicks)
+        };
+    }
+
+    private async Task<long> ResolveDurationTicks(Task countEpisodesTask, Task recentEpisodesTask, CancellationToken ct)
+    {
+        var shouldRefresh = IsRefreshWindow();
+        HomePageCache? homePageCache = null;
+        if (!shouldRefresh)
+        {
+            homePageCache = await lookupRepository.GetHomePageCache();
+            shouldRefresh = homePageCache == null;
+        }
+
+        if (shouldRefresh)
+        {
+            var durationEpisodesTask = episodeRepository
+                .GetAllBy(
+                    x => !x.Removed && !x.Ignored && x.PodcastRemoved != true,
+                    x => x.Length)
+                .ToListAsync(ct)
+                .AsTask();
+            await Task.WhenAll(countEpisodesTask, durationEpisodesTask, recentEpisodesTask);
+            var ticks = durationEpisodesTask.Result.Sum(x => x.Ticks);
+            await lookupRepository.SaveHomePageCache(new HomePageCache { TotalDuration = TimeSpan.FromTicks(ticks) });
+            return ticks;
+        }
+
+        await Task.WhenAll(countEpisodesTask, recentEpisodesTask);
+        return homePageCache!.TotalDuration.Ticks;
+    }
+
+    private static RecentEpisode ToRecentEpisode(PodcastResult x)
+    {
+        return new RecentEpisode
+        {
+            EpisodeId = x.EpisodeId,
+            EpisodeDescription = WebUtility.HtmlDecode(x.EpisodeDescription),
+            EpisodeTitle = WebUtility.HtmlDecode(x.EpisodeTitle),
+            PodcastName = x.PodcastName,
+            Release = x.Release,
+            Spotify = x.Spotify,
+            Apple = x.Apple,
+            YouTube = x.YouTube,
+            BBC = x.BBC,
+            InternetArchive = x.InternetArchive,
+            Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
+            Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null,
+            Image = x.Images?.YouTube ?? x.Images?.Spotify ?? x.Images?.Apple ?? x.Images?.Other
         };
     }
 
@@ -179,7 +212,8 @@ public class HomepagePublisher(
             descRegex = new Regex(podcastResult.DescriptionRegex, Podcast.DescriptionFlags);
         }
 
-        podcastResult.EpisodeDescription = textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
+        podcastResult.EpisodeDescription =
+            textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
         return podcastResult;
     }
 
@@ -207,5 +241,14 @@ public class HomepagePublisher(
                 nameof(PublishHomepage), _contentOptions.BucketName, _contentOptions.HomepageKey);
             return false;
         }
+    }
+
+    private sealed record PodcastEntry
+    {
+        public Guid Id { get; init; }
+        public string Name { get; init; } = string.Empty;
+        public string TitleRegex { get; init; } = string.Empty;
+        public string DescriptionRegex { get; init; } = string.Empty;
+        public string[]? KnownTerms { get; init; }
     }
 }
