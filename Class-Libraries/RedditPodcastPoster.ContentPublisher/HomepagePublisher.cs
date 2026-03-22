@@ -56,16 +56,15 @@ public class HomepagePublisher(
         var recentCutoff = DateTime.UtcNow.AddDays(-7);
         var countEpisodesTask = episodeRepository
             .GetAllBy(
-                x => !x.Removed,
-                x => new { x.PodcastRemoved })
+                x => !x.Removed && x.PodcastRemoved != true,
+                x => x.Id)
             .ToListAsync(cancellationToken: ct)
             .AsTask();
         var recentEpisodesTask = episodeRepository
             .GetAllBy(
-                x => !x.Removed && !x.Ignored && x.Release >= recentCutoff,
+                x => !x.Removed && !x.Ignored && x.Release >= recentCutoff && x.PodcastRemoved != true,
                 x => new
                 {
-                    x.PodcastRemoved,
                     x.PodcastId,
                     x.PodcastName,
                     EpisodeId = x.Id,
@@ -93,14 +92,12 @@ public class HomepagePublisher(
         {
             var durationEpisodesTask = episodeRepository
                 .GetAllBy(
-                    x => !x.Removed && !x.Ignored,
-                    x => new { x.PodcastRemoved, x.Length })
+                    x => !x.Removed && !x.Ignored && x.PodcastRemoved != true,
+                    x => x.Length)
                 .ToListAsync(cancellationToken: ct)
                 .AsTask();
             await Task.WhenAll(countEpisodesTask, durationEpisodesTask, recentEpisodesTask);
-            durationTicks = durationEpisodesTask.Result
-                .Where(x => x.PodcastRemoved != true)
-                .Sum(x => x.Length.Ticks);
+            durationTicks = durationEpisodesTask.Result.Sum(x => x.Ticks);
             await lookupRepository.SaveHomePageCache(new HomePageCache
                 { TotalDuration = TimeSpan.FromTicks(durationTicks) });
         }
@@ -110,11 +107,9 @@ public class HomepagePublisher(
             durationTicks = homePageCache!.TotalDuration.Ticks;
         }
 
-        var activeEpisodeCount = countEpisodesTask.Result.Count(x => x.PodcastRemoved != true);
+        var activeEpisodeCount = countEpisodesTask.Result.Count;
 
-        var recentEpisodes = recentEpisodesTask.Result
-            .Where(x => x.PodcastRemoved != true)
-            .ToList();
+        var recentEpisodes = recentEpisodesTask.Result.ToList();
         var recentPodcastIds = recentEpisodes
             .Select(x => x.PodcastId)
             .Distinct()
