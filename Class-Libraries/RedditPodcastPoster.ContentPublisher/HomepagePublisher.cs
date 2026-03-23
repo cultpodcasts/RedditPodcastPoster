@@ -54,13 +54,13 @@ public class HomepagePublisher(
         var recentCutoff = DateTime.UtcNow.AddDays(-7);
         var countEpisodesTask = episodeRepository
             .GetAllBy(
-                x => !x.Removed && x.PodcastRemoved != true,
+                x => !x.Removed && (x.PodcastRemoved == null || x.PodcastRemoved == false),
                 x => x.Id)
             .ToListAsync(ct)
             .AsTask();
         var recentEpisodesTask = episodeRepository
             .GetAllBy(
-                x => !x.Removed && !x.Ignored && x.Release >= recentCutoff && x.PodcastRemoved != true,
+                x => !x.Removed && !x.Ignored && x.Release >= recentCutoff && (x.PodcastRemoved == null || x.PodcastRemoved == false),
                 x => new
                 {
                     x.PodcastId,
@@ -153,7 +153,7 @@ public class HomepagePublisher(
         {
             var durationEpisodesTask = episodeRepository
                 .GetAllBy(
-                    x => !x.Removed && !x.Ignored && x.PodcastRemoved != true,
+                    x => !x.Removed && !x.Ignored && (x.PodcastRemoved == null || x.PodcastRemoved == false),
                     x => x.Length)
                 .ToListAsync(ct)
                 .AsTask();
