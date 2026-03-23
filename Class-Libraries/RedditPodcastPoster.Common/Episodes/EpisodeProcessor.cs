@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Azure.Cosmos.Linq;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Adaptors;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -28,7 +29,7 @@ public class EpisodeProcessor(
                         !x.Posted &&
                         !x.Ignored &&
                         !x.Removed &&
-                        x.PodcastRemoved != true,
+                        (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false || x.PodcastRemoved == null),
                     x => x.PodcastId)
                 .ToListAsync())
             .Distinct()
