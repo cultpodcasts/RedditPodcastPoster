@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Amazon.S3;
 using Amazon.S3.Model;
+using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.ContentPublisher.Models;
@@ -60,7 +61,9 @@ public class HomepagePublisher(
             .AsTask();
         var recentEpisodesTask = episodeRepository
             .GetAllBy(
-                x => !x.Removed && !x.Ignored && x.Release >= recentCutoff && (x.PodcastRemoved == null || x.PodcastRemoved == false),
+                x => !x.Removed && !x.Ignored && x.Release >= recentCutoff && (!x.PodcastRemoved.IsDefined() ||
+                                                                               x.PodcastRemoved == null ||
+                                                                               x.PodcastRemoved == false),
                 x => new
                 {
                     x.PodcastId,
@@ -153,7 +156,8 @@ public class HomepagePublisher(
         {
             var durationEpisodesTask = episodeRepository
                 .GetAllBy(
-                    x => !x.Removed && !x.Ignored && (x.PodcastRemoved == null || x.PodcastRemoved == false),
+                    x => !x.Removed && !x.Ignored && (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == null ||
+                                                      x.PodcastRemoved == false),
                     x => x.Length)
                 .ToListAsync(ct)
                 .AsTask();

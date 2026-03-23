@@ -29,7 +29,7 @@ public class EpisodeProcessor(
                         !x.Posted &&
                         !x.Ignored &&
                         !x.Removed &&
-                        (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false),
+                        (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false || x.PodcastRemoved == null),
                     x => x.PodcastId)
                 .ToListAsync())
             .Distinct()
