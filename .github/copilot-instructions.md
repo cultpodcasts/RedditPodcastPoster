@@ -30,3 +30,6 @@
 
 ## Episode Management
 - Use `podcast.Removed` as the canonical removal flag; do not trust episode-level `podcastRemoved` values when deciding whether an episode can be tweeted or posted.
+
+## Execution Path Validation
+- When validating this execution path live, use the Poster console app with -r -t -b flags against production.
