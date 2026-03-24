@@ -1,3 +1,5 @@
+File: .github\copilot-instructions.md
+````````markdown
 # Copilot Instructions
 
 ## Project Guidelines
@@ -36,3 +38,6 @@
 
 ## Build Tooling
 - When using the run_build tool, confirm the status of ReSharper Build, as it may not return results. Instead, use get_errors on individual files.
+
+## Editing Guidelines
+- When editing files, never include markdown fences or file labels in the edit content; apply plain code-only edits to avoid file corruption.
