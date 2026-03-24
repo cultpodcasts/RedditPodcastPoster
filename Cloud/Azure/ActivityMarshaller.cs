@@ -2,7 +2,6 @@
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Scripts;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models.Extensions;
 
 namespace Azure;
 
@@ -21,11 +20,12 @@ public class ActivityMarshaller(
     {
         try
         {
-            dynamic activity = new {Id = id, Status = InitiateActionStatus, OperationType = operationType};
+            dynamic activity = new { Id = id, Status = InitiateActionStatus, OperationType = operationType };
             var result = await container.Scripts.ExecuteStoredProcedureAsync<Activity>(
-            ActivityBookingProcedureId,
-                new PartitionKey(CosmosSelectorExtensions.GetModelType<Activity>().ToString()),
+                ActivityBookingProcedureId,
+                new PartitionKey(id.ToString()),
                 [activity]);
+
             if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == InitiateActionStatus)
             {
                 return ActivityStatus.Initiated;
@@ -44,7 +44,7 @@ public class ActivityMarshaller(
                     {
                         await container.DeleteItemAsync<Activity>(
                             id.ToString(),
-                            new PartitionKey(CosmosSelectorExtensions.GetModelType<Activity>().ToString()));
+                            new PartitionKey(id.ToString()));
                     }
                     catch (Exception ex2)
                     {
@@ -76,12 +76,13 @@ public class ActivityMarshaller(
     {
         try
         {
-            dynamic activity = new {Id = id, Status = CompleteStatus, OperationType = operationType};
+            dynamic activity = new { Id = id, Status = CompleteStatus, OperationType = operationType };
             var result = await container.Scripts.ExecuteStoredProcedureAsync<Activity>(
                 ActivityBookingProcedureId,
-                new PartitionKey(CosmosSelectorExtensions.GetModelType<Activity>().ToString()),
+                new PartitionKey(id.ToString()),
                 [activity],
                 new StoredProcedureRequestOptions());
+
             if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == CompleteStatus)
             {
                 return ActivityStatus.Completed;
