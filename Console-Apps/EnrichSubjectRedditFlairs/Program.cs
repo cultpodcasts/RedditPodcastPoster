@@ -27,7 +27,7 @@ builder.Services
     .AddLogging()
     .AddFileRepository()
     .AddRepositories()
-    .AddScoped<ICosmosDbRepository, CosmosDbRepository>()
+    .AddLegacyCosmosDb()
     .AddSingleton<RedditFlairsProcessor>()
     .AddRedditServices()
     .AddSubredditServices(builder.Configuration)

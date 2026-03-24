@@ -37,6 +37,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.Models/RedditPodcastPoster.Models.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Persistence.Abstractions/RedditPodcastPoster.Persistence.Abstractions.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.Persistence.Legacy/RedditPodcastPoster.Persistence.Legacy.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Persistence/RedditPodcastPoster.Persistence.csproj" />
 

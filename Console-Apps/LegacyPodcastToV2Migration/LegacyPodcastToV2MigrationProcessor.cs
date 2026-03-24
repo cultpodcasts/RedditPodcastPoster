@@ -1,4 +1,5 @@
 using Microsoft.Azure.Cosmos;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -54,7 +55,7 @@ public class LegacyPodcastToV2MigrationProcessor(
     ISubjectRepositoryV2 subjectsRepository,
     IDiscoveryResultsRepository legacyDiscoveryRepository,
     IDiscoveryResultsRepositoryV2 discoveryRepository,
-    ICosmosDbContainerFactory legacyContainerFactory,
+    [FromKeyedServices("v1")] Container legacyContainer,
     ILogger<LegacyPodcastToV2MigrationProcessor> logger)
 {
     private static readonly TimeSpan ProgressUpdateInterval = TimeSpan.FromSeconds(5);
@@ -79,7 +80,7 @@ public class LegacyPodcastToV2MigrationProcessor(
 
         // Migrate Podcasts and Episodes
         var totalPodcasts = await legacyPodcastRepository.GetTotalCount();
-        var totalEpisodes = await GetLegacyEpisodeCount(legacyContainerFactory.Create(), cancellationToken);
+        var totalEpisodes = await GetLegacyEpisodeCount(legacyContainer, cancellationToken);
         if (sections.MigratePodcastsAndEpisodes)
         {
             var legacyPodcasts = await legacyPodcastRepository.GetAll().ToListAsync(cancellationToken);

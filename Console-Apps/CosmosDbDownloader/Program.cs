@@ -22,6 +22,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
+    .AddLegacyCosmosDb()
     .AddSubjectServices()
     .AddDiscoveryRepository()
     .AddPushSubscriptionsRepository()

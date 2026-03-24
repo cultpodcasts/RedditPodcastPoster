@@ -26,6 +26,7 @@ builder.Services
     .AddLogging()
     .AddFileRepository(string.Empty, true)
     .AddRepositories()
+    .AddLegacyCosmosDb()
     .AddSubjectServices()
     .AddDiscoveryRepository()
     .AddPushSubscriptionsRepository()

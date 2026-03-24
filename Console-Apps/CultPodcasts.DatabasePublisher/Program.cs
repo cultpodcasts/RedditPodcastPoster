@@ -21,6 +21,7 @@ builder.Services
     .AddLogging()
     .AddFileRepository()
     .AddRepositories()
+    .AddLegacyCosmosDb()
     .AddSafeFileWriter()
     .AddSingleton<PublicDatabasePublisher>()
     .AddSingleton<PublicDatabasePublisherV2>();

@@ -432,7 +432,6 @@ var coreSettings= union(
     bluesky, 
     cloudflare, 
     content,
-    cosmosdb,
     cosmosdbv2,
     delayedPublication,
     pushSubscriptions, 
