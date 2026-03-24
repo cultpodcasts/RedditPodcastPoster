@@ -7,15 +7,16 @@ namespace RedditPodcastPoster.Common.Episodes;
 
 public class RecentEpisodeCandidatesProvider(
     IEpisodeRepository episodeRepository,
+    IPodcastRepositoryV2 podcastRepository,
     ILogger<RecentEpisodeCandidatesProvider> logger)
     : IRecentEpisodeCandidatesProvider
 {
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
     private static readonly SemaphoreSlim CacheLock = new(1, 1);
-
-    private DateTime? _cachedReleasedSince;
     private DateTime _cachedAtUtc;
     private IReadOnlyCollection<Episode>? _cachedEpisodes;
+
+    private DateTime? _cachedReleasedSince;
 
     public async Task<IReadOnlyCollection<Episode>> GetRecentActiveEpisodes(DateTime releasedSince)
     {
@@ -46,18 +47,49 @@ public class RecentEpisodeCandidatesProvider(
                 return _cachedEpisodes;
             }
 
-            var episodes = await episodeRepository
-                .GetAllBy(x => x.Release >= releasedSince && !x.Ignored && !x.Removed)
+            var recentPodcastIds = await podcastRepository
+                .GetAllBy(
+                    x => (!x.Removed.IsDefined() || x.Removed == false) &&
+                         x.LatestReleased.IsDefined() &&
+                         x.LatestReleased != null &&
+                         x.LatestReleased >= releasedSince,
+                    x => x.Id)
                 .ToArrayAsync();
+
+            if (recentPodcastIds.Length == 0)
+            {
+                _cachedReleasedSince = releasedSince;
+                _cachedAtUtc = utcNow;
+                _cachedEpisodes = [];
+
+                logger.LogInformation(
+                    "No recently active podcasts found for candidate retrieval. Released-since: '{ReleasedSince:O}'.",
+                    releasedSince);
+
+                return _cachedEpisodes;
+            }
+
+            var episodes = new List<Episode>();
+            foreach (var podcastId in recentPodcastIds)
+            {
+                var podcastEpisodes = await episodeRepository
+                    .GetByPodcastId(podcastId, x => x.Release >= releasedSince && !x.Ignored && !x.Removed)
+                    .ToArrayAsync();
+
+                episodes.AddRange(podcastEpisodes);
+            }
 
             _cachedReleasedSince = releasedSince;
             _cachedAtUtc = utcNow;
-            _cachedEpisodes = episodes;
+            _cachedEpisodes = episodes
+                .OrderByDescending(x => x.Release)
+                .ToArray();
 
             logger.LogInformation(
-                "Loaded recent episode candidates from repository. Released-since: '{ReleasedSince:O}', Count: {Count}.",
+                "Loaded recent episode candidates via latestReleased-scoped partition reads. Released-since: '{ReleasedSince:O}', PodcastCount: {PodcastCount}, Count: {Count}.",
                 releasedSince,
-                episodes.Length);
+                recentPodcastIds.Length,
+                _cachedEpisodes.Count);
 
             return _cachedEpisodes;
         }

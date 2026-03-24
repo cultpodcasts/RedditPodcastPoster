@@ -10,6 +10,7 @@ namespace RedditPodcastPoster.Persistence;
 public class EpisodeRepository(
     Container container,
     ILookupRepositoryV2 lookupRepository,
+    IPodcastRepositoryV2 podcastRepository,
     ILogger<EpisodeRepository> logger)
     : IEpisodeRepository
 {
@@ -124,6 +125,7 @@ public class EpisodeRepository(
 
         await container.UpsertItemAsync(episode, ToPartitionKey(episode.PodcastId));
         await UpdateHomePageActiveEpisodeCount(previousCountedState, nextCountedState);
+        await UpdatePodcastLatestReleasedOnSave(episode, existingEpisode);
     }
 
     public async Task Save(IEnumerable<Episode> episodes)
@@ -144,6 +146,8 @@ public class EpisodeRepository(
             {
                 await lookupRepository.IncrementHomePageActiveEpisodeCount(-1);
             }
+
+            await UpdatePodcastLatestReleasedOnDelete(podcastId, existingEpisode);
         }
         catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
@@ -239,5 +243,58 @@ public class EpisodeRepository(
         }
 
         await lookupRepository.IncrementHomePageActiveEpisodeCount(nextCountedState ? 1 : -1);
+    }
+
+    private async Task UpdatePodcastLatestReleasedOnSave(Episode episode, Episode? existingEpisode)
+    {
+        var podcast = await podcastRepository.GetPodcast(episode.PodcastId);
+        if (podcast == null)
+        {
+            return;
+        }
+
+        if (podcast.LatestReleased == null || episode.Release > podcast.LatestReleased.Value)
+        {
+            podcast.LatestReleased = episode.Release;
+            await podcastRepository.Save(podcast);
+            return;
+        }
+
+        if (existingEpisode != null &&
+            podcast.LatestReleased != null &&
+            existingEpisode.Release >= podcast.LatestReleased.Value &&
+            episode.Release < existingEpisode.Release)
+        {
+            await RecomputePodcastLatestReleased(podcast, episode.PodcastId);
+        }
+    }
+
+    private async Task UpdatePodcastLatestReleasedOnDelete(Guid podcastId, Episode? deletedEpisode)
+    {
+        if (deletedEpisode == null)
+        {
+            return;
+        }
+
+        var podcast = await podcastRepository.GetPodcast(podcastId);
+        if (podcast?.LatestReleased == null || deletedEpisode.Release < podcast.LatestReleased.Value)
+        {
+            return;
+        }
+
+        await RecomputePodcastLatestReleased(podcast, podcastId);
+    }
+
+    private async Task RecomputePodcastLatestReleased(Podcast podcast, Guid podcastId)
+    {
+        var mostRecentEpisode = await GetMostRecentByPodcastId(podcastId);
+        var recomputedLatestReleased = mostRecentEpisode?.Release;
+        if (podcast.LatestReleased == recomputedLatestReleased)
+        {
+            return;
+        }
+
+        podcast.LatestReleased = recomputedLatestReleased;
+        await podcastRepository.Save(podcast);
     }
 }

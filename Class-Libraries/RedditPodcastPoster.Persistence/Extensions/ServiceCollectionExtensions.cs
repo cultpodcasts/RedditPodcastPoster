@@ -1,4 +1,4 @@
-﻿using Microsoft.Azure.Cosmos;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -34,8 +34,13 @@ public static class ServiceCollectionExtensions
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
                     var lookupRepository = s.GetRequiredService<ILookupRepositoryV2>();
+                    var podcastRepository = s.GetRequiredService<IPodcastRepositoryV2>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<EpisodeRepository>>();
-                    return new EpisodeRepository(containerFactory.CreateEpisodesContainer(), lookupRepository, logger);
+                    return new EpisodeRepository(
+                        containerFactory.CreateEpisodesContainer(),
+                        lookupRepository,
+                        podcastRepository,
+                        logger);
                 })
                 .AddSingleton<IActivityRepository>(s =>
                 {

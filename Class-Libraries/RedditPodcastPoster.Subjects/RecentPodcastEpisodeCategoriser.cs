@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Azure.Cosmos.Linq;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -17,25 +18,22 @@ public class RecentPodcastEpisodeCategoriser(
         var since = DateTimeExtensions.DaysAgo(7);
         IList<Guid> updatedEpisodes = new List<Guid>();
 
-        var uncategorisedByPodcast = new Dictionary<Guid, List<Episode>>();
-        await foreach (var episode in episodeRepository.GetAllBy(x => x.Release > since && !x.Subjects.Any()))
-        {
-            if (!uncategorisedByPodcast.TryGetValue(episode.PodcastId, out var episodes))
-            {
-                episodes = [];
-                uncategorisedByPodcast[episode.PodcastId] = episodes;
-            }
+        var recentPodcastIds = await podcastRepository
+            .GetAllBy(
+                x => (!x.Removed.IsDefined() || x.Removed == false) &&
+                     x.LatestReleased.IsDefined() &&
+                     x.LatestReleased != null &&
+                     x.LatestReleased >= since,
+                x => x.Id)
+            .ToArrayAsync();
 
-            episodes.Add(episode);
-        }
-
-        if (!uncategorisedByPodcast.Any())
+        if (!recentPodcastIds.Any())
         {
             return updatedEpisodes;
         }
 
         var podcastsToCategorise = new List<(Guid Id, string Name, Podcast Podcast, List<Episode> Episodes)>();
-        foreach (var (podcastId, episodes) in uncategorisedByPodcast)
+        foreach (var podcastId in recentPodcastIds)
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);
             if (podcast == null || podcast.Removed == true)
@@ -43,7 +41,21 @@ public class RecentPodcastEpisodeCategoriser(
                 continue;
             }
 
+            var episodes = await episodeRepository
+                .GetByPodcastId(podcastId, x => x.Release > since && !x.Subjects.Any())
+                .ToListAsync();
+
+            if (!episodes.Any())
+            {
+                continue;
+            }
+
             podcastsToCategorise.Add((podcastId, podcast.Name, podcast, episodes));
+        }
+
+        if (!podcastsToCategorise.Any())
+        {
+            return updatedEpisodes;
         }
 
         logger.LogInformation(
