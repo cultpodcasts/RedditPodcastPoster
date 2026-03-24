@@ -23,9 +23,7 @@ public class EpisodeProcessor(
 
         var unpostedEpisodeThreshold = DateTimeExtensions.DaysAgo(7);
         var podcastIds = (await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(unpostedEpisodeThreshold))
-            .Where(x =>
-                !x.Posted &&
-                (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false || x.PodcastRemoved == null))
+            .Where(x => !x.Posted && x.PodcastRemoved != true)
             .Select(x => x.PodcastId)
             .Distinct()
             .ToArray();
