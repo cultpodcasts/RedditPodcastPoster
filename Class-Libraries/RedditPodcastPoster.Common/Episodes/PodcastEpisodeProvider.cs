@@ -26,7 +26,7 @@ public class PodcastEpisodeProvider(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        var releasedSince = GetReleasedSince();
+        var releasedSince = GetReleasedSince(_postingCriteria.TweetDays);
         return GetReadyPodcastEpisodes(
             nameof(GetUntweetedPodcastEpisodes),
             releasedSince,
@@ -54,7 +54,7 @@ public class PodcastEpisodeProvider(
         }
 
         var episodes = await episodeRepository.GetByPodcastId(podcastId)
-            .Where(x => x.Release >= GetReleasedSince() && x is { Tweeted: false, Ignored: false, Removed: false })
+            .Where(x => x.Release >= GetReleasedSince(_postingCriteria.TweetDays) && x is { Tweeted: false, Ignored: false, Removed: false })
             .ToArrayAsync();
 
         var podcastEpisodes = await podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
@@ -69,7 +69,7 @@ public class PodcastEpisodeProvider(
         bool youTubeRefreshed,
         bool spotifyRefreshed)
     {
-        var releasedSince = GetReleasedSince();
+        var releasedSince = GetReleasedSince(_postingCriteria.BlueSkyDays);
         return GetReadyPodcastEpisodes(
             nameof(GetBlueskyReadyPodcastEpisodes),
             releasedSince,
@@ -79,15 +79,15 @@ public class PodcastEpisodeProvider(
                 episodes,
                 youTubeRefreshed,
                 spotifyRefreshed,
-                _postingCriteria.TweetDays));
+                _postingCriteria.BlueSkyDays));
     }
 
     public async Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(Guid podcastId)
     {
-        logger.LogInformation("Exec {method}, podcast-id: {podcastId} init. Tweet-days: '{tweetDays}'",
+        logger.LogInformation("Exec {method}, podcast-id: {podcastId} init. Bluesky-days: '{blueskyDays}'",
             nameof(GetBlueskyReadyPodcastEpisodes),
             podcastId,
-            _postingCriteria.TweetDays);
+            _postingCriteria.BlueSkyDays);
 
         var podcast = await podcastRepository.GetPodcast(podcastId);
         if (podcast == null)
@@ -97,13 +97,13 @@ public class PodcastEpisodeProvider(
         }
 
         var episodes = await episodeRepository.GetByPodcastId(podcastId)
-            .Where(x => x.Release >= GetReleasedSince() && x is { Ignored: false, Removed: false })
+            .Where(x => x.Release >= GetReleasedSince(_postingCriteria.BlueSkyDays) && x is { Ignored: false, Removed: false })
             .ToArrayAsync();
 
         var podcastEpisodes = await podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes(
             podcast,
             episodes,
-            _postingCriteria.TweetDays);
+            _postingCriteria.BlueSkyDays);
 
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
     }
@@ -114,27 +114,23 @@ public class PodcastEpisodeProvider(
         Func<Episode, bool> candidateFilter,
         Func<Podcast, IEnumerable<Episode>, Task<IEnumerable<PodcastEpisode>>> getReadyEpisodes)
     {
-        logger.LogInformation("Exec {method} init. Tweet-days: '{tweetDays}'",
+        logger.LogInformation("Exec {method} init. Released-since: '{releasedSince:O}'",
             methodName,
-            _postingCriteria.TweetDays);
+            releasedSince);
 
-        var candidateEpisodes = (await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(releasedSince))
+        var sharedRecentCandidateThreshold = GetReleasedSince(_postingCriteria.MaxDays);
+
+        var candidateEpisodes = (await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(sharedRecentCandidateThreshold))
+            .Where(x => x.Release >= releasedSince)
             .Where(candidateFilter)
             .ToArray();
 
-        if (!candidateEpisodes.Any() && methodName == nameof(GetBlueskyReadyPodcastEpisodes))
+        if (!candidateEpisodes.Any())
         {
             logger.LogWarning(
-                "No candidate episodes found for Bluesky posting. Released-since: '{releasedSince:u}', tweet-days: '{tweetDays}'.",
-                releasedSince,
-                _postingCriteria.TweetDays);
-        }
-
-        if (methodName == nameof(GetBlueskyReadyPodcastEpisodes))
-        {
-            logger.LogWarning(
-                "Bluesky candidate episode ids before podcast filtering: {episodeIds}.",
-                string.Join(",", candidateEpisodes.Select(x => x.Id)));
+                "No candidate episodes found for {method}. Released-since: '{releasedSince:u}'.",
+                methodName,
+                releasedSince);
         }
 
         var totalCandidateEpisodeCount = candidateEpisodes.Length;
@@ -152,7 +148,7 @@ public class PodcastEpisodeProvider(
             }
 
             var groupEpisodes = podcastEpisodeGroup.ToArray();
-            if (methodName == nameof(GetBlueskyReadyPodcastEpisodes) && podcast.Removed == true)
+            if (podcast.Removed == true)
             {
                 removedPodcastCandidateCount += groupEpisodes.Length;
                 logger.LogWarning(
@@ -165,37 +161,25 @@ public class PodcastEpisodeProvider(
             var filtered = (await getReadyEpisodes(podcast, groupEpisodes)).ToArray();
             filteredOutEpisodeCount += Math.Max(0, groupEpisodes.Length - filtered.Length);
 
-            if (!filtered.Any() && methodName == nameof(GetBlueskyReadyPodcastEpisodes))
-            {
-                logger.LogWarning(
-                    "No Bluesky-ready episodes after filtering for podcast '{podcastName}' with id '{podcastId}'. Candidate episode-ids: {episodeIds}.",
-                    podcast.Name,
-                    podcast.Id,
-                    string.Join(",", groupEpisodes.Select(x => x.Id)));
-            }
-
             podcastEpisodes.AddRange(filtered);
         }
 
-        if (methodName == nameof(GetBlueskyReadyPodcastEpisodes))
-        {
-            logger.LogWarning(
-                "Bluesky candidate summary. Total-candidates: {totalCandidates}, removed-podcast-candidates: {removedPodcastCandidates}, filtered-out-candidates: {filteredOutCandidates}, ready-candidates: {readyCandidates}. Ready episode-ids: {readyEpisodeIds}.",
-                totalCandidateEpisodeCount,
-                removedPodcastCandidateCount,
-                filteredOutEpisodeCount,
-                podcastEpisodes.Count,
-                string.Join(",", podcastEpisodes.Select(x => x.Episode.Id)));
-        }
+        logger.LogInformation(
+            "{method} candidate summary. Total-candidates: {totalCandidates}, removed-podcast-candidates: {removedPodcastCandidates}, filtered-out-candidates: {filteredOutCandidates}, ready-candidates: {readyCandidates}.",
+            methodName,
+            totalCandidateEpisodeCount,
+            removedPodcastCandidateCount,
+            filteredOutEpisodeCount,
+            podcastEpisodes.Count);
 
         return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
     }
 
-    private DateTime GetReleasedSince()
+    private DateTime GetReleasedSince(int days)
     {
         return DateOnly
             .FromDateTime(DateTime.UtcNow)
-            .AddDays(_postingCriteria.TweetDays * -1)
+            .AddDays(days * -1)
             .ToDateTime(TimeOnly.MinValue);
     }
 }

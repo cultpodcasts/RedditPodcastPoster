@@ -265,6 +265,8 @@ var poster= {
 var postingCriteria= {
     postingCriteria__minimumDuration: '0:9:00'
     postingCriteria__TweetDays: '2'
+    postingCriteria__RedditDays: '7'
+    postingCriteria__BlueSkyDays: '2'
 }
 
 var pushSubscriptions= {

@@ -15,6 +15,7 @@ File: .github\copilot-instructions.md
 - Episode ID is globally unique in this project.
 - Documents under `docs/migration` must be kept up to date when making related changes.
 - Keep `docs/post-migration/cost-analysis.md` up to date as cost-reduction work progresses and provide explicit next steps after each change.
+- Avoid behavior-changing edits to Reddit posting and Twitter tweeting flows during cost-reduction work unless explicitly approved.
 
 ## Container Creation
 - User prefers explicit container factory methods `CreatePodcastsContainer()` and `CreateEpisodesContainer()` instead of `Create(string containerName)`.
@@ -66,6 +67,7 @@ This is the code block that represents the suggested code change:
 - Episode ID is globally unique in this project.
 - Documents under `docs/migration` must be kept up to date when making related changes.
 - Keep `docs/post-migration/cost-analysis.md` up to date as cost-reduction work progresses and provide explicit next steps after each change.
+- Avoid behavior-changing edits to Reddit posting and Twitter tweeting flows during cost-reduction work unless explicitly approved.
 
 ## Container Creation
 - User prefers explicit container factory methods `CreatePodcastsContainer()` and `CreateEpisodesContainer()` instead of `Create(string containerName)`.
