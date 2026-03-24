@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Scripts;
 using Microsoft.Extensions.Logging;
@@ -20,7 +20,12 @@ public class ActivityMarshaller(
     {
         try
         {
-            dynamic activity = new { Id = id, Status = InitiateActionStatus, OperationType = operationType };
+            dynamic activity = new
+            {
+                id = id.ToString(),
+                status = InitiateActionStatus,
+                operationType
+            };
             var result = await container.Scripts.ExecuteStoredProcedureAsync<Activity>(
                 ActivityBookingProcedureId,
                 new PartitionKey(id.ToString()),
@@ -76,7 +81,12 @@ public class ActivityMarshaller(
     {
         try
         {
-            dynamic activity = new { Id = id, Status = CompleteStatus, OperationType = operationType };
+            dynamic activity = new
+            {
+                id = id.ToString(),
+                status = CompleteStatus,
+                operationType
+            };
             var result = await container.Scripts.ExecuteStoredProcedureAsync<Activity>(
                 ActivityBookingProcedureId,
                 new PartitionKey(id.ToString()),
