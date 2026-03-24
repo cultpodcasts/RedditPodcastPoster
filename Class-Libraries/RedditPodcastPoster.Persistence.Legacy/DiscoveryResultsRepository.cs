@@ -1,10 +1,10 @@
-﻿using Microsoft.Azure.Cosmos;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 
-namespace RedditPodcastPoster.Discovery;
+namespace RedditPodcastPoster.Persistence.Legacy;
 
 public class DiscoveryResultsRepository(
     IDataRepository repository,

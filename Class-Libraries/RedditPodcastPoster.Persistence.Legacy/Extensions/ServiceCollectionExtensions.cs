@@ -41,5 +41,35 @@ public static class ServiceCollectionExtensions
             return services
                 .AddSingleton<IPodcastRepository, PodcastRepository>();
         }
+
+        /// <summary>
+        /// Registers the legacy subject repository (single-container, pre-V2).
+        /// Only call this from apps that need the old subject data access.
+        /// </summary>
+        public IServiceCollection AddLegacySubjectRepository()
+        {
+            return services
+                .AddSingleton<ISubjectRepository, SubjectRepository>();
+        }
+
+        /// <summary>
+        /// Registers the legacy push-subscription repository (single-container, pre-V2).
+        /// Only call this from apps that need the old push-subscription data access.
+        /// </summary>
+        public IServiceCollection AddLegacyPushSubscriptionRepository()
+        {
+            return services
+                .AddSingleton<IPushSubscriptionRepository, PushSubscriptionRepository>();
+        }
+
+        /// <summary>
+        /// Registers the legacy discovery-results repository (single-container, pre-V2).
+        /// Only call this from apps that need the old discovery data access.
+        /// </summary>
+        public IServiceCollection AddLegacyDiscoveryResultsRepository()
+        {
+            return services
+                .AddSingleton<IDiscoveryResultsRepository, DiscoveryResultsRepository>();
+        }
     }
 }
