@@ -25,7 +25,7 @@ public class ActivityMarshaller(
             var result = await container.Scripts.ExecuteStoredProcedureAsync<Activity>(
             ActivityBookingProcedureId,
                 new PartitionKey(CosmosSelectorExtensions.GetModelType<Activity>().ToString()),
-                new[] {activity});
+                [activity]);
             if (result.StatusCode == HttpStatusCode.OK && result.Resource.Status == InitiateActionStatus)
             {
                 return ActivityStatus.Initiated;

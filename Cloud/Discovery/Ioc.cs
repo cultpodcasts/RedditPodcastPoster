@@ -1,10 +1,12 @@
 ﻿using Azure;
 using iTunesSearch.Library;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Discovery.Extensions;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -24,6 +26,7 @@ public static class Ioc
             .AddSubjectServices()
             .AddCachedSubjectProvider()
             .AddDiscovery(ApplicationUsage.Discover)
+            .AddScoped<Container>(s => s.GetRequiredService<ICosmosDbContainerFactory>().CreateActivitiesContainer())
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddScoped<IRemoteClient, RemoteClient>()
             .AddScoped(s => new iTunesSearchManager())

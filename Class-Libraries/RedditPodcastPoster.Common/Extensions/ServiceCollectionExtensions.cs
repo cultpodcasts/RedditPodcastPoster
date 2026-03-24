@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IPodcastEpisodePoster, PodcastEpisodePoster>()
             .AddSingleton<IPodcastFilter, PodcastFilter>()
             .AddSingleton<IPodcastEpisodeFilter, PodcastEpisodeFilter>()
+            .AddSingleton<IRecentEpisodeCandidatesProvider, RecentEpisodeCandidatesProvider>()
             .AddSingleton<IProcessResponsesAdaptor, ProcessResponsesAdaptor>()
             .AddScoped<IPodcastEpisodeProvider, PodcastEpisodeProvider>()
             .AddScoped<IPostModelFactory, PostModelFactory>()

@@ -1,5 +1,6 @@
 ﻿using Azure;
 using iTunesSearch.Library;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Bluesky.Extensions;
@@ -9,6 +10,7 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
@@ -44,6 +46,7 @@ public static class Ioc
             .AddBlueskyServices()
             .AddSubjectServices()
             .AddCachedSubjectProvider()
+            .AddScoped<Container>(s => s.GetRequiredService<ICosmosDbContainerFactory>().CreateActivitiesContainer())
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddContentPublishing()
             .AddCloudflareClients()

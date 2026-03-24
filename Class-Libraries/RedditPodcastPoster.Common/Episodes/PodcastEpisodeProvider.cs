@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
@@ -15,6 +14,7 @@ namespace RedditPodcastPoster.Common.Episodes;
 public class PodcastEpisodeProvider(
     IPodcastRepositoryV2 podcastRepository,
     IEpisodeRepository episodeRepository,
+    IRecentEpisodeCandidatesProvider recentEpisodeCandidatesProvider,
     IPodcastEpisodeFilter podcastEpisodeFilter,
     IOptions<PostingCriteria> postingCriteria,
     ILogger<PodcastEpisodeProvider> logger
@@ -30,10 +30,7 @@ public class PodcastEpisodeProvider(
         return GetReadyPodcastEpisodes(
             nameof(GetUntweetedPodcastEpisodes),
             releasedSince,
-            x => x.Release >= releasedSince &&
-                 !x.Tweeted &&
-                 !x.Ignored &&
-                 !x.Removed,
+            x => !x.Tweeted,
             (podcast, episodes) => podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
                 podcast,
                 episodes,
@@ -76,9 +73,7 @@ public class PodcastEpisodeProvider(
         return GetReadyPodcastEpisodes(
             nameof(GetBlueskyReadyPodcastEpisodes),
             releasedSince,
-            x => x.Release >= releasedSince &&
-                 !x.Ignored &&
-                 !x.Removed,
+            _ => true,
             (podcast, episodes) => podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes(
                 podcast,
                 episodes,
@@ -116,14 +111,17 @@ public class PodcastEpisodeProvider(
     private async Task<IEnumerable<PodcastEpisode>> GetReadyPodcastEpisodes(
         string methodName,
         DateTime releasedSince,
-        Expression<Func<Episode, bool>> selector,
+        Func<Episode, bool> candidateFilter,
         Func<Podcast, IEnumerable<Episode>, Task<IEnumerable<PodcastEpisode>>> getReadyEpisodes)
     {
         logger.LogInformation("Exec {method} init. Tweet-days: '{tweetDays}'",
             methodName,
             _postingCriteria.TweetDays);
 
-        var candidateEpisodes = await episodeRepository.GetAllBy(selector).ToArrayAsync();
+        var candidateEpisodes = (await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(releasedSince))
+            .Where(candidateFilter)
+            .ToArray();
+
         if (!candidateEpisodes.Any() && methodName == nameof(GetBlueskyReadyPodcastEpisodes))
         {
             logger.LogWarning(
@@ -201,4 +199,3 @@ public class PodcastEpisodeProvider(
             .ToDateTime(TimeOnly.MinValue);
     }
 }
-

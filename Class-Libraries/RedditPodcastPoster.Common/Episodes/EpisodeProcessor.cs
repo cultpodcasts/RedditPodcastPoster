@@ -2,12 +2,11 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Adaptors;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
 public class EpisodeProcessor(
-    IEpisodeRepository episodeRepository,
+    IRecentEpisodeCandidatesProvider recentEpisodeCandidatesProvider,
     IPodcastEpisodesPoster podcastEpisodesPoster,
     IProcessResponsesAdaptor processResponsesAdaptor,
     ILogger<EpisodeProcessor> logger)
@@ -23,20 +22,20 @@ public class EpisodeProcessor(
             nameof(PostEpisodesSinceReleaseDate), since);
 
         var unpostedEpisodeThreshold = DateTimeExtensions.DaysAgo(7);
-        var podcastIds = (await episodeRepository
-                .GetAllBy(x =>
-                        x.Release >= unpostedEpisodeThreshold &&
-                        !x.Posted &&
-                        !x.Ignored &&
-                        !x.Removed &&
-                        (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false || x.PodcastRemoved == null),
-                    x => x.PodcastId)
-                .ToListAsync())
+        var podcastIds = (await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(unpostedEpisodeThreshold))
+            .Where(x =>
+                !x.Posted &&
+                (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false || x.PodcastRemoved == null))
+            .Select(x => x.PodcastId)
             .Distinct()
             .ToArray();
 
-        var matchingPodcastEpisodeResults = await podcastEpisodesPoster.PostNewEpisodes(since, podcastIds,
-            youTubeRefreshed, spotifyRefreshed, maxPosts: maxPosts);
+        var matchingPodcastEpisodeResults = await podcastEpisodesPoster.PostNewEpisodes(
+            since,
+            podcastIds,
+            youTubeRefreshed,
+            spotifyRefreshed,
+            maxPosts: maxPosts);
 
         return processResponsesAdaptor.CreateResponse(matchingPodcastEpisodeResults);
     }
