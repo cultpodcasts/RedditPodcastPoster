@@ -9,6 +9,7 @@ namespace RedditPodcastPoster.Persistence;
 
 public class EpisodeRepository(
     Container container,
+    ILookupRepositoryV2 lookupRepository,
     ILogger<EpisodeRepository> logger)
     : IEpisodeRepository
 {
@@ -112,12 +113,17 @@ public class EpisodeRepository(
 
     public async Task Save(Episode episode)
     {
-        if (episode.PodcastId==Guid.Empty)
+        if (episode.PodcastId == Guid.Empty)
         {
             throw new InvalidOperationException("Episode.PodcastId must be set before saving.");
         }
 
+        var existingEpisode = await GetEpisode(episode.PodcastId, episode.Id);
+        var previousCountedState = existingEpisode is not null && IsCountedForHomepage(existingEpisode);
+        var nextCountedState = IsCountedForHomepage(episode);
+
         await container.UpsertItemAsync(episode, ToPartitionKey(episode.PodcastId));
+        await UpdateHomePageActiveEpisodeCount(previousCountedState, nextCountedState);
     }
 
     public async Task Save(IEnumerable<Episode> episodes)
@@ -130,9 +136,14 @@ public class EpisodeRepository(
 
     public async Task Delete(Guid podcastId, Guid episodeId)
     {
+        var existingEpisode = await GetEpisode(podcastId, episodeId);
         try
         {
             await container.DeleteItemAsync<Episode>(episodeId.ToString(), ToPartitionKey(podcastId));
+            if (existingEpisode is not null && IsCountedForHomepage(existingEpisode))
+            {
+                await lookupRepository.IncrementHomePageActiveEpisodeCount(-1);
+            }
         }
         catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
@@ -213,5 +224,20 @@ public class EpisodeRepository(
                 yield return item;
             }
         }
+    }
+
+    private static bool IsCountedForHomepage(Episode episode)
+    {
+        return !episode.Removed && episode.PodcastRemoved != true;
+    }
+
+    private async Task UpdateHomePageActiveEpisodeCount(bool previousCountedState, bool nextCountedState)
+    {
+        if (previousCountedState == nextCountedState)
+        {
+            return;
+        }
+
+        await lookupRepository.IncrementHomePageActiveEpisodeCount(nextCountedState ? 1 : -1);
     }
 }

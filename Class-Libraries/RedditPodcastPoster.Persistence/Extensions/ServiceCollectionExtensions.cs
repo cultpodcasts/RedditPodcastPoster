@@ -24,23 +24,24 @@ public static class ServiceCollectionExtensions
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PodcastRepositoryV2>>();
                     return new PodcastRepositoryV2(containerFactory.CreatePodcastsContainer(), logger);
                 })
+                .AddSingleton<ILookupRepositoryV2>(s =>
+                {
+                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LookupRepositoryV2>>();
+                    return new LookupRepositoryV2(containerFactory.CreateLookUpsContainer(), logger);
+                })
                 .AddSingleton<IEpisodeRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
+                    var lookupRepository = s.GetRequiredService<ILookupRepositoryV2>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<EpisodeRepository>>();
-                    return new EpisodeRepository(containerFactory.CreateEpisodesContainer(), logger);
+                    return new EpisodeRepository(containerFactory.CreateEpisodesContainer(), lookupRepository, logger);
                 })
                 .AddSingleton<IActivityRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ActivityRepository>>();
                     return new ActivityRepository(containerFactory.CreateActivitiesContainer(), logger);
-                })
-                .AddSingleton<ILookupRepositoryV2>(s =>
-                {
-                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
-                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LookupRepositoryV2>>();
-                    return new LookupRepositoryV2(containerFactory.CreateLookUpsContainer(), logger);
                 })
                 .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
