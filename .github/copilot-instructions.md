@@ -33,3 +33,6 @@
 
 ## Execution Path Validation
 - When validating this execution path live, use the Poster console app with -r -t -b flags against production.
+
+## Build Tooling
+- When using the run_build tool, confirm the status of ReSharper Build, as it may not return results. Instead, use get_errors on individual files.
