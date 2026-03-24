@@ -40,7 +40,13 @@ public class PodcastEpisodesPoster(
                 continue;
             }
 
-            var episodes = await episodeRepository.GetByPodcastId(podcastId).ToArrayAsync();
+            var episodes = await episodeRepository
+                .GetByPodcastId(podcastId, episode =>
+                    episode.Release >= since &&
+                    !episode.Posted &&
+                    !episode.Ignored &&
+                    !episode.Removed)
+                .ToArrayAsync();
             candidatePodcastEpisodes.AddRange(episodes.Select(episode => new PodcastEpisode(podcast, episode)));
         }
 
