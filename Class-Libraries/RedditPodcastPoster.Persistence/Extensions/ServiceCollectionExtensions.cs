@@ -12,17 +12,10 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddRepositories()
         {
             return services
-                .AddSingleton<ICosmosDbClientFactory, CosmosDbClientFactory>()
                 .AddSingleton<ICosmosDbClientFactoryV2, CosmosDbClientFactoryV2>()
-                .AddKeyedSingleton<CosmosClient>("v1", (sp, _) =>
-                    sp.GetRequiredService<ICosmosDbClientFactory>().Create())
                 .AddKeyedSingleton<CosmosClient>("v2", (sp, _) =>
                     sp.GetRequiredService<ICosmosDbClientFactoryV2>().Create())
                 .AddSingleton<ICosmosDbContainerFactory, CosmosDbContainerFactory>()
-                .AddSingleton(s => s.GetService<ICosmosDbClientFactory>()!.Create())
-                .AddSingleton(s => s.GetService<ICosmosDbContainerFactory>()!.Create())
-                .AddSingleton<IDataRepository, CosmosDbRepository>()
-                .AddSingleton<ICosmosDbRepository, CosmosDbRepository>()
                 .AddSingleton<IEpisodeMatcher, EpisodeMatcher>()
                 .AddSingleton<IEpisodeMerger, EpisodeMerger>()
                 .AddSingleton<IPodcastRepositoryV2>(s =>
@@ -51,7 +44,6 @@ public static class ServiceCollectionExtensions
                 })
                 .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
-                .BindConfiguration<CosmosDbSettings>("cosmosdb")
                 .BindConfiguration<CosmosDbSettingsV2>("cosmosdbv2");
         }
 
