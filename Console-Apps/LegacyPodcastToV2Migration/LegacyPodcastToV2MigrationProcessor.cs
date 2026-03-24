@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Legacy;
 using RedditPodcastPoster.Text.KnownTerms;
 using System.Text.Json;
 using LegacyEpisode = RedditPodcastPoster.Models.Episode;

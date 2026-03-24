@@ -31,5 +31,15 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<ICosmosDbRepository, CosmosDbRepository>()
                 .BindConfiguration<CosmosDbSettings>("cosmosdb");
         }
+
+        /// <summary>
+        /// Registers the legacy single-container podcast repository.
+        /// Only call this from apps that need the old embedded-episode model.
+        /// </summary>
+        public IServiceCollection AddLegacyPodcastRepository()
+        {
+            return services
+                .AddSingleton<IPodcastRepository, PodcastRepository>();
+        }
     }
 }

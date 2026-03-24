@@ -1,7 +1,8 @@
-﻿using System.Linq.Expressions;
+using System.Linq.Expressions;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence.Abstractions;
 
-namespace RedditPodcastPoster.Persistence.Abstractions;
+namespace RedditPodcastPoster.Persistence.Legacy;
 
 public interface IPodcastRepository
 {

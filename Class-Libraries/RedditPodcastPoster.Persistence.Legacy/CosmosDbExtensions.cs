@@ -1,6 +1,6 @@
-﻿using Microsoft.Azure.Cosmos;
+using Microsoft.Azure.Cosmos;
 
-namespace RedditPodcastPoster.Persistence;
+namespace RedditPodcastPoster.Persistence.Legacy;
 
 internal static class CosmosDbExtensions
 {

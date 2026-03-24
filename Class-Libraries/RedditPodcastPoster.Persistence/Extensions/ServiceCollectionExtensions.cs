@@ -47,12 +47,6 @@ public static class ServiceCollectionExtensions
                 .BindConfiguration<CosmosDbSettingsV2>("cosmosdbv2");
         }
 
-        public IServiceCollection AddLegacyPodcastRepository()
-        {
-            return services
-                .AddSingleton<IPodcastRepository, PodcastRepository>();
-        }
-
         public IServiceCollection AddFileRepository(string containerName = "",
             bool useEntityFolder = false)
         {
