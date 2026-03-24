@@ -138,8 +138,9 @@ public class HomepagePublisher(
     private async Task<HomePageCache> ResolveHomePageCache(Task recentEpisodesTask, CancellationToken ct)
     {
         var homePageCache = await lookupRepository.GetHomePageCache() ?? new HomePageCache();
-        var shouldRefreshDuration = IsRefreshWindow() || homePageCache.TotalDuration == default;
-        var shouldRefreshCount = homePageCache.ActiveEpisodeCount == null;
+        var isRefreshWindow = IsRefreshWindow();
+        var shouldRefreshDuration = isRefreshWindow || homePageCache.TotalDuration == default;
+        var shouldRefreshCount = isRefreshWindow || homePageCache.ActiveEpisodeCount == null;
 
         Task<List<TimeSpan>>? durationEpisodesTask = null;
         Task<List<Guid>>? countEpisodesTask = null;
