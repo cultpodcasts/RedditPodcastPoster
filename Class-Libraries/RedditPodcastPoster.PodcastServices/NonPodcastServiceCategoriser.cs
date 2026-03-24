@@ -61,7 +61,6 @@ public class NonPodcastServiceCategoriser(
                     episodes = await episodeRepository
                         .GetByPodcastId(podcast.Id, x => x.Urls.BBC == url)
                         .ToListAsync();
-
                 }
                 else
                 {
@@ -79,7 +78,10 @@ public class NonPodcastServiceCategoriser(
                 return new ResolvedNonPodcastServiceItem(service, podcast, episodes.Single());
             }
         }
-        var podcastEpisodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+
+        var podcastEpisodes = podcast == null
+            ? new List<Episode>()
+            : await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
 
         return await streamingServiceMetaDataHandler.ResolveServiceItem(podcast, podcastEpisodes, url);
     }
