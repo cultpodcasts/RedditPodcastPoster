@@ -11,9 +11,12 @@ using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.Taddy;
+using RedditPodcastPoster.PodcastServices.Taddy.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
@@ -56,17 +59,14 @@ builder.Services
     .AddSubjectProvider()
     .AddPushSubscriptions()
     .AddShortnerServices()
+    .AddTaddy()
     .AddHttpClient();
 
 using var host = builder.Build();
-var podcastName = args[0];
 
-var podcastRepository = host.Services.GetRequiredService<IPodcastRepositoryV2>();
-var canIndex = await podcastRepository
-    .GetAllBy(x => x.IndexAllEpisodes && !string.IsNullOrWhiteSpace(x.YouTubeChannelId))
-    .ToListAsync();
-
-Debug.Assert(canIndex != null && canIndex.Any(), "Expect podcasts");
+var service = host.Services.GetRequiredService<ITaddySearcher>();
+var result= await service.Search("cult", new IndexingContext(DateTime.Now.Subtract(TimeSpan.FromDays(7))));
+Debug.Assert(result.Count>0, "There should be results from Taddy");
 
 string GetBasePath()
 {
