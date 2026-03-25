@@ -69,31 +69,46 @@ public class EpisodeHandler(
     {
         try
         {
-            var (episode, podcast) = await podcastEpisodeResolver.ResolvePodcast(
-                podcastEpisodeRequestWrapper, nameof(Delete));
+            var podcastEpisodeResolverResponse =
+                await podcastEpisodeResolver.ResolvePodcast(
+                    podcastEpisodeRequestWrapper.ToPodcastEpisodeResolverRequest(), nameof(Delete));
 
-            if (episode == null || podcast == null)
+            if (podcastEpisodeResolverResponse.State == PodcastEpisodeResolveState.PodcastConflict)
             {
                 logger.LogWarning(
-                    "{method} missing episode or podcast. Podcast-Id: '{podcastId}', Episode-id: '{episodeId}'.",
-                    nameof(Delete), podcastEpisodeRequestWrapper.PodcastId, podcastEpisodeRequestWrapper.EpisodeId);
+                    "{method} Multiple podcasts with Podcast-Name: '{podcastName}', Episode-id: '{episodeId}'.",
+                    nameof(Delete), podcastEpisodeRequestWrapper.PodcastName, podcastEpisodeRequestWrapper.EpisodeId);
+                return req.CreateResponse(HttpStatusCode.Conflict);
+            }
+            else if (podcastEpisodeResolverResponse.Episode == null || podcastEpisodeResolverResponse.Podcast == null)
+            {
+                logger.LogWarning(
+                    "{method} missing episode or podcast. Podcast-Name: '{podcastName}', Episode-id: '{episodeId}'.",
+                    nameof(Delete), podcastEpisodeRequestWrapper.PodcastName, podcastEpisodeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            if (episode.Tweeted || episode.Posted)
+            if (podcastEpisodeResolverResponse.Episode.Tweeted || podcastEpisodeResolverResponse.Episode.Posted)
             {
                 return await req.CreateResponse(HttpStatusCode.BadRequest).WithJsonBody(
-                    new { message = "Cannot remove episode.", posted = episode.Posted, tweeted = episode.Tweeted }, c);
+                    new
+                    {
+                        message = "Cannot remove episode.", posted = podcastEpisodeResolverResponse.Episode.Posted,
+                        tweeted = podcastEpisodeResolverResponse.Episode.Tweeted
+                    }, c);
             }
 
-            await episodeRepository.Delete(episode.PodcastId, episode.Id);
+            await episodeRepository.Delete(podcastEpisodeResolverResponse.Episode.PodcastId,
+                podcastEpisodeResolverResponse.Episode.Id);
 
-            await DeleteSearchEntry(podcast.Name, podcastEpisodeRequestWrapper.EpisodeId, c);
-            await shortnerService.Delete(new PodcastEpisode(podcast, episode));
+            await DeleteSearchEntry(podcastEpisodeResolverResponse.Podcast.Name, podcastEpisodeRequestWrapper.EpisodeId,
+                c);
+            await shortnerService.Delete(new PodcastEpisode(podcastEpisodeResolverResponse.Podcast,
+                podcastEpisodeResolverResponse.Episode));
 
             logger.LogWarning(
                 "Delete detached episode from podcast with id '{podcastId}' and episode-id '{episodeId}'.",
-                podcast.Id, podcastEpisodeRequestWrapper.EpisodeId);
+                podcastEpisodeResolverResponse.Podcast.Id, podcastEpisodeRequestWrapper.EpisodeId);
             return req.CreateResponse(HttpStatusCode.OK);
         }
         catch (Exception ex)
@@ -115,20 +130,24 @@ public class EpisodeHandler(
         try
         {
             var response = new EpisodePublishResponse();
-            var (episode, podcast) = await podcastEpisodeResolver.ResolvePodcast(publishRequest, nameof(Publish));
+            var podcastEpisodeResolverResponse =
+                await podcastEpisodeResolver.ResolvePodcast(publishRequest.ToPodcastEpisodeResolverRequest(),
+                    nameof(Publish));
 
-            if (episode == null)
+            if (podcastEpisodeResolverResponse.Episode == null)
             {
                 throw new ArgumentException($"Episode with id '{publishRequest.EpisodeId}' not found.");
             }
 
-            if (podcast == null || podcast.Removed == true)
+            if (podcastEpisodeResolverResponse.Podcast == null ||
+                podcastEpisodeResolverResponse.Podcast.Removed == true)
             {
                 throw new ArgumentException(
                     $"Podcast for episode-id '{publishRequest.EpisodeId}' not found or removed.");
             }
 
-            var podcastEpisode = new PodcastEpisode(podcast, episode);
+            var podcastEpisode = new PodcastEpisode(podcastEpisodeResolverResponse.Podcast,
+                podcastEpisodeResolverResponse.Episode);
 
             if (publishRequest.EpisodePublishRequest.Post)
             {
@@ -170,7 +189,7 @@ public class EpisodeHandler(
                         response.Tweeted = false;
                         logger.LogError(e,
                             "Failed to tweet for podcast-id: {podcastId} and episode-id {episodeId}.",
-                            podcast.Id, episode.Id);
+                            podcastEpisodeResolverResponse.Podcast.Id, podcastEpisodeResolverResponse.Episode.Id);
                     }
                 }
 
@@ -194,24 +213,24 @@ public class EpisodeHandler(
                         response.BlueskyPosted = false;
                         logger.LogError(e,
                             "Failed to bluesky-post for podcast-id: {podcastId} and episode-id {episodeId}.",
-                            podcast.Id, episode.Id);
+                            podcastEpisodeResolverResponse.Podcast.Id, podcastEpisodeResolverResponse.Episode.Id);
                     }
                 }
             }
 
             if (response.Updated())
             {
-                if (episode.Ignored)
+                if (podcastEpisodeResolverResponse.Episode.Ignored)
                 {
-                    episode.Ignored = false;
+                    podcastEpisodeResolverResponse.Episode.Ignored = false;
                 }
 
-                if (episode.Removed)
+                if (podcastEpisodeResolverResponse.Episode.Removed)
                 {
-                    episode.Removed = false;
+                    podcastEpisodeResolverResponse.Episode.Removed = false;
                 }
 
-                await episodeRepository.Save(episode);
+                await episodeRepository.Save(podcastEpisodeResolverResponse.Episode);
             }
 
             await contentPublisher.PublishHomepage();
@@ -305,35 +324,38 @@ public class EpisodeHandler(
                 episodeChangeRequestWrapper.EpisodeId,
                 JsonSerializer.Serialize(episodeChangeRequestWrapper.EpisodeChangeRequest));
 
-            var (episode, podcast) =
-                await podcastEpisodeResolver.ResolvePodcast(episodeChangeRequestWrapper, nameof(Post));
+            var podcastEpisodeResolverResponse =
+                await podcastEpisodeResolver.ResolvePodcast(
+                    episodeChangeRequestWrapper.ToPodcastEpisodeResolverRequest(), nameof(Post));
 
 
-            if (episode == null)
+            if (podcastEpisodeResolverResponse.Episode == null)
             {
                 logger.LogWarning("Episode with id '{episodeId}' not found.", episodeChangeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            if (podcast == null)
+            if (podcastEpisodeResolverResponse.Podcast == null)
             {
                 logger.LogWarning("Podcast with id '{podcastId}' not found for episode-id '{episodeId}'.",
-                    episode.PodcastId, episodeChangeRequestWrapper.EpisodeId);
+                    podcastEpisodeResolverResponse.Episode.PodcastId, episodeChangeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
             logger.LogInformation(
                 "{method} Updating episode-id '{episodeId}' of podcast with id '{podcastId}'. Original-episode: {episode}",
-                nameof(Post), episodeChangeRequestWrapper.EpisodeId, podcast.Id, JsonSerializer.Serialize(episode));
+                nameof(Post), episodeChangeRequestWrapper.EpisodeId, podcastEpisodeResolverResponse.Podcast.Id,
+                JsonSerializer.Serialize(podcastEpisodeResolverResponse.Episode));
 
-            var changeState = UpdateEpisode(episode, episodeChangeRequestWrapper.EpisodeChangeRequest);
+            var changeState = UpdateEpisode(podcastEpisodeResolverResponse.Episode,
+                episodeChangeRequestWrapper.EpisodeChangeRequest);
 
             var indexingContext = new IndexingContext();
             if (changeState.UpdateImages)
             {
                 await imageUpdater.UpdateImages(
-                    podcast,
-                    episode,
+                    podcastEpisodeResolverResponse.Podcast,
+                    podcastEpisodeResolverResponse.Episode,
                     new EpisodeImageUpdateRequest(
                         changeState.UpdateSpotifyImage,
                         changeState.UpdateAppleImage,
@@ -342,9 +364,10 @@ public class EpisodeHandler(
                     indexingContext);
             }
 
-            await episodeRepository.Save(episode);
+            await episodeRepository.Save(podcastEpisodeResolverResponse.Episode);
 
-            var podcastEpisode = new PodcastEpisode(podcast, episode);
+            var podcastEpisode = new PodcastEpisode(podcastEpisodeResolverResponse.Podcast,
+                podcastEpisodeResolverResponse.Episode);
 
             if (changeState.UnPost)
             {
@@ -371,7 +394,7 @@ public class EpisodeHandler(
                 {
                     logger.LogError(e,
                         "Error using tweet-manager to remove tweet for episode with id '{episodeId}'.",
-                        episode.Id);
+                        podcastEpisodeResolverResponse.Episode.Id);
                     removeTweetResult = RemoveTweetState.Other;
                 }
             }
@@ -392,7 +415,7 @@ public class EpisodeHandler(
                 {
                     logger.LogError(e,
                         "Error using bluesky-post-manager to remove post for episode with id '{episodeId}'.",
-                        episode.Id);
+                        podcastEpisodeResolverResponse.Episode.Id);
                     removeBlueskyPostResult = RemovePostState.Other;
                 }
             }
@@ -411,8 +434,10 @@ public class EpisodeHandler(
             if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
                 episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
             {
-                await DeleteSearchEntry(podcast.Name, episodeChangeRequestWrapper.EpisodeId, c);
-                await shortnerService.Delete(new PodcastEpisode(podcast, episode));
+                await DeleteSearchEntry(podcastEpisodeResolverResponse.Podcast.Name,
+                    episodeChangeRequestWrapper.EpisodeId, c);
+                await shortnerService.Delete(new PodcastEpisode(podcastEpisodeResolverResponse.Podcast,
+                    podcastEpisodeResolverResponse.Episode));
             }
             else
             {
@@ -447,25 +472,28 @@ public class EpisodeHandler(
             logger.LogInformation("{method}: Get episode with id '{episodeId}'.", nameof(Get),
                 podcastEpisodeRequestWrapper.EpisodeId);
 
-            var (episode, podcast) =
-                await podcastEpisodeResolver.ResolvePodcast(podcastEpisodeRequestWrapper, nameof(Get));
+            var podcastEpisodeResolverResponse =
+                await podcastEpisodeResolver.ResolvePodcast(
+                    podcastEpisodeRequestWrapper.ToPodcastEpisodeResolverRequest(), nameof(Get));
 
-            if (episode == null)
+            if (podcastEpisodeResolverResponse.Episode == null)
             {
                 logger.LogWarning("{method}: Episode with id '{episodeId}' not found.", nameof(Get),
                     podcastEpisodeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            if (podcast == null)
+            if (podcastEpisodeResolverResponse.Podcast == null)
             {
                 logger.LogWarning("{method}: Podcast with id '{podcastId}' not found for episode-id '{episodeId}'.",
-                    nameof(Get), episode.PodcastId, podcastEpisodeRequestWrapper.EpisodeId);
+                    nameof(Get), podcastEpisodeResolverResponse.Episode.PodcastId,
+                    podcastEpisodeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
             var subjects = await subjectsProvider.GetAll().ToListAsync();
-            var discreteEpisode = await ToDiscreteEpisode(episode, podcast, subjects);
+            var discreteEpisode = await ToDiscreteEpisode(podcastEpisodeResolverResponse.Episode,
+                podcastEpisodeResolverResponse.Podcast, subjects);
             var success = await req.CreateResponse(HttpStatusCode.OK)
                 .WithJsonBody(discreteEpisode, c);
             return success;

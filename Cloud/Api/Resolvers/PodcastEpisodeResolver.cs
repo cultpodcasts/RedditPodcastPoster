@@ -1,4 +1,3 @@
-using Api.Dtos;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.V2;
@@ -13,20 +12,23 @@ public class PodcastEpisodeResolver(
     ILogger<PodcastEpisodeResolver> logger
 ) : IPodcastEpisodeResolver
 {
-    public async Task<(Episode? episode, Podcast? podcast)> ResolvePodcast(PodcastEpisodeResolverRequest request,
+    public async Task<PodcastEpisodeResolverResponse> ResolvePodcast(PodcastEpisodeResolverRequest request,
         string caller)
     {
         Episode? episode;
         Podcast? podcast = null;
         if (request.PodcastName != null)
         {
-            podcast = await podcastRepositoryV2.GetBy(x => x.Name == request.PodcastName);
-            if (podcast == null)
+            var podcasts= await podcastRepositoryV2.GetAllBy(x => x.Name == request.PodcastName).ToArrayAsync();
+            if (podcasts.Length > 1)
             {
-                return (null, null);
+                return new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.PodcastConflict);
+            }
+            else if (podcasts.Length==0) {
+                return new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.PodcastNotFound);
             }
 
-            episode = await episodeRepository.GetEpisode(podcast.Id, request.EpisodeId);
+            episode = await episodeRepository.GetEpisode(podcasts.Single().Id, request.EpisodeId);
         }
         else if (request.PodcastId != null)
         {
@@ -41,41 +43,9 @@ public class PodcastEpisodeResolver(
                 podcast = await podcastRepositoryV2.GetPodcast(episode.PodcastId);
             }
 
-            logger.LogWarning("{method} used without podcast-id. Episode-id: '{episodeId}'.", caller,
-                request.EpisodeId);
+            logger.LogWarning("{method} used without podcast-id. Episode-id: '{episodeId}'.", caller, request.EpisodeId);
         }
 
-        return (episode, podcast);
-    }
-
-    public Task<(Episode? episode, Podcast? podcast)> ResolvePodcast(
-        PodcastEpisodeRequestWrapper podcastEpisodeResolverRequest, string caller)
-    {
-        return ResolvePodcast(new PodcastEpisodeResolverRequest(
-                podcastEpisodeResolverRequest.EpisodeId,
-                podcastEpisodeResolverRequest.PodcastId,
-                podcastEpisodeResolverRequest.PodcastName),
-            caller);
-    }
-
-    public Task<(Episode? episode, Podcast? podcast)> ResolvePodcast(
-        EpisodePublishRequestWrapper podcastEpisodeResolverRequest, string caller)
-    {
-        return ResolvePodcast(new PodcastEpisodeResolverRequest(
-                podcastEpisodeResolverRequest.EpisodeId,
-                podcastEpisodeResolverRequest.PodcastId,
-                null),
-            caller);
-    }
-
-    public Task<(Episode? episode, Podcast? podcast)> ResolvePodcast(
-        EpisodeChangeRequestWrapper podcastEpisodeResolverRequest, string caller)
-    {
-        return ResolvePodcast(
-            new PodcastEpisodeResolverRequest(
-                podcastEpisodeResolverRequest.EpisodeId,
-                podcastEpisodeResolverRequest.PodcastId,
-                null),
-            caller);
+        return new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved);
     }
 }

@@ -22,37 +22,37 @@ public class PublicHandler(
             logger.LogInformation("{GetName}: Get episode with id '{EpisodeId}'.", nameof(Get),
                 podcastEpisodeRequestWrapper.EpisodeId);
 
-            var (episode, podcast) =
-                await podcastEpisodeResolver.ResolvePodcast(podcastEpisodeRequestWrapper,
+            var podcastEpisodeResolverResponse =
+                await podcastEpisodeResolver.ResolvePodcast(podcastEpisodeRequestWrapper.ToPodcastEpisodeResolverRequest(),
                     nameof(Get));
 
-            if (episode == null || episode.Removed)
+            if (podcastEpisodeResolverResponse.Episode == null || podcastEpisodeResolverResponse.Episode.Removed)
             {
                 logger.LogWarning("{GetName}: Episode with id '{EpisodeId}' not found.", nameof(Get),
                     podcastEpisodeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            if (podcast == null || podcast.Removed == true)
+            if (podcastEpisodeResolverResponse.Podcast == null || podcastEpisodeResolverResponse.Podcast.Removed == true)
             {
                 logger.LogWarning("{GetName}: Podcast with id '{PodcastId}' for episode '{EpisodeId}' not found.",
-                    nameof(Get), episode.PodcastId, podcastEpisodeRequestWrapper.EpisodeId);
+                    nameof(Get), podcastEpisodeResolverResponse.Episode.PodcastId, podcastEpisodeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
             var publicEpisode = new PublicEpisode
             {
-                PodcastName = podcast.Name,
-                Id = episode.Id,
-                Title = episode.Title,
-                Description = episode.Description,
-                Release = episode.Release,
-                Length = episode.Length,
-                Explicit = episode.Explicit,
-                Urls = episode.Urls,
-                Subjects = episode.Subjects,
-                Image = episode.Images?.YouTube ??
-                        episode.Images?.Spotify ?? episode.Images?.Apple ?? episode.Images?.Other
+                PodcastName = podcastEpisodeResolverResponse.Podcast.Name,
+                Id = podcastEpisodeResolverResponse.Episode.Id,
+                Title = podcastEpisodeResolverResponse.Episode.Title,
+                Description = podcastEpisodeResolverResponse.Episode.Description,
+                Release = podcastEpisodeResolverResponse.Episode.Release,
+                Length = podcastEpisodeResolverResponse.Episode.Length,
+                Explicit = podcastEpisodeResolverResponse.Episode.Explicit,
+                Urls = podcastEpisodeResolverResponse.Episode.Urls,
+                Subjects = podcastEpisodeResolverResponse.Episode.Subjects,
+                Image = podcastEpisodeResolverResponse.Episode.Images?.YouTube ??
+                        podcastEpisodeResolverResponse.Episode.Images?.Spotify ?? podcastEpisodeResolverResponse.Episode.Images?.Apple ?? podcastEpisodeResolverResponse.Episode.Images?.Other
             };
 
             var success = await req.CreateResponse(HttpStatusCode.OK)
