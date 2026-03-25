@@ -18,7 +18,8 @@ public class EpisodeController(
     : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     private const string? Route = "episode/{episodeId:guid}";
-    private const string? PodcastRoute = "episode/{podcastId:guid}/{episodeId:guid}";
+    private const string? PodcastIdRoute = "episode/{podcastId:guid}/{episodeId:guid}";
+    private const string? PodcastNameRoute = "episode/{podcastName}/{episodeId:guid}";
 
     [Function("EpisodeGet")]
     public Task<HttpResponseData> GetByEpisodeId(
@@ -40,9 +41,9 @@ public class EpisodeController(
 
     [Function("PodcastEpisodeGet")]
     public Task<HttpResponseData> Get(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = PodcastRoute)]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = PodcastNameRoute)]
         HttpRequestData req,
-        Guid podcastId,
+        string podcastName,
         Guid episodeId,
         FunctionContext executionContext,
         CancellationToken ct
@@ -51,7 +52,7 @@ public class EpisodeController(
         return HandleRequest(
             req,
             ["curate"],
-            new PodcastEpisodeRequestWrapper(podcastId, episodeId),
+            new PodcastEpisodeRequestWrapper(podcastName, episodeId),
             episodeHandler.Get,
             Unauthorised,
             ct);
@@ -95,7 +96,7 @@ public class EpisodeController(
 
     [Function("PodcastEpisodePost")]
     public Task<HttpResponseData> Post(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = PodcastRoute)]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = PodcastIdRoute)]
         HttpRequestData req,
         Guid podcastId,
         Guid episodeId,
@@ -157,7 +158,7 @@ public class EpisodeController(
 
     [Function("EpisodeDelete")]
     public Task<HttpResponseData> DeleteEpisodeByEpisodeId(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "episode/{episodeId:guid}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = Route)]
         HttpRequestData req,
         Guid episodeId,
         FunctionContext executionContext,
@@ -175,7 +176,7 @@ public class EpisodeController(
 
     [Function("PodcastEpisodeDelete")]
     public Task<HttpResponseData> Delete(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "episode/{podcastId:guid}/{episodeId:guid}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = PodcastIdRoute)]
         HttpRequestData req,
         Guid podcastId,
         Guid episodeId,
