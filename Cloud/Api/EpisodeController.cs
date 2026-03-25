@@ -21,7 +21,7 @@ public class EpisodeController(
     private const string? PodcastRoute = "episode/{podcastId:guid}/{episodeId:guid}";
 
     [Function("EpisodeGet")]
-    public Task<HttpResponseData> Get(
+    public Task<HttpResponseData> GetByEpisodeId(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = Route)]
         HttpRequestData req,
         Guid episodeId,
@@ -74,7 +74,7 @@ public class EpisodeController(
     }
 
     [Function("EpisodePost")]
-    public Task<HttpResponseData> Post(
+    public Task<HttpResponseData> PostEpisodeByEpisodeId(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
         HttpRequestData req,
         Guid episodeId,
@@ -115,7 +115,7 @@ public class EpisodeController(
     }
 
     [Function("EpisodePublish")]
-    public Task<HttpResponseData> EpisodePublish(
+    public Task<HttpResponseData> PublishEpisodeByEpisodeId(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "episode/publish/{episodeId:guid}")]
         HttpRequestData req,
         Guid episodeId,
@@ -135,7 +135,7 @@ public class EpisodeController(
     }
 
     [Function("PodcastEpisodePublish")]
-    public Task<HttpResponseData> EpisodePublish(
+    public Task<HttpResponseData> Publish(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "episode/publish/{podcastId:guid}/{episodeId:guid}")]
         HttpRequestData req,
         Guid podcastId,
@@ -156,7 +156,7 @@ public class EpisodeController(
     }
 
     [Function("EpisodeDelete")]
-    public Task<HttpResponseData> EpisodeDelete(
+    public Task<HttpResponseData> DeleteEpisodeByEpisodeId(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "episode/{episodeId:guid}")]
         HttpRequestData req,
         Guid episodeId,
@@ -174,7 +174,7 @@ public class EpisodeController(
     }
 
     [Function("PodcastEpisodeDelete")]
-    public Task<HttpResponseData> EpisodeDelete(
+    public Task<HttpResponseData> Delete(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "episode/{podcastId:guid}/{episodeId:guid}")]
         HttpRequestData req,
         Guid podcastId,
