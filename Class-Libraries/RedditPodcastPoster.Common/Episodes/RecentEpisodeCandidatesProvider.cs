@@ -102,16 +102,7 @@ public class RecentEpisodeCandidatesProvider(
                 x => (!x.Removed.IsDefined() || x.Removed == false) &&
                      x.LatestReleased.IsDefined() &&
                      x.LatestReleased != null &&
-                     x.LatestReleased >= releasedSince,
-                x => new
-                {
-                    x.Id,
-                    x.Name,
-                    x.IgnoredAssociatedSubjects,
-                    x.IgnoredSubjects,
-                    x.DefaultSubject,
-                    x.DescriptionRegex
-                })
+                     x.LatestReleased >= releasedSince)
             .ToArrayAsync();
 
         if (recentPodcasts.Length == 0)
@@ -131,17 +122,7 @@ public class RecentEpisodeCandidatesProvider(
 
             foreach (var episode in episodes)
             {
-                podcastEpisodes.Add(new PodcastEpisode(
-                    new Models.V2.Podcast
-                    {
-                        Id = podcast.Id,
-                        Name = podcast.Name,
-                        IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects ?? [],
-                        IgnoredSubjects = podcast.IgnoredSubjects ?? [],
-                        DefaultSubject = podcast.DefaultSubject,
-                        DescriptionRegex = podcast.DescriptionRegex
-                    },
-                    episode));
+                podcastEpisodes.Add(new PodcastEpisode(podcast, episode));
             }
         }
 
