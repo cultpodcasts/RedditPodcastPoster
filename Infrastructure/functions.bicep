@@ -267,6 +267,7 @@ var postingCriteria= {
     postingCriteria__TweetDays: '2'
     postingCriteria__RedditDays: '7'
     postingCriteria__BlueSkyDays: '2'
+    postingCriteria__CategoriserDays: '2'
 }
 
 var pushSubscriptions= {

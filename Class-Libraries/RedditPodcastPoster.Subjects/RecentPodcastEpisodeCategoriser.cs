@@ -1,5 +1,7 @@
-using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -10,47 +12,37 @@ public class RecentPodcastEpisodeCategoriser(
     IPodcastRepositoryV2 podcastRepository,
     IEpisodeRepository episodeRepository,
     ICategoriser categoriser,
+    IRecentEpisodeCandidatesProvider recentEpisodeCandidatesProvider,
+    IOptions<PostingCriteria> postingCriteria,
     ILogger<RecentPodcastEpisodeCategoriser> logger)
     : IRecentPodcastEpisodeCategoriser
 {
     public async Task<IList<Guid>> Categorise()
     {
-        var since = DateTimeExtensions.DaysAgo(7);
+        var since = DateTimeExtensions.DaysAgo(postingCriteria.Value.CategoriserDays);
         IList<Guid> updatedEpisodes = new List<Guid>();
 
-        var recentPodcastIds = await podcastRepository
-            .GetAllBy(
-                x => (!x.Removed.IsDefined() || x.Removed == false) &&
-                     x.LatestReleased.IsDefined() &&
-                     x.LatestReleased != null &&
-                     x.LatestReleased >= since,
-                x => x.Id)
-            .ToArrayAsync();
-
-        if (!recentPodcastIds.Any())
-        {
-            return updatedEpisodes;
-        }
+        var recentEpisodes = await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(since);
 
         var podcastsToCategorise = new List<(Guid Id, string Name, Podcast Podcast, List<Episode> Episodes)>();
-        foreach (var podcastId in recentPodcastIds)
+        foreach (var episodeGroup in recentEpisodes.GroupBy(x => x.PodcastId))
         {
-            var podcast = await podcastRepository.GetPodcast(podcastId);
+            var podcast = await podcastRepository.GetPodcast(episodeGroup.Key);
             if (podcast == null || podcast.Removed == true)
             {
                 continue;
             }
 
-            var episodes = await episodeRepository
-                .GetByPodcastId(podcastId, x => x.Release > since && !x.Subjects.Any())
-                .ToListAsync();
+            var episodes = episodeGroup
+                .Where(x => !x.Subjects.Any())
+                .ToList();
 
             if (!episodes.Any())
             {
                 continue;
             }
 
-            podcastsToCategorise.Add((podcastId, podcast.Name, podcast, episodes));
+            podcastsToCategorise.Add((episodeGroup.Key, podcast.Name, podcast, episodes));
         }
 
         if (!podcastsToCategorise.Any())
