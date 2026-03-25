@@ -1,37 +1,42 @@
 ﻿using System.Net;
 using Api.Dtos;
 using Api.Extensions;
+using Api.Models;
+using Api.Resolvers;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Auth0;
-using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace Api.Handlers;
 
 public class PublicHandler(
-    IPodcastRepositoryV2 podcastRepository,
-    IEpisodeRepository episodeRepository,
+    IPodcastEpisodeResolver podcastEpisodeResolver,
     ILogger<PublicHandler> logger) : IPublicHandler
 {
-    public async Task<HttpResponseData> Get(HttpRequestData req, Guid episodeId, ClientPrincipal? _,
+    public async Task<HttpResponseData> Get(HttpRequestData req,
+        PodcastEpisodeRequestWrapper podcastEpisodeRequestWrapper, ClientPrincipal? _,
         CancellationToken c)
     {
         try
         {
-            logger.LogInformation("{GetName}: Get episode with id '{EpisodeId}'.", nameof(Get), episodeId);
+            logger.LogInformation("{GetName}: Get episode with id '{EpisodeId}'.", nameof(Get),
+                podcastEpisodeRequestWrapper.EpisodeId);
 
-            var episode = await episodeRepository.GetBy(x => x.Id == episodeId);
+            var (episode, podcast) =
+                await podcastEpisodeResolver.ResolvePodcast(podcastEpisodeRequestWrapper,
+                    nameof(Get));
+
             if (episode == null || episode.Removed)
             {
-                logger.LogWarning("{GetName}: Episode with id '{EpisodeId}' not found.", nameof(Get), episodeId);
+                logger.LogWarning("{GetName}: Episode with id '{EpisodeId}' not found.", nameof(Get),
+                    podcastEpisodeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            var podcast = await podcastRepository.GetPodcast(episode.PodcastId);
             if (podcast == null || podcast.Removed == true)
             {
                 logger.LogWarning("{GetName}: Podcast with id '{PodcastId}' for episode '{EpisodeId}' not found.",
-                    nameof(Get), episode.PodcastId, episodeId);
+                    nameof(Get), episode.PodcastId, podcastEpisodeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 

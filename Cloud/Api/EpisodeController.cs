@@ -18,6 +18,7 @@ public class EpisodeController(
     : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     private const string? Route = "episode/{episodeId:guid}";
+    private const string? PodcastRoute = "episode/{episodeId:guid}/{episodeId:guid}";
 
     [Function("EpisodeGet")]
     public Task<HttpResponseData> Get(
@@ -26,14 +27,35 @@ public class EpisodeController(
         Guid episodeId,
         FunctionContext executionContext,
         CancellationToken ct
-    ) =>
-        HandleRequest(
-            req, 
-            ["curate"], 
-            episodeId, 
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new PodcastEpisodeRequestWrapper(episodeId),
             episodeHandler.Get,
-            Unauthorised, 
+            Unauthorised,
             ct);
+    }
+
+    [Function("PodcastEpisodeGet")]
+    public Task<HttpResponseData> Get(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = PodcastRoute)]
+        HttpRequestData req,
+        Guid podcastId,
+        Guid episodeId,
+        FunctionContext executionContext,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new PodcastEpisodeRequestWrapper(podcastId, episodeId),
+            episodeHandler.Get,
+            Unauthorised,
+            ct);
+    }
 
     [Function("OutgoingEpisodesGet")]
     public Task<HttpResponseData> GetOutgoing(
@@ -41,13 +63,15 @@ public class EpisodeController(
         HttpRequestData req,
         FunctionContext executionContext,
         CancellationToken ct
-    ) =>
-        HandleRequest(
-            req, 
-            ["curate"], 
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
             episodeHandler.GetOutgoing,
             Unauthorised,
             ct);
+    }
 
     [Function("EpisodePost")]
     public Task<HttpResponseData> Post(
@@ -55,16 +79,40 @@ public class EpisodeController(
         HttpRequestData req,
         Guid episodeId,
         FunctionContext executionContext,
-        [FromBody] EpisodeChangeRequest episodeChangeRequest,
+        [FromBody]
+        EpisodeChangeRequest episodeChangeRequest,
         CancellationToken ct
-    ) =>
-        HandleRequest(
-            req, 
-            ["curate"], 
-            new EpisodeChangeRequestWrapper(episodeId, episodeChangeRequest), 
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new EpisodeChangeRequestWrapper(null, episodeId, episodeChangeRequest),
             episodeHandler.Post,
-            Unauthorised, 
+            Unauthorised,
             ct);
+    }
+
+    [Function("PodcastEpisodePost")]
+    public Task<HttpResponseData> Post(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = PodcastRoute)]
+        HttpRequestData req,
+        Guid podcastId,
+        Guid episodeId,
+        FunctionContext executionContext,
+        [FromBody]
+        EpisodeChangeRequest episodeChangeRequest,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new EpisodeChangeRequestWrapper(podcastId, episodeId, episodeChangeRequest),
+            episodeHandler.Post,
+            Unauthorised,
+            ct);
+    }
 
     [Function("EpisodePublish")]
     public Task<HttpResponseData> EpisodePublish(
@@ -72,16 +120,40 @@ public class EpisodeController(
         HttpRequestData req,
         Guid episodeId,
         FunctionContext executionContext,
-        [FromBody] EpisodePublishRequest episodePostRequest,
+        [FromBody]
+        EpisodePublishRequest episodePostRequest,
         CancellationToken ct
-    ) =>
-        HandleRequest(
-            req, 
-            ["curate"], 
-            new EpisodePublishRequestWrapper(episodeId, episodePostRequest), 
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new EpisodePublishRequestWrapper(null, episodeId, episodePostRequest),
             episodeHandler.Publish,
             Unauthorised,
             ct);
+    }
+
+    [Function("PodcastEpisodePublish")]
+    public Task<HttpResponseData> EpisodePublish(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "episode/publish/{podcastId:guid}/{episodeId:guid}")]
+        HttpRequestData req,
+        Guid podcastId,
+        Guid episodeId,
+        FunctionContext executionContext,
+        [FromBody]
+        EpisodePublishRequest episodePostRequest,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new EpisodePublishRequestWrapper(podcastId, episodeId, episodePostRequest),
+            episodeHandler.Publish,
+            Unauthorised,
+            ct);
+    }
 
     [Function("EpisodeDelete")]
     public Task<HttpResponseData> EpisodeDelete(
@@ -90,12 +162,33 @@ public class EpisodeController(
         Guid episodeId,
         FunctionContext executionContext,
         CancellationToken ct
-    ) =>
-        HandleRequest(
-            req, 
-            ["admin"], 
-            episodeId, 
-            episodeHandler.Delete, 
-            Unauthorised, 
+    )
+    {
+        return HandleRequest(
+            req,
+            ["admin"],
+            new PodcastEpisodeRequestWrapper(episodeId),
+            episodeHandler.Delete,
+            Unauthorised,
             ct);
+    }
+
+    [Function("PodcastEpisodeDelete")]
+    public Task<HttpResponseData> EpisodeDelete(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "episode/{podcastId:guid}/{episodeId:guid}")]
+        HttpRequestData req,
+        Guid podcastId,
+        Guid episodeId,
+        FunctionContext executionContext,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["admin"],
+            new PodcastEpisodeRequestWrapper(podcastId, episodeId),
+            episodeHandler.Delete,
+            Unauthorised,
+            ct);
+    }
 }

@@ -23,12 +23,16 @@ public class RecentEpisodeCandidatesProvider(
 
     private IReadOnlyCollection<PodcastEpisode>? _cachedEpisodes;
 
-    public async Task<IReadOnlyCollection<PodcastEpisode>> GetRecentActiveEpisodes(DateTime releasedSince)
+    /// <summary>
+    /// Gets all recent episodes from cache, including ignored and removed ones.
+    /// Handles cache initialization and retrieval without filtering.
+    /// </summary>
+    public async Task<IReadOnlyCollection<PodcastEpisode>> GetEpisodes(DateTime releasedSince)
     {
         if (TryGetCachedEpisodes(releasedSince, out var cachedEpisodes))
         {
             logger.LogInformation(
-                "Using cached recent episode candidates. Requested released-since: '{ReleasedSince:O}', Cached released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+                "Using cached recent episodes. Requested released-since: '{ReleasedSince:O}', Cached released-since: '{CachedReleasedSince:O}', Count: {Count}.",
                 releasedSince,
                 _cacheReleasedSince,
                 cachedEpisodes.Count);
@@ -41,7 +45,7 @@ public class RecentEpisodeCandidatesProvider(
             if (TryGetCachedEpisodes(releasedSince, out cachedEpisodes))
             {
                 logger.LogInformation(
-                    "Using cached recent episode candidates after lock. Requested released-since: '{ReleasedSince:O}', Cached released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+                    "Using cached recent episodes after lock. Requested released-since: '{ReleasedSince:O}', Cached released-since: '{CachedReleasedSince:O}', Count: {Count}.",
                     releasedSince,
                     _cacheReleasedSince,
                     cachedEpisodes.Count);
@@ -57,7 +61,6 @@ public class RecentEpisodeCandidatesProvider(
             }
 
             var podcastEpisodes = await LoadRecentPodcastEpisodes(_cacheReleasedSince);
-
             _cachedEpisodes = podcastEpisodes;
 
             var requestedEpisodes = releasedSince <= _cacheReleasedSince
@@ -65,7 +68,7 @@ public class RecentEpisodeCandidatesProvider(
                 : _cachedEpisodes.Where(x => x.Episode.Release >= releasedSince).ToArray();
 
             logger.LogInformation(
-                "Loaded recent episode candidates via latestReleased-scoped partition reads. Requested released-since: '{ReleasedSince:O}', Cache released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+                "Loaded recent episodes via latestReleased-scoped partition reads. Requested released-since: '{ReleasedSince:O}', Cache released-since: '{CachedReleasedSince:O}', Count: {Count}.",
                 releasedSince,
                 _cacheReleasedSince,
                 requestedEpisodes.Count);
@@ -76,6 +79,17 @@ public class RecentEpisodeCandidatesProvider(
         {
             CacheLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Gets recent active episodes, filtering out ignored and removed ones.
+    /// </summary>
+    public async Task<IList<PodcastEpisode>> GetRecentActiveEpisodes(DateTime releasedSince)
+    {
+        var episodes = await GetEpisodes(releasedSince);
+        return episodes
+            .Where(x => x.Episode is { Ignored: false, Removed: false })
+            .ToList();
     }
 
     private bool TryGetCachedEpisodes(
@@ -116,7 +130,7 @@ public class RecentEpisodeCandidatesProvider(
         foreach (var podcast in recentPodcasts)
         {
             var episodes = await episodeRepository
-                .GetByPodcastId(podcast.Id, x => x.Release >= releasedSince && !x.Ignored && !x.Removed)
+                .GetByPodcastId(podcast.Id, x => x.Release >= releasedSince)
                 .ToArrayAsync();
 
             foreach (var episode in episodes)

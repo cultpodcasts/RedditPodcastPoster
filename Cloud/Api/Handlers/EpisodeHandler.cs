@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Api.Dtos;
 using Api.Extensions;
 using Api.Models;
+using Api.Resolvers;
 using Azure.Search.Documents;
 using Azure.Search.Documents.Models;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -32,15 +33,17 @@ using RedditPodcastPoster.Text;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.UrlShortening;
-using Subject = RedditPodcastPoster.Models.Subject;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
+using Subject = RedditPodcastPoster.Models.Subject;
 
 namespace Api.Handlers;
 
 public class EpisodeHandler(
-    IPodcastRepositoryV2 podcastRepositoryV2,
     IEpisodeRepository episodeRepository,
+    IPodcastEpisodeResolver podcastEpisodeResolver,
+    IRecentEpisodeCandidatesProvider recentEpisodeCandidatesProvider,
     SearchClient searchClient,
     IPodcastEpisodePoster podcastEpisodePoster,
     ITweetPoster tweetPoster,
@@ -60,21 +63,20 @@ public class EpisodeHandler(
 
     public async Task<HttpResponseData> Delete(
         HttpRequestData req,
-        Guid episodeId,
+        PodcastEpisodeRequestWrapper podcastEpisodeRequestWrapper,
         ClientPrincipal? cp,
         CancellationToken c)
     {
         try
         {
-            var episode = await episodeRepository.GetBy(x => x.Id == episodeId);
-            if (episode == null)
-            {
-                return req.CreateResponse(HttpStatusCode.NotFound);
-            }
+            var (episode, podcast) = await podcastEpisodeResolver.ResolvePodcast(
+                podcastEpisodeRequestWrapper, nameof(Delete));
 
-            var podcast = await podcastRepositoryV2.GetPodcast(episode.PodcastId);
-            if (podcast == null)
+            if (episode == null || podcast == null)
             {
+                logger.LogWarning(
+                    "{method} missing episode or podcast. Podcast-Id: '{podcastId}', Episode-id: '{episodeId}'.",
+                    nameof(Delete), podcastEpisodeRequestWrapper.PodcastId, podcastEpisodeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
@@ -86,12 +88,12 @@ public class EpisodeHandler(
 
             await episodeRepository.Delete(episode.PodcastId, episode.Id);
 
-            await DeleteSearchEntry(podcast.Name, episodeId, c);
-            await DeleteShortnerEntry(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
+            await DeleteSearchEntry(podcast.Name, podcastEpisodeRequestWrapper.EpisodeId, c);
+            await shortnerService.Delete(new PodcastEpisode(podcast, episode));
 
             logger.LogWarning(
                 "Delete detached episode from podcast with id '{podcastId}' and episode-id '{episodeId}'.",
-                podcast.Id, episodeId);
+                podcast.Id, podcastEpisodeRequestWrapper.EpisodeId);
             return req.CreateResponse(HttpStatusCode.OK);
         }
         catch (Exception ex)
@@ -103,6 +105,7 @@ public class EpisodeHandler(
         return failure;
     }
 
+
     public async Task<HttpResponseData> Publish(
         HttpRequestData req,
         EpisodePublishRequestWrapper publishRequest,
@@ -112,20 +115,20 @@ public class EpisodeHandler(
         try
         {
             var response = new EpisodePublishResponse();
-            var episode = await episodeRepository.GetBy(x => x.Id == publishRequest.EpisodeId);
+            var (episode, podcast) = await podcastEpisodeResolver.ResolvePodcast(publishRequest, nameof(Publish));
+
             if (episode == null)
             {
                 throw new ArgumentException($"Episode with id '{publishRequest.EpisodeId}' not found.");
             }
 
-            var podcast = await podcastRepositoryV2.GetPodcast(episode.PodcastId);
             if (podcast == null || podcast.Removed == true)
             {
                 throw new ArgumentException(
                     $"Podcast for episode-id '{publishRequest.EpisodeId}' not found or removed.");
             }
 
-            var podcastEpisode = new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode);
+            var podcastEpisode = new PodcastEpisode(podcast, episode);
 
             if (publishRequest.EpisodePublishRequest.Post)
             {
@@ -238,27 +241,38 @@ public class EpisodeHandler(
 
             var episodes = new List<DiscreteEpisode>();
             var since = DateTimeExtensions.DaysAgo(days);
-            var subjects = await subjectsProvider.GetAll().ToListAsync();
-            var podcastCache = new Dictionary<Guid, Podcast>();
+            var subjects = await subjectsProvider.GetAll().ToListAsync(c);
 
-            await foreach (var episode in episodeRepository.GetAllBy(ep =>
-                                   ep.Release > since &&
-                                   !ep.Removed &&
-                                   (!ep.Posted || posted) &&
-                                   (!ep.Tweeted || tweeted) &&
-                                   (!(ep.BlueskyPosted.HasValue && ep.BlueskyPosted.Value) || blueskyPosted))
-                               .WithCancellation(c))
+            // Use cached episodes from provider instead of cross-partition query
+            var podcastEpisodes = await recentEpisodeCandidatesProvider.GetEpisodes(since);
+
+            foreach (var podcastEpisode in podcastEpisodes)
             {
-                if (!podcastCache.TryGetValue(episode.PodcastId, out var podcast))
-                {
-                    var loaded = await podcastRepositoryV2.GetPodcast(episode.PodcastId);
-                    if (loaded == null || loaded.Removed == true)
-                    {
-                        continue;
-                    }
+                var episode = podcastEpisode.Episode;
+                var podcast = podcastEpisode.Podcast;
 
-                    podcast = loaded;
-                    podcastCache[episode.PodcastId] = podcast;
+                // Skip removed
+                if (episode.Removed)
+                {
+                    continue;
+                }
+
+                // Skip posted episodes if not explicitly requested
+                if (episode.Posted && !posted)
+                {
+                    continue;
+                }
+
+                // Skip tweeted episodes if not explicitly requested
+                if (episode.Tweeted && !tweeted)
+                {
+                    continue;
+                }
+
+                // Skip bluesky-posted episodes if not explicitly requested
+                if (episode.BlueskyPosted.HasValue && episode.BlueskyPosted.Value && !blueskyPosted)
+                {
+                    continue;
                 }
 
                 episodes.Add(await ToDiscreteEpisode(episode, podcast, subjects));
@@ -291,14 +305,16 @@ public class EpisodeHandler(
                 episodeChangeRequestWrapper.EpisodeId,
                 JsonSerializer.Serialize(episodeChangeRequestWrapper.EpisodeChangeRequest));
 
-            var episode = await episodeRepository.GetBy(x => x.Id == episodeChangeRequestWrapper.EpisodeId);
+            var (episode, podcast) =
+                await podcastEpisodeResolver.ResolvePodcast(episodeChangeRequestWrapper, nameof(Post));
+
+
             if (episode == null)
             {
                 logger.LogWarning("Episode with id '{episodeId}' not found.", episodeChangeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            var podcast = await podcastRepositoryV2.GetPodcast(episode.PodcastId);
             if (podcast == null)
             {
                 logger.LogWarning("Podcast with id '{podcastId}' not found for episode-id '{episodeId}'.",
@@ -328,7 +344,7 @@ public class EpisodeHandler(
 
             await episodeRepository.Save(episode);
 
-            var podcastEpisode = new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode);
+            var podcastEpisode = new PodcastEpisode(podcast, episode);
 
             if (changeState.UnPost)
             {
@@ -396,7 +412,7 @@ public class EpisodeHandler(
                 episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
             {
                 await DeleteSearchEntry(podcast.Name, episodeChangeRequestWrapper.EpisodeId, c);
-                await DeleteShortnerEntry(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episode));
+                await shortnerService.Delete(new PodcastEpisode(podcast, episode));
             }
             else
             {
@@ -422,26 +438,29 @@ public class EpisodeHandler(
         return failure;
     }
 
-    public async Task<HttpResponseData> Get(HttpRequestData req, Guid episodeId, ClientPrincipal? cp,
+    public async Task<HttpResponseData> Get(HttpRequestData req,
+        PodcastEpisodeRequestWrapper podcastEpisodeRequestWrapper, ClientPrincipal? cp,
         CancellationToken c)
     {
         try
         {
             logger.LogInformation("{method}: Get episode with id '{episodeId}'.", nameof(Get),
-                episodeId);
+                podcastEpisodeRequestWrapper.EpisodeId);
 
-            var episode = await episodeRepository.GetBy(x => x.Id == episodeId);
+            var (episode, podcast) =
+                await podcastEpisodeResolver.ResolvePodcast(podcastEpisodeRequestWrapper, nameof(Get));
+
             if (episode == null)
             {
-                logger.LogWarning("{method}: Episode with id '{episodeId}' not found.", nameof(Get), episodeId);
+                logger.LogWarning("{method}: Episode with id '{episodeId}' not found.", nameof(Get),
+                    podcastEpisodeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            var podcast = await podcastRepositoryV2.GetPodcast(episode.PodcastId);
             if (podcast == null)
             {
                 logger.LogWarning("{method}: Podcast with id '{podcastId}' not found for episode-id '{episodeId}'.",
-                    nameof(Get), episode.PodcastId, episodeId);
+                    nameof(Get), episode.PodcastId, podcastEpisodeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
@@ -481,6 +500,7 @@ public class EpisodeHandler(
         {
             Id = episode.Id,
             PodcastName = podcast.Name,
+            PodcastId = podcast.Id,
             Title = episode.Title,
             Description = episode.Description,
             Posted = episode.Posted,
@@ -545,11 +565,6 @@ public class EpisodeHandler(
         }
 
         return (days, posted, tweeted, blueskyPosted);
-    }
-
-    private async Task DeleteShortnerEntry(RedditPodcastPoster.Models.PodcastEpisode podcastEpisode)
-    {
-        var result = await shortnerService.Delete(podcastEpisode);
     }
 
     private async Task DeleteSearchEntry(

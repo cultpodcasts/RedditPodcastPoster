@@ -1,3 +1,6 @@
 ﻿namespace Api.Dtos;
 
-public record EpisodePublishRequestWrapper(Guid EpisodeId, EpisodePublishRequest EpisodePublishRequest);
+public record EpisodePublishRequestWrapper(
+    Guid? PodcastId,
+    Guid EpisodeId,
+    EpisodePublishRequest EpisodePublishRequest);

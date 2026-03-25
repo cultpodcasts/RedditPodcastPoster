@@ -9,7 +9,7 @@ public interface IEpisodeHandler
 {
     Task<HttpResponseData> Delete(
         HttpRequestData req,
-        Guid episodeId,
+        PodcastEpisodeRequestWrapper podcastEpisodeRequestWrapper,
         ClientPrincipal? cp,
         CancellationToken c);
 
@@ -32,7 +32,7 @@ public interface IEpisodeHandler
 
     Task<HttpResponseData> Get(
         HttpRequestData req,
-        Guid episodeId,
+        PodcastEpisodeRequestWrapper podcastEpisodeRequestWrapper,
         ClientPrincipal? cp,
         CancellationToken c);
 }
