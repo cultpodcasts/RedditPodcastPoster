@@ -30,7 +30,7 @@ public class PodcastEpisodeProvider(
         return GetReadyPodcastEpisodes(
             nameof(GetUntweetedPodcastEpisodes),
             releasedSince,
-            x => !x.Tweeted,
+            x => !x.Episode.Tweeted,
             (podcast, episodes) => podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
                 podcast,
                 episodes,
@@ -111,7 +111,7 @@ public class PodcastEpisodeProvider(
     private async Task<IEnumerable<PodcastEpisode>> GetReadyPodcastEpisodes(
         string methodName,
         DateTime releasedSince,
-        Func<Episode, bool> candidateFilter,
+        Func<PodcastEpisode, bool> candidateFilter,
         Func<Podcast, IEnumerable<Episode>, Task<IEnumerable<PodcastEpisode>>> getReadyEpisodes)
     {
         logger.LogInformation("Exec {method} init. Released-since: '{releasedSince:O}'",
@@ -121,7 +121,7 @@ public class PodcastEpisodeProvider(
         var sharedRecentCandidateThreshold = GetReleasedSince(_postingCriteria.MaxDays);
 
         var candidateEpisodes = (await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(sharedRecentCandidateThreshold))
-            .Where(x => x.Release >= releasedSince)
+            .Where(x => x.Episode.Release >= releasedSince)
             .Where(candidateFilter)
             .ToArray();
 
@@ -138,16 +138,11 @@ public class PodcastEpisodeProvider(
         var filteredOutEpisodeCount = 0;
 
         var podcastEpisodes = new List<PodcastEpisode>();
-        foreach (var podcastEpisodeGroup in candidateEpisodes.GroupBy(x => x.PodcastId))
+        foreach (var podcastGroup in candidateEpisodes.GroupBy(x => x.Podcast.Id))
         {
-            var podcast = await podcastRepository.GetPodcast(podcastEpisodeGroup.Key);
-            if (podcast == null)
-            {
-                logger.LogError("Podcast with id '{podcastId}' not found.", podcastEpisodeGroup.Key);
-                continue;
-            }
+            var podcast = podcastGroup.First().Podcast;
 
-            var groupEpisodes = podcastEpisodeGroup.ToArray();
+            var groupEpisodes = podcastGroup.Select(x => x.Episode).ToArray();
             if (podcast.Removed == true)
             {
                 removedPodcastCandidateCount += groupEpisodes.Length;

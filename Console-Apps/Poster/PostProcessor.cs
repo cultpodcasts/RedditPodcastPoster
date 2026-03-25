@@ -17,6 +17,7 @@ public class PostProcessor(
     IEpisodeRepository episodeRepository,
     ITweeter tweeter,
     IPodcastEpisodesPoster podcastEpisodesPoster,
+    IRecentEpisodeCandidatesProvider recentEpisodeCandidatesProvider,
     IProcessResponsesAdaptor processResponsesAdaptor,
     IHomepagePublisher contentPublisher,
     IPodcastEpisodePoster podcastEpisodePoster,
@@ -306,13 +307,30 @@ public class PostProcessor(
         }
         else
         {
-            var results =
-                await podcastEpisodesPoster.PostNewEpisodes(
-                    DateTimeExtensions.DaysAgo(request.ReleasedWithin),
-                    podcastIds,
-                    preferYouTube: request.YouTubePrimaryPostService,
-                    ignoreAppleGracePeriod: request.IgnoreAppleGracePeriod);
-            var result = processResponsesAdaptor.CreateResponse(results);
+            var since = DateTimeExtensions.DaysAgo(request.ReleasedWithin);
+            var allCandidateEpisodes = await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(since);
+            var podcastEpisodesToPost = allCandidateEpisodes
+                .Where(pe => podcastIds.Contains(pe.Episode.PodcastId))
+                .ToArray();
+
+            var postingResult = await podcastEpisodesPoster.PostNewEpisodes(
+                since,
+                podcastEpisodesToPost,
+                preferYouTube: request.YouTubePrimaryPostService,
+                ignoreAppleGracePeriod: request.IgnoreAppleGracePeriod);
+
+            // Persist modified episodes and podcasts (save each podcast only once)
+            var savedPodcasts = new HashSet<Guid>();
+            foreach (var podcastEpisode in postingResult.ModifiedPodcastEpisodes)
+            {
+                await episodeRepository.Save(podcastEpisode.Episode);
+                if (savedPodcasts.Add(podcastEpisode.Podcast.Id))
+                {
+                    await repository.Save(podcastEpisode.Podcast);
+                }
+            }
+
+            var result = processResponsesAdaptor.CreateResponse(postingResult.Responses);
             var message = result.ToString();
             if (!string.IsNullOrWhiteSpace(message))
             {
