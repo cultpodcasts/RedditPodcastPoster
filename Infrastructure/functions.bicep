@@ -265,7 +265,7 @@ var poster= {
 var postingCriteria= {
     postingCriteria__minimumDuration: '0:9:00'
     postingCriteria__TweetDays: '2'
-    postingCriteria__RedditDays: '7'
+    postingCriteria__RedditDays: '2'
     postingCriteria__BlueSkyDays: '2'
     postingCriteria__CategoriserDays: '2'
 }
