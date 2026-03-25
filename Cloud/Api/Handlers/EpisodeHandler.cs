@@ -478,20 +478,22 @@ public class EpisodeHandler(
 
             if (podcastEpisodeResolverResponse.Episode == null)
             {
-                logger.LogWarning("{method}: Episode with id '{episodeId}' not found.", nameof(Get),
+                logger.LogWarning("{method}: Episode with name '{episodeId}' not found.", nameof(Get),
                     podcastEpisodeRequestWrapper.EpisodeId);
-                return req.CreateResponse(HttpStatusCode.NotFound);
+                return await req.CreateResponse(HttpStatusCode.NotFound)
+                    .WithJsonBody(new { message = "Episode not found." }, c);
             }
 
             if (podcastEpisodeResolverResponse.Podcast == null)
             {
-                logger.LogWarning("{method}: Podcast with id '{podcastId}' not found for episode-id '{episodeId}'.",
-                    nameof(Get), podcastEpisodeResolverResponse.Episode.PodcastId,
-                    podcastEpisodeRequestWrapper.EpisodeId);
-                return req.CreateResponse(HttpStatusCode.NotFound);
+                logger.LogWarning("{method}: Podcast with id '{podcastName}' not found for episode-id '{episodeId}'.",
+                    nameof(Get), podcastEpisodeResolverResponse,
+                    podcastEpisodeRequestWrapper.PodcastName);
+                return await req.CreateResponse(HttpStatusCode.NotFound)
+                    .WithJsonBody(new { message = "Podcast not found." }, c);
             }
 
-            var subjects = await subjectsProvider.GetAll().ToListAsync();
+            var subjects = await subjectsProvider.GetAll().ToListAsync(c);
             var discreteEpisode = await ToDiscreteEpisode(podcastEpisodeResolverResponse.Episode,
                 podcastEpisodeResolverResponse.Podcast, subjects);
             var success = await req.CreateResponse(HttpStatusCode.OK)
