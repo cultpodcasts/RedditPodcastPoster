@@ -1,6 +1,4 @@
-﻿File: Class-Libraries\RedditPodcastPoster.PodcastServices\PodcastUpdater.cs
-````````csharp
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Podcasts;
