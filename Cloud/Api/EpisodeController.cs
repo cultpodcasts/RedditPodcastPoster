@@ -18,7 +18,7 @@ public class EpisodeController(
     : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     private const string? Route = "episode/{episodeId:guid}";
-    private const string? PodcastRoute = "episode/{episodeId:guid}/{episodeId:guid}";
+    private const string? PodcastRoute = "episode/{podcastId:guid}/{episodeId:guid}";
 
     [Function("EpisodeGet")]
     public Task<HttpResponseData> Get(
