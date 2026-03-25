@@ -6,7 +6,8 @@ public record SubmitResult(
     SubmitResultState EpisodeResult,
     SubmitResultState PodcastResult,
     SubmitEpisodeDetails? SubmitEpisodeDetails = null,
-    Episode? Episode = null
+    Episode? Episode = null,
+    Podcast? Podcast = null
 )
 {
     public override string ToString()
@@ -16,6 +17,11 @@ public record SubmitResult(
             $"Podcast-Result: '{PodcastResult.ToString()}'",
             $"episode-Result: '{EpisodeResult.ToString()}'"
         };
+
+        if (Podcast != null)
+        {
+            results.Add($"podcast-id: '{Podcast.Id}'");
+        }
 
         if (Episode != null)
         {

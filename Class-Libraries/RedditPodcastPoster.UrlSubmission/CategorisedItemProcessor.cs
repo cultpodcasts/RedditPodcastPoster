@@ -73,7 +73,8 @@ public class CategorisedItemProcessor(
             submitResult = new SubmitResult(SubmitResultState.Created,
                 SubmitResultState.Created,
                 result.SubmitEpisodeDetails,
-                result.NewEpisode);
+                result.NewEpisode,
+                result.NewPodcast);
             if (submitOptions.PersistToDatabase)
             {
                 await podcastRepository.Save(result.NewPodcast);

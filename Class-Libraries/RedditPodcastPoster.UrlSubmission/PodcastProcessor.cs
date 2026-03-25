@@ -16,8 +16,7 @@ public class PodcastProcessor(
     ISubjectEnricher subjectEnricher,
     ILogger<PodcastProcessor> logger) : IPodcastProcessor
 {
-    public async Task<SubmitResult> AddEpisodeToExistingPodcast(
-        CategorisedItem categorisedItem)
+    public async Task<SubmitResult> AddEpisodeToExistingPodcast(CategorisedItem categorisedItem)
     {
         var matchingEpisodes = categorisedItem.MatchingEpisode != null
             ? [categorisedItem.MatchingEpisode]
@@ -25,7 +24,7 @@ public class PodcastProcessor(
                 episodeHelper.IsMatchingEpisode(episode, categorisedItem)).ToArray();
 
         Episode? matchingEpisode;
-        if (matchingEpisodes!.Count() > 1)
+        if (matchingEpisodes.Count() > 1)
         {
             var title = categorisedItem.ResolvedAppleItem?.EpisodeTitle ??
                         categorisedItem.ResolvedSpotifyItem?.EpisodeTitle ??
@@ -48,7 +47,7 @@ public class PodcastProcessor(
                 matchingEpisode);
 
         SubmitResultState episodeResult;
-        Episode? episode = null;
+        Episode? episode;
         if (matchingEpisode == null)
         {
             episodeResult = SubmitResultState.Created;
@@ -110,6 +109,7 @@ public class PodcastProcessor(
             }
         }
 
-        return new SubmitResult(episodeResult, podcastResult, submitEpisodeDetails, episode);
+        return new SubmitResult(episodeResult, podcastResult, submitEpisodeDetails, episode,
+            categorisedItem.MatchingPodcast);
     }
 }
