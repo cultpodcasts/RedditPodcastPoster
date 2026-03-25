@@ -17,7 +17,7 @@ public class PublicController(
     : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     [Function("PublicEpisodeGet")]
-    public Task<HttpResponseData> Get(
+    public Task<HttpResponseData> GetByEpisodeId(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "public/episode/{episodeId:guid}")]
         HttpRequestData req,
         Guid episodeId,
