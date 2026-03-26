@@ -250,6 +250,7 @@ var discover= {
 var indexer= {
     indexer__ByPassYouTube: false
     indexer__ReleasedDaysAgo: '2'
+    indexer__EnableCostInstrumentation: true
 }
 
 var listenNotes= {

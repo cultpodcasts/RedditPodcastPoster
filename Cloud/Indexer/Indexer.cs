@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Azure;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
@@ -22,6 +23,15 @@ public class Indexer(
     public override async Task<IndexerContext> RunAsync(
         TaskActivityContext context, IndexerContextWrapper indexerContextWrapper)
     {
+        var runStopwatch = Stopwatch.StartNew();
+        var instrumentationEnabled = _indexerOptions.EnableCostInstrumentation;
+        ActivityStatus initiatedStatus = ActivityStatus.Unknown;
+        ActivityStatus completedStatus = ActivityStatus.Unknown;
+        var initiateMs = 0L;
+        var updateMs = 0L;
+        var completeMs = 0L;
+        var idsToIndexCount = 0;
+
         logger.LogInformation(
             "{nameofIndexer} initiated. task-activity-context-instance-id: '{contextInstanceId}'. Pass: {indexerContextWrapperPass}.",
             nameof(Indexer), context.InstanceId, indexerContextWrapper.Pass);
@@ -77,10 +87,13 @@ public class Indexer(
         }
 
         var indexerOperationId = indexerContext.IndexerPassOperationIds[indexerContextWrapper.Pass - 1];
-        var activityBooked = await activityMarshaller.Initiate(indexerOperationId, nameof(Indexer));
-        if (activityBooked != ActivityStatus.Initiated)
+        var initiateStopwatch = Stopwatch.StartNew();
+        initiatedStatus = await activityMarshaller.Initiate(indexerOperationId, nameof(Indexer));
+        initiateStopwatch.Stop();
+        initiateMs = initiateStopwatch.ElapsedMilliseconds;
+        if (initiatedStatus != ActivityStatus.Initiated)
         {
-            if (activityBooked == ActivityStatus.Failed)
+            if (initiatedStatus == ActivityStatus.Failed)
             {
                 return indexerContext with
                 {
@@ -102,7 +115,25 @@ public class Indexer(
         try
         {
             var idsToIndex = indexerContext.IndexIds[indexerContextWrapper.Pass - 1];
+            idsToIndexCount = idsToIndex.Length;
+
+            if (instrumentationEnabled)
+            {
+                logger.LogInformation(
+                    "IndexerCostProbe.Start instance-id='{InstanceId}' pass='{Pass}' ids-to-index='{IdsToIndexCount}' index-spotify='{IndexSpotify}' skip-youtube-url-resolving='{SkipYouTubeUrlResolving}' skip-expensive-youtube-queries='{SkipExpensiveYouTubeQueries}' skip-expensive-spotify-queries='{SkipExpensiveSpotifyQueries}'.",
+                    context.InstanceId,
+                    indexerContextWrapper.Pass,
+                    idsToIndexCount,
+                    indexingContext.IndexSpotify,
+                    indexingContext.SkipYouTubeUrlResolving,
+                    indexingContext.SkipExpensiveYouTubeQueries,
+                    indexingContext.SkipExpensiveSpotifyQueries);
+            }
+
+            var updateStopwatch = Stopwatch.StartNew();
             results = await podcastsUpdater.UpdatePodcasts(idsToIndex, indexingContext);
+            updateStopwatch.Stop();
+            updateMs = updateStopwatch.ElapsedMilliseconds;
         }
         catch (Exception ex)
         {
@@ -115,8 +146,12 @@ public class Indexer(
         {
             try
             {
-                activityBooked = await activityMarshaller.Complete(indexerOperationId, nameof(Indexer));
-                if (activityBooked != ActivityStatus.Completed)
+                var completeStopwatch = Stopwatch.StartNew();
+                completedStatus = await activityMarshaller.Complete(indexerOperationId, nameof(Indexer));
+                completeStopwatch.Stop();
+                completeMs = completeStopwatch.ElapsedMilliseconds;
+
+                if (completedStatus != ActivityStatus.Completed)
                 {
                     logger.LogError("Failure to complete activity");
                 }
@@ -140,6 +175,24 @@ public class Indexer(
             SkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving,
             SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalIndexingContext.SkipSpotifyUrlResolving
         };
+
+        runStopwatch.Stop();
+
+        if (instrumentationEnabled)
+        {
+            logger.LogInformation(
+                "IndexerCostProbe.Complete instance-id='{InstanceId}' pass='{Pass}' success='{Success}' ids-to-index='{IdsToIndexCount}' initiate-status='{InitiatedStatus}' complete-status='{CompletedStatus}' initiate-ms='{InitiateMs}' update-ms='{UpdateMs}' complete-ms='{CompleteMs}' total-ms='{TotalMs}'.",
+                context.InstanceId,
+                indexerContextWrapper.Pass,
+                result.Success,
+                idsToIndexCount,
+                initiatedStatus,
+                completedStatus,
+                initiateMs,
+                updateMs,
+                completeMs,
+                runStopwatch.ElapsedMilliseconds);
+        }
 
         logger.LogInformation("{nameofRunAsync} Completed. Pass: {indexerContextWrapperPass}. Result: {result}",
             nameof(RunAsync), indexerContextWrapper.Pass, result);
