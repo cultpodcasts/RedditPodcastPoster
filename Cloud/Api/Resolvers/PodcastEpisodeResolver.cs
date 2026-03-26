@@ -29,6 +29,7 @@ public class PodcastEpisodeResolver(
             }
 
             episode = await episodeRepository.GetEpisode(podcasts.Single().Id, request.EpisodeId);
+            podcast= podcasts.Single();
         }
         else if (request.PodcastId != null)
         {
