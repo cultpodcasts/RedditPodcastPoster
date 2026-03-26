@@ -32,6 +32,7 @@ public class EpisodeController(
         CancellationToken ct
     )
     {
+        logger.LogWarning("{method} called with Podcast-Name: '{podcastName}', Episode-id: '{episodeId}'.", nameof(Get), podcastName, episodeId);
         return HandleRequest(
             req,
             ["curate"],
