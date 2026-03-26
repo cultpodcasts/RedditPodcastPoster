@@ -1,3 +1,4 @@
+using System.Web;
 using Api.Dtos;
 using Api.Models;
 
@@ -10,7 +11,7 @@ public static class PodcastEpisodeRequestExtensions
         public PodcastEpisodeResolverRequest ToPodcastEpisodeResolverRequest()
         {
             return new PodcastEpisodeResolverRequest(podcastEpisodeResolverRequest.EpisodeId,
-                podcastEpisodeResolverRequest.PodcastId, podcastEpisodeResolverRequest.PodcastName);
+                podcastEpisodeResolverRequest.PodcastId, HttpUtility.UrlDecode(podcastEpisodeResolverRequest.PodcastName));
         }
     }
 

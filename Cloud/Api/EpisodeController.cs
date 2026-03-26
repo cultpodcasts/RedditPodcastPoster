@@ -21,23 +21,6 @@ public class EpisodeController(
     private const string? PodcastIdRoute = "episode/{podcastId:guid}/{episodeId:guid}";
     private const string? PodcastNameRoute = "episode/{podcastName}/{episodeId:guid}";
 
-    [Function("EpisodeGet")]
-    public Task<HttpResponseData> GetByEpisodeId(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = Route)]
-        HttpRequestData req,
-        Guid episodeId,
-        FunctionContext executionContext,
-        CancellationToken ct
-    )
-    {
-        return HandleRequest(
-            req,
-            ["curate"],
-            new PodcastEpisodeRequestWrapper(episodeId),
-            episodeHandler.Get,
-            Unauthorised,
-            ct);
-    }
 
     [Function("PodcastEpisodeGet")]
     public Task<HttpResponseData> Get(
@@ -53,6 +36,24 @@ public class EpisodeController(
             req,
             ["curate"],
             new PodcastEpisodeRequestWrapper(podcastName, episodeId),
+            episodeHandler.Get,
+            Unauthorised,
+            ct);
+    }
+
+    [Function("EpisodeGet")]
+    public Task<HttpResponseData> GetByEpisodeId(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = Route)]
+        HttpRequestData req,
+        Guid episodeId,
+        FunctionContext executionContext,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new PodcastEpisodeRequestWrapper(episodeId),
             episodeHandler.Get,
             Unauthorised,
             ct);
