@@ -18,29 +18,32 @@ public class EpisodeController(
     : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     private const string? Route = "episode/{episodeId:guid}";
+    private const string? PodcastIdentifierRoute = "episode/{podcastIdentifier}/{episodeId:guid}";
     private const string? PodcastIdRoute = "episode/{podcastId:guid}/{episodeId:guid}";
-    private const string? PodcastNameRoute = "episode/{podcastName}/{episodeId:guid}";
 
 
-    [Function("PodcastEpisodeGet")]
-    public Task<HttpResponseData> Get(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = PodcastNameRoute)]
+    [Function("PodcastNameEpisodeGet")]
+    public Task<HttpResponseData> GetByPodcastIdentifier(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = PodcastIdentifierRoute)]
         HttpRequestData req,
-        string podcastName,
+        string podcastIdentifier,
         Guid episodeId,
         FunctionContext executionContext,
         CancellationToken ct
     )
     {
-        logger.LogWarning("{method} called with Podcast-Name: '{podcastName}', Episode-id: '{episodeId}'.", nameof(Get), podcastName, episodeId);
+        var podcastEpisodeGetRequest = Guid.TryParse(podcastIdentifier, out var podcastId)
+            ? new PodcastEpisodeRequestWrapper(podcastId, episodeId)
+            : new PodcastEpisodeRequestWrapper(podcastIdentifier, episodeId);
         return HandleRequest(
             req,
             ["curate"],
-            new PodcastEpisodeRequestWrapper(podcastName, episodeId),
+            podcastEpisodeGetRequest,
             episodeHandler.Get,
             Unauthorised,
             ct);
     }
+
 
     [Function("EpisodeGet")]
     public Task<HttpResponseData> GetByEpisodeId(
@@ -51,6 +54,8 @@ public class EpisodeController(
         CancellationToken ct
     )
     {
+        logger.LogWarning("{method}: Fetching episode by ID: {EpisodeId} without any podcast-identifier",
+            nameof(GetByEpisodeId), episodeId);
         return HandleRequest(
             req,
             ["curate"],
@@ -87,6 +92,8 @@ public class EpisodeController(
         CancellationToken ct
     )
     {
+        logger.LogWarning("{method}: Fetching episode by ID: {EpisodeId} without any podcast-identifier",
+            nameof(PostEpisodeByEpisodeId), episodeId);
         return HandleRequest(
             req,
             ["curate"],
@@ -167,6 +174,8 @@ public class EpisodeController(
         CancellationToken ct
     )
     {
+        logger.LogWarning("{method}: Deleting episode by ID: {EpisodeId} without any podcast-identifier",
+            nameof(DeleteEpisodeByEpisodeId), episodeId);
         return HandleRequest(
             req,
             ["admin"],

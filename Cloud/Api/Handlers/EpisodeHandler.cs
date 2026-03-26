@@ -233,11 +233,8 @@ public class EpisodeHandler(
                 await episodeRepository.Save(podcastEpisodeResolverResponse.Episode);
             }
 
-            await contentPublisher.PublishHomepage();
-
-            var success = await req.CreateResponse(
-                response.Updated() ? HttpStatusCode.OK : HttpStatusCode.BadRequest
-            ).WithJsonBody(response, c);
+            var httpStatusCode = response.Updated() ? HttpStatusCode.OK : HttpStatusCode.BadRequest;
+            var success = await req.CreateResponse(httpStatusCode).WithJsonBody(response, c);
             return success;
         }
         catch (Exception ex)
