@@ -25,8 +25,13 @@ public class Podcast
     [JsonPropertyOrder(20)]
     public string Name { get; set; } = string.Empty;
 
-    [JsonPropertyName("lang")]
+    [JsonPropertyName("latestReleased")]
     [JsonPropertyOrder(21)]
+    public DateTime? LatestReleased { get; set; }
+
+
+    [JsonPropertyName("lang")]
+    [JsonPropertyOrder(22)]
     public string? Language { get; set; }
 
     [JsonPropertyName("removed")]

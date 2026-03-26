@@ -17,5 +17,9 @@ public sealed class HomePageCache : CosmosSelector
     [JsonPropertyOrder(10)]
     public TimeSpan TotalDuration { get; set; }
 
+    [JsonPropertyName("activeEpisodeCount")]
+    [JsonPropertyOrder(11)]
+    public int? ActiveEpisodeCount { get; set; }
+
     public override string FileKey => nameof(HomePageCache);
 }

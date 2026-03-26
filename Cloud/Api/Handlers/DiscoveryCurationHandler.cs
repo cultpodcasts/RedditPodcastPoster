@@ -63,6 +63,7 @@ public class DiscoveryCurationHandler(
                         {
                             DiscoveryItemId = discoveryResult.Id,
                             EpisodeId = result.Episode?.Id,
+                            PodcastId= result.Episode?.PodcastId,
                             Message = result.State.ToString()
                         });
                 }

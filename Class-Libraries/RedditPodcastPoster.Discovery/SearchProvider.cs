@@ -38,14 +38,23 @@ public class SearchProvider(
                         ReleasedSince = discoveryConfig.Since - (discoveryConfig.TaddyOffset ?? TimeSpan.Zero)
                     };
                     serviceResults = await taddySearcher.Search(config.Term, taddyIndexingContent);
-                    if (discoveryConfig.EnrichFromSpotify)
+                    if (serviceResults.Any())
                     {
-                        await spotifyEnricher.Enrich(serviceResults, taddyIndexingContent);
-                    }
+                        if (discoveryConfig.EnrichFromSpotify)
+                        {
+                            await spotifyEnricher.Enrich(serviceResults, taddyIndexingContent);
+                        }
 
-                    if (discoveryConfig.EnrichFromApple)
+                        if (discoveryConfig.EnrichFromApple)
+                        {
+                            await appleEnricher.Enrich(serviceResults, taddyIndexingContent);
+                        }
+                    }
+                    else
                     {
-                        await appleEnricher.Enrich(serviceResults, taddyIndexingContent);
+                        logger.LogWarning("{method}: No episodes found from Taddy discover-service '{discoverService}'.",
+                            nameof(GetEpisodes),
+                            config.DiscoverService.ToString());
                     }
 
                     indexingContext = taddyIndexingContent with

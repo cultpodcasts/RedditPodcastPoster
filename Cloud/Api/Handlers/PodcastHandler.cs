@@ -127,8 +127,7 @@ public class PodcastHandler(
     {
         try
         {
-            logger.LogInformation("{method}: Get podcast with name '{podcastName}'.", nameof(Get),
-                podcastGetRequest.PodcastName);
+            logger.LogInformation("{method}: Get podcast with request '{podcastGetRequest}'.", nameof(Get), podcastGetRequest.ToString());
             var podcastResult = await GetPodcast(podcastGetRequest, c);
             if (podcastResult is { RetrievalState: PodcastRetrievalState.Found, Podcast: not null })
             {
@@ -628,6 +627,16 @@ public class PodcastHandler(
 
     private async Task<PodcastWrapper> GetPodcast(PodcastGetRequest podcastGetRequest, CancellationToken c)
     {
+        if (podcastGetRequest.PodcastId != null)
+        {
+            var podcast = await podcastRepository.GetPodcast(podcastGetRequest.PodcastId.Value);
+            if (podcast == null)
+            {
+                return new PodcastWrapper(null, PodcastRetrievalState.NotFound);
+            }
+
+            return new PodcastWrapper(podcast, PodcastRetrievalState.Found);
+        }
         var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastGetRequest.PodcastName).ToListAsync(c);
         if (!podcasts.Any())
         {

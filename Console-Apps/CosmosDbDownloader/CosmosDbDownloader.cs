@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Legacy;
 using RedditPodcastPoster.Text.KnownTerms;
 
 namespace CosmosDbDownloader;
@@ -30,7 +30,7 @@ public class CosmosDbDownloader(
             .Union(pushSubscriptionFileKeys);
         var multipleFileKeys = fileKeys
             .GroupBy(x => x)
-            .Select(x => new {FileKey = x.Key, Count = x.Count()})
+            .Select(x => new { FileKey = x.Key, Count = x.Count() })
             .Where(x => x.Count > 1)
             .Select(x => x.FileKey)
             .ToArray();

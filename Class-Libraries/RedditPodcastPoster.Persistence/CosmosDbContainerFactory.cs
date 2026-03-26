@@ -7,22 +7,14 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Persistence;
 
 public class CosmosDbContainerFactory(
-    [FromKeyedServices("v1")] CosmosClient cosmosClient,
     [FromKeyedServices("v2")] CosmosClient v2CosmosClient,
-    IOptions<CosmosDbSettings> cosmosDbSettings,
     IOptions<CosmosDbSettingsV2> cosmosDbSettingsV2,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<CosmosDbContainerFactory> logger)
 #pragma warning restore CS9113 // Parameter is unread.
     : ICosmosDbContainerFactory
 {
-    private readonly CosmosDbSettings _cosmosDbSettings = cosmosDbSettings.Value;
     private readonly CosmosDbSettingsV2 _cosmosDbSettingsV2 = cosmosDbSettingsV2.Value;
-
-    public Container Create()
-    {
-        return cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.Container);
-    }
 
     private Container GetV2Container(string containerName, string settingName)
     {

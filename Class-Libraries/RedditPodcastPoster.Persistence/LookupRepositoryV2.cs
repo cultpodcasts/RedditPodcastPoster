@@ -41,6 +41,29 @@ public class LookupRepositoryV2(
         await lookupContainer.UpsertItemAsync(homePageCache, new PartitionKey(homePageCache.Id.ToString()));
     }
 
+    public async Task IncrementHomePageActiveEpisodeCount(int delta)
+    {
+        if (delta == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await lookupContainer.PatchItemAsync<HomePageCache>(
+                HomePageCache._Id.ToString(),
+                new PartitionKey(HomePageCache._Id.ToString()),
+                [PatchOperation.Increment("/activeEpisodeCount", delta)]);
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            logger.LogDebug(ex,
+                "{MethodName}: HomePageCache document not found while incrementing active episode count by {Delta}.",
+                nameof(IncrementHomePageActiveEpisodeCount),
+                delta);
+        }
+    }
+
     private async Task<T?> GetById<T>(Guid id) where T : CosmosSelector
     {
         try

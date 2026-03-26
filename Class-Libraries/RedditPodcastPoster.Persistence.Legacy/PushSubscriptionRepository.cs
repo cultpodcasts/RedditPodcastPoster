@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
-namespace RedditPodcastPoster.PushSubscriptions;
+namespace RedditPodcastPoster.Persistence.Legacy;
 
 public class PushSubscriptionRepository(
     IDataRepository repository,

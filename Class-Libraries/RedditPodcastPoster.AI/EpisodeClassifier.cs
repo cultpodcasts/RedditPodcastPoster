@@ -6,7 +6,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 public class EpisodeClassifier(
-    ISubjectRepository subjectRepository,
+    ISubjectRepositoryV2 subjectRepository,
     TextAnalyticsClient textAnalyticsClient,
     SingleLabelClassifyAction singleLabelClassifyAction,
     IOptions<ClassificationSettings> classificationOptions,
@@ -22,11 +22,11 @@ public class EpisodeClassifier(
         var episodeText = $"{episode.Title}\n\r{episode.Description}";
         var operation =
             await textAnalyticsClient.StartAnalyzeActionsAsync(
-                new[] {episodeText},
-                new TextAnalyticsActions {SingleLabelClassifyActions = new[] {singleLabelClassifyAction}});
+                new[] { episodeText },
+                new TextAnalyticsActions { SingleLabelClassifyActions = new[] { singleLabelClassifyAction } });
         await operation.WaitForCompletionAsync();
 
-        if (operation is {ActionsFailed: 0, ActionsSucceeded: 1})
+        if (operation is { ActionsFailed: 0, ActionsSucceeded: 1 })
         {
             var result = await operation.Value.AsPages().ToListAsync();
             if (result.Count > 1)
@@ -50,7 +50,8 @@ public class EpisodeClassifier(
         }
         else
         {
-            logger.LogError("Failure to classify logger with title '{EpisodeTitle}' and id '{EpisodeId}'.", episode.Title, episode.Id);
+            logger.LogError("Failure to classify logger with title '{EpisodeTitle}' and id '{EpisodeId}'.",
+                episode.Title, episode.Id);
         }
         //}
     }

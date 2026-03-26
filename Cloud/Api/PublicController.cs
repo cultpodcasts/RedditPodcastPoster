@@ -1,6 +1,7 @@
 ﻿using Api.Configuration;
 using Api.Factories;
 using Api.Handlers;
+using Api.Models;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -16,17 +17,38 @@ public class PublicController(
     : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
     [Function("PublicEpisodeGet")]
-    public Task<HttpResponseData> Get(
+    public Task<HttpResponseData> GetByEpisodeId(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "public/episode/{episodeId:guid}")]
         HttpRequestData req,
         Guid episodeId,
         FunctionContext executionContext,
         CancellationToken ct
-    ) =>
-        HandlePublicRequest(
-            req, 
-            episodeId, 
-            publicHandler.Get, 
+    )
+    {
+        return HandlePublicRequest(
+            req,
+            new PodcastEpisodeRequestWrapper(episodeId),
+            publicHandler.Get,
             Unauthorised,
             ct);
+    }
+
+    [Function("PublicPodcastEpisodeGet")]
+    public Task<HttpResponseData> Get(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get",
+            Route = "public/podcast/episode/{podcastId:guid}/{episodeId:guid}")]
+        HttpRequestData req,
+        String podcastName,
+        Guid episodeId,
+        FunctionContext executionContext,
+        CancellationToken ct
+    )
+    {
+        return HandlePublicRequest(
+            req,
+            new PodcastEpisodeRequestWrapper(podcastName, episodeId),
+            publicHandler.Get,
+            Unauthorised,
+            ct);
+    }
 }

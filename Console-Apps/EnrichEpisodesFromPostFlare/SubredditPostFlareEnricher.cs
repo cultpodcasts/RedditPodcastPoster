@@ -1,7 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subreddit;
 using Podcast = RedditPodcastPoster.Models.V2.Podcast;
@@ -14,7 +13,7 @@ public class SubredditPostFlareEnricher(
     ISubredditRepository subredditRepository,
     IPodcastRepositoryV2 podcastRepository,
     IEpisodeRepository episodeRepository,
-    ILogger<CosmosDbRepository> logger)
+    ILogger<SubredditPostFlareEnricher> logger)
 {
     private static readonly Regex AppleUrl = new(@"\?i=(?'epsiodeid'\d+)", RegexOptions.Compiled);
     private static readonly Regex SpotifyUrl = new("episode/(?'episodeid'[a-zA-Z0-9]+)/?", RegexOptions.Compiled);

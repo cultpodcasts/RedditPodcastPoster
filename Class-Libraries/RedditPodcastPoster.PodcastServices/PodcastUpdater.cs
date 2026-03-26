@@ -160,6 +160,25 @@ public class PodcastUpdater(
             filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any() ||
             discoveredYouTubeExpensiveQuery || discoveredSpotifyExpensiveQuery)
         {
+            // Update LatestReleased if new episodes were added or merged
+            if (mergeResult.AddedEpisodes.Any())
+            {
+                var mostRecentAdded = mergeResult.AddedEpisodes.Max(x => x.Release);
+                if (podcast.LatestReleased == null || mostRecentAdded > podcast.LatestReleased)
+                {
+                    podcast.LatestReleased = mostRecentAdded;
+                }
+            }
+
+            if (mergeResult.MergedEpisodes.Any())
+            {
+                var mostRecentMerged = mergeResult.MergedEpisodes.Max(x => x.Existing.Release);
+                if (podcast.LatestReleased == null || mostRecentMerged > podcast.LatestReleased)
+                {
+                    podcast.LatestReleased = mostRecentMerged;
+                }
+            }
+
             await podcastRepository.Save(podcast);
         }
 

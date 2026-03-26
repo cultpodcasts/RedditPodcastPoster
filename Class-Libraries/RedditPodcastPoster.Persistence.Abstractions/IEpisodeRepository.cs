@@ -14,6 +14,7 @@ public interface IEpisodeRepository
     Task Delete(Guid podcastId, Guid episodeId);
     Task<Episode?> GetBy(Expression<Func<Episode, bool>> selector);
     IAsyncEnumerable<Episode> GetAllBy(Expression<Func<Episode, bool>> selector);
+
     IAsyncEnumerable<TProjection> GetAllBy<TProjection>(
         Expression<Func<Episode, bool>> selector,
         Expression<Func<Episode, TProjection>> projection);

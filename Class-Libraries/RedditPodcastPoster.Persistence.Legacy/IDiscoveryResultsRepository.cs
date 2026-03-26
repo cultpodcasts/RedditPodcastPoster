@@ -1,6 +1,6 @@
-﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Discovery;
+namespace RedditPodcastPoster.Persistence.Legacy;
 
 public interface IDiscoveryResultsRepository
 {

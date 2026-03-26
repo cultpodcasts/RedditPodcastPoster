@@ -6,7 +6,8 @@ public class SubmitUrlSuccessResponse(
     SubmitItemResponse episode,
     SubmitItemResponse podcast,
     SubmitEpisodeDetails? submitEpisodeDetails,
-    Guid? episodeId)
+    Guid? episodeId,
+    Guid? podcastId)
 {
     [JsonPropertyName("episode")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -14,6 +15,9 @@ public class SubmitUrlSuccessResponse(
 
     [JsonPropertyName("episodeId")]
     public Guid? EpisodeId { get; private set; } = episodeId;
+
+    [JsonPropertyName("podcastId")]
+    public Guid? PodcastId { get; private set; } = podcastId;
 
     [JsonPropertyName("podcast")]
     [JsonConverter(typeof(JsonStringEnumConverter))]

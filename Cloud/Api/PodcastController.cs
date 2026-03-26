@@ -51,19 +51,20 @@ public class PodcastController(
             Unauthorised, 
             ct);
 
+
     [Function("PodcastGet")]
-    public Task<HttpResponseData> Get(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "podcast/{podcastName}")]
+    public Task<HttpResponseData> GetByIdentifier(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "podcast/{podcastIdentifier}")]
         HttpRequestData req,
-        string podcastName,
+        string podcastIdentifier,
         CancellationToken ct
-    ) => HandleRequest(
-            req,
-            ["curate"],
-            new PodcastGetRequest(podcastName, null),
-            handler.Get,
-            Unauthorised,
-            ct);
+    )
+    {
+        var podcastGetRequest = Guid.TryParse(podcastIdentifier, out var podcastId)
+            ? new PodcastGetRequest(podcastId)
+            : new PodcastGetRequest(podcastIdentifier, null);
+        return HandleRequest(req, ["curate"], podcastGetRequest, handler.Get, Unauthorised, ct);
+    }
 
     [Function("PodcastGetWithEpisodeId")]
     public Task<HttpResponseData> GetWithEpisodeId(

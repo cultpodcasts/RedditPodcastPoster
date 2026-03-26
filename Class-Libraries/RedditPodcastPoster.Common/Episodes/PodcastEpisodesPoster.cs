@@ -1,16 +1,11 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
 public class PodcastEpisodesPoster(
-    IPodcastRepositoryV2 podcastRepository,
-    IEpisodeRepository episodeRepository,
     IPodcastEpisodeFilter podcastEpisodeFilter,
     IPodcastEpisodePoster podcastEpisodePoster,
     IOptions<PostingCriteria> postingCriteria,
@@ -22,27 +17,18 @@ public class PodcastEpisodesPoster(
     private static readonly TimeSpan AppleDelay = TimeSpan.FromHours(1);
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
-    public async Task<IList<ProcessResponse>> PostNewEpisodes(
+    public async Task<PostingResult> PostNewEpisodes(
         DateTime since,
-        IEnumerable<Guid> podcastIds,
+        IEnumerable<PodcastEpisode> podcastEpisodes,
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true,
         bool preferYouTube = false,
         bool ignoreAppleGracePeriod = false,
         int? maxPosts = int.MaxValue)
     {
-        var candidatePodcastEpisodes = new List<PodcastEpisode>();
-        foreach (var podcastId in podcastIds)
-        {
-            var podcast = await podcastRepository.GetPodcast(podcastId);
-            if (podcast == null)
-            {
-                continue;
-            }
-
-            var episodes = await episodeRepository.GetByPodcastId(podcastId).ToArrayAsync();
-            candidatePodcastEpisodes.AddRange(episodes.Select(episode => new PodcastEpisode(podcast, episode)));
-        }
+        var candidatePodcastEpisodes = podcastEpisodes
+            .Where(pe => pe.Episode.Release >= since && pe.Episode is { Posted: false, Ignored: false, Removed: false })
+            .ToList();
 
         var matchingPodcastEpisodes =
             (await podcastEpisodeFilter.GetNewEpisodesReleasedSince(candidatePodcastEpisodes, since, youTubeRefreshed,
@@ -50,12 +36,10 @@ public class PodcastEpisodesPoster(
 
         if (!matchingPodcastEpisodes.Any())
         {
-            return [];
+            return new PostingResult([], []);
         }
 
-        var updatedPodcasts = new List<Podcast>();
-        var postedEpisodes = new List<Episode>();
-
+        var modifiedPodcastEpisodes = new HashSet<PodcastEpisode>();
         var matchingPodcastEpisodeResults = new List<ProcessResponse>();
         var posted = 0;
         var failures = 0;
@@ -88,8 +72,7 @@ public class PodcastEpisodesPoster(
                             if (result.Success)
                             {
                                 posted++;
-                                postedEpisodes.Add(matchingPodcastEpisode.Episode);
-                                updatedPodcasts.Add(matchingPodcastEpisode.Podcast);
+                                modifiedPodcastEpisodes.Add(matchingPodcastEpisode);
                             }
                             else
                             {
@@ -118,25 +101,13 @@ public class PodcastEpisodesPoster(
                 else
                 {
                     matchingPodcastEpisode.Episode.Ignored = true;
-                    updatedPodcasts.Add(matchingPodcastEpisode.Podcast);
+                    modifiedPodcastEpisodes.Add(matchingPodcastEpisode);
                     matchingPodcastEpisodeResults.Add(ProcessResponse.TooShort(
                         $"Episode with id {matchingPodcastEpisode.Episode.Id} and title '{matchingPodcastEpisode.Episode.Title}' from podcast '{matchingPodcastEpisode.Podcast.Name}' with podcast-id '{matchingPodcastEpisode.Podcast.Id}' was Ignored for being too short at '{matchingPodcastEpisode.Episode.Length}'."));
                 }
             }
         }
 
-        foreach (var podcast in updatedPodcasts)
-        {
-            await podcastRepository.Save(podcast);
-        }
-
-        logger.LogInformation(
-            "{method}: Updated podcasts with ids {ids}. Episodes posted {postCount} (actual-posted: {postedCount}).",
-            nameof(PostNewEpisodes),
-            string.Join(',', updatedPodcasts.Select(x => x.Id)),
-            postedEpisodes.Count,
-            postedEpisodes.Count(x => x.Posted));
-
-        return matchingPodcastEpisodeResults;
+        return new PostingResult(matchingPodcastEpisodeResults, modifiedPodcastEpisodes);
     }
 }

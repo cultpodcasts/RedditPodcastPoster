@@ -53,58 +53,31 @@ public class HomepagePublisher(
         ct.ThrowIfCancellationRequested();
 
         var recentCutoff = DateTime.UtcNow.AddDays(-7);
-        var countEpisodesTask = episodeRepository
+
+        var recentPodcastsTask = podcastRepository
             .GetAllBy(
-                x => !x.Removed && (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false ||
-                                    x.PodcastRemoved == null),
-                x => x.Id)
-            .ToListAsync(ct)
-            .AsTask();
-        var recentEpisodesTask = episodeRepository
-            .GetAllBy(
-                x => !x.Removed && !x.Ignored && x.Release >= recentCutoff && (!x.PodcastRemoved.IsDefined() ||
-                                                                               x.PodcastRemoved == false ||
-                                                                               x.PodcastRemoved == null),
-                x => new
+                x => (!x.Removed.IsDefined() || x.Removed == false) &&
+                     x.LatestReleased.IsDefined() &&
+                     x.LatestReleased != null &&
+                     x.LatestReleased >= recentCutoff,
+                x => new PodcastEntry
                 {
-                    x.PodcastId,
-                    x.PodcastName,
-                    EpisodeId = x.Id,
-                    EpisodeTitle = x.Title,
-                    EpisodeDescription = x.Description,
-                    x.Release,
-                    x.Urls,
-                    x.Length,
-                    x.Subjects,
-                    x.Images
+                    Id = x.Id,
+                    Name = x.Name,
+                    TitleRegex = x.TitleRegex,
+                    DescriptionRegex = x.DescriptionRegex,
+                    KnownTerms = x.KnownTerms
                 })
             .ToListAsync(ct)
             .AsTask();
 
-        var durationTicks = await ResolveDurationTicks(countEpisodesTask, recentEpisodesTask, ct);
+        var recentEpisodesTask = GetRecentEpisodes(recentPodcastsTask, recentCutoff, ct);
 
-        var activeEpisodeCount = countEpisodesTask.Result.Count;
+        var homePageCache = await ResolveHomePageCache(recentEpisodesTask, ct);
+        var activeEpisodeCount = homePageCache.ActiveEpisodeCount ?? 0;
 
         var recentEpisodes = recentEpisodesTask.Result;
-        var recentPodcastIds = recentEpisodes
-            .Select(x => x.PodcastId)
-            .Distinct()
-            .ToArray();
-        var podcasts = recentPodcastIds.Length == 0
-            ? new Dictionary<Guid, PodcastEntry>()
-            : (await podcastRepository
-                .GetAllBy(
-                    x => Enumerable.Contains(recentPodcastIds, x.Id),
-                    x => new PodcastEntry
-                    {
-                        Id = x.Id,
-                        Name = x.Name,
-                        TitleRegex = x.TitleRegex,
-                        DescriptionRegex = x.DescriptionRegex,
-                        KnownTerms = x.KnownTerms
-                    })
-                .ToListAsync(ct))
-            .ToDictionary(x => x.Id);
+        var podcasts = recentPodcastsTask.Result.ToDictionary(x => x.Id);
 
         var orderedPodcasts = recentEpisodes
             .Select(episode =>
@@ -139,37 +112,98 @@ public class HomepagePublisher(
         {
             EpisodeCount = activeEpisodeCount,
             RecentEpisodes = sanitizedPodcasts.Select(ToRecentEpisode),
-            TotalDuration = TimeSpan.FromTicks(durationTicks)
+            TotalDuration = homePageCache.TotalDuration
         };
     }
 
-    private async Task<long> ResolveDurationTicks(Task countEpisodesTask, Task recentEpisodesTask, CancellationToken ct)
+    private async Task<List<RecentEpisodeEntry>> GetRecentEpisodes(
+        Task<List<PodcastEntry>> recentPodcastsTask,
+        DateTime recentCutoff,
+        CancellationToken ct)
     {
-        var shouldRefresh = IsRefreshWindow();
-        HomePageCache? homePageCache = null;
-        if (!shouldRefresh)
+        var recentEpisodes = new List<RecentEpisodeEntry>();
+        foreach (var podcast in await recentPodcastsTask)
         {
-            homePageCache = await lookupRepository.GetHomePageCache();
-            shouldRefresh = homePageCache == null;
+            ct.ThrowIfCancellationRequested();
+
+            await foreach (var episode in episodeRepository.GetByPodcastId(
+                               podcast.Id,
+                               x => x.Release >= recentCutoff && !x.Ignored && !x.Removed))
+            {
+                recentEpisodes.Add(new RecentEpisodeEntry
+                {
+                    PodcastId = episode.PodcastId,
+                    PodcastName = episode.PodcastName,
+                    EpisodeId = episode.Id,
+                    EpisodeTitle = episode.Title,
+                    EpisodeDescription = episode.Description,
+                    Release = episode.Release,
+                    Urls = episode.Urls,
+                    Length = episode.Length,
+                    Subjects = episode.Subjects,
+                    Images = episode.Images
+                });
+            }
         }
 
-        if (shouldRefresh)
+        return recentEpisodes;
+    }
+
+    private async Task<HomePageCache> ResolveHomePageCache(Task recentEpisodesTask, CancellationToken ct)
+    {
+        var homePageCache = await lookupRepository.GetHomePageCache() ?? new HomePageCache();
+        var isRefreshWindow = IsRefreshWindow();
+        var shouldRefreshDuration = isRefreshWindow || homePageCache.TotalDuration == default;
+        var shouldRefreshCount = isRefreshWindow || homePageCache.ActiveEpisodeCount == null;
+
+        Task<List<TimeSpan>>? durationEpisodesTask = null;
+        Task<List<Guid>>? countEpisodesTask = null;
+
+        if (shouldRefreshDuration)
         {
-            var durationEpisodesTask = episodeRepository
+            durationEpisodesTask = episodeRepository
                 .GetAllBy(
                     x => !x.Removed && !x.Ignored && (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false ||
                                                       x.PodcastRemoved == null),
                     x => x.Length)
                 .ToListAsync(ct)
                 .AsTask();
-            await Task.WhenAll(countEpisodesTask, durationEpisodesTask, recentEpisodesTask);
-            var ticks = durationEpisodesTask.Result.Sum(x => x.Ticks);
-            await lookupRepository.SaveHomePageCache(new HomePageCache { TotalDuration = TimeSpan.FromTicks(ticks) });
-            return ticks;
         }
 
-        await Task.WhenAll(countEpisodesTask, recentEpisodesTask);
-        return homePageCache!.TotalDuration.Ticks;
+        if (shouldRefreshCount)
+        {
+            countEpisodesTask = episodeRepository
+                .GetAllBy(
+                    x => !x.Removed && (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false ||
+                                        x.PodcastRemoved == null),
+                    x => x.Id)
+                .ToListAsync(ct)
+                .AsTask();
+        }
+
+        await Task.WhenAll(
+            [
+                recentEpisodesTask,
+                durationEpisodesTask ?? Task.CompletedTask,
+                countEpisodesTask ?? Task.CompletedTask
+            ]);
+
+        if (durationEpisodesTask != null)
+        {
+            homePageCache.TotalDuration = TimeSpan.FromTicks(durationEpisodesTask.Result.Sum(x => x.Ticks));
+        }
+
+        if (countEpisodesTask != null)
+        {
+            homePageCache.ActiveEpisodeCount = countEpisodesTask.Result.Count;
+        }
+
+        if (durationEpisodesTask != null || countEpisodesTask != null)
+        {
+            await lookupRepository.SaveHomePageCache(homePageCache);
+        }
+
+        return homePageCache;
     }
 
     private static RecentEpisode ToRecentEpisode(PodcastResult x)
@@ -255,5 +289,19 @@ public class HomepagePublisher(
         public string TitleRegex { get; init; } = string.Empty;
         public string DescriptionRegex { get; init; } = string.Empty;
         public string[]? KnownTerms { get; init; }
+    }
+
+    private sealed record RecentEpisodeEntry
+    {
+        public Guid PodcastId { get; init; }
+        public string? PodcastName { get; init; }
+        public Guid EpisodeId { get; init; }
+        public string EpisodeTitle { get; init; } = string.Empty;
+        public string EpisodeDescription { get; init; } = string.Empty;
+        public DateTime Release { get; init; }
+        public ServiceUrls Urls { get; init; } = new();
+        public TimeSpan Length { get; init; }
+        public List<string> Subjects { get; init; } = [];
+        public EpisodeImages? Images { get; init; }
     }
 }

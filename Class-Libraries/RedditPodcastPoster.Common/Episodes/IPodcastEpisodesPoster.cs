@@ -1,10 +1,12 @@
-﻿namespace RedditPodcastPoster.Common.Episodes;
+﻿using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.Common.Episodes;
 
 public interface IPodcastEpisodesPoster
 {
-    Task<IList<ProcessResponse>> PostNewEpisodes(
+    Task<PostingResult> PostNewEpisodes(
         DateTime since,
-        IEnumerable<Guid> podcastIds,
+        IEnumerable<PodcastEpisode> podcastEpisodes,
         bool youTubeRefreshed = true,
         bool spotifyRefreshed = true,
         bool preferYouTube = false,

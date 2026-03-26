@@ -1,53 +1,58 @@
 ﻿using System.Net;
 using Api.Dtos;
 using Api.Extensions;
+using Api.Models;
+using Api.Resolvers;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Auth0;
-using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace Api.Handlers;
 
 public class PublicHandler(
-    IPodcastRepositoryV2 podcastRepository,
-    IEpisodeRepository episodeRepository,
+    IPodcastEpisodeResolver podcastEpisodeResolver,
     ILogger<PublicHandler> logger) : IPublicHandler
 {
-    public async Task<HttpResponseData> Get(HttpRequestData req, Guid episodeId, ClientPrincipal? _,
+    public async Task<HttpResponseData> Get(HttpRequestData req,
+        PodcastEpisodeRequestWrapper podcastEpisodeRequestWrapper, ClientPrincipal? _,
         CancellationToken c)
     {
         try
         {
-            logger.LogInformation("{GetName}: Get episode with id '{EpisodeId}'.", nameof(Get), episodeId);
+            logger.LogInformation("{GetName}: Get episode with id '{EpisodeId}'.", nameof(Get),
+                podcastEpisodeRequestWrapper.EpisodeId);
 
-            var episode = await episodeRepository.GetBy(x => x.Id == episodeId);
-            if (episode == null || episode.Removed)
+            var podcastEpisodeResolverResponse =
+                await podcastEpisodeResolver.ResolvePodcast(podcastEpisodeRequestWrapper.ToPodcastEpisodeResolverRequest(),
+                    nameof(Get));
+
+            if (podcastEpisodeResolverResponse.Episode == null || podcastEpisodeResolverResponse.Episode.Removed)
             {
-                logger.LogWarning("{GetName}: Episode with id '{EpisodeId}' not found.", nameof(Get), episodeId);
+                logger.LogWarning("{GetName}: Episode with id '{EpisodeId}' not found.", nameof(Get),
+                    podcastEpisodeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            var podcast = await podcastRepository.GetPodcast(episode.PodcastId);
-            if (podcast == null || podcast.Removed == true)
+            if (podcastEpisodeResolverResponse.Podcast == null || podcastEpisodeResolverResponse.Podcast.Removed == true)
             {
                 logger.LogWarning("{GetName}: Podcast with id '{PodcastId}' for episode '{EpisodeId}' not found.",
-                    nameof(Get), episode.PodcastId, episodeId);
+                    nameof(Get), podcastEpisodeResolverResponse.Episode.PodcastId, podcastEpisodeRequestWrapper.EpisodeId);
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
             var publicEpisode = new PublicEpisode
             {
-                PodcastName = podcast.Name,
-                Id = episode.Id,
-                Title = episode.Title,
-                Description = episode.Description,
-                Release = episode.Release,
-                Length = episode.Length,
-                Explicit = episode.Explicit,
-                Urls = episode.Urls,
-                Subjects = episode.Subjects,
-                Image = episode.Images?.YouTube ??
-                        episode.Images?.Spotify ?? episode.Images?.Apple ?? episode.Images?.Other
+                PodcastName = podcastEpisodeResolverResponse.Podcast.Name,
+                Id = podcastEpisodeResolverResponse.Episode.Id,
+                Title = podcastEpisodeResolverResponse.Episode.Title,
+                Description = podcastEpisodeResolverResponse.Episode.Description,
+                Release = podcastEpisodeResolverResponse.Episode.Release,
+                Length = podcastEpisodeResolverResponse.Episode.Length,
+                Explicit = podcastEpisodeResolverResponse.Episode.Explicit,
+                Urls = podcastEpisodeResolverResponse.Episode.Urls,
+                Subjects = podcastEpisodeResolverResponse.Episode.Subjects,
+                Image = podcastEpisodeResolverResponse.Episode.Images?.YouTube ??
+                        podcastEpisodeResolverResponse.Episode.Images?.Spotify ?? podcastEpisodeResolverResponse.Episode.Images?.Apple ?? podcastEpisodeResolverResponse.Episode.Images?.Other
             };
 
             var success = await req.CreateResponse(HttpStatusCode.OK)

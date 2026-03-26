@@ -7,9 +7,13 @@ public class DiscoverySubmitResponseItem
     [JsonPropertyName("discoveryItemId")]
     public required Guid DiscoveryItemId { get; set; }
 
+    [JsonPropertyName("podcastId")]
+    public Guid? PodcastId { get; set; }
+
     [JsonPropertyName("episodeId")]
     public Guid? EpisodeId { get; set; }
 
     [JsonPropertyName("message")]
     public required string Message { get; set; }
+
 }

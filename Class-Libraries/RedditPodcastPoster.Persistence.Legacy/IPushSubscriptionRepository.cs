@@ -1,6 +1,6 @@
-﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Persistence.Abstractions;
+namespace RedditPodcastPoster.Persistence.Legacy;
 
 public interface IPushSubscriptionRepository
 {

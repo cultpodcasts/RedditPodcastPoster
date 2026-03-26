@@ -1,6 +1,7 @@
 ﻿using Api.Configuration;
 using Api.Factories;
 using Api.Handlers;
+using Api.Resolvers;
 using Api.Services;
 using iTunesSearch.Library;
 using Microsoft.Extensions.DependencyInjection;
@@ -81,6 +82,7 @@ public static class Ioc
             .AddScoped<ISubjectHandler, SubjectHandler>()
             .AddScoped<ITermsHandler, TermsHandler>()
             .AddScoped<IDiscoveryCurationHandler, DiscoveryCurationHandler>()
+            .AddScoped<IPodcastEpisodeResolver, PodcastEpisodeResolver>()
             .BindConfiguration<HostingOptions>("hosting")
             .BindConfiguration<IndexerOptions>("indexer")
             .AddPostingCriteria();

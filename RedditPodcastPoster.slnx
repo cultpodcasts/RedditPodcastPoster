@@ -37,6 +37,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.Models/RedditPodcastPoster.Models.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Persistence.Abstractions/RedditPodcastPoster.Persistence.Abstractions.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.Persistence.Legacy/RedditPodcastPoster.Persistence.Legacy.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Persistence/RedditPodcastPoster.Persistence.csproj" />
 
@@ -142,8 +143,6 @@
 
     <Project Path="Console-Apps/EnrichPodcastWithImages/EnrichPodcastWithImages.csproj" />
 
-    <Project Path="Console-Apps/EnrichSubjectRedditFlairs/EnrichSubjectRedditFlairs.csproj" />
-
     <Project Path="Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubeOnlyPodcasts.csproj" />
     <Project Path="Console-Apps/EpisodeDriftDetector/EpisodeDriftDetector.csproj" />
 
@@ -181,8 +180,6 @@
     <Project Path="Console-Apps/SeedEliminationTerms/SeedEliminationTerms.csproj" />
 
     <Project Path="Console-Apps/SeedKnownTerms/SeedKnownTerms.csproj" />
-
-    <Project Path="Console-Apps/Sqllite3DatabasePublisher/Sqllite3DatabasePublisher.csproj" />
 
     <Project Path="Console-Apps/SubjectSeeder/SubjectSeeder.csproj" />
 

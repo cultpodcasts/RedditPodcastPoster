@@ -6,9 +6,8 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Persistence;
-using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PushSubscriptions;
+using RedditPodcastPoster.Persistence.Legacy.Extensions;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.KnownTerms;
@@ -28,11 +27,14 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
+    .AddLegacyCosmosDb()
     .AddLegacyPodcastRepository()
+    .AddLegacyPushSubscriptionRepository()
+    .AddLegacySubjectRepository()
+    .AddLegacyDiscoveryResultsRepository()
     .AddPushSubscriptionsRepository()
     .AddSubjectServices()
     .AddDiscoveryRepository()
-    .AddSingleton<IPushSubscriptionRepository, PushSubscriptionRepository>()
     .AddSingleton<IKnownTermsRepository, KnownTermsRepository>()
     .AddSingleton<LegacyPodcastToV2MigrationProcessor>();
 
