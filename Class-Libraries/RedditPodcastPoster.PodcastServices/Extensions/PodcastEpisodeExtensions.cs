@@ -2,7 +2,7 @@
 
 public static class PodcastEpisodeExtensions
 {
-    public static EpisodeImageUpdateRequest ToEpisodeImageUpdateRequest(this (Models.V2.Podcast Podcast, Models.V2.Episode Episode) podcastEpisode)
+    public static EpisodeImageUpdateRequest ToEpisodeImageUpdateRequest(this (Models.Podcast Podcast, Models.Episode Episode) podcastEpisode)
     {
         return new EpisodeImageUpdateRequest(
                     !string.IsNullOrWhiteSpace(podcastEpisode.Podcast.SpotifyId) &&

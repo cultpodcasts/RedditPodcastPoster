@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using System.Text.Json.Serialization;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
@@ -202,10 +201,4 @@ public class CosmosDbRepository(
             throw;
         }
     }
-}
-
-public class FileKeyWrapper
-{
-    [JsonPropertyName("fileKey")]
-    public string FileKey { get; set; }
 }

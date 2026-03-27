@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.BBC;
 using RedditPodcastPoster.InternetArchive;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 

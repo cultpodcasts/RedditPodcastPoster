@@ -2,6 +2,7 @@
 using Google.Apis.YouTube.v3.Data;
 using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
@@ -21,7 +22,7 @@ public class YouTubeUrlCategoriserTests
     public async Task Resolve()
     {
         // arrange
-        var episodes = new List<RedditPodcastPoster.Models.V2.Episode>
+        var episodes = new List<RedditPodcastPoster.Models.Episode>
         {
             new()
             {

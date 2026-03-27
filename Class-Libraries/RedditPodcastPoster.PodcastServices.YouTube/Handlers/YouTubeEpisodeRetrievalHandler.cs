@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Episode;
@@ -11,10 +12,10 @@ public class YouTubeEpisodeRetrievalHandler(
     ILogger<YouTubeEpisodeRetrievalHandler> logger)
     : IYouTubeEpisodeRetrievalHandler
 {
-    public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IEnumerable<RedditPodcastPoster.Models.V2.Episode> episodes, IndexingContext indexingContext)
+    public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IEnumerable<RedditPodcastPoster.Models.Episode> episodes, IndexingContext indexingContext)
     {
         var handled = false;
-        IList<RedditPodcastPoster.Models.V2.Episode> newEpisodes = new List<RedditPodcastPoster.Models.V2.Episode>();
+        IList<RedditPodcastPoster.Models.Episode> newEpisodes = new List<RedditPodcastPoster.Models.Episode>();
         if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
             if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))

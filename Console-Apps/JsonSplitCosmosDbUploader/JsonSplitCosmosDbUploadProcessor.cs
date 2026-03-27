@@ -2,9 +2,11 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.JsonSplitCosmosDbUploader;
+using RedditPodcastPoster.Persistence.Legacy;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using V2Episode = RedditPodcastPoster.Models.V2.Episode;
+using Episode = RedditPodcastPoster.Models.Episode;
+using Podcast = RedditPodcastPoster.Persistence.Legacy.Podcast;
 
 namespace JsonSplitCosmosDbUploader;
 
@@ -65,7 +67,7 @@ public class JsonSplitCosmosDbUploadProcessor(
                     .OrderByDescending(x => x.Release)
                     .ToArray();
 
-                var episodes = sourceEpisodes.Select(episode => new V2Episode
+                var episodes = sourceEpisodes.Select(episode => new Episode
                 {
                     Id = episode.Id,
                     PodcastId = podcast.Id,

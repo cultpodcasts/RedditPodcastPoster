@@ -16,10 +16,10 @@ using RedditPodcastPoster.Indexing.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.UrlShortening;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Episode = RedditPodcastPoster.Models.Episode;
 using Podcast = Api.Dtos.Podcast;
 using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
-using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using V2Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace Api.Handlers;
 

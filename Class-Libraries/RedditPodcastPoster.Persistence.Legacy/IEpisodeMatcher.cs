@@ -1,7 +1,6 @@
-﻿using System.Text.RegularExpressions;
-using RedditPodcastPoster.Models;
+using System.Text.RegularExpressions;
 
-namespace RedditPodcastPoster.Persistence.Abstractions;
+namespace RedditPodcastPoster.Persistence.Legacy;
 
 public interface IEpisodeMatcher
 {

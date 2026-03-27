@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Subjects.Models;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Episode = RedditPodcastPoster.Models.Episode;
 
 namespace RedditPodcastPoster.Subjects;
 

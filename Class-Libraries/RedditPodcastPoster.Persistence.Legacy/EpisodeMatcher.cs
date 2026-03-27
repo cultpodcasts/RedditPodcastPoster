@@ -1,10 +1,8 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
 
-namespace RedditPodcastPoster.Persistence;
+namespace RedditPodcastPoster.Persistence.Legacy;
 
 public class EpisodeMatcher(
 #pragma warning disable CS9113 // Parameter is unread.

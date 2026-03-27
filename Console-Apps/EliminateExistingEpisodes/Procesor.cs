@@ -3,6 +3,7 @@ using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.DependencyInjection;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text.EliminationTerms;

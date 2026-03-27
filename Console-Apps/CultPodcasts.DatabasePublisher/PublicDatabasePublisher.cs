@@ -5,6 +5,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Legacy;
+using Podcast = RedditPodcastPoster.Persistence.Legacy.Podcast;
 
 namespace CultPodcasts.DatabasePublisher;
 

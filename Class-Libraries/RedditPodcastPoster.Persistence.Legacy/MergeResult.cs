@@ -1,29 +1,17 @@
-using RedditPodcastPoster.Models.V2;
 using System.Text;
-using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Persistence.Abstractions;
+namespace RedditPodcastPoster.Persistence.Legacy;
 
-public interface IEpisodeMerger
+public class MergeResult(
+    List<Episode> addedEpisodes,
+    List<(Episode Existing, Episode NewDetails)> mergedEpisodes,
+    List<IEnumerable<Episode>> failedEpisodes)
 {
-    EpisodeMergeResult MergeEpisodes(
-        Podcast podcast,
-        IEnumerable<Episode> existingEpisodes,
-        IEnumerable<Episode> episodesToMerge);
-}
+    public List<Episode> AddedEpisodes { get; init; } = addedEpisodes;
+    public List<(Episode Existing, Episode NewDetails)> MergedEpisodes { get; init; } = mergedEpisodes;
+    public List<IEnumerable<Episode>> FailedEpisodes { get; init; } = failedEpisodes;
 
-public class EpisodeMergeResult(
-    IList<Episode> EpisodesToSave,
-    IList<Episode> AddedEpisodes,
-    IList<(Episode Existing, Episode NewDetails)> MergedEpisodes,
-    IList<IEnumerable<Episode>> FailedEpisodes)
-{
-    public IList<Episode> EpisodesToSave { get; init; } = EpisodesToSave;
-    public IList<Episode> AddedEpisodes { get; init; } = AddedEpisodes;
-    public IList<(Episode Existing, Episode NewDetails)> MergedEpisodes { get; init; } = MergedEpisodes;
-    public IList<IEnumerable<Episode>> FailedEpisodes { get; init; } = FailedEpisodes;
-
-    public static EpisodeMergeResult Empty => new([], [], [], []);
+    public static MergeResult Empty => new([], [], []);
 
     public string MergedEpisodesReport()
     {

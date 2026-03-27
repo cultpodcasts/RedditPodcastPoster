@@ -3,6 +3,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Legacy;
 using RedditPodcastPoster.Text.KnownTerms;
+using Podcast = RedditPodcastPoster.Persistence.Legacy.Podcast;
 
 namespace CosmosDbUploader;
 

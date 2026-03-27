@@ -2,7 +2,7 @@
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Episode = RedditPodcastPoster.Models.Episode;
 
 namespace RedditPodcastPoster.UrlSubmission;
 

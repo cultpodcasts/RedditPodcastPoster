@@ -62,7 +62,7 @@ public class TrainingDataProcessor(
 
         var podcasts = await podcastRepository.GetAll().ToListAsync();
 
-        var podcastEpisodes = new List<(RedditPodcastPoster.Models.V2.Podcast Podcast, RedditPodcastPoster.Models.V2.Episode Episode)>();
+        var podcastEpisodes = new List<(RedditPodcastPoster.Models.Podcast Podcast, RedditPodcastPoster.Models.Episode Episode)>();
         foreach (var podcast in podcasts)
         {
             var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();

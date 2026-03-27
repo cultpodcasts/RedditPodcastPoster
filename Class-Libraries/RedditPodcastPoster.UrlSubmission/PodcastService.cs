@@ -11,7 +11,7 @@ using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace RedditPodcastPoster.UrlSubmission;
 
@@ -27,7 +27,7 @@ public class PodcastService(
 {
     public async Task<Podcast?> GetPodcastFromEpisodeUrl(Uri url, IndexingContext indexingContext)
     {
-        IEnumerable<RedditPodcastPoster.Models.V2.Podcast> v2Podcasts;
+        IEnumerable<Podcast> v2Podcasts;
         if (SpotifyPodcastServiceMatcher.IsMatch(url))
         {
             var episodeId = SpotifyIdResolver.GetEpisodeId(url);

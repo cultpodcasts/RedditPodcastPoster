@@ -7,7 +7,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using Xunit;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
+using Episode = RedditPodcastPoster.Models.Episode;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests;
 

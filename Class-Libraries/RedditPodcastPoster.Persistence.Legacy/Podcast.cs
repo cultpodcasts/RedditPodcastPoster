@@ -1,37 +1,36 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Models.V2;
+namespace RedditPodcastPoster.Persistence.Legacy;
 
-public class Podcast
+[CosmosSelector(ModelType.Podcast)]
+public sealed class Podcast : CosmosSelector
 {
     [JsonIgnore]
     public static readonly RegexOptions DescriptionFlags = RegexOptions.IgnoreCase | RegexOptions.Singleline;
 
     [JsonIgnore]
-    public static readonly RegexOptions TitleFlags = RegexOptions.IgnoreCase;
+    public static readonly RegexOptions TitleFlags= RegexOptions.IgnoreCase;
 
     [JsonIgnore]
-    public static readonly RegexOptions EpisodeMatchFlags = RegexOptions.Compiled;
+    public static readonly RegexOptions EpisodeMatchFlags=  RegexOptions.Compiled;
 
     [JsonIgnore]
     public static readonly RegexOptions EpisodeIncludeTitleFlags = RegexOptions.Compiled | RegexOptions.IgnoreCase;
 
-    [JsonPropertyName("id")]
-    [JsonPropertyOrder(1)]
-    public Guid Id { get; set; }
+    public Podcast(Guid id)
+    {
+        Id = id;
+        ModelType = ModelType.Podcast;
+    }
 
     [JsonPropertyName("name")]
     [JsonPropertyOrder(20)]
-    public string Name { get; set; } = string.Empty;
-
-    [JsonPropertyName("latestReleased")]
-    [JsonPropertyOrder(21)]
-    public DateTime? LatestReleased { get; set; }
-
+    public string Name { get; set; } = "";
 
     [JsonPropertyName("lang")]
-    [JsonPropertyOrder(22)]
+    [JsonPropertyOrder(21)]
     public string? Language { get; set; }
 
     [JsonPropertyName("removed")]
@@ -40,15 +39,15 @@ public class Podcast
 
     [JsonPropertyName("publisher")]
     [JsonPropertyOrder(30)]
-    public string Publisher { get; set; } = string.Empty;
+    public string Publisher { get; set; } = "";
 
     [JsonPropertyName("hasBundledEpisodes")]
     [JsonPropertyOrder(40)]
-    public bool Bundles { get; set; }
+    public bool Bundles { get; set; } = false;
 
     [JsonPropertyName("indexAllEpisodes")]
     [JsonPropertyOrder(50)]
-    public bool IndexAllEpisodes { get; set; }
+    public bool IndexAllEpisodes { get; set; } = false;
 
     [JsonPropertyName("ignoreAllEpisodes")]
     [JsonPropertyOrder(51)]
@@ -60,7 +59,7 @@ public class Podcast
 
     [JsonPropertyName("minimumDuration")]
     [JsonPropertyOrder(61)]
-    public TimeSpan? MinimumDuration { get; set; }
+    public TimeSpan? MinimumDuration { get; set; } = null;
 
     [JsonPropertyName("releaseAuthority")]
     [JsonPropertyOrder(70)]
@@ -74,7 +73,7 @@ public class Podcast
 
     [JsonPropertyName("spotifyId")]
     [JsonPropertyOrder(90)]
-    public string SpotifyId { get; set; } = string.Empty;
+    public string SpotifyId { get; set; } = "";
 
     [JsonPropertyName("spotifyMarket")]
     [JsonPropertyOrder(100)]
@@ -86,15 +85,15 @@ public class Podcast
 
     [JsonPropertyName("appleId")]
     [JsonPropertyOrder(120)]
-    public long? AppleId { get; set; }
+    public long? AppleId { get; set; } = null;
 
     [JsonPropertyName("youTubeChannelId")]
     [JsonPropertyOrder(130)]
-    public string YouTubeChannelId { get; set; } = string.Empty;
+    public string YouTubeChannelId { get; set; } = "";
 
     [JsonPropertyName("youTubePlaylistId")]
     [JsonPropertyOrder(140)]
-    public string YouTubePlaylistId { get; set; } = string.Empty;
+    public string YouTubePlaylistId { get; set; } = "";
 
     [JsonPropertyName("youTubePublicationOffset")]
     [JsonPropertyOrder(151)]
@@ -114,7 +113,7 @@ public class Podcast
 
     [JsonPropertyName("twitterHandle")]
     [JsonPropertyOrder(190)]
-    public string TwitterHandle { get; set; } = string.Empty;
+    public string TwitterHandle { get; set; } = "";
 
     [JsonPropertyName("blueskyHandle")]
     [JsonPropertyOrder(191)]
@@ -130,19 +129,19 @@ public class Podcast
 
     [JsonPropertyName("titleRegex")]
     [JsonPropertyOrder(200)]
-    public string TitleRegex { get; set; } = string.Empty;
+    public string TitleRegex { get; set; } = "";
 
     [JsonPropertyName("descriptionRegex")]
     [JsonPropertyOrder(210)]
-    public string DescriptionRegex { get; set; } = string.Empty;
+    public string DescriptionRegex { get; set; } = "";
 
     [JsonPropertyName("episodeMatchRegex")]
     [JsonPropertyOrder(220)]
-    public string EpisodeMatchRegex { get; set; } = string.Empty;
+    public string EpisodeMatchRegex { get; set; } = "";
 
     [JsonPropertyName("episodeIncludeTitleRegex")]
     [JsonPropertyOrder(230)]
-    public string EpisodeIncludeTitleRegex { get; set; } = string.Empty;
+    public string EpisodeIncludeTitleRegex { get; set; } = "";
 
     [JsonPropertyName("ignoredAssociatedSubjects")]
     [JsonPropertyOrder(240)]
@@ -162,14 +161,11 @@ public class Podcast
 
     [JsonPropertyName("knownTerms")]
     [JsonPropertyOrder(271)]
-    public string[]? KnownTerms { get; set; }
+    public string[]? KnownTerms { get; set; } = null;
 
-    [JsonPropertyName("fileKey")]
-    [JsonPropertyOrder(290)]
-    public string FileKey { get; set; } = string.Empty;
-
-    [JsonPropertyName("_ts")]
-    public long Timestamp { get; set; }
+    [JsonPropertyName("episodes")]
+    [JsonPropertyOrder(280)]
+    public List<Episode> Episodes { get; set; } = [];
 
     public bool HasExpensiveYouTubePlaylistQuery()
     {

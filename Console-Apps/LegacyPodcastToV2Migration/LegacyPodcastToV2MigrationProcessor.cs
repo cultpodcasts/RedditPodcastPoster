@@ -5,10 +5,10 @@ using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Legacy;
 using RedditPodcastPoster.Text.KnownTerms;
 using System.Text.Json;
-using LegacyEpisode = RedditPodcastPoster.Models.Episode;
-using LegacyPodcast = RedditPodcastPoster.Models.Podcast;
-using V2Episode = RedditPodcastPoster.Models.V2.Episode;
-using V2Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using LegacyEpisode = RedditPodcastPoster.Persistence.Legacy.Episode;
+using LegacyPodcast = RedditPodcastPoster.Persistence.Legacy.Podcast;
+using V2Episode = RedditPodcastPoster.Models.Episode;
+using V2Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace LegacyPodcastToV2Migration;
 
