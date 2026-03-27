@@ -24,15 +24,15 @@ public class PodcastController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "podcast/name/{podcastName}")]
         HttpRequestData req,
         string podcastName,
-        [FromBody] Dtos.PodcastRenameRequest newPodcastName,
+        [FromBody]
+        Dtos.PodcastRenameRequest newPodcastName,
         CancellationToken ct
-    ) =>
-        HandleRequest(
-            req, 
+    ) => HandleRequest(
+            req,
             ["admin"],
-            new PodcastRenameRequest(podcastName, newPodcastName.NewPodcastName), 
+            new PodcastRenameRequest(podcastName, newPodcastName.NewPodcastName),
             handler.Rename,
-            Unauthorised, 
+            Unauthorised,
             ct
         );
 
@@ -42,13 +42,12 @@ public class PodcastController(
         HttpRequestData req,
         string podcastName,
         CancellationToken ct
-    ) =>
-        HandleRequest(
-            req, 
+    ) => HandleRequest(
+            req,
             ["curate"],
-            Uri.UnescapeDataString(podcastName), 
-            handler.Index, 
-            Unauthorised, 
+            Uri.UnescapeDataString(podcastName),
+            handler.Index,
+            Unauthorised,
             ct);
 
 
@@ -86,11 +85,11 @@ public class PodcastController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "podcast/{podcastId:guid}")]
         HttpRequestData req,
         Guid podcastId,
-        [FromBody] Podcast podcastChangeRequest,
+        [FromBody]
+        Podcast podcastChangeRequest,
         CancellationToken ct
-    ) =>
-        HandleRequest(
-            req, 
+    ) => HandleRequest(
+            req,
             ["curate"],
             new PodcastChangeRequestWrapper(podcastId, podcastChangeRequest),
             handler.Post,
@@ -102,14 +101,14 @@ public class PodcastController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "podcast/{podcastId:guid}")]
         HttpRequestData req,
         Guid podcastId,
-        [FromBody] Podcast podcastChangeRequest,
+        [FromBody]
+        Podcast podcastChangeRequest,
         CancellationToken ct
-    ) =>
-        HandleRequest(
-            req, 
-            ["curate"], 
+    ) => HandleRequest(
+            req,
+            ["curate"],
             new PodcastChangeRequestWrapper(podcastId, podcastChangeRequest, true),
-            handler.Post, 
-            Unauthorised, 
+            handler.Post,
+            Unauthorised,
             ct);
 }

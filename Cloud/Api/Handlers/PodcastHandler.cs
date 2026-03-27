@@ -62,7 +62,8 @@ public class PodcastHandler(
                 podcastChangeRequestWrapper.PodcastId);
 
             UpdatePodcast(podcast, podcastChangeRequestWrapper.Podcast);
-            if (podcastChangeRequestWrapper.AllowNameChange)
+            if (podcastChangeRequestWrapper.AllowNameChange &&
+                !string.IsNullOrWhiteSpace(podcastChangeRequestWrapper.Podcast.Name))
             {
                 await UpdateName(podcast, podcastChangeRequestWrapper.Podcast.Name);
             }
@@ -127,7 +128,8 @@ public class PodcastHandler(
     {
         try
         {
-            logger.LogInformation("{method}: Get podcast with request '{podcastGetRequest}'.", nameof(Get), podcastGetRequest.ToString());
+            logger.LogInformation("{method}: Get podcast with request '{podcastGetRequest}'.", nameof(Get),
+                podcastGetRequest.ToString());
             var podcastResult = await GetPodcast(podcastGetRequest, c);
             if (podcastResult is { RetrievalState: PodcastRetrievalState.Found, Podcast: not null })
             {
@@ -372,8 +374,7 @@ public class PodcastHandler(
     {
         if (string.IsNullOrWhiteSpace(podcastName))
         {
-            throw new InvalidOperationException(
-                "Supplied podcast-name is null/empty");
+            throw new InvalidOperationException("Supplied podcast-name is null/empty");
         }
 
         var sameNamePodcasts =
@@ -637,6 +638,7 @@ public class PodcastHandler(
 
             return new PodcastWrapper(podcast, PodcastRetrievalState.Found);
         }
+
         var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastGetRequest.PodcastName).ToListAsync(c);
         if (!podcasts.Any())
         {
@@ -652,7 +654,8 @@ public class PodcastHandler(
         {
             foreach (var candidatePodcast in podcasts)
             {
-                var episode = await episodeRepository.GetEpisode(candidatePodcast.Id, podcastGetRequest.EpisodeId.Value);
+                var episode =
+                    await episodeRepository.GetEpisode(candidatePodcast.Id, podcastGetRequest.EpisodeId.Value);
                 if (episode != null)
                 {
                     return new PodcastWrapper(candidatePodcast, PodcastRetrievalState.Found);
