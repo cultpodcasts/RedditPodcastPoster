@@ -5,7 +5,6 @@ using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
-using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence.Legacy;
 
@@ -207,5 +206,6 @@ public class CosmosDbRepository(
 
 public class FileKeyWrapper
 {
-    [JsonPropertyName("fileKey")] public string FileKey { get; set; }
+    [JsonPropertyName("fileKey")]
+    public string FileKey { get; set; }
 }

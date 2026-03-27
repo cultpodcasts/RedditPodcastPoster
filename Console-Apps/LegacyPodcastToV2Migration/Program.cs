@@ -43,7 +43,7 @@ var teardown = builder.Configuration.GetValue<bool>("teardown", false);
 
 if (teardown)
 {
-    var settings = builder.Configuration.GetSection("cosmosdbv2").Get<CosmosDbSettingsV2>();
+    var settings = builder.Configuration.GetSection("cosmosdbv2").Get<CosmosDbSettings>();
     if (settings == null)
     {
         Console.WriteLine("MigrationCosmosSettings not configured. Aborting teardown.");
@@ -196,7 +196,7 @@ Console.WriteLine($"Episodes migrated: {result.EpisodesMigrated}");
 Console.WriteLine($"Failed podcasts: {result.FailedPodcastIds.Count}");
 Console.WriteLine($"Failed episodes: {result.FailedEpisodeIds.Count}");
 
-var cosmosDbSettingsV2 = builder.Configuration.GetSection("cosmosdbv2").Get<CosmosDbSettingsV2>();
+var cosmosDbSettingsV2 = builder.Configuration.GetSection("cosmosdbv2").Get<CosmosDbSettings>();
 if (cosmosDbSettingsV2 != null)
 {
     var cosmosClientOptions = new CosmosClientOptions();

@@ -21,7 +21,7 @@ public partial class CreateSearchIndexProcessor(
     SearchIndexClient searchIndexClient,
     SearchIndexerClient searchIndexerClient,
     ISearchIndexerService searchIndexerService,
-    IOptions<CosmosDbSettingsV2> cosmosDbSettings,
+    IOptions<CosmosDbSettings> cosmosDbSettings,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<CreateSearchIndexProcessor> logger
 #pragma warning restore CS9113 // Parameter is unread.
@@ -33,7 +33,7 @@ public partial class CreateSearchIndexProcessor(
     private static readonly Regex Whitespace = CreateWhitespaceRegex();
     private static readonly TimeSpan IndexAtMinutes = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan Frequency = TimeSpan.FromMinutes(30);
-    private readonly CosmosDbSettingsV2 _cosmosDbSettings = cosmosDbSettings.Value;
+    private readonly CosmosDbSettings _cosmosDbSettings = cosmosDbSettings.Value;
 
     public async Task Process(CreateSearchIndexRequest request)
     {
