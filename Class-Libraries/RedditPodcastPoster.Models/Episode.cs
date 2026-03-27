@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.V2;
 
 namespace RedditPodcastPoster.Models;
 

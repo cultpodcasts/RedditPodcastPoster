@@ -10,12 +10,12 @@ namespace CosmosDbUploader;
 
 public class CosmosDbUploaderV2(
     IFileRepository fileRepository,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
-    ISubjectRepositoryV2 subjectRepository,
+    ISubjectRepository subjectRepository,
     ILookupRepository lookupRepository,
-    IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
-    IPushSubscriptionRepositoryV2 pushSubscriptionRepository,
+    IDiscoveryResultsRepository discoveryResultsRepository,
+    IPushSubscriptionRepository pushSubscriptionRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
     ILogger<CosmosDbUploaderV2> logger)
 {

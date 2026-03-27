@@ -9,7 +9,7 @@ using Podcast = RedditPodcastPoster.Models.Podcast;
 namespace Tweet;
 
 public class TweetProcessor(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ITweetBuilder tweetBuilder,
     ITwitterClient twitterClient,

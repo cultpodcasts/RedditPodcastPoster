@@ -6,7 +6,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 public class EpisodeClassifier(
-    ISubjectRepositoryV2 subjectRepository,
+    ISubjectRepository subjectRepository,
     TextAnalyticsClient textAnalyticsClient,
     SingleLabelClassifyAction singleLabelClassifyAction,
     IOptions<ClassificationSettings> classificationOptions,

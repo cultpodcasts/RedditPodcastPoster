@@ -6,10 +6,10 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Discovery;
 
-public class DiscoveryResultsRepositoryV2(
+public class DiscoveryResultsRepository(
     Container discoveryContainer,
-    ILogger<DiscoveryResultsRepositoryV2> logger)
-    : IDiscoveryResultsRepositoryV2
+    ILogger<DiscoveryResultsRepository> logger)
+    : IDiscoveryResultsRepository
 {
     public async Task Save(DiscoveryResultsDocument discoveryResultsDocument)
     {

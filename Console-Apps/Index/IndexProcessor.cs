@@ -8,7 +8,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 namespace Index;
 
 internal class IndexProcessor(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IIndexer indexer,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
 #pragma warning disable CS9113 // Parameter is unread.

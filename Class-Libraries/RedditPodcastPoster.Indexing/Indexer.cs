@@ -8,7 +8,7 @@ using RedditPodcastPoster.Subjects.Models;
 namespace RedditPodcastPoster.Indexing;
 
 public class Indexer(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IPodcastUpdater podcastUpdater,
     ISubjectEnricher subjectEnricher,

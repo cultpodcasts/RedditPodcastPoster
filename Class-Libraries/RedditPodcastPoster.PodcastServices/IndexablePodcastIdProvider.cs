@@ -5,7 +5,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.PodcastServices;
 
 public class IndexablePodcastIdProvider(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     ILogger<IndexablePodcastIdProvider> logger
 ) : IIndexablePodcastIdProvider
 {

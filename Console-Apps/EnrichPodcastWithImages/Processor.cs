@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -10,7 +9,7 @@ using RedditPodcastPoster.PodcastServices.Extensions;
 namespace EnrichPodcastWithImages;
 
 public class Processor(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IImageUpdater imageUpdater,
     IEpisodeSearchIndexerService episodeSearchIndexerService,

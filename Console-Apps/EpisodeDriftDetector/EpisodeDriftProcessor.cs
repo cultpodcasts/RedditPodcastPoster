@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
@@ -9,7 +8,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 namespace EpisodeDriftDetector;
 
 public class EpisodeDriftProcessor(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ILogger<EpisodeDriftProcessor> logger)
 {

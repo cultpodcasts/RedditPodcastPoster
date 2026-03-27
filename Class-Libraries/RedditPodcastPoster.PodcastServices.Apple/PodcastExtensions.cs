@@ -2,7 +2,7 @@
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
-public static class PodcastV2Extensions
+public static class PodcastExtensions
 {
     public static FindApplePodcastRequest ToFindApplePodcastRequest(this Podcast podcast)
     {

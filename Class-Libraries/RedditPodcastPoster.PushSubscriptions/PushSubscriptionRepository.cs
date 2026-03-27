@@ -6,10 +6,10 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.PushSubscriptions;
 
-public class PushSubscriptionRepositoryV2(
+public class PushSubscriptionRepository(
     Container pushSubscriptionsContainer,
-    ILogger<PushSubscriptionRepositoryV2> logger)
-    : IPushSubscriptionRepositoryV2
+    ILogger<PushSubscriptionRepository> logger)
+    : IPushSubscriptionRepository
 {
     public async Task Save(PushSubscription pushSubscription)
     {

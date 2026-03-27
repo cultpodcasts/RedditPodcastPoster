@@ -7,7 +7,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace WebsubStatus;
 
 public class WebSubStatusProcessor(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IPodcastYouTubePushNotificationUrlAdaptor podcastYouTubePushNotificationUrlAdaptor,
     HttpClient httpClient,
 #pragma warning disable CS9113 // Parameter is unread.

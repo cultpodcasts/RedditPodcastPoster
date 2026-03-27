@@ -26,7 +26,7 @@ namespace Api.Handlers;
 public class PodcastHandler(
     IIndexer indexer,
     IEpisodeSearchIndexerService searchIndexerService,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     SearchClient searchClient,
     IRedirectService redirectService,

@@ -2,36 +2,24 @@ using System.Linq.Expressions;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
-using Podcast = RedditPodcastPoster.Models.Podcast;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
-namespace RedditPodcastPoster.Persistence;
+namespace RedditPodcastPoster.Subjects;
 
-public class PodcastRepositoryV2(
-    Container podcastsContainer,
-    ILogger<PodcastRepositoryV2> logger)
-    : IPodcastRepositoryV2
+public class SubjectRepository(
+    Container subjectsContainer,
+    ILogger<SubjectRepository> logger)
+    : ISubjectRepository, ISubjectsProvider
 {
-    public async Task<Podcast?> GetPodcast(Guid podcastId)
+    public async Task Save(Subject subject)
     {
-        try
-        {
-            return await podcastsContainer.ReadItemAsync<Podcast>(podcastId.ToString(), new PartitionKey(podcastId.ToString()));
-        }
-        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-        {
-            return null;
-        }
-    }
-
-    public async Task Save(Podcast podcast)
-    {
-        await podcastsContainer.UpsertItemAsync(podcast, new PartitionKey(podcast.Id.ToString()));
+        await subjectsContainer.UpsertItemAsync(subject, new PartitionKey(subject.Id.ToString()));
     }
 
     public async Task<int> Count()
     {
-        var iterator = podcastsContainer.GetItemQueryIterator<int>(
+        var iterator = subjectsContainer.GetItemQueryIterator<int>(
             new QueryDefinition("SELECT VALUE COUNT(1) FROM c"));
 
         while (iterator.HasMoreResults)
@@ -45,7 +33,7 @@ public class PodcastRepositoryV2(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "{method}: error counting podcasts.", nameof(Count));
+                logger.LogError(ex, "{method}: error counting subjects.", nameof(Count));
                 throw;
             }
         }
@@ -53,23 +41,20 @@ public class PodcastRepositoryV2(
         return 0;
     }
 
-    public async IAsyncEnumerable<Podcast> GetAll()
+    public async IAsyncEnumerable<Subject> GetAll()
     {
-        var query = podcastsContainer
-            .GetItemLinqQueryable<Podcast>(requestOptions: new QueryRequestOptions())
-            .AsQueryable();
-
+        var query = subjectsContainer.GetItemLinqQueryable<Subject>(requestOptions: new QueryRequestOptions());
         var iterator = query.ToFeedIterator();
         while (iterator.HasMoreResults)
         {
-            FeedResponse<Podcast> response;
+            FeedResponse<Subject> response;
             try
             {
                 response = await iterator.ReadNextAsync();
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "{method}: error retrieving podcasts.", nameof(GetAll));
+                logger.LogError(ex, "{method}: error retrieving subjects.", nameof(GetAll));
                 throw;
             }
 
@@ -80,10 +65,15 @@ public class PodcastRepositoryV2(
         }
     }
 
-    public async Task<Podcast?> GetBy(Expression<Func<Podcast, bool>> selector)
+    public Task<Subject?> GetByName(string name)
     {
-        var query = podcastsContainer
-            .GetItemLinqQueryable<Podcast>(requestOptions: new QueryRequestOptions())
+        return GetBy(x => x.Name == name);
+    }
+
+    public async Task<Subject?> GetBy(Expression<Func<Subject, bool>> selector)
+    {
+        var query = subjectsContainer
+            .GetItemLinqQueryable<Subject>(requestOptions: new QueryRequestOptions())
             .Where(selector);
 
         var iterator = query.ToFeedIterator();
@@ -98,23 +88,23 @@ public class PodcastRepositoryV2(
         return null;
     }
 
-    public async IAsyncEnumerable<Podcast> GetAllBy(Expression<Func<Podcast, bool>> selector)
+    public async IAsyncEnumerable<Subject> GetAllBy(Expression<Func<Subject, bool>> selector)
     {
-        var query = podcastsContainer
-            .GetItemLinqQueryable<Podcast>(requestOptions: new QueryRequestOptions())
+        var query = subjectsContainer
+            .GetItemLinqQueryable<Subject>(requestOptions: new QueryRequestOptions())
             .Where(selector);
 
         var iterator = query.ToFeedIterator();
         while (iterator.HasMoreResults)
         {
-            FeedResponse<Podcast> response;
+            FeedResponse<Subject> response;
             try
             {
                 response = await iterator.ReadNextAsync();
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "{method}: error retrieving podcasts with selector.", nameof(GetAllBy));
+                logger.LogError(ex, "{method}: error retrieving filtered subjects.", nameof(GetAllBy));
                 throw;
             }
 
@@ -126,11 +116,11 @@ public class PodcastRepositoryV2(
     }
 
     public async IAsyncEnumerable<TProjection> GetAllBy<TProjection>(
-        Expression<Func<Podcast, bool>> selector,
-        Expression<Func<Podcast, TProjection>> projection)
+        Expression<Func<Subject, bool>> selector,
+        Expression<Func<Subject, TProjection>> projection)
     {
-        var query = podcastsContainer
-            .GetItemLinqQueryable<Podcast>(requestOptions: new QueryRequestOptions())
+        var query = subjectsContainer
+            .GetItemLinqQueryable<Subject>(requestOptions: new QueryRequestOptions())
             .Where(selector)
             .Select(projection);
 
@@ -144,7 +134,7 @@ public class PodcastRepositoryV2(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "{method}: error retrieving projected podcasts.", nameof(GetAllBy));
+                logger.LogError(ex, "{method}: error retrieving projected subjects.", nameof(GetAllBy));
                 throw;
             }
 

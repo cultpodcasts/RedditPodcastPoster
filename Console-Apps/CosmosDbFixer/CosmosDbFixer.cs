@@ -2,11 +2,12 @@
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Legacy;
 using RedditPodcastPoster.PodcastServices.Apple;
+using IPodcastRepository = RedditPodcastPoster.Persistence.Abstractions.IPodcastRepository;
 
 namespace CosmosDbFixer;
 
 public class CosmosDbFixer(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ILogger<CosmosDbRepository> logger)
 {

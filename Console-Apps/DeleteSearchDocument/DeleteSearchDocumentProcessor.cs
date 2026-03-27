@@ -6,7 +6,7 @@ namespace DeleteSearchDocument;
 
 public class DeleteSearchDocumentProcessor(
     SearchClient searchClient,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ILogger<DeleteSearchDocumentProcessor> logger)
 {

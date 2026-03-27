@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -9,7 +8,7 @@ using RedditPodcastPoster.UrlSubmission.Models;
 namespace RedditPodcastPoster.UrlSubmission;
 
 public class UrlSubmitter(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IPodcastService podcastService,
     IUrlCategoriser urlCategoriser,
     ICategorisedItemProcessor categorisedItemProcessor,

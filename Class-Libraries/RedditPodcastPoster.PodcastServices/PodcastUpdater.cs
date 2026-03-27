@@ -12,7 +12,7 @@ using RedditPodcastPoster.Text.EliminationTerms;
 namespace RedditPodcastPoster.PodcastServices;
 
 public class PodcastUpdater(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IEpisodeMerger episodeMerger,
     IEpisodeProvider episodeProvider,

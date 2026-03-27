@@ -4,7 +4,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.YouTubePushNotifications;
 
 public class PodcastsSubscriber(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IPodcastYouTubePushNotificationSubscriber subscriber,
     ILogger<PodcastsSubscriber> logger)
     : IPodcastsSubscriber

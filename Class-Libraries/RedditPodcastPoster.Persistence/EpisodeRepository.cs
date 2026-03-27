@@ -3,7 +3,6 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
@@ -11,7 +10,7 @@ namespace RedditPodcastPoster.Persistence;
 public class EpisodeRepository(
     Container container,
     ILookupRepository lookupRepository,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     ILogger<EpisodeRepository> logger)
     : IEpisodeRepository
 {

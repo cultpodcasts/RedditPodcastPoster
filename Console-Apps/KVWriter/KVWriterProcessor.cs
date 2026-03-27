@@ -8,7 +8,7 @@ using Podcast = RedditPodcastPoster.Models.Podcast;
 namespace KVWriter;
 
 public class KVWriterProcessor(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IShortnerService shortnerService,
     ILogger<KVWriterProcessor> logger

@@ -18,7 +18,7 @@ public class Discover(
     IOptions<DiscoverOptions> discoverOptions,
     IDiscoveryServiceConfigProvider discoveryConfigProvider,
     IDiscoveryService discoveryService,
-    IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
+    IDiscoveryResultsRepository discoveryResultsRepository,
     INotificationPublisher notificationPublisher,
     IActivityMarshaller activityMarshaller,
     IDiscoveryPublisher contentPublisher,

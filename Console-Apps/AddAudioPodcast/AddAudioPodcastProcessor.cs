@@ -19,7 +19,7 @@ using Podcast = RedditPodcastPoster.Models.Podcast;
 namespace AddAudioPodcast;
 
 public class AddAudioPodcastProcessor(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ISpotifyClientWrapper spotifyClient,
     IPodcastFactory podcastFactory,

@@ -5,13 +5,13 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
 
-public class CosmosDbClientFactoryV2(
+public class CosmosDbClientFactory(
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
     IOptions<CosmosDbSettings> settings,
 #pragma warning disable CS9113 // Parameter is unread.
-    ILogger<CosmosDbClientFactoryV2> logger)
+    ILogger<CosmosDbClientFactory> logger)
 #pragma warning restore CS9113 // Parameter is unread.
-    : ICosmosDbClientFactoryV2
+    : ICosmosDbClientFactory
 {
     private readonly CosmosDbSettings _settings = settings.Value;
 

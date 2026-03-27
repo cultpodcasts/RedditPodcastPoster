@@ -41,11 +41,11 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddDiscoveryRepository()
         {
             return services
-                .AddSingleton<IDiscoveryResultsRepositoryV2>(s =>
+                .AddSingleton<IDiscoveryResultsRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
-                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<DiscoveryResultsRepositoryV2>>();
-                    return new DiscoveryResultsRepositoryV2(containerFactory.CreateDiscoveryContainer(), logger);
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<DiscoveryResultsRepository>>();
+                    return new DiscoveryResultsRepository(containerFactory.CreateDiscoveryContainer(), logger);
                 });
         }
     }

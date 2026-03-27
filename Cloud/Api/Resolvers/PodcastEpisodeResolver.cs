@@ -1,14 +1,13 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.V2;
 using RedditPodcastPoster.Persistence.Abstractions;
 using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace Api.Resolvers;
 
 public class PodcastEpisodeResolver(
-    IPodcastRepositoryV2 podcastRepositoryV2,
+    IPodcastRepository podcastRepositoryV2,
     IEpisodeRepository episodeRepository,
     ILogger<PodcastEpisodeResolver> logger
 ) : IPodcastEpisodeResolver

@@ -26,7 +26,7 @@ public class HashTagProviderTests
         {
             EnrichmentHashTags = [enrichmentHashTag]
         };
-        _mocker.GetMock<ISubjectRepositoryV2>().Setup(x => x.GetByName(It.IsAny<string>()))
+        _mocker.GetMock<ISubjectRepository>().Setup(x => x.GetByName(It.IsAny<string>()))
             .ReturnsAsync(subject);
         // act
         var result = await Sut.GetHashTags([_fixture.Create<string>()]);

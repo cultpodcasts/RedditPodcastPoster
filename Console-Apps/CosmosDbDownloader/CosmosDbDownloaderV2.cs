@@ -10,12 +10,12 @@ namespace CosmosDbDownloader;
 
 public class CosmosDbDownloaderV2(
     ISafeFileEntityWriter fileWriter,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
-    ISubjectRepositoryV2 subjectRepository,
+    ISubjectRepository subjectRepository,
     ILookupRepository lookupRepository,
-    IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
-    IPushSubscriptionRepositoryV2 pushSubscriptionRepository,
+    IDiscoveryResultsRepository discoveryResultsRepository,
+    IPushSubscriptionRepository pushSubscriptionRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
     ILogger<CosmosDbDownloaderV2> logger)
 {

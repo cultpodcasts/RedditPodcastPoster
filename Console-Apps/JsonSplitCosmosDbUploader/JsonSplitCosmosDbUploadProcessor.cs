@@ -6,13 +6,14 @@ using RedditPodcastPoster.Persistence.Legacy;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using Episode = RedditPodcastPoster.Models.Episode;
+using IPodcastRepository = RedditPodcastPoster.Persistence.Abstractions.IPodcastRepository;
 using Podcast = RedditPodcastPoster.Persistence.Legacy.Podcast;
 
 namespace JsonSplitCosmosDbUploader;
 
 public class JsonSplitCosmosDbUploadProcessor(
     IFileRepository fileRepository,
-    IPodcastRepositoryV2 podcastRepositoryV2,
+    IPodcastRepository podcastRepositoryV2,
     IEpisodeRepository episodeRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
     IPodcastFactory podcastFactory,

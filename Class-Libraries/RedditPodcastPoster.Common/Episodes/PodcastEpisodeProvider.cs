@@ -12,7 +12,7 @@ namespace RedditPodcastPoster.Common.Episodes;
 /// Implementation that provides podcast episodes from detached IEpisodeRepository.
 /// </summary>
 public class PodcastEpisodeProvider(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IRecentEpisodeCandidatesProvider recentEpisodeCandidatesProvider,
     IPodcastEpisodeFilter podcastEpisodeFilter,

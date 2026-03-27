@@ -6,7 +6,7 @@ using Podcast = RedditPodcastPoster.Models.Podcast;
 namespace RedditPodcastPoster.Common.Podcasts;
 
 public class PodcastFactory(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     ILogger<PodcastFactory> logger) : IPodcastFactory
 {
     private static string[]? _fileKeys;

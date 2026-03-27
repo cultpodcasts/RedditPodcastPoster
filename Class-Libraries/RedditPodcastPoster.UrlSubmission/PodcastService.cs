@@ -17,7 +17,7 @@ namespace RedditPodcastPoster.UrlSubmission;
 
 public class PodcastService(
     IYouTubeServiceWrapper youTubeService,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
     IYouTubeVideoService youTubeVideoService,
 #pragma warning disable CS9113 // Parameter is unread.

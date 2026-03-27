@@ -11,7 +11,7 @@ namespace EnrichEpisodesFromPostFlare;
 public class SubredditPostFlareEnricher(
     ISubredditPostProvider subredditPostProvider,
     ISubredditRepository subredditRepository,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ILogger<SubredditPostFlareEnricher> logger)
 {

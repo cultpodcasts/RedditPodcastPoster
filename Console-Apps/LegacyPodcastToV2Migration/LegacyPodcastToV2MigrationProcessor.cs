@@ -5,6 +5,10 @@ using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Legacy;
 using RedditPodcastPoster.Text.KnownTerms;
 using System.Text.Json;
+using IDiscoveryResultsRepository = RedditPodcastPoster.Persistence.Abstractions.IDiscoveryResultsRepository;
+using IPodcastRepository = RedditPodcastPoster.Persistence.Abstractions.IPodcastRepository;
+using IPushSubscriptionRepository = RedditPodcastPoster.Persistence.Abstractions.IPushSubscriptionRepository;
+using ISubjectRepository = RedditPodcastPoster.Persistence.Abstractions.ISubjectRepository;
 using LegacyEpisode = RedditPodcastPoster.Persistence.Legacy.Episode;
 using LegacyPodcast = RedditPodcastPoster.Persistence.Legacy.Podcast;
 using V2Episode = RedditPodcastPoster.Models.Episode;
@@ -43,18 +47,18 @@ public sealed record LegacyPodcastToV2MigrationSections(
 }
 
 public class LegacyPodcastToV2MigrationProcessor(
-    IPodcastRepository legacyPodcastRepository,
-    IPodcastRepositoryV2 podcastRepositoryV2,
+    RedditPodcastPoster.Persistence.Legacy.IPodcastRepository legacyPodcastRepository,
+    IPodcastRepository podcastRepositoryV2,
     IEpisodeRepository episodeRepository,
     ILookupRepository lookupRepository,
     IEliminationTermsRepository eliminationTermsRepository,
     IKnownTermsRepository knownTermsRepository,
-    IPushSubscriptionRepository legacyPushSubscriptionsRepository,
-    IPushSubscriptionRepositoryV2 pushSubscriptionsRepository,
-    ISubjectRepository legacySubjectsRepository,
-    ISubjectRepositoryV2 subjectsRepository,
-    IDiscoveryResultsRepository legacyDiscoveryRepository,
-    IDiscoveryResultsRepositoryV2 discoveryRepository,
+    RedditPodcastPoster.Persistence.Legacy.IPushSubscriptionRepository legacyPushSubscriptionsRepository,
+    IPushSubscriptionRepository pushSubscriptionsRepository,
+    RedditPodcastPoster.Persistence.Legacy.ISubjectRepository legacySubjectsRepository,
+    ISubjectRepository subjectsRepository,
+    RedditPodcastPoster.Persistence.Legacy.IDiscoveryResultsRepository legacyDiscoveryRepository,
+    IDiscoveryResultsRepository discoveryRepository,
     [FromKeyedServices("v1")] Container legacyContainer,
     ILogger<LegacyPodcastToV2MigrationProcessor> logger)
 {

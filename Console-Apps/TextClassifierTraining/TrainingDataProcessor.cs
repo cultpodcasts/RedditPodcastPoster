@@ -11,7 +11,7 @@ namespace TextClassifierTraining;
 public class TrainingDataProcessor(
     ISubredditPostProvider subredditPostProvider,
     ISubredditRepository subredditRepository,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ISubjectCleanser subjectCleanser,
     ISubjectService subjectService,

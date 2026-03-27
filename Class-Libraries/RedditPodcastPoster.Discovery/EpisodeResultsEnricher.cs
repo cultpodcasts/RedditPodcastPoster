@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.Discovery;
 
 public class EpisodeResultsEnricher(
     IEpisodeResultEnricher episodeResultEnricher,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<EpisodeResultsEnricher> Logger
 #pragma warning restore CS9113 // Parameter is unread.

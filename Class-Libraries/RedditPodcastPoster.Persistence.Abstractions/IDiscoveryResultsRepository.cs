@@ -2,7 +2,7 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Persistence.Abstractions;
 
-public interface IDiscoveryResultsRepositoryV2 : IRepository<DiscoveryResultsDocument>
+public interface IDiscoveryResultsRepository : IRepository<DiscoveryResultsDocument>
 {
     IAsyncEnumerable<DiscoveryResultsDocument> GetAllUnprocessed();
     Task SetProcessed(IEnumerable<Guid> ids);

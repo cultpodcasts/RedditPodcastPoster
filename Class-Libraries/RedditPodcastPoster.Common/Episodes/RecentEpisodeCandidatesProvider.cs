@@ -9,7 +9,7 @@ namespace RedditPodcastPoster.Common.Episodes;
 
 public class RecentEpisodeCandidatesProvider(
     IEpisodeRepository episodeRepository,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IOptions<PostingCriteria> postingCriteria,
     ILogger<RecentEpisodeCandidatesProvider> logger)
     : IRecentEpisodeCandidatesProvider

@@ -16,7 +16,7 @@ using Podcast = RedditPodcastPoster.Models.Podcast;
 namespace RedditPodcastPoster.ContentPublisher;
 
 public class HomepagePublisher(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ITextSanitiser textSanitiser,
     ISubjectsProvider subjectsProvider,

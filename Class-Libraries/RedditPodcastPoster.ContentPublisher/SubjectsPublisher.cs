@@ -15,7 +15,7 @@ namespace RedditPodcastPoster.ContentPublisher;
 public class SubjectsPublisher(
     IAmazonS3 client,
     IOptions<ContentOptions> contentOptions,
-    ISubjectRepositoryV2 subjectRepository,
+    ISubjectRepository subjectRepository,
     RedditClient redditClient,
     IOptions<SubredditSettings> subredditSettings,
     ILogger<SubjectsPublisher> logger) : ISubjectsPublisher

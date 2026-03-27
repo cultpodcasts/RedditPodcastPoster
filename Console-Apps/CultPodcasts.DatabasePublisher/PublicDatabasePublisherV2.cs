@@ -9,7 +9,7 @@ namespace CultPodcasts.DatabasePublisher;
 
 public class PublicDatabasePublisherV2(
     ISafeFileEntityWriter safeFileEntityWriter,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<PublicDatabasePublisherV2> logger
