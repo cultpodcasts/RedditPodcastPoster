@@ -17,6 +17,30 @@ public class DiscoveryResultsRepositoryV2(
             new PartitionKey(discoveryResultsDocument.Id.ToString()));
     }
 
+    public async Task<int> Count()
+    {
+        var iterator = discoveryContainer.GetItemQueryIterator<int>(
+            new QueryDefinition("SELECT VALUE COUNT(1) FROM c"));
+
+        while (iterator.HasMoreResults)
+        {
+            try
+            {
+                foreach (var count in await iterator.ReadNextAsync())
+                {
+                    return count;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "{method}: error counting discovery documents.", nameof(Count));
+                throw;
+            }
+        }
+
+        return 0;
+    }
+
     public IAsyncEnumerable<DiscoveryResultsDocument> GetAll()
     {
         return GetByIdsInternal(x => true);
