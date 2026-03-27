@@ -28,7 +28,7 @@ public class Tweet(
 
         if (_indexerOptions.EnableCostInstrumentation)
         {
-            logger.LogInformation("TweetCostProbe.Start instance-id='{InstanceId}'.", context.InstanceId);
+            logger.LogWarning("TweetCostProbe.Start instance-id='{InstanceId}'.", context.InstanceId);
         }
 
         if (!activityOptionsProvider.RunTweet(out var reason))
@@ -55,7 +55,7 @@ public class Tweet(
             runStopwatch.Stop();
             if (_indexerOptions.EnableCostInstrumentation)
             {
-                logger.LogInformation(
+                logger.LogWarning(
                     "TweetCostProbe.Complete instance-id='{InstanceId}' success='false' total-ms='{TotalMs}' error-type='{ErrorType}'.",
                     context.InstanceId,
                     runStopwatch.ElapsedMilliseconds,
@@ -68,7 +68,7 @@ public class Tweet(
         runStopwatch.Stop();
         if (_indexerOptions.EnableCostInstrumentation)
         {
-            logger.LogInformation(
+            logger.LogWarning(
                 "TweetCostProbe.Complete instance-id='{InstanceId}' success='true' total-ms='{TotalMs}'.",
                 context.InstanceId,
                 runStopwatch.ElapsedMilliseconds);

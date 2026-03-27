@@ -28,7 +28,7 @@ public class Categoriser(
 
         if (_indexerOptions.EnableCostInstrumentation)
         {
-            logger.LogInformation(
+            logger.LogWarning(
                 "CategoriserCostProbe.Start instance-id='{InstanceId}'.",
                 context.InstanceId);
         }
@@ -57,7 +57,7 @@ public class Categoriser(
             runStopwatch.Stop();
             if (_indexerOptions.EnableCostInstrumentation)
             {
-                logger.LogInformation(
+                logger.LogWarning(
                     "CategoriserCostProbe.Complete instance-id='{InstanceId}' success='true' categorise-ms='{CategoriseMs}' total-ms='{TotalMs}'.",
                     context.InstanceId,
                     categoriseStopwatch.ElapsedMilliseconds,
@@ -73,7 +73,7 @@ public class Categoriser(
             runStopwatch.Stop();
             if (_indexerOptions.EnableCostInstrumentation)
             {
-                logger.LogInformation(
+                logger.LogWarning(
                     "CategoriserCostProbe.Complete instance-id='{InstanceId}' success='false' total-ms='{TotalMs}' error-type='{ErrorType}'.",
                     context.InstanceId,
                     runStopwatch.ElapsedMilliseconds,

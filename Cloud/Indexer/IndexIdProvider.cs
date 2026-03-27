@@ -24,7 +24,7 @@ public class IndexIdProvider(
 
         if (_indexerOptions.EnableCostInstrumentation)
         {
-            logger.LogInformation(
+            logger.LogWarning(
                 "IndexIdProviderCostProbe.Start instance-id='{InstanceId}' index-passes='{IndexPasses}'.",
                 context.InstanceId,
                 req.IndexPasses);
@@ -65,7 +65,7 @@ public class IndexIdProvider(
 
         if (_indexerOptions.EnableCostInstrumentation)
         {
-            logger.LogInformation(
+            logger.LogWarning(
                 "IndexIdProviderCostProbe.Complete instance-id='{InstanceId}' success='true' index-passes='{IndexPasses}' total-podcast-ids='{TotalPodcastIds}' batch-size-base='{BatchSizeBase}' query-ms='{QueryMs}' total-ms='{TotalMs}'.",
                 context.InstanceId,
                 req.IndexPasses,

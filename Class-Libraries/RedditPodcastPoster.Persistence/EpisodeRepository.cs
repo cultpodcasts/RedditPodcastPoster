@@ -57,6 +57,35 @@ public class EpisodeRepository(
         return 0;
     }
 
+    public async Task<int> Count(Guid podcastId)
+    {
+        var iterator = container.GetItemQueryIterator<int>(
+            new QueryDefinition("SELECT VALUE COUNT(1) FROM c WHERE c.podcastId = @podcastId")
+                .WithParameter("@podcastId", podcastId.ToString()),
+            requestOptions: new QueryRequestOptions
+            {
+                PartitionKey = ToPartitionKey(podcastId)
+            });
+
+        while (iterator.HasMoreResults)
+        {
+            try
+            {
+                foreach (var count in await iterator.ReadNextAsync())
+                {
+                    return count;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "{method}: error counting episodes by podcast-id '{PodcastId}'.", nameof(Count), podcastId);
+                throw;
+            }
+        }
+
+        return 0;
+    }
+
     public async IAsyncEnumerable<Episode> GetByPodcastId(Guid podcastId)
     {
         var query = container

@@ -43,3 +43,6 @@
 ## Editing Guidelines
 - When editing files, never include markdown fences, file labels, or tool artifacts in the edit content; apply plain code-only edits to avoid file corruption.
 - Prioritize preventing top-of-file artifact insertion and immediately verify line 1 after each edit on touched files.
+
+## Telemetry
+- For production cost-probe telemetry in this repo, emit probe logs at Warning level or above because Information logs are disabled in Application Insights.

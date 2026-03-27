@@ -28,7 +28,7 @@ public class Bluesky(
 
         if (_indexerOptions.EnableCostInstrumentation)
         {
-            logger.LogInformation("BlueskyCostProbe.Start instance-id='{InstanceId}'.", context.InstanceId);
+            logger.LogWarning("BlueskyCostProbe.Start instance-id='{InstanceId}'.", context.InstanceId);
         }
 
         if (!activityOptionsProvider.RunBluesky(out var reason))
@@ -56,7 +56,7 @@ public class Bluesky(
             runStopwatch.Stop();
             if (_indexerOptions.EnableCostInstrumentation)
             {
-                logger.LogInformation(
+                logger.LogWarning(
                     "BlueskyCostProbe.Complete instance-id='{InstanceId}' success='false' total-ms='{TotalMs}' error-type='{ErrorType}'.",
                     context.InstanceId,
                     runStopwatch.ElapsedMilliseconds,
@@ -69,7 +69,7 @@ public class Bluesky(
         runStopwatch.Stop();
         if (_indexerOptions.EnableCostInstrumentation)
         {
-            logger.LogInformation(
+            logger.LogWarning(
                 "BlueskyCostProbe.Complete instance-id='{InstanceId}' success='true' total-ms='{TotalMs}'.",
                 context.InstanceId,
                 runStopwatch.ElapsedMilliseconds);

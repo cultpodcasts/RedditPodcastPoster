@@ -30,7 +30,7 @@ public class Publisher(
 
         if (_indexerOptions.EnableCostInstrumentation)
         {
-            logger.LogInformation("PublisherCostProbe.Start instance-id='{InstanceId}'.", context.InstanceId);
+            logger.LogWarning("PublisherCostProbe.Start instance-id='{InstanceId}'.", context.InstanceId);
         }
 
         if (!activityOptionsProvider.RunPublisher(out var reason))
@@ -72,7 +72,7 @@ public class Publisher(
             runStopwatch.Stop();
             if (_indexerOptions.EnableCostInstrumentation)
             {
-                logger.LogInformation(
+                logger.LogWarning(
                     "PublisherCostProbe.Complete instance-id='{InstanceId}' success='false' search-indexer-ms='{SearchIndexerMs}' homepage-publish-ms='{HomepagePublishMs}' total-ms='{TotalMs}' error-type='{ErrorType}'.",
                     context.InstanceId,
                     searchIndexerMs,
@@ -87,7 +87,7 @@ public class Publisher(
         runStopwatch.Stop();
         if (_indexerOptions.EnableCostInstrumentation)
         {
-            logger.LogInformation(
+            logger.LogWarning(
                 "PublisherCostProbe.Complete instance-id='{InstanceId}' success='true' search-indexer-ms='{SearchIndexerMs}' homepage-publish-ms='{HomepagePublishMs}' total-ms='{TotalMs}'.",
                 context.InstanceId,
                 searchIndexerMs,

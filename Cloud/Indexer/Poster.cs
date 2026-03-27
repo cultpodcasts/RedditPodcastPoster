@@ -40,7 +40,7 @@ public class Poster(
 
         if (_indexerOptions.EnableCostInstrumentation)
         {
-            logger.LogInformation(
+            logger.LogWarning(
                 "PosterCostProbe.Start instance-id='{InstanceId}' released-since='{ReleasedSince:O}' max-posts='{MaxPosts}'.",
                 context.InstanceId,
                 baselineDate,
@@ -95,7 +95,7 @@ public class Poster(
 
         if (_indexerOptions.EnableCostInstrumentation)
         {
-            logger.LogInformation(
+            logger.LogWarning(
                 "PosterCostProbe.Complete instance-id='{InstanceId}' success='{Success}' process-ms='{ProcessMs}' total-ms='{TotalMs}'.",
                 context.InstanceId,
                 result.Success,

@@ -119,7 +119,7 @@ public class Indexer(
 
             if (instrumentationEnabled)
             {
-                logger.LogInformation(
+                logger.LogWarning(
                     "IndexerCostProbe.Start instance-id='{InstanceId}' pass='{Pass}' ids-to-index='{IdsToIndexCount}' index-spotify='{IndexSpotify}' skip-youtube-url-resolving='{SkipYouTubeUrlResolving}' skip-expensive-youtube-queries='{SkipExpensiveYouTubeQueries}' skip-expensive-spotify-queries='{SkipExpensiveSpotifyQueries}'.",
                     context.InstanceId,
                     indexerContextWrapper.Pass,
@@ -180,7 +180,7 @@ public class Indexer(
 
         if (instrumentationEnabled)
         {
-            logger.LogInformation(
+            logger.LogWarning(
                 "IndexerCostProbe.Complete instance-id='{InstanceId}' pass='{Pass}' success='{Success}' ids-to-index='{IdsToIndexCount}' initiate-status='{InitiatedStatus}' complete-status='{CompletedStatus}' initiate-ms='{InitiateMs}' update-ms='{UpdateMs}' complete-ms='{CompleteMs}' total-ms='{TotalMs}'.",
                 context.InstanceId,
                 indexerContextWrapper.Pass,
