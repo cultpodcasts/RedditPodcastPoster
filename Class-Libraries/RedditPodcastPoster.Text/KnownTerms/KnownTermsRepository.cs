@@ -4,7 +4,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Text.KnownTerms;
 
 public class KnownTermsRepository(
-    ILookupRepositoryV2 lookupRepository,
+    ILookupRepository lookupRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<KnownTermsRepository> logger)
 #pragma warning restore CS9113 // Parameter is unread.

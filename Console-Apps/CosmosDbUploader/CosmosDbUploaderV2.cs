@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text.KnownTerms;
 using Episode = RedditPodcastPoster.Models.V2.Episode;
@@ -14,7 +13,7 @@ public class CosmosDbUploaderV2(
     IPodcastRepositoryV2 podcastRepository,
     IEpisodeRepository episodeRepository,
     ISubjectRepositoryV2 subjectRepository,
-    ILookupRepositoryV2 lookupRepository,
+    ILookupRepository lookupRepository,
     IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
     IPushSubscriptionRepositoryV2 pushSubscriptionRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,

@@ -12,7 +12,7 @@ using RedditPodcastPoster.Text.KnownTerms;
 namespace Api.Handlers;
 
 public class TermsHandler(
-    ILookupRepositoryV2 lookupRepository,
+    ILookupRepository lookupRepository,
     ILogger<TermsHandler> logger) : ITermsHandler
 {
     public async Task<HttpResponseData> Post(HttpRequestData r, TermSubmitRequest req, ClientPrincipal? _,

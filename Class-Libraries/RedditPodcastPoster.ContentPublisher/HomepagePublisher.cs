@@ -22,7 +22,7 @@ public class HomepagePublisher(
     ISubjectsProvider subjectsProvider,
     IAmazonS3 client,
     IOptions<ContentOptions> contentOptions,
-    ILookupRepositoryV2 lookupRepository,
+    ILookupRepository lookupRepository,
     ILogger<HomepagePublisher> logger)
     : IHomepagePublisher
 {

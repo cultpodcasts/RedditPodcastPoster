@@ -4,7 +4,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Text.KnownTerms;
 
 public class KnownTermsProviderFactory(
-    ILookupRepositoryV2 lookupRepository,
+    ILookupRepository lookupRepository,
     ILogger<KnownTermsProviderFactory> logger)
     : IKnownTermsProviderFactory
 {

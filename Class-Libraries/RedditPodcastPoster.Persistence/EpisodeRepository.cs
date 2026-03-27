@@ -9,7 +9,7 @@ namespace RedditPodcastPoster.Persistence;
 
 public class EpisodeRepository(
     Container container,
-    ILookupRepositoryV2 lookupRepository,
+    ILookupRepository lookupRepository,
     IPodcastRepositoryV2 podcastRepository,
     ILogger<EpisodeRepository> logger)
     : IEpisodeRepository

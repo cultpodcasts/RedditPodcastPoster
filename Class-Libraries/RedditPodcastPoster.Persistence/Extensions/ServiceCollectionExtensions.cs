@@ -24,16 +24,16 @@ public static class ServiceCollectionExtensions
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PodcastRepositoryV2>>();
                     return new PodcastRepositoryV2(containerFactory.CreatePodcastsContainer(), logger);
                 })
-                .AddSingleton<ILookupRepositoryV2>(s =>
+                .AddSingleton<ILookupRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
-                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LookupRepositoryV2>>();
-                    return new LookupRepositoryV2(containerFactory.CreateLookUpsContainer(), logger);
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LookupRepository>>();
+                    return new LookupRepository(containerFactory.CreateLookUpsContainer(), logger);
                 })
                 .AddSingleton<IEpisodeRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
-                    var lookupRepository = s.GetRequiredService<ILookupRepositoryV2>();
+                    var lookupRepository = s.GetRequiredService<ILookupRepository>();
                     var podcastRepository = s.GetRequiredService<IPodcastRepositoryV2>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<EpisodeRepository>>();
                     return new EpisodeRepository(

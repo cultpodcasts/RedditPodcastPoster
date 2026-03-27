@@ -13,7 +13,7 @@ public class CosmosDbDownloaderV2(
     IPodcastRepositoryV2 podcastRepository,
     IEpisodeRepository episodeRepository,
     ISubjectRepositoryV2 subjectRepository,
-    ILookupRepositoryV2 lookupRepository,
+    ILookupRepository lookupRepository,
     IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
     IPushSubscriptionRepositoryV2 pushSubscriptionRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,

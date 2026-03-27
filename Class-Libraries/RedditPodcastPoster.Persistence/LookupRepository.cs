@@ -6,10 +6,10 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
 
-public class LookupRepositoryV2(
+public class LookupRepository(
     Container lookupContainer,
-    ILogger<LookupRepositoryV2> logger)
-    : ILookupRepositoryV2
+    ILogger<LookupRepository> logger)
+    : ILookupRepository
 {
     public Task<EliminationTerms?> GetEliminationTerms()
     {

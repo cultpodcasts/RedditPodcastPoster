@@ -46,7 +46,7 @@ public class LegacyPodcastToV2MigrationProcessor(
     IPodcastRepository legacyPodcastRepository,
     IPodcastRepositoryV2 podcastRepositoryV2,
     IEpisodeRepository episodeRepository,
-    ILookupRepositoryV2 lookupRepository,
+    ILookupRepository lookupRepository,
     IEliminationTermsRepository eliminationTermsRepository,
     IKnownTermsRepository knownTermsRepository,
     IPushSubscriptionRepository legacyPushSubscriptionsRepository,
