@@ -50,9 +50,9 @@ public class SubjectEnricher(
             if (!episode.Subjects.Any() && !string.IsNullOrWhiteSpace(options?.DefaultSubject))
             {
                 additions.Add(new SubjectMatch(new Subject(options.DefaultSubject), []));
-                episode.Subjects = new[] { options.DefaultSubject }.ToList();
+                episode.Subjects = [options.DefaultSubject];
                 logger.LogWarning(
-                    "Applying default-subject '{defaultSubject}' to episode with title: '{episodeTitle}' ({episodeId}).",
+                    "Applying default-subject '{defaultSubject}' to episode with title: '{episodeTitle}' ({episodeId}) - no additions.",
                     options.DefaultSubject, episode.Title, episode.Id);
             }
             else if (!episode.Subjects.Any())
@@ -72,9 +72,19 @@ public class SubjectEnricher(
         if (!string.IsNullOrWhiteSpace(options?.DefaultSubject) && !hadSubjects &&
             (!episode.Subjects.Any() || episode.Subjects.All(x => x.StartsWith("_"))))
         {
-            additions.Insert(0, new SubjectMatch(new Subject(options.DefaultSubject), []));
+            if (!episode.Subjects.Contains(options.DefaultSubject, StringComparer.OrdinalIgnoreCase))
+            {
+                episode.Subjects.Insert(0, options.DefaultSubject);
+            }
+
+            if (!additions.Any(x =>
+                    string.Equals(x.Subject.Name, options.DefaultSubject, StringComparison.OrdinalIgnoreCase)))
+            {
+                additions.Insert(0, new SubjectMatch(new Subject(options.DefaultSubject), []));
+            }
+
             logger.LogWarning(
-                "Applying default-subject '{defaultSubject}' to episode with title: '{episodeTitle}' ({episodeId}).",
+                "Applying default-subject '{defaultSubject}' to episode with title: '{episodeTitle}' ({episodeId}) - fallback.",
                 options.DefaultSubject, episode.Title, episode.Id);
         }
 
