@@ -3,8 +3,6 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subreddit;
-using Podcast = RedditPodcastPoster.Models.Podcast;
-using Episode = RedditPodcastPoster.Models.Episode;
 
 namespace EnrichEpisodesFromPostFlare;
 

@@ -13,8 +13,6 @@ using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using SpotifyAPI.Web;
-using Episode = RedditPodcastPoster.Models.Episode;
-using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace AddAudioPodcast;
 

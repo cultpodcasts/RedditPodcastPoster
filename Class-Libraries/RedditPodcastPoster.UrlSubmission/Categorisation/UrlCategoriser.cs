@@ -10,8 +10,6 @@ using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
-using Episode = RedditPodcastPoster.Models.Episode;
-using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace RedditPodcastPoster.UrlSubmission.Categorisation;
 
@@ -40,7 +38,7 @@ public class UrlCategoriser(
         Service authority = 0;
 
         Episode? matchingEpisode = null;
-        List<Episode> episodes=[];
+        List<Episode> episodes = [];
         if (podcast != null)
         {
             episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
@@ -58,12 +56,13 @@ public class UrlCategoriser(
         {
             resolvedAppleItem = await appleUrlCategoriser.Resolve(podcast, episodes, url, indexingContext);
             criteria = resolvedAppleItem.ToPodcastServiceSearchCriteria();
-            matchingEpisode = episodes.SingleOrDefault(x => x.Urls.Apple == url || x.AppleId == resolvedAppleItem.EpisodeId);
+            matchingEpisode =
+                episodes.SingleOrDefault(x => x.Urls.Apple == url || x.AppleId == resolvedAppleItem.EpisodeId);
             authority = Service.Apple;
         }
         else if (YouTubePodcastServiceMatcher.IsMatch(url))
         {
-            resolvedYouTubeItem = await youTubeUrlCategoriser.Resolve(podcast, episodes,url, indexingContext);
+            resolvedYouTubeItem = await youTubeUrlCategoriser.Resolve(podcast, episodes, url, indexingContext);
             if (resolvedYouTubeItem != null)
             {
                 criteria = resolvedYouTubeItem.ToPodcastServiceSearchCriteria();
@@ -169,6 +168,7 @@ public class UrlCategoriser(
                     }
                 }
             }
+
             return new CategorisedItem(
                 podcast,
                 episodes,
@@ -200,6 +200,4 @@ public class UrlCategoriser(
 
         throw new InvalidOperationException($"Unable to handle url '{url}'.");
     }
-
-
 }

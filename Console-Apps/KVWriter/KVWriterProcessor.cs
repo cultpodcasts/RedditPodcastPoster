@@ -2,8 +2,6 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.UrlShortening;
-using Episode = RedditPodcastPoster.Models.Episode;
-using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace KVWriter;
 
@@ -52,7 +50,8 @@ public class KVWriterProcessor(
             var podcast = await podcastRepository.GetPodcast(episode.PodcastId);
             if (podcast == null)
             {
-                throw new ArgumentException($"No podcast found with podcast-id '{episode.PodcastId}' for episode-id '{request.EpisodeId.Value}'.",
+                throw new ArgumentException(
+                    $"No podcast found with podcast-id '{episode.PodcastId}' for episode-id '{request.EpisodeId.Value}'.",
                     nameof(request.EpisodeId));
             }
 

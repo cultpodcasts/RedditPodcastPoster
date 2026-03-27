@@ -3,8 +3,6 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text.KnownTerms;
-using Episode = RedditPodcastPoster.Models.Episode;
-using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace CosmosDbUploader;
 

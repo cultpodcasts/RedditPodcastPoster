@@ -2,8 +2,6 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using Episode = RedditPodcastPoster.Models.Episode;
-using PostModel = RedditPodcastPoster.Models.PostModel;
 
 namespace RedditPodcastPoster.Common.Factories;
 

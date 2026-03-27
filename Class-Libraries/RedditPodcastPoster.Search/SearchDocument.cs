@@ -1,6 +1,5 @@
 ﻿using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models;
-using Episode = RedditPodcastPoster.Models.Episode;
 
 namespace RedditPodcastPoster.Search;
 

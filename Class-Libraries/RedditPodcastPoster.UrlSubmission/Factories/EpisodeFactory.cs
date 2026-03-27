@@ -3,7 +3,6 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
-using Episode = RedditPodcastPoster.Models.Episode;
 
 namespace RedditPodcastPoster.UrlSubmission.Factories;
 
@@ -99,7 +98,9 @@ public class EpisodeFactory(
             }
             else
             {
-                newEpisode.Ignored = length < (categorisedItem.MatchingPodcast.MinimumDuration ?? _postingCriteria.MinimumDuration);
+                newEpisode.Ignored = length <
+                                     (categorisedItem.MatchingPodcast.MinimumDuration ??
+                                      _postingCriteria.MinimumDuration);
             }
         }
         else
@@ -127,7 +128,9 @@ public class EpisodeFactory(
         }
 
         logger.LogInformation(
-            "Created episode with spotify-id '{EpisodeId}', apple-id '{L}', youtube-id '{S}' and episode-id '{NewEpisodeId}'.", categorisedItem.ResolvedSpotifyItem?.EpisodeId, categorisedItem.ResolvedAppleItem?.EpisodeId, categorisedItem.ResolvedYouTubeItem?.EpisodeId, newEpisode.Id);
+            "Created episode with spotify-id '{EpisodeId}', apple-id '{L}', youtube-id '{S}' and episode-id '{NewEpisodeId}'.",
+            categorisedItem.ResolvedSpotifyItem?.EpisodeId, categorisedItem.ResolvedAppleItem?.EpisodeId,
+            categorisedItem.ResolvedYouTubeItem?.EpisodeId, newEpisode.Id);
         return newEpisode;
     }
 }

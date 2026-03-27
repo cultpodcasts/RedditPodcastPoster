@@ -5,8 +5,6 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.PodcastServices.YouTube.Enrichment;
-using Episode = RedditPodcastPoster.Models.Episode;
-using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace RedditPodcastPoster.PodcastServices;
 
@@ -72,7 +70,7 @@ public class PodcastServicesEpisodeEnricher(
                 foreach (var delayedEpisode in delayedEpisodes)
                 {
                     var enrichmentContext = new EnrichmentContext();
-                    var enrichmentRequest = new EnrichmentRequest(podcast,episodes, delayedEpisode);
+                    var enrichmentRequest = new EnrichmentRequest(podcast, episodes, delayedEpisode);
                     await youTubeEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
                     if (enrichmentContext.Updated)
                     {

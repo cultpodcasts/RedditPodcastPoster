@@ -2,8 +2,6 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.JsonSplitCosmosDbUploader;
-using RedditPodcastPoster.Persistence.Legacy;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using Episode = RedditPodcastPoster.Models.Episode;
 using IPodcastRepository = RedditPodcastPoster.Persistence.Abstractions.IPodcastRepository;

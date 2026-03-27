@@ -1,6 +1,4 @@
 using RedditPodcastPoster.Models;
-using Episode = RedditPodcastPoster.Models.Episode;
-using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 

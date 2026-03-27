@@ -2,7 +2,6 @@
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
-using Episode = RedditPodcastPoster.Models.Episode;
 
 namespace RedditPodcastPoster.UrlSubmission;
 
@@ -23,10 +22,7 @@ public class EpisodeHelper : IEpisodeHelper
                                !string.IsNullOrWhiteSpace(episode.YouTubeId) &&
                                episode.YouTubeId != categorisedItem.ResolvedYouTubeItem.EpisodeId) ||
                               categorisedItem.ResolvedYouTubeItem == null;
-        var alreadyCategorised =
-            spotifyResolved &&
-            appleResolved &&
-            youTubeResolved;
+        var alreadyCategorised = spotifyResolved && appleResolved && youTubeResolved;
         if (alreadyCategorised)
         {
             return false;
@@ -40,10 +36,7 @@ public class EpisodeHelper : IEpisodeHelper
         var matchingYouTube = categorisedItem.ResolvedYouTubeItem != null &&
                               !string.IsNullOrWhiteSpace(episode.YouTubeId) &&
                               episode.YouTubeId == categorisedItem.ResolvedYouTubeItem.EpisodeId;
-        var hasMatchingUrl =
-            matchingSpotify ||
-            matchingApple ||
-            matchingYouTube;
+        var hasMatchingUrl = matchingSpotify || matchingApple || matchingYouTube;
         if (hasMatchingUrl)
         {
             return true;
@@ -68,8 +61,7 @@ public class EpisodeHelper : IEpisodeHelper
             return false;
         }
 
-        if (resolvedTitle == episodeTitle ||
-            resolvedTitle.Contains(episodeTitle) ||
+        if (resolvedTitle == episodeTitle || resolvedTitle.Contains(episodeTitle) ||
             episodeTitle.Contains(resolvedTitle))
         {
             return true;

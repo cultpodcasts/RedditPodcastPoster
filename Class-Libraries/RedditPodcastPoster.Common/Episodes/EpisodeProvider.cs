@@ -1,8 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using Episode = RedditPodcastPoster.Models.Episode;
-using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
@@ -14,7 +12,8 @@ public class EpisodeProvider(
     ILogger<EpisodeProvider> logger)
     : IEpisodeProvider
 {
-    public async Task<IList<Episode>> GetEpisodes(Podcast podcast, IEnumerable<Episode> episodes, IndexingContext indexingContext)
+    public async Task<IList<Episode>> GetEpisodes(Podcast podcast, IEnumerable<Episode> episodes,
+        IndexingContext indexingContext)
     {
         IList<Episode>? newEpisodes = null;
         var handled = false;
@@ -44,7 +43,8 @@ public class EpisodeProvider(
         if (!handled || (podcast.ReleaseAuthority is Service.YouTube &&
                          !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId)))
         {
-            (newEpisodes, handled) = await youTubeEpisodeRetrievalHandler.GetEpisodes(podcast, episodes, indexingContext);
+            (newEpisodes, handled) =
+                await youTubeEpisodeRetrievalHandler.GetEpisodes(podcast, episodes, indexingContext);
             if (handled)
             {
                 logger.LogInformation(
