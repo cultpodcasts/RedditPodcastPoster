@@ -1,13 +1,7 @@
 {
   "version": "2.0",
+  "telemetryMode": "OpenTelemetry",
   "logging": {
-    "applicationInsights": {
-      "samplingSettings": {
-        "excludedTypes": "Trace;Request",
-        "isEnabled": true
-      },
-      "enableLiveMetricsFilters": true
-    },
     "logLevel": {
       "default": "None",
       "Host.Results": "Warning",
