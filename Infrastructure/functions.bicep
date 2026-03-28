@@ -22,11 +22,7 @@ param cloudflareR2AccessKey string
 @secure()
 param cloudflareR2SecretKey string
 @secure()
-param cosmosdbAuthKeyOrResourceToken string
-@secure()
 param cosmosdbAuthKeyOrResourceTokenV2 string
-@secure()
-param cosmosdbEndpoint string
 @secure()
 param cosmosdbEndpointV2 string
 @secure()
