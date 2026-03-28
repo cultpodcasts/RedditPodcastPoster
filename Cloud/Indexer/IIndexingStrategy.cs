@@ -6,4 +6,5 @@ public interface IIndexingStrategy
     bool ExpensiveYouTubeQueries();
     bool ExpensiveSpotifyQueries();
     bool IndexSpotify();
+    bool IsPrimaryPass(int pass, int totalPasses);
 }

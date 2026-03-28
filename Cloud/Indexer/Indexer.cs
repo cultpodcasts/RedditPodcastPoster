@@ -55,13 +55,14 @@ public class Indexer(
 
         logger.LogInformation("Pre: {indexerContext} {indexerOptions}", indexerContext.ToString(),
             _indexerOptions.ToString());
+        var isPrimaryPass = indexingStrategy.IsPrimaryPass(indexerContextWrapper.Pass, passes);
         var indexingContext = _indexerOptions.ToIndexingContext() with
         {
             IndexSpotify = indexingStrategy.IndexSpotify(),
             SkipSpotifyUrlResolving = false,
             SkipYouTubeUrlResolving = !indexingStrategy.ResolveYouTube(),
-            SkipExpensiveYouTubeQueries = !indexingStrategy.ExpensiveYouTubeQueries(),
-            SkipExpensiveSpotifyQueries = !indexingStrategy.ExpensiveSpotifyQueries(),
+            SkipExpensiveYouTubeQueries = !isPrimaryPass || !indexingStrategy.ExpensiveYouTubeQueries(),
+            SkipExpensiveSpotifyQueries = !isPrimaryPass || !indexingStrategy.ExpensiveSpotifyQueries(),
             SkipPodcastDiscovery = true
         };
 

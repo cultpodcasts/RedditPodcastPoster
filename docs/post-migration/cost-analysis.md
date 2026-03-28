@@ -389,9 +389,9 @@ The HalfHourly orchestration runs `Poster` + `Publisher` + `Bluesky`. This doubl
 | P1 | Consolidate Poster/Tweet/Bluesky episode queries | ~120 cross-partition queries/day | ~$0.05–0.08 |
 | **P2** | **Fix PostNewEpisodes over-fetch** | Varies by podcast count | **Completed** |
 | **P3 (interim)** | **Weekly cached count refresh** | Eliminates steady-state per-run count scan | **Completed** |
-| P4 | Replace cross-partition recent queries with bounded active-subset fan-out | Varies (sensitive to active-podcast cardinality) | ~$0.00–0.04 |
+| P4 | Replace cross-partition recent queries with bounded active-subset fan-out | Varies (sensitive to active-podcast cardinality) | ~$0.00–$0.04 |
 | P5 | Consolidate episode discovery | ~120 cross-partition queries/day | ~$0.05–0.08 |
-| P6 | Reduce HalfHourly scope | ~96 cross-partition queries/day | ~$0.05–0.08 |
+| P6 | Reduce HalfHourly scope | ~96 cross-partition queries/day | ~$0.05–$0.08 |
 | | **Remaining estimated** | | **~$0.10–$0.20/day** |
 
 Target: bring total daily cost from ~$0.50 back to ≤$0.26 (pre-migration level).
@@ -447,4 +447,39 @@ Commands used during validation and what they showed:
 
 Discovery from command evidence: probe logs were not queryable because they were emitted at Information level while production filtering excludes Information traces. Remediation changed all Indexer `*.CostProbe.*` events to Warning level before next capture.
 
-### Objective check
+### 24h probe attribution update (2026-03-28 UTC)
+
+- Probe visibility confirmed using `AppTraces` query with `Message contains "CostProbe"` (previous `has` operator produced false negatives for dotted probe tokens).
+- Parsed `*.CostProbe.Complete` `total-ms` over last 24h (`indexer-infra`) shows activity-time concentration:
+  - `Indexer`: `~74.05%` of probe total runtime (`96` completes, `~1,772.5s`)
+  - `Publisher`: `~13.09%`
+  - `Poster`: `~4.29%`
+  - `Bluesky`: `~3.80%`
+  - `Categoriser`: `~3.03%`
+  - `Tweet`: `~1.23%`
+  - `IndexIdProvider`: `~0.50%`
+- Within `IndexerCostProbe.Complete`, `update-ms` is the dominant component:
+  - `update-ms` share of Indexer `total-ms`: `~99.51%`
+  - `initiate-ms + complete-ms` combined: `<0.5%`
+- Dependency-time distribution in same 24h window indicates external enrichment pressure dominates:
+  - Apple API + Spotify API account for a large share of dependency time;
+  - Cosmos V2 (`cultpodcasts-db-uksouth.documents.azure.com`) remains active but is a small slice of total dependency time (`~1.10%` in this slice).
+- Storage transactions (`cultpodcastsstg`) remain in prior band (`195,357/day`), with no new spike detected in this window.
+
+#### Immediate next steps (P6 refinement path)
+
+1. Implement pass-level workload shaping in `Indexer` so expensive Apple/Spotify enrichment runs on one primary pass/hour; keep remaining passes lightweight.
+2. Reduce IDs per pass (or cap per-run podcast count) and carry continuation to next run to flatten p95 `Indexer` `update-ms`.
+3. Re-run 24h probe capture and compare `IndexerCostProbe` `sum(total-ms)` and `avg(update-ms)` against this baseline before additional behavior changes.
+4. When billing rows finalize, correlate reduced probe runtime with `Flex Consumption - On Demand Execution Time` daily rows to confirm actual cost reduction.
+
+### P6 rotation refinement status (latest)
+- ✅ Implemented: primary pass now rotates by hour using `primaryPass = (currentHour % totalPasses) + 1`.
+- ✅ Exactly one primary pass remains active per run; non-primary passes continue to skip expensive Spotify/YouTube queries.
+- Expected effect: reduce fixed pass hotspotting while preserving bounded expensive-query frequency.
+
+### P6 rotation validation (next 24h capture)
+1. Compare pass-level `avg(update-ms)` for passes `1..4` vs previous fixed-pass baseline.
+2. Confirm reduced pass variance (flatter distribution across passes).
+3. Confirm `IndexerCostProbe` `sum(total-ms)` and `avg(update-ms)` are stable or lower.
+4. Correlate with finalized daily `Flex Consumption - On Demand Execution Time` rows.

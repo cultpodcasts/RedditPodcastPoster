@@ -24,4 +24,20 @@ public class IndexingStrategy(IDateTimeService dateTimeService) : IIndexingStrat
     {
         return dateTimeService.GetHour() % 2 == 0;
     }
+
+    public bool IsPrimaryPass(int pass, int totalPasses)
+    {
+        if (totalPasses < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(totalPasses), "Total passes must be greater than 0.");
+        }
+
+        if (pass < 1 || pass > totalPasses)
+        {
+            throw new ArgumentOutOfRangeException(nameof(pass), $"Pass must be between 1 and {totalPasses}.");
+        }
+
+        var primaryPass = dateTimeService.GetHour() % totalPasses + 1;
+        return pass == primaryPass;
+    }
 }
