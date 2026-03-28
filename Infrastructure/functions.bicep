@@ -179,14 +179,6 @@ var content= {
     content__SubjectsKey: 'subjects'
 }
 
-var cosmosdb= {
-    cosmosdb__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken
-    cosmosdb__Container: 'cultpodcasts'
-    cosmosdb__DatabaseId: 'cultpodcasts'
-    cosmosdb__Endpoint: cosmosdbEndpoint
-    cosmosdb__UseGateWay: 'false'
-}
-
 var cosmosdbv2= {
     cosmosdbv2__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceTokenV2
     cosmosdbv2__DatabaseId: 'cultpodcasts-db'
