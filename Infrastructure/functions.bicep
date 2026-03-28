@@ -101,6 +101,8 @@ param youTubeApiKey11 string
 param youTubeApiKey12 string
 @secure()
 param youTubeApiKey13 string
+@secure()
+param youTubeApiKey14 string
 
 resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' existing = {
   name: storageName
