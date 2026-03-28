@@ -19,8 +19,8 @@
       "default": "None",
       "Host.Results": "Warning",
       "Function": "Warning",
-      "RedditPodcastPoster": "Warning",
-      "Indexer": "Warning"
+      "RedditPodcastPoster": "Information",
+      "Indexer": "Information"
     }
   },
   "functionTimeout": "00:05:00"

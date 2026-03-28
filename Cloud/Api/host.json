@@ -6,8 +6,8 @@
       "default": "None",
       "Host.Results": "Warning",
       "Function": "Warning",
-      "RedditPodcastPoster": "Warning",
-      "Api": "Warning"
+      "RedditPodcastPoster": "Information",
+      "Api": "Information"
     }
   }
 }
