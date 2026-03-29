@@ -7,11 +7,12 @@ public class IndexerOptions
 {
     public int? ReleasedDaysAgo { get; set; }
     public bool ByPassYouTube { get; set; }
+    public bool EnableCostInstrumentation { get; set; }
 
     public override string ToString()
     {
         return
-            $"{nameof(IndexerOptions)} released-days-ago: '{ReleasedDaysAgo}', bypass-youtube: '{ByPassYouTube}'.";
+            $"{nameof(IndexerOptions)} released-days-ago: '{ReleasedDaysAgo}', bypass-youtube: '{ByPassYouTube}', enable-cost-instrumentation: '{EnableCostInstrumentation}'.";
     }
 
     public IndexingContext ToIndexingContext()

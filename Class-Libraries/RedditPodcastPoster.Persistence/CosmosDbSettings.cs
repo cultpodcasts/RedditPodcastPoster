@@ -1,6 +1,6 @@
 namespace RedditPodcastPoster.Persistence;
 
-public class CosmosDbSettingsV2
+public class CosmosDbSettings
 {
     public required string Endpoint { get; set; }
     public required string AuthKeyOrResourceToken { get; set; }

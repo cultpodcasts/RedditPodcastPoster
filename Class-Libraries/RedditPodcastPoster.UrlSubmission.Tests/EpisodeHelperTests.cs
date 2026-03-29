@@ -7,7 +7,6 @@ using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using Xunit;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests;
 
@@ -43,8 +42,8 @@ public class EpisodeHelperTests
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.Spotify)
             .With(x => x.ResolvedSpotifyItem, spotifyItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?) null)
-            .With(x => x.ResolvedYouTubeItem, (ResolvedYouTubeItem?) null)
+            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
+            .With(x => x.ResolvedYouTubeItem, (ResolvedYouTubeItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
@@ -71,8 +70,8 @@ public class EpisodeHelperTests
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.Spotify)
             .With(x => x.ResolvedSpotifyItem, spotifyItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?) null)
-            .With(x => x.ResolvedYouTubeItem, (ResolvedYouTubeItem?) null)
+            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
+            .With(x => x.ResolvedYouTubeItem, (ResolvedYouTubeItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
@@ -100,8 +99,8 @@ public class EpisodeHelperTests
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.Spotify)
             .With(x => x.ResolvedSpotifyItem, spotifyItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?) null)
-            .With(x => x.ResolvedYouTubeItem, (ResolvedYouTubeItem?) null)
+            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
+            .With(x => x.ResolvedYouTubeItem, (ResolvedYouTubeItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
@@ -128,8 +127,8 @@ public class EpisodeHelperTests
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.Spotify)
             .With(x => x.ResolvedSpotifyItem, spotifyItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?) null)
-            .With(x => x.ResolvedYouTubeItem, (ResolvedYouTubeItem?) null)
+            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
+            .With(x => x.ResolvedYouTubeItem, (ResolvedYouTubeItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
@@ -156,8 +155,8 @@ public class EpisodeHelperTests
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.YouTube)
             .With(x => x.ResolvedYouTubeItem, youTubeItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?) null)
-            .With(x => x.ResolvedSpotifyItem, (ResolvedSpotifyItem?) null)
+            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
+            .With(x => x.ResolvedSpotifyItem, (ResolvedSpotifyItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
@@ -184,8 +183,8 @@ public class EpisodeHelperTests
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.YouTube)
             .With(x => x.ResolvedYouTubeItem, youTubeItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?) null)
-            .With(x => x.ResolvedSpotifyItem, (ResolvedSpotifyItem?) null)
+            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
+            .With(x => x.ResolvedSpotifyItem, (ResolvedSpotifyItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
@@ -213,8 +212,8 @@ public class EpisodeHelperTests
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.YouTube)
             .With(x => x.ResolvedYouTubeItem, youTubeItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?) null)
-            .With(x => x.ResolvedSpotifyItem, (ResolvedSpotifyItem?) null)
+            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
+            .With(x => x.ResolvedSpotifyItem, (ResolvedSpotifyItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
@@ -241,8 +240,8 @@ public class EpisodeHelperTests
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.YouTube)
             .With(x => x.ResolvedYouTubeItem, youTubeItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?) null)
-            .With(x => x.ResolvedSpotifyItem, (ResolvedSpotifyItem?) null)
+            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
+            .With(x => x.ResolvedSpotifyItem, (ResolvedSpotifyItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);

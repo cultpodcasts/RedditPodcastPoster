@@ -1,13 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace RedditPodcastPoster.Discovery;
 
 public class EpisodeResultsEnricher(
     IEpisodeResultEnricher episodeResultEnricher,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<EpisodeResultsEnricher> Logger
 #pragma warning restore CS9113 // Parameter is unread.

@@ -11,7 +11,7 @@ public class EpisodeProcessor(
     IRecentEpisodeCandidatesProvider recentEpisodeCandidatesProvider,
     IPodcastEpisodesPoster podcastEpisodesPoster,
     IEpisodeRepository episodeRepository,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IProcessResponsesAdaptor processResponsesAdaptor,
     IOptions<PostingCriteria> postingCriteria,
     ILogger<EpisodeProcessor> logger)

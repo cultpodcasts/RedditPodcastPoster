@@ -1,4 +1,5 @@
-﻿using Microsoft.DurableTask;
+﻿using System.Diagnostics;
+using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common;
@@ -14,14 +15,18 @@ public class Poster(
     IActivityOptionsProvider activityOptionsProvider,
     IOptions<PosterOptions> posterOptions,
     IOptions<PostingCriteria> postingCriteria,
+    IOptions<IndexerOptions> indexerOptions,
     ILogger<Poster> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly PosterOptions _posterOptions = posterOptions.Value;
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
+    private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
 
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
+        var runStopwatch = Stopwatch.StartNew();
+
         logger.LogInformation("{class} initiated. task-activity-context-instance-id: '{contextInstanceId}'.",
             nameof(Poster), context.InstanceId);
         logger.LogInformation(indexerContext.ToString());
@@ -32,6 +37,15 @@ public class Poster(
         logger.LogInformation(
             "{method} Posting with options released-since: '{baselineDate:O}', max-posts: '{posterOptionsMaxPosts}'.",
             nameof(RunAsync), baselineDate, _posterOptions.MaxPosts);
+
+        if (_indexerOptions.EnableCostInstrumentation)
+        {
+            logger.LogWarning(
+                "PosterCostProbe.Start instance-id='{InstanceId}' released-since='{ReleasedSince:O}' max-posts='{MaxPosts}'.",
+                context.InstanceId,
+                baselineDate,
+                _posterOptions.MaxPosts);
+        }
 
         if (!activityOptionsProvider.RunPoster(out var reason))
         {
@@ -49,6 +63,7 @@ public class Poster(
         }
 
         ProcessResponse results;
+        var processStopwatch = Stopwatch.StartNew();
         try
         {
             results = await episodeProcessor.PostEpisodesSinceReleaseDate(
@@ -64,6 +79,7 @@ public class Poster(
                 nameof(IEpisodeProcessor), nameof(IEpisodeProcessor.PostEpisodesSinceReleaseDate));
             results = ProcessResponse.Fail(ex.Message);
         }
+        processStopwatch.Stop();
 
         if (!results.Success)
         {
@@ -75,6 +91,18 @@ public class Poster(
         }
 
         var result = indexerContext with { Success = results.Success };
+        runStopwatch.Stop();
+
+        if (_indexerOptions.EnableCostInstrumentation)
+        {
+            logger.LogWarning(
+                "PosterCostProbe.Complete instance-id='{InstanceId}' success='{Success}' process-ms='{ProcessMs}' total-ms='{TotalMs}'.",
+                context.InstanceId,
+                result.Success,
+                processStopwatch.ElapsedMilliseconds,
+                runStopwatch.ElapsedMilliseconds);
+        }
+
         logger.LogInformation("{method} Completed. Result: {result}", nameof(RunAsync), result);
         return result;
     }

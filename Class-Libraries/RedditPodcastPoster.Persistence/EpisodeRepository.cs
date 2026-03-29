@@ -2,15 +2,15 @@ using System.Linq.Expressions;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models.V2;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
 
 public class EpisodeRepository(
     Container container,
-    ILookupRepositoryV2 lookupRepository,
-    IPodcastRepositoryV2 podcastRepository,
+    ILookupRepository lookupRepository,
+    IPodcastRepository podcastRepository,
     ILogger<EpisodeRepository> logger)
     : IEpisodeRepository
 {
@@ -26,6 +26,64 @@ public class EpisodeRepository(
         {
             return null;
         }
+    }
+
+    public IAsyncEnumerable<Episode> GetAll()
+    {
+        return GetAllBy(_ => true);
+    }
+
+    public async Task<int> Count()
+    {
+        var iterator = container.GetItemQueryIterator<int>(
+            new QueryDefinition("SELECT VALUE COUNT(1) FROM c"));
+
+        while (iterator.HasMoreResults)
+        {
+            try
+            {
+                foreach (var count in await iterator.ReadNextAsync())
+                {
+                    return count;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "{method}: error counting episodes.", nameof(Count));
+                throw;
+            }
+        }
+
+        return 0;
+    }
+
+    public async Task<int> Count(Guid podcastId)
+    {
+        var iterator = container.GetItemQueryIterator<int>(
+            new QueryDefinition("SELECT VALUE COUNT(1) FROM c WHERE c.podcastId = @podcastId")
+                .WithParameter("@podcastId", podcastId.ToString()),
+            requestOptions: new QueryRequestOptions
+            {
+                PartitionKey = ToPartitionKey(podcastId)
+            });
+
+        while (iterator.HasMoreResults)
+        {
+            try
+            {
+                foreach (var count in await iterator.ReadNextAsync())
+                {
+                    return count;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "{method}: error counting episodes by podcast-id '{PodcastId}'.", nameof(Count), podcastId);
+                throw;
+            }
+        }
+
+        return 0;
     }
 
     public async IAsyncEnumerable<Episode> GetByPodcastId(Guid podcastId)

@@ -10,12 +10,12 @@ namespace CosmosDbDownloader;
 
 public class CosmosDbDownloaderV2(
     ISafeFileEntityWriter fileWriter,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
-    ISubjectRepositoryV2 subjectRepository,
-    ILookupRepositoryV2 lookupRepository,
-    IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
-    IPushSubscriptionRepositoryV2 pushSubscriptionRepository,
+    ISubjectRepository subjectRepository,
+    ILookupRepository lookupRepository,
+    IDiscoveryResultsRepository discoveryResultsRepository,
+    IPushSubscriptionRepository pushSubscriptionRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
     ILogger<CosmosDbDownloaderV2> logger)
 {
@@ -25,36 +25,7 @@ public class CosmosDbDownloaderV2(
 
     public async Task Run()
     {
-        var podcastFileKeys = await podcastRepository.GetAll()
-            .Select(p => p.FileKey)
-            .ToListAsync();
-        var subjectFileKeys = await subjectRepository.GetAll()
-            .Select(s => s.FileKey)
-            .ToListAsync();
-        var discoveryFileKeys = await discoveryResultsRepository.GetAll()
-            .Select(d => d.FileKey)
-            .ToListAsync();
-        var pushSubscriptionFileKeys = await pushSubscriptionRepository.GetAll()
-            .Select(p => p.FileKey)
-            .ToListAsync();
-
-        var allFileKeys = podcastFileKeys
-            .Union(subjectFileKeys)
-            .Union(discoveryFileKeys)
-            .Union(pushSubscriptionFileKeys);
-
-        var multipleFileKeys = allFileKeys
-            .GroupBy(x => x)
-            .Select(x => new { FileKey = x.Key, Count = x.Count() })
-            .Where(x => x.Count > 1)
-            .Select(x => x.FileKey)
-            .ToArray();
-
-        if (multipleFileKeys.Any())
-        {
-            throw new InvalidOperationException(
-                $"Multiple File-keys exist: '{string.Join(", ", multipleFileKeys)}'.");
-        }
+        await TestFileKeysPerContainer();
 
         await DownloadPodcasts();
         await DownloadEpisodes();
@@ -63,50 +34,86 @@ public class CosmosDbDownloaderV2(
         await DownloadSubjects();
         await DownloadDiscoveryResultsDocuments();
         await DownloadPushSubscriptions();
+        await Console.Out.WriteLineAsync("Finished downloading all V2 items.");
+        await Console.Out.WriteLineAsync();
+    }
+
+    private async Task TestFileKeysPerContainer()
+    {
+        var progress = new ProgressBar(4);
+        var c = 0;
+        progress.Refresh(c, "Testing Podcasts");
+        await AreUnique(podcastRepository.GetAll().Select(p => p.FileKey), "Podcasts");
+        progress.Refresh(++c, "Testing Subjects");
+        await AreUnique(subjectRepository.GetAll().Select(s => s.FileKey), "Subjects");
+        progress.Refresh(++c, "Testing Discovery Results");
+        await AreUnique(discoveryResultsRepository.GetAll().Select(d => d.FileKey), "Discovery Results");
+        progress.Refresh(++c, "Testing Push Subscriptions");
+        await AreUnique(pushSubscriptionRepository.GetAll().Select(p => p.FileKey), "Push Subscriptions");
+        progress.Refresh(++c, "Completed Testing");
+    }
+
+    private static async Task AreUnique(IAsyncEnumerable<string> allFileKeys, string name)
+    {
+        var distinct = new HashSet<string>();
+        var duplicate = new HashSet<string>();
+        await foreach (var fileKey in allFileKeys)
+        {
+            if (!distinct.Add(fileKey))
+            {
+                duplicate.Add(fileKey);
+            }
+        }
+
+        if (duplicate.Any())
+        {
+            throw new InvalidOperationException(
+                $"Multiple File-keys exist in {name} container: '{string.Join(", ", duplicate)}'.");
+        }
     }
 
     private async Task DownloadPodcasts()
     {
-        var podcasts = await podcastRepository.GetAll().ToListAsync();
-        var progress = new ProgressBar(podcasts.Count);
+        var count = await podcastRepository.Count();
+        var progress = new ProgressBar(count);
         var ctr = 0;
         Directory.CreateDirectory("podcast");
-        foreach (var podcast in podcasts)
+        await foreach (var podcast in podcastRepository.GetAll())
         {
-            progress.Refresh(ctr, $"Downloaded {podcast.FileKey}");
+            progress.Refresh(ctr, $"Podcast: {podcast.FileKey}");
             await WriteV2Json("podcast", podcast.FileKey, podcast);
-            if (++ctr == podcasts.Count)
+            if (++ctr == count)
             {
-                progress.Refresh(ctr, "Finished");
+                progress.Refresh(ctr, "Finished Podcasts");
             }
         }
     }
 
     private async Task DownloadEpisodes()
     {
-        var episodes = await episodeRepository.GetAllBy(_ => true).ToListAsync();
-        var progress = new ProgressBar(episodes.Count);
+        var count = await episodeRepository.Count();
+        var progress = new ProgressBar(count);
         var ctr = 0;
         Directory.CreateDirectory("episode");
-        foreach (var episode in episodes)
+        await foreach (var episode in episodeRepository.GetAll())
         {
-            progress.Refresh(ctr, $"Downloaded {episode.Id}");
+            progress.Refresh(ctr, $"Episode: {episode.Id}");
             await WriteV2Json("episode", episode.Id.ToString(), episode);
-            if (++ctr == episodes.Count)
+            if (++ctr == count)
             {
-                progress.Refresh(ctr, "Finished");
+                progress.Refresh(ctr, "Finished Episodes");
             }
         }
     }
 
     private async Task DownloadSubjects()
     {
-        var subjects = await subjectRepository.GetAll().ToListAsync();
-        var progress = new ProgressBar(subjects.Count);
+        var count = await subjectRepository.Count();
+        var progress = new ProgressBar(count);
         var ctr = 0;
-        foreach (var subject in subjects)
+        await foreach (var subject in subjectRepository.GetAll())
         {
-            progress.Refresh(ctr, $"Downloaded {subject.FileKey}");
+            progress.Refresh(ctr, $"Subject: {subject.FileKey}");
             if (string.IsNullOrWhiteSpace(subject.FileKey))
             {
                 logger.LogInformation("Subject with id '{SubjectId}' missing a file-key.", subject.Id);
@@ -115,21 +122,21 @@ public class CosmosDbDownloaderV2(
             }
 
             await fileWriter.Write(subject);
-            if (++ctr == subjects.Count)
+            if (++ctr == count)
             {
-                progress.Refresh(ctr, "Finished");
+                progress.Refresh(ctr, "Finished Subjects");
             }
         }
     }
 
     private async Task DownloadDiscoveryResultsDocuments()
     {
-        var documents = await discoveryResultsRepository.GetAll().ToListAsync();
-        var progress = new ProgressBar(documents.Count);
+        var count = await discoveryResultsRepository.Count();
+        var progress = new ProgressBar(count);
         var ctr = 0;
-        foreach (var document in documents)
+        await foreach (var document in discoveryResultsRepository.GetAll())
         {
-            progress.Refresh(ctr, $"Downloaded {document.FileKey}");
+            progress.Refresh(ctr, $"DiscoveryResult: {document.FileKey}");
             if (string.IsNullOrWhiteSpace(document.FileKey))
             {
                 logger.LogInformation(
@@ -139,21 +146,21 @@ public class CosmosDbDownloaderV2(
             }
 
             await fileWriter.Write(document);
-            if (++ctr == documents.Count)
+            if (++ctr == count)
             {
-                progress.Refresh(ctr, "Finished");
+                progress.Refresh(ctr, "Finished Discovery Results Documents");
             }
         }
     }
 
     private async Task DownloadPushSubscriptions()
     {
-        var subscriptions = await pushSubscriptionRepository.GetAll().ToListAsync();
-        var progress = new ProgressBar(subscriptions.Count);
+        var count = await pushSubscriptionRepository.Count();
+        var progress = new ProgressBar(count);
         var ctr = 0;
-        foreach (var subscription in subscriptions)
+        await foreach (var subscription in pushSubscriptionRepository.GetAll())
         {
-            progress.Refresh(ctr, $"Downloaded {subscription.FileKey}");
+            progress.Refresh(ctr, $"PushSubscription: {subscription.FileKey}");
             if (string.IsNullOrWhiteSpace(subscription.FileKey))
             {
                 logger.LogInformation(
@@ -163,9 +170,9 @@ public class CosmosDbDownloaderV2(
             }
 
             await fileWriter.Write(subscription);
-            if (++ctr == subscriptions.Count)
+            if (++ctr == count)
             {
-                progress.Refresh(ctr, "Finished");
+                progress.Refresh(ctr, "Finished Push Subscriptions");
             }
         }
     }

@@ -6,7 +6,7 @@ using RedditPodcastPoster.PodcastServices.Apple;
 namespace FixDatesFromApple;
 
 public class Processor(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IAppleEpisodeProvider appleEpisodeProvider,
     ILogger<Processor> logger

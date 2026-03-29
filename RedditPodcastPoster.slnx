@@ -167,8 +167,6 @@
 
     <Project Path="Console-Apps/MachineAuth0/MachineAuth0.csproj" />
 
-    <Project Path="Console-Apps/ModelTransformer/ModelTransformer.csproj" />
-
     <Project Path="Console-Apps/Poster/Poster.csproj" />
 
     <Project Path="Console-Apps/RemoveEpisodes/RemoveEpisodes.csproj" />
@@ -243,8 +241,6 @@
     <File Path=".github/workflows/dotnet.yml" />
 
   </Folder>
-
-  <Project Path="Console-Apps/RedditPodcastPoster/RedditPodcastPoster.csproj" />
 
 </Solution>
 

@@ -6,7 +6,7 @@ using RedditPodcastPoster.Text.KnownTerms;
 namespace SeedKnownTerms;
 
 public class KnownTermsSeeder(
-    ILookupRepositoryV2 lookupRepository,
+    ILookupRepository lookupRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<KnownTermsSeeder> logger
 #pragma warning restore CS9113 // Parameter is unread.

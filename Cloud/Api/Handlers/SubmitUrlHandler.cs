@@ -13,7 +13,7 @@ using RedditPodcastPoster.UrlSubmission.Models;
 namespace Api.Handlers;
 
 public class SubmitUrlHandler(
-    IPodcastRepositoryV2 repository,
+    IPodcastRepository repository,
     IUrlSubmitter urlSubmitter,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<SubmitUrlHandler> logger) : ISubmitUrlHandler

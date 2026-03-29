@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 public interface IPlaylistItemFinder
 {
     public Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(
-    RedditPodcastPoster.Models.V2.Episode episode,
+    RedditPodcastPoster.Models.Episode episode,
     IList<PlaylistItem> searchResults,
     TimeSpan? youTubePublishDelay,
     IndexingContext indexingContext);

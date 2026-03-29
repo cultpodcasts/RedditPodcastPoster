@@ -8,7 +8,7 @@ using RedditPodcastPoster.Subjects.Models;
 namespace RedditPodcastPoster.Indexing;
 
 public class Indexer(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IPodcastUpdater podcastUpdater,
     ISubjectEnricher subjectEnricher,
@@ -19,29 +19,29 @@ public class Indexer(
     {
         var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastName).ToListAsync();
 
-        if (podcasts.Any())
+        if (!podcasts.Any())
         {
-            var canIndex = podcasts.Where(x =>
-                !(x.Removed.HasValue && x.Removed.Value) &&
-                (x.IndexAllEpisodes || !string.IsNullOrWhiteSpace(x.EpisodeIncludeTitleRegex))).ToArray();
-            if (!canIndex.Any() || canIndex.Count() > 1)
-            {
-                if (podcasts.Count == 1 && !canIndex.Any())
-                {
-                    canIndex = [podcasts.Single()];
-                }
-                else
-                {
-                    return new IndexResponse(IndexStatus.NotPerformed);
-                }
-            }
-
-            var podcast = canIndex.Single();
-            return await Index(podcast.Id,
-                indexingContext with { SkipShortEpisodes = !podcast.BypassShortEpisodeChecking ?? false });
+            return new IndexResponse(IndexStatus.NotFound);
         }
 
-        return new IndexResponse(IndexStatus.NotFound);
+        var canIndex = podcasts.Where(x =>
+            !(x.Removed.HasValue && x.Removed.Value) &&
+            (x.IndexAllEpisodes || !string.IsNullOrWhiteSpace(x.EpisodeIncludeTitleRegex))).ToArray();
+        if (!canIndex.Any() || canIndex.Count() > 1)
+        {
+            if (podcasts.Count == 1 && !canIndex.Any())
+            {
+                canIndex = [podcasts.Single()];
+            }
+            else
+            {
+                return new IndexResponse(IndexStatus.NotPerformed);
+            }
+        }
+
+        var podcast = canIndex.Single();
+        return await Index(podcast.Id,
+            indexingContext with { SkipShortEpisodes = !podcast.BypassShortEpisodeChecking ?? false });
     }
 
     public async Task<IndexResponse> Index(Guid podcastId, IndexingContext indexingContext, bool forceIndex = false)

@@ -8,7 +8,7 @@ public class Podcast
     [JsonPropertyName("id")]
     public Guid? Id { get; set; }
 
-    [JsonPropertyName("podcastName")]
+    [JsonPropertyName("name")]
     public string? Name { get; set; }
 
     [JsonPropertyName("lang")]

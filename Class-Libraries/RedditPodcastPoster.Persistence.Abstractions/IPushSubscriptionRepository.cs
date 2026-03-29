@@ -2,9 +2,7 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Persistence.Abstractions;
 
-public interface IPushSubscriptionRepositoryV2
+public interface IPushSubscriptionRepository : IRepository<PushSubscription>
 {
-    Task Save(PushSubscription pushSubscription);
-    IAsyncEnumerable<PushSubscription> GetAll();
     Task Delete(PushSubscription pushSubscription);
 }

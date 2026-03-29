@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models.V2;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 

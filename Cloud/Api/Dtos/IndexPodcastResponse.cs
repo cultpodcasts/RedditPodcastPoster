@@ -5,7 +5,7 @@ namespace Api.Dtos;
 
 public class IndexPodcastResponse
 {
-    [JsonPropertyName("indexedEpisodes")] 
+    [JsonPropertyName("indexedEpisodes")]
     public IndexedEpisode[]? IndexedEpisodes { get; set; }
 
     [JsonPropertyName("indexStatus")]
@@ -31,13 +31,13 @@ public class IndexPodcastResponse
         };
     }
 
-    private static IndexedEpisode ToDto(
-        RedditPodcastPoster.Indexing.Models.IndexedEpisode indexedEpisode,
+    private static IndexedEpisode ToDto(RedditPodcastPoster.Indexing.Models.IndexedEpisode indexedEpisode,
         bool? indexed = null)
     {
         return new IndexedEpisode
         {
             EpisodeId = indexedEpisode.Episode.Id,
+            PodcastId = indexedEpisode.Episode.PodcastId,
             Spotify = indexedEpisode.Spotify,
             Apple = indexedEpisode.Apple,
             YouTube = indexedEpisode.YouTube,

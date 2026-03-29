@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models.V2;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
@@ -12,7 +12,7 @@ public class AppleUrlCategoriser(
 {
     public async Task<ResolvedAppleItem?> Resolve(
         PodcastServiceSearchCriteria criteria,
-        Models.V2.Podcast? matchingPodcast,
+        Podcast? matchingPodcast,
         IndexingContext indexingContext)
     {
         var publisher = !string.IsNullOrWhiteSpace(matchingPodcast?.Publisher)
@@ -61,7 +61,7 @@ public class AppleUrlCategoriser(
     }
     
     private async Task<ResolvedAppleItem?> FindEpisode(
-        Models.V2.Podcast? matchingPodcast, 
+        Podcast? matchingPodcast, 
         iTunesSearch.Library.Models.Podcast podcast,
         PodcastServiceSearchCriteria criteria,
         IndexingContext indexingContext)

@@ -2,15 +2,15 @@ using System.Linq.Expressions;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
 
-public class PodcastRepositoryV2(
+public class PodcastRepository(
     Container podcastsContainer,
-    ILogger<PodcastRepositoryV2> logger)
-    : IPodcastRepositoryV2
+    ILogger<PodcastRepository> logger)
+    : IPodcastRepository
 {
     public async Task<Podcast?> GetPodcast(Guid podcastId)
     {
@@ -27,6 +27,30 @@ public class PodcastRepositoryV2(
     public async Task Save(Podcast podcast)
     {
         await podcastsContainer.UpsertItemAsync(podcast, new PartitionKey(podcast.Id.ToString()));
+    }
+
+    public async Task<int> Count()
+    {
+        var iterator = podcastsContainer.GetItemQueryIterator<int>(
+            new QueryDefinition("SELECT VALUE COUNT(1) FROM c"));
+
+        while (iterator.HasMoreResults)
+        {
+            try
+            {
+                foreach (var count in await iterator.ReadNextAsync())
+                {
+                    return count;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "{method}: error counting podcasts.", nameof(Count));
+                throw;
+            }
+        }
+
+        return 0;
     }
 
     public async IAsyncEnumerable<Podcast> GetAll()

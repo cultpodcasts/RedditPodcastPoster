@@ -1,5 +1,5 @@
 ﻿
-using RedditPodcastPoster.Models.V2;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Models;
 

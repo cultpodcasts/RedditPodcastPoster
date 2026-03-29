@@ -12,7 +12,7 @@ public class Processor(
     ISubjectsProvider subjectsProvider,
     SearchClient searchClient,
     ISubjectMatcher subjectMatcher,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<Processor> logger)

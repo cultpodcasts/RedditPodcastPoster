@@ -12,7 +12,7 @@ using RedditPodcastPoster.Text.EliminationTerms;
 namespace RedditPodcastPoster.PodcastServices;
 
 public class PodcastUpdater(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IEpisodeMerger episodeMerger,
     IEpisodeProvider episodeProvider,
@@ -25,13 +25,13 @@ public class PodcastUpdater(
 {
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
-    public async Task<IndexPodcastResult> Update(RedditPodcastPoster.Models.V2.Podcast podcast, bool enrichOnly, IndexingContext indexingContext)
+    public async Task<IndexPodcastResult> Update(Podcast podcast, bool enrichOnly, IndexingContext indexingContext)
     {
         var initialSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
         var initialSkipYouTube = indexingContext.SkipYouTubeUrlResolving;
         var knownYouTubeExpensiveQuery = podcast.HasExpensiveYouTubePlaylistQuery();
         var knownSpotifyExpensiveQuery = podcast.HasExpensiveSpotifyEpisodesQuery();
-        IList<Models.V2.Episode> episodes;
+        IList<Episode> episodes;
         EpisodeMergeResult mergeResult;
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
 
@@ -192,7 +192,7 @@ public class PodcastUpdater(
     }
 
     private bool ReduceToSinceIncorporatingPublishDelay(
-        Models.V2.Episode episode,
+        Episode episode,
         TimeSpan youTubePublishingDelay,
         DateTime releasedSince)
     {
@@ -207,9 +207,9 @@ public class PodcastUpdater(
         return inTimeframe;
     }
 
-    private void RemoveIgnoredEpisodes(IList<Models.V2.Episode> episodes)
+    private void RemoveIgnoredEpisodes(IList<Episode> episodes)
     {
-        var shortEpisodes = new List<Models.V2.Episode>();
+        var shortEpisodes = new List<Episode>();
 
         foreach (var newEpisode in episodes)
         {

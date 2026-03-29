@@ -26,7 +26,7 @@ public class SearchResultFinderTests
         var expectedTitle = "Matching Episode";
         var today = DateTime.UtcNow.Date;
         var episode = _fixture
-            .Build<RedditPodcastPoster.Models.V2.Episode>()
+            .Build<RedditPodcastPoster.Models.Episode>()
             .With(x => x.Title, expectedTitle)
             .With(x => x.Release, today)
             .With(x => x.AppleId, (long?) null)
@@ -69,7 +69,7 @@ public class SearchResultFinderTests
         var today = DateTime.UtcNow.Date;
         var release = DateTime.UtcNow.Date.AddHours(17);
         var episode = _fixture
-            .Build<RedditPodcastPoster.Models.V2.Episode>()
+            .Build<RedditPodcastPoster.Models.Episode>()
             .With(x => x.Title, "Episode-title")
             .With(x => x.Title, expectedTitle)
             .With(x => x.Release, release)
@@ -112,7 +112,7 @@ public class SearchResultFinderTests
         var today = DateTime.UtcNow.Date;
         var release = DateTime.UtcNow.Date.AddHours(17);
         var episode = _fixture
-            .Build<RedditPodcastPoster.Models.V2.Episode>()
+            .Build<RedditPodcastPoster.Models.Episode>()
             .With(x => x.Title, "Episode-title")
             .With(x => x.Title, expectedTitle)
             .With(x => x.Release, release)
@@ -153,7 +153,7 @@ public class SearchResultFinderTests
         var today = DateTime.UtcNow.Date;
         var release = DateTime.UtcNow.Date.AddHours(17);
         var episode = _fixture
-            .Build<RedditPodcastPoster.Models.V2.Episode>()
+            .Build<RedditPodcastPoster.Models.Episode>()
             .With(x => x.Title, $"Prefix-A {episodeNumber} Suffix-A")
             .With(x => x.Release, release)
             .Create();

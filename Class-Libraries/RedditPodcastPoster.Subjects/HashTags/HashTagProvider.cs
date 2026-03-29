@@ -5,7 +5,7 @@ using RedditPodcastPoster.Subjects.Extensions;
 namespace RedditPodcastPoster.Subjects.HashTags;
 
 public class HashTagProvider(
-    ISubjectRepositoryV2 subjectRepository,
+    ISubjectRepository subjectRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<HashTagProvider> logger
 #pragma warning restore CS9113 // Parameter is unread.

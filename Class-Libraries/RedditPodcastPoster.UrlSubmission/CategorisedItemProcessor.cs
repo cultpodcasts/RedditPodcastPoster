@@ -8,7 +8,7 @@ namespace RedditPodcastPoster.UrlSubmission;
 
 public class CategorisedItemProcessor(
     IPodcastProcessor podcastProcessor,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IPodcastAndEpisodeFactory podcastAndEpisodeFactory,
     ILogger<CategorisedItem> logger) : ICategorisedItemProcessor

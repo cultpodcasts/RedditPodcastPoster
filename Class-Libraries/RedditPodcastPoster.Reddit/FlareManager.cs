@@ -6,7 +6,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Reddit;
 
 public class FlareManager(
-    ISubjectRepositoryV2 subjectRepository,
+    ISubjectRepository subjectRepository,
     ILogger<FlareManager> logger
 ) : IFlareManager
 {

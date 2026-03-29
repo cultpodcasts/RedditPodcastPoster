@@ -22,11 +22,7 @@ param cloudflareR2AccessKey string
 @secure()
 param cloudflareR2SecretKey string
 @secure()
-param cosmosdbAuthKeyOrResourceToken string
-@secure()
 param cosmosdbAuthKeyOrResourceTokenV2 string
-@secure()
-param cosmosdbEndpoint string
 @secure()
 param cosmosdbEndpointV2 string
 @secure()
@@ -101,6 +97,8 @@ param youTubeApiKey11 string
 param youTubeApiKey12 string
 @secure()
 param youTubeApiKey13 string
+@secure()
+param youTubeApiKey14 string
 
 resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' existing = {
   name: storageName
@@ -177,14 +175,6 @@ var content= {
     content__SubjectsKey: 'subjects'
 }
 
-var cosmosdb= {
-    cosmosdb__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken
-    cosmosdb__Container: 'cultpodcasts'
-    cosmosdb__DatabaseId: 'cultpodcasts'
-    cosmosdb__Endpoint: cosmosdbEndpoint
-    cosmosdb__UseGateWay: 'false'
-}
-
 var cosmosdbv2= {
     cosmosdbv2__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceTokenV2
     cosmosdbv2__DatabaseId: 'cultpodcasts-db'
@@ -250,6 +240,7 @@ var discover= {
 var indexer= {
     indexer__ByPassYouTube: false
     indexer__ReleasedDaysAgo: '2'
+    indexer__EnableCostInstrumentation: true
 }
 
 var listenNotes= {
@@ -360,9 +351,9 @@ var youtube= {
     youtube__Applications__11__ApiKey: youTubeApiKey11
     youtube__Applications__12__ApiKey: youTubeApiKey12
     youtube__Applications__13__ApiKey: youTubeApiKey13
-    youtube__Applications__14__ApiKey: youTubeApiKey13
+    youtube__Applications__14__ApiKey: youTubeApiKey14
     youtube__Applications__15__ApiKey: youTubeApiKey13
-    youtube__Applications__16__ApiKey: youTubeApiKey13
+    youtube__Applications__16__ApiKey: youTubeApiKey14
 }
 
 var youTubeKeyUsage= {
@@ -413,17 +404,17 @@ var youTubeKeyUsage= {
     youtube__Applications__13__Usage: 'Indexer'
     youtube__Applications__13__DisplayName: 'ApiKey-13 (Reattempt 2 in place of Api-Key-1 & 8) - Indexer'
     youtube__Applications__13__Reattempt: '2'
-    youtube__Applications__14__Name: 'cultcodcasts'
+    youtube__Applications__14__Name: 'CultPodcasts'
     youtube__Applications__14__Usage: 'Indexer'
     youtube__Applications__14__DisplayName: 'ApiKey-14 (Reattempt 2 in place of Api-Key-2 & 9) - Indexer'
     youtube__Applications__14__Reattempt: '2'
     youtube__Applications__15__Name: 'cultcodcasts'
     youtube__Applications__15__Usage: 'Indexer'
-    youtube__Applications__15__DisplayName: 'ApiKey-15 (Reattempt 2 in place of Api-Key-3 & 10) - Indexer'
+    youtube__Applications__15__DisplayName: 'ApiKey-13 (Reattempt 2 in place of Api-Key-3 & 10) - Indexer'
     youtube__Applications__15__Reattempt: '2'
-    youtube__Applications__16__Name: 'cultcodcasts'
+    youtube__Applications__16__Name: 'CultPodcasts'
     youtube__Applications__16__Usage: 'Indexer'
-    youtube__Applications__16__DisplayName: 'ApiKey-16 (Reattempt 2 in place of Api-Key-4 & 11) - Indexer'
+    youtube__Applications__16__DisplayName: 'ApiKey-14 (Reattempt 2 in place of Api-Key-4 & 11) - Indexer'
     youtube__Applications__16__Reattempt: '2'
 }
 

@@ -6,7 +6,7 @@ using YouTubePushNotificationSubcribe;
 namespace YouTubePushNotificationSubscribe;
 
 public class SubscribeProcessor(
-    IPodcastRepositoryV2 repository,
+    IPodcastRepository repository,
     IPodcastsSubscriber podcastsSubscriber,
     IPodcastYouTubePushNotificationSubscriber subscriber,
     ILogger<SubscribeProcessor> logger)

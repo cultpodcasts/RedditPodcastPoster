@@ -118,7 +118,7 @@ public class PodcastRepository(
                 episode.Release >= since &&
                 episode.Posted == false &&
                 episode.Ignored == false &&
-                episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
+                episode.Removed == false), x => new { guid = x.Id }).ToListAsync();
         return items.Select(x => x.guid);
     }
 
@@ -130,7 +130,7 @@ public class PodcastRepository(
                 episode.Release >= since &&
                 episode.Tweeted == false &&
                 episode.Ignored == false &&
-                episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
+                episode.Removed == false), x => new { guid = x.Id }).ToListAsync();
         return items.Select(x => x.guid);
     }
 
@@ -142,7 +142,7 @@ public class PodcastRepository(
                 episode.Release >= since &&
                 (!episode.BlueskyPosted.IsDefined() || episode.BlueskyPosted == false) &&
                 episode.Ignored == false &&
-                episode.Removed == false), x => new {guid = x.Id}).ToListAsync();
+                episode.Removed == false), x => new { guid = x.Id }).ToListAsync();
         return items.Select(x => x.guid);
     }
 
@@ -151,7 +151,7 @@ public class PodcastRepository(
         var podcastPublishDelay = await GetBy(podcast =>
                 (!podcast.Removed.IsDefined() || podcast.Removed == false) &&
                 podcast.Id == podcastId,
-            x => new {delay = x.YouTubePublicationOffset});
+            x => new { delay = x.YouTubePublicationOffset });
         if (podcastPublishDelay != null)
         {
             if (podcastPublishDelay.delay.HasValue)
@@ -172,7 +172,7 @@ public class PodcastRepository(
                              (!episode.AppleId.IsDefined() || episode.AppleId == 0))
                         )
                     ),
-                x => new {x.Id}
+                x => new { x.Id }
             );
             return item != null;
         }

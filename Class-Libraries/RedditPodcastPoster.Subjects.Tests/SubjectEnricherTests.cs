@@ -4,7 +4,6 @@ using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Subjects.Models;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace RedditPodcastPoster.Subjects.Tests;
 
@@ -65,6 +64,8 @@ public class SubjectEnricherTests
         result.Additions.Should().HaveCount(2);
         result.Additions.Should().BeEquivalentTo([options.DefaultSubject, invisibleSubjectName]);
         result.Removals.Should().HaveCount(0);
+        episode.Subjects.Should().Contain(options.DefaultSubject);
+        episode.Subjects.Should().Contain(invisibleSubjectName);
     }
 
     [Fact]

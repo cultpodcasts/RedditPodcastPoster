@@ -1,5 +1,5 @@
-using RedditPodcastPoster.Models.V2;
 using System.Text;
+using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Persistence.Abstractions;
 

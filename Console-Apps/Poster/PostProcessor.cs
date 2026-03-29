@@ -13,7 +13,7 @@ using RedditPodcastPoster.UrlShortening;
 namespace Poster;
 
 public class PostProcessor(
-    IPodcastRepositoryV2 repository,
+    IPodcastRepository repository,
     IEpisodeRepository episodeRepository,
     ITweeter tweeter,
     IPodcastEpisodesPoster podcastEpisodesPoster,

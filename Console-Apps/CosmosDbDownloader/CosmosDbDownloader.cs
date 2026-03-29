@@ -4,6 +4,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Legacy;
 using RedditPodcastPoster.Text.KnownTerms;
+using Podcast = RedditPodcastPoster.Persistence.Legacy.Podcast;
 
 namespace CosmosDbDownloader;
 
@@ -45,6 +46,8 @@ public class CosmosDbDownloader(
         await DownloadSubjects();
         await DownloadDiscoveryResultsDocuments();
         await DownloadPushSubscriptions();
+        await Console.Out.WriteLineAsync("Finished downloading all legacy items.");
+        await Console.Out.WriteLineAsync();
     }
 
     private async Task DownloadPushSubscriptions()

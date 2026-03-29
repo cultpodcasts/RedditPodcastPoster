@@ -5,7 +5,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Persistence;
 
 public class EliminationTermsRepository(
-    ILookupRepositoryV2 lookupRepository,
+    ILookupRepository lookupRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<EliminationTermsRepository> logger)
 #pragma warning restore CS9113 // Parameter is unread.

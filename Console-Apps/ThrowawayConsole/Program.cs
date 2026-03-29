@@ -33,7 +33,7 @@ builder.Services
 
 using var host = builder.Build();
 
-var podcastRepository = host.Services.GetRequiredService<IPodcastRepositoryV2>();
+var podcastRepository = host.Services.GetRequiredService<IPodcastRepository>();
 var episodeRepository = host.Services.GetRequiredService<IEpisodeRepository>();
 
 Console.WriteLine("🔧 Bulk-fixing podcasts' LatestReleased based on recent episodes...\n");

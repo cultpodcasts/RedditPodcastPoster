@@ -1,7 +1,6 @@
 ﻿using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.ApplicationInsights;
 
 namespace Azure;
 
@@ -37,21 +36,6 @@ public static class LoggingBuilderExtensions
             });
         }
 
-        public void RemoveDefaultApplicationInsightsWarningRule()
-        {
-            loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
-            {
-                var removed= options.Rules.RemoveRuleFirst(rule =>
-                    rule.ProviderName == typeof(ApplicationInsightsLoggerProvider).FullName! &&
-                    rule.CategoryName == null &&
-                    rule is { Filter: null, LogLevel: LogLevel.Warning });
-                if (removed)
-                {
-                    Console.Out.WriteLine($"{Prefix}Removed default-application-insights-warning-rule.");
-                }
-            });
-        }
-
         public void RemoveInformationRules()
         {
             loggingBuilder.Services.Configure<LoggerFilterOptions>(options =>
@@ -78,18 +62,6 @@ public static class LoggingBuilderExtensions
             }
 
             return i;
-        }
-
-        private bool RemoveRuleFirst(Func<LoggerFilterRule, bool> filter)
-        {
-            var matchingRule = rules.FirstOrDefault(filter);
-            if (matchingRule != null)
-            {
-                rules.Remove(matchingRule);
-                return true;
-            }
-
-            return false;
         }
     }
 }

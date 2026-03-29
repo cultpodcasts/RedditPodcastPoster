@@ -10,7 +10,7 @@ public class DiscoveryProcessor(
     IDiscoveryServiceConfigProvider discoveryConfigProvider,
     IDiscoveryService discoveryService,
     IDiscoveryResultConsoleLogger discoveryResultConsoleLogger,
-    IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
+    IDiscoveryResultsRepository discoveryResultsRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<DiscoveryProcessor> logger
 #pragma warning restore CS9113 // Parameter is unread.

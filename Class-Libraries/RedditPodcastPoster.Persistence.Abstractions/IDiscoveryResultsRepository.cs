@@ -2,10 +2,8 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Persistence.Abstractions;
 
-public interface IDiscoveryResultsRepositoryV2
+public interface IDiscoveryResultsRepository : IRepository<DiscoveryResultsDocument>
 {
-    Task Save(DiscoveryResultsDocument discoveryResultsDocument);
-    IAsyncEnumerable<DiscoveryResultsDocument> GetAll();
     IAsyncEnumerable<DiscoveryResultsDocument> GetAllUnprocessed();
     Task SetProcessed(IEnumerable<Guid> ids);
     Task<DiscoveryResultsDocument?> GetById(Guid documentId);

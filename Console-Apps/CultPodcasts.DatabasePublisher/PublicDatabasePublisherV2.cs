@@ -3,13 +3,12 @@ using Konsole;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Abstractions;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace CultPodcasts.DatabasePublisher;
 
 public class PublicDatabasePublisherV2(
     ISafeFileEntityWriter safeFileEntityWriter,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<PublicDatabasePublisherV2> logger
@@ -18,36 +17,24 @@ public class PublicDatabasePublisherV2(
 {
     public async Task Run()
     {
-        var podcasts = await podcastRepository
-            .GetAllBy(p => !(p.Removed ?? false))
-            .ToListAsync();
+        var init = new ProgressBar(1);
+        var c = 0;
+        init.Refresh(c, "Testing Podcast File-keys");
+        await AreUnique(podcastRepository.GetAll().Select(p => p.FileKey), "Podcasts");
+        init.Refresh(++c, "Tested Podcast File-keys");
 
-        var multipleFileKeys = podcasts
-            .GroupBy(x => x.FileKey)
-            .Select(x => new { FileKey = x.Key, Count = x.Count() })
-            .Where(x => x.Count > 1)
-            .Select(x => x.FileKey)
-            .ToArray();
 
-        if (multipleFileKeys.Any())
-        {
-            throw new InvalidOperationException(
-                $"Multiple File-keys exist: '{string.Join(", ", multipleFileKeys)}'.");
-        }
-
-        var progress = new ProgressBar(podcasts.Count);
+        var podcastCount = await podcastRepository.Count();
+        var podcasts = podcastRepository.GetAllBy(p => !(p.Removed ?? false));
+        var progress = new ProgressBar(podcastCount);
         var ctr = 0;
 
-        foreach (var podcast in podcasts)
+        await foreach (var podcast in podcasts)
         {
             progress.Refresh(ctr, $"Processing {podcast.FileKey}");
+            var episodeCount = await episodeRepository.Count(podcast.Id);
 
-            var episodes = await episodeRepository
-                .GetByPodcastId(podcast.Id)
-                .Where(e => !e.Removed)
-                .ToListAsync();
-
-            if (episodes.Count > 0)
+            if (episodeCount > 0)
             {
                 var publicPodcast = new PublicPodcast(podcast.Id)
                 {
@@ -55,15 +42,21 @@ public class PublicDatabasePublisherV2(
                     AppleId = podcast.AppleId,
                     Name = podcast.Name,
                     SpotifyId = string.IsNullOrWhiteSpace(podcast.SpotifyId) ? null : podcast.SpotifyId,
-                    YouTubeChannelId =
-                        string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) ? null : podcast.YouTubeChannelId,
+                    YouTubeChannelId = string.IsNullOrWhiteSpace(podcast.YouTubeChannelId)
+                        ? null
+                        : podcast.YouTubeChannelId,
                     YouTubePlaylistId = string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId)
                         ? null
                         : podcast.YouTubePlaylistId
                 };
 
-                publicPodcast.Episodes = episodes
-                    .Select(episode => new PublicEpisode
+                var episodes = episodeRepository.GetByPodcastId(podcast.Id, e => !e.Removed);
+
+                var publicEpisodes = new List<PublicEpisode>();
+
+                await foreach (var episode in episodes)
+                {
+                    var publicEpisode = new PublicEpisode
                     {
                         Id = episode.Id,
                         AppleId = episode.AppleId,
@@ -83,17 +76,39 @@ public class PublicDatabasePublisherV2(
                             InternetArchive = episode.Urls.InternetArchive
                         },
                         Subjects = episode.Subjects.Any() ? episode.Subjects : null
-                    })
-                    .OrderByDescending(x => x.Release)
-                    .ToList();
+                    };
+                    publicEpisodes.Add(publicEpisode);
+                }
 
+                publicPodcast.Episodes = publicEpisodes.OrderByDescending(x => x.Release).ToList();
                 await safeFileEntityWriter.Write(publicPodcast);
             }
 
-            if (++ctr == podcasts.Count)
+            if (++ctr == podcastCount)
             {
                 progress.Refresh(ctr, "Finished");
             }
+        }
+
+        Console.WriteLine();
+    }
+
+    private static async Task AreUnique(IAsyncEnumerable<string> allFileKeys, string name)
+    {
+        var distinct = new HashSet<string>();
+        var duplicate = new HashSet<string>();
+        await foreach (var fileKey in allFileKeys)
+        {
+            if (!distinct.Add(fileKey))
+            {
+                duplicate.Add(fileKey);
+            }
+        }
+
+        if (duplicate.Any())
+        {
+            throw new InvalidOperationException(
+                $"Multiple File-keys exist in {name} container: '{string.Join(", ", duplicate)}'.");
         }
     }
 }

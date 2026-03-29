@@ -6,15 +6,39 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.PushSubscriptions;
 
-public class PushSubscriptionRepositoryV2(
+public class PushSubscriptionRepository(
     Container pushSubscriptionsContainer,
-    ILogger<PushSubscriptionRepositoryV2> logger)
-    : IPushSubscriptionRepositoryV2
+    ILogger<PushSubscriptionRepository> logger)
+    : IPushSubscriptionRepository
 {
     public async Task Save(PushSubscription pushSubscription)
     {
         await pushSubscriptionsContainer.UpsertItemAsync(pushSubscription,
             new PartitionKey(pushSubscription.Id.ToString()));
+    }
+
+    public async Task<int> Count()
+    {
+        var iterator = pushSubscriptionsContainer.GetItemQueryIterator<int>(
+            new QueryDefinition("SELECT VALUE COUNT(1) FROM c"));
+
+        while (iterator.HasMoreResults)
+        {
+            try
+            {
+                foreach (var count in await iterator.ReadNextAsync())
+                {
+                    return count;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "{method}: error counting push subscriptions.", nameof(Count));
+                throw;
+            }
+        }
+
+        return 0;
     }
 
     public async IAsyncEnumerable<PushSubscription> GetAll()

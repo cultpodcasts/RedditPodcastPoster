@@ -1,5 +1,5 @@
 using Api.Resolvers;
-using RedditPodcastPoster.Models.V2;
+using RedditPodcastPoster.Models;
 
 namespace Api.Models;
 
