@@ -39,18 +39,11 @@ public class IndexIdProvider(
         var allIndexablePodcastIds = await indexablePodcastIdProvider.GetIndexablePodcastIds().ToArrayAsync();
         queryStopwatch.Stop();
 
-        var currentHour = DateTime.UtcNow.Hour;
-        var isEvenHour = currentHour % 2 == 0;
-        var halfSize = allIndexablePodcastIds.Length / 2;
-        var indexablePodcastIds = isEvenHour
-            ? allIndexablePodcastIds.Take(halfSize).ToArray()
-            : allIndexablePodcastIds.Skip(halfSize).ToArray();
-
-        var batchSizes = indexablePodcastIds.Length / req.IndexPasses;
+        var batchSizes = allIndexablePodcastIds.Length / req.IndexPasses;
         var batches = new List<Guid[]>();
         for (var i = 0; i < req.IndexPasses; i++)
         {
-            var batch = indexablePodcastIds.Skip(i * batchSizes);
+            var batch = allIndexablePodcastIds.Skip(i * batchSizes);
             if (i < req.IndexPasses - 1)
             {
                 batch = batch.Take(batchSizes);
@@ -62,10 +55,10 @@ public class IndexIdProvider(
         }
 
         var batchSum = batches.Sum(batch => batch.Length);
-        if (batchSum != indexablePodcastIds.Length)
+        if (batchSum != allIndexablePodcastIds.Length)
         {
             throw new InvalidOperationException(
-                $"Batch sum {batchSum} does not equal indexable podcast ids {indexablePodcastIds.Length}.");
+                $"Batch sum {batchSum} does not equal all indexable podcast ids {allIndexablePodcastIds.Length}.");
         }
 
         runStopwatch.Stop();
@@ -73,12 +66,10 @@ public class IndexIdProvider(
         if (_indexerOptions.EnableCostInstrumentation)
         {
             logger.LogWarning(
-                "IndexIdProviderCostProbe.Complete instance-id='{InstanceId}' success='true' index-passes='{IndexPasses}' total-podcast-ids='{TotalPodcastIds}' half='{Half}' half-ids='{HalfIds}' batch-size-base='{BatchSizeBase}' query-ms='{QueryMs}' total-ms='{TotalMs}'.",
+                "IndexIdProviderCostProbe.Complete instance-id='{InstanceId}' success='true' index-passes='{IndexPasses}' total-podcast-ids='{TotalPodcastIds}' batch-size-base='{BatchSizeBase}' query-ms='{QueryMs}' total-ms='{TotalMs}'.",
                 context.InstanceId,
                 req.IndexPasses,
                 allIndexablePodcastIds.Length,
-                isEvenHour ? "even" : "odd",
-                indexablePodcastIds.Length,
                 batchSizes,
                 queryStopwatch.ElapsedMilliseconds,
                 runStopwatch.ElapsedMilliseconds);
