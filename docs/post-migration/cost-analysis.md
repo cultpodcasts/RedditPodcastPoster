@@ -58,7 +58,7 @@ Short checklist to confirm whether cost-instrumented data is present in Applicat
     AppTraces
     | where TimeGenerated > ago(72h)
     | where AppRoleName == "indexer-infra"
-    | where Message has "CostProbe" or tostring(Properties) has "CostProbe"
+    | where Message contains "CostProbe" or tostring(Properties) contains "CostProbe"
     | project TimeGenerated, AppRoleName, Message, Properties
     | order by TimeGenerated desc
 
@@ -66,7 +66,7 @@ Short checklist to confirm whether cost-instrumented data is present in Applicat
     AppTraces
     | where TimeGenerated > ago(72h)
     | where AppRoleName == "indexer-infra"
-    | where Message has "CostProbe"
+    | where Message contains "CostProbe"
     | project TimeGenerated, Message
     | order by TimeGenerated desc
 
@@ -83,7 +83,7 @@ Short checklist to confirm whether cost-instrumented data is present in Applicat
 - KQL: correlate probe durations / fields (once probes appear)
   AppTraces
   | where TimeGenerated between (datetime(2026-03-25) .. datetime(2026-03-26))
-  | where Message has "IndexerCostProbe.Complete" or Message has "PosterCostProbe.Complete"
+  | where Message contains "IndexerCostProbe.Complete" or Message contains "PosterCostProbe.Complete"
   | extend fields = parse_json(tostring(Properties))
   | project TimeGenerated, Message, fields
 
