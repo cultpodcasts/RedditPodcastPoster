@@ -15,6 +15,7 @@ public class RecentEpisodeCandidatesProvider(
     : IRecentEpisodeCandidatesProvider
 {
     private static readonly SemaphoreSlim CacheLock = new(1, 1);
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
 
     private readonly DateTime _cacheReleasedSince = DateOnly
         .FromDateTime(DateTime.UtcNow)
@@ -22,6 +23,7 @@ public class RecentEpisodeCandidatesProvider(
         .ToDateTime(TimeOnly.MinValue);
 
     private IReadOnlyCollection<PodcastEpisode>? _cachedEpisodes;
+    private DateTime? _cachePopulatedAt;
 
     /// <summary>
     /// Gets all recent episodes from cache, including ignored and removed ones.
@@ -62,6 +64,7 @@ public class RecentEpisodeCandidatesProvider(
 
             var podcastEpisodes = await LoadRecentPodcastEpisodes(_cacheReleasedSince);
             _cachedEpisodes = podcastEpisodes;
+            _cachePopulatedAt = DateTime.UtcNow;
 
             var requestedEpisodes = releasedSince <= _cacheReleasedSince
                 ? _cachedEpisodes
@@ -97,7 +100,8 @@ public class RecentEpisodeCandidatesProvider(
         out IReadOnlyCollection<PodcastEpisode> episodes)
     {
         episodes = [];
-        if (_cachedEpisodes == null || releasedSince < _cacheReleasedSince)
+        if (_cachedEpisodes == null || releasedSince < _cacheReleasedSince ||
+            _cachePopulatedAt == null || DateTime.UtcNow - _cachePopulatedAt.Value >= CacheTtl)
         {
             return false;
         }
