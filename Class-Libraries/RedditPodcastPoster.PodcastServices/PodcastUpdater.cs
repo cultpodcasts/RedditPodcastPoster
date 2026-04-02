@@ -37,8 +37,7 @@ public class PodcastUpdater(
 
         if (!indexingContext.ReleasedSince.HasValue)
         {
-            throw new InvalidOperationException(
-                $"Cannot index podcast with id '{podcast.Id}' without a released-since");
+            throw new InvalidOperationException($"Cannot index podcast with id '{podcast.Id}' without a released-since");
         }
 
         var releasedSince = indexingContext.ReleasedSince.Value;
