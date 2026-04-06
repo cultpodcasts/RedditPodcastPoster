@@ -33,8 +33,9 @@ public class RecentEpisodeCandidatesProvider(
     {
         if (TryGetCachedEpisodes(releasedSince, out var cachedEpisodes))
         {
-            logger.LogInformation(
-                "Using cached recent episodes. Requested released-since: '{ReleasedSince:O}', Cached released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+            logger.LogWarning(
+                "{method}: Pre WaitSync: Using cached recent episodes. Requested released-since: '{ReleasedSince:O}', Cached released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+                nameof(GetEpisodes),
                 releasedSince,
                 _cacheReleasedSince,
                 cachedEpisodes.Count);
@@ -46,8 +47,9 @@ public class RecentEpisodeCandidatesProvider(
         {
             if (TryGetCachedEpisodes(releasedSince, out cachedEpisodes))
             {
-                logger.LogInformation(
-                    "Using cached recent episodes after lock. Requested released-since: '{ReleasedSince:O}', Cached released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+                logger.LogWarning(
+                    "{method}: Post WaitSync: Using cached recent episodes after lock. Requested released-since: '{ReleasedSince:O}', Cached released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+                    nameof(GetEpisodes),
                     releasedSince,
                     _cacheReleasedSince,
                     cachedEpisodes.Count);
@@ -56,8 +58,9 @@ public class RecentEpisodeCandidatesProvider(
 
             if (releasedSince < _cacheReleasedSince)
             {
-                logger.LogError(
-                    "Requested released-since '{ReleasedSince:O}' is older than cache window '{CacheReleasedSince:O}'. Returning cache-window results.",
+                logger.LogWarning(
+                    "{method}: Requested released-since '{ReleasedSince:O}' is older than cache window '{CacheReleasedSince:O}'. Returning cache-window results.",
+                    nameof(GetEpisodes),
                     releasedSince,
                     _cacheReleasedSince);
             }
@@ -70,8 +73,9 @@ public class RecentEpisodeCandidatesProvider(
                 ? _cachedEpisodes
                 : _cachedEpisodes.Where(x => x.Episode.Release >= releasedSince).ToArray();
 
-            logger.LogInformation(
-                "Loaded recent episodes via latestReleased-scoped partition reads. Requested released-since: '{ReleasedSince:O}', Cache released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+            logger.LogWarning(
+                "{method}: Loaded recent episodes via latestReleased-scoped partition reads. Requested released-since: '{ReleasedSince:O}', Cache released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+                nameof(GetEpisodes),
                 releasedSince,
                 _cacheReleasedSince,
                 requestedEpisodes.Count);
@@ -124,8 +128,9 @@ public class RecentEpisodeCandidatesProvider(
 
         if (recentPodcasts.Length == 0)
         {
-            logger.LogInformation(
-                "No recently active podcasts found for candidate retrieval. Released-since: '{ReleasedSince:O}'.",
+            logger.LogWarning(
+                "{method}: No recently active podcasts found for candidate retrieval. Released-since: '{ReleasedSince:O}'.",
+                nameof(LoadRecentPodcastEpisodes),
                 releasedSince);
             return [];
         }
