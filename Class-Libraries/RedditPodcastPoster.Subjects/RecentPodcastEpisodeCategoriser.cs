@@ -4,12 +4,14 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Subjects;
 
 public class RecentPodcastEpisodeCategoriser(
     ICategoriser categoriser,
     IRecentEpisodeCandidatesProvider recentEpisodeCandidatesProvider,
+    IEpisodeRepository episodeRepository,
     IOptions<PostingCriteria> postingCriteria,
     ILogger<RecentPodcastEpisodeCategoriser> logger)
     : IRecentPodcastEpisodeCategoriser
@@ -64,9 +66,11 @@ public class RecentPodcastEpisodeCategoriser(
 
             if (updatedEpisode)
             {
+                await episodeRepository.Save(podcastEpisode.Episode);
+
                 updatedEpisodes.Add(podcastEpisode.Episode.Id);
                 logger.LogWarning(
-                    "{method}: Podcast '{podcastName}' with id '{podcastId}' and episode with id {episodeId}, updated subjects: {subjects}.",
+                    "{method}: Podcast '{podcastName}' with id '{podcastId}' and episode with id {episodeId}, updated subjects persisted: {subjects}.",
                     nameof(Categorise),
                     podcastEpisode.Podcast.Name,
                     podcastEpisode.Podcast.Id,
