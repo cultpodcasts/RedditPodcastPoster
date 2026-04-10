@@ -1,10 +1,11 @@
 using System.Reflection;
+using CommandLine;
 using FindDuplicateEpisodes;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -18,9 +19,17 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddScoped<FindDuplicateEpisodesProcessor>()
-    .BindConfiguration<CosmosDbSettings>("cosmosdbv2");
+    .AddRepositories()
+    .AddScoped<FindDuplicateEpisodesProcessor>();
 
 using var host = builder.Build();
-var processor = host.Services.GetService<FindDuplicateEpisodesProcessor>()!;
-await processor.Run();
+return await Parser.Default.ParseArguments<FindDuplicateEpisodesRequest>(args)
+    .MapResult(async request => await Run(request), errs => Task.FromResult(-1));
+
+async Task<int> Run(FindDuplicateEpisodesRequest request)
+{
+    var processor = host.Services.GetService<FindDuplicateEpisodesProcessor>()!;
+    await processor.Run(request);
+    return 0;
+}
+

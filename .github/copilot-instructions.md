@@ -15,6 +15,7 @@
 - Keep `docs/post-migration/cost-analysis.md` up to date as cost-reduction work progresses and provide explicit next steps after each change.
 - Avoid behavior-changing edits to Reddit posting and Twitter tweeting flows during cost-reduction work unless explicitly approved.
 - When investigating Indexer app cost increases, instrumentation must include all activities in the orchestration, not only the Indexer activity, before drawing cost conclusions.
+- In dedup verification mode, do not modify backup files; validate and enforce that canonical Cosmos episodes are not ignored/removed when any deleted duplicate had ignored/removed=false.
 
 ## Container Creation
 - User prefers explicit container factory methods `CreatePodcastsContainer()` and `CreateEpisodesContainer()` instead of `Create(string containerName)`.

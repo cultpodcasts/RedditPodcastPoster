@@ -28,6 +28,6 @@ public class CreateSearchIndexRequest
     [Option(shortName: 'b', "not-break-on-duplicates", Required = false, Default = true, HelpText = "Do not break the indexer run if duplicates are found")]
     public bool NotBreakOnDuplicates { get; set; }
 
-    [Option(shortName: 'w', "run-indexer-max-wait-minutes", Required = false, Default = 90, HelpText = "Maximum minutes to wait for a single indexer run before treating it as a retryable stall")]
-    public int RunIndexerMaxWaitMinutes { get; set; }
+    [Option(shortName: 'w', "run-indexer-max-wait-seconds", Required = false, Default = 30, HelpText = "Maximum seconds to wait for a single indexer run before treating it as a retryable stall")]
+    public int RunIndexerMaxWaitSeconds { get; set; }
 }

@@ -113,7 +113,13 @@ public partial class CreateSearchIndexProcessor(
 
         var maxAttempts = Math.Max(1, request.RunIndexerMaxAttempts);
         var pollInterval = TimeSpan.FromSeconds(Math.Max(2, request.RunIndexerPollSeconds));
-        var maxWaitDuration = TimeSpan.FromMinutes(Math.Max(1, request.RunIndexerMaxWaitMinutes));
+        var maxWaitDuration = TimeSpan.FromSeconds(Math.Max(1, request.RunIndexerMaxWaitSeconds));
+
+        logger.LogInformation(
+            "Indexer monitor configuration: MaxAttempts={MaxAttempts}; PollInterval={PollInterval}; MaxWaitPerAttempt={MaxWaitPerAttempt}",
+            maxAttempts,
+            pollInterval,
+            maxWaitDuration);
 
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
@@ -318,7 +324,9 @@ public partial class CreateSearchIndexProcessor(
 
             if (minRunStartUtc.HasValue)
             {
-                if (!candidate.StartTime.HasValue || candidate.StartTime.Value < minRunStartUtc.Value)
+                var matchesByStart = candidate.StartTime.HasValue && candidate.StartTime.Value >= minRunStartUtc.Value;
+                var matchesByEnd = candidate.EndTime.HasValue && candidate.EndTime.Value >= minRunStartUtc.Value;
+                if (!matchesByStart && !matchesByEnd)
                 {
                     return;
                 }
@@ -575,20 +583,23 @@ public partial class CreateSearchIndexProcessor(
 
                 if (seen.TryGetValue(fingerprint, out var existing) && existing.Id != item.Id)
                 {
-                    logger.LogWarning(
-                        "Potential duplicate episode pair in Cosmos: Fingerprint={Fingerprint}; First={FirstId}/{FirstPodcastId}/{FirstPodcastName}/{FirstTitle}/{FirstRelease}; Second={SecondId}/{SecondPodcastId}/{SecondPodcastName}/{SecondTitle}/{SecondRelease}",
-                        fingerprint,
-                        existing.Id,
-                        existing.PodcastId,
-                        existing.PodcastName ?? string.Empty,
-                        existing.Title,
-                        existing.Release,
-                        item.Id,
-                        item.PodcastId,
-                        item.PodcastName ?? string.Empty,
-                        item.Title,
-                        item.Release);
-                    hasDuplicates = true;
+                    if (string.Equals(existing.PodcastId, item.PodcastId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger.LogWarning(
+                            "Potential duplicate episode pair in Cosmos: Fingerprint={Fingerprint}; First={FirstId}/{FirstPodcastId}/{FirstPodcastName}/{FirstTitle}/{FirstRelease}; Second={SecondId}/{SecondPodcastId}/{SecondPodcastName}/{SecondTitle}/{SecondRelease}",
+                            fingerprint,
+                            existing.Id,
+                            existing.PodcastId,
+                            existing.PodcastName ?? string.Empty,
+                            existing.Title,
+                            existing.Release,
+                            item.Id,
+                            item.PodcastId,
+                            item.PodcastName ?? string.Empty,
+                            item.Title,
+                            item.Release);
+                        hasDuplicates = true;
+                    }
                 }
 
                 seen[fingerprint] = item;
