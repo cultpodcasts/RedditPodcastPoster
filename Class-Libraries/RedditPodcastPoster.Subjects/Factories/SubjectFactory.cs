@@ -5,7 +5,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Subjects.Factories;
 
 public class SubjectFactory(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     ILogger<SubjectFactory> logger) : ISubjectFactory
 {
     private static string[]? _fileKeys;

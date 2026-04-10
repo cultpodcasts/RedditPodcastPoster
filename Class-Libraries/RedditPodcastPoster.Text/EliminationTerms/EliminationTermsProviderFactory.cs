@@ -4,7 +4,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Text.EliminationTerms;
 
 public class EliminationTermsProviderFactory(
-    ILookupRepositoryV2 lookupRepository,
+    ILookupRepository lookupRepository,
     ILogger<EliminationTermsProviderFactory> logger)
     : IEliminationTermsProviderFactory
 {

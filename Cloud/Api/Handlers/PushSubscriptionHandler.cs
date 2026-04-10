@@ -9,7 +9,7 @@ using PushSubscription = Api.Dtos.PushSubscription;
 namespace Api.Handlers;
 
 public class PushSubscriptionHandler(
-    IPushSubscriptionRepositoryV2 pushSubscriptionRepository,
+    IPushSubscriptionRepository pushSubscriptionRepository,
     ILogger<PushSubscriptionHandler>logger) : IPushSubscriptionHandler
 {
     public async Task<HttpResponseData> CreatePushSubscription(

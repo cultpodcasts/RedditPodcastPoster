@@ -409,3 +409,5 @@ Console-Apps/RedditPodcastPoster/Properties/launchSettings.json
 /Cloud/Indexer/appsettings.Development.json
 /Console-Apps/submit.txt
 /Directory.Build.props
+/Console-Apps/deduped-episodes
+/Console-Apps/dupes.txt

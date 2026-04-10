@@ -146,6 +146,8 @@
     <Project Path="Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubeOnlyPodcasts.csproj" />
     <Project Path="Console-Apps/EpisodeDriftDetector/EpisodeDriftDetector.csproj" />
 
+    <Project Path="Console-Apps/FindDuplicateEpisodes/FindDuplicateEpisodes.csproj" />
+
     <Project Path="Console-Apps/FixDatesFromApple/FixDatesFromApple.csproj" />
 
     <Project Path="Console-Apps/FlairPublisher/FlairPublisher.csproj" />
@@ -166,8 +168,6 @@
     </Project>
 
     <Project Path="Console-Apps/MachineAuth0/MachineAuth0.csproj" />
-
-    <Project Path="Console-Apps/ModelTransformer/ModelTransformer.csproj" />
 
     <Project Path="Console-Apps/Poster/Poster.csproj" />
 
@@ -243,8 +243,6 @@
     <File Path=".github/workflows/dotnet.yml" />
 
   </Folder>
-
-  <Project Path="Console-Apps/RedditPodcastPoster/RedditPodcastPoster.csproj" />
 
 </Solution>
 

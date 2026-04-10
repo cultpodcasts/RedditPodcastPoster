@@ -11,7 +11,7 @@ using WebPush;
 namespace RedditPodcastPoster.PushSubscriptions;
 
 public class NotificationPublisher(
-    IPushSubscriptionRepositoryV2 pushSubscriptionRepository,
+    IPushSubscriptionRepository pushSubscriptionRepository,
     IOptions<PushSubscriptionsOptions> pushSubscriptionsOptions,
     ILogger<NotificationPublisher> logger
 ) : INotificationPublisher

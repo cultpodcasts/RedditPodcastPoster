@@ -17,7 +17,7 @@ using RedditPodcastPoster.Text;
 namespace EnrichExistingEpisodesFromPodcastServices;
 
 public class EnrichPodcastEpisodesProcessor(
-    IPodcastRepositoryV2 podcastsRepository,
+    IPodcastRepository podcastsRepository,
     IEpisodeRepository episodeRepository,
     ISpotifyUrlCategoriser spotifyUrlCategoriser,
     IAppleUrlCategoriser appleUrlCategoriser,

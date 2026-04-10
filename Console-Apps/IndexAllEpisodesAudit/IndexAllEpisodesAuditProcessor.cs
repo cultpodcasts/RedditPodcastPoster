@@ -4,7 +4,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace IndexAllEpisodesAudit;
 
 public class IndexAllEpisodesAuditProcessor(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ILogger<IndexAllEpisodesAuditProcessor> logger)
 {

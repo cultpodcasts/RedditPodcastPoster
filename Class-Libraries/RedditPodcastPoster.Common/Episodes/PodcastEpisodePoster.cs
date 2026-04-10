@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Factories;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
@@ -51,9 +51,9 @@ public class PodcastEpisodePoster(
         }
     }
 
-    private async Task<List<Models.V2.Episode>> GetEpisodes(PodcastEpisode matchingPodcastEpisode)
+    private async Task<List<Episode>> GetEpisodes(PodcastEpisode matchingPodcastEpisode)
     {
-        var orderedBundleEpisodes = new List<Models.V2.Episode>();
+        var orderedBundleEpisodes = new List<Episode>();
 
         if (matchingPodcastEpisode.Podcast.Bundles &&
             !string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex))
@@ -78,7 +78,7 @@ public class PodcastEpisodePoster(
         return orderedBundleEpisodes;
     }
 
-    private async Task<IOrderedEnumerable<Models.V2.Episode>> GetOrderedBundleEpisodes(PodcastEpisode matchingPodcastEpisode)
+    private async Task<IOrderedEnumerable<Episode>> GetOrderedBundleEpisodes(PodcastEpisode matchingPodcastEpisode)
     {
         if (string.IsNullOrWhiteSpace(matchingPodcastEpisode.Podcast.TitleRegex))
         {

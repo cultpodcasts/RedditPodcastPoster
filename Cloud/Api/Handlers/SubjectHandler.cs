@@ -19,7 +19,7 @@ using Subject = RedditPodcastPoster.Models.Subject;
 namespace Api.Handlers;
 
 public class SubjectHandler(
-    ISubjectRepositoryV2 subjectRepository,
+    ISubjectRepository subjectRepository,
     ISubjectService subjectService,
     ISubjectFactory subjectFactory,
     ISubjectsPublisher contentPublisher,

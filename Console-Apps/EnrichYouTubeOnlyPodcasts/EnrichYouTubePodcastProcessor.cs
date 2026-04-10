@@ -20,14 +20,12 @@ using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text.EliminationTerms;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace EnrichYouTubeOnlyPodcasts;
 
 public class EnrichYouTubePodcastProcessor(
     IYouTubeServiceWrapper youTubeService,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ITolerantYouTubePlaylistService youTubePlaylistService,
     IYouTubeChannelService youTubeChannelService,

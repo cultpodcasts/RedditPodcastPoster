@@ -7,7 +7,7 @@ using RedditPodcastPoster.Subjects.Models;
 namespace CategorisePodcastEpisodes;
 
 public class CategorisePodcastEpisodesProcessor(
-    IPodcastRepositoryV2 repository,
+    IPodcastRepository repository,
     IEpisodeRepository episodeRepository,
     ISubjectEnricher subjectEnricher,
     IRecentPodcastEpisodeCategoriser recentEpisodeCategoriser,

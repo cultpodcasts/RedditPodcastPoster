@@ -12,11 +12,11 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddPushSubscriptionsRepository()
         {
             return services
-                .AddSingleton<IPushSubscriptionRepositoryV2>(s =>
+                .AddSingleton<IPushSubscriptionRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
-                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PushSubscriptionRepositoryV2>>();
-                    return new PushSubscriptionRepositoryV2(containerFactory.CreatePushSubscriptionsContainer(), logger);
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PushSubscriptionRepository>>();
+                    return new PushSubscriptionRepository(containerFactory.CreatePushSubscriptionsContainer(), logger);
                 })
                 ;
         }

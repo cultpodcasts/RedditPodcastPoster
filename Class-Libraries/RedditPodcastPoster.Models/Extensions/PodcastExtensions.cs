@@ -8,11 +8,4 @@ public static class PodcastExtensions
         var podcastName = escapedPodcastName.Replace("(", "%28").Replace(")", "%29");
         return podcastName;
     }
-
-    public static string PodcastNameInSafeUrlForm(this Models.V2.Podcast podcast)
-    {
-        var escapedPodcastName = Uri.EscapeDataString(podcast.Name);
-        var podcastName = escapedPodcastName.Replace("(", "%28").Replace(")", "%29");
-        return podcastName;
-    }
 }

@@ -57,7 +57,7 @@ builder.Services
 
 using var host = builder.Build();
 
-var podcastRepository = host.Services.GetService<IPodcastRepositoryV2>()!;
+var podcastRepository = host.Services.GetService<IPodcastRepository>()!;
 var episodeRepository = host.Services.GetService<IEpisodeRepository>()!;
 var httpClient = host.Services.GetService<HttpClient>()!;
 

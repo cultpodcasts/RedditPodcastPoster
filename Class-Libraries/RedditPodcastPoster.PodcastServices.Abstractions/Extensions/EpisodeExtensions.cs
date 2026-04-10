@@ -1,8 +1,8 @@
-﻿using RedditPodcastPoster.Models.V2;
+﻿using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 
-public static class EpisodeV2Extensions
+public static class EpisodeExtensions
 {
     extension(Episode episode)
     {

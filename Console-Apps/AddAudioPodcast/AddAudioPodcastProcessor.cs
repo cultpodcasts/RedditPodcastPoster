@@ -1,6 +1,6 @@
-﻿using System.Text.RegularExpressions;
-using iTunesSearch.Library;
+﻿using iTunesSearch.Library;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
@@ -13,19 +13,18 @@ using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using SpotifyAPI.Web;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using System.Text.RegularExpressions;
 
 namespace AddAudioPodcast;
 
 public class AddAudioPodcastProcessor(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
+    IEpisodeProvider episodeProvider,
     ISpotifyClientWrapper spotifyClient,
     IPodcastFactory podcastFactory,
     IApplePodcastEnricher applePodcastEnricher,
     ISpotifyPodcastEnricher spotifyPodcastEnricher,
-    IPodcastUpdater podcastUpdater,
     iTunesSearchManager iTunesSearchManager,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ISubjectEnricher subjectEnricher,
@@ -73,9 +72,9 @@ public class AddAudioPodcastProcessor(
 
         if (podcast != null)
         {
-            var result = await podcastUpdater.Update(podcast, false, _indexingContext);
+            var existingEpisodes= await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+            var episodes = await episodeProvider.GetEpisodes(podcast, existingEpisodes, indexingContext);
 
-            var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
 
             if (!string.IsNullOrWhiteSpace(request.EpisodeTitleRegex))
             {
@@ -104,7 +103,6 @@ public class AddAudioPodcastProcessor(
                 episodes = episodes.Except(episodesToRemove).ToList();
             }
 
-            var episodesToUpdate = new List<Episode>();
             foreach (var episode in episodes)
             {
                 await subjectEnricher.EnrichSubjects(episode,
@@ -113,30 +111,15 @@ public class AddAudioPodcastProcessor(
                         podcast.IgnoredSubjects,
                         podcast.DefaultSubject,
                         podcast.DescriptionRegex));
-
-                var v2Episode = episodes.FirstOrDefault(e => e.Id == episode.Id);
-                if (v2Episode != null)
-                {
-                    v2Episode.Subjects = episode.Subjects ?? [];
-                    episodesToUpdate.Add(v2Episode);
-                }
+                episode.SetPodcastProperties(podcast);
             }
 
-            if (episodesToUpdate.Any())
+            if (episodes.Any())
             {
-                await episodeRepository.Save(episodesToUpdate);
+                await episodeRepository.Save(episodes);
             }
 
             await podcastRepository.Save(podcast);
-
-            if (result.Success)
-            {
-                logger.LogInformation(result.ToString());
-            }
-            else
-            {
-                logger.LogError(result.ToString());
-            }
 
             await episodeSearchIndexerService.IndexEpisodes(episodes.Select(x => x.Id), CancellationToken.None);
         }

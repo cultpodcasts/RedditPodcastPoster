@@ -1,22 +1,19 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text.KnownTerms;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace CosmosDbUploader;
 
 public class CosmosDbUploaderV2(
     IFileRepository fileRepository,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
-    ISubjectRepositoryV2 subjectRepository,
-    ILookupRepositoryV2 lookupRepository,
-    IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
-    IPushSubscriptionRepositoryV2 pushSubscriptionRepository,
+    ISubjectRepository subjectRepository,
+    ILookupRepository lookupRepository,
+    IDiscoveryResultsRepository discoveryResultsRepository,
+    IPushSubscriptionRepository pushSubscriptionRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
     ILogger<CosmosDbUploaderV2> logger)
 {

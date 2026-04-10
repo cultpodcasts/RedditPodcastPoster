@@ -39,6 +39,7 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddLegacyPodcastRepository()
         {
             return services
+                .AddSingleton<IEpisodeMatcher, EpisodeMatcher>()
                 .AddSingleton<IPodcastRepository, PodcastRepository>();
         }
 

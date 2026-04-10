@@ -9,12 +9,13 @@ namespace RedditPodcastPoster.Common.Episodes;
 
 public class RecentEpisodeCandidatesProvider(
     IEpisodeRepository episodeRepository,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IOptions<PostingCriteria> postingCriteria,
     ILogger<RecentEpisodeCandidatesProvider> logger)
     : IRecentEpisodeCandidatesProvider
 {
     private static readonly SemaphoreSlim CacheLock = new(1, 1);
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
 
     private readonly DateTime _cacheReleasedSince = DateOnly
         .FromDateTime(DateTime.UtcNow)
@@ -22,6 +23,7 @@ public class RecentEpisodeCandidatesProvider(
         .ToDateTime(TimeOnly.MinValue);
 
     private IReadOnlyCollection<PodcastEpisode>? _cachedEpisodes;
+    private DateTime? _cachePopulatedAt;
 
     /// <summary>
     /// Gets all recent episodes from cache, including ignored and removed ones.
@@ -31,8 +33,9 @@ public class RecentEpisodeCandidatesProvider(
     {
         if (TryGetCachedEpisodes(releasedSince, out var cachedEpisodes))
         {
-            logger.LogInformation(
-                "Using cached recent episodes. Requested released-since: '{ReleasedSince:O}', Cached released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+            logger.LogWarning(
+                "{method}: Pre WaitSync: Using cached recent episodes. Requested released-since: '{ReleasedSince:O}', Cached released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+                nameof(GetEpisodes),
                 releasedSince,
                 _cacheReleasedSince,
                 cachedEpisodes.Count);
@@ -44,8 +47,9 @@ public class RecentEpisodeCandidatesProvider(
         {
             if (TryGetCachedEpisodes(releasedSince, out cachedEpisodes))
             {
-                logger.LogInformation(
-                    "Using cached recent episodes after lock. Requested released-since: '{ReleasedSince:O}', Cached released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+                logger.LogWarning(
+                    "{method}: Post WaitSync: Using cached recent episodes after lock. Requested released-since: '{ReleasedSince:O}', Cached released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+                    nameof(GetEpisodes),
                     releasedSince,
                     _cacheReleasedSince,
                     cachedEpisodes.Count);
@@ -54,21 +58,24 @@ public class RecentEpisodeCandidatesProvider(
 
             if (releasedSince < _cacheReleasedSince)
             {
-                logger.LogError(
-                    "Requested released-since '{ReleasedSince:O}' is older than cache window '{CacheReleasedSince:O}'. Returning cache-window results.",
+                logger.LogWarning(
+                    "{method}: Requested released-since '{ReleasedSince:O}' is older than cache window '{CacheReleasedSince:O}'. Returning cache-window results.",
+                    nameof(GetEpisodes),
                     releasedSince,
                     _cacheReleasedSince);
             }
 
             var podcastEpisodes = await LoadRecentPodcastEpisodes(_cacheReleasedSince);
             _cachedEpisodes = podcastEpisodes;
+            _cachePopulatedAt = DateTime.UtcNow;
 
             var requestedEpisodes = releasedSince <= _cacheReleasedSince
                 ? _cachedEpisodes
                 : _cachedEpisodes.Where(x => x.Episode.Release >= releasedSince).ToArray();
 
-            logger.LogInformation(
-                "Loaded recent episodes via latestReleased-scoped partition reads. Requested released-since: '{ReleasedSince:O}', Cache released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+            logger.LogWarning(
+                "{method}: Loaded recent episodes via latestReleased-scoped partition reads. Requested released-since: '{ReleasedSince:O}', Cache released-since: '{CachedReleasedSince:O}', Count: {Count}.",
+                nameof(GetEpisodes),
                 releasedSince,
                 _cacheReleasedSince,
                 requestedEpisodes.Count);
@@ -97,7 +104,8 @@ public class RecentEpisodeCandidatesProvider(
         out IReadOnlyCollection<PodcastEpisode> episodes)
     {
         episodes = [];
-        if (_cachedEpisodes == null || releasedSince < _cacheReleasedSince)
+        if (_cachedEpisodes == null || releasedSince < _cacheReleasedSince ||
+            _cachePopulatedAt == null || DateTime.UtcNow - _cachePopulatedAt.Value >= CacheTtl)
         {
             return false;
         }
@@ -120,8 +128,9 @@ public class RecentEpisodeCandidatesProvider(
 
         if (recentPodcasts.Length == 0)
         {
-            logger.LogInformation(
-                "No recently active podcasts found for candidate retrieval. Released-since: '{ReleasedSince:O}'.",
+            logger.LogWarning(
+                "{method}: No recently active podcasts found for candidate retrieval. Released-since: '{ReleasedSince:O}'.",
+                nameof(LoadRecentPodcastEpisodes),
                 releasedSince);
             return [];
         }

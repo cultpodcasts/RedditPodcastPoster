@@ -1,14 +1,14 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.BBC;
 using RedditPodcastPoster.InternetArchive;
-using RedditPodcastPoster.Models.V2;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices;
 
 public class NonPodcastServiceCategoriser(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
 #pragma warning disable CS9113 // Parameter is unread.
     IHttpClientFactory httpClientFactory,

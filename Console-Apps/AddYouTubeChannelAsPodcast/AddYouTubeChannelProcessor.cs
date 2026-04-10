@@ -13,7 +13,7 @@ public class AddYouTubeChannelProcessor(
     IYouTubeChannelResolver youTubeChannelResolver,
     IYouTubeChannelService youTubeChannelService,
     PodcastFactory podcastFactory,
-    IPodcastRepositoryV2 repository,
+    IPodcastRepository repository,
     ILogger<AddYouTubeChannelProcessor> logger)
 {
     public async Task<bool> Run(Args request)

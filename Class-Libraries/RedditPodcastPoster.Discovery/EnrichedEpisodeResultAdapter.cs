@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Subjects;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace RedditPodcastPoster.Discovery;
 
@@ -20,7 +19,7 @@ public class EnrichedEpisodeResultAdapter(
         };
 
         var subjects = await subjectMatcher.MatchSubjects(new Episode
-            {Title = episode.EpisodeResult.EpisodeName, Description = episode.EpisodeResult.Description});
+            { Title = episode.EpisodeResult.EpisodeName, Description = episode.EpisodeResult.Description });
 
         discoveryResult.Urls.Apple = episode.EpisodeResult.Urls.Apple;
         discoveryResult.Urls.Spotify = episode.EpisodeResult.Urls.Spotify;

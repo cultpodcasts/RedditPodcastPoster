@@ -9,8 +9,8 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace Api.Services;
 
 public class DiscoveryResultsService(
-    IDiscoveryResultsRepositoryV2 discoveryResultsRepository,
-    IPodcastRepositoryV2 podcastRepository,
+    IDiscoveryResultsRepository discoveryResultsRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IDiscoveryPublisher contentPublisher,
     ILogger<DiscoveryResultsService> logger) : IDiscoveryResultsService

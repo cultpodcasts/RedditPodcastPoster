@@ -1,9 +1,7 @@
 ﻿using CultPodcasts.DatabasePublisher.PublicModels;
 using Konsole;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
-using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Legacy;
 
 namespace CultPodcasts.DatabasePublisher;
@@ -11,17 +9,16 @@ namespace CultPodcasts.DatabasePublisher;
 public class PublicDatabasePublisher(
     ISafeFileEntityWriter safeFileEntityWriter,
     ICosmosDbRepository cosmosDbRepository,
-#pragma warning disable CS9113 // Parameter is unread.
     ILogger<CosmosDbRepository> logger
-#pragma warning restore CS9113 // Parameter is unread.
 )
 {
     public async Task Run()
     {
+        logger.LogWarning("Exporting legacy data - this data is deprecated.");
         var fileKeys = await cosmosDbRepository.GetAllFileKeys<Podcast>().ToListAsync();
         var multipleFileKeys = fileKeys
             .GroupBy(x => x)
-            .Select(x => new {FileKey = x.Key, Count = x.Count()})
+            .Select(x => new { FileKey = x.Key, Count = x.Count() })
             .Where(x => x.Count > 1)
             .Select(x => x.FileKey)
             .ToArray();
@@ -39,7 +36,7 @@ public class PublicDatabasePublisher(
             var podcast = await cosmosDbRepository.Read<Podcast>(podcastId.ToString());
             progress.Refresh(ctr, $"Downloaded {podcast.FileKey}");
 
-            if (podcast != null && !podcast.IsRemoved() && podcast.Episodes.Any(x => x is {Removed: false}))
+            if (podcast != null && !podcast.IsRemoved() && podcast.Episodes.Any(x => x is { Removed: false }))
             {
                 var publicPodcast = new PublicPodcast(podcast.Id)
                 {
@@ -54,7 +51,7 @@ public class PublicDatabasePublisher(
                         : podcast.YouTubePlaylistId
                 };
                 publicPodcast.Episodes = podcast.Episodes
-                    .Where(x => x is {Removed: false})
+                    .Where(x => x is { Removed: false })
                     .Select(oldEpisode => new PublicEpisode
                     {
                         Id = oldEpisode.Id,

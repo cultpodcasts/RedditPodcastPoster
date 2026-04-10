@@ -1,0 +1,19 @@
+{
+  "profiles": {
+    "FindDuplicateEpisodes (dry-run)": {
+      "commandName": "Project"
+    },
+    "FindDuplicateEpisodes (verify-deduplication)": {
+      "commandName": "Project",
+      "commandLineArgs": "-v"
+    },
+    "FindDuplicateEpisodes (delete-no-diff)": {
+      "commandName": "Project",
+      "commandLineArgs": "--delete-no-diff"
+    },
+    "FindDuplicateEpisodes (live)": {
+      "commandName": "Project",
+      "commandLineArgs": "-n"
+    }
+  }
+}

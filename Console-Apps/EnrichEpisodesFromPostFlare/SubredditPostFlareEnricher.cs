@@ -3,15 +3,13 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subreddit;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace EnrichEpisodesFromPostFlare;
 
 public class SubredditPostFlareEnricher(
     ISubredditPostProvider subredditPostProvider,
     ISubredditRepository subredditRepository,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ILogger<SubredditPostFlareEnricher> logger)
 {

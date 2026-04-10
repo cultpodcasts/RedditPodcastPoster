@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Episodes;
@@ -20,25 +21,39 @@ public class RecentPodcastEpisodeCategoriser(
 
         var recentPodcastEpisodes = await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(since);
 
+        logger.LogWarning("{method}: Retrieved recent active episodes. Count: {Count}. {json}", nameof(Categorise),
+            recentPodcastEpisodes.Count,
+            JsonSerializer.Serialize(recentPodcastEpisodes.Select(x => new
+                { x.Podcast.Name, x.Episode.Title, x.Episode.Id })));
+
         var podcastEpisodesToCategorise = recentPodcastEpisodes
             .Where(x => !x.Episode.Subjects.Any())
             .ToList();
+
+        logger.LogWarning("{method}: Consider for categorisation. Count: {Count}. {json}", nameof(Categorise),
+            podcastEpisodesToCategorise.Count,
+            JsonSerializer.Serialize(
+                podcastEpisodesToCategorise.Select(x => new { x.Podcast.Name, x.Episode.Title, x.Episode.Id })));
+
 
         if (!podcastEpisodesToCategorise.Any())
         {
             return updatedEpisodes;
         }
 
-        logger.LogInformation(
-            "Categorising podcasts: {podcastNamesAndGuids}",
+        logger.LogWarning(
+            "{method}: Categorising podcasts: {podcastNamesAndGuids}",
+            nameof(Categorise),
             string.Join(", ", podcastEpisodesToCategorise
                 .GroupBy(x => x.Podcast.Id)
                 .Select(g => $"'{g.First().Podcast.Name}' ({g.Key})")));
 
         foreach (var podcastEpisode in podcastEpisodesToCategorise)
         {
-            logger.LogInformation("Categorise podcast '{Name}'.", podcastEpisode.Podcast.Name);
-            logger.LogInformation("Categorise episode '{episodeTitle}'.", podcastEpisode.Episode.Title);
+            logger.LogWarning("{method}: Categorise podcast '{Name}'.", nameof(Categorise),
+                podcastEpisode.Podcast.Name);
+            logger.LogWarning("{method}: Categorise episode '{episodeTitle}'.", nameof(Categorise),
+                podcastEpisode.Episode.Title);
 
             var updatedEpisode = await categoriser.Categorise(
                 podcastEpisode.Episode,
@@ -50,9 +65,9 @@ public class RecentPodcastEpisodeCategoriser(
             if (updatedEpisode)
             {
                 updatedEpisodes.Add(podcastEpisode.Episode.Id);
-                logger.LogInformation(
-                    "{class}: Podcast '{podcastName}' with id '{podcastId}' and episode with id {episodeId}, updated subjects: {subjects}.",
-                    nameof(RecentPodcastEpisodeCategoriser),
+                logger.LogWarning(
+                    "{method}: Podcast '{podcastName}' with id '{podcastId}' and episode with id {episodeId}, updated subjects: {subjects}.",
+                    nameof(Categorise),
                     podcastEpisode.Podcast.Name,
                     podcastEpisode.Podcast.Id,
                     podcastEpisode.Episode.Id,

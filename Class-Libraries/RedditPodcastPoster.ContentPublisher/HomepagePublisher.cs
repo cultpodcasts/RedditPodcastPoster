@@ -11,18 +11,18 @@ using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
+using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace RedditPodcastPoster.ContentPublisher;
 
 public class HomepagePublisher(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ITextSanitiser textSanitiser,
     ISubjectsProvider subjectsProvider,
     IAmazonS3 client,
     IOptions<ContentOptions> contentOptions,
-    ILookupRepositoryV2 lookupRepository,
+    ILookupRepository lookupRepository,
     ILogger<HomepagePublisher> logger)
     : IHomepagePublisher
 {

@@ -1,7 +1,5 @@
 ﻿using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
@@ -51,7 +49,7 @@ public static class FindAppleEpisodeRequestFactory
             release,
             podcast?.ReleaseAuthority,
             criteria.Duration,
-            podcast?.YouTubePublishingDelay()??null);
+            podcast?.YouTubePublishingDelay() ?? null);
     }
 
     public static FindAppleEpisodeRequest Create(long podcastId, long episodeId)

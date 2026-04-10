@@ -5,7 +5,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Common.Episodes;
 
 public class EpisodeResolver(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ILogger<EpisodeResolver> logger)
     : IEpisodeResolver

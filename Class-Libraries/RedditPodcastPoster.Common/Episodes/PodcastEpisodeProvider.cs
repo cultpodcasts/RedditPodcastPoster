@@ -3,8 +3,6 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 
@@ -12,7 +10,7 @@ namespace RedditPodcastPoster.Common.Episodes;
 /// Implementation that provides podcast episodes from detached IEpisodeRepository.
 /// </summary>
 public class PodcastEpisodeProvider(
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IRecentEpisodeCandidatesProvider recentEpisodeCandidatesProvider,
     IPodcastEpisodeFilter podcastEpisodeFilter,
@@ -54,7 +52,8 @@ public class PodcastEpisodeProvider(
         }
 
         var episodes = await episodeRepository.GetByPodcastId(podcastId)
-            .Where(x => x.Release >= GetReleasedSince(_postingCriteria.TweetDays) && x is { Tweeted: false, Ignored: false, Removed: false })
+            .Where(x => x.Release >= GetReleasedSince(_postingCriteria.TweetDays) &&
+                        x is { Tweeted: false, Ignored: false, Removed: false })
             .ToArrayAsync();
 
         var podcastEpisodes = await podcastEpisodeFilter.GetMostRecentUntweetedEpisodes(
@@ -97,7 +96,8 @@ public class PodcastEpisodeProvider(
         }
 
         var episodes = await episodeRepository.GetByPodcastId(podcastId)
-            .Where(x => x.Release >= GetReleasedSince(_postingCriteria.BlueSkyDays) && x is { Ignored: false, Removed: false })
+            .Where(x => x.Release >= GetReleasedSince(_postingCriteria.BlueSkyDays) &&
+                        x is { Ignored: false, Removed: false })
             .ToArrayAsync();
 
         var podcastEpisodes = await podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes(
@@ -120,7 +120,8 @@ public class PodcastEpisodeProvider(
 
         var sharedRecentCandidateThreshold = GetReleasedSince(_postingCriteria.MaxDays);
 
-        var candidateEpisodes = (await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(sharedRecentCandidateThreshold))
+        var candidateEpisodes =
+            (await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(sharedRecentCandidateThreshold))
             .Where(x => x.Episode.Release >= releasedSince)
             .Where(candidateFilter)
             .ToArray();

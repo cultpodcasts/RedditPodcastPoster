@@ -6,7 +6,6 @@ using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
 
 namespace RedditPodcastPoster.Subjects;
 

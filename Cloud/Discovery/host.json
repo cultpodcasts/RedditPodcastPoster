@@ -1,5 +1,6 @@
 {
   "version": "2.0",
+  "telemetryMode": "OpenTelemetry",
   "extensions": {
     "durableTask": {
       "maxConcurrentActivityFunctions": 1,
@@ -14,19 +15,12 @@
     }
   },
   "logging": {
-    "applicationInsights": {
-      "samplingSettings": {
-        "excludedTypes": "Trace;Request",
-        "isEnabled": true
-      },
-      "enableLiveMetricsFilters": true
-    },
     "logLevel": {
       "default": "None",
       "Host.Results": "Warning",
       "Function": "Warning",
-      "RedditPodcastPoster": "Warning",
-      "Discovery": "Warning"
+      "RedditPodcastPoster": "Information",
+      "Discovery": "Information"
     }
   },
   "functionTimeout": "00:10:00"

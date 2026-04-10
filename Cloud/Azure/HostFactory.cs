@@ -1,5 +1,6 @@
-﻿using Microsoft.Azure.Functions.Worker;
+﻿using Azure.Monitor.OpenTelemetry.Exporter;
 using Microsoft.Azure.Functions.Worker.Builder;
+using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -19,12 +20,11 @@ public static class HostFactory
 
         if (!isDevelopment)
         {
-            builder.Services
-                .AddApplicationInsightsTelemetryWorkerService()
-                .ConfigureFunctionsApplicationInsights();
-            builder.Logging.RemoveDefaultApplicationInsightsWarningRule();
-            builder.Logging.RemoveInformationRules();
-            builder.Logging.SetMinimumLevel(LogLevel.Warning);
+            builder.Services.AddOpenTelemetry()
+                .UseFunctionsWorkerDefaults()
+                .UseAzureMonitorExporter();
+            //builder.Logging.RemoveInformationRules();
+            //builder.Logging.SetMinimumLevel(LogLevel.Warning);
         }
         else
         {

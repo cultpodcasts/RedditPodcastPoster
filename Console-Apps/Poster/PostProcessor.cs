@@ -13,7 +13,7 @@ using RedditPodcastPoster.UrlShortening;
 namespace Poster;
 
 public class PostProcessor(
-    IPodcastRepositoryV2 repository,
+    IPodcastRepository repository,
     IEpisodeRepository episodeRepository,
     ITweeter tweeter,
     IPodcastEpisodesPoster podcastEpisodesPoster,
@@ -58,19 +58,19 @@ public class PostProcessor(
                 throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
             }
 
-            var podcastId = await repository.GetBy(x => x.Removed != true && x.Id == episode.PodcastId);
-            if (podcastId == null)
+            var podcast = await repository.GetPodcast(episode.PodcastId);
+            if (podcast == null || podcast.Removed == true)
             {
                 throw new ArgumentException(
-                    $"Podcast with id '{episode.PodcastId}' not found for episode-id '{request.EpisodeId.Value}'.");
+                    $"Podcast with id '{episode.PodcastId}' not found for episode-id '{request.EpisodeId.Value}' (Removed='{podcast?.Removed}').");
             }
 
-            podcastIds = [podcastId.Id];
+            podcastIds = [podcast.Id];
         }
         else if (request.PodcastId.HasValue)
         {
-            var podcast = await repository.GetBy(x => x.Removed != true && x.Id == request.PodcastId.Value);
-            if (podcast == null)
+            var podcast = await repository.GetPodcast(request.PodcastId.Value);
+            if (podcast == null || podcast.Removed == true)
             {
                 throw new ArgumentException($"Podcast with id '{request.PodcastId.Value}' not found.");
             }
@@ -120,11 +120,10 @@ public class PostProcessor(
                 throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
             }
 
-            var selectedPodcast = await repository.GetBy(x => x.Removed != true && x.Id == episode.PodcastId);
-            if (selectedPodcast == null)
+            var selectedPodcast = await repository.GetPodcast(episode.PodcastId);
+            if (selectedPodcast == null || selectedPodcast.Removed == true)
             {
-                throw new ArgumentException(
-                    $"Podcast with id '{episode.PodcastId}' not found for episode-id '{request.EpisodeId.Value}'.");
+                throw new ArgumentException($"Podcast with id '{episode.PodcastId}' not found for episode-id '{request.EpisodeId.Value}' (Removed='{selectedPodcast?.Removed}').");
             }
 
             var podcastEpisode = new PodcastEpisode(selectedPodcast, episode);

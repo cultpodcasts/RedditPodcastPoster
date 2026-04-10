@@ -1,8 +1,6 @@
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using Episode = RedditPodcastPoster.Models.V2.Episode;
-using Podcast = RedditPodcastPoster.Models.V2.Podcast;
 
 namespace RedditPodcastPoster.Persistence;
 

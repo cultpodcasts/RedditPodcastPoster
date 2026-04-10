@@ -7,7 +7,7 @@ namespace RemoveEpisodes;
 
 public class Processor(
     SearchClient searchClient,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ILogger<Processor> logger)
 {

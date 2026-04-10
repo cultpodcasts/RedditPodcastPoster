@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.PodcastServices;
 public class PodcastsUpdater(
     IIndexablePodcastIdProvider indexablePodcastIdProvider,
     IPodcastUpdater podcastUpdater,
-    IPodcastRepositoryV2 podcastRepository,
+    IPodcastRepository podcastRepository,
     IFlushable flushableCaches,
     ILogger<PodcastsUpdater> logger)
     : IPodcastsUpdater

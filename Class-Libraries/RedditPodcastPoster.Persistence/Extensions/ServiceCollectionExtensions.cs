@@ -12,29 +12,29 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddRepositories()
         {
             return services
-                .AddSingleton<ICosmosDbClientFactoryV2, CosmosDbClientFactoryV2>()
+                .AddSingleton<ICosmosDbClientFactory, CosmosDbClientFactory>()
                 .AddKeyedSingleton<CosmosClient>("v2", (sp, _) =>
-                    sp.GetRequiredService<ICosmosDbClientFactoryV2>().Create())
+                    sp.GetRequiredService<ICosmosDbClientFactory>().Create())
                 .AddSingleton<ICosmosDbContainerFactory, CosmosDbContainerFactory>()
                 .AddSingleton<IEpisodeMatcher, EpisodeMatcher>()
                 .AddSingleton<IEpisodeMerger, EpisodeMerger>()
-                .AddSingleton<IPodcastRepositoryV2>(s =>
+                .AddSingleton<IPodcastRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
-                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PodcastRepositoryV2>>();
-                    return new PodcastRepositoryV2(containerFactory.CreatePodcastsContainer(), logger);
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PodcastRepository>>();
+                    return new PodcastRepository(containerFactory.CreatePodcastsContainer(), logger);
                 })
-                .AddSingleton<ILookupRepositoryV2>(s =>
+                .AddSingleton<ILookupRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
-                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LookupRepositoryV2>>();
-                    return new LookupRepositoryV2(containerFactory.CreateLookUpsContainer(), logger);
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LookupRepository>>();
+                    return new LookupRepository(containerFactory.CreateLookUpsContainer(), logger);
                 })
                 .AddSingleton<IEpisodeRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
-                    var lookupRepository = s.GetRequiredService<ILookupRepositoryV2>();
-                    var podcastRepository = s.GetRequiredService<IPodcastRepositoryV2>();
+                    var lookupRepository = s.GetRequiredService<ILookupRepository>();
+                    var podcastRepository = s.GetRequiredService<IPodcastRepository>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<EpisodeRepository>>();
                     return new EpisodeRepository(
                         containerFactory.CreateEpisodesContainer(),
@@ -50,7 +50,7 @@ public static class ServiceCollectionExtensions
                 })
                 .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
-                .BindConfiguration<CosmosDbSettingsV2>("cosmosdbv2");
+                .BindConfiguration<CosmosDbSettings>("cosmosdbv2");
         }
 
         public IServiceCollection AddFileRepository(string containerName = "",

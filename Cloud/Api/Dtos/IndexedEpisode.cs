@@ -4,6 +4,9 @@ namespace Api.Dtos;
 
 public class IndexedEpisode
 {
+    [JsonPropertyName("podcastId")]
+    public required Guid PodcastId { get; set; }
+
     [JsonPropertyName("episodeId")]
     public required Guid EpisodeId { get; set; }
 

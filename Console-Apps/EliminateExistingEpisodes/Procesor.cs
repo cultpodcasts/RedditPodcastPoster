@@ -3,14 +3,14 @@ using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.DependencyInjection;
-using RedditPodcastPoster.Models.V2;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Text.EliminationTerms;
 
 namespace EliminateExistingEpisodes;
 
 public class Processor(
-    IPodcastRepositoryV2 repository,
+    IPodcastRepository repository,
     IEpisodeRepository episodeRepository,
     IPodcastFilter podcastFilter,
     IAsyncInstance<IEliminationTermsProvider> eliminationTermsProviderInstance,
