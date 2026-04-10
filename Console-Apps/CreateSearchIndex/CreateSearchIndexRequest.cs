@@ -19,11 +19,15 @@ public class CreateSearchIndexRequest
     [Option('r', "run-indexer", Required = false, Default = false, HelpText = "Run the indexer")]
     public bool RunIndexer { get; set; }
 
-    [Option("run-indexer-max-attempts", Required = false, Default = 10,
-        HelpText = "Max automated rerun attempts when indexer times out")]
+    [Option(shortName:'m', "run-indexer-max-attempts", Required = false, Default = 10, HelpText = "Max automated rerun attempts when indexer times out")]
     public int RunIndexerMaxAttempts { get; set; }
 
-    [Option("run-indexer-poll-seconds", Required = false, Default = 10,
-        HelpText = "Polling interval in seconds when monitoring indexer execution")]
+    [Option(shortName: 'p', "run-indexer-poll-seconds", Required = false, Default = 10, HelpText = "Polling interval in seconds when monitoring indexer execution")]
     public int RunIndexerPollSeconds { get; set; }
+
+    [Option(shortName: 'b', "not-break-on-duplicates", Required = false, Default = true, HelpText = "Do not break the indexer run if duplicates are found")]
+    public bool NotBreakOnDuplicates { get; set; }
+
+    [Option(shortName: 'w', "run-indexer-max-wait-minutes", Required = false, Default = 90, HelpText = "Maximum minutes to wait for a single indexer run before treating it as a retryable stall")]
+    public int RunIndexerMaxWaitMinutes { get; set; }
 }

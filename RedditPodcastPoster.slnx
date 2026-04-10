@@ -146,6 +146,8 @@
     <Project Path="Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubeOnlyPodcasts.csproj" />
     <Project Path="Console-Apps/EpisodeDriftDetector/EpisodeDriftDetector.csproj" />
 
+    <Project Path="Console-Apps/FindDuplicateEpisodes/FindDuplicateEpisodes.csproj" />
+
     <Project Path="Console-Apps/FixDatesFromApple/FixDatesFromApple.csproj" />
 
     <Project Path="Console-Apps/FlairPublisher/FlairPublisher.csproj" />

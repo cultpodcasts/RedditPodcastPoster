@@ -74,7 +74,14 @@ public partial class CreateSearchIndexProcessor(
         if (request.RunIndexer)
         {
             await LogCosmosEpisodeCounts();
-            await LogPotentialDuplicatePair();
+            var duplicates= await LogPotentialDuplicatePair();
+            if (duplicates && !request.NotBreakOnDuplicates)
+            {
+                var message = "Potential duplicate episode pairs were found in Cosmos matching the indexer filter. Break-on-duplicates is enabled, so stopping the indexer run to prevent potential data issues. Please investigate and resolve duplicates before re-running.";
+                var ex= new InvalidOperationException(message);
+                logger.LogError(ex, message);
+                throw ex;
+            }
             await RunIndexerWithRetries(request);
         }
     }
@@ -106,6 +113,7 @@ public partial class CreateSearchIndexProcessor(
 
         var maxAttempts = Math.Max(1, request.RunIndexerMaxAttempts);
         var pollInterval = TimeSpan.FromSeconds(Math.Max(2, request.RunIndexerPollSeconds));
+        var maxWaitDuration = TimeSpan.FromMinutes(Math.Max(1, request.RunIndexerMaxWaitMinutes));
 
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
@@ -128,7 +136,7 @@ public partial class CreateSearchIndexProcessor(
                 ? attemptTriggeredAtUtc.AddSeconds(-1)
                 : (DateTimeOffset?)null;
 
-            var status = await WaitForIndexerCompletion(request.IndexerName, pollInterval, minRunStartUtc);
+            var status = await WaitForIndexerCompletion(request.IndexerName, pollInterval, minRunStartUtc, maxWaitDuration);
             var result = GetCorrelatedExecutionResult(status, minRunStartUtc);
             if (result == null)
             {
@@ -140,6 +148,25 @@ public partial class CreateSearchIndexProcessor(
                 LogFinalSummary("NoCorrelatedExecutionResult");
                 throw new InvalidOperationException(
                     $"Indexer attempt {attempt}/{maxAttempts} completed without a correlated execution result for indexer '{request.IndexerName}'.");
+            }
+
+            if (result.Status == IndexerExecutionStatus.InProgress ||
+                result.Status == IndexerExecutionStatus.Reset)
+            {
+                executedAttempts++;
+                logger.LogWarning(
+                    "Indexer attempt {Attempt}/{MaxAttempts}: max wait exceeded with indexer still reporting {Status}; treating as retryable stall.",
+                    attempt,
+                    maxAttempts,
+                    result.Status);
+                if (attempt < maxAttempts)
+                {
+                    continue;
+                }
+
+                LogFinalSummary($"MaxAttemptsReachedWithStallStatus:{result.Status}");
+                throw new InvalidOperationException(
+                    $"Indexer '{request.IndexerName}' reached max attempts ({maxAttempts}) stalled with status '{result.Status}'.");
             }
 
             executedAttempts++;
@@ -230,8 +257,13 @@ public partial class CreateSearchIndexProcessor(
     private async Task<SearchIndexerStatus> WaitForIndexerCompletion(
         string indexerName,
         TimeSpan pollInterval,
-        DateTimeOffset? minRunStartUtc = null)
+        DateTimeOffset? minRunStartUtc = null,
+        TimeSpan? maxWaitDuration = null)
     {
+        var deadline = maxWaitDuration.HasValue
+            ? DateTimeOffset.UtcNow.Add(maxWaitDuration.Value)
+            : (DateTimeOffset?)null;
+
         while (true)
         {
             var statusResponse = await searchIndexerClient.GetIndexerStatusAsync(indexerName);
@@ -239,6 +271,14 @@ public partial class CreateSearchIndexProcessor(
             var result = GetCorrelatedExecutionResult(status, minRunStartUtc);
             if (result == null)
             {
+                if (deadline.HasValue && DateTimeOffset.UtcNow >= deadline.Value)
+                {
+                    logger.LogWarning(
+                        "WaitForIndexerCompletion: max wait of {MaxWaitDuration} exceeded without finding a correlated execution result; returning current status.",
+                        maxWaitDuration);
+                    return status;
+                }
+
                 await Task.Delay(pollInterval);
                 continue;
             }
@@ -246,6 +286,15 @@ public partial class CreateSearchIndexProcessor(
             if (result.Status == IndexerExecutionStatus.InProgress ||
                 result.Status == IndexerExecutionStatus.Reset)
             {
+                if (deadline.HasValue && DateTimeOffset.UtcNow >= deadline.Value)
+                {
+                    logger.LogWarning(
+                        "WaitForIndexerCompletion: max wait of {MaxWaitDuration} exceeded with indexer still reporting {Status}; returning stale status to caller.",
+                        maxWaitDuration,
+                        result.Status);
+                    return status;
+                }
+
                 await Task.Delay(pollInterval);
                 continue;
             }
@@ -379,32 +428,38 @@ public partial class CreateSearchIndexProcessor(
         if (!string.IsNullOrWhiteSpace(request.IndexerName))
         {
             result = await searchIndexerClient.DeleteIndexerAsync(request.IndexerName);
-            if (result.Status != (int)HttpStatusCode.NoContent || result.IsError)
+            if (result.Status != (int)HttpStatusCode.NoContent && result.Status != (int)HttpStatusCode.NotFound)
             {
-                throw new InvalidOperationException($"Unable to tear-down indexer '{request.IndexerName}'.");
+                throw new InvalidOperationException(
+                    $"Unable to tear-down indexer '{request.IndexerName}': HTTP {result.Status} {result.ReasonPhrase}.");
             }
+
+            logger.LogInformation("Tear-down indexer '{IndexerName}': HTTP {Status}.", request.IndexerName, result.Status);
         }
 
         if (!string.IsNullOrWhiteSpace(request.IndexName))
         {
             result = await searchIndexClient.DeleteIndexAsync(request.IndexName);
-            if (result.Status != (int)HttpStatusCode.NoContent || result.IsError)
+            if (result.Status != (int)HttpStatusCode.NoContent && result.Status != (int)HttpStatusCode.NotFound)
             {
-                throw new InvalidOperationException($"Unable to tear-down index '{request.IndexName}'.");
+                throw new InvalidOperationException(
+                    $"Unable to tear-down index '{request.IndexName}': HTTP {result.Status} {result.ReasonPhrase}.");
             }
+
+            logger.LogInformation("Tear-down index '{IndexName}': HTTP {Status}.", request.IndexName, result.Status);
         }
 
         if (!string.IsNullOrWhiteSpace(request.DataSourceName))
         {
             result = await searchIndexerClient.DeleteDataSourceConnectionAsync(request.DataSourceName);
-            if (result.Status != (int)HttpStatusCode.NoContent || result.IsError)
+            if (result.Status != (int)HttpStatusCode.NoContent && result.Status != (int)HttpStatusCode.NotFound)
             {
-                throw new InvalidOperationException($"Unable to tear-down data-source '{request.DataSourceName}'.");
+                throw new InvalidOperationException(
+                    $"Unable to tear-down data-source '{request.DataSourceName}': HTTP {result.Status} {result.ReasonPhrase}.");
             }
-        }
 
-        logger.LogWarning(
-            "Ensure that the indexer has run and completed indexing ALL records. The indexer will time-out at 10,000 records, so it must be re-run until all records are re-indexed.");
+            logger.LogInformation("Tear-down data-source '{DataSourceName}': HTTP {Status}.", request.DataSourceName, result.Status);
+        }
     }
 
     private async Task<SearchIndex?> TryGetIndex(string indexName)
@@ -495,7 +550,7 @@ public partial class CreateSearchIndexProcessor(
             matchingIndexerFilter);
     }
 
-    private async Task LogPotentialDuplicatePair()
+    private async Task<bool> LogPotentialDuplicatePair()
     {
         using var cosmosClient = CreateCosmosClient();
         var container = cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.EpisodesContainer);
@@ -505,6 +560,7 @@ public partial class CreateSearchIndexProcessor(
                        WHERE {ActiveEpisodesFilter}";
         var iterator = container.GetItemQueryIterator<EpisodeDuplicateSample>(new QueryDefinition(query));
         var seen = new Dictionary<string, EpisodeDuplicateSample>(StringComparer.Ordinal);
+        var hasDuplicates = false;
 
         while (iterator.HasMoreResults)
         {
@@ -532,14 +588,23 @@ public partial class CreateSearchIndexProcessor(
                         item.PodcastName ?? string.Empty,
                         item.Title,
                         item.Release);
-                    return;
+                    hasDuplicates = true;
                 }
 
                 seen[fingerprint] = item;
             }
         }
 
-        logger.LogInformation("No potential duplicate episode pair was found in Cosmos for the current filter.");
+        if (!hasDuplicates)
+        {
+            logger.LogInformation("No potential duplicate episode pair was found in Cosmos for the current filter.");
+        }
+        else
+        {
+            logger.LogWarning("Potential duplicate episode pairs found. Run FindDuplicateEpisodes for detailed field comparison.");
+        }
+
+        return hasDuplicates;
     }
 
     private static string? CreateDuplicateFingerprint(EpisodeDuplicateSample item)
