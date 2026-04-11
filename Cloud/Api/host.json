@@ -4,6 +4,7 @@
   "logging": {
     "logLevel": {
       "default": "None",
+      "Host.Startup": "Information",
       "Host.Results": "Warning",
       "Function": "Warning",
       "RedditPodcastPoster": "Information",
