@@ -129,7 +129,7 @@ public class EpisodeHandler(
     {
         try
         {
-            var response = new EpisodePublishResponse();
+            EpisodePublishResponse response;
             var podcastEpisodeResolverResponse =
                 await podcastEpisodeResolver.ResolvePodcast(publishRequest.ToPodcastEpisodeResolverRequest(),
                     nameof(Publish));
@@ -144,6 +144,9 @@ public class EpisodeHandler(
             {
                 throw new ArgumentException(
                     $"Podcast for episode-id '{publishRequest.EpisodeId}' not found or removed.");
+            } else
+            {
+                response = new EpisodePublishResponse(podcastEpisodeResolverResponse.Podcast.Id);
             }
 
             var podcastEpisode = new PodcastEpisode(podcastEpisodeResolverResponse.Podcast,

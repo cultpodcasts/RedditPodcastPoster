@@ -2,7 +2,7 @@
 
 namespace Api.Dtos;
 
-public class EpisodePublishResponse
+public class EpisodePublishResponse(Guid PodcastId)
 {
     [JsonPropertyName("posted")]
     public bool? Posted { get; set; }
@@ -15,6 +15,9 @@ public class EpisodePublishResponse
 
     [JsonPropertyName("failedTweetContent")]
     public string? FailedTweetContent { get; set; }
+
+    [JsonPropertyName("podcastId")]
+    public Guid? PodcastId { get; init; } = PodcastId;
 
     public bool Updated()
     {
