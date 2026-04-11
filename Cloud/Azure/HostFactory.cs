@@ -13,12 +13,15 @@ public static class HostFactory
     {
         var builder = FunctionsApplication.CreateBuilder(args);
         var isDevelopment = builder.Configuration.IsDevelopment();
+        var appInsightsConnectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+        var enableAzureMonitorExporter = !isDevelopment && !string.IsNullOrWhiteSpace(appInsightsConnectionString);
+
         builder.Services.AddLogging();
         builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
 
         builder.Logging.ConsoleWriteConfig();
 
-        if (!isDevelopment)
+        if (enableAzureMonitorExporter)
         {
             builder.Services.AddOpenTelemetry()
                 .UseFunctionsWorkerDefaults()
