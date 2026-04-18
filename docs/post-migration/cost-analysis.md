@@ -7,6 +7,67 @@ After the Episode Detachment Migration (completed ~March 11), daily Azure costs 
 1. The detached-episode model has increased the number and cost of Cosmos DB queries executed by the Azure Functions, inflating **Function compute time** (GB-s billing).
 2. **Historically, the old Cosmos DB account (`cultpodcasts-ukdb`) was being connected to** by Function app startup, generating background health-check calls before `P0` remediation.
 
+## Latest Review: April 2026 spike (new)
+
+### Evidence from user export (`C:\Users\jonbr\Downloads\cost-analysis.csv`)
+
+- Source file columns: `UsageDate`, `ResourceGroupName`, `CostUSD`, `Cost`, `Currency`.
+- Daily totals (USD) show a clear inflection on **2026-04-16** and **2026-04-17**:
+  - `2026-04-15`: `~$0.07`
+  - `2026-04-16`: `~$0.24`
+  - `2026-04-17`: `~$0.30`
+- The increase is concentrated in **`automatedinfra`**:
+  - `2026-04-15`: `~$0.01`
+  - `2026-04-16`: `~$0.19`
+  - `2026-04-17`: `~$0.24`
+- `automateddata` remained relatively steady in the same window (`~$0.05–$0.06/day`).
+- Conclusion: this spike is infrastructure/execution-path driven, not primarily Cosmos data-plane growth.
+
+### Live telemetry check for overlap and duration drift (Cultpodcasts subscription)
+
+- Validated against subscription `a6b8f1a2-6163-41bc-aa6d-e33928939a6e` using the exact Application Insights resource `ai-infra`.
+- Important correction: earlier workspace-only query appeared truncated because the resource query defaulted to a short lookback; rerunning with explicit `hours` retrieved full windows for both pre-spike and spike analysis.
+- Windows analyzed:
+  - Pre-spike: `2026-04-09..2026-04-15`
+  - Spike: `2026-04-16..2026-04-18`
+
+- Concurrent execution comparison (indexer/discovery orchestration + activities):
+  - **Pre**: `MaxConcurrent=10`, `AvgConcurrent=4.009`, `MinutesWithOverlap=739`, `TotalActiveMinutes=894`
+  - **Spike**: `MaxConcurrent=10`, `AvgConcurrent=4.128`, `MinutesWithOverlap=231`, `TotalActiveMinutes=296`
+
+- Duration deltas (Pre → Spike):
+  - `orchestration:HourlyOrchestration`: `63.0s` → `62.6s`
+  - `activity:Indexer`: `16.53s` → `17.02s`
+  - `orchestration:HalfHourlyOrchestration`: `14.76s` → `13.45s`
+  - `activity:Poster`: `2.97s` → `2.71s`
+  - `activity:Publisher`: `7.67s` → `7.21s`
+  - `activity:Tweet`: `13.00s` → `12.91s`
+  - `activity:Bluesky`: `2.08s` → `1.80s`
+  - `activity:Categoriser`: `4.23s` → `3.45s`
+  - Discovery path: `orchestration:Orchestration` `139.08s` → `48.47s`, `activity:Discover` `138.74s` → `48.14s`
+
+- Per-function cost proxy (normalized execution-time/day, Pre → Spike):
+  - `orchestration:HourlyOrchestration`: `1,512,537 ms/day` → `1,230,746 ms/day` (`-18.6%`)
+  - `activity:Indexer`: `793,282 ms/day` → `669,305 ms/day` (`-15.6%`)
+  - `orchestration:HalfHourlyOrchestration`: `354,288 ms/day` → `263,962 ms/day` (`-25.5%`)
+  - `activity:Publisher`: `368,307 ms/day` → `283,769 ms/day` (`-23.0%`)
+  - All measured indexer/discovery functions are flat/down on this execution-time proxy; no single function shows a spike-period blow-up.
+
+- Cost concentration signal (share of request execution time):
+  - **Pre top shares**: `orchestration:HourlyOrchestration 30.88%`, `activity:Indexer 16.19%`, Discovery pair combined `22.69%`.
+  - **Spike top shares**: `orchestration:HourlyOrchestration 36.70%`, `activity:Indexer 19.96%`, Discovery pair combined `9.60%`.
+  - Top two (`HourlyOrchestration` + `Indexer`) rose from ~`47.07%` to ~`56.66%` share, so elevated-period cost proxy is concentrated in these two functions, not broad across all functions.
+
+- Interpretation: durable overlap exists both before and during spike; measured request-time by function does not indicate one runaway function. Elevated cost is likely meter/rate/scale behavior outside simple request-duration growth.
+
+### Explicit next steps
+
+1. Deploy the infrastructure and trigger changes to production.
+2. Verify `Infrastructure/function.bicep` uses valid Flex Consumption bounds (`maxInstanceCount` floor `40`) and confirm no sub-40 overrides remain in `Infrastructure/functions.bicep`.
+3. Track 48h daily totals; expected result is `automatedinfra` returning toward pre-spike run-rate.
+4. Pull meter-level Cost Details for `automatedinfra` for Apr 15–18 and isolate top charged meters (`On Demand Execution Time`, `Total Executions`, and any storage-related meters) with day-level deltas.
+5. If costs remain elevated after deployment, correlate meter spikes with hourly function invocation counts and drain/restart events from `requests` (`/admin/host/drain*`, `Hourly`, `HalfHourly`, `DiscoveryTrigger`).
+
 ## Latest Review: Cosmos Query Tuning (last 2 days)
 
 ### Changes now in place
@@ -390,7 +451,7 @@ The HalfHourly orchestration runs `Poster` + `Publisher` + `Bluesky`. This doubl
 | **P2** | **Fix PostNewEpisodes over-fetch** | Varies by podcast count | **Completed** |
 | **P3 (interim)** | **Weekly cached count refresh** | Eliminates steady-state per-run count scan | **Completed** |
 | P4 | Replace cross-partition recent queries with bounded active-subset fan-out | Varies (sensitive to active-podcast cardinality) | ~$0.00–$0.04 |
-| P5 | Consolidate episode discovery | ~120 cross-partition queries/day | ~$0.05–0.08 |
+| P5 | Consolidate episode discovery | ~120 cross-partition queries/day | ~$0.05–$0.08 |
 | P6 | Reduce HalfHourly scope | ~96 cross-partition queries/day | ~$0.05–$0.08 |
 | | **Remaining estimated** | | **~$0.10–$0.20/day** |
 

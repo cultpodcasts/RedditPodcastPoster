@@ -1,5 +1,6 @@
 using Grpc.Core;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.DurableTask;
 using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
 
@@ -14,10 +15,20 @@ public class DiscoveryTrigger(ILogger<DiscoveryTrigger> logger)
 #endif
         )]
         TimerInfo myTimer,
-        [DurableClient] DurableTaskClient client)
+        [DurableClient] DurableTaskClient client,
+        CancellationToken cancellationToken)
     {
         logger.LogInformation("{nameofDiscoveryTrigger} {nameofRun} initiated.",
             nameof(DiscoveryTrigger), nameof(Run));
+
+        if (await HasActiveOrchestrationInstanceAsync(client, nameof(Orchestration), cancellationToken))
+        {
+            logger.LogWarning(
+                "{nameofDiscoveryTrigger} {nameofRun} skipped. Existing '{nameofOrchestration}' instance is still active.",
+                nameof(DiscoveryTrigger), nameof(Run), nameof(Orchestration));
+            return;
+        }
+
         string instanceId;
         try
         {
@@ -40,5 +51,34 @@ public class DiscoveryTrigger(ILogger<DiscoveryTrigger> logger)
 
         logger.LogInformation("{nameofDiscoveryTrigger} {nameofRun} complete. Instance-id= '{instanceId}'.",
             nameof(DiscoveryTrigger), nameof(Run), instanceId);
+    }
+
+    private static async Task<bool> HasActiveOrchestrationInstanceAsync(
+        DurableTaskClient client,
+        string orchestrationName,
+        CancellationToken cancellationToken)
+    {
+        var query = new OrchestrationQuery
+        {
+            CreatedFrom = DateTime.UtcNow.Subtract(TimeSpan.FromDays(2)),
+            Statuses =
+            [
+                OrchestrationRuntimeStatus.Pending,
+                OrchestrationRuntimeStatus.Running,
+                OrchestrationRuntimeStatus.ContinuedAsNew
+            ]
+        };
+
+        await foreach (var metadata in client.GetAllInstancesAsync(query))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (metadata.Name == new TaskName(orchestrationName))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

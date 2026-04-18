@@ -36,55 +36,24 @@ using var host = builder.Build();
 var podcastRepository = host.Services.GetRequiredService<IPodcastRepository>();
 var episodeRepository = host.Services.GetRequiredService<IEpisodeRepository>();
 
-Console.WriteLine("🔧 Bulk-fixing podcasts' LatestReleased based on recent episodes...\n");
-
-var since = DateTime.UtcNow.AddDays(-7);
-
-// Find episodes released in the past week
-var recentEpisodes = await episodeRepository
-    .GetAllBy(x => x.Release >= since && !x.Removed)
-    .ToArrayAsync();
-
-Console.WriteLine($"📺 Found {recentEpisodes.Length} episodes released in the past week\n");
-
-// Group by podcast ID and order by release descending
-var groupedByPodcast = recentEpisodes
-    .GroupBy(x => x.PodcastId)
-    .OrderByDescending(g => g.Max(x => x.Release))
-    .ToArray();
-
-Console.WriteLine($"📻 Found {groupedByPodcast.Length} podcasts with recent episodes\n");
-
-var updated = 0;
-
-foreach (var podcastGroup in groupedByPodcast)
+var podcast= await podcastRepository.GetBy(x => x.Name == args[0]);
+if (podcast == null) 
 {
-    var podcastId = podcastGroup.Key;
-    var mostRecentEpisode = podcastGroup.OrderByDescending(x => x.Release).First();
-    
-    var podcast = await podcastRepository.GetPodcast(podcastId);
-    if (podcast == null)
+    Console.WriteLine($"Podcast with name '{args[0]}' not found.");
+    return;
+}
+var episodes =  episodeRepository.GetByPodcastId(podcast.Id);
+await foreach (var episode in episodes)
+{
+    episode.SpotifyId= string.Empty;
+    episode.Urls.Spotify = null;
+    if (episode.Images != null)
     {
-        Console.WriteLine($"⚠️  Podcast with id {podcastId} not found\n");
-        continue;
+        episode.Images.Spotify = null;
     }
-
-    // Check if LatestReleased needs updating
-    if (podcast.LatestReleased == null || podcast.LatestReleased < mostRecentEpisode.Release)
-    {
-        var oldValue = podcast.LatestReleased;
-        podcast.LatestReleased = mostRecentEpisode.Release;
-        await podcastRepository.Save(podcast);
-        updated++;
-
-        Console.WriteLine($"✅ {podcast.Name}");
-        Console.WriteLine($"   Old LatestReleased: {oldValue:O}");
-        Console.WriteLine($"   New LatestReleased: {mostRecentEpisode.Release:O}");
-        Console.WriteLine($"   Episode: {mostRecentEpisode.Title}\n");
-    }
+    await episodeRepository.Save(episode);
 }
 
-Console.WriteLine($"🎉 Updated {updated} podcasts");
 
 string GetBasePath()
 {

@@ -66,11 +66,12 @@ public class CategorisePodcastEpisodesProcessor(
                     {
                         updatedEpisodeIds.Add(podcastEpisode.Id);
                     }
-                }
 
-                if (request.Commit)
-                {
-                    await repository.Save(podcast);
+                    if (request.Commit)
+                    {
+                        await episodeRepository.Save(podcastEpisode);
+                    }
+
                 }
             }
         }

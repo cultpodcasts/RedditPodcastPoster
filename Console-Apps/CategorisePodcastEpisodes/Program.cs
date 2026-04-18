@@ -4,6 +4,7 @@ using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
@@ -27,6 +28,7 @@ builder.Services
     .AddCachedSubjectProvider()
     .AddSubjectServices()
     .AddTextSanitiser()
+    .AddCommonServices()
     .AddEpisodeSearchIndexerService();
 
 using var host = builder.Build();
@@ -36,7 +38,7 @@ return await Parser.Default.ParseArguments<CategorisePodcastEpisodesRequest>(arg
 
 async Task<int> Run(CategorisePodcastEpisodesRequest request)
 {
-    var urlSubmitter = host.Services.GetService<CategorisePodcastEpisodesProcessor>()!;
-    await urlSubmitter.Run(request);
+    var service = host.Services.GetService<CategorisePodcastEpisodesProcessor>()!;
+    await service.Run(request);
     return 0;
 }
