@@ -89,6 +89,7 @@ public partial class iPlayerPageMetaDataExtractor(
             {
                 var match = DurationRegex.Match(node.InnerText);
                 var mins = match.Groups["mins"].Value;
+                if (mins==string.Empty) mins="0";
                 if (!string.IsNullOrWhiteSpace(mins) && int.TryParse(mins, out var _duration))
                 {
                     var hours = match.Groups["hours"]?.Value;
@@ -149,7 +150,7 @@ public partial class iPlayerPageMetaDataExtractor(
         return new TextMetaData(title, description, release, duration, maxImageUrl, @explicit);
     }
 
-    [GeneratedRegex(@"(?<hourstext>(?<hours>\d+)h )?(?<mins>\d+)( mins|m)")]
+    [GeneratedRegex(@"^(?<hourstext>(?<hours>\d+)h ?)?((?<mins>\d+)( mins|m))?$")]
     private static partial Regex CreateDurationRegex();
 
     [GeneratedRegex(@"((?<hour>\d+)(\:(?<min>\d+))?(?<pm>am|pm) )?(?<date>\d+ \w+ \d+)")]
