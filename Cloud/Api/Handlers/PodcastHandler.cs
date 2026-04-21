@@ -69,7 +69,10 @@ public class PodcastHandler(
             }
 
             await podcastRepository.Save(podcast);
-            await HydrateDetachedEpisodePodcastProjection(podcast, c);
+
+            if (podcastChangeRequestWrapper.Podcast.Removed == true) { 
+                await HydrateDetachedEpisodePodcastProjection(podcast, c);
+            }
 
             var failureDeletingFromIndex = false;
             var failureIndexingEpisodes = false;
