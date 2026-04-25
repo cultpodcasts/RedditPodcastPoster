@@ -205,3 +205,17 @@ Implemented in branch:
 - Added a separate subscription-scope deployment step in `.github/workflows/deploy.yml` for `Infrastructure/functions-budget-subscription.bicep`.
 - `Functions (Deploy Bicep)` now handles resource-group scoped infra only; budget deploy runs independently with explicit subscription scope.
 - This separation reduces blast radius and makes budget failures easier to isolate/retry.
+
+### CI publish failure on discover build (run 24935396728)
+
+- Failure source: GitHub Actions run `24935396728`, matrix leg `build (discover, ./Cloud/Discovery, output/discover, discover)`.
+- Blocking errors were malformed XML doc-comment parse errors from vendored third-party project files under:
+  - `Third-Party/sirkris-Reddit.NET-1.5.3/src/Reddit.NET/...`
+- Representative failures included:
+  - "Missing equals sign between attribute and attribute value"
+  - "Required white space was missing"
+  - "Reference to undefined entity 'A.'"
+- Remediation applied:
+  - Updated `Third-Party/sirkris-Reddit.NET-1.5.3/src/Reddit.NET/Reddit.NET.csproj`
+  - Set `GenerateDocumentationFile=false` for default and Debug property groups to prevent XML doc generation from malformed upstream comments.
+- Intent: keep vendored third-party source behavior unchanged while unblocking CI publish for Api/Discovery/Indexer matrix legs.

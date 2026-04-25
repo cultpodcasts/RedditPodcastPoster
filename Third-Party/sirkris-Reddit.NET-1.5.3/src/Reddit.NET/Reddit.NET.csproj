@@ -19,11 +19,11 @@
     <PackageIconUrl>https://raw.githubusercontent.com/sirkris/Reddit.NET/master/Logo.gif</PackageIconUrl>
     <PackageTags>reddit web utility http api oauth rest json netstandard</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-	<GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
