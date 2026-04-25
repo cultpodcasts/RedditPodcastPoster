@@ -246,3 +246,19 @@ Implemented in branch:
   - Updated `.github/workflows/deploy.yml` budget deploy step to pass `monthlyFunctionsBudgetAmount` as numeric JSON value (unquoted).
 - Validation intent:
   - Subscription-scope budget deployment should pass template validation for parameter typing.
+
+### GitHub Actions run 24936127019 failure (budget filter schema)
+
+- Failed run: `24936127019` in `provision -> Functions Budget (Deploy Bicep)`.
+- Deployment details from Azure (`az deployment sub show --name bicep-functions-budget-730`) reported:
+  - `DeploymentFailed`
+  - provider error `400`
+  - message: `Invalid filter; Multiple expression objects are present in the filter. AND must be used to combine the expressions.`
+- Root cause:
+  - Budget template used top-level `dimensions` plus `and` simultaneously in `properties.filter`, which is invalid for `Microsoft.Consumption/budgets` API shape.
+- Fix applied:
+  - Updated `Infrastructure/functions-budget-subscription.bicep` so `filter` contains a single `and` array with two dimension expressions:
+    1. `ResourceGroupName In [deploymentResourceGroupName]`
+    2. `ServiceName In ['Functions']`
+- Expected outcome:
+  - Subscription budget deployment should validate and create/update budget resource successfully.

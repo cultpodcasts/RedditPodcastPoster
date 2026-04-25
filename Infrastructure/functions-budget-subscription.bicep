@@ -27,14 +27,16 @@ resource functionsCostBudget 'Microsoft.Consumption/budgets@2023-11-01' = if (en
       endDate: '2036-12-31T00:00:00Z'
     }
     filter: {
-      dimensions: {
-        name: 'ResourceGroupName'
-        operator: 'In'
-        values: [
-          deploymentResourceGroupName
-        ]
-      }
       and: [
+        {
+          dimensions: {
+            name: 'ResourceGroupName'
+            operator: 'In'
+            values: [
+              deploymentResourceGroupName
+            ]
+          }
+        }
         {
           dimensions: {
             name: 'ServiceName'
