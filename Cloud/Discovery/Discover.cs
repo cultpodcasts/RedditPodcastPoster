@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using Azure;
+using Azure.Diagnostics;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -16,6 +17,7 @@ namespace Discovery;
 [DurableTask(nameof(Discover))]
 public class Discover(
     IOptions<DiscoverOptions> discoverOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator,
     IDiscoveryServiceConfigProvider discoveryConfigProvider,
     IDiscoveryService discoveryService,
     IDiscoveryResultsRepository discoveryResultsRepository,
@@ -27,9 +29,12 @@ public class Discover(
     private readonly DiscoverOptions _discoverOptions =
         discoverOptions.Value ??
         throw new ArgumentException($"Missing {nameof(DiscoverOptions)}.");
+    private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
     public override async Task<DiscoveryContext> RunAsync(TaskActivityContext context, DiscoveryContext input)
     {
+        var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Discover));
+
         logger.LogInformation("{method}: discovery-options: {discoverOptions}",
             nameof(RunAsync), _discoverOptions);
         logger.LogInformation("{method}: discovery-context: {input}", nameof(RunAsync), input);
@@ -141,6 +146,7 @@ public class Discover(
         }
         catch (Exception ex)
         {
+            memoryProbe.End(false, ex.GetType().Name);
             logger.LogError(ex,
                 "Failure to execute {nameofDiscover}.{method}.",
                 nameof(Discover), nameof(RunAsync));
@@ -168,6 +174,8 @@ public class Discover(
         }
 
         logger.LogInformation("{method} Completed", nameof(RunAsync));
+
+        memoryProbe.End(results);
 
         return input with
         {

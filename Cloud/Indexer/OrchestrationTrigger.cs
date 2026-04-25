@@ -1,5 +1,6 @@
 using Grpc.Core;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.DurableTask;
 using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
 
@@ -17,9 +18,19 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
 #endif
         )]
         TimerInfo info,
-        [DurableClient] DurableTaskClient client)
+        [DurableClient] DurableTaskClient client,
+        CancellationToken cancellationToken)
     {
         logger.LogInformation($"{nameof(OrchestrationTrigger)} {nameof(RunHourly)} initiated.");
+
+        if (await HasActiveOrchestrationInstanceAsync(client, nameof(HourlyOrchestration), cancellationToken))
+        {
+            logger.LogWarning(
+                "{OrchestrationTriggerName} {RunHourlyName} skipped. Existing '{HourlyOrchestrationName}' instance is still active.",
+                nameof(OrchestrationTrigger), nameof(RunHourly), nameof(HourlyOrchestration));
+            return;
+        }
+
         string instanceId;
         try
         {
@@ -51,9 +62,19 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
 #endif
         )]
         TimerInfo info,
-        [DurableClient] DurableTaskClient client)
+        [DurableClient] DurableTaskClient client,
+        CancellationToken cancellationToken)
     {
         logger.LogInformation($"{nameof(OrchestrationTrigger)} {nameof(RunHalfHourly)} initiated.");
+
+        if (await HasActiveOrchestrationInstanceAsync(client, nameof(HalfHourlyOrchestration), cancellationToken))
+        {
+            logger.LogWarning(
+                "{OrchestrationTriggerName} {RunHalfHourlyName} skipped. Existing '{HalfHourlyOrchestrationName}' instance is still active.",
+                nameof(OrchestrationTrigger), nameof(RunHalfHourly), nameof(HalfHourlyOrchestration));
+            return;
+        }
+
         string instanceId;
         try
         {
@@ -74,5 +95,34 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
 
         logger.LogInformation(
             "{OrchestrationTriggerName} {RunHalfHourlyName} complete. Instance-id= '{InstanceId}'.", nameof(OrchestrationTrigger), nameof(RunHalfHourly), instanceId);
+    }
+
+    private static async Task<bool> HasActiveOrchestrationInstanceAsync(
+        DurableTaskClient client,
+        string orchestrationName,
+        CancellationToken cancellationToken)
+    {
+        var query = new OrchestrationQuery
+        {
+            CreatedFrom = DateTime.UtcNow.Subtract(TimeSpan.FromDays(2)),
+            Statuses =
+            [
+                OrchestrationRuntimeStatus.Pending,
+                OrchestrationRuntimeStatus.Running,
+                OrchestrationRuntimeStatus.ContinuedAsNew
+            ]
+        };
+
+        await foreach (var metadata in client.GetAllInstancesAsync(query))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (metadata.Name == new TaskName(orchestrationName))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

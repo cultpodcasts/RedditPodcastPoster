@@ -3,6 +3,7 @@ using Api.Factories;
 using Api.Handlers;
 using Api.Resolvers;
 using Api.Services;
+using Azure.Diagnostics;
 using iTunesSearch.Library;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Auth0.Extensions;
@@ -85,6 +86,8 @@ public static class Ioc
             .AddScoped<IPodcastEpisodeResolver, PodcastEpisodeResolver>()
             .BindConfiguration<HostingOptions>("hosting")
             .BindConfiguration<IndexerOptions>("indexer")
+            .BindConfiguration<MemoryProbeOptions>("memoryProbe")
+            .AddSingleton<IMemoryProbeOrchestrator, MemoryProbeOrchestrator>()
             .AddPostingCriteria();
     }
 }

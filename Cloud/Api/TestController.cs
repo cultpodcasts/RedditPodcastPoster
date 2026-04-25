@@ -2,6 +2,7 @@ using System.Net;
 using Api.Configuration;
 using Api.Extensions;
 using Api.Factories;
+using Azure.Diagnostics;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -12,8 +13,9 @@ namespace Api;
 public class TestController(
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<TestController> logger,
-    IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
+    IOptions<HostingOptions> hostingOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator)
+    : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
     [Function("Test")]
     public async Task<HttpResponseData> Run(

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using Azure.Diagnostics;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -12,24 +12,21 @@ public class Tweet(
     ITweeter tweeter,
     IActivityOptionsProvider activityOptionsProvider,
     IOptions<IndexerOptions> indexerOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<Tweet> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
+    private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        var runStopwatch = Stopwatch.StartNew();
+        var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Tweet));
 
         logger.LogInformation(
             "{TweetName} initiated. task-activity-context-instance-id: '{ContextInstanceId}'.", nameof(Tweet),
             context.InstanceId);
         logger.LogInformation(indexerContext.ToString());
-
-        if (_indexerOptions.EnableCostInstrumentation)
-        {
-            logger.LogWarning("TweetCostProbe.Start instance-id='{InstanceId}'.", context.InstanceId);
-        }
 
         if (!activityOptionsProvider.RunTweet(out var reason))
         {
@@ -51,28 +48,11 @@ public class Tweet(
         catch (Exception ex)
         {
             logger.LogError(ex, $"Failure to execute {nameof(ITweeter)}.{nameof(ITweeter.Tweet)}.");
-
-            runStopwatch.Stop();
-            if (_indexerOptions.EnableCostInstrumentation)
-            {
-                logger.LogWarning(
-                    "TweetCostProbe.Complete instance-id='{InstanceId}' success='false' total-ms='{TotalMs}' error-type='{ErrorType}'.",
-                    context.InstanceId,
-                    runStopwatch.ElapsedMilliseconds,
-                    ex.GetType().Name);
-            }
-
+            memoryProbe.End(false, ex.GetType().Name);
             return indexerContext with { Success = false };
         }
 
-        runStopwatch.Stop();
-        if (_indexerOptions.EnableCostInstrumentation)
-        {
-            logger.LogWarning(
-                "TweetCostProbe.Complete instance-id='{InstanceId}' success='true' total-ms='{TotalMs}'.",
-                context.InstanceId,
-                runStopwatch.ElapsedMilliseconds);
-        }
+        memoryProbe.End();
 
         logger.LogInformation($"{nameof(RunAsync)} Completed");
         return indexerContext with { Success = true };

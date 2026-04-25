@@ -100,12 +100,22 @@ param youTubeApiKey13 string
 @secure()
 param youTubeApiKey14 string
 
+@description('Enable provisioning of budget and monitoring alerts.')
+param enableAlerts bool = true
+
+@description('Optional email address for alert notifications. Leave empty to rely on role notifications only.')
+param alertEmailAddress string = ''
+
 resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' existing = {
   name: storageName
 }
 
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing = {
   name: 'ai-${suffix}'
+}
+
+resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' existing = {
+  name: 'loganalytics-${suffix}'
 }
 
 var loggingLevel = 'Warning'
@@ -129,6 +139,10 @@ var logging= {
     Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
     Logging__ApplicationInsights__SamplingSettings__ExcludedTypes: ''
     Logging__ApplicationInsights__EnableLiveMetricsFilters: 'true'
+}
+
+var memoryProbe = {
+    memoryProbe__Enabled: 'true'
 }
 
 var api= {
@@ -240,7 +254,6 @@ var discover= {
 var indexer= {
     indexer__ByPassYouTube: false
     indexer__ReleasedDaysAgo: '2'
-    indexer__EnableCostInstrumentation: true
 }
 
 var listenNotes= {
@@ -421,6 +434,7 @@ var youTubeKeyUsage= {
 var coreSettings= union(
     jobHostLogging,
     logging,
+    memoryProbe,
     api,
     auth0Client, 
     bluesky, 
@@ -525,13 +539,158 @@ resource roleAssignmentAppInsights 'Microsoft.Authorization/roleAssignments@2022
   }
 }
 
+resource monitoringActionGroup 'Microsoft.Insights/actionGroups@2023-01-01' = if (enableAlerts) {
+  name: 'functions-alerts-${suffix}'
+  location: 'global'
+  properties: {
+    enabled: true
+    groupShortName: 'fn${take(suffix, 10)}'
+    emailReceivers: empty(alertEmailAddress) ? [] : [
+      {
+        name: 'primaryEmail'
+        emailAddress: alertEmailAddress
+        useCommonAlertSchema: true
+      }
+    ]
+    armRoleReceivers: [
+      {
+        name: 'ownerRoleReceiver'
+        roleId: '8e3af657-a8ff-443c-a75c-2fe8c4bcb635'
+        useCommonAlertSchema: true
+      }
+    ]
+  }
+}
+
+resource outOfMemoryAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = if (enableAlerts) {
+  name: 'functions-oom-alert-${suffix}'
+  location: location
+  properties: {
+    displayName: 'Functions OutOfMemory signals'
+    description: 'OutOfMemory signals detected in Functions telemetry.'
+    enabled: true
+    scopes: [
+      logAnalyticsWorkspace.id
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT5M'
+    severity: 2
+    autoMitigate: true
+    criteria: {
+      allOf: [
+        {
+          query: 'union isfuzzy=true AppExceptions, AppTraces | where TimeGenerated > ago(5m) | where tostring(column_ifexists("Message", "")) has "OutOfMemory" or tostring(column_ifexists("OuterMessage", "")) has "OutOfMemory" or tostring(column_ifexists("ExceptionType", "")) has "OutOfMemory" | project TimeGenerated'
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
+        }
+      ]
+    }
+    actions: {
+      actionGroups: [
+        monitoringActionGroup.id
+      ]
+      customProperties: {
+        category: 'OutOfMemory'
+      }
+    }
+  }
+}
+
+resource hostDrainSpikeAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = if (enableAlerts) {
+  name: 'functions-host-drain-alert-${suffix}'
+  location: location
+  properties: {
+    displayName: 'Functions host drain spike'
+    description: 'Host drain endpoint spikes detected.'
+    enabled: true
+    scopes: [
+      logAnalyticsWorkspace.id
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT10M'
+    severity: 2
+    autoMitigate: true
+    criteria: {
+      allOf: [
+        {
+          query: 'AppRequests | where TimeGenerated > ago(10m) | where Name has "/admin/host/drain" | project TimeGenerated'
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 20
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
+        }
+      ]
+    }
+    actions: {
+      actionGroups: [
+        monitoringActionGroup.id
+      ]
+      customProperties: {
+        category: 'HostDrainSpike'
+      }
+    }
+  }
+}
+
+resource failedExecutionAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = if (enableAlerts) {
+  name: 'functions-failed-execution-alert-${suffix}'
+  location: location
+  properties: {
+    displayName: 'Functions failed executions'
+    description: 'Failed function executions detected in request telemetry.'
+    enabled: true
+    scopes: [
+      logAnalyticsWorkspace.id
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT5M'
+    severity: 2
+    autoMitigate: true
+    criteria: {
+      allOf: [
+        {
+          query: 'AppRequests | where TimeGenerated > ago(5m) | where Success == false | project TimeGenerated'
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 5
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
+        }
+      ]
+    }
+    actions: {
+      actionGroups: [
+        monitoringActionGroup.id
+      ]
+      customProperties: {
+        category: 'FailedExecution'
+      }
+    }
+  }
+}
+
+var storageAccountName = storage.name
+var applicationInsightsConnectionString = applicationInsights.properties.ConnectionString
+var userAssignedIdentityId = userAssignedIdentity.id
+var userAssignedIdentityClientId = userAssignedIdentity.properties.clientId
+
 module apiFunction 'function.bicep' = {
   name: '${deployment().name}-api'
   params: {
     name: 'api'
     location: location
-    applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
-    storageAccountName: storage.name
+    applicationInsightsConnectionString: applicationInsightsConnectionString
+    storageAccountName: storageAccountName
     storageUrl: '${storage.properties.primaryEndpoints.blob}api-deployment'
     runtime: runtime
     runtimeVersion: '10.0'
@@ -541,8 +700,8 @@ module apiFunction 'function.bicep' = {
     appSettings: union({
         Logging__LogLevel__Api: loggingLevel
     }, apiSettings)
-    userAssignedIdentityId: userAssignedIdentity.id
-    userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
+    userAssignedIdentityId: userAssignedIdentityId
+    userAssignedIdentityClientId: userAssignedIdentityClientId
   }
 }
 
@@ -551,8 +710,8 @@ module discoveryFunction 'function.bicep' = {
   params: {
     name: 'discover'
     location: location
-    applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
-    storageAccountName: storage.name
+    applicationInsightsConnectionString: applicationInsightsConnectionString
+    storageAccountName: storageAccountName
     storageUrl: '${storage.properties.primaryEndpoints.blob}discovery-deployment'
     runtime: runtime
     runtimeVersion: '10.0'
@@ -562,8 +721,8 @@ module discoveryFunction 'function.bicep' = {
     appSettings: union({
         Logging__LogLevel__Discovery: loggingLevel
     }, discoverySettings)
-    userAssignedIdentityId: userAssignedIdentity.id
-    userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
+    userAssignedIdentityId: userAssignedIdentityId
+    userAssignedIdentityClientId: userAssignedIdentityClientId
   }
 }
 
@@ -572,8 +731,8 @@ module indexerFunction 'function.bicep' = {
   params: {
     name: 'indexer'
     location: location
-    applicationInsightsConnectionString: applicationInsights.properties.ConnectionString
-    storageAccountName: storage.name
+    applicationInsightsConnectionString: applicationInsightsConnectionString
+    storageAccountName: storageAccountName
     storageUrl: '${storage.properties.primaryEndpoints.blob}indexer-deployment'
     runtime: runtime
     runtimeVersion: '10.0'
@@ -583,7 +742,7 @@ module indexerFunction 'function.bicep' = {
     appSettings: union({
         Logging__LogLevel__Indexer: loggingLevel
     }, indexerSettings)
-    userAssignedIdentityId: userAssignedIdentity.id
-    userAssignedIdentityClientId: userAssignedIdentity.properties.clientId
+    userAssignedIdentityId: userAssignedIdentityId
+    userAssignedIdentityClientId: userAssignedIdentityClientId
   }  
 }

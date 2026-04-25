@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/costs-increase
 
 permissions:
   id-token: write
@@ -14,6 +15,8 @@ env:
   DATABASE_RESOURCEGROUP_NAME: ${{ secrets.DATABASE_RESOURCEGROUP_NAME }}
   MANAGEMENT_RESOURCEGROUP_NAME: ${{ secrets.MANAGEMENT_RESOURCEGROUP_NAME }}
   AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
+  BUDGET_ALERT_EMAIL: ${{ secrets.BUDGET_ALERT_EMAIL }}
+  MONTHLY_FUNCTIONS_BUDGET_AMOUNT: '3'
   storageName: cultpodcastsstg
   suffix: infra
   location: uksouth
@@ -134,6 +137,20 @@ jobs:
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
 
+    - name: Functions Budget (Deploy Bicep)
+      id: bicepfunctionsbudgetdeploy
+      uses: azure/bicep-deploy@v1
+      if: needs.build.outputs.infrastructure_changed == 'true'
+      with:
+        type: deployment
+        operation: create
+        name: bicep-functions-budget-${{ github.run_number }}
+        location: ${{ env.location }}
+        scope: subscription
+        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+        template-file: ./Infrastructure/functions-budget-subscription.bicep
+        parameters: '{"enableAlerts":true, "suffix":"${{ env.suffix }}", "deploymentResourceGroupName":"${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}", "monthlyFunctionsBudgetAmount":${{ env.MONTHLY_FUNCTIONS_BUDGET_AMOUNT }}, "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}"}'
+
     - name: Cosmos DB (Deploy Bicep)
       id: bicepcosmosdeploy
       uses: azure/bicep-deploy@v1
@@ -186,7 +203,7 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/functions.bicep
         parameters-file: ./Infrastructure/functions.bicepparam
-        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}"}'
+        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}"}'
 
     - name: Set Function State
       if: ${{ ((env.functionState == 'start') || (env.functionState == 'stop')) && needs.build.outputs.infrastructure_changed == 'true' }}

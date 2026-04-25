@@ -1,6 +1,7 @@
 ﻿using Api.Configuration;
 using Api.Factories;
 using Api.Handlers;
+using Azure.Diagnostics;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -12,8 +13,9 @@ public class SearchIndexController(
     ISearchIndexHandler searchIndexHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<SearchIndexController> logger,
-    IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
+    IOptions<HostingOptions> hostingOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator)
+    : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
     [Function("SearchIndexRun")]
     public Task<HttpResponseData> Run(

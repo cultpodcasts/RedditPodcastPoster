@@ -29,7 +29,7 @@ public class LanguagesPublisher(
             "French", "Spanish", "German", "Portuguese", "Turkish", "Dutch", "Italian", "Japanese", "Chinese", "Korean",
             "Hindi", "Russian", "Hebrew", "Arabic", "Bangla", "Indonesian", "Filipino", "Urdu", "Kiswahili",
             "Vietnamese", "Slovak", "Czech", "Telugu", "Afrikaans", "Persian", "Malay", "Norwegian", "Punjabi", "Thai",
-            "Ukrainian", "Marathi"
+            "Ukrainian", "Marathi", "Finnish", "Danish", "Greek", "Hungarian", "Swedish", "Bulgarian", "Serbian", "Croatian", "Lithuanian", "Latvian", "Slovenian", "Bosnian", "Macedonian", "Albanian", "Estonian", "Catalan", "Sinhala"
         }.Select(x => allCultures.Single(y => y.IsNeutralCulture && y.EnglishName == x));
 
         var request = new PutObjectRequest

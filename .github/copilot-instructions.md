@@ -47,3 +47,10 @@
 
 ## Telemetry
 - For production cost-probe telemetry in this repo, emit probe logs at Warning level or above because Information logs are disabled in Application Insights.
+- For Indexer cost probe logging, only updateMs should be logged; initiate and complete timing fields are not needed.
+
+## Azure Functions
+- For Azure Functions Flex Consumption instanceMemoryMB, valid values are 512, 2048, and 4096; 1024 is not valid.
+
+## Memory Probing
+- Prefer memory-probe responsibility delegated to an injected `IMemoryProbeOrchestrator`, with call sites using `Start(nameof(Class))` and `End()`, and the orchestrator deciding via `MemoryProbeOptions` whether to create/log a session.
