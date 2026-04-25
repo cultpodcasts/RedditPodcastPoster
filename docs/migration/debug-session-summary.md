@@ -262,3 +262,43 @@ Implemented in branch:
     2. `ServiceName In ['Functions']`
 - Expected outcome:
   - Subscription budget deployment should validate and create/update budget resource successfully.
+
+### GitHub Actions run 24936618544 failure (budget start date rule)
+
+- Failed run/job: `24936618544` / `73023315613` in `Functions Budget (Deploy Bicep)`.
+- GitHub logs only showed generic `DeploymentFailed`; Azure deployment details (`az deployment sub show --name bicep-functions-budget-731`) showed concrete provider error:
+  - `400`
+  - `Start date for monthly time grain should not be prior to current month.`
+- Root cause:
+  - `functions-budget-subscription.bicep` used hard-coded budget start date in the past (`2026-01-01T00:00:00Z`).
+- Fix applied:
+  - Added `budgetStartDate` parameter defaulted to first day of current UTC month using `utcNow('yyyy-MM-01T00:00:00Z')`.
+  - Wired `timePeriod.startDate` to `budgetStartDate`.
+- Local validation:
+  - `az bicep build --file Infrastructure/functions-budget-subscription.bicep` succeeds.
+- Portal visibility note:
+  - Failed subscription deployments are visible under Subscription -> Deployments; budget resource itself will not appear until deployment succeeds.
+
+### Pre-push verification for `functions-budget-subscription.bicep` (2026-04-25)
+
+Executed direct Azure subscription-scope checks before push:
+
+1. **Template validation**
+   - Command:
+     - `az deployment sub validate --name prepush-budget-validate --location uksouth --subscription a6b8f1a2-6163-41bc-aa6d-e33928939a6e --template-file Infrastructure/functions-budget-subscription.bicep --parameters enableAlerts=true suffix=infra deploymentResourceGroupName=AutomatedInfra monthlyFunctionsBudgetAmount=3 alertEmailAddress=jonbreen@outlook.com`
+   - Result:
+     - `provisioningState: Succeeded`
+     - `error: null`
+     - `validatedResources` includes `/providers/Microsoft.Consumption/budgets/functions-cost-budget-infra`.
+
+2. **What-if evaluation**
+   - Command:
+     - `az deployment sub what-if --name prepush-budget-whatif --location uksouth --subscription a6b8f1a2-6163-41bc-aa6d-e33928939a6e --template-file Infrastructure/functions-budget-subscription.bicep --parameters enableAlerts=true suffix=infra deploymentResourceGroupName=AutomatedInfra monthlyFunctionsBudgetAmount=3 alertEmailAddress=jonbreen@outlook.com --result-format FullResourcePayloads`
+   - Result:
+     - Predicts `+ Create Microsoft.Consumption/budgets/functions-cost-budget-infra`.
+     - Filter shape is accepted and resolved as expected:
+       - `and[0].dimensions.name = ResourceGroupName`
+       - `and[1].dimensions.name = ServiceName`
+     - No schema/type/start-date validation failures.
+
+Conclusion: current budget Bicep file is valid in Azure for subscription-scope deployment with workflow-equivalent parameters.

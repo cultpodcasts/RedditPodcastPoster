@@ -16,6 +16,9 @@ param monthlyFunctionsBudgetAmount int
 @description('Optional email address for budget notifications.')
 param alertEmailAddress string = ''
 
+@description('Budget start date. Defaults to the first day of the current UTC month.')
+param budgetStartDate string = utcNow('yyyy-MM-01T00:00:00Z')
+
 resource functionsCostBudget 'Microsoft.Consumption/budgets@2023-11-01' = if (enableAlerts) {
   name: 'functions-cost-budget-${suffix}'
   properties: {
@@ -23,7 +26,7 @@ resource functionsCostBudget 'Microsoft.Consumption/budgets@2023-11-01' = if (en
     amount: monthlyFunctionsBudgetAmount
     timeGrain: 'Monthly'
     timePeriod: {
-      startDate: '2026-01-01T00:00:00Z'
+      startDate: budgetStartDate
       endDate: '2036-12-31T00:00:00Z'
     }
     filter: {
