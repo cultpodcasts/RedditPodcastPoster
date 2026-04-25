@@ -233,3 +233,16 @@ Implemented in branch:
     - `location: ${{ env.location }}`
 - Expected outcome:
   - Budget deployment step should proceed past validation and deploy `functions-budget-subscription.bicep` successfully with existing RBAC.
+
+### GitHub Actions run 24935928841 failure (budget parameter type)
+
+- Failed run/job: `24935928841` / `73021502158`.
+- Error:
+  - `InvalidTemplate`
+  - `monthlyFunctionsBudgetAmount` expected `Integer` but received `String`.
+- Root cause:
+  - Workflow passed `monthlyFunctionsBudgetAmount` in the JSON parameters payload as a quoted string.
+- Fix applied:
+  - Updated `.github/workflows/deploy.yml` budget deploy step to pass `monthlyFunctionsBudgetAmount` as numeric JSON value (unquoted).
+- Validation intent:
+  - Subscription-scope budget deployment should pass template validation for parameter typing.
