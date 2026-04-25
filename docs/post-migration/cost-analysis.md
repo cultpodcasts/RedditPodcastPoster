@@ -574,3 +574,17 @@ Discovery from command evidence: probe logs were not queryable because they were
 2. Confirm App Insights warning volume reduction after removing CostProbe warnings.
 3. Continue memory footprint analysis (p50/p95/max private bytes) for memory-tier decisions.
 4. Keep duration analysis where needed using targeted logs/queries, not broad CostProbe warning spam.
+
+### Latest update: budget deployment decoupled from functions infra step (2026-04-25)
+
+- Subscription-scope budget provisioning was decoupled from `Infrastructure/functions.bicep`.
+- Budget now deploys via dedicated GitHub Actions provision step using:
+  - `Infrastructure/functions-budget-subscription.bicep`
+  - deployment `scope: subscription`
+- Resource-group functions infra deploy now remains focused on RG resources only.
+
+### Updated explicit next steps
+
+1. Verify new workflow execution order: budget step succeeds independently before/alongside RG functions infra deployment.
+2. Confirm budget resource updates continue to apply when `BUDGET_ALERT_EMAIL`/monthly amount changes.
+3. If budget step fails, rerun only provision job path and inspect that step without conflating RG template errors.

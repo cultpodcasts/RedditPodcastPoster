@@ -103,10 +103,6 @@ param youTubeApiKey14 string
 @description('Enable provisioning of budget and monitoring alerts.')
 param enableAlerts bool = true
 
-@description('Monthly budget amount (GBP equivalent in billing currency) for automatedinfra Functions meter.')
-@minValue(1)
-param monthlyFunctionsBudgetAmount int = 10
-
 @description('Optional email address for alert notifications. Leave empty to rely on role notifications only.')
 param alertEmailAddress string = ''
 
@@ -540,18 +536,6 @@ resource roleAssignmentAppInsights 'Microsoft.Authorization/roleAssignments@2022
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', monitoringMetricsPublisherId)
     principalId: userAssignedIdentity.properties.principalId
     principalType: 'ServicePrincipal'
-  }
-}
-
-module functionsBudget 'functions-budget-subscription.bicep' = {
-  name: '${deployment().name}-budget'
-  scope: subscription()
-  params: {
-    enableAlerts: enableAlerts
-    suffix: suffix
-    deploymentResourceGroupName: resourceGroup().name
-    monthlyFunctionsBudgetAmount: monthlyFunctionsBudgetAmount
-    alertEmailAddress: alertEmailAddress
   }
 }
 

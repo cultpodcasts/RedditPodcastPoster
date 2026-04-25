@@ -198,3 +198,10 @@ Implemented in branch:
 - Removed stopwatch timing that only existed to support those CostProbe warning payloads.
 - Kept memory-usage telemetry through `IMemoryProbeOrchestrator` (`Start(nameof(Class))` + `End()` / `End(false, errorType)`).
 - This keeps memory observability while reducing warning-log volume now that free-allowance overage root cause is known.
+
+### Budget deployment split (2026-04-25)
+
+- Removed subscription-scope budget module invocation from `Infrastructure/functions.bicep`.
+- Added a separate subscription-scope deployment step in `.github/workflows/deploy.yml` for `Infrastructure/functions-budget-subscription.bicep`.
+- `Functions (Deploy Bicep)` now handles resource-group scoped infra only; budget deploy runs independently with explicit subscription scope.
+- This separation reduces blast radius and makes budget failures easier to isolate/retry.

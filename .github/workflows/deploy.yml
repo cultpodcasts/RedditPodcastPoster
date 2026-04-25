@@ -16,6 +16,7 @@ env:
   MANAGEMENT_RESOURCEGROUP_NAME: ${{ secrets.MANAGEMENT_RESOURCEGROUP_NAME }}
   AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
   BUDGET_ALERT_EMAIL: ${{ secrets.BUDGET_ALERT_EMAIL }}
+  MONTHLY_FUNCTIONS_BUDGET_AMOUNT: '10'
   storageName: cultpodcastsstg
   suffix: infra
   location: uksouth
@@ -135,6 +136,19 @@ jobs:
         client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+
+    - name: Functions Budget (Deploy Bicep)
+      id: bicepfunctionsbudgetdeploy
+      uses: azure/bicep-deploy@v1
+      if: needs.build.outputs.infrastructure_changed == 'true'
+      with:
+        type: deployment
+        operation: create
+        name: bicep-functions-budget-${{ github.run_number }}
+        scope: subscription
+        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+        template-file: ./Infrastructure/functions-budget-subscription.bicep
+        parameters: '{"enableAlerts":true, "suffix":"${{ env.suffix }}", "deploymentResourceGroupName":"${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}", "monthlyFunctionsBudgetAmount":"${{ env.MONTHLY_FUNCTIONS_BUDGET_AMOUNT }}", "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}"}'
 
     - name: Cosmos DB (Deploy Bicep)
       id: bicepcosmosdeploy
