@@ -219,3 +219,17 @@ Implemented in branch:
   - Updated `Third-Party/sirkris-Reddit.NET-1.5.3/src/Reddit.NET/Reddit.NET.csproj`
   - Set `GenerateDocumentationFile=false` for default and Debug property groups to prevent XML doc generation from malformed upstream comments.
 - Intent: keep vendored third-party source behavior unchanged while unblocking CI publish for Api/Discovery/Indexer matrix legs.
+
+### GitHub Actions run 24935587811 failure (provision / Functions Budget)
+
+- Failed step: `Functions Budget (Deploy Bicep)` in run `24935587811`.
+- Exact error from failed logs (`gh run view ... --log-failed`):
+  - `Operation failed`
+  - `Location is required`
+- Root cause:
+  - Deployment was moved to `scope: subscription`, and Azure requires a deployment `location` for subscription-scope deployments.
+- Fix applied:
+  - Updated `.github/workflows/deploy.yml` budget step to include:
+    - `location: ${{ env.location }}`
+- Expected outcome:
+  - Budget deployment step should proceed past validation and deploy `functions-budget-subscription.bicep` successfully with existing RBAC.

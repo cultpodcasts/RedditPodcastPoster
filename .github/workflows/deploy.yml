@@ -16,7 +16,7 @@ env:
   MANAGEMENT_RESOURCEGROUP_NAME: ${{ secrets.MANAGEMENT_RESOURCEGROUP_NAME }}
   AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
   BUDGET_ALERT_EMAIL: ${{ secrets.BUDGET_ALERT_EMAIL }}
-  MONTHLY_FUNCTIONS_BUDGET_AMOUNT: '10'
+  MONTHLY_FUNCTIONS_BUDGET_AMOUNT: '3'
   storageName: cultpodcastsstg
   suffix: infra
   location: uksouth
@@ -145,6 +145,7 @@ jobs:
         type: deployment
         operation: create
         name: bicep-functions-budget-${{ github.run_number }}
+        location: ${{ env.location }}
         scope: subscription
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         template-file: ./Infrastructure/functions-budget-subscription.bicep
