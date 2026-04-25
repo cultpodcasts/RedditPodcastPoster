@@ -1,4 +1,5 @@
 ﻿using Azure;
+using Azure.Diagnostics;
 using iTunesSearch.Library;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,6 +36,8 @@ public static class Ioc
             .AddRedditServices()
             .AddCloudflareClients()
             .AddHttpClient()
-            .BindConfiguration<DiscoverOptions>("discover");
+            .BindConfiguration<DiscoverOptions>("discover")
+            .BindConfiguration<MemoryProbeOptions>("memoryProbe")
+            .AddSingleton<IMemoryProbeOrchestrator, MemoryProbeOrchestrator>();
     }
 }

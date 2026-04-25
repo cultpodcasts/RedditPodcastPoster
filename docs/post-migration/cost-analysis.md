@@ -544,3 +544,33 @@ Discovery from command evidence: probe logs were not queryable because they were
 2. Confirm reduced pass variance (flatter distribution across passes).
 3. Confirm `IndexerCostProbe` `sum(total-ms)` and `avg(update-ms)` are stable or lower.
 4. Correlate with finalized daily `Flex Consumption - On Demand Execution Time` rows.
+
+### Latest update: probe orchestration simplification (2026-04-25)
+
+- Removed `IndexerOptions.EnableCostInstrumentation` and `indexer__EnableCostInstrumentation` wiring.
+- Probe lifecycle now delegates to injected `IMemoryProbeOrchestrator` with call-site pattern:
+  - `Start(nameof(ActivityOrFunction))`
+  - `End()` / `End(false, errorType)`.
+- Effective on/off switch is now only `memoryProbe__Enabled` (via `MemoryProbeOptions`).
+- Added handover summary document:
+  - `docs/migration/handover-2026-04-25-memory-probe-and-alerting.md`
+
+### Updated explicit next steps
+
+1. Deploy and verify probe logs continue to emit at Warning level with orchestrator-based lifecycle.
+2. Confirm alert resources remain healthy after configuration simplification (budget + query alerts).
+3. Capture 24–72h p50/p95/max memory and duration by function to guide any per-app memory-size experiments.
+4. Keep `Indexer` timing focus on `update-ms` in probe analysis.
+
+### Latest update: CostProbe warning removal (2026-04-25)
+
+- Removed Indexer activity `*CostProbe*` warning logs and associated stopwatch timing fields.
+- Retained memory telemetry via `IMemoryProbeOrchestrator` and `MemoryProbe` warning events.
+- Rationale: free-allowance exhaustion is already understood; retain memory diagnostics while reducing warning-log noise/volume.
+
+### Updated next steps after CostProbe removal
+
+1. Verify `MemoryProbe.Start`/`MemoryProbe.Complete` warnings continue across Indexer activity executions.
+2. Confirm App Insights warning volume reduction after removing CostProbe warnings.
+3. Continue memory footprint analysis (p50/p95/max private bytes) for memory-tier decisions.
+4. Keep duration analysis where needed using targeted logs/queries, not broad CostProbe warning spam.

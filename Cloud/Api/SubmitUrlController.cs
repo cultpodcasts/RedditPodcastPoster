@@ -2,6 +2,7 @@ using Api.Configuration;
 using Api.Dtos;
 using Api.Factories;
 using Api.Handlers;
+using Azure.Diagnostics;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -13,8 +14,9 @@ public class SubmitUrlController(
     ISubmitUrlHandler submitUrlHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<SubmitUrlController> logger,
-    IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
+    IOptions<HostingOptions> hostingOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator)
+    : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
     [Function("SubmitUrl")]
     public Task<HttpResponseData> Post(

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using Azure.Diagnostics;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -14,24 +14,21 @@ public class Publisher(
     ISearchIndexerService searchIndexerService,
     IActivityOptionsProvider activityOptionsProvider,
     IOptions<IndexerOptions> indexerOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<Publisher> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
+    private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        var runStopwatch = Stopwatch.StartNew();
+        var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Publisher));
 
         logger.LogInformation(
             "{nameofPublisher} initiated. task-activity-context-instance-id: '{contextInstanceId}'.",
             nameof(Publisher), context.InstanceId);
         logger.LogInformation(indexerContext.ToString());
-
-        if (_indexerOptions.EnableCostInstrumentation)
-        {
-            logger.LogWarning("PublisherCostProbe.Start instance-id='{InstanceId}'.", context.InstanceId);
-        }
 
         if (!activityOptionsProvider.RunPublisher(out var reason))
         {
@@ -48,20 +45,10 @@ public class Publisher(
             throw new ArgumentNullException(nameof(indexerContext.PublisherOperationId));
         }
 
-        var searchIndexerMs = 0L;
-        var homepagePublishMs = 0L;
-
         try
         {
-            var searchIndexerStopwatch = Stopwatch.StartNew();
             await searchIndexerService.RunIndexer();
-            searchIndexerStopwatch.Stop();
-            searchIndexerMs = searchIndexerStopwatch.ElapsedMilliseconds;
-
-            var homepageStopwatch = Stopwatch.StartNew();
             await contentPublisher.PublishHomepage();
-            homepageStopwatch.Stop();
-            homepagePublishMs = homepageStopwatch.ElapsedMilliseconds;
         }
         catch (Exception ex)
         {
@@ -69,31 +56,12 @@ public class Publisher(
                 "Failure to execute {PublisherContract}.{PublishHomepageMethod}.",
                 nameof(IHomepagePublisher), nameof(IHomepagePublisher.PublishHomepage));
 
-            runStopwatch.Stop();
-            if (_indexerOptions.EnableCostInstrumentation)
-            {
-                logger.LogWarning(
-                    "PublisherCostProbe.Complete instance-id='{InstanceId}' success='false' search-indexer-ms='{SearchIndexerMs}' homepage-publish-ms='{HomepagePublishMs}' total-ms='{TotalMs}' error-type='{ErrorType}'.",
-                    context.InstanceId,
-                    searchIndexerMs,
-                    homepagePublishMs,
-                    runStopwatch.ElapsedMilliseconds,
-                    ex.GetType().Name);
-            }
+            memoryProbe.End(false, ex.GetType().Name);
 
             return indexerContext with { Success = false };
         }
 
-        runStopwatch.Stop();
-        if (_indexerOptions.EnableCostInstrumentation)
-        {
-            logger.LogWarning(
-                "PublisherCostProbe.Complete instance-id='{InstanceId}' success='true' search-indexer-ms='{SearchIndexerMs}' homepage-publish-ms='{HomepagePublishMs}' total-ms='{TotalMs}'.",
-                context.InstanceId,
-                searchIndexerMs,
-                homepagePublishMs,
-                runStopwatch.ElapsedMilliseconds);
-        }
+        memoryProbe.End();
 
         logger.LogInformation("{nameofRunAsync} Completed", nameof(RunAsync));
         return indexerContext with { Success = true };

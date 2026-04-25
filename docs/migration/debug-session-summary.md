@@ -58,19 +58,143 @@
 ### Interpretation
 
 - We do observe concurrent function execution, but that pattern exists both before and during spike.
-- There is **no broad before→after duration blow-up** across indexer/discovery requests during the spike window; most functions are flat or faster, with only small increases in selected paths.
-- This points away from a pure request-duration regression as the primary cost driver and supports continuing with scale-control and meter-level cost attribution checks.
 
-## Cost concentration check (function-level proxy) — 2026-04-18
+## April 21st deployment (feature/costs-increase)
 
-Using `ai-infra` `requests` telemetry, execution-time share by function was compared for pre-spike (`2026-04-09..2026-04-15`) and spike (`2026-04-16..2026-04-18`) windows.
+Deployed commit `d3fb7933` (2026-04-18) containing the mitigations identified during the spike investigation:
 
-- **Spike share leaders**:
-  - `orchestration:HourlyOrchestration`: `36.70%`
-  - `activity:Indexer`: `19.96%`
-  - `activity:Publisher`: `8.46%`
-  - `orchestration:HalfHourlyOrchestration`: `7.87%`
-  - `activity:Tweet`: `7.57%`
-- **Top two combined share** increased from ~`47.07%` (pre) to ~`56.66%` (spike), indicating stronger concentration in Hourly orchestration + Indexer activity rather than a broad across-the-board rise.
-- Discovery path share dropped materially (`~22.69%` pre combined for orchestration/activity to `~9.60%` spike combined).
-- Conclusion: the elevated period is concentrated, with `orchestration:HourlyOrchestration` the largest proxy contributor and `activity:Indexer` second; however, neither shows a major per-call duration blow-up versus pre-window.
+- **Orchestration guards**: Added active-instance checks to `Cloud/Indexer/OrchestrationTrigger.cs` and `Cloud/Discovery/DiscoveryTrigger.cs` to prevent duplicate orchestration scheduling when a prior instance is still running.
+- **Bicep `maxInstanceCount` fix**: Removed invalid sub-40 overrides in `Infrastructure/function.bicep`; Flex Consumption plan enforces a minimum of `40`.
+- **`CategorisePodcastEpisodesProcessor`**: Now saves only changed episodes, reducing unnecessary Cosmos writes.
+
+These changes directly target the signals observed in the spike analysis:
+- Concurrent orchestration overlap was present in both pre and spike windows, but the guards eliminate the risk of scheduling a new run before the prior one completes, which could inflate GB-s billing.
+- The Bicep fix ensures scale-out is not incorrectly capped, which could have caused queuing/retry pressure contributing to elevated execution time.
+
+### Post-deployment validation status
+- Pending: compare `automatedinfra` and `automateddata` daily run-rate for the 48–72h window following 2026-04-21 against the spike-period baseline (`$0.19–$0.24/day` in `automatedinfra`).
+
+## Cost & telemetry analysis via az CLI — 2026-04-25
+
+### Full billing picture (March–April, `automatedinfra` Functions, GBP)
+
+Queried via `Microsoft.CostManagement/query` API against subscription `a6b8f1a2-6163-41bc-aa6d-e33928939a6e`:
+
+| Period | Daily cost |
+|---|---|
+| 2026-03-01 – 2026-03-10 | £0.00/day |
+| 2026-03-11 | £0.70 (migration deployment day) |
+| 2026-03-12 | £0.95 (peak) |
+| 2026-03-13 – 2026-03-31 | £0.17–0.27/day |
+| 2026-04-01 – 2026-04-15 | £0.00/day |
+| 2026-04-16 – 2026-04-24 | £0.14–£0.18/day |
+
+### Revised interpretation — monthly free-tier exhaustion
+
+- The orchestration (`HourlyOrchestration`, `activity:Indexer`, all activities) has been running consistently since **at least March 1**, with stable execution counts (48 `activity:Indexer` invocations/day, 24 `HourlyOrchestration`/day) throughout March and April.
+- **April 1–15 £0.00 is a new-month free-grant reset**, not a genuine cost reduction. The Flex Consumption plan includes a monthly free execution grant (GB-s); March's grant was exhausted on March 11 (migration deployment date), April's grant ran out around April 16.
+- The April 16 "spike" is therefore **not a new regression** — it is the same post-migration execution level that billed throughout March, now appearing again after the April free-grant was consumed.
+- The March 11–12 peak (£0.70–0.95) represents the initial over-execution on migration deployment day; steady-state since March 13 has been £0.17–0.27/day.
+
+### Effect of April 21 mitigations
+
+- March billing period (2026-03-13 – 2026-03-31, steady state): **~£0.20/day average**.
+- April billing period (2026-04-16 – 2026-04-24): **~£0.15/day average**.
+- Approximate **~25% reduction** in daily Functions cost, consistent with the orchestration guards and episode-save optimisation reducing unnecessary GB-s.
+
+### Application Insights data range
+
+- Queried via Log Analytics workspace `loganalytics-infra` (customer ID `2b1c62ee-689f-422a-816b-be1605ae88fa`).
+- Data range available: `2026-01-25` to present; 515K+ traces.
+- Execution volumes are flat across the full window — no anomalous invocation count or duration regression detected on or after April 16.
+
+### Free-grant details and reset schedule
+
+- All three Function apps (`indexer-infra`, `discover-infra`, `api-infra`) run on **Flex Consumption (FC1)** plans, all configured at **2048 MB (2 GB)** instance memory.
+- Free grant resets on the **1st of each calendar month** — confirmed by cost data showing £0.00 from 2026-04-01 to 2026-04-15.
+- Empirically derived free grant: **~322,337 GB-s/month** (back-calculated from Apr 1–15 execution seconds × 2 GB = 161,169 s × 2 = 322,337 GB-s consumed before billing started Apr 16).
+
+### Instance memory impact on free-grant coverage
+
+Average daily execution across all three apps: **~10,745 seconds/day** (Apr 1–15 mean).
+
+| Instance memory | GB-s/day | Free-grant seconds | Days free/month |
+|---|---|---|---|
+| 512 MB (0.5 GB) | ~5,372 GB-s | ~644,674 s | **~60 days → entire month free** |
+| **2048 MB (2 GB)** ← current | ~21,490 GB-s | ~161,169 s | **~15 days → billing from ~Apr 16** |
+| 4096 MB (4 GB) | ~42,980 GB-s | ~80,584 s | ~7.5 days → billing from ~Apr 8 |
+
+**Only `512`, `2048`, and `4096` are valid Flex instance-memory values.** `1024` is not valid per Microsoft documentation.
+
+### Memory feasibility — confirmed via Private Bytes telemetry (Apr 16–24)
+
+Queried `AppPerformanceCounters` (Private Bytes) per instance from `loganalytics-infra`:
+
+| Metric | Value |
+|---|---|
+| Avg peak per instance | 534.2 MB |
+| Median (P50) peak | 534.6 MB |
+| P95 peak | 569.2 MB |
+| Absolute max | 689.2 MB |
+
+- **512 MB: ruled out.** Median peak (534 MB) already exceeds the 512 MB limit under normal load. More than half of all instances would hit OOM, causing retries and higher cost than staying at 2048 MB.
+- **2048 MB: keep as baseline.** It remains the smallest valid memory size that is compatible with observed memory usage.
+- **4096 MB: not cost-optimal** for this workload because it would consume free-grant GB-s faster.
+
+### Trial correction (2026-04-25)
+
+- Reverted `Infrastructure/function.bicep` to valid Flex values `[512, 2048, 4096]` and default `2048`.
+- Cancelled the earlier 1024 MB trial assumption after doc validation.
+- Next optimization path: keep `2048` and reduce execution seconds (especially `activity:Indexer` and `orchestration:HourlyOrchestration`) to lower monthly billed GB-s.
+
+### Alerting and memory instrumentation implementation (2026-04-25)
+
+Implemented in branch:
+
+- **Cost budget alerts (free-allowance proxy)**
+  - Added `Microsoft.Consumption/budgets` resource in `Infrastructure/functions.bicep` scoped to subscription.
+  - Budget filtered to current deployment resource group + `ServiceName == Functions`.
+  - Threshold notifications configured at **50/75/90/100%**.
+- **Operational alerts**
+  - Added action group + scheduled query alerts in `Infrastructure/functions.bicep` for:
+    - OutOfMemory signals (`AppExceptions`/`AppTraces`)
+    - Host drain spikes (`AppRequests` with `/admin/host/drain`)
+    - Failed executions (`AppRequests` where `Success == false`)
+- **Warning-level memory probes (Info-filter safe)**
+  - Added shared helper: `Class-Libraries/RedditPodcastPoster.Common/Diagnostics/MemoryProbe.cs`.
+  - Added start/end memory probe logging to **all Indexer activities**:
+    - `IndexIdProvider`, `Indexer`, `Categoriser`, `Poster`, `Publisher`, `Tweet`, `Bluesky`.
+  - Extended probes to **Discovery** (`Discover`, `DiscoveryTrigger`) and **API** (`BaseHttpFunction` request pipeline).
+  - Probe payload now includes required fields:
+    - `GC.GetTotalMemory(false)`
+    - `GC.GetGCMemoryInfo().HeapSizeBytes`
+    - `Process.WorkingSet64` / `Process.PrivateMemorySize64`
+    - `function-name`, `invocation-id`, `elapsed-ms`.
+  - Added deployment toggle in app settings: `memoryProbe__Enabled: 'true'`.
+
+### Immediate validation checks
+
+1. Deploy and verify budget resource and 3 scheduled query alerts exist in `AutomatedInfra` scope.
+2. Confirm `MemoryProbe.Start` / `MemoryProbe.Complete` warning events appear for Indexer, Discovery, and API in `AppTraces`.
+3. Run 24–72h collection and determine whether API/Discovery peak private-bytes are materially below Indexer before considering any per-app memory-size changes.
+
+### Handover document (2026-04-25)
+
+- See `docs/migration/handover-2026-04-25-memory-probe-and-alerting.md` for a full handover of this session.
+- The handover includes:
+  - implemented alerting resources,
+  - memory probe orchestration refactor,
+  - free-grant/reset context,
+  - logging configuration and follow-up checks.
+
+### Instrumentation toggle simplification
+
+- Removed legacy `IndexerOptions.EnableCostInstrumentation` toggle.
+- Probe telemetry now uses centralized `IMemoryProbeOrchestrator` and only the `memoryProbe__Enabled` configuration switch.
+
+### CostProbe logging reduction (2026-04-25)
+
+- Removed `*CostProbe*` warning logs from Indexer activities (`Indexer`, `IndexIdProvider`, `Categoriser`, `Poster`, `Publisher`, `Tweet`, `Bluesky`).
+- Removed stopwatch timing that only existed to support those CostProbe warning payloads.
+- Kept memory-usage telemetry through `IMemoryProbeOrchestrator` (`Start(nameof(Class))` + `End()` / `End(false, errorType)`).
+- This keeps memory observability while reducing warning-log volume now that free-allowance overage root cause is known.

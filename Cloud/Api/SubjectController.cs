@@ -2,6 +2,7 @@
 using Api.Dtos;
 using Api.Factories;
 using Api.Handlers;
+using Azure.Diagnostics;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -13,8 +14,9 @@ public class SubjectController(
     ISubjectHandler subjectHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<SubjectController> logger,
-    IOptions<HostingOptions> hostingOptions
-) : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
+    IOptions<HostingOptions> hostingOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator)
+    : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
     [Function("SubjectGet")]
     public Task<HttpResponseData> Get(

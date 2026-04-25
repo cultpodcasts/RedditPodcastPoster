@@ -3,6 +3,7 @@ using Api.Dtos;
 using Api.Factories;
 using Api.Handlers;
 using Api.Models;
+using Azure.Diagnostics;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -14,8 +15,9 @@ public class EpisodeController(
     IEpisodeHandler episodeHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<EpisodeController> logger,
-    IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
+    IOptions<HostingOptions> hostingOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator)
+    : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
     private const string? Route = "episode/{episodeId:guid}";
     private const string? PodcastIdentifierRoute = "episode/{podcastIdentifier}/{episodeId:guid}";

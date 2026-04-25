@@ -2,6 +2,7 @@ using Api.Configuration;
 using Api.Dtos;
 using Api.Factories;
 using Api.Handlers;
+using Azure.Diagnostics;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -12,9 +13,10 @@ namespace Api;
 public class TermsController(
     ITermsHandler termsHandler,
     IClientPrincipalFactory clientPrincipalFactory,
-    ILogger<DiscoveryCurationController> logger,
-    IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
+    ILogger<TermsController> logger,
+    IOptions<HostingOptions> hostingOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator)
+    : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
     private const string? Route = "terms";
 

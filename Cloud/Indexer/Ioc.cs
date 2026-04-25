@@ -1,4 +1,5 @@
 ﻿using Azure;
+using Azure.Diagnostics;
 using iTunesSearch.Library;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
@@ -58,6 +59,8 @@ public static class Ioc
             .BindConfiguration<IndexerOptions>("indexer")
             .BindConfiguration<PosterOptions>("poster")
             .BindConfiguration<ActivityOptions>("activities")
+            .BindConfiguration<MemoryProbeOptions>("memoryProbe")
+            .AddSingleton<IMemoryProbeOrchestrator, MemoryProbeOrchestrator>()
             .AddScoped<IActivityOptionsProvider, ActivityOptionsProvider>()
             .AddPostingCriteria()
             .AddDelayedYouTubePublication()

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using Azure.Diagnostics;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -12,24 +12,21 @@ public class Bluesky(
     IBlueskyPostManager blueskyPostManager,
     IActivityOptionsProvider activityOptionsProvider,
     IOptions<IndexerOptions> indexerOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<Bluesky> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
+    private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        var runStopwatch = Stopwatch.StartNew();
+        var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Bluesky));
 
         logger.LogInformation(
             "{BlueskyName} initiated. task-activity-context-instance-id: '{ContextInstanceId}'.", nameof(Bluesky),
             context.InstanceId);
         logger.LogInformation(indexerContext.ToString());
-
-        if (_indexerOptions.EnableCostInstrumentation)
-        {
-            logger.LogWarning("BlueskyCostProbe.Start instance-id='{InstanceId}'.", context.InstanceId);
-        }
 
         if (!activityOptionsProvider.RunBluesky(out var reason))
         {
@@ -53,27 +50,11 @@ public class Bluesky(
             logger.LogError(ex, "Failure to execute {object}.{method)}.",
                 nameof(IBlueskyPostManager), nameof(IBlueskyPostManager.Post));
 
-            runStopwatch.Stop();
-            if (_indexerOptions.EnableCostInstrumentation)
-            {
-                logger.LogWarning(
-                    "BlueskyCostProbe.Complete instance-id='{InstanceId}' success='false' total-ms='{TotalMs}' error-type='{ErrorType}'.",
-                    context.InstanceId,
-                    runStopwatch.ElapsedMilliseconds,
-                    ex.GetType().Name);
-            }
-
+            memoryProbe.End(false, ex.GetType().Name);
             return indexerContext with { Success = false };
         }
 
-        runStopwatch.Stop();
-        if (_indexerOptions.EnableCostInstrumentation)
-        {
-            logger.LogWarning(
-                "BlueskyCostProbe.Complete instance-id='{InstanceId}' success='true' total-ms='{TotalMs}'.",
-                context.InstanceId,
-                runStopwatch.ElapsedMilliseconds);
-        }
+        memoryProbe.End();
 
         logger.LogInformation("{method} Completed", nameof(RunAsync));
         return indexerContext with { Success = true };

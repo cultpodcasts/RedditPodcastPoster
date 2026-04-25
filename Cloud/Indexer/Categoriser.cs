@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+﻿using Azure.Diagnostics;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -12,26 +12,21 @@ public class Categoriser(
     IRecentPodcastEpisodeCategoriser recentEpisodeCategoriser,
     IActivityOptionsProvider activityOptionsProvider,
     IOptions<IndexerOptions> indexerOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<Categoriser> logger)
     : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
+    private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
     public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
     {
-        var runStopwatch = Stopwatch.StartNew();
+        var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Categoriser));
 
         logger.LogInformation(
             "{nameofCategoriser} initiated. task-activity-context-instance-id: '{contextInstanceId}'.",
             nameof(Categoriser), context.InstanceId);
         logger.LogInformation(indexerContext.ToString());
-
-        if (_indexerOptions.EnableCostInstrumentation)
-        {
-            logger.LogWarning(
-                "CategoriserCostProbe.Start instance-id='{InstanceId}'.",
-                context.InstanceId);
-        }
 
         if (!activityOptionsProvider.RunCategoriser(out var reason))
         {
@@ -50,19 +45,8 @@ public class Categoriser(
 
         try
         {
-            var categoriseStopwatch = Stopwatch.StartNew();
             await recentEpisodeCategoriser.Categorise();
-            categoriseStopwatch.Stop();
-
-            runStopwatch.Stop();
-            if (_indexerOptions.EnableCostInstrumentation)
-            {
-                logger.LogWarning(
-                    "CategoriserCostProbe.Complete instance-id='{InstanceId}' success='true' categorise-ms='{CategoriseMs}' total-ms='{TotalMs}'.",
-                    context.InstanceId,
-                    categoriseStopwatch.ElapsedMilliseconds,
-                    runStopwatch.ElapsedMilliseconds);
-            }
+            memoryProbe.End();
         }
         catch (Exception ex)
         {
@@ -70,15 +54,7 @@ public class Categoriser(
                 "Failure to execute {interface}.{method)}.",
                 nameof(IRecentPodcastEpisodeCategoriser), nameof(IRecentPodcastEpisodeCategoriser.Categorise));
 
-            runStopwatch.Stop();
-            if (_indexerOptions.EnableCostInstrumentation)
-            {
-                logger.LogWarning(
-                    "CategoriserCostProbe.Complete instance-id='{InstanceId}' success='false' total-ms='{TotalMs}' error-type='{ErrorType}'.",
-                    context.InstanceId,
-                    runStopwatch.ElapsedMilliseconds,
-                    ex.GetType().Name);
-            }
+            memoryProbe.End(false, ex.GetType().Name);
 
             return indexerContext with { Success = false };
         }

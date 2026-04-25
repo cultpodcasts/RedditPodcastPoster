@@ -17,14 +17,14 @@ public abstract class BaseHttpFunction(
 {
     private readonly HostingOptions _hostingOptions = hostingOptions.Value;
 
-    protected async Task<HttpResponseData> HandleRequest(
+    protected virtual async Task<HttpResponseData> HandleRequest(
         HttpRequestData req,
         string[] roles,
         Func<HttpRequestData, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> authorised,
         Func<HttpRequestData, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> unauthorised,
         CancellationToken ct)
     {
-        logger.LogInformation("{method} initiated for '{url}' / '{httpMethod}'.", 
+        logger.LogInformation("{method} initiated for '{url}' / '{httpMethod}'.",
             nameof(HandleRequest), req.Url, req.Method);
         var isAuthorised = false;
         var roleCtr = 0;
@@ -46,7 +46,7 @@ public abstract class BaseHttpFunction(
         {
             logger.LogInformation("{method} Authorised.", nameof(HandleRequest));
             var response = await authorised(req, clientPrincipal, ct);
-            logger.LogInformation("{method} Response Gathered.", nameof(HandleRequest)); 
+            logger.LogInformation("{method} Response Gathered.", nameof(HandleRequest));
             return response;
         }
 
@@ -54,7 +54,7 @@ public abstract class BaseHttpFunction(
         return await unauthorised(req, clientPrincipal, ct);
     }
 
-    protected async Task<HttpResponseData> HandleRequest<T>(
+    protected virtual async Task<HttpResponseData> HandleRequest<T>(
         HttpRequestData req,
         string[] roles,
         T model,
@@ -62,7 +62,7 @@ public abstract class BaseHttpFunction(
         Func<HttpRequestData, T, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> unauthorised,
         CancellationToken ct)
     {
-        logger.LogInformation("{method} initiated for '{url}' / '{httpMethod}'.", 
+        logger.LogInformation("{method} initiated for '{url}' / '{httpMethod}'.",
             nameof(HandleRequest), req.Url, req.Method);
         var isAuthorised = false;
         var roleCtr = 0;
@@ -89,17 +89,18 @@ public abstract class BaseHttpFunction(
         return await unauthorised(req, model, clientPrincipal, ct);
     }
 
-    protected async Task<HttpResponseData> HandlePublicRequest<T>(
-    HttpRequestData req,
-    T model,
-    Func<HttpRequestData, T, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> authorised,
-    Func<HttpRequestData, T, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> unauthorised,
-    CancellationToken ct)
+    protected virtual async Task<HttpResponseData> HandlePublicRequest<T>(
+        HttpRequestData req,
+        T model,
+        Func<HttpRequestData, T, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> authorised,
+        Func<HttpRequestData, T, ClientPrincipal?, CancellationToken, Task<HttpResponseData>> unauthorised,
+        CancellationToken ct)
     {
         logger.LogInformation("{method} initiated for '{url}' / '{httpMethod}'.",
             nameof(HandlePublicRequest), req.Url, req.Method);
         var clientPrincipal = await clientPrincipalFactory.CreateAsync(req);
         var isAuthorised = clientPrincipal != null;
+
         if (isAuthorised)
         {
             logger.LogInformation("{method} Authorised.", nameof(HandlePublicRequest));
@@ -107,13 +108,14 @@ public abstract class BaseHttpFunction(
             logger.LogInformation("{method} Response Gathered.", nameof(HandlePublicRequest));
             return response;
         }
+
         logger.LogWarning("{method} Unauthorised.", nameof(HandlePublicRequest));
         return await unauthorised(req, model, clientPrincipal, ct);
     }
 
     protected static Task<HttpResponseData> Unauthorised(HttpRequestData r, ClientPrincipal? _, CancellationToken c)
     {
-        return r.CreateResponse(HttpStatusCode.Unauthorized).WithJsonBody(new {Message = "Unauthorised"}, c);
+        return r.CreateResponse(HttpStatusCode.Unauthorized).WithJsonBody(new { Message = "Unauthorised" }, c);
     }
 
     protected static Task<HttpResponseData> Unauthorised<T>(HttpRequestData r, T _, ClientPrincipal? cp,

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Azure;
+using Azure.Diagnostics;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,22 +16,21 @@ public class Indexer(
     IIndexingStrategy indexingStrategy,
     IActivityOptionsProvider activityOptionsProvider,
     IOptions<IndexerOptions> indexerOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<Indexer> logger)
     : TaskActivity<IndexerContextWrapper, IndexerContext>
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
+    private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
     public override async Task<IndexerContext> RunAsync(
         TaskActivityContext context, IndexerContextWrapper indexerContextWrapper)
     {
-        var runStopwatch = Stopwatch.StartNew();
-        var instrumentationEnabled = _indexerOptions.EnableCostInstrumentation;
+        var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Indexer));
         ActivityStatus initiatedStatus = ActivityStatus.Unknown;
         ActivityStatus completedStatus = ActivityStatus.Unknown;
-        var initiateMs = 0L;
-        var updateMs = 0L;
-        var completeMs = 0L;
         var idsToIndexCount = 0;
+        var updateMs = 0L;
 
         logger.LogInformation(
             "{nameofIndexer} initiated. task-activity-context-instance-id: '{contextInstanceId}'. Pass: {indexerContextWrapperPass}.",
@@ -88,10 +88,8 @@ public class Indexer(
         }
 
         var indexerOperationId = indexerContext.IndexerPassOperationIds[indexerContextWrapper.Pass - 1];
-        var initiateStopwatch = Stopwatch.StartNew();
         initiatedStatus = await activityMarshaller.Initiate(indexerOperationId, nameof(Indexer));
-        initiateStopwatch.Stop();
-        initiateMs = initiateStopwatch.ElapsedMilliseconds;
+
         if (initiatedStatus != ActivityStatus.Initiated)
         {
             if (initiatedStatus == ActivityStatus.Failed)
@@ -118,26 +116,20 @@ public class Indexer(
             var idsToIndex = indexerContext.IndexIds[indexerContextWrapper.Pass - 1];
             idsToIndexCount = idsToIndex.Length;
 
-            if (instrumentationEnabled)
-            {
-                logger.LogWarning(
-                    "IndexerCostProbe.Start instance-id='{InstanceId}' pass='{Pass}' ids-to-index='{IdsToIndexCount}' index-spotify='{IndexSpotify}' skip-youtube-url-resolving='{SkipYouTubeUrlResolving}' skip-expensive-youtube-queries='{SkipExpensiveYouTubeQueries}' skip-expensive-spotify-queries='{SkipExpensiveSpotifyQueries}'.",
-                    context.InstanceId,
-                    indexerContextWrapper.Pass,
-                    idsToIndexCount,
-                    indexingContext.IndexSpotify,
-                    indexingContext.SkipYouTubeUrlResolving,
-                    indexingContext.SkipExpensiveYouTubeQueries,
-                    indexingContext.SkipExpensiveSpotifyQueries);
-            }
-
             var updateStopwatch = Stopwatch.StartNew();
             results = await podcastsUpdater.UpdatePodcasts(idsToIndex, indexingContext);
             updateStopwatch.Stop();
             updateMs = updateStopwatch.ElapsedMilliseconds;
+
+            logger.LogWarning(
+                "IndexerCostProbe.Update instance-id='{InstanceId}' pass='{Pass}' update-ms='{UpdateMs}'.",
+                context.InstanceId,
+                indexerContextWrapper.Pass,
+                updateMs);
         }
         catch (Exception ex)
         {
+            memoryProbe.End(false, ex.GetType().Name);
             logger.LogError(ex,
                 "Failure to execute {nameofIPodcastsUpdater}.{nameofIPodcastsUpdater.UpdatePodcasts}.",
                 nameof(IPodcastsUpdater), nameof(IPodcastsUpdater.UpdatePodcasts));
@@ -147,10 +139,7 @@ public class Indexer(
         {
             try
             {
-                var completeStopwatch = Stopwatch.StartNew();
                 completedStatus = await activityMarshaller.Complete(indexerOperationId, nameof(Indexer));
-                completeStopwatch.Stop();
-                completeMs = completeStopwatch.ElapsedMilliseconds;
 
                 if (completedStatus != ActivityStatus.Completed)
                 {
@@ -177,23 +166,7 @@ public class Indexer(
             SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalIndexingContext.SkipSpotifyUrlResolving
         };
 
-        runStopwatch.Stop();
-
-        if (instrumentationEnabled)
-        {
-            logger.LogWarning(
-                "IndexerCostProbe.Complete instance-id='{InstanceId}' pass='{Pass}' success='{Success}' ids-to-index='{IdsToIndexCount}' initiate-status='{InitiatedStatus}' complete-status='{CompletedStatus}' initiate-ms='{InitiateMs}' update-ms='{UpdateMs}' complete-ms='{CompleteMs}' total-ms='{TotalMs}'.",
-                context.InstanceId,
-                indexerContextWrapper.Pass,
-                result.Success,
-                idsToIndexCount,
-                initiatedStatus,
-                completedStatus,
-                initiateMs,
-                updateMs,
-                completeMs,
-                runStopwatch.ElapsedMilliseconds);
-        }
+        memoryProbe.End();
 
         logger.LogInformation("{nameofRunAsync} Completed. Pass: {indexerContextWrapperPass}. Result: {result}",
             nameof(RunAsync), indexerContextWrapper.Pass, result);

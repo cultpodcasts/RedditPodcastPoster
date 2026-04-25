@@ -2,6 +2,7 @@
 using Api.Factories;
 using Api.Handlers;
 using Api.Models;
+using Azure.Diagnostics;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -13,8 +14,9 @@ public class PublicController(
     IPublicHandler publicHandler,
     ILogger<EpisodeController> logger,
     IClientPrincipalFactory clientPrincipalFactory,
-    IOptions<HostingOptions> hostingOptions)
-    : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
+    IOptions<HostingOptions> hostingOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator)
+    : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
     [Function("PublicEpisodeGet")]
     public Task<HttpResponseData> GetByEpisodeId(

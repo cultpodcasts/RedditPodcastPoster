@@ -1,11 +1,12 @@
 using Api.Configuration;
+using Api.Dtos;
 using Api.Factories;
 using Api.Handlers;
+using Azure.Diagnostics;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using PushSubscription = Api.Dtos.PushSubscription;
 
 namespace Api;
 
@@ -13,8 +14,9 @@ public class PushSubscriptionController(
     IPushSubscriptionHandler pushSubscriptionHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<PushSubscriptionController> logger,
-    IOptions<HostingOptions> hostingOptions
-) : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
+    IOptions<HostingOptions> hostingOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator)
+    : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
     [Function("PushSubscription")]
     public Task<HttpResponseData> CreatePushSubscription(

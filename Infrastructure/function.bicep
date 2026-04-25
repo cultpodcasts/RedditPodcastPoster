@@ -39,7 +39,7 @@ param publicNetworkAccess bool = false
 param appSettings object = {}
 
 @description('The memory size of instances used by the app.')
-@allowed([2048,4096])
+@allowed([512,2048,4096])
 param instanceMemoryMB int = 2048
 
 @description('The maximum number of instances used by the app.')
