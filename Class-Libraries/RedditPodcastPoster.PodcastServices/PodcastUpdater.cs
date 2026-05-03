@@ -80,7 +80,10 @@ public class PodcastUpdater(
             
             mergeResult = episodeMerger.MergeEpisodes(podcast, episodes, newEpisodes);
 
+            // Merge does not mutate `episodes`; new adds live only on mergeResult until saved. Include them
+            // before enrichment and elimination filtering so new episodes are not evaluated only on a later index pass.
             episodes = episodes
+                .Concat(mergeResult.AddedEpisodes)
                 .Where(x => ReduceToSinceIncorporatingPublishDelay(x, youTubePublishingDelay, releasedSince))
                 .ToList();
         }
