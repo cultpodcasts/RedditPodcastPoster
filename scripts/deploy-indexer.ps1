@@ -93,7 +93,7 @@ Check-StorageRole $storageAccount
 # Build and publish the project
 Write-Host "Publishing Indexer project..."
 if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
-dotnet publish $projectPath -c Release -o $publishDir
+dotnet publish $projectPath -c Release -r linux-x64 -o $publishDir
 if (!(Test-Path $publishDir)) {
     Write-Error "Publish directory not found: $publishDir"
     exit 1
@@ -107,7 +107,7 @@ if (!(Test-Path $zipName)) {
 
 # Upload zip to Azure Blob Storage (requires az login)
 Write-Host "Uploading zip to Azure Blob Storage..."
-az storage blob upload --account-name $storageAccount --container-name $container --file $zipName --name (Split-Path $zipName -Leaf) --auth-mode login
+az storage blob upload --account-name $storageAccount --container-name $container --file $zipName --name (Split-Path $zipName -Leaf) --auth-mode login--overwrite
 
 # Get the blob SAS URL (update expiry as needed)
 $expiry = (Get-Date).AddHours(2).ToString("yyyy-MM-ddTHH:mm:ssZ")
@@ -120,6 +120,6 @@ if ($sasToken) {
 
 # Deploy the zip package (do NOT update environment variables)
 Write-Host "Deploying zip package to Azure App Service..."
-az webapp deploy --resource-group $resourceGroup --name $appName --src-url $zipFileUrl --type zip
+az webapp deploy --resource-group $resourceGroup --name $appName --src-url "$zipFileUrl" --type zip
 
 Write-Host "Deployment complete."
