@@ -99,12 +99,6 @@ public class TweetBuilder(
             episodeTitle = episodeTitle[..min] + "…";
         }
 
-        if (shortUrl != null && _twitterOptions.WithEpisodeUrl && (podcastEpisode.HasMultipleServices() ||
-                                                                   podcastEpisode.Episode.Subjects.Any()))
-        {
-            tweetBuilder.Append($"{shortUrl}{Environment.NewLine}");
-        }
-
         tweetBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");
         if (podcastEpisode.Episode.Urls.YouTube != null)
         {
@@ -130,6 +124,12 @@ public class TweetBuilder(
         {
             throw new InvalidOperationException("No link found to tweet");
         }
+        if (shortUrl != null && _twitterOptions.WithEpisodeUrl && (podcastEpisode.HasMultipleServices() ||
+                                                           podcastEpisode.Episode.Subjects.Any()))
+        {
+            tweetBuilder.Append($"{Environment.NewLine}{shortUrl}");
+        }
+
 
         var tweet = tweetBuilder.ToString();
         return tweet;
