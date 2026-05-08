@@ -31,7 +31,7 @@ public class SpotifyEpisodeProvider(
             Episode.FromSpotify(
                 x.Id,
                 x.Name.Trim(),
-                htmlSanitiser.Sanitise(x.HtmlDescription),
+                htmlSanitiser.Sanitise(x.HtmlDescription ?? string.Empty),
                 TimeSpan.FromMilliseconds(x.DurationMs),
                 x.Explicit,
                 x.GetReleaseDate(),
