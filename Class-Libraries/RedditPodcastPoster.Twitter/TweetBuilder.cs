@@ -127,7 +127,7 @@ public class TweetBuilder(
         if (shortUrl != null && _twitterOptions.WithEpisodeUrl && (podcastEpisode.HasMultipleServices() ||
                                                            podcastEpisode.Episode.Subjects.Any()))
         {
-            tweetBuilder.Append($"{shortUrl}{Environment.NewLine}");
+            tweetBuilder.Append($"{Environment.NewLine}{shortUrl}");
         }
 
 
