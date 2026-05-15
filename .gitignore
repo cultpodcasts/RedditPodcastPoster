@@ -415,3 +415,4 @@ Console-Apps/RedditPodcastPoster/Properties/launchSettings.json
 /scripts/api.zip
 /scripts/deploy-api.json
 /Cloud/Config
+scripts/.deploy-local/*
