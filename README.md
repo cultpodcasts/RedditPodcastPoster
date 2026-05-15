@@ -42,3 +42,15 @@ A Reddit.com refresh-key, to apply to the reddit:RefreshToken setting, can be ge
 - [Reddit.Net](https://github.com/sirkris/Reddit.NET)
 - [CommandLine](https://github.com/commandlineparser/commandline)
 - [iTunesSearch](https://github.com/danesparza/iTunesSearch)
+
+## Local Azure Functions deployment
+
+Use `scripts/deploy-function-local.ps1` when you need to deploy from your machine without running the GitHub Actions provisioning or app setting steps. The script publishes a Release build for `linux-x64`, zips the publish output, and deploys that package directly to the production Function App.
+
+```powershell
+.\scripts\deploy-function-local.ps1 -FunctionName api
+.\scripts\deploy-function-local.ps1 -FunctionName discover
+.\scripts\deploy-function-local.ps1 -FunctionName indexer
+```
+
+The defaults match the production apps in the GitHub Actions workflow: resource group `AutomatedInfra`, suffix `infra`, and app names `api-infra`, `discover-infra`, and `indexer-infra`.

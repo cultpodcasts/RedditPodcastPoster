@@ -229,6 +229,10 @@
     <File Path="Infrastructure/functions.bicepparam" />
 
   </Folder>
+  <Folder Name="/Scripts/">
+    <File Path="scripts/deploy-api.ps1" />
+    <File Path="scripts/deploy-indexer.ps1" />
+  </Folder>
 
   <Folder Name="/Third-Party/">
 
