@@ -19,22 +19,26 @@ public class PodcastEpisodeResolver(
         Podcast? podcast = null;
         if (request.PodcastName != null)
         {
-            var podcasts= await podcastRepositoryV2.GetAllBy(x => x.Name == request.PodcastName).ToArrayAsync();
+            var podcasts = await podcastRepositoryV2.GetAllBy(x => x.Name == request.PodcastName).ToArrayAsync();
             if (podcasts.Length > 1)
             {
                 return new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.PodcastConflict);
             }
-            else if (podcasts.Length==0) {
+            else if (podcasts.Length == 0)
+            {
                 return new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.PodcastNotFound);
             }
 
             episode = await episodeRepository.GetEpisode(podcasts.Single().Id, request.EpisodeId);
-            podcast= podcasts.Single();
+            podcast = podcasts.Single();
         }
         else if (request.PodcastId != null)
         {
-            episode = await episodeRepository.GetEpisode(request.PodcastId.Value, request.EpisodeId);
-            podcast = await podcastRepositoryV2.GetPodcast(request.PodcastId.Value);
+            var episodeTask = episodeRepository.GetEpisode(request.PodcastId.Value, request.EpisodeId);
+            var podcastTask = podcastRepositoryV2.GetPodcast(request.PodcastId.Value);
+            await Task.WhenAll(episodeTask, podcastTask);
+            episode = episodeTask.Result;
+            podcast = podcastTask.Result;
         }
         else
         {
@@ -44,7 +48,8 @@ public class PodcastEpisodeResolver(
                 podcast = await podcastRepositoryV2.GetPodcast(episode.PodcastId);
             }
 
-            logger.LogWarning("{method} used without podcast-id. Episode-id: '{episodeId}'.", caller, request.EpisodeId);
+            logger.LogWarning("{method} used without podcast-id. Episode-id: '{episodeId}'.", caller,
+                request.EpisodeId);
         }
 
         return new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved);
