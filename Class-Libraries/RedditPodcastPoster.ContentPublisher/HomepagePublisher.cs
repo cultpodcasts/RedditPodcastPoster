@@ -121,29 +121,37 @@ public class HomepagePublisher(
         DateTime recentCutoff,
         CancellationToken ct)
     {
+        var podcasts = await recentPodcastsTask;
+        var episodeLists = await Task.WhenAll(podcasts.Select(podcast => LoadRecentEpisodes(podcast, recentCutoff, ct)));
+        return episodeLists.SelectMany(x => x).ToList();
+    }
+
+    private async Task<List<RecentEpisodeEntry>> LoadRecentEpisodes(
+        PodcastEntry podcast,
+        DateTime recentCutoff,
+        CancellationToken ct)
+    {
         var recentEpisodes = new List<RecentEpisodeEntry>();
-        foreach (var podcast in await recentPodcastsTask)
+
+        await foreach (var episode in episodeRepository.GetByPodcastId(
+                           podcast.Id,
+                           x => x.Release >= recentCutoff && !x.Ignored && !x.Removed))
         {
             ct.ThrowIfCancellationRequested();
 
-            await foreach (var episode in episodeRepository.GetByPodcastId(
-                               podcast.Id,
-                               x => x.Release >= recentCutoff && !x.Ignored && !x.Removed))
+            recentEpisodes.Add(new RecentEpisodeEntry
             {
-                recentEpisodes.Add(new RecentEpisodeEntry
-                {
-                    PodcastId = episode.PodcastId,
-                    PodcastName = episode.PodcastName,
-                    EpisodeId = episode.Id,
-                    EpisodeTitle = episode.Title,
-                    EpisodeDescription = episode.Description,
-                    Release = episode.Release,
-                    Urls = episode.Urls,
-                    Length = episode.Length,
-                    Subjects = episode.Subjects,
-                    Images = episode.Images
-                });
-            }
+                PodcastId = episode.PodcastId,
+                PodcastName = episode.PodcastName,
+                EpisodeId = episode.Id,
+                EpisodeTitle = episode.Title,
+                EpisodeDescription = episode.Description,
+                Release = episode.Release,
+                Urls = episode.Urls,
+                Length = episode.Length,
+                Subjects = episode.Subjects,
+                Images = episode.Images
+            });
         }
 
         return recentEpisodes;

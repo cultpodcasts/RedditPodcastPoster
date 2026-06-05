@@ -438,16 +438,25 @@ public class EpisodeHandler(
                     episodeChangeRequestWrapper.EpisodeId, c);
                 await shortnerService.Delete(new PodcastEpisode(podcastEpisodeResolverResponse.Podcast,
                     podcastEpisodeResolverResponse.Episode));
+
+                if (changeState.PublishHomepage)
+                {
+                    await contentPublisher.PublishHomepage();
+                }
             }
             else
             {
-                var indexed = await episodeSearchIndexerService.IndexEpisode(episodeChangeRequestWrapper.EpisodeId, c);
-                respModel.SearchIndexerState = indexed.ToDto();
-            }
+                var indexTask = episodeSearchIndexerService.IndexEpisode(
+                    podcastEpisodeResolverResponse.Podcast,
+                    podcastEpisodeResolverResponse.Episode,
+                    c);
+                var homepageTask = changeState.PublishHomepage
+                    ? contentPublisher.PublishHomepage()
+                    : Task.CompletedTask;
 
-            if (changeState.PublishHomepage)
-            {
-                await contentPublisher.PublishHomepage();
+                await Task.WhenAll(indexTask, homepageTask);
+
+                respModel.SearchIndexerState = (await indexTask).ToDto();
             }
 
             var response = await req.CreateResponse(HttpStatusCode.Accepted).WithJsonBody(respModel, c);

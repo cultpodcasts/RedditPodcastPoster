@@ -15,25 +15,46 @@ public class EpisodeSearchIndexerService(
     SearchClient searchClient,
     ILogger<EpisodeSearchIndexerService> logger) : IEpisodeSearchIndexerService
 {
-    public async Task<EntitySearchIndexerResponse> IndexEpisode(Guid episodeId, CancellationToken c)
+    public Task<EntitySearchIndexerResponse> IndexEpisode(Guid episodeId, CancellationToken c) =>
+        IndexEpisodeInternal(async () =>
+        {
+            var episode = await episodeRepository.GetBy(x => x.Id == episodeId);
+            if (episode == null)
+            {
+                logger.LogError("Unable to find episode to reindex. Episode-id: '{episodeId}'.", episodeId);
+                return null;
+            }
+
+            var podcast = await podcastRepository.GetPodcast(episode.PodcastId);
+            if (podcast == null)
+            {
+                logger.LogError("Unable to find podcast to reindex. Podcast-id: '{podcastId}'.", episode.PodcastId);
+                return null;
+            }
+
+            return new PodcastEpisode(podcast, episode);
+        }, episodeId, c);
+
+    public Task<EntitySearchIndexerResponse> IndexEpisode(
+        Podcast podcast,
+        Episode episode,
+        CancellationToken c) =>
+        IndexEpisodeInternal(() => Task.FromResult<PodcastEpisode?>(new PodcastEpisode(podcast, episode)),
+            episode.Id, c);
+
+    private async Task<EntitySearchIndexerResponse> IndexEpisodeInternal(
+        Func<Task<PodcastEpisode?>> resolvePodcastEpisode,
+        Guid episodeId,
+        CancellationToken c)
     {
-        var episode = await episodeRepository.GetBy(x => x.Id == episodeId);
-        if (episode == null)
+        var podcastEpisode = await resolvePodcastEpisode();
+        if (podcastEpisode == null)
         {
-            logger.LogError("Unable to find episode to reindex. Episode-id: '{episodeId}'.", episodeId);
             return new EntitySearchIndexerResponse
                 { EpisodeIndexRequestState = EpisodeIndexRequestState.EpisodeNotFound };
         }
 
-        var podcast = await podcastRepository.GetPodcast(episode.PodcastId);
-        if (podcast == null)
-        {
-            logger.LogError("Unable to find podcast to reindex. Podcast-id: '{podcastId}'.", episode.PodcastId);
-            return new EntitySearchIndexerResponse
-                { EpisodeIndexRequestState = EpisodeIndexRequestState.EpisodeNotFound };
-        }
-
-        var document = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
+        var document = podcastEpisode.ToEpisodeSearchRecord();
 
         try
         {
