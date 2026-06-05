@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Net;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
@@ -14,15 +15,13 @@ public class EpisodeRepository(
     ILogger<EpisodeRepository> logger)
     : IEpisodeRepository
 {
-    private static PartitionKey ToPartitionKey(Guid podcastId) => new(podcastId.ToString());
-
     public async Task<Episode?> GetEpisode(Guid podcastId, Guid episodeId)
     {
         try
         {
             return await container.ReadItemAsync<Episode>(episodeId.ToString(), ToPartitionKey(podcastId));
         }
-        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
             return null;
         }
@@ -78,7 +77,8 @@ public class EpisodeRepository(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "{method}: error counting episodes by podcast-id '{PodcastId}'.", nameof(Count), podcastId);
+                logger.LogError(ex, "{method}: error counting episodes by podcast-id '{PodcastId}'.", nameof(Count),
+                    podcastId);
                 throw;
             }
         }
@@ -136,7 +136,8 @@ public class EpisodeRepository(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "{method}: error retrieving episodes by podcast-id with additional filter.", nameof(GetByPodcastId));
+                logger.LogError(ex, "{method}: error retrieving episodes by podcast-id with additional filter.",
+                    nameof(GetByPodcastId));
                 throw;
             }
 
@@ -177,10 +178,14 @@ public class EpisodeRepository(
             throw new InvalidOperationException("Episode.PodcastId must be set before saving.");
         }
 
+        if (episode.Id == Guid.Empty)
+        {
+            throw new InvalidOperationException("Episode.Id must be set before saving.");
+        }
+
         var existingEpisode = await GetEpisode(episode.PodcastId, episode.Id);
         var previousCountedState = existingEpisode is not null && IsCountedForHomepage(existingEpisode);
         var nextCountedState = IsCountedForHomepage(episode);
-
         await container.UpsertItemAsync(episode, ToPartitionKey(episode.PodcastId));
         await UpdateHomePageActiveEpisodeCount(previousCountedState, nextCountedState);
         await UpdatePodcastLatestReleasedOnSave(episode, existingEpisode);
@@ -207,7 +212,7 @@ public class EpisodeRepository(
 
             await UpdatePodcastLatestReleasedOnDelete(podcastId, existingEpisode);
         }
-        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
             // idempotent delete
         }
@@ -286,6 +291,11 @@ public class EpisodeRepository(
                 yield return item;
             }
         }
+    }
+
+    private static PartitionKey ToPartitionKey(Guid podcastId)
+    {
+        return new PartitionKey(podcastId.ToString());
     }
 
     private static bool IsCountedForHomepage(Episode episode)

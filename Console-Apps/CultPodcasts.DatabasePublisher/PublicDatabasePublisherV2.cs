@@ -20,7 +20,8 @@ public class PublicDatabasePublisherV2(
         var init = new ProgressBar(1);
         var c = 0;
         init.Refresh(c, "Testing Podcast File-keys");
-        await AreUnique(podcastRepository.GetAll().Select(p => p.FileKey), "Podcasts");
+        var allFileKeys = podcastRepository.GetAll().Select(p => (Id: p.Id, FileKey: p.FileKey));
+        await AreUnique(allFileKeys, "Podcasts");
         init.Refresh(++c, "Tested Podcast File-keys");
 
 
@@ -93,12 +94,18 @@ public class PublicDatabasePublisherV2(
         Console.WriteLine();
     }
 
-    private static async Task AreUnique(IAsyncEnumerable<string> allFileKeys, string name)
+    private static async Task AreUnique(IAsyncEnumerable<(Guid, string)> allFileKeys, string name)
     {
         var distinct = new HashSet<string>();
         var duplicate = new HashSet<string>();
-        await foreach (var fileKey in allFileKeys)
+        await foreach (var (id, fileKey) in allFileKeys)
         {
+            if (string.IsNullOrWhiteSpace(fileKey))
+            {
+                throw new InvalidOperationException(
+                    $"File-key for podcast-id {id} is null or whitespace in {name} container.");
+            }
+
             if (!distinct.Add(fileKey))
             {
                 duplicate.Add(fileKey);

@@ -281,9 +281,7 @@ public class YouTubeUrlCategoriser(
         {
             if (matchingPodcast != null)
             {
-                logger.LogInformation(
-                    "Podcast with id '{matchingPodcastYouTubeChannelId}' does not have youtube-id.",
-                    matchingPodcast.YouTubeChannelId);
+                logger.LogInformation("Podcast with id '{podcastId}' does not have youtube-id.", matchingPodcast.Id);
             }
         }
 

@@ -30,7 +30,7 @@ public class EpisodeController(
         HttpRequestData req,
         string podcastIdentifier,
         Guid episodeId,
-        FunctionContext executionContext,
+        FunctionContext _,
         CancellationToken ct
     )
     {
@@ -52,7 +52,7 @@ public class EpisodeController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = Route)]
         HttpRequestData req,
         Guid episodeId,
-        FunctionContext executionContext,
+        FunctionContext _,
         CancellationToken ct
     )
     {
@@ -71,7 +71,7 @@ public class EpisodeController(
     public Task<HttpResponseData> GetOutgoing(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "episodes/outgoing")]
         HttpRequestData req,
-        FunctionContext executionContext,
+        FunctionContext _,
         CancellationToken ct
     )
     {
@@ -88,7 +88,7 @@ public class EpisodeController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
         HttpRequestData req,
         Guid episodeId,
-        FunctionContext executionContext,
+        FunctionContext _,
         [FromBody]
         EpisodeChangeRequest episodeChangeRequest,
         CancellationToken ct
@@ -111,7 +111,7 @@ public class EpisodeController(
         HttpRequestData req,
         Guid podcastId,
         Guid episodeId,
-        FunctionContext executionContext,
+        FunctionContext _,
         [FromBody]
         EpisodeChangeRequest episodeChangeRequest,
         CancellationToken ct
@@ -131,7 +131,7 @@ public class EpisodeController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "episode/publish/{episodeId:guid}")]
         HttpRequestData req,
         Guid episodeId,
-        FunctionContext executionContext,
+        FunctionContext _,
         [FromBody]
         EpisodePublishRequest episodePostRequest,
         CancellationToken ct
@@ -152,7 +152,7 @@ public class EpisodeController(
         HttpRequestData req,
         Guid podcastId,
         Guid episodeId,
-        FunctionContext executionContext,
+        FunctionContext _,
         [FromBody]
         EpisodePublishRequest episodePostRequest,
         CancellationToken ct
@@ -172,7 +172,7 @@ public class EpisodeController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = Route)]
         HttpRequestData req,
         Guid episodeId,
-        FunctionContext executionContext,
+        FunctionContext _,
         CancellationToken ct
     )
     {
@@ -193,7 +193,7 @@ public class EpisodeController(
         HttpRequestData req,
         Guid podcastId,
         Guid episodeId,
-        FunctionContext executionContext,
+        FunctionContext _,
         CancellationToken ct
     )
     {
