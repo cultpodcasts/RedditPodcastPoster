@@ -119,7 +119,5 @@ if ($sasToken) {
 }
 
 # Deploy the zip package (do NOT update environment variables)
-Write-Host "Deploying zip package to Azure App Service..."
-az webapp deploy --resource-group $resourceGroup --name $appName --src-url "$zipFileUrl" --type zip
-
-Write-Host "Deployment complete."
+. (Join-Path $PSScriptRoot "AzureWebAppDeploy.ps1")
+Invoke-WebAppZipDeploy -ResourceGroup $resourceGroup -AppName $appName -ZipFileUrl $zipFileUrl
