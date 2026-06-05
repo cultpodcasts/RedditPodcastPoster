@@ -1,3 +1,16 @@
+function Get-KuduDeploymentStatusName {
+    param([int]$Status)
+
+    switch ($Status) {
+        0 { return 'Pending' }
+        1 { return 'Building' }
+        2 { return 'Deploying' }
+        3 { return 'Failed' }
+        4 { return 'Success' }
+        default { return "Unknown($Status)" }
+    }
+}
+
 function Get-LatestKuduDeployment {
     param([Parameter(Mandatory = $true)][string]$AppName)
 
@@ -15,23 +28,64 @@ function Get-LatestKuduDeployment {
     }
 }
 
-function Test-KuduDeploymentSucceeded {
+function Wait-KuduDeployment {
     param(
-        [object]$Deployment,
-        [datetime]$NotBefore
+        [Parameter(Mandatory = $true)][string]$AppName,
+        [Parameter(Mandatory = $true)][datetime]$NotBeforeUtc,
+        [int]$TimeoutSeconds = 600,
+        [int]$PollIntervalSeconds = 10
     )
 
-    if (-not $Deployment) {
-        return $false
+    $deadline = (Get-Date).ToUniversalTime().AddSeconds($TimeoutSeconds)
+
+    while ((Get-Date).ToUniversalTime() -lt $deadline) {
+        $latest = Get-LatestKuduDeployment -AppName $AppName
+        if (-not $latest) {
+            Write-Host "Waiting for Kudu deployment status..."
+            Start-Sleep -Seconds $PollIntervalSeconds
+            continue
+        }
+
+        $received = [datetime]$latest.received_time
+        if ($received.ToUniversalTime() -lt $NotBeforeUtc) {
+            Write-Host "Waiting for a new deployment to appear in Kudu (latest is from $($latest.received_time))..."
+            Start-Sleep -Seconds $PollIntervalSeconds
+            continue
+        }
+
+        $statusName = Get-KuduDeploymentStatusName -Status $latest.status
+        if ($latest.status -eq 4 -and $latest.complete) {
+            return @{
+                Success = $true
+                Deployment = $latest
+            }
+        }
+
+        if ($latest.status -eq 3) {
+            return @{
+                Success = $false
+                Deployment = $latest
+                Reason = "Kudu reported deployment failure (status 3)."
+            }
+        }
+
+        if ($latest.complete -and $latest.status -ne 4) {
+            return @{
+                Success = $false
+                Deployment = $latest
+                Reason = "Kudu marked deployment complete with non-success status $($latest.status) ($statusName)."
+            }
+        }
+
+        Write-Host "Deployment in progress: status=$($latest.status) ($statusName), complete=$($latest.complete), received=$($latest.received_time)..."
+        Start-Sleep -Seconds $PollIntervalSeconds
     }
 
-    # Kudu deployment status: 4 = success
-    if ($Deployment.status -ne 4 -or -not $Deployment.complete) {
-        return $false
+    return @{
+        Success = $false
+        Deployment = $latest
+        Reason = "Timed out after $TimeoutSeconds seconds waiting for Kudu to report deployment success."
     }
-
-    $received = [datetime]$Deployment.received_time
-    return $received -ge $NotBefore
 }
 
 function Invoke-WebAppZipDeploy {
@@ -41,42 +95,52 @@ function Invoke-WebAppZipDeploy {
         [Parameter(Mandatory = $true)][string]$ZipFileUrl
     )
 
-    $deployStarted = (Get-Date).ToUniversalTime().AddMinutes(-2)
+    $deployStartedUtc = (Get-Date).ToUniversalTime().AddMinutes(-1)
     Write-Host "Deploying zip package to Azure App Service..."
+    Write-Host "Note: Azure CLI may print a JSONDecodeError traceback here even when deployment succeeds; Kudu polling confirms the real outcome."
 
     $deployOutput = cmd /c "az webapp deploy --resource-group `"$ResourceGroup`" --name `"$AppName`" --src-url `"$ZipFileUrl`" --type zip" 2>&1
     $deployExitCode = $LASTEXITCODE
-    $deployOutput | ForEach-Object { Write-Host $_ }
-
     $cliJsonParseFailure = $deployOutput -match 'JSONDecodeError|Extra data: line 1 column'
-    if ($deployExitCode -eq 0 -and -not $cliJsonParseFailure) {
-        Write-Host "Deployment complete."
-        return
-    }
 
     if ($cliJsonParseFailure) {
-        Write-Warning "Azure CLI failed parsing the OneDeploy response (deployment may still have succeeded)."
+        $deployOutput |
+            Where-Object { $_ -notmatch 'Traceback|File ".*site-packages|During handling|json\.decoder|requests\.exceptions|knack\.cli|azure/cli' } |
+            ForEach-Object { Write-Host $_ }
     }
     else {
-        Write-Warning "az webapp deploy exited with code $deployExitCode."
+        $deployOutput | ForEach-Object { Write-Host $_ }
+    }
+    if ($deployExitCode -eq 0 -and -not $cliJsonParseFailure) {
+        Write-Host "Azure CLI reported deployment initiated successfully."
+    }
+    elseif ($cliJsonParseFailure) {
+        Write-Warning "Azure CLI failed parsing the OneDeploy response. Confirming outcome via Kudu..."
+    }
+    else {
+        Write-Warning "az webapp deploy exited with code $deployExitCode. Confirming outcome via Kudu..."
     }
 
-    Write-Host "Verifying deployment via Kudu..."
-    Start-Sleep -Seconds 5
+    Write-Host "Polling Kudu for deployment completion (up to 10 minutes)..."
+    $result = Wait-KuduDeployment -AppName $AppName -NotBeforeUtc $deployStartedUtc
 
-    $latest = Get-LatestKuduDeployment -AppName $AppName
-    if (Test-KuduDeploymentSucceeded -Deployment $latest -NotBefore $deployStarted) {
-        Write-Host "Deployment succeeded on Azure (Kudu status=$($latest.status), ended $($latest.end_time))."
-        if ($latest.log_url) {
-            Write-Host "Deployment log: $($latest.log_url)"
+    if ($result.Success) {
+        $deployment = $result.Deployment
+        Write-Host "Deployment succeeded on Azure (Kudu status=$($deployment.status) (Success), ended $($deployment.end_time))."
+        if ($deployment.log_url) {
+            Write-Host "Deployment log: $($deployment.log_url)"
         }
 
         return
     }
 
-    $status = if ($latest) { $latest.status } else { 'unknown' }
-    $complete = if ($latest) { $latest.complete } else { 'unknown' }
-    $logUrl = if ($latest) { $latest.log_url } else { 'n/a' }
-    Write-Error "Deployment could not be confirmed. Kudu status=$status, complete=$complete. Log: $logUrl"
+    $deployment = $result.Deployment
+    $status = if ($deployment) { $deployment.status } else { 'unknown' }
+    $statusName = if ($deployment) { Get-KuduDeploymentStatusName -Status $deployment.status } else { 'unknown' }
+    $complete = if ($deployment) { $deployment.complete } else { 'unknown' }
+    $logUrl = if ($deployment) { $deployment.log_url } else { 'n/a' }
+    $reason = if ($result.Reason) { $result.Reason } else { 'Deployment could not be confirmed.' }
+
+    Write-Error "$reason Kudu status=$status ($statusName), complete=$complete. Log: $logUrl"
     exit 1
 }
