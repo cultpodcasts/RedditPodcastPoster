@@ -99,12 +99,11 @@ public class AddAudioPodcastProcessor(
                     await episodeRepository.Delete(episode.PodcastId, episode.Id);
                     logger.LogInformation("Removed episode '{EpisodeTitle}' due to regex.", episode.Title);
                 }
-
-                episodes = episodes.Except(episodesToRemove).ToList();
             }
 
             foreach (var episode in episodes)
             {
+                episode.Id = Guid.NewGuid();
                 await subjectEnricher.EnrichSubjects(episode,
                     new SubjectEnrichmentOptions(
                         podcast.IgnoredAssociatedSubjects,
