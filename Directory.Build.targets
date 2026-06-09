@@ -1,4 +1,8 @@
 <Project>
+  <PropertyGroup>
+    <AzureCosmosDisableNewtonsoftJsonCheck>true</AzureCosmosDisableNewtonsoftJsonCheck>
+  </PropertyGroup>
+
   <!-- Ensure low-level dependency-injection projects are built before other projects to avoid CS0006 metadata not found errors. -->
   <Target Name="EnsureDependencyInjectionBuilt" BeforeTargets="Build"
           Condition="'$(MSBuildProjectName)' != 'RedditPodcastPoster.DependencyInjection' and '$(MSBuildProjectName)' != 'RedditPodcastPoster.DependencyInjection.Abstractions'">
