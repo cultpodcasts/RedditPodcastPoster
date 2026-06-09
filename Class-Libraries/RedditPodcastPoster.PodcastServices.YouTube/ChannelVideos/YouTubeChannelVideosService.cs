@@ -3,6 +3,7 @@ using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
@@ -44,14 +45,16 @@ public class YouTubeChannelVideosService(
             indexingContext, expensivePlaylist: expensivePlaylist);
         if (response.Result != null)
         {
-            if (response.Result.Count >= 2 && !IsReverseDateOrdered(response.Result))
+            var playlistItems = response.Result.ToList();
+
+            if (playlistItems.Count >= 2 && !PlaylistItemOrdering.IsReverseDateOrdered(playlistItems))
             {
                 logger.LogWarning(
                     "Uploads playlist '{UploadsChannelId}' for channel-id '{ChannelId}' is not in reverse-date order.",
                     uploadsChannelId, channelId.ChannelId);
             }
 
-            var result = new Models.ChannelVideos(channel, response.Result);
+            var result = new Models.ChannelVideos(channel, playlistItems);
             _cache[channelId.ChannelId] = result;
             return result;
         }
@@ -60,29 +63,5 @@ public class YouTubeChannelVideosService(
             "{GetChannelVideosName}: Unable to find channel-upload-playlist-items for channel-id '{ChannelIdChannelId}', playlist-id '{UploadsChannelId}'.",
             nameof(GetChannelVideos), channelId.ChannelId, uploadsChannelId);
         return null;
-    }
-
-    private static bool IsReverseDateOrdered(IEnumerable<PlaylistItem> source)
-    {
-        using var iterator = source.GetEnumerator();
-        if (!iterator.MoveNext())
-        {
-            return true;
-        }
-
-        var current = iterator.Current.Snippet.PublishedAtDateTimeOffset;
-
-        while (iterator.MoveNext())
-        {
-            var next = iterator.Current.Snippet.PublishedAtDateTimeOffset;
-            if (current < next)
-            {
-                return false;
-            }
-
-            current = next;
-        }
-
-        return true;
     }
 }

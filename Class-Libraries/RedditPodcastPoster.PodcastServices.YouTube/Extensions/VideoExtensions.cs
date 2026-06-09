@@ -5,6 +5,12 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 public static class VideoExtensions
 {
+    public static bool IsCompletedPublicVideo(this Google.Apis.YouTube.v3.Data.Video video)
+    {
+        var liveBroadcastContent = video.Snippet?.LiveBroadcastContent;
+        return liveBroadcastContent != "live" && liveBroadcastContent != "upcoming";
+    }
+
     public static TimeSpan? GetLength(this Google.Apis.YouTube.v3.Data.Video video)
     {
         if (string.IsNullOrWhiteSpace(video.ContentDetails.Duration))

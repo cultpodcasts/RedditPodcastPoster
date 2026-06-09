@@ -4,6 +4,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
@@ -136,15 +137,15 @@ public class YouTubeItemResolver(
             return null;
         }
 
-        if (channelVideos.PlaylistItems.Any())
+        var playlistItems = channelVideos.PlaylistItems.ForEpisodeMatching(indexingContext);
+        if (playlistItems.Any())
         {
-            LogRetrievedCount(nameof(GetChannelUploadsPlaylistVideos), channelVideos.PlaylistItems.Count,
-                indexingContext);
+            LogRetrievedCount(nameof(GetChannelUploadsPlaylistVideos), playlistItems.Count, indexingContext);
         }
 
         return await playlistItemFinder.FindMatchingYouTubeVideo(
             request.Episode,
-            channelVideos.PlaylistItems,
+            playlistItems,
             youTubePublishingDelay,
             indexingContext);
     }

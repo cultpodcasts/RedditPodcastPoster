@@ -99,7 +99,7 @@ public class YouTubePlaylistService(
                 {
                     if (indexingContext.ReleasedSince.HasValue)
                     {
-                        knownToBeInReverseOrder = IsReverseDateOrdered(playlistItemsListResponse.Items);
+                        knownToBeInReverseOrder = PlaylistItemOrdering.IsReverseDateOrdered(playlistItemsListResponse.Items);
                         if (knownToBeInReverseOrder)
                         {
                             batchSize = 1;
@@ -163,27 +163,4 @@ public class YouTubePlaylistService(
         return new GetPlaylistInfoResponse(snippet.Title, snippet.Description);
     }
 
-    private static bool IsReverseDateOrdered(IEnumerable<PlaylistItem> source)
-    {
-        using var iterator = source.GetEnumerator();
-        if (!iterator.MoveNext())
-        {
-            return true;
-        }
-
-        var current = iterator.Current.Snippet.PublishedAtDateTimeOffset;
-
-        while (iterator.MoveNext())
-        {
-            var next = iterator.Current.Snippet.PublishedAtDateTimeOffset;
-            if (current < next)
-            {
-                return false;
-            }
-
-            current = next;
-        }
-
-        return true;
-    }
 }

@@ -1,19 +1,44 @@
 using AutoFixture;
 using FluentAssertions;
 using Google.Apis.YouTube.v3.Data;
+using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
+using RedditPodcastPoster.PodcastServices.YouTube.Video;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Services;
 
 public class SearchResultFinderTests
 {
+    private static readonly TimeSpan DefaultEpisodeLength = TimeSpan.FromHours(1);
     private readonly Fixture _fixture = new();
     private readonly AutoMocker _mocker = new();
 
     private ISearchResultFinder Sut => _mocker.CreateInstance<SearchResultFinder>();
+
+    public SearchResultFinderTests()
+    {
+        _mocker.GetMock<IYouTubeVideoService>()
+            .Setup(x => x.GetVideoContentDetails(
+                It.IsAny<IYouTubeServiceWrapper>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync((IYouTubeServiceWrapper _, IEnumerable<string> videoIds, IndexingContext _, bool _, bool _) =>
+                videoIds.Select(CreateVideoWithMatchingDuration).ToList());
+    }
+
+    private static Google.Apis.YouTube.v3.Data.Video CreateVideoWithMatchingDuration(string videoId) =>
+        new()
+        {
+            Id = videoId,
+            ContentDetails = new VideoContentDetails { Duration = "PT1H0M0S" },
+            Snippet = new VideoSnippet { LiveBroadcastContent = "none" }
+        };
 
     [Theory]
     [InlineData(0)]
@@ -29,6 +54,7 @@ public class SearchResultFinderTests
             .Build<RedditPodcastPoster.Models.Episode>()
             .With(x => x.Title, expectedTitle)
             .With(x => x.Release, today)
+            .With(x => x.Length, DefaultEpisodeLength)
             .With(x => x.AppleId, (long?) null)
             .With(x => x.Urls, _fixture.Build<ServiceUrls>().With(x => x.Apple, (Uri?) null).Create())
             .Create();
@@ -73,6 +99,7 @@ public class SearchResultFinderTests
             .With(x => x.Title, "Episode-title")
             .With(x => x.Title, expectedTitle)
             .With(x => x.Release, release)
+            .With(x => x.Length, DefaultEpisodeLength)
             .Create();
         var expected = _fixture
             .Build<SearchResult>()
@@ -116,6 +143,7 @@ public class SearchResultFinderTests
             .With(x => x.Title, "Episode-title")
             .With(x => x.Title, expectedTitle)
             .With(x => x.Release, release)
+            .With(x => x.Length, DefaultEpisodeLength)
             .Create();
         var expected = _fixture
             .Build<SearchResult>()
@@ -156,6 +184,7 @@ public class SearchResultFinderTests
             .Build<RedditPodcastPoster.Models.Episode>()
             .With(x => x.Title, $"Prefix-A {episodeNumber} Suffix-A")
             .With(x => x.Release, release)
+            .With(x => x.Length, DefaultEpisodeLength)
             .Create();
         var expected = _fixture
             .Build<SearchResult>()

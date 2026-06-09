@@ -124,6 +124,7 @@ public class YouTubeEpisodeProvider(
                     videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == x.Snippet.ResourceId.VideoId)!))
             .Where(x => x.VideoDetails?.Snippet != null)
             .Where(x => YouTubeVideoDurationMatcher.HasDuration(x.VideoDetails.GetLength()))
+            .Where(x => x.VideoDetails.IsCompletedPublicVideo())
             .Where(x => x.VideoDetails.Snippet.ChannelId == request.ChannelId)
             .Select(x => GetEpisode(x.PlaylistItem.Snippet, x.VideoDetails))
             .ToList();
