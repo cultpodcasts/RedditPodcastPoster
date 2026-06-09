@@ -76,10 +76,6 @@ public partial class SearchResultFinder(
                             }
                         }
                     }
-                    else
-                    {
-                        return new FindEpisodeResponse(match);
-                    }
                 }
             }
         }

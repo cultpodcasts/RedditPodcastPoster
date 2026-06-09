@@ -81,10 +81,6 @@ public partial class PlaylistItemFinder(
                             }
                         }
                     }
-                    else
-                    {
-                        return new FindEpisodeResponse(PlaylistItem: match);
-                    }
                 }
             }
         }
