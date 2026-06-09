@@ -45,6 +45,8 @@ public static class ServiceCollectionExtensions
             .AddScoped<ITolerantYouTubePlaylistService, TolerantYouTubePlaylistService>()
             .AddScoped<ICachedTolerantYouTubePlaylistService, CachedTolerantYouTubePlaylistService>()
             .AddScoped<IPlaylistItemFinder, PlaylistItemFinder>()
-            .BindConfiguration<YouTubeSettings>("youtube");
+            .AddSingleton<IYouTubeChannelVideoRetrievalPolicy, YouTubeChannelVideoRetrievalPolicy>()
+            .BindConfiguration<YouTubeSettings>("youtube")
+            .BindConfiguration<YouTubeChannelOptions>("youtubeChannel");
     }
 }

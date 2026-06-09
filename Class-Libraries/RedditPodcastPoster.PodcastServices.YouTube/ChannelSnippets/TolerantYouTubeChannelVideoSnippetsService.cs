@@ -26,10 +26,13 @@ public class TolerantYouTubeChannelVideoSnippetsService(
                     indexingContext);
                 success = true;
             }
-            catch (YouTubeQuotaException ex)
+            catch (YouTubeChannelSearchForbiddenException)
             {
-                logger.LogInformation(
-                    "Quota exceeded observed. Rotating api-key .");
+                throw;
+            }
+            catch (YouTubeQuotaException)
+            {
+                logger.LogInformation("Quota exceeded observed. Rotating api-key.");
                 try
                 {
                     youTubeService.Rotate();

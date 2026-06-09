@@ -104,6 +104,10 @@ public class Podcast
     [JsonPropertyOrder(160)]
     public bool? YouTubePlaylistQueryIsExpensive { get; set; }
 
+    [JsonPropertyName("youTubeChannelSearchForbidden")]
+    [JsonPropertyOrder(161)]
+    public bool? YouTubeChannelSearchForbidden { get; set; }
+
     [JsonPropertyName("skipEnrichingFromYouTube")]
     [JsonPropertyOrder(170)]
     public bool? SkipEnrichingFromYouTube { get; set; }
@@ -174,6 +178,11 @@ public class Podcast
     public bool HasExpensiveYouTubePlaylistQuery()
     {
         return YouTubePlaylistQueryIsExpensive.HasValue && YouTubePlaylistQueryIsExpensive.Value;
+    }
+
+    public bool HasYouTubeChannelSearchForbidden()
+    {
+        return YouTubeChannelSearchForbidden.HasValue && YouTubeChannelSearchForbidden.Value;
     }
 
     public bool HasExpensiveSpotifyEpisodesQuery()

@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
+using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
@@ -43,7 +45,16 @@ public class YouTubeChannelVideosService(
             indexingContext, expensivePlaylist: expensivePlaylist);
         if (response.Result != null)
         {
-            var result = new Models.ChannelVideos(channel, response.Result);
+            var playlistItems = response.Result.ToList();
+
+            if (playlistItems.Count >= 2 && !PlaylistItemOrdering.IsReverseDateOrdered(playlistItems))
+            {
+                logger.LogWarning(
+                    "Uploads playlist '{UploadsChannelId}' for channel-id '{ChannelId}' is not in reverse-date order.",
+                    uploadsChannelId, channelId.ChannelId);
+            }
+
+            var result = new Models.ChannelVideos(channel, playlistItems);
             _cache[channelId.ChannelId] = result;
             return result;
         }

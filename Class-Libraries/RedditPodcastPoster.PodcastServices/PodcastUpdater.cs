@@ -30,6 +30,7 @@ public class PodcastUpdater(
         var initialSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
         var initialSkipYouTube = indexingContext.SkipYouTubeUrlResolving;
         var knownYouTubeExpensiveQuery = podcast.HasExpensiveYouTubePlaylistQuery();
+        var knownYouTubeChannelSearchForbidden = podcast.HasYouTubeChannelSearchForbidden();
         var knownSpotifyExpensiveQuery = podcast.HasExpensiveSpotifyEpisodesQuery();
         IList<Episode> episodes;
         EpisodeMergeResult mergeResult;
@@ -150,6 +151,15 @@ public class PodcastUpdater(
                 podcast.Name, podcast.Id, podcast.YouTubeChannelId);
         }
 
+        var discoveredYouTubeChannelSearchForbidden = !knownYouTubeChannelSearchForbidden &&
+                                                      podcast.HasYouTubeChannelSearchForbidden();
+        if (discoveredYouTubeChannelSearchForbidden)
+        {
+            logger.LogInformation(
+                "YouTube channel Search.List forbidden for podcast '{podcastName}' with id '{podcastId}' and youtube-channel-id '{podcastYouTubeChannelId}'; persisting uploads-playlist strategy.",
+                podcast.Name, podcast.Id, podcast.YouTubeChannelId);
+        }
+
         var discoveredSpotifyExpensiveQuery = !knownSpotifyExpensiveQuery && podcast.HasExpensiveSpotifyEpisodesQuery();
         if (discoveredSpotifyExpensiveQuery)
         {
@@ -160,7 +170,8 @@ public class PodcastUpdater(
 
         if (mergeResult.MergedEpisodes.Any() || mergeResult.AddedEpisodes.Any() ||
             filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any() ||
-            discoveredYouTubeExpensiveQuery || discoveredSpotifyExpensiveQuery)
+            discoveredYouTubeExpensiveQuery || discoveredYouTubeChannelSearchForbidden ||
+            discoveredSpotifyExpensiveQuery)
         {
             // Update LatestReleased if new episodes were added or merged
             if (mergeResult.AddedEpisodes.Any())
