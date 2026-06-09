@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Episode;
 public interface IYouTubeEpisodeProvider
 {
     Task<IList<RedditPodcastPoster.Models.Episode>?> GetEpisodes(
-        YouTubeChannelId request,
+        RedditPodcastPoster.Models.Podcast podcast,
         IndexingContext indexingContext,
         IEnumerable<string> knownIds);
 

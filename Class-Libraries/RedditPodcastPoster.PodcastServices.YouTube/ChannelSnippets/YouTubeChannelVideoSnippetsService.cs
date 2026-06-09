@@ -53,6 +53,11 @@ public class YouTubeChannelVideoSnippetsService(
                     throw new YouTubeQuotaException();
                 }
 
+                if (IsAccountDelegationForbidden(ex))
+                {
+                    throw new YouTubeChannelSearchForbiddenException(channelId.ChannelId, ex);
+                }
+
                 logger.LogError(ex,
                     "Unrecognised google-api-exception. Failed to use {nameofYouTubeServiceWrapperYouTubeService} to obtain latest-channel-snippets for channel-id '{channelId}'.",
                     nameof(youTubeServiceWrapper.YouTubeService), channelId.ChannelId);
@@ -76,4 +81,9 @@ public class YouTubeChannelVideoSnippetsService(
 
         return result;
     }
+
+    private static bool IsAccountDelegationForbidden(GoogleApiException ex) =>
+        ex.HttpStatusCode == HttpStatusCode.Forbidden &&
+        (ex.Error?.Errors?.Any(e => e.Reason == "accountDelegationForbidden") == true ||
+         ex.Message.Contains("accountDelegationForbidden", StringComparison.OrdinalIgnoreCase));
 }

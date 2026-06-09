@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
@@ -43,6 +44,13 @@ public class YouTubeChannelVideosService(
             indexingContext, expensivePlaylist: expensivePlaylist);
         if (response.Result != null)
         {
+            if (response.Result.Count >= 2 && !IsReverseDateOrdered(response.Result))
+            {
+                logger.LogWarning(
+                    "Uploads playlist '{UploadsChannelId}' for channel-id '{ChannelId}' is not in reverse-date order.",
+                    uploadsChannelId, channelId.ChannelId);
+            }
+
             var result = new Models.ChannelVideos(channel, response.Result);
             _cache[channelId.ChannelId] = result;
             return result;
@@ -52,5 +60,29 @@ public class YouTubeChannelVideosService(
             "{GetChannelVideosName}: Unable to find channel-upload-playlist-items for channel-id '{ChannelIdChannelId}', playlist-id '{UploadsChannelId}'.",
             nameof(GetChannelVideos), channelId.ChannelId, uploadsChannelId);
         return null;
+    }
+
+    private static bool IsReverseDateOrdered(IEnumerable<PlaylistItem> source)
+    {
+        using var iterator = source.GetEnumerator();
+        if (!iterator.MoveNext())
+        {
+            return true;
+        }
+
+        var current = iterator.Current.Snippet.PublishedAtDateTimeOffset;
+
+        while (iterator.MoveNext())
+        {
+            var next = iterator.Current.Snippet.PublishedAtDateTimeOffset;
+            if (current < next)
+            {
+                return false;
+            }
+
+            current = next;
+        }
+
+        return true;
     }
 }

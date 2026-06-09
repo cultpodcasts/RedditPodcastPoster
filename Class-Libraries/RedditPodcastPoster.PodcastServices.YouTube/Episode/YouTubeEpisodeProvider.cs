@@ -3,10 +3,13 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
+using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
+using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Episode;
@@ -16,38 +19,114 @@ public class YouTubeEpisodeProvider(
     ITolerantYouTubePlaylistService youTubePlaylistService,
     IYouTubeVideoService youTubeVideoService,
     ICachedTolerantYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
-#pragma warning disable CS9113 // Parameter is unread.
+    IYouTubeChannelVideosService youTubeChannelVideosService,
+    IYouTubeChannelVideoRetrievalPolicy youTubeChannelVideoRetrievalPolicy,
     ILogger<YouTubeEpisodeProvider> logger)
-#pragma warning restore CS9113 // Parameter is unread.
     : IYouTubeEpisodeProvider
 {
     public async Task<IList<RedditPodcastPoster.Models.Episode>?> GetEpisodes(
+        RedditPodcastPoster.Models.Podcast podcast,
+        IndexingContext indexingContext,
+        IEnumerable<string> knownIds)
+    {
+        var channelId = new YouTubeChannelId(podcast.YouTubeChannelId);
+        var uploadsPlaylistReason = youTubeChannelVideoRetrievalPolicy.GetUploadsPlaylistReason(podcast);
+        if (uploadsPlaylistReason != null)
+        {
+            logger.LogInformation(
+                "Using channel uploads playlist for channel-id '{ChannelId}' ({Reason}).",
+                channelId.ChannelId, uploadsPlaylistReason);
+            return await GetEpisodesFromChannelUploadsPlaylist(channelId, indexingContext, knownIds);
+        }
+
+        try
+        {
+            var youTubeVideos =
+                await youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(channelId, indexingContext);
+            if (youTubeVideos != null)
+            {
+                var youTubeVideoIds =
+                    youTubeVideos.Select(x => x.Id.VideoId).Where(x => !knownIds.Contains(x)).ToArray();
+
+                if (youTubeVideoIds.Any())
+                {
+                    var videoDetails =
+                        await youTubeVideoService.GetVideoContentDetails(youTubeService, youTubeVideoIds,
+                            indexingContext,
+                            true);
+
+                    if (videoDetails != null)
+                    {
+                        return videoDetails
+                            .Where(videoDetail => YouTubeVideoDurationMatcher.HasDuration(videoDetail.GetLength()))
+                            .Select(videoDetail =>
+                                GetEpisode(
+                                    youTubeVideos.First(searchResult => searchResult.Id.VideoId == videoDetail.Id),
+                                    videoDetail))
+                            .ToList();
+                    }
+                }
+            }
+
+            return null;
+        }
+        catch (YouTubeChannelSearchForbiddenException ex)
+        {
+            logger.LogInformation(ex,
+                "Search.List is not permitted for channel-id '{ChannelId}'; falling back to channel uploads playlist.",
+                channelId.ChannelId);
+            podcast.YouTubeChannelSearchForbidden = true;
+            return await GetEpisodesFromChannelUploadsPlaylist(channelId, indexingContext, knownIds);
+        }
+    }
+
+    private async Task<IList<RedditPodcastPoster.Models.Episode>?> GetEpisodesFromChannelUploadsPlaylist(
         YouTubeChannelId request,
         IndexingContext indexingContext,
         IEnumerable<string> knownIds)
     {
-        var youTubeVideos =
-            await youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(request, indexingContext);
-        if (youTubeVideos != null)
+        var channelVideos = await youTubeChannelVideosService.GetChannelVideos(request, indexingContext);
+        if (channelVideos?.PlaylistItems == null)
         {
-            var youTubeVideoIds = youTubeVideos.Select(x => x.Id.VideoId).Where(x => !knownIds.Contains(x)).ToArray();
-
-            if (youTubeVideoIds.Any())
-            {
-                var videoDetails =
-                    await youTubeVideoService.GetVideoContentDetails(youTubeService, youTubeVideoIds, indexingContext,
-                        true);
-
-                if (videoDetails != null)
-                {
-                    return videoDetails.Select(videoDetail =>
-                        GetEpisode(youTubeVideos.First(searchResult => searchResult.Id.VideoId == videoDetail.Id),
-                            videoDetail)).ToList();
-                }
-            }
+            return null;
         }
 
-        return null;
+        var playlistItems = channelVideos.PlaylistItems
+            .Where(x => !knownIds.Contains(x.Snippet.ResourceId.VideoId))
+            .ToList();
+        if (indexingContext.ReleasedSince.HasValue)
+        {
+            playlistItems = playlistItems
+                .Where(x => x.Snippet.PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince))
+                .ToList();
+        }
+
+        if (!playlistItems.Any())
+        {
+            return null;
+        }
+
+        var videoDetails = await youTubeVideoService.GetVideoContentDetails(
+            youTubeService,
+            playlistItems.Select(x => x.Snippet.ResourceId.VideoId),
+            indexingContext,
+            true);
+        if (videoDetails == null || !videoDetails.Any())
+        {
+            return null;
+        }
+
+        return playlistItems
+            .Where(x => x.Snippet.Title != "Deleted video")
+            .Select(x =>
+                new PlaylistItemVideo(
+                    x,
+                    videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == x.Snippet.ResourceId.VideoId)!))
+            .Where(x => x.VideoDetails?.Snippet != null)
+            .Where(x => YouTubeVideoDurationMatcher.HasDuration(x.VideoDetails.GetLength()))
+            .Where(x => x.VideoDetails.Snippet.ChannelId == request.ChannelId)
+            .Select(x => GetEpisode(x.PlaylistItem.Snippet, x.VideoDetails))
+            .ToList();
     }
 
     public RedditPodcastPoster.Models.Episode GetEpisode(SearchResult searchResult,

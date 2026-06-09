@@ -2,6 +2,8 @@
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
+using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
+using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
@@ -11,6 +13,8 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 public class YouTubeItemResolver(
     ICachedTolerantYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
     ICachedTolerantYouTubePlaylistService youTubePlaylistService,
+    IYouTubeChannelVideosService youTubeChannelVideosService,
+    IYouTubeChannelVideoRetrievalPolicy youTubeChannelVideoRetrievalPolicy,
     ISearchResultFinder searchResultFinder,
     IPlaylistItemFinder playlistItemFinder,
     ILogger<YouTubeItemResolver> logger)
@@ -82,35 +86,82 @@ public class YouTubeItemResolver(
     private async Task<FindEpisodeResponse?> GetChannelVideos(
         EnrichmentRequest request, IndexingContext indexingContext, TimeSpan youTubePublishingDelay)
     {
-        var searchListResponse =
-            await youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(
-                new YouTubeChannelId(request.Podcast.YouTubeChannelId), indexingContext);
-        if (searchListResponse == null)
+        var uploadsPlaylistReason = youTubeChannelVideoRetrievalPolicy.GetUploadsPlaylistReason(request.Podcast);
+        if (uploadsPlaylistReason != null)
+        {
+            logger.LogInformation(
+                "Using channel uploads playlist for channel-id '{ChannelId}' ({Reason}).",
+                request.Podcast.YouTubeChannelId, uploadsPlaylistReason);
+            return await GetChannelUploadsPlaylistVideos(request, indexingContext, youTubePublishingDelay);
+        }
+
+        try
+        {
+            var searchListResponse =
+                await youTubeChannelVideoSnippetsService.GetLatestChannelVideoSnippets(
+                    new YouTubeChannelId(request.Podcast.YouTubeChannelId), indexingContext);
+            if (searchListResponse == null)
+            {
+                return null;
+            }
+
+            if (searchListResponse.Any())
+            {
+                LogRetrievedCount(nameof(GetChannelVideos), searchListResponse.Count, indexingContext);
+            }
+
+            return await searchResultFinder.FindMatchingYouTubeVideo(
+                request.Episode,
+                searchListResponse,
+                youTubePublishingDelay,
+                indexingContext);
+        }
+        catch (YouTubeChannelSearchForbiddenException ex)
+        {
+            logger.LogInformation(ex,
+                "Search.List is not permitted for channel-id '{ChannelId}'; falling back to channel uploads playlist.",
+                request.Podcast.YouTubeChannelId);
+            request.Podcast.YouTubeChannelSearchForbidden = true;
+            return await GetChannelUploadsPlaylistVideos(request, indexingContext, youTubePublishingDelay);
+        }
+    }
+
+    private async Task<FindEpisodeResponse?> GetChannelUploadsPlaylistVideos(
+        EnrichmentRequest request, IndexingContext indexingContext, TimeSpan youTubePublishingDelay)
+    {
+        var channelVideos = await youTubeChannelVideosService.GetChannelVideos(
+            new YouTubeChannelId(request.Podcast.YouTubeChannelId), indexingContext);
+        if (channelVideos?.PlaylistItems == null)
         {
             return null;
         }
 
-        if (searchListResponse.Any())
+        if (channelVideos.PlaylistItems.Any())
         {
-            if (indexingContext.ReleasedSince.HasValue)
-            {
-                logger.LogInformation(
-                    "{method} Retrieved {count} items published on YouTube since '{releasedSince:R}'",
-                    nameof(GetChannelVideos), searchListResponse.Count, indexingContext.ReleasedSince.Value);
-            }
-            else
-            {
-                logger.LogInformation(
-                    "{method} Retrieved {count} items published on YouTube. {releasedSince} is Null.",
-                    nameof(GetChannelVideos), searchListResponse.Count, nameof(indexingContext.ReleasedSince));
-            }
+            LogRetrievedCount(nameof(GetChannelUploadsPlaylistVideos), channelVideos.PlaylistItems.Count,
+                indexingContext);
         }
 
-        var matchedYouTubeVideo = await searchResultFinder.FindMatchingYouTubeVideo(
+        return await playlistItemFinder.FindMatchingYouTubeVideo(
             request.Episode,
-            searchListResponse,
+            channelVideos.PlaylistItems,
             youTubePublishingDelay,
             indexingContext);
-        return matchedYouTubeVideo;
+    }
+
+    private void LogRetrievedCount(string method, int count, IndexingContext indexingContext)
+    {
+        if (indexingContext.ReleasedSince.HasValue)
+        {
+            logger.LogInformation(
+                "{method} Retrieved {count} items published on YouTube since '{releasedSince:R}'",
+                method, count, indexingContext.ReleasedSince.Value);
+        }
+        else
+        {
+            logger.LogInformation(
+                "{method} Retrieved {count} items published on YouTube. {releasedSince} is Null.",
+                method, count, nameof(indexingContext.ReleasedSince));
+        }
     }
 }

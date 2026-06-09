@@ -55,7 +55,7 @@ public class YouTubeEpisodeRetrievalHandler(
                 }
 
                 var foundEpisodes = await youTubeEpisodeProvider.GetEpisodes(
-                    new YouTubeChannelId(podcast.YouTubeChannelId), indexingContext, knownIds);
+                    podcast, indexingContext, knownIds);
                 if (foundEpisodes != null)
                 {
                     newEpisodes = foundEpisodes;

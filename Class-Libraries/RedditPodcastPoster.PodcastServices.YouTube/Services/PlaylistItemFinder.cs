@@ -29,12 +29,13 @@ public partial class PlaylistItemFinder(
         TimeSpan? youTubePublishDelay,
         IndexingContext indexingContext)
     {
-        var match = MatchOnExactTitle(episode, playlistItems);
-        if (match != null)
+        var exactTitleMatch = await MatchOnExactTitleWithDuration(episode, playlistItems, indexingContext);
+        if (exactTitleMatch != null)
         {
-            return new FindEpisodeResponse(PlaylistItem: match);
+            return exactTitleMatch;
         }
 
+        PlaylistItem? match;
         match = MatchOnEpisodeNumber(episode, playlistItems);
         if (match != null)
         {
@@ -97,10 +98,13 @@ public partial class PlaylistItemFinder(
         IList<Google.Apis.YouTube.v3.Data.Video>? videoDetails,
         IndexingContext indexingContext)
     {
-        if (videoDetails != null && videoDetails.Any())
+        var videosWithDuration = videoDetails?
+            .Where(x => YouTubeVideoDurationMatcher.HasDuration(x.GetLength()))
+            .ToList();
+        if (videosWithDuration != null && videosWithDuration.Any())
         {
             var matchingVideo =
-                videoDetails.MinBy(x => Math.Abs((episode.Length - x.GetLength() ?? TimeSpan.Zero).Ticks));
+                videosWithDuration.MinBy(x => Math.Abs((episode.Length - x.GetLength()!.Value).Ticks));
             var searchResult = searchResults.FirstOrDefault(x => x.ContentDetails.VideoId == matchingVideo!.Id);
             if (searchResult != null)
             {
@@ -177,6 +181,37 @@ public partial class PlaylistItemFinder(
         return null;
     }
 
+    private async Task<FindEpisodeResponse?> MatchOnExactTitleWithDuration(
+        RedditPodcastPoster.Models.Episode episode,
+        IList<PlaylistItem> playlistItems,
+        IndexingContext indexingContext)
+    {
+        var match = MatchOnExactTitle(episode, playlistItems);
+        if (match == null)
+        {
+            return null;
+        }
+
+        var videoDetails = await videoService.GetVideoContentDetails(
+            youTubeService, [match.ContentDetails.VideoId], indexingContext);
+        var video = videoDetails?.FirstOrDefault();
+        if (video == null)
+        {
+            return null;
+        }
+
+        if (!YouTubeVideoDurationMatcher.IsAcceptableDurationMatch(episode.Length, video.GetLength()))
+        {
+            logger.LogInformation(
+                "Rejected exact title match '{episodeTitle}' (length '{episodeLength:g}') with video '{videoTitle}' (length '{videoLength:g}') due to duration mismatch.",
+                episode.Title, episode.Length, match.Snippet.Title, video.GetLength());
+            return null;
+        }
+
+        logger.LogInformation("Matched on episode-title '{episodeTitle}'.", episode.Title);
+        return new FindEpisodeResponse(PlaylistItem: match, Video: video);
+    }
+
     private PlaylistItem? MatchOnExactTitle(RedditPodcastPoster.Models.Episode episode,
         IList<PlaylistItem> searchResults)
     {
@@ -186,12 +221,11 @@ public partial class PlaylistItemFinder(
             var snippetTitle = x.Snippet.Title.Trim().ToLower();
             return snippetTitle == episodeTitle ||
                    snippetTitle.Contains(episodeTitle) ||
-                   episodeTitle.Contains(episodeTitle);
+                   episodeTitle.Contains(snippetTitle);
         });
 
         if (matchingSearchResult.Count() == 1)
         {
-            logger.LogInformation("Matched on episode-title '{episodeTitle}'.", episode.Title);
             return matchingSearchResult.Single();
         }
 
