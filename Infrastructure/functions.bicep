@@ -207,6 +207,10 @@ var delayedPublication= {
     delayedYouTubePublication__EvaluationThreshold: '6:00:00'
 }
 
+var youtubeChannel= {
+    youtubeChannel__PreferUploadsPlaylist: 'true'
+}
+
 var discover= {
     discover__EnrichFromApple: 'true'
     discover__EnrichFromSpotify: 'true'
@@ -460,7 +464,8 @@ var apiSettings= union(
     coreSettings,
     auth0,
     indexer,
-    postingCriteria
+    postingCriteria,
+    youtubeChannel
 )
 
 var discoverySettings= union(
@@ -475,7 +480,8 @@ var indexerSettings= union(
     indexer,
     poster,
     postingCriteria,
-    indexerActivities
+    indexerActivities,
+    youtubeChannel
  )
 
 var storageBlobDataOwnerRoleId  = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
