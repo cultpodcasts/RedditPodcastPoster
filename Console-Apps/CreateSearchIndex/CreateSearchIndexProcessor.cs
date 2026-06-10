@@ -435,7 +435,7 @@ public partial class CreateSearchIndexProcessor(
         Response result;
         if (!string.IsNullOrWhiteSpace(request.IndexerName))
         {
-            result = await searchIndexerClient.DeleteIndexerAsync(request.IndexerName);
+            result = await searchIndexerClient.DeleteIndexerAsync(request.IndexerName, CancellationToken.None);
             if (result.Status != (int)HttpStatusCode.NoContent && result.Status != (int)HttpStatusCode.NotFound)
             {
                 throw new InvalidOperationException(
@@ -447,7 +447,7 @@ public partial class CreateSearchIndexProcessor(
 
         if (!string.IsNullOrWhiteSpace(request.IndexName))
         {
-            result = await searchIndexClient.DeleteIndexAsync(request.IndexName);
+            result = await searchIndexClient.DeleteIndexAsync(request.IndexName, CancellationToken.None);
             if (result.Status != (int)HttpStatusCode.NoContent && result.Status != (int)HttpStatusCode.NotFound)
             {
                 throw new InvalidOperationException(
@@ -459,7 +459,7 @@ public partial class CreateSearchIndexProcessor(
 
         if (!string.IsNullOrWhiteSpace(request.DataSourceName))
         {
-            result = await searchIndexerClient.DeleteDataSourceConnectionAsync(request.DataSourceName);
+            result = await searchIndexerClient.DeleteDataSourceConnectionAsync(request.DataSourceName, CancellationToken.None);
             if (result.Status != (int)HttpStatusCode.NoContent && result.Status != (int)HttpStatusCode.NotFound)
             {
                 throw new InvalidOperationException(
