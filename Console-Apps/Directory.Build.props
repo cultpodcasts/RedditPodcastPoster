@@ -1,0 +1,27 @@
+<Project>
+  <!--
+    Console app publish profiles (used by scripts/publish-console-apps.ps1):
+      SelfContained (default) — single-file, no trimming; supports DI, reflection JSON, Cosmos.
+      NativeAot — ahead-of-time compile; only for small utilities with source-generated JSON.
+    Override per project: <ConsoleAppPublishProfile>NativeAot</ConsoleAppPublishProfile>
+  -->
+  <PropertyGroup>
+    <ConsoleAppPublishProfile Condition="'$(ConsoleAppPublishProfile)' == ''">SelfContained</ConsoleAppPublishProfile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(ConsoleAppPublishProfile)' == 'SelfContained'">
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(ConsoleAppPublishProfile)' == 'NativeAot'">
+    <PublishAot>true</PublishAot>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <StripSymbols>true</StripSymbols>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+</Project>

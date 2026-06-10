@@ -1,30 +1,33 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Nodes;
-using CommandLine;
 using SecretsToFunctionSettings;
 
-return await Parser.Default.ParseArguments<Request>(args)
-    .MapResult(async request => await Run(request), errs => Task.FromResult(-1)); // Invalid arguments
-
-async Task<int> Run(Request request)
+if (args.Length != 1)
 {
-    await using var file = File.OpenRead(request.Path);
-    var secrets = await JsonSerializer.DeserializeAsync<Dictionary<string, JsonNode>>(file);
-    var appSettings = new List<AppSetting>();
-    foreach (var key in secrets.Keys)
+    Console.Error.WriteLine("Usage: SecretsToFunctionSettings <secrets-json-path>");
+    return 1;
+}
+
+return await Run(args[0]);
+
+async Task<int> Run(string path)
+{
+    await using var file = File.OpenRead(path);
+    var secrets = await JsonSerializer.DeserializeAsync(file, SecretsJsonContext.Default.DictionaryStringJsonNode);
+    if (secrets is null)
     {
-        var item = secrets[key];
-        var itemValue = item.ToString();
-        var appSettingName = key.Replace(":", "__");
-        var appSetting = new AppSetting(appSettingName, itemValue, false);
-        appSettings.Add(appSetting);
+        return 1;
     }
 
-    var json = JsonSerializer.Serialize(appSettings, new JsonSerializerOptions
+    var appSettings = new List<AppSetting>();
+    foreach (var (key, item) in secrets)
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = true
-    });
+        var itemValue = item.ToString();
+        var appSettingName = key.Replace(":", "__");
+        appSettings.Add(new AppSetting(appSettingName, itemValue, false));
+    }
+
+    var json = JsonSerializer.Serialize(appSettings, SecretsJsonContext.Default.ListAppSetting);
     Console.WriteLine(json);
     return 0;
 }
