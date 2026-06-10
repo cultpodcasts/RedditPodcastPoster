@@ -135,14 +135,18 @@ var logging= {
     Logging__LogLevel__Default: 'Warning'
     'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Warning'
     Logging__LogLevel__Function: loggingLevel
-    Logging__LogLevel__RedditPodcastPoster: loggingLevel
+    Logging__LogLevel__Azure: loggingLevel
+    Logging__LogLevel__RedditPodcastPoster: 'Information'
+    Logging__LogLevel__Indexer: 'Information'
+    Logging__LogLevel__Api: 'Information'
+    Logging__LogLevel__Discovery: 'Information'
     Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
     Logging__ApplicationInsights__SamplingSettings__ExcludedTypes: ''
     Logging__ApplicationInsights__EnableLiveMetricsFilters: 'true'
 }
 
 var memoryProbe = {
-    memoryProbe__Enabled: 'true'
+    memoryProbe__Enabled: 'false'
 }
 
 var api= {

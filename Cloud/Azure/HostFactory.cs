@@ -18,16 +18,17 @@ public static class HostFactory
 
         builder.Services.AddLogging();
         builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
+        ConfigureApplicationLogLevels(builder.Logging);
 
         builder.Logging.ConsoleWriteConfig();
 
         if (enableAzureMonitorExporter)
         {
-            builder.Services.AddOpenTelemetry()
+            builder.Services
+                .AddReducedAzureMonitorTelemetry()
+                .AddOpenTelemetry()
                 .UseFunctionsWorkerDefaults()
                 .UseAzureMonitorExporter();
-            //builder.Logging.RemoveInformationRules();
-            //builder.Logging.SetMinimumLevel(LogLevel.Warning);
         }
         else
         {
@@ -37,5 +38,22 @@ public static class HostFactory
 
         configureServices(builder.Services);
         return builder.Build();
+    }
+
+    /// <summary>
+    /// Host and framework noise at Warning; application code at Information.
+    /// Aligns with host.json and functions.bicep app settings.
+    /// </summary>
+    private static void ConfigureApplicationLogLevels(ILoggingBuilder logging)
+    {
+        logging.AddFilter("Microsoft", LogLevel.Warning);
+        logging.AddFilter("System", LogLevel.Warning);
+        logging.AddFilter("Function", LogLevel.Warning);
+        logging.AddFilter("Host", LogLevel.Warning);
+        logging.AddFilter("Azure", LogLevel.Warning);
+        logging.AddFilter("RedditPodcastPoster", LogLevel.Information);
+        logging.AddFilter("Indexer", LogLevel.Information);
+        logging.AddFilter("Api", LogLevel.Information);
+        logging.AddFilter("Discovery", LogLevel.Information);
     }
 }

@@ -7,6 +7,7 @@
       "Host.Startup": "Information",
       "Host.Results": "Warning",
       "Function": "Warning",
+      "Azure": "Warning",
       "RedditPodcastPoster": "Information",
       "Api": "Information"
     }

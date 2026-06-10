@@ -588,3 +588,187 @@ Discovery from command evidence: probe logs were not queryable because they were
 1. Verify new workflow execution order: budget step succeeds independently before/alongside RG functions infra deployment.
 2. Confirm budget resource updates continue to apply when `BUDGET_ALERT_EMAIL`/monthly amount changes.
 3. If budget step fails, rerun only provision job path and inspect that step without conflating RG template errors.
+
+---
+
+## Cost-saving programme — telemetry reduction (started 2026-06-10)
+
+### Context
+
+Daily costs remain ~2× pre-migration baseline. Two stacked drivers:
+
+1. **Functions (Flex Consumption)** — ~£0.18–0.22/day after monthly free-grant exhaustion (~day 13).
+2. **Azure Monitor (Log Analytics ingestion)** — ~£0.107/day flat baseline since 2026-05-01, driven by OpenTelemetry `AppMetrics` (~57%) and `AppTraces` (~31%).
+
+During the free-grant window (days 1–12 of each month), Azure Monitor appears as the dominant cost line because Functions show £0.00.
+
+### Change applied 2026-06-10
+
+**MemoryProbe disabled in production** (direct app-setting update; bicep also set to `false` for when GH Actions deploy resumes):
+
+| App | Setting | Value |
+|-----|---------|-------|
+| `indexer-infra` | `memoryProbe__Enabled` | `false` |
+| `discover-infra` | `memoryProbe__Enabled` | `false` |
+| `api-infra` | `memoryProbe__Enabled` | `false` |
+
+Workspace: `loganalytics-infra` (customer ID `2b1c62ee-689f-422a-816b-be1605ae88fa`).
+
+### Pre-change baseline (use 2026-06-09 — full day before disable)
+
+| Metric | Value |
+|--------|-------|
+| **Total billable ingestion** | **~40.3 MB/day** |
+| AppMetrics | 21.78 MB |
+| AppTraces | 13.07 MB |
+| AppPerformanceCounters | 2.57 MB |
+| AppDependencies | 1.52 MB |
+| AppRequests | 1.08 MB |
+| **MemoryProbe trace events** | **1,298/day** (indexer 480, api 802, discover 16) |
+| **Azure Monitor daily cost** | **~£0.107/day** |
+| **Subscription / RG** | `a6b8f1a2-6163-41bc-aa6d-e33928939a6e` / `automatedinfra` |
+
+> 2026-06-10 is a partial day (disable applied mid-day); do not use it as the primary baseline.
+
+### Code changes implemented and deployed 2026-06-10
+
+| Change | Files |
+|--------|-------|
+| Drop noisy OTel runtime metrics | `Cloud/Azure/OpenTelemetryConfiguration.cs` — drops `process.runtime.dotnet.*`, `process.cpu.*`, `kestrel.*`, `http.server.active_requests`, `azure.functions.health_check.reports`, `_APPRESOURCEPREVIEW_*` |
+| Application log levels | `Cloud/Azure/HostFactory.cs` — `RedditPodcastPoster`/`Indexer`/`Api`/`Discovery` at **Information**; `Microsoft`/`System`/`Function`/`Host`/`Azure` at **Warning** |
+| host.json alignment | `Cloud/Indexer/host.json`, `Cloud/Api/host.json`, `Cloud/Discovery/host.json` — added `Azure: Warning` |
+| Bicep app settings | `Infrastructure/functions.bicep` — `RedditPodcastPoster`/`Indexer`/`Api`/`Discovery` → `Information`; `Azure` → `Warning` |
+
+> **Deployed 2026-06-10 (UTC)** via `scripts/deploy-function-local.ps1` (Flex blob → `cultpodcastsstg/*/released-package.zip`):
+> - `indexer-infra` → `indexer-deployment`
+> - `discover-infra` → `discovery-deployment`
+> - `api-infra` → `api-deployment`
+>
+> Log-level app settings applied directly on all three apps (bicep infra deploy still pending for GH Actions).
+
+---
+
+## Tomorrow review checklist (run 2026-06-11)
+
+Run after a **full 24h UTC window** following the MemoryProbe disable (compare **2026-06-11** against baseline **2026-06-09**).
+
+### 1. Confirm MemoryProbe is off in production
+
+```powershell
+foreach ($app in @('indexer-infra','discover-infra','api-infra')) {
+  az functionapp config appsettings list `
+    --resource-group automatedinfra --name $app `
+    --query "[?name=='memoryProbe__Enabled'].{app:'$app',value:value}" -o table
+}
+```
+
+Expected: all three show `false`.
+
+### 2. Confirm no new MemoryProbe traces (Log Analytics)
+
+Run in Azure Portal → `loganalytics-infra` → Logs, or:
+
+```powershell
+az monitor log-analytics query `
+  --workspace "2b1c62ee-689f-422a-816b-be1605ae88fa" `
+  --analytics-query @"
+AppTraces
+| where TimeGenerated between (datetime(2026-06-11) .. datetime(2026-06-12))
+| where Message contains 'MemoryProbe'
+| summarize Events=count() by AppRoleName
+"@ -o table
+```
+
+Expected: **0 rows** (or negligible stragglers from pre-restart invocations on 2026-06-10).
+
+Side-by-side with baseline:
+
+```kusto
+AppTraces
+| where TimeGenerated between (datetime(2026-06-09) .. datetime(2026-06-12))
+| extend Day = startofday(TimeGenerated)
+| summarize Traces=count(), MemoryProbe=countif(Message contains "MemoryProbe"), Warnings=countif(SeverityLevel >= 2) by Day, AppRoleName
+| order by Day desc, AppRoleName asc
+```
+
+Expected on 2026-06-11: MemoryProbe ≈ 0; total Warnings on `indexer-infra` and `api-infra` drop materially vs 2026-06-09.
+
+### 3. Measure ingestion reduction (primary success metric)
+
+```kusto
+Usage
+| where TimeGenerated between (datetime(2026-06-09) .. datetime(2026-06-12))
+| where IsBillable == true
+| summarize DailyMB=sum(Quantity) by Day=startofday(TimeGenerated), DataType
+| order by Day desc, DailyMB desc
+```
+
+Focus on **AppTraces** daily MB:
+
+| Day | AppTraces MB (baseline) | Target after disable |
+|-----|---------------------------|----------------------|
+| 2026-06-09 | 13.07 | — |
+| 2026-06-11 | — | materially lower (MemoryProbe warnings were large messages) |
+
+Total daily MB target: below ~40 MB/day; AppTraces share should shrink most.
+
+Top metrics unchanged until OTel trim is deployed:
+
+```kusto
+AppMetrics
+| where TimeGenerated > ago(24h)
+| summarize Count=count() by Name
+| order by Count desc
+| take 15
+```
+
+### 4. Check Azure Monitor cost row (billing lags 24–48h)
+
+```powershell
+@'
+{
+  "type": "ActualCost",
+  "timeframe": "Custom",
+  "timePeriod": { "from": "2026-06-09", "to": "2026-06-12" },
+  "dataset": {
+    "granularity": "Daily",
+    "aggregation": { "totalCost": { "name": "Cost", "function": "Sum" } },
+    "grouping": [{ "type": "Dimension", "name": "ServiceName" }]
+  }
+}
+'@ | Set-Content -Path "$env:TEMP\cost-daily.json" -Encoding utf8
+
+az rest --method post `
+  --url "https://management.azure.com/subscriptions/a6b8f1a2-6163-41bc-aa6d-e33928939a6e/providers/Microsoft.CostManagement/query?api-version=2023-11-01" `
+  --body "@$env:TEMP\cost-daily.json" -o json
+```
+
+Filter output for `Azure Monitor` and `Functions` rows. Cost rows for 2026-06-11 may not be final until 2026-06-12 or 2026-06-13; ingestion (step 3) is the early indicator.
+
+### 5. Sanity-check function health (no regressions)
+
+```kusto
+AppRequests
+| where TimeGenerated > ago(24h)
+| summarize Executions=count(), Failed=countif(Success == false), AvgMs=avg(DurationMs) by AppRoleName, Name
+| where Failed > 0 or Executions > 0
+| order by Executions desc
+```
+
+Expected: execution counts and failure rates unchanged vs prior days.
+
+### 6. Record results and decide next step
+
+| Outcome | Next action |
+|---------|-------------|
+| MemoryProbe = 0, AppTraces MB down | Proceed with OTel metric trim + log-level PR; re-measure after deploy |
+| MemoryProbe still appearing | Re-check app settings; confirm host restarted; inspect `AppRoleName` for stale instances |
+| AppTraces down but Azure Monitor cost flat | Billing lag — re-check on 2026-06-13; OTel `AppMetrics` still dominant (~22 MB/day) |
+| Function failures increased | Roll back `memoryProbe__Enabled=true` on affected app only; investigate separately |
+
+### Pass criteria for this phase
+
+- `MemoryProbe` trace count = 0 on a full post-change day.
+- `AppTraces` ingestion down vs 2026-06-09 baseline (13.07 MB/day).
+- No increase in failed `AppRequests`.
+- Azure Monitor daily cost trending below ~£0.107/day once billing finalizes (secondary; may take 48h).
