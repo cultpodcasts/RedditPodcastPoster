@@ -9,7 +9,8 @@
     <ConsoleAppPublishProfile Condition="'$(ConsoleAppPublishProfile)' == ''">SelfContained</ConsoleAppPublishProfile>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(ConsoleAppPublishProfile)' == 'SelfContained'">
+  <!-- Publish settings apply only when a RID is set (dotnet publish -r ...). Without this, dotnet build fails with NETSDK1191. -->
+  <PropertyGroup Condition="'$(ConsoleAppPublishProfile)' == 'SelfContained' and '$(RuntimeIdentifier)' != ''">
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
@@ -17,7 +18,7 @@
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(ConsoleAppPublishProfile)' == 'NativeAot'">
+  <PropertyGroup Condition="'$(ConsoleAppPublishProfile)' == 'NativeAot' and '$(RuntimeIdentifier)' != ''">
     <PublishAot>true</PublishAot>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
