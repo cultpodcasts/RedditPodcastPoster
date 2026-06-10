@@ -1,3 +1,4 @@
+using System.Net;
 using Azure;
 using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
@@ -67,7 +68,7 @@ public class EpisodeSearchIndexerService(
             logger.LogError(ex,
                 "Failed to index episode with id '{episodeId}'. Status-code: {statusCode}, message: '{message}'.",
                 episodeId, ex.Status, ex.Message);
-            return new EntitySearchIndexerResponse { IndexerState = IndexerState.Failure };
+            return new EntitySearchIndexerResponse { IndexerState = MapRequestFailedException(ex) };
         }
     }
 
@@ -103,29 +104,44 @@ public class EpisodeSearchIndexerService(
 
         if (documents.Count > 0)
         {
-            var result =
-                await searchClient.MergeOrUploadDocumentsAsync(documents,
-                    new IndexDocumentsOptions { ThrowOnAnyError = false }, c);
-            var failures = result.Value.Results.Where(x => x.Succeeded == false).ToArray();
-            foreach (var failure in failures)
+            try
             {
-                logger.LogError("Failed to index episode with key '{Key}': {ErrorMessage}", failure.Key,
-                    failure.ErrorMessage);
-            }
+                var result =
+                    await searchClient.MergeOrUploadDocumentsAsync(documents,
+                        new IndexDocumentsOptions { ThrowOnAnyError = false }, c);
+                var failures = result.Value.Results.Where(x => x.Succeeded == false).ToArray();
+                foreach (var failure in failures)
+                {
+                    logger.LogError("Failed to index episode with key '{Key}': {ErrorMessage}", failure.Key,
+                        failure.ErrorMessage);
+                }
 
-            if (failures.Any())
+                if (failures.Any())
+                {
+                    var ex = new RequestFailedException(result.GetRawResponse());
+                    logger.LogError(ex,
+                        "Failed to index episodes with id '{episodeIds}'. Status-code: {statusCode}, message: '{message}'.",
+                        string.Join(", ", failures.Select(x => $"'{x.Key}'")), ex.Status, ex.Message);
+                    return new EntitySearchIndexerResponse { IndexerState = MapRequestFailedException(ex) };
+                }
+
+                return new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed };
+            }
+            catch (RequestFailedException ex)
             {
-                var ex = new RequestFailedException(result.GetRawResponse());
                 logger.LogError(ex,
-                    "Failed to index episodes with id '{episodeIds}'. Status-code: {statusCode}, message: '{message}'.",
-                    string.Join(", ", failures.Select(x => $"'{x.Key}'")), ex.Status, ex.Message);
-                return new EntitySearchIndexerResponse { IndexerState = IndexerState.Failure };
+                    "Failed to index episodes. Status-code: {statusCode}, message: '{message}'.",
+                    ex.Status, ex.Message);
+                return new EntitySearchIndexerResponse { IndexerState = MapRequestFailedException(ex) };
             }
-
-            return new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed };
         }
 
         logger.LogWarning("No documents to update in search-index");
         return new EntitySearchIndexerResponse { EpisodeIndexRequestState = EpisodeIndexRequestState.NoDocuments };
     }
+
+    private static IndexerState MapRequestFailedException(RequestFailedException ex) =>
+        ex.Status == (int)HttpStatusCode.TooManyRequests
+            ? IndexerState.TooManyRequests
+            : IndexerState.Failure;
 }
