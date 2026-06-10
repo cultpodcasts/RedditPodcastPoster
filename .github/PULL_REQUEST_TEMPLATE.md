@@ -16,6 +16,8 @@
 
 ## Test plan
 
+GitHub Actions are inactive for now — verify changes locally before merge.
+
 - [ ] `dotnet build --configuration Release`
 - [ ] `dotnet test --configuration Release`
 - [ ] <!-- Add manual verification steps for the change -->
