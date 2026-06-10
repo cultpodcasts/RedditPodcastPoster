@@ -1,3 +1,4 @@
+using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky;
 using RedditPodcastPoster.Bluesky.Models;
@@ -80,7 +81,7 @@ public class PostProcessor(
         else if (request.PodcastName != null)
         {
             var ids = await repository.GetAllBy(x =>
-                    x.Removed != true &&
+                    (!x.Removed.IsDefined() || x.Removed == false) &&
                     x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase))
                 .Select(x => x.Id)
                 .ToListAsync();
@@ -152,7 +153,7 @@ public class PostProcessor(
                 if (!string.IsNullOrWhiteSpace(request.PodcastName))
                 {
                     var podcasts = await repository.GetAllBy(x =>
-                        x.Removed != true &&
+                        (!x.Removed.IsDefined() || x.Removed == false) &&
                         x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase)
                     ).ToArrayAsync();
                     if (podcasts.Any())

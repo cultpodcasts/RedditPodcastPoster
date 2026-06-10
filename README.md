@@ -150,6 +150,30 @@ Generate a Reddit refresh token using [Reddit.NET](https://github.com/sirkris/Re
 
 Run from the app directory: `dotnet run --project Console-Apps/Index -- [args]`
 
+### Published CLI tools (PATH)
+
+For **local dev convenience**, build console apps into a single folder of standalone executables on your PATH:
+
+```powershell
+.\scripts\publish-console-apps.ps1
+```
+
+Output defaults to `artifacts\tools\` (gitignored). Add that folder to your PATH, then run tools by name (e.g. `Discover`, `Index`, `Poster`):
+
+```powershell
+$tools = (Resolve-Path 'artifacts\tools').Path
+[Environment]::SetEnvironmentVariable('Path', "$env:Path;$tools", 'User')
+```
+
+| Publish profile | Apps | Why |
+|-----------------|------|-----|
+| **Self-contained** (default) | Most console apps | Uses reflection-based DI, `CommandLineParser`, Cosmos DB, and reflection JSON — not compatible with Native AOT without broad rewrites. |
+| **Native AOT** | `SecretsToFunctionSettings` | Small utility with source-generated JSON and no reflection-based CLI parsing (`CommandLineParser` is incompatible with Native AOT). |
+
+`LaunchSettingsToAppSettings` and other JSON utilities stay self-contained because they use reflection JSON (`JsonNode` navigation) and `CommandLineParser`.
+
+Published tools use the same shared user-secrets store as `dotnet run` (same `UserSecretsId`). Per-app `appsettings.json` files are not copied into `artifacts\tools` (they would overwrite each other); run `dotnet run` from the app directory when you need bundled defaults such as `postingCriteria`.
+
 ## Libraries
 
 ### Podcast and metadata providers
