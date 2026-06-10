@@ -40,8 +40,8 @@ public class AppleUrlCategoriser(
         var result = await FindEpisode(matchingPodcast, podcast, criteria, indexingContext);
         if (result == null && !string.IsNullOrWhiteSpace(criteria.SpotifyTitle))
         {
-            var altCriteria= criteria with { EpisodeTitle= criteria.SpotifyTitle };
-            result = await FindEpisode(matchingPodcast, podcast, criteria, indexingContext);
+            var altCriteria = criteria with { EpisodeTitle = criteria.SpotifyTitle };
+            result = await FindEpisode(matchingPodcast, podcast, altCriteria, indexingContext);
         }
         if (result != null)
         {

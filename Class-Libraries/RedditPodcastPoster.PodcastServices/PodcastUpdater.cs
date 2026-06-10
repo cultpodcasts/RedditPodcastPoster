@@ -113,7 +113,17 @@ public class PodcastUpdater(
             }
         }
 
-        var enrichmentResult = await podcastServicesEpisodeEnricher.EnrichEpisodes(podcast, episodes, episodes, indexingContext);
+        var episodesWithAssignedPlatformIds = await episodeRepository
+            .GetByPodcastId(
+                podcast.Id,
+                x => (x.AppleId != null && x.AppleId > 0) ||
+                     (x.SpotifyId != null && x.SpotifyId != string.Empty))
+            .ToListAsync();
+        var enrichmentEpisodeContext =
+            BuildEnrichmentEpisodeContext(episodes, episodesWithAssignedPlatformIds);
+
+        var enrichmentResult = await podcastServicesEpisodeEnricher.EnrichEpisodes(
+            podcast, enrichmentEpisodeContext, episodes, indexingContext);
         var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
         var filterResult = podcastFilter.Filter(podcast, episodes, eliminationTerms.Terms);
@@ -202,6 +212,27 @@ public class PodcastUpdater(
             enrichmentResult,
             initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving,
             initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving);
+    }
+
+    private static IList<Episode> BuildEnrichmentEpisodeContext(
+        IList<Episode> episodesToEnrich,
+        IList<Episode> episodesWithAssignedPlatformIds)
+    {
+        var assignedById = episodesWithAssignedPlatformIds.ToDictionary(x => x.Id);
+        var context = episodesToEnrich
+            .Select(episode => assignedById.TryGetValue(episode.Id, out var assigned) ? assigned : episode)
+            .ToList();
+
+        var indexedIds = episodesToEnrich.Select(x => x.Id).ToHashSet();
+        foreach (var assignedEpisode in episodesWithAssignedPlatformIds)
+        {
+            if (!indexedIds.Contains(assignedEpisode.Id))
+            {
+                context.Add(assignedEpisode);
+            }
+        }
+
+        return context;
     }
 
     private bool ReduceToSinceIncorporatingPublishDelay(
