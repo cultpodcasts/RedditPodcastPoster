@@ -15,6 +15,7 @@ using RedditPodcastPoster.Indexing;
 using RedditPodcastPoster.Indexing.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlShortening;
 using Episode = RedditPodcastPoster.Models.Episode;
 using Podcast = Api.Dtos.Podcast;
@@ -215,23 +216,44 @@ public class PodcastHandler(
         try
         {
             logger.LogInformation("{method}: Index podcast '{podcastName}'.", nameof(Index), podcastName);
+            return await IndexPodcast(req, c, () => indexer.Index(podcastName, CreateIndexingContext()));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{method}: Failed to index-podcast.", nameof(Index));
+        }
 
-            if (_indexerOptions.ReleasedDaysAgo == null)
-            {
-                throw new InvalidOperationException("Unable to index with null released-days-ago.");
-            }
+        var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
+            .WithJsonBody(SubmitUrlResponse.Failure("Unable to index podcast"), c);
+        return failure;
+    }
 
-            var indexingContext = _indexerOptions.ToIndexingContext() with
-            {
-                IndexSpotify = true,
-                SkipSpotifyUrlResolving = false,
-                SkipYouTubeUrlResolving = false,
-                SkipExpensiveYouTubeQueries = false,
-                SkipExpensiveSpotifyQueries = false,
-                SkipPodcastDiscovery = true
-            };
+    private IndexingContext CreateIndexingContext()
+    {
+        if (_indexerOptions.ReleasedDaysAgo == null)
+        {
+            throw new InvalidOperationException("Unable to index with null released-days-ago.");
+        }
 
-            var response = await indexer.Index(podcastName, indexingContext);
+        return _indexerOptions.ToIndexingContext() with
+        {
+            IndexSpotify = true,
+            SkipSpotifyUrlResolving = false,
+            SkipYouTubeUrlResolving = false,
+            SkipExpensiveYouTubeQueries = false,
+            SkipExpensiveSpotifyQueries = false,
+            SkipPodcastDiscovery = true
+        };
+    }
+
+    private async Task<HttpResponseData> IndexPodcast(
+        HttpRequestData req,
+        CancellationToken c,
+        Func<Task<IndexResponse>> index)
+    {
+        try
+        {
+            var response = await index();
             var indexed = SearchIndexerState.Unknown;
             if (response.IndexStatus == IndexStatus.Performed)
             {
@@ -251,19 +273,17 @@ public class PodcastHandler(
 
             if (status == HttpStatusCode.NotFound)
             {
-                logger.LogWarning("{method}: Podcast with name '{podcastName}' not found.", nameof(Index), podcastName);
+                logger.LogWarning("{method}: Podcast not found during index request.", nameof(IndexPodcast));
             }
 
             return await req.CreateResponse(status).WithJsonBody(IndexPodcastResponse.ToDto(response, indexed), c);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "{method}: Failed to index-podcast.", nameof(Index));
+            logger.LogError(ex, "{method}: Index request failed.", nameof(IndexPodcast));
+            return await req.CreateResponse(HttpStatusCode.InternalServerError)
+                .WithJsonBody(SubmitUrlResponse.Failure("Unable to index podcast"), c);
         }
-
-        var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to index podcast"), c);
-        return failure;
     }
 
     public async Task<HttpResponseData> Rename(HttpRequestData req, PodcastRenameRequest change, ClientPrincipal? _,
@@ -643,6 +663,11 @@ public class PodcastHandler(
         }
 
         var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastGetRequest.PodcastName).ToListAsync(c);
+        if (!podcasts.Any() && !string.IsNullOrWhiteSpace(podcastGetRequest.PodcastName))
+        {
+            var lowerName = podcastGetRequest.PodcastName.ToLower();
+            podcasts = await podcastRepository.GetAllBy(x => x.Name.ToLower() == lowerName).ToListAsync(c);
+        }
         if (!podcasts.Any())
         {
             return new PodcastWrapper(null, PodcastRetrievalState.NotFound);

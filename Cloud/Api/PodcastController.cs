@@ -47,11 +47,10 @@ public class PodcastController(
     ) => HandleRequest(
             req,
             ["curate"],
-            Uri.UnescapeDataString(podcastName),
+            PodcastRouteNameNormalizer.Normalize(podcastName),
             handler.Index,
             Unauthorised,
             ct);
-
 
     [Function("PodcastGet")]
     public Task<HttpResponseData> GetByIdentifier(
