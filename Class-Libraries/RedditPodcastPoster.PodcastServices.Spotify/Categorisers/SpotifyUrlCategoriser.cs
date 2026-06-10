@@ -20,42 +20,26 @@ public class SpotifyUrlCategoriser(
         Podcast? matchingPodcast,
         IndexingContext indexingContext)
     {
-        var request = FindSpotifyEpisodeRequestFactory.Create(matchingPodcast, criteria);
         var skip = matchingPodcast != null &&
                    matchingPodcast.HasExpensiveSpotifyEpisodesQuery() &&
                    indexingContext.SkipExpensiveSpotifyQueries;
-        if (!skip)
-        {
-            var findEpisodeResponse = await spotifyEpisodeResolver.FindEpisode(request, indexingContext);
-
-            if (findEpisodeResponse.FullEpisode == null && !string.IsNullOrWhiteSpace(criteria.AppleTitle))
-            {
-                var altCriteria = criteria with { EpisodeTitle = criteria.AppleTitle };
-                request = FindSpotifyEpisodeRequestFactory.Create(matchingPodcast, altCriteria);
-                findEpisodeResponse = await spotifyEpisodeResolver.FindEpisode(request, indexingContext);
-            }
-
-            if (findEpisodeResponse.FullEpisode != null)
-            {
-                return new ResolvedSpotifyItem(
-                    findEpisodeResponse.FullEpisode.Show.Id,
-                    findEpisodeResponse.FullEpisode.Id,
-                    findEpisodeResponse.FullEpisode.Show.Name,
-                    findEpisodeResponse.FullEpisode.Show.Description,
-                    findEpisodeResponse.FullEpisode.Show.Publisher,
-                    findEpisodeResponse.FullEpisode.Name,
-                    htmlSanitiser.Sanitise(findEpisodeResponse.FullEpisode.HtmlDescription),
-                    findEpisodeResponse.FullEpisode.GetReleaseDate(),
-                    findEpisodeResponse.FullEpisode.GetDuration(),
-                    findEpisodeResponse.FullEpisode.GetUrl(),
-                    findEpisodeResponse.FullEpisode.Explicit,
-                    findEpisodeResponse.FullEpisode.GetBestImageUrl());
-            }
-        }
-        else
+        if (skip)
         {
             logger.LogError("Skipping finding-episode as '{property}' is set.",
                 nameof(indexingContext.SkipExpensiveSpotifyQueries));
+            return null;
+        }
+
+        var result = await FindEpisode(matchingPodcast, criteria, indexingContext);
+        if (result == null && !string.IsNullOrWhiteSpace(criteria.AppleTitle))
+        {
+            var altCriteria = criteria with { EpisodeTitle = criteria.AppleTitle };
+            result = await FindEpisode(matchingPodcast, altCriteria, indexingContext);
+        }
+
+        if (result != null)
+        {
+            return result;
         }
 
         if (!string.IsNullOrWhiteSpace(criteria.AppleTitle))
@@ -72,6 +56,53 @@ public class SpotifyUrlCategoriser(
         }
 
         return null;
+    }
+
+    private async Task<ResolvedSpotifyItem?> FindEpisode(
+        Podcast? matchingPodcast,
+        PodcastServiceSearchCriteria criteria,
+        IndexingContext indexingContext)
+    {
+        if (matchingPodcast != null &&
+            matchingPodcast.IsAwaitingDelayedAudioRelease(criteria.Release, criteria.Duration))
+        {
+            logger.LogInformation(
+                "Skipping Spotify episode lookup for '{CriteriaEpisodeTitle}' as audio is not expected until after the YouTube publishing delay.",
+                criteria.EpisodeTitle);
+            return null;
+        }
+
+        var request = FindSpotifyEpisodeRequestFactory.Create(matchingPodcast, criteria);
+        var ticks = EpisodeReleaseMatchTolerance.GetToleranceTicks(
+            matchingPodcast,
+            criteria.Duration,
+            request.YouTubePublishingDelay,
+            request.ReleaseAuthority);
+
+        var findEpisodeResponse = await spotifyEpisodeResolver.FindEpisode(
+            request,
+            indexingContext,
+            y => request.Released.HasValue &&
+                 Math.Abs((y.GetReleaseDate() - request.Released.Value).Ticks) < ticks);
+
+        if (findEpisodeResponse.FullEpisode == null)
+        {
+            return null;
+        }
+
+        return new ResolvedSpotifyItem(
+            findEpisodeResponse.FullEpisode.Show.Id,
+            findEpisodeResponse.FullEpisode.Id,
+            findEpisodeResponse.FullEpisode.Show.Name,
+            findEpisodeResponse.FullEpisode.Show.Description,
+            findEpisodeResponse.FullEpisode.Show.Publisher,
+            findEpisodeResponse.FullEpisode.Name,
+            htmlSanitiser.Sanitise(findEpisodeResponse.FullEpisode.HtmlDescription),
+            findEpisodeResponse.FullEpisode.GetReleaseDate(),
+            findEpisodeResponse.FullEpisode.GetDuration(),
+            findEpisodeResponse.FullEpisode.GetUrl(),
+            findEpisodeResponse.FullEpisode.Explicit,
+            findEpisodeResponse.FullEpisode.GetBestImageUrl());
     }
 
     public async Task<ResolvedSpotifyItem> Resolve(
