@@ -29,10 +29,12 @@ Pushes to `main` build and deploy these via [`.github/workflows/deploy.yml`](.gi
 **Local code-only deploy** (does not change app settings):
 
 ```powershell
-.\scripts\deploy-function-local.ps1 -FunctionName api
-.\scripts\deploy-function-local.ps1 -FunctionName discover
-.\scripts\deploy-function-local.ps1 -FunctionName indexer
+.\scripts\deploy-api.ps1
+.\scripts\deploy-discover.ps1
+.\scripts\deploy-indexer.ps1
 ```
+
+These call `scripts/deploy-function-local.ps1` internally with the correct `-FunctionName`.
 
 Defaults: resource group `AutomatedInfra`, apps `api-infra` / `discover-infra` / `indexer-infra`, storage `cultpodcastsstg`.
 
