@@ -17,11 +17,11 @@ param(
 
 . (Join-Path $PSScriptRoot 'Resolve-DeploySettings.ps1')
 
-$jsonPath = Join-Path $PSScriptRoot 'deploy-indexer.json'
-$settings = Resolve-DeploySettings -JsonPath $jsonPath -AppLabel 'Indexer' -BoundParameters $PSBoundParameters
+$jsonPath = Join-Path $PSScriptRoot 'deploy-discover.json'
+$settings = Resolve-DeploySettings -JsonPath $jsonPath -AppLabel 'Discover' -BoundParameters $PSBoundParameters
 
 $deployParams = @{
-    FunctionName = 'indexer'
+    FunctionName = 'discover'
     ResourceGroup = $settings.ResourceGroup
     AppName = $settings.AppName
     StorageAccount = $settings.StorageAccount

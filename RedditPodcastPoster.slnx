@@ -231,6 +231,7 @@
   </Folder>
   <Folder Name="/Scripts/">
     <File Path="scripts/deploy-api.ps1" />
+    <File Path="scripts/deploy-discover.ps1" />
     <File Path="scripts/deploy-indexer.ps1" />
   </Folder>
 
