@@ -136,13 +136,17 @@ var logging= {
     'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Warning'
     Logging__LogLevel__Function: loggingLevel
     Logging__LogLevel__Azure: loggingLevel
-    Logging__LogLevel__RedditPodcastPoster: 'Information'
+    Logging__LogLevel__RedditPodcastPoster: 'Warning'
     Logging__LogLevel__Indexer: 'Information'
     Logging__LogLevel__Api: 'Information'
     Logging__LogLevel__Discovery: 'Information'
+    // Legacy App Insights sampling — ignored when host.json telemetryMode is OpenTelemetry.
     Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
     Logging__ApplicationInsights__SamplingSettings__ExcludedTypes: ''
     Logging__ApplicationInsights__EnableLiveMetricsFilters: 'true'
+    OTEL_TRACES_SAMPLER: 'microsoft.fixed_percentage'
+    OTEL_TRACES_SAMPLER_ARG: '0.25'
+    APPLICATIONINSIGHTS_SAMPLING_PERCENTAGE: '25'
 }
 
 var memoryProbe = {
@@ -708,7 +712,7 @@ module apiFunction 'function.bicep' = {
     publicNetworkAccess: true
     instanceMemoryMB: 2048
     appSettings: union({
-        Logging__LogLevel__Api: loggingLevel
+        Logging__LogLevel__Api: 'Information'
     }, apiSettings)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId
@@ -729,7 +733,7 @@ module discoveryFunction 'function.bicep' = {
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: union({
-        Logging__LogLevel__Discovery: loggingLevel
+        Logging__LogLevel__Discovery: 'Information'
     }, discoverySettings)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId
@@ -750,7 +754,7 @@ module indexerFunction 'function.bicep' = {
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: union({
-        Logging__LogLevel__Indexer: loggingLevel
+        Logging__LogLevel__Indexer: 'Information'
     }, indexerSettings)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId

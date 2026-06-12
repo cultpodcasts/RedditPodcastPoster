@@ -21,7 +21,7 @@
       "Host.Results": "Warning",
       "Function": "Warning",
       "Azure": "Warning",
-      "RedditPodcastPoster": "Information",
+      "RedditPodcastPoster": "Warning",
       "Discovery": "Information"
     }
   },

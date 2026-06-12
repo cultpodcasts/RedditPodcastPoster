@@ -635,9 +635,9 @@ Workspace: `loganalytics-infra` (customer ID `2b1c62ee-689f-422a-816b-be1605ae88
 | Change | Files |
 |--------|-------|
 | Drop noisy OTel runtime metrics | `Cloud/Azure/OpenTelemetryConfiguration.cs` — drops `process.runtime.dotnet.*`, `process.cpu.*`, `kestrel.*`, `http.server.active_requests`, `azure.functions.health_check.reports`, `_APPRESOURCEPREVIEW_*` |
-| Application log levels | `Cloud/Azure/HostFactory.cs` — `RedditPodcastPoster`/`Indexer`/`Api`/`Discovery` at **Information**; `Microsoft`/`System`/`Function`/`Host`/`Azure` at **Warning** |
+| Application log levels | `Cloud/Azure/HostFactory.cs` — `Indexer`/`Api`/`Discovery` at **Information**; `RedditPodcastPoster` at **Warning** (since 2026-06-12); host/framework at **Warning** |
 | host.json alignment | `Cloud/Indexer/host.json`, `Cloud/Api/host.json`, `Cloud/Discovery/host.json` — added `Azure: Warning` |
-| Bicep app settings | `Infrastructure/functions.bicep` — `RedditPodcastPoster`/`Indexer`/`Api`/`Discovery` → `Information`; `Azure` → `Warning` |
+| Bicep app settings | `Infrastructure/functions.bicep` — OTel trace sampling env vars; log levels as above |
 
 > **Deployed 2026-06-10 (UTC)** via `scripts/deploy-function-local.ps1` (Flex blob → `cultpodcastsstg/*/released-package.zip`):
 > - `indexer-infra` → `indexer-deployment`
@@ -772,3 +772,69 @@ Expected: execution counts and failure rates unchanged vs prior days.
 - `AppTraces` ingestion down vs 2026-06-09 baseline (13.07 MB/day).
 - No increase in failed `AppRequests`.
 - Azure Monitor daily cost trending below ~£0.107/day once billing finalizes (secondary; may take 48h).
+
+---
+
+## Phase 1 review results (2026-06-11 vs baseline 2026-06-09)
+
+| Metric | 06-09 | 06-11 | Outcome |
+|--------|-------|-------|---------|
+| MemoryProbe events | 1,298 | **0** | Pass |
+| AppMetrics MB | 21.78 | 13.14 | **-40%** (OTel metric trim) |
+| AppTraces MB | 13.07 | 24.87 | **+90%** (Information logs exported) |
+| Total billable MB | 40.3 | 42.2 | Flat/slightly up |
+| Azure Monitor £/day | 0.107 | 0.108 | Flat |
+
+**Root cause of AppTraces increase:** raising `RedditPodcastPoster` to Information exported high-volume pagination logs (`PaginateEpisodes`, etc.) — ~20k Information traces/day vs ~1.4k baseline.
+
+**Why `Logging__ApplicationInsights__SamplingSettings__*` had no effect:** production uses `telemetryMode: "OpenTelemetry"` in `host.json`. The legacy `Logging__ApplicationInsights__SamplingSettings__IsEnabled=true` setting only applies to the classic Application Insights ILogger provider, not the OpenTelemetry exporter path that writes to `AppTraces`.
+
+---
+
+## Phase 2 — logging + trace sampling (from 2026-06-12)
+
+### Changes applied
+
+| Change | Production |
+|--------|------------|
+| Full telemetry app-settings bundle | `scripts/apply-telemetry-app-settings.ps1` (run when bicep deploy is unavailable) |
+| `Logging__LogLevel__RedditPodcastPoster=Warning` | App settings (all 3 apps) |
+| `OTEL_TRACES_SAMPLER=microsoft.fixed_percentage` | App settings |
+| `OTEL_TRACES_SAMPLER_ARG=0.25` | App settings |
+| `APPLICATIONINSIGHTS_SAMPLING_PERCENTAGE=25` | App settings |
+| `memoryProbe__Enabled=false` | App settings |
+| `EnableTraceBasedLogsSampler=true` + `SamplingRatio=0.25` | Code (`HostFactory.cs`) — requires function deploy |
+| `Indexer`/`Api`/`Discovery` remain **Information** | App settings + `HostFactory.cs` |
+
+```powershell
+# Re-apply all telemetry/cost app settings without bicep:
+powershell -File scripts/apply-telemetry-app-settings.ps1
+```
+
+### Sunday review checklist (2026-06-15 — full UTC day 2026-06-14)
+
+Compare **2026-06-14** against **2026-06-11** (pre-fix) and **2026-06-09** (original baseline).
+
+```kusto
+Usage
+| where TimeGenerated between (datetime(2026-06-09) .. datetime(2026-06-15))
+| where IsBillable == true
+| summarize DailyMB=sum(Quantity) by Day=startofday(TimeGenerated), DataType
+| order by Day desc, DailyMB desc
+```
+
+```kusto
+AppTraces
+| where TimeGenerated between (datetime(2026-06-14) .. datetime(2026-06-15))
+| summarize Traces=count() by SeverityLevel, AppRoleName
+| order by Traces desc
+```
+
+**Pass criteria for phase 2:**
+
+- `AppTraces` daily MB below **13 MB** (back to 06-09 baseline or lower).
+- Information traces on `indexer-infra` materially below 06-11 (~17k/day).
+- Azure Monitor daily cost below **£0.09/day** (target ~15% reduction from £0.107).
+- No indexer/discovery execution regressions.
+
+**If still elevated:** keep `RedditPodcastPoster` at Warning; consider raising `Indexer` to Warning or adding logger-specific filters for `PaginateEpisodes` only.
