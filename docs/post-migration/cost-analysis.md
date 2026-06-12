@@ -457,6 +457,65 @@ The HalfHourly orchestration runs `Poster` + `Publisher` + `Bluesky`. This doubl
 
 Target: bring total daily cost from ~$0.50 back to ≤$0.26 (pre-migration level).
 
+## Cosmos DB diagnostics (TEMPORARY — TURN OFF after RU tuning)
+
+> **⚠️ REMOVE after investigation.** Cosmos diagnostic export adds Log Analytics ingestion cost on top of existing Azure Monitor spend. Disable when RU hot paths are identified and P1/P5/P6 work is complete.
+
+**Enabled:** `2026-06-12` on `cultpodcasts-db` → `loganalytics-infra` (`cosmos-to-loganalytics-infra`).
+
+| Mechanism | Location |
+|-----------|----------|
+| Bicep (GH Actions) | `Infrastructure/cosmos-db-diagnostics.bicep` (`enableDiagnostics=true`) |
+| Apply now (no bicep deploy) | `scripts/enable-cosmos-diagnostics.ps1` |
+| **Disable** | `scripts/disable-cosmos-diagnostics.ps1` or redeploy bicep with `enableDiagnostics=false` |
+
+**Categories exported:** `DataPlaneRequests`, `QueryRuntimeStatistics`, metric `Requests`. Query full text remains off (`enableFullTextQuery: 'None'` in `cosmos-db.bicep`).
+
+**Sample KQL** (workspace `loganalytics-infra`, allow ~15–30 min after enable for first rows):
+
+```kusto
+// RU by container + operation (data plane)
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.DOCUMENTDB"
+| where Category == "DataPlaneRequests"
+| where TimeGenerated > ago(24h)
+| summarize TotalRU = sum(todouble(requestCharge_s)), Calls = count() by collectionName_s, operationName_s
+| order by TotalRU desc
+
+// Slowest / highest-RU queries (hash only unless full-text enabled)
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.DOCUMENTDB"
+| where Category == "QueryRuntimeStatistics"
+| where TimeGenerated > ago(24h)
+| summarize TotalRU = sum(todouble(requestCharge_s)), Calls = count() by collectionName_s, queryText_s
+| order by TotalRU desc
+```
+
+**June 2026 RU split (7-day Azure Metrics, pre-diagnostics):** ~68% `Episodes` / `Query`; ~15% `Subjects` / `ReadFeed`.
+
+### Query consolidation — where to change code (P1 / P4 / P6)
+
+P4 partition-scoped reads are largely in place via `RecentEpisodeCandidatesProvider`. Remaining savings are mostly **P1/P5** (one load per orchestration, not per activity) and **P6** (HalfHourly duplication).
+
+| Priority | Problem | Code to change |
+|----------|---------|----------------|
+| **P1 / P5** | Poster, Tweet, Bluesky, Categoriser each call `GetRecentActiveEpisodes` in separate Durable activities → static cache in `RecentEpisodeCandidatesProvider` does **not** survive across activity boundaries | **Orchestration:** `Cloud/Indexer/HourlyOrchestration.cs` — load candidates once after `Categoriser` (or before Poster) and pass through `IndexerContext`. **Consumers:** `EpisodeProcessor.PostEpisodesSinceReleaseDate`, `PodcastEpisodeProvider.GetReadyPodcastEpisodes`, `RecentPodcastEpisodeCategoriser.Categorise` — accept preloaded candidates instead of calling provider again. **Shared loader:** `Class-Libraries/RedditPodcastPoster.Common/Episodes/RecentEpisodeCandidatesProvider.cs` (`LoadRecentPodcastEpisodes`). |
+| **P4 (remaining)** | Weekly Monday cross-partition scans for homepage totals | `Class-Libraries/RedditPodcastPoster.ContentPublisher/HomepagePublisher.cs` — `ResolveHomePageCache` lines ~172–189 (`episodeRepository.GetAllBy` for duration + active count). P3 interim limits this to Monday 00:00–00:20; incremental maintenance on write paths would remove it entirely. |
+| **P4 (done)** | Recent episodes for homepage / social | `RecentEpisodeCandidatesProvider.LoadRecentPodcastEpisodes`, `HomepagePublisher.GetRecentEpisodes` / `LoadRecentEpisodes` (partition-scoped via `GetByPodcastId`). |
+| **P6** | HalfHourly re-runs Poster + Publisher + Bluesky (doubles Cosmos load) | `Cloud/Indexer/HalfHourlyOrchestration.cs` — trim activities (e.g. Poster-only, or drop Publisher/Bluesky from half-hourly). Trigger: `Cloud/Indexer/OrchestrationTrigger.cs` `RunHalfHourly`. |
+
+**Activity entry points (Indexer):**
+
+| Activity | File | Cosmos path |
+|----------|------|-------------|
+| Categoriser | `Cloud/Indexer/Categoriser.cs` | → `RecentPodcastEpisodeCategoriser` |
+| Poster | `Cloud/Indexer/Poster.cs` | → `EpisodeProcessor` |
+| Tweet | `Cloud/Indexer/Tweet.cs` | → `Tweeter` → `PodcastEpisodeProvider` |
+| Bluesky | `Cloud/Indexer/Bluesky.cs` | → `BlueskyPostManager` → `PodcastEpisodeProvider` |
+| Publisher | `Cloud/Indexer/Publisher.cs` | → `HomepagePublisher` |
+
+**Cross-partition primitive:** `Class-Libraries/RedditPodcastPoster.Persistence/EpisodeRepository.cs` — `GetAllBy` / `GetAllBy<TProjection>` (no partition key → fan-out). Partition-scoped alternative: `GetByPodcastId`.
+
 ### Where the biggest Function compute time is spent (App Insights evidence)
 
 From the App Insights data, the **Indexer activity (4 passes, hourly)** dominates at 1,771s total over 48h — but this is largely driven by **external API calls** (Apple 711s, Spotify 512s, YouTube 143s), not Cosmos. The Cosmos-heavy activities are:

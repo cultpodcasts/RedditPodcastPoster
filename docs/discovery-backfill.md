@@ -67,25 +67,22 @@ Exit code `0`. Cosmos/API credentials were available via user secrets on the ope
    dotnet publish Console-Apps/Discover/Discover.csproj -c Release -r win-x64
    ```
 
-3. Run from repo root or ensure `appsettings.json` is beside the exe (queries differ from production bicep — see below).
+3. Run from any directory; config loads from the exe folder (`appsettings.json` or `Discover.appsettings.json`). After `publish-console-apps.ps1`, `artifacts\tools\Discover.appsettings.json` is copied alongside `Discover.exe`.
 
-## Backfill commands (11 Jun 2026)
+## Backfill command (11 Jun 2026)
 
-Production-equivalent flags (from bicep `discover__*` settings):
+**Requires user approval before running against production Cosmos.**
+
+Single command covering both missed **03:30** and **09:30 BST** runs on 11 Jun 2026 (see table above for per-window semantics). Production-equivalent flags (from bicep `discover__*` settings):
 
 ```powershell
 $exe = ".\Console-Apps\Discover\bin\Release\net10.0\win-x64\Discover.exe"
-
-# Missed 03:30 BST run
 & $exe --time-since "2026-06-10T20:20:00Z" `
   --include-listen-notes --include-taddy --include-youtube `
   --taddy-offset 02:00:00
-
-# Missed 09:30 BST run
-& $exe --time-since "2026-06-11T02:20:00Z" `
-  --include-listen-notes --include-taddy --include-youtube `
-  --taddy-offset 02:00:00
 ```
+
+`--time-since` searches all episodes released since that timestamp (no upper bound until now). The earliest missed-window start — 6h10m before the 03:30 BST trigger (`2026-06-10T20:20:00Z`) — covers both gaps in one pass. The 10-minute overlap between the two scheduled windows is harmless.
 
 Successful run prints `Discovery initiated at '<timestamp>'.` and persists results via `IDiscoveryResultsRepository.Save` (same path as normal CLI discovery, not the Durable Function orchestration).
 
@@ -94,21 +91,21 @@ Successful run prints `Discovery initiated at '<timestamp>'.` and persists resul
 | Aspect | Cloud (`discover-infra`) | Console (`Discover.exe`) |
 |--------|--------------------------|---------------------------|
 | Entry | Timer → Durable orchestration | Direct CLI |
-| Queries | `discover__Queries__*` in bicep | `appsettings.json` → `Discover:Queries` |
+| Queries | `discover__Queries__*` in bicep | `discover:Queries` in `appsettings.json` / `Discover.appsettings.json` (synced from bicep) |
 | Search window | `discover__SearchSince` app setting | `-t` / `-r` arguments |
 | Notifications / publisher | Full orchestration pipeline | Saves discovery document only |
 
-Console `appsettings.json` query list is **not identical** to production bicep. For a full production parity backfill, align queries via configuration or accept console defaults.
+CLI service flags (`--include-listen-notes`, `--include-taddy`, `--include-youtube`) and `--taddy-offset` default to production bicep values. Search window still comes from `-t` / `-r`, not `discover__SearchSince`.
 
 ## When cloud discovery is down
 
 1. Confirm missed runs (no `DiscoveryTrigger` traces in App Insights for `discover-infra`).
-2. Run backfill commands above.
+2. Run backfill command above (with user approval for production Cosmos).
 3. Fix hosting separately — see [deployment.md](./deployment.md). Do not change app settings during code deploy.
 4. After `discover-infra` is healthy, scheduled runs resume; backfill covers the gap only if CLI runs completed successfully.
 
 ## Agent rules
 
-- **Do not** run backfill against production Cosmos without user approval if credentials are unavailable.
+- **Do not** run backfill against production Cosmos without explicit user approval.
 - **Do** verify `--help` and a dry `--time-since` run before documenting new flags.
 - **Do** use UTC in `--time-since` strings (`Z` suffix).

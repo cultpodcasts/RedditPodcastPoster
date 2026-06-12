@@ -1,5 +1,8 @@
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
+    [Parameter(Position = 0)]
+    [string[]]$App,
+
     [string]$Runtime = 'win-x64',
 
     [string]$Configuration = 'Release',
@@ -21,12 +24,34 @@ if (-not $OutputDir) {
 $stagingRoot = Join-Path $repoRoot 'artifacts\.console-publish-staging'
 $consoleAppsRoot = Join-Path $repoRoot 'Console-Apps'
 
-$projects = Get-ChildItem -Path $consoleAppsRoot -Recurse -Filter '*.csproj' |
+$projects = @(Get-ChildItem -Path $consoleAppsRoot -Recurse -Filter '*.csproj' |
     Where-Object {
         $name = [IO.Path]::GetFileNameWithoutExtension($_.Name)
         $name -notin $Exclude -and $name -notlike '*.Tests'
     } |
-    Sort-Object FullName
+    Sort-Object FullName)
+
+$availableApps = $projects | ForEach-Object {
+    [IO.Path]::GetFileNameWithoutExtension($_.Name)
+} | Sort-Object -Unique
+
+if ($App -and @($App).Count -gt 0) {
+    $appFilter = @($App | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $appFilterLower = $appFilter | ForEach-Object { $_.ToLowerInvariant() }
+    $projects = @($projects | Where-Object {
+        $name = [IO.Path]::GetFileNameWithoutExtension($_.Name).ToLowerInvariant()
+        $appFilterLower -contains $name
+    })
+    $foundNames = $projects | ForEach-Object {
+        [IO.Path]::GetFileNameWithoutExtension($_.Name).ToLowerInvariant()
+    } | Select-Object -Unique
+    $missing = $appFilter | Where-Object {
+        $_.ToLowerInvariant() -notin $foundNames
+    }
+    if ($missing.Count -gt 0) {
+        throw "Console app(s) not found: $($missing -join ', '). Available apps: $($availableApps -join ', ')"
+    }
+}
 
 if ($projects.Count -eq 0) {
     throw "No console app projects found under $consoleAppsRoot"
@@ -98,6 +123,14 @@ foreach ($project in $projects) {
         $destExe = Join-Path $OutputDir $exeName
         if ($PSCmdlet.ShouldProcess($destExe, "Copy $exeName")) {
             Copy-Item -LiteralPath $builtExe -Destination $destExe -Force
+        }
+
+        $appsettings = Join-Path $stageDir 'appsettings.json'
+        if (Test-Path $appsettings) {
+            $destSettings = Join-Path $OutputDir "$appName.appsettings.json"
+            if ($PSCmdlet.ShouldProcess($destSettings, "Copy $appName.appsettings.json")) {
+                Copy-Item -LiteralPath $appsettings -Destination $destSettings -Force
+            }
         }
 
         $published.Add([pscustomobject]@{
