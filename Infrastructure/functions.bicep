@@ -135,14 +135,22 @@ var logging= {
     Logging__LogLevel__Default: 'Warning'
     'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Warning'
     Logging__LogLevel__Function: loggingLevel
-    Logging__LogLevel__RedditPodcastPoster: loggingLevel
+    Logging__LogLevel__Azure: loggingLevel
+    Logging__LogLevel__RedditPodcastPoster: 'Warning'
+    Logging__LogLevel__Indexer: 'Information'
+    Logging__LogLevel__Api: 'Information'
+    Logging__LogLevel__Discovery: 'Information'
+    // Legacy App Insights sampling — ignored when host.json telemetryMode is OpenTelemetry.
     Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
     Logging__ApplicationInsights__SamplingSettings__ExcludedTypes: ''
     Logging__ApplicationInsights__EnableLiveMetricsFilters: 'true'
+    OTEL_TRACES_SAMPLER: 'microsoft.fixed_percentage'
+    OTEL_TRACES_SAMPLER_ARG: '0.25'
+    APPLICATIONINSIGHTS_SAMPLING_PERCENTAGE: '25'
 }
 
 var memoryProbe = {
-    memoryProbe__Enabled: 'true'
+    memoryProbe__Enabled: 'false'
 }
 
 var api= {
@@ -690,6 +698,14 @@ var applicationInsightsConnectionString = applicationInsights.properties.Connect
 var userAssignedIdentityId = userAssignedIdentity.id
 var userAssignedIdentityClientId = userAssignedIdentity.properties.clientId
 
+var discoverScorer = {
+    discover__scorer__Enabled: 'true'
+    discover__scorer__BlobStorageAccountName: storageAccountName
+    discover__scorer__BlobContainerName: 'discovery-models'
+    discover__scorer__BlobPrefix: 'current'
+    discover__scorer__AutoHideThreshold: '0.05'
+}
+
 module apiFunction 'function.bicep' = {
   name: '${deployment().name}-api'
   params: {
@@ -704,7 +720,7 @@ module apiFunction 'function.bicep' = {
     publicNetworkAccess: true
     instanceMemoryMB: 2048
     appSettings: union({
-        Logging__LogLevel__Api: loggingLevel
+        Logging__LogLevel__Api: 'Information'
     }, apiSettings)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId
@@ -725,8 +741,8 @@ module discoveryFunction 'function.bicep' = {
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: union({
-        Logging__LogLevel__Discovery: loggingLevel
-    }, discoverySettings)
+        Logging__LogLevel__Discovery: 'Information'
+    }, discoverySettings, discoverScorer)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId
   }
@@ -746,7 +762,7 @@ module indexerFunction 'function.bicep' = {
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: union({
-        Logging__LogLevel__Indexer: loggingLevel
+        Logging__LogLevel__Indexer: 'Information'
     }, indexerSettings)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId

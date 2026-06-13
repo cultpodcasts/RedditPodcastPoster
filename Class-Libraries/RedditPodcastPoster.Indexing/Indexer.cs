@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Indexing.Models;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Subjects;
@@ -17,10 +18,12 @@ public class Indexer(
 {
     public async Task<IndexResponse> Index(string podcastName, IndexingContext indexingContext)
     {
-        var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastName).ToListAsync();
+        var podcasts = await FindPodcastsByName(podcastName);
 
         if (!podcasts.Any())
         {
+            logger.LogWarning(
+                "No podcast found for name '{PodcastName}'.", podcastName);
             return new IndexResponse(IndexStatus.NotFound);
         }
 
@@ -144,6 +147,18 @@ public class Indexer(
         updatedEpisodes = Collapse(updatedEpisodes);
 
         return new IndexResponse(status, updatedEpisodes);
+    }
+
+    private async Task<List<Podcast>> FindPodcastsByName(string podcastName)
+    {
+        var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastName).ToListAsync();
+        if (podcasts.Count == 0)
+        {
+            var lowerName = podcastName.ToLower();
+            podcasts = await podcastRepository.GetAllBy(x => x.Name.ToLower() == lowerName).ToListAsync();
+        }
+
+        return podcasts;
     }
 
     private async Task<bool> HasEpisodesAwaitingEnrichment(Guid podcastId, IndexingContext indexingContext)

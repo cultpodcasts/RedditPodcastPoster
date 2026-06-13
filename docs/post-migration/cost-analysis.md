@@ -457,6 +457,65 @@ The HalfHourly orchestration runs `Poster` + `Publisher` + `Bluesky`. This doubl
 
 Target: bring total daily cost from ~$0.50 back to ≤$0.26 (pre-migration level).
 
+## Cosmos DB diagnostics (TEMPORARY — TURN OFF after RU tuning)
+
+> **⚠️ REMOVE after investigation.** Cosmos diagnostic export adds Log Analytics ingestion cost on top of existing Azure Monitor spend. Disable when RU hot paths are identified and P1/P5/P6 work is complete.
+
+**Enabled:** `2026-06-12` on `cultpodcasts-db` → `loganalytics-infra` (`cosmos-to-loganalytics-infra`).
+
+| Mechanism | Location |
+|-----------|----------|
+| Bicep (GH Actions) | `Infrastructure/cosmos-db-diagnostics.bicep` (`enableDiagnostics=true`) |
+| Apply now (no bicep deploy) | `scripts/enable-cosmos-diagnostics.ps1` |
+| **Disable** | `scripts/disable-cosmos-diagnostics.ps1` or redeploy bicep with `enableDiagnostics=false` |
+
+**Categories exported:** `DataPlaneRequests`, `QueryRuntimeStatistics`, metric `Requests`. Query full text remains off (`enableFullTextQuery: 'None'` in `cosmos-db.bicep`).
+
+**Sample KQL** (workspace `loganalytics-infra`, allow ~15–30 min after enable for first rows):
+
+```kusto
+// RU by container + operation (data plane)
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.DOCUMENTDB"
+| where Category == "DataPlaneRequests"
+| where TimeGenerated > ago(24h)
+| summarize TotalRU = sum(todouble(requestCharge_s)), Calls = count() by collectionName_s, operationName_s
+| order by TotalRU desc
+
+// Slowest / highest-RU queries (hash only unless full-text enabled)
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.DOCUMENTDB"
+| where Category == "QueryRuntimeStatistics"
+| where TimeGenerated > ago(24h)
+| summarize TotalRU = sum(todouble(requestCharge_s)), Calls = count() by collectionName_s, queryText_s
+| order by TotalRU desc
+```
+
+**June 2026 RU split (7-day Azure Metrics, pre-diagnostics):** ~68% `Episodes` / `Query`; ~15% `Subjects` / `ReadFeed`.
+
+### Query consolidation — where to change code (P1 / P4 / P6)
+
+P4 partition-scoped reads are largely in place via `RecentEpisodeCandidatesProvider`. Remaining savings are mostly **P1/P5** (one load per orchestration, not per activity) and **P6** (HalfHourly duplication).
+
+| Priority | Problem | Code to change |
+|----------|---------|----------------|
+| **P1 / P5** | Poster, Tweet, Bluesky, Categoriser each call `GetRecentActiveEpisodes` in separate Durable activities → static cache in `RecentEpisodeCandidatesProvider` does **not** survive across activity boundaries | **Orchestration:** `Cloud/Indexer/HourlyOrchestration.cs` — load candidates once after `Categoriser` (or before Poster) and pass through `IndexerContext`. **Consumers:** `EpisodeProcessor.PostEpisodesSinceReleaseDate`, `PodcastEpisodeProvider.GetReadyPodcastEpisodes`, `RecentPodcastEpisodeCategoriser.Categorise` — accept preloaded candidates instead of calling provider again. **Shared loader:** `Class-Libraries/RedditPodcastPoster.Common/Episodes/RecentEpisodeCandidatesProvider.cs` (`LoadRecentPodcastEpisodes`). |
+| **P4 (remaining)** | Weekly Monday cross-partition scans for homepage totals | `Class-Libraries/RedditPodcastPoster.ContentPublisher/HomepagePublisher.cs` — `ResolveHomePageCache` lines ~172–189 (`episodeRepository.GetAllBy` for duration + active count). P3 interim limits this to Monday 00:00–00:20; incremental maintenance on write paths would remove it entirely. |
+| **P4 (done)** | Recent episodes for homepage / social | `RecentEpisodeCandidatesProvider.LoadRecentPodcastEpisodes`, `HomepagePublisher.GetRecentEpisodes` / `LoadRecentEpisodes` (partition-scoped via `GetByPodcastId`). |
+| **P6** | HalfHourly re-runs Poster + Publisher + Bluesky (doubles Cosmos load) | `Cloud/Indexer/HalfHourlyOrchestration.cs` — trim activities (e.g. Poster-only, or drop Publisher/Bluesky from half-hourly). Trigger: `Cloud/Indexer/OrchestrationTrigger.cs` `RunHalfHourly`. |
+
+**Activity entry points (Indexer):**
+
+| Activity | File | Cosmos path |
+|----------|------|-------------|
+| Categoriser | `Cloud/Indexer/Categoriser.cs` | → `RecentPodcastEpisodeCategoriser` |
+| Poster | `Cloud/Indexer/Poster.cs` | → `EpisodeProcessor` |
+| Tweet | `Cloud/Indexer/Tweet.cs` | → `Tweeter` → `PodcastEpisodeProvider` |
+| Bluesky | `Cloud/Indexer/Bluesky.cs` | → `BlueskyPostManager` → `PodcastEpisodeProvider` |
+| Publisher | `Cloud/Indexer/Publisher.cs` | → `HomepagePublisher` |
+
+**Cross-partition primitive:** `Class-Libraries/RedditPodcastPoster.Persistence/EpisodeRepository.cs` — `GetAllBy` / `GetAllBy<TProjection>` (no partition key → fan-out). Partition-scoped alternative: `GetByPodcastId`.
+
 ### Where the biggest Function compute time is spent (App Insights evidence)
 
 From the App Insights data, the **Indexer activity (4 passes, hourly)** dominates at 1,771s total over 48h — but this is largely driven by **external API calls** (Apple 711s, Spotify 512s, YouTube 143s), not Cosmos. The Cosmos-heavy activities are:
@@ -588,3 +647,253 @@ Discovery from command evidence: probe logs were not queryable because they were
 1. Verify new workflow execution order: budget step succeeds independently before/alongside RG functions infra deployment.
 2. Confirm budget resource updates continue to apply when `BUDGET_ALERT_EMAIL`/monthly amount changes.
 3. If budget step fails, rerun only provision job path and inspect that step without conflating RG template errors.
+
+---
+
+## Cost-saving programme — telemetry reduction (started 2026-06-10)
+
+### Context
+
+Daily costs remain ~2× pre-migration baseline. Two stacked drivers:
+
+1. **Functions (Flex Consumption)** — ~£0.18–0.22/day after monthly free-grant exhaustion (~day 13).
+2. **Azure Monitor (Log Analytics ingestion)** — ~£0.107/day flat baseline since 2026-05-01, driven by OpenTelemetry `AppMetrics` (~57%) and `AppTraces` (~31%).
+
+During the free-grant window (days 1–12 of each month), Azure Monitor appears as the dominant cost line because Functions show £0.00.
+
+### Change applied 2026-06-10
+
+**MemoryProbe disabled in production** (direct app-setting update; bicep also set to `false` for when GH Actions deploy resumes):
+
+| App | Setting | Value |
+|-----|---------|-------|
+| `indexer-infra` | `memoryProbe__Enabled` | `false` |
+| `discover-infra` | `memoryProbe__Enabled` | `false` |
+| `api-infra` | `memoryProbe__Enabled` | `false` |
+
+Workspace: `loganalytics-infra` (customer ID `2b1c62ee-689f-422a-816b-be1605ae88fa`).
+
+### Pre-change baseline (use 2026-06-09 — full day before disable)
+
+| Metric | Value |
+|--------|-------|
+| **Total billable ingestion** | **~40.3 MB/day** |
+| AppMetrics | 21.78 MB |
+| AppTraces | 13.07 MB |
+| AppPerformanceCounters | 2.57 MB |
+| AppDependencies | 1.52 MB |
+| AppRequests | 1.08 MB |
+| **MemoryProbe trace events** | **1,298/day** (indexer 480, api 802, discover 16) |
+| **Azure Monitor daily cost** | **~£0.107/day** |
+| **Subscription / RG** | `a6b8f1a2-6163-41bc-aa6d-e33928939a6e` / `automatedinfra` |
+
+> 2026-06-10 is a partial day (disable applied mid-day); do not use it as the primary baseline.
+
+### Code changes implemented and deployed 2026-06-10
+
+| Change | Files |
+|--------|-------|
+| Drop noisy OTel runtime metrics | `Cloud/Azure/OpenTelemetryConfiguration.cs` — drops `process.runtime.dotnet.*`, `process.cpu.*`, `kestrel.*`, `http.server.active_requests`, `azure.functions.health_check.reports`, `_APPRESOURCEPREVIEW_*` |
+| Application log levels | `Cloud/Azure/HostFactory.cs` — `Indexer`/`Api`/`Discovery` at **Information**; `RedditPodcastPoster` at **Warning** (since 2026-06-12); host/framework at **Warning** |
+| host.json alignment | `Cloud/Indexer/host.json`, `Cloud/Api/host.json`, `Cloud/Discovery/host.json` — added `Azure: Warning` |
+| Bicep app settings | `Infrastructure/functions.bicep` — OTel trace sampling env vars; log levels as above |
+
+> **Deployed 2026-06-10 (UTC)** via `scripts/deploy-function-local.ps1` (Flex blob → `cultpodcastsstg/*/released-package.zip`):
+> - `indexer-infra` → `indexer-deployment`
+> - `discover-infra` → `discovery-deployment`
+> - `api-infra` → `api-deployment`
+>
+> Log-level app settings applied directly on all three apps (bicep infra deploy still pending for GH Actions).
+
+---
+
+## Tomorrow review checklist (run 2026-06-11)
+
+Run after a **full 24h UTC window** following the MemoryProbe disable (compare **2026-06-11** against baseline **2026-06-09**).
+
+### 1. Confirm MemoryProbe is off in production
+
+```powershell
+foreach ($app in @('indexer-infra','discover-infra','api-infra')) {
+  az functionapp config appsettings list `
+    --resource-group automatedinfra --name $app `
+    --query "[?name=='memoryProbe__Enabled'].{app:'$app',value:value}" -o table
+}
+```
+
+Expected: all three show `false`.
+
+### 2. Confirm no new MemoryProbe traces (Log Analytics)
+
+Run in Azure Portal → `loganalytics-infra` → Logs, or:
+
+```powershell
+az monitor log-analytics query `
+  --workspace "2b1c62ee-689f-422a-816b-be1605ae88fa" `
+  --analytics-query @"
+AppTraces
+| where TimeGenerated between (datetime(2026-06-11) .. datetime(2026-06-12))
+| where Message contains 'MemoryProbe'
+| summarize Events=count() by AppRoleName
+"@ -o table
+```
+
+Expected: **0 rows** (or negligible stragglers from pre-restart invocations on 2026-06-10).
+
+Side-by-side with baseline:
+
+```kusto
+AppTraces
+| where TimeGenerated between (datetime(2026-06-09) .. datetime(2026-06-12))
+| extend Day = startofday(TimeGenerated)
+| summarize Traces=count(), MemoryProbe=countif(Message contains "MemoryProbe"), Warnings=countif(SeverityLevel >= 2) by Day, AppRoleName
+| order by Day desc, AppRoleName asc
+```
+
+Expected on 2026-06-11: MemoryProbe ≈ 0; total Warnings on `indexer-infra` and `api-infra` drop materially vs 2026-06-09.
+
+### 3. Measure ingestion reduction (primary success metric)
+
+```kusto
+Usage
+| where TimeGenerated between (datetime(2026-06-09) .. datetime(2026-06-12))
+| where IsBillable == true
+| summarize DailyMB=sum(Quantity) by Day=startofday(TimeGenerated), DataType
+| order by Day desc, DailyMB desc
+```
+
+Focus on **AppTraces** daily MB:
+
+| Day | AppTraces MB (baseline) | Target after disable |
+|-----|---------------------------|----------------------|
+| 2026-06-09 | 13.07 | — |
+| 2026-06-11 | — | materially lower (MemoryProbe warnings were large messages) |
+
+Total daily MB target: below ~40 MB/day; AppTraces share should shrink most.
+
+Top metrics unchanged until OTel trim is deployed:
+
+```kusto
+AppMetrics
+| where TimeGenerated > ago(24h)
+| summarize Count=count() by Name
+| order by Count desc
+| take 15
+```
+
+### 4. Check Azure Monitor cost row (billing lags 24–48h)
+
+```powershell
+@'
+{
+  "type": "ActualCost",
+  "timeframe": "Custom",
+  "timePeriod": { "from": "2026-06-09", "to": "2026-06-12" },
+  "dataset": {
+    "granularity": "Daily",
+    "aggregation": { "totalCost": { "name": "Cost", "function": "Sum" } },
+    "grouping": [{ "type": "Dimension", "name": "ServiceName" }]
+  }
+}
+'@ | Set-Content -Path "$env:TEMP\cost-daily.json" -Encoding utf8
+
+az rest --method post `
+  --url "https://management.azure.com/subscriptions/a6b8f1a2-6163-41bc-aa6d-e33928939a6e/providers/Microsoft.CostManagement/query?api-version=2023-11-01" `
+  --body "@$env:TEMP\cost-daily.json" -o json
+```
+
+Filter output for `Azure Monitor` and `Functions` rows. Cost rows for 2026-06-11 may not be final until 2026-06-12 or 2026-06-13; ingestion (step 3) is the early indicator.
+
+### 5. Sanity-check function health (no regressions)
+
+```kusto
+AppRequests
+| where TimeGenerated > ago(24h)
+| summarize Executions=count(), Failed=countif(Success == false), AvgMs=avg(DurationMs) by AppRoleName, Name
+| where Failed > 0 or Executions > 0
+| order by Executions desc
+```
+
+Expected: execution counts and failure rates unchanged vs prior days.
+
+### 6. Record results and decide next step
+
+| Outcome | Next action |
+|---------|-------------|
+| MemoryProbe = 0, AppTraces MB down | Proceed with OTel metric trim + log-level PR; re-measure after deploy |
+| MemoryProbe still appearing | Re-check app settings; confirm host restarted; inspect `AppRoleName` for stale instances |
+| AppTraces down but Azure Monitor cost flat | Billing lag — re-check on 2026-06-13; OTel `AppMetrics` still dominant (~22 MB/day) |
+| Function failures increased | Roll back `memoryProbe__Enabled=true` on affected app only; investigate separately |
+
+### Pass criteria for this phase
+
+- `MemoryProbe` trace count = 0 on a full post-change day.
+- `AppTraces` ingestion down vs 2026-06-09 baseline (13.07 MB/day).
+- No increase in failed `AppRequests`.
+- Azure Monitor daily cost trending below ~£0.107/day once billing finalizes (secondary; may take 48h).
+
+---
+
+## Phase 1 review results (2026-06-11 vs baseline 2026-06-09)
+
+| Metric | 06-09 | 06-11 | Outcome |
+|--------|-------|-------|---------|
+| MemoryProbe events | 1,298 | **0** | Pass |
+| AppMetrics MB | 21.78 | 13.14 | **-40%** (OTel metric trim) |
+| AppTraces MB | 13.07 | 24.87 | **+90%** (Information logs exported) |
+| Total billable MB | 40.3 | 42.2 | Flat/slightly up |
+| Azure Monitor £/day | 0.107 | 0.108 | Flat |
+
+**Root cause of AppTraces increase:** raising `RedditPodcastPoster` to Information exported high-volume pagination logs (`PaginateEpisodes`, etc.) — ~20k Information traces/day vs ~1.4k baseline.
+
+**Why `Logging__ApplicationInsights__SamplingSettings__*` had no effect:** production uses `telemetryMode: "OpenTelemetry"` in `host.json`. The legacy `Logging__ApplicationInsights__SamplingSettings__IsEnabled=true` setting only applies to the classic Application Insights ILogger provider, not the OpenTelemetry exporter path that writes to `AppTraces`.
+
+---
+
+## Phase 2 — logging + trace sampling (from 2026-06-12)
+
+### Changes applied
+
+| Change | Production |
+|--------|------------|
+| Full telemetry app-settings bundle | `scripts/apply-telemetry-app-settings.ps1` (run when bicep deploy is unavailable) |
+| `Logging__LogLevel__RedditPodcastPoster=Warning` | App settings (all 3 apps) |
+| `OTEL_TRACES_SAMPLER=microsoft.fixed_percentage` | App settings |
+| `OTEL_TRACES_SAMPLER_ARG=0.25` | App settings |
+| `APPLICATIONINSIGHTS_SAMPLING_PERCENTAGE=25` | App settings |
+| `memoryProbe__Enabled=false` | App settings |
+| `EnableTraceBasedLogsSampler=true` + `SamplingRatio=0.25` | Code (`HostFactory.cs`) — requires function deploy |
+| `Indexer`/`Api`/`Discovery` remain **Information** | App settings + `HostFactory.cs` |
+
+```powershell
+# Re-apply all telemetry/cost app settings without bicep:
+powershell -File scripts/apply-telemetry-app-settings.ps1
+```
+
+### Sunday review checklist (2026-06-15 — full UTC day 2026-06-14)
+
+Compare **2026-06-14** against **2026-06-11** (pre-fix) and **2026-06-09** (original baseline).
+
+```kusto
+Usage
+| where TimeGenerated between (datetime(2026-06-09) .. datetime(2026-06-15))
+| where IsBillable == true
+| summarize DailyMB=sum(Quantity) by Day=startofday(TimeGenerated), DataType
+| order by Day desc, DailyMB desc
+```
+
+```kusto
+AppTraces
+| where TimeGenerated between (datetime(2026-06-14) .. datetime(2026-06-15))
+| summarize Traces=count() by SeverityLevel, AppRoleName
+| order by Traces desc
+```
+
+**Pass criteria for phase 2:**
+
+- `AppTraces` daily MB below **13 MB** (back to 06-09 baseline or lower).
+- Information traces on `indexer-infra` materially below 06-11 (~17k/day).
+- Azure Monitor daily cost below **£0.09/day** (target ~15% reduction from £0.107).
+- No indexer/discovery execution regressions.
+
+**If still elevated:** keep `RedditPodcastPoster` at Warning; consider raising `Indexer` to Warning or adding logger-specific filters for `PaginateEpisodes` only.

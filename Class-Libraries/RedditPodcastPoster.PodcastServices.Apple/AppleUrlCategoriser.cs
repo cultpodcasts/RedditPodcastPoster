@@ -40,8 +40,8 @@ public class AppleUrlCategoriser(
         var result = await FindEpisode(matchingPodcast, podcast, criteria, indexingContext);
         if (result == null && !string.IsNullOrWhiteSpace(criteria.SpotifyTitle))
         {
-            var altCriteria= criteria with { EpisodeTitle= criteria.SpotifyTitle };
-            result = await FindEpisode(matchingPodcast, podcast, criteria, indexingContext);
+            var altCriteria = criteria with { EpisodeTitle = criteria.SpotifyTitle };
+            result = await FindEpisode(matchingPodcast, podcast, altCriteria, indexingContext);
         }
         if (result != null)
         {
@@ -66,18 +66,22 @@ public class AppleUrlCategoriser(
         PodcastServiceSearchCriteria criteria,
         IndexingContext indexingContext)
     {
+        if (matchingPodcast != null &&
+            matchingPodcast.IsAwaitingDelayedAudioRelease(criteria.Release, criteria.Duration))
+        {
+            logger.LogInformation(
+                "Skipping Apple episode lookup for '{CriteriaEpisodeTitle}' as audio is not expected until after the YouTube publishing delay.",
+                criteria.EpisodeTitle);
+            return null;
+        }
+
         var findEpisodeRequest = FindAppleEpisodeRequestFactory.Create(matchingPodcast, podcast, criteria);
 
-        var ticks = Constants.YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
-        if (findEpisodeRequest.YouTubePublishingDelay.HasValue &&
-            findEpisodeRequest.YouTubePublishingDelay.Value != TimeSpan.Zero)
-        {
-            var delayTicks = findEpisodeRequest.YouTubePublishingDelay.Value.Ticks;
-            if (delayTicks < 0)
-            {
-                ticks = Math.Abs(delayTicks);
-            }
-        }
+        var ticks = EpisodeReleaseMatchTolerance.GetToleranceTicks(
+            matchingPodcast,
+            criteria.Duration,
+            findEpisodeRequest.YouTubePublishingDelay,
+            findEpisodeRequest.ReleaseAuthority);
 
         var episode = await appleEpisodeResolver.FindEpisode(findEpisodeRequest, indexingContext,
                 y => findEpisodeRequest.Released.HasValue &&

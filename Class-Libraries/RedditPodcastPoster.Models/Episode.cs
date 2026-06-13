@@ -252,4 +252,21 @@ public class Episode
 
         return (updated, updatedMetadata);
     }
+
+    public bool InheritLanguageFromPodcastIfUnset(Podcast podcast)
+    {
+        if (!string.IsNullOrWhiteSpace(Language))
+        {
+            return false;
+        }
+
+        var podcastLanguage = podcast.Language?.Trim();
+        if (string.IsNullOrWhiteSpace(podcastLanguage))
+        {
+            return false;
+        }
+
+        Language = podcastLanguage;
+        return true;
+    }
 }

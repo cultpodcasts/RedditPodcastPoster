@@ -9,14 +9,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="CommandLineParser" Version="2.9.1" />
 		<PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.ContentPublisher\RedditPodcastPoster.ContentPublisher.csproj" />
-		<ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Reddit\RedditPodcastPoster.Reddit.csproj" />
-		<ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj" />
 	</ItemGroup>
 
 </Project>

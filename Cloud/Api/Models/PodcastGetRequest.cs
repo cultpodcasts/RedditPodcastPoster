@@ -1,4 +1,6 @@
-﻿namespace Api.Models;
+﻿using Api;
+
+namespace Api.Models;
 
 public class PodcastGetRequest
 {
@@ -15,7 +17,7 @@ public class PodcastGetRequest
         PodcastId = podcastId;
     }
 
-    public string? PodcastName => podcastName == null ? null : Uri.UnescapeDataString(podcastName);
+    public string? PodcastName => podcastName == null ? null : PodcastRouteNameNormalizer.Normalize(podcastName);
     public Guid? EpisodeId { get; init; }
     public Guid? PodcastId { get; init; }
 

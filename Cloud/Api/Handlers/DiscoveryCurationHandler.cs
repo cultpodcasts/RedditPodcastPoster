@@ -22,7 +22,8 @@ public class DiscoveryCurationHandler(
     {
         try
         {
-            var result = await discoveryResultsService.Get(c);
+            var includeHidden = bool.TryParse(r.Query["includeHidden"], out var parsed) && parsed;
+            var result = await discoveryResultsService.Get(includeHidden, c);
             return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(result, c);
         }
         catch (Exception ex)

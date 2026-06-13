@@ -70,4 +70,12 @@ public class DiscoveryResponseItem
     [JsonPropertyName("matchingPodcasts")]
     [JsonPropertyOrder(150)]
     public DiscoveryPodcast[]? MatchingPodcasts { get; set; }
+
+    [JsonPropertyName("acceptProbability")]
+    [JsonPropertyOrder(160)]
+    public float? AcceptProbability { get; set; }
+
+    [JsonPropertyName("autoHidden")]
+    [JsonPropertyOrder(170)]
+    public bool AutoHidden { get; set; }
 }

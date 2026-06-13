@@ -18,6 +18,7 @@ param container_names array = [
   'api-deployment'
   'discovery-deployment'
   'indexer-deployment'
+  'discovery-models'
 ]
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {

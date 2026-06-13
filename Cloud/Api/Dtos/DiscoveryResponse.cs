@@ -9,4 +9,7 @@ public class DiscoveryResponse
 
     [JsonPropertyName("results")]
     public required IEnumerable<DiscoveryResponseItem> Results { get; set; }
+
+    [JsonPropertyName("hiddenCount")]
+    public int HiddenCount { get; set; }
 }

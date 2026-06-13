@@ -1,4 +1,6 @@
+using System.Net;
 using Api.Configuration;
+using Api.Extensions;
 using Api.Factories;
 using Azure.Diagnostics;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -65,7 +67,12 @@ public abstract class MemoryProbedHttpBaseClass(
         catch (Exception ex)
         {
             memoryProbe.End(false, ex.GetType().Name);
-            throw;
+            logger.LogError(ex, "Unhandled exception in {FunctionName}.",
+                req.FunctionContext.FunctionDefinition.Name);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            return await errorResponse.WithJsonBody(
+                new { error = "Internal server error" },
+                req.FunctionContext.CancellationToken);
         }
     }
 }

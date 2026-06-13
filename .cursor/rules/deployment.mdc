@@ -1,0 +1,33 @@
+---
+description: Guardrails for deploy scripts and production deploys
+globs: scripts/**/*.ps1,docs/deployment.md
+alwaysApply: false
+---
+
+# Deployment guardrails
+
+**Read [docs/deployment.md](../../docs/deployment.md) before editing anything under `scripts/`.**
+
+## Script layout (do not break)
+
+| User-facing | Internal |
+|-------------|----------|
+| `deploy-api.ps1` | → `deploy-function-local.ps1 -FunctionName api` |
+| `deploy-discover.ps1` | → `deploy-function-local.ps1 -FunctionName discover` |
+| `deploy-indexer.ps1` | → `deploy-function-local.ps1 -FunctionName indexer` |
+
+Wrappers resolve Azure targets (JSON + interactive prompts via `Resolve-DeploySettings.ps1`), then call `deploy-function-local.ps1` with `-FunctionName` and resolved `-ResourceGroup`, `-AppName`, `-StorageAccount`, `-DeploymentContainer`. Publish, zip, blob upload, and restart live in `deploy-function-local.ps1`.
+
+## Hard rules
+
+1. **NEVER delete or rename `scripts/deploy-*.ps1`** without explicit user approval.
+2. **NEVER change the deploy mechanism** — OneDeploy modes (`FlexBlob` / `FunctionAppDeploy`), blob upload flow, app settings, Kudu/SAS paths — without explicit user approval.
+3. **Local deploy must stay 1:1 with CI** — compare changes to [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) and [`Infrastructure/function.bicep`](../../Infrastructure/function.bicep) / [`functions.bicep`](../../Infrastructure/functions.bicep) first. Justify as "CI equivalent on Windows", not a new Azure integration.
+4. **Do not run production deploy** (`az login` + deploy scripts, `az functionapp restart`, blob upload to `cultpodcastsstg`) unless the user explicitly asks.
+5. **Never modify app settings** during code deploy — settings come from bicep only.
+6. **Document** behaviour changes in `docs/deployment.md`.
+
+## Allowed without approval
+
+- `New-LinuxFunctionAppZip` in `AzureWebAppDeploy.ps1` (Windows forward-slash zip fix)
+- Bug fixes inside `deploy-function-local.ps1` that preserve the blob-upload + restart flow and match CI publish/package semantics

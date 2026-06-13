@@ -19,7 +19,8 @@ public class SpotifyEpisodeResolver(
 {
     public async Task<FindEpisodeResponse> FindEpisode(
         FindSpotifyEpisodeRequest request,
-        IndexingContext indexingContext)
+        IndexingContext indexingContext,
+        Func<SimpleEpisode, bool>? reducer = null)
     {
         var market = request.Market ?? Market.CountryCode;
         if (indexingContext.SkipSpotifyUrlResolving)
@@ -47,23 +48,13 @@ public class SpotifyEpisodeResolver(
         SimpleEpisode? matchingEpisode;
         if (request is { ReleaseAuthority: Service.YouTube, Length: not null })
         {
-            var ticks = Constants.YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
-            if (request.YouTubePublishingDelay.HasValue &&
-                request.YouTubePublishingDelay.Value != TimeSpan.Zero)
-            {
-                var delayTicks = request.YouTubePublishingDelay.Value.Ticks;
-                if (delayTicks < 0)
-                {
-                    ticks = Math.Abs(delayTicks);
-                }
-            }
-
             matchingEpisode = searchResultFinder.FindMatchingEpisodeByLength(
                 request.EpisodeTitle,
                 request.Length.Value,
                 podcastEpisodes.Episodes,
-                y => request.Released.HasValue &&
-                     Math.Abs((y.GetReleaseDate() - request.Released.Value).Ticks) < ticks);
+                reducer,
+                request.ReleaseAuthority,
+                request.Released);
         }
         else
         {
