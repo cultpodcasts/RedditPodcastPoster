@@ -5,33 +5,25 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.ContentPublisher.Extensions;
-using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.Reddit.Extensions;
-using RedditPodcastPoster.Subjects.Extensions;
-using RedditPodcastPoster.Text.Extensions;
 
+var appDirectory = AppContext.BaseDirectory;
 var builder = Host.CreateApplicationBuilder(args);
 
-
-builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
+builder.Environment.ContentRootPath = appDirectory;
 
 builder.Configuration
-    .AddJsonFile("appsettings.json", true)
+    .AddJsonFile(Path.Combine(appDirectory, "appsettings.json"), true)
     .AddEnvironmentVariables("RedditPodcastPoster_")
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
 
 builder.Services
     .AddLogging()
-    .AddRepositories()
-    .AddContentPublishing()
-    .AddRedditServices()
-    .AddTextSanitiser()
-    .AddSubjectServices()
-    .AddCachedSubjectProvider();
+    .AddContentPublishing();
 
 using var host = builder.Build();
 
-var processor = host.Services.GetService<ILanguagesPublisher>()!;
-await processor.PublishLanguages();
-return 0;
+using var scope = host.Services.CreateScope();
+var processor = scope.ServiceProvider.GetRequiredService<ILanguagesPublisher>();
+var success = await processor.PublishLanguages();
+return success ? 0 : 1;

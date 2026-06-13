@@ -137,6 +137,8 @@
 
     <Project Path="Console-Apps/DiscoveryScoreBackfill/DiscoveryScoreBackfill.csproj" />
 
+    <Project Path="Console-Apps/EpisodeLanguageBackfill/EpisodeLanguageBackfill.csproj" />
+
     <Project Path="Console-Apps/EliminateExistingEpisodes/EliminateExistingEpisodes.csproj" />
 
     <Project Path="Console-Apps/EnrichEpisodesFromPostFlare/EnrichEpisodesFromPostFlare.csproj" />

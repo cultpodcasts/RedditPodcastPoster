@@ -53,6 +53,7 @@ public class PodcastProcessor(
             episodeResult = SubmitResultState.Created;
             episode = episodeFactory.CreateEpisode(categorisedItem);
             episode.SetPodcastProperties(categorisedItem.MatchingPodcast);
+            episode.InheritLanguageFromPodcastIfUnset(categorisedItem.MatchingPodcast);
             var subjectsResult = await subjectEnricher.EnrichSubjects(
                 episode,
                 new SubjectEnrichmentOptions(
