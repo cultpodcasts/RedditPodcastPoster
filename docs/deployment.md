@@ -102,6 +102,20 @@ All shared behaviour (dotnet publish, `New-LinuxFunctionAppZip`, blob upload to 
 | `Resolve-DeploySettings.ps1` | **Internal** — JSON load/save and interactive Azure target prompts |
 | `AzureWebAppDeploy.ps1` | Helper — `New-LinuxFunctionAppZip` only |
 | `publish-console-apps.ps1` | Console tools — not function deploy |
+| `upload-discovery-model.ps1` | Upload discovery accept/reject model bundle to `discovery-models` blob container |
+
+### Discovery scorer model (blob)
+
+Infrastructure creates container **`discovery-models`** on `cultpodcastsstg`. Discover function app settings (bicep) point `discover__scorer__*` at `current/` blobs. Upload after training:
+
+```powershell
+az login
+.\scripts\upload-discovery-model.ps1 `
+  -ModelDirectory "C:\path\to\analysis\model"
+```
+
+Required blobs under `current/`: `discovery-accept.model.zip`, `discovery-accept.manifest.json`, `model.onnx`, `vocab.txt` (optional: `show-accept-rates.csv`). Deploy infrastructure first if the container does not exist yet. Flip `discover__scorer__Enabled` in bicep to enable auto-hide in production.
+
 | `scripts/.deploy-local/` | Gitignored build artifacts |
 
 ### `deploy-discover.ps1` history

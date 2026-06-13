@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Discovery.ML;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Extensions;
@@ -28,6 +29,7 @@ public static class ServiceCollectionExtensions
                 .AddScoped<IEnrichedEpisodeResultsAdapter, EnrichedEpisodeResultsAdapter>()
                 .AddScoped<IEnrichedEpisodeResultAdapter, EnrichedEpisodeResultAdapter>()
                 .AddScoped<IIgnoreTermsProvider, IgnoreTermsProvider>()
+                .AddSingleton<IDiscoveryResultScorer, DiscoveryResultScorer>()
                 .AddDiscoveryRepository()
                 .AddSpotifyServices()
                 .AddAppleServices()
@@ -35,7 +37,8 @@ public static class ServiceCollectionExtensions
                 .AddTaddy()
                 .AddTextSanitiser()
                 .BindConfiguration<DiscoverySettings>("discover")
-                .BindConfiguration<IgnoreTermsSettings>("discover");
+                .BindConfiguration<IgnoreTermsSettings>("discover")
+                .BindConfiguration<DiscoveryScorerSettings>("discover:scorer");
         }
 
         public IServiceCollection AddDiscoveryRepository()

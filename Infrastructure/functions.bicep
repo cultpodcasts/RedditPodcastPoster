@@ -698,6 +698,14 @@ var applicationInsightsConnectionString = applicationInsights.properties.Connect
 var userAssignedIdentityId = userAssignedIdentity.id
 var userAssignedIdentityClientId = userAssignedIdentity.properties.clientId
 
+var discoverScorer = {
+    discover__scorer__Enabled: 'true'
+    discover__scorer__BlobStorageAccountName: storageAccountName
+    discover__scorer__BlobContainerName: 'discovery-models'
+    discover__scorer__BlobPrefix: 'current'
+    discover__scorer__AutoHideThreshold: '0.05'
+}
+
 module apiFunction 'function.bicep' = {
   name: '${deployment().name}-api'
   params: {
@@ -734,7 +742,7 @@ module discoveryFunction 'function.bicep' = {
     instanceMemoryMB: 2048
     appSettings: union({
         Logging__LogLevel__Discovery: 'Information'
-    }, discoverySettings)
+    }, discoverySettings, discoverScorer)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId
   }
