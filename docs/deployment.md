@@ -103,6 +103,8 @@ All shared behaviour (dotnet publish, `New-LinuxFunctionAppZip`, blob upload to 
 | `AzureWebAppDeploy.ps1` | Helper — `New-LinuxFunctionAppZip` only |
 | `publish-console-apps.ps1` | Console tools — not function deploy |
 | `upload-discovery-model.ps1` | Upload discovery accept/reject model bundle to `discovery-models` blob container |
+| `provision-storage-containers.ps1` | Create blob containers from `function-storage.bicep` (interim when CI provision is skipped) |
+| `apply-discover-scorer-settings.ps1` | Apply `discover__scorer__*` on `discover-infra` when bicep not deploying |
 
 ### Discovery scorer model (blob)
 
@@ -114,7 +116,7 @@ az login
   -ModelDirectory "C:\path\to\analysis\model"
 ```
 
-Required blobs under `current/`: `discovery-accept.model.zip`, `discovery-accept.manifest.json`, `model.onnx`, `vocab.txt` (optional: `show-accept-rates.csv`). Deploy infrastructure first if the container does not exist yet. Flip `discover__scorer__Enabled` in bicep to enable auto-hide in production.
+Required blobs under `current/`: `discovery-accept.model.zip`, `discovery-accept.manifest.json`, `model.onnx`, `vocab.txt` (optional: `show-accept-rates.csv`). Create the container first with `.\scripts\provision-storage-containers.ps1` if CI has not provisioned infrastructure. Flip `discover__scorer__Enabled` in bicep to enable auto-hide in production.
 
 | `scripts/.deploy-local/` | Gitignored build artifacts |
 
@@ -161,6 +163,8 @@ gh run list --workflow=deploy.yml --limit 3
 ```
 
 As of 2026-06-11, recent `deploy.yml` runs failed with **GitHub Actions billing lock** — no CI deploy reached Azure. Local deploy or billing resolution is required until Actions runs again.
+
+**While CI is inactive:** see [interim-deployment.md](interim-deployment.md) for PowerShell scripts that mirror parts of the pipeline (code deploy, storage containers, model upload, telemetry overlays).
 
 ## Backfill (separate)
 

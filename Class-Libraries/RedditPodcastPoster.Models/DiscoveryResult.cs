@@ -74,4 +74,12 @@ public class DiscoveryResult
     [JsonPropertyName("matchingPodcastIds")]
     [JsonPropertyOrder(170)]
     public Guid[] MatchingPodcastIds { get; set; } = [];
+
+    [JsonPropertyName("acceptProbability")]
+    [JsonPropertyOrder(180)]
+    public float? AcceptProbability { get; set; }
+
+    [JsonPropertyName("autoHidden")]
+    [JsonPropertyOrder(190)]
+    public bool AutoHidden { get; set; }
 }

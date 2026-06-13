@@ -15,12 +15,17 @@ public class DiscoveryResultsService(
     IDiscoveryPublisher contentPublisher,
     ILogger<DiscoveryResultsService> logger) : IDiscoveryResultsService
 {
-    public async Task<DiscoveryResponse> Get(CancellationToken c)
+    public async Task<DiscoveryResponse> Get(bool includeHidden, CancellationToken c)
     {
-        logger.LogInformation($"{nameof(Get)} initiated.");
+        logger.LogInformation("{Method} initiated. IncludeHidden={IncludeHidden}.", nameof(Get), includeHidden);
         var documents = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync(c);
-        logger.LogInformation($"{nameof(Get)} Obtained unprocessed documents.");
-        var results = documents.SelectMany(x => x.DiscoveryResults);
+        logger.LogInformation("{Method} obtained unprocessed documents.", nameof(Get));
+        var allResults = documents.SelectMany(x => x.DiscoveryResults).ToList();
+        var hiddenCount = allResults.Count(x => x.AutoHidden);
+        var visibleResults = includeHidden
+            ? allResults
+            : allResults.Where(x => !x.AutoHidden);
+        var results = visibleResults.ToList();
         var podcastIds = results.SelectMany(x => x.MatchingPodcastIds).Distinct().ToArray();
 
         IReadOnlyList<(Guid id, string name, bool isVisible)> referencedPodcasts = podcastIds.Length == 0
@@ -55,10 +60,14 @@ public class DiscoveryResultsService(
         var result = new DiscoveryResponse
         {
             Ids = documents.Select(x => x.Id),
-            Results = results.Select(x => x.ToDiscoveryResponseItem(podcastsLookup))
-                .OrderBy(x => x.Released)
+            Results = results
+                .Select(x => x.ToDiscoveryResponseItem(podcastsLookup))
+                .OrderByDescending(x => x.AcceptProbability ?? -1f)
+                .ThenBy(x => x.Released),
+            HiddenCount = hiddenCount
         };
-        logger.LogInformation($"{nameof(Get)} Gathered results.");
+        logger.LogInformation("{Method} gathered {ResultCount} results ({HiddenCount} auto-hidden).",
+            nameof(Get), result.Results.Count(), hiddenCount);
         return result;
     }
 
@@ -82,7 +91,9 @@ public class DiscoveryResultsService(
             if (numberOfReports > 0)
             {
                 minProcessed = unprocessedDiscoveryReports.Min(x => x.DiscoveryBegan);
-                numberOfResults = unprocessedDiscoveryReports.SelectMany(x => x.DiscoveryResults).Count();
+                numberOfResults = unprocessedDiscoveryReports
+                    .SelectMany(x => x.DiscoveryResults)
+                    .Count(x => !x.AutoHidden);
             }
 
             await contentPublisher.PublishDiscoveryInfo(new DiscoveryInfo

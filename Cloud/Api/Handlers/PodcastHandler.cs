@@ -71,7 +71,12 @@ public class PodcastHandler(
 
             await podcastRepository.Save(podcast);
 
-            if (podcastChangeRequestWrapper.Podcast.Removed == true) { 
+            if (podcastChangeRequestWrapper.Podcast.Language != null)
+            {
+                await PropagatePodcastLanguageToEpisodes(podcast, c);
+            }
+
+            if (podcastChangeRequestWrapper.Podcast.Removed == true) {
                 await HydrateDetachedEpisodePodcastProjection(podcast, c);
             }
 
@@ -358,6 +363,45 @@ public class PodcastHandler(
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
             .WithJsonBody(SubmitUrlResponse.Failure("Unable to rename podcast"), c);
         return failure;
+    }
+
+    private async Task PropagatePodcastLanguageToEpisodes(V2Podcast podcast, CancellationToken c)
+    {
+        var podcastLanguage = podcast.Language?.Trim();
+        if (string.IsNullOrWhiteSpace(podcastLanguage))
+        {
+            return;
+        }
+
+        var updatedEpisodeIds = new List<Guid>();
+        await foreach (var episode in episodeRepository.GetByPodcastId(podcast.Id).WithCancellation(c))
+        {
+            if (!string.IsNullOrWhiteSpace(episode.Language))
+            {
+                continue;
+            }
+
+            episode.Language = podcastLanguage;
+            episode.SetPodcastProperties(podcast);
+            await episodeRepository.Save(episode);
+            updatedEpisodeIds.Add(episode.Id);
+        }
+
+        if (updatedEpisodeIds.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await searchIndexerService.IndexEpisodes(updatedEpisodeIds, c);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "{method}: Failed to re-index episodes after language propagation for podcast-id '{podcastId}'.",
+                nameof(PropagatePodcastLanguageToEpisodes), podcast.Id);
+        }
     }
 
     private async Task HydrateDetachedEpisodePodcastProjection(V2Podcast podcast, CancellationToken c)

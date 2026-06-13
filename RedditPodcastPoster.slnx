@@ -135,6 +135,8 @@
 
     <Project Path="Console-Apps/Discover/Discover.csproj" />
 
+    <Project Path="Console-Apps/DiscoveryScoreBackfill/DiscoveryScoreBackfill.csproj" />
+
     <Project Path="Console-Apps/EliminateExistingEpisodes/EliminateExistingEpisodes.csproj" />
 
     <Project Path="Console-Apps/EnrichEpisodesFromPostFlare/EnrichEpisodesFromPostFlare.csproj" />

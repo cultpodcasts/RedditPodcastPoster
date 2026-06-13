@@ -39,13 +39,14 @@ public class EnrichedEpisodeResultsAdapter(
             {
                 var discoveryResult = await enrichedEpisodeResultAdapter.ToDiscoveryResult(episode);
                 var score = discoveryResultScorer.Score(discoveryResult);
+                discoveryResult.AcceptProbability = score.AcceptProbability;
+                discoveryResult.AutoHidden = score.ShouldAutoHide;
                 if (score.ShouldAutoHide)
                 {
                     logger.LogInformation(
-                        "Auto-hidden discovery result '{ResultId}' (accept probability {Probability:P1}).",
+                        "Scored discovery result '{ResultId}' as auto-hidden (accept probability {Probability:P1}).",
                         discoveryResult.Id,
                         score.AcceptProbability);
-                    continue;
                 }
 
                 yield return discoveryResult;

@@ -40,6 +40,8 @@ Defaults: resource group `AutomatedInfra`, apps `api-infra` / `discover-infra` /
 
 Requires `az login` and appropriate blob upload permissions.
 
+When GitHub Actions is inactive, see [docs/interim-deployment.md](docs/interim-deployment.md) for the full script map and local configuration sources.
+
 ## Configuration
 
 ### Console apps (local)

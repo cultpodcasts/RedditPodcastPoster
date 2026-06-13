@@ -115,7 +115,9 @@ public class Discover(
                 if (numberOfReports > 0)
                 {
                     minProcessed = unprocessedDiscoveryReports.Min(x => x.DiscoveryBegan);
-                    numberOfResults = unprocessedDiscoveryReports.SelectMany(x => x.DiscoveryResults).Count();
+                    numberOfResults = unprocessedDiscoveryReports
+                        .SelectMany(x => x.DiscoveryResults)
+                        .Count(x => !x.AutoHidden);
                 }
 
                 await contentPublisher.PublishDiscoveryInfo(new DiscoveryInfo

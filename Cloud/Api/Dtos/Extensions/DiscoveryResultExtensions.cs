@@ -37,6 +37,8 @@ public static class DiscoveryResultExtensions
             .Select(x =>
                 x.ConvertEnumByName<RedditPodcastPoster.Models.DiscoverService, DiscoverService>(true))
             .ToArray();
+        result.AcceptProbability = item.AcceptProbability;
+        result.AutoHidden = item.AutoHidden;
         return result;
     }
 }
