@@ -14,15 +14,16 @@ public class HourlyOrchestration : TaskOrchestrator<object, IndexerContext>
             nameof(HourlyOrchestration), nameof(RunAsync), context.InstanceId);
 
         const int indexPasses = 4;
-        const int passesPerHour = indexPasses / 2;
         var indexPassOperationIs = Enumerable.Range(1, indexPasses).Select(_ => context.NewGuid()).ToArray();
 
         var indexIds = await context.CallIndexIdProviderAsync(new IndexIdProviderRequest(indexPasses));
         logger.LogInformation("{nameofIndexIdProvider} complete.", nameof(IndexIdProvider));
 
-        var isEvenHour = context.CurrentUtcDateTime.Hour % 2 == 0;
-        var firstPass = isEvenHour ? 1 : passesPerHour + 1;
-        var lastPass = firstPass + passesPerHour - 1;
+        var hourUtc = context.CurrentUtcDateTime.Hour;
+        var (firstPass, lastPass) = HourlyIndexingPassSelector.SelectPasses(hourUtc, indexPasses);
+        logger.LogInformation(
+            "Selected indexer passes {firstPass}-{lastPass} for UTC hour {hourUtc}.",
+            firstPass, lastPass, hourUtc);
 
         var indexerContext = new IndexerContext(indexPassOperationIs, indexIds.PodcastIdBatches);
         for (var pass = firstPass; pass <= lastPass; pass++)
