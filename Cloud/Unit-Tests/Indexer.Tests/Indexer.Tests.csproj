@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Indexer\Indexer.csproj" />
+    <ProjectReference Include="..\..\Indexer\Indexer.csproj" />
   </ItemGroup>
 
 </Project>
