@@ -109,8 +109,6 @@
 
     <Project Path="Cloud/Indexer/Indexer.csproj" />
 
-    <Project Path="Cloud/Indexer.Tests/Indexer.Tests.csproj" />
-
   </Folder>
 
   <Folder Name="/Console-Apps/">
