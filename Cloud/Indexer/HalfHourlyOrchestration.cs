@@ -22,6 +22,9 @@ public class HalfHourlyOrchestration : TaskOrchestrator<object, IndexerContext>
             SpotifyError = true
         };
 
+        indexerContext = await context.CallLoadRecentCandidatesAsync(indexerContext);
+        logger.LogInformation("{nameofLoadRecentCandidates} complete.", nameof(LoadRecentCandidates));
+
         indexerContext = await context.CallPosterAsync(indexerContext with {PosterOperationId = context.NewGuid()});
         logger.LogInformation("{nameofPoster} complete.", nameof(Poster));
 

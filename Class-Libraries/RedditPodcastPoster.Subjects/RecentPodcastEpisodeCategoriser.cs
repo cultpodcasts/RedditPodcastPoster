@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Subjects;
@@ -16,12 +17,14 @@ public class RecentPodcastEpisodeCategoriser(
     ILogger<RecentPodcastEpisodeCategoriser> logger)
     : IRecentPodcastEpisodeCategoriser
 {
-    public async Task<IList<Guid>> Categorise()
+    public async Task<IList<Guid>> Categorise(IReadOnlyList<PodcastEpisode>? preloadedRecentCandidates = null)
     {
         var since = DateTimeExtensions.DaysAgo(postingCriteria.Value.CategoriserDays);
         IList<Guid> updatedEpisodes = new List<Guid>();
 
-        var recentPodcastEpisodes = await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(since);
+        var recentPodcastEpisodes = preloadedRecentCandidates != null
+            ? preloadedRecentCandidates.Where(x => x.Episode.Release >= since).ToList()
+            : await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(since);
 
         logger.LogWarning("{method}: Retrieved recent active episodes. Count: {Count}. {json}", nameof(Categorise),
             recentPodcastEpisodes.Count,

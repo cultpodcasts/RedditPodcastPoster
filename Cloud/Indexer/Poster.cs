@@ -62,7 +62,8 @@ public class Poster(
                 baselineDate,
                 _posterOptions.MaxPosts,
                 indexerContext is { SkipYouTubeUrlResolving: false, YouTubeError: false },
-                indexerContext is { SkipSpotifyUrlResolving: false, SpotifyError: false });
+                indexerContext is { SkipSpotifyUrlResolving: false, SpotifyError: false },
+                indexerContext.RecentEpisodeCandidates);
         }
         catch (Exception ex)
         {

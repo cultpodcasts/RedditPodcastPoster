@@ -45,7 +45,7 @@ public class Categoriser(
 
         try
         {
-            await recentEpisodeCategoriser.Categorise();
+            await recentEpisodeCategoriser.Categorise(indexerContext.RecentEpisodeCandidates);
             memoryProbe.End();
         }
         catch (Exception ex)

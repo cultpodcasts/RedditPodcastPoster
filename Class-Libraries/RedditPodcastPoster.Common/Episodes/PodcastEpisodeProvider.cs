@@ -22,7 +22,8 @@ public class PodcastEpisodeProvider(
 
     public Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(
         bool youTubeRefreshed,
-        bool spotifyRefreshed)
+        bool spotifyRefreshed,
+        IReadOnlyList<PodcastEpisode>? preloadedRecentCandidates = null)
     {
         var releasedSince = GetReleasedSince(_postingCriteria.TweetDays);
         return GetReadyPodcastEpisodes(
@@ -34,7 +35,8 @@ public class PodcastEpisodeProvider(
                 episodes,
                 youTubeRefreshed,
                 spotifyRefreshed,
-                _postingCriteria.TweetDays));
+                _postingCriteria.TweetDays),
+            preloadedRecentCandidates);
     }
 
     public async Task<IEnumerable<PodcastEpisode>> GetUntweetedPodcastEpisodes(Guid podcastId)
@@ -66,7 +68,8 @@ public class PodcastEpisodeProvider(
 
     public Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(
         bool youTubeRefreshed,
-        bool spotifyRefreshed)
+        bool spotifyRefreshed,
+        IReadOnlyList<PodcastEpisode>? preloadedRecentCandidates = null)
     {
         var releasedSince = GetReleasedSince(_postingCriteria.BlueSkyDays);
         return GetReadyPodcastEpisodes(
@@ -78,7 +81,8 @@ public class PodcastEpisodeProvider(
                 episodes,
                 youTubeRefreshed,
                 spotifyRefreshed,
-                _postingCriteria.BlueSkyDays));
+                _postingCriteria.BlueSkyDays),
+            preloadedRecentCandidates);
     }
 
     public async Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(Guid podcastId)
@@ -112,7 +116,8 @@ public class PodcastEpisodeProvider(
         string methodName,
         DateTime releasedSince,
         Func<PodcastEpisode, bool> candidateFilter,
-        Func<Podcast, IEnumerable<Episode>, Task<IEnumerable<PodcastEpisode>>> getReadyEpisodes)
+        Func<Podcast, IEnumerable<Episode>, Task<IEnumerable<PodcastEpisode>>> getReadyEpisodes,
+        IReadOnlyList<PodcastEpisode>? preloadedRecentCandidates = null)
     {
         logger.LogInformation("Exec {method} init. Released-since: '{releasedSince:O}'",
             methodName,
@@ -120,11 +125,15 @@ public class PodcastEpisodeProvider(
 
         var sharedRecentCandidateThreshold = GetReleasedSince(_postingCriteria.MaxDays);
 
-        var candidateEpisodes =
-            (await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(sharedRecentCandidateThreshold))
-            .Where(x => x.Episode.Release >= releasedSince)
-            .Where(candidateFilter)
-            .ToArray();
+        var candidateEpisodes = preloadedRecentCandidates != null
+            ? preloadedRecentCandidates
+                .Where(x => x.Episode.Release >= releasedSince)
+                .Where(candidateFilter)
+                .ToArray()
+            : (await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(sharedRecentCandidateThreshold))
+                .Where(x => x.Episode.Release >= releasedSince)
+                .Where(candidateFilter)
+                .ToArray();
 
         if (!candidateEpisodes.Any())
         {

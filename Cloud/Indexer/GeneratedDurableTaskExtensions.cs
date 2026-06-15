@@ -53,6 +53,20 @@ public static class GeneratedDurableTaskExtensions
         return context.CallSubOrchestratorAsync<IndexerContext>("HourlyOrchestration", input, options);
     }
 
+    public static Task<IndexerContext> CallLoadRecentCandidatesAsync(this TaskOrchestrationContext ctx, IndexerContext input, TaskOptions? options = null)
+    {
+        return ctx.CallActivityAsync<IndexerContext>("LoadRecentCandidates", input, options);
+    }
+
+    [Function(nameof(LoadRecentCandidates))]
+    public static async Task<IndexerContext> LoadRecentCandidates([ActivityTrigger] IndexerContext input, string instanceId, FunctionContext executionContext)
+    {
+        ITaskActivity activity = ActivatorUtilities.CreateInstance<LoadRecentCandidates>(executionContext.InstanceServices);
+        TaskActivityContext context = new GeneratedActivityContext("LoadRecentCandidates", instanceId);
+        object? result = await activity.RunAsync(context, input);
+        return (IndexerContext)result!;
+    }
+
     public static Task<IndexerContext> CallTweetAsync(this TaskOrchestrationContext ctx, IndexerContext input, TaskOptions? options = null)
     {
         return ctx.CallActivityAsync<IndexerContext>("Tweet", input, options);

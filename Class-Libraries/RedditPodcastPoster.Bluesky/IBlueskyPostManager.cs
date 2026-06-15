@@ -6,7 +6,8 @@ public interface IBlueskyPostManager
 {
     Task Post(
         bool youTubeRefreshed,
-        bool spotifyRefreshed);
+        bool spotifyRefreshed,
+        IReadOnlyList<PodcastEpisode>? preloadedRecentCandidates = null);
 
     Task<Models.RemovePostState> RemovePost(PodcastEpisode podcastEpisode);
 }

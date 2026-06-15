@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Adaptors;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Common.Episodes;
@@ -23,14 +24,17 @@ public class EpisodeProcessor(
         DateTime since,
         int? maxPosts,
         bool youTubeRefreshed,
-        bool spotifyRefreshed)
+        bool spotifyRefreshed,
+        IReadOnlyList<PodcastEpisode>? preloadedRecentCandidates = null)
     {
         logger.LogInformation("{PostEpisodesSinceReleaseDateName} Finding episodes released since '{DateTime}'.",
             nameof(PostEpisodesSinceReleaseDate), since);
 
         var redditReleasedSince = DateTimeExtensions.DaysAgo(_postingCriteria.RedditDays);
 
-        var podcastEpisodes = (await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(redditReleasedSince))
+        var podcastEpisodes = (preloadedRecentCandidates != null
+                ? preloadedRecentCandidates.Where(x => x.Episode.Release >= redditReleasedSince)
+                : await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(redditReleasedSince))
             .Where(x => !x.Episode.Posted)
             .ToArray();
 

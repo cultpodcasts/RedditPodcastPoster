@@ -32,6 +32,9 @@ public class HourlyOrchestration : TaskOrchestrator<object, IndexerContext>
             logger.LogInformation("{nameofIndexer} complete - Pass {pass}.", nameof(Indexer), pass);
         }
 
+        indexerContext = await context.CallLoadRecentCandidatesAsync(indexerContext);
+        logger.LogInformation("{nameofLoadRecentCandidates} complete.", nameof(LoadRecentCandidates));
+
         indexerContext =
             await context.CallCategoriserAsync(indexerContext with {CategoriserOperationId = context.NewGuid()});
         logger.LogInformation("{nameofCategoriser} complete.", nameof(Categoriser));
