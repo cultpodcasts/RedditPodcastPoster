@@ -111,6 +111,12 @@
 
   </Folder>
 
+  <Folder Name="/Cloud/Unit Test/">
+
+    <Project Path="Cloud/Unit-Tests/Indexer.Tests/Indexer.Tests.csproj" />
+
+  </Folder>
+
   <Folder Name="/Console-Apps/">
 
     <Project Path="Console-Apps/AddAudioPodcast/AddAudioPodcast.csproj" />
