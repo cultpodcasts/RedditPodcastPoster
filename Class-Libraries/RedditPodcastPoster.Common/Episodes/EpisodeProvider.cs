@@ -40,13 +40,19 @@ public class EpisodeProvider(
             }
         }
 
-        if (!handled || (podcast.ReleaseAuthority is Service.YouTube &&
-                         !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId)))
+        if (!indexingContext.SkipYouTubeUrlResolving &&
+            !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
-            (newEpisodes, handled) =
+            var (youTubeEpisodes, youTubeHandled) =
                 await youTubeEpisodeRetrievalHandler.GetEpisodes(podcast, episodes, indexingContext);
-            if (handled)
+            if (youTubeHandled)
             {
+                if (youTubeEpisodes is { Count: > 0 })
+                {
+                    newEpisodes = CombineDiscoveredEpisodes(newEpisodes, youTubeEpisodes);
+                }
+
+                handled = true;
                 logger.LogInformation(
                     "Get Episodes for podcast '{podcastName}' handled by '{youTubeEpisodeRetrievalHandlerName}'.",
                     podcast.Name, nameof(IYouTubeEpisodeRetrievalHandler));
@@ -70,5 +76,15 @@ public class EpisodeProvider(
         }
 
         return newEpisodes ?? new List<Episode>();
+    }
+
+    private static IList<Episode> CombineDiscoveredEpisodes(IList<Episode>? existing, IList<Episode> additional)
+    {
+        if (existing == null || existing.Count == 0)
+        {
+            return additional;
+        }
+
+        return existing.Concat(additional).ToList();
     }
 }

@@ -29,6 +29,9 @@ public class Podcast
     [JsonPropertyOrder(21)]
     public DateTime? LatestReleased { get; set; }
 
+    [JsonPropertyName("lastIndexed")]
+    [JsonPropertyOrder(23)]
+    public DateTime? LastIndexed { get; set; }
 
     [JsonPropertyName("lang")]
     [JsonPropertyOrder(22)]

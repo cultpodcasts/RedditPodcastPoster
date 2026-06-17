@@ -68,6 +68,10 @@ public class Indexer(
 
         var originalIndexingContext = indexerContext with { };
 
+        logger.LogInformation(
+            "Indexer pass {Pass} indexing-context: {IndexingContext}",
+            indexerContextWrapper.Pass, indexingContext.ToString());
+
         logger.LogInformation("Post: {indexerContext}", indexerContext.ToString());
 
         if (!activityOptionsProvider.RunIndex(out var reason))

@@ -178,10 +178,22 @@ public class PodcastUpdater(
                 podcast.Name, podcast.Id, podcast.SpotifyId);
         }
 
-        if (mergeResult.MergedEpisodes.Any() || mergeResult.AddedEpisodes.Any() ||
-            filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any() ||
-            discoveredYouTubeExpensiveQuery || discoveredYouTubeChannelSearchForbidden ||
-            discoveredSpotifyExpensiveQuery)
+        var spotifyBypassed = initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving;
+        var youTubeBypassed = initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving;
+        var indexSucceeded = !spotifyBypassed && !youTubeBypassed && !mergeResult.FailedEpisodes.Any();
+
+        var podcastChanged = mergeResult.MergedEpisodes.Any() || mergeResult.AddedEpisodes.Any() ||
+                             filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any() ||
+                             discoveredYouTubeExpensiveQuery || discoveredYouTubeChannelSearchForbidden ||
+                             discoveredSpotifyExpensiveQuery;
+
+        if (indexSucceeded)
+        {
+            podcast.LastIndexed = DateTime.UtcNow;
+            podcastChanged = true;
+        }
+
+        if (podcastChanged)
         {
             // Update LatestReleased if new episodes were added or merged
             if (mergeResult.AddedEpisodes.Any())
@@ -210,8 +222,8 @@ public class PodcastUpdater(
             mergeResult,
             filterResult,
             enrichmentResult,
-            initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving,
-            initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving);
+            spotifyBypassed,
+            youTubeBypassed);
     }
 
     private static IList<Episode> BuildEnrichmentEpisodeContext(

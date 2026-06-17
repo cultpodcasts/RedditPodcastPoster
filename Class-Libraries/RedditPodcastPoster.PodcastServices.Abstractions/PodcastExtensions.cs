@@ -4,6 +4,38 @@ namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public static class PodcastExtensions
 {
+    public static bool DependsOnYouTubeForEpisodeDiscovery(this Podcast podcast)
+    {
+        return DependsOnYouTubeForEpisodeDiscovery(
+            podcast.ReleaseAuthority,
+            podcast.YouTubeChannelId,
+            podcast.SpotifyId,
+            podcast.AppleId);
+    }
+
+    public static bool DependsOnYouTubeForEpisodeDiscovery(
+        Service? releaseAuthority,
+        string? youTubeChannelId,
+        string? spotifyId,
+        long? appleId)
+    {
+        if (string.IsNullOrWhiteSpace(youTubeChannelId))
+        {
+            return false;
+        }
+
+        if (releaseAuthority == Service.YouTube)
+        {
+            return true;
+        }
+
+        var hasSpotifyDiscovery = releaseAuthority is null or Service.Spotify &&
+                                  !string.IsNullOrWhiteSpace(spotifyId);
+        var hasAppleDiscovery = releaseAuthority != Service.YouTube && appleId != null;
+
+        return !hasSpotifyDiscovery && !hasAppleDiscovery;
+    }
+
     public static bool IsDelayedYouTubePublishing(this Podcast podcast, Episode episode)
     {
         if (!HasAudioPlatformConfigured(podcast))

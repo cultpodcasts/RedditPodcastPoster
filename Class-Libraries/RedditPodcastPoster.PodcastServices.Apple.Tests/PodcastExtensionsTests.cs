@@ -7,6 +7,55 @@ namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 public class PodcastExtensionsTests
 {
     [Fact]
+    public void DependsOnYouTubeForEpisodeDiscovery_WhenReleaseAuthorityIsYouTube_ReturnsTrue()
+    {
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubeChannelId = "channel",
+            SpotifyId = "spotify",
+            AppleId = 123
+        };
+
+        podcast.DependsOnYouTubeForEpisodeDiscovery().Should().BeTrue();
+    }
+
+    [Fact]
+    public void DependsOnYouTubeForEpisodeDiscovery_WhenChannelOnly_ReturnsTrue()
+    {
+        var podcast = new Podcast
+        {
+            YouTubeChannelId = "channel"
+        };
+
+        podcast.DependsOnYouTubeForEpisodeDiscovery().Should().BeTrue();
+    }
+
+    [Fact]
+    public void DependsOnYouTubeForEpisodeDiscovery_WhenSpotifyDiscoversEpisodes_ReturnsFalse()
+    {
+        var podcast = new Podcast
+        {
+            SpotifyId = "spotify",
+            YouTubeChannelId = "channel"
+        };
+
+        podcast.DependsOnYouTubeForEpisodeDiscovery().Should().BeFalse();
+    }
+
+    [Fact]
+    public void DependsOnYouTubeForEpisodeDiscovery_WhenAppleDiscoversEpisodes_ReturnsFalse()
+    {
+        var podcast = new Podcast
+        {
+            AppleId = 123,
+            YouTubeChannelId = "channel"
+        };
+
+        podcast.DependsOnYouTubeForEpisodeDiscovery().Should().BeFalse();
+    }
+
+    [Fact]
     public void IsDelayedYouTubePublishing_WhenYouTubeIsReleaseAuthorityAndAudioNotYetDue_ReturnsTrue()
     {
         var podcast = new Podcast

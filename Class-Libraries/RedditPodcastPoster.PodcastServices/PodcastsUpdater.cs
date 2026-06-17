@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
@@ -15,10 +16,21 @@ public class PodcastsUpdater(
     public async Task<bool> UpdatePodcasts(Guid[] podcastIds, IndexingContext indexingContext)
     {
         var success = true;
+        var youtubeEnabled = !indexingContext.SkipYouTubeUrlResolving;
+        var youtubeAuthorityInBatch = 0;
+        var youtubeAuthorityIndexedWithYouTubePass = 0;
+        var youtubeAuthorityBypassed = 0;
+
         logger.LogInformation("{nameofUpdatePodcasts} Indexing Starting.", nameof(UpdatePodcasts));
         foreach (var podcastId in podcastIds)
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);
+            var dependsOnYouTubeForDiscovery = podcast?.DependsOnYouTubeForEpisodeDiscovery() == true;
+            if (dependsOnYouTubeForDiscovery)
+            {
+                youtubeAuthorityInBatch++;
+            }
+
             var performAutoIndex = podcast != null &&
                                    (podcast.IndexAllEpisodes ||
                                     !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex));
@@ -40,6 +52,27 @@ public class PodcastsUpdater(
                         }
                     }
 
+                    if (dependsOnYouTubeForDiscovery)
+                    {
+                        var youtubeEnriched = result.EnrichmentResult.UpdatedEpisodes
+                            .Count(e => e.EnrichmentContext.YouTubeUrlUpdated ||
+                                        e.EnrichmentContext.YouTubeIdUpdated);
+
+                        logger.LogInformation(
+                            "YouTubeAuthorityPodcastAudit podcast-id='{PodcastId}' podcast-name='{PodcastName}' youtube-enabled='{YouTubeEnabled}' youtube-bypassed='{YouTubeBypassed}' episodes-added='{EpisodesAdded}' youtube-enriched='{YouTubeEnriched}'",
+                            podcast!.Id, podcast.Name, youtubeEnabled, result.YouTubeBypassed,
+                            result.MergeResult.AddedEpisodes.Count, youtubeEnriched);
+
+                        if (youtubeEnabled)
+                        {
+                            youtubeAuthorityIndexedWithYouTubePass++;
+                            if (result.YouTubeBypassed)
+                            {
+                                youtubeAuthorityBypassed++;
+                            }
+                        }
+                    }
+
                     success &= result.Success;
                 }
                 catch (Exception ex)
@@ -53,6 +86,20 @@ public class PodcastsUpdater(
                     flushableCaches.Flush();
                 }
             }
+            else if (dependsOnYouTubeForDiscovery)
+            {
+                logger.LogInformation(
+                    "YouTubeAuthorityPodcastAudit podcast-id='{PodcastId}' podcast-name='{PodcastName}' youtube-enabled='{YouTubeEnabled}' indexed='False'",
+                    podcast!.Id, podcast.Name, youtubeEnabled);
+            }
+        }
+
+        if (youtubeAuthorityInBatch > 0)
+        {
+            logger.LogInformation(
+                "YouTubeAuthorityIndexingAudit youtube-enabled='{YouTubeEnabled}' in-batch='{InBatch}' indexed-with-youtube-pass='{IndexedWithYouTubePass}' youtube-bypassed='{YouTubeBypassed}'",
+                youtubeEnabled, youtubeAuthorityInBatch, youtubeAuthorityIndexedWithYouTubePass,
+                youtubeAuthorityBypassed);
         }
 
         logger.LogInformation("{nameofUpdatePodcasts} Indexing complete.", nameof(UpdatePodcasts));
