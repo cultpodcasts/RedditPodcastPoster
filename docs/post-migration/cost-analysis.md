@@ -459,9 +459,11 @@ Target: bring total daily cost from ~$0.50 back to ≤$0.26 (pre-migration level
 
 ## Cosmos DB diagnostics (TEMPORARY — TURN OFF after RU tuning)
 
-> **⚠️ REMOVE after investigation.** Cosmos diagnostic export adds Log Analytics ingestion cost on top of existing Azure Monitor spend. Disable when RU hot paths are identified and P1/P5/P6 work is complete.
+> **⚠️ REMOVE after investigation.** Cosmos diagnostic export adds Log Analytics ingestion cost on top of existing Azure Monitor spend. **TURN OFF completed 2026-06-17 11:47 UTC** via `scripts/disable-cosmos-diagnostics.ps1` (removed `cosmos-to-loganalytics-infra`). Expect `AzureDiagnostics` ingestion in `loganalytics-infra` to fall over the **next 24–48h** (billing may lag similarly). P6 work remains; diagnostics stay off unless re-enabled for a new investigation.
 
 **Enabled:** `2026-06-12` on `cultpodcasts-db` → `loganalytics-infra` (`cosmos-to-loganalytics-infra`).
+
+**Disabled:** **2026-06-17 11:47 UTC** — diagnostic settings list empty on `cultpodcasts-db`; `AzureDiagnostics` billable MB should decline over **24–48h**.
 
 | Mechanism | Location |
 |-----------|----------|
@@ -986,8 +988,8 @@ Function health (06-14–15): no failed indexer/discovery orchestration activiti
 ### Conclusions
 
 1. **Phase 2 succeeded** on its primary telemetry goals: MemoryProbe off, `PaginateEpisodes` eliminated, `AppTraces` back to **~5 MB/day** (well under 13 MB baseline).
-2. **Net Monitor cost not yet down** because **temporary Cosmos diagnostics** add **~48–72 MB/day** of `AzureDiagnostics` ingestion — likely **~£0.03–0.05/day** once fully billed. **Turn off diagnostics** after this review (`scripts/disable-cosmos-diagnostics.ps1` or bicep `enableDiagnostics=false`).
-3. **Cosmos attribution confirmed P1/P5 as the right target:** **Episodes/Query ~63% of measured RU** — **implemented and deployed 2026-06-15** to `indexer-infra`. **Turn off Cosmos diagnostics** after post-deploy validation (`scripts/disable-cosmos-diagnostics.ps1` or bicep `enableDiagnostics=false`) so Monitor savings are not offset by `AzureDiagnostics` ingestion.
+2. **Net Monitor cost not yet down** because **temporary Cosmos diagnostics** add **~48–72 MB/day** of `AzureDiagnostics` ingestion — likely **~£0.03–0.05/day** once fully billed. **~~Turn off diagnostics~~ Done 2026-06-17 11:47 UTC** (`scripts/disable-cosmos-diagnostics.ps1`; verify `az monitor diagnostic-settings list` → `[]`).
+3. **Cosmos attribution confirmed P1/P5 as the right target:** **Episodes/Query ~63% of measured RU** — **implemented and deployed 2026-06-15** to `indexer-infra`. **~~Turn off Cosmos diagnostics~~ Done 2026-06-17 11:47 UTC** so Monitor savings are not offset by `AzureDiagnostics` ingestion (ingestion tail 24–48h).
 4. **No urgent production issue** requiring immediate further query-consolidation deploy; 06-13 RU spike warrants a one-line check (discovery/indexer pass mix) before sizing net savings.
 
 ### Recommended next actions
@@ -995,7 +997,7 @@ Function health (06-14–15): no failed indexer/discovery orchestration activiti
 | Priority | Action | Target date |
 |----------|--------|-------------|
 | 1 | **Validate P1/P5:** compare Episodes/Query RU **2026-06-16** (first full post-deploy UTC day) vs **2026-06-14** Phase 2 baseline (`AzureDiagnostics`, sum RU where container=Episodes and operation=Query) | **2026-06-16** |
-| 2 | **Disable Cosmos diagnostics** after saving post-P1 snapshot | **2026-06-17** |
+| 2 | ~~**Disable Cosmos diagnostics**~~ **Done** (2026-06-17) after post-P1 snapshot | **2026-06-17** ✓ |
 | 3 | Re-run Usage + Cost Management for **2026-06-17..18** to confirm Monitor row drops once `AzureDiagnostics` ingestion stops | 2026-06-18 |
 | 4 | Optional KQL: compare 06-13 vs 06-14 Episodes/Query calls by hour to explain RU spike | 2026-06-17 |
 | 5 | **Implement P6** (HalfHourly scope reduction), then capture 48h cost window | 2026-06-22 |
@@ -1045,7 +1047,7 @@ Phase 2 diagnostics attributed **~63% of measured RU** to **Episodes/Query**, do
 
 **Expected reduction:** ~**75% fewer candidate-load query batches on Hourly** (4→1) and ~**50% on HalfHourly** (2→1), translating to a material drop in Episodes/Query RU on orchestration hours — directionally toward eliminating the duplicate-load portion of the **~63% Episodes/Query share** (exact net % depends on non-candidate Episodes queries still in flight).
 
-> **⚠️ REMOVE after investigation.** Cosmos diagnostic export adds Log Analytics ingestion cost on top of existing Azure Monitor spend. **Disable when P1/P5 validation is complete and P6 work is done** (`scripts/disable-cosmos-diagnostics.ps1` or bicep `enableDiagnostics=false`).
+> **Diagnostics off (2026-06-17 11:47 UTC).** Cosmos export was temporary; **TURN OFF completed** via `scripts/disable-cosmos-diagnostics.ps1`. Expect `AzureDiagnostics` ingestion drop over **24–48h**. Re-enable only if a new RU investigation is needed.
 
 ### Validation plan (24h post-deploy)
 
@@ -1054,11 +1056,37 @@ Phase 2 diagnostics attributed **~63% of measured RU** to **Episodes/Query**, do
 3. **Pass criteria:** Episodes/Query RU and call count drop materially on hourly/half-hourly hours; no indexer orchestration failures; Poster/Tweet/Bluesky/Categoriser activity durations flat or down.
 4. **Cost row:** Re-export Cost Management daily totals after **2026-06-17** (billing lag) to confirm Cosmos DB £/day trend.
 
+
+### P1 validation (2026-06-17 UTC)
+
+**Deploy:** `indexer-infra` **2026-06-15T21:59:41Z** (`released-package.zip`). **Verdict: FAIL** on pass criteria (no material Episodes/Query RU drop on first full post-deploy UTC day). **Code confirmed live** via `AppRequests` for `LoadRecentCandidates` (58 executions on **2026-06-16**, avg **~2.4s**; 5 on partial **2026-06-15** after deploy; none before deploy).
+
+**Episodes / Query RU** (`AzureDiagnostics`, `DataPlaneRequests`, `collectionName_s=='Episodes'`, `OperationName=='Query'`):
+
+| UTC day | Episodes Query RU | Query calls | Notes |
+|---------|-------------------|-------------|--------|
+| 2026-06-13 | 151,750 | 41,073 | Pre-baseline spike day |
+| 2026-06-14 | **107,534** | 29,553 | **Phase 2 baseline (~112k RU)** |
+| 2026-06-15 | 103,988 | 26,937 | Deploy day (partial post-21:59) |
+| 2026-06-16 | **119,727** | **31,738** | First full post-P1 day (**+11% RU**, **+7% calls** vs 06-14) |
+| 2026-06-17 | 55,077 (partial) | 14,418 | Diagnostics off mid-day |
+
+**Account `TotalRequestUnits` (Azure Metrics, daily):** 06-14 **129,008** → 06-15 **117,396** → 06-16 **129,628** (flat vs baseline; not a material P1 win at account level).
+
+**Orchestration-heavy hours** (combined Episodes+Podcasts `Query`, hours with **>1,500** calls/hour): 06-14 **38,902 RU / 11,051 calls** (5h) vs 06-16 **53,321 RU / 14,861 calls** (6h) — **higher** post-deploy, opposite of expected P1 direction.
+
+**2026-06-15 deploy window** (21:00–24:00 UTC only): Episodes Query **6,390 RU** pre-21:59 vs **12,095 RU** post-21:59 (not isolated — includes normal hourly orchestration at 22:00/23:00).
+
+**Podcasts Query RU/day:** ~2,618 (06-14) → ~2,729 (06-16) — unchanged.
+
+**Interpretation:** P1 removed duplicate activity-boundary candidate loads, but **daily Episodes/Query RU and peak-hour orchestration RU did not fall** on 06-16. Remaining volume is likely dominated by **per-partition episode reads** (P4 path) and other Episodes queries (Indexer/Categoriser/HomepagePublisher), plus normal day-to-day variance (06-13 spike). P1 may still reduce **function wall-clock** without showing as large RU delta if duplicate loads were a smaller share than the 63% Episodes/Query attribution implied.
+
+**Next steps:** (1) Proceed **P6** (HalfHourly scope) as planned. (2) Optional: compare **Indexer activity duration** / GB-s (Consumption) 06-14 vs 06-16 — P1 savings may appear there before Cosmos RU. (3) Cosmos diagnostics **already disabled 2026-06-17** — no further `AzureDiagnostics` RU snapshots unless re-enabled for P6 validation.
 ### Still pending
 
 - **P6:** HalfHourly still runs Poster + Publisher + Bluesky every 30 minutes — trim scope to cut remaining duplicate paths and HomepagePublisher invocations.
 - **P4 (remaining):** Weekly homepage cross-partition scans.
-- **Cosmos diagnostics:** Keep enabled only through P1 validation window, then disable.
+- **Cosmos diagnostics:** **Disabled 2026-06-17 11:47 UTC** (was enabled through P1 validation). Monitor `AzureDiagnostics` MB 2026-06-18..19 to confirm drop.
 
 ---
 
@@ -1103,5 +1131,5 @@ Diagnostics window: **2026-06-12 → 2026-06-15** (`AzureDiagnostics` in workspa
 | `SubjectRepository.GetAll` | Subjects | Yes (ReadFeed) | Worker startup / cache refresh |
 | `DiscoveryResultsService` | Episodes/Podcasts | Yes | API (not indexer schedule) |
 
-**Recommended implementation order:** (1) validate P1/P5 RU drop → (2) disable Cosmos diagnostics → (3) **P6** HalfHourly trim → (4) P4 weekly scan removal → (5) Subjects/bundle polish.
+**Recommended implementation order:** (1) validate P1/P5 RU drop → (2) ~~disable Cosmos diagnostics~~ **done 2026-06-17** → (3) **P6** HalfHourly trim → (4) P4 weekly scan removal → (5) Subjects/bundle polish.
 
