@@ -35,19 +35,12 @@ public class IndexIdProvider(
             .GetAllBy(
                 podcast => ((!podcast.Removed.IsDefined() || podcast.Removed == false) &&
                             podcast.IndexAllEpisodes) ||
-                           podcast.EpisodeIncludeTitleRegex != "",
-                podcast => new IndexablePodcastProjection(
-                    podcast.Id,
-                    podcast.ReleaseAuthority,
-                    podcast.YouTubeChannelId,
-                    podcast.SpotifyId,
-                    podcast.AppleId))
+                           podcast.EpisodeIncludeTitleRegex != "")
             .ToArrayAsync();
 
         var allIndexablePodcastIds = indexablePodcasts.Select(p => p.Id).ToArray();
         var youtubeDiscoveryIds = indexablePodcasts
-            .Where(p => PodcastExtensions.DependsOnYouTubeForEpisodeDiscovery(
-                p.ReleaseAuthority, p.YouTubeChannelId, p.SpotifyId, p.AppleId))
+            .Where(p => p.DependsOnYouTubeForEpisodeDiscovery())
             .Select(p => p.Id)
             .ToArray();
 
@@ -83,11 +76,4 @@ public class IndexIdProvider(
         logger.LogInformation($"{nameof(RunAsync)} Completed.");
         return new IndexIdProviderResponse(batches.ToArray());
     }
-
-    private sealed record IndexablePodcastProjection(
-        Guid Id,
-        Service? ReleaseAuthority,
-        string YouTubeChannelId,
-        string SpotifyId,
-        long? AppleId);
 }
