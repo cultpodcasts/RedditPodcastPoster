@@ -1,0 +1,127 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json.Serialization;
+
+namespace RedditPodcastPoster.Models;
+
+[CosmosSelector(ModelType.YouTubeQuotaReport)]
+public sealed class YouTubeQuotaDailyReport : CosmosSelector
+{
+    public YouTubeQuotaDailyReport()
+    {
+        ModelType = ModelType.YouTubeQuotaReport;
+    }
+
+    public static Guid CreateId(DateOnly reportDate, string sourceApplication)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{reportDate:yyyyMMdd}:{sourceApplication}"));
+        var guidBytes = hash.AsSpan(0, 16).ToArray();
+        guidBytes[6] = (byte)((guidBytes[6] & 0x0F) | 0x40);
+        guidBytes[8] = (byte)((guidBytes[8] & 0x3F) | 0x80);
+        return new Guid(guidBytes);
+    }
+
+    [JsonPropertyName("reportDate")]
+    [JsonPropertyOrder(10)]
+    public DateOnly ReportDate { get; set; }
+
+    [JsonPropertyName("sourceApplication")]
+    [JsonPropertyOrder(11)]
+    public required string SourceApplication { get; set; }
+
+    [JsonPropertyName("keys")]
+    [JsonPropertyOrder(12)]
+    public List<YouTubeQuotaKeyStats> Keys { get; set; } = [];
+
+    [JsonPropertyName("usedIndexerKeys")]
+    [JsonPropertyOrder(13)]
+    public List<YouTubeIndexerKeySummary> UsedIndexerKeys { get; set; } = [];
+
+    [JsonPropertyName("unusedIndexerKeys")]
+    [JsonPropertyOrder(14)]
+    public List<YouTubeIndexerKeySummary> UnusedIndexerKeys { get; set; } = [];
+
+    public override string FileKey => $"{nameof(YouTubeQuotaDailyReport)}-{ReportDate:yyyy-MM-dd}-{SourceApplication}";
+}
+
+public sealed class YouTubeQuotaKeyStats
+{
+    [JsonPropertyName("displayName")]
+    [JsonPropertyOrder(10)]
+    public required string DisplayName { get; set; }
+
+    [JsonPropertyName("project")]
+    [JsonPropertyOrder(11)]
+    public required string Project { get; set; }
+
+    [JsonPropertyName("usage")]
+    [JsonPropertyOrder(12)]
+    public required string Usage { get; set; }
+
+    [JsonPropertyName("callsAttempted")]
+    [JsonPropertyOrder(13)]
+    public int CallsAttempted { get; set; }
+
+    [JsonPropertyName("quotaHits")]
+    [JsonPropertyOrder(14)]
+    public int QuotaHits { get; set; }
+
+    [JsonPropertyName("quotaUsed")]
+    [JsonPropertyOrder(15)]
+    public int QuotaUsed { get; set; }
+
+    [JsonPropertyName("dailyLimit")]
+    [JsonPropertyOrder(16)]
+    public int DailyLimit { get; set; }
+
+    [JsonPropertyName("remainingQuota")]
+    [JsonPropertyOrder(17)]
+    public int RemainingQuota { get; set; }
+
+    [JsonPropertyName("capacityHint")]
+    [JsonPropertyOrder(18)]
+    public string? CapacityHint { get; set; }
+}
+
+public sealed class YouTubeIndexerKeySummary
+{
+    [JsonPropertyName("displayName")]
+    [JsonPropertyOrder(10)]
+    public required string DisplayName { get; set; }
+
+    [JsonPropertyName("project")]
+    [JsonPropertyOrder(11)]
+    public required string Project { get; set; }
+
+    [JsonPropertyName("hourPrimary")]
+    [JsonPropertyOrder(12)]
+    public int HourPrimary { get; set; }
+
+    [JsonPropertyName("reattempt")]
+    [JsonPropertyOrder(13)]
+    public int? Reattempt { get; set; }
+
+    [JsonPropertyName("apiKeySuffix")]
+    [JsonPropertyOrder(14)]
+    public required string ApiKeySuffix { get; set; }
+
+    [JsonPropertyName("callsAttempted")]
+    [JsonPropertyOrder(15)]
+    public int CallsAttempted { get; set; }
+
+    [JsonPropertyName("quotaHits")]
+    [JsonPropertyOrder(16)]
+    public int QuotaHits { get; set; }
+
+    [JsonPropertyName("quotaUsed")]
+    [JsonPropertyOrder(17)]
+    public int QuotaUsed { get; set; }
+
+    [JsonPropertyName("dailyLimit")]
+    [JsonPropertyOrder(18)]
+    public int DailyLimit { get; set; }
+
+    [JsonPropertyName("remainingQuota")]
+    [JsonPropertyOrder(19)]
+    public int RemainingQuota { get; set; }
+}

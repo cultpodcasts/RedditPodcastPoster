@@ -35,6 +35,12 @@ public enum ModelType
     PushSubscription = 10,
 
     [JsonPropertyName(nameof(HomePageCache))]
-    HomePageCache = 11
+    HomePageCache = 11,
+
+    [JsonPropertyName(nameof(YouTubeQuotaReport))]
+    YouTubeQuotaReport = 12,
+
+    [JsonPropertyName(nameof(YouTubeIndexerKeyState))]
+    YouTubeIndexerKeyState = 13
 
 }

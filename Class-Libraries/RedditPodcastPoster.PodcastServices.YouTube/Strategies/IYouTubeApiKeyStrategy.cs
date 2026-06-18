@@ -7,4 +7,5 @@ public interface IYouTubeApiKeyStrategy
 {
     ApplicationWrapper GetApplication(ApplicationUsage usage);
     ApplicationWrapper GetApplication(ApplicationUsage usage, int index, int reattempt);
+    IReadOnlyList<ApplicationWrapper> BuildIndexerKeyRing(int startPrimaryIndex);
 }

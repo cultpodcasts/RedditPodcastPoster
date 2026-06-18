@@ -3,8 +3,8 @@ using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RedditPodcastPoster.BBC;
-using RedditPodcastPoster.BBC.Extensions;
+using RedditPodcastPoster.InternetArchive;
+using RedditPodcastPoster.InternetArchive.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -20,18 +20,18 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddBBCServices()
+    .AddInternetArchiveServices()
     .AddHttpClient();
 
 using var host = builder.Build();
 
 if (args.Length == 0 || !Uri.TryCreate(args[0], UriKind.Absolute, out var url))
 {
-    Console.Error.WriteLine("Usage: ThrowawayConsole <bbc-url>");
+    Console.Error.WriteLine("Usage: ThrowawayConsole <internet-archive-url>");
     return 1;
 }
 
-var service = host.Services.GetRequiredService<IBBCPageMetaDataExtractor>();
+var service = host.Services.GetRequiredService<IInternetArchivePageMetaDataExtractor>();
 var pageData = await service.GetMetaData(url);
 
 Console.WriteLine($"Title: {pageData.Title}");

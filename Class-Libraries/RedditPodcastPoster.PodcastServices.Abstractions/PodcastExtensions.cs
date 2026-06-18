@@ -13,6 +13,11 @@ public static class PodcastExtensions
             podcast.AppleId);
     }
 
+  public static bool IsScheduledYouTubeDiscoveryBypassed(this Podcast podcast, IndexingContext indexingContext)
+    {
+        return indexingContext.SkipYouTubeUrlResolving && podcast.DependsOnYouTubeForEpisodeDiscovery();
+    }
+
     public static bool DependsOnYouTubeForEpisodeDiscovery(
         Service? releaseAuthority,
         string? youTubeChannelId,

@@ -4,12 +4,14 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 
 public class TolerantYouTubeChannelVideoSnippetsService(
     IYouTubeServiceWrapper youTubeService,
     IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippets,
+    IYouTubeQuotaUsageTracker quotaUsageTracker,
     ILogger<TolerantYouTubeChannelVideoSnippetsService> logger) : ITolerantYouTubeChannelVideoSnippetsService
 {
     public async Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(YouTubeChannelId channelId,
@@ -22,6 +24,7 @@ public class TolerantYouTubeChannelVideoSnippetsService(
         {
             try
             {
+                quotaUsageTracker.RecordCall(youTubeService.CurrentApplication, youTubeService.Usage);
                 result = await youTubeChannelVideoSnippets.GetLatestChannelVideoSnippets(youTubeService, channelId,
                     indexingContext);
                 success = true;
@@ -33,6 +36,7 @@ public class TolerantYouTubeChannelVideoSnippetsService(
             catch (YouTubeQuotaException)
             {
                 logger.LogInformation("Quota exceeded observed. Rotating api-key.");
+                quotaUsageTracker.RecordQuotaHit(youTubeService.CurrentApplication, youTubeService.Usage);
                 try
                 {
                     youTubeService.Rotate();

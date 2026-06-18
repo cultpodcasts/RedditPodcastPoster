@@ -32,6 +32,33 @@ public class PodcastExtensionsTests
     }
 
     [Fact]
+    public void IsScheduledYouTubeDiscoveryBypassed_WhenChannelOnlyAndYouTubeSkipped_ReturnsTrue()
+    {
+        var podcast = new Podcast { YouTubeChannelId = "channel" };
+        var indexingContext = new IndexingContext(DateTime.UtcNow.AddDays(-2), SkipYouTubeUrlResolving: true);
+
+        podcast.IsScheduledYouTubeDiscoveryBypassed(indexingContext).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsScheduledYouTubeDiscoveryBypassed_WhenYouTubeEnabled_ReturnsFalse()
+    {
+        var podcast = new Podcast { YouTubeChannelId = "channel" };
+        var indexingContext = new IndexingContext(DateTime.UtcNow.AddDays(-2), SkipYouTubeUrlResolving: false);
+
+        podcast.IsScheduledYouTubeDiscoveryBypassed(indexingContext).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsScheduledYouTubeDiscoveryBypassed_WhenSpotifyDiscoversEpisodes_ReturnsFalse()
+    {
+        var podcast = new Podcast { YouTubeChannelId = "channel", SpotifyId = "spotify" };
+        var indexingContext = new IndexingContext(DateTime.UtcNow.AddDays(-2), SkipYouTubeUrlResolving: true);
+
+        podcast.IsScheduledYouTubeDiscoveryBypassed(indexingContext).Should().BeFalse();
+    }
+
+    [Fact]
     public void DependsOnYouTubeForEpisodeDiscovery_WhenSpotifyDiscoversEpisodes_ReturnsFalse()
     {
         var podcast = new Podcast

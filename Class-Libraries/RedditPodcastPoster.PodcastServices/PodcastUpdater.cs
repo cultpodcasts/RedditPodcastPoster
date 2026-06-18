@@ -180,7 +180,16 @@ public class PodcastUpdater(
 
         var spotifyBypassed = initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving;
         var youTubeBypassed = initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving;
-        var indexSucceeded = !spotifyBypassed && !youTubeBypassed && !mergeResult.FailedEpisodes.Any();
+        var youTubeDiscoveryBypassed = podcast.IsScheduledYouTubeDiscoveryBypassed(indexingContext);
+        if (youTubeDiscoveryBypassed)
+        {
+            logger.LogInformation(
+                "YouTube episode discovery bypassed for podcast '{podcastName}' with id '{podcastId}'; LastIndexed will not be updated.",
+                podcast.Name, podcast.Id);
+        }
+
+        var indexSucceeded = !spotifyBypassed && !youTubeBypassed && !youTubeDiscoveryBypassed &&
+                             !mergeResult.FailedEpisodes.Any();
 
         var podcastChanged = mergeResult.MergedEpisodes.Any() || mergeResult.AddedEpisodes.Any() ||
                              filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any() ||

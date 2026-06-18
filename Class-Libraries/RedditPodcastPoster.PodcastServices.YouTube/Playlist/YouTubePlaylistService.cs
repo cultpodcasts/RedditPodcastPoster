@@ -7,10 +7,12 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
 public class YouTubePlaylistService(
+    IYouTubeQuotaUsageTracker quotaUsageTracker,
     ILogger<YouTubePlaylistService> logger)
     : IYouTubePlaylistService
 {
@@ -63,6 +65,10 @@ public class YouTubePlaylistService(
             try
             {
                 playlistItemsListResponse = await playlistRequest.ExecuteAsync();
+                quotaUsageTracker.RecordQuotaConsumed(
+                    youTubeServiceWrapper.CurrentApplication,
+                    youTubeServiceWrapper.Usage,
+                    YouTubeQuotaCosts.PlaylistItemsList);
             }
             catch (GoogleApiException ex)
             {
@@ -146,6 +152,10 @@ public class YouTubePlaylistService(
         playlistRequest.MaxResults = 1;
 
         var playlistResponse = await playlistRequest.ExecuteAsync();
+        quotaUsageTracker.RecordQuotaConsumed(
+            youTubeServiceWrapper.CurrentApplication,
+            youTubeServiceWrapper.Usage,
+            YouTubeQuotaCosts.PlaylistsList);
 
         if (playlistResponse == null || !playlistResponse.Items.Any())
         {

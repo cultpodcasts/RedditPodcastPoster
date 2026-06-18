@@ -11,4 +11,8 @@ public interface ILookupRepository
     Task<HomePageCache?> GetHomePageCache();
     Task SaveHomePageCache(HomePageCache homePageCache);
     Task IncrementHomePageActiveEpisodeCount(int delta);
+    Task SaveYouTubeQuotaDailyReport(YouTubeQuotaDailyReport report);
+    Task<YouTubeQuotaDailyReport?> GetYouTubeQuotaDailyReport(DateOnly reportDate, string sourceApplication);
+    Task<YouTubeIndexerKeyState?> GetYouTubeIndexerKeyState();
+    Task SaveYouTubeIndexerKeyState(YouTubeIndexerKeyState state);
 }

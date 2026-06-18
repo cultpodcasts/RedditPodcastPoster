@@ -62,8 +62,16 @@ public class MetaDataExtractor(
             }
             else
             {
-                item = items.SingleOrDefault(x => HttpUtility.UrlDecode(url.ToString()).EndsWith(x.Orig));
+                item = items.SingleOrDefault(x => HttpUtility.UrlDecode(url.ToString()).EndsWith(x.Orig)) ??
+                       items.First();
+
                 title = item?.Title.Trim();
+            }
+
+            if (item == null)
+            {
+                return new NonPodcastServiceItemMetaData(title ?? string.Empty, description ?? string.Empty, duration,
+                    release, image, Publisher: publisher);
             }
 
             if (item.Image != null)

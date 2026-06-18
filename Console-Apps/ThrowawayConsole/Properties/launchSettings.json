@@ -2,7 +2,7 @@
   "profiles": {
     "ThrowawayConsole": {
       "commandName": "Project",
-      "commandLineArgs": "https://www.bbc.co.uk/sounds/play/p0jqc492"
+      "commandLineArgs": "https://archive.org/details/davids-story-when-endings-are-beginnings-jill-mytton-david-original"
     }
   }
 }

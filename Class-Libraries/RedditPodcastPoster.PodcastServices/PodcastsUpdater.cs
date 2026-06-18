@@ -16,15 +16,25 @@ public class PodcastsUpdater(
     public async Task<bool> UpdatePodcasts(Guid[] podcastIds, IndexingContext indexingContext)
     {
         var success = true;
+        var initialSkipYouTube = indexingContext.SkipYouTubeUrlResolving;
+        var initialSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
         var youtubeEnabled = !indexingContext.SkipYouTubeUrlResolving;
         var youtubeAuthorityInBatch = 0;
         var youtubeAuthorityIndexedWithYouTubePass = 0;
         var youtubeAuthorityBypassed = 0;
+        var anyYouTubeBypassed = false;
+        var anySpotifyBypassed = false;
+
+        var podcasts = await Task.WhenAll(podcastIds.Select(async podcastId =>
+            (Id: podcastId, Podcast: await podcastRepository.GetPodcast(podcastId))));
+        var orderedPodcasts = podcasts
+            .OrderByDescending(x => x.Podcast?.DependsOnYouTubeForEpisodeDiscovery() == true)
+            .ThenBy(x => x.Id)
+            .ToArray();
 
         logger.LogInformation("{nameofUpdatePodcasts} Indexing Starting.", nameof(UpdatePodcasts));
-        foreach (var podcastId in podcastIds)
+        foreach (var (podcastId, podcast) in orderedPodcasts)
         {
-            var podcast = await podcastRepository.GetPodcast(podcastId);
             var dependsOnYouTubeForDiscovery = podcast?.DependsOnYouTubeForEpisodeDiscovery() == true;
             if (dependsOnYouTubeForDiscovery)
             {
@@ -38,7 +48,10 @@ public class PodcastsUpdater(
             {
                 try
                 {
-                    var result = await podcastUpdater.Update(podcast!, false, indexingContext);
+                    var podcastIndexingContext = indexingContext with { };
+                    var result = await podcastUpdater.Update(podcast!, false, podcastIndexingContext);
+                    anyYouTubeBypassed |= !initialSkipYouTube && podcastIndexingContext.SkipYouTubeUrlResolving;
+                    anySpotifyBypassed |= !initialSkipSpotify && podcastIndexingContext.SkipSpotifyUrlResolving;
                     var resultReport = result.ToString();
                     if (!result.Success)
                     {
@@ -100,6 +113,16 @@ public class PodcastsUpdater(
                 "YouTubeAuthorityIndexingAudit youtube-enabled='{YouTubeEnabled}' in-batch='{InBatch}' indexed-with-youtube-pass='{IndexedWithYouTubePass}' youtube-bypassed='{YouTubeBypassed}'",
                 youtubeEnabled, youtubeAuthorityInBatch, youtubeAuthorityIndexedWithYouTubePass,
                 youtubeAuthorityBypassed);
+        }
+
+        if (anyYouTubeBypassed)
+        {
+            indexingContext.SkipYouTubeUrlResolving = true;
+        }
+
+        if (anySpotifyBypassed)
+        {
+            indexingContext.SkipSpotifyUrlResolving = true;
         }
 
         logger.LogInformation("{nameofUpdatePodcasts} Indexing complete.", nameof(UpdatePodcasts));

@@ -18,8 +18,8 @@ public class YouTubeApiKeyStrategy(
     public ApplicationWrapper GetApplication(ApplicationUsage usage)
     {
         var usageApplications =
-            _settings.Applications.Where(x => x.Usage.HasFlag(usage) && x.Reattempt == null).ToArray();
-        var settingsCount = usageApplications.Count();
+            _settings.Applications.Where(x => MatchesUsage(x, usage) && x.Reattempt == null).ToArray();
+        var settingsCount = usageApplications.Length;
         if (settingsCount == 0)
         {
             throw new InvalidOperationException($"No youtube-applications registered or usage '{usage.ToString()}'");
@@ -34,7 +34,7 @@ public class YouTubeApiKeyStrategy(
         return new ApplicationWrapper(
             application,
             applicationIndex,
-            _settings.Applications.Where(x => x.Usage.HasFlag(usage)).Max(x => x.Reattempt) ?? 0
+            _settings.Applications.Where(x => MatchesUsage(x, usage)).Max(x => x.Reattempt) ?? 0
         );
     }
 
@@ -43,15 +43,15 @@ public class YouTubeApiKeyStrategy(
         logger.LogInformation("{method}: usage= '{usage}', index= {index}, reattempt= {reattempt}",
             nameof(GetApplication), usage, index, reattempt);
         var usageApplications =
-            _settings.Applications.Where(x => x.Usage.HasFlag(usage) && x.Reattempt == reattempt).ToArray();
-        var settingsCount = usageApplications.Count();
+            _settings.Applications.Where(x => MatchesUsage(x, usage) && x.Reattempt == reattempt).ToArray();
+        var settingsCount = usageApplications.Length;
         if (settingsCount == 0)
         {
             throw new InvalidOperationException(
                 $"No youtube-applications registered for usage '{usage.ToString()}' with reattempt '{reattempt}' (Index-requested: '{index}').");
         }
 
-        if (settingsCount < index)
+        if (settingsCount <= index)
         {
             throw new InvalidOperationException(
                 $"Inadequate number of youtube-applications registered for usage '{usage.ToString()}'. Applications: '{settingsCount}', Index-requested: '{index}'.");
@@ -65,6 +65,29 @@ public class YouTubeApiKeyStrategy(
         return new ApplicationWrapper(
             application,
             index,
-            _settings.Applications.Where(x => x.Usage.HasFlag(usage)).Max(x => x.Reattempt) ?? 0);
+            _settings.Applications.Where(x => MatchesUsage(x, usage)).Max(x => x.Reattempt) ?? 0);
     }
+
+    public IReadOnlyList<ApplicationWrapper> BuildIndexerKeyRing(int startPrimaryIndex)
+    {
+        var ring = IndexerKeyRingBuilder.Build(_settings.Applications, startPrimaryIndex);
+        logger.LogInformation(
+            "{methodName}: Built indexer key ring with {count} unique keys starting at primary index {startPrimaryIndex}. Order: {order}.",
+            nameof(BuildIndexerKeyRing),
+            ring.Count,
+            startPrimaryIndex,
+            string.Join(" -> ", ring.Select(x => x.Application.DisplayName)));
+        return ring;
+    }
+
+    private static bool MatchesUsage(Application application, ApplicationUsage usage) =>
+        usage switch
+        {
+            ApplicationUsage.Indexer => application.Usage == ApplicationUsage.Indexer,
+            ApplicationUsage.Discover => application.Usage == ApplicationUsage.Discover,
+            ApplicationUsage.Api => application.Usage == ApplicationUsage.Api,
+            ApplicationUsage.Bluesky => application.Usage == ApplicationUsage.Bluesky,
+            ApplicationUsage.Cli => application.Usage == ApplicationUsage.Cli,
+            _ => application.Usage.HasFlag(usage)
+        };
 }

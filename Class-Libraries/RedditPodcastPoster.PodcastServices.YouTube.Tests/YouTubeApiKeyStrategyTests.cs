@@ -167,10 +167,10 @@ public class YouTubeApiKeyStrategyTests
     }
 
     [Fact]
-    public void GetApplication_WithCombinationUsageFlags_IsCorrect()
+    public void GetApplication_WithCombinationUsageFlags_UsesExactIndexerMatch()
     {
         // arrange
-        var applicationName = _fixture.Create<string>();
+        var indexerOnlyName = _fixture.Create<string>();
         _mocker.Use(Options.Create(new YouTubeSettings
         {
             Applications =
@@ -182,7 +182,12 @@ public class YouTubeApiKeyStrategyTests
                 },
                 new Application
                 {
-                    ApiKey = _fixture.Create<string>(), Name = applicationName,
+                    ApiKey = _fixture.Create<string>(), Name = indexerOnlyName,
+                    Usage = ApplicationUsage.Indexer, DisplayName = _fixture.Create<string>()
+                },
+                new Application
+                {
+                    ApiKey = _fixture.Create<string>(), Name = _fixture.Create<string>(),
                     Usage = ApplicationUsage.Indexer | ApplicationUsage.Api, DisplayName = _fixture.Create<string>()
                 }
             ]
@@ -190,6 +195,6 @@ public class YouTubeApiKeyStrategyTests
         // act
         var result = Sut.GetApplication(ApplicationUsage.Indexer);
         // assert
-        result.Application.Name.Should().Be(applicationName);
+        result.Application.Name.Should().Be(indexerOnlyName);
     }
 }

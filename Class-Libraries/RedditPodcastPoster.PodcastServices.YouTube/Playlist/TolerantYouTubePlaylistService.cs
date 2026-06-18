@@ -3,12 +3,14 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
 public class TolerantYouTubePlaylistService(
     IYouTubeServiceWrapper youTubeService,
     IYouTubePlaylistService youTubePlaylistService,
+    IYouTubeQuotaUsageTracker quotaUsageTracker,
     ILogger<TolerantYouTubePlaylistService> logger
 ) : ITolerantYouTubePlaylistService
 {
@@ -23,6 +25,7 @@ public class TolerantYouTubePlaylistService(
         {
             try
             {
+                quotaUsageTracker.RecordCall(youTubeService.CurrentApplication, youTubeService.Usage);
                 result = await youTubePlaylistService.GetPlaylistVideoSnippets(youTubeService, playlistId,
                     indexingContext, withContentDetails, expensivePlaylist);
                 success = true;
@@ -31,6 +34,7 @@ public class TolerantYouTubePlaylistService(
             {
                 logger.LogInformation(
                     "Quota exceeded observed. Rotating api-key .");
+                quotaUsageTracker.RecordQuotaHit(youTubeService.CurrentApplication, youTubeService.Usage);
                 try
                 {
                     youTubeService.Rotate();

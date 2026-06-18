@@ -7,10 +7,12 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 
 public class YouTubeChannelVideoSnippetsService(
+    IYouTubeQuotaUsageTracker quotaUsageTracker,
     ILogger<YouTubeChannelVideoSnippetsService> logger)
     : IYouTubeChannelVideoSnippetsService
 {
@@ -43,6 +45,10 @@ public class YouTubeChannelVideoSnippetsService(
             try
             {
                 response = await searchListRequest.ExecuteAsync();
+                quotaUsageTracker.RecordQuotaConsumed(
+                    youTubeServiceWrapper.CurrentApplication,
+                    youTubeServiceWrapper.Usage,
+                    YouTubeQuotaCosts.SearchList);
             }
             catch (GoogleApiException ex)
             {
