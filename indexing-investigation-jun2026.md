@@ -1,5 +1,7 @@
 # Indexing investigation — Jakub Jahl (Jun 2026)
 
+**KQL quick reference:** [docs/indexing-app-insights-queries.md](docs/indexing-app-insights-queries.md) — copy-paste queries for 06:00/18:00 runs, `operation_Id` deep-dives, batch 4, key rotation, timers, and quota report.
+
 **Goal:** Determine whether podcast **"Jakub Jahl: Sekty a světová náboženství"** was indexed by scheduled runs after the Jun 2026 fixes, and **why not** if it was missed.
 
 | Field | Value |
