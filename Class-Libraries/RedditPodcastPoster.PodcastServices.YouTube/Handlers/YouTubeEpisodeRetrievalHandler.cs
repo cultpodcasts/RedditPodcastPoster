@@ -15,56 +15,81 @@ public class YouTubeEpisodeRetrievalHandler(
     {
         var handled = false;
         IList<RedditPodcastPoster.Models.Episode> newEpisodes = new List<RedditPodcastPoster.Models.Episode>();
-        if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
+        if (string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
-            if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
+            LogDiscoveryPath(podcast, "skipped-no-channel", indexingContext, 0);
+            return new EpisodeRetrievalHandlerResponse(newEpisodes, handled);
+        }
+
+        if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
+        {
+            var runExpensivePagination = indexingContext.RunExpensiveYouTubePlaylistPagination(podcast);
+            var discoveryPath = runExpensivePagination ? "playlist-paginated" : "playlist-single-page";
+            if (podcast.HasExpensiveYouTubePlaylistQuery() && indexingContext.SkipExpensiveYouTubeQueries)
             {
-                if (podcast.HasExpensiveYouTubePlaylistQuery() && indexingContext.SkipExpensiveYouTubeQueries)
-                {
-                    logger.LogInformation(
-                        "Podcast '{PodcastId}' has known expensive query and will not run this time.", podcast.Id);
-                    {
-                        return new EpisodeRetrievalHandlerResponse(newEpisodes, handled);
-                    }
-                }
+                logger.LogInformation(
+                    "Podcast '{PodcastId}' has known expensive playlist query; using single-page playlist fetch this pass.",
+                    podcast.Id);
+            }
 
-                var getPlaylistEpisodesResult = await youTubeEpisodeProvider.GetPlaylistEpisodes(
-                    new YouTubePlaylistId(podcast.YouTubePlaylistId), new YouTubeChannelId(podcast.YouTubeChannelId),
-                    indexingContext);
-                if (getPlaylistEpisodesResult.Results != null)
-                {
-                    newEpisodes = getPlaylistEpisodesResult.Results;
-                }
+            var getPlaylistEpisodesResult = await youTubeEpisodeProvider.GetPlaylistEpisodes(
+                new YouTubePlaylistId(podcast.YouTubePlaylistId), new YouTubeChannelId(podcast.YouTubeChannelId),
+                indexingContext, runExpensivePagination);
+            if (getPlaylistEpisodesResult.Results != null)
+            {
+                newEpisodes = getPlaylistEpisodesResult.Results;
+            }
 
-                if (getPlaylistEpisodesResult.IsExpensiveQuery)
-                {
-                    podcast.YouTubePlaylistQueryIsExpensive = true;
-                }
+            if (getPlaylistEpisodesResult.IsExpensiveQuery)
+            {
+                podcast.YouTubePlaylistQueryIsExpensive = true;
+            }
+
+            LogDiscoveryPath(podcast, discoveryPath, indexingContext, newEpisodes.Count);
+        }
+        else
+        {
+            IEnumerable<string> knownIds;
+            if (indexingContext.ReleasedSince.HasValue)
+            {
+                knownIds = episodes.Where(x => x.Release >= indexingContext.ReleasedSince)
+                    .Select(x => x.YouTubeId);
             }
             else
             {
-                IEnumerable<string> knownIds;
-                if (indexingContext.ReleasedSince.HasValue)
-                {
-                    knownIds = episodes.Where(x => x.Release >= indexingContext.ReleasedSince)
-                        .Select(x => x.YouTubeId);
-                }
-                else
-                {
-                    knownIds = episodes.Select(x => x.YouTubeId);
-                }
-
-                var foundEpisodes = await youTubeEpisodeProvider.GetEpisodes(
-                    podcast, indexingContext, knownIds);
-                if (foundEpisodes != null)
-                {
-                    newEpisodes = foundEpisodes;
-                }
+                knownIds = episodes.Select(x => x.YouTubeId);
             }
 
-            handled = true;
+            var foundEpisodes = await youTubeEpisodeProvider.GetEpisodes(
+                podcast, indexingContext, knownIds);
+            if (foundEpisodes != null)
+            {
+                newEpisodes = foundEpisodes;
+            }
+
+            LogDiscoveryPath(podcast, "channel", indexingContext, newEpisodes.Count);
         }
 
+        handled = true;
+
         return new EpisodeRetrievalHandlerResponse(newEpisodes, handled);
+    }
+
+    private void LogDiscoveryPath(Podcast podcast, string discoveryPath, IndexingContext indexingContext, int episodesFound)
+    {
+        if (podcast.DependsOnYouTubeForEpisodeDiscovery())
+        {
+            logger.LogWarning(
+                "YouTubeDiscoveryPath podcast-id='{PodcastId}' path='{DiscoveryPath}' youtube-authority='{YouTubeAuthority}' skip-youtube='{SkipYouTube}' skip-expensive-youtube='{SkipExpensiveYouTube}' episodes-found='{EpisodesFound}'",
+                podcast.Id, discoveryPath, true,
+                indexingContext.SkipYouTubeUrlResolving, indexingContext.SkipExpensiveYouTubeQueries, episodesFound);
+        }
+        else
+        {
+            logger.LogInformation(
+                "YouTubeDiscoveryPath podcast-id='{PodcastId}' path='{DiscoveryPath}' youtube-authority='{YouTubeAuthority}' skip-youtube='{SkipYouTube}' skip-expensive-youtube='{SkipExpensiveYouTube}' episodes-found='{EpisodesFound}'",
+                podcast.Id, discoveryPath, false,
+                indexingContext.SkipYouTubeUrlResolving, indexingContext.SkipExpensiveYouTubeQueries, episodesFound);
+        }
     }
 }

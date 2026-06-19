@@ -21,7 +21,10 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
         [DurableClient] DurableTaskClient client,
         CancellationToken cancellationToken)
     {
-        logger.LogInformation($"{nameof(OrchestrationTrigger)} {nameof(RunHourly)} initiated.");
+        var hourUtc = DateTime.UtcNow.Hour;
+        logger.LogWarning(
+            "OrchestrationTrigger RunHourly initiated hour-utc='{HourUtc}'.",
+            hourUtc);
 
         if (await HasActiveOrchestrationInstanceAsync(client, nameof(HourlyOrchestration), cancellationToken))
         {
@@ -31,26 +34,39 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
             return;
         }
 
-        string instanceId;
-        try
+        await ScheduleHourlyOrchestrationAsync(client, nameof(RunHourly), hourUtc, cancellationToken);
+    }
+
+    [Function("HourlyCatchUp")]
+    public async Task RunHourlyCatchUp(
+        [TimerTrigger("0 5 * * * *"
+#if DEBUG
+            , RunOnStartup = false
+#endif
+        )]
+        TimerInfo info,
+        [DurableClient] DurableTaskClient client,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("{OrchestrationTriggerName} {RunHourlyCatchUpName} initiated.",
+            nameof(OrchestrationTrigger), nameof(RunHourlyCatchUp));
+
+        var utcNow = DateTime.UtcNow;
+        var hourlyInstances = await GetHourlyOrchestrationInstancesAsync(client, cancellationToken);
+
+        if (!HourlyOrchestrationCatchUpEvaluator.ShouldScheduleCatchUp(utcNow, hourlyInstances))
         {
-            instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(HourlyOrchestration));
-        }
-        catch (RpcException ex)
-        {
-            logger.LogCritical(ex,
-                "Failure to execute '{ScheduleNewOrchestrationInstanceAsyncName}' for '{HourlyOrchestrationName}'. Status-Code: '{ExStatusCode}', Status: '{ExStatus}'.", nameof(client.ScheduleNewOrchestrationInstanceAsync), nameof(HourlyOrchestration), ex.StatusCode, ex.Status);
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogCritical(ex,
-                $"Failure to execute '{nameof(client.ScheduleNewOrchestrationInstanceAsync)}' for '{nameof(HourlyOrchestration)}'.");
-            throw;
+            logger.LogInformation(
+                "{OrchestrationTriggerName} {RunHourlyCatchUpName} skipped. Hourly orchestration already ran or is active for UTC hour {HourUtc}.",
+                nameof(OrchestrationTrigger), nameof(RunHourlyCatchUp), utcNow.Hour);
+            return;
         }
 
-        logger.LogInformation(
-            "{OrchestrationTriggerName} {RunHourlyName} complete. Instance-id= '{InstanceId}'.", nameof(OrchestrationTrigger), nameof(RunHourly), instanceId);
+        logger.LogWarning(
+            "{OrchestrationTriggerName} {RunHourlyCatchUpName} scheduling missed hourly orchestration for UTC hour {HourUtc}.",
+            nameof(OrchestrationTrigger), nameof(RunHourlyCatchUp), utcNow.Hour);
+
+        await ScheduleHourlyOrchestrationAsync(client, nameof(RunHourlyCatchUp), utcNow.Hour, cancellationToken);
     }
 
 
@@ -97,6 +113,37 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
             "{OrchestrationTriggerName} {RunHalfHourlyName} complete. Instance-id= '{InstanceId}'.", nameof(OrchestrationTrigger), nameof(RunHalfHourly), instanceId);
     }
 
+    private async Task ScheduleHourlyOrchestrationAsync(
+        DurableTaskClient client,
+        string triggerName,
+        int hourUtc,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        string instanceId;
+        try
+        {
+            instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(HourlyOrchestration));
+        }
+        catch (RpcException ex)
+        {
+            logger.LogCritical(ex,
+                "Failure to execute '{ScheduleNewOrchestrationInstanceAsyncName}' for '{HourlyOrchestrationName}'. Status-Code: '{ExStatusCode}', Status: '{ExStatus}'.", nameof(client.ScheduleNewOrchestrationInstanceAsync), nameof(HourlyOrchestration), ex.StatusCode, ex.Status);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogCritical(ex,
+                $"Failure to execute '{nameof(client.ScheduleNewOrchestrationInstanceAsync)}' for '{nameof(HourlyOrchestration)}'.");
+            throw;
+        }
+
+        logger.LogWarning(
+            "OrchestrationTrigger hourly-scheduled trigger='{TriggerName}' hour-utc='{HourUtc}' instance-id='{InstanceId}'.",
+            triggerName, hourUtc, instanceId);
+    }
+
     private static async Task<bool> HasActiveOrchestrationInstanceAsync(
         DurableTaskClient client,
         string orchestrationName,
@@ -124,5 +171,30 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
         }
 
         return false;
+    }
+
+    private static async Task<IReadOnlyList<HourlyOrchestrationInstance>> GetHourlyOrchestrationInstancesAsync(
+        DurableTaskClient client,
+        CancellationToken cancellationToken)
+    {
+        var query = new OrchestrationQuery
+        {
+            CreatedFrom = DateTime.UtcNow.Subtract(TimeSpan.FromHours(2))
+        };
+
+        var instances = new List<HourlyOrchestrationInstance>();
+        await foreach (var metadata in client.GetAllInstancesAsync(query))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (metadata.Name != new TaskName(nameof(HourlyOrchestration)))
+            {
+                continue;
+            }
+
+            instances.Add(new HourlyOrchestrationInstance(metadata.CreatedAt, metadata.RuntimeStatus));
+        }
+
+        return instances;
     }
 }

@@ -1,0 +1,278 @@
+---
+title: YouTube indexing investigation recap
+brief: >-
+  Key ring persistence, quota reporting, tolerant channel lookups with API key
+  rotation, per-podcast indexing isolation, Jakub YouTube-authority discovery
+  ordering, HourlyCatchUp, and YouTubeError per-pass semantics on branch
+  cursor/align-apple-spotify-enrichment-youtube-delay.
+kind: recap
+localOnly: true
+---
+
+<RichText id="recap-narrative">
+
+Investigation into missed Jakub Jahl YouTube episode discovery exposed three interacting failure modes: **quota exhaustion** on `channels.list` with no key rotation, **shared `IndexingContext` mutation** leaking `SkipYouTubeUrlResolving` across podcasts in a batch, and **handler ordering** that let Spotify win episode discovery before YouTube for YouTube-authority podcasts.
+
+Commits `5eee6bbe` and `bab1ddc6` add Cosmos-backed indexer key ring state, daily quota reports, tolerant channel lookups, and per-podcast context cloning. Uncommitted work completes the Jakub fix (YouTube-first retrieval), adds `HourlyCatchUp` for missed hourly orchestrations, corrects `YouTubeError` to mean "YouTube was enabled this pass but ended bypassed", and allows single-page playlist fetches when expensive pagination is skipped.
+
+</RichText>
+
+<RichText id="diagram-heading">
+
+### Indexing flow — before vs after
+
+</RichText>
+
+<Diagram
+  id="indexing-flow-diagram"
+  data={{
+    html: '<div class="diagram-panel" data-rough><div class="diagram-card"><div class="diagram-pill">Before</div><div class="diagram-node">Hourly timer</div><div class="diagram-muted">→</div><div class="diagram-node">Indexer pass</div><div class="diagram-muted">→</div><div class="diagram-node">Spotify handler first</div><div class="diagram-muted">→</div><div class="diagram-node">YouTube channel (no quota rotate)</div><div class="diagram-muted">→</div><div class="diagram-node diagram-box">Shared IndexingContext mutates across batch</div></div><div class="diagram-card"><div class="diagram-pill">After</div><div class="diagram-node">Hourly + HourlyCatchUp</div><div class="diagram-muted">→</div><div class="diagram-node">Key ring from Cosmos</div><div class="diagram-muted">→</div><div class="diagram-node">YouTube-first for authority podcasts</div><div class="diagram-muted">→</div><div class="diagram-node">Tolerant channel + ring rotate on quota</div><div class="diagram-muted">→</div><div class="diagram-node diagram-box">Per-podcast context clone</div><div class="diagram-muted">→</div><div class="diagram-node">06:55 UTC quota report</div></div></div>',
+    css: '.diagram-panel { display: flex; gap: 16px; flex-wrap: wrap; } .diagram-card { flex: 1; min-width: 220px; padding: 12px; border: 1px solid var(--wf-border); border-radius: 8px; display: flex; flex-direction: column; gap: 6px; } .diagram-muted { color: var(--wf-muted); font-size: 12px; }',
+    caption: 'Indexer orchestration and YouTube API resilience — investigation thread scope.',
+  }}
+/>
+
+<RichText id="data-model-heading">
+
+### Cosmos documents
+
+</RichText>
+
+<DataModel
+  id="cosmos-youtube-docs"
+  entities={[
+    {
+      id: "youtube_indexer_key_state",
+      name: "YouTubeIndexerKeyState",
+      change: "added",
+      fields: [
+        { name: "id", type: "Guid (fixed singleton)", pk: true },
+        { name: "modelType", type: "YouTubeIndexerKeyState" },
+        { name: "pacificQuotaDate", type: "DateOnly", change: "added" },
+        { name: "lastRingIndex", type: "int", change: "added" },
+        { name: "lastApiKey", type: "string?", change: "added" },
+        { name: "updatedUtc", type: "DateTime", change: "added" },
+      ],
+    },
+    {
+      id: "youtube_quota_daily_report",
+      name: "YouTubeQuotaDailyReport",
+      change: "added",
+      fields: [
+        { name: "id", type: "Guid (hash of date+source)", pk: true },
+        { name: "reportDate", type: "DateOnly", change: "added" },
+        { name: "sourceApplication", type: "string", change: "added" },
+        { name: "keys", type: "YouTubeQuotaKeyStats[]", change: "added" },
+        { name: "usedIndexerKeys", type: "YouTubeIndexerKeySummary[]", change: "added" },
+        { name: "unusedIndexerKeys", type: "YouTubeIndexerKeySummary[]", change: "added" },
+      ],
+    },
+    {
+      id: "youtube_quota_key_stats",
+      name: "YouTubeQuotaKeyStats",
+      change: "added",
+      fields: [
+        { name: "displayName", type: "string" },
+        { name: "project", type: "string" },
+        { name: "callsAttempted", type: "int" },
+        { name: "quotaHits", type: "int" },
+        { name: "quotaUsed", type: "int" },
+        { name: "dailyLimit", type: "int" },
+        { name: "remainingQuota", type: "int" },
+      ],
+    },
+  ]}
+  relations={[
+    { from: "youtube_quota_daily_report", to: "youtube_quota_key_stats", kind: "1-n" },
+  ]}
+/>
+
+<FileTree
+  id="files-touched"
+  title="Thread scope — indexing YouTube fixes"
+  entries={[
+    { path: "Class-Libraries/RedditPodcastPoster.Models/YouTubeIndexerKeyState.cs", change: "added", note: "5eee6bbe — singleton key ring cursor in Cosmos." },
+    { path: "Class-Libraries/RedditPodcastPoster.Models/YouTubeQuotaDailyReport.cs", change: "added", note: "5eee6bbe — daily quota flush document." },
+    { path: "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Quota/YouTubeQuotaUsageTracker.cs", change: "added", note: "In-memory tracker → daily report." },
+    { path: "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Quota/YouTubeIndexerKeyStateService.cs", change: "added", note: "Persist ring position across indexer sessions." },
+    { path: "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Strategies/IndexerKeyRingBuilder.cs", change: "added", note: "Build ordered primary+reattempt ring." },
+    { path: "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Clients/YouTubeServiceWrapper.cs", change: "modified", note: "Indexer ring rotation + session persist on dispose." },
+    { path: "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Channel/TolerantYouTubeChannelService.cs", change: "added", note: "bab1ddc6 — rotate on quota, set SkipYouTube on exhaustion." },
+    { path: "Class-Libraries/RedditPodcastPoster.PodcastServices/PodcastsUpdater.cs", change: "modified", note: "Per-podcast context clone; batch-level bypass rollup." },
+    { path: "Cloud/Indexer/YouTubeQuotaReportTrigger.cs", change: "added", note: "Timer 06:55 UTC daily flush." },
+    { path: "Class-Libraries/RedditPodcastPoster.Common/Episodes/EpisodeProvider.cs", change: "modified", note: "Uncommitted — YouTube-first for authority podcasts." },
+    { path: "Class-Libraries/RedditPodcastPoster.PodcastServices.Abstractions/IndexingContextExtensions.cs", change: "modified", note: "Uncommitted — RunExpensiveYouTubePlaylistPagination helper." },
+    { path: "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Handlers/YouTubeEpisodeRetrievalHandler.cs", change: "modified", note: "Uncommitted — single-page playlist when expensive skipped." },
+    { path: "Cloud/Indexer/Indexer.cs", change: "modified", note: "Uncommitted — YouTubeError only when YouTube enabled + bypassed." },
+    { path: "Cloud/Indexer/OrchestrationTrigger.cs", change: "modified", note: "Uncommitted — HourlyCatchUp at :05 past each hour." },
+    { path: "Cloud/Indexer/HourlyOrchestrationCatchUpEvaluator.cs", change: "added", note: "Uncommitted — skip if hourly already ran or active." },
+    { path: "scripts/apply-youtube-display-names.ps1", change: "added", note: "HourPrimary display name alignment." },
+    { path: "indexing-investigation-jun2026.md", change: "added", note: "Investigation playbook and KQL queries." },
+  ]}
+/>
+
+<RichText id="key-changes-heading">
+
+## Key changes
+
+</RichText>
+
+<TabsBlock
+  id="key-change-tabs"
+  tabs={[
+    {
+      id: "tab-youtube-wrapper",
+      label: "YouTubeServiceWrapper.cs",
+      blocks: [
+        {
+          id: "diff-youtube-wrapper",
+          type: "diff",
+          summary: "Indexer sessions use a persisted key ring; Rotate advances ring index and persists on IAsyncDisposable.",
+          data: {
+            filename: "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Clients/YouTubeServiceWrapper.cs",
+            language: "csharp",
+            mode: "split",
+            before: "public class YouTubeServiceWrapper(\n    YouTubeService youTubeService,\n    ApplicationWrapper applicationWrapper,\n    IYouTubeApiKeyStrategy youTubeApiKeyStrategy,\n    ILogger<YouTubeServiceWrapper> logger\n) : IYouTubeServiceWrapper\n{\n    private ApplicationWrapper _applicationWrapper = applicationWrapper;\n    private int _reattempt;\n    public bool CanRotate => _reattempt <= _applicationWrapper.Reattempts;\n\n    public void Rotate()\n    {\n        var application = youTubeApiKeyStrategy.GetApplication(\n            _applicationWrapper.Application.Usage,\n            _applicationWrapper.Index,\n            ++_reattempt);\n        YouTubeService = new YouTubeService(/* new ApiKey */);\n        _applicationWrapper = application;\n    }\n}",
+            after: "public class YouTubeServiceWrapper(\n    /* ... */\n    IReadOnlyList<ApplicationWrapper>? indexerKeyRing,\n    int initialRingIndex,\n    IYouTubeIndexerKeyStateService? indexerKeyStateService,\n    ILogger<YouTubeServiceWrapper> logger\n) : IYouTubeServiceWrapper, IAsyncDisposable\n{\n    private int _ringIndex = initialRingIndex;\n    private readonly IReadOnlyList<ApplicationWrapper> _indexerKeyRing = /* built for Indexer usage */;\n\n    public bool CanRotate =>\n        Usage == ApplicationUsage.Indexer\n            ? _ringIndex < _indexerKeyRing.Count\n            : _reattempt <= _applicationWrapper.Reattempts;\n\n    public void Rotate()\n    {\n        if (Usage == ApplicationUsage.Indexer) { RotateIndexerKey(); return; }\n        /* legacy reattempt path */\n    }\n\n    public async ValueTask DisposeAsync()\n    {\n        await indexerKeyStateService.PersistSessionEndAsync(_ringIndex, CurrentApplication.ApiKey);\n    }\n}",
+            annotations: [
+              { side: "after", lines: "8-9", label: "Ring state", note: "Ring index bootstrapped from Cosmos via IndexerKeyRingSessionResolver." },
+              { side: "after", lines: "16-19", label: "Indexer rotate", note: "CanRotate walks the full ring, not just per-slot reattempts." },
+              { side: "after", lines: "28-31", label: "Persist", note: "Session end writes lastRingIndex + lastApiKey for next hourly pass." },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      id: "tab-tolerant-channel",
+      label: "TolerantYouTubeChannelService.cs",
+      blocks: [
+        {
+          id: "diff-tolerant-channel",
+          type: "annotated-code",
+          summary: "New tolerant wrapper rotates indexer API keys when channels.list hits quota (bab1ddc6).",
+          data: {
+            filename: "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Channel/TolerantYouTubeChannelService.cs",
+            language: "csharp",
+            code: "while (youTubeService.CanRotate && !success && !rotationExcepted)\n{\n    try\n    {\n        quotaUsageTracker.RecordCall(youTubeService.CurrentApplication, youTubeService.Usage);\n        result = await youTubeChannelService.GetChannel(channelId, indexingContext, ...);\n        success = true;\n    }\n    catch (YouTubeQuotaException)\n    {\n        quotaUsageTracker.RecordQuotaHit(youTubeService.CurrentApplication, youTubeService.Usage);\n        youTubeService.Rotate();\n    }\n}\nif (!success)\n{\n    indexingContext.SkipYouTubeUrlResolving = true;\n}",
+            annotations: [
+              { lines: "1", note: "Retry loop bounded by ring CanRotate — same pattern as playlist tolerance." },
+              { lines: "10-12", label: "Quota hit", note: "Records quota hit for daily report before rotating." },
+              { lines: "16-18", label: "Bypass", note: "Sets per-podcast bypass when ring exhausted; no longer silent failure." },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      id: "tab-podcasts-updater",
+      label: "PodcastsUpdater.cs",
+      blocks: [
+        {
+          id: "diff-podcasts-updater",
+          type: "diff",
+          summary: "Clone IndexingContext per podcast so one quota bypass does not poison the whole batch (5eee6bbe).",
+          data: {
+            filename: "Class-Libraries/RedditPodcastPoster.PodcastServices/PodcastsUpdater.cs",
+            language: "csharp",
+            mode: "split",
+            before: "foreach (var podcastId in podcastIds)\n{\n    var podcast = await podcastRepository.GetPodcast(podcastId);\n    var result = await podcastUpdater.Update(podcast!, false, indexingContext);\n}",
+            after: "var orderedPodcasts = podcasts\n    .OrderByDescending(x => x.Podcast?.DependsOnYouTubeForEpisodeDiscovery() == true)\n    .ThenBy(x => x.Id);\n\nforeach (var (podcastId, podcast) in orderedPodcasts)\n{\n    var podcastIndexingContext = indexingContext with { };\n    var result = await podcastUpdater.Update(podcast!, false, podcastIndexingContext);\n    anyYouTubeBypassed |= !initialSkipYouTube && podcastIndexingContext.SkipYouTubeUrlResolving;\n}\nif (anyYouTubeBypassed) indexingContext.SkipYouTubeUrlResolving = true;",
+            annotations: [
+              { side: "after", lines: "1-3", label: "Ordering", note: "YouTube-authority podcasts indexed first while keys are fresh." },
+              { side: "after", lines: "7", label: "Isolation", note: "record clone — downstream handlers mutate only this copy." },
+              { side: "after", lines: "10", label: "Rollup", note: "Batch context reflects any bypass for orchestration YouTubeError." },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      id: "tab-episode-provider",
+      label: "EpisodeProvider.cs",
+      blocks: [
+        {
+          id: "diff-episode-provider",
+          type: "diff",
+          summary: "Uncommitted — run YouTube retrieval before Spotify/Apple when podcast depends on YouTube for discovery (Jakub fix).",
+          data: {
+            filename: "Class-Libraries/RedditPodcastPoster.Common/Episodes/EpisodeProvider.cs",
+            language: "csharp",
+            mode: "split",
+            before: "public async Task<IList<Episode>> GetEpisodes(...)\n{\n    IList<Episode>? newEpisodes = null;\n    var handled = false;\n    if (indexingContext.IndexSpotify && podcast.ReleaseAuthority is null or Service.Spotify)\n    {\n        (newEpisodes, handled) = await spotifyEpisodeRetrievalHandler.GetEpisodes(...);\n    }\n    if (!handled && podcast.ReleaseAuthority != Service.YouTube && podcast.AppleId != null)\n    {\n        (newEpisodes, handled) = await appleEpisodeRetrievalHandler.GetEpisodes(...);\n    }\n    if (!indexingContext.SkipYouTubeUrlResolving && !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))\n    {\n        /* YouTube last — Spotify could mark handled first */\n    }\n}",
+            after: "public async Task<IList<Episode>> GetEpisodes(...)\n{\n    if (!indexingContext.SkipYouTubeUrlResolving && podcast.DependsOnYouTubeForEpisodeDiscovery())\n    {\n        (newEpisodes, handled) = await RetrieveYouTubeEpisodes(...);\n    }\n    if (indexingContext.IndexSpotify && podcast.ReleaseAuthority is null or Service.Spotify) { ... }\n    if (!handled && podcast.ReleaseAuthority != Service.YouTube && podcast.AppleId != null) { ... }\n    if (!indexingContext.SkipYouTubeUrlResolving && podcast.YouTubeChannelId != null\n        && !podcast.DependsOnYouTubeForEpisodeDiscovery())\n    {\n        (newEpisodes, handled) = await RetrieveYouTubeEpisodes(...);\n    }\n}",
+            annotations: [
+              { side: "after", lines: "3-6", label: "YouTube-first", note: "YouTube-authority podcasts (e.g. Jakub) hit channel/playlist before Spotify." },
+              { side: "after", lines: "10-13", label: "Secondary path", note: "Non-authority podcasts still get YouTube enrichment after primary handler." },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      id: "tab-indexer-youtube-error",
+      label: "Indexer.cs",
+      blocks: [
+        {
+          id: "diff-indexer",
+          type: "diff",
+          summary: "Uncommitted — YouTubeError means YouTube was enabled on this pass but ended bypassed, not any context drift.",
+          data: {
+            filename: "Cloud/Indexer/Indexer.cs",
+            language: "csharp",
+            mode: "split",
+            before: "var originalIndexingContext = indexerContext with { };\n/* ... after UpdatePodcasts ... */\nvar result = indexerContext with\n{\n    YouTubeError = indexingContext.SkipYouTubeUrlResolving != originalIndexingContext.SkipYouTubeUrlResolving,\n    SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalIndexingContext.SkipSpotifyUrlResolving\n};",
+            after: "var youTubeEnabledThisPass = indexingStrategy.ResolveYouTube();\n/* ... */\nvar result = indexerContext with\n{\n    YouTubeError = youTubeEnabledThisPass && indexingContext.SkipYouTubeUrlResolving,\n    SpotifyError = indexingContext.SkipSpotifyUrlResolving\n};",
+            annotations: [
+              { side: "before", lines: "3-5", label: "False positive", note: "Compared orchestration context to indexer context — unrelated drift flagged as error." },
+              { side: "after", lines: "1", label: "Pass intent", note: "ResolveYouTube() captures whether this pass should have used YouTube." },
+              { side: "after", lines: "4", label: "Semantics", note: "Error only when enabled pass exhausted keys / bypassed." },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      id: "tab-hourly-catchup",
+      label: "OrchestrationTrigger.cs",
+      blocks: [
+        {
+          id: "diff-catchup",
+          type: "annotated-code",
+          summary: "Uncommitted HourlyCatchUp timer at :05 past each hour schedules missed hourly orchestrations.",
+          data: {
+            filename: "Cloud/Indexer/OrchestrationTrigger.cs",
+            language: "csharp",
+            code: "[Function(\"HourlyCatchUp\")]\npublic async Task RunHourlyCatchUp(\n    [TimerTrigger(\"0 5 * * * *\")] TimerInfo info,\n    [DurableClient] DurableTaskClient client,\n    CancellationToken cancellationToken)\n{\n    var hourlyInstances = await GetHourlyOrchestrationInstancesAsync(client, cancellationToken);\n    if (!HourlyOrchestrationCatchUpEvaluator.ShouldScheduleCatchUp(utcNow, hourlyInstances))\n        return;\n    await ScheduleHourlyOrchestrationAsync(client, nameof(RunHourlyCatchUp), cancellationToken);\n}",
+            annotations: [
+              { lines: "3", note: "Fires five minutes after the hour — after primary Hourly trigger at :00." },
+              { lines: "8-9", note: "ShouldScheduleCatchUp skips when an instance exists for current UTC hour or is still running." },
+              { lines: "11", note: "Reuses shared ScheduleHourlyOrchestrationAsync extracted from RunHourly." },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      id: "tab-quota-report",
+      label: "YouTubeQuotaReportTrigger.cs",
+      blocks: [
+        {
+          id: "diff-quota-report",
+          type: "annotated-code",
+          summary: "Daily timer flushes in-memory quota tracker to Cosmos (5eee6bbe).",
+          data: {
+            filename: "Cloud/Indexer/YouTubeQuotaReportTrigger.cs",
+            language: "csharp",
+            code: "[Function(\"YouTubeQuotaReport\")]\npublic async Task Run(\n    [TimerTrigger(\"0 55 6 * * *\")] TimerInfo timerInfo,\n    CancellationToken cancellationToken)\n{\n    var reportDate = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-1));\n    var report = quotaUsageTracker.CreateReport(reportDate, \"Indexer\");\n    await lookupRepository.SaveYouTubeQuotaDailyReport(report);\n    quotaUsageTracker.Reset();\n}",
+            annotations: [
+              { lines: "3", note: "06:55 UTC — after Pacific quota day boundary for observability." },
+              { lines: "7-8", note: "Report includes per-key stats plus used/unused indexer key summaries." },
+              { lines: "9", note: "Reset tracker after flush so next day starts clean." },
+            ],
+          },
+        },
+      ],
+    },
+  ]}
+/>

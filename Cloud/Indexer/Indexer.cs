@@ -56,17 +56,16 @@ public class Indexer(
         logger.LogInformation("Pre: {indexerContext} {indexerOptions}", indexerContext.ToString(),
             _indexerOptions.ToString());
         var isPrimaryPass = indexingStrategy.IsPrimaryPass(indexerContextWrapper.Pass, passes);
+        var youTubeEnabledThisPass = indexingStrategy.ResolveYouTube();
         var indexingContext = _indexerOptions.ToIndexingContext() with
         {
             IndexSpotify = indexingStrategy.IndexSpotify(),
             SkipSpotifyUrlResolving = false,
-            SkipYouTubeUrlResolving = !indexingStrategy.ResolveYouTube(),
+            SkipYouTubeUrlResolving = !youTubeEnabledThisPass,
             SkipExpensiveYouTubeQueries = !isPrimaryPass || !indexingStrategy.ExpensiveYouTubeQueries(),
             SkipExpensiveSpotifyQueries = !isPrimaryPass || !indexingStrategy.ExpensiveSpotifyQueries(),
             SkipPodcastDiscovery = true
         };
-
-        var originalIndexingContext = indexerContext with { };
 
         logger.LogInformation(
             "Indexer pass {Pass} indexing-context: {IndexingContext}",
@@ -92,6 +91,20 @@ public class Indexer(
         }
 
         var indexerOperationId = indexerContext.IndexerPassOperationIds[indexerContextWrapper.Pass - 1];
+        var idsToIndex = indexerContext.IndexIds[indexerContextWrapper.Pass - 1];
+        idsToIndexCount = idsToIndex.Length;
+
+        logger.LogWarning(
+            "IndexerPassStart instance-id='{InstanceId}' pass='{Pass}' operation-id='{OperationId}' podcast-count='{PodcastCount}' youtube-enabled-pass='{YouTubeEnabledPass}' skip-youtube='{SkipYouTube}' skip-expensive-youtube='{SkipExpensiveYouTube}' skip-expensive-spotify='{SkipExpensiveSpotify}'",
+            context.InstanceId,
+            indexerContextWrapper.Pass,
+            indexerOperationId,
+            idsToIndexCount,
+            youTubeEnabledThisPass,
+            indexingContext.SkipYouTubeUrlResolving,
+            indexingContext.SkipExpensiveYouTubeQueries,
+            indexingContext.SkipExpensiveSpotifyQueries);
+
         initiatedStatus = await activityMarshaller.Initiate(indexerOperationId, nameof(Indexer));
 
         if (initiatedStatus != ActivityStatus.Initiated)
@@ -117,9 +130,6 @@ public class Indexer(
         bool results;
         try
         {
-            var idsToIndex = indexerContext.IndexIds[indexerContextWrapper.Pass - 1];
-            idsToIndexCount = idsToIndex.Length;
-
             var updateStopwatch = Stopwatch.StartNew();
             results = await podcastsUpdater.UpdatePodcasts(idsToIndex, indexingContext);
             updateStopwatch.Stop();
@@ -165,12 +175,25 @@ public class Indexer(
         {
             Success = results,
             SkipYouTubeUrlResolving = indexingContext.SkipYouTubeUrlResolving,
-            YouTubeError = indexingContext.SkipYouTubeUrlResolving != originalIndexingContext.SkipYouTubeUrlResolving,
+            YouTubeError = youTubeEnabledThisPass && indexingContext.SkipYouTubeUrlResolving,
             SkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving,
-            SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalIndexingContext.SkipSpotifyUrlResolving
+            SpotifyError = indexingContext.SkipSpotifyUrlResolving
         };
 
         memoryProbe.End();
+
+        logger.LogWarning(
+            "IndexerPassComplete instance-id='{InstanceId}' pass='{Pass}' operation-id='{OperationId}' podcast-count='{PodcastCount}' success='{Success}' skip-youtube='{SkipYouTube}' youtube-error='{YouTubeError}' skip-spotify='{SkipSpotify}' spotify-error='{SpotifyError}' update-ms='{UpdateMs}'",
+            context.InstanceId,
+            indexerContextWrapper.Pass,
+            indexerOperationId,
+            idsToIndexCount,
+            result.Success,
+            result.SkipYouTubeUrlResolving,
+            result.YouTubeError,
+            result.SkipSpotifyUrlResolving,
+            result.SpotifyError,
+            updateMs);
 
         logger.LogInformation("{nameofRunAsync} Completed. Pass: {indexerContextWrapperPass}. Result: {result}",
             nameof(RunAsync), indexerContextWrapper.Pass, result);
