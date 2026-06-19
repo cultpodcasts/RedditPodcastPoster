@@ -71,7 +71,7 @@ public class PodcastsUpdater(
                             .Count(e => e.EnrichmentContext.YouTubeUrlUpdated ||
                                         e.EnrichmentContext.YouTubeIdUpdated);
 
-                        logger.LogWarning(
+                        logger.LogInformation(
                             "YouTubeAuthorityPodcastAudit podcast-id='{PodcastId}' podcast-name='{PodcastName}' youtube-enabled='{YouTubeEnabled}' youtube-bypassed='{YouTubeBypassed}' episodes-added='{EpisodesAdded}' youtube-enriched='{YouTubeEnriched}'",
                             podcast!.Id, podcast.Name, youtubeEnabled, result.YouTubeBypassed,
                             result.MergeResult.AddedEpisodes.Count, youtubeEnriched);
@@ -101,7 +101,7 @@ public class PodcastsUpdater(
             }
             else if (dependsOnYouTubeForDiscovery)
             {
-                logger.LogWarning(
+                logger.LogInformation(
                     "YouTubeAuthorityPodcastAudit podcast-id='{PodcastId}' podcast-name='{PodcastName}' youtube-enabled='{YouTubeEnabled}' indexed='False'",
                     podcast!.Id, podcast.Name, youtubeEnabled);
             }
@@ -109,7 +109,7 @@ public class PodcastsUpdater(
 
         if (youtubeAuthorityInBatch > 0)
         {
-            logger.LogWarning(
+            logger.LogInformation(
                 "YouTubeAuthorityIndexingAudit youtube-enabled='{YouTubeEnabled}' in-batch='{InBatch}' indexed-with-youtube-pass='{IndexedWithYouTubePass}' youtube-bypassed='{YouTubeBypassed}'",
                 youtubeEnabled, youtubeAuthorityInBatch, youtubeAuthorityIndexedWithYouTubePass,
                 youtubeAuthorityBypassed);

@@ -63,12 +63,6 @@ public class IndexIdProvider(
 
             var batchArray = batch.ToArray();
             logger.LogInformation("Batch {i}: {batch}", i + 1, batchArray);
-            if (i == 3)
-            {
-                logger.LogWarning(
-                    "IndexIdProvider batch-4-summary podcast-count='{PodcastCount}'",
-                    batchArray.Length);
-            }
             batches.Add(batchArray);
         }
 
