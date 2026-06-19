@@ -17,12 +17,14 @@ public class YouTubeEpisodeRetrievalHandler(
         IList<RedditPodcastPoster.Models.Episode> newEpisodes = new List<RedditPodcastPoster.Models.Episode>();
         if (string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
+            LogDiscoveryPath(podcast, "skipped-no-channel", indexingContext, 0);
             return new EpisodeRetrievalHandlerResponse(newEpisodes, handled);
         }
 
         if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
         {
             var runExpensivePagination = indexingContext.RunExpensiveYouTubePlaylistPagination(podcast);
+            var discoveryPath = runExpensivePagination ? "playlist-paginated" : "playlist-single-page";
             if (podcast.HasExpensiveYouTubePlaylistQuery() && indexingContext.SkipExpensiveYouTubeQueries)
             {
                 logger.LogInformation(
@@ -42,6 +44,8 @@ public class YouTubeEpisodeRetrievalHandler(
             {
                 podcast.YouTubePlaylistQueryIsExpensive = true;
             }
+
+            LogDiscoveryPath(podcast, discoveryPath, indexingContext, newEpisodes.Count);
         }
         else
         {
@@ -62,10 +66,30 @@ public class YouTubeEpisodeRetrievalHandler(
             {
                 newEpisodes = foundEpisodes;
             }
+
+            LogDiscoveryPath(podcast, "channel", indexingContext, newEpisodes.Count);
         }
 
         handled = true;
 
         return new EpisodeRetrievalHandlerResponse(newEpisodes, handled);
+    }
+
+    private void LogDiscoveryPath(Podcast podcast, string discoveryPath, IndexingContext indexingContext, int episodesFound)
+    {
+        if (podcast.DependsOnYouTubeForEpisodeDiscovery())
+        {
+            logger.LogWarning(
+                "YouTubeDiscoveryPath podcast-id='{PodcastId}' path='{DiscoveryPath}' youtube-authority='{YouTubeAuthority}' skip-youtube='{SkipYouTube}' skip-expensive-youtube='{SkipExpensiveYouTube}' episodes-found='{EpisodesFound}'",
+                podcast.Id, discoveryPath, true,
+                indexingContext.SkipYouTubeUrlResolving, indexingContext.SkipExpensiveYouTubeQueries, episodesFound);
+        }
+        else
+        {
+            logger.LogInformation(
+                "YouTubeDiscoveryPath podcast-id='{PodcastId}' path='{DiscoveryPath}' youtube-authority='{YouTubeAuthority}' skip-youtube='{SkipYouTube}' skip-expensive-youtube='{SkipExpensiveYouTube}' episodes-found='{EpisodesFound}'",
+                podcast.Id, discoveryPath, false,
+                indexingContext.SkipYouTubeUrlResolving, indexingContext.SkipExpensiveYouTubeQueries, episodesFound);
+        }
     }
 }

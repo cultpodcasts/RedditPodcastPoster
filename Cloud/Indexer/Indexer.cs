@@ -29,6 +29,7 @@ public class Indexer(
         var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Indexer));
         ActivityStatus initiatedStatus = ActivityStatus.Unknown;
         ActivityStatus completedStatus = ActivityStatus.Unknown;
+        var idsToIndexCount = 0;
         var updateMs = 0L;
 
         logger.LogInformation(
@@ -90,6 +91,19 @@ public class Indexer(
         }
 
         var indexerOperationId = indexerContext.IndexerPassOperationIds[indexerContextWrapper.Pass - 1];
+        var idsToIndex = indexerContext.IndexIds[indexerContextWrapper.Pass - 1];
+        idsToIndexCount = idsToIndex.Length;
+
+        logger.LogWarning(
+            "IndexerPassStart instance-id='{InstanceId}' pass='{Pass}' operation-id='{OperationId}' podcast-count='{PodcastCount}' youtube-enabled-pass='{YouTubeEnabledPass}' skip-youtube='{SkipYouTube}' skip-expensive-youtube='{SkipExpensiveYouTube}' skip-expensive-spotify='{SkipExpensiveSpotify}'",
+            context.InstanceId,
+            indexerContextWrapper.Pass,
+            indexerOperationId,
+            idsToIndexCount,
+            youTubeEnabledThisPass,
+            indexingContext.SkipYouTubeUrlResolving,
+            indexingContext.SkipExpensiveYouTubeQueries,
+            indexingContext.SkipExpensiveSpotifyQueries);
 
         initiatedStatus = await activityMarshaller.Initiate(indexerOperationId, nameof(Indexer));
 
@@ -116,7 +130,6 @@ public class Indexer(
         bool results;
         try
         {
-            var idsToIndex = indexerContext.IndexIds[indexerContextWrapper.Pass - 1];
             var updateStopwatch = Stopwatch.StartNew();
             results = await podcastsUpdater.UpdatePodcasts(idsToIndex, indexingContext);
             updateStopwatch.Stop();
@@ -168,6 +181,19 @@ public class Indexer(
         };
 
         memoryProbe.End();
+
+        logger.LogWarning(
+            "IndexerPassComplete instance-id='{InstanceId}' pass='{Pass}' operation-id='{OperationId}' podcast-count='{PodcastCount}' success='{Success}' skip-youtube='{SkipYouTube}' youtube-error='{YouTubeError}' skip-spotify='{SkipSpotify}' spotify-error='{SpotifyError}' update-ms='{UpdateMs}'",
+            context.InstanceId,
+            indexerContextWrapper.Pass,
+            indexerOperationId,
+            idsToIndexCount,
+            result.Success,
+            result.SkipYouTubeUrlResolving,
+            result.YouTubeError,
+            result.SkipSpotifyUrlResolving,
+            result.SpotifyError,
+            updateMs);
 
         logger.LogInformation("{nameofRunAsync} Completed. Pass: {indexerContextWrapperPass}. Result: {result}",
             nameof(RunAsync), indexerContextWrapper.Pass, result);

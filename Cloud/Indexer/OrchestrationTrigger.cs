@@ -21,7 +21,10 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
         [DurableClient] DurableTaskClient client,
         CancellationToken cancellationToken)
     {
-        logger.LogInformation($"{nameof(OrchestrationTrigger)} {nameof(RunHourly)} initiated.");
+        var hourUtc = DateTime.UtcNow.Hour;
+        logger.LogWarning(
+            "OrchestrationTrigger RunHourly initiated hour-utc='{HourUtc}'.",
+            hourUtc);
 
         if (await HasActiveOrchestrationInstanceAsync(client, nameof(HourlyOrchestration), cancellationToken))
         {
@@ -31,7 +34,7 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
             return;
         }
 
-        await ScheduleHourlyOrchestrationAsync(client, nameof(RunHourly), cancellationToken);
+        await ScheduleHourlyOrchestrationAsync(client, nameof(RunHourly), hourUtc, cancellationToken);
     }
 
     [Function("HourlyCatchUp")]
@@ -59,11 +62,11 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
             return;
         }
 
-        logger.LogInformation(
+        logger.LogWarning(
             "{OrchestrationTriggerName} {RunHourlyCatchUpName} scheduling missed hourly orchestration for UTC hour {HourUtc}.",
             nameof(OrchestrationTrigger), nameof(RunHourlyCatchUp), utcNow.Hour);
 
-        await ScheduleHourlyOrchestrationAsync(client, nameof(RunHourlyCatchUp), cancellationToken);
+        await ScheduleHourlyOrchestrationAsync(client, nameof(RunHourlyCatchUp), utcNow.Hour, cancellationToken);
     }
 
 
@@ -113,6 +116,7 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
     private async Task ScheduleHourlyOrchestrationAsync(
         DurableTaskClient client,
         string triggerName,
+        int hourUtc,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -135,9 +139,9 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
             throw;
         }
 
-        logger.LogInformation(
-            "{OrchestrationTriggerName} {TriggerName} complete. Instance-id= '{InstanceId}'.",
-            nameof(OrchestrationTrigger), triggerName, instanceId);
+        logger.LogWarning(
+            "OrchestrationTrigger hourly-scheduled trigger='{TriggerName}' hour-utc='{HourUtc}' instance-id='{InstanceId}'.",
+            triggerName, hourUtc, instanceId);
     }
 
     private static async Task<bool> HasActiveOrchestrationInstanceAsync(
