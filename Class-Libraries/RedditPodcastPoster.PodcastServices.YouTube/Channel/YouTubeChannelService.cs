@@ -1,14 +1,19 @@
 using System.Collections.Concurrent;
+using System.Net;
+using Google;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Channel;
 
 public class YouTubeChannelService(
     IYouTubeServiceWrapper youTubeService,
+    IYouTubeQuotaUsageTracker quotaUsageTracker,
     ILogger<YouTubeChannelService> logger)
     : IYouTubeChannelService
 {
@@ -72,6 +77,25 @@ public class YouTubeChannelService(
         try
         {
             result = await listRequest.ExecuteAsync();
+            quotaUsageTracker.RecordQuotaConsumed(
+                youTubeService.CurrentApplication,
+                youTubeService.Usage,
+                YouTubeQuotaCosts.ChannelsList);
+        }
+        catch (GoogleApiException ex)
+        {
+            if (ex.HttpStatusCode == HttpStatusCode.Forbidden && ex.Message.Contains("exceeded") &&
+                ex.Message.Contains("quota"))
+            {
+                logger.LogWarning(ex, "Exceeded Quota occurred.");
+                throw new YouTubeQuotaException();
+            }
+
+            logger.LogError(ex,
+                "Failed to use {YouTubeService} obtaining channel with id '{ChannelId}' and request-scope '{requestScope}'.",
+                nameof(youTubeService.YouTubeService), channelId.ChannelId, requestScope);
+            indexingContext.SkipYouTubeUrlResolving = true;
+            return null;
         }
         catch (Exception ex)
         {
