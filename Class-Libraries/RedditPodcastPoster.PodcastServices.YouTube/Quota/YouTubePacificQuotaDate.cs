@@ -1,10 +1,10 @@
 namespace RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
-internal static class YouTubePacificQuotaDate
+public static class YouTubePacificQuotaDate
 {
     private static readonly TimeZoneInfo PacificTimeZone = ResolvePacificTimeZone();
 
-    internal static DateOnly GetCurrent(DateTime utcNow)
+    public static DateOnly GetCurrent(DateTime utcNow)
     {
         var pacificNow = TimeZoneInfo.ConvertTimeFromUtc(utcNow, PacificTimeZone);
         return DateOnly.FromDateTime(pacificNow);

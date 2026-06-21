@@ -41,6 +41,9 @@ public enum ModelType
     YouTubeQuotaReport = 12,
 
     [JsonPropertyName(nameof(YouTubeIndexerKeyState))]
-    YouTubeIndexerKeyState = 13
+    YouTubeIndexerKeyState = 13,
+
+    [JsonPropertyName(nameof(YouTubeQuotaUsageState))]
+    YouTubeQuotaUsageState = 14
 
 }

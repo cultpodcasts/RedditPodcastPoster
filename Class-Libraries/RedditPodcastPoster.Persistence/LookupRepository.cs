@@ -62,6 +62,16 @@ public class LookupRepository(
         await lookupContainer.UpsertItemAsync(state, new PartitionKey(state.Id.ToString()));
     }
 
+    public Task<YouTubeQuotaUsageState?> GetYouTubeQuotaUsageState()
+    {
+        return GetById<YouTubeQuotaUsageState>(YouTubeQuotaUsageState._Id);
+    }
+
+    public async Task SaveYouTubeQuotaUsageState(YouTubeQuotaUsageState state)
+    {
+        await lookupContainer.UpsertItemAsync(state, new PartitionKey(state.Id.ToString()));
+    }
+
     public async Task IncrementHomePageActiveEpisodeCount(int delta)
     {
         if (delta == 0)

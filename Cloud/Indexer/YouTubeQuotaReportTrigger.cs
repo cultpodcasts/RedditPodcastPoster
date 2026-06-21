@@ -22,19 +22,21 @@ public class YouTubeQuotaReportTrigger(
         TimerInfo timerInfo,
         CancellationToken cancellationToken)
     {
-        var reportDate = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-1));
+        var reportDate = YouTubePacificQuotaDate.GetCurrent(DateTime.UtcNow);
         logger.LogInformation(
-            "Flushing YouTube quota usage report for {ReportDate} from {SourceApplication}.",
+            "Flushing YouTube quota usage report for Pacific quota day {ReportDate} from {SourceApplication}.",
             reportDate,
             SourceApplication);
 
-        var report = quotaUsageTracker.CreateReport(reportDate, SourceApplication);
+        var report = await quotaUsageTracker.CreateReportAsync(reportDate, SourceApplication, cancellationToken);
         await lookupRepository.SaveYouTubeQuotaDailyReport(report);
-        quotaUsageTracker.Reset();
+        await quotaUsageTracker.ResetAsync(cancellationToken);
 
         logger.LogInformation(
-            "Saved YouTube quota report {ReportId} with {KeyCount} keys.",
+            "Saved YouTube quota report {ReportId} with {KeyCount} keys, {UsedIndexerKeyCount} used indexer keys, {UnusedIndexerKeyCount} unused indexer keys.",
             report.Id,
-            report.Keys.Count);
+            report.Keys.Count,
+            report.UsedIndexerKeys.Count,
+            report.UnusedIndexerKeys.Count);
     }
 }

@@ -15,4 +15,6 @@ public interface ILookupRepository
     Task<YouTubeQuotaDailyReport?> GetYouTubeQuotaDailyReport(DateOnly reportDate, string sourceApplication);
     Task<YouTubeIndexerKeyState?> GetYouTubeIndexerKeyState();
     Task SaveYouTubeIndexerKeyState(YouTubeIndexerKeyState state);
+    Task<YouTubeQuotaUsageState?> GetYouTubeQuotaUsageState();
+    Task SaveYouTubeQuotaUsageState(YouTubeQuotaUsageState state);
 }

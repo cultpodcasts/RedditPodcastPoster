@@ -77,7 +77,7 @@ public class YouTubeChannelService(
         try
         {
             result = await listRequest.ExecuteAsync();
-            quotaUsageTracker.RecordQuotaConsumed(
+            await quotaUsageTracker.RecordQuotaConsumedAsync(
                 youTubeService.CurrentApplication,
                 youTubeService.Usage,
                 YouTubeQuotaCosts.ChannelsList);

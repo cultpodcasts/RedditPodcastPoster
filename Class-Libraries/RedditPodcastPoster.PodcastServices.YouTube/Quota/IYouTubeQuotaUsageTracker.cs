@@ -5,13 +5,24 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 public interface IYouTubeQuotaUsageTracker
 {
-    void RecordCall(Application application, ApplicationUsage usage);
+    Task RecordCallAsync(Application application, ApplicationUsage usage, CancellationToken cancellationToken = default);
 
-    void RecordQuotaHit(Application application, ApplicationUsage usage);
+    Task RecordQuotaHitAsync(Application application, ApplicationUsage usage, CancellationToken cancellationToken = default);
 
-    void RecordQuotaConsumed(Application application, ApplicationUsage usage, int quotaUnits);
+    Task RecordQuotaConsumedAsync(
+        Application application,
+        ApplicationUsage usage,
+        int quotaUnits,
+        CancellationToken cancellationToken = default);
 
-    YouTubeQuotaDailyReport CreateReport(DateOnly reportDate, string sourceApplication);
+    Task<YouTubeQuotaDailyReport> CreateReportAsync(
+        DateOnly reportDate,
+        string sourceApplication,
+        CancellationToken cancellationToken = default);
 
-    void Reset();
+    Task EnsureHydratedAsync(CancellationToken cancellationToken = default);
+
+    Task FlushToCosmosAsync(CancellationToken cancellationToken = default);
+
+    Task ResetAsync(CancellationToken cancellationToken = default);
 }

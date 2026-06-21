@@ -25,7 +25,7 @@ public class TolerantYouTubePlaylistService(
         {
             try
             {
-                quotaUsageTracker.RecordCall(youTubeService.CurrentApplication, youTubeService.Usage);
+                await quotaUsageTracker.RecordCallAsync(youTubeService.CurrentApplication, youTubeService.Usage);
                 result = await youTubePlaylistService.GetPlaylistVideoSnippets(youTubeService, playlistId,
                     indexingContext, withContentDetails, expensivePlaylist);
                 success = true;
@@ -34,7 +34,7 @@ public class TolerantYouTubePlaylistService(
             {
                 logger.LogInformation(
                     "Quota exceeded observed. Rotating api-key .");
-                quotaUsageTracker.RecordQuotaHit(youTubeService.CurrentApplication, youTubeService.Usage);
+                await quotaUsageTracker.RecordQuotaHitAsync(youTubeService.CurrentApplication, youTubeService.Usage);
                 try
                 {
                     youTubeService.Rotate();

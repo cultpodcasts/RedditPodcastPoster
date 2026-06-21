@@ -28,7 +28,7 @@ public class TolerantYouTubeChannelService(
         {
             try
             {
-                quotaUsageTracker.RecordCall(youTubeService.CurrentApplication, youTubeService.Usage);
+                await quotaUsageTracker.RecordCallAsync(youTubeService.CurrentApplication, youTubeService.Usage);
                 result = await youTubeChannelService.GetChannel(
                     channelId,
                     indexingContext,
@@ -41,7 +41,7 @@ public class TolerantYouTubeChannelService(
             catch (YouTubeQuotaException)
             {
                 logger.LogInformation("Quota exceeded observed. Rotating api-key.");
-                quotaUsageTracker.RecordQuotaHit(youTubeService.CurrentApplication, youTubeService.Usage);
+                await quotaUsageTracker.RecordQuotaHitAsync(youTubeService.CurrentApplication, youTubeService.Usage);
                 try
                 {
                     youTubeService.Rotate();

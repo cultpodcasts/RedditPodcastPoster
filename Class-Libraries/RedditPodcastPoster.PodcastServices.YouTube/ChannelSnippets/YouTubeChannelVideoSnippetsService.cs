@@ -45,7 +45,7 @@ public class YouTubeChannelVideoSnippetsService(
             try
             {
                 response = await searchListRequest.ExecuteAsync();
-                quotaUsageTracker.RecordQuotaConsumed(
+                await quotaUsageTracker.RecordQuotaConsumedAsync(
                     youTubeServiceWrapper.CurrentApplication,
                     youTubeServiceWrapper.Usage,
                     YouTubeQuotaCosts.SearchList);

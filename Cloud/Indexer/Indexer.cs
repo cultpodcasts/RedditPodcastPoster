@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 namespace Indexer;
 
@@ -17,6 +18,7 @@ public class Indexer(
     IActivityOptionsProvider activityOptionsProvider,
     IOptions<IndexerOptions> indexerOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
+    IYouTubeQuotaUsageTracker youTubeQuotaUsageTracker,
     ILogger<Indexer> logger)
     : TaskActivity<IndexerContextWrapper, IndexerContext>
 {
@@ -105,6 +107,18 @@ public class Indexer(
             indexingContext.SkipExpensiveYouTubeQueries,
             indexingContext.SkipExpensiveSpotifyQueries);
 
+        if (youTubeEnabledThisPass)
+        {
+            try
+            {
+                await youTubeQuotaUsageTracker.EnsureHydratedAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to hydrate YouTube quota usage tracker at indexer pass start.");
+            }
+        }
+
         initiatedStatus = await activityMarshaller.Initiate(indexerOperationId, nameof(Indexer));
 
         if (initiatedStatus != ActivityStatus.Initiated)
@@ -151,6 +165,18 @@ public class Indexer(
         }
         finally
         {
+            if (youTubeEnabledThisPass)
+            {
+                try
+                {
+                    await youTubeQuotaUsageTracker.FlushToCosmosAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failure to flush YouTube quota usage to Cosmos.");
+                }
+            }
+
             try
             {
                 completedStatus = await activityMarshaller.Complete(indexerOperationId, nameof(Indexer));

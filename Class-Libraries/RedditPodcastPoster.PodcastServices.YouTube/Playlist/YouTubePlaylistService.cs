@@ -65,7 +65,7 @@ public class YouTubePlaylistService(
             try
             {
                 playlistItemsListResponse = await playlistRequest.ExecuteAsync();
-                quotaUsageTracker.RecordQuotaConsumed(
+                await quotaUsageTracker.RecordQuotaConsumedAsync(
                     youTubeServiceWrapper.CurrentApplication,
                     youTubeServiceWrapper.Usage,
                     YouTubeQuotaCosts.PlaylistItemsList);
@@ -152,7 +152,7 @@ public class YouTubePlaylistService(
         playlistRequest.MaxResults = 1;
 
         var playlistResponse = await playlistRequest.ExecuteAsync();
-        quotaUsageTracker.RecordQuotaConsumed(
+        await quotaUsageTracker.RecordQuotaConsumedAsync(
             youTubeServiceWrapper.CurrentApplication,
             youTubeServiceWrapper.Usage,
             YouTubeQuotaCosts.PlaylistsList);

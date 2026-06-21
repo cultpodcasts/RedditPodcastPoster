@@ -54,6 +54,12 @@ public class TolerantYouTubeChannelServiceTests
             });
 
         var quotaTracker = new Mock<IYouTubeQuotaUsageTracker>();
+        quotaTracker
+            .Setup(x => x.RecordCallAsync(It.IsAny<Application>(), ApplicationUsage.Indexer, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        quotaTracker
+            .Setup(x => x.RecordQuotaHitAsync(It.IsAny<Application>(), ApplicationUsage.Indexer, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
         var sut = new TolerantYouTubeChannelService(
             wrapper.Object,
             channelService.Object,
@@ -67,7 +73,9 @@ public class TolerantYouTubeChannelServiceTests
         channelService.Verify(
             x => x.GetChannel(channelId, indexingContext, true, false, false, false),
             Times.Exactly(2));
-        quotaTracker.Verify(x => x.RecordQuotaHit(application, ApplicationUsage.Indexer), Times.Once);
+        quotaTracker.Verify(
+            x => x.RecordQuotaHitAsync(application, ApplicationUsage.Indexer, It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -101,6 +109,12 @@ public class TolerantYouTubeChannelServiceTests
             .ThrowsAsync(new YouTubeQuotaException());
 
         var quotaTracker = new Mock<IYouTubeQuotaUsageTracker>();
+        quotaTracker
+            .Setup(x => x.RecordCallAsync(It.IsAny<Application>(), ApplicationUsage.Indexer, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        quotaTracker
+            .Setup(x => x.RecordQuotaHitAsync(It.IsAny<Application>(), ApplicationUsage.Indexer, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
         var sut = new TolerantYouTubeChannelService(
             wrapper.Object,
             channelService.Object,
