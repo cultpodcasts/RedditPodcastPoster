@@ -27,7 +27,7 @@ YouTube keys use **Pascal-case prefix** `Youtube-ApiKey-N` where `N` is the vaul
 | **`Youtube-ApiKey-15`** | **`youTubeApiKey15`** | **13** | **Indexer Reattempt2 hour-window 1 (new cultpodcasts key)** |
 | **`Youtube-ApiKey-16`** | **`youTubeApiKey16`** | **15** | **Indexer Reattempt2 hour-window 3 (new cultpodcasts key)** |
 
-Slots 13 and 15 previously shared `Youtube-ApiKey-13` under the misspelled `cultcodcasts` application name. The two new keys get dedicated vault slots **15** and **16** and map to app slots **13** and **15**.
+Slots 13 and 15 previously shared `Youtube-ApiKey-13` under the misspelled `cultcodcasts` application name. The two new keys get dedicated vault slots **15** and **16** and map to app slots **13** and **15**. Their `Name` field is lowercase **`cultpodcasts`** (Google Cloud project id); other slots keep `CultPodcasts`.
 
 ### DisplayName scheme (Indexer)
 
@@ -97,49 +97,20 @@ $proj = 'Cloud/Indexer/Indexer.csproj'
 
 Console apps may use the same store via any project path, e.g. `Console-Apps/Index/Index.csproj`.
 
-Template (no real keys): [`secrets/youtube-keys.template.json`](../secrets/youtube-keys.template.json). Array indices **must** match bicep app slots 0–16. Copy to a gitignored path such as `secrets/youtube-keys.local.json` before filling in placeholders.
-
 ### Option A — set the two new keys only
 
 ```powershell
 $proj = 'Cloud/Indexer/Indexer.csproj'
 
 dotnet user-secrets set "youtube:Applications:13:ApiKey" "YOUR_NEW_KEY_FOR_HOURPRIMARY_1_REATTEMPT2" --project $proj
-dotnet user-secrets set "youtube:Applications:13:Name" "CultPodcasts" --project $proj
+dotnet user-secrets set "youtube:Applications:13:Name" "cultpodcasts" --project $proj
 dotnet user-secrets set "youtube:Applications:13:DisplayName" "Indexer-HourPrimary-1-Reattempt2-CultPodcasts" --project $proj
 dotnet user-secrets set "youtube:Applications:13:Reattempt" "2" --project $proj
 
 dotnet user-secrets set "youtube:Applications:15:ApiKey" "YOUR_NEW_KEY_FOR_HOURPRIMARY_3_REATTEMPT2" --project $proj
-dotnet user-secrets set "youtube:Applications:15:Name" "CultPodcasts" --project $proj
+dotnet user-secrets set "youtube:Applications:15:Name" "cultpodcasts" --project $proj
 dotnet user-secrets set "youtube:Applications:15:DisplayName" "Indexer-HourPrimary-3-Reattempt2-CultPodcasts" --project $proj
 dotnet user-secrets set "youtube:Applications:15:Reattempt" "2" --project $proj
-```
-
-### Option B — bulk import from JSON
-
-1. Copy `secrets/youtube-keys.template.json` to a **gitignored** path (e.g. `secrets/youtube-keys.local.json`).
-2. Fill in all `YOUR_YOUTUBE_API_KEY_*` placeholders with real values.
-3. Merge into user-secrets (PowerShell example):
-
-```powershell
-$local = Get-Content secrets/youtube-keys.local.json -Raw | ConvertFrom-Json
-$proj = 'Cloud/Indexer/Indexer.csproj'
-for ($i = 0; $i -lt $local.youtube.Applications.Count; $i++) {
-    $app = $local.youtube.Applications[$i]
-    dotnet user-secrets set "youtube:Applications:$i`:ApiKey" $app.ApiKey --project $proj
-    dotnet user-secrets set "youtube:Applications:$i`:Name" $app.Name --project $proj
-    dotnet user-secrets set "youtube:Applications:$i`:Usage" $app.Usage --project $proj
-    dotnet user-secrets set "youtube:Applications:$i`:DisplayName" $app.DisplayName --project $proj
-    if ($null -ne $app.Reattempt) {
-        dotnet user-secrets set "youtube:Applications:$i`:Reattempt" "$($app.Reattempt)" --project $proj
-    }
-}
-```
-
-### Option C — convert to Azure app-setting names
-
-```powershell
-dotnet run --project Console-Apps/SecretsToFunctionSettings -- secrets/youtube-keys.local.json
 ```
 
 ## Step 4 — When bicep deploys work again

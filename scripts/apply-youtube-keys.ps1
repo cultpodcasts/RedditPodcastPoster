@@ -58,10 +58,10 @@ $indexerDisplayNames = @(
     'youtube__Applications__10__DisplayName=Indexer-HourPrimary-3-Reattempt1-CultPodcasts'
     'youtube__Applications__11__DisplayName=Indexer-HourPrimary-4-Reattempt1-CultPodcasts'
     'youtube__Applications__13__DisplayName=Indexer-HourPrimary-1-Reattempt2-CultPodcasts'
-    'youtube__Applications__13__Name=CultPodcasts'
+    'youtube__Applications__13__Name=cultpodcasts'
     'youtube__Applications__14__DisplayName=Indexer-HourPrimary-2-Reattempt2-CultPodcasts'
     'youtube__Applications__15__DisplayName=Indexer-HourPrimary-3-Reattempt2-CultPodcasts'
-    'youtube__Applications__15__Name=CultPodcasts'
+    'youtube__Applications__15__Name=cultpodcasts'
     'youtube__Applications__16__DisplayName=Indexer-HourPrimary-4-Reattempt2-CultPodcasts'
 )
 
