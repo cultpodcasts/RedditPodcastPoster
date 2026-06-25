@@ -11,22 +11,29 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Tests;
 
 public class YouTubeServiceFactoryTests
 {
-    [Fact]
-    public void Create_ForBluesky_UsesApiKeyStrategyInsteadOfIndexerRing()
+    [Theory]
+    [InlineData(ApplicationUsage.Api, "api-key", "ApiKey-12 - Api")]
+    [InlineData(ApplicationUsage.Bluesky, "bluesky-key", "ApiKey-7 - Bluesky")]
+    [InlineData(ApplicationUsage.Cli, "cli-key", "ApiKey-3 - Cli")]
+    [InlineData(ApplicationUsage.Discover, "discover-key", "ApiKey-5 - Discover")]
+    public void Create_ForNonIndexerUsage_UsesApiKeyStrategyInsteadOfIndexerRing(
+        ApplicationUsage usage,
+        string apiKey,
+        string displayName)
     {
-        var blueskyApplication = new ApplicationWrapper(
+        var applicationWrapper = new ApplicationWrapper(
             new Application
             {
-                ApiKey = "bluesky-key",
-                Name = "BlueskyApp",
-                DisplayName = "ApiKey-7 - Bluesky",
-                Usage = ApplicationUsage.Bluesky
+                ApiKey = apiKey,
+                Name = $"{usage}App",
+                DisplayName = displayName,
+                Usage = usage
             },
             Index: 0,
             Reattempts: 0);
 
         var strategy = new Mock<IYouTubeApiKeyStrategy>();
-        strategy.Setup(x => x.GetApplication(ApplicationUsage.Bluesky)).Returns(blueskyApplication);
+        strategy.Setup(x => x.GetApplication(usage)).Returns(applicationWrapper);
 
         var serviceProvider = new Mock<IServiceProvider>();
 
@@ -36,10 +43,11 @@ public class YouTubeServiceFactoryTests
             NullLogger<YouTubeServiceFactory>.Instance,
             NullLogger<YouTubeServiceWrapper>.Instance);
 
-        var wrapper = factory.Create(ApplicationUsage.Bluesky);
+        var wrapper = factory.Create(usage);
 
-        wrapper.CurrentApplication.ApiKey.Should().Be("bluesky-key");
-        wrapper.Usage.Should().Be(ApplicationUsage.Bluesky);
-        strategy.Verify(x => x.GetApplication(ApplicationUsage.Bluesky), Times.Once);
+        wrapper.CurrentApplication.ApiKey.Should().Be(apiKey);
+        wrapper.Usage.Should().Be(usage);
+        strategy.Verify(x => x.GetApplication(usage), Times.Once);
+        strategy.Verify(x => x.BuildIndexerKeyRing(It.IsAny<int>()), Times.Never);
     }
 }
