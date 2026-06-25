@@ -1,0 +1,6 @@
+{
+  "resourceGroup": "AutomatedInfra",
+  "appName": "discover-infra",
+  "storageAccount": "cultpodcastsstg",
+  "container": "discovery-deployment"
+}
