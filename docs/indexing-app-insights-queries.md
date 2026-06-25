@@ -524,7 +524,7 @@ AppTraces
 
 ## 6. Quota report — Cosmos + flush logs at 06:55 UTC
 
-`YouTubeQuotaReport` timer runs **06:55 UTC daily** (`0 55 6 * * *`). Flushes prior Pacific quota day to Cosmos `Lookups` container.
+`YouTubeQuotaReport` timer runs **06:55 UTC daily** (`0 55 6 * * *`). Flushes prior Pacific quota day to Cosmos **`LookUps`** container (`type = 'YouTubeQuotaReport'`).
 
 ### A. Flush confirmation in logs
 
@@ -569,27 +569,44 @@ traces
 
 ### D. Cosmos — daily quota report document
 
+**Cosmos targets:** account `cultpodcasts-db`, RG `AutomatedData`, database `cultpodcasts-db`, container **`LookUps`**, document `type = 'YouTubeQuotaReport'`.
+
+Azure CLI has **no** `az cosmosdb sql query` (control plane only). Use **Cosmos DB Shell** or [`scripts/query-cosmos-lookups.ps1`](../scripts/query-cosmos-lookups.ps1).
+
+**Cosmos DB Shell** (after `dotnet tool install --global CosmosDBShell --prerelease` and `az login`):
+
 ```powershell
 $yesterday = (Get-Date).ToUniversalTime().AddDays(-1).ToString("yyyy-MM-dd")
-az cosmosdb sql query `
-  --account-name cultpodcasts-db `
-  --resource-group automateddata `
-  --database-name cultpodcasts-db `
-  --container-name Lookups `
-  --query-text "SELECT c.id, c.reportDate, c.sourceApplication, c.keys FROM c WHERE c.type = 'YouTubeQuotaDailyReport' AND c.reportDate = '$yesterday' ORDER BY c._ts DESC OFFSET 0 LIMIT 1"
+
+cosmosdbshell --connect https://cultpodcasts-db.documents.azure.com:443/ `
+  --connect-subscription a6b8f1a2-6163-41bc-aa6d-e33928939a6e `
+  --connect-resource-group AutomatedData `
+  -c "cd cultpodcasts-db/LookUps; query `"SELECT TOP 1 c.id, c.reportDate, c.sourceApplication, c.keys FROM c WHERE c.type = 'YouTubeQuotaReport' AND c.reportDate = '$yesterday' AND c.sourceApplication = 'Indexer' ORDER BY c._ts DESC`""
+```
+
+**Script:**
+
+```powershell
+.\scripts\query-cosmos-lookups.ps1 -Query QuotaReport -ReportDate $yesterday
 ```
 
 Check `keys[].quotaHits`, `keys[].quotaUsed`, `keys[].remainingQuota`, `keys[].capacityHint` (`quota-exhausted` vs `spare-capacity-candidate`).
 
 ### E. Cosmos — indexer key ring state
 
+**Cosmos DB Shell:**
+
 ```powershell
-az cosmosdb sql query `
-  --account-name cultpodcasts-db `
-  --resource-group automateddata `
-  --database-name cultpodcasts-db `
-  --container-name Lookups `
-  --query-text "SELECT * FROM c WHERE c.type = 'YouTubeIndexerKeyState' ORDER BY c._ts DESC OFFSET 0 LIMIT 1"
+cosmosdbshell --connect https://cultpodcasts-db.documents.azure.com:443/ `
+  --connect-subscription a6b8f1a2-6163-41bc-aa6d-e33928939a6e `
+  --connect-resource-group AutomatedData `
+  -c "cd cultpodcasts-db/LookUps; query `"SELECT TOP 1 * FROM c WHERE c.type = 'YouTubeIndexerKeyState' ORDER BY c._ts DESC`""
+```
+
+**Script:**
+
+```powershell
+.\scripts\query-cosmos-lookups.ps1 -Query IndexerKeyState
 ```
 
 ---
@@ -644,26 +661,24 @@ AppTraces
 
 ### Step 4 — Cosmos ground truth
 
+Use Cosmos DB Shell or the repo script (not `az cosmosdb sql query` — see section 6D).
+
 ```powershell
-az cosmosdb sql query `
-  --account-name cultpodcasts-db `
-  --resource-group automateddata `
-  --database-name cultpodcasts-db `
-  --container-name Podcasts `
-  --query-text "SELECT c.id, c.name, c.lastIndexed, c.latestReleased FROM c WHERE c.id = '8a0c0f4e-79e0-4d87-bcd5-2156fc0d2f9e'"
+.\scripts\query-cosmos-lookups.ps1 -Query Podcast
+.\scripts\query-cosmos-lookups.ps1 -Query Episodes
+```
+
+Or **Cosmos DB Shell** interactively:
+
+```
+CS> cd cultpodcasts-db/Podcasts
+CS cultpodcasts-db/Podcasts> query "SELECT c.id, c.name, c.lastIndexed, c.latestReleased FROM c WHERE c.id = '8a0c0f4e-79e0-4d87-bcd5-2156fc0d2f9e'"
+
+CS> cd cultpodcasts-db/Episodes
+CS cultpodcasts-db/Episodes> query "SELECT c.id, c.title, c.release, c.urls FROM c WHERE c.podcastId = '8a0c0f4e-79e0-4d87-bcd5-2156fc0d2f9e' AND (CONTAINS(c.urls.youTube, 'hh4MIFHUzRM') OR CONTAINS(c.urls.youTube, 'wuSWvcS2Yfo')) ORDER BY c.release DESC"
 ```
 
 - [ ] `lastIndexed` within ~15 min of 06:00 UTC run
-
-```powershell
-az cosmosdb sql query `
-  --account-name cultpodcasts-db `
-  --resource-group automateddata `
-  --database-name cultpodcasts-db `
-  --container-name Episodes `
-  --query-text "SELECT c.id, c.title, c.release, c.urls FROM c WHERE c.podcastId = '8a0c0f4e-79e0-4d87-bcd5-2156fc0d2f9e' AND (c.urls.youTube contains 'hh4MIFHUzRM' OR c.urls.youTube contains 'wuSWvcS2Yfo') ORDER BY c.release DESC"
-```
-
 - [ ] Target episodes have `urls.youTube` populated
 
 ### Step 5 — If failed, branch quickly
@@ -683,6 +698,123 @@ After 06:55 UTC, confirm prior day report saved (Section 6A) before concluding q
 
 ---
 
+## 8. Key ring exhaustion — day-by-day comparison
+
+Indexer YouTube uses a **Cosmos-persisted key ring** (`YouTubeIndexerKeyState`) that **resumes within the same Pacific quota day**. Exhaustion at **12:00 UTC** (passes 1–2) leaves **18:00 UTC** (passes 3–4) with no keys. `Rotate indexer api-key` is **Information-level** and usually absent in production; use **`AppExceptions`** with `ring exhausted` and **`YouTubeAuthorityIndexingAudit`** instead.
+
+**YouTube windows:** hours **0 / 6 / 12 / 18 UTC** (`hour % 6 == 0`). Passes **1–2** at 0/12; passes **3–4** at 6/18.
+
+### A. Ring exhaustion heatmap (14d)
+
+```kusto
+AppExceptions
+| where TimeGenerated > ago(14d)
+| where AppRoleName == "indexer-infra"
+| where OuterMessage has "ring exhausted"
+| extend day = startofday(TimeGenerated)
+| extend hourUtc = hourofday(TimeGenerated)
+| summarize exceptions = count() by day, hourUtc
+| order by day desc, hourUtc asc
+```
+
+**Observed Jun 2026:** exhaustion only at **Jun 20 18:00** (135) and **Jun 24 12:00** (147) + **18:00** (136). All other days/hours in 14d: **zero** `ring exhausted` exceptions.
+
+### B. YouTube-window pass outcomes (Warning rollups)
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(14d)
+| where AppRoleName == "indexer-infra"
+| where Message has "HourlyOrchestration indexer-pass-complete"
+| extend hourUtc = toint(extract(@"hour-utc='(\d+)'", 1, Message))
+| extend pass = toint(extract(@"pass='(\d+)'", 1, Message))
+| extend skipYouTube = extract(@"skip-youtube='(True|False)'", 1, Message)
+| extend youtubeError = extract(@"youtube-error='(True|False)'", 1, Message)
+| extend podcastCount = extract(@"podcast-count='(\d+)'", 1, Message)
+| where hourUtc in (0, 6, 12, 18)
+| extend day = startofday(TimeGenerated)
+| project day, hourUtc, pass, skipYouTube, youtubeError, podcastCount, TimeGenerated
+| order by day desc, hourUtc asc, pass asc
+```
+
+### C. Authority bypass vs ring exhaustion (same window)
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(14d)
+| where AppRoleName == "indexer-infra"
+| where Message has "YouTubeAuthorityIndexingAudit"
+| extend hourUtc = hourofday(TimeGenerated)
+| extend day = startofday(TimeGenerated)
+| extend inBatch = toint(extract(@"in-batch='(\d+)'", 1, Message))
+| extend bypassed = toint(extract(@"youtube-bypassed='(\d+)'", 1, Message))
+| where hourUtc in (0, 6, 12, 18)
+| summarize totalInBatch = sum(inBatch), totalBypassed = sum(bypassed) by day, hourUtc
+| order by day desc, hourUtc asc
+```
+
+**Healthy:** `totalBypassed` ≪ `totalInBatch` (e.g. Jun 25 06:00 — 3/86). **Exhausted:** `totalBypassed == totalInBatch` (e.g. Jun 24 12:00 — 95/95; Jun 24 18:00 — 86/86).
+
+### D. Single evening window deep-dive (example: Jun 24 18:00 UTC)
+
+```kusto
+AppTraces
+| where TimeGenerated between (datetime(2026-06-24T17:55:00Z) .. datetime(2026-06-24T18:30:00Z))
+| where AppRoleName == "indexer-infra"
+| where Message has "pass-selection"
+    or Message has "indexer-operation-ids"
+    or Message has "indexer-pass-complete"
+    or Message has "batch-4-rollup"
+    or Message has "YouTubeAuthorityIndexingAudit"
+| project TimeGenerated, OperationId, Message
+| order by TimeGenerated asc
+```
+
+Jun 24 18:00 operation IDs: orchestration `8febe8aa2e19fdc545db0367df7eb3e6`; pass 3 `73d5717d-9ef1-5449-a7f6-6d2b218128e7`; pass 4 `4ed40d0f-ded2-5535-ac06-382ffa643ae6`.
+
+### E. Compare exhaustion day vs non-exhaustion day (exceptions)
+
+```kusto
+let exhaustedDay = datetime(2026-06-24);
+let healthyDay = datetime(2026-06-17);
+AppExceptions
+| where AppRoleName == "indexer-infra"
+| where startofday(TimeGenerated) in (exhaustedDay, healthyDay)
+| where hourofday(TimeGenerated) in (6, 18)
+| extend day = startofday(TimeGenerated)
+| extend hourUtc = hourofday(TimeGenerated)
+| summarize
+    ringExhausted = countif(OuterMessage has "ring exhausted"),
+    quotaForbidden = countif(OuterMessage has "Exceeded Quota" or OuterMessage has "exceeded your")
+  by day, hourUtc
+| order by day desc, hourUtc asc
+```
+
+### F. Pre-window depletion check (same Pacific day)
+
+Before blaming 18:00 alone, check whether **12:00** already exhausted the ring:
+
+```kusto
+AppExceptions
+| where AppRoleName == "indexer-infra"
+| where OuterMessage has "ring exhausted"
+| where startofday(TimeGenerated) == datetime(2026-06-24)
+| summarize count() by hourofday(TimeGenerated)
+| order by hourofday_TimeGenerated asc
+```
+
+Jun 24: **147 @ 12:00**, then **136 @ 18:00** — evening inherited a dead ring from the noon window.
+
+### G. az CLI one-liner (ring exhaustion heatmap)
+
+```powershell
+az monitor log-analytics query -w 2b1c62ee-689f-422a-816b-be1605ae88fa -t P14D --analytics-query "AppExceptions | where AppRoleName == 'indexer-infra' | where OuterMessage has 'ring exhausted' | extend day = startofday(TimeGenerated), hourUtc = hourofday(TimeGenerated) | summarize count() by day, hourUtc | order by day desc" -o json
+```
+
+**Note:** use **single-line** `--analytics-query` with `-t P14D`; multi-line heredocs can return unfiltered workspace noise.
+
+---
+
 ## PowerShell helper — run a query file
 
 ```powershell
@@ -693,4 +825,4 @@ az monitor log-analytics query -w $workspaceId --analytics-query $query -o json 
 
 ---
 
-*Created Jun 2026 for indexing investigation handoff. Do not commit unless asked.*
+*Created Jun 2026 for indexing investigation handoff.*

@@ -122,32 +122,88 @@ Portal: **Application Insights → ai-infra → Logs** (not Log Analytics worksp
 
 | Setting | Value |
 |---------|-------|
-| Account | `cultpodcasts-db` (resource group `automateddata`) |
+| Account | `cultpodcasts-db` (resource group **`AutomatedData`**) |
 | Database | `cultpodcasts-db` |
+| Lookups container | **`LookUps`** (capital U — matches bicep / `LookupRepository`) |
 | Podcasts container | `Podcasts` |
 | Episodes container | `Episodes` |
+| Quota report document `type` | **`YouTubeQuotaReport`** (C# model: `YouTubeQuotaDailyReport`) |
 
-#### Podcast document check
+#### Why not `az cosmosdb sql query`?
 
-```powershell
-az cosmosdb sql query `
-  --account-name cultpodcasts-db `
-  --resource-group automateddata `
-  --database-name cultpodcasts-db `
-  --container-name Podcasts `
-  --query-text "SELECT c.id, c.name, c.lastIndexed, c.releaseAuthority, c.youTubeChannelId, c.youTubePlaylistId, c.spotifyId, c.appleId, c.latestReleased, c.indexAllEpisodes FROM c WHERE c.id = '8a0c0f4e-79e0-4d87-bcd5-2156fc0d2f9e'"
-```
+Azure CLI `az cosmosdb` is **control plane only** (accounts, keys, firewall). There is **no** `az cosmosdb sql query` command for SQL API data-plane queries. Use **Cosmos DB Shell**, the repo script below, Portal Data Explorer, or the REST API with an account key from `az cosmosdb keys list`.
 
-#### Episode YouTube URL check
+#### Option A — Azure Cosmos DB Shell (recommended)
+
+Install (requires .NET SDK 10+):
 
 ```powershell
-az cosmosdb sql query `
-  --account-name cultpodcasts-db `
-  --resource-group automateddata `
-  --database-name cultpodcasts-db `
-  --container-name Episodes `
-  --query-text "SELECT c.id, c.title, c.release, c.urls FROM c WHERE c.podcastId = '8a0c0f4e-79e0-4d87-bcd5-2156fc0d2f9e' AND (c.urls.youTube contains 'hh4MIFHUzRM' OR c.urls.youTube contains 'wuSWvcS2Yfo') ORDER BY c.release DESC"
+dotnet tool install --global CosmosDBShell --prerelease
+cosmosdbshell --version
 ```
+
+Connect with Entra ID (uses `az login` via DefaultAzureCredential):
+
+```powershell
+az login
+az account set --subscription "Cultpodcasts"
+
+cosmosdbshell --connect https://cultpodcasts-db.documents.azure.com:443/ `
+  --connect-subscription a6b8f1a2-6163-41bc-aa6d-e33928939a6e `
+  --connect-resource-group AutomatedData
+```
+
+Or connect with account key:
+
+```powershell
+$key = az cosmosdb keys list -g AutomatedData -n cultpodcasts-db --query primaryMasterKey -o tsv
+cosmosdbshell --connect "AccountEndpoint=https://cultpodcasts-db.documents.azure.com:443/;AccountKey=$key;"
+```
+
+In the shell — navigate, then query:
+
+```
+CS> cd cultpodcasts-db/LookUps
+CS cultpodcasts-db/LookUps> query "SELECT TOP 1 c.id, c.reportDate, c.sourceApplication, c.keys FROM c WHERE c.type = 'YouTubeQuotaReport' ORDER BY c._ts DESC"
+CS cultpodcasts-db/LookUps> query "SELECT TOP 1 * FROM c WHERE c.type = 'YouTubeIndexerKeyState' ORDER BY c._ts DESC"
+
+CS> cd cultpodcasts-db/Podcasts
+CS cultpodcasts-db/Podcasts> query "SELECT c.id, c.name, c.lastIndexed, c.releaseAuthority, c.youTubeChannelId, c.youTubePlaylistId, c.spotifyId, c.appleId, c.latestReleased, c.indexAllEpisodes FROM c WHERE c.id = '8a0c0f4e-79e0-4d87-bcd5-2156fc0d2f9e'"
+
+CS> cd cultpodcasts-db/Episodes
+CS cultpodcasts-db/Episodes> query "SELECT c.id, c.title, c.release, c.urls FROM c WHERE c.podcastId = '8a0c0f4e-79e0-4d87-bcd5-2156fc0d2f9e' AND (CONTAINS(c.urls.youTube, 'hh4MIFHUzRM') OR CONTAINS(c.urls.youTube, 'wuSWvcS2Yfo')) ORDER BY c.release DESC"
+```
+
+Check quota report fields: `keys[].quotaHits`, `keys[].quotaUsed`, `keys[].remainingQuota`, `keys[].capacityHint` (`quota-exhausted` vs `spare-capacity-candidate`).
+
+#### Option B — PowerShell script (REST + account key)
+
+[`scripts/query-cosmos-lookups.ps1`](scripts/query-cosmos-lookups.ps1) reads the primary key via `az cosmosdb keys list` and runs parameterized SQL over the REST API (same queries as above):
+
+```powershell
+# Yesterday's Indexer quota report (LookUps / YouTubeQuotaReport)
+.\scripts\query-cosmos-lookups.ps1 -Query QuotaReport
+
+# Specific Pacific quota day
+.\scripts\query-cosmos-lookups.ps1 -Query QuotaReport -ReportDate 2026-06-24
+
+# Indexer YouTube key ring state
+.\scripts\query-cosmos-lookups.ps1 -Query IndexerKeyState
+
+# Jakub Jahl podcast + target episodes
+.\scripts\query-cosmos-lookups.ps1 -Query Podcast
+.\scripts\query-cosmos-lookups.ps1 -Query Episodes
+```
+
+#### Option C — REST API (manual)
+
+Account key (control plane — this is the supported `az` usage):
+
+```powershell
+$key = az cosmosdb keys list -g AutomatedData -n cultpodcasts-db --query primaryMasterKey -o tsv
+```
+
+Data-plane queries are `POST https://cultpodcasts-db.documents.azure.com/dbs/cultpodcasts-db/colls/{container}/docs` with `x-ms-documentdb-isquery: True` and HMAC auth derived from `$key`. Prefer the script or Cosmos DB Shell instead of hand-rolling signatures.
 
 Fields to record:
 
@@ -306,11 +362,13 @@ traces
 
 ### 6. `lastIndexed` in Cosmos after deploy
 
-```sql
-SELECT c.lastIndexed, c.latestReleased
-FROM c
-WHERE c.id = "8a0c0f4e-79e0-4d87-bcd5-2156fc0d2f9e"
+Cosmos DB Shell (`cd cultpodcasts-db/Podcasts` first):
+
 ```
+query "SELECT c.lastIndexed, c.latestReleased FROM c WHERE c.id = '8a0c0f4e-79e0-4d87-bcd5-2156fc0d2f9e'"
+```
+
+Or: `.\scripts\query-cosmos-lookups.ps1 -Query Podcast`
 
 - **Updated within 24h of a 6:00 or 18:00 UTC run:** scheduled index reached this podcast successfully.
 - **Null or pre-deploy timestamp:** scheduled pass did not complete successfully for this podcast (or Fix 2 not deployed — field won't exist on old builds).
@@ -551,4 +609,4 @@ CI equivalent: push to trigger [`.github/workflows/deploy.yml`](.github/workflow
 
 ---
 
-*Created for handoff — Jun 2026. Do not commit unless asked.*
+*Created for handoff — Jun 2026.*
