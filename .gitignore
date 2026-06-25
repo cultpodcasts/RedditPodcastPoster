@@ -413,6 +413,10 @@ Console-Apps/RedditPodcastPoster/Properties/launchSettings.json
 /Console-Apps/dupes.txt
 /scripts/publish-api
 /scripts/api.zip
+/scripts/publish-indexer
+/scripts/publish-discover
+/scripts/indexer.zip
+/scripts/discover.zip
 /scripts/deploy-api.json
 /Cloud/Config
 scripts/.deploy-local/*
