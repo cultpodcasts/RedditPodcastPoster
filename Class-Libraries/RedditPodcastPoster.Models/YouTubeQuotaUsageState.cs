@@ -29,6 +29,22 @@ public sealed class YouTubeQuotaUsageState : CosmosSelector
     [JsonPropertyOrder(13)]
     public DateTime UpdatedUtc { get; set; }
 
+    [JsonPropertyName("podcastsNotIndexedDueToQuota")]
+    [JsonPropertyOrder(14)]
+    public int PodcastsNotIndexedDueToQuota { get; set; }
+
+    [JsonPropertyName("podcastsNotEnrichedDueToQuota")]
+    [JsonPropertyOrder(15)]
+    public int PodcastsNotEnrichedDueToQuota { get; set; }
+
+    [JsonPropertyName("ringExhaustionCount")]
+    [JsonPropertyOrder(16)]
+    public int RingExhaustionCount { get; set; }
+
+    [JsonPropertyName("nonQuotaErrorCount")]
+    [JsonPropertyOrder(17)]
+    public int NonQuotaErrorCount { get; set; }
+
     public override string FileKey => nameof(YouTubeQuotaUsageState);
 }
 
@@ -61,4 +77,8 @@ public sealed class YouTubeQuotaUsageEntry
     [JsonPropertyName("quotaUsed")]
     [JsonPropertyOrder(16)]
     public int QuotaUsed { get; set; }
+
+    [JsonPropertyName("quotaConsumedByOperation")]
+    [JsonPropertyOrder(17)]
+    public YouTubeQuotaConsumedByOperation QuotaConsumedByOperation { get; set; } = new();
 }

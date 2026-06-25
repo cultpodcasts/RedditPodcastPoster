@@ -23,6 +23,7 @@ public class PodcastsUpdater(
         var youtubeAuthorityIndexedWithYouTubePass = 0;
         var youtubeAuthorityBypassed = 0;
         var anyYouTubeBypassed = false;
+        var anyYouTubeQuotaExhausted = false;
         var anySpotifyBypassed = false;
 
         var podcasts = await Task.WhenAll(podcastIds.Select(async podcastId =>
@@ -51,6 +52,7 @@ public class PodcastsUpdater(
                     var podcastIndexingContext = indexingContext with { };
                     var result = await podcastUpdater.Update(podcast!, false, podcastIndexingContext);
                     anyYouTubeBypassed |= !initialSkipYouTube && podcastIndexingContext.SkipYouTubeUrlResolving;
+                    anyYouTubeQuotaExhausted |= !initialSkipYouTube && podcastIndexingContext.YouTubeQuotaExhausted;
                     anySpotifyBypassed |= !initialSkipSpotify && podcastIndexingContext.SkipSpotifyUrlResolving;
                     var resultReport = result.ToString();
                     if (!result.Success)
@@ -118,6 +120,11 @@ public class PodcastsUpdater(
         if (anyYouTubeBypassed)
         {
             indexingContext.SkipYouTubeUrlResolving = true;
+        }
+
+        if (anyYouTubeQuotaExhausted)
+        {
+            indexingContext.YouTubeQuotaExhausted = true;
         }
 
         if (anySpotifyBypassed)

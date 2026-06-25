@@ -33,6 +33,11 @@ public static class IndexingContextExtensions
             changes.Add($"{nameof(IndexingContext.SkipYouTubeUrlResolving)}: '{before.SkipYouTubeUrlResolving}' -> '{after.SkipYouTubeUrlResolving}'");
         }
 
+        if (before.YouTubeQuotaExhausted != after.YouTubeQuotaExhausted)
+        {
+            changes.Add($"{nameof(IndexingContext.YouTubeQuotaExhausted)}: '{before.YouTubeQuotaExhausted}' -> '{after.YouTubeQuotaExhausted}'");
+        }
+
         if (before.SkipSpotifyUrlResolving != after.SkipSpotifyUrlResolving)
         {
             changes.Add($"{nameof(IndexingContext.SkipSpotifyUrlResolving)}: '{before.SkipSpotifyUrlResolving}' -> '{after.SkipSpotifyUrlResolving}'");
@@ -59,5 +64,11 @@ public static class IndexingContextExtensions
         }
 
         return changes;
+    }
+
+    public static void MarkYouTubeQuotaExhausted(this IndexingContext indexingContext)
+    {
+        indexingContext.SkipYouTubeUrlResolving = true;
+        indexingContext.YouTubeQuotaExhausted = true;
     }
 }

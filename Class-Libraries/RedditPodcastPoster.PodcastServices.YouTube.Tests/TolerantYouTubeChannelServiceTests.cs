@@ -58,7 +58,11 @@ public class TolerantYouTubeChannelServiceTests
             .Setup(x => x.RecordCallAsync(It.IsAny<Application>(), ApplicationUsage.Indexer, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         quotaTracker
-            .Setup(x => x.RecordQuotaHitAsync(It.IsAny<Application>(), ApplicationUsage.Indexer, It.IsAny<CancellationToken>()))
+            .Setup(x => x.RecordQuotaHitAsync(
+                It.IsAny<Application>(),
+                ApplicationUsage.Indexer,
+                It.IsAny<YouTubeQuotaOperation>(),
+                It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         var sut = new TolerantYouTubeChannelService(
             wrapper.Object,
@@ -74,7 +78,11 @@ public class TolerantYouTubeChannelServiceTests
             x => x.GetChannel(channelId, indexingContext, true, false, false, false),
             Times.Exactly(2));
         quotaTracker.Verify(
-            x => x.RecordQuotaHitAsync(application, ApplicationUsage.Indexer, It.IsAny<CancellationToken>()),
+            x => x.RecordQuotaHitAsync(
+                application,
+                ApplicationUsage.Indexer,
+                YouTubeQuotaOperation.ChannelsList,
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -113,7 +121,11 @@ public class TolerantYouTubeChannelServiceTests
             .Setup(x => x.RecordCallAsync(It.IsAny<Application>(), ApplicationUsage.Indexer, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         quotaTracker
-            .Setup(x => x.RecordQuotaHitAsync(It.IsAny<Application>(), ApplicationUsage.Indexer, It.IsAny<CancellationToken>()))
+            .Setup(x => x.RecordQuotaHitAsync(
+                It.IsAny<Application>(),
+                ApplicationUsage.Indexer,
+                It.IsAny<YouTubeQuotaOperation>(),
+                It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         var sut = new TolerantYouTubeChannelService(
             wrapper.Object,

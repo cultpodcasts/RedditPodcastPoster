@@ -33,10 +33,14 @@ public class YouTubeQuotaReportTrigger(
         await quotaUsageTracker.ResetAsync(cancellationToken);
 
         logger.LogInformation(
-            "Saved YouTube quota report {ReportId} with {KeyCount} keys, {UsedIndexerKeyCount} used indexer keys, {UnusedIndexerKeyCount} unused indexer keys.",
+            "Saved YouTube quota report {ReportId} with {KeyCount} keys, {UsedIndexerKeyCount} used indexer keys, {UnusedIndexerKeyCount} unused indexer keys, {PodcastsNotIndexedDueToQuota} podcasts not indexed due to quota, {PodcastsNotEnrichedDueToQuota} podcasts not enriched due to quota, {RingExhaustionCount} ring exhaustions, {NonQuotaErrorCount} non-quota errors.",
             report.Id,
             report.Keys.Count,
             report.UsedIndexerKeys.Count,
-            report.UnusedIndexerKeys.Count);
+            report.UnusedIndexerKeys.Count,
+            report.PodcastsNotIndexedDueToQuota,
+            report.PodcastsNotEnrichedDueToQuota,
+            report.RingExhaustionCount,
+            report.NonQuotaErrorCount);
     }
 }

@@ -33,7 +33,7 @@ internal static class IndexerKeyRingBuilder
     }
 
     internal static int GetHourFallbackRingIndex(int hour, int ringCount) =>
-        ringCount == 0 ? 0 : hour % 4 * (ringCount / 4);
+        ringCount == 0 ? 0 : hour * ringCount / 24 % ringCount;
 
     internal static IReadOnlyList<ApplicationWrapper> Build(
         IEnumerable<Application> applications,

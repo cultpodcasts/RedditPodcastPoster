@@ -80,6 +80,7 @@ public class YouTubeChannelService(
             await quotaUsageTracker.RecordQuotaConsumedAsync(
                 youTubeService.CurrentApplication,
                 youTubeService.Usage,
+                YouTubeQuotaOperation.ChannelsList,
                 YouTubeQuotaCosts.ChannelsList);
         }
         catch (GoogleApiException ex)
@@ -88,12 +89,17 @@ public class YouTubeChannelService(
                 ex.Message.Contains("quota"))
             {
                 logger.LogWarning(ex, "Exceeded Quota occurred.");
+                await quotaUsageTracker.RecordQuotaHitAsync(
+                    youTubeService.CurrentApplication,
+                    youTubeService.Usage,
+                    YouTubeQuotaOperation.ChannelsList);
                 throw new YouTubeQuotaException();
             }
 
             logger.LogError(ex,
                 "Failed to use {YouTubeService} obtaining channel with id '{ChannelId}' and request-scope '{requestScope}'.",
                 nameof(youTubeService.YouTubeService), channelId.ChannelId, requestScope);
+            await quotaUsageTracker.RecordNonQuotaErrorAsync();
             indexingContext.SkipYouTubeUrlResolving = true;
             return null;
         }
@@ -102,7 +108,7 @@ public class YouTubeChannelService(
             logger.LogError(ex,
                 "Failed to use {YouTubeService} obtaining channel with id '{ChannelId}' and request-scope '{requestScope}'.",
                 nameof(youTubeService.YouTubeService), channelId.ChannelId, requestScope);
-            indexingContext.SkipYouTubeUrlResolving = true;
+            await quotaUsageTracker.RecordNonQuotaErrorAsync();
             return null;
         }
 

@@ -8,11 +8,13 @@ public record IndexingContext(
     bool SkipExpensiveYouTubeQueries = true,
     bool SkipPodcastDiscovery = true,
     bool SkipExpensiveSpotifyQueries = true,
-    bool SkipShortEpisodes = true)
+    bool SkipShortEpisodes = true,
+    bool YouTubeQuotaExhausted = false)
 {
     public bool SkipYouTubeUrlResolving { get; set; } = SkipYouTubeUrlResolving;
     public bool SkipSpotifyUrlResolving { get; set; } = SkipSpotifyUrlResolving;
     public bool IndexSpotify { get; set; } = IndexSpotify;
+    public bool YouTubeQuotaExhausted { get; set; } = YouTubeQuotaExhausted;
 
     public override string ToString()
     {

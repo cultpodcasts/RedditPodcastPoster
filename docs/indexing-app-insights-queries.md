@@ -538,6 +538,8 @@ AppTraces
 | order by TimeGenerated desc
 ```
 
+The `Saved YouTube quota report` line includes report-level counters: `podcastsNotIndexedDueToQuota`, `podcastsNotEnrichedDueToQuota`, `ringExhaustionCount`, `nonQuotaErrorCount` (see section 6D for Cosmos field definitions).
+
 ### B. Quota / bypass signals near YouTube hours
 
 ```kusto
@@ -581,7 +583,7 @@ $yesterday = (Get-Date).ToUniversalTime().AddDays(-1).ToString("yyyy-MM-dd")
 cosmosdbshell --connect https://cultpodcasts-db.documents.azure.com:443/ `
   --connect-subscription a6b8f1a2-6163-41bc-aa6d-e33928939a6e `
   --connect-resource-group AutomatedData `
-  -c "cd cultpodcasts-db/LookUps; query `"SELECT TOP 1 c.id, c.reportDate, c.sourceApplication, c.keys FROM c WHERE c.type = 'YouTubeQuotaReport' AND c.reportDate = '$yesterday' AND c.sourceApplication = 'Indexer' ORDER BY c._ts DESC`""
+  -c "cd cultpodcasts-db/LookUps; query `"SELECT TOP 1 c.id, c.reportDate, c.sourceApplication, c.podcastsNotIndexedDueToQuota, c.podcastsNotEnrichedDueToQuota, c.ringExhaustionCount, c.nonQuotaErrorCount, c.keys FROM c WHERE c.type = 'YouTubeQuotaReport' AND c.reportDate = '$yesterday' AND c.sourceApplication = 'Indexer' ORDER BY c._ts DESC`""
 ```
 
 **Script:**
@@ -590,7 +592,27 @@ cosmosdbshell --connect https://cultpodcasts-db.documents.azure.com:443/ `
 .\scripts\query-cosmos-lookups.ps1 -Query QuotaReport -ReportDate $yesterday
 ```
 
-Check `keys[].quotaHits`, `keys[].quotaUsed`, `keys[].remainingQuota`, `keys[].capacityHint` (`quota-exhausted` vs `spare-capacity-candidate`).
+**Report-level counters** (Pacific quota day rollup):
+
+| Field | Meaning |
+|-------|---------|
+| `podcastsNotIndexedDueToQuota` | Podcasts skipped for indexing when the key ring was exhausted |
+| `podcastsNotEnrichedDueToQuota` | Podcasts indexed but YouTube enrichment skipped due to quota |
+| `ringExhaustionCount` | Times the indexer key ring was fully exhausted |
+| `nonQuotaErrorCount` | YouTube API failures not attributed to quota (auth, 5xx, etc.) |
+
+**Per-key stats** (`keys[]`, `usedIndexerKeys[]`, `unusedIndexerKeys[]`):
+
+| Field | Meaning |
+|-------|---------|
+| `quotaHits` | API responses indicating quota exhaustion |
+| `quotaUsed` | Quota units charged by Google (when reported) |
+| `estimatedQuotaUsed` | Estimated units consumed from operation counts × per-call costs |
+| `quotaConsumedByOperation` | Breakdown: `searchList`, `channelsList`, `playlistItemsList`, `playlistsList`, `videosList` |
+| `dailyLimit` | Configured daily limit for the key (typically 10,000) |
+| `capacityHint` | `quota-exhausted` vs `spare-capacity-candidate` |
+
+Compare `estimatedQuotaUsed` to `dailyLimit` for headroom. High `ringExhaustionCount` or `podcastsNotIndexedDueToQuota` on a report day correlates with batch 3–4 `skip-youtube='True'` / `youtube-error='True'` rollups (sections 4, 8).
 
 ### E. Cosmos — indexer key ring state
 

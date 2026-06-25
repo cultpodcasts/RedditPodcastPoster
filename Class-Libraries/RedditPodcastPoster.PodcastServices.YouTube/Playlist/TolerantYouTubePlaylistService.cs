@@ -34,7 +34,10 @@ public class TolerantYouTubePlaylistService(
             {
                 logger.LogInformation(
                     "Quota exceeded observed. Rotating api-key .");
-                await quotaUsageTracker.RecordQuotaHitAsync(youTubeService.CurrentApplication, youTubeService.Usage);
+                await quotaUsageTracker.RecordQuotaHitAsync(
+                    youTubeService.CurrentApplication,
+                    youTubeService.Usage,
+                    YouTubeQuotaOperation.PlaylistItemsList);
                 try
                 {
                     youTubeService.Rotate();
@@ -42,6 +45,7 @@ public class TolerantYouTubePlaylistService(
                 catch (Exception e)
                 {
                     logger.LogError(e, "Error rotating api.");
+                    await quotaUsageTracker.RecordRingExhaustionAsync();
                     rotationExcepted = true;
                 }
             }
@@ -49,7 +53,7 @@ public class TolerantYouTubePlaylistService(
 
         if (!success)
         {
-            indexingContext.SkipYouTubeUrlResolving = true;
+            indexingContext.MarkYouTubeQuotaExhausted();
             logger.LogError("Unable to obtain latest-playlist-video-snippets for channel-id '{playlistId}'.",
                 playlistId.PlaylistId);
         }

@@ -22,6 +22,10 @@ public sealed class YouTubeQuotaUsageTracker(
     private readonly SemaphoreSlim _sync = new(1, 1);
     private bool _hydrated;
     private DateOnly? _pacificQuotaDate;
+    private int _podcastsNotIndexedDueToQuota;
+    private int _podcastsNotEnrichedDueToQuota;
+    private int _ringExhaustionCount;
+    private int _nonQuotaErrorCount;
 
     public Task RecordCallAsync(
         Application application,
@@ -36,16 +40,26 @@ public sealed class YouTubeQuotaUsageTracker(
     public Task RecordQuotaHitAsync(
         Application application,
         ApplicationUsage usage,
-        CancellationToken cancellationToken = default) =>
-        MutateAsync(
+        YouTubeQuotaOperation operation,
+        CancellationToken cancellationToken = default)
+    {
+        var quotaUnits = YouTubeQuotaCosts.GetCost(operation);
+        return MutateAsync(
             application,
             usage,
-            stats => stats.QuotaHits++,
+            stats =>
+            {
+                stats.QuotaHits++;
+                stats.QuotaUsed += quotaUnits;
+                AddOperationUsage(stats.QuotaConsumedByOperation, operation, quotaUnits);
+            },
             cancellationToken);
+    }
 
     public Task RecordQuotaConsumedAsync(
         Application application,
         ApplicationUsage usage,
+        YouTubeQuotaOperation operation,
         int quotaUnits,
         CancellationToken cancellationToken = default)
     {
@@ -57,9 +71,25 @@ public sealed class YouTubeQuotaUsageTracker(
         return MutateAsync(
             application,
             usage,
-            stats => stats.QuotaUsed += quotaUnits,
+            stats =>
+            {
+                stats.QuotaUsed += quotaUnits;
+                AddOperationUsage(stats.QuotaConsumedByOperation, operation, quotaUnits);
+            },
             cancellationToken);
     }
+
+    public Task RecordRingExhaustionAsync(CancellationToken cancellationToken = default) =>
+        MutateReportCounterAsync(() => _ringExhaustionCount++, cancellationToken);
+
+    public Task RecordNonQuotaErrorAsync(CancellationToken cancellationToken = default) =>
+        MutateReportCounterAsync(() => _nonQuotaErrorCount++, cancellationToken);
+
+    public Task RecordPodcastNotIndexedDueToQuotaAsync(CancellationToken cancellationToken = default) =>
+        MutateReportCounterAsync(() => _podcastsNotIndexedDueToQuota++, cancellationToken);
+
+    public Task RecordPodcastNotEnrichedDueToQuotaAsync(CancellationToken cancellationToken = default) =>
+        MutateReportCounterAsync(() => _podcastsNotEnrichedDueToQuota++, cancellationToken);
 
     public async Task<YouTubeQuotaDailyReport> CreateReportAsync(
         DateOnly reportDate,
@@ -113,13 +143,21 @@ public sealed class YouTubeQuotaUsageTracker(
             _stats.Clear();
             _hydrated = false;
             _pacificQuotaDate = null;
+            _podcastsNotIndexedDueToQuota = 0;
+            _podcastsNotEnrichedDueToQuota = 0;
+            _ringExhaustionCount = 0;
+            _nonQuotaErrorCount = 0;
 
             var emptyState = new YouTubeQuotaUsageState
             {
                 PacificQuotaDate = YouTubePacificQuotaDate.GetCurrent(DateTime.UtcNow),
                 SourceApplication = SourceApplication,
                 UpdatedUtc = DateTime.UtcNow,
-                Entries = []
+                Entries = [],
+                PodcastsNotIndexedDueToQuota = 0,
+                PodcastsNotEnrichedDueToQuota = 0,
+                RingExhaustionCount = 0,
+                NonQuotaErrorCount = 0
             };
             await lookupRepository.SaveYouTubeQuotaUsageState(emptyState);
         }
@@ -147,6 +185,20 @@ public sealed class YouTubeQuotaUsageTracker(
         }
     }
 
+    private async Task MutateReportCounterAsync(Action mutate, CancellationToken cancellationToken)
+    {
+        await _sync.WaitAsync(cancellationToken);
+        try
+        {
+            await EnsureHydratedLockedAsync(cancellationToken);
+            mutate();
+        }
+        finally
+        {
+            _sync.Release();
+        }
+    }
+
     private async Task EnsureHydratedLockedAsync(CancellationToken cancellationToken)
     {
         var currentPacificQuotaDate = YouTubePacificQuotaDate.GetCurrent(DateTime.UtcNow);
@@ -161,6 +213,8 @@ public sealed class YouTubeQuotaUsageTracker(
         {
             foreach (var entry in savedState.Entries)
             {
+                var operationUsage = new MutableOperationUsage();
+                CopyOperationUsage(operationUsage, entry.QuotaConsumedByOperation);
                 _stats[entry.StatsKey] = new MutableKeyStats
                 {
                     StatsKey = entry.StatsKey,
@@ -169,21 +223,35 @@ public sealed class YouTubeQuotaUsageTracker(
                     Usage = entry.Usage,
                     CallsAttempted = entry.CallsAttempted,
                     QuotaHits = entry.QuotaHits,
-                    QuotaUsed = entry.QuotaUsed
+                    QuotaUsed = entry.QuotaUsed,
+                    QuotaConsumedByOperation = operationUsage
                 };
             }
+
+            _podcastsNotIndexedDueToQuota = savedState.PodcastsNotIndexedDueToQuota;
+            _podcastsNotEnrichedDueToQuota = savedState.PodcastsNotEnrichedDueToQuota;
+            _ringExhaustionCount = savedState.RingExhaustionCount;
+            _nonQuotaErrorCount = savedState.NonQuotaErrorCount;
 
             logger.LogDebug(
                 "Hydrated YouTube quota usage tracker with {EntryCount} keys for Pacific quota day {PacificQuotaDate}.",
                 savedState.Entries.Count,
                 currentPacificQuotaDate);
         }
-        else if (savedState != null)
+        else
         {
-            logger.LogInformation(
-                "Skipping stale YouTube quota usage state from Pacific quota day {SavedPacificQuotaDate}; current is {CurrentPacificQuotaDate}.",
-                savedState.PacificQuotaDate,
-                currentPacificQuotaDate);
+            if (savedState != null)
+            {
+                logger.LogInformation(
+                    "Skipping stale YouTube quota usage state from Pacific quota day {SavedPacificQuotaDate}; current is {CurrentPacificQuotaDate}.",
+                    savedState.PacificQuotaDate,
+                    currentPacificQuotaDate);
+            }
+
+            _podcastsNotIndexedDueToQuota = 0;
+            _podcastsNotEnrichedDueToQuota = 0;
+            _ringExhaustionCount = 0;
+            _nonQuotaErrorCount = 0;
         }
 
         _pacificQuotaDate = currentPacificQuotaDate;
@@ -203,7 +271,11 @@ public sealed class YouTubeQuotaUsageTracker(
                 .OrderBy(x => x.Usage, StringComparer.Ordinal)
                 .ThenBy(x => x.Project, StringComparer.Ordinal)
                 .ThenBy(x => x.DisplayName, StringComparer.Ordinal)
-                .ToList()
+                .ToList(),
+            PodcastsNotIndexedDueToQuota = _podcastsNotIndexedDueToQuota,
+            PodcastsNotEnrichedDueToQuota = _podcastsNotEnrichedDueToQuota,
+            RingExhaustionCount = _ringExhaustionCount,
+            NonQuotaErrorCount = _nonQuotaErrorCount
         };
 
         await lookupRepository.SaveYouTubeQuotaUsageState(state);
@@ -225,7 +297,11 @@ public sealed class YouTubeQuotaUsageTracker(
                 .Select(CreateKeyStats)
                 .ToList(),
             UsedIndexerKeys = usedIndexerKeys,
-            UnusedIndexerKeys = unusedIndexerKeys
+            UnusedIndexerKeys = unusedIndexerKeys,
+            PodcastsNotIndexedDueToQuota = _podcastsNotIndexedDueToQuota,
+            PodcastsNotEnrichedDueToQuota = _podcastsNotEnrichedDueToQuota,
+            RingExhaustionCount = _ringExhaustionCount,
+            NonQuotaErrorCount = _nonQuotaErrorCount
         };
     }
 
@@ -261,6 +337,7 @@ public sealed class YouTubeQuotaUsageTracker(
         var callsAttempted = stats?.CallsAttempted ?? 0;
         var quotaHits = stats?.QuotaHits ?? 0;
         var quotaUsed = stats?.QuotaUsed ?? 0;
+        var operationUsage = stats?.QuotaConsumedByOperation ?? new MutableOperationUsage();
 
         return new YouTubeIndexerKeySummary
         {
@@ -272,8 +349,9 @@ public sealed class YouTubeQuotaUsageTracker(
             CallsAttempted = callsAttempted,
             QuotaHits = quotaHits,
             QuotaUsed = quotaUsed,
+            EstimatedQuotaUsed = ResolveEstimatedQuotaUsed(quotaUsed, quotaHits),
             DailyLimit = YouTubeQuotaCosts.DailyLimitPerKey,
-            RemainingQuota = ResolveRemainingQuota(quotaUsed, quotaHits)
+            QuotaConsumedByOperation = CreateOperationUsageReport(operationUsage)
         };
     }
 
@@ -286,8 +364,9 @@ public sealed class YouTubeQuotaUsageTracker(
             CallsAttempted = stats.CallsAttempted,
             QuotaHits = stats.QuotaHits,
             QuotaUsed = stats.QuotaUsed,
+            EstimatedQuotaUsed = ResolveEstimatedQuotaUsed(stats.QuotaUsed, stats.QuotaHits),
             DailyLimit = YouTubeQuotaCosts.DailyLimitPerKey,
-            RemainingQuota = ResolveRemainingQuota(stats.QuotaUsed, stats.QuotaHits),
+            QuotaConsumedByOperation = CreateOperationUsageReport(stats.QuotaConsumedByOperation),
             CapacityHint = ResolveCapacityHint(stats.CallsAttempted, stats.QuotaHits)
         };
 
@@ -300,7 +379,8 @@ public sealed class YouTubeQuotaUsageTracker(
             Usage = stats.Usage,
             CallsAttempted = stats.CallsAttempted,
             QuotaHits = stats.QuotaHits,
-            QuotaUsed = stats.QuotaUsed
+            QuotaUsed = stats.QuotaUsed,
+            QuotaConsumedByOperation = CreateOperationUsageReport(stats.QuotaConsumedByOperation)
         };
 
     private MutableKeyStats GetOrAdd(Application application, ApplicationUsage usage)
@@ -335,15 +415,8 @@ public sealed class YouTubeQuotaUsageTracker(
     internal static string ResolveApiKeySuffix(string apiKey) =>
         apiKey.Length <= 2 ? apiKey : apiKey[^2..];
 
-    internal static int ResolveRemainingQuota(int quotaUsed, int quotaHits)
-    {
-        if (quotaHits > 0)
-        {
-            return 0;
-        }
-
-        return Math.Max(0, YouTubeQuotaCosts.DailyLimitPerKey - quotaUsed);
-    }
+    internal static int ResolveEstimatedQuotaUsed(int quotaUsed, int quotaHits) =>
+        quotaHits > 0 ? Math.Max(quotaUsed, YouTubeQuotaCosts.DailyLimitPerKey) : quotaUsed;
 
     private static string? ResolveCapacityHint(int callsAttempted, int quotaHits)
     {
@@ -355,6 +428,56 @@ public sealed class YouTubeQuotaUsageTracker(
         return quotaHits == 0 ? "spare-capacity-candidate" : "quota-exhausted";
     }
 
+    private static void AddOperationUsage(MutableOperationUsage usage, YouTubeQuotaOperation operation, int quotaUnits)
+    {
+        switch (operation)
+        {
+            case YouTubeQuotaOperation.SearchList:
+                usage.SearchList += quotaUnits;
+                break;
+            case YouTubeQuotaOperation.ChannelsList:
+                usage.ChannelsList += quotaUnits;
+                break;
+            case YouTubeQuotaOperation.PlaylistItemsList:
+                usage.PlaylistItemsList += quotaUnits;
+                break;
+            case YouTubeQuotaOperation.PlaylistsList:
+                usage.PlaylistsList += quotaUnits;
+                break;
+            case YouTubeQuotaOperation.VideosList:
+                usage.VideosList += quotaUnits;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(operation), operation, null);
+        }
+    }
+
+    private static YouTubeQuotaConsumedByOperation CreateOperationUsageReport(MutableOperationUsage usage) =>
+        new()
+        {
+            SearchList = usage.SearchList,
+            ChannelsList = usage.ChannelsList,
+            PlaylistItemsList = usage.PlaylistItemsList,
+            PlaylistsList = usage.PlaylistsList,
+            VideosList = usage.VideosList
+        };
+
+    private static void CopyOperationUsage(MutableOperationUsage target, YouTubeQuotaConsumedByOperation source)
+    {
+        target.SearchList = source.SearchList;
+        target.ChannelsList = source.ChannelsList;
+        target.PlaylistItemsList = source.PlaylistItemsList;
+        target.PlaylistsList = source.PlaylistsList;
+        target.VideosList = source.VideosList;
+    }
+
+    private static MutableOperationUsage CloneOperationUsage(YouTubeQuotaConsumedByOperation usage)
+    {
+        var clone = new MutableOperationUsage();
+        CopyOperationUsage(clone, usage);
+        return clone;
+    }
+
     private sealed class MutableKeyStats
     {
         public required string StatsKey { get; init; }
@@ -364,5 +487,15 @@ public sealed class YouTubeQuotaUsageTracker(
         public int CallsAttempted;
         public int QuotaHits;
         public int QuotaUsed;
+        public MutableOperationUsage QuotaConsumedByOperation { get; init; } = new();
+    }
+
+    private sealed class MutableOperationUsage
+    {
+        public int SearchList;
+        public int ChannelsList;
+        public int PlaylistItemsList;
+        public int PlaylistsList;
+        public int VideosList;
     }
 }

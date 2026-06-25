@@ -43,7 +43,7 @@ YouTube keys use **Pascal-case prefix** `Youtube-ApiKey-N` where `N` is the vaul
 | KV secret | Bicep param | App slot (`youtube__Applications__N__*`) | Role |
 |-----------|-------------|------------------------------------------|------|
 | `Youtube-ApiKey-0` … `Youtube-ApiKey-12` | `youTubeApiKey0` … `youTubeApiKey12` | 0–12 | Cli, Indexer ring, Discover, Bluesky, Api |
-| `Youtube-ApiKey-13` | `youTubeApiKey13` | *(legacy — no longer wired)* | Former cultcodcasts key; safe to leave in vault |
+| `Youtube-ApiKey-13` | `youTubeApiKey13` | *(legacy — no longer wired)* | Former legacy discover key; safe to leave in vault |
 | `Youtube-ApiKey-14` | `youTubeApiKey14` | 14, 16 | Indexer ring keys 10 and 12 (slot 16 dedupes with 14) |
 | **`Youtube-ApiKey-15`** | **`youTubeApiKey15`** | **13** | **Indexer ring key 09 (cultpodcasts project)** |
 | **`Youtube-ApiKey-16`** | **`youTubeApiKey16`** | **15** | **Indexer ring key 11 (cultpodcasts project)** |
@@ -63,7 +63,7 @@ All indexer keys form **one flat rotation ring**. Names are sequential by config
 | 15 | `Indexer-Key-11-CultPodcasts` | 11 |
 | 16 | `Indexer-Key-12-CultPodcasts` | 12 (deduped if same ApiKey as slot 14) |
 
-At runtime the indexer walks this ring in config order (deduped by `ApiKey`), rotating on quota exhaustion. Session resume uses persisted `YouTubeIndexerKeyState`; when no state exists, start position spreads by UTC hour (`hour % 4 * (ringCount / 4)`).
+At runtime the indexer walks this ring in config order (deduped by `ApiKey`), rotating on quota exhaustion. Session resume uses persisted `YouTubeIndexerKeyState`; when no state exists, start position spreads by UTC hour (`hour * ringCount / 24 % ringCount`).
 
 The `Reattempt` field on `Application` is unused for Indexer (kept in schema for backward compatibility).
 

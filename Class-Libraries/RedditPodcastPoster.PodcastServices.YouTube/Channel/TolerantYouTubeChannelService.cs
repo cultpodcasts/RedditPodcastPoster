@@ -41,7 +41,10 @@ public class TolerantYouTubeChannelService(
             catch (YouTubeQuotaException)
             {
                 logger.LogInformation("Quota exceeded observed. Rotating api-key.");
-                await quotaUsageTracker.RecordQuotaHitAsync(youTubeService.CurrentApplication, youTubeService.Usage);
+                await quotaUsageTracker.RecordQuotaHitAsync(
+                    youTubeService.CurrentApplication,
+                    youTubeService.Usage,
+                    YouTubeQuotaOperation.ChannelsList);
                 try
                 {
                     youTubeService.Rotate();
@@ -49,6 +52,7 @@ public class TolerantYouTubeChannelService(
                 catch (Exception e)
                 {
                     logger.LogError(e, "Error rotating youtube-api.");
+                    await quotaUsageTracker.RecordRingExhaustionAsync();
                     rotationExcepted = true;
                 }
             }
@@ -56,7 +60,7 @@ public class TolerantYouTubeChannelService(
 
         if (!success)
         {
-            indexingContext.SkipYouTubeUrlResolving = true;
+            indexingContext.MarkYouTubeQuotaExhausted();
             logger.LogError("Unable to obtain channel for channel-id '{channelId}'.", channelId.ChannelId);
         }
 

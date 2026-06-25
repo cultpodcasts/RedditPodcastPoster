@@ -10,7 +10,7 @@
 # Interim flow (new indexer keys only):
 #   .\scripts\apply-youtube-keys.ps1 -ApiKey15 'YOUR_KEY' -ApiKey16 'YOUR_KEY' -ApplyNewKeysOnly
 #
-# Display names only (no key values):
+# Display names only (no key values); also clears stale Indexer __Reattempt keys:
 #   .\scripts\apply-youtube-keys.ps1 -DisplayNamesOnly
 
 [CmdletBinding(SupportsShouldProcess = $true, DefaultParameterSetName = 'FromKeyVault')]
@@ -94,6 +94,15 @@ $youTubeKeyUsage = @{
     16 = @{ Name = 'CultPodcasts'; Usage = 'Indexer'; DisplayName = 'Indexer-Key-12-CultPodcasts' }
 }
 
+# Slots whose Usage is Indexer — Reattempt is unused (flat ring); remove stale keys on apply.
+$indexerSlots = @($youTubeKeyUsage.Keys | Where-Object { $youTubeKeyUsage[$_].Usage -eq 'Indexer' } | Sort-Object)
+
+function Get-IndexerReattemptSettingNames {
+    foreach ($slot in $indexerSlots) {
+        "youtube__Applications__${slot}__Reattempt"
+    }
+}
+
 function Get-KeyVaultYouTubeSecrets {
     $secrets = @{}
     $requiredKvKeys = 0..16
@@ -138,7 +147,8 @@ function Get-YouTubeApplicationsSettings {
         $settings["youtube__Applications__${slot}__Name"] = $usage.Name
         $settings["youtube__Applications__${slot}__Usage"] = $usage.Usage
         $settings["youtube__Applications__${slot}__DisplayName"] = $usage.DisplayName
-        if ($usage.Reattempt) {
+        # Indexer uses a flat key ring — never set Reattempt. Non-Indexer usages may define it.
+        if ($usage.Usage -ne 'Indexer' -and $usage.Reattempt) {
             $settings["youtube__Applications__${slot}__Reattempt"] = $usage.Reattempt
         }
     }
@@ -182,6 +192,10 @@ function Set-FunctionAppSettings {
         [hashtable]$Settings
     )
 
+    if ($Settings.Count -eq 0) {
+        return
+    }
+
     $subscriptionId = az account show --query id -o tsv
     $uri = "https://management.azure.com/subscriptions/$subscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.Web/sites/$AppName/config/appsettings?api-version=2023-12-01"
 
@@ -204,6 +218,26 @@ function Set-FunctionAppSettings {
     }
 }
 
+function Remove-FunctionAppSettings {
+    param(
+        [string]$AppName,
+        [string[]]$SettingNames
+    )
+
+    if ($SettingNames.Count -eq 0) {
+        return
+    }
+
+    az functionapp config appsettings delete `
+        --resource-group $ResourceGroup `
+        --name $AppName `
+        --setting-names $SettingNames `
+        -o none
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to delete app settings for '$AppName' (exit code $LASTEXITCODE)."
+    }
+}
+
 function Show-YouTubeSettingsVerification {
     param([string]$AppName)
 
@@ -218,6 +252,7 @@ function Show-YouTubeSettingsVerification {
     $displayNameOk = $true
     $slot13Literal = $false
     $slot15Literal = $false
+    $indexerReattemptRemaining = @()
 
     foreach ($row in $rows) {
         if ($row.name -like '*__ApiKey') {
@@ -244,20 +279,32 @@ function Show-YouTubeSettingsVerification {
                 $row | Add-Member -NotePropertyName expected -NotePropertyValue $expected -Force
             }
         }
+
+        if ($row.name -like '*__Reattempt') {
+            $slot = [int]($row.name -replace 'youtube__Applications__(\d+)__Reattempt', '$1')
+            if ($youTubeKeyUsage[$slot].Usage -eq 'Indexer') {
+                $indexerReattemptRemaining += $row.name
+            }
+        }
     }
 
     Write-Host "`n--- Verification: $AppName ---"
-    $rows | Sort-Object name | Format-Table -AutoSize
-    Write-Host "ApiKey literals: $literalApiKeyCount | KV refs: $kvRefCount | Slot13 literal: $slot13Literal | Slot15 literal: $slot15Literal | DisplayNames match bicep: $displayNameOk"
+    $null = $rows | Sort-Object name | Format-Table -AutoSize
+    $indexerReattemptOk = $indexerReattemptRemaining.Count -eq 0
+    Write-Host "ApiKey literals: $literalApiKeyCount | KV refs: $kvRefCount | Slot13 literal: $slot13Literal | Slot15 literal: $slot15Literal | DisplayNames match bicep: $displayNameOk | Indexer Reattempt cleared: $indexerReattemptOk"
+    if (-not $indexerReattemptOk) {
+        Write-Host "Stale indexer Reattempt keys: $($indexerReattemptRemaining -join ', ')"
+    }
 
     return [PSCustomObject]@{
-        App                  = $AppName
-        SettingsCount        = $rows.Count
-        LiteralApiKeys       = $literalApiKeyCount
-        KeyVaultRefs         = $kvRefCount
-        Slot13Literal        = $slot13Literal
-        Slot15Literal        = $slot15Literal
-        DisplayNamesMatch    = $displayNameOk
+        App                       = $AppName
+        SettingsCount             = $rows.Count
+        LiteralApiKeys            = $literalApiKeyCount
+        KeyVaultRefs              = $kvRefCount
+        Slot13Literal             = $slot13Literal
+        Slot15Literal             = $slot15Literal
+        DisplayNamesMatch         = $displayNameOk
+        IndexerReattemptRemaining = $indexerReattemptRemaining
     }
 }
 
@@ -305,12 +352,18 @@ Write-Host "Azure subscription: $account"
 Write-Host "Resource group: $ResourceGroup"
 Write-Host "Function apps: $($FunctionApps -join ', ')"
 
+$indexerReattemptToRemove = Get-IndexerReattemptSettingNames
+Write-Host "Indexer slots (Reattempt will be removed if present): $($indexerSlots -join ', ')"
+
 $verification = @()
+$anySettingsApplied = $false
 foreach ($app in $FunctionApps) {
     $settings = $settingsByApp[$app]
-    Write-Host "`n=== $app ($($settings.Count) settings) ==="
+    Write-Host "`n=== $app ($($settings.Count) settings, $($indexerReattemptToRemove.Count) indexer Reattempt keys to clear) ==="
     if ($PSCmdlet.ShouldProcess($app, 'Apply YouTube app settings')) {
         Set-FunctionAppSettings -AppName $app -Settings $settings
+        Remove-FunctionAppSettings -AppName $app -SettingNames $indexerReattemptToRemove
+        $anySettingsApplied = $true
         if (-not $SkipRestart) {
             Write-Host "Restarting $app..."
             az functionapp restart --resource-group $ResourceGroup --name $app -o none
@@ -322,17 +375,27 @@ foreach ($app in $FunctionApps) {
     $verification += Show-YouTubeSettingsVerification -AppName $app
 }
 
+$verificationResults = @($verification | Where-Object { $_.App })
+
 Write-Host "`n=== Summary ==="
-foreach ($result in $verification) {
+foreach ($result in $verificationResults) {
     Write-Host ("{0}: {1} settings | ApiKey literals: {2} | KV refs: {3} | Slot13 literal: {4} | Slot15 literal: {5} | DisplayNames OK: {6}" -f `
         $result.App, $result.SettingsCount, $result.LiteralApiKeys, $result.KeyVaultRefs, $result.Slot13Literal, $result.Slot15Literal, $result.DisplayNamesMatch)
 }
 
-if ($verification | Where-Object { $_.KeyVaultRefs -gt 0 -or -not $_.DisplayNamesMatch }) {
+if ($verificationResults.Count -ne $FunctionApps.Count) {
+    throw "Verification failed: expected $($FunctionApps.Count) app results, got $($verificationResults.Count)."
+}
+
+if ($verificationResults | Where-Object { $_.KeyVaultRefs -gt 0 -or -not $_.DisplayNamesMatch }) {
     throw 'Verification failed: KV references remain or DisplayNames do not match bicep.'
 }
 
-if ($FromKeyVault -and ($verification | Where-Object { -not $_.Slot13Literal -or -not $_.Slot15Literal })) {
+if ($anySettingsApplied -and ($verificationResults | Where-Object { $_.IndexerReattemptRemaining.Count -gt 0 })) {
+    throw 'Verification failed: stale youtube__Applications__*__Reattempt keys remain on Indexer slots.'
+}
+
+if ($FromKeyVault -and ($verificationResults | Where-Object { -not $_.Slot13Literal -or -not $_.Slot15Literal })) {
     throw 'Verification failed: slots 13 and/or 15 ApiKey are not literal values.'
 }
 

@@ -28,7 +28,7 @@ public class YouTubeQuotaUsageTrackerTests
         };
 
         await sut.RecordCallAsync(application, ApplicationUsage.Indexer);
-        await sut.RecordQuotaHitAsync(application, ApplicationUsage.Indexer);
+        await sut.RecordQuotaHitAsync(application, ApplicationUsage.Indexer, YouTubeQuotaOperation.ChannelsList);
 
         var spareApplication = new Application
         {
@@ -45,17 +45,18 @@ public class YouTubeQuotaUsageTrackerTests
         var exhaustedKey = report.Keys.Single(x => x.DisplayName == "Indexer-Key-01-CultPodcasts");
         exhaustedKey.CapacityHint.Should().Be("quota-exhausted");
         exhaustedKey.DailyLimit.Should().Be(YouTubeQuotaCosts.DailyLimitPerKey);
-        exhaustedKey.RemainingQuota.Should().Be(0);
+        exhaustedKey.EstimatedQuotaUsed.Should().Be(YouTubeQuotaCosts.DailyLimitPerKey);
+        exhaustedKey.QuotaConsumedByOperation.ChannelsList.Should().Be(YouTubeQuotaCosts.ChannelsList);
 
         var spareKey = report.Keys.Single(x => x.DisplayName == "Indexer-Key-02-CultPodcasts");
         spareKey.CapacityHint.Should().Be("spare-capacity-candidate");
         spareKey.DailyLimit.Should().Be(YouTubeQuotaCosts.DailyLimitPerKey);
-        spareKey.RemainingQuota.Should().Be(YouTubeQuotaCosts.DailyLimitPerKey);
+        spareKey.EstimatedQuotaUsed.Should().Be(0);
         report.Id.Should().Be(YouTubeQuotaDailyReport.CreateId(SampleReportDate, "Indexer"));
     }
 
     [Fact]
-    public async Task CreateReport_ComputesRemainingQuotaFromConsumedUnits()
+    public async Task CreateReport_ComputesEstimatedQuotaUsedFromConsumedUnits()
     {
         var sut = CreateTracker(
             App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"),
@@ -68,20 +69,25 @@ public class YouTubeQuotaUsageTrackerTests
             DisplayName = "Indexer-Key-01-CultPodcasts"
         };
 
-        await sut.RecordQuotaConsumedAsync(application, ApplicationUsage.Indexer, 2_500);
+        await sut.RecordQuotaConsumedAsync(
+            application,
+            ApplicationUsage.Indexer,
+            YouTubeQuotaOperation.SearchList,
+            2_500);
 
         var report = await sut.CreateReportAsync(SampleReportDate, "Indexer");
 
         report.Keys.Single().QuotaUsed.Should().Be(2_500);
-        report.Keys.Single().RemainingQuota.Should().Be(7_500);
+        report.Keys.Single().EstimatedQuotaUsed.Should().Be(2_500);
+        report.Keys.Single().QuotaConsumedByOperation.SearchList.Should().Be(2_500);
         report.UsedIndexerKeys.Single().QuotaUsed.Should().Be(2_500);
-        report.UsedIndexerKeys.Single().RemainingQuota.Should().Be(7_500);
+        report.UsedIndexerKeys.Single().EstimatedQuotaUsed.Should().Be(2_500);
         report.UnusedIndexerKeys.Single().QuotaUsed.Should().Be(0);
-        report.UnusedIndexerKeys.Single().RemainingQuota.Should().Be(YouTubeQuotaCosts.DailyLimitPerKey);
+        report.UnusedIndexerKeys.Single().EstimatedQuotaUsed.Should().Be(0);
     }
 
     [Fact]
-    public async Task CreateReport_ClampsRemainingQuotaAtZeroWhenConsumedExceedsDailyLimit()
+    public async Task CreateReport_InfersFullDailyLimitWhenQuotaHitRecorded()
     {
         var sut = CreateTracker(App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
         var application = new Application
@@ -92,12 +98,17 @@ public class YouTubeQuotaUsageTrackerTests
             DisplayName = "Indexer-Key-01-CultPodcasts"
         };
 
-        await sut.RecordQuotaConsumedAsync(application, ApplicationUsage.Indexer, 12_000);
+        await sut.RecordQuotaConsumedAsync(
+            application,
+            ApplicationUsage.Indexer,
+            YouTubeQuotaOperation.PlaylistItemsList,
+            12_000);
+        await sut.RecordQuotaHitAsync(application, ApplicationUsage.Indexer, YouTubeQuotaOperation.PlaylistItemsList);
 
         var report = await sut.CreateReportAsync(SampleReportDate, "Indexer");
 
-        report.Keys.Single().QuotaUsed.Should().Be(12_000);
-        report.Keys.Single().RemainingQuota.Should().Be(0);
+        report.Keys.Single().QuotaUsed.Should().Be(12_001);
+        report.Keys.Single().EstimatedQuotaUsed.Should().Be(12_001);
     }
 
     [Fact]
@@ -128,7 +139,8 @@ public class YouTubeQuotaUsageTrackerTests
                 Usage = ApplicationUsage.Indexer,
                 DisplayName = "Indexer-Key-05-CultPodcasts"
             },
-            ApplicationUsage.Indexer);
+            ApplicationUsage.Indexer,
+            YouTubeQuotaOperation.SearchList);
 
         var report = await sut.CreateReportAsync(SampleReportDate, "Indexer");
 
@@ -151,9 +163,38 @@ public class YouTubeQuotaUsageTrackerTests
             x.CallsAttempted.Should().Be(0);
             x.QuotaHits.Should().Be(0);
             x.QuotaUsed.Should().Be(0);
+            x.EstimatedQuotaUsed.Should().Be(0);
             x.DailyLimit.Should().Be(YouTubeQuotaCosts.DailyLimitPerKey);
-            x.RemainingQuota.Should().Be(YouTubeQuotaCosts.DailyLimitPerKey);
         });
+    }
+
+    [Fact]
+    public async Task CreateReport_IncludesOperationBreakdownRingExhaustionAndNonQuotaErrors()
+    {
+        var sut = CreateTracker(App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
+        var application = new Application
+        {
+            ApiKey = "key1",
+            Name = "CultPodcasts",
+            Usage = ApplicationUsage.Indexer,
+            DisplayName = "Indexer-Key-01-CultPodcasts"
+        };
+
+        await sut.RecordQuotaConsumedAsync(
+            application,
+            ApplicationUsage.Indexer,
+            YouTubeQuotaOperation.VideosList,
+            YouTubeQuotaCosts.VideosList);
+        await sut.RecordQuotaHitAsync(application, ApplicationUsage.Indexer, YouTubeQuotaOperation.SearchList);
+        await sut.RecordRingExhaustionAsync();
+        await sut.RecordNonQuotaErrorAsync();
+
+        var report = await sut.CreateReportAsync(SampleReportDate, "Indexer");
+
+        report.Keys.Single().QuotaConsumedByOperation.VideosList.Should().Be(YouTubeQuotaCosts.VideosList);
+        report.Keys.Single().QuotaConsumedByOperation.SearchList.Should().Be(YouTubeQuotaCosts.SearchList);
+        report.RingExhaustionCount.Should().Be(1);
+        report.NonQuotaErrorCount.Should().Be(1);
     }
 
     [Fact]
@@ -172,16 +213,22 @@ public class YouTubeQuotaUsageTrackerTests
             "Indexer-Key-02-CultPodcasts");
         report.UnusedIndexerKeys.Should().AllSatisfy(x =>
         {
-            x.RemainingQuota.Should().Be(YouTubeQuotaCosts.DailyLimitPerKey);
+            x.EstimatedQuotaUsed.Should().Be(0);
             x.QuotaUsed.Should().Be(0);
         });
         report.Keys.Should().BeEmpty();
     }
 
     [Fact]
-    public void ResolveRemainingQuota_ReturnsZeroWhenQuotaHitRecorded()
+    public void ResolveEstimatedQuotaUsed_ReturnsDailyLimitWhenQuotaHitRecorded()
     {
-        YouTubeQuotaUsageTracker.ResolveRemainingQuota(500, quotaHits: 1).Should().Be(0);
+        YouTubeQuotaUsageTracker.ResolveEstimatedQuotaUsed(500, quotaHits: 1).Should().Be(YouTubeQuotaCosts.DailyLimitPerKey);
+    }
+
+    [Fact]
+    public void ResolveEstimatedQuotaUsed_ReturnsQuotaUsedWhenNoHits()
+    {
+        YouTubeQuotaUsageTracker.ResolveEstimatedQuotaUsed(500, quotaHits: 0).Should().Be(500);
     }
 
     [Fact]
@@ -340,12 +387,108 @@ public class YouTubeQuotaUsageTrackerTests
         };
 
         await sut.RecordCallAsync(application, ApplicationUsage.Indexer);
-        await sut.RecordQuotaConsumedAsync(application, ApplicationUsage.Indexer, 100);
+        await sut.RecordQuotaConsumedAsync(
+            application,
+            ApplicationUsage.Indexer,
+            YouTubeQuotaOperation.ChannelsList,
+            100);
 
         var report = await sut.CreateReportAsync(SampleReportDate, "Indexer");
 
         report.Keys.Single().CallsAttempted.Should().Be(1);
         report.Keys.Single().QuotaUsed.Should().Be(100);
+        report.Keys.Single().QuotaConsumedByOperation.ChannelsList.Should().Be(100);
+    }
+
+    [Fact]
+    public async Task CreateReport_IncludesPodcastQuotaSkipCounts()
+    {
+        var sut = CreateTracker(App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
+
+        await sut.RecordPodcastNotIndexedDueToQuotaAsync();
+        await sut.RecordPodcastNotIndexedDueToQuotaAsync();
+        await sut.RecordPodcastNotEnrichedDueToQuotaAsync();
+
+        var report = await sut.CreateReportAsync(SampleReportDate, "Indexer");
+
+        report.PodcastsNotIndexedDueToQuota.Should().Be(2);
+        report.PodcastsNotEnrichedDueToQuota.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task FlushToCosmosAsync_PersistsPodcastQuotaSkipCounts()
+    {
+        YouTubeQuotaUsageState? savedState = null;
+        var lookupRepository = new Mock<ILookupRepository>();
+        lookupRepository.Setup(x => x.GetYouTubeQuotaUsageState()).ReturnsAsync((YouTubeQuotaUsageState?)null);
+        lookupRepository
+            .Setup(x => x.SaveYouTubeQuotaUsageState(It.IsAny<YouTubeQuotaUsageState>()))
+            .Callback<YouTubeQuotaUsageState>(state => savedState = state)
+            .Returns(Task.CompletedTask);
+
+        var sut = CreateTracker(lookupRepository.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
+
+        await sut.RecordPodcastNotIndexedDueToQuotaAsync();
+        await sut.RecordPodcastNotEnrichedDueToQuotaAsync();
+        await sut.FlushToCosmosAsync();
+
+        savedState.Should().NotBeNull();
+        savedState!.PodcastsNotIndexedDueToQuota.Should().Be(1);
+        savedState.PodcastsNotEnrichedDueToQuota.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task CreateReportAsync_HydratesPodcastQuotaSkipCountsOnColdStart()
+    {
+        var pacificQuotaDate = YouTubePacificQuotaDate.GetCurrent(DateTime.UtcNow);
+        var lookupRepository = new Mock<ILookupRepository>();
+        lookupRepository.Setup(x => x.GetYouTubeQuotaUsageState()).ReturnsAsync(new YouTubeQuotaUsageState
+        {
+            PacificQuotaDate = pacificQuotaDate,
+            SourceApplication = "Indexer",
+            UpdatedUtc = DateTime.UtcNow,
+            PodcastsNotIndexedDueToQuota = 4,
+            PodcastsNotEnrichedDueToQuota = 7,
+            Entries = []
+        });
+        lookupRepository
+            .Setup(x => x.SaveYouTubeQuotaUsageState(It.IsAny<YouTubeQuotaUsageState>()))
+            .Returns(Task.CompletedTask);
+
+        var sut = CreateTracker(
+            lookupRepository.Object,
+            App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
+
+        await sut.RecordPodcastNotIndexedDueToQuotaAsync();
+        var report = await sut.CreateReportAsync(pacificQuotaDate, "Indexer");
+
+        report.PodcastsNotIndexedDueToQuota.Should().Be(5);
+        report.PodcastsNotEnrichedDueToQuota.Should().Be(7);
+    }
+
+    [Fact]
+    public async Task ResetAsync_ClearsPodcastQuotaSkipCounts()
+    {
+        YouTubeQuotaUsageState? savedState = null;
+        var lookupRepository = new Mock<ILookupRepository>();
+        lookupRepository.Setup(x => x.GetYouTubeQuotaUsageState()).ReturnsAsync((YouTubeQuotaUsageState?)null);
+        lookupRepository
+            .Setup(x => x.SaveYouTubeQuotaUsageState(It.IsAny<YouTubeQuotaUsageState>()))
+            .Callback<YouTubeQuotaUsageState>(state => savedState = state)
+            .Returns(Task.CompletedTask);
+
+        var sut = CreateTracker(lookupRepository.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
+
+        await sut.RecordPodcastNotIndexedDueToQuotaAsync();
+        await sut.ResetAsync();
+
+        savedState.Should().NotBeNull();
+        savedState!.PodcastsNotIndexedDueToQuota.Should().Be(0);
+        savedState.PodcastsNotEnrichedDueToQuota.Should().Be(0);
+
+        var report = await sut.CreateReportAsync(SampleReportDate, "Indexer");
+        report.PodcastsNotIndexedDueToQuota.Should().Be(0);
+        report.PodcastsNotEnrichedDueToQuota.Should().Be(0);
     }
 
     private static YouTubeQuotaUsageTracker CreateTracker(params Application[] applications) =>

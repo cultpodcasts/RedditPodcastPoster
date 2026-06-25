@@ -7,6 +7,7 @@ using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 using RedditPodcastPoster.Text.EliminationTerms;
 
 namespace RedditPodcastPoster.PodcastServices;
@@ -20,6 +21,7 @@ public class PodcastUpdater(
     IPodcastFilter podcastFilter,
     IAsyncInstance<IEliminationTermsProvider> eliminationTermsProviderInstance,
     IOptions<PostingCriteria> postingCriteria,
+    IYouTubeQuotaUsageTracker youTubeQuotaUsageTracker,
     ILogger<PodcastUpdater> logger)
     : IPodcastUpdater
 {
@@ -226,6 +228,12 @@ public class PodcastUpdater(
             await podcastRepository.Save(podcast);
         }
 
+        await RecordPodcastQuotaImpactIfNeeded(
+            podcast,
+            enrichOnly,
+            indexingContext,
+            initialSkipYouTube);
+
         return new IndexPodcastResult(
             podcast,
             mergeResult,
@@ -233,6 +241,37 @@ public class PodcastUpdater(
             enrichmentResult,
             spotifyBypassed,
             youTubeBypassed);
+    }
+
+    private async Task RecordPodcastQuotaImpactIfNeeded(
+        Podcast podcast,
+        bool enrichOnly,
+        IndexingContext indexingContext,
+        bool initialSkipYouTube)
+    {
+        if (initialSkipYouTube || !indexingContext.YouTubeQuotaExhausted)
+        {
+            return;
+        }
+
+        if (podcast.SkipEnrichingFromYouTube == true)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
+            string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
+        {
+            return;
+        }
+
+        if (enrichOnly || !podcast.IsScheduledYouTubeDiscoveryBypassed(indexingContext))
+        {
+            await youTubeQuotaUsageTracker.RecordPodcastNotEnrichedDueToQuotaAsync();
+            return;
+        }
+
+        await youTubeQuotaUsageTracker.RecordPodcastNotIndexedDueToQuotaAsync();
     }
 
     private static IList<Episode> BuildEnrichmentEpisodeContext(

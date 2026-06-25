@@ -40,7 +40,7 @@ function New-CosmosDbAuthorizationHeader {
     $hmacSha256.Key = $keyBytes
     $hash = $hmacSha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($payload))
     $signature = [Convert]::ToBase64String($hash)
-    [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("type=master&ver=1.0&sig=$signature"))
+    [uri]::EscapeDataString("type=master&ver=1.0&sig=$signature")
 }
 
 function Invoke-CosmosDbQuery {
@@ -110,7 +110,10 @@ switch ($Query) {
         }
 
         $sql = @"
-SELECT TOP 1 c.id, c.reportDate, c.sourceApplication, c.keys, c.usedIndexerKeys, c.unusedIndexerKeys, c._ts
+SELECT TOP 1 c.id, c.reportDate, c.sourceApplication,
+       c.podcastsNotIndexedDueToQuota, c.podcastsNotEnrichedDueToQuota,
+       c.ringExhaustionCount, c.nonQuotaErrorCount,
+       c.keys, c.usedIndexerKeys, c.unusedIndexerKeys, c._ts
 FROM c
 WHERE c.type = 'YouTubeQuotaReport'
   AND c.reportDate = @reportDate

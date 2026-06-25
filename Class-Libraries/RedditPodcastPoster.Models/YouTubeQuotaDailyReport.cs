@@ -41,6 +41,22 @@ public sealed class YouTubeQuotaDailyReport : CosmosSelector
     [JsonPropertyOrder(14)]
     public List<YouTubeIndexerKeySummary> UnusedIndexerKeys { get; set; } = [];
 
+    [JsonPropertyName("podcastsNotIndexedDueToQuota")]
+    [JsonPropertyOrder(15)]
+    public int PodcastsNotIndexedDueToQuota { get; set; }
+
+    [JsonPropertyName("podcastsNotEnrichedDueToQuota")]
+    [JsonPropertyOrder(16)]
+    public int PodcastsNotEnrichedDueToQuota { get; set; }
+
+    [JsonPropertyName("ringExhaustionCount")]
+    [JsonPropertyOrder(17)]
+    public int RingExhaustionCount { get; set; }
+
+    [JsonPropertyName("nonQuotaErrorCount")]
+    [JsonPropertyOrder(18)]
+    public int NonQuotaErrorCount { get; set; }
+
     public override string FileKey => $"{nameof(YouTubeQuotaDailyReport)}-{ReportDate:yyyy-MM-dd}-{SourceApplication}";
 }
 
@@ -70,16 +86,20 @@ public sealed class YouTubeQuotaKeyStats
     [JsonPropertyOrder(15)]
     public int QuotaUsed { get; set; }
 
-    [JsonPropertyName("dailyLimit")]
+    [JsonPropertyName("estimatedQuotaUsed")]
     [JsonPropertyOrder(16)]
+    public int EstimatedQuotaUsed { get; set; }
+
+    [JsonPropertyName("dailyLimit")]
+    [JsonPropertyOrder(17)]
     public int DailyLimit { get; set; }
 
-    [JsonPropertyName("remainingQuota")]
-    [JsonPropertyOrder(17)]
-    public int RemainingQuota { get; set; }
+    [JsonPropertyName("quotaConsumedByOperation")]
+    [JsonPropertyOrder(18)]
+    public YouTubeQuotaConsumedByOperation QuotaConsumedByOperation { get; set; } = new();
 
     [JsonPropertyName("capacityHint")]
-    [JsonPropertyOrder(18)]
+    [JsonPropertyOrder(19)]
     public string? CapacityHint { get; set; }
 }
 
@@ -117,11 +137,38 @@ public sealed class YouTubeIndexerKeySummary
     [JsonPropertyOrder(17)]
     public int QuotaUsed { get; set; }
 
-    [JsonPropertyName("dailyLimit")]
+    [JsonPropertyName("estimatedQuotaUsed")]
     [JsonPropertyOrder(18)]
+    public int EstimatedQuotaUsed { get; set; }
+
+    [JsonPropertyName("dailyLimit")]
+    [JsonPropertyOrder(19)]
     public int DailyLimit { get; set; }
 
-    [JsonPropertyName("remainingQuota")]
-    [JsonPropertyOrder(19)]
-    public int RemainingQuota { get; set; }
+    [JsonPropertyName("quotaConsumedByOperation")]
+    [JsonPropertyOrder(20)]
+    public YouTubeQuotaConsumedByOperation QuotaConsumedByOperation { get; set; } = new();
+}
+
+public sealed class YouTubeQuotaConsumedByOperation
+{
+    [JsonPropertyName("searchList")]
+    [JsonPropertyOrder(10)]
+    public int SearchList { get; set; }
+
+    [JsonPropertyName("channelsList")]
+    [JsonPropertyOrder(11)]
+    public int ChannelsList { get; set; }
+
+    [JsonPropertyName("playlistItemsList")]
+    [JsonPropertyOrder(12)]
+    public int PlaylistItemsList { get; set; }
+
+    [JsonPropertyName("playlistsList")]
+    [JsonPropertyOrder(13)]
+    public int PlaylistsList { get; set; }
+
+    [JsonPropertyName("videosList")]
+    [JsonPropertyOrder(14)]
+    public int VideosList { get; set; }
 }

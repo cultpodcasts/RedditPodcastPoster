@@ -19,8 +19,8 @@ public class IndexerKeyRingTests
             App("key2", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-02-CultPodcasts", null),
             App("key3", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-03-CultPodcasts", null),
             App("key4", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-04-CultPodcasts", null),
-            App("key13discover", "cultcodcasts", ApplicationUsage.Discover, "ApiKey-13 - Discover", null),
-            App("key13discover2", "cultcodcasts", ApplicationUsage.Discover, "ApiKey-13 - Discover backup", null),
+            App("key13discover", "cultpodcasts", ApplicationUsage.Discover, "ApiKey-13 - Discover", null),
+            App("key13discover2", "cultpodcasts", ApplicationUsage.Discover, "ApiKey-13 - Discover backup", null),
             App("key7", "CultPodcasts", ApplicationUsage.Bluesky, "ApiKey-7 - Bluesky", null),
             App("key8", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-05-CultPodcasts", null),
             App("key9", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-06-CultPodcasts", null),
@@ -123,8 +123,22 @@ public class IndexerKeyRingTests
 
         var application = sut.GetApplication(ApplicationUsage.Indexer);
 
-        application.Application.DisplayName.Should().Be("Indexer-Key-05-CultPodcasts");
-        application.Index.Should().Be(4);
+        application.Application.DisplayName.Should().Be("Indexer-Key-09-CultPodcasts");
+        application.Index.Should().Be(8);
+    }
+
+    [Fact]
+    public void GetHourFallbackRingIndex_CoversAllRingPositionsAcrossUtcDay()
+    {
+        const int ringCount = 11;
+        var seen = new HashSet<int>();
+
+        for (var hour = 0; hour < 24; hour++)
+        {
+            seen.Add(IndexerKeyRingBuilder.GetHourFallbackRingIndex(hour, ringCount));
+        }
+
+        seen.Should().HaveCount(ringCount);
     }
 
     private static YouTubeApiKeyStrategy CreateStrategy(YouTubeSettings settings, int hour)

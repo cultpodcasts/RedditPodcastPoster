@@ -68,6 +68,7 @@ public class YouTubePlaylistService(
                 await quotaUsageTracker.RecordQuotaConsumedAsync(
                     youTubeServiceWrapper.CurrentApplication,
                     youTubeServiceWrapper.Usage,
+                    YouTubeQuotaOperation.PlaylistItemsList,
                     YouTubeQuotaCosts.PlaylistItemsList);
             }
             catch (GoogleApiException ex)
@@ -76,12 +77,17 @@ public class YouTubePlaylistService(
                     ex.Message.Contains("quota"))
                 {
                     logger.LogWarning(ex, "Exceeded Quota occurred.");
+                    await quotaUsageTracker.RecordQuotaHitAsync(
+                        youTubeServiceWrapper.CurrentApplication,
+                        youTubeServiceWrapper.Usage,
+                        YouTubeQuotaOperation.PlaylistItemsList);
                     throw new YouTubeQuotaException();
                 }
 
                 logger.LogError(ex,
                     "Unrecognised google-api-exception. Failed to use {nameofYouTubeServiceWrapperYouTubeService} to obtain playlist-snippets for playlist-id '{playlistId}'.",
                     nameof(youTubeServiceWrapper.YouTubeService), playlistId);
+                await quotaUsageTracker.RecordNonQuotaErrorAsync();
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return new GetPlaylistVideoSnippetsResponse(null);
             }
@@ -90,6 +96,7 @@ public class YouTubePlaylistService(
                 logger.LogError(ex,
                     "Failed to use {nameofYouTubeServiceWrapperYouTubeService)} obtaining playlist-video-snippets for playlist-id '{playlistId}'.",
                     nameof(youTubeServiceWrapper.YouTubeService), playlistId);
+                await quotaUsageTracker.RecordNonQuotaErrorAsync();
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return new GetPlaylistVideoSnippetsResponse(null);
             }
@@ -155,6 +162,7 @@ public class YouTubePlaylistService(
         await quotaUsageTracker.RecordQuotaConsumedAsync(
             youTubeServiceWrapper.CurrentApplication,
             youTubeServiceWrapper.Usage,
+            YouTubeQuotaOperation.PlaylistsList,
             YouTubeQuotaCosts.PlaylistsList);
 
         if (playlistResponse == null || !playlistResponse.Items.Any())
