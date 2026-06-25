@@ -7,10 +7,12 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 
 public class YouTubeChannelVideoSnippetsService(
+    IYouTubeQuotaUsageTracker quotaUsageTracker,
     ILogger<YouTubeChannelVideoSnippetsService> logger)
     : IYouTubeChannelVideoSnippetsService
 {
@@ -43,6 +45,11 @@ public class YouTubeChannelVideoSnippetsService(
             try
             {
                 response = await searchListRequest.ExecuteAsync();
+                await quotaUsageTracker.RecordQuotaConsumedAsync(
+                    youTubeServiceWrapper.CurrentApplication,
+                    youTubeServiceWrapper.Usage,
+                    YouTubeQuotaOperation.SearchList,
+                    YouTubeQuotaCosts.SearchList);
             }
             catch (GoogleApiException ex)
             {
@@ -50,6 +57,10 @@ public class YouTubeChannelVideoSnippetsService(
                     ex.Message.Contains("quota"))
                 {
                     logger.LogWarning(ex, "Exceeded Quota occurred.");
+                    await quotaUsageTracker.RecordQuotaHitAsync(
+                        youTubeServiceWrapper.CurrentApplication,
+                        youTubeServiceWrapper.Usage,
+                        YouTubeQuotaOperation.SearchList);
                     throw new YouTubeQuotaException();
                 }
 
@@ -61,6 +72,7 @@ public class YouTubeChannelVideoSnippetsService(
                 logger.LogError(ex,
                     "Unrecognised google-api-exception. Failed to use {nameofYouTubeServiceWrapperYouTubeService} to obtain latest-channel-snippets for channel-id '{channelId}'.",
                     nameof(youTubeServiceWrapper.YouTubeService), channelId.ChannelId);
+                await quotaUsageTracker.RecordNonQuotaErrorAsync();
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return result;
             }
@@ -69,6 +81,7 @@ public class YouTubeChannelVideoSnippetsService(
                 logger.LogError(ex,
                     "Failed to use {nameofYouTubeServiceWrapperYouTubeService)} to obtain latest-channel-snippets for channel-id '{channelId}'.",
                     nameof(youTubeServiceWrapper.YouTubeService), channelId.ChannelId);
+                await quotaUsageTracker.RecordNonQuotaErrorAsync();
                 indexingContext.SkipYouTubeUrlResolving = true;
                 return result;
             }

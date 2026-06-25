@@ -1,15 +1,18 @@
 using Azure.Diagnostics;
+using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
-using RedditPodcastPoster.PodcastServices;
+using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace Indexer;
 
 [DurableTask(nameof(IndexIdProvider))]
 public class IndexIdProvider(
-    IIndexablePodcastIdProvider indexablePodcastIdProvider,
+    IPodcastRepository podcastRepository,
     IOptions<IndexerOptions> indexerOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<IndexIdProvider> logger
@@ -28,7 +31,25 @@ public class IndexIdProvider(
             throw new ArgumentException("IndexPasses must be greater than 0.");
         }
 
-        var allIndexablePodcastIds = await indexablePodcastIdProvider.GetIndexablePodcastIds().ToArrayAsync();
+        var indexablePodcasts = await podcastRepository
+            .GetAllBy(
+                podcast => ((!podcast.Removed.IsDefined() || podcast.Removed == false) &&
+                            podcast.IndexAllEpisodes) ||
+                           podcast.EpisodeIncludeTitleRegex != "")
+            .ToArrayAsync();
+
+        var allIndexablePodcastIds = indexablePodcasts.Select(p => p.Id).ToArray();
+        var youtubeDiscoveryIds = indexablePodcasts
+            .Where(p => p.DependsOnYouTubeForEpisodeDiscovery())
+            .Select(p => p.Id)
+            .ToArray();
+
+        if (youtubeDiscoveryIds.Length > 0)
+        {
+            logger.LogInformation(
+                "YouTubeAuthorityIndexPool audit-utc='{AuditUtc:O}' podcast-count='{PodcastCount}' podcast-ids='{PodcastIds}'",
+                DateTime.UtcNow, youtubeDiscoveryIds.Length, string.Join(",", youtubeDiscoveryIds));
+        }
 
         var batchSizes = allIndexablePodcastIds.Length / req.IndexPasses;
         var batches = new List<Guid[]>();
@@ -42,6 +63,12 @@ public class IndexIdProvider(
 
             var batchArray = batch.ToArray();
             logger.LogInformation("Batch {i}: {batch}", i + 1, batchArray);
+            if (i == 3)
+            {
+                logger.LogWarning(
+                    "IndexIdProvider batch-4-summary podcast-count='{PodcastCount}'",
+                    batchArray.Length);
+            }
             batches.Add(batchArray);
         }
 

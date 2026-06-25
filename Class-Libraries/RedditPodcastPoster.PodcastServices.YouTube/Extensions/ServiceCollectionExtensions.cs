@@ -6,6 +6,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
+using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 using RedditPodcastPoster.PodcastServices.YouTube.Enrichment;
 using RedditPodcastPoster.PodcastServices.YouTube.Episode;
 using RedditPodcastPoster.PodcastServices.YouTube.Factories;
@@ -22,7 +23,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddYouTubeServices(this IServiceCollection services, ApplicationUsage usage)
     {
-        return services
+        var serviceCollection = services
             .AddScoped<IYouTubeEpisodeProvider, YouTubeEpisodeProvider>()
             .AddScoped<IYouTubeEpisodeEnricher, YouTubeEpisodeEnricher>()
             .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
@@ -30,6 +31,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
             .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
             .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
+            .AddScoped<ITolerantYouTubeChannelService, TolerantYouTubeChannelService>()
             .AddScoped<ISearchResultFinder, SearchResultFinder>()
             .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>()
             .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
@@ -38,6 +40,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeChannelVideosService, YouTubeChannelVideosService>()
             .AddScoped<IYouTubeServiceFactory, YouTubeServiceFactory>()
             .AddScoped<IYouTubeApiKeyStrategy, YouTubeApiKeyStrategy>()
+            .AddSingleton<IYouTubeQuotaUsageTracker, YouTubeQuotaUsageTracker>()
             .AddDateTimeService()
             .AddScoped(s => s.GetService<IYouTubeServiceFactory>()!.Create(usage))
             .AddScoped<ITolerantYouTubeChannelVideoSnippetsService, TolerantYouTubeChannelVideoSnippetsService>()
@@ -48,5 +51,15 @@ public static class ServiceCollectionExtensions
             .AddSingleton<IYouTubeChannelVideoRetrievalPolicy, YouTubeChannelVideoRetrievalPolicy>()
             .BindConfiguration<YouTubeSettings>("youtube")
             .BindConfiguration<YouTubeChannelOptions>("youtubeChannel");
+
+        if (usage == ApplicationUsage.Indexer)
+        {
+            serviceCollection
+                .AddScoped<YouTubeIndexerKeyRingSessionHolder>()
+                .AddScoped<IYouTubeIndexerKeyStateService, YouTubeIndexerKeyStateService>()
+                .AddScoped<YouTubeIndexerKeySessionBootstrapper>();
+        }
+
+        return serviceCollection;
     }
 }

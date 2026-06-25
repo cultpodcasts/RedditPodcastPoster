@@ -1,11 +1,16 @@
+using System.Net;
+using Google;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
+using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Video;
 
 public class YouTubeVideoService(
+    IYouTubeQuotaUsageTracker quotaUsageTracker,
     ILogger<YouTubeVideoService> logger)
     : IYouTubeVideoService
 {
@@ -53,12 +58,32 @@ public class YouTubeVideoService(
                 try
                 {
                     response = await request.ExecuteAsync();
+                    await quotaUsageTracker.RecordQuotaConsumedAsync(
+                        youTubeService.CurrentApplication,
+                        youTubeService.Usage,
+                        YouTubeQuotaOperation.VideosList,
+                        YouTubeQuotaCosts.VideosList);
+                }
+                catch (GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.Forbidden &&
+                                                    ex.Message.Contains("exceeded") &&
+                                                    ex.Message.Contains("quota"))
+                {
+                    logger.LogWarning(ex,
+                        "Exceeded quota obtaining videos matching video-ids '{videoIds}'.",
+                        string.Join(",", videoIds));
+                    await quotaUsageTracker.RecordQuotaHitAsync(
+                        youTubeService.CurrentApplication,
+                        youTubeService.Usage,
+                        YouTubeQuotaOperation.VideosList);
+                    indexingContext?.MarkYouTubeQuotaExhausted();
+                    return null;
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex,
                         "Failed to use {youTubeServiceName} obtaining videos matching video-ids '{videoIds}'.",
                         nameof(youTubeService.YouTubeService), string.Join(",", videoIds));
+                    await quotaUsageTracker.RecordNonQuotaErrorAsync();
                     if (indexingContext != null)
                     {
                         indexingContext.SkipYouTubeUrlResolving = true;

@@ -17,7 +17,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 
 public class YouTubeUrlCategoriser(
     IYouTubeServiceWrapper youTubeService,
-    IYouTubeChannelService youTubeChannelService,
+    ITolerantYouTubeChannelService youTubeChannelService,
     IYouTubeVideoService youTubeVideoService,
     IYouTubeChannelVideosService youTubeChannelVideosService,
     IYouTubePlaylistService youTubePlaylistService,

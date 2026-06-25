@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 namespace Indexer;
 
@@ -17,6 +18,7 @@ public class Indexer(
     IActivityOptionsProvider activityOptionsProvider,
     IOptions<IndexerOptions> indexerOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
+    IYouTubeQuotaUsageTracker youTubeQuotaUsageTracker,
     ILogger<Indexer> logger)
     : TaskActivity<IndexerContextWrapper, IndexerContext>
 {
@@ -56,17 +58,20 @@ public class Indexer(
         logger.LogInformation("Pre: {indexerContext} {indexerOptions}", indexerContext.ToString(),
             _indexerOptions.ToString());
         var isPrimaryPass = indexingStrategy.IsPrimaryPass(indexerContextWrapper.Pass, passes);
+        var youTubeEnabledThisPass = indexingStrategy.ResolveYouTube();
         var indexingContext = _indexerOptions.ToIndexingContext() with
         {
             IndexSpotify = indexingStrategy.IndexSpotify(),
             SkipSpotifyUrlResolving = false,
-            SkipYouTubeUrlResolving = !indexingStrategy.ResolveYouTube(),
+            SkipYouTubeUrlResolving = !youTubeEnabledThisPass,
             SkipExpensiveYouTubeQueries = !isPrimaryPass || !indexingStrategy.ExpensiveYouTubeQueries(),
             SkipExpensiveSpotifyQueries = !isPrimaryPass || !indexingStrategy.ExpensiveSpotifyQueries(),
             SkipPodcastDiscovery = true
         };
 
-        var originalIndexingContext = indexerContext with { };
+        logger.LogInformation(
+            "Indexer pass {Pass} indexing-context: {IndexingContext}",
+            indexerContextWrapper.Pass, indexingContext.ToString());
 
         logger.LogInformation("Post: {indexerContext}", indexerContext.ToString());
 
@@ -88,6 +93,32 @@ public class Indexer(
         }
 
         var indexerOperationId = indexerContext.IndexerPassOperationIds[indexerContextWrapper.Pass - 1];
+        var idsToIndex = indexerContext.IndexIds[indexerContextWrapper.Pass - 1];
+        idsToIndexCount = idsToIndex.Length;
+
+        logger.LogWarning(
+            "IndexerPassStart instance-id='{InstanceId}' pass='{Pass}' operation-id='{OperationId}' podcast-count='{PodcastCount}' youtube-enabled-pass='{YouTubeEnabledPass}' skip-youtube='{SkipYouTube}' skip-expensive-youtube='{SkipExpensiveYouTube}' skip-expensive-spotify='{SkipExpensiveSpotify}'",
+            context.InstanceId,
+            indexerContextWrapper.Pass,
+            indexerOperationId,
+            idsToIndexCount,
+            youTubeEnabledThisPass,
+            indexingContext.SkipYouTubeUrlResolving,
+            indexingContext.SkipExpensiveYouTubeQueries,
+            indexingContext.SkipExpensiveSpotifyQueries);
+
+        if (youTubeEnabledThisPass)
+        {
+            try
+            {
+                await youTubeQuotaUsageTracker.EnsureHydratedAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to hydrate YouTube quota usage tracker at indexer pass start.");
+            }
+        }
+
         initiatedStatus = await activityMarshaller.Initiate(indexerOperationId, nameof(Indexer));
 
         if (initiatedStatus != ActivityStatus.Initiated)
@@ -113,9 +144,6 @@ public class Indexer(
         bool results;
         try
         {
-            var idsToIndex = indexerContext.IndexIds[indexerContextWrapper.Pass - 1];
-            idsToIndexCount = idsToIndex.Length;
-
             var updateStopwatch = Stopwatch.StartNew();
             results = await podcastsUpdater.UpdatePodcasts(idsToIndex, indexingContext);
             updateStopwatch.Stop();
@@ -137,6 +165,18 @@ public class Indexer(
         }
         finally
         {
+            if (youTubeEnabledThisPass)
+            {
+                try
+                {
+                    await youTubeQuotaUsageTracker.FlushToCosmosAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failure to flush YouTube quota usage to Cosmos.");
+                }
+            }
+
             try
             {
                 completedStatus = await activityMarshaller.Complete(indexerOperationId, nameof(Indexer));
@@ -161,12 +201,25 @@ public class Indexer(
         {
             Success = results,
             SkipYouTubeUrlResolving = indexingContext.SkipYouTubeUrlResolving,
-            YouTubeError = indexingContext.SkipYouTubeUrlResolving != originalIndexingContext.SkipYouTubeUrlResolving,
+            YouTubeError = youTubeEnabledThisPass && indexingContext.SkipYouTubeUrlResolving,
             SkipSpotifyUrlResolving = indexingContext.SkipSpotifyUrlResolving,
-            SpotifyError = indexingContext.SkipSpotifyUrlResolving != originalIndexingContext.SkipSpotifyUrlResolving
+            SpotifyError = indexingContext.SkipSpotifyUrlResolving
         };
 
         memoryProbe.End();
+
+        logger.LogWarning(
+            "IndexerPassComplete instance-id='{InstanceId}' pass='{Pass}' operation-id='{OperationId}' podcast-count='{PodcastCount}' success='{Success}' skip-youtube='{SkipYouTube}' youtube-error='{YouTubeError}' skip-spotify='{SkipSpotify}' spotify-error='{SpotifyError}' update-ms='{UpdateMs}'",
+            context.InstanceId,
+            indexerContextWrapper.Pass,
+            indexerOperationId,
+            idsToIndexCount,
+            result.Success,
+            result.SkipYouTubeUrlResolving,
+            result.YouTubeError,
+            result.SkipSpotifyUrlResolving,
+            result.SpotifyError,
+            updateMs);
 
         logger.LogInformation("{nameofRunAsync} Completed. Pass: {indexerContextWrapperPass}. Result: {result}",
             nameof(RunAsync), indexerContextWrapper.Pass, result);

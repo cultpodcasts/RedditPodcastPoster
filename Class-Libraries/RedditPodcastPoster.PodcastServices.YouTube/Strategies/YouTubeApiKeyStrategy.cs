@@ -17,9 +17,14 @@ public class YouTubeApiKeyStrategy(
 
     public ApplicationWrapper GetApplication(ApplicationUsage usage)
     {
+        if (usage == ApplicationUsage.Indexer)
+        {
+            return GetIndexerApplication();
+        }
+
         var usageApplications =
-            _settings.Applications.Where(x => x.Usage.HasFlag(usage) && x.Reattempt == null).ToArray();
-        var settingsCount = usageApplications.Count();
+            _settings.Applications.Where(x => MatchesUsage(x, usage) && x.Reattempt == null).ToArray();
+        var settingsCount = usageApplications.Length;
         if (settingsCount == 0)
         {
             throw new InvalidOperationException($"No youtube-applications registered or usage '{usage.ToString()}'");
@@ -34,8 +39,25 @@ public class YouTubeApiKeyStrategy(
         return new ApplicationWrapper(
             application,
             applicationIndex,
-            _settings.Applications.Where(x => x.Usage.HasFlag(usage)).Max(x => x.Reattempt) ?? 0
+            _settings.Applications.Where(x => MatchesUsage(x, usage)).Max(x => x.Reattempt) ?? 0
         );
+    }
+
+    private ApplicationWrapper GetIndexerApplication()
+    {
+        var flatApplications = IndexerKeyRingBuilder.GetFlatIndexerApplications(_settings.Applications);
+        var applicationIndex = IndexerKeyRingBuilder.GetHourFallbackRingIndex(
+            dateTimeService.GetHour(),
+            flatApplications.Count);
+        var application = flatApplications[applicationIndex];
+        logger.LogInformation(
+            "{methodName}: Using indexer ring key '{displayName}' ({position}/{settingsCount}) ending '{keyEnding}'.",
+            nameof(GetApplication),
+            application.DisplayName,
+            applicationIndex + 1,
+            flatApplications.Count,
+            application.ApiKey.Substring(application.ApiKey.Length - 2));
+        return new ApplicationWrapper(application, applicationIndex, 0);
     }
 
     public ApplicationWrapper GetApplication(ApplicationUsage usage, int index, int reattempt)
@@ -43,15 +65,15 @@ public class YouTubeApiKeyStrategy(
         logger.LogInformation("{method}: usage= '{usage}', index= {index}, reattempt= {reattempt}",
             nameof(GetApplication), usage, index, reattempt);
         var usageApplications =
-            _settings.Applications.Where(x => x.Usage.HasFlag(usage) && x.Reattempt == reattempt).ToArray();
-        var settingsCount = usageApplications.Count();
+            _settings.Applications.Where(x => MatchesUsage(x, usage) && x.Reattempt == reattempt).ToArray();
+        var settingsCount = usageApplications.Length;
         if (settingsCount == 0)
         {
             throw new InvalidOperationException(
                 $"No youtube-applications registered for usage '{usage.ToString()}' with reattempt '{reattempt}' (Index-requested: '{index}').");
         }
 
-        if (settingsCount < index)
+        if (settingsCount <= index)
         {
             throw new InvalidOperationException(
                 $"Inadequate number of youtube-applications registered for usage '{usage.ToString()}'. Applications: '{settingsCount}', Index-requested: '{index}'.");
@@ -65,6 +87,29 @@ public class YouTubeApiKeyStrategy(
         return new ApplicationWrapper(
             application,
             index,
-            _settings.Applications.Where(x => x.Usage.HasFlag(usage)).Max(x => x.Reattempt) ?? 0);
+            _settings.Applications.Where(x => MatchesUsage(x, usage)).Max(x => x.Reattempt) ?? 0);
     }
+
+    public IReadOnlyList<ApplicationWrapper> BuildIndexerKeyRing(int startRingIndex)
+    {
+        var ring = IndexerKeyRingBuilder.Build(_settings.Applications, startRingIndex);
+        logger.LogInformation(
+            "{methodName}: Built indexer key ring with {count} unique keys starting at ring index {startRingIndex}. Order: {order}.",
+            nameof(BuildIndexerKeyRing),
+            ring.Count,
+            startRingIndex,
+            string.Join(" -> ", ring.Select(x => x.Application.DisplayName)));
+        return ring;
+    }
+
+    private static bool MatchesUsage(Application application, ApplicationUsage usage) =>
+        usage switch
+        {
+            ApplicationUsage.Indexer => application.Usage == ApplicationUsage.Indexer,
+            ApplicationUsage.Discover => application.Usage == ApplicationUsage.Discover,
+            ApplicationUsage.Api => application.Usage == ApplicationUsage.Api,
+            ApplicationUsage.Bluesky => application.Usage == ApplicationUsage.Bluesky,
+            ApplicationUsage.Cli => application.Usage == ApplicationUsage.Cli,
+            _ => application.Usage.HasFlag(usage)
+        };
 }

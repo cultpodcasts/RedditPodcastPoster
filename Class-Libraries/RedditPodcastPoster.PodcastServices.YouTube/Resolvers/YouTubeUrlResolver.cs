@@ -52,7 +52,7 @@ public class YouTubeItemResolver(
     {
         var latestPlaylistItems = await youTubePlaylistService.GetPlaylistVideoSnippets(
             new YouTubePlaylistId(request.Podcast.YouTubePlaylistId), indexingContext, true,
-            request.Podcast.HasExpensiveYouTubePlaylistQuery());
+            indexingContext.RunExpensiveYouTubePlaylistPagination(request.Podcast));
         if (latestPlaylistItems?.Result == null)
         {
             return null;
