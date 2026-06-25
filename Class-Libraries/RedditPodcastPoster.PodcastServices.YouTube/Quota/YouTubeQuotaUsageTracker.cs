@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
+using RedditPodcastPoster.PodcastServices.YouTube.Strategies;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
@@ -251,11 +252,7 @@ public sealed class YouTubeQuotaUsageTracker(
     }
 
     private IEnumerable<Application> GetConfiguredIndexerApplications() =>
-        _settings.Applications
-            .Where(x => x.Usage == ApplicationUsage.Indexer)
-            .OrderBy(ResolveHourPrimary)
-            .ThenBy(x => x.Reattempt ?? 0)
-            .ThenBy(x => x.DisplayName, StringComparer.Ordinal);
+        IndexerKeyRingBuilder.GetFlatIndexerApplications(_settings.Applications);
 
     private YouTubeIndexerKeySummary CreateIndexerKeySummary(Application application)
     {
@@ -269,8 +266,8 @@ public sealed class YouTubeQuotaUsageTracker(
         {
             DisplayName = application.DisplayName,
             Project = application.Name,
-            HourPrimary = ResolveHourPrimary(application),
-            Reattempt = application.Reattempt,
+            HourPrimary = ResolveRingOrder(application),
+            Reattempt = null,
             ApiKeySuffix = ResolveApiKeySuffix(application.ApiKey),
             CallsAttempted = callsAttempted,
             QuotaHits = quotaHits,
@@ -320,19 +317,19 @@ public sealed class YouTubeQuotaUsageTracker(
 
     internal static string CreateStatsKey(string apiKey, ApplicationUsage usage) => $"{usage}:{apiKey}";
 
-    internal static int ResolveHourPrimary(Application application)
+    internal static int ResolveRingOrder(Application application)
     {
         var parts = application.DisplayName.Split('-', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length >= 3
             && parts[0] == "Indexer"
-            && parts[1] == "HourPrimary"
-            && int.TryParse(parts[2], out var hourPrimary))
+            && parts[1] == "Key"
+            && int.TryParse(parts[2], out var ringOrder))
         {
-            return hourPrimary;
+            return ringOrder;
         }
 
         throw new InvalidOperationException(
-            $"Unable to resolve hour primary from indexer display name '{application.DisplayName}'.");
+            $"Unable to resolve ring order from indexer display name '{application.DisplayName}'.");
     }
 
     internal static string ResolveApiKeySuffix(string apiKey) =>

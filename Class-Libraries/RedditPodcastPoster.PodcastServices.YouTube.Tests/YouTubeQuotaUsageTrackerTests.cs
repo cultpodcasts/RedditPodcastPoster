@@ -17,14 +17,14 @@ public class YouTubeQuotaUsageTrackerTests
     public async Task CreateReport_IdentifiesSpareCapacityCandidates()
     {
         var sut = CreateTracker(
-            App("key1", "CultPodcasts", "Indexer-HourPrimary-1-CultPodcasts"),
-            App("key2", "CultPodcasts", "Indexer-HourPrimary-2-CultPodcasts"));
+            App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"),
+            App("key2", "CultPodcasts", "Indexer-Key-02-CultPodcasts"));
         var application = new Application
         {
             ApiKey = "key1",
             Name = "CultPodcasts",
             Usage = ApplicationUsage.Indexer,
-            DisplayName = "Indexer-HourPrimary-1-CultPodcasts"
+            DisplayName = "Indexer-Key-01-CultPodcasts"
         };
 
         await sut.RecordCallAsync(application, ApplicationUsage.Indexer);
@@ -35,19 +35,19 @@ public class YouTubeQuotaUsageTrackerTests
             ApiKey = "key2",
             Name = application.Name,
             Usage = application.Usage,
-            DisplayName = "Indexer-HourPrimary-2-CultPodcasts"
+            DisplayName = "Indexer-Key-02-CultPodcasts"
         };
         await sut.RecordCallAsync(spareApplication, ApplicationUsage.Indexer);
 
         var report = await sut.CreateReportAsync(SampleReportDate, "Indexer");
 
         report.Keys.Should().HaveCount(2);
-        var exhaustedKey = report.Keys.Single(x => x.DisplayName == "Indexer-HourPrimary-1-CultPodcasts");
+        var exhaustedKey = report.Keys.Single(x => x.DisplayName == "Indexer-Key-01-CultPodcasts");
         exhaustedKey.CapacityHint.Should().Be("quota-exhausted");
         exhaustedKey.DailyLimit.Should().Be(YouTubeQuotaCosts.DailyLimitPerKey);
         exhaustedKey.RemainingQuota.Should().Be(0);
 
-        var spareKey = report.Keys.Single(x => x.DisplayName == "Indexer-HourPrimary-2-CultPodcasts");
+        var spareKey = report.Keys.Single(x => x.DisplayName == "Indexer-Key-02-CultPodcasts");
         spareKey.CapacityHint.Should().Be("spare-capacity-candidate");
         spareKey.DailyLimit.Should().Be(YouTubeQuotaCosts.DailyLimitPerKey);
         spareKey.RemainingQuota.Should().Be(YouTubeQuotaCosts.DailyLimitPerKey);
@@ -58,14 +58,14 @@ public class YouTubeQuotaUsageTrackerTests
     public async Task CreateReport_ComputesRemainingQuotaFromConsumedUnits()
     {
         var sut = CreateTracker(
-            App("key1", "CultPodcasts", "Indexer-HourPrimary-1-CultPodcasts"),
-            App("key2", "CultPodcasts", "Indexer-HourPrimary-2-CultPodcasts"));
+            App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"),
+            App("key2", "CultPodcasts", "Indexer-Key-02-CultPodcasts"));
         var application = new Application
         {
             ApiKey = "key1",
             Name = "CultPodcasts",
             Usage = ApplicationUsage.Indexer,
-            DisplayName = "Indexer-HourPrimary-1-CultPodcasts"
+            DisplayName = "Indexer-Key-01-CultPodcasts"
         };
 
         await sut.RecordQuotaConsumedAsync(application, ApplicationUsage.Indexer, 2_500);
@@ -83,13 +83,13 @@ public class YouTubeQuotaUsageTrackerTests
     [Fact]
     public async Task CreateReport_ClampsRemainingQuotaAtZeroWhenConsumedExceedsDailyLimit()
     {
-        var sut = CreateTracker(App("key1", "CultPodcasts", "Indexer-HourPrimary-1-CultPodcasts"));
+        var sut = CreateTracker(App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
         var application = new Application
         {
             ApiKey = "key1",
             Name = "CultPodcasts",
             Usage = ApplicationUsage.Indexer,
-            DisplayName = "Indexer-HourPrimary-1-CultPodcasts"
+            DisplayName = "Indexer-Key-01-CultPodcasts"
         };
 
         await sut.RecordQuotaConsumedAsync(application, ApplicationUsage.Indexer, 12_000);
@@ -104,11 +104,11 @@ public class YouTubeQuotaUsageTrackerTests
     public async Task CreateReport_SeparatesUsedAndUnusedConfiguredIndexerKeys()
     {
         var sut = CreateTracker(
-            App("key1", "CultPodcasts", "Indexer-HourPrimary-1-CultPodcasts"),
-            App("key2", "CultPodcasts", "Indexer-HourPrimary-2-CultPodcasts"),
-            App("key3", "CultPodcasts", "Indexer-HourPrimary-3-CultPodcasts"),
-            App("key4", "CultPodcasts", "Indexer-HourPrimary-4-CultPodcasts"),
-            App("key8", "CultPodcasts", "Indexer-HourPrimary-1-Reattempt1-CultPodcasts", 1),
+            App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"),
+            App("key2", "CultPodcasts", "Indexer-Key-02-CultPodcasts"),
+            App("key3", "CultPodcasts", "Indexer-Key-03-CultPodcasts"),
+            App("key4", "CultPodcasts", "Indexer-Key-04-CultPodcasts"),
+            App("key8", "CultPodcasts", "Indexer-Key-05-CultPodcasts"),
             App("key12", "CultPodcasts", "ApiKey-12 - Api", usage: ApplicationUsage.Api));
 
         await sut.RecordCallAsync(
@@ -117,7 +117,7 @@ public class YouTubeQuotaUsageTrackerTests
                 ApiKey = "key1",
                 Name = "CultPodcasts",
                 Usage = ApplicationUsage.Indexer,
-                DisplayName = "Indexer-HourPrimary-1-CultPodcasts"
+                DisplayName = "Indexer-Key-01-CultPodcasts"
             },
             ApplicationUsage.Indexer);
         await sut.RecordQuotaHitAsync(
@@ -126,8 +126,7 @@ public class YouTubeQuotaUsageTrackerTests
                 ApiKey = "key8",
                 Name = "CultPodcasts",
                 Usage = ApplicationUsage.Indexer,
-                DisplayName = "Indexer-HourPrimary-1-Reattempt1-CultPodcasts",
-                Reattempt = 1
+                DisplayName = "Indexer-Key-05-CultPodcasts"
             },
             ApplicationUsage.Indexer);
 
@@ -135,12 +134,12 @@ public class YouTubeQuotaUsageTrackerTests
 
         report.Keys.Should().OnlyContain(x => x.Usage == nameof(ApplicationUsage.Indexer));
         report.UsedIndexerKeys.Select(x => x.DisplayName).Should().Equal(
-            "Indexer-HourPrimary-1-CultPodcasts",
-            "Indexer-HourPrimary-1-Reattempt1-CultPodcasts");
+            "Indexer-Key-01-CultPodcasts",
+            "Indexer-Key-05-CultPodcasts");
         report.UnusedIndexerKeys.Select(x => x.DisplayName).Should().Equal(
-            "Indexer-HourPrimary-2-CultPodcasts",
-            "Indexer-HourPrimary-3-CultPodcasts",
-            "Indexer-HourPrimary-4-CultPodcasts");
+            "Indexer-Key-02-CultPodcasts",
+            "Indexer-Key-03-CultPodcasts",
+            "Indexer-Key-04-CultPodcasts");
         report.UsedIndexerKeys.Should().AllSatisfy(x =>
         {
             x.Project.Should().Be("CultPodcasts");
@@ -161,16 +160,16 @@ public class YouTubeQuotaUsageTrackerTests
     public async Task CreateReport_ListsAllConfiguredIndexerKeysEvenWhenNoneWereUsed()
     {
         var sut = CreateTracker(
-            App("key1", "CultPodcasts", "Indexer-HourPrimary-1-CultPodcasts"),
-            App("key2", "CultPodcasts", "Indexer-HourPrimary-2-CultPodcasts"),
+            App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"),
+            App("key2", "CultPodcasts", "Indexer-Key-02-CultPodcasts"),
             App("key7", "CultPodcasts", "ApiKey-7 - Bluesky", usage: ApplicationUsage.Bluesky));
 
         var report = await sut.CreateReportAsync(SampleReportDate, "Indexer");
 
         report.UsedIndexerKeys.Should().BeEmpty();
         report.UnusedIndexerKeys.Select(x => x.DisplayName).Should().Equal(
-            "Indexer-HourPrimary-1-CultPodcasts",
-            "Indexer-HourPrimary-2-CultPodcasts");
+            "Indexer-Key-01-CultPodcasts",
+            "Indexer-Key-02-CultPodcasts");
         report.UnusedIndexerKeys.Should().AllSatisfy(x =>
         {
             x.RemainingQuota.Should().Be(YouTubeQuotaCosts.DailyLimitPerKey);
@@ -201,9 +200,9 @@ public class YouTubeQuotaUsageTrackerTests
             ApiKey = "key1",
             Name = "CultPodcasts",
             Usage = ApplicationUsage.Indexer,
-            DisplayName = "Indexer-HourPrimary-1-CultPodcasts"
+            DisplayName = "Indexer-Key-01-CultPodcasts"
         };
-        var sut = CreateTracker(lookupRepository.Object, App("key1", "CultPodcasts", "Indexer-HourPrimary-1-CultPodcasts"));
+        var sut = CreateTracker(lookupRepository.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
 
         await sut.RecordCallAsync(application, ApplicationUsage.Indexer);
 
@@ -226,9 +225,9 @@ public class YouTubeQuotaUsageTrackerTests
             ApiKey = "key1",
             Name = "CultPodcasts",
             Usage = ApplicationUsage.Indexer,
-            DisplayName = "Indexer-HourPrimary-1-CultPodcasts"
+            DisplayName = "Indexer-Key-01-CultPodcasts"
         };
-        var sut = CreateTracker(lookupRepository.Object, App("key1", "CultPodcasts", "Indexer-HourPrimary-1-CultPodcasts"));
+        var sut = CreateTracker(lookupRepository.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
 
         await sut.RecordCallAsync(application, ApplicationUsage.Indexer);
         await sut.FlushToCosmosAsync();
@@ -255,7 +254,7 @@ public class YouTubeQuotaUsageTrackerTests
                 new YouTubeQuotaUsageEntry
                 {
                     StatsKey = "Indexer:key1",
-                    DisplayName = "Indexer-HourPrimary-1-CultPodcasts",
+                    DisplayName = "Indexer-Key-01-CultPodcasts",
                     Project = "CultPodcasts",
                     Usage = nameof(ApplicationUsage.Indexer),
                     CallsAttempted = 3,
@@ -274,9 +273,9 @@ public class YouTubeQuotaUsageTrackerTests
             ApiKey = "key1",
             Name = "CultPodcasts",
             Usage = ApplicationUsage.Indexer,
-            DisplayName = "Indexer-HourPrimary-1-CultPodcasts"
+            DisplayName = "Indexer-Key-01-CultPodcasts"
         };
-        var sut = CreateTracker(lookupRepository.Object, App("key1", "CultPodcasts", "Indexer-HourPrimary-1-CultPodcasts"));
+        var sut = CreateTracker(lookupRepository.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
 
         await sut.RecordCallAsync(application, ApplicationUsage.Indexer);
         await sut.RecordCallAsync(application, ApplicationUsage.Indexer);
@@ -302,7 +301,7 @@ public class YouTubeQuotaUsageTrackerTests
                 new YouTubeQuotaUsageEntry
                 {
                     StatsKey = "Indexer:key1",
-                    DisplayName = "Indexer-HourPrimary-1-CultPodcasts",
+                    DisplayName = "Indexer-Key-01-CultPodcasts",
                     Project = "CultPodcasts",
                     Usage = nameof(ApplicationUsage.Indexer),
                     CallsAttempted = 3,
@@ -317,27 +316,27 @@ public class YouTubeQuotaUsageTrackerTests
 
         var sut = CreateTracker(
             lookupRepository.Object,
-            App("key1", "CultPodcasts", "Indexer-HourPrimary-1-CultPodcasts"),
-            App("key2", "CultPodcasts", "Indexer-HourPrimary-2-CultPodcasts"));
+            App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"),
+            App("key2", "CultPodcasts", "Indexer-Key-02-CultPodcasts"));
 
         var report = await sut.CreateReportAsync(pacificQuotaDate, "Indexer");
 
         report.Keys.Should().ContainSingle();
         report.Keys.Single().QuotaHits.Should().Be(1);
-        report.UsedIndexerKeys.Should().ContainSingle(x => x.DisplayName == "Indexer-HourPrimary-1-CultPodcasts");
-        report.UnusedIndexerKeys.Should().ContainSingle(x => x.DisplayName == "Indexer-HourPrimary-2-CultPodcasts");
+        report.UsedIndexerKeys.Should().ContainSingle(x => x.DisplayName == "Indexer-Key-01-CultPodcasts");
+        report.UnusedIndexerKeys.Should().ContainSingle(x => x.DisplayName == "Indexer-Key-02-CultPodcasts");
     }
 
     [Fact]
     public async Task CreateReportAsync_ReflectsInMemoryUsageBeforeFlush()
     {
-        var sut = CreateTracker(App("key1", "CultPodcasts", "Indexer-HourPrimary-1-CultPodcasts"));
+        var sut = CreateTracker(App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
         var application = new Application
         {
             ApiKey = "key1",
             Name = "CultPodcasts",
             Usage = ApplicationUsage.Indexer,
-            DisplayName = "Indexer-HourPrimary-1-CultPodcasts"
+            DisplayName = "Indexer-Key-01-CultPodcasts"
         };
 
         await sut.RecordCallAsync(application, ApplicationUsage.Indexer);

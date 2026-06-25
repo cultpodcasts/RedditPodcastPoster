@@ -15,22 +15,22 @@ public class IndexerKeyRingTests
         Applications =
         [
             App("key0", "CultPodcasts", ApplicationUsage.Cli, "ApiKey-0 - Cli", null),
-            App("key1", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-1-CultPodcasts", null),
-            App("key2", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-2-CultPodcasts", null),
-            App("key3", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-3-CultPodcasts", null),
-            App("key4", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-4-CultPodcasts", null),
+            App("key1", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-01-CultPodcasts", null),
+            App("key2", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-02-CultPodcasts", null),
+            App("key3", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-03-CultPodcasts", null),
+            App("key4", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-04-CultPodcasts", null),
             App("key13discover", "cultcodcasts", ApplicationUsage.Discover, "ApiKey-13 - Discover", null),
             App("key13discover2", "cultcodcasts", ApplicationUsage.Discover, "ApiKey-13 - Discover backup", null),
             App("key7", "CultPodcasts", ApplicationUsage.Bluesky, "ApiKey-7 - Bluesky", null),
-            App("key8", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-1-Reattempt1-CultPodcasts", 1),
-            App("key9", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-2-Reattempt1-CultPodcasts", 1),
-            App("key10", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-3-Reattempt1-CultPodcasts", 1),
-            App("key11", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-4-Reattempt1-CultPodcasts", 1),
+            App("key8", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-05-CultPodcasts", null),
+            App("key9", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-06-CultPodcasts", null),
+            App("key10", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-07-CultPodcasts", null),
+            App("key11", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-08-CultPodcasts", null),
             App("key12", "CultPodcasts", ApplicationUsage.Api, "ApiKey-12 - Api", null),
-            App("key15", "cultpodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-1-Reattempt2-CultPodcasts", 2),
-            App("key14", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-2-Reattempt2-CultPodcasts", 2),
-            App("key16", "cultpodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-3-Reattempt2-CultPodcasts", 2),
-            App("key14", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-4-Reattempt2-CultPodcasts", 2),
+            App("key15", "cultpodcasts", ApplicationUsage.Indexer, "Indexer-Key-09-CultPodcasts", null),
+            App("key14", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-10-CultPodcasts", null),
+            App("key16", "cultpodcasts", ApplicationUsage.Indexer, "Indexer-Key-11-CultPodcasts", null),
+            App("key14", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-12-CultPodcasts", null),
         ]
     };
 
@@ -50,24 +50,24 @@ public class IndexerKeyRingTests
         };
 
     [Fact]
-    public void BuildIndexerKeyRing_StartsAtSelectedPrimaryAndWalksAllHourPrimaries()
+    public void BuildIndexerKeyRing_ReturnsFlatConfigOrderWhenStartIndexZero()
     {
         var sut = CreateStrategy(CreateProductionLikeSettings(), hour: 0);
 
-        var ring = sut.BuildIndexerKeyRing(startPrimaryIndex: 0);
+        var ring = sut.BuildIndexerKeyRing(startRingIndex: 0);
 
         ring.Select(x => x.Application.DisplayName).Should().Equal(
-            "Indexer-HourPrimary-1-CultPodcasts",
-            "Indexer-HourPrimary-1-Reattempt1-CultPodcasts",
-            "Indexer-HourPrimary-1-Reattempt2-CultPodcasts",
-            "Indexer-HourPrimary-2-CultPodcasts",
-            "Indexer-HourPrimary-2-Reattempt1-CultPodcasts",
-            "Indexer-HourPrimary-2-Reattempt2-CultPodcasts",
-            "Indexer-HourPrimary-3-CultPodcasts",
-            "Indexer-HourPrimary-3-Reattempt1-CultPodcasts",
-            "Indexer-HourPrimary-3-Reattempt2-CultPodcasts",
-            "Indexer-HourPrimary-4-CultPodcasts",
-            "Indexer-HourPrimary-4-Reattempt1-CultPodcasts");
+            "Indexer-Key-01-CultPodcasts",
+            "Indexer-Key-02-CultPodcasts",
+            "Indexer-Key-03-CultPodcasts",
+            "Indexer-Key-04-CultPodcasts",
+            "Indexer-Key-05-CultPodcasts",
+            "Indexer-Key-06-CultPodcasts",
+            "Indexer-Key-07-CultPodcasts",
+            "Indexer-Key-08-CultPodcasts",
+            "Indexer-Key-09-CultPodcasts",
+            "Indexer-Key-10-CultPodcasts",
+            "Indexer-Key-11-CultPodcasts");
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class IndexerKeyRingTests
     {
         var sut = CreateStrategy(CreateProductionLikeSettings(), hour: 0);
 
-        var ring = sut.BuildIndexerKeyRing(startPrimaryIndex: 0);
+        var ring = sut.BuildIndexerKeyRing(startRingIndex: 0);
 
         ring.Select(x => x.Application.ApiKey).Should().OnlyHaveUniqueItems();
         ring.Should().HaveCount(11);
@@ -89,7 +89,7 @@ public class IndexerKeyRingTests
     {
         var sut = CreateStrategy(CreateProductionLikeSettings(), hour: 0);
 
-        var ring = sut.BuildIndexerKeyRing(startPrimaryIndex: 0);
+        var ring = sut.BuildIndexerKeyRing(startRingIndex: 0);
 
         ring.Select(x => x.Application.ApiKey).Should().NotContain(["key0", "key7", "key12", "key13discover"]);
         ring.Select(x => x.Application.Usage).Should().AllBeEquivalentTo(ApplicationUsage.Indexer);
@@ -107,14 +107,24 @@ public class IndexerKeyRingTests
     }
 
     [Fact]
-    public void BuildIndexerKeyRing_RotatesStartingPrimaryByHour()
+    public void BuildIndexerKeyRing_RotatesFromStartRingIndex()
     {
         var sut = CreateStrategy(CreateProductionLikeSettings(), hour: 12);
 
-        var application = sut.GetApplication(ApplicationUsage.Indexer);
-        var ring = sut.BuildIndexerKeyRing(application.Index);
+        var ring = sut.BuildIndexerKeyRing(startRingIndex: 4);
 
-        ring.First().Application.DisplayName.Should().Be("Indexer-HourPrimary-3-CultPodcasts");
+        ring.First().Application.DisplayName.Should().Be("Indexer-Key-05-CultPodcasts");
+    }
+
+    [Fact]
+    public void GetApplication_ForIndexer_UsesHourFallbackSpread()
+    {
+        var sut = CreateStrategy(CreateProductionLikeSettings(), hour: 18);
+
+        var application = sut.GetApplication(ApplicationUsage.Indexer);
+
+        application.Application.DisplayName.Should().Be("Indexer-Key-05-CultPodcasts");
+        application.Index.Should().Be(4);
     }
 
     private static YouTubeApiKeyStrategy CreateStrategy(YouTubeSettings settings, int hour)

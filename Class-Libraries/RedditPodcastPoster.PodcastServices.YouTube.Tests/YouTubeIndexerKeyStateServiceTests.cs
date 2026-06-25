@@ -26,16 +26,16 @@ public class YouTubeIndexerKeyStateServiceTests
     {
         Applications =
         [
-            App("key1", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-1-CultPodcasts", null),
-            App("key2", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-2-CultPodcasts", null),
-            App("key3", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-3-CultPodcasts", null),
-            App("key4", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-4-CultPodcasts", null),
-            App("key8", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-1-Reattempt1-CultPodcasts", 1),
-            App("key9", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-2-Reattempt1-CultPodcasts", 1),
-            App("key10", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-3-Reattempt1-CultPodcasts", 1),
-            App("key11", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-4-Reattempt1-CultPodcasts", 1),
-            App("key15", "cultpodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-1-Reattempt2-CultPodcasts", 2),
-            App("key14", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-2-Reattempt2-CultPodcasts", 2),
+            App("key1", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-01-CultPodcasts", null),
+            App("key2", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-02-CultPodcasts", null),
+            App("key3", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-03-CultPodcasts", null),
+            App("key4", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-04-CultPodcasts", null),
+            App("key8", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-05-CultPodcasts", null),
+            App("key9", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-06-CultPodcasts", null),
+            App("key10", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-07-CultPodcasts", null),
+            App("key11", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-08-CultPodcasts", null),
+            App("key15", "cultpodcasts", ApplicationUsage.Indexer, "Indexer-Key-09-CultPodcasts", null),
+            App("key14", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-Key-10-CultPodcasts", null),
         ]
     };
 
@@ -51,20 +51,20 @@ public class YouTubeIndexerKeyStateServiceTests
         lookupRepository.Setup(x => x.GetYouTubeIndexerKeyState()).ReturnsAsync(new YouTubeIndexerKeyState
         {
             PacificQuotaDate = CurrentPacificQuotaDate,
-            LastRingIndex = 2,
+            LastRingIndex = 8,
             LastApiKey = "key15",
             UpdatedUtc = DateTime.UtcNow
         });
 
         var session = await sut.ResolveSessionStartAsync();
 
-        session.StartPrimaryIndex.Should().Be(0);
-        session.InitialRingIndex.Should().Be(2);
+        session.HourFallbackRingIndex.Should().Be(0);
+        session.InitialRingIndex.Should().Be(8);
         session.Ring[session.InitialRingIndex].Application.ApiKey.Should().Be("key15");
     }
 
     [Fact]
-    public async Task ResolveSessionStartAsync_WhenQuotaDayChanged_ResetsToHourPrimary()
+    public async Task ResolveSessionStartAsync_WhenQuotaDayChanged_ResetsToHourFallback()
     {
         var lookupRepository = new Mock<ILookupRepository>();
         var strategy = CreateStrategy(CreateProductionLikeSettings(), hour: 0);
@@ -76,7 +76,7 @@ public class YouTubeIndexerKeyStateServiceTests
         lookupRepository.Setup(x => x.GetYouTubeIndexerKeyState()).ReturnsAsync(new YouTubeIndexerKeyState
         {
             PacificQuotaDate = PreviousPacificQuotaDate,
-            LastRingIndex = 2,
+            LastRingIndex = 8,
             LastApiKey = "key15",
             UpdatedUtc = DateTime.UtcNow
         });
@@ -88,7 +88,7 @@ public class YouTubeIndexerKeyStateServiceTests
     }
 
     [Fact]
-    public async Task ResolveSessionStartAsync_WhenSavedKeyMissingFromRing_FallsBackToHourPrimary()
+    public async Task ResolveSessionStartAsync_WhenSavedKeyMissingFromRing_FallsBackToHourFallback()
     {
         var lookupRepository = new Mock<ILookupRepository>();
         var strategy = CreateStrategy(CreateProductionLikeSettings(), hour: 0);
@@ -99,7 +99,7 @@ public class YouTubeIndexerKeyStateServiceTests
         lookupRepository.Setup(x => x.GetYouTubeIndexerKeyState()).ReturnsAsync(new YouTubeIndexerKeyState
         {
             PacificQuotaDate = CurrentPacificQuotaDate,
-            LastRingIndex = 2,
+            LastRingIndex = 8,
             LastApiKey = "removed-key",
             UpdatedUtc = DateTime.UtcNow
         });
@@ -134,8 +134,8 @@ public class YouTubeIndexerKeyStateServiceTests
     }
 
     [Theory]
-    [InlineData("key15", 2, 2)]
-    [InlineData("missing-key", 2, 0)]
+    [InlineData("key15", 8, 8)]
+    [InlineData("missing-key", 8, 0)]
     public void ResolveInitialRingIndex_UsesSavedKeyWhenPresent(string savedApiKey, int savedRingIndex, int expectedIndex)
     {
         var strategy = CreateStrategy(CreateProductionLikeSettings(), hour: 0);
@@ -150,7 +150,8 @@ public class YouTubeIndexerKeyStateServiceTests
         var initialRingIndex = IndexerKeyRingSessionResolver.ResolveInitialRingIndex(
             ring,
             savedState,
-            SamplePacificQuotaDate);
+            SamplePacificQuotaDate,
+            hourFallbackRingIndex: 0);
 
         initialRingIndex.Should().Be(expectedIndex);
     }

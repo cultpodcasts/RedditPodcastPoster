@@ -15,13 +15,14 @@ internal static class IndexerKeyRingSessionResolver
     internal static int ResolveInitialRingIndex(
         IReadOnlyList<ApplicationWrapper> ring,
         YouTubeIndexerKeyState? savedState,
-        DateOnly currentPacificQuotaDate)
+        DateOnly currentPacificQuotaDate,
+        int hourFallbackRingIndex)
     {
         if (savedState == null ||
             savedState.PacificQuotaDate != currentPacificQuotaDate ||
             string.IsNullOrWhiteSpace(savedState.LastApiKey))
         {
-            return 0;
+            return hourFallbackRingIndex;
         }
 
         var indexByKey = FindRingIndexByApiKey(ring, savedState.LastApiKey);
@@ -37,7 +38,7 @@ internal static class IndexerKeyRingSessionResolver
             return savedState.LastRingIndex;
         }
 
-        return 0;
+        return hourFallbackRingIndex;
     }
 
     private static int? FindRingIndexByApiKey(IReadOnlyList<ApplicationWrapper> ring, string apiKey)

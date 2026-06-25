@@ -5,61 +5,54 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Strategies;
 
 internal static class IndexerKeyRingBuilder
 {
+    internal static IReadOnlyList<Application> GetFlatIndexerApplications(IEnumerable<Application> applications)
+    {
+        var seenApiKeys = new HashSet<string>(StringComparer.Ordinal);
+        var result = new List<Application>();
+        foreach (var application in applications)
+        {
+            if (application.Usage != ApplicationUsage.Indexer)
+            {
+                continue;
+            }
+
+            if (!seenApiKeys.Add(application.ApiKey))
+            {
+                continue;
+            }
+
+            result.Add(application);
+        }
+
+        if (result.Count == 0)
+        {
+            throw new InvalidOperationException("No Indexer youtube-applications registered.");
+        }
+
+        return result;
+    }
+
+    internal static int GetHourFallbackRingIndex(int hour, int ringCount) =>
+        ringCount == 0 ? 0 : hour % 4 * (ringCount / 4);
+
     internal static IReadOnlyList<ApplicationWrapper> Build(
         IEnumerable<Application> applications,
-        int startPrimaryIndex)
+        int startRingIndex)
     {
-        var indexerApplications = applications
-            .Where(x => x.Usage == ApplicationUsage.Indexer)
-            .ToArray();
-        var primaries = indexerApplications.Where(x => x.Reattempt == null).ToArray();
-        if (primaries.Length == 0)
+        var flatApplications = GetFlatIndexerApplications(applications);
+        if (startRingIndex < 0 || startRingIndex >= flatApplications.Count)
         {
-            throw new InvalidOperationException("No Indexer primary youtube-applications registered.");
+            throw new ArgumentOutOfRangeException(nameof(startRingIndex),
+                $"Indexer ring start index must be between 0 and {flatApplications.Count - 1}.");
         }
 
-        if (startPrimaryIndex < 0 || startPrimaryIndex >= primaries.Length)
+        var ring = new List<ApplicationWrapper>(flatApplications.Count);
+        for (var offset = 0; offset < flatApplications.Count; offset++)
         {
-            throw new ArgumentOutOfRangeException(nameof(startPrimaryIndex),
-                $"Indexer primary index must be between 0 and {primaries.Length - 1}.");
-        }
-
-        var maxReattempt = indexerApplications.Max(x => x.Reattempt) ?? 0;
-        var ring = new List<ApplicationWrapper>();
-        var seenApiKeys = new HashSet<string>(StringComparer.Ordinal);
-
-        for (var slotOffset = 0; slotOffset < primaries.Length; slotOffset++)
-        {
-            var slotIndex = (startPrimaryIndex + slotOffset) % primaries.Length;
-            for (var reattempt = 0; reattempt <= maxReattempt; reattempt++)
-            {
-                var application = ResolveApplication(indexerApplications, primaries, slotIndex, reattempt);
-                if (application == null || !seenApiKeys.Add(application.ApiKey))
-                {
-                    continue;
-                }
-
-                ring.Add(new ApplicationWrapper(application, slotIndex, maxReattempt));
-            }
+            var canonicalIndex = (startRingIndex + offset) % flatApplications.Count;
+            ring.Add(new ApplicationWrapper(flatApplications[canonicalIndex], canonicalIndex, 0));
         }
 
         return ring;
-    }
-
-    private static Application? ResolveApplication(
-        Application[] indexerApplications,
-        Application[] primaries,
-        int slotIndex,
-        int reattempt)
-    {
-        if (reattempt == 0)
-        {
-            return primaries[slotIndex];
-        }
-
-        return indexerApplications
-            .Where(x => x.Reattempt == reattempt)
-            .Skip(slotIndex)
-            .FirstOrDefault();
     }
 }

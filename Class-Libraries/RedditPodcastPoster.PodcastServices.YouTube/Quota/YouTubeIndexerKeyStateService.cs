@@ -13,51 +13,52 @@ public sealed class YouTubeIndexerKeyStateService(
 {
     public async Task<IndexerKeyRingSessionStart> ResolveSessionStartAsync(CancellationToken cancellationToken = default)
     {
-        var hourPrimary = youTubeApiKeyStrategy.GetApplication(ApplicationUsage.Indexer);
-        var startPrimaryIndex = hourPrimary.Index;
-        var ring = youTubeApiKeyStrategy.BuildIndexerKeyRing(startPrimaryIndex);
+        var hourFallback = youTubeApiKeyStrategy.GetApplication(ApplicationUsage.Indexer);
+        var hourFallbackRingIndex = hourFallback.Index;
+        var ring = youTubeApiKeyStrategy.BuildIndexerKeyRing(0);
         var currentPacificQuotaDate = YouTubePacificQuotaDate.GetCurrent(DateTime.UtcNow);
 
         var savedState = await lookupRepository.GetYouTubeIndexerKeyState();
         var initialRingIndex = IndexerKeyRingSessionResolver.ResolveInitialRingIndex(
             ring,
             savedState,
-            currentPacificQuotaDate);
+            currentPacificQuotaDate,
+            hourFallbackRingIndex);
 
         if (savedState == null)
         {
             logger.LogInformation(
-                "No saved YouTube indexer key state found. Starting at hour primary index {StartPrimaryIndex}, ring index {InitialRingIndex}.",
-                startPrimaryIndex,
+                "No saved YouTube indexer key state found. Starting at hour fallback ring index {HourFallbackRingIndex}, ring index {InitialRingIndex}.",
+                hourFallbackRingIndex,
                 initialRingIndex);
         }
         else if (savedState.PacificQuotaDate != currentPacificQuotaDate)
         {
             logger.LogInformation(
-                "Saved YouTube indexer key state is from quota day {SavedPacificQuotaDate}; current is {CurrentPacificQuotaDate}. Resetting to hour primary index {StartPrimaryIndex}, ring index {InitialRingIndex}.",
+                "Saved YouTube indexer key state is from quota day {SavedPacificQuotaDate}; current is {CurrentPacificQuotaDate}. Resetting to hour fallback ring index {HourFallbackRingIndex}, ring index {InitialRingIndex}.",
                 savedState.PacificQuotaDate,
                 currentPacificQuotaDate,
-                startPrimaryIndex,
+                hourFallbackRingIndex,
                 initialRingIndex);
         }
-        else if (initialRingIndex == 0 &&
+        else if (initialRingIndex == hourFallbackRingIndex &&
                  !string.IsNullOrWhiteSpace(savedState.LastApiKey))
         {
             logger.LogWarning(
-                "Saved YouTube indexer key '{LastApiKeyEnding}' is no longer in the configured ring. Falling back to hour primary index {StartPrimaryIndex}, ring index 0.",
+                "Saved YouTube indexer key '{LastApiKeyEnding}' is no longer in the configured ring. Falling back to hour fallback ring index {HourFallbackRingIndex}.",
                 savedState.LastApiKey[^Math.Min(2, savedState.LastApiKey.Length)..],
-                startPrimaryIndex);
+                hourFallbackRingIndex);
         }
         else
         {
             logger.LogInformation(
-                "Resuming YouTube indexer key ring at index {InitialRingIndex} (hour primary index {StartPrimaryIndex}) for quota day {PacificQuotaDate}.",
+                "Resuming YouTube indexer key ring at index {InitialRingIndex} (hour fallback ring index {HourFallbackRingIndex}) for quota day {PacificQuotaDate}.",
                 initialRingIndex,
-                startPrimaryIndex,
+                hourFallbackRingIndex,
                 currentPacificQuotaDate);
         }
 
-        return new IndexerKeyRingSessionStart(startPrimaryIndex, initialRingIndex, ring);
+        return new IndexerKeyRingSessionStart(hourFallbackRingIndex, initialRingIndex, ring);
     }
 
     public async Task PersistSessionEndAsync(int ringIndex, string apiKey, CancellationToken cancellationToken = default)

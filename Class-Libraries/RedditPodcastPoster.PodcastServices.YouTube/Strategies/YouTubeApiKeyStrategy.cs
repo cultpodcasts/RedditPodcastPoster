@@ -17,6 +17,11 @@ public class YouTubeApiKeyStrategy(
 
     public ApplicationWrapper GetApplication(ApplicationUsage usage)
     {
+        if (usage == ApplicationUsage.Indexer)
+        {
+            return GetIndexerApplication();
+        }
+
         var usageApplications =
             _settings.Applications.Where(x => MatchesUsage(x, usage) && x.Reattempt == null).ToArray();
         var settingsCount = usageApplications.Length;
@@ -36,6 +41,23 @@ public class YouTubeApiKeyStrategy(
             applicationIndex,
             _settings.Applications.Where(x => MatchesUsage(x, usage)).Max(x => x.Reattempt) ?? 0
         );
+    }
+
+    private ApplicationWrapper GetIndexerApplication()
+    {
+        var flatApplications = IndexerKeyRingBuilder.GetFlatIndexerApplications(_settings.Applications);
+        var applicationIndex = IndexerKeyRingBuilder.GetHourFallbackRingIndex(
+            dateTimeService.GetHour(),
+            flatApplications.Count);
+        var application = flatApplications[applicationIndex];
+        logger.LogInformation(
+            "{methodName}: Using indexer ring key '{displayName}' ({position}/{settingsCount}) ending '{keyEnding}'.",
+            nameof(GetApplication),
+            application.DisplayName,
+            applicationIndex + 1,
+            flatApplications.Count,
+            application.ApiKey.Substring(application.ApiKey.Length - 2));
+        return new ApplicationWrapper(application, applicationIndex, 0);
     }
 
     public ApplicationWrapper GetApplication(ApplicationUsage usage, int index, int reattempt)
@@ -68,14 +90,14 @@ public class YouTubeApiKeyStrategy(
             _settings.Applications.Where(x => MatchesUsage(x, usage)).Max(x => x.Reattempt) ?? 0);
     }
 
-    public IReadOnlyList<ApplicationWrapper> BuildIndexerKeyRing(int startPrimaryIndex)
+    public IReadOnlyList<ApplicationWrapper> BuildIndexerKeyRing(int startRingIndex)
     {
-        var ring = IndexerKeyRingBuilder.Build(_settings.Applications, startPrimaryIndex);
+        var ring = IndexerKeyRingBuilder.Build(_settings.Applications, startRingIndex);
         logger.LogInformation(
-            "{methodName}: Built indexer key ring with {count} unique keys starting at primary index {startPrimaryIndex}. Order: {order}.",
+            "{methodName}: Built indexer key ring with {count} unique keys starting at ring index {startRingIndex}. Order: {order}.",
             nameof(BuildIndexerKeyRing),
             ring.Count,
-            startPrimaryIndex,
+            startRingIndex,
             string.Join(" -> ", ring.Select(x => x.Application.DisplayName)));
         return ring;
     }
