@@ -420,3 +420,5 @@ Console-Apps/RedditPodcastPoster/Properties/launchSettings.json
 /scripts/deploy-api.json
 /Cloud/Config
 scripts/.deploy-local/*
+# Local investigation scratch (KQL exports, one-off tools, etc.)
+.tmp*/
