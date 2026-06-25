@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
@@ -14,6 +15,7 @@ public class SearchResultFinder(
 {
     private const int MinFuzzyScore = 65;
     private const int SameLengthMinFuzzyScore = 35;
+    private const int MinSameLengthFuzzyScore = 80;
     private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(30).Ticks;
     private static readonly long BroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
     private static readonly TimeSpan SameReleaseThreshold = TimeSpan.FromHours(3);
@@ -33,17 +35,25 @@ public class SearchResultFinder(
         string episodeTitle,
         TimeSpan episodeLength,
         IEnumerable<SimpleEpisode> episodes,
-        Func<SimpleEpisode, bool>? reducer = null)
+        Func<SimpleEpisode, bool>? reducer = null,
+        Service? releaseAuthority = null,
+        DateTime? released = null)
     {
         var requestEpisodeTitle = WebUtility.HtmlDecode(episodeTitle.Trim());
 
-        var match = episodes.SingleOrDefault(x =>
+        var matches = episodes.Where(x =>
         {
             var trimmedEpisodeTitle = WebUtility.HtmlDecode(x.Name.Trim());
             return trimmedEpisodeTitle == requestEpisodeTitle ||
                    trimmedEpisodeTitle.Contains(requestEpisodeTitle) ||
                    requestEpisodeTitle.Contains(trimmedEpisodeTitle);
         });
+        if (reducer != null)
+        {
+            matches = matches.Where(reducer);
+        }
+
+        var match = matches.MaxBy(x => x.Name);
         if (match == null)
         {
             IList<SimpleEpisode> sampleList;
@@ -56,18 +66,29 @@ public class SearchResultFinder(
                 sampleList = episodes.ToList();
             }
 
-            var sameLength = sampleList.Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < TimeDifferenceThreshold);
-
+            var sameLength = sampleList
+                .Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < TimeDifferenceThreshold);
             if (sameLength.Count() > 1)
             {
-                return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name);
+                return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name, MinSameLengthFuzzyScore);
             }
 
             match = sameLength.SingleOrDefault(x => FuzzyMatcher.IsMatch(episodeTitle, x, y => y.Name, MinFuzzyScore));
 
             if (match == null)
             {
-                sameLength = sampleList.Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < BroaderTimeDifferenceThreshold);
+                if (released.HasValue)
+                {
+                    sameLength = sampleList.Where(x =>
+                        Math.Abs((x.GetReleaseDate() - released.Value).Ticks) < SameReleaseThreshold.Ticks);
+                }
+
+                if (releaseAuthority == Service.YouTube)
+                {
+                    sameLength = sampleList.Where(x =>
+                        Math.Abs((x.GetDuration() - episodeLength).Ticks) < BroaderTimeDifferenceThreshold);
+                }
+
                 return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name, SameLengthMinFuzzyScore);
             }
         }

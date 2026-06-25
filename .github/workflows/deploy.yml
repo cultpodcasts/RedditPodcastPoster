@@ -163,6 +163,19 @@ jobs:
         resource-group-name: ${{ env.DATABASE_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/cosmos-db.bicep
         parameters: '{"location":"${{ env.location }}", "cosmosAccountName":"${{ secrets.COSMOS_ACCOUNT_NAME }}"}'
+    - name: Cosmos DB diagnostics (Deploy Bicep)
+      id: bicepcosmosdiagnosticsdeploy
+      uses: azure/bicep-deploy@v1
+      if: needs.build.outputs.infrastructure_changed == 'true'
+      with:
+        type: deployment
+        operation: create
+        name: ${{ env.COSMOS_DEPLOYMENT_NAME }}-diagnostics
+        scope: resourceGroup
+        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+        resource-group-name: ${{ env.DATABASE_RESOURCEGROUP_NAME }}
+        template-file: ./Infrastructure/cosmos-db-diagnostics.bicep
+        parameters: '{"cosmosAccountName":"${{ secrets.COSMOS_ACCOUNT_NAME }}", "logAnalyticsWorkspaceName":"loganalytics-${{ env.suffix }}", "enableDiagnostics":true}'
     - name: Storage (Deploy Bicep)
       id: bicepstoragedeploy
       uses: azure/bicep-deploy@v1

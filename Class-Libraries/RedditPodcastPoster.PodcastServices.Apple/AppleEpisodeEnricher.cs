@@ -12,13 +12,21 @@ public class AppleEpisodeEnricher(
 #pragma warning restore CS9113 // Parameter is unread.
     : IAppleEpisodeEnricher
 {
-    private static readonly TimeSpan YouTubeAuthorityToAudioReleaseConsiderationThreshold = TimeSpan.FromDays(14);
-
     public async Task Enrich(
         EnrichmentRequest request,
         IndexingContext indexingContext,
         EnrichmentContext enrichmentContext)
     {
+        if (request.Podcast.IsDelayedYouTubePublishing(request.Episode))
+        {
+            var timeSpan = request.Podcast.YouTubePublishingDelay().ToString("g");
+            logger.LogInformation(
+                "'{method}': Bypassing enriching of '{requestEpisodeTitle}' with release-date of '{requestEpisodeRelease:R}' from Apple as it is within the {nameof(request.Podcast.YouTubePublishingDelay)} which is '{timeSpan}'.",
+                nameof(Enrich), request.Episode.Title, request.Episode.Release,
+                nameof(request.Podcast.YouTubePublishingDelay), timeSpan);
+            return;
+        }
+
         if (request.Podcast.AppleId == null)
         {
             await applePodcastEnricher.AddId(request.Podcast);
@@ -27,20 +35,18 @@ public class AppleEpisodeEnricher(
         if (request.Podcast.AppleId != null)
         {
             var findAppleEpisodeRequest = FindAppleEpisodeRequestFactory.Create(request.Podcast, request.Episode);
-            var ticks = YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
-            if (request.Podcast.YouTubePublishingDelay() != TimeSpan.Zero)
-            {
-                var delay = request.Podcast.YouTubePublishingDelay().Ticks;
-                if (delay < 0)
-                {
-                    ticks = Math.Abs(delay);
-                }
-            }
+            var ticks = EpisodeReleaseMatchTolerance.GetToleranceTicks(request.Podcast, request.Episode.Length);
+            var assignedAppleIds = request.Episodes
+                .Where(x => x.AppleId is > 0)
+                .Select(x => x.AppleId!.Value)
+                .ToHashSet();
 
             var appleItem = await appleEpisodeResolver.FindEpisode(
                 findAppleEpisodeRequest,
                 indexingContext,
-                y => Math.Abs((y.Release - request.Episode.Release).Ticks) < ticks);
+                y => !assignedAppleIds.Contains(y.Id) &&
+                     findAppleEpisodeRequest.Released.HasValue &&
+                     Math.Abs((y.Release - findAppleEpisodeRequest.Released.Value).Ticks) < ticks);
             if (appleItem != null && request.Episodes.All(x => x.AppleId != appleItem.Id))
             {
                 var url = appleItem.Url.CleanAppleUrl();
@@ -49,6 +55,7 @@ public class AppleEpisodeEnricher(
                 logger.LogInformation(
                     "Episode.Release.TimeOfDay: '{ReleaseTimeOfDay:G}' podcast-id '{PodcastId}' with episode with apple-id '{AppleItemId}'."
                     , request.Episode.Release.TimeOfDay, request.Podcast.Id, appleItem.Id);
+                // Spotify release metadata is date-only; Apple typically publishes simultaneously and carries time-of-day.
                 if (request.Episode.Release.TimeOfDay == TimeSpan.Zero)
                 {
                     logger.LogInformation(

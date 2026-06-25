@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Discovery.ML;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Discovery;
@@ -6,6 +7,7 @@ namespace RedditPodcastPoster.Discovery;
 public class EnrichedEpisodeResultsAdapter(
     IIgnoreTermsProvider ignoreTermsProvider,
     IEnrichedEpisodeResultAdapter enrichedEpisodeResultAdapter,
+    IDiscoveryResultScorer discoveryResultScorer,
     ILogger<EnrichedEpisodeResultsAdapter> logger) : IEnrichedEpisodeResultsAdapter
 {
     public async IAsyncEnumerable<DiscoveryResult> ToDiscoveryResults(IAsyncEnumerable<EnrichedEpisodeResult> episodeResults)
@@ -36,6 +38,16 @@ public class EnrichedEpisodeResultsAdapter(
             if (!ignored)
             {
                 var discoveryResult = await enrichedEpisodeResultAdapter.ToDiscoveryResult(episode);
+                var score = discoveryResultScorer.Score(discoveryResult);
+                discoveryResult.AcceptProbability = score.AcceptProbability;
+                discoveryResult.AutoHidden = score.ShouldAutoHide;
+                if (score.ShouldAutoHide)
+                {
+                    logger.LogInformation(
+                        "Scored discovery result '{ResultId}' as auto-hidden (accept probability {Probability:P1}).",
+                        discoveryResult.Id,
+                        score.AcceptProbability);
+                }
 
                 yield return discoveryResult;
             }

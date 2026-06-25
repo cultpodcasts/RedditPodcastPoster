@@ -414,5 +414,16 @@ Console-Apps/RedditPodcastPoster/Properties/launchSettings.json
 /scripts/publish-api
 /scripts/api.zip
 /scripts/deploy-api.json
+/scripts/deploy-discover.json
+/scripts/deploy-indexer.json
 /Cloud/Config
 scripts/.deploy-local/*
+
+# Filled-in secret templates (placeholders only in repo)
+secrets/youtube-keys.local.json
+
+# Local investigation / diagnostic artifacts (never commit)
+.tmp-*
+plan-blocks.md
+**/.plan-url
+/json/

@@ -42,7 +42,8 @@ public class Tweet(
         {
             await tweeter.Tweet(
                 indexerContext is { SkipYouTubeUrlResolving: false, YouTubeError: false },
-                indexerContext is { SkipSpotifyUrlResolving: false, SpotifyError: false });
+                indexerContext is { SkipSpotifyUrlResolving: false, SpotifyError: false },
+                indexerContext.RecentEpisodeCandidates);
             logger.LogInformation("Tweet executed");
         }
         catch (Exception ex)

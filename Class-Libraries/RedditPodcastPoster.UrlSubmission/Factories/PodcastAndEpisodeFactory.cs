@@ -68,6 +68,7 @@ public class PodcastAndEpisodeFactory(
         episode.PodcastName = newPodcast.Name;
         episode.PodcastRemoved = newPodcast.Removed;
         episode.PodcastSearchTerms = newPodcast.SearchTerms;
+        episode.InheritLanguageFromPodcastIfUnset(newPodcast);
         return new CreatePodcastWithEpisodeResponse(newPodcast, episode, submitEpisodeDetails);
     }
 }

@@ -42,7 +42,8 @@ public class Bluesky(
         {
             await blueskyPostManager.Post(
                 indexerContext is { SkipYouTubeUrlResolving: false, YouTubeError: false },
-                indexerContext is { SkipSpotifyUrlResolving: false, SpotifyError: false });
+                indexerContext is { SkipSpotifyUrlResolving: false, SpotifyError: false },
+                indexerContext.RecentEpisodeCandidates);
             logger.LogInformation("Bluesky-post executed");
         }
         catch (Exception ex)

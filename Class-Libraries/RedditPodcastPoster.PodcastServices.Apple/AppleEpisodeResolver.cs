@@ -61,6 +61,11 @@ public class AppleEpisodeResolver(
                            trimmedEpisodeTitle.Contains(requestEpisodeTitle) ||
                            requestEpisodeTitle.Contains(trimmedEpisodeTitle);
                 });
+                if (reducer != null)
+                {
+                    matches = matches.Where(reducer);
+                }
+
                 var match = matches.MaxBy(x => x.Title);
                 if (match == null)
                 {

@@ -99,6 +99,10 @@ param youTubeApiKey12 string
 param youTubeApiKey13 string
 @secure()
 param youTubeApiKey14 string
+@secure()
+param youTubeApiKey15 string
+@secure()
+param youTubeApiKey16 string
 
 @description('Enable provisioning of budget and monitoring alerts.')
 param enableAlerts bool = true
@@ -135,14 +139,22 @@ var logging= {
     Logging__LogLevel__Default: 'Warning'
     'Logging__LogLevel__Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler': 'Warning'
     Logging__LogLevel__Function: loggingLevel
-    Logging__LogLevel__RedditPodcastPoster: loggingLevel
+    Logging__LogLevel__Azure: loggingLevel
+    Logging__LogLevel__RedditPodcastPoster: 'Warning'
+    Logging__LogLevel__Indexer: 'Information'
+    Logging__LogLevel__Api: 'Information'
+    Logging__LogLevel__Discovery: 'Information'
+    // Legacy App Insights sampling — ignored when host.json telemetryMode is OpenTelemetry.
     Logging__ApplicationInsights__SamplingSettings__IsEnabled: 'true'
     Logging__ApplicationInsights__SamplingSettings__ExcludedTypes: ''
     Logging__ApplicationInsights__EnableLiveMetricsFilters: 'true'
+    OTEL_TRACES_SAMPLER: 'microsoft.fixed_percentage'
+    OTEL_TRACES_SAMPLER_ARG: '0.25'
+    APPLICATIONINSIGHTS_SAMPLING_PERCENTAGE: '25'
 }
 
 var memoryProbe = {
-    memoryProbe__Enabled: 'true'
+    memoryProbe__Enabled: 'false'
 }
 
 var api= {
@@ -367,9 +379,9 @@ var youtube= {
     youtube__Applications__10__ApiKey: youTubeApiKey10
     youtube__Applications__11__ApiKey: youTubeApiKey11
     youtube__Applications__12__ApiKey: youTubeApiKey12
-    youtube__Applications__13__ApiKey: youTubeApiKey13
+    youtube__Applications__13__ApiKey: youTubeApiKey15
     youtube__Applications__14__ApiKey: youTubeApiKey14
-    youtube__Applications__15__ApiKey: youTubeApiKey13
+    youtube__Applications__15__ApiKey: youTubeApiKey16
     youtube__Applications__16__ApiKey: youTubeApiKey14
 }
 
@@ -379,16 +391,17 @@ var youTubeKeyUsage= {
     youtube__Applications__0__DisplayName: 'ApiKey-0 - Cli'
     youtube__Applications__1__Name: 'CultPodcasts'
     youtube__Applications__1__Usage: 'Indexer'
-    youtube__Applications__1__DisplayName: 'ApiKey-1 - Indexer'
+    // Indexer keys form one flat rotation ring (config order, deduped by ApiKey).
+    youtube__Applications__1__DisplayName: 'Indexer-Key-01-CultPodcasts'
     youtube__Applications__2__Name: 'CultPodcasts'
     youtube__Applications__2__Usage: 'Indexer'
-    youtube__Applications__2__DisplayName: 'ApiKey-2 - Indexer'
+    youtube__Applications__2__DisplayName: 'Indexer-Key-02-CultPodcasts'
     youtube__Applications__3__Name: 'CultPodcasts'
     youtube__Applications__3__Usage: 'Indexer'
-    youtube__Applications__3__DisplayName: 'ApiKey-3 - Indexer'
+    youtube__Applications__3__DisplayName: 'Indexer-Key-03-CultPodcasts'
     youtube__Applications__4__Name: 'CultPodcasts'
     youtube__Applications__4__Usage: 'Indexer'
-    youtube__Applications__4__DisplayName: 'ApiKey-4 - Indexer'
+    youtube__Applications__4__DisplayName: 'Indexer-Key-04-CultPodcasts'
     youtube__Applications__5__Usage: 'Discover'
     youtube__Applications__5__Name: 'CultPodcasts'
     youtube__Applications__5__DisplayName: 'ApiKey-5 - Discover'
@@ -400,39 +413,31 @@ var youTubeKeyUsage= {
     youtube__Applications__7__DisplayName: 'ApiKey-7 - Bluesky'
     youtube__Applications__8__Name: 'CultPodcasts'
     youtube__Applications__8__Usage: 'Indexer'
-    youtube__Applications__8__DisplayName: 'ApiKey-8 (Reattempt 1 in place of Api-Key-1) - Indexer'
-    youtube__Applications__8__Reattempt: '1'
+    youtube__Applications__8__DisplayName: 'Indexer-Key-05-CultPodcasts'
     youtube__Applications__9__Name: 'CultPodcasts'
     youtube__Applications__9__Usage: 'Indexer'
-    youtube__Applications__9__DisplayName: 'ApiKey-9 (Reattempt 1 in place of Api-Key-2) - Indexer'
-    youtube__Applications__9__Reattempt: '1'
+    youtube__Applications__9__DisplayName: 'Indexer-Key-06-CultPodcasts'
     youtube__Applications__10__Name: 'CultPodcasts'
     youtube__Applications__10__Usage: 'Indexer'
-    youtube__Applications__10__DisplayName: 'ApiKey-10 (Reattempt 1 in place of Api-Key-3) - Indexer'
-    youtube__Applications__10__Reattempt: '1'
+    youtube__Applications__10__DisplayName: 'Indexer-Key-07-CultPodcasts'
     youtube__Applications__11__Name: 'CultPodcasts'
     youtube__Applications__11__Usage: 'Indexer'
-    youtube__Applications__11__DisplayName: 'ApiKey-11 (Reattempt 1 in place of Api-Key-4) - Indexer'
-    youtube__Applications__11__Reattempt: '1'
+    youtube__Applications__11__DisplayName: 'Indexer-Key-08-CultPodcasts'
     youtube__Applications__12__Name: 'CultPodcasts'
     youtube__Applications__12__Usage: 'Api'
     youtube__Applications__12__DisplayName: 'ApiKey-12 - Api'
-    youtube__Applications__13__Name: 'cultcodcasts'
+    youtube__Applications__13__Name: 'cultpodcasts'
     youtube__Applications__13__Usage: 'Indexer'
-    youtube__Applications__13__DisplayName: 'ApiKey-13 (Reattempt 2 in place of Api-Key-1 & 8) - Indexer'
-    youtube__Applications__13__Reattempt: '2'
+    youtube__Applications__13__DisplayName: 'Indexer-Key-09-CultPodcasts'
     youtube__Applications__14__Name: 'CultPodcasts'
     youtube__Applications__14__Usage: 'Indexer'
-    youtube__Applications__14__DisplayName: 'ApiKey-14 (Reattempt 2 in place of Api-Key-2 & 9) - Indexer'
-    youtube__Applications__14__Reattempt: '2'
-    youtube__Applications__15__Name: 'cultcodcasts'
+    youtube__Applications__14__DisplayName: 'Indexer-Key-10-CultPodcasts'
+    youtube__Applications__15__Name: 'cultpodcasts'
     youtube__Applications__15__Usage: 'Indexer'
-    youtube__Applications__15__DisplayName: 'ApiKey-13 (Reattempt 2 in place of Api-Key-3 & 10) - Indexer'
-    youtube__Applications__15__Reattempt: '2'
+    youtube__Applications__15__DisplayName: 'Indexer-Key-11-CultPodcasts'
     youtube__Applications__16__Name: 'CultPodcasts'
     youtube__Applications__16__Usage: 'Indexer'
-    youtube__Applications__16__DisplayName: 'ApiKey-14 (Reattempt 2 in place of Api-Key-4 & 11) - Indexer'
-    youtube__Applications__16__Reattempt: '2'
+    youtube__Applications__16__DisplayName: 'Indexer-Key-12-CultPodcasts'
 }
 
 var coreSettings= union(
@@ -690,6 +695,14 @@ var applicationInsightsConnectionString = applicationInsights.properties.Connect
 var userAssignedIdentityId = userAssignedIdentity.id
 var userAssignedIdentityClientId = userAssignedIdentity.properties.clientId
 
+var discoverScorer = {
+    discover__scorer__Enabled: 'true'
+    discover__scorer__BlobStorageAccountName: storageAccountName
+    discover__scorer__BlobContainerName: 'discovery-models'
+    discover__scorer__BlobPrefix: 'current'
+    discover__scorer__AutoHideThreshold: '0.05'
+}
+
 module apiFunction 'function.bicep' = {
   name: '${deployment().name}-api'
   params: {
@@ -704,7 +717,7 @@ module apiFunction 'function.bicep' = {
     publicNetworkAccess: true
     instanceMemoryMB: 2048
     appSettings: union({
-        Logging__LogLevel__Api: loggingLevel
+        Logging__LogLevel__Api: 'Information'
     }, apiSettings)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId
@@ -725,8 +738,8 @@ module discoveryFunction 'function.bicep' = {
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: union({
-        Logging__LogLevel__Discovery: loggingLevel
-    }, discoverySettings)
+        Logging__LogLevel__Discovery: 'Information'
+    }, discoverySettings, discoverScorer)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId
   }
@@ -746,7 +759,7 @@ module indexerFunction 'function.bicep' = {
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: union({
-        Logging__LogLevel__Indexer: loggingLevel
+        Logging__LogLevel__Indexer: 'Information'
     }, indexerSettings)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId

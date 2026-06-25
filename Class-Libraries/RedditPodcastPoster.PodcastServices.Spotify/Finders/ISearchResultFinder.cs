@@ -1,4 +1,5 @@
-﻿using SpotifyAPI.Web;
+﻿using RedditPodcastPoster.Models;
+using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Finders;
 
@@ -17,5 +18,7 @@ public interface ISearchResultFinder
         string episodeTitle,
         TimeSpan episodeLength,
         IEnumerable<SimpleEpisode> episodeLists,
-        Func<SimpleEpisode, bool>? reducer = null);
+        Func<SimpleEpisode, bool>? reducer = null,
+        Service? releaseAuthority = null,
+        DateTime? released = null);
 }

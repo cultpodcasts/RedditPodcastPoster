@@ -141,6 +141,10 @@
 
     <Project Path="Console-Apps/Discover/Discover.csproj" />
 
+    <Project Path="Console-Apps/DiscoveryScoreBackfill/DiscoveryScoreBackfill.csproj" />
+
+    <Project Path="Console-Apps/EpisodeLanguageBackfill/EpisodeLanguageBackfill.csproj" />
+
     <Project Path="Console-Apps/EliminateExistingEpisodes/EliminateExistingEpisodes.csproj" />
 
     <Project Path="Console-Apps/EnrichEpisodesFromPostFlare/EnrichEpisodesFromPostFlare.csproj" />
@@ -237,6 +241,7 @@
   </Folder>
   <Folder Name="/Scripts/">
     <File Path="scripts/deploy-api.ps1" />
+    <File Path="scripts/deploy-discover.ps1" />
     <File Path="scripts/deploy-indexer.ps1" />
   </Folder>
 

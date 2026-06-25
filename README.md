@@ -29,14 +29,18 @@ Pushes to `main` build and deploy these via [`.github/workflows/deploy.yml`](.gi
 **Local code-only deploy** (does not change app settings):
 
 ```powershell
-.\scripts\deploy-function-local.ps1 -FunctionName api
-.\scripts\deploy-function-local.ps1 -FunctionName discover
-.\scripts\deploy-function-local.ps1 -FunctionName indexer
+.\scripts\deploy-api.ps1
+.\scripts\deploy-discover.ps1
+.\scripts\deploy-indexer.ps1
 ```
+
+These call `scripts/deploy-function-local.ps1` internally with the correct `-FunctionName`.
 
 Defaults: resource group `AutomatedInfra`, apps `api-infra` / `discover-infra` / `indexer-infra`, storage `cultpodcastsstg`.
 
 Requires `az login` and appropriate blob upload permissions.
+
+When GitHub Actions is inactive, see [docs/interim-deployment.md](docs/interim-deployment.md) for the full script map and local configuration sources.
 
 ## Configuration
 
@@ -55,6 +59,16 @@ Console apps also accept environment variables prefixed with `RedditPodcastPoste
 ### Azure Functions (production)
 
 Function apps use **application settings** with `__` as the section separator (e.g. `cosmosdbv2__Endpoint`, `indexer__ReleasedDaysAgo`). See `functions.bicep` for the canonical list.
+
+### Azure Functions (local)
+
+Cloud projects (`Cloud/Indexer`, `Cloud/Discovery`, `Cloud/Api`) share the same `UserSecretsId` as console apps. In Development, configuration loads from **dotnet user-secrets** — not from `local.settings.json` Values for secrets.
+
+**Do not put API keys in `local.settings.json`.** Use that file only for non-secret host settings (storage emulator, timer disables, indexer tuning). YouTube keys: [`docs/youtube-keys.md`](docs/youtube-keys.md).
+
+```powershell
+dotnet user-secrets set "youtube:Applications:13:ApiKey" "YOUR_KEY_PLACEHOLDER" --project Cloud/Indexer/Indexer.csproj
+```
 
 To convert a user-secrets JSON file to app-setting names:
 
@@ -119,7 +133,7 @@ Use colon notation in user-secrets; Azure uses `__` instead of `:`.
 }
 ```
 
-Additional production-only settings (Auth0, YouTube, Listen Notes, Taddy, push notification keys, etc.) are in `Infrastructure/functions.bicep`.
+Additional production-only settings (Auth0, YouTube, Listen Notes, Taddy, push notification keys, etc.) are in `Infrastructure/functions.bicep`. Production secrets are read from Key Vault at **deploy time** (`functions.bicepparam`) and written as **literal** app-setting values — the running app never calls Key Vault. For YouTube key layout, local user-secrets, and interim manual apply steps, see [docs/youtube-keys.md](docs/youtube-keys.md).
 
 ### YouTube channel episode retrieval
 

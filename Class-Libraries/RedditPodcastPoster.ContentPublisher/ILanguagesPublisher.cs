@@ -2,5 +2,5 @@ namespace RedditPodcastPoster.ContentPublisher;
 
 public interface ILanguagesPublisher
 {
-    Task PublishLanguages();
+    Task<bool> PublishLanguages();
 }

@@ -43,48 +43,6 @@ function New-CosmosDbAuthorizationHeader {
     [uri]::EscapeDataString("type=master&ver=1.0&sig=$signature")
 }
 
-function Get-YouTubeQuotaReportId {
-    param(
-        [string]$ReportDate,
-        [string]$SourceApplication
-    )
-
-    $yyyyMMdd = ($ReportDate -replace '-', '')
-    $input = '{0}:{1}' -f $yyyyMMdd, $SourceApplication
-    $sha256 = [System.Security.Cryptography.SHA256]::Create()
-    $hash = $sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($input))
-    $guidBytes = New-Object 'System.Byte[]' 16
-    [Array]::Copy($hash, 0, $guidBytes, 0, 16)
-    $guidBytes[6] = [byte](($guidBytes[6] -band 0x0F) -bor 0x40)
-    $guidBytes[8] = [byte](($guidBytes[8] -band 0x3F) -bor 0x80)
-    return ([Guid]$guidBytes).ToString()
-}
-
-function Invoke-CosmosDbReadDocument {
-    param(
-        [string]$Endpoint,
-        [string]$Key,
-        [string]$DatabaseName,
-        [string]$ContainerName,
-        [string]$DocumentId,
-        [string]$PartitionKey
-    )
-
-    $resourceId = "dbs/$DatabaseName/colls/$ContainerName/docs/$DocumentId"
-    $uri = "$Endpoint$resourceId"
-    $date = [datetime]::UtcNow
-    $auth = New-CosmosDbAuthorizationHeader -Verb GET -ResourceType docs -ResourceId $resourceId -Key $Key -Date $date
-
-    $headers = @{
-        Authorization                      = $auth
-        'x-ms-date'                        = $date.ToString('r')
-        'x-ms-version'                     = '2018-12-31'
-        'x-ms-documentdb-partitionkey'     = "[`"$PartitionKey`"]"
-    }
-
-    Invoke-RestMethod -Method Get -Uri $uri -Headers $headers
-}
-
 function Invoke-CosmosDbQuery {
     param(
         [string]$Endpoint,
@@ -151,35 +109,47 @@ switch ($Query) {
             $ReportDate = (Get-Date).ToUniversalTime().AddDays(-1).ToString('yyyy-MM-dd')
         }
 
-        $reportId = Get-YouTubeQuotaReportId -ReportDate $ReportDate -SourceApplication $SourceApplication
+        $sql = @"
+SELECT TOP 1 c.id, c.reportDate, c.sourceApplication,
+       c.podcastsNotIndexedDueToQuota, c.podcastsNotEnrichedDueToQuota,
+       c.ringExhaustionCount, c.nonQuotaErrorCount,
+       c.keys, c.usedIndexerKeys, c.unusedIndexerKeys, c._ts
+FROM c
+WHERE c.type = 'YouTubeQuotaReport'
+  AND c.reportDate = @reportDate
+  AND c.sourceApplication = @sourceApplication
+ORDER BY c._ts DESC
+"@
 
         Write-Host "Cosmos: $AccountName / $DatabaseName / $LookUpsContainer"
-        Write-Host "Read: YouTubeQuotaReport id=$reportId reportDate=$ReportDate sourceApplication=$SourceApplication"
+        Write-Host "Query: YouTubeQuotaReport for reportDate=$ReportDate sourceApplication=$SourceApplication"
         Write-Host ''
 
-        Invoke-CosmosDbReadDocument `
+        Invoke-CosmosDbQuery `
             -Endpoint $endpoint `
             -Key $key `
             -DatabaseName $DatabaseName `
             -ContainerName $LookUpsContainer `
-            -DocumentId $reportId `
-            -PartitionKey $reportId | ConvertTo-Json -Depth 10
+            -QueryText $sql `
+            -Parameters @{
+                '@reportDate'        = $ReportDate
+                '@sourceApplication' = $SourceApplication
+            } | ConvertTo-Json -Depth 10
     }
 
     'IndexerKeyState' {
-        $documentId = 'a7c3e1f4-9b2d-4f6a-8c5e-1d3f7a9b2c4e'
+        $sql = "SELECT TOP 1 * FROM c WHERE c.type = 'YouTubeIndexerKeyState' ORDER BY c._ts DESC"
 
         Write-Host "Cosmos: $AccountName / $DatabaseName / $LookUpsContainer"
-        Write-Host "Read: YouTubeIndexerKeyState id=$documentId"
+        Write-Host 'Query: YouTubeIndexerKeyState (latest)'
         Write-Host ''
 
-        Invoke-CosmosDbReadDocument `
+        Invoke-CosmosDbQuery `
             -Endpoint $endpoint `
             -Key $key `
             -DatabaseName $DatabaseName `
             -ContainerName $LookUpsContainer `
-            -DocumentId $documentId `
-            -PartitionKey $documentId | ConvertTo-Json -Depth 10
+            -QueryText $sql | ConvertTo-Json -Depth 10
     }
 
     'Podcast' {

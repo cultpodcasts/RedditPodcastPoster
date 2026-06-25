@@ -32,6 +32,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+. (Join-Path $PSScriptRoot 'AzureWebAppDeploy.ps1')
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $projectMap = @{
     api = 'Cloud/Api/Api.csproj'
@@ -135,7 +137,7 @@ if ($SkipPackaging) {
     }
 
     Write-Host "Creating package $zipPath..."
-    Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $zipPath -Force
+    New-LinuxFunctionAppZip -SourceDirectory $publishDir -DestinationZip $zipPath
 }
 
 if (-not (Test-Path $zipPath)) {
@@ -149,6 +151,12 @@ if ($PSCmdlet.ShouldProcess($AppName, "Deploy $zipPath to production")) {
         az storage blob upload --account-name $StorageAccount --container-name $DeploymentContainer --file $zipPath --name $DeploymentBlobName --auth-mode login --overwrite
         if ($LASTEXITCODE -ne 0) {
             throw "Azure Blob package upload failed with exit code $LASTEXITCODE."
+        }
+
+        Write-Host "Restarting $AppName to activate Flex Consumption package..."
+        az functionapp restart --resource-group $ResourceGroup --name $AppName
+        if ($LASTEXITCODE -ne 0) {
+            throw "Function app restart failed with exit code $LASTEXITCODE."
         }
     } else {
         az functionapp deploy --resource-group $ResourceGroup --name $AppName --src-path $zipPath --type zip

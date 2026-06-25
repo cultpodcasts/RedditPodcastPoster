@@ -28,12 +28,16 @@ public class BlueskyPostManager(
 
     public async Task Post(
         bool youTubeRefreshed,
-        bool spotifyRefreshed)
+        bool spotifyRefreshed,
+        IReadOnlyList<PodcastEpisode>? preloadedRecentCandidates = null)
     {
         IEnumerable<PodcastEpisode> unposted;
         try
         {
-            unposted = (await podcastEpisodeProvider.GetBlueskyReadyPodcastEpisodes(youTubeRefreshed, spotifyRefreshed))
+            unposted = (await podcastEpisodeProvider.GetBlueskyReadyPodcastEpisodes(
+                    youTubeRefreshed,
+                    spotifyRefreshed,
+                    preloadedRecentCandidates))
                 .ToArray();
         }
         catch (Exception ex)

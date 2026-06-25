@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.Common.Episodes;
+﻿using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.Common.Episodes;
 
 public interface IEpisodeProcessor
 {
@@ -6,5 +8,6 @@ public interface IEpisodeProcessor
         DateTime since,
         int? maxPosts,
         bool youTubeRefreshed,
-        bool spotifyRefreshed);
+        bool spotifyRefreshed,
+        IReadOnlyList<PodcastEpisode>? preloadedRecentCandidates = null);
 }

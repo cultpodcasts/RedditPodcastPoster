@@ -14,12 +14,16 @@ public class Tweeter(
 {
     public async Task Tweet(
         bool youTubeRefreshed,
-        bool spotifyRefreshed)
+        bool spotifyRefreshed,
+        IReadOnlyList<PodcastEpisode>? preloadedRecentCandidates = null)
     {
         IEnumerable<PodcastEpisode> untweeted;
         try
         {
-            untweeted = await podcastEpisodeProvider.GetUntweetedPodcastEpisodes(youTubeRefreshed, spotifyRefreshed);
+            untweeted = await podcastEpisodeProvider.GetUntweetedPodcastEpisodes(
+                youTubeRefreshed,
+                spotifyRefreshed,
+                preloadedRecentCandidates);
         }
         catch (Exception ex)
         {
