@@ -413,17 +413,12 @@ Console-Apps/RedditPodcastPoster/Properties/launchSettings.json
 /Console-Apps/dupes.txt
 /scripts/publish-api
 /scripts/api.zip
+/scripts/publish-indexer
+/scripts/publish-discover
+/scripts/indexer.zip
+/scripts/discover.zip
 /scripts/deploy-api.json
-/scripts/deploy-discover.json
-/scripts/deploy-indexer.json
 /Cloud/Config
 scripts/.deploy-local/*
-
-# Filled-in secret templates (placeholders only in repo)
-secrets/youtube-keys.local.json
-
-# Local investigation / diagnostic artifacts (never commit)
-.tmp-*
-plan-blocks.md
-**/.plan-url
-/json/
+# Local investigation scratch (KQL exports, one-off tools, etc.)
+.tmp*/
