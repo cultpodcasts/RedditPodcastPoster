@@ -60,6 +60,16 @@ Console apps also accept environment variables prefixed with `RedditPodcastPoste
 
 Function apps use **application settings** with `__` as the section separator (e.g. `cosmosdbv2__Endpoint`, `indexer__ReleasedDaysAgo`). See `functions.bicep` for the canonical list.
 
+### Azure Functions (local)
+
+Cloud projects (`Cloud/Indexer`, `Cloud/Discovery`, `Cloud/Api`) share the same `UserSecretsId` as console apps. In Development, configuration loads from **dotnet user-secrets** — not from `local.settings.json` Values for secrets.
+
+**Do not put API keys in `local.settings.json`.** Use that file only for non-secret host settings (storage emulator, timer disables, indexer tuning). YouTube keys: [`docs/youtube-keys.md`](docs/youtube-keys.md).
+
+```powershell
+dotnet user-secrets set "youtube:Applications:13:ApiKey" "YOUR_KEY_PLACEHOLDER" --project Cloud/Indexer/Indexer.csproj
+```
+
 To convert a user-secrets JSON file to app-setting names:
 
 ```powershell
@@ -123,7 +133,7 @@ Use colon notation in user-secrets; Azure uses `__` instead of `:`.
 }
 ```
 
-Additional production-only settings (Auth0, YouTube, Listen Notes, Taddy, push notification keys, etc.) are in `Infrastructure/functions.bicep`.
+Additional production-only settings (Auth0, YouTube, Listen Notes, Taddy, push notification keys, etc.) are in `Infrastructure/functions.bicep`. For YouTube key layout, Key Vault names, local user-secrets, and interim Azure scripts, see [docs/youtube-keys.md](docs/youtube-keys.md).
 
 ### YouTube channel episode retrieval
 

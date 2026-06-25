@@ -27,9 +27,9 @@ public class IndexerKeyRingTests
             App("key10", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-3-Reattempt1-CultPodcasts", 1),
             App("key11", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-4-Reattempt1-CultPodcasts", 1),
             App("key12", "CultPodcasts", ApplicationUsage.Api, "ApiKey-12 - Api", null),
-            App("key13", "cultcodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-1-Reattempt2-cultcodcasts", 2),
+            App("key15", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-1-Reattempt2-CultPodcasts", 2),
             App("key14", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-2-Reattempt2-CultPodcasts", 2),
-            App("key13", "cultcodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-3-Reattempt2-cultcodcasts", 2),
+            App("key16", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-3-Reattempt2-CultPodcasts", 2),
             App("key14", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-4-Reattempt2-CultPodcasts", 2),
         ]
     };
@@ -59,12 +59,13 @@ public class IndexerKeyRingTests
         ring.Select(x => x.Application.DisplayName).Should().Equal(
             "Indexer-HourPrimary-1-CultPodcasts",
             "Indexer-HourPrimary-1-Reattempt1-CultPodcasts",
-            "Indexer-HourPrimary-1-Reattempt2-cultcodcasts",
+            "Indexer-HourPrimary-1-Reattempt2-CultPodcasts",
             "Indexer-HourPrimary-2-CultPodcasts",
             "Indexer-HourPrimary-2-Reattempt1-CultPodcasts",
             "Indexer-HourPrimary-2-Reattempt2-CultPodcasts",
             "Indexer-HourPrimary-3-CultPodcasts",
             "Indexer-HourPrimary-3-Reattempt1-CultPodcasts",
+            "Indexer-HourPrimary-3-Reattempt2-CultPodcasts",
             "Indexer-HourPrimary-4-CultPodcasts",
             "Indexer-HourPrimary-4-Reattempt1-CultPodcasts");
     }
@@ -77,8 +78,9 @@ public class IndexerKeyRingTests
         var ring = sut.BuildIndexerKeyRing(startPrimaryIndex: 0);
 
         ring.Select(x => x.Application.ApiKey).Should().OnlyHaveUniqueItems();
-        ring.Should().HaveCount(10);
-        ring.Count(x => x.Application.ApiKey == "key13").Should().Be(1);
+        ring.Should().HaveCount(11);
+        ring.Count(x => x.Application.ApiKey == "key15").Should().Be(1);
+        ring.Count(x => x.Application.ApiKey == "key16").Should().Be(1);
         ring.Count(x => x.Application.ApiKey == "key14").Should().Be(1);
     }
 

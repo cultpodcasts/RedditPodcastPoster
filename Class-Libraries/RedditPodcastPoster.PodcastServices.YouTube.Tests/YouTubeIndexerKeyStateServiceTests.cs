@@ -34,7 +34,7 @@ public class YouTubeIndexerKeyStateServiceTests
             App("key9", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-2-Reattempt1-CultPodcasts", 1),
             App("key10", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-3-Reattempt1-CultPodcasts", 1),
             App("key11", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-4-Reattempt1-CultPodcasts", 1),
-            App("key13", "cultcodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-1-Reattempt2-cultcodcasts", 2),
+            App("key15", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-1-Reattempt2-CultPodcasts", 2),
             App("key14", "CultPodcasts", ApplicationUsage.Indexer, "Indexer-HourPrimary-2-Reattempt2-CultPodcasts", 2),
         ]
     };
@@ -52,7 +52,7 @@ public class YouTubeIndexerKeyStateServiceTests
         {
             PacificQuotaDate = CurrentPacificQuotaDate,
             LastRingIndex = 2,
-            LastApiKey = "key13",
+            LastApiKey = "key15",
             UpdatedUtc = DateTime.UtcNow
         });
 
@@ -60,7 +60,7 @@ public class YouTubeIndexerKeyStateServiceTests
 
         session.StartPrimaryIndex.Should().Be(0);
         session.InitialRingIndex.Should().Be(2);
-        session.Ring[session.InitialRingIndex].Application.ApiKey.Should().Be("key13");
+        session.Ring[session.InitialRingIndex].Application.ApiKey.Should().Be("key15");
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public class YouTubeIndexerKeyStateServiceTests
         {
             PacificQuotaDate = PreviousPacificQuotaDate,
             LastRingIndex = 2,
-            LastApiKey = "key13",
+            LastApiKey = "key15",
             UpdatedUtc = DateTime.UtcNow
         });
 
@@ -134,7 +134,7 @@ public class YouTubeIndexerKeyStateServiceTests
     }
 
     [Theory]
-    [InlineData("key13", 2, 2)]
+    [InlineData("key15", 2, 2)]
     [InlineData("missing-key", 2, 0)]
     public void ResolveInitialRingIndex_UsesSavedKeyWhenPresent(string savedApiKey, int savedRingIndex, int expectedIndex)
     {

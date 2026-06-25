@@ -99,6 +99,10 @@ param youTubeApiKey12 string
 param youTubeApiKey13 string
 @secure()
 param youTubeApiKey14 string
+@secure()
+param youTubeApiKey15 string
+@secure()
+param youTubeApiKey16 string
 
 @description('Enable provisioning of budget and monitoring alerts.')
 param enableAlerts bool = true
@@ -375,9 +379,9 @@ var youtube= {
     youtube__Applications__10__ApiKey: youTubeApiKey10
     youtube__Applications__11__ApiKey: youTubeApiKey11
     youtube__Applications__12__ApiKey: youTubeApiKey12
-    youtube__Applications__13__ApiKey: youTubeApiKey13
+    youtube__Applications__13__ApiKey: youTubeApiKey15
     youtube__Applications__14__ApiKey: youTubeApiKey14
-    youtube__Applications__15__ApiKey: youTubeApiKey13
+    youtube__Applications__15__ApiKey: youTubeApiKey16
     youtube__Applications__16__ApiKey: youTubeApiKey14
 }
 
@@ -426,17 +430,17 @@ var youTubeKeyUsage= {
     youtube__Applications__12__Name: 'CultPodcasts'
     youtube__Applications__12__Usage: 'Api'
     youtube__Applications__12__DisplayName: 'ApiKey-12 - Api'
-    youtube__Applications__13__Name: 'cultcodcasts'
+    youtube__Applications__13__Name: 'CultPodcasts'
     youtube__Applications__13__Usage: 'Indexer'
-    youtube__Applications__13__DisplayName: 'Indexer-HourPrimary-1-Reattempt2-cultcodcasts'
+    youtube__Applications__13__DisplayName: 'Indexer-HourPrimary-1-Reattempt2-CultPodcasts'
     youtube__Applications__13__Reattempt: '2'
     youtube__Applications__14__Name: 'CultPodcasts'
     youtube__Applications__14__Usage: 'Indexer'
     youtube__Applications__14__DisplayName: 'Indexer-HourPrimary-2-Reattempt2-CultPodcasts'
     youtube__Applications__14__Reattempt: '2'
-    youtube__Applications__15__Name: 'cultcodcasts'
+    youtube__Applications__15__Name: 'CultPodcasts'
     youtube__Applications__15__Usage: 'Indexer'
-    youtube__Applications__15__DisplayName: 'Indexer-HourPrimary-3-Reattempt2-cultcodcasts'
+    youtube__Applications__15__DisplayName: 'Indexer-HourPrimary-3-Reattempt2-CultPodcasts'
     youtube__Applications__15__Reattempt: '2'
     youtube__Applications__16__Name: 'CultPodcasts'
     youtube__Applications__16__Usage: 'Indexer'

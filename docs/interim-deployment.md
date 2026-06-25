@@ -99,6 +99,8 @@ Converts user-secrets JSON (`section:key`) to Azure format (`section__key`).
 | `provision-storage-containers.ps1` | Interim `function-storage.bicep` container list |
 | `upload-discovery-model.ps1` | Upload ML scorer bundle to `discovery-models` |
 | `apply-discover-scorer-settings.ps1` | Apply `discover__scorer__*` on `discover-infra` when bicep not deploying |
+| `apply-youtube-keys.ps1` | Apply YouTube API keys + DisplayNames when bicep not deploying (see [youtube-keys.md](youtube-keys.md)) |
+| `apply-youtube-display-names.ps1` | DisplayNames only (wrapper over `apply-youtube-keys.ps1`) |
 
 Build artifacts (gitignored): `scripts/.deploy-local/`, `artifacts/tools/`, `artifacts/.console-publish-staging/`.
 
