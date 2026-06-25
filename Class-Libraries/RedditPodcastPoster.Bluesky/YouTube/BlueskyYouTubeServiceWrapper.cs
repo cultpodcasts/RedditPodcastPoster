@@ -7,8 +7,8 @@ namespace RedditPodcastPoster.Bluesky.YouTube;
 public class BlueskyYouTubeServiceWrapper(IYouTubeServiceWrapper applicationWrapper) : IBlueskyYouTubeServiceWrapper
 {
     public YouTubeService YouTubeService { get; } = applicationWrapper.YouTubeService;
-    public ApplicationUsage Usage { get; } = applicationWrapper.Usage;
-    public Application CurrentApplication { get; } = applicationWrapper.CurrentApplication;
+    public ApplicationUsage Usage => applicationWrapper.Usage;
+    public Application CurrentApplication => applicationWrapper.CurrentApplication;
     public bool CanRotate => applicationWrapper.CanRotate;
 
     public void Rotate()
