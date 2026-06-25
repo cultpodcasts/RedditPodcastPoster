@@ -38,8 +38,9 @@ public class YouTubeServiceFactory(
             ?? (usage == ApplicationUsage.Indexer
                 ? youTubeApiKeyStrategy.GetApplication(usage).Index
                 : 0);
-        var application = session?.Ring[initialRingIndex]
-            ?? indexerKeyRing![initialRingIndex];
+        var application = usage == ApplicationUsage.Indexer
+            ? session?.Ring[initialRingIndex] ?? indexerKeyRing![initialRingIndex]
+            : youTubeApiKeyStrategy.GetApplication(usage);
 
         logger.LogInformation(
             "Obtained api-key: '{apiKey}' at ring index {RingIndex}.",
