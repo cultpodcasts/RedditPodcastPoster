@@ -1,12 +1,11 @@
 # Applies YouTube API key app settings on Function apps when Infrastructure/functions.bicep is not deploying.
 # Mirrors youtube + youTubeKeyUsage in functions.bicep.
 #
-# Typical interim flow (new Reattempt2 keys only):
-#   1. az keyvault secret set ... Youtube-ApiKey-15 / Youtube-ApiKey-16  (see docs/youtube-keys.md)
-#   2. .\scripts\apply-youtube-keys.ps1 -FromKeyVault -ApplyNewKeysOnly
+# App settings are written as literal key values. The running app reads configuration only
+# (YouTubeSettings via IConfiguration) — it never calls Key Vault.
 #
-# Full key ring from Key Vault (all slots 0-16):
-#   .\scripts\apply-youtube-keys.ps1 -FromKeyVault
+# Typical interim flow (new Reattempt2 keys only):
+#   .\scripts\apply-youtube-keys.ps1 -ApiKey15 'YOUR_KEY' -ApiKey16 'YOUR_KEY' -ApplyNewKeysOnly
 #
 # Display names only (no key values):
 #   .\scripts\apply-youtube-keys.ps1 -DisplayNamesOnly
@@ -15,15 +14,10 @@
 param(
     [string]$ResourceGroup = 'AutomatedInfra',
 
-    [string]$KeyVaultName = 'cultpodcasts-deployment',
-
     [string[]]$FunctionApps = @('indexer-infra', 'discover-infra', 'api-infra'),
 
     [Parameter(ParameterSetName = 'DisplayNamesOnly')]
     [switch]$DisplayNamesOnly,
-
-    [Parameter(ParameterSetName = 'FromKeyVault')]
-    [switch]$FromKeyVault,
 
     [Parameter(ParameterSetName = 'ManualKeys')]
     [string]$ApiKey15,
@@ -32,7 +26,6 @@ param(
     [string]$ApiKey16,
 
     [Parameter(ParameterSetName = 'ManualKeys')]
-    [Parameter(ParameterSetName = 'FromKeyVault')]
     [switch]$ApplyNewKeysOnly
 )
 
@@ -65,41 +58,10 @@ $indexerDisplayNames = @(
     'youtube__Applications__16__DisplayName=Indexer-HourPrimary-4-Reattempt2-CultPodcasts'
 )
 
-function Get-KeyVaultSecret {
-    param([string]$SecretName)
-    az keyvault secret show --vault-name $KeyVaultName --name $SecretName --query value -o tsv
-}
-
-function Get-YouTubeKeySettingsFromKeyVault {
-    $settings = @()
-    for ($i = 0; $i -le 16; $i++) {
-        if ($i -eq 13) {
-            continue
-        }
-
-        $secretName = "Youtube-ApiKey-$i"
-        $value = Get-KeyVaultSecret -SecretName $secretName
-        if (-not $value) {
-            if ($i -ge 15) {
-                throw "Key Vault secret '$secretName' is missing. Create it first (see docs/youtube-keys.md)."
-            }
-            throw "Key Vault secret '$secretName' is missing."
-        }
-
-        $appIndex = switch ($i) {
-            15 { 13 }
-            16 { 15 }
-            default { $i }
-        }
-        $settings += "youtube__Applications__${appIndex}__ApiKey=$value"
-    }
-    return $settings
-}
-
 function Get-NewYouTubeKeySettings {
     param([string]$Key15, [string]$Key16)
     if ([string]::IsNullOrWhiteSpace($Key15) -or [string]::IsNullOrWhiteSpace($Key16)) {
-        throw 'Provide -ApiKey15 and -ApiKey16, or use -FromKeyVault / -DisplayNamesOnly.'
+        throw 'Provide -ApiKey15 and -ApiKey16, or use -DisplayNamesOnly.'
     }
     return @(
         "youtube__Applications__13__ApiKey=$Key15"
@@ -111,17 +73,6 @@ $settings = @()
 if ($DisplayNamesOnly) {
     $settings = $indexerDisplayNames
 }
-elseif ($FromKeyVault -and $ApplyNewKeysOnly) {
-    $key15 = Get-KeyVaultSecret -SecretName 'Youtube-ApiKey-15'
-    $key16 = Get-KeyVaultSecret -SecretName 'Youtube-ApiKey-16'
-    if (-not $key15 -or -not $key16) {
-        throw "Key Vault secrets 'Youtube-ApiKey-15' and/or 'Youtube-ApiKey-16' are missing. Create them first (see docs/youtube-keys.md)."
-    }
-    $settings = @(Get-NewYouTubeKeySettings -Key15 $key15 -Key16 $key16) + $indexerDisplayNames
-}
-elseif ($FromKeyVault) {
-    $settings = @(Get-YouTubeKeySettingsFromKeyVault) + $indexerDisplayNames
-}
 elseif ($ApplyNewKeysOnly) {
     $settings = @(Get-NewYouTubeKeySettings -Key15 $ApiKey15 -Key16 $ApiKey16) + $indexerDisplayNames
 }
@@ -131,7 +82,6 @@ else {
 
 Write-Host "Azure subscription: $account"
 Write-Host "Resource group: $ResourceGroup"
-Write-Host "Key Vault: $KeyVaultName"
 Write-Host "Applying $($settings.Count) YouTube app settings to each function app..."
 
 foreach ($app in $FunctionApps) {

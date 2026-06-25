@@ -1,8 +1,29 @@
-# YouTube API keys — Key Vault, local dev, and interim Azure
+# YouTube API keys — storage, deploy, and local dev
 
-How YouTube Data API keys are named, stored, and applied across **Azure Key Vault**, **Function app settings**, and **dotnet user-secrets** for local development.
+How YouTube Data API keys are named, stored, and applied across **Azure Key Vault** (deploy-time source), **Function app settings** (literal values at runtime), and **dotnet user-secrets** (local development).
 
 Canonical production layout: [`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep) (`youtube` + `youTubeKeyUsage`).
+
+## Architecture — how keys flow
+
+```
+Key Vault (cultpodcasts-deployment)
+    │  deploy time only — functions.bicepparam reads via az.getSecret()
+    ▼
+functions.bicep @secure() params → literal app settings on Function apps
+    │  e.g. youtube__Applications__13__ApiKey = <actual key string>
+    ▼
+YouTubeSettings (IOptions) ← IConfiguration / app settings only
+```
+
+| Layer | Key Vault? | Notes |
+|-------|------------|-------|
+| `functions.bicep` | No references | `@secure()` params become **literal** app-setting values — not `@Microsoft.KeyVault(...)` URIs |
+| `functions.bicepparam` | Yes, deploy time | `az.getSecret()` reads KV during `az deployment` / GitHub Actions provision |
+| Application code | **Never** | `YouTubeSettings` binds from `youtube` configuration section only (`BindConfiguration<YouTubeSettings>("youtube")`) |
+| Interim manual apply | No | Set literal values on Function apps via portal, `az functionapp config appsettings set`, or `apply-youtube-keys.ps1` |
+
+Key Vault is the **authoritative secret store for deploy pipelines**. Storing keys there does **not** mean the running Function app resolves them from Key Vault — the app only sees whatever literal string is in its app settings.
 
 ## Azure resources
 
@@ -42,7 +63,9 @@ Slots 13 and 15 previously shared `Youtube-ApiKey-13` under the misspelled `cult
 | 15 | `Indexer-HourPrimary-3-Reattempt2-CultPodcasts` | 2 |
 | 16 | `Indexer-HourPrimary-4-Reattempt2-CultPodcasts` | 2 |
 
-## Step 1 — Add new keys to Key Vault (now)
+## Step 1 — Store keys in Key Vault (optional, for deploy pipeline)
+
+Store secrets in Key Vault so `functions.bicepparam` can read them when bicep deploy works again. This is **not** runtime resolution — it is the deploy-time source of truth.
 
 ```powershell
 az login
@@ -62,20 +85,55 @@ az keyvault secret list --vault-name cultpodcasts-deployment --query "[?starts_w
 
 ## Step 2 — Apply to live Function apps (bicep deploy offline)
 
+Set **literal** API key values on app settings. Do **not** use `@Microsoft.KeyVault(...)` reference URIs.
+
+### indexer-infra — manual `az` (recommended)
+
+Replace the placeholders with your actual key strings from Google Cloud Console:
+
+```powershell
+az login
+
+$rg = 'AutomatedInfra'
+$app = 'indexer-infra'
+
+az functionapp config appsettings set `
+  --resource-group $rg `
+  --name $app `
+  --settings `
+    'youtube__Applications__13__ApiKey=YOUR_NEW_KEY_FOR_HOURPRIMARY_1_REATTEMPT2' `
+    'youtube__Applications__13__Name=cultpodcasts' `
+    'youtube__Applications__13__DisplayName=Indexer-HourPrimary-1-Reattempt2-CultPodcasts' `
+    'youtube__Applications__13__Reattempt=2' `
+    'youtube__Applications__15__ApiKey=YOUR_NEW_KEY_FOR_HOURPRIMARY_3_REATTEMPT2' `
+    'youtube__Applications__15__Name=cultpodcasts' `
+    'youtube__Applications__15__DisplayName=Indexer-HourPrimary-3-Reattempt2-CultPodcasts' `
+    'youtube__Applications__15__Reattempt=2'
+```
+
+Verify (values masked in output):
+
+```powershell
+az functionapp config appsettings list `
+  --resource-group $rg `
+  --name $app `
+  --query "[?contains(name, 'youtube__Applications__1') && (contains(name, 'ApiKey') || contains(name, 'Name') || contains(name, 'DisplayName'))].{name:name,value:value}" `
+  -o table
+```
+
+You can also set these in the Azure Portal under **Configuration → Application settings**. Use literal values, not Key Vault references.
+
+### All three function apps — script
+
 From repo root:
 
 ```powershell
-# Reads Youtube-ApiKey-15 and -16 from Key Vault + updated DisplayNames (recommended)
-.\scripts\apply-youtube-keys.ps1 -FromKeyVault -ApplyNewKeysOnly
-
-# Or read the full key ring (Youtube-ApiKey-0..16) from Key Vault
-.\scripts\apply-youtube-keys.ps1 -FromKeyVault
+# New Reattempt2 keys (slots 13 and 15) + DisplayNames on indexer-infra, discover-infra, api-infra
+.\scripts\apply-youtube-keys.ps1 -ApiKey15 'YOUR_KEY' -ApiKey16 'YOUR_KEY' -ApplyNewKeysOnly
 
 # Display names only (no API key values)
 .\scripts\apply-youtube-keys.ps1 -DisplayNamesOnly
 ```
-
-Do **not** paste API key values on the command line in shared shells. Prefer `-FromKeyVault` so values are read via `az keyvault secret show` only.
 
 Legacy wrapper (same as `-DisplayNamesOnly`):
 
@@ -87,7 +145,7 @@ Each function app restarts after settings change.
 
 ## Step 3 — Local dotnet development (user-secrets)
 
-**Never put YouTube API keys in `local.settings.json`.** That file is gitignored and intended for non-secret host config only (`AzureWebJobsStorage`, timer disables, `indexer`/`poster` tuning). API keys belong in **dotnet user-secrets** (local) or **Key Vault → app settings** (Azure).
+**Never put YouTube API keys in `local.settings.json`.** That file is gitignored and intended for non-secret host config only (`AzureWebJobsStorage`, timer disables, `indexer`/`poster` tuning). API keys belong in **dotnet user-secrets** (local) or **literal app settings** (Azure).
 
 All console apps and Cloud function projects share `UserSecretsId` **`e4eaaf12-4507-4875-857d-a8d4032107f3`**. For Indexer local runs, use:
 
@@ -117,9 +175,9 @@ dotnet user-secrets set "youtube:Applications:15:Reattempt" "2" --project $proj
 
 No manual step if Key Vault already has `Youtube-ApiKey-15` and `Youtube-ApiKey-16`. CI / `functions.bicep` provision will:
 
-1. Read all `Youtube-ApiKey-*` secrets via `functions.bicepparam`
-2. Wire slot 13 → `youTubeApiKey15`, slot 15 → `youTubeApiKey16`
-3. Apply updated `CultPodcasts` DisplayNames
+1. Read all `Youtube-ApiKey-*` secrets via `functions.bicepparam` (deploy time)
+2. Pass literal values into app settings (`youtube__Applications__13__ApiKey` ← `youTubeApiKey15`, etc.)
+3. Apply updated DisplayNames and `cultpodcasts` Name fields
 
 Push to `main` or run the provision job from [`deploy.yml`](../.github/workflows/deploy.yml).
 

@@ -133,7 +133,7 @@ Use colon notation in user-secrets; Azure uses `__` instead of `:`.
 }
 ```
 
-Additional production-only settings (Auth0, YouTube, Listen Notes, Taddy, push notification keys, etc.) are in `Infrastructure/functions.bicep`. For YouTube key layout, Key Vault names, local user-secrets, and interim Azure scripts, see [docs/youtube-keys.md](docs/youtube-keys.md).
+Additional production-only settings (Auth0, YouTube, Listen Notes, Taddy, push notification keys, etc.) are in `Infrastructure/functions.bicep`. Production secrets are read from Key Vault at **deploy time** (`functions.bicepparam`) and written as **literal** app-setting values — the running app never calls Key Vault. For YouTube key layout, local user-secrets, and interim manual apply steps, see [docs/youtube-keys.md](docs/youtube-keys.md).
 
 ### YouTube channel episode retrieval
 
