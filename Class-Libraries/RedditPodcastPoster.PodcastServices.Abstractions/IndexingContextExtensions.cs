@@ -1,7 +1,19 @@
+using RedditPodcastPoster.Models;
+
 namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public static class IndexingContextExtensions
 {
+    /// <summary>
+    /// Full playlist pagination is only allowed when the podcast is known-expensive and this pass
+    /// permits expensive YouTube queries (hour 0 UTC primary pass). Channel listing and single-page
+    /// playlist fetches are unaffected by <see cref="IndexingContext.SkipExpensiveYouTubeQueries"/>.
+    /// </summary>
+    public static bool RunExpensiveYouTubePlaylistPagination(this IndexingContext indexingContext, Podcast podcast)
+    {
+        return podcast.HasExpensiveYouTubePlaylistQuery() && !indexingContext.SkipExpensiveYouTubeQueries;
+    }
+
     public static List<string> GetIndexingContextChanges(this IndexingContext before, IndexingContext after)
     {
         var changes = new List<string>();
@@ -19,6 +31,11 @@ public static class IndexingContextExtensions
         if (before.SkipYouTubeUrlResolving != after.SkipYouTubeUrlResolving)
         {
             changes.Add($"{nameof(IndexingContext.SkipYouTubeUrlResolving)}: '{before.SkipYouTubeUrlResolving}' -> '{after.SkipYouTubeUrlResolving}'");
+        }
+
+        if (before.YouTubeQuotaExhausted != after.YouTubeQuotaExhausted)
+        {
+            changes.Add($"{nameof(IndexingContext.YouTubeQuotaExhausted)}: '{before.YouTubeQuotaExhausted}' -> '{after.YouTubeQuotaExhausted}'");
         }
 
         if (before.SkipSpotifyUrlResolving != after.SkipSpotifyUrlResolving)
@@ -47,5 +64,11 @@ public static class IndexingContextExtensions
         }
 
         return changes;
+    }
+
+    public static void MarkYouTubeQuotaExhausted(this IndexingContext indexingContext)
+    {
+        indexingContext.SkipYouTubeUrlResolving = true;
+        indexingContext.YouTubeQuotaExhausted = true;
     }
 }

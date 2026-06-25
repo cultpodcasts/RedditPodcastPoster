@@ -4,12 +4,14 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 
 public class TolerantYouTubeChannelVideoSnippetsService(
     IYouTubeServiceWrapper youTubeService,
     IYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippets,
+    IYouTubeQuotaUsageTracker quotaUsageTracker,
     ILogger<TolerantYouTubeChannelVideoSnippetsService> logger) : ITolerantYouTubeChannelVideoSnippetsService
 {
     public async Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(YouTubeChannelId channelId,
@@ -22,6 +24,7 @@ public class TolerantYouTubeChannelVideoSnippetsService(
         {
             try
             {
+                await quotaUsageTracker.RecordCallAsync(youTubeService.CurrentApplication, youTubeService.Usage);
                 result = await youTubeChannelVideoSnippets.GetLatestChannelVideoSnippets(youTubeService, channelId,
                     indexingContext);
                 success = true;
@@ -33,6 +36,10 @@ public class TolerantYouTubeChannelVideoSnippetsService(
             catch (YouTubeQuotaException)
             {
                 logger.LogInformation("Quota exceeded observed. Rotating api-key.");
+                await quotaUsageTracker.RecordQuotaHitAsync(
+                    youTubeService.CurrentApplication,
+                    youTubeService.Usage,
+                    YouTubeQuotaOperation.SearchList);
                 try
                 {
                     youTubeService.Rotate();
@@ -40,6 +47,7 @@ public class TolerantYouTubeChannelVideoSnippetsService(
                 catch (Exception e)
                 {
                     logger.LogError(e, "Error rotating youtube-api.");
+                    await quotaUsageTracker.RecordRingExhaustionAsync();
                     rotationExcepted = true;
                 }
             }
@@ -47,7 +55,7 @@ public class TolerantYouTubeChannelVideoSnippetsService(
 
         if (!success)
         {
-            indexingContext.SkipYouTubeUrlResolving = true;
+            indexingContext.MarkYouTubeQuotaExhausted();
             logger.LogError("Unable to obtain latest-channel-video-snippets for channel-id '{channelId}'.",
                 channelId.ChannelId);
         }

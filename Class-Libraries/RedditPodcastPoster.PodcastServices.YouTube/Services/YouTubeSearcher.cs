@@ -17,7 +17,7 @@ public class YouTubeSearcher(
     IYouTubeServiceWrapper youTubeService,
     INoRedirectHttpClientFactory httpClientFactory,
     IYouTubeVideoService youTubeVideoService,
-    IYouTubeChannelService youTubeChannelService,
+    ITolerantYouTubeChannelService youTubeChannelService,
     ILogger<YouTubeSearcher> logger) : IYouTubeSearcher
 {
     private const long MaxSearchResults = 25;

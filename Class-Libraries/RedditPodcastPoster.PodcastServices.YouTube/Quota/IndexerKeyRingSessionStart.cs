@@ -1,0 +1,8 @@
+using RedditPodcastPoster.PodcastServices.YouTube.Models;
+
+namespace RedditPodcastPoster.PodcastServices.YouTube.Quota;
+
+public sealed record IndexerKeyRingSessionStart(
+    int HourFallbackRingIndex,
+    int InitialRingIndex,
+    IReadOnlyList<ApplicationWrapper> Ring);

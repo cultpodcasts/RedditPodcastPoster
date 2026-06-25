@@ -1,3 +1,5 @@
+using RedditPodcastPoster.Models;
+
 namespace Indexer;
 
 public record IndexerContext(
@@ -18,7 +20,8 @@ public record IndexerContext(
     bool? DuplicatePosterOperation = null,
     bool? DuplicatePublisherOperation = null,
     bool? DuplicateTweetOperation = null,
-    bool? DuplicateBlueskyOperation = null)
+    bool? DuplicateBlueskyOperation = null,
+    PodcastEpisode[]? RecentEpisodeCandidates = null)
 {
     public override string ToString()
     {
@@ -77,13 +80,17 @@ public record IndexerContext(
         var duplicateBlueskyOperation = DuplicateBlueskyOperation.HasValue
             ? $"duplicate-bluesky-operation: '{DuplicateBlueskyOperation}'"
             : string.Empty;
+        var recentEpisodeCandidates = RecentEpisodeCandidates != null
+            ? $"recent-episode-candidates: '{RecentEpisodeCandidates.Length}'"
+            : string.Empty;
 
         var strings = new List<string>
         {
             categoriserOperationId, posterOperationId, publisherOperationId, tweetOperationId,
             blueskyOperationId, success, skipYouTubeUrlResolving, youTubeError, skipSpotifyUrlResolving, spotifyError,
             duplicateIndexerOperation, duplicateCategoriserOperation, duplicatePosterOperation,
-            duplicatePublisherOperation, duplicateTweetOperation, duplicateBlueskyOperation
+            duplicatePublisherOperation, duplicateTweetOperation, duplicateBlueskyOperation,
+            recentEpisodeCandidates
         };
         if (indexerPassOperationIds != null)
         {

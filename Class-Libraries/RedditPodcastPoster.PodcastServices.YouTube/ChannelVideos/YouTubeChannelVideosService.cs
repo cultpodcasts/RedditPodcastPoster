@@ -10,7 +10,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
 
 public class YouTubeChannelVideosService(
-    IYouTubeChannelService youTubeChannelService,
+    ITolerantYouTubeChannelService youTubeChannelService,
     ITolerantYouTubePlaylistService youTubePlaylistService,
     ILogger<YouTubeChannelVideosService> logger
 ) : IYouTubeChannelVideosService
