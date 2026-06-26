@@ -5,6 +5,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
+using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Text;
 
@@ -15,6 +16,7 @@ public class YouTubeEpisodeEnricher(
     IYouTubeItemResolver youTubeItemResolver,
     ITextSanitiser textSanitiser,
     IYouTubeVideoService youTubeVideoService,
+    IYouTubeThumbnailResolver youTubeThumbnailResolver,
     ILogger<YouTubeEpisodeEnricher> logger)
     : IYouTubeEpisodeEnricher
 {
@@ -135,7 +137,7 @@ public class YouTubeEpisodeEnricher(
                     }
                 }
 
-                var image = item.GetImageUrl();
+                var image = await youTubeThumbnailResolver.GetImageUrlAsync(item);
                 if (image != null)
                 {
                     request.Episode.Images ??= new EpisodeImages();

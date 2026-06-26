@@ -15,6 +15,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Strategies;
+using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Extensions;
@@ -36,6 +37,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>()
             .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
             .AddSingleton<INoRedirectHttpClientFactory, NoRedirectHttpClientFactory>()
+            .AddSingleton<IYouTubeThumbnailResolver, YouTubeThumbnailResolver>()
             .AddScoped<IYouTubeEpisodeRetrievalHandler, YouTubeEpisodeRetrievalHandler>()
             .AddScoped<IYouTubeChannelVideosService, YouTubeChannelVideosService>()
             .AddScoped<IYouTubeServiceFactory, YouTubeServiceFactory>()

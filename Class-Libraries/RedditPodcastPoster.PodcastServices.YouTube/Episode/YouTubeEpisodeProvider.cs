@@ -10,6 +10,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
+using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Episode;
@@ -21,6 +22,7 @@ public class YouTubeEpisodeProvider(
     ICachedTolerantYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
     IYouTubeChannelVideosService youTubeChannelVideosService,
     IYouTubeChannelVideoRetrievalPolicy youTubeChannelVideoRetrievalPolicy,
+    IYouTubeThumbnailResolver youTubeThumbnailResolver,
     ILogger<YouTubeEpisodeProvider> logger)
     : IYouTubeEpisodeProvider
 {
@@ -57,13 +59,16 @@ public class YouTubeEpisodeProvider(
 
                     if (videoDetails != null)
                     {
-                        return videoDetails
-                            .Where(videoDetail => YouTubeVideoDurationMatcher.HasDuration(videoDetail.GetLength()))
-                            .Select(videoDetail =>
-                                GetEpisode(
-                                    youTubeVideos.First(searchResult => searchResult.Id.VideoId == videoDetail.Id),
-                                    videoDetail))
-                            .ToList();
+                        var episodes = new List<RedditPodcastPoster.Models.Episode>();
+                        foreach (var videoDetail in videoDetails.Where(videoDetail =>
+                                     YouTubeVideoDurationMatcher.HasDuration(videoDetail.GetLength())))
+                        {
+                            episodes.Add(await GetEpisodeAsync(
+                                youTubeVideos.First(searchResult => searchResult.Id.VideoId == videoDetail.Id),
+                                videoDetail));
+                        }
+
+                        return episodes;
                     }
                 }
             }
@@ -116,21 +121,25 @@ public class YouTubeEpisodeProvider(
             return null;
         }
 
-        return playlistItems
-            .Where(x => x.Snippet.Title != "Deleted video")
-            .Select(x =>
-                new PlaylistItemVideo(
-                    x,
-                    videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == x.Snippet.ResourceId.VideoId)!))
-            .Where(x => x.VideoDetails?.Snippet != null)
-            .Where(x => YouTubeVideoDurationMatcher.HasDuration(x.VideoDetails.GetLength()))
-            .Where(x => x.VideoDetails.IsCompletedPublicVideo())
-            .Where(x => x.VideoDetails.Snippet.ChannelId == request.ChannelId)
-            .Select(x => GetEpisode(x.PlaylistItem.Snippet, x.VideoDetails))
-            .ToList();
+        var episodes = new List<RedditPodcastPoster.Models.Episode>();
+        foreach (var playlistItemVideo in playlistItems
+                     .Where(x => x.Snippet.Title != "Deleted video")
+                     .Select(x =>
+                         new PlaylistItemVideo(
+                             x,
+                             videoDetails.SingleOrDefault(videoDetail => videoDetail.Id == x.Snippet.ResourceId.VideoId)!))
+                     .Where(x => x.VideoDetails?.Snippet != null)
+                     .Where(x => YouTubeVideoDurationMatcher.HasDuration(x.VideoDetails.GetLength()))
+                     .Where(x => x.VideoDetails.IsCompletedPublicVideo())
+                     .Where(x => x.VideoDetails.Snippet.ChannelId == request.ChannelId))
+        {
+            episodes.Add(await GetEpisodeAsync(playlistItemVideo.PlaylistItem.Snippet, playlistItemVideo.VideoDetails));
+        }
+
+        return episodes;
     }
 
-    public RedditPodcastPoster.Models.Episode GetEpisode(SearchResult searchResult,
+    public async Task<RedditPodcastPoster.Models.Episode> GetEpisodeAsync(SearchResult searchResult,
         Google.Apis.YouTube.v3.Data.Video videoDetails)
     {
         return RedditPodcastPoster.Models.Episode.FromYouTube(
@@ -141,10 +150,10 @@ public class YouTubeEpisodeProvider(
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
             searchResult.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
             searchResult.ToYouTubeUrl(),
-            videoDetails.GetImageUrl());
+            await youTubeThumbnailResolver.GetImageUrlAsync(videoDetails));
     }
 
-    public RedditPodcastPoster.Models.Episode GetEpisode(PlaylistItemSnippet playlistItemSnippet,
+    public async Task<RedditPodcastPoster.Models.Episode> GetEpisodeAsync(PlaylistItemSnippet playlistItemSnippet,
         Google.Apis.YouTube.v3.Data.Video videoDetails)
     {
         return RedditPodcastPoster.Models.Episode.FromYouTube(
@@ -155,7 +164,7 @@ public class YouTubeEpisodeProvider(
             videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
             playlistItemSnippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
             playlistItemSnippet.ToYouTubeUrl(),
-            videoDetails.GetImageUrl());
+            await youTubeThumbnailResolver.GetImageUrlAsync(videoDetails));
     }
 
     public async Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(YouTubePlaylistId youTubePlaylistId,
@@ -186,21 +195,25 @@ public class YouTubeEpisodeProvider(
         {
             try
             {
-                var reducedResults = results
-                    .Where(x => x.Snippet != null)
-                    .Where(x => x.Snippet.Title != "Deleted video")
-                    .Select(x =>
-                        new PlaylistItemVideo(
-                            x,
-                            videoDetails.SingleOrDefault(videoDetail =>
-                                videoDetail.Id == x.Snippet.ResourceId.VideoId)!
-                        )
-                    )
-                    .Where(x => x.VideoDetails?.Snippet != null)
-                    .Where(x => youTubeChannelId == null ||
-                                x.VideoDetails.Snippet.ChannelId == youTubeChannelId.ChannelId)
-                    .Select(x => GetEpisode(x.PlaylistItem.Snippet, x.VideoDetails))
-                    .ToList();
+                var reducedResults = new List<RedditPodcastPoster.Models.Episode>();
+                foreach (var playlistItemVideo in results
+                             .Where(x => x.Snippet != null)
+                             .Where(x => x.Snippet.Title != "Deleted video")
+                             .Select(x =>
+                                 new PlaylistItemVideo(
+                                     x,
+                                     videoDetails.SingleOrDefault(videoDetail =>
+                                         videoDetail.Id == x.Snippet.ResourceId.VideoId)!
+                                 ))
+                             .Where(x => x.VideoDetails?.Snippet != null)
+                             .Where(x => youTubeChannelId == null ||
+                                         x.VideoDetails.Snippet.ChannelId == youTubeChannelId.ChannelId))
+                {
+                    reducedResults.Add(await GetEpisodeAsync(
+                        playlistItemVideo.PlaylistItem.Snippet,
+                        playlistItemVideo.VideoDetails));
+                }
+
                 return new GetPlaylistEpisodesResponse(reducedResults, isExpensiveQuery);
             }
             catch (Exception e)

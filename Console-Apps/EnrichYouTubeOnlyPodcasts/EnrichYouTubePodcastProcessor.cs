@@ -169,7 +169,7 @@ public class EnrichYouTubePodcastProcessor(
                 video.Id == missingPlaylistItemSnippet.ResourceId.VideoId);
             if (video != null)
             {
-                var episode = youTubeEpisodeProvider.GetEpisode(missingPlaylistItemSnippet, video);
+                var episode = await youTubeEpisodeProvider.GetEpisodeAsync(missingPlaylistItemSnippet, video);
                 if (request.IncludeShort ||
                     (podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value) ||
                     episode.Length >= (podcast.MinimumDuration ?? _postingCriteria.MinimumDuration))
@@ -185,13 +185,6 @@ public class EnrichYouTubePodcastProcessor(
                                              podcast.BypassShortEpisodeChecking.Value) ||
                                             episode.Length >= (podcast.MinimumDuration ??
                                                                _postingCriteria.MinimumDuration));
-                    }
-
-                    var videoImage = video.GetImageUrl();
-                    if (videoImage != null)
-                    {
-                        episode.Images ??= new EpisodeImages();
-                        episode.Images.YouTube = videoImage;
                     }
 
                     var results = await subjectEnricher.EnrichSubjects(episode,

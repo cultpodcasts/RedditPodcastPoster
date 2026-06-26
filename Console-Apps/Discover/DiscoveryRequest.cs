@@ -32,7 +32,8 @@ public class DiscoveryRequest
     [Option('e', "enrich-listennotes-from-spotify", Default = true, HelpText = "Enrich Listennotes from Spotify")]
     public bool EnrichFromSpotify { get; set; }
 
-    [Option('u', "use-remote", Default = false, HelpText = "Use Remotely Collected Data")]
+    [Option('u', "use-remote", Default = false,
+        HelpText = "Load and display unprocessed Cosmos discovery results from the cloud Discover function, then mark them processed. Skips live search and ignores -t, -r, and service flags.")]
     public bool UseRemote { get; set; }
 
     [Option('a', "enrich-spotify-from-apple", Default = true, HelpText = "Enrich Spotify from Apple")]
