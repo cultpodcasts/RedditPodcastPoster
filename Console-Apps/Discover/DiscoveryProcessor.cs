@@ -1,5 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Globalization;
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.Discovery;
+using RedditPodcastPoster.Discovery.ML;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -9,15 +12,13 @@ namespace Discover;
 public class DiscoveryProcessor(
     IDiscoveryServiceConfigProvider discoveryConfigProvider,
     IDiscoveryService discoveryService,
+    IDiscoveryResultScorer discoveryResultScorer,
     IDiscoveryResultConsoleLogger discoveryResultConsoleLogger,
     IDiscoveryResultsRepository discoveryResultsRepository,
-#pragma warning disable CS9113 // Parameter is unread.
+    IDiscoveryInfoContentPublisher discoveryInfoContentPublisher,
     ILogger<DiscoveryProcessor> logger
-#pragma warning restore CS9113 // Parameter is unread.
 )
 {
-    private static readonly TimeSpan Since = TimeSpan.FromHours(6);
-
     public async Task<DiscoveryResponse> Process(DiscoveryRequest request)
     {
         var fg = Console.ForegroundColor;
@@ -33,10 +34,23 @@ public class DiscoveryProcessor(
         }
         else
         {
-            discoveryResults = await GetDiscoveryResults(request, request.Since??DateTime.UtcNow.Subtract(Since));
-            var localDiscoveryContext = CreateDiscoveryContext(request);
-            await SaveDiscoveryResults(request, localDiscoveryContext, discoveryResults);
-            latest = localDiscoveryContext.DiscoveryBegan;
+            if (discoveryResultScorer.IsEnabled)
+            {
+                logger.LogInformation("Discovery ML scorer enabled; results will be ranked by accept probability.");
+            }
+            else
+            {
+                logger.LogWarning(
+                    "Discovery ML scorer is not enabled or model files could not be loaded. " +
+                    "Results will not be ranked. Check discover:scorer in appsettings and az login for blob access.");
+            }
+
+            var discoveryContext = CreateDiscoveryContext(request);
+            discoveryResults = OrderDiscoveryResults(
+                await GetDiscoveryResults(request, discoveryContext.Since));
+            await SaveDiscoveryResults(request, discoveryContext, discoveryResults);
+            await PublishDiscoveryInfo();
+            latest = discoveryContext.DiscoveryBegan;
         }
 
         foreach (var episode in discoveryResults)
@@ -70,10 +84,11 @@ public class DiscoveryProcessor(
             since = request.Since.Value.ToUniversalTime();
             searchSince = DateTime.UtcNow.Subtract(since).ToString();
         }
-        else if (request.NumberOfHours.HasValue)
+        else if (!string.IsNullOrWhiteSpace(request.SearchWindow))
         {
-            since = DateTime.UtcNow.Subtract(TimeSpan.FromHours(request.NumberOfHours.Value));
-            searchSince = TimeSpan.FromHours(request.NumberOfHours.Value).ToString();
+            var window = ParseSearchWindow(request.SearchWindow);
+            since = DateTime.UtcNow.Subtract(window);
+            searchSince = window.ToString();
         }
         else
         {
@@ -101,7 +116,7 @@ public class DiscoveryProcessor(
         var discoveryConfig = discoveryConfigProvider.CreateDiscoveryConfig(
             new GetServiceConfigOptions(since, request.ExcludeSpotify, request.IncludeYouTube,
                 request.IncludeListenNotes, request.IncludeTaddy, request.EnrichFromSpotify,
-                request.EnrichFromApple, request.TaddyOffset));
+                request.EnrichFromApple, request.GetTaddyOffset()));
 
         return await discoveryService
             .GetDiscoveryResults(discoveryConfig, indexingContext)
@@ -138,6 +153,23 @@ public class DiscoveryProcessor(
             nameof(Process), nameof(DiscoveryResultsDocument), discoveryResultsDocument.Id);
     }
 
+    private async Task PublishDiscoveryInfo()
+    {
+        try
+        {
+            var discoveryInfo = await discoveryInfoContentPublisher.PublishUnprocessedSummaryAsync();
+            logger.LogInformation(
+                "{method}: published discovery-info for {documentCount} document(s) and {visibleResultCount} visible deduped result(s).",
+                nameof(PublishDiscoveryInfo),
+                discoveryInfo.DocumentCount,
+                discoveryInfo.NumberOfResults ?? 0);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{method}: failure to publish discovery-info.", nameof(PublishDiscoveryInfo));
+        }
+    }
+
     private async Task<List<DiscoveryResult>> GetRemoteDiscoveryResults(List<Guid> unprocessedEpisodeIds)
     {
         var remoteDiscoveryResults = new List<DiscoveryResult>();
@@ -149,4 +181,15 @@ public class DiscoveryProcessor(
 
         return remoteDiscoveryResults.OrderBy(x => x.Released).ToList();
     }
+
+    private static List<DiscoveryResult> OrderDiscoveryResults(IList<DiscoveryResult> discoveryResults) =>
+        discoveryResults
+            .OrderByDescending(x => x.AcceptProbability ?? -1f)
+            .ThenBy(x => x.Released)
+            .ToList();
+
+    private static TimeSpan ParseSearchWindow(string value) =>
+        value.Contains(':')
+            ? TimeSpan.Parse(value, CultureInfo.InvariantCulture)
+            : TimeSpan.FromHours(int.Parse(value, CultureInfo.InvariantCulture));
 }

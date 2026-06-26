@@ -2,7 +2,7 @@ using Api.Dtos;
 using Api.Dtos.Extensions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher;
-using RedditPodcastPoster.ContentPublisher.Models;
+using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
@@ -12,7 +12,8 @@ public class DiscoveryResultsService(
     IDiscoveryResultsRepository discoveryResultsRepository,
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
-    IDiscoveryPublisher contentPublisher,
+    IDiscoveryResultDeduplicator discoveryResultDeduplicator,
+    IDiscoveryInfoContentPublisher discoveryInfoContentPublisher,
     ILogger<DiscoveryResultsService> logger) : IDiscoveryResultsService
 {
     public async Task<DiscoveryResponse> Get(bool includeHidden, CancellationToken c)
@@ -20,7 +21,8 @@ public class DiscoveryResultsService(
         logger.LogInformation("{Method} initiated. IncludeHidden={IncludeHidden}.", nameof(Get), includeHidden);
         var documents = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync(c);
         logger.LogInformation("{Method} obtained unprocessed documents.", nameof(Get));
-        var allResults = documents.SelectMany(x => x.DiscoveryResults).ToList();
+        var allResults = discoveryResultDeduplicator.Deduplicate(
+            documents.SelectMany(x => x.DiscoveryResults));
         var hiddenCount = allResults.Count(x => x.AutoHidden);
         var visibleResults = includeHidden
             ? allResults
@@ -84,24 +86,7 @@ public class DiscoveryResultsService(
     {
         try
         {
-            var unprocessedDiscoveryReports = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync();
-            var numberOfReports = unprocessedDiscoveryReports.Count();
-            DateTime? minProcessed = null;
-            int? numberOfResults = null;
-            if (numberOfReports > 0)
-            {
-                minProcessed = unprocessedDiscoveryReports.Min(x => x.DiscoveryBegan);
-                numberOfResults = unprocessedDiscoveryReports
-                    .SelectMany(x => x.DiscoveryResults)
-                    .Count(x => !x.AutoHidden);
-            }
-
-            await contentPublisher.PublishDiscoveryInfo(new DiscoveryInfo
-            {
-                DocumentCount = numberOfReports,
-                NumberOfResults = numberOfResults,
-                DiscoveryBegan = minProcessed
-            });
+            await discoveryInfoContentPublisher.PublishUnprocessedSummaryAsync();
         }
         catch (Exception e)
         {

@@ -6,6 +6,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.ContentPublisher;
+using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
@@ -28,6 +30,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddDiscovery(ApplicationUsage.Cli)
+    .AddContentPublishing()
     .AddScoped<DiscoveryProcessor>()
     .AddScoped<IDiscoveryResultConsoleLogger, DiscoveryResultConsoleLogger>()
     .AddRepositories()
