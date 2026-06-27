@@ -18,25 +18,18 @@ public class EpisodeProvider(
 
     {
         IList<Episode>? newEpisodes = null;
-
         var handled = false;
 
-
         if (!indexingContext.SkipYouTubeUrlResolving && podcast.DependsOnYouTubeForEpisodeDiscovery())
-
         {
             (newEpisodes, handled) = await RetrieveYouTubeEpisodes(podcast, episodes, indexingContext, newEpisodes);
         }
 
-
         if (indexingContext.IndexSpotify && podcast.ReleaseAuthority is null or Service.Spotify &&
             !string.IsNullOrWhiteSpace(podcast.SpotifyId))
-
         {
             (newEpisodes, handled) = await spotifyEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
-
             if (handled)
-
             {
                 logger.LogInformation(
                     "Get Episodes for podcast '{podcastName}' handled by '{spotifyEpisodeRetrievalHandlerName}'.",
@@ -44,14 +37,10 @@ public class EpisodeProvider(
             }
         }
 
-
         if (!handled && podcast.ReleaseAuthority != Service.YouTube && podcast.AppleId != null)
-
         {
             (newEpisodes, handled) = await appleEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
-
             if (handled)
-
             {
                 logger.LogInformation(
                     "Get Episodes for podcast '{podcastName}' handled by '{appleEpisodeRetrievalHandlerName}'.",
@@ -59,18 +48,14 @@ public class EpisodeProvider(
             }
         }
 
-
         if (!indexingContext.SkipYouTubeUrlResolving &&
             !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
             !podcast.DependsOnYouTubeForEpisodeDiscovery())
-
         {
             (newEpisodes, handled) = await RetrieveYouTubeEpisodes(podcast, episodes, indexingContext, newEpisodes);
         }
 
-
         if (!handled)
-
         {
             logger.LogInformation(
                 "Unable to handle podcast with name: '{podcastName}', id: {podcastId}. Spotify-Id: '{podcastSpotifyId}', Apple-Id: '{podcastAppleId}', YouTube-ChannelId: '{podcastYouTubeChannelId}', YouTube-PlayListId: '{podcastYouTubePlaylistId}'. Expensive-Queries? {hasExpensiveSpotifyEpisodesQueryName}= '{HasExpensiveSpotifyEpisodesQuery}', {HasExpensiveYouTubePlaylistQueryName}= '{HasExpensiveYouTubePlaylistQuery}'.",
@@ -80,18 +65,14 @@ public class EpisodeProvider(
                 podcast.HasExpensiveYouTubePlaylistQuery());
         }
 
-
         if (newEpisodes != null && newEpisodes.Any() && !podcast.IndexAllEpisodes &&
             !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex))
-
         {
             newEpisodes = foundEpisodeFilter.ReduceEpisodes(podcast, newEpisodes);
         }
 
-
         return newEpisodes ?? new List<Episode>();
     }
-
 
     private async Task<(IList<Episode>? NewEpisodes, bool Handled)> RetrieveYouTubeEpisodes(
         Podcast podcast,
@@ -102,41 +83,29 @@ public class EpisodeProvider(
     {
         var (youTubeEpisodes, youTubeHandled) =
             await youTubeEpisodeRetrievalHandler.GetEpisodes(podcast, episodes, indexingContext);
-
         if (!youTubeHandled)
-
         {
             return (existingEpisodes, false);
         }
 
-
         var newEpisodes = existingEpisodes;
-
         if (youTubeEpisodes is { Count: > 0 })
-
         {
             newEpisodes = CombineDiscoveredEpisodes(existingEpisodes, youTubeEpisodes);
         }
 
-
         logger.LogInformation(
             "Get Episodes for podcast '{podcastName}' handled by '{youTubeEpisodeRetrievalHandlerName}'.",
             podcast.Name, nameof(IYouTubeEpisodeRetrievalHandler));
-
-
         return (newEpisodes, true);
     }
 
-
     private static IList<Episode> CombineDiscoveredEpisodes(IList<Episode>? existing, IList<Episode> additional)
-
     {
         if (existing == null || existing.Count == 0)
-
         {
             return additional;
         }
-
 
         return existing.Concat(additional).ToList();
     }
