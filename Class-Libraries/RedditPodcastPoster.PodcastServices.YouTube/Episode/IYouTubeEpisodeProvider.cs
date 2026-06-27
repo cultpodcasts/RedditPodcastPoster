@@ -11,11 +11,11 @@ public interface IYouTubeEpisodeProvider
         IndexingContext indexingContext,
         IEnumerable<string> knownIds);
 
-    RedditPodcastPoster.Models.Episode GetEpisode(
+    Task<RedditPodcastPoster.Models.Episode> GetEpisodeAsync(
         SearchResult searchResult,
         Google.Apis.YouTube.v3.Data.Video videoDetails);
 
-    RedditPodcastPoster.Models.Episode GetEpisode(
+    Task<RedditPodcastPoster.Models.Episode> GetEpisodeAsync(
         PlaylistItemSnippet playlistItemSnippet,
         Google.Apis.YouTube.v3.Data.Video videoDetails);
 

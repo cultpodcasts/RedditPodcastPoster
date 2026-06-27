@@ -48,6 +48,14 @@ public class DiscoveryResultConsoleLogger : IDiscoveryResultConsoleLogger
             Console.WriteLine(subject);
         }
 
+        if (episode.AcceptProbability.HasValue)
+        {
+            Console.ForegroundColor = episode.AutoHidden ? ConsoleColor.DarkGray : ConsoleColor.White;
+            Console.WriteLine(
+                $"Accept probability: {episode.AcceptProbability.Value:P1}" +
+                (episode.AutoHidden ? " (auto-hidden)" : string.Empty));
+        }
+
         if (episode.YouTubeViews.HasValue || episode.YouTubeChannelMembers.HasValue)
         {
             Console.ForegroundColor = ConsoleColor.DarkGreen;

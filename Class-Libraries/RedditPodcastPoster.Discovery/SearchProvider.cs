@@ -126,7 +126,7 @@ public class SearchProvider(
                 (x.DiscoverServices.FirstOrDefault() == DiscoverService.Taddy &&
                  x.Released >= indexingContext.ReleasedSince!.Value.Subtract(TaddyParameters.IndexingDelay)) ||
                 x.Released >= indexingContext.ReleasedSince)
-            .GroupBy(x => x.EpisodeName)
+            .GroupBy(x => $"{NormalizeEpisodeGroupingKey(x.ShowName)}|{NormalizeEpisodeGroupingKey(x.EpisodeName)}")
             .Select(Coalesce)
             .OrderBy(x => x.Released)
             .ToList();
@@ -191,4 +191,7 @@ public class SearchProvider(
 
         return first;
     }
+
+    private static string NormalizeEpisodeGroupingKey(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
 }

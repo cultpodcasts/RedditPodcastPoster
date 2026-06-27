@@ -9,6 +9,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Factories;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
@@ -18,6 +19,7 @@ public class YouTubeSearcher(
     INoRedirectHttpClientFactory httpClientFactory,
     IYouTubeVideoService youTubeVideoService,
     ITolerantYouTubeChannelService youTubeChannelService,
+    IYouTubeThumbnailResolver youTubeThumbnailResolver,
     ILogger<YouTubeSearcher> logger) : IYouTubeSearcher
 {
     private const long MaxSearchResults = 25;
@@ -77,7 +79,7 @@ public class YouTubeSearcher(
                 logger.LogError(ex, "Failed to use {YouTubeService} obtaining episodes using search-term '{query}'.",
                     nameof(youTubeService.YouTubeService), query);
                 indexingContext.SkipYouTubeUrlResolving = true;
-                return results.Select(x => ToEpisodeResult(x.SearchResult, x.Video, x.Channel));
+                return await ToEpisodeResultsAsync(results);
             }
 
             var releasedInTimeFrame = response.Items.Where(x =>
@@ -92,7 +94,18 @@ public class YouTubeSearcher(
         await EnrichWithVideo(results, indexingContext);
         await EnrichWithChannel(results, indexingContext);
 
-        return results.Select(x => ToEpisodeResult(x.SearchResult, x.Video, x.Channel));
+        return await ToEpisodeResultsAsync(results);
+    }
+
+    private async Task<IEnumerable<EpisodeResult>> ToEpisodeResultsAsync(List<YouTubeItemDetails> results)
+    {
+        var episodeResults = new List<EpisodeResult>(results.Count);
+        foreach (var result in results)
+        {
+            episodeResults.Add(await ToEpisodeResultAsync(result.SearchResult, result.Video, result.Channel));
+        }
+
+        return episodeResults;
     }
 
     private async Task EnrichWithVideo(
@@ -143,10 +156,10 @@ public class YouTubeSearcher(
         return nonShortResults;
     }
 
-    private EpisodeResult ToEpisodeResult(SearchResult episode, Google.Apis.YouTube.v3.Data.Video? video,
+    private async Task<EpisodeResult> ToEpisodeResultAsync(SearchResult episode, Google.Apis.YouTube.v3.Data.Video? video,
         Google.Apis.YouTube.v3.Data.Channel? channel)
     {
-        var imageUrl = video.GetImageUrl();
+        var imageUrl = video != null ? await youTubeThumbnailResolver.GetImageUrlAsync(video) : null;
 
         var episodeResult = new EpisodeResult(
             episode.Id.VideoId,

@@ -1,12 +1,17 @@
-﻿using CommandLine;
+﻿using System.Globalization;
+using CommandLine;
 
 namespace Discover;
 
 public class DiscoveryRequest
 {
-    [Option('r', "number-of-hours", HelpText = "The number of hours to search within", Required = false,
+    public static readonly TimeSpan DefaultTaddyOffset = TimeSpan.FromHours(2);
+
+    private const string DefaultTaddyOffsetOptionValue = "02:00:00";
+    [Option('r', "number-of-hours",
+        HelpText = "Search window as a timespan (e.g. 6:10:00) or whole hours (e.g. 7)", Required = false,
         SetName = "since")]
-    public int? NumberOfHours { get; set; }
+    public string? SearchWindow { get; set; }
 
     [Option('t', "time-since", HelpText = "Discover items released sine this time", Required = false,
         SetName = "since")]
@@ -27,13 +32,19 @@ public class DiscoveryRequest
     [Option('e', "enrich-listennotes-from-spotify", Default = true, HelpText = "Enrich Listennotes from Spotify")]
     public bool EnrichFromSpotify { get; set; }
 
-    [Option('u', "use-remote", Default = false, HelpText = "Use Remotely Collected Data")]
+    [Option('u', "use-remote", Default = false,
+        HelpText = "Load and display unprocessed Cosmos discovery results from the cloud Discover function, then mark them processed. Skips live search and ignores -t, -r, and service flags.")]
     public bool UseRemote { get; set; }
 
     [Option('a', "enrich-spotify-from-apple", Default = true, HelpText = "Enrich Spotify from Apple")]
     public bool EnrichFromApple { get; set; }
 
-    [Option('o', "taddy-offset", Default = "02:00:00",
+    [Option('o', "taddy-offset", Default = DefaultTaddyOffsetOptionValue,
         HelpText = "The amount of time extra to search against Taddy due to their indexing delay of 2 hours")]
-    public TimeSpan? TaddyOffset { get; set; }
+    public string? TaddyOffset { get; set; }
+
+    public TimeSpan GetTaddyOffset() =>
+        string.IsNullOrWhiteSpace(TaddyOffset)
+            ? DefaultTaddyOffset
+            : TimeSpan.Parse(TaddyOffset, CultureInfo.InvariantCulture);
 }

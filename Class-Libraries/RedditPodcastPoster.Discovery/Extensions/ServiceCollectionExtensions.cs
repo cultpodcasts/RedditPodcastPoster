@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
                 .AddScoped<IEnrichedEpisodeResultAdapter, EnrichedEpisodeResultAdapter>()
                 .AddScoped<IIgnoreTermsProvider, IgnoreTermsProvider>()
                 .AddSingleton<IDiscoveryResultScorer, DiscoveryResultScorer>()
+                .AddSingleton<IDiscoveryResultDeduplicator, DiscoveryResultDeduplicator>()
                 .AddDiscoveryRepository()
                 .AddSpotifyServices()
                 .AddAppleServices()

@@ -15,6 +15,7 @@ using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
+using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Indexing.Extensions;
@@ -56,6 +57,7 @@ public static class Ioc
             .AddSubjectProvider()
             .AddUrlSubmission()
             .AddDiscoveryRepository()
+            .AddSingleton<IDiscoveryResultDeduplicator, DiscoveryResultDeduplicator>()
             .AddScoped<IDiscoveryResultsService, DiscoveryResultsService>()
             .AddIndexer()
             .AddEliminationTerms()

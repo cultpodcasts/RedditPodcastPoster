@@ -1,11 +1,21 @@
-using System.Diagnostics;
-using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.InternetArchive;
 using RedditPodcastPoster.InternetArchive.Extensions;
-using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
+using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Episode;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
+using RedditPodcastPoster.PodcastServices.YouTube.Services;
+using RedditPodcastPoster.PodcastServices.YouTube.Video;
+using System.Diagnostics;
+using System.Reflection;
+using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -20,22 +30,25 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddInternetArchiveServices()
+    .AddRepositories()
+    .AddYouTubeServices(ApplicationUsage.Cli)
     .AddHttpClient();
 
 using var host = builder.Build();
 
-if (args.Length == 0 || !Uri.TryCreate(args[0], UriKind.Absolute, out var url))
+if (args.Length == 0 )
 {
     Console.Error.WriteLine("Usage: ThrowawayConsole <internet-archive-url>");
     return 1;
 }
 
-var service = host.Services.GetRequiredService<IInternetArchivePageMetaDataExtractor>();
-var pageData = await service.GetMetaData(url);
+var service = host.Services.GetRequiredService<IYouTubeServiceWrapper>();
+var service2 = host.Services.GetRequiredService<IYouTubeVideoService>();
+var service3 = host.Services.GetRequiredService<IYouTubeThumbnailResolver>();
 
-Console.WriteLine($"Title: {pageData.Title}");
-Console.WriteLine($"Description: {pageData.Description}");
+var video = await service2.GetVideoContentDetails(service, [args[0]], new IndexingContext(), withSnippets: true);
+var image= await service3.GetImageUrlAsync(video?.SingleOrDefault());
+
 
 return 0;
 

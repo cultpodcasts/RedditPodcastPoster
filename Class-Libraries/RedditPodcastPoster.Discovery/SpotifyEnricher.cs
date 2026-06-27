@@ -29,8 +29,20 @@ public class SpotifyEnricher(
                 episodeResult.Released,
                 true);
 
-            var spotifyResult = await spotifyEpisodeResolver.FindEpisode(
-                episodeRequest, indexingContext);
+            FindEpisodeResponse spotifyResult;
+            try
+            {
+                spotifyResult = await spotifyEpisodeResolver.FindEpisode(
+                    episodeRequest, indexingContext);
+            }
+            catch (EpisodeNotFoundException ex)
+            {
+                logger.LogWarning(ex,
+                    "Skipping Spotify enrichment for show '{showName}' episode '{episodeName}' — episode not found on Spotify.",
+                    episodeResult.ShowName, episodeResult.EpisodeName);
+                continue;
+            }
+
             if (spotifyResult.FullEpisode != null)
             {
                 enrichedCtr++;

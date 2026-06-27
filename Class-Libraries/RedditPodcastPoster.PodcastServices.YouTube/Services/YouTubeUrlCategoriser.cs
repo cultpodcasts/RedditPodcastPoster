@@ -9,6 +9,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
+using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Text;
 using Podcast = RedditPodcastPoster.Models.Podcast;
@@ -21,6 +22,7 @@ public class YouTubeUrlCategoriser(
     IYouTubeVideoService youTubeVideoService,
     IYouTubeChannelVideosService youTubeChannelVideosService,
     IYouTubePlaylistService youTubePlaylistService,
+    IYouTubeThumbnailResolver youTubeThumbnailResolver,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<YouTubeUrlCategoriser> logger)
 #pragma warning restore CS9113 // Parameter is unread.
@@ -123,7 +125,7 @@ public class YouTubeUrlCategoriser(
                         item.GetLength() ?? TimeSpan.Zero,
                         item.ToYouTubeUrl(),
                         item.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
-                        item.GetImageUrl(),
+                        await youTubeThumbnailResolver.GetImageUrlAsync(item),
                         playlistId
                     );
                 }
@@ -272,7 +274,9 @@ public class YouTubeUrlCategoriser(
                         videoContent?.GetLength() ?? TimeSpan.Zero,
                         match.Snippet.ToYouTubeUrl(),
                         videoContent?.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
-                        videoContent?.GetImageUrl(),
+                        videoContent != null
+                            ? await youTubeThumbnailResolver.GetImageUrlAsync(videoContent)
+                            : null,
                         string.Empty);
                 }
             }

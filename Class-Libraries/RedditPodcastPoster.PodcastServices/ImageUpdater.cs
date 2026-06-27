@@ -7,7 +7,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Factories;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
-using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 
 namespace RedditPodcastPoster.PodcastServices;
@@ -17,6 +17,7 @@ public class ImageUpdater(
     IAppleEpisodeResolver appleEpisodeResolver,
     IYouTubeServiceWrapper youTubeService,
     IYouTubeVideoService youTubeVideoService,
+    IYouTubeThumbnailResolver youTubeThumbnailResolver,
     IBBCPageMetaDataExtractor bbcPageMetaDataExtractor,
     ILogger<ImageUpdater> logger) : IImageUpdater
 {
@@ -79,7 +80,7 @@ public class ImageUpdater(
                 if (video != null && video.Any())
                 {
                     episode.Images ??= new EpisodeImages();
-                    episode.Images.YouTube = video.First().GetImageUrl();
+                    episode.Images.YouTube = await youTubeThumbnailResolver.GetImageUrlAsync(video.First());
                     updated = true;
                 }
             }

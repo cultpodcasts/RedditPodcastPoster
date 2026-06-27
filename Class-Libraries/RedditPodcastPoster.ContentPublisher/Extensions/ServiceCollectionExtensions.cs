@@ -12,6 +12,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IHomepagePublisher, HomepagePublisher>()
             .AddScoped<ISubjectsPublisher, SubjectsPublisher>()
             .AddScoped<IDiscoveryPublisher, DiscoveryPublisher>()
+            .AddScoped<IDiscoveryInfoContentPublisher, DiscoveryInfoContentPublisher>()
             .AddScoped<ILanguagesPublisher, LanguagesPublisher>()
             .BindConfiguration<ContentOptions>("content")
             .AddCloudflareClients();

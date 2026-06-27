@@ -7,7 +7,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Factories;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
-using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 
 namespace RedditPodcastPoster.Bluesky.Factories;
@@ -16,6 +16,7 @@ public class EmbedCardRequestFactory(
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
     IBlueskyYouTubeServiceWrapper youTubeService,
     IYouTubeVideoService youTubeVideoService,
+    IYouTubeThumbnailResolver youTubeThumbnailResolver,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<EmbedCardRequestFactory> logger
 #pragma warning restore CS9113 // Parameter is unread.
@@ -41,7 +42,7 @@ public class EmbedCardRequestFactory(
                         video.First().Snippet.Description.Trim(),
                         embedPost.Url)
                     {
-                        ThumbUrl = video.FirstOrDefault().GetImageUrl()
+                        ThumbUrl = await youTubeThumbnailResolver.GetImageUrlAsync(video.First())
                     };
                     logger.LogInformation(
                         "Youtube-thumbnail for youtube-video-id '{EpisodeYouTubeId}' found '{ThumbUrl}'.", podcastEpisode.Episode.YouTubeId, embedCardRequest.ThumbUrl);

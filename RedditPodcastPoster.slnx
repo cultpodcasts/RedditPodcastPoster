@@ -21,9 +21,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.ContentPublisher/RedditPodcastPoster.ContentPublisher.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.DependencyInjection.Abstractions/RedditPodcastPoster.DependencyInjection.Abstractions.csproj" />
 
-    <Project Path="Class-Libraries/RedditPodcastPoster.DependencyInjection/RedditPodcastPoster.DependencyInjection.csproj">
-      <Build Solution="Debug|*" Project="false" />
-    </Project>
+    <Project Path="Class-Libraries/RedditPodcastPoster.DependencyInjection/RedditPodcastPoster.DependencyInjection.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery/RedditPodcastPoster.Discovery.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.EdgeApi/RedditPodcastPoster.EdgeApi.csproj" />
@@ -80,6 +78,8 @@
   <Folder Name="/Class-Libraries/Tests/">
 
     <Project Path="Class-Libraries/RedditPodcastPoster.BBC.Tests/RedditPodcastPoster.BBC.Tests.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Discovery.Tests/RedditPodcastPoster.Discovery.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple.Tests/RedditPodcastPoster.PodcastServices.Apple.Tests.csproj" />
 

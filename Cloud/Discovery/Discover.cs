@@ -22,8 +22,8 @@ public class Discover(
     IDiscoveryService discoveryService,
     IDiscoveryResultsRepository discoveryResultsRepository,
     INotificationPublisher notificationPublisher,
+    IDiscoveryInfoContentPublisher discoveryInfoContentPublisher,
     IActivityMarshaller activityMarshaller,
-    IDiscoveryPublisher contentPublisher,
     ILogger<Discover> logger) : TaskActivity<DiscoveryContext, DiscoveryContext>
 {
     private readonly DiscoverOptions _discoverOptions =
@@ -108,29 +108,14 @@ public class Discover(
 
             try
             {
-                var unprocessedDiscoveryReports = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync();
-                var numberOfReports = unprocessedDiscoveryReports.Count;
-                DateTime? minProcessed = null;
-                int? numberOfResults = null;
-                if (numberOfReports > 0)
-                {
-                    minProcessed = unprocessedDiscoveryReports.Min(x => x.DiscoveryBegan);
-                    numberOfResults = unprocessedDiscoveryReports
-                        .SelectMany(x => x.DiscoveryResults)
-                        .Count(x => !x.AutoHidden);
-                }
+                var discoveryInfo = await discoveryInfoContentPublisher.PublishUnprocessedSummaryAsync();
 
-                await contentPublisher.PublishDiscoveryInfo(new DiscoveryInfo
+                if (discoveryInfo.DocumentCount > 0)
                 {
-                    DocumentCount = numberOfReports,
-                    NumberOfResults = numberOfResults,
-                    DiscoveryBegan = minProcessed
-                });
-
-                if (numberOfReports > 0)
-                {
-                    await notificationPublisher.SendDiscoveryNotification(new DiscoveryNotification(numberOfReports,
-                        minProcessed ?? DateTime.MinValue, numberOfResults ?? 0));
+                    await notificationPublisher.SendDiscoveryNotification(new DiscoveryNotification(
+                        discoveryInfo.DocumentCount,
+                        discoveryInfo.DiscoveryBegan ?? DateTime.MinValue,
+                        discoveryInfo.NumberOfResults ?? 0));
                 }
             }
             catch (Exception e)

@@ -15,6 +15,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Third-Party\sirkris-Reddit.NET-1.5.3\src\Reddit.NET\Reddit.NET.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Cloudflare\RedditPodcastPoster.Cloudflare.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Discovery\RedditPodcastPoster.Discovery.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Persistence.Abstractions\RedditPodcastPoster.Persistence.Abstractions.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Reddit\RedditPodcastPoster.Reddit.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
   </ItemGroup>
