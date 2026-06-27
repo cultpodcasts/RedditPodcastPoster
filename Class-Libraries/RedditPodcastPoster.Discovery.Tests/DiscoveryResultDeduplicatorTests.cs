@@ -1,7 +1,5 @@
-using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using FluentAssertions;
+using RedditPodcastPoster.Discovery.Tests.Fixtures;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Discovery.Tests;
@@ -9,29 +7,15 @@ namespace RedditPodcastPoster.Discovery.Tests;
 public class DiscoveryResultDeduplicatorTests
 {
     private const int FuzzSeedCount = 100;
-    private const string CosmosDocumentId = "d6d38104-5ba5-4dec-ada4-094c48f61808";
-    private const int CosmosRawRowCount = 95;
-    private const string KanunguEpisodeName = "The Kanungu Cult: When the World Was Supposed to End";
 
-    private static readonly Uri NbaAppleUrl = new(
-        "https://podcasts.apple.com/podcast/crossover-episode-hornets-and-timberwolves-trade/id995386468?i=1000774379000");
-
-    private static readonly Guid LittleLiterId = Guid.Parse("2cfd4d11-0a00-48e9-b137-1991a63a7dbe");
-    private static readonly Guid ConservativeCultId = Guid.Parse("b851a85e-9bb5-45e8-9934-3bcc692e54f6");
-    private static readonly Guid ObamaSpeechId = Guid.Parse("490f9a6a-1531-4a63-bf1d-bda35c527f1f");
-    private static readonly Guid MonsterClubId = Guid.Parse("8f8a8145-71aa-4bde-9300-eca7306e249f");
-
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        Converters = { new JsonStringEnumConverter() }
-    };
+    private static readonly Uri NbaAppleUrl = TransitiveChainFixture.NbaAppleUrl;
 
     private readonly DiscoveryResultDeduplicator _sut = new();
 
     [Fact]
     public void Deduplicate_TransitiveChainRegression_KanunguDoesNotKeepNbaAppleUrl()
     {
-        var kanungu = FindKanungu(_sut.Deduplicate(LoadTransitiveChainFixture()));
+        var kanungu = FindKanungu(_sut.Deduplicate(TransitiveChainFixture.Create()));
 
         kanungu.Urls.Apple.Should().BeNull();
         kanungu.Urls.Apple?.ToString().Should().NotContain("hornets-and-timberwolves");
@@ -40,7 +24,7 @@ public class DiscoveryResultDeduplicatorTests
     [Fact]
     public void Deduplicate_TransitiveChainRegression_KanunguDoesNotInflateAcceptProbability()
     {
-        var kanungu = FindKanungu(_sut.Deduplicate(LoadTransitiveChainFixture()));
+        var kanungu = FindKanungu(_sut.Deduplicate(TransitiveChainFixture.Create()));
 
         kanungu.AcceptProbability.Should().BeLessThan(0.1f);
         kanungu.AcceptProbability.Should().NotBe(0.9873123f);
@@ -49,7 +33,7 @@ public class DiscoveryResultDeduplicatorTests
     [Fact]
     public void Deduplicate_TransitiveChainRegression_KanunguKeepsWinnerSubjectsOnly()
     {
-        var kanungu = FindKanungu(_sut.Deduplicate(LoadTransitiveChainFixture()));
+        var kanungu = FindKanungu(_sut.Deduplicate(TransitiveChainFixture.Create()));
 
         kanungu.Subjects.Should().BeEquivalentTo(["Movement for the Restoration of the Ten Commandments of God"]);
         kanungu.Subjects.Should().NotContain("Peoples Temple");
@@ -60,7 +44,7 @@ public class DiscoveryResultDeduplicatorTests
     [Fact]
     public void Deduplicate_TransitiveChainRegression_KanunguCombinesSameEpisodeUrls()
     {
-        var kanungu = FindKanungu(_sut.Deduplicate(LoadTransitiveChainFixture()));
+        var kanungu = FindKanungu(_sut.Deduplicate(TransitiveChainFixture.Create()));
 
         kanungu.Urls.YouTube.Should().NotBeNull();
         kanungu.Urls.YouTube!.ToString().Should().Contain("YO4eA110hP0");
@@ -71,12 +55,12 @@ public class DiscoveryResultDeduplicatorTests
     [Fact]
     public void Deduplicate_CosmosDocumentD6d38104_PreservesAllRowsWhenNoDuplicates()
     {
-        var raw = LoadCosmosDocumentFixture();
+        var raw = CosmosScaleFixture.Create();
         var deduped = _sut.Deduplicate(raw);
 
         raw.Should().HaveCount(
-            CosmosRawRowCount,
-            because: $"Cosmos document {CosmosDocumentId} stores raw discovery rows before read-time dedupe");
+            CosmosScaleFixture.RawRowCount,
+            because: $"Cosmos document {CosmosScaleFixture.DocumentId} stores raw discovery rows before read-time dedupe");
         deduped.Should().HaveCount(
             raw.Count,
             because: "unrelated episodes must not collapse when no rows share an episode-level URL");
@@ -86,11 +70,11 @@ public class DiscoveryResultDeduplicatorTests
     [Fact]
     public void Deduplicate_DoubledCosmosDocumentWithPartialUrls_ProducesNinetyFiveResults()
     {
-        var raw = LoadCosmosDocumentFixture();
-        raw.Should().HaveCount(CosmosRawRowCount);
+        var raw = CosmosScaleFixture.Create();
+        raw.Should().HaveCount(CosmosScaleFixture.RawRowCount);
 
         var baseline = _sut.Deduplicate(raw);
-        baseline.Should().HaveCount(CosmosRawRowCount);
+        baseline.Should().HaveCount(CosmosScaleFixture.RawRowCount);
 
         var random = new Random(42);
         var input = raw.ToList();
@@ -101,12 +85,12 @@ public class DiscoveryResultDeduplicatorTests
             input.Add(duplicate);
         }
 
-        input.Should().HaveCount(CosmosRawRowCount * 2);
+        input.Should().HaveCount(CosmosScaleFixture.RawRowCount * 2);
 
         var results = _sut.Deduplicate(input);
 
         results.Should().HaveCount(
-            CosmosRawRowCount,
+            CosmosScaleFixture.RawRowCount,
             because: "each episode should merge with its partial duplicate without collapsing unrelated rows");
 
         AssertNoCrossEpisodeContamination(baseline, results, strictBaselineMatch: false);
@@ -119,14 +103,14 @@ public class DiscoveryResultDeduplicatorTests
     [Fact]
     public void Deduplicate_TransitiveChainRegression_ProducesFiveCanonicalEpisodes()
     {
-        var results = _sut.Deduplicate(LoadTransitiveChainFixture());
+        var results = _sut.Deduplicate(TransitiveChainFixture.Create());
 
         results.Should().HaveCount(5);
-        results.Should().Contain(x => x.EpisodeName == KanunguEpisodeName);
-        results.Should().Contain(x => x.Id == LittleLiterId);
-        results.Should().Contain(x => x.Id == ConservativeCultId);
-        results.Should().Contain(x => x.Id == ObamaSpeechId);
-        results.Should().Contain(x => x.Id == MonsterClubId);
+        results.Should().Contain(x => x.EpisodeName == TransitiveChainFixture.KanunguEpisodeName);
+        results.Should().Contain(x => x.Id == TransitiveChainFixture.LittleLiterId);
+        results.Should().Contain(x => x.Id == TransitiveChainFixture.ConservativeCultId);
+        results.Should().Contain(x => x.Id == TransitiveChainFixture.ObamaSpeechId);
+        results.Should().Contain(x => x.Id == TransitiveChainFixture.MonsterClubId);
 
         results.Count(x => x.AutoHidden).Should().Be(5);
         FindKanungu(results).AutoHidden.Should().BeTrue();
@@ -189,21 +173,21 @@ public class DiscoveryResultDeduplicatorTests
     [Fact]
     public void Deduplicate_DuplicatedPartialUrlVariantsFromFixture_MergesSafely()
     {
-        var fixture = LoadTransitiveChainFixture();
+        var fixture = TransitiveChainFixture.Create();
         var youTubeOnly = fixture.Single(x =>
-            x.EpisodeName == KanunguEpisodeName &&
+            x.EpisodeName == TransitiveChainFixture.KanunguEpisodeName &&
             x.Urls.YouTube != null &&
             x.Urls.Spotify == null &&
             x.Urls.Apple == null);
         var spotifyPlusYouTube = fixture.Single(x =>
-            x.EpisodeName == KanunguEpisodeName &&
+            x.EpisodeName == TransitiveChainFixture.KanunguEpisodeName &&
             x.Urls.Spotify != null &&
             x.Urls.YouTube != null);
         var wrongAppleViaSpotify = fixture.Single(x =>
             x.EpisodeName == "Crossover episode: Hornets and Timberwolves trade");
 
         var otherEpisodes = fixture
-            .Where(x => x.EpisodeName != KanunguEpisodeName &&
+            .Where(x => x.EpisodeName != TransitiveChainFixture.KanunguEpisodeName &&
                         x.EpisodeName != wrongAppleViaSpotify.EpisodeName)
             .ToList();
 
@@ -239,7 +223,7 @@ public class DiscoveryResultDeduplicatorTests
     [InlineData(99)]
     public void Deduplicate_RandomDuplicateSubset_NoCrossEpisodeContamination(int seedIndex)
     {
-        var fixture = LoadTransitiveChainFixture();
+        var fixture = TransitiveChainFixture.Create();
         var baseline = _sut.Deduplicate(fixture);
         var random = new Random(seedIndex);
 
@@ -276,43 +260,7 @@ public class DiscoveryResultDeduplicatorTests
     }
 
     private static DiscoveryResult FindKanungu(IReadOnlyList<DiscoveryResult> results) =>
-        results.Single(x => x.EpisodeName == KanunguEpisodeName);
-
-    private static IReadOnlyList<DiscoveryResult> LoadCosmosDocumentFixture()
-    {
-        using var stream = OpenEmbeddedFixture("DiscoveryResultsDocument_d6d38104.json");
-        using var document = JsonDocument.Parse(stream);
-
-        var documentId = document.RootElement.GetProperty("id").GetString();
-        if (!string.Equals(documentId, CosmosDocumentId, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException(
-                $"Expected Cosmos fixture id '{CosmosDocumentId}' but found '{documentId}'.");
-        }
-
-        return document.RootElement
-                   .GetProperty("discoveryResults")
-                   .Deserialize<List<DiscoveryResult>>(JsonOptions)
-               ?? throw new InvalidOperationException("Failed to deserialize Cosmos discoveryResults.");
-    }
-
-    private static IReadOnlyList<DiscoveryResult> LoadTransitiveChainFixture()
-    {
-        using var stream = OpenEmbeddedFixture("Document_d6d38104_TransitiveChainRegression.json");
-        return JsonSerializer.Deserialize<List<DiscoveryResult>>(stream, JsonOptions)
-               ?? throw new InvalidOperationException("Failed to deserialize transitive-chain regression fixture.");
-    }
-
-    private static Stream OpenEmbeddedFixture(string fileName)
-    {
-        var assembly = Assembly.GetExecutingAssembly();
-        var resourceName = assembly
-            .GetManifestResourceNames()
-            .Single(name => name.EndsWith(fileName, StringComparison.Ordinal));
-
-        return assembly.GetManifestResourceStream(resourceName)
-               ?? throw new InvalidOperationException($"Missing embedded resource '{resourceName}'.");
-    }
+        results.Single(x => x.EpisodeName == TransitiveChainFixture.KanunguEpisodeName);
 
     private static DiscoveryResult CreateResult(
         string episodeName,
@@ -438,27 +386,27 @@ public class DiscoveryResultDeduplicatorTests
         }
 
         actual.Should().NotContain(x =>
-            x.EpisodeName == KanunguEpisodeName &&
+            x.EpisodeName == TransitiveChainFixture.KanunguEpisodeName &&
             x.Urls.Apple != null &&
             x.Urls.Apple.ToString().Contains("hornets-and-timberwolves", StringComparison.OrdinalIgnoreCase));
 
         actual.Should().NotContain(x =>
-            x.EpisodeName == KanunguEpisodeName &&
+            x.EpisodeName == TransitiveChainFixture.KanunguEpisodeName &&
             x.Subjects.Any(s =>
                 string.Equals(s, "Peoples Temple", StringComparison.Ordinal) ||
                 string.Equals(s, "Theranos", StringComparison.Ordinal) ||
                 string.Equals(s, "Scientology", StringComparison.Ordinal)));
 
-        var baselineKanungu = baseline.FirstOrDefault(x => x.EpisodeName == KanunguEpisodeName);
+        var baselineKanungu = baseline.FirstOrDefault(x => x.EpisodeName == TransitiveChainFixture.KanunguEpisodeName);
         if (baselineKanungu is { AcceptProbability: <= 0.1f })
         {
             actual.Should().NotContain(x =>
-                x.EpisodeName == KanunguEpisodeName &&
+                x.EpisodeName == TransitiveChainFixture.KanunguEpisodeName &&
                 x.AcceptProbability > 0.1f);
         }
         else if (baselineKanungu != null)
         {
-            var actualKanungu = actual.Single(x => x.EpisodeName == KanunguEpisodeName);
+            var actualKanungu = actual.Single(x => x.EpisodeName == TransitiveChainFixture.KanunguEpisodeName);
             (actualKanungu.AcceptProbability ?? 0f).Should().BeLessThanOrEqualTo(
                 baselineKanungu.AcceptProbability ?? 0f,
                 because: "deduplication must not inflate Kanungu accept probability via cross-episode merge");
