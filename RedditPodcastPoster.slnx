@@ -78,8 +78,8 @@
   <Folder Name="/Class-Libraries/Tests/">
 
     <Project Path="Class-Libraries/RedditPodcastPoster.BBC.Tests/RedditPodcastPoster.BBC.Tests.csproj" />
-
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery.Tests/RedditPodcastPoster.Discovery.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.Persistence.Tests/RedditPodcastPoster.Persistence.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple.Tests/RedditPodcastPoster.PodcastServices.Apple.Tests.csproj" />
 

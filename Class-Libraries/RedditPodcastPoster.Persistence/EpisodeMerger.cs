@@ -4,7 +4,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
 
-public class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
+public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
 {
     public EpisodeMergeResult MergeEpisodes(
         Podcast podcast,
@@ -64,13 +64,13 @@ public class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
 
     private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)
     {
+        if (SpotifyEpisodesMatch(episode, episodeToMerge))
+        {
+            return true;
+        }
+
         if (!string.IsNullOrWhiteSpace(episode.SpotifyId) && !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
         {
-            if (episode.SpotifyId == episodeToMerge.SpotifyId)
-            {
-                return true;
-            }
-
             return false;
         }
 
@@ -172,7 +172,41 @@ public class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
             existingEpisode.Release = episodeToMerge.Release;
             updated = true;
         }
+        else if (SpotifyEpisodesMatch(existingEpisode, episodeToMerge) &&
+                 episodeToMerge.Release > existingEpisode.Release)
+        {
+            existingEpisode.Release = episodeToMerge.Release;
+            updated = true;
+        }
 
         return updated;
     }
+
+    private static bool SpotifyEpisodesMatch(Episode episode, Episode episodeToMerge)
+    {
+        var existingId = ResolveSpotifyEpisodeId(episode.SpotifyId, episode.Urls.Spotify);
+        var incomingId = ResolveSpotifyEpisodeId(episodeToMerge.SpotifyId, episodeToMerge.Urls.Spotify);
+        return !string.IsNullOrWhiteSpace(existingId) &&
+               !string.IsNullOrWhiteSpace(incomingId) &&
+               existingId == incomingId;
+    }
+
+    private static string? ResolveSpotifyEpisodeId(string spotifyId, Uri? spotifyUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(spotifyId))
+        {
+            return spotifyId;
+        }
+
+        if (spotifyUrl == null)
+        {
+            return null;
+        }
+
+        var match = SpotifyEpisodeIdRegex().Match(spotifyUrl.ToString());
+        return match.Success ? match.Groups["episodeId"].Value : null;
+    }
+
+    [GeneratedRegex(@"episode/(?'episodeId'\w+)")]
+    private static partial Regex SpotifyEpisodeIdRegex();
 }

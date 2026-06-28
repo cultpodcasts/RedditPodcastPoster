@@ -57,11 +57,11 @@ public class PodcastUpdater(
             nameof(Update), podcast.Name, nameof(enrichOnly), enrichOnly);
         if (!enrichOnly)
         {
-            episodes = await episodeRepository
+            var releaseScopedEpisodes = await episodeRepository
                 .GetByPodcastId(podcast.Id, x => x.Release >= repositoryReleasedSince)
                 .ToListAsync();
 
-            var newEpisodes = await episodeProvider.GetEpisodes(podcast, episodes, indexingContext);
+            var newEpisodes = await episodeProvider.GetEpisodes(podcast, releaseScopedEpisodes, indexingContext);
             var checkShortEpisodes =
                 !(podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value);
             logger.LogInformation("Podcast '{podcastName}' has checkShortEpisodes= '{checkShortEpisodes}'.",
@@ -80,7 +80,8 @@ public class PodcastUpdater(
                     RemoveIgnoredEpisodes(newEpisodes);
                 }
             }
-            
+
+            episodes = await IncludePlatformIdentifiedEpisodesForMerge(podcast.Id, releaseScopedEpisodes);
             mergeResult = episodeMerger.MergeEpisodes(podcast, episodes, newEpisodes);
 
             // Merge does not mutate `episodes`; new adds live only on mergeResult until saved. Include them
@@ -272,6 +273,30 @@ public class PodcastUpdater(
         }
 
         await youTubeQuotaUsageTracker.RecordPodcastNotIndexedDueToQuotaAsync();
+    }
+
+    private async Task<IList<Episode>> IncludePlatformIdentifiedEpisodesForMerge(
+        Guid podcastId,
+        IList<Episode> releaseScopedEpisodes)
+    {
+        var platformIdentifiedEpisodes = await episodeRepository
+            .GetByPodcastId(
+                podcastId,
+                x => (x.AppleId != null && x.AppleId > 0) ||
+                     (x.SpotifyId != null && x.SpotifyId != string.Empty) ||
+                     (x.YouTubeId != null && x.YouTubeId != string.Empty) ||
+                     x.Urls.Spotify != null)
+            .ToListAsync();
+
+        if (platformIdentifiedEpisodes.Count == 0)
+        {
+            return releaseScopedEpisodes;
+        }
+
+        var knownIds = releaseScopedEpisodes.Select(x => x.Id).ToHashSet();
+        return releaseScopedEpisodes
+            .Concat(platformIdentifiedEpisodes.Where(x => !knownIds.Contains(x.Id)))
+            .ToList();
     }
 
     private static IList<Episode> BuildEnrichmentEpisodeContext(
