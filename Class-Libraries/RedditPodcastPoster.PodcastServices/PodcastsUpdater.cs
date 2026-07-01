@@ -54,6 +54,10 @@ public class PodcastsUpdater(
                     anyYouTubeBypassed |= !initialSkipYouTube && podcastIndexingContext.SkipYouTubeUrlResolving;
                     anyYouTubeQuotaExhausted |= !initialSkipYouTube && podcastIndexingContext.YouTubeQuotaExhausted;
                     anySpotifyBypassed |= !initialSkipSpotify && podcastIndexingContext.SkipSpotifyUrlResolving;
+                    if (podcastIndexingContext.SkipSpotifyUrlResolving)
+                    {
+                        indexingContext.SkipSpotifyUrlResolving = true;
+                    }
                     var resultReport = result.ToString();
                     if (!result.Success)
                     {
