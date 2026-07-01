@@ -16,15 +16,13 @@ public class PodcastsUpdater(
     public async Task<bool> UpdatePodcasts(Guid[] podcastIds, IndexingContext indexingContext)
     {
         var success = true;
-        var initialSkipYouTube = indexingContext.SkipYouTubeUrlResolving;
-        var initialSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
+        var batchBypassState = new IndexingContextExtensions.PodcastBatchBypassState(
+            indexingContext.SkipYouTubeUrlResolving,
+            indexingContext.SkipSpotifyUrlResolving);
         var youtubeEnabled = !indexingContext.SkipYouTubeUrlResolving;
         var youtubeAuthorityInBatch = 0;
         var youtubeAuthorityIndexedWithYouTubePass = 0;
         var youtubeAuthorityBypassed = 0;
-        var anyYouTubeBypassed = false;
-        var anyYouTubeQuotaExhausted = false;
-        var anySpotifyBypassed = false;
 
         var podcasts = await Task.WhenAll(podcastIds.Select(async podcastId =>
             (Id: podcastId, Podcast: await podcastRepository.GetPodcast(podcastId))));
@@ -49,15 +47,11 @@ public class PodcastsUpdater(
             {
                 try
                 {
-                    var podcastIndexingContext = indexingContext with { };
+                    var podcastIndexingContext = indexingContext.ForPodcastUpdate();
                     var result = await podcastUpdater.Update(podcast!, false, podcastIndexingContext);
-                    anyYouTubeBypassed |= !initialSkipYouTube && podcastIndexingContext.SkipYouTubeUrlResolving;
-                    anyYouTubeQuotaExhausted |= !initialSkipYouTube && podcastIndexingContext.YouTubeQuotaExhausted;
-                    anySpotifyBypassed |= !initialSkipSpotify && podcastIndexingContext.SkipSpotifyUrlResolving;
-                    if (podcastIndexingContext.SkipSpotifyUrlResolving)
-                    {
-                        indexingContext.SkipSpotifyUrlResolving = true;
-                    }
+                    batchBypassState = indexingContext.AbsorbPodcastPass(
+                        podcastIndexingContext,
+                        batchBypassState);
                     var resultReport = result.ToString();
                     if (!result.Success)
                     {
@@ -121,20 +115,7 @@ public class PodcastsUpdater(
                 youtubeAuthorityBypassed);
         }
 
-        if (anyYouTubeBypassed)
-        {
-            indexingContext.SkipYouTubeUrlResolving = true;
-        }
-
-        if (anyYouTubeQuotaExhausted)
-        {
-            indexingContext.YouTubeQuotaExhausted = true;
-        }
-
-        if (anySpotifyBypassed)
-        {
-            indexingContext.SkipSpotifyUrlResolving = true;
-        }
+        indexingContext.ApplyBatchBypassRollup(batchBypassState);
 
         logger.LogInformation("{nameofUpdatePodcasts} Indexing complete.", nameof(UpdatePodcasts));
         return success;
