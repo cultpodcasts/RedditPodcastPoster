@@ -25,7 +25,7 @@ public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMer
 
         foreach (var episodeToMerge in episodesToMerge)
         {
-            var matchingExisting = existingList.Where(x => Match(x, episodeToMerge, episodeMatchRegex)).ToList();
+            var matchingExisting = existingList.Where(x => Match(x, episodeToMerge, episodeMatchRegex, podcast)).ToList();
 
             if (matchingExisting.Count <= 1)
             {
@@ -62,7 +62,7 @@ public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMer
     }
 
 
-    private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex)
+    private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex, Podcast podcast)
     {
         if (SpotifyEpisodesMatch(episode, episodeToMerge))
         {
@@ -94,7 +94,7 @@ public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMer
             return false;
         }
 
-        return episodeMatcher.IsMatch(episode, episodeToMerge, episodeMatchRegex);
+        return episodeMatcher.IsMatch(episode, episodeToMerge, episodeMatchRegex, podcast);
     }
 
     private bool MergeInPlace(Episode existingEpisode, Episode episodeToMerge)

@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.Persistence;
@@ -14,12 +15,11 @@ public class EpisodeMatcher(
 ) : IEpisodeMatcher
 {
     private const int MinFuzzyTitleScore = 70;
-    private static readonly TimeSpan ReleaseTolerance = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan DurationTolerance = TimeSpan.FromMinutes(1);
 
     private readonly CompareInfo _compareInfo = CultureInfo.InvariantCulture.CompareInfo;
 
-    public bool IsMatch(Episode existingEpisode, Episode episodeToMerge, Regex? episodeMatchRegex)
+    public bool IsMatch(Episode existingEpisode, Episode episodeToMerge, Regex? episodeMatchRegex, Podcast podcast)
     {
         if (episodeMatchRegex == null)
         {
@@ -28,7 +28,7 @@ public class EpisodeMatcher(
                 return true;
             }
 
-            return MatchesByDefaultHeuristics(existingEpisode, episodeToMerge);
+            return MatchesByDefaultHeuristics(existingEpisode, episodeToMerge, podcast);
         }
 
         var episodeToMergeMatch = episodeMatchRegex.Match(episodeToMerge.Title);
@@ -64,17 +64,20 @@ public class EpisodeMatcher(
             }
         }
 
-        return MatchesByDefaultHeuristics(existingEpisode, episodeToMerge);
+        return MatchesByDefaultHeuristics(existingEpisode, episodeToMerge, podcast);
     }
 
-    private static bool MatchesByDefaultHeuristics(Episode existingEpisode, Episode episodeToMerge)
+    private static bool MatchesByDefaultHeuristics(
+        Episode existingEpisode,
+        Episode episodeToMerge,
+        Podcast podcast)
     {
         if (MatchesByFuzzyTitleAndDuration(existingEpisode, episodeToMerge))
         {
             return true;
         }
 
-        return MatchesByReleaseAndDuration(existingEpisode, episodeToMerge);
+        return MatchesByReleaseAndDuration(existingEpisode, episodeToMerge, podcast);
     }
 
     private static bool MatchesByFuzzyTitleAndDuration(Episode existingEpisode, Episode episodeToMerge)
@@ -87,10 +90,17 @@ public class EpisodeMatcher(
         return Math.Abs((existingEpisode.Length - episodeToMerge.Length).Ticks) < DurationTolerance.Ticks;
     }
 
-    private static bool MatchesByReleaseAndDuration(Episode existingEpisode, Episode episodeToMerge)
+    private static bool MatchesByReleaseAndDuration(
+        Episode existingEpisode,
+        Episode episodeToMerge,
+        Podcast podcast)
     {
+        var episodeLength = existingEpisode.Length > episodeToMerge.Length
+            ? existingEpisode.Length
+            : episodeToMerge.Length;
+        var releaseToleranceTicks = EpisodeReleaseMatchTolerance.GetToleranceTicks(podcast, episodeLength);
         var publishDifference = existingEpisode.Release - episodeToMerge.Release;
-        return Math.Abs(publishDifference.Ticks) < ReleaseTolerance.Ticks &&
+        return Math.Abs(publishDifference.Ticks) < releaseToleranceTicks &&
                Math.Abs((existingEpisode.Length - episodeToMerge.Length).Ticks) < DurationTolerance.Ticks;
     }
 }
