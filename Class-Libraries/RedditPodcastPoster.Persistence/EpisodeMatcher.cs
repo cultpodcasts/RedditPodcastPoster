@@ -95,12 +95,11 @@ public class EpisodeMatcher(
         Episode episodeToMerge,
         Podcast podcast)
     {
-        var episodeLength = existingEpisode.Length > episodeToMerge.Length
-            ? existingEpisode.Length
-            : episodeToMerge.Length;
-        var releaseToleranceTicks = EpisodeReleaseMatchTolerance.GetToleranceTicks(podcast, episodeLength);
-        var publishDifference = existingEpisode.Release - episodeToMerge.Release;
-        return Math.Abs(publishDifference.Ticks) < releaseToleranceTicks &&
-               Math.Abs((existingEpisode.Length - episodeToMerge.Length).Ticks) < DurationTolerance.Ticks;
+        if (!EpisodeReleaseMatchTolerance.EpisodesReleaseMatch(podcast, existingEpisode, episodeToMerge))
+        {
+            return false;
+        }
+
+        return Math.Abs((existingEpisode.Length - episodeToMerge.Length).Ticks) < DurationTolerance.Ticks;
     }
 }

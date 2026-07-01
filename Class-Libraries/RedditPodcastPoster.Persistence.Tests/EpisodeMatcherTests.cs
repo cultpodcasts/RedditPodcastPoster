@@ -38,16 +38,15 @@ public class EpisodeMatcherTests
     }
 
     [Fact]
-    public void IsMatch_WhenReleasesDifferWithinYouTubePublishingDelayTolerance_ReturnsTrue()
+    public void IsMatch_WhenReleasesDifferByYouTubePublishingDelayAndIncomingHasYouTubeIdentity_ReturnsTrue()
     {
-        var podcast = new Podcast
-        {
-            ReleaseAuthority = Service.YouTube,
-            YouTubePublicationOffset = TimeSpan.FromDays(1).Ticks
-        };
-        var release = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
-        var existing = CreateEpisode("Episode A", TimeSpan.FromHours(1), release);
-        var incoming = CreateEpisode("Completely different title", TimeSpan.FromHours(1), release.AddDays(1));
+        var podcast = new Podcast { YouTubePublicationOffset = TimeSpan.FromDays(1).Ticks };
+        var audioRelease = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
+        var existing = CreateEpisode("Episode A", TimeSpan.FromHours(1), audioRelease);
+        existing.Urls.Spotify = new Uri("https://open.spotify.com/episode/test");
+        var incoming = CreateEpisode("Completely different title", TimeSpan.FromHours(1), audioRelease.AddDays(1));
+        incoming.YouTubeId = "test-video";
+        incoming.Urls.YouTube = new Uri("https://www.youtube.com/watch?v=test-video");
         _sut.IsMatch(existing, incoming, episodeMatchRegex: null, podcast).Should().BeTrue();
     }
 
