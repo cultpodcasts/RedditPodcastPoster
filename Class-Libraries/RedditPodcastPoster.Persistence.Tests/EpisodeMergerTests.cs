@@ -148,6 +148,7 @@ public class EpisodeMergerTests
     public void MergeEpisodes_WhenYouTubeTitleDiffersButReleaseAndDurationMatch_MergesYouTubeOntoExisting()
     {
         // Regression: Postmormon Postmortem — YouTube title has typo ("Masscare") vs stored ("Massacre").
+        // Merge uses fuzzy title matching with duration validation.
         var existingId = Guid.Parse("086b02d5-9ec7-432e-8e57-9279d32374da");
         var release = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
         var existingLength = TimeSpan.FromSeconds(878.503);
