@@ -23,7 +23,7 @@ public class EpisodeMatcher(
                 return true;
             }
 
-            return false;
+            return MatchesByReleaseAndDuration(existingEpisode, episodeToMerge);
         }
 
         var episodeToMergeMatch = episodeMatchRegex.Match(episodeToMerge.Title);
@@ -59,14 +59,13 @@ public class EpisodeMatcher(
             }
         }
 
-        var publishDifference = existingEpisode.Release - episodeToMerge.Release;
-        if (Math.Abs(publishDifference.Ticks) < TimeSpan.FromMinutes(5).Ticks && Math.Abs(
-                (existingEpisode.Length -
-                 episodeToMerge.Length).Ticks) < TimeSpan.FromMinutes(1).Ticks)
-        {
-            return true;
-        }
+        return MatchesByReleaseAndDuration(existingEpisode, episodeToMerge);
+    }
 
-        return false;
+    private static bool MatchesByReleaseAndDuration(Episode existingEpisode, Episode episodeToMerge)
+    {
+        var publishDifference = existingEpisode.Release - episodeToMerge.Release;
+        return Math.Abs(publishDifference.Ticks) < TimeSpan.FromMinutes(5).Ticks &&
+               Math.Abs((existingEpisode.Length - episodeToMerge.Length).Ticks) < TimeSpan.FromMinutes(1).Ticks;
     }
 }
