@@ -102,14 +102,40 @@ function Export-FunctionAppSettingsBackup {
     }
 
     foreach ($app in $FunctionApps) {
-        $settings = Get-FunctionAppSettings -ResourceGroup $ResourceGroup -FunctionApp $app
+        $settings = @(Get-FunctionAppSettings -ResourceGroup $ResourceGroup -FunctionApp $app)
+        if ($settings.Count -eq 0) {
+            throw "Export for '$app' returned no app settings; refusing to continue without a valid backup."
+        }
+
         $fileName = "$app-appsettings.json"
         $filePath = Join-Path $BackupPath $fileName
 
         $settings | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $filePath -Encoding utf8
+
+        $written = @(Get-Content -LiteralPath $filePath -Raw | ConvertFrom-Json)
+        if ($written.Count -ne $settings.Count) {
+            throw "Backup file '$fileName' count mismatch (exported $($settings.Count), file has $($written.Count))."
+        }
+
         $manifest.files += $fileName
 
         Write-Host "Backed up $($settings.Count) setting(s) for '$app' -> $filePath"
+    }
+
+    if ($manifest.files.Count -ne $FunctionApps.Count) {
+        throw "Backup manifest lists $($manifest.files.Count) file(s) but $($FunctionApps.Count) function app(s) were requested."
+    }
+
+    foreach ($app in $FunctionApps) {
+        $expectedFile = "$app-appsettings.json"
+        if ($manifest.files -notcontains $expectedFile) {
+            throw "Expected backup file '$expectedFile' missing from manifest."
+        }
+
+        $expectedPath = Join-Path $BackupPath $expectedFile
+        if (-not (Test-Path -LiteralPath $expectedPath)) {
+            throw "Expected backup file not found on disk: $expectedPath"
+        }
     }
 
     $manifestPath = Join-Path $BackupPath 'manifest.json'
