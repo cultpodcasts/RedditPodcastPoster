@@ -1,5 +1,4 @@
 ﻿using Microsoft.Azure.Cosmos;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -7,7 +6,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 namespace RedditPodcastPoster.Persistence;
 
 public class CosmosDbContainerFactory(
-    [FromKeyedServices("cosmos")] CosmosClient cosmosClient,
+    CosmosClient cosmosClient,
     IOptions<CosmosDbSettings> cosmosDbSettingsOptions,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<CosmosDbContainerFactory> logger)

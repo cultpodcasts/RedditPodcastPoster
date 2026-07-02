@@ -13,8 +13,7 @@ public static class ServiceCollectionExtensions
         {
             return services
                 .AddSingleton<ICosmosDbClientFactory, CosmosDbClientFactory>()
-                .AddKeyedSingleton<CosmosClient>("cosmos", (sp, _) =>
-                    sp.GetRequiredService<ICosmosDbClientFactory>().Create())
+                .AddSingleton(sp => sp.GetRequiredService<ICosmosDbClientFactory>().Create())
                 .AddSingleton<ICosmosDbContainerFactory, CosmosDbContainerFactory>()
                 .AddSingleton<IEpisodeMatcher, EpisodeMatcher>()
                 .AddSingleton<IEpisodeMerger, EpisodeMerger>()
