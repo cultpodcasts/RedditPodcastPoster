@@ -18,7 +18,13 @@ public class SearchResultFinder(
     private const int MinSameLengthFuzzyScore = 80;
     private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(30).Ticks;
     private static readonly long BroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
+    private static readonly long YouTubeDiscoveredDurationThreshold = TimeSpan.FromMinutes(5).Ticks;
     private static readonly TimeSpan SameReleaseThreshold = TimeSpan.FromHours(3);
+
+    private static long GetDurationThresholdTicks(bool enrichingYouTubeDiscoveredEpisode) =>
+        enrichingYouTubeDiscoveredEpisode
+            ? YouTubeDiscoveredDurationThreshold
+            : TimeDifferenceThreshold;
 
     public IEnumerable<SimpleShow> FindMatchingPodcasts(string podcastName, List<SimpleShow>? podcasts)
     {
@@ -67,8 +73,9 @@ public class SearchResultFinder(
                 sampleList = episodes.ToList();
             }
 
+            var durationThreshold = GetDurationThresholdTicks(acceptUniqueDurationWithoutTitleMatch);
             var sameLength = sampleList
-                .Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < TimeDifferenceThreshold)
+                .Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < durationThreshold)
                 .ToList();
             if (sameLength.Count == 1 && acceptUniqueDurationWithoutTitleMatch)
             {

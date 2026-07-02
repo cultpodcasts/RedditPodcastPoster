@@ -46,7 +46,11 @@ public class AppleEpisodeEnricher(
                 indexingContext,
                 y => !assignedAppleIds.Contains(y.Id) &&
                      findAppleEpisodeRequest.Released.HasValue &&
-                     Math.Abs((y.Release - findAppleEpisodeRequest.Released.Value).Ticks) < ticks);
+                     EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
+                         y.Release,
+                         findAppleEpisodeRequest.Released.Value,
+                         ticks,
+                         request.Podcast));
             if (appleItem != null && request.Episodes.All(x => x.AppleId != appleItem.Id))
             {
                 var url = appleItem.Url.CleanAppleUrl();

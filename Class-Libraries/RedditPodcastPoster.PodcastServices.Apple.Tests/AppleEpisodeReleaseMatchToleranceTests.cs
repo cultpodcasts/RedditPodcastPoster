@@ -68,6 +68,48 @@ public class EpisodeReleaseMatchToleranceTests
     }
 
     [Fact]
+    public void SpotifyCatalogueReleaseMatches_WhenMembersFirstDelayAndSpotifyLandsEarlyWithinFiveDays_ReturnsTrue()
+    {
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = TimeSpan.FromDays(-31).Add(TimeSpan.FromHours(-12)).Ticks
+        };
+        var expected = new DateTime(2026, 7, 6, 1, 8, 6, DateTimeKind.Utc);
+        var spotifyCatalogue = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
+        var tolerance = EpisodeReleaseMatchTolerance.GetToleranceTicks(podcast, TimeSpan.FromMinutes(88));
+
+        EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
+                spotifyCatalogue,
+                expected,
+                tolerance,
+                podcast)
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void ShouldEnrichDespiteReleaseWindow_WhenYouTubeOnlyEpisodeNearExpectedAudioRelease_ReturnsTrue()
+    {
+        var delay = TimeSpan.FromDays(-31).Add(TimeSpan.FromHours(-12));
+        var expectedAudioRelease = DateTime.UtcNow.AddDays(4);
+        var youTubeRelease = expectedAudioRelease.Add(delay);
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = delay.Ticks,
+            SpotifyId = "show-id"
+        };
+        var episode = new Episode
+        {
+            Release = youTubeRelease,
+            YouTubeId = "UsqC0L9He2g",
+            Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g") }
+        };
+
+        EpisodeReleaseMatchTolerance.ShouldEnrichDespiteReleaseWindow(episode, podcast).Should().BeTrue();
+    }
+
+    [Fact]
     public void EpisodesReleaseMatch_WhenYouTubeAuthorityStoredYouTubeAndSpotifyIncomingAlignAfterDelayAdjustment_ReturnsTrue()
     {
         var delay = TimeSpan.FromDays(1);
@@ -129,5 +171,64 @@ public class EpisodeReleaseMatchToleranceTests
 
         EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, release, episodeHasYouTubeIdentity: false)
             .Should().Be(release - delay);
+    }
+
+    [Fact]
+    public void GetAudioReleaseForPlatformLookup_WhenYouTubeAuthorityEpisodeMergedWithSpotify_UsesStoredAudioRelease()
+    {
+        const long c2cDelayTicks = -27216000000000;
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = c2cDelayTicks,
+            SpotifyId = "6oTbi9wKZ2czCvSwBKxxoH"
+        };
+        var audioRelease = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
+        var episode = new Episode
+        {
+            Release = audioRelease,
+            YouTubeId = "UsqC0L9He2g",
+            SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4",
+            Urls = new ServiceUrls
+            {
+                YouTube = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g"),
+                Spotify = new Uri("https://open.spotify.com/episode/6O1Z1s7ca0PI8Gq1rdt3j4")
+            }
+        };
+
+        EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, episode)
+            .Should().Be(audioRelease);
+    }
+
+    [Theory]
+    [InlineData("2026-07-02T00:00:00Z")]
+    [InlineData("2026-07-06T01:08:06Z")]
+    public void SpotifyCatalogueReleaseMatches_WhenMembersFirstC2CAbuserEpisodeAlignsWithinFiveDays_ReturnsTrue(
+        string appleCatalogueReleaseText)
+    {
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = -27216000000000
+        };
+        var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
+        var expectedAudioRelease = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(
+            podcast,
+            youTubeRelease,
+            episodeHasYouTubeIdentity: true);
+        var appleCatalogueRelease = DateTime.Parse(
+            appleCatalogueReleaseText,
+            null,
+            System.Globalization.DateTimeStyles.RoundtripKind);
+        var tolerance = EpisodeReleaseMatchTolerance.GetToleranceTicks(
+            podcast,
+            TimeSpan.Parse("01:28:37"));
+
+        EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
+                appleCatalogueRelease,
+                expectedAudioRelease,
+                tolerance,
+                podcast)
+            .Should().BeTrue();
     }
 }

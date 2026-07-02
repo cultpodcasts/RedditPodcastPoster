@@ -16,6 +16,7 @@ public class EpisodeMatcher(
 {
     private const int MinFuzzyTitleScore = 70;
     private static readonly TimeSpan DurationTolerance = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan MembersFirstCrossPlatformDurationTolerance = TimeSpan.FromMinutes(5);
 
     private readonly CompareInfo _compareInfo = CultureInfo.InvariantCulture.CompareInfo;
 
@@ -72,7 +73,7 @@ public class EpisodeMatcher(
         Episode episodeToMerge,
         Podcast podcast)
     {
-        if (MatchesByFuzzyTitleAndDuration(existingEpisode, episodeToMerge))
+        if (MatchesByFuzzyTitleAndDuration(existingEpisode, episodeToMerge, podcast))
         {
             return true;
         }
@@ -80,14 +81,17 @@ public class EpisodeMatcher(
         return MatchesByReleaseAndDuration(existingEpisode, episodeToMerge, podcast);
     }
 
-    private static bool MatchesByFuzzyTitleAndDuration(Episode existingEpisode, Episode episodeToMerge)
+    private static bool MatchesByFuzzyTitleAndDuration(
+        Episode existingEpisode,
+        Episode episodeToMerge,
+        Podcast podcast)
     {
         if (!FuzzyMatcher.IsMatch(existingEpisode.Title, episodeToMerge, e => e.Title, MinFuzzyTitleScore))
         {
             return false;
         }
 
-        return Math.Abs((existingEpisode.Length - episodeToMerge.Length).Ticks) < DurationTolerance.Ticks;
+        return DurationsMatch(existingEpisode, episodeToMerge, podcast);
     }
 
     private static bool MatchesByReleaseAndDuration(
@@ -100,7 +104,7 @@ public class EpisodeMatcher(
             return false;
         }
 
-        if (Math.Abs((existingEpisode.Length - episodeToMerge.Length).Ticks) >= DurationTolerance.Ticks)
+        if (!DurationsMatch(existingEpisode, episodeToMerge, podcast))
         {
             return false;
         }
@@ -112,4 +116,38 @@ public class EpisodeMatcher(
 
         return true;
     }
+
+    private static bool DurationsMatch(Episode existingEpisode, Episode episodeToMerge, Podcast podcast)
+    {
+        var tolerance = GetDurationTolerance(existingEpisode, episodeToMerge, podcast);
+        return Math.Abs((existingEpisode.Length - episodeToMerge.Length).Ticks) < tolerance.Ticks;
+    }
+
+    private static TimeSpan GetDurationTolerance(Episode existingEpisode, Episode episodeToMerge, Podcast podcast)
+    {
+        if (podcast.YouTubePublishingDelay().Ticks < 0 &&
+            HasCrossPlatformYouTubeSpotifyPair(existingEpisode, episodeToMerge))
+        {
+            return MembersFirstCrossPlatformDurationTolerance;
+        }
+
+        return DurationTolerance;
+    }
+
+    private static bool HasCrossPlatformYouTubeSpotifyPair(Episode existingEpisode, Episode episodeToMerge)
+    {
+        var existingYouTube = HasYouTubeIdentity(existingEpisode);
+        var existingSpotify = HasSpotifyIdentity(existingEpisode);
+        var incomingYouTube = HasYouTubeIdentity(episodeToMerge);
+        var incomingSpotify = HasSpotifyIdentity(episodeToMerge);
+
+        return (existingYouTube && !existingSpotify && incomingSpotify && !incomingYouTube) ||
+               (incomingYouTube && !incomingSpotify && existingSpotify && !existingYouTube);
+    }
+
+    private static bool HasYouTubeIdentity(Episode episode) =>
+        !string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.Urls.YouTube != null;
+
+    private static bool HasSpotifyIdentity(Episode episode) =>
+        !string.IsNullOrWhiteSpace(episode.SpotifyId) || episode.Urls.Spotify != null;
 }

@@ -25,6 +25,22 @@ public class EpisodeProvider(
             (newEpisodes, handled) = await RetrieveYouTubeEpisodes(podcast, episodes, indexingContext, newEpisodes);
         }
 
+        if (indexingContext.IndexSpotify &&
+            !indexingContext.SkipSpotifyUrlResolving &&
+            !string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
+            podcast.ReleaseAuthority == Service.YouTube &&
+            podcast.YouTubePublishingDelay().Ticks < 0)
+        {
+            var (spotifyEpisodes, _) = await spotifyEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
+            if (spotifyEpisodes is { Count: > 0 })
+            {
+                newEpisodes = CombineDiscoveredEpisodes(newEpisodes, spotifyEpisodes);
+                logger.LogInformation(
+                    "Get Episodes for podcast '{podcastName}' merged {spotifyEpisodeCount} Spotify catalogue episodes for members-first merge.",
+                    podcast.Name, spotifyEpisodes.Count);
+            }
+        }
+
         if (indexingContext.IndexSpotify && podcast.ReleaseAuthority is null or Service.Spotify &&
             !string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {

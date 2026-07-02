@@ -6,6 +6,8 @@ public static class EpisodeReleaseMatchTolerance
 {
     private static readonly TimeSpan SameReleaseThreshold = TimeSpan.FromHours(3);
     private static readonly TimeSpan YouTubePublishDelayMatchThreshold = TimeSpan.FromDays(1);
+    private const int MembersFirstSpotifyCatalogueDayTolerance = 5;
+    private static readonly TimeSpan MembersFirstEnrichmentLookahead = TimeSpan.FromDays(14);
 
     public static bool EpisodesReleaseMatch(Podcast podcast, Episode existingEpisode, Episode episodeToMerge)
     {
@@ -46,7 +48,11 @@ public static class EpisodeReleaseMatchTolerance
         {
             // FindSpotifyEpisodeRequestFactory.CalculateRelativeRelease: audio release = stored release - delay
             var expectedAudioRelease = existingEpisode.Release - delay;
-            return Math.Abs((episodeToMerge.Release - expectedAudioRelease).Ticks) < toleranceTicks;
+            return SpotifyCatalogueReleaseMatches(
+                episodeToMerge.Release,
+                expectedAudioRelease,
+                toleranceTicks,
+                podcast);
         }
 
         if (incomingIsYouTube && HasSpotifyIdentity(existingEpisode) &&
@@ -60,8 +66,18 @@ public static class EpisodeReleaseMatchTolerance
         return false;
     }
 
-    public static DateTime GetAudioReleaseForPlatformLookup(Podcast podcast, Episode episode) =>
-        GetAudioReleaseForPlatformLookup(podcast, episode.Release, HasYouTubeIdentity(episode));
+    public static DateTime GetAudioReleaseForPlatformLookup(Podcast podcast, Episode episode)
+    {
+        if (podcast.ReleaseAuthority == Service.YouTube &&
+            HasYouTubeIdentity(episode) &&
+            HasAudioPlatformIdentity(episode))
+        {
+            // After Spotify/Apple merge, Release is the audio catalogue date — not YouTube publish.
+            return episode.Release;
+        }
+
+        return GetAudioReleaseForPlatformLookup(podcast, episode.Release, HasYouTubeIdentity(episode));
+    }
 
     public static DateTime GetAudioReleaseForPlatformLookup(
         Podcast podcast,
@@ -89,22 +105,66 @@ public static class EpisodeReleaseMatchTolerance
 
     public static bool SpotifyCatalogueReleaseMatches(DateTime spotifyCatalogueRelease, DateTime expectedRelease)
     {
+        var dayTolerance = GetSpotifyCatalogueDayTolerance(podcast: null);
         var spotifyDate = DateOnly.FromDateTime(spotifyCatalogueRelease);
         var expectedDate = DateOnly.FromDateTime(expectedRelease);
-        return Math.Abs(expectedDate.DayNumber - spotifyDate.DayNumber) <= 1;
+        return Math.Abs(expectedDate.DayNumber - spotifyDate.DayNumber) <= dayTolerance;
     }
 
     public static bool SpotifyCatalogueReleaseMatches(
         DateTime spotifyCatalogueRelease,
         DateTime expectedRelease,
-        long toleranceTicks)
+        long toleranceTicks) =>
+        SpotifyCatalogueReleaseMatches(spotifyCatalogueRelease, expectedRelease, toleranceTicks, podcast: null);
+
+    public static bool SpotifyCatalogueReleaseMatches(
+        DateTime spotifyCatalogueRelease,
+        DateTime expectedRelease,
+        long toleranceTicks,
+        Podcast? podcast)
     {
-        if (SpotifyCatalogueReleaseMatches(spotifyCatalogueRelease, expectedRelease))
+        var dayTolerance = GetSpotifyCatalogueDayTolerance(podcast);
+        var spotifyDate = DateOnly.FromDateTime(spotifyCatalogueRelease);
+        var expectedDate = DateOnly.FromDateTime(expectedRelease);
+        if (Math.Abs(expectedDate.DayNumber - spotifyDate.DayNumber) <= dayTolerance)
         {
             return true;
         }
 
         return Math.Abs((spotifyCatalogueRelease - expectedRelease).Ticks) < toleranceTicks;
+    }
+
+    public static bool ShouldEnrichDespiteReleaseWindow(Episode episode, Podcast podcast)
+    {
+        var delay = podcast.YouTubePublishingDelay();
+        if (podcast.ReleaseAuthority != Service.YouTube || delay.Ticks >= 0)
+        {
+            return false;
+        }
+
+        if (!HasYouTubeIdentity(episode) || !EpisodeMissingConfiguredPlatformIds(episode, podcast))
+        {
+            return false;
+        }
+
+        var expectedAudioRelease = GetAudioReleaseForPlatformLookup(podcast, episode);
+        var windowStart = expectedAudioRelease.AddDays(-MembersFirstSpotifyCatalogueDayTolerance);
+        var windowEnd = expectedAudioRelease.Add(MembersFirstEnrichmentLookahead);
+        var now = DateTime.UtcNow;
+        return now >= windowStart && now <= windowEnd;
+    }
+
+    private static int GetSpotifyCatalogueDayTolerance(Podcast? podcast) =>
+        podcast is { ReleaseAuthority: Service.YouTube } && podcast.YouTubePublishingDelay().Ticks < 0
+            ? MembersFirstSpotifyCatalogueDayTolerance
+            : 1;
+
+    private static bool EpisodeMissingConfiguredPlatformIds(Episode episode, Podcast podcast)
+    {
+        var needsSpotify = !string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
+                           string.IsNullOrWhiteSpace(episode.SpotifyId);
+        var needsApple = podcast.AppleId is > 0 && episode.AppleId is null or 0;
+        return needsSpotify || needsApple;
     }
 
     public static long GetToleranceTicks(Podcast podcast, TimeSpan episodeLength)
@@ -174,6 +234,9 @@ public static class EpisodeReleaseMatchTolerance
 
     private static bool HasSpotifyIdentity(Episode episode) =>
         !string.IsNullOrWhiteSpace(episode.SpotifyId) || episode.Urls.Spotify != null;
+
+    private static bool HasAudioPlatformIdentity(Episode episode) =>
+        HasSpotifyIdentity(episode) || episode.AppleId is > 0 || episode.Urls.Apple != null;
 
     private static bool HasAudioPlatformConfigured(Podcast podcast) =>
         !string.IsNullOrWhiteSpace(podcast.SpotifyId) || podcast.AppleId != null;
