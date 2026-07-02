@@ -50,7 +50,7 @@ public static class ServiceCollectionExtensions
                 })
                 .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
-                .BindConfiguration<CosmosDbSettings>("cosmosdbv2");
+                .BindConfiguration<CosmosDbSettings>("cosmosdb");
         }
 
         public IServiceCollection AddFileRepository(string containerName = "",

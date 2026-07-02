@@ -13,7 +13,7 @@ This folder documents the migration from embedded `Podcast.Episodes` to discrete
 - **Episode pair type:** `PodcastEpisode` (`Podcast` + `Episode`).
 - **Update pipeline:** `PodcastUpdater` as default `IPodcastUpdater`.
 - **Search:** datasource queries detached `Episodes`; `EpisodeSearchIndexerService` uses detached repositories.
-- **Configuration:** binds to `cosmosdbv2` section (historical key name; see README).
+- **Configuration:** binds to `cosmosdb` section (see README).
 
 ## What remains (non-blocking)
 
@@ -21,7 +21,6 @@ See [`remaining-work-audit.md`](./remaining-work-audit.md) for test gaps and opt
 
 **Summary:**
 - ❌ No automated tests for detached-episode paths
-- ⏳ Optional config rename (`cosmosdbv2` → `cosmosdb`)
 - 🟡 Assess retirement of legacy-format console tools (`ModelTransformer`, `JsonSplitCosmosDbUploader`)
 
 ## Historical docs

@@ -23,7 +23,7 @@ builder.Services
     .AddLogging()
     .AddScoped<CreateSearchIndexProcessor>()
     .AddSearch()
-    .BindConfiguration<CosmosDbSettings>("cosmosdbv2");
+    .BindConfiguration<CosmosDbSettings>("cosmosdb");
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<CreateSearchIndexRequest>(args)

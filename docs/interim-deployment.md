@@ -59,7 +59,7 @@ Per-app overrides: gitignored `scripts/deploy-api.json`, `deploy-discover.json`,
 
 | Source | Used for |
 |--------|----------|
-| [`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep) | All production app settings (`discover__*`, `cosmosdbv2__*`, secrets from Key Vault at deploy time) |
+| [`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep) | All production app settings (`discover__*`, `cosmosdb__*`, secrets from Key Vault at deploy time) |
 | Function app settings in Azure Portal | What is actually running until next bicep provision |
 | [`apply-telemetry-app-settings.ps1`](../scripts/apply-telemetry-app-settings.ps1) | Optional overlay for logging/sampling when bicep provision is skipped |
 

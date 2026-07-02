@@ -23,7 +23,6 @@
 These are not blocking production:
 
 - [ ] Add unit/integration tests for detached-episode code paths (see historical checklist in `docs/migration/remaining-work-audit.md`).
-- [ ] Rename configuration section `cosmosdbv2` → `cosmosdb` (requires coordinated infra/app-settings change).
 - [ ] Retire or reassess pre-migration console tools (`ModelTransformer`, `JsonSplitCosmosDbUploader`) if no longer needed.
 
 ---

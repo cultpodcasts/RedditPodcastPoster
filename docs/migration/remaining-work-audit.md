@@ -33,7 +33,6 @@ Suggested coverage: `PodcastUpdater`, `EpisodeRepository`, `PodcastEpisodeProvid
 
 ## ⏳ Optional follow-ups
 
-- [ ] Rename configuration section `cosmosdbv2` → `cosmosdb` (infra + all app settings).
 - [ ] Retire `ModelTransformer` / `JsonSplitCosmosDbUploader` if no operational use remains.
 - [ ] Phase 7 verification gates (RU/latency, end-to-end flow validation) — run if not already done in production soak.
 

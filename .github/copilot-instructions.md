@@ -52,4 +52,4 @@
 - Prefer memory-probe responsibility delegated to an injected `IMemoryProbeOrchestrator`, with call sites using `Start(nameof(Class))` and `End()`, and the orchestrator deciding via `MemoryProbeOptions` whether to create/log a session.
 
 ## Configuration
-- Cosmos DB settings bind to the `cosmosdbv2` configuration section (historical key name; single production database with split containers).
+- Cosmos DB settings bind to the `cosmosdb` configuration section (single production database with split containers).

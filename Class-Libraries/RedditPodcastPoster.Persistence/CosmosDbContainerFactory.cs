@@ -28,36 +28,36 @@ public class CosmosDbContainerFactory(
 
     public Container CreatePodcastsContainer()
     {
-        return GetContainer(cosmosDbSettings.PodcastsContainer, "cosmosdbv2:PodcastsContainer");
+        return GetContainer(cosmosDbSettings.PodcastsContainer, "cosmosdb:PodcastsContainer");
     }
 
     public Container CreateEpisodesContainer()
     {
-        return GetContainer(cosmosDbSettings.EpisodesContainer, "cosmosdbv2:EpisodesContainer");
+        return GetContainer(cosmosDbSettings.EpisodesContainer, "cosmosdb:EpisodesContainer");
     }
 
     public Container CreateSubjectsContainer()
     {
-        return GetContainer(cosmosDbSettings.SubjectsContainer, "cosmosdbv2:SubjectsContainer");
+        return GetContainer(cosmosDbSettings.SubjectsContainer, "cosmosdb:SubjectsContainer");
     }
 
     public Container CreateActivitiesContainer()
     {
-        return GetContainer(cosmosDbSettings.ActivitiesContainer, "cosmosdbv2:ActivitiesContainer");
+        return GetContainer(cosmosDbSettings.ActivitiesContainer, "cosmosdb:ActivitiesContainer");
     }
 
     public Container CreateDiscoveryContainer()
     {
-        return GetContainer(cosmosDbSettings.DiscoveryContainer, "cosmosdbv2:DiscoveryContainer");
+        return GetContainer(cosmosDbSettings.DiscoveryContainer, "cosmosdb:DiscoveryContainer");
     }
 
     public Container CreateLookUpsContainer()
     {
-        return GetContainer(cosmosDbSettings.LookUpsContainer, "cosmosdbv2:LookUpsContainer");
+        return GetContainer(cosmosDbSettings.LookUpsContainer, "cosmosdb:LookUpsContainer");
     }
 
     public Container CreatePushSubscriptionsContainer()
     {
-        return GetContainer(cosmosDbSettings.PushSubscriptionsContainer, "cosmosdbv2:PushSubscriptionsContainer");
+        return GetContainer(cosmosDbSettings.PushSubscriptionsContainer, "cosmosdb:PushSubscriptionsContainer");
     }
 }
