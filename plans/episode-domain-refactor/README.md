@@ -343,19 +343,18 @@ Implement as test classes under `BusinessRules/`. Each rule = one `[Fact]` or `[
 
 Step 3 rule catalog for §5.1–§5.3 is complete.
 
-### Step 4 — Orchestration business rules (PRs 6–7) 🔄 in progress
+### Step 4 — Orchestration business rules (PRs 6–7) ✅
 
-**Coverage so far:** 11 of ~18 catalog rules (~61%)
+**Coverage:** 27 orchestration rule tests — **§5.4–§5.6 catalog complete**
 
 - [x] `IndexingPersistenceRules` — 4 rules (persist order enriched→filtered→merged→added, LastIndexed on success, LastIndexed skipped on merge failure, enrich-only skips episode provider)
-- [x] `IndexingEnrichmentRules` — 2 rules (Spotify enricher when link missing, SkipEnrichingFromYouTube skips YouTube enricher)
+- [x] `IndexingEnrichmentRules` — 7 rules (Spotify/Apple/YouTube missing-link enrichment, SkipEnrichingFromYouTube, delayed-publishing second pass, newEpisodes exclusion, in-window skip)
 - [x] `IndexingScopeRules` — 1 rule (short episodes marked ignored)
+- [x] `IndexingOrchestrationRules` — 7 rules (full pipeline discover→merge→enrich→filter, SkipShortEpisodes removal, LatestReleased, expensive-query flags, LastIndexed skipped on Spotify/YouTube/scheduled-YouTube bypass)
 - [x] `UrlSubmissionPersistenceRules` — 4 rules (existing enriched saves episode, unchanged saves nothing, PersistToDatabase=false, new podcast saves both)
-- [ ] `UrlSubmissionEnrichmentRules` — 0 rules (§5.6 enrichment paths via `EpisodeEnricher`)
-- [ ] Remaining indexing enrichment rules (§5.4): Apple/YouTube missing-link, delayed-publishing second pass, in-window skip
-- [ ] Remaining indexing orchestration rules (§5.5): full pipeline discover→merge→enrich→filter, SkipShortEpisodes removal, LatestReleased, expensive-query flags
+- [x] `UrlSubmissionEnrichmentRules` — 4 rules (fill missing platform links, podcast show metadata enrichment, EpisodeAlreadyExists vs Enriched states)
 
-**Test projects:** `RedditPodcastPoster.PodcastServices.Tests` (7 tests), `UrlSubmission.Tests` (+4 persistence rules, 12 total)
+**Test projects:** `RedditPodcastPoster.PodcastServices.Tests` (19 tests), `UrlSubmission.Tests` (16 total, 8 Step 4 rules)
 
 ### Step 5 — Adapter rules (PR 8)
 
