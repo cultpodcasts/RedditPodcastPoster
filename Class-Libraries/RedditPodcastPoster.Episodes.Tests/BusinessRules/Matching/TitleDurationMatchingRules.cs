@@ -1,5 +1,5 @@
 using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
@@ -16,8 +16,8 @@ public class TitleDurationMatchingRules
     private static readonly Uri SpotifyUrl = new($"https://open.spotify.com/episode/{SpotifyEpisodeId}");
     private static readonly Guid PostmormonExistingId = Guid.Parse("086b02d5-9ec7-432e-8e57-9279d32374da");
 
-    private readonly EpisodeMatcher _matcher = new(NullLogger<EpisodeMatcher>.Instance);
-    private readonly EpisodeMerger _merger = new(new EpisodeMatcher(NullLogger<EpisodeMatcher>.Instance));
+    private readonly EpisodeMatcher _matcher = EpisodeDomainTestServices.CreateMatcher();
+    private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
     [Fact(DisplayName =
         "When titles differ by a typo but duration matches within tolerance, " +

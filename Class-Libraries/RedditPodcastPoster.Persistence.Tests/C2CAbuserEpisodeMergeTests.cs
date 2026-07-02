@@ -1,8 +1,8 @@
 using FluentAssertions;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace RedditPodcastPoster.Persistence.Tests;
 
@@ -53,7 +53,7 @@ public class C2CAbuserEpisodeMergeTests
             null);
 
         var releaseMatches = EpisodeReleaseMatchTolerance.EpisodesReleaseMatch(podcast, existing, incoming);
-        var matcher = new EpisodeMatcher(NullLogger<EpisodeMatcher>.Instance);
+        var matcher = EpisodeDomainTestServices.CreateMatcher();
         var isMatch = matcher.IsMatch(existing, incoming, episodeMatchRegex: null, podcast);
 
         // Diagnostic output for investigation
@@ -90,7 +90,7 @@ public class C2CAbuserEpisodeMergeTests
             new Uri($"https://open.spotify.com/episode/{SpotifyId}"),
             null);
 
-        var sut = new EpisodeMerger(new EpisodeMatcher(NullLogger<EpisodeMatcher>.Instance));
+        var sut = EpisodeDomainTestServices.CreateMerger();
         var result = sut.MergeEpisodes(podcast, [existing], [incoming]);
 
         result.AddedEpisodes.Should().BeEmpty();
@@ -132,7 +132,7 @@ public class C2CAbuserEpisodeMergeTests
             new Uri($"https://open.spotify.com/episode/{SpotifyId}"),
             null);
 
-        var sut = new EpisodeMerger(new EpisodeMatcher(NullLogger<EpisodeMatcher>.Instance));
+        var sut = EpisodeDomainTestServices.CreateMerger();
         var result = sut.MergeEpisodes(podcast, [existing], [incoming]);
 
         result.AddedEpisodes.Should().BeEmpty();
@@ -172,7 +172,7 @@ public class C2CAbuserEpisodeMergeTests
             new Uri($"https://open.spotify.com/episode/{SpotifyId}"),
             null);
 
-        var sut = new EpisodeMerger(new EpisodeMatcher(NullLogger<EpisodeMatcher>.Instance));
+        var sut = EpisodeDomainTestServices.CreateMerger();
         var result = sut.MergeEpisodes(podcast, [existing], [incoming]);
 
         result.MergedEpisodes.Should().BeEmpty("Spotify-only merge must not backfill time on same date");

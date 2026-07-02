@@ -1,5 +1,5 @@
 using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
@@ -16,7 +16,7 @@ public class EpisodeMergingRules
     private static readonly Uri ExistingSpotifyUrl = new($"https://open.spotify.com/episode/{SpotifyEpisodeId}");
     private static readonly Uri IncomingSpotifyUrl = new($"https://open.spotify.com/episode/{SpotifyEpisodeId}?si=incoming");
 
-    private readonly EpisodeMerger _merger = new(new EpisodeMatcher(NullLogger<EpisodeMatcher>.Instance));
+    private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
     [Fact(DisplayName =
         "Merge fills missing Spotify URLs; it does not replace an existing Spotify URL.")]
@@ -287,6 +287,192 @@ public class EpisodeMergingRules
 
         result.AddedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().BeEmpty("no fields changed when artwork already present");
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Merge does not replace a complete description with a shorter one.")]
+    public void Merge_does_not_replace_complete_description_with_shorter_text()
+    {
+        // Given a stored episode with a complete description
+        var podcast = PodcastFixtures.Standard();
+        var release = DateTime.UtcNow.AddMonths(-1);
+        const string completeDescription =
+            "This is a complete episode summary with full details about the topic and guests.";
+        const string shorterDescription = "This is a complete episode summary.";
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Episode title",
+            Description = completeDescription,
+            Release = release,
+            Length = TimeSpan.FromMinutes(45),
+            SpotifyId = SpotifyEpisodeId,
+            Urls = new ServiceUrls { Spotify = ExistingSpotifyUrl }
+        };
+        var expected = EpisodeExpectation.From(stored);
+
+        // When Spotify re-index returns a shorter description for the same episode
+        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+            SpotifyEpisodeId,
+            "Episode title",
+            ExistingSpotifyUrl,
+            release,
+            TimeSpan.FromMinutes(45),
+            description: shorterDescription);
+
+        // Then the stored complete description is preserved
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.AddedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().BeEmpty("complete descriptions must not be shortened on merge");
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Merge fills missing Apple URLs; it does not replace an existing Apple URL.")]
+    public void Merge_fills_missing_Apple_URL_on_Apple_matched_episode()
+    {
+        // Given a stored episode with Apple identity but no Apple URL
+        const long appleId = 1635013493;
+        var appleUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleId}");
+        var podcast = PodcastFixtures.Standard();
+        var release = DateTime.UtcNow.AddMonths(-1);
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Episode title",
+            Release = release,
+            Length = TimeSpan.FromMinutes(45),
+            AppleId = appleId
+        };
+        var expected = EpisodeExpectation.From(stored).WithApple(appleId, appleUrl);
+
+        // When Apple re-index returns the same episode with a URL
+        var discovered = EpisodeFixtures.FromAppleEpisode(
+            appleId,
+            "Episode title",
+            release,
+            TimeSpan.FromMinutes(45));
+
+        // Then merge fills the missing Apple URL without adding a duplicate
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.AddedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Merge fills missing YouTube URLs; it does not replace an existing YouTube URL.")]
+    public void Merge_fills_missing_YouTube_URL_on_YouTube_matched_episode()
+    {
+        // Given a stored episode with YouTube identity but no YouTube URL
+        const string youTubeId = "fillMissingYouTube1";
+        var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
+        var podcast = PodcastFixtures.Standard();
+        var release = DateTime.UtcNow.AddMonths(-1);
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Episode title",
+            Release = release,
+            Length = TimeSpan.FromMinutes(45),
+            YouTubeId = youTubeId
+        };
+        var expected = EpisodeExpectation.From(stored).WithYouTube(youTubeId, youTubeUrl);
+
+        // When YouTube re-index returns the same video with a URL
+        var discovered = EpisodeFixtures.FromYouTubeVideo(
+            youTubeId,
+            "Episode title",
+            release,
+            TimeSpan.FromMinutes(45));
+
+        // Then merge fills the missing YouTube URL without adding a duplicate
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.AddedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Merge fills missing Apple URLs; it does not replace an existing Apple URL.")]
+    public void Merge_does_not_replace_existing_Apple_URL()
+    {
+        // Given a stored episode with an Apple URL already set
+        const long appleId = 1635013492;
+        var existingAppleUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleId}");
+        var incomingAppleUrl = new Uri($"https://podcasts.apple.com/gb/podcast/episode/id{appleId}");
+        var podcast = PodcastFixtures.Standard();
+        var release = DateTime.UtcNow.AddMonths(-1);
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Episode title",
+            Release = release,
+            Length = TimeSpan.FromMinutes(45),
+            AppleId = appleId,
+            Urls = new ServiceUrls { Apple = existingAppleUrl }
+        };
+        var expected = EpisodeExpectation.From(stored);
+
+        // When Apple re-index returns the same ID with a different URL variant
+        var discovered = EpisodeFixtures.FromAppleEpisode(
+            appleId,
+            "Episode title",
+            release,
+            TimeSpan.FromMinutes(45));
+
+        // Then the stored Apple URL is preserved
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.AddedEpisodes.Should().BeEmpty();
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Merge fills missing YouTube URLs; it does not replace an existing YouTube URL.")]
+    public void Merge_does_not_replace_existing_YouTube_URL()
+    {
+        // Given a stored episode with a YouTube URL already set
+        const string youTubeId = "existingYouTubeId1";
+        var existingYouTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
+        var incomingYouTubeUrl = new Uri($"https://youtu.be/{youTubeId}");
+        var podcast = PodcastFixtures.Standard();
+        var release = DateTime.UtcNow.AddMonths(-1);
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Episode title",
+            Release = release,
+            Length = TimeSpan.FromMinutes(45),
+            YouTubeId = youTubeId,
+            Urls = new ServiceUrls { YouTube = existingYouTubeUrl }
+        };
+        var expected = EpisodeExpectation.From(stored);
+
+        // When YouTube re-index returns the same video with a different URL variant
+        var discovered = Episode.FromYouTube(
+            youTubeId,
+            "Episode title",
+            "YouTube description",
+            TimeSpan.FromMinutes(45),
+            false,
+            release,
+            incomingYouTubeUrl,
+            null);
+
+        // Then the stored YouTube URL is preserved
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.AddedEpisodes.Should().BeEmpty();
         stored.ShouldMatchExpectation(expected);
     }
 

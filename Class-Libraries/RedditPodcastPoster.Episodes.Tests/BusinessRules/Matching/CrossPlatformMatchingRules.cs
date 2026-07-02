@@ -1,5 +1,5 @@
 using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
@@ -16,7 +16,7 @@ public class CrossPlatformMatchingRules
     private static readonly Uri C2CSpotifyUrl = new($"https://open.spotify.com/episode/{C2CSpotifyId}");
     private static readonly Guid C2CExistingId = Guid.Parse("7dd136da-84ae-4c02-81be-9baa5f4c3362");
 
-    private readonly EpisodeMerger _merger = new(new EpisodeMatcher(NullLogger<EpisodeMatcher>.Instance));
+    private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
     [Fact(DisplayName =
         "For YouTube-first podcasts, a Spotify catalogue episode may match a YouTube-only stored episode " +

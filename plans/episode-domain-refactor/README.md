@@ -331,19 +331,17 @@ Implement as test classes under `BusinessRules/`. Each rule = one `[Fact]` or `[
 
 ### Step 3 — Domain business rules (PRs 3–5) 🔄 in progress
 
-**Coverage so far:** 29 of ~45 catalog rules (~64% overall; **§5.1–§5.3 ~96%** — 25 of 26 rules)
+**Coverage so far:** 34 of ~45 catalog rules (~76% overall; **§5.1–§5.3 complete** — 30 of 30 rules)
 
 - [x] `PlatformIdentityMatchingRules` — 8 rules (Spotify URL/ID, YouTube ID, Apple ID, negative cases, wrong-row guard)
 - [x] `TitleDurationMatchingRules` — 4 rules (typo+duration, release+duration, EpisodeMatchRegex)
 - [x] `CrossPlatformMatchingRules` — 4 rules (YouTube-first Spotify match, negative delay guard, ambiguous failure, positive delay)
 - [x] `ReleaseDateMergingRules` — 6 rules (YouTube/Apple time backfill, Spotify no backfill, YouTube authority preserve, YouTube different-date guard)
-- [x] `EpisodeMergingRules` — 8 rules (fill missing URL/ID/artwork, preserve existing ID/artwork/URL, Spotify catalogue release, truncated description, no-match add)
-- [ ] §5.3: merge does not replace complete description with shorter one
-- [ ] §5.3: fill missing Apple/YouTube URLs (Spotify URL covered)
-- [ ] Implement **real** `EpisodePlatformMatcher`, `Merger`, `Applier` to make tests pass (this is TDD for the domain layer)
-- [ ] Wire `EpisodeMerger` to domain services (behavior must match pre-wiring)
+- [x] `EpisodeMergingRules` — 12 rules (fill missing URL/ID/artwork per platform, preserve existing, truncated/complete description, no-match add, Spotify catalogue release)
+- [x] Implement **real** `EpisodePlatformMatcher`, `EpisodePlatformMerger`, `EpisodePlatformApplier` (domain services in `RedditPodcastPoster.Episodes`)
+- [x] Wire `EpisodeMerger` to domain services (behavior matches pre-wiring — 36 Episodes.Tests + 7 Persistence.Tests green)
 
-**Batch 3 complete.** §5.1–§5.3 at ~96% — ready for `EpisodePlatformMatcher` / `Merger` / `Applier` TDD in next batch.
+**Batch 4 complete.** Domain services implemented with `IReleaseMatchStrategy` / `IReleaseMergePolicy` specializations; `EpisodeMerger` is a thin facade. Step 3 rule catalog for §5.1–§5.3 is complete; remaining Step 3 work is optional domain-unit test expansion before Step 4 orchestration rules.
 
 ### Step 4 — Orchestration business rules (PRs 6–7)
 

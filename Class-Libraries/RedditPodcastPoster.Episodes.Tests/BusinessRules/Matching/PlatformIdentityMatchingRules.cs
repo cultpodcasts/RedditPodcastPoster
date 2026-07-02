@@ -1,5 +1,5 @@
 using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
@@ -16,7 +16,7 @@ public class PlatformIdentityMatchingRules
     private static readonly Uri SpotifyUrl = new("https://open.spotify.com/episode/1UncRhHtmojlTq2mO0Gntz");
     private const string SpotifyEpisodeId = "1UncRhHtmojlTq2mO0Gntz";
 
-    private readonly EpisodeMerger _merger = new(new EpisodeMatcher(NullLogger<EpisodeMatcher>.Instance));
+    private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
     [Fact(DisplayName =
         "When a listener submitted an episode via Spotify URL before Spotify assigned an ID, " +
