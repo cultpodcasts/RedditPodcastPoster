@@ -147,4 +147,44 @@ public class CrossPlatformMatchingRules
         failedCandidates.Should().Contain(x => x.Id == youTubeOnly.Id);
         failedCandidates.Should().Contain(x => x.Id == appleOnly.Id);
     }
+
+    [Fact(DisplayName =
+        "For YouTube-first podcasts with positive publishing delay, an incoming YouTube episode " +
+        "may match a stored audio episode when release aligns after delay adjustment.")]
+    public void Positive_YouTube_delay_matches_incoming_YouTube_to_stored_audio_episode()
+    {
+        // Given a YouTube-first podcast with a one-day publishing delay and a Spotify-only stored row
+        var podcast = PodcastFixtures.YouTubeFirst(
+            channelId: "delayed-channel",
+            youTubePublicationOffsetTicks: TimeSpan.FromDays(1).Ticks);
+        var audioRelease = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
+        var youTubeRelease = audioRelease.AddDays(1);
+        var length = TimeSpan.FromHours(1);
+        var stored = new Episode
+        {
+            Id = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd"),
+            PodcastId = podcast.Id,
+            Title = "Episode A",
+            Release = audioRelease,
+            Length = length,
+            Urls = new ServiceUrls { Spotify = new Uri("https://open.spotify.com/episode/delayedAudio01") }
+        };
+        var expected = EpisodeExpectation.From(stored)
+            .WithYouTube("delayedYouTube01", new Uri("https://www.youtube.com/watch?v=delayedYouTube01"));
+
+        // When YouTube returns a different title on the delayed publish date with the same duration
+        var discovered = EpisodeFixtures.FromYouTubeVideo(
+            "delayedYouTube01",
+            "Completely different title",
+            youTubeRelease,
+            length);
+
+        // Then indexing merges onto the stored audio row and fills YouTube identity
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.AddedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);
+        stored.ShouldMatchExpectation(expected);
+    }
 }

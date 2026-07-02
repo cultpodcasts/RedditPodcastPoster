@@ -331,15 +331,19 @@ Implement as test classes under `BusinessRules/`. Each rule = one `[Fact]` or `[
 
 ### Step 3 — Domain business rules (PRs 3–5) 🔄 in progress
 
-**Coverage so far:** 22 of ~45 catalog rules (§5.1 platform identity + cross-platform partial, §5.2 release dates partial, §5.3 merging fields partial)
+**Coverage so far:** 29 of ~45 catalog rules (~64% overall; **§5.1–§5.3 ~96%** — 25 of 26 rules)
 
-- [x] `PlatformIdentityMatchingRules` — 7 rules (Spotify URL/ID, YouTube ID, Apple ID, negative cases)
-- [x] `CrossPlatformMatchingRules` — 3 rules (YouTube-first Spotify match, negative delay guard, ambiguous failure)
-- [x] `ReleaseDateMergingRules` — 5 rules (YouTube/Apple time backfill, Spotify no backfill, YouTube authority preserve, YouTube different-date guard)
-- [x] `EpisodeMergingRules` — 5 rules (fill missing URL/ID, preserve existing ID, truncated description, no-match add)
-- [ ] Remaining matching rules (title/duration heuristics, regex, remaining cross-platform)
+- [x] `PlatformIdentityMatchingRules` — 8 rules (Spotify URL/ID, YouTube ID, Apple ID, negative cases, wrong-row guard)
+- [x] `TitleDurationMatchingRules` — 4 rules (typo+duration, release+duration, EpisodeMatchRegex)
+- [x] `CrossPlatformMatchingRules` — 4 rules (YouTube-first Spotify match, negative delay guard, ambiguous failure, positive delay)
+- [x] `ReleaseDateMergingRules` — 6 rules (YouTube/Apple time backfill, Spotify no backfill, YouTube authority preserve, YouTube different-date guard)
+- [x] `EpisodeMergingRules` — 8 rules (fill missing URL/ID/artwork, preserve existing ID/artwork/URL, Spotify catalogue release, truncated description, no-match add)
+- [ ] §5.3: merge does not replace complete description with shorter one
+- [ ] §5.3: fill missing Apple/YouTube URLs (Spotify URL covered)
 - [ ] Implement **real** `EpisodePlatformMatcher`, `Merger`, `Applier` to make tests pass (this is TDD for the domain layer)
 - [ ] Wire `EpisodeMerger` to domain services (behavior must match pre-wiring)
+
+**Batch 3 complete.** §5.1–§5.3 at ~96% — ready for `EpisodePlatformMatcher` / `Merger` / `Applier` TDD in next batch.
 
 ### Step 4 — Orchestration business rules (PRs 6–7)
 

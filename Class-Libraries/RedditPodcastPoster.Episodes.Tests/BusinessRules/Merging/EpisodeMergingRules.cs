@@ -207,4 +207,124 @@ public class EpisodeMergingRules
         added.Id.Should().NotBe(Guid.Empty);
         added.SpotifyId.Should().Be("newSpotifyId000001");
     }
+
+    [Fact(DisplayName =
+        "Merge fills missing artwork per platform.")]
+    public void Merge_fills_missing_YouTube_artwork()
+    {
+        // Given a stored episode with YouTube identity but no artwork
+        const string youTubeId = "artworkYouTubeId01";
+        var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
+        var incomingImage = new Uri("https://i.ytimg.com/vi/artworkYouTubeId01/maxresdefault.jpg");
+        var podcast = PodcastFixtures.Standard();
+        var release = DateTime.UtcNow.AddMonths(-1);
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Episode title",
+            Release = release,
+            Length = TimeSpan.FromMinutes(45),
+            YouTubeId = youTubeId,
+            Urls = new ServiceUrls { YouTube = youTubeUrl }
+        };
+        var expected = EpisodeExpectation.From(stored).WithYouTube(youTubeId, youTubeUrl, incomingImage);
+
+        // When YouTube re-index returns artwork for the same video
+        var discovered = Episode.FromYouTube(
+            youTubeId,
+            "Episode title",
+            "YouTube description",
+            TimeSpan.FromMinutes(45),
+            false,
+            release,
+            youTubeUrl,
+            incomingImage);
+
+        // Then merge fills the missing YouTube artwork without adding a duplicate
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.AddedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Merge fills missing artwork per platform; it does not replace existing artwork.")]
+    public void Merge_does_not_replace_existing_Spotify_artwork()
+    {
+        // Given a stored episode with Spotify artwork already set
+        var existingImage = new Uri("https://i.scdn.co/image/existing-spotify-artwork");
+        var incomingImage = new Uri("https://i.scdn.co/image/incoming-spotify-artwork");
+        var podcast = PodcastFixtures.Standard();
+        var release = DateTime.UtcNow.AddMonths(-1);
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Episode title",
+            Release = release,
+            Length = TimeSpan.FromMinutes(45),
+            SpotifyId = SpotifyEpisodeId,
+            Urls = new ServiceUrls { Spotify = ExistingSpotifyUrl },
+            Images = new EpisodeImages { Spotify = existingImage }
+        };
+        var expected = EpisodeExpectation.From(stored);
+
+        // When Spotify re-index returns different artwork for the same episode
+        var discovered = Episode.FromSpotify(
+            SpotifyEpisodeId,
+            "Episode title",
+            "Incoming description",
+            TimeSpan.FromMinutes(45),
+            false,
+            release,
+            ExistingSpotifyUrl,
+            incomingImage);
+
+        // Then the stored Spotify artwork is preserved
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.AddedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().BeEmpty("no fields changed when artwork already present");
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Spotify catalogue release is date-only: re-indexing must not overwrite a stored catalogue release " +
+        "with a newer public availability date.")]
+    public void Spotify_reindex_preserves_stored_catalogue_release()
+    {
+        // Given a stored episode indexed with an earlier Spotify catalogue release date
+        var catalogueRelease = new DateTime(2026, 6, 24, 0, 0, 0, DateTimeKind.Utc);
+        var publicRelease = new DateTime(2026, 6, 28, 12, 0, 0, DateTimeKind.Utc);
+        var podcast = PodcastFixtures.Standard(id: Guid.Parse("4672c845-15b4-4f88-bbff-567d521fe4a2"));
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Submitted via URL",
+            Release = catalogueRelease,
+            Length = TimeSpan.FromMinutes(45),
+            SpotifyId = SpotifyEpisodeId,
+            Urls = new ServiceUrls { Spotify = ExistingSpotifyUrl }
+        };
+        var expected = EpisodeExpectation.From(stored);
+
+        // When Spotify re-index returns a newer public availability date for the same Spotify ID
+        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+            SpotifyEpisodeId,
+            "Spotify catalogue title",
+            ExistingSpotifyUrl,
+            publicRelease,
+            TimeSpan.FromMinutes(45),
+            description: "Incoming description");
+
+        // Then the stored catalogue release is preserved
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.AddedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().BeEmpty("Spotify re-index must not bump release when catalogue date is newer");
+        stored.ShouldMatchExpectation(expected);
+    }
 }
