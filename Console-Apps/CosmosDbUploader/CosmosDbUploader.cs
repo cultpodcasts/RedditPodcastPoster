@@ -1,55 +1,121 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using RedditPodcastPoster.Persistence.Legacy;
 using RedditPodcastPoster.Text.KnownTerms;
-using Podcast = RedditPodcastPoster.Persistence.Legacy.Podcast;
 
 namespace CosmosDbUploader;
 
 public class CosmosDbUploader(
     IFileRepository fileRepository,
-    ICosmosDbRepository cosmosDbRepository,
-    ILogger<CosmosDbRepository> logger)
+    IPodcastRepository podcastRepository,
+    IEpisodeRepository episodeRepository,
+    ISubjectRepository subjectRepository,
+    ILookupRepository lookupRepository,
+    IDiscoveryResultsRepository discoveryResultsRepository,
+    IPushSubscriptionRepository pushSubscriptionRepository,
+    IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
+    ILogger<CosmosDbUploader> logger)
 {
-    private readonly ILogger<CosmosDbRepository> _logger = logger;
+    private const string FileExtension = ".json";
+    private readonly JsonSerializerOptions _jsonOptions = jsonSerializerOptionsProvider.GetJsonSerializerOptions();
 
     public async Task Run()
     {
-        var podcasts = await fileRepository.GetAll<Podcast>().ToListAsync();
-        foreach (var podcast in podcasts)
+        await UploadPodcasts();
+        await UploadEpisodes();
+        await UploadEliminationTerms();
+        await UploadKnownTerms();
+        await UploadSubjects();
+        await UploadDiscoveryResultsDocuments();
+        await UploadPushSubscriptions();
+    }
+
+    private async Task UploadPodcasts()
+    {
+        foreach (var podcast in ReadFiles<Podcast>("podcast"))
         {
-            await cosmosDbRepository.Write(podcast);
+            logger.LogInformation("Uploading podcast '{FileKey}'.", podcast.FileKey);
+            await podcastRepository.Save(podcast);
+        }
+    }
+
+    private async Task UploadEpisodes()
+    {
+        foreach (var episode in ReadFiles<Episode>("episode"))
+        {
+            logger.LogInformation("Uploading episode '{Id}'.", episode.Id);
+            await episodeRepository.Save(episode);
+        }
+    }
+
+    private async Task UploadSubjects()
+    {
+        await foreach (var subject in fileRepository.GetAll<Subject>())
+        {
+            logger.LogInformation("Uploading subject '{FileKey}'.", subject.FileKey);
+            await subjectRepository.Save(subject);
+        }
+    }
+
+    private async Task UploadEliminationTerms()
+    {
+        var eliminationTerms = await fileRepository.GetAll<EliminationTerms>().FirstOrDefaultAsync();
+        if (eliminationTerms != null)
+        {
+            logger.LogInformation("Uploading elimination terms.");
+            await lookupRepository.SaveEliminationTerms(eliminationTerms);
+        }
+    }
+
+    private async Task UploadKnownTerms()
+    {
+        var knownTerms = await fileRepository.GetAll<KnownTerms>().FirstOrDefaultAsync();
+        if (knownTerms != null)
+        {
+            logger.LogInformation("Uploading known terms.");
+            await lookupRepository.SaveKnownTerms(knownTerms);
+        }
+    }
+
+    private async Task UploadDiscoveryResultsDocuments()
+    {
+        await foreach (var document in fileRepository.GetAll<DiscoveryResultsDocument>())
+        {
+            logger.LogInformation("Uploading discovery results document '{FileKey}'.", document.FileKey);
+            await discoveryResultsRepository.Save(document);
+        }
+    }
+
+    private async Task UploadPushSubscriptions()
+    {
+        await foreach (var subscription in fileRepository.GetAll<PushSubscription>())
+        {
+            logger.LogInformation("Uploading push subscription '{FileKey}'.", subscription.FileKey);
+            await pushSubscriptionRepository.Save(subscription);
+        }
+    }
+
+    private IEnumerable<T> ReadFiles<T>(string folder)
+    {
+        if (!Directory.Exists(folder))
+        {
+            logger.LogWarning("Directory '{Folder}' not found — skipping.", folder);
+            yield break;
         }
 
-        var eliminationTerms = await fileRepository.GetAll<EliminationTerms>().ToListAsync();
-        foreach (var eliminationTermsDocument in eliminationTerms)
+        foreach (var file in Directory.EnumerateFiles(folder, $"*{FileExtension}"))
         {
-            await cosmosDbRepository.Write(eliminationTermsDocument);
-        }
-
-        var knownTerms = await fileRepository.GetAll<KnownTerms>().ToListAsync();
-        foreach (var knownTermsDocument in knownTerms)
-        {
-            await cosmosDbRepository.Write(knownTermsDocument);
-        }
-
-        var subjects = await fileRepository.GetAll<Subject>().ToListAsync();
-        foreach (var subject in subjects)
-        {
-            await cosmosDbRepository.Write(subject);
-        }
-
-        var pushSubscriptions = await fileRepository.GetAll<PushSubscription>().ToListAsync();
-        foreach (var pushSubscription in pushSubscriptions)
-        {
-            await cosmosDbRepository.Write(pushSubscription);
-        }
-
-        var discoveryResultsDocuments = await fileRepository.GetAll<DiscoveryResultsDocument>().ToListAsync();
-        foreach (var discoveryResultsDocument in discoveryResultsDocuments)
-        {
-            await cosmosDbRepository.Write(discoveryResultsDocument);
+            var json = File.ReadAllText(file);
+            var item = JsonSerializer.Deserialize<T>(json, _jsonOptions);
+            if (item != null)
+            {
+                yield return item;
+            }
+            else
+            {
+                logger.LogWarning("Failed to deserialise '{File}'.", file);
+            }
         }
     }
 }

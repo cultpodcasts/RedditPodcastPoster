@@ -2,41 +2,40 @@
 using Konsole;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence;
-using RedditPodcastPoster.Persistence.Legacy;
+using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace CultPodcasts.DatabasePublisher;
 
 public class PublicDatabasePublisher(
     ISafeFileEntityWriter safeFileEntityWriter,
-    ICosmosDbRepository cosmosDbRepository,
-    ILogger<CosmosDbRepository> logger
+    IPodcastRepository podcastRepository,
+    IEpisodeRepository episodeRepository,
+#pragma warning disable CS9113 // Parameter is unread.
+    ILogger<PublicDatabasePublisher> logger
+#pragma warning restore CS9113 // Parameter is unread.
 )
 {
     public async Task Run()
     {
-        logger.LogWarning("Exporting legacy data - this data is deprecated.");
-        var fileKeys = await cosmosDbRepository.GetAllFileKeys<Podcast>().ToListAsync();
-        var multipleFileKeys = fileKeys
-            .GroupBy(x => x)
-            .Select(x => new { FileKey = x.Key, Count = x.Count() })
-            .Where(x => x.Count > 1)
-            .Select(x => x.FileKey)
-            .ToArray();
-        if (multipleFileKeys.Any())
-        {
-            throw new InvalidOperationException($"Multiple File-keys exist: '{string.Join(", ", multipleFileKeys)}'.");
-        }
+        var init = new ProgressBar(1);
+        var c = 0;
+        init.Refresh(c, "Testing Podcast File-keys");
+        var allFileKeys = podcastRepository.GetAll().Select(p => (Id: p.Id, FileKey: p.FileKey));
+        await AreUnique(allFileKeys, "Podcasts");
+        init.Refresh(++c, "Tested Podcast File-keys");
 
-        var podcastIds = await cosmosDbRepository.GetAllIds<Podcast>().ToArrayAsync();
 
-        var progress = new ProgressBar(podcastIds.Length);
+        var podcastCount = await podcastRepository.Count();
+        var podcasts = podcastRepository.GetAllBy(p => !(p.Removed ?? false));
+        var progress = new ProgressBar(podcastCount);
         var ctr = 0;
-        foreach (var podcastId in podcastIds)
-        {
-            var podcast = await cosmosDbRepository.Read<Podcast>(podcastId.ToString());
-            progress.Refresh(ctr, $"Downloaded {podcast.FileKey}");
 
-            if (podcast != null && !podcast.IsRemoved() && podcast.Episodes.Any(x => x is { Removed: false }))
+        await foreach (var podcast in podcasts)
+        {
+            progress.Refresh(ctr, $"Processing {podcast.FileKey}");
+            var episodeCount = await episodeRepository.Count(podcast.Id);
+
+            if (episodeCount > 0)
             {
                 var publicPodcast = new PublicPodcast(podcast.Id)
                 {
@@ -44,45 +43,79 @@ public class PublicDatabasePublisher(
                     AppleId = podcast.AppleId,
                     Name = podcast.Name,
                     SpotifyId = string.IsNullOrWhiteSpace(podcast.SpotifyId) ? null : podcast.SpotifyId,
-                    YouTubeChannelId =
-                        string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) ? null : podcast.YouTubeChannelId,
+                    YouTubeChannelId = string.IsNullOrWhiteSpace(podcast.YouTubeChannelId)
+                        ? null
+                        : podcast.YouTubeChannelId,
                     YouTubePlaylistId = string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId)
                         ? null
                         : podcast.YouTubePlaylistId
                 };
-                publicPodcast.Episodes = podcast.Episodes
-                    .Where(x => x is { Removed: false })
-                    .Select(oldEpisode => new PublicEpisode
+
+                var episodes = episodeRepository.GetByPodcastId(podcast.Id, e => !e.Removed);
+
+                var publicEpisodes = new List<PublicEpisode>();
+
+                await foreach (var episode in episodes)
+                {
+                    var publicEpisode = new PublicEpisode
                     {
-                        Id = oldEpisode.Id,
-                        AppleId = oldEpisode.AppleId,
-                        Description = string.IsNullOrWhiteSpace(oldEpisode.Description) ? null : oldEpisode.Description,
-                        Explicit = oldEpisode.Explicit,
-                        Length = oldEpisode.Length,
-                        Release = oldEpisode.Release,
-                        SpotifyId = string.IsNullOrWhiteSpace(oldEpisode.SpotifyId) ? null : oldEpisode.SpotifyId,
-                        Title = oldEpisode.Title,
-                        YouTubeId = string.IsNullOrWhiteSpace(oldEpisode.YouTubeId) ? null : oldEpisode.YouTubeId,
+                        Id = episode.Id,
+                        AppleId = episode.AppleId,
+                        Description = string.IsNullOrWhiteSpace(episode.Description) ? null : episode.Description,
+                        Explicit = episode.Explicit,
+                        Length = episode.Length,
+                        Release = episode.Release,
+                        SpotifyId = string.IsNullOrWhiteSpace(episode.SpotifyId) ? null : episode.SpotifyId,
+                        Title = episode.Title,
+                        YouTubeId = string.IsNullOrWhiteSpace(episode.YouTubeId) ? null : episode.YouTubeId,
                         Urls = new PublicServiceUrls
                         {
-                            Apple = oldEpisode.Urls.Apple,
-                            Spotify = oldEpisode.Urls.Spotify,
-                            YouTube = oldEpisode.Urls.YouTube,
-                            BBC = oldEpisode.Urls.BBC,
-                            InternetArchive = oldEpisode.Urls.InternetArchive
+                            Apple = episode.Urls.Apple,
+                            Spotify = episode.Urls.Spotify,
+                            YouTube = episode.Urls.YouTube,
+                            BBC = episode.Urls.BBC,
+                            InternetArchive = episode.Urls.InternetArchive
                         },
-                        Subjects = oldEpisode.Subjects.Any() ? oldEpisode.Subjects : null
-                    })
-                    .OrderByDescending(x => x.Release)
-                    .ToList();
+                        Subjects = episode.Subjects.Any() ? episode.Subjects : null
+                    };
+                    publicEpisodes.Add(publicEpisode);
+                }
 
+                publicPodcast.Episodes = publicEpisodes.OrderByDescending(x => x.Release).ToList();
                 await safeFileEntityWriter.Write(publicPodcast);
             }
 
-            if (++ctr == podcastIds.Length)
+            if (++ctr == podcastCount)
             {
                 progress.Refresh(ctr, "Finished");
             }
+        }
+
+        Console.WriteLine();
+    }
+
+    private static async Task AreUnique(IAsyncEnumerable<(Guid, string)> allFileKeys, string name)
+    {
+        var distinct = new HashSet<string>();
+        var duplicate = new HashSet<string>();
+        await foreach (var (id, fileKey) in allFileKeys)
+        {
+            if (string.IsNullOrWhiteSpace(fileKey))
+            {
+                throw new InvalidOperationException(
+                    $"File-key for podcast-id {id} is null or whitespace in {name} container.");
+            }
+
+            if (!distinct.Add(fileKey))
+            {
+                duplicate.Add(fileKey);
+            }
+        }
+
+        if (duplicate.Any())
+        {
+            throw new InvalidOperationException(
+                $"Multiple File-keys exist in {name} container: '{string.Join(", ", duplicate)}'.");
         }
     }
 }

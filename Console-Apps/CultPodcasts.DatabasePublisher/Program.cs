@@ -1,12 +1,10 @@
 ﻿using System.Reflection;
-using CommandLine;
 using CultPodcasts.DatabasePublisher;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.Persistence.Legacy.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -22,29 +20,12 @@ builder.Services
     .AddLogging()
     .AddFileRepository()
     .AddRepositories()
-    .AddLegacyCosmosDb()
     .AddSafeFileWriter()
-    .AddSingleton<PublicDatabasePublisher>()
-    .AddSingleton<PublicDatabasePublisherV2>();
+    .AddSingleton<PublicDatabasePublisher>();
 
 using var host = builder.Build();
 
-return await Parser.Default.ParseArguments<PublisherRequest>(args)
-    .MapResult(async request => await Run(request),
-        errs => Task.FromResult(-1));
+var publisher = host.Services.GetRequiredService<PublicDatabasePublisher>();
+await publisher.Run();
 
-async Task<int> Run(PublisherRequest request)
-{
-    if (request.UseV2)
-    {
-        var publisher = host.Services.GetRequiredService<PublicDatabasePublisherV2>();
-        await publisher.Run();
-    }
-    else
-    {
-        var publisher = host.Services.GetRequiredService<PublicDatabasePublisher>();
-        await publisher.Run();
-    }
-
-    return 0;
-}
+return 0;

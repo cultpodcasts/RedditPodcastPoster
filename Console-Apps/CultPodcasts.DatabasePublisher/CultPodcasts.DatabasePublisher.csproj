@@ -10,7 +10,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommandLineParser" Version="2.9.1" />
     <PackageReference Include="Goblinfactory.Konsole" Version="7.0.0.7-alpha" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
   </ItemGroup>
@@ -18,7 +17,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
-    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Persistence.Legacy\RedditPodcastPoster.Persistence.Legacy.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj" />
   </ItemGroup>
 
