@@ -16,7 +16,52 @@ public class AppleEpisodeResolver(
     private const int MinSameLengthFuzzyScore = 80;
     private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(30).Ticks;
     private static readonly long BroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
+    private static readonly long YouTubeDiscoveredDurationThreshold = TimeSpan.FromMinutes(5).Ticks;
     private static readonly TimeSpan SameReleaseThreshold = TimeSpan.FromHours(3);
+    private static readonly TimeSpan YouTubeDiscoveredReleaseThreshold = TimeSpan.FromHours(12);
+
+    private static long GetDurationThresholdTicks(FindAppleEpisodeRequest request) =>
+        request.EnrichingYouTubeDiscoveredEpisode
+            ? YouTubeDiscoveredDurationThreshold
+            : TimeDifferenceThreshold;
+
+    private static AppleEpisode? MatchYouTubeDiscoveredEpisodeByDuration(
+        IList<AppleEpisode> sampleList,
+        TimeSpan episodeLength,
+        DateTime? released)
+    {
+        var sameLength = sampleList
+            .Where(x => Math.Abs((x.Duration - episodeLength).Ticks) < YouTubeDiscoveredDurationThreshold)
+            .ToList();
+
+        if (sameLength.Count == 1)
+        {
+            return sameLength[0];
+        }
+
+        if (sameLength.Count > 1 && released.HasValue)
+        {
+            return sameLength.MinBy(x => Math.Abs((x.Release - released.Value).Ticks));
+        }
+
+        if (released.HasValue)
+        {
+            var releaseMatches = sampleList
+                .Where(x => Math.Abs((x.Release - released.Value).Ticks) < YouTubeDiscoveredReleaseThreshold.Ticks)
+                .ToList();
+            if (releaseMatches.Count == 1)
+            {
+                return releaseMatches[0];
+            }
+
+            if (releaseMatches.Count > 1)
+            {
+                return releaseMatches.MinBy(x => Math.Abs((x.Release - released.Value).Ticks));
+            }
+        }
+
+        return null;
+    }
 
     public async Task<AppleEpisode?> FindEpisode(
         FindAppleEpisodeRequest request,
@@ -79,12 +124,26 @@ public class AppleEpisodeResolver(
                         sampleList = podcastEpisodes.ToList();
                     }
 
-                    if (request.EpisodeLength.HasValue)
+                    if (request.EpisodeLength is { } episodeLength && episodeLength > TimeSpan.Zero)
                     {
+                        if (request.EnrichingYouTubeDiscoveredEpisode)
+                        {
+                            var youTubeDiscoveredMatch = MatchYouTubeDiscoveredEpisodeByDuration(
+                                sampleList,
+                                episodeLength,
+                                request.Released);
+                            if (youTubeDiscoveredMatch != null)
+                            {
+                                return youTubeDiscoveredMatch;
+                            }
+                        }
+
+                        var durationThreshold = GetDurationThresholdTicks(request);
                         var sameLength = sampleList
-                            .Where(x => Math.Abs((x.Duration - request.EpisodeLength.Value).Ticks) <
-                                        TimeDifferenceThreshold);
-                        if (sameLength.Count() > 1)
+                            .Where(x => Math.Abs((x.Duration - episodeLength).Ticks) < durationThreshold)
+                            .ToList();
+
+                        if (sameLength.Count > 1)
                         {
                             return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title, MinSameLengthFuzzyScore);
                         }
@@ -97,13 +156,14 @@ public class AppleEpisodeResolver(
                             {
                                 sameLength = sampleList.Where(x =>
                                     Math.Abs((x.Release - request.Released!).Value.Ticks) <
-                                    SameReleaseThreshold.Ticks);
+                                    SameReleaseThreshold.Ticks).ToList();
                             }
 
                             if (request.ReleaseAuthority == Service.YouTube)
-
                             {
-                                sameLength = sampleList.Where(x => Math.Abs((x.Duration - request.EpisodeLength.Value).Ticks) < BroaderTimeDifferenceThreshold);
+                                sameLength = sampleList.Where(x =>
+                                    Math.Abs((x.Duration - episodeLength).Ticks) <
+                                    BroaderTimeDifferenceThreshold).ToList();
                             }
 
                             return FuzzyMatcher.Match(request.EpisodeTitle, sameLength, x => x.Title,

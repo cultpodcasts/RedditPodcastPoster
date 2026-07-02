@@ -50,6 +50,30 @@ public class EpisodeMatcherTests
         _sut.IsMatch(existing, incoming, episodeMatchRegex: null, podcast).Should().BeTrue();
     }
 
+    [Fact]
+    public void IsMatch_WhenNegativeDelayAndTitlesDiffer_DoesNotMatchByReleaseAndDurationAlone()
+    {
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = TimeSpan.FromDays(-33).Add(TimeSpan.FromHours(-12)).Ticks
+        };
+        var existing = CreateEpisode(
+            "Why He Thinks Daughters Should Parent Their Siblings",
+            TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(35),
+            new DateTime(2026, 5, 31, 21, 15, 27, DateTimeKind.Utc));
+        existing.YouTubeId = "u6ZF-2sWQQc";
+        existing.Urls.YouTube = new Uri("https://www.youtube.com/watch?v=u6ZF-2sWQQc");
+        var incoming = CreateEpisode(
+            "Becoming a Fundamentalist Trad Wife Almost Killed Me",
+            TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(30),
+            new DateTime(2026, 6, 28, 0, 0, 0, DateTimeKind.Utc));
+        incoming.SpotifyId = "1BTQKaev5KLjScdwHII14B";
+        incoming.Urls.Spotify = new Uri("https://open.spotify.com/episode/1BTQKaev5KLjScdwHII14B");
+
+        _sut.IsMatch(existing, incoming, episodeMatchRegex: null, podcast).Should().BeFalse();
+    }
+
     private static Episode CreateEpisode(string title, TimeSpan length, DateTime? release = null) =>
         new() { Title = title, Length = length, Release = release ?? DateTime.UtcNow };
 }

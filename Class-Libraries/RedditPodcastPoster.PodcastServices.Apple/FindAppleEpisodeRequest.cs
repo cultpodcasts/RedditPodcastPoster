@@ -10,4 +10,5 @@ public record FindAppleEpisodeRequest(
     DateTime? Released,
     Service? ReleaseAuthority,
     TimeSpan? EpisodeLength,
-    TimeSpan? YouTubePublishingDelay);
+    TimeSpan? YouTubePublishingDelay,
+    bool EnrichingYouTubeDiscoveredEpisode = false);

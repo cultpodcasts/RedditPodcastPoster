@@ -8,6 +8,8 @@ public static class FindAppleEpisodeRequestFactory
     public static FindAppleEpisodeRequest Create(Podcast podcast, Episode episode)
     {
         var release = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, episode);
+        var enrichingYouTubeDiscoveredEpisode =
+            !string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.Urls.YouTube != null;
         return new FindAppleEpisodeRequest(
             podcast.AppleId,
             podcast.Name,
@@ -16,7 +18,8 @@ public static class FindAppleEpisodeRequestFactory
             release,
             podcast.ReleaseAuthority,
             episode.Length,
-            podcast.YouTubePublishingDelay()
+            podcast.YouTubePublishingDelay(),
+            enrichingYouTubeDiscoveredEpisode
         );
     }
 

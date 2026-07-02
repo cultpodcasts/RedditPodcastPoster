@@ -41,7 +41,10 @@ public class SpotifyEpisodeEnricher(
             indexingContext,
             y => !assignedSpotifyIds.Contains(y.Id) &&
                  findSpotifyEpisodeRequest.Released.HasValue &&
-                 Math.Abs((y.GetReleaseDate() - findSpotifyEpisodeRequest.Released.Value).Ticks) < ticks);
+                 EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
+                     y.GetReleaseDate(),
+                     findSpotifyEpisodeRequest.Released.Value,
+                     ticks));
 
         if (findEpisodeResult.FullEpisode != null &&
             request.Episodes.All(x => x.SpotifyId != findEpisodeResult.FullEpisode.Id))

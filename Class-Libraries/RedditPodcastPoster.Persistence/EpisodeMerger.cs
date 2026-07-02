@@ -25,7 +25,9 @@ public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMer
 
         foreach (var episodeToMerge in episodesToMerge)
         {
-            var matchingExisting = existingList.Where(x => Match(x, episodeToMerge, episodeMatchRegex, podcast)).ToList();
+            var matchingExisting = existingList
+                .Where(x => Match(x, episodeToMerge, episodeMatchRegex, podcast, existingList))
+                .ToList();
 
             if (matchingExisting.Count <= 1)
             {
@@ -62,11 +64,21 @@ public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMer
     }
 
 
-    private bool Match(Episode episode, Episode episodeToMerge, Regex? episodeMatchRegex, Podcast podcast)
+    private bool Match(
+        Episode episode,
+        Episode episodeToMerge,
+        Regex? episodeMatchRegex,
+        Podcast podcast,
+        IReadOnlyList<Episode> existingEpisodes)
     {
         if (SpotifyEpisodesMatch(episode, episodeToMerge))
         {
             return true;
+        }
+
+        if (IncomingPlatformIdOwnedByAnotherEpisode(episode, episodeToMerge, existingEpisodes))
+        {
+            return false;
         }
 
         if (!string.IsNullOrWhiteSpace(episode.SpotifyId) && !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
@@ -180,6 +192,49 @@ public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMer
         }
 
         return updated;
+    }
+
+    private static bool IncomingPlatformIdOwnedByAnotherEpisode(
+        Episode candidate,
+        Episode episodeToMerge,
+        IReadOnlyList<Episode> existingEpisodes)
+    {
+        var incomingSpotifyId = ResolveSpotifyEpisodeId(episodeToMerge.SpotifyId, episodeToMerge.Urls.Spotify);
+        if (!string.IsNullOrWhiteSpace(incomingSpotifyId))
+        {
+            foreach (var existingEpisode in existingEpisodes)
+            {
+                if (existingEpisode.Id == candidate.Id)
+                {
+                    continue;
+                }
+
+                var existingSpotifyId =
+                    ResolveSpotifyEpisodeId(existingEpisode.SpotifyId, existingEpisode.Urls.Spotify);
+                if (existingSpotifyId == incomingSpotifyId)
+                {
+                    return true;
+                }
+            }
+        }
+
+        if (episodeToMerge.AppleId is > 0)
+        {
+            foreach (var existingEpisode in existingEpisodes)
+            {
+                if (existingEpisode.Id == candidate.Id)
+                {
+                    continue;
+                }
+
+                if (existingEpisode.AppleId == episodeToMerge.AppleId)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static bool SpotifyEpisodesMatch(Episode episode, Episode episodeToMerge)

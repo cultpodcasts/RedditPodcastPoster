@@ -100,6 +100,16 @@ public class EpisodeMatcher(
             return false;
         }
 
-        return Math.Abs((existingEpisode.Length - episodeToMerge.Length).Ticks) < DurationTolerance.Ticks;
+        if (Math.Abs((existingEpisode.Length - episodeToMerge.Length).Ticks) >= DurationTolerance.Ticks)
+        {
+            return false;
+        }
+
+        if (podcast.YouTubePublishingDelay().Ticks < 0)
+        {
+            return FuzzyMatcher.IsMatch(existingEpisode.Title, episodeToMerge, e => e.Title, MinFuzzyTitleScore);
+        }
+
+        return true;
     }
 }

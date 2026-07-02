@@ -23,6 +23,15 @@ public class EpisodeReleaseMatchToleranceTests
     }
 
     [Fact]
+    public void SpotifyCatalogueReleaseMatches_WhenSpotifyDateIsMidnightAndExpectedHasTimeWithinOneDay_ReturnsTrue()
+    {
+        var expected = new DateTime(2026, 7, 2, 9, 15, 27, DateTimeKind.Utc);
+        var spotifyCatalogue = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(spotifyCatalogue, expected).Should().BeTrue();
+    }
+
+    [Fact]
     public void GetToleranceTicks_WhenNoYouTubeDelay_UsesFourteenDayThreshold()
     {
         var podcast = new Podcast

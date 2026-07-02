@@ -37,7 +37,8 @@ public class SearchResultFinder(
         IEnumerable<SimpleEpisode> episodes,
         Func<SimpleEpisode, bool>? reducer = null,
         Service? releaseAuthority = null,
-        DateTime? released = null)
+        DateTime? released = null,
+        bool acceptUniqueDurationWithoutTitleMatch = false)
     {
         var requestEpisodeTitle = WebUtility.HtmlDecode(episodeTitle.Trim());
 
@@ -67,8 +68,14 @@ public class SearchResultFinder(
             }
 
             var sameLength = sampleList
-                .Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < TimeDifferenceThreshold);
-            if (sameLength.Count() > 1)
+                .Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < TimeDifferenceThreshold)
+                .ToList();
+            if (sameLength.Count == 1 && acceptUniqueDurationWithoutTitleMatch)
+            {
+                return sameLength[0];
+            }
+
+            if (sameLength.Count > 1)
             {
                 return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name, MinSameLengthFuzzyScore);
             }
@@ -80,13 +87,13 @@ public class SearchResultFinder(
                 if (released.HasValue)
                 {
                     sameLength = sampleList.Where(x =>
-                        Math.Abs((x.GetReleaseDate() - released.Value).Ticks) < SameReleaseThreshold.Ticks);
+                        Math.Abs((x.GetReleaseDate() - released.Value).Ticks) < SameReleaseThreshold.Ticks).ToList();
                 }
 
                 if (releaseAuthority == Service.YouTube)
                 {
                     sameLength = sampleList.Where(x =>
-                        Math.Abs((x.GetDuration() - episodeLength).Ticks) < BroaderTimeDifferenceThreshold);
+                        Math.Abs((x.GetDuration() - episodeLength).Ticks) < BroaderTimeDifferenceThreshold).ToList();
                 }
 
                 return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name, SameLengthMinFuzzyScore);
