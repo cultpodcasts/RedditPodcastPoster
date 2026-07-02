@@ -1,5 +1,7 @@
 # V2 Services - Implementation Index
 
+> **Archived:** Historical migration index. See [`README.md`](./README.md) for current architecture.
+
 ## Quick Reference: What's Available
 
 ### ✅ Fully Implemented V2 Services

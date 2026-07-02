@@ -1,31 +1,29 @@
-# Episode Detachment Migration - Entry Point
+# Episode Detachment Migration — Entry Point
 
-This is the single entrypoint for the migration from embedded `Podcast.Episodes` to discrete `Episode` documents with `podcastId` relationship in Cosmos DB.
+This folder documents the migration from embedded `Podcast.Episodes` to discrete `Episode` documents with `podcastId` in Cosmos DB.
 
-## Current Implementation Progress
+> **Migration complete.** Legacy persistence and `*V2` repository naming have been retired.
+> Runtime code uses `RedditPodcastPoster.Persistence` with split containers only.
+> Files named `v2-*` and content referencing `IPodcastRepositoryV2` / `PodcastEpisodeV2` are historical.
 
-- Migration + sampled parity checks are implemented and passing.
-- Search datasource migrated to detached episodes query (`FROM episodes e`) with `e._ts` high-watermark semantics.
-- `podcastRemoved` hydration/filtering implemented for episode search filtering.
-- Runtime update flow uses `PodcastUpdater` as the default `IPodcastUpdater` over detached episodes.
-- Social + shortener contract chain uses detached episode pairs in all active runtime paths.
-- `IPodcastRepository` (legacy) confined to `LegacyPodcastToV2Migration` only. All other apps use `IPodcastRepositoryV2`.
-- `IPodcastEpisodeProvider` / `IPodcastEpisodePoster` evolved into canonical detached-model interfaces using the `PodcastEpisode` pair. Not retired — active primary interfaces.
-- `ToLegacyPodcast`, `ToLegacyEpisode`, `.ToLegacy()` helpers removed from codebase.
-- Factory overloads (`FindSpotifyEpisodeRequestFactory`, `FindAppleEpisodeRequestFactory`) fully on V2 model aliases.
-- `CosmosDbDownloader --use-v2` implemented: downloads all V2 containers to local files.
-- `CosmosDbUploader --use-v2` implemented: restores V2 local files to all V2 containers.
-- `PublicDatabasePublisher --use-v2` implemented: publishes from V2 Podcasts + Episodes containers.
-- Build is green.
+## Current architecture
 
-## What remains
+- **Cosmos DB:** split containers (`Podcasts`, `Episodes`, `Subjects`, `Discovery`, `LookUps`, `Activity`, `PushSubscriptions`).
+- **Repositories:** `IPodcastRepository`, `IEpisodeRepository`, `ISubjectRepository`, `IDiscoveryResultsRepository`, `ILookupRepository`, `IActivityRepository`, `IPushSubscriptionRepository`.
+- **Episode pair type:** `PodcastEpisode` (`Podcast` + `Episode`).
+- **Update pipeline:** `PodcastUpdater` as default `IPodcastUpdater`.
+- **Search:** datasource queries detached `Episodes`; `EpisodeSearchIndexerService` uses detached repositories.
+- **Configuration:** binds to `cosmosdbv2` section (historical key name; see README).
 
-See [`remaining-work-audit.md`](./remaining-work-audit.md) for the authoritative current-state audit.
+## What remains (non-blocking)
 
-**Summary of open items:**
-- ❌ No tests for any V2/detached-episode code paths
-- ⏳ Phase 7 verification gates unrun (RU/latency, end-to-end flow validation, per-podcast count parity)
-- 🟡 `ModelTransformProcessor` / `JsonSplitCosmosDbUploadProcessor` — assess for retirement
-- ℹ️ `CompactSearchRecord` descoped; `Podcast.Episodes` intentionally retained on legacy model
-- `IPodcastFilterV2`/`PodcastFilterV2` and `IPodcastEpisodeFilterV2`/`PodcastEpisodeFilterV2` deleted; V1 filter interfaces are canonical (already use V2 models).
-- `PodcastEpisodeProvider` consolidated onto `IPodcastEpisodeFilter`.
+See [`remaining-work-audit.md`](./remaining-work-audit.md) for test gaps and optional cleanup items.
+
+**Summary:**
+- ❌ No automated tests for detached-episode paths
+- ⏳ Optional config rename (`cosmosdbv2` → `cosmosdb`)
+- 🟡 Assess retirement of legacy-format console tools (`ModelTransformer`, `JsonSplitCosmosDbUploader`)
+
+## Historical docs
+
+Stage plans, V2 service references, and cutover checklists under this folder are archived migration notes. Do not treat `*V2` interface names in those files as current API surface.

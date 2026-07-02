@@ -2,7 +2,7 @@
 
 A .NET solution for [cultpodcasts.com](https://cultpodcasts.com): discover podcasts, index episodes from multiple providers, enrich metadata, publish to social channels, and expose a public API.
 
-Primary data is stored in **Azure Cosmos DB (v2)** with detached `Podcasts` and `Episodes` containers. Episode search uses **Azure AI Search**.
+Primary data is stored in **Azure Cosmos DB** with detached `Podcasts` and `Episodes` containers. Episode search uses **Azure AI Search**.
 
 Licensed under the MIT license.
 

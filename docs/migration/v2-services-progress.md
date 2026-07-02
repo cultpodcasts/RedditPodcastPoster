@@ -1,5 +1,8 @@
 # V2 Services Migration Progress
 
+> **Archived:** Historical migration progress log. Migration is complete; `*V2` naming retired in code.
+> See [`README.md`](./README.md) for current architecture.
+
 ## Overview
 This document tracks the creation and adoption of detached-episode services via `IEpisodeRepository`.
 

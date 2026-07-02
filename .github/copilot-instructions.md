@@ -2,15 +2,15 @@
 
 ## Project Guidelines
 - User prefers minimizing search-index payload by storing compact identifiers (YouTube/Spotify/Apple IDs) and reduced key names, with UI reconstructing URLs.
-- User prefers using the term `CompactSearchRecord` and avoiding `V2` terminology in migration planning and schema naming.
+- User prefers using the term `CompactSearchRecord` and avoiding obsolete `V2` / `Legacy` terminology in docs and schema naming.
 - User does not want additional Episode members for compact IDs; use existing Spotify/YouTube/Apple IDs and derive Apple episode slug from Apple URL via regex.
-- In migration/infrastructure docs, use `LookUps` as the Cosmos container name instead of `knownTerms`, and store the single `KnownTerms` typed item in `LookUps`.
+- In infrastructure docs, use `LookUps` as the Cosmos container name instead of `knownTerms`, and store the single `KnownTerms` typed item in `LookUps`.
 - EliminationTerms should be stored in the `LookUps` container, and infrastructure should include a dedicated `PushSubscriptions` container.
-- Prefer using `PodcastEpisodeV2` and V2 models across the codebase.
-- Use the canonical split-container repository implementations in `RedditPodcastPoster.Persistence`.
+- Use detached `Podcast` / `Episode` models and the `PodcastEpisode` pair across the codebase. Do not introduce `*V2` type suffixes.
+- Use the canonical split-container repository implementations in `RedditPodcastPoster.Persistence` (`IPodcastRepository`, `IEpisodeRepository`, etc.). Legacy `Persistence.Legacy` and embedded-container repositories are removed.
 - The project is not using soft-delete for Azure Search indexing.
 - Episode ID is globally unique in this project.
-- Documents under `docs/migration` must be kept up to date when making related changes.
+- Documents under `docs/migration` are historical migration notes; update entry-point docs (`docs/migration/README.md`, `docs/post-migration/README.md`) when persistence architecture changes.
 - Keep `docs/post-migration/cost-analysis.md` up to date as cost-reduction work progresses and provide explicit next steps after each change.
 - Avoid behavior-changing edits to Reddit posting and Twitter tweeting flows during cost-reduction work unless explicitly approved.
 - When investigating Indexer app cost increases, instrumentation must include all activities in the orchestration, not only the Indexer activity, before drawing cost conclusions.
@@ -50,3 +50,6 @@
 
 ## Memory Probing
 - Prefer memory-probe responsibility delegated to an injected `IMemoryProbeOrchestrator`, with call sites using `Start(nameof(Class))` and `End()`, and the orchestrator deciding via `MemoryProbeOptions` whether to create/log a session.
+
+## Configuration
+- Cosmos DB settings bind to the `cosmosdbv2` configuration section (historical key name; single production database with split containers).

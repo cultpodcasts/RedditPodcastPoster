@@ -83,7 +83,7 @@ public class Indexer(
             logger.LogInformation("Indexing podcast '{podcastName}' with podcast-id '{podcastId}'.", podcast.Name,
                 podcastId);
 
-            // Pass V2 podcast directly - no conversion needed!
+            // Pass podcast directly — no conversion needed.
             var results = await podcastUpdater.Update(podcast, enrichOnly, indexingContext);
 
             updatedEpisodes = results.MergeResult.AddedEpisodes

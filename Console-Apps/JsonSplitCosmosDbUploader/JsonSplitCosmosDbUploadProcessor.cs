@@ -11,7 +11,7 @@ namespace JsonSplitCosmosDbUploader;
 
 public class JsonSplitCosmosDbUploadProcessor(
     IFileRepository fileRepository,
-    IPodcastRepository podcastRepositoryV2,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
     IPodcastFactory podcastFactory,
@@ -58,7 +58,7 @@ public class JsonSplitCosmosDbUploadProcessor(
                 podcast.YouTubePublicationOffset = sourcePodcast.YouTubePublicationOffset;
                 podcast.Language = sourcePodcast.Language;
 
-                await podcastRepositoryV2.Save(podcast);
+                await podcastRepository.Save(podcast);
 
                 var sourceEpisodes = sourcePodcast.Episodes
                     .Skip(i * episodesPerFile)
