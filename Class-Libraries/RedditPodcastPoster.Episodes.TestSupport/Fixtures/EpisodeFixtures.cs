@@ -54,4 +54,20 @@ public static class EpisodeFixtures
             release,
             new Uri($"https://www.youtube.com/watch?v={youTubeId}"),
             null);
+
+    public static Episode FromAppleEpisode(
+        long appleId,
+        string title,
+        DateTime release,
+        TimeSpan length,
+        string description = "Apple description") =>
+        Episode.FromApple(
+            appleId,
+            title,
+            description,
+            length,
+            false,
+            release,
+            new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleId}"),
+            null);
 }

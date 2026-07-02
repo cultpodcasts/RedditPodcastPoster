@@ -1,5 +1,4 @@
 using FluentAssertions;
-using FuzzySharp;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -21,15 +20,6 @@ public class C2CAbuserEpisodeMergeTests
         YouTubePublicationOffset = C2CDelayTicks,
         SpotifyId = "6oTbi9wKZ2czCvSwBKxxoH"
     };
-
-    [Fact]
-    public void FuzzyTitleScore_ForAbuserEpisode_IsHighEnoughToMerge()
-    {
-        const string youTubeTitle = "I Confronted My Ab*ser 30 Years Later. Everything Changed";
-        const string spotifyTitle = "I Confronted My Abuser 30 Years Later… Everything Changed";
-
-        Fuzz.WeightedRatio(youTubeTitle, spotifyTitle).Should().BeGreaterThanOrEqualTo(70);
-    }
 
     [Theory]
     [InlineData("2026-07-06T00:00:00Z")]

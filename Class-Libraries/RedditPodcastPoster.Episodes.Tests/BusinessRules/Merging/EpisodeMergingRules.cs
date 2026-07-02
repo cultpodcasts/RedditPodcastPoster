@@ -1,0 +1,210 @@
+using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.Episodes.TestSupport.Assertions;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence;
+
+namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Merging;
+
+/// <summary>
+/// Field-level merge rules characterize current EpisodeMerger fill-missing behaviour before domain extraction.
+/// </summary>
+public class EpisodeMergingRules
+{
+    private const string SpotifyEpisodeId = "1UncRhHtmojlTq2mO0Gntz";
+    private static readonly Uri ExistingSpotifyUrl = new($"https://open.spotify.com/episode/{SpotifyEpisodeId}");
+    private static readonly Uri IncomingSpotifyUrl = new($"https://open.spotify.com/episode/{SpotifyEpisodeId}?si=incoming");
+
+    private readonly EpisodeMerger _merger = new(new EpisodeMatcher(NullLogger<EpisodeMatcher>.Instance));
+
+    [Fact(DisplayName =
+        "Merge fills missing Spotify URLs; it does not replace an existing Spotify URL.")]
+    public void Merge_fills_missing_Spotify_URL_without_replacing_existing()
+    {
+        // Given a stored episode with a Spotify URL already set
+        var podcast = PodcastFixtures.Standard();
+        var release = DateTime.UtcNow.AddMonths(-1);
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Episode title",
+            Release = release,
+            Length = TimeSpan.FromMinutes(45),
+            SpotifyId = SpotifyEpisodeId,
+            Urls = new ServiceUrls { Spotify = ExistingSpotifyUrl }
+        };
+        var expected = EpisodeExpectation.From(stored);
+
+        // When Spotify re-index returns the same ID with a different URL variant
+        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+            SpotifyEpisodeId,
+            "Episode title",
+            IncomingSpotifyUrl,
+            release,
+            TimeSpan.FromMinutes(45));
+
+        // Then the stored Spotify URL is preserved
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.AddedEpisodes.Should().BeEmpty();
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Merge fills missing platform IDs; it does not overwrite an existing ID with a different one.")]
+    public void Merge_fills_missing_SpotifyId_without_overwriting_different_existing_ID()
+    {
+        // Given a stored episode with a Spotify ID and YouTube video already assigned
+        const string existingSpotifyId = "existingSpotifyId01";
+        const string youTubeId = "sharedYouTubeId01";
+        var podcast = PodcastFixtures.Standard();
+        var release = DateTime.UtcNow.AddMonths(-1);
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Episode title",
+            Release = release,
+            Length = TimeSpan.FromMinutes(45),
+            SpotifyId = existingSpotifyId,
+            YouTubeId = youTubeId,
+            Urls = new ServiceUrls
+            {
+                Spotify = new Uri($"https://open.spotify.com/episode/{existingSpotifyId}"),
+                YouTube = new Uri($"https://www.youtube.com/watch?v={youTubeId}")
+            }
+        };
+        var expected = EpisodeExpectation.From(stored);
+
+        // When YouTube re-index returns the same video without a Spotify ID to fill
+        var discovered = EpisodeFixtures.FromYouTubeVideo(
+            youTubeId,
+            "Episode title",
+            release,
+            TimeSpan.FromMinutes(45));
+
+        // Then merge matches on YouTube ID but preserves the existing Spotify ID
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.AddedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().BeEmpty("no fields changed when incoming carries no Spotify ID to fill");
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Merge fills missing Spotify IDs when the stored episode has none.")]
+    public void Merge_fills_missing_SpotifyId_on_YouTube_matched_episode()
+    {
+        // Given a stored episode with YouTube identity but no Spotify ID
+        const string youTubeId = "sharedYouTubeId02";
+        var podcast = PodcastFixtures.Standard();
+        var release = DateTime.UtcNow.AddMonths(-1);
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Episode title",
+            Release = release,
+            Length = TimeSpan.FromMinutes(45),
+            YouTubeId = youTubeId,
+            Urls = new ServiceUrls { YouTube = new Uri($"https://www.youtube.com/watch?v={youTubeId}") }
+        };
+        var expected = EpisodeExpectation.From(stored).WithSpotify(SpotifyEpisodeId, ExistingSpotifyUrl);
+
+        // When Spotify returns the same episode via shared YouTube identity metadata
+        var discovered = new Episode
+        {
+            Title = "Episode title",
+            Release = release,
+            Length = TimeSpan.FromMinutes(45),
+            SpotifyId = SpotifyEpisodeId,
+            YouTubeId = youTubeId,
+            Urls = new ServiceUrls
+            {
+                Spotify = ExistingSpotifyUrl,
+                YouTube = new Uri($"https://www.youtube.com/watch?v={youTubeId}")
+            }
+        };
+
+        // Then merge fills the missing Spotify ID without adding a duplicate
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.AddedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Merge may replace a truncated description (ending in ...) with a longer description; " +
+        "it does not replace a complete description with a shorter one.")]
+    public void Merge_extends_truncated_description_ending_in_ellipsis()
+    {
+        // Given a stored episode with a truncated description
+        var podcast = PodcastFixtures.Standard();
+        var release = DateTime.UtcNow.AddMonths(-1);
+        const string truncatedDescription = "This is a short preview...";
+        const string fullDescription = "This is a short preview with the complete episode summary and details.";
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Episode title",
+            Description = truncatedDescription,
+            Release = release,
+            Length = TimeSpan.FromMinutes(45),
+            SpotifyId = SpotifyEpisodeId,
+            Urls = new ServiceUrls { Spotify = ExistingSpotifyUrl }
+        };
+        var expected = EpisodeExpectation.From(stored).WithDescription(fullDescription);
+
+        // When Spotify re-index returns a longer description for the same episode
+        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+            SpotifyEpisodeId,
+            "Episode title",
+            ExistingSpotifyUrl,
+            release,
+            TimeSpan.FromMinutes(45),
+            description: fullDescription);
+
+        // Then merge replaces the truncated description with the full text
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.MergedEpisodes.Should().ContainSingle();
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "A discovered episode with no match is added as a new row with a new ID.")]
+    public void No_match_adds_new_episode_with_new_Id()
+    {
+        // Given a stored episode with no overlapping platform identity
+        var podcast = PodcastFixtures.Standard();
+        var stored = EpisodeFixtures.FromSpotifyCatalogue(
+            "storedSpotifyId01",
+            "Stored episode title",
+            new Uri("https://open.spotify.com/episode/storedSpotifyId01"),
+            DateTime.UtcNow.AddMonths(-2),
+            TimeSpan.FromMinutes(30));
+
+        // When indexing discovers an unrelated episode
+        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+            "newSpotifyId000001",
+            "Brand new episode title",
+            new Uri("https://open.spotify.com/episode/newSpotifyId000001"),
+            DateTime.UtcNow,
+            TimeSpan.FromMinutes(50));
+
+        // Then a new episode row is added with a distinct ID
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.MergedEpisodes.Should().BeEmpty();
+        result.FailedEpisodes.Should().BeEmpty();
+        result.AddedEpisodes.Should().ContainSingle();
+        var added = result.AddedEpisodes.Single();
+        added.Id.Should().NotBe(stored.Id);
+        added.Id.Should().NotBe(Guid.Empty);
+        added.SpotifyId.Should().Be("newSpotifyId000001");
+    }
+}

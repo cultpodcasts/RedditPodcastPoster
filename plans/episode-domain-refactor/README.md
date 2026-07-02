@@ -331,12 +331,13 @@ Implement as test classes under `BusinessRules/`. Each rule = one `[Fact]` or `[
 
 ### Step 3 — Domain business rules (PRs 3–5) 🔄 in progress
 
-**Coverage so far:** 8 of ~45 catalog rules (§5.1 platform identity partial + §5.2 release dates partial)
+**Coverage so far:** 22 of ~45 catalog rules (§5.1 platform identity + cross-platform partial, §5.2 release dates partial, §5.3 merging fields partial)
 
-- [x] `PlatformIdentityMatchingRules` — 5 rules (Spotify URL/ID, YouTube ID, negative cases)
-- [x] `ReleaseDateMergingRules` — 3 rules (YouTube time backfill, Spotify no backfill, YouTube authority preserve)
-- [ ] `CrossPlatformMatchingRules`
-- [ ] Remaining `ReleaseDateMergingRules` + `EpisodeMergingRules`
+- [x] `PlatformIdentityMatchingRules` — 7 rules (Spotify URL/ID, YouTube ID, Apple ID, negative cases)
+- [x] `CrossPlatformMatchingRules` — 3 rules (YouTube-first Spotify match, negative delay guard, ambiguous failure)
+- [x] `ReleaseDateMergingRules` — 5 rules (YouTube/Apple time backfill, Spotify no backfill, YouTube authority preserve, YouTube different-date guard)
+- [x] `EpisodeMergingRules` — 5 rules (fill missing URL/ID, preserve existing ID, truncated description, no-match add)
+- [ ] Remaining matching rules (title/duration heuristics, regex, remaining cross-platform)
 - [ ] Implement **real** `EpisodePlatformMatcher`, `Merger`, `Applier` to make tests pass (this is TDD for the domain layer)
 - [ ] Wire `EpisodeMerger` to domain services (behavior must match pre-wiring)
 

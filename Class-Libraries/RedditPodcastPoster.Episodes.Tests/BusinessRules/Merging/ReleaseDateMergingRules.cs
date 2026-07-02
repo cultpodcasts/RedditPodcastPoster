@@ -133,4 +133,78 @@ public class ReleaseDateMergingRules
         result.MergedEpisodes.Should().BeEmpty("no fields changed when Spotify catalogue date is newer than YouTube publish");
         stored.ShouldMatchExpectation(expected);
     }
+
+    [Fact(DisplayName =
+        "When stored release is midnight UTC and YouTube provides a time on a different calendar date, " +
+        "merge must not backfill the time.")]
+    public void YouTube_different_UTC_date_does_not_backfill_midnight_release_time()
+    {
+        // Given a stored episode with a date-only (midnight UTC) release
+        var podcast = PodcastFixtures.Standard();
+        var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
+        var youTubeRelease = new DateTime(2026, 7, 2, 12, 30, 0, DateTimeKind.Utc);
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Episode title",
+            Release = dateOnlyRelease,
+            Length = TimeSpan.FromMinutes(45),
+            SpotifyId = SpotifyEpisodeId,
+            Urls = new ServiceUrls { Spotify = SpotifyUrl }
+        };
+        var expected = EpisodeExpectation.From(stored)
+            .WithYouTube("video-id", new Uri("https://www.youtube.com/watch?v=video-id"));
+
+        // When YouTube returns a time on a different calendar date
+        var discovered = EpisodeFixtures.FromYouTubeVideo(
+            "video-id",
+            "Episode title",
+            youTubeRelease,
+            TimeSpan.FromMinutes(45));
+
+        // Then merge fills YouTube identity but preserves the midnight stored release
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.MergedEpisodes.Should().ContainSingle();
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Apple may upgrade a date-only stored release to a full datetime when the calendar date matches.")]
+    public void Apple_same_date_backfills_midnight_release_time()
+    {
+        // Given a stored episode with a date-only (midnight UTC) release
+        var podcast = PodcastFixtures.Standard();
+        const long appleId = 1635013492;
+        var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
+        var appleRelease = new DateTime(2026, 7, 1, 15, 45, 0, DateTimeKind.Utc);
+        var appleUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleId}");
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Episode title",
+            Release = dateOnlyRelease,
+            Length = TimeSpan.FromMinutes(45),
+            SpotifyId = SpotifyEpisodeId,
+            Urls = new ServiceUrls { Spotify = SpotifyUrl }
+        };
+        var expected = EpisodeExpectation.From(stored)
+            .WithRelease(appleRelease)
+            .WithApple(appleId, appleUrl);
+
+        // When Apple returns the same calendar date with a time-of-day
+        var discovered = EpisodeFixtures.FromAppleEpisode(
+            appleId,
+            "Episode title",
+            appleRelease,
+            TimeSpan.FromMinutes(45));
+
+        // Then merge backfills the stored release time from Apple
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.MergedEpisodes.Should().ContainSingle();
+        stored.ShouldMatchExpectation(expected);
+    }
 }

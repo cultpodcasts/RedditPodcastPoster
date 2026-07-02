@@ -93,6 +93,12 @@ public sealed record EpisodeExpectation(
     public EpisodeExpectation WithYouTube(string id, Uri url, Uri? image = null) =>
         this with { YouTube = new PlatformExpectation(id, url, image) };
 
+    public EpisodeExpectation WithApple(long id, Uri url, Uri? image = null) =>
+        this with { Apple = new PlatformExpectation(id.ToString(), url, image) };
+
     public EpisodeExpectation WithRelease(DateTime release) =>
         this with { Release = release };
+
+    public EpisodeExpectation WithDescription(string description) =>
+        this with { Description = description };
 }

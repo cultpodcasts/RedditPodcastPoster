@@ -178,4 +178,71 @@ public class PlatformIdentityMatchingRules
         result.AddedEpisodes.Should().ContainSingle();
         result.MergedEpisodes.Should().BeEmpty();
     }
+
+    [Fact(DisplayName =
+        "When two episodes share the same Apple episode ID, " +
+        "indexing must merge them — even when titles differ.")]
+    public void Same_Apple_ID_merges_onto_existing_episode()
+    {
+        // Given a stored episode with an Apple episode ID
+        const long appleId = 1635013492;
+        var appleUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleId}");
+        var release = new DateTime(2026, 6, 1, 14, 0, 0, DateTimeKind.Utc);
+        var podcast = PodcastFixtures.Standard();
+        var stored = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = podcast.Id,
+            Title = "Stored Apple title",
+            Release = release,
+            Length = TimeSpan.FromMinutes(45),
+            AppleId = appleId,
+            Urls = new ServiceUrls { Apple = appleUrl }
+        };
+        var expected = EpisodeExpectation.From(stored);
+
+        // When Apple returns the same episode ID with a different title
+        var discovered = EpisodeFixtures.FromAppleEpisode(
+            appleId,
+            "Incoming Apple title",
+            release,
+            TimeSpan.FromMinutes(45));
+
+        // Then indexing recognizes the same row — no duplicate added
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        result.AddedEpisodes.Should().BeEmpty();
+        result.FailedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().BeEmpty("no fields changed when Apple identity already complete");
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "When two episodes have different Apple episode IDs, " +
+        "they must never merge — even when titles are identical.")]
+    public void Different_Apple_IDs_never_merge_by_title()
+    {
+        // Given two episodes with different Apple IDs but the same title
+        const string sharedTitle = "Shared title";
+        var release = DateTime.UtcNow;
+        var length = TimeSpan.FromMinutes(45);
+        var podcast = PodcastFixtures.Standard();
+        var existing = EpisodeFixtures.FromAppleEpisode(
+            1111111111,
+            sharedTitle,
+            release,
+            length);
+        var discovered = EpisodeFixtures.FromAppleEpisode(
+            2222222222,
+            sharedTitle,
+            release,
+            length);
+
+        // When indexing attempts to merge the discovered episode
+        var result = _merger.MergeEpisodes(podcast, [existing], [discovered]);
+
+        // Then a new episode is added rather than merged
+        result.AddedEpisodes.Should().ContainSingle();
+        result.MergedEpisodes.Should().BeEmpty();
+    }
 }
