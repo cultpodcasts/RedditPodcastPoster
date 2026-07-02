@@ -51,6 +51,33 @@ public static class EpisodeReleaseMatchTolerance
         return false;
     }
 
+    public static DateTime GetAudioReleaseForPlatformLookup(Podcast podcast, Episode episode) =>
+        GetAudioReleaseForPlatformLookup(podcast, episode.Release, HasYouTubeIdentity(episode));
+
+    public static DateTime GetAudioReleaseForPlatformLookup(
+        Podcast podcast,
+        DateTime release,
+        bool episodeHasYouTubeIdentity)
+    {
+        var delay = podcast.YouTubePublishingDelay();
+        if (delay == TimeSpan.Zero)
+        {
+            return release;
+        }
+
+        if (podcast.ReleaseAuthority == Service.YouTube)
+        {
+            return release - delay;
+        }
+
+        if (episodeHasYouTubeIdentity && HasAudioPlatformConfigured(podcast))
+        {
+            return release - delay;
+        }
+
+        return release;
+    }
+
     public static long GetToleranceTicks(Podcast podcast, TimeSpan episodeLength)
     {
         var delay = podcast.YouTubePublishingDelay();
@@ -118,4 +145,7 @@ public static class EpisodeReleaseMatchTolerance
 
     private static bool HasSpotifyIdentity(Episode episode) =>
         !string.IsNullOrWhiteSpace(episode.SpotifyId) || episode.Urls.Spotify != null;
+
+    private static bool HasAudioPlatformConfigured(Podcast podcast) =>
+        !string.IsNullOrWhiteSpace(podcast.SpotifyId) || podcast.AppleId != null;
 }

@@ -11,7 +11,7 @@ public static class FindSpotifyEpisodeRequestFactory
         var release = criteria.Release;
         if (podcast != null)
         {
-            release = CalculateRelativeRelease(podcast, criteria.Release);
+            release = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, criteria.Release, false);
         }
 
         return new FindSpotifyEpisodeRequest(
@@ -28,7 +28,8 @@ public static class FindSpotifyEpisodeRequestFactory
 
     public static FindSpotifyEpisodeRequest Create(Podcast podcast, Episode episode)
     {
-        var release = CalculateRelativeRelease(podcast, episode.Release);
+        var enrichingYouTubeDiscoveredEpisode = EpisodeHasYouTubeIdentity(episode);
+        var release = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, episode);
 
         return new FindSpotifyEpisodeRequest(
             podcast.SpotifyId,
@@ -40,7 +41,8 @@ public static class FindSpotifyEpisodeRequestFactory
             podcast.YouTubePublishingDelay(),
             podcast.ReleaseAuthority,
             episode.Length,
-            podcast.SpotifyMarket);
+            podcast.SpotifyMarket,
+            enrichingYouTubeDiscoveredEpisode);
     }
 
     public static FindSpotifyEpisodeRequest Create(string episodeSpotifyId)
@@ -54,13 +56,6 @@ public static class FindSpotifyEpisodeRequestFactory
             true);
     }
 
-    private static DateTime CalculateRelativeRelease(Podcast podcast, DateTime release)
-    {
-        if (podcast.ReleaseAuthority == Service.YouTube && podcast.YouTubePublishingDelay() != TimeSpan.Zero)
-        {
-            release -= podcast.YouTubePublishingDelay();
-        }
-
-        return release;
-    }
+    private static bool EpisodeHasYouTubeIdentity(Episode episode) =>
+        !string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.Urls.YouTube != null;
 }

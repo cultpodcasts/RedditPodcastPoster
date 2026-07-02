@@ -46,7 +46,8 @@ public class SpotifyEpisodeResolver(
         var podcastEpisodes = await spotifyPodcastEpisodesProvider.GetAllEpisodes(request, indexingContext, market);
 
         SimpleEpisode? matchingEpisode;
-        if (request is { ReleaseAuthority: Service.YouTube, Length: not null })
+        if (request is { Length: not null } &&
+            (request.ReleaseAuthority == Service.YouTube || request.EnrichingYouTubeDiscoveredEpisode))
         {
             matchingEpisode = searchResultFinder.FindMatchingEpisodeByLength(
                 request.EpisodeTitle,

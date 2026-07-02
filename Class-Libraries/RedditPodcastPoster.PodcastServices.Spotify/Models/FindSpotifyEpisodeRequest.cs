@@ -12,4 +12,5 @@ public record FindSpotifyEpisodeRequest(
     TimeSpan? YouTubePublishingDelay= null,
     Service? ReleaseAuthority = null,
     TimeSpan? Length = null,
-    string? Market = null);
+    string? Market = null,
+    bool EnrichingYouTubeDiscoveredEpisode = false);

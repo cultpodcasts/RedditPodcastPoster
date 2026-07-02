@@ -85,4 +85,40 @@ public class EpisodeReleaseMatchToleranceTests
 
         EpisodeReleaseMatchTolerance.EpisodesReleaseMatch(podcast, existing, incoming).Should().BeTrue();
     }
+
+    [Fact]
+    public void GetAudioReleaseForPlatformLookup_WhenEpisodeDiscoveredViaYouTubeOnSpotifyPrimaryPodcast_SubtractsPublishingDelay()
+    {
+        var delay = TimeSpan.FromHours(9);
+        var podcast = new Podcast
+        {
+            SpotifyId = "spotify-show",
+            YouTubePublicationOffset = delay.Ticks
+        };
+        var youTubePublish = new DateTime(2026, 7, 2, 9, 0, 0, DateTimeKind.Utc);
+        var episode = new Episode
+        {
+            Release = youTubePublish,
+            YouTubeId = "video-id",
+            Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/watch?v=video-id") }
+        };
+
+        EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, episode)
+            .Should().Be(youTubePublish - delay);
+    }
+
+    [Fact]
+    public void GetAudioReleaseForPlatformLookup_WhenYouTubeIsReleaseAuthority_SubtractsPublishingDelay()
+    {
+        var delay = TimeSpan.FromDays(1);
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = delay.Ticks
+        };
+        var release = new DateTime(2026, 7, 2, 9, 0, 0, DateTimeKind.Utc);
+
+        EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, release, episodeHasYouTubeIdentity: false)
+            .Should().Be(release - delay);
+    }
 }
