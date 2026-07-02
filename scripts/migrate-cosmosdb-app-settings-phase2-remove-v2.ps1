@@ -12,6 +12,8 @@
 #   -SubscriptionId  Optional. Sets az account before changes.
 #   -ResourceGroup   Default: AutomatedInfra
 #   -FunctionApps    Default: api-infra, discover-infra, indexer-infra
+#   -BackupPath      Optional. Folder for pre-flight JSON backup (default: scripts/.app-settings-backups/<timestamp>/)
+#   -SkipBackup      Skip automatic backup (not recommended for production)
 #   -WhatIf          Dry run (via SupportsShouldProcess)
 
 [CmdletBinding(SupportsShouldProcess = $true)]
@@ -20,7 +22,11 @@ param(
 
     [string]$ResourceGroup = 'AutomatedInfra',
 
-    [string[]]$FunctionApps = @('api-infra', 'discover-infra', 'indexer-infra')
+    [string[]]$FunctionApps = @('api-infra', 'discover-infra', 'indexer-infra'),
+
+    [string]$BackupPath,
+
+    [switch]$SkipBackup
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,6 +45,19 @@ Write-Host "Azure subscription: $account"
 Write-Host "Resource group: $ResourceGroup"
 Write-Host "Function apps: $($FunctionApps -join ', ')"
 Write-Host ''
+
+$resolvedBackupPath = $null
+if (-not $SkipBackup) {
+    $resolvedBackupPath = Resolve-CosmosDbAppSettingsBackupPath -BackupPath $BackupPath
+    if ($PSCmdlet.ShouldProcess($resolvedBackupPath, 'Export pre-flight app settings backup')) {
+        Export-FunctionAppSettingsBackup `
+            -ResourceGroup $ResourceGroup `
+            -FunctionApps $FunctionApps `
+            -BackupPath $resolvedBackupPath `
+            -PhaseLabel 'phase2-remove-v2' | Out-Null
+    }
+    Write-Host ''
+}
 
 foreach ($app in $FunctionApps) {
     Write-Host "=== $app ==="
@@ -93,3 +112,6 @@ foreach ($app in $FunctionApps) {
 
 Write-Host ''
 Write-Host 'Phase 2 complete. Legacy cosmosdbv2__* and stale cosmosdb__* settings removed from updated apps.'
+if ($resolvedBackupPath) {
+    Write-Host "Rollback: .\scripts\restore-cosmosdb-app-settings-from-backup.ps1 -BackupPath '$resolvedBackupPath'"
+}

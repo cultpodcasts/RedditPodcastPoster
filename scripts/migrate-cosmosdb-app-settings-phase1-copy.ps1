@@ -17,6 +17,8 @@
 #   -SubscriptionId  Optional. Sets az account before changes.
 #   -ResourceGroup   Default: AutomatedInfra
 #   -FunctionApps    Default: api-infra, discover-infra, indexer-infra
+#   -BackupPath      Optional. Folder for pre-flight JSON backup (default: scripts/.app-settings-backups/<timestamp>/)
+#   -SkipBackup      Skip automatic backup (not recommended for production)
 #   -WhatIf          Dry run (via SupportsShouldProcess)
 
 [CmdletBinding(SupportsShouldProcess = $true)]
@@ -25,7 +27,11 @@ param(
 
     [string]$ResourceGroup = 'AutomatedInfra',
 
-    [string[]]$FunctionApps = @('api-infra', 'discover-infra', 'indexer-infra')
+    [string[]]$FunctionApps = @('api-infra', 'discover-infra', 'indexer-infra'),
+
+    [string]$BackupPath,
+
+    [switch]$SkipBackup
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,6 +45,19 @@ Write-Host "Resource group: $ResourceGroup"
 Write-Host "Function apps: $($FunctionApps -join ', ')"
 Write-Host 'cosmosdbv2__* values overwrite any existing cosmosdb__* keys (stale legacy cultpodcasts-ukdb keys are replaced).'
 Write-Host ''
+
+$resolvedBackupPath = $null
+if (-not $SkipBackup) {
+    $resolvedBackupPath = Resolve-CosmosDbAppSettingsBackupPath -BackupPath $BackupPath
+    if ($PSCmdlet.ShouldProcess($resolvedBackupPath, 'Export pre-flight app settings backup')) {
+        Export-FunctionAppSettingsBackup `
+            -ResourceGroup $ResourceGroup `
+            -FunctionApps $FunctionApps `
+            -BackupPath $resolvedBackupPath `
+            -PhaseLabel 'phase1-copy' | Out-Null
+    }
+    Write-Host ''
+}
 
 foreach ($app in $FunctionApps) {
     Write-Host "=== $app ==="
@@ -94,3 +113,6 @@ foreach ($app in $FunctionApps) {
 Write-Host ''
 Write-Host 'Phase 1 complete. cosmosdb__* and cosmosdbv2__* now coexist on updated apps.'
 Write-Host 'After verifying runtime against cosmosdb__*, run migrate-cosmosdb-app-settings-phase2-remove-v2.ps1.'
+if ($resolvedBackupPath) {
+    Write-Host "Rollback: .\scripts\restore-cosmosdb-app-settings-from-backup.ps1 -BackupPath '$resolvedBackupPath'"
+}

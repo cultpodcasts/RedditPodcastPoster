@@ -56,3 +56,112 @@ function Get-CosmosDbV2AppSettings {
 
     return @($AppSettings | Where-Object { $_.name -like 'cosmosdbv2__*' })
 }
+
+function Resolve-CosmosDbAppSettingsBackupPath {
+    param(
+        [string]$BackupPath
+    )
+
+    if ($BackupPath) {
+        $resolved = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($BackupPath)
+        if (-not (Test-Path -LiteralPath $resolved)) {
+            New-Item -ItemType Directory -Path $resolved -Force | Out-Null
+        }
+
+        return $resolved
+    }
+
+    $defaultRoot = Join-Path $PSScriptRoot '.app-settings-backups'
+    $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $resolved = Join-Path $defaultRoot $timestamp
+    New-Item -ItemType Directory -Path $resolved -Force | Out-Null
+    return $resolved
+}
+
+function Export-FunctionAppSettingsBackup {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResourceGroup,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$FunctionApps,
+
+        [Parameter(Mandatory = $true)]
+        [string]$BackupPath,
+
+        [string]$PhaseLabel = 'migration'
+    )
+
+    $manifest = [ordered]@{
+        exportedAtUtc = (Get-Date).ToUniversalTime().ToString('o')
+        resourceGroup = $ResourceGroup
+        functionApps  = $FunctionApps
+        phase         = $PhaseLabel
+        files         = @()
+    }
+
+    foreach ($app in $FunctionApps) {
+        $settings = Get-FunctionAppSettings -ResourceGroup $ResourceGroup -FunctionApp $app
+        $fileName = "$app-appsettings.json"
+        $filePath = Join-Path $BackupPath $fileName
+
+        $settings | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $filePath -Encoding utf8
+        $manifest.files += $fileName
+
+        Write-Host "Backed up $($settings.Count) setting(s) for '$app' -> $filePath"
+    }
+
+    $manifestPath = Join-Path $BackupPath 'manifest.json'
+    $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+    Write-Host "Backup manifest: $manifestPath"
+
+    return $BackupPath
+}
+
+function Import-FunctionAppSettingsFromBackup {
+    [CmdletBinding(SupportsShouldProcess = $true)]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResourceGroup,
+
+        [Parameter(Mandatory = $true)]
+        [string]$FunctionApp,
+
+        [Parameter(Mandatory = $true)]
+        [string]$BackupFile,
+
+        [switch]$CosmosKeysOnly
+    )
+
+    if (-not (Test-Path -LiteralPath $BackupFile)) {
+        throw "Backup file not found: $BackupFile"
+    }
+
+    $settings = Get-Content -LiteralPath $BackupFile -Raw | ConvertFrom-Json
+
+    if ($CosmosKeysOnly) {
+        $settings = @($settings | Where-Object {
+            $_.name -like 'cosmosdb__*' -or $_.name -like 'cosmosdbv2__*'
+        })
+    }
+
+    if (-not $settings -or $settings.Count -eq 0) {
+        Write-Host "No settings to restore for '$FunctionApp' from $BackupFile."
+        return
+    }
+
+    $pairs = @($settings | ForEach-Object { "$($_.name)=$($_.value)" })
+
+    if ($PSCmdlet.ShouldProcess($FunctionApp, "Restore $($pairs.Count) app setting(s) from backup")) {
+        az functionapp config appsettings set `
+            --resource-group $ResourceGroup `
+            --name $FunctionApp `
+            --settings $pairs `
+            -o none
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to restore app settings for '$FunctionApp' (exit code $LASTEXITCODE)."
+        }
+    }
+}

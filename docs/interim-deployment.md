@@ -80,6 +80,45 @@ Optional parameters (both scripts): `-SubscriptionId`, `-ResourceGroup` (default
 
 Phase 2 also removes stale pre-split keys: `cosmosdb__Container`, `cosmosdb__UseGateWay` (old `cultpodcasts-ukdb` single-container config).
 
+**Safety:** Both scripts export a full JSON backup before mutating settings (unless `-SkipBackup`). Backups land in `scripts/.app-settings-backups/<timestamp>/` by default, or pass `-BackupPath`. Always dry-run first with `-WhatIf`.
+
+**Rollback**
+
+| When | What broke | How to recover |
+|------|------------|----------------|
+| After phase 1, before phase 2 | Wrong `cosmosdb__*` values | **Easiest:** `cosmosdbv2__*` still exists — copy values back manually, or delete bad `cosmosdb__*` keys and redeploy old code. **Or:** restore from phase-1 backup (see below). |
+| After phase 2 | Deleted `cosmosdbv2__*` / stale keys; app broken | **Requires backup.** Run restore script with the phase-2 backup folder (or phase-1 if you never ran phase 2). |
+| No backup, after phase 2 | Legacy keys gone | Redeploy [`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep) — restores canonical `cosmosdb__*` from bicep params / Key Vault. Does **not** recreate `cosmosdbv2__*`. |
+| Partial run (one app only) | Only some apps updated | Restore that app from backup; re-run migration on remaining apps. |
+
+`az functionapp config appsettings set` **merges** (updates/adds only the keys you pass). `appsettings delete` removes only named keys. These scripts do **not** wipe unrelated settings (Auth0, Spotify, telemetry, etc.).
+
+Key Vault is **unchanged** by the migration scripts; bicep redeploy re-reads secrets from Key Vault for `cosmosdb__AuthKeyOrResourceToken`.
+
+There are **no deployment slots** on these function apps — slot swap is not an option.
+
+```powershell
+# Manual one-off backup (any time)
+$ts = Get-Date -Format 'yyyyMMdd-HHmmss'
+$dir = ".\scripts\.app-settings-backups\manual-$ts"
+New-Item -ItemType Directory -Path $dir -Force | Out-Null
+foreach ($app in 'api-infra','discover-infra','indexer-infra') {
+  az functionapp config appsettings list -g AutomatedInfra -n $app -o json `
+    | Set-Content "$dir\$app-appsettings.json"
+}
+
+# Restore full backup (all keys from JSON)
+.\scripts\restore-cosmosdb-app-settings-from-backup.ps1 -BackupPath .\scripts\.app-settings-backups\<timestamp>
+
+# Restore cosmos keys only (leave other settings as-is)
+.\scripts\restore-cosmosdb-app-settings-from-backup.ps1 -BackupPath .\scripts\.app-settings-backups\<timestamp> -CosmosKeysOnly
+
+# Dry run
+.\scripts\restore-cosmosdb-app-settings-from-backup.ps1 -BackupPath .\scripts\.app-settings-backups\<timestamp> -WhatIf
+```
+
+After phase 1, the script prints the backup path and a ready-made restore command.
+
 ## Azure targets (defaults)
 
 | Setting | Default |
@@ -143,8 +182,9 @@ Converts user-secrets JSON (`section:key`) to Azure format (`section__key`).
 | `apply-youtube-display-names.ps1` | DisplayNames only (wrapper over `apply-youtube-keys.ps1`) |
 | `migrate-cosmosdb-app-settings-phase1-copy.ps1` | Copy `cosmosdbv2__*` → `cosmosdb__*` on function apps when bicep not deploying |
 | `migrate-cosmosdb-app-settings-phase2-remove-v2.ps1` | Delete legacy `cosmosdbv2__*` keys after runtime verified on `cosmosdb__*` |
+| `restore-cosmosdb-app-settings-from-backup.ps1` | Restore app settings from migration backup JSON |
 
-Build artifacts (gitignored): `scripts/.deploy-local/`, `artifacts/tools/`, `artifacts/.console-publish-staging/`.
+Build artifacts (gitignored): `scripts/.deploy-local/`, `scripts/.app-settings-backups/`, `artifacts/tools/`, `artifacts/.console-publish-staging/`.
 
 ## Discovery scorer checklist (interim)
 
