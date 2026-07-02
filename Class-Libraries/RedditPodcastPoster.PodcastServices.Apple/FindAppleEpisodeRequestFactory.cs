@@ -7,7 +7,9 @@ public static class FindAppleEpisodeRequestFactory
 {
     public static FindAppleEpisodeRequest Create(Podcast podcast, Episode episode)
     {
-        var release = CalculateRelativeRelease(podcast, episode.Release);
+        var release = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, episode);
+        var enrichingYouTubeDiscoveredEpisode =
+            !string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.Urls.YouTube != null;
         return new FindAppleEpisodeRequest(
             podcast.AppleId,
             podcast.Name,
@@ -16,18 +18,9 @@ public static class FindAppleEpisodeRequestFactory
             release,
             podcast.ReleaseAuthority,
             episode.Length,
-            podcast.YouTubePublishingDelay()
+            podcast.YouTubePublishingDelay(),
+            enrichingYouTubeDiscoveredEpisode
         );
-    }
-
-    private static DateTime CalculateRelativeRelease(Podcast podcast, DateTime release)
-    {
-        if (podcast.ReleaseAuthority == Service.YouTube && podcast.YouTubePublishingDelay() != TimeSpan.Zero)
-        {
-            release -= podcast.YouTubePublishingDelay();
-        }
-
-        return release;
     }
 
     public static FindAppleEpisodeRequest Create(
@@ -38,7 +31,7 @@ public static class FindAppleEpisodeRequestFactory
         var release = criteria.Release;
         if (podcast != null)
         {
-            release = CalculateRelativeRelease(podcast, criteria.Release);
+            release = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, criteria.Release, false);
         }
 
         return new FindAppleEpisodeRequest(

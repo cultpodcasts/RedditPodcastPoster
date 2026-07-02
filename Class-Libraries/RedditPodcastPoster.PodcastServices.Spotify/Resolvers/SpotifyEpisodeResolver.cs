@@ -46,15 +46,17 @@ public class SpotifyEpisodeResolver(
         var podcastEpisodes = await spotifyPodcastEpisodesProvider.GetAllEpisodes(request, indexingContext, market);
 
         SimpleEpisode? matchingEpisode;
-        if (request is { ReleaseAuthority: Service.YouTube, Length: not null })
+        if (request.Length is { } episodeLength && episodeLength > TimeSpan.Zero &&
+            (request.ReleaseAuthority == Service.YouTube || request.EnrichingYouTubeDiscoveredEpisode))
         {
             matchingEpisode = searchResultFinder.FindMatchingEpisodeByLength(
                 request.EpisodeTitle,
-                request.Length.Value,
+                episodeLength,
                 podcastEpisodes.Episodes,
                 reducer,
                 request.ReleaseAuthority,
-                request.Released);
+                request.Released,
+                request.EnrichingYouTubeDiscoveredEpisode);
         }
         else
         {

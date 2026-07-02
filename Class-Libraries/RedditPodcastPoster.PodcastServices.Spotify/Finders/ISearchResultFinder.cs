@@ -20,5 +20,6 @@ public interface ISearchResultFinder
         IEnumerable<SimpleEpisode> episodeLists,
         Func<SimpleEpisode, bool>? reducer = null,
         Service? releaseAuthority = null,
-        DateTime? released = null);
+        DateTime? released = null,
+        bool acceptUniqueDurationWithoutTitleMatch = false);
 }
