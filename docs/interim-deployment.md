@@ -48,19 +48,37 @@ Runtime now binds the `cosmosdb` configuration section (`cosmosdb__*` in Azure).
 ```powershell
 az login
 
-# Phase 1: copy all cosmosdbv2__* keys to cosmosdb__* (both prefixes coexist)
+# Phase 1: copy all cosmosdbv2__* keys to cosmosdb__* (overwrites stale legacy cosmosdb__* values)
 .\scripts\migrate-cosmosdb-app-settings-phase1-copy.ps1
 # Dry run: .\scripts\migrate-cosmosdb-app-settings-phase1-copy.ps1 -WhatIf
-# Overwrite existing cosmosdb__*: add -Force
 
 # Deploy code that reads cosmosdb__*, verify function apps
+.\scripts\deploy-discover.ps1   # and/or deploy-api, deploy-indexer
 
-# Phase 2: remove legacy cosmosdbv2__* keys
+# Phase 2: remove legacy cosmosdbv2__* and stale cosmosdb__Container / cosmosdb__UseGateWay keys
 .\scripts\migrate-cosmosdb-app-settings-phase2-remove-v2.ps1
 # Dry run: .\scripts\migrate-cosmosdb-app-settings-phase2-remove-v2.ps1 -WhatIf
 ```
 
-Optional parameters (both scripts): `-SubscriptionId`, `-ResourceGroup` (default `AutomatedInfra`), `-FunctionApps` (default all three infra apps). Use `-Force` on phase 1 to overwrite existing `cosmosdb__*` keys (e.g. stale legacy values).
+Optional parameters (both scripts): `-SubscriptionId`, `-ResourceGroup` (default `AutomatedInfra`), `-FunctionApps` (default all three infra apps).
+
+**Old → new mapping** (suffix unchanged; section prefix renamed):
+
+| Old (`cosmosdbv2__*`) | New (`cosmosdb__*`) |
+|-----------------------|---------------------|
+| `Endpoint` | `Endpoint` |
+| `AuthKeyOrResourceToken` | `AuthKeyOrResourceToken` |
+| `DatabaseId` | `DatabaseId` |
+| `PodcastsContainer` | `PodcastsContainer` |
+| `EpisodesContainer` | `EpisodesContainer` |
+| `SubjectsContainer` | `SubjectsContainer` |
+| `ActivitiesContainer` | `ActivitiesContainer` |
+| `DiscoveryContainer` | `DiscoveryContainer` |
+| `LookUpsContainer` | `LookUpsContainer` |
+| `PushSubscriptionsContainer` | `PushSubscriptionsContainer` |
+| `UseGateway` | `UseGateway` |
+
+Phase 2 also removes stale pre-split keys: `cosmosdb__Container`, `cosmosdb__UseGateWay` (old `cultpodcasts-ukdb` single-container config).
 
 ## Azure targets (defaults)
 

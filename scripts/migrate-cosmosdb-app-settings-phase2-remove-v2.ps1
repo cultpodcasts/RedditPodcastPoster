@@ -1,4 +1,4 @@
-# Phase 2: Remove all cosmosdbv2__* app settings from production Function apps.
+# Phase 2: Remove cosmosdbv2__* and stale legacy cosmosdb__* app settings from production Function apps.
 # Run only after code is deployed and verified against cosmosdb__* settings.
 # Use when Infrastructure/functions.bicep is not deploying.
 #
@@ -27,6 +27,12 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Migrate-CosmosDbAppSettingsCommon.ps1')
 
+# Pre-split-database keys superseded by cosmosdbv2__* / canonical cosmosdb__* container settings.
+$staleLegacyCosmosDbSettingNames = @(
+    'cosmosdb__Container'
+    'cosmosdb__UseGateWay'
+)
+
 $account = Initialize-CosmosDbAppSettingsMigration -SubscriptionId $SubscriptionId
 
 Write-Host "Azure subscription: $account"
@@ -40,20 +46,31 @@ foreach ($app in $FunctionApps) {
     $allSettings = Get-FunctionAppSettings -ResourceGroup $ResourceGroup -FunctionApp $app
     $v2Settings = Get-CosmosDbV2AppSettings -AppSettings $allSettings
 
-    if (-not $v2Settings -or $v2Settings.Count -eq 0) {
-        Write-Host 'No cosmosdbv2__* settings found; nothing to remove.'
-        continue
+    $settingsByName = @{}
+    foreach ($setting in $allSettings) {
+        $settingsByName[$setting.name] = $setting.value
     }
 
     $v2Names = @($v2Settings | ForEach-Object { $_.name })
-    Write-Host "Removing $($v2Names.Count) cosmosdbv2__* setting(s):"
-    $v2Names | ForEach-Object { Write-Host "  $_" }
+    $staleLegacyPresent = @(
+        $staleLegacyCosmosDbSettingNames | Where-Object { $settingsByName.ContainsKey($_) }
+    )
 
-    if ($PSCmdlet.ShouldProcess($app, "Remove $($v2Names.Count) cosmosdbv2__* app setting(s)")) {
+    $toRemove = @($v2Names + $staleLegacyPresent | Select-Object -Unique)
+
+    if ($toRemove.Count -eq 0) {
+        Write-Host 'No cosmosdbv2__* or stale legacy cosmosdb__* settings found; nothing to remove.'
+        continue
+    }
+
+    Write-Host "Removing $($toRemove.Count) setting(s):"
+    $toRemove | ForEach-Object { Write-Host "  $_" }
+
+    if ($PSCmdlet.ShouldProcess($app, "Remove $($toRemove.Count) legacy cosmos app setting(s)")) {
         az functionapp config appsettings delete `
             --resource-group $ResourceGroup `
             --name $app `
-            --setting-names $v2Names `
+            --setting-names $toRemove `
             -o none
 
         if ($LASTEXITCODE -ne 0) {
@@ -64,15 +81,15 @@ foreach ($app in $FunctionApps) {
     $remaining = az functionapp config appsettings list `
         --resource-group $ResourceGroup `
         --name $app `
-        --query "[?starts_with(name, 'cosmosdbv2__')].name" `
+        --query "[?starts_with(name, 'cosmosdbv2__') || name=='cosmosdb__Container' || name=='cosmosdb__UseGateWay'].name" `
         -o tsv
 
     if ($remaining) {
-        Write-Warning "cosmosdbv2__* keys still present on '$app': $($remaining -join ', ')"
+        Write-Warning "Legacy cosmos keys still present on '$app': $($remaining -join ', ')"
     } else {
-        Write-Host 'No cosmosdbv2__* settings remain.'
+        Write-Host 'No cosmosdbv2__* or stale legacy cosmosdb__* settings remain.'
     }
 }
 
 Write-Host ''
-Write-Host 'Phase 2 complete. cosmosdbv2__* settings removed from updated apps.'
+Write-Host 'Phase 2 complete. Legacy cosmosdbv2__* and stale cosmosdb__* settings removed from updated apps.'

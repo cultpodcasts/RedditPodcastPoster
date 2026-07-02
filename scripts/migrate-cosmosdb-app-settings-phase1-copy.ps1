@@ -11,14 +11,12 @@
 #   az login
 #   .\scripts\migrate-cosmosdb-app-settings-phase1-copy.ps1
 #   .\scripts\migrate-cosmosdb-app-settings-phase1-copy.ps1 -WhatIf
-#   .\scripts\migrate-cosmosdb-app-settings-phase1-copy.ps1 -Force
 #   .\scripts\migrate-cosmosdb-app-settings-phase1-copy.ps1 -SubscriptionId 'a6b8f1a2-6163-41bc-aa6d-e33928939a6e' -ResourceGroup AutomatedInfra -FunctionApps api-infra,discover-infra,indexer-infra
 #
 # Parameters:
 #   -SubscriptionId  Optional. Sets az account before changes.
 #   -ResourceGroup   Default: AutomatedInfra
 #   -FunctionApps    Default: api-infra, discover-infra, indexer-infra
-#   -Force           Overwrite existing cosmosdb__* keys (default: skip if already set)
 #   -WhatIf          Dry run (via SupportsShouldProcess)
 
 [CmdletBinding(SupportsShouldProcess = $true)]
@@ -27,9 +25,7 @@ param(
 
     [string]$ResourceGroup = 'AutomatedInfra',
 
-    [string[]]$FunctionApps = @('api-infra', 'discover-infra', 'indexer-infra'),
-
-    [switch]$Force
+    [string[]]$FunctionApps = @('api-infra', 'discover-infra', 'indexer-infra')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,11 +37,7 @@ $account = Initialize-CosmosDbAppSettingsMigration -SubscriptionId $Subscription
 Write-Host "Azure subscription: $account"
 Write-Host "Resource group: $ResourceGroup"
 Write-Host "Function apps: $($FunctionApps -join ', ')"
-if ($Force) {
-    Write-Host 'Force: existing cosmosdb__* keys will be overwritten.'
-} else {
-    Write-Host 'Existing cosmosdb__* keys will be skipped (use -Force to overwrite).'
-}
+Write-Host 'cosmosdbv2__* values overwrite any existing cosmosdb__* keys (stale legacy cultpodcasts-ukdb keys are replaced).'
 Write-Host ''
 
 foreach ($app in $FunctionApps) {
@@ -65,17 +57,10 @@ foreach ($app in $FunctionApps) {
     }
 
     $toApply = @()
-    $skipped = @()
 
     foreach ($v2Setting in $v2Settings) {
         $targetName = $v2Setting.name -replace '^cosmosdbv2__', 'cosmosdb__'
         $targetExists = $settingsByName.ContainsKey($targetName)
-
-        if ($targetExists -and -not $Force) {
-            $skipped += $targetName
-            Write-Host "Skip $targetName (already set; use -Force to overwrite)"
-            continue
-        }
 
         $action = if ($targetExists) { 'Overwrite' } else { 'Copy' }
         Write-Host "$action $($v2Setting.name) -> $targetName"
@@ -84,9 +69,6 @@ foreach ($app in $FunctionApps) {
 
     if ($toApply.Count -eq 0) {
         Write-Host 'No cosmosdb__* settings to apply.'
-        if ($skipped.Count -gt 0) {
-            Write-Host "Skipped $($skipped.Count) existing key(s)."
-        }
         continue
     }
 
