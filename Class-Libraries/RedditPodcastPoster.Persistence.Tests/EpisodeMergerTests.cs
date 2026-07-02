@@ -145,6 +145,45 @@ public class EpisodeMergerTests
     }
 
     [Fact]
+    public void MergeEpisodes_WhenYouTubeTitleDiffersButReleaseAndDurationMatch_MergesYouTubeOntoExisting()
+    {
+        // Regression: Postmormon Postmortem — YouTube title has typo ("Masscare") vs stored ("Massacre").
+        // Merge uses fuzzy title matching with duration validation.
+        var existingId = Guid.Parse("086b02d5-9ec7-432e-8e57-9279d32374da");
+        var release = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
+        var existingLength = TimeSpan.FromSeconds(878.503);
+        var incomingLength = TimeSpan.FromMinutes(14) + TimeSpan.FromSeconds(39);
+        var podcast = new Podcast { Id = Guid.NewGuid(), Name = "Postmormon Postmortem" };
+        var existing = new Episode
+        {
+            Id = existingId,
+            PodcastId = podcast.Id,
+            Title = "The Bear River Massacre and the Mormon History Behind Washakie Ward",
+            Release = release,
+            Length = existingLength,
+            SpotifyId = SpotifyEpisodeId,
+            Urls = new ServiceUrls { Spotify = SpotifyUrl }
+        };
+        var incoming = Episode.FromYouTube(
+            "l_iHjZWIsXw",
+            "The Bear River Masscare and the Mormon History Behind the Washakie Ward",
+            "YouTube description",
+            incomingLength,
+            false,
+            release,
+            new Uri("https://www.youtube.com/watch?v=l_iHjZWIsXw"),
+            null);
+
+        var result = _sut.MergeEpisodes(podcast, [existing], [incoming]);
+
+        result.AddedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        result.MergedEpisodes.Single().Existing.Id.Should().Be(existingId);
+        existing.YouTubeId.Should().Be("l_iHjZWIsXw");
+        existing.Urls.YouTube!.ToString().Should().Contain("l_iHjZWIsXw");
+    }
+
+    [Fact]
     public void MergeEpisodes_WhenSpotifyIdsDiffer_DoesNotMatchByTitle()
     {
         var podcast = new Podcast { Id = Guid.NewGuid(), Name = "Test Podcast" };

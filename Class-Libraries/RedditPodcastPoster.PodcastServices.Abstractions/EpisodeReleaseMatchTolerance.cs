@@ -5,6 +5,51 @@ namespace RedditPodcastPoster.PodcastServices.Abstractions;
 public static class EpisodeReleaseMatchTolerance
 {
     private static readonly TimeSpan SameReleaseThreshold = TimeSpan.FromHours(3);
+    private static readonly TimeSpan YouTubePublishDelayMatchThreshold = TimeSpan.FromDays(1);
+
+    public static bool EpisodesReleaseMatch(Podcast podcast, Episode existingEpisode, Episode episodeToMerge)
+    {
+        var referenceLength = existingEpisode.Length > TimeSpan.Zero
+            ? existingEpisode.Length
+            : episodeToMerge.Length;
+        var toleranceTicks = GetToleranceTicks(podcast, referenceLength);
+
+        if (Math.Abs((existingEpisode.Release - episodeToMerge.Release).Ticks) < toleranceTicks)
+        {
+            return true;
+        }
+
+        var delay = podcast.YouTubePublishingDelay();
+        if (delay == TimeSpan.Zero)
+        {
+            return false;
+        }
+
+        var existingIsYouTube = HasYouTubeIdentity(existingEpisode);
+        var incomingIsYouTube = HasYouTubeIdentity(episodeToMerge);
+        if (existingIsYouTube == incomingIsYouTube)
+        {
+            return false;
+        }
+
+        if (!existingIsYouTube && incomingIsYouTube)
+        {
+            // PlaylistItemFinder / SearchResultFinder: expected YouTube publish = audio release + delay
+            var expectedPublish = existingEpisode.Release.Add(delay);
+            return Math.Abs((episodeToMerge.Release - expectedPublish).Ticks) <
+                   YouTubePublishDelayMatchThreshold.Ticks;
+        }
+
+        if (existingIsYouTube && HasSpotifyIdentity(episodeToMerge) &&
+            podcast.ReleaseAuthority == Service.YouTube)
+        {
+            // FindSpotifyEpisodeRequestFactory.CalculateRelativeRelease: audio release = stored release - delay
+            var expectedAudioRelease = existingEpisode.Release - delay;
+            return Math.Abs((episodeToMerge.Release - expectedAudioRelease).Ticks) < toleranceTicks;
+        }
+
+        return false;
+    }
 
     public static long GetToleranceTicks(Podcast podcast, TimeSpan episodeLength)
     {
@@ -67,4 +112,10 @@ public static class EpisodeReleaseMatchTolerance
 
         return Constants.YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
     }
+
+    private static bool HasYouTubeIdentity(Episode episode) =>
+        !string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.Urls.YouTube != null;
+
+    private static bool HasSpotifyIdentity(Episode episode) =>
+        !string.IsNullOrWhiteSpace(episode.SpotifyId) || episode.Urls.Spotify != null;
 }

@@ -5,5 +5,5 @@ namespace RedditPodcastPoster.Persistence.Abstractions;
 
 public interface IEpisodeMatcher
 {
-    bool IsMatch(Episode existingEpisode, Episode episodeToMerge, Regex? episodeMatchRegex);
+    bool IsMatch(Episode existingEpisode, Episode episodeToMerge, Regex? episodeMatchRegex, Podcast podcast);
 }
