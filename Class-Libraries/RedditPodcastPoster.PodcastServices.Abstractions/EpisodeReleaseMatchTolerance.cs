@@ -66,18 +66,8 @@ public static class EpisodeReleaseMatchTolerance
         return false;
     }
 
-    public static DateTime GetAudioReleaseForPlatformLookup(Podcast podcast, Episode episode)
-    {
-        if (podcast.ReleaseAuthority == Service.YouTube &&
-            HasYouTubeIdentity(episode) &&
-            HasAudioPlatformIdentity(episode))
-        {
-            // After Spotify/Apple merge, Release is the audio catalogue date — not YouTube publish.
-            return episode.Release;
-        }
-
-        return GetAudioReleaseForPlatformLookup(podcast, episode.Release, HasYouTubeIdentity(episode));
-    }
+    public static DateTime GetAudioReleaseForPlatformLookup(Podcast podcast, Episode episode) =>
+        GetAudioReleaseForPlatformLookup(podcast, episode.Release, HasYouTubeIdentity(episode));
 
     public static DateTime GetAudioReleaseForPlatformLookup(
         Podcast podcast,
@@ -133,6 +123,9 @@ public static class EpisodeReleaseMatchTolerance
 
         return Math.Abs((spotifyCatalogueRelease - expectedRelease).Ticks) < toleranceTicks;
     }
+
+    public static bool ShouldPreserveYouTubeAuthoritativeRelease(Podcast podcast, Episode episode) =>
+        podcast.ReleaseAuthority == Service.YouTube && HasYouTubeIdentity(episode);
 
     public static bool ShouldEnrichDespiteReleaseWindow(Episode episode, Podcast podcast)
     {

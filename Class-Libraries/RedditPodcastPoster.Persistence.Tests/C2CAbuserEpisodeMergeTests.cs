@@ -107,5 +107,85 @@ public class C2CAbuserEpisodeMergeTests
         result.MergedEpisodes.Should().ContainSingle();
         result.MergedEpisodes.Single().Existing.Id.Should().Be(ExistingId);
         existing.SpotifyId.Should().Be(SpotifyId);
+        existing.Release.Should().Be(youTubeRelease);
+    }
+
+    [Fact]
+    public void MergeEpisodes_WhenSpotifyReindexMatchesExistingSpotifyId_PreservesYouTubeReleaseDate()
+    {
+        var podcast = CreatePodcast();
+        var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
+        var spotifyCatalogueRelease = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
+
+        var existing = new Episode
+        {
+            Id = ExistingId,
+            PodcastId = podcast.Id,
+            Title = "I Confronted My Ab*ser 30 Years Later. Everything Changed",
+            Release = youTubeRelease,
+            Length = TimeSpan.Parse("01:28:37"),
+            YouTubeId = "UsqC0L9He2g",
+            SpotifyId = SpotifyId,
+            Urls = new ServiceUrls
+            {
+                YouTube = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g"),
+                Spotify = new Uri($"https://open.spotify.com/episode/{SpotifyId}")
+            }
+        };
+        var incoming = Episode.FromSpotify(
+            SpotifyId,
+            "I Confronted My Abuser 30 Years Later… Everything Changed",
+            "description",
+            TimeSpan.Parse("01:31:59.6990000"),
+            false,
+            spotifyCatalogueRelease,
+            new Uri($"https://open.spotify.com/episode/{SpotifyId}"),
+            null);
+
+        var sut = new EpisodeMerger(new EpisodeMatcher(NullLogger<EpisodeMatcher>.Instance));
+        var result = sut.MergeEpisodes(podcast, [existing], [incoming]);
+
+        result.AddedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().BeEmpty("no fields changed when Spotify catalogue date is newer than YouTube publish");
+        existing.Release.Should().Be(youTubeRelease);
+    }
+
+    [Fact]
+    public void MergeEpisodes_WhenSpotifyOnlyReindexSameDateWithTime_DoesNotBackfillYouTubeReleaseTime()
+    {
+        var podcast = CreatePodcast();
+        var youTubeRelease = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
+        var spotifyReleaseWithTime = new DateTime(2026, 7, 2, 8, 0, 0, DateTimeKind.Utc);
+
+        var existing = new Episode
+        {
+            Id = ExistingId,
+            PodcastId = podcast.Id,
+            Title = "I Confronted My Ab*ser 30 Years Later. Everything Changed",
+            Release = youTubeRelease,
+            Length = TimeSpan.Parse("01:28:37"),
+            YouTubeId = "UsqC0L9He2g",
+            SpotifyId = SpotifyId,
+            Urls = new ServiceUrls
+            {
+                YouTube = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g"),
+                Spotify = new Uri($"https://open.spotify.com/episode/{SpotifyId}")
+            }
+        };
+        var incoming = Episode.FromSpotify(
+            SpotifyId,
+            "I Confronted My Abuser 30 Years Later… Everything Changed",
+            "description",
+            TimeSpan.Parse("01:31:59.6990000"),
+            false,
+            spotifyReleaseWithTime,
+            new Uri($"https://open.spotify.com/episode/{SpotifyId}"),
+            null);
+
+        var sut = new EpisodeMerger(new EpisodeMatcher(NullLogger<EpisodeMatcher>.Instance));
+        var result = sut.MergeEpisodes(podcast, [existing], [incoming]);
+
+        result.MergedEpisodes.Should().BeEmpty("Spotify-only merge must not backfill time on same date");
+        existing.Release.Should().Be(youTubeRelease);
     }
 }

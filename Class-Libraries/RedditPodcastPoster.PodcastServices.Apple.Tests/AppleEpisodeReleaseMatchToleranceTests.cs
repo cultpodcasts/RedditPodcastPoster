@@ -174,7 +174,7 @@ public class EpisodeReleaseMatchToleranceTests
     }
 
     [Fact]
-    public void GetAudioReleaseForPlatformLookup_WhenYouTubeAuthorityEpisodeMergedWithSpotify_UsesStoredAudioRelease()
+    public void GetAudioReleaseForPlatformLookup_WhenYouTubeAuthorityEpisodeMergedWithSpotify_SubtractsPublishingDelay()
     {
         const long c2cDelayTicks = -27216000000000;
         var podcast = new Podcast
@@ -183,10 +183,10 @@ public class EpisodeReleaseMatchToleranceTests
             YouTubePublicationOffset = c2cDelayTicks,
             SpotifyId = "6oTbi9wKZ2czCvSwBKxxoH"
         };
-        var audioRelease = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
+        var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
         var episode = new Episode
         {
-            Release = audioRelease,
+            Release = youTubeRelease,
             YouTubeId = "UsqC0L9He2g",
             SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4",
             Urls = new ServiceUrls
@@ -197,7 +197,44 @@ public class EpisodeReleaseMatchToleranceTests
         };
 
         EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, episode)
-            .Should().Be(audioRelease);
+            .Should().Be(youTubeRelease - TimeSpan.FromTicks(c2cDelayTicks));
+    }
+
+    [Fact]
+    public void ShouldPreserveYouTubeAuthoritativeRelease_WhenYouTubeFirstEpisodeHasYouTubeIdentity_ReturnsTrue()
+    {
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = -27216000000000
+        };
+        var episode = new Episode
+        {
+            Release = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc),
+            YouTubeId = "UsqC0L9He2g",
+            SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4"
+        };
+
+        EpisodeReleaseMatchTolerance.ShouldPreserveYouTubeAuthoritativeRelease(podcast, episode)
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void ShouldPreserveYouTubeAuthoritativeRelease_WhenSpotifyOnlyEpisode_ReturnsFalse()
+    {
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = -27216000000000
+        };
+        var episode = new Episode
+        {
+            Release = new DateTime(2026, 6, 28, 0, 0, 0, DateTimeKind.Utc),
+            SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4"
+        };
+
+        EpisodeReleaseMatchTolerance.ShouldPreserveYouTubeAuthoritativeRelease(podcast, episode)
+            .Should().BeFalse();
     }
 
     [Theory]
@@ -230,5 +267,23 @@ public class EpisodeReleaseMatchToleranceTests
                 tolerance,
                 podcast)
             .Should().BeTrue();
+    }
+
+    [Fact]
+    public void SameUtcCalendarDate_WhenDatesMatch_ReturnsTrue()
+    {
+        var midnight = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
+        var withTime = new DateTime(2026, 7, 2, 8, 0, 0, DateTimeKind.Utc);
+
+        DateOnly.FromDateTime(midnight).Should().Be(DateOnly.FromDateTime(withTime));
+    }
+
+    [Fact]
+    public void SameUtcCalendarDate_WhenDatesDiffer_ReturnsFalse()
+    {
+        var dayOne = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
+        var dayTwo = new DateTime(2026, 7, 2, 8, 0, 0, DateTimeKind.Utc);
+
+        DateOnly.FromDateTime(dayOne).Should().NotBe(DateOnly.FromDateTime(dayTwo));
     }
 }

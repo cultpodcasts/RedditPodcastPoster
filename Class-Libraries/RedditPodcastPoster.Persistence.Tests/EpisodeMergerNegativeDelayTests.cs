@@ -68,8 +68,9 @@ public class EpisodeMergerNegativeDelayTests
         var result = _sut.MergeEpisodes(podcast, [correctOwner, wrongYouTubeOnly], [incoming]);
 
         result.AddedEpisodes.Should().BeEmpty();
-        result.MergedEpisodes.Should().ContainSingle();
-        result.MergedEpisodes.Single().Existing.Id.Should().Be(correctOwnerId);
+        result.MergedEpisodes.Should().BeEmpty(
+            "Spotify re-index must not rewrite YouTube release when catalogue date is newer");
+        correctOwner.Release.Should().Be(new DateTime(2026, 5, 20, 22, 15, 16, DateTimeKind.Utc));
         wrongYouTubeOnly.SpotifyId.Should().BeNullOrEmpty();
     }
 
@@ -111,4 +112,103 @@ public class EpisodeMergerNegativeDelayTests
         result.AddedEpisodes.Should().ContainSingle();
         existing.SpotifyId.Should().BeNullOrEmpty();
     }
+
+    [Fact]
+    public void MergeEpisodes_WhenYouTubeIncomingSameDateWithTime_BackfillsMidnightRelease()
+    {
+        var podcast = new Podcast { Id = PodcastId, Name = "Test Podcast" };
+        var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
+        var youTubeRelease = new DateTime(2026, 7, 1, 12, 30, 0, DateTimeKind.Utc);
+        var existing = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = PodcastId,
+            Title = "Episode title",
+            Release = dateOnlyRelease,
+            Length = TimeSpan.FromMinutes(45),
+            SpotifyId = SpotifyEpisodeId,
+            Urls = new ServiceUrls { Spotify = SpotifyUrl }
+        };
+        var incoming = Episode.FromYouTube(
+            "video-id",
+            "Episode title",
+            "YouTube description",
+            TimeSpan.FromMinutes(45),
+            false,
+            youTubeRelease,
+            new Uri("https://www.youtube.com/watch?v=video-id"),
+            null);
+
+        var result = _sut.MergeEpisodes(podcast, [existing], [incoming]);
+
+        result.MergedEpisodes.Should().ContainSingle();
+        existing.Release.Should().Be(youTubeRelease);
+    }
+
+    [Fact]
+    public void MergeEpisodes_WhenSpotifyOnlyIncomingSameDateWithTime_DoesNotBackfillMidnightRelease()
+    {
+        var podcast = new Podcast { Id = PodcastId, Name = "Test Podcast" };
+        var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
+        var spotifyRelease = new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc);
+        var existing = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = PodcastId,
+            Title = "Episode title",
+            Release = dateOnlyRelease,
+            Length = TimeSpan.FromMinutes(45),
+            SpotifyId = SpotifyEpisodeId,
+            Urls = new ServiceUrls { Spotify = SpotifyUrl }
+        };
+        var incoming = Episode.FromSpotify(
+            SpotifyEpisodeId,
+            "Episode title",
+            "Incoming description",
+            TimeSpan.FromMinutes(45),
+            false,
+            spotifyRelease,
+            SpotifyUrl,
+            null);
+
+        var result = _sut.MergeEpisodes(podcast, [existing], [incoming]);
+
+        result.MergedEpisodes.Should().BeEmpty("Spotify catalogue merge must not backfill time-of-day");
+        existing.Release.Should().Be(dateOnlyRelease);
+    }
+
+    [Fact]
+    public void MergeEpisodes_WhenYouTubeIncomingDifferentDateWithTime_DoesNotBackfillMidnightRelease()
+    {
+        var podcast = new Podcast { Id = PodcastId, Name = "Test Podcast" };
+        var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
+        var youTubeRelease = new DateTime(2026, 7, 2, 12, 30, 0, DateTimeKind.Utc);
+        var existing = new Episode
+        {
+            Id = Guid.NewGuid(),
+            PodcastId = PodcastId,
+            Title = "Episode title",
+            Release = dateOnlyRelease,
+            Length = TimeSpan.FromMinutes(45),
+            SpotifyId = SpotifyEpisodeId,
+            Urls = new ServiceUrls { Spotify = SpotifyUrl }
+        };
+        var incoming = Episode.FromYouTube(
+            "video-id",
+            "Episode title",
+            "YouTube description",
+            TimeSpan.FromMinutes(45),
+            false,
+            youTubeRelease,
+            new Uri("https://www.youtube.com/watch?v=video-id"),
+            null);
+
+        var result = _sut.MergeEpisodes(podcast, [existing], [incoming]);
+
+        result.MergedEpisodes.Should().ContainSingle();
+        existing.Release.Should().Be(dateOnlyRelease, "time backfill requires same UTC calendar date");
+    }
+
+    private const string SpotifyEpisodeId = "1UncRhHtmojlTq2mO0Gntz";
+    private static readonly Uri SpotifyUrl = new($"https://open.spotify.com/episode/{SpotifyEpisodeId}");
 }

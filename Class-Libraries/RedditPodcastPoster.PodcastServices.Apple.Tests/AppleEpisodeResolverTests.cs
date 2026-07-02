@@ -68,10 +68,11 @@ public class AppleEpisodeResolverTests
             SpotifyId = "6oTbi9wKZ2czCvSwBKxxoH",
             AppleId = 1635013492
         };
+        var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
         var episode = new Episode
         {
             Title = "I Confronted My Ab*ser 30 Years Later. Everything Changed",
-            Release = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc),
+            Release = youTubeRelease,
             Length = TimeSpan.Parse("01:28:37"),
             YouTubeId = "UsqC0L9He2g",
             SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4",

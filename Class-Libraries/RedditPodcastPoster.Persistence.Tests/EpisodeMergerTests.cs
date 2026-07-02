@@ -89,10 +89,10 @@ public class EpisodeMergerTests
     }
 
     [Fact]
-    public void MergeEpisodes_WhenStoredCatalogueReleaseOlderThanPublicAvailability_MergesAndUpdatesRelease()
+    public void MergeEpisodes_WhenStoredCatalogueReleaseOlderThanPublicAvailability_PreservesStoredRelease()
     {
         // Spotify catalogue release (24th) can differ from when the episode becomes publicly
-        // available and indexing returns a newer timestamp.
+        // available; re-merge must not overwrite the stored release from Spotify indexing.
         var catalogueRelease = new DateTime(2026, 6, 24, 0, 0, 0, DateTimeKind.Utc);
         var publicRelease = new DateTime(2026, 6, 28, 12, 0, 0, DateTimeKind.Utc);
         var podcast = new Podcast { Id = PodcastId, Name = "Test Podcast" };
@@ -114,8 +114,8 @@ public class EpisodeMergerTests
         var result = _sut.MergeEpisodes(podcast, [existing], [incoming]);
 
         result.AddedEpisodes.Should().BeEmpty();
-        result.MergedEpisodes.Should().ContainSingle();
-        existing.Release.Should().Be(publicRelease);
+        result.MergedEpisodes.Should().BeEmpty("Spotify re-index must not bump release when catalogue date is newer");
+        existing.Release.Should().Be(catalogueRelease);
     }
 
     [Fact]

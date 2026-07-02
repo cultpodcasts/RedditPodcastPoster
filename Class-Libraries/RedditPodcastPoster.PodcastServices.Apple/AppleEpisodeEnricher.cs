@@ -60,7 +60,11 @@ public class AppleEpisodeEnricher(
                     "Episode.Release.TimeOfDay: '{ReleaseTimeOfDay:G}' podcast-id '{PodcastId}' with episode with apple-id '{AppleItemId}'."
                     , request.Episode.Release.TimeOfDay, request.Podcast.Id, appleItem.Id);
                 // Spotify release metadata is date-only; Apple typically publishes simultaneously and carries time-of-day.
-                if (request.Episode.Release.TimeOfDay == TimeSpan.Zero)
+                if (request.Episode.Release.TimeOfDay == TimeSpan.Zero &&
+                    DateOnly.FromDateTime(request.Episode.Release) ==
+                    DateOnly.FromDateTime(appleItem.Release) &&
+                    !EpisodeReleaseMatchTolerance.ShouldPreserveYouTubeAuthoritativeRelease(
+                        request.Podcast, request.Episode))
                 {
                     logger.LogInformation(
                         "Updating Episode.Release.TimeOfDay with: '{AppleItemRelease:G}'.", appleItem.Release);

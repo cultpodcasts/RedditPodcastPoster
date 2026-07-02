@@ -422,7 +422,6 @@ Console-Apps/RedditPodcastPoster/Properties/launchSettings.json
 /scripts/deploy-indexer.json
 /Cloud/Config
 scripts/.deploy-local/*
-scripts/.app-settings-backups/*
 
 # Filled-in secret templates (placeholders only in repo)
 secrets/youtube-keys.local.json

@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
 
@@ -44,7 +45,7 @@ public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMer
                 else
                 {
                     // Merge with existing
-                    var updated = MergeInPlace(existingEpisode, episodeToMerge);
+                    var updated = MergeInPlace(existingEpisode, episodeToMerge, podcast);
                     var (updatedPodcastProperties, updatedTimestamp) = existingEpisode.SetPodcastProperties(podcast);
 
                     if (updated)
@@ -109,9 +110,11 @@ public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMer
         return episodeMatcher.IsMatch(episode, episodeToMerge, episodeMatchRegex, podcast);
     }
 
-    private bool MergeInPlace(Episode existingEpisode, Episode episodeToMerge)
+    private bool MergeInPlace(Episode existingEpisode, Episode episodeToMerge, Podcast podcast)
     {
         var updated = false;
+        var preserveYouTubeRelease =
+            EpisodeReleaseMatchTolerance.ShouldPreserveYouTubeAuthoritativeRelease(podcast, existingEpisode);
         if (existingEpisode.Urls.Spotify == null && episodeToMerge.Urls.Spotify != null)
         {
             existingEpisode.Urls.Spotify ??= episodeToMerge.Urls.Spotify;
@@ -178,14 +181,11 @@ public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMer
             updated = true;
         }
 
-        if (existingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
-            episodeToMerge.Release.TimeOfDay > TimeSpan.Zero)
-        {
-            existingEpisode.Release = episodeToMerge.Release;
-            updated = true;
-        }
-        else if (SpotifyEpisodesMatch(existingEpisode, episodeToMerge) &&
-                 episodeToMerge.Release > existingEpisode.Release)
+        if (!preserveYouTubeRelease &&
+            existingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
+            episodeToMerge.Release.TimeOfDay > TimeSpan.Zero &&
+            DateOnly.FromDateTime(existingEpisode.Release) == DateOnly.FromDateTime(episodeToMerge.Release) &&
+            HasYouTubeOrAppleIdentity(episodeToMerge))
         {
             existingEpisode.Release = episodeToMerge.Release;
             updated = true;
@@ -236,6 +236,9 @@ public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMer
 
         return false;
     }
+
+    private static bool HasYouTubeOrAppleIdentity(Episode episode) =>
+        !string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.AppleId is > 0;
 
     private static bool SpotifyEpisodesMatch(Episode episode, Episode episodeToMerge)
     {
