@@ -68,7 +68,7 @@ public class EpisodeReleaseMatchToleranceTests
     }
 
     [Fact]
-    public void SpotifyCatalogueReleaseMatches_WhenMembersFirstDelayAndSpotifyLandsEarlyWithinFiveDays_ReturnsTrue()
+    public void SpotifyCatalogueReleaseMatches_WhenYouTubeFirstDelayAndSpotifyLandsEarlyWithinFiveDays_ReturnsTrue()
     {
         var podcast = new Podcast
         {
@@ -203,7 +203,7 @@ public class EpisodeReleaseMatchToleranceTests
     [Theory]
     [InlineData("2026-07-02T00:00:00Z")]
     [InlineData("2026-07-06T01:08:06Z")]
-    public void SpotifyCatalogueReleaseMatches_WhenMembersFirstC2CAbuserEpisodeAlignsWithinFiveDays_ReturnsTrue(
+    public void SpotifyCatalogueReleaseMatches_WhenYouTubeFirstC2CAbuserEpisodeAlignsWithinFiveDays_ReturnsTrue(
         string appleCatalogueReleaseText)
     {
         var podcast = new Podcast

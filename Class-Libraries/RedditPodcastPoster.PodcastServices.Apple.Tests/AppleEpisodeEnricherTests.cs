@@ -12,7 +12,7 @@ public class AppleEpisodeEnricherTests
     private const long ExpectedAppleEpisodeId = 1000775174947;
 
     [Fact]
-    public async Task Enrich_WhenMembersFirstYouTubeEpisodeMergedWithSpotify_AppliesAppleUrl()
+    public async Task Enrich_WhenYouTubeFirstEpisodeMergedWithSpotify_AppliesAppleUrl()
     {
         var podcast = new Podcast
         {

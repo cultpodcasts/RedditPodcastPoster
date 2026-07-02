@@ -58,7 +58,7 @@ public class AppleEpisodeResolverTests
     }
 
     [Fact]
-    public async Task FindEpisode_WhenMembersFirstC2CAbuserEpisodeUsesCatalogueReleaseReducer_ReturnsMatch()
+    public async Task FindEpisode_WhenYouTubeFirstC2CAbuserEpisodeUsesCatalogueReleaseReducer_ReturnsMatch()
     {
         const long c2cDelayTicks = -27216000000000;
         var podcast = new Podcast

@@ -8,7 +8,7 @@ namespace RedditPodcastPoster.Persistence.Tests;
 public class EpisodeMergerNegativeDelayTests
 {
     private static readonly Guid PodcastId = Guid.Parse("1aa72d3d-f1e4-458f-a172-62990ef6c200");
-    private static readonly TimeSpan MembersFirstDelay = TimeSpan.FromDays(-33).Add(TimeSpan.FromHours(-12));
+    private static readonly TimeSpan YouTubeFirstDelay = TimeSpan.FromDays(-33).Add(TimeSpan.FromHours(-12));
 
     private readonly EpisodeMerger _sut = new(new EpisodeMatcher(NullLogger<EpisodeMatcher>.Instance));
 
@@ -20,7 +20,7 @@ public class EpisodeMergerNegativeDelayTests
             Id = PodcastId,
             Name = "Cults to Consciousness",
             ReleaseAuthority = Service.YouTube,
-            YouTubePublicationOffset = MembersFirstDelay.Ticks
+            YouTubePublicationOffset = YouTubeFirstDelay.Ticks
         };
 
         var correctOwnerId = Guid.Parse("1c804814-12ac-40c8-a223-88ab7c703d38");
@@ -81,7 +81,7 @@ public class EpisodeMergerNegativeDelayTests
             Id = PodcastId,
             Name = "Cults to Consciousness",
             ReleaseAuthority = Service.YouTube,
-            YouTubePublicationOffset = MembersFirstDelay.Ticks
+            YouTubePublicationOffset = YouTubeFirstDelay.Ticks
         };
 
         var existing = new Episode

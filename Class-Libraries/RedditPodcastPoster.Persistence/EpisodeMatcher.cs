@@ -16,7 +16,7 @@ public class EpisodeMatcher(
 {
     private const int MinFuzzyTitleScore = 70;
     private static readonly TimeSpan DurationTolerance = TimeSpan.FromMinutes(1);
-    private static readonly TimeSpan MembersFirstCrossPlatformDurationTolerance = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan YouTubeFirstCrossPlatformDurationTolerance = TimeSpan.FromMinutes(5);
 
     private readonly CompareInfo _compareInfo = CultureInfo.InvariantCulture.CompareInfo;
 
@@ -128,7 +128,7 @@ public class EpisodeMatcher(
         if (podcast.YouTubePublishingDelay().Ticks < 0 &&
             HasCrossPlatformYouTubeSpotifyPair(existingEpisode, episodeToMerge))
         {
-            return MembersFirstCrossPlatformDurationTolerance;
+            return YouTubeFirstCrossPlatformDurationTolerance;
         }
 
         return DurationTolerance;

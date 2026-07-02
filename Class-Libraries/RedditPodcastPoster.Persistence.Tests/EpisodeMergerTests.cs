@@ -19,7 +19,7 @@ public class EpisodeMergerTests
     public void MergeEpisodes_WhenExistingEpisodeCreatedTodayWithSpotifyUrlOnly_DoesNotAddDuplicate()
     {
         // Regression: podcast 4672c845-15b4-4f88-bbff-567d521fe4a2 — episode submitted via Spotify URL
-        // when publicly available; YouTube members-first timing does not affect Spotify catalogue dates.
+        // when publicly available; YouTube-first timing does not affect Spotify catalogue dates.
         // Indexing must merge onto the stored episode even when titles differ and SpotifyId is unset.
         var podcast = new Podcast { Id = PodcastId, Name = "Test Podcast" };
         var existing = CreateExistingEpisode(
@@ -89,17 +89,17 @@ public class EpisodeMergerTests
     }
 
     [Fact]
-    public void MergeEpisodes_WhenMembersFirstReleaseDateOlderThanPublicAvailability_MergesAndUpdatesRelease()
+    public void MergeEpisodes_WhenStoredCatalogueReleaseOlderThanPublicAvailability_MergesAndUpdatesRelease()
     {
-        // YouTube members-first: episode was on YouTube earlier; Spotify catalogue release (24th) can
-        // differ from when the episode becomes publicly available and indexing returns a newer timestamp.
-        var membersFirstRelease = new DateTime(2026, 6, 24, 0, 0, 0, DateTimeKind.Utc);
+        // Spotify catalogue release (24th) can differ from when the episode becomes publicly
+        // available and indexing returns a newer timestamp.
+        var catalogueRelease = new DateTime(2026, 6, 24, 0, 0, 0, DateTimeKind.Utc);
         var publicRelease = new DateTime(2026, 6, 28, 12, 0, 0, DateTimeKind.Utc);
         var podcast = new Podcast { Id = PodcastId, Name = "Test Podcast" };
         var existing = CreateExistingEpisode(
             SpotifyEpisodeId,
             SpotifyUrl,
-            release: membersFirstRelease,
+            release: catalogueRelease,
             title: "Submitted via URL");
         var incoming = Episode.FromSpotify(
             SpotifyEpisodeId,
