@@ -329,9 +329,9 @@ Implement as test classes under `BusinessRules/`. Each rule = one `[Fact]` or `[
 - [x] Minimal types in `RedditPodcastPoster.Episodes` (no production wiring)
 - [x] Enables Layer 2 tests to compile against destination types
 
-### Step 3 — Domain business rules (PRs 3–5) 🔄 in progress
+### Step 3 — Domain business rules (PRs 3–5) ✅
 
-**Coverage so far:** 34 of ~45 catalog rules (~76% overall; **§5.1–§5.3 complete** — 30 of 30 rules)
+**Coverage:** 34 of ~45 catalog rules (~76% overall; **§5.1–§5.3 complete** — 30 of 30 rules)
 
 - [x] `PlatformIdentityMatchingRules` — 8 rules (Spotify URL/ID, YouTube ID, Apple ID, negative cases, wrong-row guard)
 - [x] `TitleDurationMatchingRules` — 4 rules (typo+duration, release+duration, EpisodeMatchRegex)
@@ -341,12 +341,21 @@ Implement as test classes under `BusinessRules/`. Each rule = one `[Fact]` or `[
 - [x] Implement **real** `EpisodePlatformMatcher`, `EpisodePlatformMerger`, `EpisodePlatformApplier` (domain services in `RedditPodcastPoster.Episodes`)
 - [x] Wire `EpisodeMerger` to domain services (behavior matches pre-wiring — 36 Episodes.Tests + 7 Persistence.Tests green)
 
-**Batch 4 complete.** Domain services implemented with `IReleaseMatchStrategy` / `IReleaseMergePolicy` specializations; `EpisodeMerger` is a thin facade. Step 3 rule catalog for §5.1–§5.3 is complete; remaining Step 3 work is optional domain-unit test expansion before Step 4 orchestration rules.
+Step 3 rule catalog for §5.1–§5.3 is complete.
 
-### Step 4 — Orchestration business rules (PRs 6–7)
+### Step 4 — Orchestration business rules (PRs 6–7) 🔄 in progress
 
-- `IndexingPersistenceRules`, `IndexingEnrichmentRules`, `IndexingScopeRules`
-- `UrlSubmissionPersistenceRules`, `UrlSubmissionEnrichmentRules`
+**Coverage so far:** 11 of ~18 catalog rules (~61%)
+
+- [x] `IndexingPersistenceRules` — 4 rules (persist order enriched→filtered→merged→added, LastIndexed on success, LastIndexed skipped on merge failure, enrich-only skips episode provider)
+- [x] `IndexingEnrichmentRules` — 2 rules (Spotify enricher when link missing, SkipEnrichingFromYouTube skips YouTube enricher)
+- [x] `IndexingScopeRules` — 1 rule (short episodes marked ignored)
+- [x] `UrlSubmissionPersistenceRules` — 4 rules (existing enriched saves episode, unchanged saves nothing, PersistToDatabase=false, new podcast saves both)
+- [ ] `UrlSubmissionEnrichmentRules` — 0 rules (§5.6 enrichment paths via `EpisodeEnricher`)
+- [ ] Remaining indexing enrichment rules (§5.4): Apple/YouTube missing-link, delayed-publishing second pass, in-window skip
+- [ ] Remaining indexing orchestration rules (§5.5): full pipeline discover→merge→enrich→filter, SkipShortEpisodes removal, LatestReleased, expensive-query flags
+
+**Test projects:** `RedditPodcastPoster.PodcastServices.Tests` (7 tests), `UrlSubmission.Tests` (+4 persistence rules, 12 total)
 
 ### Step 5 — Adapter rules (PR 8)
 
