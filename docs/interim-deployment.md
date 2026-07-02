@@ -13,6 +13,7 @@ Use this guide when [`.github/workflows/deploy.yml`](../.github/workflows/deploy
 | `provision` → Functions | [`functions.bicep`](../Infrastructure/functions.bicep) | **No script** | App settings (including `discover__scorer__*`) come from bicep only when this deploys |
 | `provision` → Cosmos diagnostics | [`cosmos-db-diagnostics.bicep`](../Infrastructure/cosmos-db-diagnostics.bicep) | [`enable-cosmos-diagnostics.ps1`](../scripts/enable-cosmos-diagnostics.ps1) / [`disable-cosmos-diagnostics.ps1`](../scripts/disable-cosmos-diagnostics.ps1) | Temporary RU investigation |
 | Telemetry / sampling settings | `jobHostLogging`, `logging`, `memoryProbe` in `functions.bicep` | [`apply-telemetry-app-settings.ps1`](../scripts/apply-telemetry-app-settings.ps1) | **Exception:** patches app settings when bicep is not deploying |
+| Cosmos DB settings (`cosmosdb__*`) | `cosmosdb` in `functions.bicep` | [`migrate-cosmosdb-app-settings-phase1-copy.ps1`](../scripts/migrate-cosmosdb-app-settings-phase1-copy.ps1), [`migrate-cosmosdb-app-settings-phase2-remove-v2.ps1`](../scripts/migrate-cosmosdb-app-settings-phase2-remove-v2.ps1) | **Two-phase migration:** copy `cosmosdbv2__*` → `cosmosdb__*`, then remove v2 keys |
 | `api-deploy` / `discover-deploy` / `indexer-deploy` | Flex blob package | [`deploy-api.ps1`](../scripts/deploy-api.ps1), [`deploy-discover.ps1`](../scripts/deploy-discover.ps1), [`deploy-indexer.ps1`](../scripts/deploy-indexer.ps1) | Code-only; no app settings |
 | Console tools (not in CI) | — | [`publish-console-apps.ps1`](../scripts/publish-console-apps.ps1) | Local Windows executables |
 | Discovery ML model upload (not in CI) | `discovery-models` container | [`upload-discovery-model.ps1`](../scripts/upload-discovery-model.ps1) | After training; requires container |
@@ -39,6 +40,27 @@ az functionapp function list -g AutomatedInfra -n discover-infra -o table
 ```
 
 Function deploy scripts **do not** apply bicep app settings. If you added new settings in `functions.bicep` (e.g. `discover__scorer__Enabled`), you must either run a bicep deploy for the functions template or apply those keys manually once via Azure Portal / `az functionapp config appsettings set` on `discover-infra`.
+
+### Cosmos DB app settings (`cosmosdbv2__*` → `cosmosdb__*`)
+
+Runtime now binds the `cosmosdb` configuration section (`cosmosdb__*` in Azure). Production may still have legacy `cosmosdbv2__*` keys on `api-infra`, `discover-infra`, and `indexer-infra`. When bicep is not deploying, use the two-phase migration scripts:
+
+```powershell
+az login
+
+# Phase 1: copy all cosmosdbv2__* keys to cosmosdb__* (both prefixes coexist)
+.\scripts\migrate-cosmosdb-app-settings-phase1-copy.ps1
+# Dry run: .\scripts\migrate-cosmosdb-app-settings-phase1-copy.ps1 -WhatIf
+# Overwrite existing cosmosdb__*: add -Force
+
+# Deploy code that reads cosmosdb__*, verify function apps
+
+# Phase 2: remove legacy cosmosdbv2__* keys
+.\scripts\migrate-cosmosdb-app-settings-phase2-remove-v2.ps1
+# Dry run: .\scripts\migrate-cosmosdb-app-settings-phase2-remove-v2.ps1 -WhatIf
+```
+
+Optional parameters (both scripts): `-SubscriptionId`, `-ResourceGroup` (default `AutomatedInfra`), `-FunctionApps` (default all three infra apps). Use `-Force` on phase 1 to overwrite existing `cosmosdb__*` keys (e.g. stale legacy values).
 
 ## Azure targets (defaults)
 
@@ -101,6 +123,8 @@ Converts user-secrets JSON (`section:key`) to Azure format (`section__key`).
 | `apply-discover-scorer-settings.ps1` | Apply `discover__scorer__*` on `discover-infra` when bicep not deploying |
 | `apply-youtube-keys.ps1` | Apply YouTube API keys + DisplayNames when bicep not deploying (see [youtube-keys.md](youtube-keys.md)) |
 | `apply-youtube-display-names.ps1` | DisplayNames only (wrapper over `apply-youtube-keys.ps1`) |
+| `migrate-cosmosdb-app-settings-phase1-copy.ps1` | Copy `cosmosdbv2__*` → `cosmosdb__*` on function apps when bicep not deploying |
+| `migrate-cosmosdb-app-settings-phase2-remove-v2.ps1` | Delete legacy `cosmosdbv2__*` keys after runtime verified on `cosmosdb__*` |
 
 Build artifacts (gitignored): `scripts/.deploy-local/`, `artifacts/tools/`, `artifacts/.console-publish-staging/`.
 
