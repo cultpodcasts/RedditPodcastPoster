@@ -5,13 +5,13 @@ using RedditPodcastPoster.JsonSplitCosmosDbUploader;
 using RedditPodcastPoster.Persistence.Abstractions;
 using Episode = RedditPodcastPoster.Models.Episode;
 using IPodcastRepository = RedditPodcastPoster.Persistence.Abstractions.IPodcastRepository;
-using Podcast = RedditPodcastPoster.Persistence.Legacy.Podcast;
+using EmbeddedPodcast = JsonSplitCosmosDbUploader.EmbeddedFileFormat.EmbeddedPodcast;
 
 namespace JsonSplitCosmosDbUploader;
 
 public class JsonSplitCosmosDbUploadProcessor(
     IFileRepository fileRepository,
-    IPodcastRepository podcastRepositoryV2,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
     IPodcastFactory podcastFactory,
@@ -19,7 +19,7 @@ public class JsonSplitCosmosDbUploadProcessor(
 {
     public async Task Run(JsonSplitCosmosDbUploadRequest request)
     {
-        var sourcePodcast = await fileRepository.Read<Podcast>(Path.GetFileNameWithoutExtension(request.FileName));
+        var sourcePodcast = await fileRepository.Read<EmbeddedPodcast>(Path.GetFileNameWithoutExtension(request.FileName));
         if (sourcePodcast != null)
         {
             logger.LogInformation("'{EpisodesCount}' episodes.", sourcePodcast.Episodes.Count);
@@ -58,7 +58,7 @@ public class JsonSplitCosmosDbUploadProcessor(
                 podcast.YouTubePublicationOffset = sourcePodcast.YouTubePublicationOffset;
                 podcast.Language = sourcePodcast.Language;
 
-                await podcastRepositoryV2.Save(podcast);
+                await podcastRepository.Save(podcast);
 
                 var sourceEpisodes = sourcePodcast.Episodes
                     .Skip(i * episodesPerFile)

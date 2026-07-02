@@ -85,7 +85,11 @@ public class AppleUrlCategoriser(
 
         var episode = await appleEpisodeResolver.FindEpisode(findEpisodeRequest, indexingContext,
                 y => findEpisodeRequest.Released.HasValue &&
-                     Math.Abs((y.Release - findEpisodeRequest.Released.Value).Ticks) < ticks);
+                     EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
+                         y.Release,
+                         findEpisodeRequest.Released.Value,
+                         ticks,
+                         matchingPodcast));
 
         if (episode != null)
         {

@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Persistence.Abstractions;
-using RedditPodcastPoster.Persistence.Legacy;
+﻿using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using IPodcastRepository = RedditPodcastPoster.Persistence.Abstractions.IPodcastRepository;
 
@@ -8,11 +6,8 @@ namespace CosmosDbFixer;
 
 public class CosmosDbFixer(
     IPodcastRepository podcastRepository,
-    IEpisodeRepository episodeRepository,
-    ILogger<CosmosDbRepository> logger)
+    IEpisodeRepository episodeRepository)
 {
-    private readonly ILogger<CosmosDbRepository> _logger = logger;
-
     public async Task Run()
     {
         var podcastIds = await podcastRepository.GetAll().Select(x => x.Id).ToListAsync();

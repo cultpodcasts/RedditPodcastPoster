@@ -22,9 +22,9 @@ param cloudflareR2AccessKey string
 @secure()
 param cloudflareR2SecretKey string
 @secure()
-param cosmosdbAuthKeyOrResourceTokenV2 string
+param cosmosdbAuthKeyOrResourceToken string
 @secure()
-param cosmosdbEndpointV2 string
+param cosmosdbEndpoint string
 @secure()
 param listenNotesKey string
 @secure()
@@ -201,18 +201,18 @@ var content= {
     content__SubjectsKey: 'subjects'
 }
 
-var cosmosdbv2= {
-    cosmosdbv2__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceTokenV2
-    cosmosdbv2__DatabaseId: 'cultpodcasts-db'
-    cosmosdbv2__Endpoint: cosmosdbEndpointV2
-    cosmosdbv2__PodcastsContainer: 'Podcasts'
-    cosmosdbv2__EpisodesContainer: 'Episodes'
-    cosmosdbv2__SubjectsContainer: 'Subjects'
-    cosmosdbv2__ActivitiesContainer: 'Activity'
-    cosmosdbv2__DiscoveryContainer: 'Discovery'
-    cosmosdbv2__LookUpsContainer: 'LookUps'
-    cosmosdbv2__PushSubscriptionsContainer: 'PushSubscriptions'
-    cosmosdbv2__UseGateway: 'false'
+var cosmosdb= {
+    cosmosdb__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken
+    cosmosdb__DatabaseId: 'cultpodcasts-db'
+    cosmosdb__Endpoint: cosmosdbEndpoint
+    cosmosdb__PodcastsContainer: 'Podcasts'
+    cosmosdb__EpisodesContainer: 'Episodes'
+    cosmosdb__SubjectsContainer: 'Subjects'
+    cosmosdb__ActivitiesContainer: 'Activity'
+    cosmosdb__DiscoveryContainer: 'Discovery'
+    cosmosdb__LookUpsContainer: 'LookUps'
+    cosmosdb__PushSubscriptionsContainer: 'PushSubscriptions'
+    cosmosdb__UseGateway: 'false'
 }
 
 var delayedPublication= {
@@ -449,7 +449,7 @@ var coreSettings= union(
     bluesky, 
     cloudflare, 
     content,
-    cosmosdbv2,
+    cosmosdb,
     delayedPublication,
     pushSubscriptions, 
     reddit, 

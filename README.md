@@ -2,7 +2,7 @@
 
 A .NET solution for [cultpodcasts.com](https://cultpodcasts.com): discover podcasts, index episodes from multiple providers, enrich metadata, publish to social channels, and expose a public API.
 
-Primary data is stored in **Azure Cosmos DB (v2)** with detached `Podcasts` and `Episodes` containers. Episode search uses **Azure AI Search**.
+Primary data is stored in **Azure Cosmos DB** with detached `Podcasts` and `Episodes` containers. Episode search uses **Azure AI Search**.
 
 Licensed under the MIT license.
 
@@ -51,14 +51,14 @@ Console apps share one user-secrets store (`UserSecretsId` on each `.csproj`). I
 Set a value:
 
 ```powershell
-dotnet user-secrets set "cosmosdbv2:Endpoint" "https://....documents.azure.com:443/" --project Console-Apps/Index/Index.csproj
+dotnet user-secrets set "cosmosdb:Endpoint" "https://....documents.azure.com:443/" --project Console-Apps/Index/Index.csproj
 ```
 
 Console apps also accept environment variables prefixed with `RedditPodcastPoster_` (e.g. `RedditPodcastPoster_youtubeChannel__PreferUploadsPlaylist=true`).
 
 ### Azure Functions (production)
 
-Function apps use **application settings** with `__` as the section separator (e.g. `cosmosdbv2__Endpoint`, `indexer__ReleasedDaysAgo`). See `functions.bicep` for the canonical list.
+Function apps use **application settings** with `__` as the section separator (e.g. `cosmosdb__Endpoint`, `indexer__ReleasedDaysAgo`). See `functions.bicep` for the canonical list.
 
 ### Azure Functions (local)
 
@@ -82,17 +82,17 @@ Use colon notation in user-secrets; Azure uses `__` instead of `:`.
 
 ```json
 {
-  "cosmosdbv2:Endpoint": "https://xxxx.documents.azure.com:443/",
-  "cosmosdbv2:AuthKeyOrResourceToken": "xxxx",
-  "cosmosdbv2:DatabaseId": "cultpodcasts-db",
-  "cosmosdbv2:PodcastsContainer": "Podcasts",
-  "cosmosdbv2:EpisodesContainer": "Episodes",
-  "cosmosdbv2:SubjectsContainer": "Subjects",
-  "cosmosdbv2:ActivitiesContainer": "Activity",
-  "cosmosdbv2:DiscoveryContainer": "Discovery",
-  "cosmosdbv2:LookUpsContainer": "LookUps",
-  "cosmosdbv2:PushSubscriptionsContainer": "PushSubscriptions",
-  "cosmosdbv2:UseGateway": false,
+  "cosmosdb:Endpoint": "https://xxxx.documents.azure.com:443/",
+  "cosmosdb:AuthKeyOrResourceToken": "xxxx",
+  "cosmosdb:DatabaseId": "cultpodcasts-db",
+  "cosmosdb:PodcastsContainer": "Podcasts",
+  "cosmosdb:EpisodesContainer": "Episodes",
+  "cosmosdb:SubjectsContainer": "Subjects",
+  "cosmosdb:ActivitiesContainer": "Activity",
+  "cosmosdb:DiscoveryContainer": "Discovery",
+  "cosmosdb:LookUpsContainer": "LookUps",
+  "cosmosdb:PushSubscriptionsContainer": "PushSubscriptions",
+  "cosmosdb:UseGateway": false,
 
   "spotify:ClientId": "xxxx",
   "spotify:ClientSecret": "xxxx",

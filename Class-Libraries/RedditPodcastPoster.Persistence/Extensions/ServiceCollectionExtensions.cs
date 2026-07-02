@@ -13,8 +13,7 @@ public static class ServiceCollectionExtensions
         {
             return services
                 .AddSingleton<ICosmosDbClientFactory, CosmosDbClientFactory>()
-                .AddKeyedSingleton<CosmosClient>("v2", (sp, _) =>
-                    sp.GetRequiredService<ICosmosDbClientFactory>().Create())
+                .AddSingleton(sp => sp.GetRequiredService<ICosmosDbClientFactory>().Create())
                 .AddSingleton<ICosmosDbContainerFactory, CosmosDbContainerFactory>()
                 .AddSingleton<IEpisodeMatcher, EpisodeMatcher>()
                 .AddSingleton<IEpisodeMerger, EpisodeMerger>()
@@ -50,7 +49,7 @@ public static class ServiceCollectionExtensions
                 })
                 .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
-                .BindConfiguration<CosmosDbSettings>("cosmosdbv2");
+                .BindConfiguration<CosmosDbSettings>("cosmosdb");
         }
 
         public IServiceCollection AddFileRepository(string containerName = "",

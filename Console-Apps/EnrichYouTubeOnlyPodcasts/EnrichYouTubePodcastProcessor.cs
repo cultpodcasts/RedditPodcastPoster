@@ -143,8 +143,7 @@ public class EnrichYouTubePodcastProcessor(
         }
 
         // Get existing episodes from detached repository
-        var existingEpisodesV2 = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
-        var existingEpisodes = existingEpisodesV2.ToList();
+        var existingEpisodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
 
         var missingPlaylistItems = playlistQueryResponse.Result.Where(playlistItem =>
             existingEpisodes.All(episode => !Matches(episode, playlistItem, episodeMatchRegex))).ToList();

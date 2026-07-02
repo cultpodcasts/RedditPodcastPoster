@@ -88,7 +88,7 @@ public class PodcastUpdater(
             // before enrichment and elimination filtering so new episodes are not evaluated only on a later index pass.
             episodes = episodes
                 .Concat(mergeResult.AddedEpisodes)
-                .Where(x => ReduceToSinceIncorporatingPublishDelay(x, youTubePublishingDelay, releasedSince))
+                .Where(x => EpisodeInIndexingScope(x, podcast, youTubePublishingDelay, releasedSince))
                 .ToList();
         }
         else
@@ -98,7 +98,7 @@ public class PodcastUpdater(
                 .ToListAsync();
 
             episodes = episodes
-                .Where(x => ReduceToSinceIncorporatingPublishDelay(x, youTubePublishingDelay, releasedSince))
+                .Where(x => EpisodeInIndexingScope(x, podcast, youTubePublishingDelay, releasedSince))
                 .Where(episode =>
                     (!string.IsNullOrWhiteSpace(podcast.SpotifyId) && string.IsNullOrWhiteSpace(episode.SpotifyId)) ||
                     (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
@@ -320,7 +320,21 @@ public class PodcastUpdater(
         return context;
     }
 
-    private bool ReduceToSinceIncorporatingPublishDelay(
+    private static bool EpisodeInIndexingScope(
+        Episode episode,
+        Podcast podcast,
+        TimeSpan youTubePublishingDelay,
+        DateTime releasedSince)
+    {
+        if (EpisodeReleaseMatchTolerance.ShouldEnrichDespiteReleaseWindow(episode, podcast))
+        {
+            return ReduceToSinceIncorporatingPublishDelay(episode, youTubePublishingDelay, DateTime.MinValue);
+        }
+
+        return ReduceToSinceIncorporatingPublishDelay(episode, youTubePublishingDelay, releasedSince);
+    }
+
+    private static bool ReduceToSinceIncorporatingPublishDelay(
         Episode episode,
         TimeSpan youTubePublishingDelay,
         DateTime releasedSince)

@@ -44,7 +44,6 @@ public class AddYouTubeChannelProcessor(
             newPodcast.ReleaseAuthority = Service.YouTube;
             newPodcast.PrimaryPostService = Service.YouTube;
             
-            // Convert to V2 for saving
             await repository.Save(newPodcast);
             
             logger.LogInformation("Created podcast with name '{NewPodcastName}' and id '{NewPodcastId}'.", newPodcast.Name, newPodcast.Id);

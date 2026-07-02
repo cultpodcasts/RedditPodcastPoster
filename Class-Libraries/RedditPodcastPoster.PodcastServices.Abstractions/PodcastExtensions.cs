@@ -76,7 +76,12 @@ public static class PodcastExtensions
     private static DateTime GetYouTubePublishingDelayExpiry(Podcast podcast, DateTime release, TimeSpan length)
     {
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
-        if (youTubePublishingDelay > TimeSpan.Zero && length > TimeSpan.Zero)
+        // Episode length extends the delay only for YouTube-authority podcasts awaiting delayed
+        // audio release. Audio-first podcasts publish to YouTube after release + delay regardless
+        // of episode duration.
+        if (podcast.ReleaseAuthority == Service.YouTube &&
+            youTubePublishingDelay > TimeSpan.Zero &&
+            length > TimeSpan.Zero)
         {
             youTubePublishingDelay = youTubePublishingDelay.Add(length);
         }

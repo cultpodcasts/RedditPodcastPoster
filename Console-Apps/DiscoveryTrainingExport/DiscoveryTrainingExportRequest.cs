@@ -4,7 +4,7 @@ namespace DiscoveryTrainingExport;
 
 public class DiscoveryTrainingExportRequest
 {
-    [Option('e', "export-path", Required = false, HelpText = "Root folder of a CosmosDbDownloaderV2 export.")]
+    [Option('e', "export-path", Required = false, HelpText = "Root folder of a CosmosDbDownloader export.")]
     public string? ExportPath { get; set; }
 
     [Option('o', "output-path", Required = false,

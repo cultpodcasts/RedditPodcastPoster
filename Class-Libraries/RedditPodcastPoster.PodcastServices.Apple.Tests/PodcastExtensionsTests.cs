@@ -135,4 +135,43 @@ public class PodcastExtensionsTests
                 TimeSpan.FromHours(1))
             .Should().BeTrue();
     }
+
+    [Fact]
+    public void IsDelayedYouTubePublishing_WhenAudioPodcastAwaitingYouTubeAndDelayHasPassed_IgnoresEpisodeLength()
+    {
+        var podcast = new Podcast
+        {
+            SpotifyId = "spotify",
+            AppleId = 123,
+            YouTubeChannelId = "channel",
+            YouTubePublicationOffset = TimeSpan.FromHours(1).Ticks
+        };
+        var episode = new Episode
+        {
+            Release = DateTime.UtcNow.AddHours(-2),
+            Length = TimeSpan.FromHours(1) + TimeSpan.FromMinutes(51),
+            Urls = new ServiceUrls()
+        };
+
+        podcast.IsDelayedYouTubePublishing(episode).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsDelayedYouTubePublishing_WhenAudioPodcastAwaitingYouTubeAndDelayNotYetDue_ReturnsTrue()
+    {
+        var podcast = new Podcast
+        {
+            SpotifyId = "spotify",
+            YouTubeChannelId = "channel",
+            YouTubePublicationOffset = TimeSpan.FromHours(1).Ticks
+        };
+        var episode = new Episode
+        {
+            Release = DateTime.UtcNow.AddMinutes(-30),
+            Length = TimeSpan.FromHours(2),
+            Urls = new ServiceUrls()
+        };
+
+        podcast.IsDelayedYouTubePublishing(episode).Should().BeTrue();
+    }
 }

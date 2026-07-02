@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 
@@ -54,6 +55,66 @@ public class AppleEpisodeResolverTests
 
         result.Should().NotBeNull();
         result!.Id.Should().Be(1000775078015);
+    }
+
+    [Fact]
+    public async Task FindEpisode_WhenYouTubeFirstC2CAbuserEpisodeUsesCatalogueReleaseReducer_ReturnsMatch()
+    {
+        const long c2cDelayTicks = -27216000000000;
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = c2cDelayTicks,
+            SpotifyId = "6oTbi9wKZ2czCvSwBKxxoH",
+            AppleId = 1635013492
+        };
+        var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
+        var episode = new Episode
+        {
+            Title = "I Confronted My Ab*ser 30 Years Later. Everything Changed",
+            Release = youTubeRelease,
+            Length = TimeSpan.Parse("01:28:37"),
+            YouTubeId = "UsqC0L9He2g",
+            SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4",
+            Urls = new ServiceUrls
+            {
+                YouTube = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g"),
+                Spotify = new Uri("https://open.spotify.com/episode/6O1Z1s7ca0PI8Gq1rdt3j4")
+            }
+        };
+        var lookupRelease = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, episode);
+        var appleEpisodes = new[]
+        {
+            new AppleEpisode(
+                1000775174947,
+                "I Confronted My Abuser 30 Years Later… Everything Changed",
+                new DateTime(2026, 7, 2, 8, 0, 0, DateTimeKind.Utc),
+                TimeSpan.Parse("01:31:59"),
+                new Uri(
+                    "https://podcasts.apple.com/us/podcast/i-confronted-my-abuser-30-years-later-everything-changed/id1635013492?i=1000775174947"),
+                string.Empty,
+                false)
+        };
+        var request = FindAppleEpisodeRequestFactory.Create(podcast, episode);
+        var ticks = EpisodeReleaseMatchTolerance.GetToleranceTicks(podcast, episode.Length);
+
+        var sut = new AppleEpisodeResolver(
+            new StubApplePodcastService(appleEpisodes),
+            NullLogger<AppleEpisodeResolver>.Instance);
+
+        var result = await sut.FindEpisode(
+            request,
+            new IndexingContext(),
+            y => request.Released.HasValue &&
+                 EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
+                     y.Release,
+                     lookupRelease,
+                     ticks,
+                     podcast));
+
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(1000775174947);
+        request.Released.Should().Be(lookupRelease);
     }
 
     private sealed class StubApplePodcastService(IEnumerable<AppleEpisode> episodes) : ICachedApplePodcastService

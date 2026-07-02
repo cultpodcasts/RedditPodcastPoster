@@ -1,5 +1,8 @@
 # V2 Services - Complete Reference Guide
 
+> **Archived:** Historical migration reference. Runtime code no longer uses `*V2` service names.
+> See [`README.md`](./README.md) for current architecture.
+
 ## Overview
 This guide provides a complete reference for all V2 services created to support the detached episode architecture.
 

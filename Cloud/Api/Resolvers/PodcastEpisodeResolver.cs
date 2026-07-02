@@ -7,7 +7,7 @@ using Podcast = RedditPodcastPoster.Models.Podcast;
 namespace Api.Resolvers;
 
 public class PodcastEpisodeResolver(
-    IPodcastRepository podcastRepositoryV2,
+    IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ILogger<PodcastEpisodeResolver> logger
 ) : IPodcastEpisodeResolver
@@ -19,7 +19,7 @@ public class PodcastEpisodeResolver(
         Podcast? podcast = null;
         if (request.PodcastName != null)
         {
-            var podcasts = await podcastRepositoryV2.GetAllBy(x => x.Name == request.PodcastName).ToArrayAsync();
+            var podcasts = await podcastRepository.GetAllBy(x => x.Name == request.PodcastName).ToArrayAsync();
             if (podcasts.Length > 1)
             {
                 return new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.PodcastConflict);
@@ -35,7 +35,7 @@ public class PodcastEpisodeResolver(
         else if (request.PodcastId != null)
         {
             var episodeTask = episodeRepository.GetEpisode(request.PodcastId.Value, request.EpisodeId);
-            var podcastTask = podcastRepositoryV2.GetPodcast(request.PodcastId.Value);
+            var podcastTask = podcastRepository.GetPodcast(request.PodcastId.Value);
             await Task.WhenAll(episodeTask, podcastTask);
             episode = episodeTask.Result;
             podcast = podcastTask.Result;
@@ -45,7 +45,7 @@ public class PodcastEpisodeResolver(
             episode = await episodeRepository.GetBy(x => x.Id == request.EpisodeId);
             if (episode != null)
             {
-                podcast = await podcastRepositoryV2.GetPodcast(episode.PodcastId);
+                podcast = await podcastRepository.GetPodcast(episode.PodcastId);
             }
 
             logger.LogWarning("{method} used without podcast-id. Episode-id: '{episodeId}'.", caller,

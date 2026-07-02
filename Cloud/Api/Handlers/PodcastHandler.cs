@@ -20,7 +20,7 @@ using RedditPodcastPoster.UrlShortening;
 using Episode = RedditPodcastPoster.Models.Episode;
 using Podcast = Api.Dtos.Podcast;
 using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
-using V2Podcast = RedditPodcastPoster.Models.Podcast;
+using DomainPodcast = RedditPodcastPoster.Models.Podcast;
 
 namespace Api.Handlers;
 
@@ -365,7 +365,7 @@ public class PodcastHandler(
         return failure;
     }
 
-    private async Task PropagatePodcastLanguageToEpisodes(V2Podcast podcast, CancellationToken c)
+    private async Task PropagatePodcastLanguageToEpisodes(DomainPodcast podcast, CancellationToken c)
     {
         var podcastLanguage = podcast.Language?.Trim();
         if (string.IsNullOrWhiteSpace(podcastLanguage))
@@ -404,7 +404,7 @@ public class PodcastHandler(
         }
     }
 
-    private async Task HydrateDetachedEpisodePodcastProjection(V2Podcast podcast, CancellationToken c)
+    private async Task HydrateDetachedEpisodePodcastProjection(DomainPodcast podcast, CancellationToken c)
     {
         await foreach (var episode in episodeRepository.GetByPodcastId(podcast.Id).WithCancellation(c))
         {
@@ -437,7 +437,7 @@ public class PodcastHandler(
         return episodes;
     }
 
-    private async Task UpdateName(V2Podcast podcast, string? podcastName)
+    private async Task UpdateName(DomainPodcast podcast, string? podcastName)
     {
         if (string.IsNullOrWhiteSpace(podcastName))
         {
@@ -457,7 +457,7 @@ public class PodcastHandler(
         podcast.FileKey = FileKeyFactory.GetFileKey(podcast.Name);
     }
 
-    private async Task<bool> DeleteEpisodesFromSearchIndex(CancellationToken c, V2Podcast podcast)
+    private async Task<bool> DeleteEpisodesFromSearchIndex(CancellationToken c, DomainPodcast podcast)
     {
         var failure = false;
         var episodeIds = (await GetEpisodeIdsByPodcastId(podcast.Id, c))
@@ -495,7 +495,7 @@ public class PodcastHandler(
         return !failure;
     }
 
-    private async Task DeleteEpisodesFromShortner(V2Podcast podcast, CancellationToken c)
+    private async Task DeleteEpisodesFromShortner(DomainPodcast podcast, CancellationToken c)
     {
         var detachedEpisodes = await GetDetachedEpisodesByPodcastId(podcast.Id, c);
 
@@ -505,7 +505,7 @@ public class PodcastHandler(
     }
 
 
-    private void UpdatePodcast(V2Podcast podcast, Podcast podcastChangeRequest)
+    private void UpdatePodcast(DomainPodcast podcast, Podcast podcastChangeRequest)
     {
         if (podcastChangeRequest.Removed != null)
         {
