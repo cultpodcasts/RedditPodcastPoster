@@ -18,7 +18,7 @@
 
 | Phase | Status | Risk | PR |
 |-------|--------|------|----|
-| **A** — Domain types + applier/merger/matcher (internal) | ✅ Done | Medium | (via Steps 2–3 / EpisodeMerger wiring) |
+| **A** — Domain types + applier/merger/matcher (internal) | 🟢 In production (Indexer soak) | Medium | [#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871) |
 | **B** — UrlSubmission through applier | ⬜ Not started | Medium | _PR link_ |
 | **C** — Platform adapters at boundaries | ⬜ Not started | Medium–High | _PR link_ |
 | **D** — Collapse finders into single matcher | ⬜ Not started | Medium–High | _PR link_ |
@@ -27,9 +27,9 @@
 
 ---
 
-## Phase 0 status (done — do not re-open)
+## Phase 0 / Phase A status
 
-Steps 1–6 and **Phase A** are complete. Brief record only:
+Steps 1–6 are complete. **Phase A** is **in production** on **Indexer** (soak). Phases B–F not started.
 
 | Step / phase | Outcome |
 |--------------|---------|
@@ -38,7 +38,16 @@ Steps 1–6 and **Phase A** are complete. Brief record only:
 | Adapters | Exist under `Episodes/Adapters/` with Layer 1 rules — **not** wired at provider/resolver boundaries |
 | Applier | Used inside Episodes (via merger path) — **not** used by UrlSubmission `EpisodeEnricher` |
 
-### Risk to production (Phase A — historical / deploy context)
+### Phase A checklist
+
+- [x] Domain types + applier / merger / matcher implemented (internal)
+- [x] `EpisodeMerger` / `EpisodeMatcher` wired to `EpisodePlatformMatcher` / `EpisodePlatformMerger`
+- [x] Steps 1–6 test gate green; coverage baseline + CI gate
+- [x] Released via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)
+- [x] Deployed to **Indexer** for soak (2026-07-03)
+- [ ] Soak review (pending — check for major issues, or review tomorrow)
+
+### Risk to production (Phase A — live / soak context)
 
 - **Risk level:** Medium
 - **Blast radius:** Indexer host — match/merge via `EpisodeMerger` → domain matcher/merger/applier
@@ -48,7 +57,7 @@ Steps 1–6 and **Phase A** are complete. Brief record only:
   - Subtle merge drift vs pre-refactor `EpisodeMerger` on edge cases not covered by rules
   - YouTube URL-only backfill paths may diverge if not fully characterized
   - `YouTubePublishDelayMatchStrategy` at 0% coverage — delay-window match behavior under-tested
-- **Recommended soak / deploy scope:** Indexer only
+- **Soak / deploy scope:** Indexer only (deployed 2026-07-03; soak review pending)
 - **Rollback notes:** Revert Phase A wiring (`EpisodeMerger` / `EpisodeMatcher` → domain services); no UrlSubmission rollback needed
 
 ---
