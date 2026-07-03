@@ -356,9 +356,15 @@ Step 3 rule catalog for §5.1–§5.3 is complete.
 
 **Test projects:** `RedditPodcastPoster.PodcastServices.Tests` (19 tests), `UrlSubmission.Tests` (16 total, 8 Step 4 rules)
 
-### Step 5 — Adapter rules (PR 8)
+### Step 5 — Adapter rules (PR 8) ✅
 
-- Spotify / Apple / YouTube / ResolvedItem adapters
+**Coverage:** 6 adapter rule tests — Layer 1 catalogue + UrlSubmission resolved-item mapping
+
+- [x] `IEpisodeCatalogueAdapter<TInput>` + lightweight input DTOs in `RedditPodcastPoster.Episodes/Adapters/` (no Spotify SDK / platform assembly refs)
+- [x] `SpotifyEpisodeAdapter`, `AppleEpisodeAdapter`, `YouTubeEpisodeAdapter` — catalogue inputs mirror `Episode.From*` factory params
+- [x] `ResolvedSpotifyItemAdapter`, `ResolvedAppleItemAdapter`, `ResolvedYouTubeItemAdapter` — minimal resolved-item DTOs for UrlSubmission boundary
+- [x] `PlatformCatalogueAdapterRules` — Spotify → `ReleasePrecision.DateOnly`; Apple → `DateTimeUtc`; YouTube publish datetime as-is
+- [x] `ResolvedItemAdapterRules` — each `Resolved*Item` input → `PlatformLink` on `EpisodeCandidate.SourceLink`
 
 ### Step 6 — Coverage baseline + CI gate (PR 9)
 
