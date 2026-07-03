@@ -108,6 +108,9 @@ public sealed class DomainTestFixture
   public string CreateYouTubeChannelId() =>
     "UC" + CreateRandomString(_fixture, YouTubeIdAlphabet, 22);
 
+  /// <summary>Random Guid for generic test identity (podcast/episode ids not asserted).</summary>
+  public Guid CreateGuid() => _fixture.Create<Guid>();
+
   public Uri DefaultSpotifyUrl(string spotifyEpisodeId) =>
     new($"https://open.spotify.com/episode/{spotifyEpisodeId}");
 

@@ -22,7 +22,7 @@ public class IndexingScopeRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId(), Guid.Parse("99999999-9999-9999-9999-999999999999"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         harness.PodcastRepository.Seed(podcast);
 
         var shortEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b

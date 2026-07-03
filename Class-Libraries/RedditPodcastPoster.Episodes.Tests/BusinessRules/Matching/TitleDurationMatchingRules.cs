@@ -107,7 +107,7 @@ public class TitleDurationMatchingRules
         {
             e.Title = storedTitle;
             e.Release = sharedRelease;
-            e.Length = TimeSpan.FromMinutes(30);
+            e.Length = _fixture.CreateDuration();
         });
         var expected = EpisodeExpectation.From(stored);
         var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b

@@ -55,7 +55,7 @@ Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-re
 | **MUST** | Call zero-arg `CreateSpotifyCatalogueInput()`, `CreateAppleCatalogueInput()`, `CreateYouTubeCatalogueInput()` (and resolved-item equivalents) and trust defaults unless the rule needs more |
 | **ONLY WHEN** | The rule asserts an exact release, a relationship between two releases, or identity matching — then override via builder callback: `CreateAppleCatalogueInput(b => b.WithRelease(...))` |
 | **ONLY WHEN** | Two episodes must share title/duration for matching — capture one generated value and reuse: `var title = _fixture.Create<string>();` then `.WithTitle(title)` on both sides |
-| **NEVER** | Hardcode arrange literals that do not appear in the assertion (see §5 anti-patterns) |
+| **NEVER** | Hardcode arrange literals when the assertion does not depend on the exact value (see §5 anti-patterns) |
 
 ### Dates and IDs
 
@@ -64,20 +64,30 @@ Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-re
 | **MUST** | Use relative date helpers: `DomainTestFixture.UtcToday`, `UtcDaysAgo`, `UtcDateDaysAgo`, `UtcDaysFromNow`, `UtcAtTime` |
 | **MUST** | Use `UtcDateDaysAgo` / `.WithRelease()` (floors to `.Date`) for Spotify — Spotify catalogue has **no time-of-day** |
 | **MUST** | Use `UtcAtTime` for Apple and YouTube releases that carry publish time-of-day |
+| **MUST** | Generate Guids with `_fixture.CreateGuid()` or `_fixture.Create<Guid>()` unless the assertion depends on that exact Guid |
+| **MUST** | Capture entity IDs from built specimens (`podcast.Id`, `stored.Id`, `input.SpotifyId`) when the rule cares about identity continuity — not a fresh hardcoded Guid |
 | **MUST** | Assert platform IDs via specimen properties (`input.AppleId`, `spotifyInput.SpotifyId`) or `_fixture.CreateAppleId()` — not inline magic numbers/strings |
 | **NEVER** | Use fixed calendar literals (`new DateTime(2026, 6, 4, ...)`) in arrange — use relative date helpers |
+| **NEVER** | Use `Guid.Parse("...")`, `new Guid("...")`, or any hardcoded Guid literal when the assertion does not depend on that exact value |
 | **NEVER** | Hardcode platform IDs in generic tests (`const long appleId = 1234567890123`, `"6O1Z1s7ca0PI8Gq1rdt3j4"`) |
 | **NEVER** | Name tests, fixture methods, or arrange data after production podcasts or episodes (C2C, Postmormon, etc.) |
 
 ### Static literals in arrange
 
+**When the value does not matter to the assertion, NEVER hardcode it.** Use fixture specimens or capture from built objects instead.
+
 | | Rule |
 |---|------|
 | **MUST** | Generate strings with `_fixture.Create<string>()` unless the rule is about that exact string (typo match, regex, truncated description) |
+| **MUST** | Generate Guids with `_fixture.CreateGuid()` or `_fixture.Create<Guid>()` unless the assertion depends on that exact Guid |
 | **MUST** | Generate durations with `_fixture.CreateDuration()` unless the rule asserts an exact duration or tolerance edge |
+| **MUST** | Generate platform IDs with `CreateSpotifyId()` / `CreateAppleId()` / `CreateYouTubeId()` or read from built inputs (`input.SpotifyId`, `podcast.Id`) |
+| **MUST** | Generate URLs from specimen properties (`input.SpotifyUrl`, `input.YouTubeUrl`) — not inline `https://...` strings |
 | **NEVER** | Declare `const string sharedTitle = "Episode about something"` for filler data |
 | **NEVER** | Use `TimeSpan.FromMinutes(42)` unless the assertion depends on that exact value |
+| **NEVER** | Use magic ints, URLs, or IDs in arrange when the assertion only checks behavior, not the literal value |
 | **NEVER** | Share arrange data via magic strings — share via variables from the fixture (`var title = _fixture.Create<string>()`), not duplicated literals |
+| **ONLY WHEN** | Keeping a literal is justified: regex-dependent title (`"#42"`), boundary math (`MinimumDuration - 1`), truncation/ellipsis assertions, or any case where the assertion explicitly depends on that exact value |
 
 ### Scenario-shaped fixtures
 
@@ -122,6 +132,7 @@ Default builders produce **fully valid, platform-correct** objects. Tests trust 
 | `CreateNonMidnightTimeOfDay()` | UTC publish time with non-zero seconds (Apple/YouTube) |
 | `CreateSpotifyId()` / `CreateAppleId()` / `CreateYouTubeId()` | Platform IDs with correct shape |
 | `CreateYouTubeChannelId()` | `UC` + 22 chars |
+| `CreateGuid()` / `Create<Guid>()` | Entity IDs (podcast, episode, row) when identity is filler |
 
 ---
 
@@ -138,6 +149,8 @@ Before submitting a business-rule test, verify:
 - [ ] Generic adapter/mapping asserts use `input.Release` + precision/`TimeOfDay` rules — not named release constants
 - [ ] Platform IDs from specimens (`input.SpotifyId`, `CreateSpotifyId()`) — no hardcoded literals in generic tests
 - [ ] Shared matching fields (title, duration) from `_fixture.Create<string>()` / `CreateDuration()`, not `const` literals
+- [ ] Entity IDs from `_fixture.CreateGuid()` or specimen properties (`podcast.Id`, `stored.Id`) — no `Guid.Parse("...")` filler
+- [ ] No hardcoded strings, ints, TimeSpans, URLs, or IDs in arrange unless the assertion depends on the exact value
 - [ ] Assert uses `EpisodeExpectation.From(...)` or repository/save assertions
 - [ ] Cross-platform / backfill scenarios use scenario-shaped fixture helpers, not brand-named presets
 
@@ -162,6 +175,29 @@ Before submitting a business-rule test, verify:
 ---
 
 ## 5. Good / bad examples
+
+### Anti-pattern: hardcoded Guid when identity is filler
+
+```csharp
+// BAD — magic Guid unrelated to the assertion
+var podcast = _fixture.CreatePodcast(p => p.Id = Guid.Parse("4672c845-15b4-4f88-bbff-567d521fe4a2"));
+var stored = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast);
+stored.Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
+```
+
+```csharp
+// GOOD — trust fixture-generated identity; capture when continuity matters
+var podcast = _fixture.CreatePodcast();
+var stored = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast);
+stored.ShouldMatchExpectation(EpisodeExpectation.From(stored));
+```
+
+```csharp
+// GOOD — override with generated Guid only when the rule asserts that exact row identity
+var rowId = _fixture.CreateGuid();
+var stored = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast, e => e.Id = rowId);
+result.SavedEpisodeIds.Should().Contain(rowId);
+```
 
 ### Anti-pattern: magic strings and fixed durations
 
@@ -296,7 +332,7 @@ public void snake_case_shorthand()
 | Catalogue input (override) | `CreateSpotifyCatalogueInput(b => b.WithRelease(...))`, `CreateSpotifyCatalogueInputDaysAfterYouTubeRelease(...)` |
 | Catalogue episode | `CreateSpotifyCatalogueEpisode()`, `CreateSpotifyCatalogueEpisode(configure)`, overload with explicit id |
 | Same-day backfill probe | `CreateMidnightUtcStoredEpisode`, `Create*CatalogueInputSameDayAs`, `Create*CatalogueEpisodeSameDayAs` |
-| Generated values | `CreateDuration()`, `CreateNonMidnightTimeOfDay()`, `CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateYouTubeChannelId()` |
+| Generated values | `CreateDuration()`, `CreateNonMidnightTimeOfDay()`, `CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateYouTubeChannelId()`, `CreateGuid()` |
 | Title variants | `CreateFuzzyTitleVariant(title)`, `CreateTypoTitleVariant(title)` |
 | Same calendar date + time | `SameCalendarDateWithTime(dateOnlyRelease, timeOfDay)`, `SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, days)` |
 | Relative dates | `UtcToday`, `UtcDaysAgo(n)`, `UtcDateDaysAgo(n)`, `UtcAtTime(dayOffset, timeOfDay)` |

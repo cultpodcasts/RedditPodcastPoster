@@ -23,7 +23,7 @@ public class PlatformIdentityMatchingRules
     public void Submitted_via_Spotify_URL_before_ID_exists_merges_on_reindex()
     {
         // Arrange
-        var podcast = _fixture.CreatePodcast(p => p.Id = Guid.Parse("4672c845-15b4-4f88-bbff-567d521fe4a2"));
+        var podcast = _fixture.CreatePodcast();
         var spotifyInput = _fixture.CreateSpotifyCatalogueInput();
         var spotifyUrl = spotifyInput.SpotifyUrl;
         var redditTitle = _fixture.Create<string>();

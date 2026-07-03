@@ -183,8 +183,8 @@ public class EpisodeMergingRules
     public void Merge_does_not_replace_existing_Spotify_artwork()
     {
         // Arrange
-        var existingImage = new Uri("https://i.scdn.co/image/existing-spotify-artwork");
-        var incomingImage = new Uri("https://i.scdn.co/image/incoming-spotify-artwork");
+        var existingImage = _fixture.DefaultSpotifyImage(_fixture.CreateSpotifyId());
+        var incomingImage = _fixture.DefaultSpotifyImage(_fixture.CreateSpotifyId());
         var spotifyInput = _fixture.CreateSpotifyCatalogueInput();
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.BuildEpisode()
@@ -197,7 +197,7 @@ public class EpisodeMergingRules
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithSpotifyId(spotifyInput.SpotifyId)
             .WithSpotifyUrl(spotifyInput.SpotifyUrl)
-            .WithDescription("Incoming description")
+            .WithDescription(_fixture.Create<string>())
             .WithImage(incomingImage));
 
         // Act

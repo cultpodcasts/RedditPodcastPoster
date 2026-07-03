@@ -24,20 +24,20 @@ public class IndexingPersistenceRules
         // Arrange
         var recorder = new SaveCallRecorder();
         var harness = new PodcastUpdaterTestHarness(recorder);
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId(), Guid.Parse("11111111-1111-1111-1111-111111111111"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         harness.PodcastRepository.Seed(podcast);
 
-        var enrichedEpisodeId = Guid.Parse("22222222-2222-2222-2222-222222222222");
-        var filteredEpisodeId = Guid.Parse("33333333-3333-3333-3333-333333333333");
-        var mergedExistingId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var enrichedEpisodeId = _fixture.CreateGuid();
+        var filteredEpisodeId = _fixture.CreateGuid();
+        var mergedExistingId = _fixture.CreateGuid();
         var enrichedInput = _fixture.CreateSpotifyCatalogueInput(b => b
             .WithRelease(EpisodeRelease.AddDays(1))
             .WithDuration(_fixture.CreateDuration())
-            .WithDescription("Enriched description"));
+            .WithDescription(_fixture.Create<string>()));
         var filteredInput = _fixture.CreateSpotifyCatalogueInput(b => b
             .WithRelease(EpisodeRelease.AddDays(2))
             .WithDuration(_fixture.CreateDuration())
-            .WithDescription("Filtered description"));
+            .WithDescription(_fixture.Create<string>()));
         var mergeInput = _fixture.CreateSpotifyCatalogueInput(b => b
             .WithRelease(EpisodeRelease)
             .WithDuration(_fixture.CreateDuration())
@@ -45,7 +45,7 @@ public class IndexingPersistenceRules
         var addedInput = _fixture.CreateSpotifyCatalogueInput(b => b
             .WithRelease(EpisodeRelease.AddDays(3))
             .WithDuration(_fixture.CreateDuration())
-            .WithDescription("Brand new episode"));
+            .WithDescription(_fixture.Create<string>()));
 
         var enrichedEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithSpotifyId(enrichedInput.SpotifyId)
@@ -78,7 +78,7 @@ public class IndexingPersistenceRules
             .WithSpotifyUrl(new Uri($"{mergeInput.SpotifyUrl}?si=discovered"))
             .WithRelease(mergeInput.Release)
             .WithDuration(mergeInput.Duration)
-            .WithDescription("Longer merged description from catalogue"));
+            .WithDescription(_fixture.Create<string>()));
 
         var addedDiscovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithSpotifyId(addedInput.SpotifyId)
@@ -134,7 +134,7 @@ public class IndexingPersistenceRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId(), Guid.Parse("55555555-5555-5555-5555-555555555555"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         podcast.LastIndexed = null;
         harness.PodcastRepository.Seed(podcast);
 
@@ -163,7 +163,7 @@ public class IndexingPersistenceRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreatePodcast(p => p.Id = Guid.Parse("66666666-6666-6666-6666-666666666666"));
+        var podcast = _fixture.CreatePodcast();
         podcast.SpotifyId = _fixture.CreateSpotifyId();
         podcast.LastIndexed = null;
         harness.PodcastRepository.Seed(podcast);
@@ -202,13 +202,13 @@ public class IndexingPersistenceRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId(), Guid.Parse("77777777-7777-7777-7777-777777777777"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         harness.PodcastRepository.Seed(podcast);
 
         var stored = _fixture.CreateYouTubeCatalogueEpisode(b => b
             .WithRelease(EpisodeRelease)
             .WithDuration(_fixture.CreateDuration()));
-        stored.Id = Guid.Parse("88888888-8888-8888-8888-888888888888");
+        stored.Id = _fixture.CreateGuid();
         stored.PodcastId = podcast.Id;
         stored.SpotifyId = string.Empty;
         stored.Urls.Spotify = null;
