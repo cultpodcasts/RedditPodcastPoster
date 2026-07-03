@@ -32,7 +32,7 @@ public class IndexingEnrichmentRules
                 It.IsAny<EnrichmentContext>()))
             .Callback<EnrichmentRequest, IndexingContext, EnrichmentContext>((_, _, context) =>
             {
-                context.Spotify = new Uri("https://open.spotify.com/episode/filled-by-enricher");
+                context.Spotify = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId());
             })
             .Returns(Task.CompletedTask);
 
@@ -82,7 +82,7 @@ public class IndexingEnrichmentRules
                 It.IsAny<EnrichmentContext>()))
             .Callback<EnrichmentRequest, IndexingContext, EnrichmentContext>((_, _, context) =>
             {
-                context.Apple = new Uri("https://podcasts.apple.com/us/podcast/episode/id9999999999");
+                context.Apple = _fixture.DefaultAppleUrl(_fixture.CreateAppleId());
             })
             .Returns(Task.CompletedTask);
 

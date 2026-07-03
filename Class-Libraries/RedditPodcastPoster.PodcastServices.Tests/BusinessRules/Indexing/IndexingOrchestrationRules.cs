@@ -23,7 +23,7 @@ public class IndexingOrchestrationRules
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
         var spotifyShowId = _fixture.CreateSpotifyId();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast(spotifyShowId, Guid.Parse("12121212-1212-1212-1212-121212121212"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(spotifyShowId);
         harness.PodcastRepository.Seed(podcast);
 
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
@@ -73,7 +73,7 @@ public class IndexingOrchestrationRules
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
         var spotifyShowId = _fixture.CreateSpotifyId();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast(spotifyShowId, Guid.Parse("13131313-1313-1313-1313-131313131313"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(spotifyShowId);
         harness.PodcastRepository.Seed(podcast);
 
         var shortEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
@@ -108,7 +108,7 @@ public class IndexingOrchestrationRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId(), Guid.Parse("14141414-1414-1414-1414-141414141414"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         podcast.LatestReleased = EpisodeRelease.AddDays(-30);
         harness.PodcastRepository.Seed(podcast);
 
@@ -121,7 +121,7 @@ public class IndexingOrchestrationRules
             .WithRelease(mergeInput.Release)
             .WithDuration(mergeInput.Duration)
             .WithDescription(mergeInput.Description));
-        mergedExisting.Id = Guid.Parse("15151515-1515-1515-1515-151515151515");
+        mergedExisting.Id = _fixture.CreateGuid();
         mergedExisting.PodcastId = podcast.Id;
         harness.EpisodeRepository.Seed(mergedExisting);
 
@@ -130,7 +130,7 @@ public class IndexingOrchestrationRules
             .WithSpotifyUrl(new Uri($"{mergeInput.SpotifyUrl}?si=merge"))
             .WithRelease(mergeInput.Release)
             .WithDuration(mergeInput.Duration)
-            .WithDescription("Longer merged description from catalogue"));
+            .WithDescription(_fixture.Create<string>()));
 
         var addedInput = _fixture.CreateSpotifyCatalogueInput(b => b
             .WithRelease(EpisodeRelease.AddDays(5))
@@ -164,7 +164,7 @@ public class IndexingOrchestrationRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId(), Guid.Parse("16161616-1616-1616-1616-161616161616"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
         podcast.SpotifyEpisodesQueryIsExpensive = null;
         podcast.YouTubePlaylistQueryIsExpensive = null;
@@ -202,7 +202,7 @@ public class IndexingOrchestrationRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId(), Guid.Parse("17171717-1717-1717-1717-171717171717"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         podcast.LastIndexed = null;
         harness.PodcastRepository.Seed(podcast);
 
@@ -236,7 +236,7 @@ public class IndexingOrchestrationRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId(), Guid.Parse("18181818-1818-1818-1818-181818181818"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
         podcast.LastIndexed = null;
         harness.PodcastRepository.Seed(podcast);
@@ -271,13 +271,11 @@ public class IndexingOrchestrationRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = new Podcast
+        var podcast = _fixture.CreatePodcast(p =>
         {
-            Id = Guid.Parse("19191919-1919-1919-1919-191919191919"),
-            Name = _fixture.Create<string>(),
-            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
-            LastIndexed = null
-        };
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.LastIndexed = null;
+        });
         harness.PodcastRepository.Seed(podcast);
 
         var indexingContext = new IndexingContext(ReleasedSince, SkipYouTubeUrlResolving: true);

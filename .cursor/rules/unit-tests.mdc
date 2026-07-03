@@ -87,6 +87,7 @@ Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-re
 | **NEVER** | Use `TimeSpan.FromMinutes(42)` unless the assertion depends on that exact value |
 | **NEVER** | Use magic ints, URLs, or IDs in arrange when the assertion only checks behavior, not the literal value |
 | **NEVER** | Share arrange data via magic strings — share via variables from the fixture (`var title = _fixture.Create<string>()`), not duplicated literals |
+| **NEVER** | Use `Guid.Parse("...")` or hardcoded Guids for podcast/episode ids when only used as filler — use `_fixture.CreateGuid()` and capture from specimens (`podcast.Id`, `stored.Id`) when asserting identity |
 | **ONLY WHEN** | Keeping a literal is justified: regex-dependent title (`"#42"`), boundary math (`MinimumDuration - 1`), truncation/ellipsis assertions, or any case where the assertion explicitly depends on that exact value |
 
 ### Scenario-shaped fixtures
@@ -148,8 +149,8 @@ Before submitting a business-rule test, verify:
 - [ ] Spotify releases date-only; Apple/YouTube carry non-midnight time-of-day from fixture generation
 - [ ] Generic adapter/mapping asserts use `input.Release` + precision/`TimeOfDay` rules — not named release constants
 - [ ] Platform IDs from specimens (`input.SpotifyId`, `CreateSpotifyId()`) — no hardcoded literals in generic tests
+- [ ] Guids from `_fixture.CreateGuid()` or specimen properties — no `Guid.Parse("...")` filler
 - [ ] Shared matching fields (title, duration) from `_fixture.Create<string>()` / `CreateDuration()`, not `const` literals
-- [ ] Entity IDs from `_fixture.CreateGuid()` or specimen properties (`podcast.Id`, `stored.Id`) — no `Guid.Parse("...")` filler
 - [ ] No hardcoded strings, ints, TimeSpans, URLs, or IDs in arrange unless the assertion depends on the exact value
 - [ ] Assert uses `EpisodeExpectation.From(...)` or repository/save assertions
 - [ ] Cross-platform / backfill scenarios use scenario-shaped fixture helpers, not brand-named presets

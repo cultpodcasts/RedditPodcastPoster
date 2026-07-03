@@ -22,11 +22,16 @@ public class UrlSubmissionEnrichmentRules
         var descriptionHelper = CreateDescriptionHelper();
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
-        var podcast = _fixture.CreatePodcast(p => p.Id = Guid.Parse("21212121-2121-2121-2121-212121212121"));
+        var podcast = _fixture.CreatePodcast();
         podcast.SpotifyId = _fixture.CreateSpotifyId();
         podcast.AppleId = _fixture.CreateAppleId();
 
         var storedDescription = _fixture.Create<string>();
+        var publisher = _fixture.Create<string>();
+        var resolvedSpotifyDescription = _fixture.Create<string>();
+        var resolvedAppleDescription = _fixture.Create<string>();
+        var resolvedYouTubeDescription = _fixture.Create<string>();
+        var youTubeChannelId = _fixture.CreateYouTubeChannelId();
         var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
             .WithDuration(_fixture.CreateDuration())
             .WithDescription(storedDescription));
@@ -52,9 +57,9 @@ public class UrlSubmissionEnrichmentRules
                 spotifyInput.EpisodeId,
                 podcast.Name,
                 string.Empty,
-                "Publisher",
+                publisher,
                 episode.Title,
-                "Resolved Spotify description",
+                resolvedSpotifyDescription,
                 episode.Release,
                 episode.Length,
                 spotifyInput.Url!,
@@ -65,22 +70,22 @@ public class UrlSubmissionEnrichmentRules
                 appleInput.EpisodeId,
                 podcast.Name,
                 string.Empty,
-                "Publisher",
+                publisher,
                 episode.Title,
-                "Resolved Apple description",
+                resolvedAppleDescription,
                 episode.Release,
                 episode.Length,
                 appleInput.Url!,
                 false,
                 null),
             new ResolvedYouTubeItem(
-                "channel-submit",
+                youTubeChannelId,
                 youTubeInput.YouTubeId,
                 podcast.Name,
                 string.Empty,
-                "Publisher",
+                publisher,
                 episode.Title,
-                "Resolved YouTube description",
+                resolvedYouTubeDescription,
                 episode.Release,
                 episode.Length,
                 youTubeInput.YouTubeUrl,
@@ -113,7 +118,7 @@ public class UrlSubmissionEnrichmentRules
         var descriptionHelper = CreateDescriptionHelper();
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
-        var podcast = _fixture.CreatePodcast(p => p.Id = Guid.Parse("22222222-2222-2222-2222-222222222222"));
+        var podcast = _fixture.CreatePodcast();
         podcast.SpotifyId = string.Empty;
         podcast.AppleId = null;
         podcast.YouTubeChannelId = string.Empty;
@@ -121,6 +126,11 @@ public class UrlSubmissionEnrichmentRules
         var spotifyShowId = _fixture.CreateSpotifyId();
         var appleShowId = _fixture.CreateAppleId();
         var youTubeChannelId = _fixture.CreateYouTubeChannelId();
+        var showName = _fixture.Create<string>();
+        var episodeName = _fixture.Create<string>();
+        var resolvedDescription = _fixture.Create<string>();
+        var publisher = _fixture.Create<string>();
+        var playlistId = _fixture.Create<string>();
         var spotifyInput = _fixture.CreateResolvedSpotifyItemInput();
         var appleInput = _fixture.CreateResolvedAppleItemInput();
         var youTubeInput = _fixture.CreateResolvedYouTubeItemInput();
@@ -132,11 +142,11 @@ public class UrlSubmissionEnrichmentRules
             new ResolvedSpotifyItem(
                 spotifyShowId,
                 spotifyInput.EpisodeId,
-                "Resolved show",
+                showName,
                 string.Empty,
-                "Publisher",
-                "Resolved episode",
-                "Resolved description",
+                publisher,
+                episodeName,
+                resolvedDescription,
                 spotifyInput.Release,
                 spotifyInput.Duration,
                 spotifyInput.Url!,
@@ -145,11 +155,11 @@ public class UrlSubmissionEnrichmentRules
             new ResolvedAppleItem(
                 appleShowId,
                 appleInput.EpisodeId,
-                "Resolved show",
+                showName,
                 string.Empty,
-                "Publisher",
-                "Resolved episode",
-                "Resolved description",
+                publisher,
+                episodeName,
+                resolvedDescription,
                 appleInput.Release,
                 appleInput.Duration,
                 appleInput.Url!,
@@ -158,17 +168,17 @@ public class UrlSubmissionEnrichmentRules
             new ResolvedYouTubeItem(
                 youTubeChannelId,
                 youTubeInput.EpisodeId,
-                "Resolved show",
+                showName,
                 string.Empty,
-                "Publisher",
-                "Resolved episode",
-                "Resolved description",
+                publisher,
+                episodeName,
+                resolvedDescription,
                 youTubeInput.Release,
                 youTubeInput.Duration,
                 youTubeInput.Url!,
                 false,
                 null,
-                "playlist-submit"),
+                playlistId),
             null,
             Service.Spotify);
 
@@ -210,6 +220,7 @@ public class UrlSubmissionEnrichmentRules
 
         var expected = EpisodeExpectation.From(episode);
 
+        var publisher = _fixture.Create<string>();
         var categorisedItem = new CategorisedItem(
             podcast,
             [episode],
@@ -219,7 +230,7 @@ public class UrlSubmissionEnrichmentRules
                 episode.SpotifyId,
                 podcast.Name,
                 string.Empty,
-                "Publisher",
+                publisher,
                 episode.Title,
                 episode.Description,
                 episode.Release,
@@ -232,7 +243,7 @@ public class UrlSubmissionEnrichmentRules
                 episode.AppleId,
                 podcast.Name,
                 string.Empty,
-                "Publisher",
+                publisher,
                 episode.Title,
                 episode.Description,
                 episode.Release,
@@ -245,7 +256,7 @@ public class UrlSubmissionEnrichmentRules
                 episode.YouTubeId,
                 podcast.Name,
                 string.Empty,
-                "Publisher",
+                publisher,
                 episode.Title,
                 episode.Description,
                 episode.Release,
@@ -291,6 +302,8 @@ public class UrlSubmissionEnrichmentRules
 
         var spotifyInput = _fixture.CreateResolvedSpotifyItemInput();
         var expected = EpisodeExpectation.From(episode).WithSpotify(spotifyInput.EpisodeId, spotifyInput.Url!);
+        var publisher = _fixture.Create<string>();
+        var resolvedSpotifyDescription = _fixture.Create<string>();
 
         var categorisedItem = new CategorisedItem(
             podcast,
@@ -301,9 +314,9 @@ public class UrlSubmissionEnrichmentRules
                 spotifyInput.EpisodeId,
                 podcast.Name,
                 string.Empty,
-                "Publisher",
+                publisher,
                 episode.Title,
-                "Resolved Spotify description",
+                resolvedSpotifyDescription,
                 episode.Release,
                 episode.Length,
                 spotifyInput.Url!,
