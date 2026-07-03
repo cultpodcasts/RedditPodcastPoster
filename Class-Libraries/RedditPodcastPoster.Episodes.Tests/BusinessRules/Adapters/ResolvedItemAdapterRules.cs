@@ -22,8 +22,7 @@ public class ResolvedItemAdapterRules
     public void ResolvedSpotifyItem_maps_to_Spotify_PlatformLink()
     {
         // Arrange
-        var release = DomainTestFixture.UtcDateDaysAgo(32);
-        var input = _fixture.CreateResolvedSpotifyItemInput(b => b.WithRelease(release));
+        var input = _fixture.CreateResolvedSpotifyItemInput();
 
         // Act
         var candidate = _spotifyAdapter.Adapt(input);
@@ -40,6 +39,7 @@ public class ResolvedItemAdapterRules
             input.EpisodeDescription);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateOnly);
+        candidate.Release.Value.TimeOfDay.Should().Be(TimeSpan.Zero);
     }
 
     [Fact(DisplayName =
@@ -48,8 +48,7 @@ public class ResolvedItemAdapterRules
     public void ResolvedAppleItem_maps_to_Apple_PlatformLink()
     {
         // Arrange
-        var release = DomainTestFixture.UtcAtTime(-31, TimeSpan.FromHours(11) + TimeSpan.FromMinutes(30));
-        var input = _fixture.CreateResolvedAppleItemInput(b => b.WithRelease(release));
+        var input = _fixture.CreateResolvedAppleItemInput();
 
         // Act
         var candidate = _appleAdapter.Adapt(input);
@@ -62,10 +61,11 @@ public class ResolvedItemAdapterRules
             null,
             new PlatformExpectation(input.EpisodeId.ToString(), input.Url, input.Image),
             null,
-            release,
+            input.Release,
             input.EpisodeDescription);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateTimeUtc);
+        input.Release.TimeOfDay.Should().Be(DomainTestFixture.Specimens.DefaultAppleReleaseTimeOfDay);
     }
 
     [Fact(DisplayName =
@@ -74,8 +74,7 @@ public class ResolvedItemAdapterRules
     public void ResolvedYouTubeItem_maps_to_YouTube_PlatformLink()
     {
         // Arrange
-        var release = DomainTestFixture.UtcAtTime(-63, TimeSpan.FromHours(12));
-        var input = _fixture.CreateResolvedYouTubeItemInput(b => b.WithRelease(release));
+        var input = _fixture.CreateResolvedYouTubeItemInput();
 
         // Act
         var candidate = _youTubeAdapter.Adapt(input);
@@ -88,9 +87,10 @@ public class ResolvedItemAdapterRules
             null,
             null,
             new PlatformExpectation(input.EpisodeId, input.Url, input.Image),
-            release,
+            input.Release,
             input.EpisodeDescription);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateTimeUtc);
+        input.Release.TimeOfDay.Should().Be(DomainTestFixture.Specimens.DefaultYouTubeReleaseTimeOfDay);
     }
 }

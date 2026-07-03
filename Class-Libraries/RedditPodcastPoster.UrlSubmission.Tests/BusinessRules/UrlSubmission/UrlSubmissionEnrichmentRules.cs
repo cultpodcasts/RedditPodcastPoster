@@ -27,12 +27,10 @@ public class UrlSubmissionEnrichmentRules
         podcast.AppleId = _fixture.CreateAppleId();
 
         var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
-            .WithRelease(DomainTestFixture.UtcAtTime(-63, TimeSpan.FromHours(12)))
             .WithDuration(TimeSpan.FromMinutes(45))
             .WithDescription("Stored description"));
         var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b
             .WithYouTubeId(youTubeInput.YouTubeId)
-            .WithRelease(youTubeInput.Release)
             .WithDuration(youTubeInput.Duration)
             .WithDescription(youTubeInput.Description));
         episode.PodcastId = podcast.Id;
@@ -41,8 +39,8 @@ public class UrlSubmissionEnrichmentRules
         episode.Urls.Spotify = null;
         episode.Urls.Apple = null;
 
-        var spotifyInput = _fixture.CreateResolvedSpotifyItemInput(b => b.WithRelease(episode.Release));
-        var appleInput = _fixture.CreateResolvedAppleItemInput(b => b.WithRelease(episode.Release));
+        var spotifyInput = _fixture.CreateResolvedSpotifyItemInput();
+        var appleInput = _fixture.CreateResolvedAppleItemInput();
 
         var categorisedItem = new CategorisedItem(
             podcast,
@@ -122,9 +120,9 @@ public class UrlSubmissionEnrichmentRules
         const string spotifyShowId = "6oTbi9wKZ2czCvSwBKxxoH";
         var appleShowId = _fixture.CreateAppleId();
         const string youTubeChannelId = "UCchannel123456789";
-        var spotifyInput = _fixture.CreateResolvedSpotifyItemInput(b => b.WithRelease(DateTime.UtcNow.AddDays(-1)));
-        var appleInput = _fixture.CreateResolvedAppleItemInput(b => b.WithRelease(DateTime.UtcNow.AddDays(-1)));
-        var youTubeInput = _fixture.CreateResolvedYouTubeItemInput(b => b.WithRelease(DateTime.UtcNow.AddDays(-1)));
+        var spotifyInput = _fixture.CreateResolvedSpotifyItemInput();
+        var appleInput = _fixture.CreateResolvedAppleItemInput();
+        var youTubeInput = _fixture.CreateResolvedYouTubeItemInput();
 
         var categorisedItem = new CategorisedItem(
             podcast,
@@ -199,12 +197,11 @@ public class UrlSubmissionEnrichmentRules
         podcast.YouTubeChannelId = "UCchannel123456789";
 
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DomainTestFixture.UtcDateDaysAgo(1))
             .WithDuration(TimeSpan.FromMinutes(45))
             .WithDescription("Complete description"));
         episode.PodcastId = podcast.Id;
-        var appleInput = _fixture.CreateResolvedAppleItemInput(b => b.WithRelease(episode.Release));
-        var youTubeInput = _fixture.CreateResolvedYouTubeItemInput(b => b.WithRelease(episode.Release));
+        var appleInput = _fixture.CreateResolvedAppleItemInput();
+        var youTubeInput = _fixture.CreateResolvedYouTubeItemInput();
         episode.AppleId = appleInput.EpisodeId;
         episode.YouTubeId = youTubeInput.EpisodeId;
         episode.Urls.Apple = appleInput.Url;
@@ -280,19 +277,17 @@ public class UrlSubmissionEnrichmentRules
 
         var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
         var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
-            .WithRelease(DomainTestFixture.UtcDateDaysAgo(2))
             .WithDuration(TimeSpan.FromMinutes(45))
             .WithDescription("Stored description"));
         var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b
             .WithYouTubeId(youTubeInput.YouTubeId)
-            .WithRelease(youTubeInput.Release)
             .WithDuration(youTubeInput.Duration)
             .WithDescription(youTubeInput.Description));
         episode.PodcastId = podcast.Id;
         episode.SpotifyId = string.Empty;
         episode.Urls.Spotify = null;
 
-        var spotifyInput = _fixture.CreateResolvedSpotifyItemInput(b => b.WithRelease(episode.Release));
+        var spotifyInput = _fixture.CreateResolvedSpotifyItemInput();
         var expected = EpisodeExpectation.From(episode).WithSpotify(spotifyInput.EpisodeId, spotifyInput.Url!);
 
         var categorisedItem = new CategorisedItem(

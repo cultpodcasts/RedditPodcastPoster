@@ -24,7 +24,6 @@ public class UrlSubmissionPersistenceRules
         podcastRepository.Seed(podcast);
 
         var enrichedEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DomainTestFixture.UtcDaysAgo(3))
             .WithDuration(TimeSpan.FromMinutes(45)));
         enrichedEpisode.PodcastId = podcast.Id;
 
@@ -111,7 +110,6 @@ public class UrlSubmissionPersistenceRules
         var podcastRepository = new InMemoryPodcastRepository();
         var newPodcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
         var newEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DomainTestFixture.UtcToday)
             .WithDuration(TimeSpan.FromMinutes(45)));
         newEpisode.PodcastId = newPodcast.Id;
 
@@ -158,7 +156,6 @@ public class UrlSubmissionPersistenceRules
         var podcastRepository = new InMemoryPodcastRepository();
         var newPodcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
         var newEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DomainTestFixture.UtcToday)
             .WithDuration(TimeSpan.FromMinutes(45)));
         newEpisode.PodcastId = newPodcast.Id;
 

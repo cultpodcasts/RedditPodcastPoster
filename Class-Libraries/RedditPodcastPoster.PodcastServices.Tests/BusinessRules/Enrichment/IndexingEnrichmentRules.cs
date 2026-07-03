@@ -43,7 +43,6 @@ public class IndexingEnrichmentRules
 
         var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
         var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b
-            .WithRelease(DomainTestFixture.UtcDaysAgo(7))
             .WithDuration(TimeSpan.FromMinutes(45)));
         episode.PodcastId = podcast.Id;
         episode.SpotifyId = string.Empty;
@@ -96,7 +95,6 @@ public class IndexingEnrichmentRules
         podcast.AppleId = _fixture.CreateAppleId();
 
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DomainTestFixture.UtcDaysAgo(7))
             .WithDuration(TimeSpan.FromMinutes(45)));
         episode.PodcastId = podcast.Id;
         episode.AppleId = null;
@@ -149,7 +147,6 @@ public class IndexingEnrichmentRules
         podcast.YouTubeChannelId = "UCchannel123456789";
 
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DomainTestFixture.UtcDaysAgo(7))
             .WithDuration(TimeSpan.FromMinutes(45)));
         episode.PodcastId = podcast.Id;
         episode.YouTubeId = string.Empty;
@@ -192,7 +189,6 @@ public class IndexingEnrichmentRules
         podcast.SkipEnrichingFromYouTube = true;
 
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DomainTestFixture.UtcDaysAgo(7))
             .WithDuration(TimeSpan.FromMinutes(45)));
         episode.PodcastId = podcast.Id;
         episode.YouTubeId = string.Empty;
@@ -255,11 +251,9 @@ public class IndexingEnrichmentRules
         expiredStoredEpisode.Urls.YouTube = null;
 
         var discoveredYouTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
-            .WithRelease(DomainTestFixture.UtcDaysAgo(2))
             .WithDuration(TimeSpan.FromMinutes(45)));
         var discoveredEpisode = _fixture.CreateYouTubeCatalogueEpisode(b => b
             .WithYouTubeId(discoveredYouTubeInput.YouTubeId)
-            .WithRelease(discoveredYouTubeInput.Release)
             .WithDuration(discoveredYouTubeInput.Duration));
         discoveredEpisode.PodcastId = podcast.Id;
 

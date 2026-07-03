@@ -8,9 +8,52 @@ namespace RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 /// <summary>
 /// Shared AutoFixture wrapper for episode-domain business-rule tests.
 /// Owns specimen customizations, incident constants, and factory helpers.
+/// <para>
+/// <b>Specimen contract</b> — default catalogue/resolved-item builders produce platform-realistic
+/// IDs, URLs, and releases. Tests trust these defaults unless a rule asserts an exact release or a
+/// relationship between two releases (same-calendar-date backfill, C2C offset, delayed publishing).
+/// </para>
+/// <list type="table">
+/// <listheader><term>Entity</term><description>Release / ID / URL</description></listheader>
+/// <item><term>Spotify catalogue / resolved</term>
+/// <description>Date-only midnight UTC (<see cref="UtcDateDaysAgo"/>); 22-char base62 id;
+/// <c>open.spotify.com/episode/{id}</c></description></item>
+/// <item><term>Apple catalogue / resolved</term>
+/// <description><see cref="UtcAtTime"/> with <see cref="Specimens.DefaultAppleReleaseDaysAgo"/> and
+/// <see cref="Specimens.DefaultAppleReleaseTimeOfDay"/>; long numeric id ≥13 digits;
+/// <c>podcasts.apple.com/.../id{id}</c></description></item>
+/// <item><term>YouTube catalogue / resolved</term>
+/// <description><see cref="UtcAtTime"/> with <see cref="Specimens.DefaultYouTubeReleaseDaysAgo"/> and
+/// <see cref="Specimens.DefaultYouTubeReleaseTimeOfDay"/>; 11-char id;
+/// <c>youtube.com/watch?v={id}</c></description></item>
+/// </list>
+/// Use <see cref="CreateMidnightUtcStoredEpisode"/> plus
+/// <see cref="CreateYouTubeCatalogueEpisodeSameDayAs"/> / <see cref="CreateAppleCatalogueEpisodeSameDayAs"/>
+/// for same-calendar-date merge probes.
 /// </summary>
 public sealed class DomainTestFixture
 {
+  /// <summary>Default specimen characteristics for catalogue and resolved-item builders.</summary>
+  public static class Specimens
+  {
+    /// <summary>Days before today for default Apple catalogue/resolved releases.</summary>
+    public const int DefaultAppleReleaseDaysAgo = 45;
+
+    /// <summary>Fixed time-of-day on default Apple specimen releases.</summary>
+    public static readonly TimeSpan DefaultAppleReleaseTimeOfDay = new(14, 30, 0);
+
+    /// <summary>Days before today for default YouTube catalogue/resolved releases.</summary>
+    public const int DefaultYouTubeReleaseDaysAgo = 52;
+
+    /// <summary>Fixed time-of-day on default YouTube specimen releases.</summary>
+    public static readonly TimeSpan DefaultYouTubeReleaseTimeOfDay = new(18, 45, 12);
+
+    /// <summary>Time-of-day when backfilling midnight stored releases from YouTube on the same calendar date.</summary>
+    public static readonly TimeSpan SameDayYouTubeBackfillTimeOfDay = new(12, 30, 0);
+
+    /// <summary>Time-of-day when backfilling midnight stored releases from Apple on the same calendar date.</summary>
+    public static readonly TimeSpan SameDayAppleBackfillTimeOfDay = new(15, 45, 0);
+  }
   /// <summary>Today at midnight UTC.</summary>
   public static DateTime UtcToday => DateTime.UtcNow.Date;
 
@@ -32,6 +75,10 @@ public sealed class DomainTestFixture
   /// </summary>
   public static DateTime UtcAtTime(int daysOffset, TimeSpan timeOfDay) =>
     UtcToday.AddDays(daysOffset).Add(timeOfDay);
+
+  /// <summary>Combines a date-only stored release with an explicit UTC time-of-day.</summary>
+  public static DateTime SameCalendarDateWithTime(DateTime dateOnlyRelease, TimeSpan timeOfDay) =>
+    dateOnlyRelease.Date.Add(timeOfDay);
 
   private readonly Fixture _fixture;
 
@@ -552,6 +599,14 @@ public sealed class DomainTestFixture
     DateTime dateOnlyRelease,
     string? title = null,
     TimeSpan? length = null) =>
+    CreateMidnightUtcStoredEpisode(podcast, dateOnlyRelease, title, length);
+
+  /// <summary>Stored row with midnight UTC release (Spotify id/url for merge probes).</summary>
+  public Episode CreateMidnightUtcStoredEpisode(
+    Podcast podcast,
+    DateTime dateOnlyRelease,
+    string? title = null,
+    TimeSpan? length = null) =>
     CreateStoredEpisode(podcast, e =>
     {
       e.Release = dateOnlyRelease;
@@ -562,6 +617,70 @@ public sealed class DomainTestFixture
       if (length is not null)
         e.Length = length.Value;
     });
+
+  public YouTubeCatalogueInput CreateYouTubeCatalogueInputSameDayAs(
+    Episode stored,
+    TimeSpan? timeOfDay = null,
+    Action<YouTubeCatalogueInputBuilder>? configure = null)
+  {
+    var release = SameCalendarDateWithTime(
+      stored.Release,
+      timeOfDay ?? Specimens.SameDayYouTubeBackfillTimeOfDay);
+    return CreateYouTubeCatalogueInput(b =>
+    {
+      b.WithRelease(release);
+      configure?.Invoke(b);
+    });
+  }
+
+  public Episode CreateYouTubeCatalogueEpisodeSameDayAs(
+    Episode stored,
+    TimeSpan? timeOfDay = null,
+    Action<YouTubeCatalogueInputBuilder>? configure = null)
+  {
+    var input = CreateYouTubeCatalogueInputSameDayAs(stored, timeOfDay, configure);
+    return Episode.FromYouTube(
+      input.YouTubeId,
+      input.Title,
+      input.Description,
+      input.Duration,
+      false,
+      input.Release,
+      input.YouTubeUrl,
+      input.Image);
+  }
+
+  public AppleCatalogueInput CreateAppleCatalogueInputSameDayAs(
+    Episode stored,
+    TimeSpan? timeOfDay = null,
+    Action<AppleCatalogueInputBuilder>? configure = null)
+  {
+    var release = SameCalendarDateWithTime(
+      stored.Release,
+      timeOfDay ?? Specimens.SameDayAppleBackfillTimeOfDay);
+    return CreateAppleCatalogueInput(b =>
+    {
+      b.WithRelease(release);
+      configure?.Invoke(b);
+    });
+  }
+
+  public Episode CreateAppleCatalogueEpisodeSameDayAs(
+    Episode stored,
+    TimeSpan? timeOfDay = null,
+    Action<AppleCatalogueInputBuilder>? configure = null)
+  {
+    var input = CreateAppleCatalogueInputSameDayAs(stored, timeOfDay, configure);
+    return Episode.FromApple(
+      input.AppleId,
+      input.Title,
+      input.Description,
+      input.Duration,
+      false,
+      input.Release,
+      input.AppleUrl,
+      input.Image);
+  }
 
   public Episode CreateEpisodeMatchRegexStoredEpisode(
     Podcast podcast,
@@ -793,8 +912,11 @@ public sealed class DomainTestFixture
   internal static DateTime CreateSpotifyReleaseSpecimen(Fixture fixture) =>
     UtcDateDaysAgo(fixture.Create<int>() % 365 + 1);
 
-  internal static DateTime CreateCatalogueReleaseSpecimen(Fixture fixture) =>
-    UtcAtTime(-(fixture.Create<int>() % 365 + 1), TimeSpan.FromHours(fixture.Create<int>() % 24));
+  internal static DateTime CreateAppleReleaseSpecimen(Fixture _) =>
+    UtcAtTime(-Specimens.DefaultAppleReleaseDaysAgo, Specimens.DefaultAppleReleaseTimeOfDay);
+
+  internal static DateTime CreateYouTubeReleaseSpecimen(Fixture _) =>
+    UtcAtTime(-Specimens.DefaultYouTubeReleaseDaysAgo, Specimens.DefaultYouTubeReleaseTimeOfDay);
 
   private static string CreateRandomString(Fixture fixture, string alphabet, int length) =>
     new string(Enumerable.Range(0, length)
@@ -936,7 +1058,7 @@ public sealed class AppleCatalogueInputBuilder
       _title ?? _fixture.Create<string>(),
       _description ?? _fixture.Create<string>(),
       _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
-      _release ?? DomainTestFixture.CreateCatalogueReleaseSpecimen(_fixture),
+      _release ?? DomainTestFixture.CreateAppleReleaseSpecimen(_fixture),
       _appleUrl ?? new Uri($"https://podcasts.apple.com/us/podcast/episode/id{id}"),
       _image);
   }
@@ -1006,7 +1128,7 @@ public sealed class YouTubeCatalogueInputBuilder
       _title ?? _fixture.Create<string>(),
       _description ?? _fixture.Create<string>(),
       _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
-      _release ?? DomainTestFixture.CreateCatalogueReleaseSpecimen(_fixture),
+      _release ?? DomainTestFixture.CreateYouTubeReleaseSpecimen(_fixture),
       _youTubeUrl ?? new Uri($"https://www.youtube.com/watch?v={id}"),
       _image);
   }
@@ -1145,7 +1267,7 @@ public sealed class ResolvedAppleItemInputBuilder
       id,
       _title ?? _fixture.Create<string>(),
       _description ?? _fixture.Create<string>(),
-      _release ?? DomainTestFixture.CreateCatalogueReleaseSpecimen(_fixture),
+      _release ?? DomainTestFixture.CreateAppleReleaseSpecimen(_fixture),
       _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
       _url ?? new Uri($"https://podcasts.apple.com/us/podcast/episode/id{id}"),
       _image ?? new Uri($"https://example.com/apple-art-{id}.jpg"));
@@ -1215,7 +1337,7 @@ public sealed class ResolvedYouTubeItemInputBuilder
       id,
       _title ?? _fixture.Create<string>(),
       _description ?? _fixture.Create<string>(),
-      _release ?? DomainTestFixture.CreateCatalogueReleaseSpecimen(_fixture),
+      _release ?? DomainTestFixture.CreateYouTubeReleaseSpecimen(_fixture),
       _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
       _url ?? new Uri($"https://www.youtube.com/watch?v={id}"),
       _image);

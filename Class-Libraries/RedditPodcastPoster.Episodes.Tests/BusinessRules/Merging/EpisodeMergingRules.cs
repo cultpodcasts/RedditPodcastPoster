@@ -12,8 +12,6 @@ namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Merging;
 /// </summary>
 public class EpisodeMergingRules
 {
-    private static readonly DateTime SharedRelease = DomainTestFixture.UtcDaysAgo(30);
-
     private readonly DomainTestFixture _fixture = new();
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
@@ -23,20 +21,18 @@ public class EpisodeMergingRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b.WithRelease(SharedRelease));
+        var spotifyInput = _fixture.CreateSpotifyCatalogueInput();
         var existingSpotifyUrl = spotifyInput.SpotifyUrl;
         var incomingSpotifyUrl = new Uri($"{existingSpotifyUrl}?si=incoming");
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithRelease(SharedRelease)
             .WithSpotify(spotifyInput.SpotifyId, existingSpotifyUrl)
             .Create();
         var expected = EpisodeExpectation.From(stored);
 
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithSpotifyId(spotifyInput.SpotifyId)
-            .WithSpotifyUrl(incomingSpotifyUrl)
-            .WithRelease(SharedRelease));
+            .WithSpotifyUrl(incomingSpotifyUrl));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -52,19 +48,17 @@ public class EpisodeMergingRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b.WithRelease(SharedRelease));
-        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b.WithRelease(SharedRelease));
+        var spotifyInput = _fixture.CreateSpotifyCatalogueInput();
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithRelease(SharedRelease)
             .WithSpotify(spotifyInput.SpotifyId, spotifyInput.SpotifyUrl)
             .WithYouTube(youTubeInput.YouTubeId, youTubeInput.YouTubeUrl)
             .Create();
         var expected = EpisodeExpectation.From(stored);
 
         var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
-            .WithYouTubeId(youTubeInput.YouTubeId)
-            .WithRelease(SharedRelease));
+            .WithYouTubeId(youTubeInput.YouTubeId));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -81,18 +75,16 @@ public class EpisodeMergingRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b.WithRelease(SharedRelease));
-        var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b.WithRelease(SharedRelease));
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput();
+        var spotifyInput = _fixture.CreateSpotifyCatalogueInput();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithRelease(SharedRelease)
             .WithYouTube(youTubeInput.YouTubeId)
             .Create();
         var expected = EpisodeExpectation.From(stored)
             .WithSpotify(spotifyInput.SpotifyId, spotifyInput.SpotifyUrl);
 
         var discovered = _fixture.BuildEpisode()
-            .WithRelease(SharedRelease)
             .WithSpotify(spotifyInput.SpotifyId, spotifyInput.SpotifyUrl)
             .WithYouTube(youTubeInput.YouTubeId)
             .Create();
@@ -115,10 +107,9 @@ public class EpisodeMergingRules
         var podcast = _fixture.CreatePodcast();
         const string truncatedDescription = "This is a short preview...";
         const string fullDescription = "This is a short preview with the complete episode summary and details.";
-        var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b.WithRelease(SharedRelease));
+        var spotifyInput = _fixture.CreateSpotifyCatalogueInput();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithRelease(SharedRelease)
             .WithDescription(truncatedDescription)
             .WithSpotify(spotifyInput.SpotifyId, spotifyInput.SpotifyUrl)
             .Create();
@@ -127,7 +118,6 @@ public class EpisodeMergingRules
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithSpotifyId(spotifyInput.SpotifyId)
             .WithSpotifyUrl(spotifyInput.SpotifyUrl)
-            .WithRelease(SharedRelease)
             .WithDescription(fullDescription));
 
         // Act
@@ -165,12 +155,11 @@ public class EpisodeMergingRules
     public void Merge_fills_missing_YouTube_artwork()
     {
         // Arrange
-        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b.WithRelease(SharedRelease));
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput();
         var incomingImage = _fixture.DefaultYouTubeImage(youTubeInput.YouTubeId);
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithRelease(SharedRelease)
             .WithYouTube(youTubeInput.YouTubeId, youTubeInput.YouTubeUrl)
             .Create();
         var expected = EpisodeExpectation.From(stored)
@@ -178,7 +167,6 @@ public class EpisodeMergingRules
 
         var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
             .WithYouTubeId(youTubeInput.YouTubeId)
-            .WithRelease(SharedRelease)
             .WithImage(incomingImage));
 
         // Act
@@ -197,11 +185,10 @@ public class EpisodeMergingRules
         // Arrange
         var existingImage = new Uri("https://i.scdn.co/image/existing-spotify-artwork");
         var incomingImage = new Uri("https://i.scdn.co/image/incoming-spotify-artwork");
-        var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b.WithRelease(SharedRelease));
+        var spotifyInput = _fixture.CreateSpotifyCatalogueInput();
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithRelease(SharedRelease)
             .WithSpotify(spotifyInput.SpotifyId, spotifyInput.SpotifyUrl)
             .WithSpotifyImage(existingImage)
             .Create();
@@ -210,7 +197,6 @@ public class EpisodeMergingRules
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithSpotifyId(spotifyInput.SpotifyId)
             .WithSpotifyUrl(spotifyInput.SpotifyUrl)
-            .WithRelease(SharedRelease)
             .WithDescription("Incoming description")
             .WithImage(incomingImage));
 
@@ -232,10 +218,9 @@ public class EpisodeMergingRules
         const string completeDescription =
             "This is a complete episode summary with full details about the topic and guests.";
         const string shorterDescription = "This is a complete episode summary.";
-        var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b.WithRelease(SharedRelease));
+        var spotifyInput = _fixture.CreateSpotifyCatalogueInput();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithRelease(SharedRelease)
             .WithDescription(completeDescription)
             .WithSpotify(spotifyInput.SpotifyId, spotifyInput.SpotifyUrl)
             .Create();
@@ -244,7 +229,6 @@ public class EpisodeMergingRules
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithSpotifyId(spotifyInput.SpotifyId)
             .WithSpotifyUrl(spotifyInput.SpotifyUrl)
-            .WithRelease(SharedRelease)
             .WithDescription(shorterDescription));
 
         // Act
@@ -261,19 +245,17 @@ public class EpisodeMergingRules
     public void Merge_fills_missing_Apple_URL_on_Apple_matched_episode()
     {
         // Arrange
-        var appleInput = _fixture.CreateAppleCatalogueInput(b => b.WithRelease(SharedRelease));
+        var appleInput = _fixture.CreateAppleCatalogueInput();
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithRelease(SharedRelease)
             .WithApple(appleInput.AppleId)
             .Create();
         var expected = EpisodeExpectation.From(stored)
             .WithApple(appleInput.AppleId, appleInput.AppleUrl);
 
         var discovered = _fixture.CreateAppleCatalogueEpisode(b => b
-            .WithAppleId(appleInput.AppleId)
-            .WithRelease(SharedRelease));
+            .WithAppleId(appleInput.AppleId));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -289,19 +271,17 @@ public class EpisodeMergingRules
     public void Merge_fills_missing_YouTube_URL_on_YouTube_matched_episode()
     {
         // Arrange
-        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b.WithRelease(SharedRelease));
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput();
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithRelease(SharedRelease)
             .WithYouTube(youTubeInput.YouTubeId)
             .Create();
         var expected = EpisodeExpectation.From(stored)
             .WithYouTube(youTubeInput.YouTubeId, youTubeInput.YouTubeUrl);
 
         var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
-            .WithYouTubeId(youTubeInput.YouTubeId)
-            .WithRelease(SharedRelease));
+            .WithYouTubeId(youTubeInput.YouTubeId));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -317,19 +297,17 @@ public class EpisodeMergingRules
     public void Merge_does_not_replace_existing_Apple_URL()
     {
         // Arrange
-        var appleInput = _fixture.CreateAppleCatalogueInput(b => b.WithRelease(SharedRelease));
+        var appleInput = _fixture.CreateAppleCatalogueInput();
         var existingAppleUrl = appleInput.AppleUrl;
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithRelease(SharedRelease)
             .WithApple(appleInput.AppleId, existingAppleUrl)
             .Create();
         var expected = EpisodeExpectation.From(stored);
 
         var discovered = _fixture.CreateAppleCatalogueEpisode(b => b
-            .WithAppleId(appleInput.AppleId)
-            .WithRelease(SharedRelease));
+            .WithAppleId(appleInput.AppleId));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -344,20 +322,18 @@ public class EpisodeMergingRules
     public void Merge_does_not_replace_existing_YouTube_URL()
     {
         // Arrange
-        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b.WithRelease(SharedRelease));
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput();
         var existingYouTubeUrl = youTubeInput.YouTubeUrl;
         var incomingYouTubeUrl = new Uri($"https://youtu.be/{youTubeInput.YouTubeId}");
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithRelease(SharedRelease)
             .WithYouTube(youTubeInput.YouTubeId, existingYouTubeUrl)
             .Create();
         var expected = EpisodeExpectation.From(stored);
 
         var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
             .WithYouTubeId(youTubeInput.YouTubeId)
-            .WithRelease(SharedRelease)
             .WithYouTubeUrl(incomingYouTubeUrl));
 
         // Act

@@ -23,24 +23,23 @@ public class ReleaseDateMergingRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
-        var youTubeRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(12) + TimeSpan.FromMinutes(30));
         const string sharedTitle = "Cross-platform release merge probe";
         var sharedLength = TimeSpan.FromMinutes(42);
-        var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(
+        var stored = _fixture.CreateMidnightUtcStoredEpisode(
             podcast, dateOnlyRelease, sharedTitle, sharedLength);
-        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
-            .WithTitle(sharedTitle)
-            .WithRelease(youTubeRelease)
-            .WithDuration(sharedLength));
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInputSameDayAs(
+            stored,
+            configure: b => b.WithTitle(sharedTitle).WithDuration(sharedLength));
         var expected = EpisodeExpectation.From(stored)
-            .WithRelease(youTubeRelease)
+            .WithRelease(youTubeInput.Release)
             .WithYouTube(youTubeInput.YouTubeId, youTubeInput.YouTubeUrl);
 
-        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
-            .WithYouTubeId(youTubeInput.YouTubeId)
-            .WithTitle(sharedTitle)
-            .WithRelease(youTubeRelease)
-            .WithDuration(sharedLength));
+        var discovered = _fixture.CreateYouTubeCatalogueEpisodeSameDayAs(
+            stored,
+            configure: b => b
+                .WithYouTubeId(youTubeInput.YouTubeId)
+                .WithTitle(sharedTitle)
+                .WithDuration(sharedLength));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -58,7 +57,7 @@ public class ReleaseDateMergingRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var dateOnlyRelease = DomainTestFixture.UtcDateDaysAgo(2);
-        var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(podcast, dateOnlyRelease);
+        var stored = _fixture.CreateMidnightUtcStoredEpisode(podcast, dateOnlyRelease);
         var expected = EpisodeExpectation.From(stored);
 
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(
@@ -113,7 +112,7 @@ public class ReleaseDateMergingRules
         var youTubeRelease = DomainTestFixture.UtcAtTime(-1, TimeSpan.FromHours(12) + TimeSpan.FromMinutes(30));
         const string sharedTitle = "Cross-platform release merge probe";
         var sharedLength = TimeSpan.FromMinutes(42);
-        var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(
+        var stored = _fixture.CreateMidnightUtcStoredEpisode(
             podcast, dateOnlyRelease, sharedTitle, sharedLength);
         var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
             .WithTitle(sharedTitle)
@@ -143,24 +142,23 @@ public class ReleaseDateMergingRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
-        var appleRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(15) + TimeSpan.FromMinutes(45));
         const string sharedTitle = "Cross-platform release merge probe";
         var sharedLength = TimeSpan.FromMinutes(42);
-        var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(
+        var stored = _fixture.CreateMidnightUtcStoredEpisode(
             podcast, dateOnlyRelease, sharedTitle, sharedLength);
-        var appleInput = _fixture.CreateAppleCatalogueInput(b => b
-            .WithTitle(sharedTitle)
-            .WithRelease(appleRelease)
-            .WithDuration(sharedLength));
+        var appleInput = _fixture.CreateAppleCatalogueInputSameDayAs(
+            stored,
+            configure: b => b.WithTitle(sharedTitle).WithDuration(sharedLength));
         var expected = EpisodeExpectation.From(stored)
-            .WithRelease(appleRelease)
+            .WithRelease(appleInput.Release)
             .WithApple(appleInput.AppleId, appleInput.AppleUrl);
 
-        var discovered = _fixture.CreateAppleCatalogueEpisode(b => b
-            .WithAppleId(appleInput.AppleId)
-            .WithTitle(sharedTitle)
-            .WithRelease(appleRelease)
-            .WithDuration(sharedLength));
+        var discovered = _fixture.CreateAppleCatalogueEpisodeSameDayAs(
+            stored,
+            configure: b => b
+                .WithAppleId(appleInput.AppleId)
+                .WithTitle(sharedTitle)
+                .WithDuration(sharedLength));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);

@@ -47,22 +47,22 @@ public class PlatformCatalogueAdapterRules
         "because Apple provides a full publish datetime.")]
     public void Apple_catalogue_release_maps_to_datetime_utc_precision()
     {
-        // Arrange
-        var appleRelease = DomainTestFixture.UtcAtTime(-84, TimeSpan.FromHours(9) + TimeSpan.FromMinutes(15) + TimeSpan.FromSeconds(30));
-        var input = _fixture.CreateAppleCatalogueInput(b => b.WithRelease(appleRelease));
+        // Arrange — Apple specimens carry a fixed UTC publish time from fixture setup.
+        var input = _fixture.CreateAppleCatalogueInput();
 
         // Act
         var candidate = _appleAdapter.Adapt(input);
 
         // Assert
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateTimeUtc);
-        candidate.Release.Value.Should().Be(appleRelease);
+        candidate.Release.Value.Should().Be(input.Release);
+        input.Release.TimeOfDay.Should().Be(DomainTestFixture.Specimens.DefaultAppleReleaseTimeOfDay);
 
         var expected = new EpisodeExpectation(
             null,
             new PlatformExpectation(input.AppleId.ToString(), input.AppleUrl, input.Image),
             null,
-            appleRelease,
+            input.Release,
             input.Description);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);
     }
@@ -72,22 +72,22 @@ public class PlatformCatalogueAdapterRules
         "because YouTube authority depends on the exact publish time.")]
     public void YouTube_catalogue_release_maps_publish_datetime_as_is()
     {
-        // Arrange
-        var publishDate = DomainTestFixture.UtcAtTime(-44, TimeSpan.FromHours(18) + TimeSpan.FromMinutes(45) + TimeSpan.FromSeconds(12));
-        var input = _fixture.CreateYouTubeCatalogueInput(b => b.WithRelease(publishDate));
+        // Arrange — YouTube specimens carry a fixed UTC publish time from fixture setup.
+        var input = _fixture.CreateYouTubeCatalogueInput();
 
         // Act
         var candidate = _youTubeAdapter.Adapt(input);
 
         // Assert
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateTimeUtc);
-        candidate.Release.Value.Should().Be(publishDate);
+        candidate.Release.Value.Should().Be(input.Release);
+        input.Release.TimeOfDay.Should().Be(DomainTestFixture.Specimens.DefaultYouTubeReleaseTimeOfDay);
 
         var expected = new EpisodeExpectation(
             null,
             null,
             new PlatformExpectation(input.YouTubeId, input.YouTubeUrl, input.Image),
-            publishDate,
+            input.Release,
             input.Description);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);
     }
