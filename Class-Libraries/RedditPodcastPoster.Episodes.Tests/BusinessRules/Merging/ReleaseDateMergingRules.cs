@@ -12,9 +12,6 @@ namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Merging;
 /// </summary>
 public class ReleaseDateMergingRules
 {
-    private const string SpotifyEpisodeId = "6O1Z1s7ca0PI8Gq1rdt3j4";
-    private static readonly Uri SpotifyUrl = new($"https://open.spotify.com/episode/{SpotifyEpisodeId}");
-
     private readonly DomainTestFixture _fixture = new();
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
@@ -27,19 +24,10 @@ public class ReleaseDateMergingRules
         var podcast = _fixture.CreatePodcast();
         var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
         var youTubeRelease = new DateTime(2026, 7, 1, 12, 30, 0, DateTimeKind.Utc);
-        var stored = new Episode
-        {
-            Id = Guid.NewGuid(),
-            PodcastId = podcast.Id,
-            Title = "Episode title",
-            Release = dateOnlyRelease,
-            Length = TimeSpan.FromMinutes(45),
-            SpotifyId = SpotifyEpisodeId,
-            Urls = new ServiceUrls { Spotify = SpotifyUrl }
-        };
+        var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(podcast, dateOnlyRelease);
         var expected = EpisodeExpectation.From(stored)
             .WithRelease(youTubeRelease)
-            .WithYouTube("video-id", new Uri("https://www.youtube.com/watch?v=video-id"));
+            .WithYouTube("video-id", _fixture.DefaultYouTubeUrl("video-id"));
 
         var discovered = _fixture.CreateYouTubeCatalogueEpisode("video-id", release: youTubeRelease);
 
@@ -60,21 +48,12 @@ public class ReleaseDateMergingRules
         var podcast = _fixture.CreatePodcast();
         var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
         var spotifyRelease = new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc);
-        var stored = new Episode
-        {
-            Id = Guid.NewGuid(),
-            PodcastId = podcast.Id,
-            Title = "Episode title",
-            Release = dateOnlyRelease,
-            Length = TimeSpan.FromMinutes(45),
-            SpotifyId = SpotifyEpisodeId,
-            Urls = new ServiceUrls { Spotify = SpotifyUrl }
-        };
+        var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(podcast, dateOnlyRelease);
         var expected = EpisodeExpectation.From(stored);
 
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(
-            SpotifyEpisodeId,
-            spotifyUrl: SpotifyUrl,
+            DomainTestFixture.Incidents.C2CAbuserSpotifyId,
+            spotifyUrl: _fixture.DefaultSpotifyUrl(DomainTestFixture.Incidents.C2CAbuserSpotifyId),
             release: spotifyRelease);
 
         // Act
@@ -94,30 +73,15 @@ public class ReleaseDateMergingRules
         var podcast = _fixture.CreateCultsToConsciousnessPodcast();
         var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
         var spotifyCatalogueRelease = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
-        var youTubeUrl = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g");
-        var stored = new Episode
-        {
-            Id = DomainTestFixture.Incidents.C2CAbuserEpisodeId,
-            PodcastId = podcast.Id,
-            Title = "I Confronted My Ab*ser 30 Years Later. Everything Changed",
-            Release = youTubeRelease,
-            Length = TimeSpan.Parse("01:28:37"),
-            YouTubeId = "UsqC0L9He2g",
-            SpotifyId = SpotifyEpisodeId,
-            Urls = new ServiceUrls
-            {
-                YouTube = youTubeUrl,
-                Spotify = SpotifyUrl
-            }
-        };
+        var stored = _fixture.CreateC2CYouTubeAuthorityStoredEpisode(
+            podcast,
+            release: youTubeRelease,
+            length: TimeSpan.Parse("01:28:37"));
         var expected = EpisodeExpectation.From(stored);
 
-        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
-            SpotifyEpisodeId,
-            "I Confronted My Abuser 30 Years Later… Everything Changed",
-            SpotifyUrl,
-            spotifyCatalogueRelease,
-            TimeSpan.Parse("01:31:59.6990000"));
+        var discovered = _fixture.CreateC2CSpotifyIncoming(
+            release: spotifyCatalogueRelease,
+            length: TimeSpan.Parse("01:31:59.6990000"));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -137,18 +101,9 @@ public class ReleaseDateMergingRules
         var podcast = _fixture.CreatePodcast();
         var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
         var youTubeRelease = new DateTime(2026, 7, 2, 12, 30, 0, DateTimeKind.Utc);
-        var stored = new Episode
-        {
-            Id = Guid.NewGuid(),
-            PodcastId = podcast.Id,
-            Title = "Episode title",
-            Release = dateOnlyRelease,
-            Length = TimeSpan.FromMinutes(45),
-            SpotifyId = SpotifyEpisodeId,
-            Urls = new ServiceUrls { Spotify = SpotifyUrl }
-        };
+        var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(podcast, dateOnlyRelease);
         var expected = EpisodeExpectation.From(stored)
-            .WithYouTube("video-id", new Uri("https://www.youtube.com/watch?v=video-id"));
+            .WithYouTube("video-id", _fixture.DefaultYouTubeUrl("video-id"));
 
         var discovered = _fixture.CreateYouTubeCatalogueEpisode("video-id", release: youTubeRelease);
 
@@ -169,20 +124,10 @@ public class ReleaseDateMergingRules
         const long appleId = 1635013492;
         var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
         var appleRelease = new DateTime(2026, 7, 1, 15, 45, 0, DateTimeKind.Utc);
-        var appleUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleId}");
-        var stored = new Episode
-        {
-            Id = Guid.NewGuid(),
-            PodcastId = podcast.Id,
-            Title = "Episode title",
-            Release = dateOnlyRelease,
-            Length = TimeSpan.FromMinutes(45),
-            SpotifyId = SpotifyEpisodeId,
-            Urls = new ServiceUrls { Spotify = SpotifyUrl }
-        };
+        var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(podcast, dateOnlyRelease);
         var expected = EpisodeExpectation.From(stored)
             .WithRelease(appleRelease)
-            .WithApple(appleId, appleUrl);
+            .WithApple(appleId, _fixture.DefaultAppleUrl(appleId));
 
         var discovered = _fixture.CreateAppleCatalogueEpisode(appleId, release: appleRelease);
 

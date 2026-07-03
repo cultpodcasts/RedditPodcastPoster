@@ -12,9 +12,6 @@ namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 /// </summary>
 public class TitleDurationMatchingRules
 {
-    private const string SpotifyEpisodeId = "1UncRhHtmojlTq2mO0Gntz";
-    private static readonly Uri SpotifyUrl = new($"https://open.spotify.com/episode/{SpotifyEpisodeId}");
-
     private readonly DomainTestFixture _fixture = new();
     private readonly EpisodeMatcher _matcher = EpisodeDomainTestServices.CreateMatcher();
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
@@ -28,29 +25,16 @@ public class TitleDurationMatchingRules
         var release = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
         var existingLength = TimeSpan.FromSeconds(878.503);
         var incomingLength = TimeSpan.FromMinutes(14) + TimeSpan.FromSeconds(39);
-        var podcast = _fixture.CreatePodcast(p => p.Name = "Postmormon Postmortem");
-        var stored = _fixture.CreateEpisode(e =>
-        {
-            e.Id = DomainTestFixture.Incidents.PostmormonExistingEpisodeId;
-            e.PodcastId = podcast.Id;
-            e.Title = "The Bear River Massacre and the Mormon History Behind Washakie Ward";
-            e.Release = release;
-            e.Length = existingLength;
-            e.SpotifyId = SpotifyEpisodeId;
-            e.Urls = new ServiceUrls { Spotify = SpotifyUrl };
-        });
+        var podcast = _fixture.CreatePostmormonPodcast();
+        var stored = _fixture.CreatePostmormonStoredEpisode(
+            podcast,
+            release: release,
+            length: existingLength);
         var expected = EpisodeExpectation.From(stored)
-            .WithYouTube("l_iHjZWIsXw", new Uri("https://www.youtube.com/watch?v=l_iHjZWIsXw"));
-
-        var discovered = Episode.FromYouTube(
-            "l_iHjZWIsXw",
-            "The Bear River Masscare and the Mormon History Behind the Washakie Ward",
-            "YouTube description",
-            incomingLength,
-            false,
-            release,
-            new Uri("https://www.youtube.com/watch?v=l_iHjZWIsXw"),
-            null);
+            .WithYouTube(
+                DomainTestFixture.Incidents.PostmormonYouTubeId,
+                _fixture.DefaultYouTubeUrl(DomainTestFixture.Incidents.PostmormonYouTubeId));
+        var discovered = _fixture.CreatePostmormonYouTubeIncoming(release: release, length: incomingLength);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -68,10 +52,10 @@ public class TitleDurationMatchingRules
     {
         // Arrange
         var existing = CreateEpisode(
-            "The Bear River Massacre and the Mormon History Behind Washakie Ward",
+            DomainTestFixture.Incidents.PostmormonStoredTitle,
             TimeSpan.FromMinutes(45));
         var incoming = CreateEpisode(
-            "The Bear River Masscare and the Mormon History Behind the Washakie Ward",
+            DomainTestFixture.Incidents.PostmormonIncomingYouTubeTitle,
             TimeSpan.FromMinutes(30));
 
         // Act
@@ -108,27 +92,9 @@ public class TitleDurationMatchingRules
         var podcast = _fixture.CreatePodcast();
         podcast.EpisodeMatchRegex = episodeMatchRegex;
         var sharedRelease = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
-        var stored = new Episode
-        {
-            Id = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"),
-            PodcastId = podcast.Id,
-            Title = "#42 Stored episode about the first topic",
-            Release = sharedRelease,
-            Length = TimeSpan.FromMinutes(30)
-        };
+        var stored = _fixture.CreateEpisodeMatchRegexStoredEpisode(podcast, release: sharedRelease);
         var expected = EpisodeExpectation.From(stored);
-
-        var discovered = new Episode
-        {
-            Title = "#42 Catalogue title with completely different wording",
-            Release = sharedRelease.AddDays(7),
-            Length = TimeSpan.FromHours(2),
-            SpotifyId = "regexForcedSpotify01",
-            Urls = new ServiceUrls
-            {
-                Spotify = new Uri("https://open.spotify.com/episode/regexForcedSpotify01")
-            }
-        };
+        var discovered = _fixture.CreateEpisodeMatchRegexDiscoveredEpisode(release: sharedRelease.AddDays(7));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -138,8 +104,8 @@ public class TitleDurationMatchingRules
         result.MergedEpisodes.Should().ContainSingle();
         result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);
         stored.ShouldMatchExpectation(expected.WithSpotify(
-            "regexForcedSpotify01",
-            new Uri("https://open.spotify.com/episode/regexForcedSpotify01")));
+            DomainTestFixture.Incidents.EpisodeMatchRegexSpotifyId,
+            _fixture.DefaultSpotifyUrl(DomainTestFixture.Incidents.EpisodeMatchRegexSpotifyId)));
     }
 
     private Episode CreateEpisode(string title, TimeSpan length, DateTime? release = null) =>

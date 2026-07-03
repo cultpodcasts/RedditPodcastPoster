@@ -161,37 +161,14 @@ public class IndexingPersistenceRules
         podcast.LastIndexed = null;
         harness.PodcastRepository.Seed(podcast);
 
-        var sharedTitle = "Shared episode title";
         var sharedLength = TimeSpan.FromMinutes(45);
-        var youTubeOnly = new Episode
-        {
-            Id = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-            PodcastId = podcast.Id,
-            Title = sharedTitle,
-            Release = EpisodeRelease,
-            Length = sharedLength,
-            YouTubeId = "youtube-video-id",
-            Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/watch?v=youtube-video-id") }
-        };
-        var appleOnly = new Episode
-        {
-            Id = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-            PodcastId = podcast.Id,
-            Title = sharedTitle,
-            Release = EpisodeRelease,
-            Length = sharedLength,
-            AppleId = 1234567890,
-            Urls = new ServiceUrls { Apple = new Uri("https://podcasts.apple.com/us/podcast/episode/id1234567890") }
-        };
-        harness.EpisodeRepository.Seed(youTubeOnly, appleOnly);
-
-        const string incomingSpotifyId = "incomingSpotifyId01";
-        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
-            incomingSpotifyId,
-            sharedTitle,
-            new Uri($"https://open.spotify.com/episode/{incomingSpotifyId}"),
+        var (youTubeOnly, appleOnly) = _fixture.CreateAmbiguousMatchStoredEpisodes(
+            podcast,
             EpisodeRelease,
             sharedLength);
+        harness.EpisodeRepository.Seed(youTubeOnly, appleOnly);
+
+        var discovered = _fixture.CreateAmbiguousMatchSpotifyIncoming(EpisodeRelease, sharedLength);
 
         harness.EpisodeProvider
             .Setup(x => x.GetEpisodes(

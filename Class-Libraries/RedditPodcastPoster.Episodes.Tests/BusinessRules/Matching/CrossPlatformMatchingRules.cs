@@ -12,9 +12,6 @@ namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 /// </summary>
 public class CrossPlatformMatchingRules
 {
-    private const string C2CSpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4";
-    private static readonly Uri C2CSpotifyUrl = new($"https://open.spotify.com/episode/{C2CSpotifyId}");
-
     private readonly DomainTestFixture _fixture = new();
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
@@ -27,26 +24,15 @@ public class CrossPlatformMatchingRules
         var podcast = _fixture.CreateCultsToConsciousnessPodcast();
         var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
         var youTubeLength = TimeSpan.Parse("01:28:37");
-        var youTubeUrl = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g");
-        var stored = new Episode
-        {
-            Id = DomainTestFixture.Incidents.C2CAbuserEpisodeId,
-            PodcastId = podcast.Id,
-            Title = "I Confronted My Ab*ser 30 Years Later. Everything Changed",
-            Release = youTubeRelease,
-            Length = youTubeLength,
-            YouTubeId = "UsqC0L9He2g",
-            Urls = new ServiceUrls { YouTube = youTubeUrl }
-        };
+        var stored = _fixture.CreateC2CYouTubeOnlyStoredEpisode(podcast, release: youTubeRelease, length: youTubeLength);
         var expected = EpisodeExpectation.From(stored)
-            .WithSpotify(C2CSpotifyId, C2CSpotifyUrl);
+            .WithSpotify(
+                DomainTestFixture.Incidents.C2CAbuserSpotifyId,
+                _fixture.DefaultSpotifyUrl(DomainTestFixture.Incidents.C2CAbuserSpotifyId));
 
-        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
-            C2CSpotifyId,
-            "I Confronted My Abuser 30 Years Later… Everything Changed",
-            C2CSpotifyUrl,
-            new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc),
-            TimeSpan.Parse("01:31:59.6990000"));
+        var discovered = _fixture.CreateC2CSpotifyIncoming(
+            release: new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc),
+            length: TimeSpan.Parse("01:31:59.6990000"));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -66,24 +52,9 @@ public class CrossPlatformMatchingRules
     {
         // Arrange
         var podcast = _fixture.CreateCultsToConsciousnessPodcast();
-        var stored = new Episode
-        {
-            Id = Guid.Parse("53ba0c64-58a7-4292-b7fe-ba135d4d3160"),
-            PodcastId = podcast.Id,
-            Title = "Why He Thinks Daughters Should Parent Their Siblings  (ft. Tia Levings)",
-            Release = new DateTime(2026, 5, 31, 21, 15, 27, DateTimeKind.Utc),
-            Length = TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(35),
-            YouTubeId = "u6ZF-2sWQQc",
-            Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/watch?v=u6ZF-2sWQQc") }
-        };
+        var stored = _fixture.CreateC2CNegativeDelayStoredEpisode(podcast);
         var expected = EpisodeExpectation.From(stored);
-
-        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
-            "1BTQKaev5KLjScdwHII14B",
-            "Becoming a Fundamentalist Trad Wife Almost Killed Me",
-            new Uri("https://open.spotify.com/episode/1BTQKaev5KLjScdwHII14B"),
-            new DateTime(2026, 6, 28, 0, 0, 0, DateTimeKind.Utc),
-            TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(30));
+        var discovered = _fixture.CreateC2CNegativeDelaySpotifyIncoming();
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -103,37 +74,13 @@ public class CrossPlatformMatchingRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        var sharedTitle = "Shared episode title";
         var sharedRelease = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
         var sharedLength = TimeSpan.FromMinutes(45);
-        var youTubeOnly = new Episode
-        {
-            Id = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-            PodcastId = podcast.Id,
-            Title = sharedTitle,
-            Release = sharedRelease,
-            Length = sharedLength,
-            YouTubeId = "youtube-video-id",
-            Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/watch?v=youtube-video-id") }
-        };
-        var appleOnly = new Episode
-        {
-            Id = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-            PodcastId = podcast.Id,
-            Title = sharedTitle,
-            Release = sharedRelease,
-            Length = sharedLength,
-            AppleId = 1234567890,
-            Urls = new ServiceUrls { Apple = new Uri("https://podcasts.apple.com/us/podcast/episode/id1234567890") }
-        };
-
-        const string incomingSpotifyId = "incomingSpotifyId01";
-        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
-            incomingSpotifyId,
-            sharedTitle,
-            new Uri($"https://open.spotify.com/episode/{incomingSpotifyId}"),
+        var (youTubeOnly, appleOnly) = _fixture.CreateAmbiguousMatchStoredEpisodes(
+            podcast,
             sharedRelease,
             sharedLength);
+        var discovered = _fixture.CreateAmbiguousMatchSpotifyIncoming(sharedRelease, sharedLength);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [youTubeOnly, appleOnly], [discovered]);
@@ -160,20 +107,17 @@ public class CrossPlatformMatchingRules
         var audioRelease = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
         var youTubeRelease = audioRelease.AddDays(1);
         var length = TimeSpan.FromHours(1);
-        var stored = new Episode
-        {
-            Id = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd"),
-            PodcastId = podcast.Id,
-            Title = "Episode A",
-            Release = audioRelease,
-            Length = length,
-            Urls = new ServiceUrls { Spotify = new Uri("https://open.spotify.com/episode/delayedAudio01") }
-        };
+        var stored = _fixture.CreatePositiveDelayAudioStoredEpisode(
+            podcast,
+            audioRelease: audioRelease,
+            length: length);
         var expected = EpisodeExpectation.From(stored)
-            .WithYouTube("delayedYouTube01", new Uri("https://www.youtube.com/watch?v=delayedYouTube01"));
+            .WithYouTube(
+                DomainTestFixture.Incidents.PositiveDelayIncomingYouTubeId,
+                _fixture.DefaultYouTubeUrl(DomainTestFixture.Incidents.PositiveDelayIncomingYouTubeId));
 
         var discovered = _fixture.CreateYouTubeCatalogueEpisode(
-            "delayedYouTube01",
+            DomainTestFixture.Incidents.PositiveDelayIncomingYouTubeId,
             "Completely different title",
             youTubeRelease,
             length);

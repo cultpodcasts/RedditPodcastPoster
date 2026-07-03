@@ -193,43 +193,11 @@ public class PlatformIdentityMatchingRules
     {
         // Arrange
         var podcast = _fixture.CreateCultsToConsciousnessPodcast();
-        const string otoSpotifyId = "16LveQifI6eBwDXAINpd7G";
-        var otoSpotifyUrl = new Uri($"https://open.spotify.com/episode/{otoSpotifyId}");
-        var correctOwnerId = Guid.Parse("1c804814-12ac-40c8-a223-88ab7c703d38");
-        var wrongYouTubeOnlyId = Guid.Parse("53ba0c64-58a7-4292-b7fe-ba135d4d3160");
-        var correctOwner = new Episode
-        {
-            Id = correctOwnerId,
-            PodcastId = podcast.Id,
-            Title = "What Really Happens During \"Ordo Templi Orientis\" Initiations?  (Trapped in a Secret Society)",
-            Release = new DateTime(2026, 5, 20, 22, 15, 16, DateTimeKind.Utc),
-            Length = TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(42),
-            SpotifyId = otoSpotifyId,
-            YouTubeId = "l3aIdJeg0vE",
-            Urls = new ServiceUrls
-            {
-                Spotify = otoSpotifyUrl,
-                YouTube = new Uri("https://www.youtube.com/watch?v=l3aIdJeg0vE")
-            }
-        };
-        var wrongYouTubeOnly = new Episode
-        {
-            Id = wrongYouTubeOnlyId,
-            PodcastId = podcast.Id,
-            Title = "Why He Thinks Daughters Should Parent Their Siblings  (ft. Tia Levings)",
-            Release = new DateTime(2026, 5, 31, 21, 15, 27, DateTimeKind.Utc),
-            Length = TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(35),
-            YouTubeId = "u6ZF-2sWQQc",
-            Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/watch?v=u6ZF-2sWQQc") }
-        };
+        var correctOwner = _fixture.CreateOtoCorrectOwnerEpisode(podcast);
+        var wrongYouTubeOnly = _fixture.CreateOtoWrongYouTubeOnlyEpisode(podcast);
         var expectedOwner = EpisodeExpectation.From(correctOwner);
         var expectedWrongRow = EpisodeExpectation.From(wrongYouTubeOnly);
-
-        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
-            otoSpotifyId,
-            spotifyUrl: otoSpotifyUrl,
-            release: new DateTime(2026, 6, 24, 0, 0, 0, DateTimeKind.Utc),
-            length: TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(42));
+        var discovered = _fixture.CreateOtoSpotifyIncoming();
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [correctOwner, wrongYouTubeOnly], [discovered]);
