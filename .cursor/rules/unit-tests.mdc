@@ -1,0 +1,270 @@
+---
+description: Hard guardrails for episode-domain business-rule unit tests (DomainTestFixture, DisplayName, lean arrange)
+globs: "**/*Tests/**/*.cs,Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/**,plans/episode-domain-refactor/**
+alwaysApply: false
+---
+
+# Episode-domain unit test guardrails
+
+**Authoritative AI reference for business-rule tests.** Read before writing or editing tests under `*Tests/` that use `DomainTestFixture`.
+
+Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-refactor/README.md) (architecture, rule catalog, coverage). This file is the **prescriptive** test-writing contract — not aspirational guidance.
+
+---
+
+## Table of contents
+
+1. [Hard guardrails (MUST / NEVER / ONLY WHEN)](#1-hard-guardrails-must--never--only-when)
+2. [Specimen contract table](#2-specimen-contract-table)
+3. [Arrange checklist](#3-arrange-checklist)
+4. [When to use Incidents vs generic specimens](#4-when-to-use-incidents-vs-generic-specimens)
+5. [Good / bad examples](#5-good--bad-examples)
+6. [Fixture API quick reference](#6-fixture-api-quick-reference)
+
+---
+
+## 1. Hard guardrails (MUST / NEVER / ONLY WHEN)
+
+### Test shape
+
+| | Rule |
+|---|------|
+| **MUST** | Use `[Fact(DisplayName = "Plain English rule: when X, then Y, because Z.")]` — DisplayName is the authoritative spec text |
+| **MUST** | Structure every test body with `// Arrange`, `// Act`, `// Assert` comments |
+| **MUST** | Use snake_case method names as shorthand only; never rely on method name alone for documentation |
+| **MUST** | Assert outcomes via `EpisodeExpectation` + `ShouldMatchExpectation`, repository save assertions, or `SaveCallRecorder` — not mock call counts alone |
+| **NEVER** | Use Given/When/Then section comments |
+| **NEVER** | Name tests after implementation (`MergeInPlace_WhenUrlsSpotifyNull`) |
+| **NEVER** | Change production behavior without updating the corresponding business-rule test |
+| **NEVER** | Change an existing rule test assertion unless behavior change is explicit and agreed |
+
+### Single fixture
+
+| | Rule |
+|---|------|
+| **MUST** | Use one `DomainTestFixture` instance per test class: `private readonly DomainTestFixture _fixture = new();` |
+| **MUST** | Rely on AutoFixture customizations registered in `DomainTestFixture`'s constructor — they wire catalogue/resolved DTOs through platform builders |
+| **NEVER** | Add scattered `Default*` filler constants (titles, durations, release offsets, platform IDs) in test classes or fixture |
+| **NEVER** | Instantiate raw `new Episode { ... }` or `new SpotifyCatalogueInput(...)` in arrange — use fixture factories and builders |
+
+### Lean arrange
+
+| | Rule |
+|---|------|
+| **MUST** | Override only fields the assertion cares about; let peripheral data come from specimens |
+| **MUST** | Call zero-arg `CreateSpotifyCatalogueInput()`, `CreateAppleCatalogueInput()`, `CreateYouTubeCatalogueInput()` (and resolved-item equivalents) and trust defaults unless the rule needs more |
+| **ONLY WHEN** | The rule asserts an exact release, a relationship between two releases, or identity matching — then override via builder callback: `CreateAppleCatalogueInput(b => b.WithRelease(...))` |
+| **ONLY WHEN** | Two episodes must share title/duration for matching — capture one generated value and reuse: `var title = _fixture.Create<string>();` then `.WithTitle(title)` on both sides |
+| **NEVER** | Hardcode arrange literals that do not appear in the assertion (see §5 anti-patterns) |
+
+### Dates and IDs
+
+| | Rule |
+|---|------|
+| **MUST** | Use relative date helpers: `DomainTestFixture.UtcToday`, `UtcDaysAgo`, `UtcDateDaysAgo`, `UtcDaysFromNow`, `UtcAtTime` |
+| **MUST** | Use `UtcDateDaysAgo` / `.WithRelease()` (floors to `.Date`) for Spotify — Spotify catalogue has **no time-of-day** |
+| **MUST** | Use `UtcAtTime` for Apple and YouTube releases that carry publish time-of-day |
+| **MUST** | Assert platform IDs via specimen properties (`input.AppleId`, `spotifyInput.SpotifyId`) or `_fixture.CreateAppleId()` — not inline magic numbers/strings |
+| **NEVER** | Use fixed calendar literals (`new DateTime(2026, 6, 4, ...)`) except inside `DomainTestFixture.Incidents` presets |
+| **NEVER** | Hardcode platform IDs in generic tests (`const long appleId = 1234567890123`, `"6O1Z1s7ca0PI8Gq1rdt3j4"`) |
+
+### Static literals in arrange
+
+| | Rule |
+|---|------|
+| **MUST** | Generate strings with `_fixture.Create<string>()` unless the rule is about that exact string (typo match, regex, truncated description) |
+| **MUST** | Generate durations with `_fixture.CreateDuration()` unless the rule asserts an exact duration or tolerance edge |
+| **NEVER** | Declare `const string sharedTitle = "Episode about something"` for filler data |
+| **NEVER** | Use `TimeSpan.FromMinutes(42)` unless the assertion depends on that exact value |
+| **NEVER** | Share arrange data via magic strings — share via variables from the fixture (`var title = _fixture.Create<string>()`), not duplicated literals |
+
+### Incidents and regression presets
+
+| | Rule |
+|---|------|
+| **MUST** | Use `DomainTestFixture.Incidents.*` and named preset methods (`CreateC2CYouTubeOnlyStoredEpisode`, `CreatePostmormonStoredEpisode`, etc.) for production regression cases |
+| **NEVER** | Copy production platform IDs into generic identity/merge tests |
+| **ONLY WHEN** | Documenting a known bug — characterize **current** behavior with comment `// KNOWN: likely bug — fix tracked separately`; do not fix in the same PR |
+
+### Test layers
+
+| | Rule |
+|---|------|
+| **MUST** | Layer 2 domain tests use real matcher/merger/applier — no mocks |
+| **MUST** | Layer 3 orchestration tests mock at enricher/provider boundary; assert repository/save outcomes — do not re-prove Layer 2 matching |
+| **NEVER** | Test third-party library scores (FuzzySharp) as business rules |
+| **NEVER** | Assert only `MergedEpisodes.Should().ContainSingle()` without stating **what** merged |
+
+---
+
+## 2. Specimen contract table
+
+Default builders produce **fully valid, platform-correct** objects. Tests trust these unless the rule requires overrides.
+
+| Entity | Release | ID | URL |
+|--------|---------|-----|-----|
+| Spotify catalogue / `ResolvedSpotifyItem` | Date-only midnight UTC (`UtcDateDaysAgo`; `.WithRelease()` floors to `.Date`) | 22-char base62 (fixture-generated) | `https://open.spotify.com/episode/{id}` |
+| Apple catalogue / `ResolvedAppleItem` | Full UTC datetime with non-midnight time-of-day (fixture-generated day offset + publish time) | long numeric ≥ 13 digits (fixture-generated) | `https://podcasts.apple.com/us/podcast/episode/id{id}` |
+| YouTube catalogue / `ResolvedYouTubeItem` | Full UTC datetime with non-midnight time-of-day (fixture-generated day offset + publish time) | 11 chars from `[A-Za-z0-9_-]` (fixture-generated) | `https://www.youtube.com/watch?v={id}` |
+
+**Same-calendar-date probes:** `CreateMidnightUtcStoredEpisode` + `CreateYouTubeCatalogueEpisodeSameDayAs` / `CreateAppleCatalogueEpisodeSameDayAs` (backfill time-of-day generated from stored date, not a fixed constant).
+
+**Stable references before build:** `_fixture.CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateDuration()`, `CreateNonMidnightTimeOfDay()`, `CreateYouTubeChannelId()`.
+
+---
+
+## 3. Arrange checklist
+
+Before submitting a business-rule test, verify:
+
+- [ ] `DisplayName` states the business rule in plain English (readable in Test Explorer / CI)
+- [ ] `// Arrange` / `// Act` / `// Assert` present
+- [ ] Only assertion-relevant fields overridden; catalogue/episode filler from specimens
+- [ ] Zero-arg `Create*CatalogueInput()` used where possible; builder callback only when needed
+- [ ] Relative dates (`UtcToday`, `UtcDateDaysAgo`, `UtcAtTime`) — no fixed year literals
+- [ ] Spotify releases date-only; Apple/YouTube use `UtcAtTime` when time-of-day matters
+- [ ] Platform IDs from specimens or `Incidents` — no hardcoded literals in generic tests
+- [ ] Shared matching fields (title, duration) from `_fixture.Create<string>()` / `CreateDuration()`, not `const` literals
+- [ ] Assert uses `EpisodeExpectation.From(...)` or repository/save assertions
+- [ ] Incident regression uses `Incidents.*` + preset factory methods, not copied IDs
+
+---
+
+## 4. When to use Incidents vs generic specimens
+
+| Scenario | Use |
+|----------|-----|
+| Generic identity, merge, adapter mapping | Zero-arg `Create*CatalogueInput()` / `Create*CatalogueEpisode()` |
+| Same-calendar-date backfill, midnight UTC stored row | `CreateMidnightUtcStoredEpisode` + `Create*CatalogueEpisodeSameDayAs` |
+| YouTube-first cross-platform match, negative delay guard, C2C abuser merge | `CreateCultsToConsciousnessPodcast()`, `CreateC2C*`, `Incidents.C2CAbuser*` |
+| Typo title fuzzy match (Postmormon) | `CreatePostmormonPodcast()`, `CreatePostmormon*`, `Incidents.Postmormon*` |
+| Ambiguous dual-match failure | `CreateAmbiguousMatchStoredEpisodes`, `Incidents.Ambiguous*` |
+| EpisodeMatchRegex forced match | `CreateEpisodeMatchRegexStoredEpisode`, `Incidents.EpisodeMatchRegex*` |
+| Positive YouTube publishing delay | `CreatePositiveDelayAudioStoredEpisode`, `Incidents.PositiveDelay*` |
+
+**Rule:** If the test is not documenting a specific production incident, do **not** import IDs from `Incidents`.
+
+---
+
+## 5. Good / bad examples
+
+### Anti-pattern: magic strings and fixed durations
+
+```csharp
+// BAD — filler literals unrelated to the assertion
+const string sharedTitle = "Episode about cults";
+var sharedLength = TimeSpan.FromMinutes(42);
+var stored = _fixture.CreateMidnightUtcStoredEpisode(
+    podcast, DomainTestFixture.UtcDaysAgo(2), sharedTitle, sharedLength);
+var discovered = _fixture.CreateYouTubeCatalogueEpisode(
+    "dQw4w9WgXcQ", sharedTitle, DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(14)), sharedLength);
+```
+
+```csharp
+// GOOD — generated filler; IDs from specimen; only release relationship is fixed
+var podcast = _fixture.CreatePodcast();
+var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
+var sharedTitle = _fixture.Create<string>();
+var sharedLength = _fixture.CreateDuration();
+var stored = _fixture.CreateMidnightUtcStoredEpisode(
+    podcast, dateOnlyRelease, sharedTitle, sharedLength);
+var youTubeInput = _fixture.CreateYouTubeCatalogueInputSameDayAs(
+    stored,
+    configure: b => b.WithTitle(sharedTitle).WithDuration(sharedLength));
+var discovered = _fixture.CreateYouTubeCatalogueEpisodeSameDayAs(
+    stored,
+    youTubeInput.Release.TimeOfDay,
+    configure: b => b
+        .WithYouTubeId(youTubeInput.YouTubeId)
+        .WithTitle(sharedTitle)
+        .WithDuration(sharedLength));
+var expected = EpisodeExpectation.From(stored)
+    .WithRelease(youTubeInput.Release)
+    .WithYouTube(youTubeInput.YouTubeId, youTubeInput.YouTubeUrl);
+```
+
+### Anti-pattern: hardcoded platform ID in assert
+
+```csharp
+// BAD
+var input = _fixture.CreateAppleCatalogueInput();
+stored.ShouldMatchExpectation(expected.WithApple(1234567890123L, input.AppleUrl));
+```
+
+```csharp
+// GOOD — assert via specimen property
+var input = _fixture.CreateAppleCatalogueInput();
+stored.ShouldMatchExpectation(expected.WithApple(input.AppleId, input.AppleUrl));
+```
+
+### Builder override when rule needs exact release
+
+```csharp
+// GOOD — override ONLY because assertion depends on exact release
+var release = DomainTestFixture.UtcDateDaysAgo(5);
+var input = _fixture.CreateSpotifyCatalogueInput(b => b.WithRelease(release));
+var discovered = _fixture.CreateSpotifyCatalogueEpisode(
+    input.SpotifyId,
+    spotifyUrl: input.SpotifyUrl,
+    release: release);
+```
+
+### Incident regression (ONLY for production cases)
+
+```csharp
+// GOOD — C2C abuser incident: IDs and offsets live on Incidents
+var podcast = _fixture.CreateCultsToConsciousnessPodcast();
+var stored = _fixture.CreateC2CYouTubeOnlyStoredEpisode(
+    podcast,
+    release: DomainTestFixture.Incidents.C2CAbuserYouTubeRelease,
+    length: DomainTestFixture.Incidents.C2CAbuserYouTubeLength);
+var incoming = _fixture.CreateC2CSpotifyIncoming(
+    release: DomainTestFixture.Incidents.C2CAbuserSpotifyRelease,
+    length: DomainTestFixture.Incidents.C2CAbuserSpotifyLength);
+stored.ShouldMatchExpectation(
+    EpisodeExpectation.From(stored).WithSpotify(
+        DomainTestFixture.Incidents.C2CAbuserSpotifyId,
+        _fixture.DefaultSpotifyUrl(DomainTestFixture.Incidents.C2CAbuserSpotifyId)));
+```
+
+### Canonical test skeleton
+
+```csharp
+[Fact(DisplayName =
+    "Plain English rule: when X, then Y, because Z.")]
+public void snake_case_shorthand()
+{
+    // Arrange
+    var podcast = _fixture.CreatePodcast();
+    var input = _fixture.CreateSpotifyCatalogueInput();
+    var stored = _fixture.CreateStoredEpisode(podcast);
+    var expected = EpisodeExpectation.From(stored);
+
+    // Act
+    var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+    // Assert
+    result.AddedEpisodes.Should().BeEmpty();
+    stored.ShouldMatchExpectation(expected.WithSpotify(input.SpotifyId, input.SpotifyUrl));
+}
+```
+
+---
+
+## 6. Fixture API quick reference
+
+| Need | API |
+|------|-----|
+| Podcast | `CreatePodcast()`, `CreateYouTubeFirstPodcast(...)`, `CreateCultsToConsciousnessPodcast()` |
+| Stored episode | `CreateStoredEpisode(podcast, customize)`, `BuildEpisode().WithSpotify(...).Create()` |
+| Catalogue input (trust defaults) | `CreateSpotifyCatalogueInput()`, `CreateAppleCatalogueInput()`, `CreateYouTubeCatalogueInput()` |
+| Catalogue input (override) | `CreateSpotifyCatalogueInput(b => b.WithRelease(...))` |
+| Catalogue episode | `CreateSpotifyCatalogueEpisode()`, `CreateSpotifyCatalogueEpisode(configure)`, overload with explicit id |
+| Same-day backfill probe | `CreateMidnightUtcStoredEpisode`, `CreateYouTubeCatalogueEpisodeSameDayAs`, `CreateAppleCatalogueEpisodeSameDayAs` |
+| Generated IDs / duration | `CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateDuration()` |
+| Relative dates | `UtcToday`, `UtcDaysAgo(n)`, `UtcDateDaysAgo(n)`, `UtcAtTime(dayOffset, timeOfDay)` |
+| Incident constants | `DomainTestFixture.Incidents.*` |
+| Incident factories | `CreateC2CYouTubeOnlyStoredEpisode`, `CreateC2CSpotifyIncoming`, `CreatePostmormonStoredEpisode`, … |
+| Assert vocabulary | `EpisodeExpectation.From(episode)`, `.WithSpotify/.WithApple/.WithYouTube`, `ShouldMatchExpectation` |
+
+Implementation: `Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/Fixtures/DomainTestFixture.cs`

@@ -130,6 +130,8 @@ Existing `EpisodeReleaseMatchTolerance` logic migrates into `IReleaseMatchStrate
 
 ## 4. Test implementation guardrails
 
+> **AI / agent authoritative reference:** [`.cursor/rules/unit-tests.mdc`](../../.cursor/rules/unit-tests.mdc) — prescriptive MUST/NEVER guardrails, specimen contract, arrange checklist, and good/bad examples. This section retains architecture context and the rule catalog; do not duplicate the guardrails doc here.
+
 ### 4.1 Three test layers
 
 ```
@@ -188,10 +190,10 @@ public void snake_case_method_name()
 | Entity | Release | ID | URL |
 |--------|---------|-----|-----|
 | Spotify catalogue / resolved | Date-only midnight UTC (`UtcDateDaysAgo`; `.WithRelease()` floors to `.Date`) | 22-char base62 (fixture-generated) | `https://open.spotify.com/episode/{id}` |
-| Apple catalogue / resolved | Full UTC datetime (`UtcAtTime` with `Specimens.DefaultAppleReleaseDaysAgo` + `DefaultAppleReleaseTimeOfDay`, default 14:30 UTC) | long numeric ≥ 13 digits (fixture-generated) | `https://podcasts.apple.com/us/podcast/episode/id{id}` |
-| YouTube catalogue / resolved | Full UTC datetime (`UtcAtTime` with `Specimens.DefaultYouTubeReleaseDaysAgo` + `DefaultYouTubeReleaseTimeOfDay`, default 18:45:12 UTC) | 11 chars from `[A-Za-z0-9_-]` (fixture-generated) | `https://www.youtube.com/watch?v={id}` |
+| Apple catalogue / resolved | Full UTC datetime with non-midnight time-of-day (fixture-generated day offset and publish time) | long numeric ≥ 13 digits (fixture-generated) | `https://podcasts.apple.com/us/podcast/episode/id{id}` |
+| YouTube catalogue / resolved | Full UTC datetime with non-midnight time-of-day (fixture-generated day offset and publish time) | 11 chars from `[A-Za-z0-9_-]` (fixture-generated) | `https://www.youtube.com/watch?v={id}` |
 
-AutoFixture customizations in `DomainTestFixture` wire catalogue and resolved-item DTOs through per-platform builders (`BuildSpotifyCatalogueInput()`, etc.). Each builder generates API-realistic IDs and derived URLs when not overridden. Tests call `_fixture.CreateSpotifyCatalogueInput()`, `CreateAppleCatalogueInput()`, or `CreateYouTubeCatalogueInput()` and only set title, description, duration, or platform id when the assertion depends on them. Use `_fixture.CreateSpotifyId()`, `CreateYouTubeId()`, or `CreateAppleId()` when a stable reference to a generated ID is needed before building specimens. For same-calendar-date merge probes use `CreateMidnightUtcStoredEpisode` plus `CreateYouTubeCatalogueEpisodeSameDayAs` / `CreateAppleCatalogueEpisodeSameDayAs`. Incident regression IDs live on `DomainTestFixture.Incidents`; do not use shared `Default*` string filler constants or hardcoded platform ID literals in generic tests.
+AutoFixture customizations in `DomainTestFixture` wire catalogue and resolved-item DTOs through per-platform builders (`BuildSpotifyCatalogueInput()`, etc.). Each builder generates API-realistic IDs, derived URLs, and platform-correct release shapes when not overridden — **deterministic platform characteristics, generated values** (no shared `Default*` release offsets or fixed time-of-day constants). Tests call `_fixture.CreateSpotifyCatalogueInput()`, `CreateAppleCatalogueInput()`, or `CreateYouTubeCatalogueInput()` and only set title, description, duration, or platform id when the assertion depends on them. Use `_fixture.CreateSpotifyId()`, `CreateYouTubeId()`, `CreateAppleId()`, `CreateDuration()`, `CreateNonMidnightTimeOfDay()`, or `CreateYouTubeChannelId()` when a stable reference to a generated value is needed before building specimens. For same-calendar-date merge probes use `CreateMidnightUtcStoredEpisode` plus `CreateYouTubeCatalogueEpisodeSameDayAs` / `CreateAppleCatalogueEpisodeSameDayAs` (backfill time-of-day is generated from the stored episode's calendar date, not a fixed constant). Incident regression IDs live on `DomainTestFixture.Incidents`; do not use shared `Default*` string filler constants or hardcoded platform ID literals in generic tests.
 
 **Do not:**
 
