@@ -204,8 +204,14 @@ public sealed class DomainTestFixture
     public const string EpisodeMatchRegexSpotifyId = "16LveQifI6eBwDXAINpd7G";
   }
 
-  /// <summary>Realistic 11-char YouTube video ID for cross-platform release merge probes.</summary>
-  public const string CrossPlatformProbeYouTubeId = "dQw4w9WgXcQ";
+  /// <summary>Production-like Spotify episode ID for generic tests (22-char base62).</summary>
+  public string CreateSpotifyId() => CreateSpotifyIdSpecimen(_fixture);
+
+  /// <summary>Production-like Apple episode ID for generic tests (≥13 digits).</summary>
+  public long CreateAppleId() => CreateAppleIdSpecimen(_fixture);
+
+  /// <summary>Production-like YouTube video ID for generic tests (11 chars).</summary>
+  public string CreateYouTubeId() => CreateYouTubeIdSpecimen(_fixture);
 
   public Uri DefaultSpotifyUrl(string spotifyEpisodeId) =>
     new($"https://open.spotify.com/episode/{spotifyEpisodeId}");

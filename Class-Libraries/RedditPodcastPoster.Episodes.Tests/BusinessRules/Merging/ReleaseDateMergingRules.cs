@@ -28,14 +28,16 @@ public class ReleaseDateMergingRules
         var sharedLength = TimeSpan.FromMinutes(42);
         var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(
             podcast, dateOnlyRelease, sharedTitle, sharedLength);
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
+            .WithTitle(sharedTitle)
+            .WithRelease(youTubeRelease)
+            .WithDuration(sharedLength));
         var expected = EpisodeExpectation.From(stored)
             .WithRelease(youTubeRelease)
-            .WithYouTube(
-                DomainTestFixture.CrossPlatformProbeYouTubeId,
-                _fixture.DefaultYouTubeUrl(DomainTestFixture.CrossPlatformProbeYouTubeId));
+            .WithYouTube(youTubeInput.YouTubeId, youTubeInput.YouTubeUrl);
 
         var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
-            .WithYouTubeId(DomainTestFixture.CrossPlatformProbeYouTubeId)
+            .WithYouTubeId(youTubeInput.YouTubeId)
             .WithTitle(sharedTitle)
             .WithRelease(youTubeRelease)
             .WithDuration(sharedLength));
@@ -113,13 +115,15 @@ public class ReleaseDateMergingRules
         var sharedLength = TimeSpan.FromMinutes(42);
         var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(
             podcast, dateOnlyRelease, sharedTitle, sharedLength);
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
+            .WithTitle(sharedTitle)
+            .WithRelease(youTubeRelease)
+            .WithDuration(sharedLength));
         var expected = EpisodeExpectation.From(stored)
-            .WithYouTube(
-                DomainTestFixture.CrossPlatformProbeYouTubeId,
-                _fixture.DefaultYouTubeUrl(DomainTestFixture.CrossPlatformProbeYouTubeId));
+            .WithYouTube(youTubeInput.YouTubeId, youTubeInput.YouTubeUrl);
 
         var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
-            .WithYouTubeId(DomainTestFixture.CrossPlatformProbeYouTubeId)
+            .WithYouTubeId(youTubeInput.YouTubeId)
             .WithTitle(sharedTitle)
             .WithRelease(youTubeRelease)
             .WithDuration(sharedLength));
@@ -138,19 +142,22 @@ public class ReleaseDateMergingRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        const long appleId = 1635013492;
         var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
         var appleRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(15) + TimeSpan.FromMinutes(45));
         const string sharedTitle = "Cross-platform release merge probe";
         var sharedLength = TimeSpan.FromMinutes(42);
         var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(
             podcast, dateOnlyRelease, sharedTitle, sharedLength);
+        var appleInput = _fixture.CreateAppleCatalogueInput(b => b
+            .WithTitle(sharedTitle)
+            .WithRelease(appleRelease)
+            .WithDuration(sharedLength));
         var expected = EpisodeExpectation.From(stored)
             .WithRelease(appleRelease)
-            .WithApple(appleId, _fixture.DefaultAppleUrl(appleId));
+            .WithApple(appleInput.AppleId, appleInput.AppleUrl);
 
         var discovered = _fixture.CreateAppleCatalogueEpisode(b => b
-            .WithAppleId(appleId)
+            .WithAppleId(appleInput.AppleId)
             .WithTitle(sharedTitle)
             .WithRelease(appleRelease)
             .WithDuration(sharedLength));

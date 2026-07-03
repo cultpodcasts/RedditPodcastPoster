@@ -28,47 +28,61 @@ public class IndexingPersistenceRules
         var enrichedEpisodeId = Guid.Parse("22222222-2222-2222-2222-222222222222");
         var filteredEpisodeId = Guid.Parse("33333333-3333-3333-3333-333333333333");
         var mergedExistingId = Guid.Parse("44444444-4444-4444-4444-444444444444");
-        const string mergeSpotifyId = "1UncRhHtmojlTq2mO0Gntz";
-        const string addedSpotifyId = "3vKvHj9mNoPqRsTuVwXyZ1";
-
-        var enrichedEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithSpotifyId("6O1Z1s7ca0PI8Gq1rdt3j4")
+        var enrichedInput = _fixture.CreateSpotifyCatalogueInput(b => b
             .WithRelease(EpisodeRelease.AddDays(1))
             .WithDuration(TimeSpan.FromMinutes(45))
             .WithDescription("Enriched description"));
+        var filteredInput = _fixture.CreateSpotifyCatalogueInput(b => b
+            .WithRelease(EpisodeRelease.AddDays(2))
+            .WithDuration(TimeSpan.FromMinutes(45))
+            .WithDescription("Filtered description"));
+        var mergeInput = _fixture.CreateSpotifyCatalogueInput(b => b
+            .WithRelease(EpisodeRelease)
+            .WithDuration(TimeSpan.FromMinutes(45))
+            .WithDescription("Truncated catalogue desc..."));
+        var addedInput = _fixture.CreateSpotifyCatalogueInput(b => b
+            .WithRelease(EpisodeRelease.AddDays(3))
+            .WithDuration(TimeSpan.FromMinutes(50))
+            .WithDescription("Brand new episode"));
+
+        var enrichedEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithSpotifyId(enrichedInput.SpotifyId)
+            .WithRelease(enrichedInput.Release)
+            .WithDuration(enrichedInput.Duration)
+            .WithDescription(enrichedInput.Description));
         enrichedEpisode.Id = enrichedEpisodeId;
         enrichedEpisode.PodcastId = podcast.Id;
 
         var filteredEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithSpotifyId("5nT8vW2xY4zA6bC8dE0fG2")
-            .WithRelease(EpisodeRelease.AddDays(2))
-            .WithDuration(TimeSpan.FromMinutes(45))
-            .WithDescription("Filtered description"));
+            .WithSpotifyId(filteredInput.SpotifyId)
+            .WithRelease(filteredInput.Release)
+            .WithDuration(filteredInput.Duration)
+            .WithDescription(filteredInput.Description));
         filteredEpisode.Id = filteredEpisodeId;
         filteredEpisode.PodcastId = podcast.Id;
 
         var mergedExisting = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithSpotifyId(mergeSpotifyId)
-            .WithRelease(EpisodeRelease)
-            .WithDuration(TimeSpan.FromMinutes(45))
-            .WithDescription("Truncated catalogue desc..."));
+            .WithSpotifyId(mergeInput.SpotifyId)
+            .WithRelease(mergeInput.Release)
+            .WithDuration(mergeInput.Duration)
+            .WithDescription(mergeInput.Description));
         mergedExisting.Id = mergedExistingId;
         mergedExisting.PodcastId = podcast.Id;
 
         harness.EpisodeRepository.Seed(enrichedEpisode, filteredEpisode, mergedExisting);
 
         var mergeDiscovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithSpotifyId(mergeSpotifyId)
-            .WithSpotifyUrl(new Uri($"https://open.spotify.com/episode/{mergeSpotifyId}?si=discovered"))
-            .WithRelease(EpisodeRelease)
-            .WithDuration(TimeSpan.FromMinutes(45))
+            .WithSpotifyId(mergeInput.SpotifyId)
+            .WithSpotifyUrl(new Uri($"{mergeInput.SpotifyUrl}?si=discovered"))
+            .WithRelease(mergeInput.Release)
+            .WithDuration(mergeInput.Duration)
             .WithDescription("Longer merged description from catalogue"));
 
         var addedDiscovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithSpotifyId(addedSpotifyId)
-            .WithRelease(EpisodeRelease.AddDays(3))
-            .WithDuration(TimeSpan.FromMinutes(50))
-            .WithDescription("Brand new episode"));
+            .WithSpotifyId(addedInput.SpotifyId)
+            .WithRelease(addedInput.Release)
+            .WithDuration(addedInput.Duration)
+            .WithDescription(addedInput.Description));
 
         harness.EpisodeProvider
             .Setup(x => x.GetEpisodes(
@@ -87,7 +101,7 @@ public class IndexingPersistenceRules
                 new EnrichmentResult(
                     podcast,
                     enrichedEpisode,
-                    new EnrichmentContext { Spotify = new Uri("https://open.spotify.com/episode/6O1Z1s7ca0PI8Gq1rdt3j4?si=enriched") })
+                    new EnrichmentContext { Spotify = new Uri($"{enrichedInput.SpotifyUrl}?si=enriched") })
             ]));
 
         harness.PodcastFilter

@@ -13,9 +13,6 @@ namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 /// </summary>
 public class PlatformIdentityMatchingRules
 {
-    private static readonly Uri SpotifyUrl = new("https://open.spotify.com/episode/1UncRhHtmojlTq2mO0Gntz");
-    private const string SpotifyEpisodeId = "1UncRhHtmojlTq2mO0Gntz";
-
     private readonly DomainTestFixture _fixture = new();
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
@@ -28,15 +25,17 @@ public class PlatformIdentityMatchingRules
         // Arrange
         var podcast = _fixture.CreatePodcast(p => p.Id = Guid.Parse("4672c845-15b4-4f88-bbff-567d521fe4a2"));
         var release = DateTime.UtcNow.Date;
+        var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b.WithRelease(release));
+        var spotifyUrl = spotifyInput.SpotifyUrl;
         var stored = _fixture.CreateSubmittedViaSpotifyUrlOnly(
-            SpotifyUrl,
+            spotifyUrl,
             title: "Reddit post title",
             release: release);
         var expected = EpisodeExpectation.From(stored);
 
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(
-            SpotifyEpisodeId,
-            spotifyUrl: SpotifyUrl,
+            spotifyInput.SpotifyId,
+            spotifyUrl: spotifyUrl,
             release: release);
 
         // Act
@@ -46,7 +45,7 @@ public class PlatformIdentityMatchingRules
         result.AddedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().ContainSingle();
         result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);
-        stored.ShouldMatchExpectation(expected.WithSpotify(SpotifyEpisodeId, SpotifyUrl));
+        stored.ShouldMatchExpectation(expected.WithSpotify(spotifyInput.SpotifyId, spotifyUrl));
     }
 
     [Fact(DisplayName =
@@ -57,15 +56,14 @@ public class PlatformIdentityMatchingRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var release = DateTime.UtcNow.AddMonths(-6);
-        var stored = _fixture.CreateSpotifyCatalogueEpisode(
-            SpotifyEpisodeId,
-            spotifyUrl: SpotifyUrl,
-            release: release);
+        var stored = _fixture.CreateSpotifyCatalogueEpisode(b => b.WithRelease(release));
+        var spotifyId = stored.SpotifyId;
+        var spotifyUrl = stored.Urls.Spotify!;
         var expected = EpisodeExpectation.From(stored);
 
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(
-            SpotifyEpisodeId,
-            spotifyUrl: SpotifyUrl,
+            spotifyId,
+            spotifyUrl: spotifyUrl,
             release: DateTime.UtcNow);
 
         // Act
@@ -85,19 +83,14 @@ public class PlatformIdentityMatchingRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        const string existingSpotifyId = "3vKvHj9mNoPqRsTuVwXyZ1";
-        var existing = _fixture.CreateSpotifyCatalogueEpisode(
-            existingSpotifyId,
-            "Shared title",
-            _fixture.DefaultSpotifyUrl(existingSpotifyId),
-            DateTime.UtcNow,
-            TimeSpan.FromMinutes(45));
-        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
-            SpotifyEpisodeId,
-            "Shared title",
-            SpotifyUrl,
-            DateTime.UtcNow,
-            TimeSpan.FromMinutes(45));
+        var existing = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithTitle("Shared title")
+            .WithRelease(DateTime.UtcNow)
+            .WithDuration(TimeSpan.FromMinutes(45)));
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithTitle("Shared title")
+            .WithRelease(DateTime.UtcNow)
+            .WithDuration(TimeSpan.FromMinutes(45)));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [existing], [discovered]);
@@ -113,9 +106,10 @@ public class PlatformIdentityMatchingRules
     public void Same_YouTube_video_ID_merges_onto_existing_episode()
     {
         // Arrange
-        const string youTubeId = "l_iHjZWIsXw";
         var release = DomainTestFixture.UtcAtTime(-32, TimeSpan.FromHours(14));
         var podcast = _fixture.CreatePodcast();
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(release));
+        var youTubeId = discovered.YouTubeId;
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
             .WithRelease(release)
@@ -123,8 +117,6 @@ public class PlatformIdentityMatchingRules
             .WithYouTube(youTubeId, _fixture.DefaultYouTubeUrl(youTubeId))
             .Create();
         var expected = EpisodeExpectation.From(stored);
-
-        var discovered = _fixture.CreateYouTubeCatalogueEpisode(youTubeId, release: release);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -146,11 +138,9 @@ public class PlatformIdentityMatchingRules
         var release = DateTime.UtcNow;
         var podcast = _fixture.CreatePodcast();
         var existing = _fixture.CreateYouTubeCatalogueEpisode(b => b
-            .WithYouTubeId("9aBcDeFgHiJ")
             .WithTitle(sharedTitle)
             .WithRelease(release));
         var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
-            .WithYouTubeId("kLmNoPqRsTu")
             .WithTitle(sharedTitle)
             .WithRelease(release));
 
@@ -168,9 +158,10 @@ public class PlatformIdentityMatchingRules
     public void Same_Apple_ID_merges_onto_existing_episode()
     {
         // Arrange
-        const long appleId = 1635013492;
         var release = DomainTestFixture.UtcAtTime(-32, TimeSpan.FromHours(14));
         var podcast = _fixture.CreatePodcast();
+        var discovered = _fixture.CreateAppleCatalogueEpisode(b => b.WithRelease(release));
+        var appleId = discovered.AppleId!.Value;
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
             .WithRelease(release)
@@ -178,8 +169,6 @@ public class PlatformIdentityMatchingRules
             .WithApple(appleId, _fixture.DefaultAppleUrl(appleId))
             .Create();
         var expected = EpisodeExpectation.From(stored);
-
-        var discovered = _fixture.CreateAppleCatalogueEpisode(appleId, release: release);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -224,11 +213,9 @@ public class PlatformIdentityMatchingRules
         var release = DateTime.UtcNow;
         var podcast = _fixture.CreatePodcast();
         var existing = _fixture.CreateAppleCatalogueEpisode(b => b
-            .WithAppleId(1111111111111)
             .WithTitle(sharedTitle)
             .WithRelease(release));
         var discovered = _fixture.CreateAppleCatalogueEpisode(b => b
-            .WithAppleId(2222222222222)
             .WithTitle(sharedTitle)
             .WithRelease(release));
 

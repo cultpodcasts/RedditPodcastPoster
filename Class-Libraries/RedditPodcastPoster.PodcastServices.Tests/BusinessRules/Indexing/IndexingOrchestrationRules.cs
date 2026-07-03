@@ -108,27 +108,33 @@ public class IndexingOrchestrationRules
         podcast.LatestReleased = EpisodeRelease.AddDays(-30);
         harness.PodcastRepository.Seed(podcast);
 
-        const string mergeSpotifyId = "1UncRhHtmojlTq2mO0Gntz";
-        var mergedExisting = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithSpotifyId(mergeSpotifyId)
+        var mergeInput = _fixture.CreateSpotifyCatalogueInput(b => b
             .WithRelease(EpisodeRelease.AddDays(1))
             .WithDuration(TimeSpan.FromMinutes(45))
             .WithDescription("Truncated description..."));
+        var mergedExisting = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithSpotifyId(mergeInput.SpotifyId)
+            .WithRelease(mergeInput.Release)
+            .WithDuration(mergeInput.Duration)
+            .WithDescription(mergeInput.Description));
         mergedExisting.Id = Guid.Parse("15151515-1515-1515-1515-151515151515");
         mergedExisting.PodcastId = podcast.Id;
         harness.EpisodeRepository.Seed(mergedExisting);
 
         var mergeDiscovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithSpotifyId(mergeSpotifyId)
-            .WithSpotifyUrl(new Uri($"https://open.spotify.com/episode/{mergeSpotifyId}?si=merge"))
-            .WithRelease(EpisodeRelease.AddDays(1))
-            .WithDuration(TimeSpan.FromMinutes(45))
+            .WithSpotifyId(mergeInput.SpotifyId)
+            .WithSpotifyUrl(new Uri($"{mergeInput.SpotifyUrl}?si=merge"))
+            .WithRelease(mergeInput.Release)
+            .WithDuration(mergeInput.Duration)
             .WithDescription("Longer merged description from catalogue"));
 
-        var addedDiscovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithSpotifyId("3vKvHj9mNoPqRsTuVwXyZ1")
+        var addedInput = _fixture.CreateSpotifyCatalogueInput(b => b
             .WithRelease(EpisodeRelease.AddDays(5))
             .WithDuration(TimeSpan.FromMinutes(50)));
+        var addedDiscovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithSpotifyId(addedInput.SpotifyId)
+            .WithRelease(addedInput.Release)
+            .WithDuration(addedInput.Duration));
 
         harness.EpisodeProvider
             .Setup(x => x.GetEpisodes(

@@ -48,11 +48,8 @@ public class PlatformCatalogueAdapterRules
     public void Apple_catalogue_release_maps_to_datetime_utc_precision()
     {
         // Arrange
-        const long appleId = 1234567890123;
         var appleRelease = DomainTestFixture.UtcAtTime(-84, TimeSpan.FromHours(9) + TimeSpan.FromMinutes(15) + TimeSpan.FromSeconds(30));
-        var input = _fixture.CreateAppleCatalogueInput(b => b
-            .WithAppleId(appleId)
-            .WithRelease(appleRelease));
+        var input = _fixture.CreateAppleCatalogueInput(b => b.WithRelease(appleRelease));
 
         // Act
         var candidate = _appleAdapter.Adapt(input);
@@ -63,7 +60,7 @@ public class PlatformCatalogueAdapterRules
 
         var expected = new EpisodeExpectation(
             null,
-            new PlatformExpectation(appleId.ToString(), input.AppleUrl, input.Image),
+            new PlatformExpectation(input.AppleId.ToString(), input.AppleUrl, input.Image),
             null,
             appleRelease,
             input.Description);
@@ -76,11 +73,8 @@ public class PlatformCatalogueAdapterRules
     public void YouTube_catalogue_release_maps_publish_datetime_as_is()
     {
         // Arrange
-        const string youTubeId = "dQw4w9WgXcQ";
         var publishDate = DomainTestFixture.UtcAtTime(-44, TimeSpan.FromHours(18) + TimeSpan.FromMinutes(45) + TimeSpan.FromSeconds(12));
-        var input = _fixture.CreateYouTubeCatalogueInput(b => b
-            .WithYouTubeId(youTubeId)
-            .WithRelease(publishDate));
+        var input = _fixture.CreateYouTubeCatalogueInput(b => b.WithRelease(publishDate));
 
         // Act
         var candidate = _youTubeAdapter.Adapt(input);
@@ -92,7 +86,7 @@ public class PlatformCatalogueAdapterRules
         var expected = new EpisodeExpectation(
             null,
             null,
-            new PlatformExpectation(youTubeId, input.YouTubeUrl, input.Image),
+            new PlatformExpectation(input.YouTubeId, input.YouTubeUrl, input.Image),
             publishDate,
             input.Description);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);

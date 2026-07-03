@@ -174,6 +174,7 @@ public void snake_case_method_name()
 - Method name is snake_case shorthand; never the only documentation
 - Body uses **`// Arrange` / `// Act` / `// Assert`** comments in every test
 - **Lean arrange:** tests set only assertion-relevant fields via `.With()` on fixture builders or customize callbacks; peripheral catalogue/episode fields come from **AutoFixture specimens** created per test (`CreateSpotifyCatalogueInput()`, `BuildAppleCatalogueInput().With(...).Create()`, etc.). Do not use shared `Default*` string/length filler constants.
+- **Platform IDs:** always from fixture specimens (`CreateSpotifyCatalogueInput()`, `CreateYouTubeId()`, etc.) or properties on a created specimen — never hardcoded literals like `const long appleId = 1234567890123`. Exception: **`DomainTestFixture.Incidents`** regression presets (C2C, Postmormon, ambiguous-match probes) intentionally carry production IDs.
 - Use **`CreatePodcast()`**, **`CreateStoredEpisode(podcast, customize)`**, **`BuildEpisode().WithSpotify(...).Create()`**, and catalogue helpers (`CreateSpotifyCatalogueEpisode`, etc.) — not raw `new Episode { ... }` boilerplate
 - **Incident regression presets** live on `DomainTestFixture` as methods (e.g. `CreateC2CYouTubeOnlyStoredEpisode`, `CreateC2CSpotifyIncoming`); IDs, titles, and platform URLs live on **`DomainTestFixture.Incidents`**
 - **Relative dates:** use `DomainTestFixture.UtcToday`, `UtcDaysAgo`, `UtcDaysFromNow`, and `UtcAtTime` instead of fixed `DateTime` literals. Incident presets on `Incidents` expose offset constants (e.g. `C2CAbuserYouTubeReleaseDaysAgo`) and computed properties anchored to today. Tests that assert exact release equality must arrange and assert the same relative variable.
@@ -185,13 +186,13 @@ public void snake_case_method_name()
 
 | Entity | ID / release format | URL pattern |
 |--------|---------------------|-------------|
-| Spotify episode / show | 22-char base62 (e.g. `6O1Z1s7ca0PI8Gq1rdt3j4`) | `https://open.spotify.com/episode/{id}` |
-| YouTube video | 11 chars from `[A-Za-z0-9_-]` (e.g. `dQw4w9WgXcQ`) | `https://www.youtube.com/watch?v={id}` |
-| Apple episode | long numeric ≥ 13 digits (e.g. `1234567890123`) | `https://podcasts.apple.com/us/podcast/episode/id{id}` |
+| Spotify episode / show | 22-char base62 (fixture-generated) | `https://open.spotify.com/episode/{id}` |
+| YouTube video | 11 chars from `[A-Za-z0-9_-]` (fixture-generated) | `https://www.youtube.com/watch?v={id}` |
+| Apple episode | long numeric ≥ 13 digits (fixture-generated) | `https://podcasts.apple.com/us/podcast/episode/id{id}` |
 | Spotify release | date-only midnight UTC (`UtcDateDaysAgo`; `.WithRelease()` floors to `.Date`) | — |
 | Apple / YouTube release | full UTC datetime (`UtcAtTime` with explicit time-of-day) | — |
 
-AutoFixture customizations in `DomainTestFixture` wire catalogue and resolved-item DTOs through per-platform builders (`BuildSpotifyCatalogueInput()`, etc.). Each builder generates API-realistic IDs and derived URLs when not overridden. Tests call `_fixture.CreateSpotifyCatalogueInput()` or `Build…().WithRelease(…).Create()` and only set title, description, or duration when the assertion depends on them. Incident regression IDs live on `DomainTestFixture.Incidents`; do not use shared `Default*` string filler constants.
+AutoFixture customizations in `DomainTestFixture` wire catalogue and resolved-item DTOs through per-platform builders (`BuildSpotifyCatalogueInput()`, etc.). Each builder generates API-realistic IDs and derived URLs when not overridden. Tests call `_fixture.CreateSpotifyCatalogueInput()` or `Build…().WithRelease(…).Create()` and only set title, description, or duration when the assertion depends on them. Use `_fixture.CreateSpotifyId()`, `CreateYouTubeId()`, or `CreateAppleId()` when a stable reference to a generated ID is needed before building specimens. Incident regression IDs live on `DomainTestFixture.Incidents`; do not use shared `Default*` string filler constants or hardcoded platform ID literals in generic tests.
 
 **Do not:**
 

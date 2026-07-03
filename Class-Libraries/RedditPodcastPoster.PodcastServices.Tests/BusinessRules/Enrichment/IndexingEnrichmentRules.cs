@@ -93,7 +93,7 @@ public class IndexingEnrichmentRules
             youTubeEnricher);
 
         var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
-        podcast.AppleId = 1234567890123;
+        podcast.AppleId = _fixture.CreateAppleId();
 
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithRelease(DomainTestFixture.UtcDaysAgo(7))
@@ -136,7 +136,7 @@ public class IndexingEnrichmentRules
                 It.IsAny<EnrichmentContext>()))
             .Callback<EnrichmentRequest, IndexingContext, EnrichmentContext>((_, _, context) =>
             {
-                PodcastServicesEpisodeEnricherTestSupport.FillYouTubeLink(context, "dQw4w9WgXcQ");
+                PodcastServicesEpisodeEnricherTestSupport.FillYouTubeLink(context, _fixture.CreateYouTubeId());
             })
             .Returns(Task.CompletedTask);
 
@@ -233,7 +233,7 @@ public class IndexingEnrichmentRules
             .Callback<EnrichmentRequest, IndexingContext, EnrichmentContext>((request, _, context) =>
             {
                 enrichedEpisodeIds.Add(request.Episode.Id);
-                PodcastServicesEpisodeEnricherTestSupport.FillYouTubeLink(context, "9aBcDeFgHiJ");
+                PodcastServicesEpisodeEnricherTestSupport.FillYouTubeLink(context, _fixture.CreateYouTubeId());
             })
             .Returns(Task.CompletedTask);
 
@@ -254,12 +254,14 @@ public class IndexingEnrichmentRules
         expiredStoredEpisode.YouTubeId = string.Empty;
         expiredStoredEpisode.Urls.YouTube = null;
 
-        var discoveredEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+        var discoveredYouTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
             .WithRelease(DomainTestFixture.UtcDaysAgo(2))
             .WithDuration(TimeSpan.FromMinutes(45)));
+        var discoveredEpisode = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithYouTubeId(discoveredYouTubeInput.YouTubeId)
+            .WithRelease(discoveredYouTubeInput.Release)
+            .WithDuration(discoveredYouTubeInput.Duration));
         discoveredEpisode.PodcastId = podcast.Id;
-        discoveredEpisode.YouTubeId = "kLmNoPqRsTu";
-        discoveredEpisode.Urls.YouTube = _fixture.DefaultYouTubeUrl("kLmNoPqRsTu");
 
         // Act
         var results = await enricher.EnrichEpisodes(
@@ -291,7 +293,7 @@ public class IndexingEnrichmentRules
                 It.IsAny<EnrichmentContext>()))
             .Callback<EnrichmentRequest, IndexingContext, EnrichmentContext>((_, _, context) =>
             {
-                PodcastServicesEpisodeEnricherTestSupport.FillYouTubeLink(context, "xYzAbCdEfGh");
+                PodcastServicesEpisodeEnricherTestSupport.FillYouTubeLink(context, _fixture.CreateYouTubeId());
             })
             .Returns(Task.CompletedTask);
 
