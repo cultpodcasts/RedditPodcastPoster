@@ -421,6 +421,8 @@ Step 3 rule catalog for §5.1–§5.3 is complete.
 
 One phase per PR; all business-rule tests green; no assertion changes.
 
+**Tracker:** [STEP-7-CHECKLIST.md](./STEP-7-CHECKLIST.md) — working checklist for phases B–F (Phase A done via EpisodeMerger wiring). Do not duplicate progress here; update the checklist as phases land.
+
 ---
 
 ## 7. File layout (target)
