@@ -92,6 +92,28 @@ public sealed class DomainTestFixture
     };
   }
 
+  /// <summary>
+  /// Word-level title variant with an explicit transform. Use in matrix / theory-based fuzzy tests
+  /// to exercise each edit strategy against production matchers without depending on the input
+  /// title's hash. Pair with <see cref="CreateShortTitle"/> or <see cref="CreateTitle"/> (5+ words).
+  /// </summary>
+  public static string CreateFuzzyTitleVariant(string title, FuzzyTitleVariantStrategy strategy)
+  {
+    var words = title.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    if (words.Length == 0)
+      return "Episode Special Interview";
+
+    var hash = GetTitleVariantHash(title);
+    return strategy switch
+    {
+      FuzzyTitleVariantStrategy.ReplaceWord => ReplaceOneTitleWord(words, hash),
+      FuzzyTitleVariantStrategy.DropWord => DropOneTitleWord(words, hash),
+      FuzzyTitleVariantStrategy.AddFillerWord => AddTitleFillerWord(words, hash),
+      FuzzyTitleVariantStrategy.SwapAdjacentWords => SwapAdjacentTitleWords(words, hash),
+      _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, null)
+    };
+  }
+
   private static int GetTitleVariantHash(string title) =>
     StringComparer.OrdinalIgnoreCase.GetHashCode(title);
 

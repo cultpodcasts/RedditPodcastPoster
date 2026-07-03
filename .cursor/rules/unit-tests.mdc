@@ -20,6 +20,7 @@ Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-re
 4. [Scenario-shaped fixtures vs generic specimens](#4-scenario-shaped-fixtures-vs-generic-specimens)
 5. [Good / bad examples](#5-good--bad-examples)
 6. [Fixture API quick reference](#6-fixture-api-quick-reference)
+7. [Theory / property-based tests for fuzzy or heuristic rules](#7-theory--property-based-tests-for-fuzzy-or-heuristic-rules)
 
 ---
 
@@ -341,9 +342,107 @@ public void snake_case_shorthand()
 | Catalogue episode | `CreateSpotifyCatalogueEpisode()`, `CreateSpotifyCatalogueEpisode(configure)`, overload with explicit id |
 | Same-day backfill probe | `CreateMidnightUtcStoredEpisode`, `Create*CatalogueInputSameDayAs`, `Create*CatalogueEpisodeSameDayAs` |
 | Generated values | `CreateTitle()`, `CreateDuration()`, `CreateNonMidnightTimeOfDay()`, `CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateYouTubeChannelId()`, `CreateGuid()` |
-| Title variants | `CreateTypoTitleVariant(title)` — one character changed in the longest word (typo probes). `CreateFuzzyTitleVariant(title)` — one word-level edit (replace/drop filler/add filler/swap adjacent). Input must be word-based from `CreateShortTitle()` or `CreateTitle(5+)` |
+| Title variants | `CreateTypoTitleVariant(title)` — one character changed in the longest word (typo probes). `CreateFuzzyTitleVariant(title)` — one word-level edit (replace/drop filler/add filler/swap adjacent). `CreateFuzzyTitleVariant(title, FuzzyTitleVariantStrategy)` — force a specific strategy (matrix / theory tests). Input must be word-based from `CreateShortTitle()` or `CreateTitle(5+)` |
 | Same calendar date + time | `SameCalendarDateWithTime(dateOnlyRelease, timeOfDay)`, `SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, days)` |
 | Relative dates | `UtcToday`, `UtcDaysAgo(n)`, `UtcDateDaysAgo(n)`, `UtcAtTime(dayOffset, timeOfDay)` |
 | Assert vocabulary | `EpisodeExpectation.From(episode)`, `.WithSpotify/.WithApple/.WithYouTube`, `ShouldMatchExpectation` |
 
 Implementation: `Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/Fixtures/DomainTestFixture.cs`
+
+---
+
+## 7. Theory / property-based tests for fuzzy or heuristic rules
+
+Business rules that depend on **scored heuristics** (fuzzy title match, duration tolerance, release-alignment tolerance, publish-delay adjustment) must not be proven by a single happy-path `[Fact]`. Fuzzy/heuristic paths have real boundaries: one variant strategy at one title length gives false confidence. Use `[Theory]` (matrix), `[InlineData]` (regression baseline), or fixture-driven stress iteration to cover the real behavior envelope.
+
+### When to reach for a Theory or matrix
+
+| Situation | Test shape |
+|-----------|------------|
+| Rule uses a **scored heuristic** (FuzzySharp WeightedRatio, token-set ratio, Levenshtein) | `[Theory]` with `[MemberData]` over each transform strategy |
+| Rule has a **numeric tolerance boundary** (1 min duration, 5 min cross-platform, `< delay` guard) | Pair of `[Fact]` tests — exactly-at-boundary (must fail) and just-inside (must pass) |
+| Rule composes **two heuristics** (fuzzy title × duration tolerance × release alignment) | `[Theory]` matrix over interacting axes; explicit negative cases where each axis blocks the merge |
+| Rule depends on a **third-party score contract** (FuzzySharp scores at 65/70/75/80/90) | Regression harness in the closest test project (e.g. `Text.Tests`), pin score buckets with `.Should().BeInRange(low, high)` |
+
+### Hard guardrails for Theory / property tests
+
+| | Rule |
+|---|------|
+| **MUST** | Use `[Theory(DisplayName = "...")]` — the DisplayName states the rule; the `[InlineData]`/`[MemberData]` row names the axis |
+| **MUST** | Feed strategy enums via `[MemberData]` returning `TheoryData<T>` — no magic string discriminators |
+| **MUST** | For scored heuristics, assert the observed score (or score bucket) **as well as** the outcome — e.g. `Fuzz.WeightedRatio(...).Should().BeGreaterThanOrEqualTo(threshold)` **and** `result.MergedEpisodes.Should().ContainSingle()` |
+| **MUST** | Include at least one **negative** row per Theory — a case where the heuristic falls below threshold and the merge must not happen |
+| **MUST** | For fixture-driven variants, run the fuzzy tests locally at least ~20× to confirm stability; if the fixture occasionally produces sub-threshold variants, tighten the fixture — do not weaken the assertion |
+| **MUST** | Isolate the branch under test — if you want to prove the fuzzy branch blocks a merge, give the pair **different releases** so the release-and-duration fallback cannot rescue it |
+| **NEVER** | Rely on the hash-based automatic strategy selection when the rule under test cares about a specific transform — pass `FuzzyTitleVariantStrategy.ReplaceWord` etc. explicitly |
+| **NEVER** | Assert exact FuzzySharp scores (e.g. `.Should().Be(81)`) — pin a score **bucket** (`.BeInRange(78, 88)`) so minor library versions can drift a point or two without a test rewrite |
+| **NEVER** | Add thousand-iteration property runs — the sweet spot is ~10–30 focused rows per matrix; more iterations noise-up CI without new signal |
+| **ONLY WHEN** | You need cross-cutting stress (release × delay × title × duration) — split into two Theories rather than one 32-row explosion |
+
+### Regression harness for third-party scoring libraries
+
+Place scoring-library regression tests **in the library-adjacent test project** (e.g. `RedditPodcastPoster.Text.Tests` for FuzzySharp), not in business-rule test projects. Business-rule tests assert **outcomes** (merged / not merged, saved / not saved); regression tests assert **score contracts** (this pair scores ≥ 80, that pair scores < 65). Splitting them lets a FuzzySharp upgrade surface as a Text-layer failure without cascading noise into every business-rule file.
+
+### Skeleton: matrix Theory over fuzzy variant strategies
+
+```csharp
+public static TheoryData<FuzzyTitleVariantStrategy> AllFuzzyVariantStrategies() =>
+    new()
+    {
+        FuzzyTitleVariantStrategy.ReplaceWord,
+        FuzzyTitleVariantStrategy.DropWord,
+        FuzzyTitleVariantStrategy.AddFillerWord,
+        FuzzyTitleVariantStrategy.SwapAdjacentWords
+    };
+
+[Theory(DisplayName =
+    "For a standard podcast with a short title and matching duration, " +
+    "each fuzzy variant strategy drives a merge.")]
+[MemberData(nameof(AllFuzzyVariantStrategies))]
+public void Fuzzy_variant_with_matching_duration_merges_on_standard_podcast(
+    FuzzyTitleVariantStrategy strategy)
+{
+    // Arrange
+    var storedTitle = _fixture.CreateShortTitle();
+    var incomingTitle = DomainTestFixture.CreateFuzzyTitleVariant(storedTitle, strategy);
+    // ... build stored / discovered with matching release + duration ...
+
+    // Fixture health assertion sits before Act — a sub-threshold variant is a fixture bug, not a matcher bug.
+    Fuzz.WeightedRatio(storedTitle, incomingTitle)
+        .Should().BeGreaterThanOrEqualTo(MinFuzzyTitleScore,
+            "variant strategy {0} must clear the threshold", strategy);
+
+    // Act
+    var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+    // Assert
+    result.MergedEpisodes.Should().ContainSingle();
+    stored.ShouldMatchExpectation(expected);
+}
+```
+
+### Skeleton: score-bucket regression baseline
+
+```csharp
+[Theory(DisplayName =
+    "IsMatch: one-word replacement in a short title stays above 70/80 but below 90.")]
+[InlineData(70, true)]
+[InlineData(80, true)]
+[InlineData(90, false)]
+public void IsMatch_WhenOneWordReplaced_RespectsThreshold(int threshold, bool expectedMatch)
+{
+    const string query = "Deep Dive Interview Special Episode";
+    var item = new TitleItem("Deep Dive Analysis Special Episode");
+
+    var score = Fuzz.WeightedRatio(query, item.Value);
+    score.Should().BeInRange(78, 88, "regression baseline");
+
+    FuzzyMatcher.IsMatch(query, item, x => x.Value, threshold).Should().Be(expectedMatch);
+}
+```
+
+### What not to do
+
+- Don't wrap a random loop inside a single `[Fact]` (`for (i = 0; i < 100; i++) { ... }`) — a Theory row per case is discoverable in the test runner and reports the failing axis by name.
+- Don't add FsCheck / AutoFixture-repeated iterations for these rules; the deterministic transforms in `CreateFuzzyTitleVariant` combined with random inputs from AutoFixture already give property-style coverage without the failure-repro overhead.
+- Don't test FuzzySharp itself in the business-rule projects — pin its score contract in `Text.Tests` and treat matcher behavior as the business outcome.
