@@ -114,7 +114,7 @@ public class PlatformIdentityMatchingRules
         // Arrange
         const string youTubeId = "l_iHjZWIsXw";
         var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
-        var release = new DateTime(2026, 6, 1, 14, 0, 0, DateTimeKind.Utc);
+        var release = DomainTestFixture.UtcAtTime(-32, TimeSpan.FromHours(14));
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
@@ -164,7 +164,7 @@ public class PlatformIdentityMatchingRules
         // Arrange
         const long appleId = 1635013492;
         var appleUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleId}");
-        var release = new DateTime(2026, 6, 1, 14, 0, 0, DateTimeKind.Utc);
+        var release = DomainTestFixture.UtcAtTime(-32, TimeSpan.FromHours(14));
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)

@@ -22,8 +22,8 @@ public class CrossPlatformMatchingRules
     {
         // Arrange
         var podcast = _fixture.CreateCultsToConsciousnessPodcast();
-        var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
-        var youTubeLength = TimeSpan.Parse("01:28:37");
+        var youTubeRelease = DomainTestFixture.Incidents.C2CAbuserYouTubeRelease;
+        var youTubeLength = DomainTestFixture.Incidents.C2CAbuserYouTubeLength;
         var stored = _fixture.CreateC2CYouTubeOnlyStoredEpisode(podcast, release: youTubeRelease, length: youTubeLength);
         var expected = EpisodeExpectation.From(stored)
             .WithSpotify(
@@ -31,8 +31,8 @@ public class CrossPlatformMatchingRules
                 _fixture.DefaultSpotifyUrl(DomainTestFixture.Incidents.C2CAbuserSpotifyId));
 
         var discovered = _fixture.CreateC2CSpotifyIncoming(
-            release: new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc),
-            length: TimeSpan.Parse("01:31:59.6990000"));
+            release: DomainTestFixture.Incidents.C2CAbuserSpotifyRelease,
+            length: DomainTestFixture.Incidents.C2CAbuserSpotifyLength);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -74,7 +74,7 @@ public class CrossPlatformMatchingRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        var sharedRelease = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        var sharedRelease = DomainTestFixture.UtcDaysAgo(32);
         var sharedLength = TimeSpan.FromMinutes(45);
         var (youTubeOnly, appleOnly) = _fixture.CreateAmbiguousMatchStoredEpisodes(
             podcast,
@@ -104,7 +104,7 @@ public class CrossPlatformMatchingRules
         var podcast = _fixture.CreateYouTubeFirstPodcast(
             channelId: "delayed-channel",
             youTubePublicationOffsetTicks: TimeSpan.FromDays(1).Ticks);
-        var audioRelease = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
+        var audioRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(12));
         var youTubeRelease = audioRelease.AddDays(1);
         var length = TimeSpan.FromHours(1);
         var stored = _fixture.CreatePositiveDelayAudioStoredEpisode(

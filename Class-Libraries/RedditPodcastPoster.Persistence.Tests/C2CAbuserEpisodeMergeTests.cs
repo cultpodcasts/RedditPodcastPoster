@@ -1,5 +1,6 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -22,16 +23,17 @@ public class C2CAbuserEpisodeMergeTests
     };
 
     [Theory]
-    [InlineData("2026-07-06T00:00:00Z")]
-    [InlineData("2026-07-05T00:00:00Z")]
-    [InlineData("2026-07-07T00:00:00Z")]
-    [InlineData("2026-07-02T00:00:00Z")]
-    public void EpisodesReleaseMatch_WhenSpotifyReleaseVaries(string spotifyReleaseText)
+    [InlineData(0)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    public void EpisodesReleaseMatch_WhenSpotifyReleaseVaries(int spotifyReleaseOffsetDaysFromCatalogue)
     {
         var podcast = CreatePodcast();
-        var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
-        var spotifyRelease = DateTime.Parse(spotifyReleaseText, null, System.Globalization.DateTimeStyles.RoundtripKind);
-        var length = TimeSpan.Parse("01:28:37");
+        var youTubeRelease = DomainTestFixture.Incidents.C2CAbuserYouTubeRelease;
+        var spotifyRelease = DomainTestFixture.Incidents.C2CAbuserSpotifyRelease
+            .AddDays(spotifyReleaseOffsetDaysFromCatalogue);
+        var length = DomainTestFixture.Incidents.C2CAbuserYouTubeLength;
 
         var existing = new Episode
         {
@@ -65,10 +67,10 @@ public class C2CAbuserEpisodeMergeTests
     public void MergeEpisodes_WhenSpotifyIncomingMatchesYouTubeOnlyEpisode_MergesOntoExisting()
     {
         var podcast = CreatePodcast();
-        var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
-        var spotifyRelease = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
-        var youTubeLength = TimeSpan.Parse("01:28:37");
-        var spotifyLength = TimeSpan.Parse("01:31:59.6990000");
+        var youTubeRelease = DomainTestFixture.Incidents.C2CAbuserYouTubeRelease;
+        var spotifyRelease = DomainTestFixture.Incidents.C2CAbuserSpotifyRelease;
+        var youTubeLength = DomainTestFixture.Incidents.C2CAbuserYouTubeLength;
+        var spotifyLength = DomainTestFixture.Incidents.C2CAbuserSpotifyLength;
 
         var existing = new Episode
         {
@@ -104,8 +106,8 @@ public class C2CAbuserEpisodeMergeTests
     public void MergeEpisodes_WhenSpotifyReindexMatchesExistingSpotifyId_PreservesYouTubeReleaseDate()
     {
         var podcast = CreatePodcast();
-        var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
-        var spotifyCatalogueRelease = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
+        var youTubeRelease = DomainTestFixture.Incidents.C2CAbuserYouTubeRelease;
+        var spotifyCatalogueRelease = DomainTestFixture.Incidents.C2CAbuserSpotifyRelease;
 
         var existing = new Episode
         {
@@ -113,7 +115,7 @@ public class C2CAbuserEpisodeMergeTests
             PodcastId = podcast.Id,
             Title = "I Confronted My Ab*ser 30 Years Later. Everything Changed",
             Release = youTubeRelease,
-            Length = TimeSpan.Parse("01:28:37"),
+            Length = DomainTestFixture.Incidents.C2CAbuserYouTubeLength,
             YouTubeId = "UsqC0L9He2g",
             SpotifyId = SpotifyId,
             Urls = new ServiceUrls
@@ -126,7 +128,7 @@ public class C2CAbuserEpisodeMergeTests
             SpotifyId,
             "I Confronted My Abuser 30 Years Later… Everything Changed",
             "description",
-            TimeSpan.Parse("01:31:59.6990000"),
+            DomainTestFixture.Incidents.C2CAbuserSpotifyLength,
             false,
             spotifyCatalogueRelease,
             new Uri($"https://open.spotify.com/episode/{SpotifyId}"),
@@ -144,8 +146,11 @@ public class C2CAbuserEpisodeMergeTests
     public void MergeEpisodes_WhenSpotifyOnlyReindexSameDateWithTime_DoesNotBackfillYouTubeReleaseTime()
     {
         var podcast = CreatePodcast();
-        var youTubeRelease = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
-        var spotifyReleaseWithTime = new DateTime(2026, 7, 2, 8, 0, 0, DateTimeKind.Utc);
+        var youTubeRelease = DomainTestFixture.Incidents.C2CAbuserSpotifyRelease;
+        var spotifyReleaseWithTime = DomainTestFixture.UtcAtTime(
+            -(DomainTestFixture.Incidents.C2CAbuserYouTubeReleaseDaysAgo
+              - DomainTestFixture.Incidents.C2CAbuserSpotifyCatalogueDaysAfterYouTube),
+            TimeSpan.FromHours(8));
 
         var existing = new Episode
         {
@@ -153,7 +158,7 @@ public class C2CAbuserEpisodeMergeTests
             PodcastId = podcast.Id,
             Title = "I Confronted My Ab*ser 30 Years Later. Everything Changed",
             Release = youTubeRelease,
-            Length = TimeSpan.Parse("01:28:37"),
+            Length = DomainTestFixture.Incidents.C2CAbuserYouTubeLength,
             YouTubeId = "UsqC0L9He2g",
             SpotifyId = SpotifyId,
             Urls = new ServiceUrls
@@ -166,7 +171,7 @@ public class C2CAbuserEpisodeMergeTests
             SpotifyId,
             "I Confronted My Abuser 30 Years Later… Everything Changed",
             "description",
-            TimeSpan.Parse("01:31:59.6990000"),
+            DomainTestFixture.Incidents.C2CAbuserSpotifyLength,
             false,
             spotifyReleaseWithTime,
             new Uri($"https://open.spotify.com/episode/{SpotifyId}"),

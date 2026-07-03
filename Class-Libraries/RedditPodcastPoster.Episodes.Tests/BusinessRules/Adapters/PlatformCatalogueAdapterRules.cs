@@ -23,7 +23,7 @@ public class PlatformCatalogueAdapterRules
     {
         // Arrange
         const string spotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4";
-        var catalogueRelease = new DateTime(2026, 3, 15, 14, 30, 0, DateTimeKind.Utc);
+        var catalogueRelease = DomainTestFixture.UtcAtTime(-110, TimeSpan.FromHours(14) + TimeSpan.FromMinutes(30));
         var input = _fixture.CreateSpotifyCatalogueInput(spotifyId, release: catalogueRelease);
 
         // Act
@@ -31,7 +31,8 @@ public class PlatformCatalogueAdapterRules
 
         // Assert
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateOnly);
-        candidate.Release.Value.Should().Be(new DateTime(2026, 3, 15, 0, 0, 0, DateTimeKind.Unspecified));
+        candidate.Release.Value.Should().Be(
+            new DateTime(catalogueRelease.Year, catalogueRelease.Month, catalogueRelease.Day, 0, 0, 0, DateTimeKind.Unspecified));
 
         var expected = new EpisodeExpectation(
             new PlatformExpectation(spotifyId, input.SpotifyUrl, input.Image),
@@ -49,7 +50,7 @@ public class PlatformCatalogueAdapterRules
     {
         // Arrange
         const long appleId = 1234567890;
-        var appleRelease = new DateTime(2026, 4, 10, 9, 15, 30, DateTimeKind.Utc);
+        var appleRelease = DomainTestFixture.UtcAtTime(-84, TimeSpan.FromHours(9) + TimeSpan.FromMinutes(15) + TimeSpan.FromSeconds(30));
         var input = _fixture.CreateAppleCatalogueInput(appleId, release: appleRelease);
 
         // Act
@@ -75,7 +76,7 @@ public class PlatformCatalogueAdapterRules
     {
         // Arrange
         const string youTubeId = "dQw4w9WgXcQ";
-        var publishDate = new DateTime(2026, 5, 20, 18, 45, 12, DateTimeKind.Utc);
+        var publishDate = DomainTestFixture.UtcAtTime(-44, TimeSpan.FromHours(18) + TimeSpan.FromMinutes(45) + TimeSpan.FromSeconds(12));
         var input = _fixture.CreateYouTubeCatalogueInput(youTubeId, release: publishDate);
 
         // Act

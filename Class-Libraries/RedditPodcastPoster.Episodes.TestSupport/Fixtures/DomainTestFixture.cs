@@ -12,8 +12,21 @@ namespace RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 public sealed class DomainTestFixture
 {
   public static readonly TimeSpan DefaultLength = TimeSpan.FromMinutes(45);
-  public static readonly DateTime DefaultRelease = DateTime.UtcNow.AddMonths(-1);
+  public static DateTime DefaultRelease => UtcDaysAgo(30);
   public const string DefaultEpisodeTitle = "Episode title";
+
+  /// <summary>Today at midnight UTC.</summary>
+  public static DateTime UtcToday => DateTime.UtcNow.Date;
+
+  /// <summary>Midnight UTC on a day <paramref name="days"/> before today.</summary>
+  public static DateTime UtcDaysAgo(int days) => UtcToday.AddDays(-days);
+
+  /// <summary>Midnight UTC on a day <paramref name="days"/> after today.</summary>
+  public static DateTime UtcDaysFromNow(int days) => UtcToday.AddDays(days);
+
+  /// <summary>UTC datetime on a day offset from today with an explicit time-of-day.</summary>
+  public static DateTime UtcAtTime(int daysOffset, TimeSpan timeOfDay) =>
+    UtcToday.AddDays(daysOffset).Add(timeOfDay);
   public const string DefaultCatalogueDescription = "Catalogue description";
   public const string DefaultYouTubeDescription = "YouTube description";
   public const string DefaultAppleDescription = "Apple description";
@@ -76,23 +89,38 @@ public sealed class DomainTestFixture
 
     public const string C2CAbuserSpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4";
 
-    public static readonly DateTime C2CAbuserYouTubeRelease =
-      new(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
+    /// <summary>Days before today for the C2C abuser YouTube publish (production: 2026-06-04).</summary>
+    public const int C2CAbuserYouTubeReleaseDaysAgo = 30;
+
+    public static readonly TimeSpan C2CAbuserYouTubeReleaseTimeOfDay =
+      new(13, 8, 6);
+
+    /// <summary>Spotify catalogue lands this many calendar days after the YouTube publish day.</summary>
+    public const int C2CAbuserSpotifyCatalogueDaysAfterYouTube = 28;
+
+    public static DateTime C2CAbuserYouTubeRelease =>
+      UtcAtTime(-C2CAbuserYouTubeReleaseDaysAgo, C2CAbuserYouTubeReleaseTimeOfDay);
 
     public static readonly TimeSpan C2CAbuserYouTubeLength = TimeSpan.Parse("01:28:37");
 
     public static readonly TimeSpan C2CAbuserSpotifyLength = TimeSpan.Parse("01:31:59.6990000");
 
-    public static readonly DateTime C2CAbuserSpotifyRelease =
-      new(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
+    public static DateTime C2CAbuserSpotifyRelease =>
+      UtcDaysAgo(C2CAbuserYouTubeReleaseDaysAgo - C2CAbuserSpotifyCatalogueDaysAfterYouTube);
 
     public const string C2CNegativeDelayTitle =
       "Why He Thinks Daughters Should Parent Their Siblings  (ft. Tia Levings)";
 
     public const string C2CNegativeDelayYouTubeId = "u6ZF-2sWQQc";
 
-    public static readonly DateTime C2CNegativeDelayRelease =
-      new(2026, 5, 31, 21, 15, 27, DateTimeKind.Utc);
+    public const int C2CNegativeDelayStoredDaysAgo = 34;
+
+    public static readonly TimeSpan C2CNegativeDelayReleaseTimeOfDay = new(21, 15, 27);
+
+    public const int C2CNegativeDelayIncomingDaysAfterStored = 28;
+
+    public static DateTime C2CNegativeDelayRelease =>
+      UtcAtTime(-C2CNegativeDelayStoredDaysAgo, C2CNegativeDelayReleaseTimeOfDay);
 
     public static readonly TimeSpan C2CNegativeDelayLength =
       TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(35);
@@ -102,8 +130,8 @@ public sealed class DomainTestFixture
     public const string C2CNegativeDelayIncomingTitle =
       "Becoming a Fundamentalist Trad Wife Almost Killed Me";
 
-    public static readonly DateTime C2CNegativeDelayIncomingRelease =
-      new(2026, 6, 28, 0, 0, 0, DateTimeKind.Utc);
+    public static DateTime C2CNegativeDelayIncomingRelease =>
+      UtcDaysAgo(C2CNegativeDelayStoredDaysAgo - C2CNegativeDelayIncomingDaysAfterStored);
 
     public static readonly TimeSpan C2CNegativeDelayIncomingLength =
       TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(30);
@@ -115,14 +143,20 @@ public sealed class DomainTestFixture
 
     public const string OtoYouTubeId = "l3aIdJeg0vE";
 
-    public static readonly DateTime OtoRelease =
-      new(2026, 5, 20, 22, 15, 16, DateTimeKind.Utc);
+    public const int OtoReleaseDaysAgo = 45;
+
+    public static readonly TimeSpan OtoReleaseTimeOfDay = new(22, 15, 16);
+
+    public const int OtoIncomingSpotifyDaysAfterRelease = 35;
+
+    public static DateTime OtoRelease =>
+      UtcAtTime(-OtoReleaseDaysAgo, OtoReleaseTimeOfDay);
 
     public static readonly TimeSpan OtoLength =
       TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(42);
 
-    public static readonly DateTime OtoIncomingSpotifyRelease =
-      new(2026, 6, 24, 0, 0, 0, DateTimeKind.Utc);
+    public static DateTime OtoIncomingSpotifyRelease =>
+      UtcDaysAgo(OtoReleaseDaysAgo - OtoIncomingSpotifyDaysAfterRelease);
 
     public const string PostmormonPodcastName = "Postmormon Postmortem";
 
@@ -136,8 +170,12 @@ public sealed class DomainTestFixture
 
     public const string PostmormonYouTubeId = "l_iHjZWIsXw";
 
-    public static readonly DateTime PostmormonRelease =
-      new(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
+    public const int PostmormonReleaseDaysAgo = 2;
+
+    public static readonly TimeSpan PostmormonReleaseTimeOfDay = TimeSpan.FromHours(12);
+
+    public static DateTime PostmormonRelease =>
+      UtcAtTime(-PostmormonReleaseDaysAgo, PostmormonReleaseTimeOfDay);
 
     public static readonly TimeSpan PostmormonStoredLength = TimeSpan.FromSeconds(878.503);
 

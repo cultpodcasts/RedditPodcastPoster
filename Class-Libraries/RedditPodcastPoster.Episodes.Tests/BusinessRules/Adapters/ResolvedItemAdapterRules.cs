@@ -23,7 +23,7 @@ public class ResolvedItemAdapterRules
     {
         // Arrange
         const string episodeId = "submit-spot-1";
-        var release = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        var release = DomainTestFixture.UtcDaysAgo(32);
         var input = _fixture.CreateResolvedSpotifyItemInput(episodeId, release: release);
 
         // Act
@@ -50,7 +50,7 @@ public class ResolvedItemAdapterRules
     {
         // Arrange
         const long episodeId = 1112223334;
-        var release = new DateTime(2026, 6, 2, 11, 30, 0, DateTimeKind.Utc);
+        var release = DomainTestFixture.UtcAtTime(-31, TimeSpan.FromHours(11) + TimeSpan.FromMinutes(30));
         var input = _fixture.CreateResolvedAppleItemInput(episodeId, release: release);
 
         // Act
@@ -77,7 +77,7 @@ public class ResolvedItemAdapterRules
     {
         // Arrange
         const string episodeId = "yt-only-submit";
-        var release = new DateTime(2026, 5, 1, 12, 0, 0, DateTimeKind.Utc);
+        var release = DomainTestFixture.UtcAtTime(-63, TimeSpan.FromHours(12));
         var input = _fixture.CreateResolvedYouTubeItemInput(episodeId, release: release);
 
         // Act

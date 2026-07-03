@@ -373,8 +373,8 @@ public class EpisodeMergingRules
     public void Spotify_reindex_preserves_stored_catalogue_release()
     {
         // Arrange
-        var catalogueRelease = new DateTime(2026, 6, 24, 0, 0, 0, DateTimeKind.Utc);
-        var publicRelease = new DateTime(2026, 6, 28, 12, 0, 0, DateTimeKind.Utc);
+        var catalogueRelease = DomainTestFixture.Incidents.OtoIncomingSpotifyRelease;
+        var publicRelease = catalogueRelease.AddDays(4).AddHours(12);
         var podcast = _fixture.CreatePodcast(p => p.Id = Guid.Parse("4672c845-15b4-4f88-bbff-567d521fe4a2"));
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)

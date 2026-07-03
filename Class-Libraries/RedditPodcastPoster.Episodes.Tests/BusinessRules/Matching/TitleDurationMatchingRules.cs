@@ -22,7 +22,7 @@ public class TitleDurationMatchingRules
     public void Typo_with_matching_duration_merges_onto_existing_episode()
     {
         // Arrange
-        var release = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
+        var release = DomainTestFixture.Incidents.PostmormonRelease;
         var existingLength = TimeSpan.FromSeconds(878.503);
         var incomingLength = TimeSpan.FromMinutes(14) + TimeSpan.FromSeconds(39);
         var podcast = _fixture.CreatePostmormonPodcast();
@@ -71,7 +71,7 @@ public class TitleDurationMatchingRules
     public void Release_and_duration_align_when_titles_differ_on_standard_podcast()
     {
         // Arrange
-        var release = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
+        var release = DomainTestFixture.Incidents.PostmormonRelease;
         var length = TimeSpan.FromMinutes(45);
         var existing = CreateEpisode("Episode A", length, release);
         var incoming = CreateEpisode("Completely different title", length, release);
@@ -91,7 +91,7 @@ public class TitleDurationMatchingRules
         const string episodeMatchRegex = @"#(?'episodematch'\d+)\s";
         var podcast = _fixture.CreatePodcast();
         podcast.EpisodeMatchRegex = episodeMatchRegex;
-        var sharedRelease = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+        var sharedRelease = DomainTestFixture.UtcDaysAgo(124);
         var stored = _fixture.CreateEpisodeMatchRegexStoredEpisode(podcast, release: sharedRelease);
         var expected = EpisodeExpectation.From(stored);
         var discovered = _fixture.CreateEpisodeMatchRegexDiscoveredEpisode(release: sharedRelease.AddDays(7));

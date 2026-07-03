@@ -149,12 +149,12 @@ public void snake_case_method_name()
 {
     // Arrange
     var podcast = _fixture.CreateCultsToConsciousnessPodcast();
-    var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
-    var youTubeLength = TimeSpan.Parse("01:28:37");
+    var youTubeRelease = DomainTestFixture.Incidents.C2CAbuserYouTubeRelease;
+    var youTubeLength = DomainTestFixture.Incidents.C2CAbuserYouTubeLength;
     var stored = _fixture.CreateC2CYouTubeOnlyStoredEpisode(podcast, release: youTubeRelease, length: youTubeLength);
     var incoming = _fixture.CreateC2CSpotifyIncoming(
-        release: new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc),
-        length: TimeSpan.Parse("01:31:59.6990000"));
+        release: DomainTestFixture.Incidents.C2CAbuserSpotifyRelease,
+        length: DomainTestFixture.Incidents.C2CAbuserSpotifyLength);
 
     // Act
     var result = _merger.MergeEpisodes(podcast, [stored], [incoming]);
@@ -176,6 +176,7 @@ public void snake_case_method_name()
 - **Lean arrange:** `DomainTestFixture` owns defaults (Guids, empty platform IDs, `ServiceUrls`, release/duration); tests set only properties relevant to the rule under test. Arrange contains only assertion-relevant test data; fixture supplies catalogue input shapes (`CreateSpotifyCatalogueInput`, `CreateResolvedAppleItemInput`, etc.) and episode helpers with full peripheral defaults.
 - Use **`CreatePodcast()`**, **`CreateStoredEpisode(podcast, customize)`**, **`BuildEpisode().WithSpotify(...).Create()`**, and catalogue helpers (`CreateSpotifyCatalogueEpisode`, etc.) — not raw `new Episode { ... }` boilerplate
 - **Incident regression presets** live on `DomainTestFixture` as methods (e.g. `CreateC2CYouTubeOnlyStoredEpisode`, `CreateC2CSpotifyIncoming`); IDs, titles, and platform URLs live on **`DomainTestFixture.Incidents`**
+- **Relative dates:** use `DomainTestFixture.UtcToday`, `UtcDaysAgo`, `UtcDaysFromNow`, and `UtcAtTime` instead of fixed `DateTime` literals. Incident presets on `Incidents` expose offset constants (e.g. `C2CAbuserYouTubeReleaseDaysAgo`) and computed properties anchored to today. Tests that assert exact release equality must arrange and assert the same relative variable.
 - **`EpisodeExpectation`** (or equivalent) for Assert clauses — not fifteen separate property assertions unless the rule is about one field
 - **Seed data from production incidents** is encouraged (C2C, Postmormon, Spotify URL-only) but must be expressed as rules with full outcome assertions
 

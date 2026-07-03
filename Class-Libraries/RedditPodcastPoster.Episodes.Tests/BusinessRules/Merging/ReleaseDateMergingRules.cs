@@ -22,8 +22,8 @@ public class ReleaseDateMergingRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
-        var youTubeRelease = new DateTime(2026, 7, 1, 12, 30, 0, DateTimeKind.Utc);
+        var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
+        var youTubeRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(12) + TimeSpan.FromMinutes(30));
         var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(podcast, dateOnlyRelease);
         var expected = EpisodeExpectation.From(stored)
             .WithRelease(youTubeRelease)
@@ -46,8 +46,8 @@ public class ReleaseDateMergingRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
-        var spotifyRelease = new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc);
+        var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
+        var spotifyRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(8));
         var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(podcast, dateOnlyRelease);
         var expected = EpisodeExpectation.From(stored);
 
@@ -71,8 +71,8 @@ public class ReleaseDateMergingRules
     {
         // Arrange
         var podcast = _fixture.CreateCultsToConsciousnessPodcast();
-        var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
-        var spotifyCatalogueRelease = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
+        var youTubeRelease = DomainTestFixture.Incidents.C2CAbuserYouTubeRelease;
+        var spotifyCatalogueRelease = DomainTestFixture.Incidents.C2CAbuserSpotifyRelease;
         var stored = _fixture.CreateC2CYouTubeAuthorityStoredEpisode(
             podcast,
             release: youTubeRelease,
@@ -99,8 +99,8 @@ public class ReleaseDateMergingRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
-        var youTubeRelease = new DateTime(2026, 7, 2, 12, 30, 0, DateTimeKind.Utc);
+        var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
+        var youTubeRelease = DomainTestFixture.UtcAtTime(-1, TimeSpan.FromHours(12) + TimeSpan.FromMinutes(30));
         var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(podcast, dateOnlyRelease);
         var expected = EpisodeExpectation.From(stored)
             .WithYouTube("video-id", _fixture.DefaultYouTubeUrl("video-id"));
@@ -122,8 +122,8 @@ public class ReleaseDateMergingRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         const long appleId = 1635013492;
-        var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
-        var appleRelease = new DateTime(2026, 7, 1, 15, 45, 0, DateTimeKind.Utc);
+        var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
+        var appleRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(15) + TimeSpan.FromMinutes(45));
         var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(podcast, dateOnlyRelease);
         var expected = EpisodeExpectation.From(stored)
             .WithRelease(appleRelease)
