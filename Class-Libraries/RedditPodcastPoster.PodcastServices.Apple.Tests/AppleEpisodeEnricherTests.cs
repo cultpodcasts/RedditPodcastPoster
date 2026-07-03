@@ -25,7 +25,7 @@ public class AppleEpisodeEnricherTests
             -youTubeReleaseDaysAgo,
             _fixture.CreateNonMidnightTimeOfDay());
         var storedLength = _fixture.CreateDuration();
-        var storedTitle = _fixture.CreateTitle();
+        var storedTitle = _fixture.CreateShortTitle();
         var appleTitle = DomainTestFixture.CreateFuzzyTitleVariant(storedTitle);
         var spotifyId = _fixture.CreateSpotifyId();
         var youTubeId = _fixture.CreateYouTubeId();

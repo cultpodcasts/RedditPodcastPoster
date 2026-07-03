@@ -67,29 +67,85 @@ public sealed class DomainTestFixture
     int calendarDaysAfter) =>
     youTubeRelease.Date.AddDays(calendarDaysAfter);
 
+  private static readonly string[] TitleFillerWords = ["The", "A", "An"];
+
   /// <summary>
-  /// Catalogue-style truncated title variant for fuzzy matching probes.
-  /// Drops the final character of the last word and appends an ellipsis (…).
-  /// Mimics platform feeds that cut titles mid-word; still matches via WeightedRatio ≥ 70
-  /// when paired with a <see cref="CreateTitle"/> stored title.
+  /// Word-level title variant for fuzzy matching probes (platform catalogue wording drift).
+  /// Applies one deterministic transform — replace a word, drop/add a filler, or swap adjacent words —
+  /// so the variant differs by words, not just characters. Pair with
+  /// <see cref="CreateShortTitle"/> or <see cref="CreateTitle"/> (5+ words) for reliable
+  /// WeightedRatio ≥ 70 against production matchers.
   /// </summary>
   public static string CreateFuzzyTitleVariant(string title)
   {
-    if (string.IsNullOrWhiteSpace(title))
-      return "…";
+    var words = title.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    if (words.Length == 0)
+      return "Episode Special Interview";
 
-    var lastSpace = title.LastIndexOf(' ');
-    var lastWordStart = lastSpace >= 0 ? lastSpace + 1 : 0;
-    var lastWord = title[lastWordStart..];
-
-    if (lastWord.Length >= 2)
-      return title[..(lastWordStart + lastWord.Length - 1)] + "…";
-
-    if (title.Length >= 3)
-      return title[..^1] + "…";
-
-    return title + "…";
+    var hash = GetTitleVariantHash(title);
+    return (hash % 4) switch
+    {
+      0 => ReplaceOneTitleWord(words, hash),
+      1 => DropOneTitleWord(words, hash),
+      2 => AddTitleFillerWord(words, hash),
+      _ => SwapAdjacentTitleWords(words, hash)
+    };
   }
+
+  private static int GetTitleVariantHash(string title) =>
+    StringComparer.OrdinalIgnoreCase.GetHashCode(title);
+
+  private static string ReplaceOneTitleWord(string[] words, int hash)
+  {
+    var wordIndex = Math.Abs(hash) % words.Length;
+    var current = words[wordIndex];
+    var candidates = TitleWords
+      .Where(w => !string.Equals(w, current, StringComparison.OrdinalIgnoreCase))
+      .Where(w => !words.Any(existing =>
+        string.Equals(existing, w, StringComparison.OrdinalIgnoreCase)))
+      .Where(w => Math.Abs(w.Length - current.Length) <= 3)
+      .ToList();
+
+    if (candidates.Count == 0)
+      return DropOneTitleWord(words, hash);
+
+    var replacement = candidates[Math.Abs(hash / words.Length) % candidates.Count];
+    words[wordIndex] = FormatTitleWord(replacement);
+    return string.Join(' ', words);
+  }
+
+  private static string DropOneTitleWord(string[] words, int hash)
+  {
+    if (words.Length <= 1)
+      return AddTitleFillerWord(words, hash);
+
+    var dropIndex = words.Length >= 3
+      ? 1 + Math.Abs(hash) % (words.Length - 2)
+      : 1;
+    return string.Join(' ', words.Where((_, i) => i != dropIndex));
+  }
+
+  private static string AddTitleFillerWord(string[] words, int hash)
+  {
+    var filler = TitleFillerWords[Math.Abs(hash) % TitleFillerWords.Length];
+    if (string.Equals(words[0], filler, StringComparison.OrdinalIgnoreCase))
+      return string.Join(' ', words.Concat([filler]));
+
+    return string.Join(' ', new[] { filler }.Concat(words));
+  }
+
+  private static string SwapAdjacentTitleWords(string[] words, int hash)
+  {
+    if (words.Length < 2)
+      return AddTitleFillerWord(words, hash);
+
+    var swapIndex = Math.Abs(hash) % (words.Length - 1);
+    (words[swapIndex], words[swapIndex + 1]) = (words[swapIndex + 1], words[swapIndex]);
+    return string.Join(' ', words);
+  }
+
+  private static string FormatTitleWord(string word) =>
+    char.ToUpperInvariant(word[0]) + word[1..].ToLowerInvariant();
 
   /// <summary>
   /// Single-character typo within an alphabetic word for fuzzy title matching probes.
@@ -177,13 +233,13 @@ public sealed class DomainTestFixture
   /// <summary>Episode-style title with an explicit word count.</summary>
   public string CreateTitle(int wordCount) => CreateTitleSpecimen(_fixture, wordCount);
 
-  /// <summary>Short episode title (2–3 words).</summary>
+  /// <summary>Short episode title (5–10 words).</summary>
   public string CreateShortTitle() =>
-    CreateTitleSpecimen(_fixture, 2 + Math.Abs(_fixture.Create<int>()) % 2);
+    CreateTitleSpecimen(_fixture, 5 + Math.Abs(_fixture.Create<int>()) % 6);
 
-  /// <summary>Long episode title (8–12 words).</summary>
+  /// <summary>Long episode title (11–25 words).</summary>
   public string CreateLongTitle() =>
-    CreateTitleSpecimen(_fixture, 8 + Math.Abs(_fixture.Create<int>()) % 5);
+    CreateTitleSpecimen(_fixture, 11 + Math.Abs(_fixture.Create<int>()) % 15);
 
   /// <summary>UTC time-of-day with non-midnight seconds (Apple/YouTube publish times).</summary>
   public TimeSpan CreateNonMidnightTimeOfDay() => CreateNonMidnightTimeOfDaySpecimen(_fixture);
@@ -441,7 +497,7 @@ public sealed class DomainTestFixture
     var spotifyRelease = SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, spotifyDaysAfterYouTube);
     var storedLength = CreateDuration();
     var incomingLength = storedLength + TimeSpan.FromMinutes(3);
-    var storedTitle = CreateTitle();
+    var storedTitle = CreateShortTitle();
     var incomingTitle = fuzzyTitleVariant ? CreateFuzzyTitleVariant(storedTitle) : storedTitle;
 
     var stored = CreateStoredEpisodeWithYouTubeOnly(
@@ -843,7 +899,7 @@ public sealed class DomainTestFixture
   internal static string CreateTitleSpecimen(Fixture fixture, int? wordCount = null)
   {
     var count = wordCount ?? Math.Abs(fixture.Create<int>()) % 6 + 2;
-    count = Math.Clamp(count, 1, 20);
+    count = Math.Clamp(count, 1, 25);
     var words = new string[count];
     for (var i = 0; i < count; i++)
       words[i] = TitleWords[Math.Abs(fixture.Create<int>()) % TitleWords.Length];
@@ -851,8 +907,7 @@ public sealed class DomainTestFixture
   }
 
   private static string FormatTitleWords(IReadOnlyList<string> words) =>
-    string.Join(' ', words.Select(w =>
-      char.ToUpperInvariant(w[0]) + w[1..].ToLowerInvariant()));
+    string.Join(' ', words.Select(FormatTitleWord));
 
   internal static string CreateSpotifyIdSpecimen(Fixture fixture) =>
     CreateRandomString(fixture, Base62, 22);

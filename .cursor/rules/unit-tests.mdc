@@ -137,7 +137,9 @@ Default builders produce **fully valid, platform-correct** objects. Tests trust 
 | `CreateYouTubeChannelId()` | `UC` + 22 chars |
 | `CreateGuid()` / `Create<Guid>()` | Entity IDs (podcast, episode, row) when identity is filler |
 | `CreateTitle()` | Realistic episode-style title from random English words (default 2–7 words) |
-| `CreateTitle(wordCount)` / `CreateShortTitle()` / `CreateLongTitle()` | Explicit word-count bounds when a test needs short or long titles |
+| `CreateTitle(wordCount)` | Explicit word count (1–25 words) |
+| `CreateShortTitle()` | Short episode title (5–10 words) |
+| `CreateLongTitle()` | Long episode title (11–25 words) |
 
 ---
 
@@ -169,7 +171,8 @@ Before submitting a business-rule test, verify:
 | Same-calendar-date backfill, midnight UTC stored row | `CreateMidnightUtcStoredEpisode` + `Create*CatalogueEpisodeSameDayAs` |
 | YouTube-first cross-platform match (YouTube-only stored + delayed Spotify) | `CreateYouTubeFirstPodcastWithNegativeDelay()` + `CreateCrossPlatformYouTubeFirstPair()` |
 | Negative-delay guard (aligned release, different titles) | `CreateNegativeDelayNonMatchingPair()` |
-| Typo title fuzzy match | `CreateTitle()` + `CreateTypoTitleVariant()` + `CreateStoredEpisodeWithSpotifyOnly()` |
+| Typo title fuzzy match | `CreateShortTitle()` + `CreateTypoTitleVariant()` — single-character edit in one word; probes typo tolerance with duration |
+| Fuzzy title word-level match | `CreateShortTitle()` + `CreateFuzzyTitleVariant()` — word replace/drop/add/swap; probes catalogue wording drift (cross-platform, Apple resolver) |
 | Ambiguous dual-match failure | `CreateAmbiguousMatchStoredEpisodes` + `CreateAmbiguousMatchSpotifyIncoming` |
 | EpisodeMatchRegex forced match | Inline `#N` titles in test (regex-dependent literals only) |
 | Positive YouTube publishing delay | `CreatePositiveDelayAudioStoredEpisode` + `CreateYouTubeFirstPodcast(...)` |
@@ -338,7 +341,7 @@ public void snake_case_shorthand()
 | Catalogue episode | `CreateSpotifyCatalogueEpisode()`, `CreateSpotifyCatalogueEpisode(configure)`, overload with explicit id |
 | Same-day backfill probe | `CreateMidnightUtcStoredEpisode`, `Create*CatalogueInputSameDayAs`, `Create*CatalogueEpisodeSameDayAs` |
 | Generated values | `CreateTitle()`, `CreateDuration()`, `CreateNonMidnightTimeOfDay()`, `CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateYouTubeChannelId()`, `CreateGuid()` |
-| Title variants | `CreateFuzzyTitleVariant(title)`, `CreateTypoTitleVariant(title)` — input must be word-based from `CreateTitle()` |
+| Title variants | `CreateTypoTitleVariant(title)` — one character changed in the longest word (typo probes). `CreateFuzzyTitleVariant(title)` — one word-level edit (replace/drop filler/add filler/swap adjacent). Input must be word-based from `CreateShortTitle()` or `CreateTitle(5+)` |
 | Same calendar date + time | `SameCalendarDateWithTime(dateOnlyRelease, timeOfDay)`, `SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, days)` |
 | Relative dates | `UtcToday`, `UtcDaysAgo(n)`, `UtcDateDaysAgo(n)`, `UtcAtTime(dayOffset, timeOfDay)` |
 | Assert vocabulary | `EpisodeExpectation.From(episode)`, `.WithSpotify/.WithApple/.WithYouTube`, `ShouldMatchExpectation` |
