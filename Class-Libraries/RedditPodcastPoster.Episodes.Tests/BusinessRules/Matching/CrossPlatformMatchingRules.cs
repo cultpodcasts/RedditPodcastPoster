@@ -14,8 +14,8 @@ public class CrossPlatformMatchingRules
 {
     private const string C2CSpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4";
     private static readonly Uri C2CSpotifyUrl = new($"https://open.spotify.com/episode/{C2CSpotifyId}");
-    private static readonly Guid C2CExistingId = Guid.Parse("7dd136da-84ae-4c02-81be-9baa5f4c3362");
 
+    private readonly DomainTestFixture _fixture = new();
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
     [Fact(DisplayName =
@@ -24,13 +24,13 @@ public class CrossPlatformMatchingRules
     public void YouTube_first_Spotify_catalogue_matches_YouTube_only_stored_episode()
     {
         // Given a Cults to Consciousness episode stored from YouTube only (C2C abuser incident)
-        var podcast = PodcastFixtures.CultsToConsciousness();
+        var podcast = _fixture.CultsToConsciousnessPodcast();
         var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
         var youTubeLength = TimeSpan.Parse("01:28:37");
         var youTubeUrl = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g");
         var stored = new Episode
         {
-            Id = C2CExistingId,
+            Id = EpisodeFixtures.C2CAbuserEpisodeId,
             PodcastId = podcast.Id,
             Title = "I Confronted My Ab*ser 30 Years Later. Everything Changed",
             Release = youTubeRelease,
@@ -42,7 +42,7 @@ public class CrossPlatformMatchingRules
             .WithSpotify(C2CSpotifyId, C2CSpotifyUrl);
 
         // When Spotify catalogue returns a fuzzy-matching title with aligned catalogue release
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             C2CSpotifyId,
             "I Confronted My Abuser 30 Years Later… Everything Changed",
             C2CSpotifyUrl,
@@ -55,7 +55,7 @@ public class CrossPlatformMatchingRules
         result.AddedEpisodes.Should().BeEmpty();
         result.FailedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().ContainSingle();
-        result.MergedEpisodes.Single().Existing.Id.Should().Be(C2CExistingId);
+        result.MergedEpisodes.Single().Existing.Id.Should().Be(EpisodeFixtures.C2CAbuserEpisodeId);
         stored.ShouldMatchExpectation(expected);
     }
 
@@ -65,7 +65,7 @@ public class CrossPlatformMatchingRules
     public void Negative_delay_does_not_merge_on_release_and_duration_when_titles_differ()
     {
         // Given a YouTube-first podcast and a YouTube-only stored episode (C2C negative-delay incident)
-        var podcast = PodcastFixtures.CultsToConsciousness();
+        var podcast = _fixture.CultsToConsciousnessPodcast();
         var stored = new Episode
         {
             Id = Guid.Parse("53ba0c64-58a7-4292-b7fe-ba135d4d3160"),
@@ -79,7 +79,7 @@ public class CrossPlatformMatchingRules
         var expected = EpisodeExpectation.From(stored);
 
         // When Spotify returns an episode with aligned release and similar duration but a different title
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             "1BTQKaev5KLjScdwHII14B",
             "Becoming a Fundamentalist Trad Wife Almost Killed Me",
             new Uri("https://open.spotify.com/episode/1BTQKaev5KLjScdwHII14B"),
@@ -102,7 +102,7 @@ public class CrossPlatformMatchingRules
     public void Ambiguous_match_records_failed_episodes_instead_of_picking_one()
     {
         // Given two stored episodes with the same title, release, and duration on different platforms
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var sharedTitle = "Shared episode title";
         var sharedRelease = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
         var sharedLength = TimeSpan.FromMinutes(45);
@@ -129,7 +129,7 @@ public class CrossPlatformMatchingRules
 
         // When Spotify catalogue returns an episode that title-matches both stored rows
         const string incomingSpotifyId = "incomingSpotifyId01";
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             incomingSpotifyId,
             sharedTitle,
             new Uri($"https://open.spotify.com/episode/{incomingSpotifyId}"),
@@ -154,7 +154,7 @@ public class CrossPlatformMatchingRules
     public void Positive_YouTube_delay_matches_incoming_YouTube_to_stored_audio_episode()
     {
         // Given a YouTube-first podcast with a one-day publishing delay and a Spotify-only stored row
-        var podcast = PodcastFixtures.YouTubeFirst(
+        var podcast = _fixture.YouTubeFirstPodcast(
             channelId: "delayed-channel",
             youTubePublicationOffsetTicks: TimeSpan.FromDays(1).Ticks);
         var audioRelease = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
@@ -173,7 +173,7 @@ public class CrossPlatformMatchingRules
             .WithYouTube("delayedYouTube01", new Uri("https://www.youtube.com/watch?v=delayedYouTube01"));
 
         // When YouTube returns a different title on the delayed publish date with the same duration
-        var discovered = EpisodeFixtures.FromYouTubeVideo(
+        var discovered = _fixture.FromYouTubeVideo(
             "delayedYouTube01",
             "Completely different title",
             youTubeRelease,

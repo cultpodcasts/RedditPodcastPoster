@@ -12,16 +12,18 @@ public class IndexingScopeRules
     private static readonly DateTime ReleasedSince = new(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime EpisodeRelease = new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
 
+    private readonly DomainTestFixture _fixture = new();
+
     [Fact(DisplayName =
         "Episodes below minimum duration are marked ignored during indexing.")]
     public async Task short_discovered_episodes_are_marked_ignored()
     {
         // Given a podcast with default minimum duration and a discovered episode below that threshold
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = PodcastFixtures.SpotifyPrimary("show-short", Guid.Parse("99999999-9999-9999-9999-999999999999"));
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-short", Guid.Parse("99999999-9999-9999-9999-999999999999"));
         harness.PodcastRepository.Seed(podcast);
 
-        var shortEpisode = EpisodeFixtures.FromSpotifyCatalogue(
+        var shortEpisode = _fixture.FromSpotifyCatalogue(
             "short-spot-1",
             "Short episode",
             new Uri("https://open.spotify.com/episode/short-spot-1"),

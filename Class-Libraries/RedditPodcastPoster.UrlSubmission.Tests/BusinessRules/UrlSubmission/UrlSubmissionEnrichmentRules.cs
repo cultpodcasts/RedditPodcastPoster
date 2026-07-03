@@ -13,6 +13,7 @@ namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
 public class UrlSubmissionEnrichmentRules
 {
+    private readonly DomainTestFixture _fixture = new();
     [Fact(DisplayName =
         "Submitting a URL for an episode that already exists enriches missing platform links on the stored episode.")]
     public void existing_episode_missing_platform_links_are_filled_from_resolved_items()
@@ -21,11 +22,11 @@ public class UrlSubmissionEnrichmentRules
         var descriptionHelper = CreateDescriptionHelper();
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
-        var podcast = PodcastFixtures.Standard(Guid.Parse("21212121-2121-2121-2121-212121212121"));
+        var podcast = _fixture.StandardPodcast(Guid.Parse("21212121-2121-2121-2121-212121212121"));
         podcast.SpotifyId = "show-spotify-id";
         podcast.AppleId = 9876543210;
 
-        var episode = EpisodeFixtures.FromYouTubeVideo(
+        var episode = _fixture.FromYouTubeVideo(
             "yt-only-submit",
             "YouTube-only stored episode",
             new DateTime(2026, 5, 1, 12, 0, 0, DateTimeKind.Utc),
@@ -115,7 +116,7 @@ public class UrlSubmissionEnrichmentRules
         var descriptionHelper = CreateDescriptionHelper();
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
-        var podcast = PodcastFixtures.Standard(Guid.Parse("22222222-2222-2222-2222-222222222222"));
+        var podcast = _fixture.StandardPodcast(Guid.Parse("22222222-2222-2222-2222-222222222222"));
         podcast.SpotifyId = string.Empty;
         podcast.AppleId = null;
         podcast.YouTubeChannelId = string.Empty;
@@ -193,11 +194,11 @@ public class UrlSubmissionEnrichmentRules
         var descriptionHelper = CreateDescriptionHelper();
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
-        var podcast = PodcastFixtures.SpotifyPrimary("show-complete");
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-complete");
         podcast.AppleId = 4445556667;
         podcast.YouTubeChannelId = "channel-complete";
 
-        var episode = EpisodeFixtures.FromSpotifyCatalogue(
+        var episode = _fixture.FromSpotifyCatalogue(
             "complete-spot-1",
             "Complete episode",
             new Uri("https://open.spotify.com/episode/complete-spot-1"),
@@ -279,8 +280,8 @@ public class UrlSubmissionEnrichmentRules
         var descriptionHelper = CreateDescriptionHelper();
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
-        var podcast = PodcastFixtures.SpotifyPrimary("show-enrich-state");
-        var episode = EpisodeFixtures.FromYouTubeVideo(
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-enrich-state");
+        var episode = _fixture.FromYouTubeVideo(
             "yt-enrich-state",
             "Episode awaiting Spotify",
             new DateTime(2026, 5, 3, 0, 0, 0, DateTimeKind.Utc),

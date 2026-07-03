@@ -12,6 +12,7 @@ namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Adapters;
 /// </summary>
 public class PlatformCatalogueAdapterRules
 {
+    private readonly DomainTestFixture _fixture = new();
     private readonly SpotifyEpisodeAdapter _spotifyAdapter = new();
     private readonly AppleEpisodeAdapter _appleAdapter = new();
     private readonly YouTubeEpisodeAdapter _youTubeAdapter = new();

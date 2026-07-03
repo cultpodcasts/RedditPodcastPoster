@@ -1,44 +1,17 @@
-using RedditPodcastPoster.Models;
-
 namespace RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 
+/// <summary>
+/// Incident and regression constants for podcast specimens.
+/// Use <see cref="DomainTestFixture"/> to create podcast instances.
+/// </summary>
 public static class PodcastFixtures
 {
-    public static Podcast Standard(Guid? id = null, string name = "Test Podcast") =>
-        new()
-        {
-            Id = id ?? Guid.NewGuid(),
-            Name = name
-        };
+    public static readonly Guid CultsToConsciousnessPodcastId = Guid.Parse("1aa72d3d-f1e4-458f-a172-62990ef6c200");
 
-    public static Podcast SpotifyPrimary(string spotifyShowId, Guid? id = null) =>
-        new()
-        {
-            Id = id ?? Guid.NewGuid(),
-            Name = "Spotify-primary podcast",
-            SpotifyId = spotifyShowId,
-            ReleaseAuthority = Service.Spotify
-        };
+    public const string CultsToConsciousnessChannelId = "c2c-channel";
 
-    public static Podcast YouTubeFirst(
-        string channelId,
-        long youTubePublicationOffsetTicks,
-        string? spotifyShowId = null,
-        Guid? id = null) =>
-        new()
-        {
-            Id = id ?? Guid.Parse("1aa72d3d-f1e4-458f-a172-62990ef6c200"),
-            Name = "YouTube-first podcast",
-            ReleaseAuthority = Service.YouTube,
-            YouTubeChannelId = channelId,
-            YouTubePublicationOffset = youTubePublicationOffsetTicks,
-            SpotifyId = spotifyShowId ?? string.Empty
-        };
+    public const string CultsToConsciousnessSpotifyShowId = "6oTbi9wKZ2czCvSwBKxxoH";
 
-    public static Podcast CultsToConsciousness() =>
-        YouTubeFirst(
-            channelId: "c2c-channel",
-            youTubePublicationOffsetTicks: TimeSpan.FromDays(-33).Add(TimeSpan.FromHours(-12)).Ticks,
-            spotifyShowId: "6oTbi9wKZ2czCvSwBKxxoH",
-            id: Guid.Parse("1aa72d3d-f1e4-458f-a172-62990ef6c200"));
+    public static readonly long CultsToConsciousnessYouTubePublicationOffsetTicks =
+        TimeSpan.FromDays(-33).Add(TimeSpan.FromHours(-12)).Ticks;
 }

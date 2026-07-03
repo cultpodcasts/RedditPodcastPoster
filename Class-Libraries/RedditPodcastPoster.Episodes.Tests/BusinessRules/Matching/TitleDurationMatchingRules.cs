@@ -14,8 +14,8 @@ public class TitleDurationMatchingRules
 {
     private const string SpotifyEpisodeId = "1UncRhHtmojlTq2mO0Gntz";
     private static readonly Uri SpotifyUrl = new($"https://open.spotify.com/episode/{SpotifyEpisodeId}");
-    private static readonly Guid PostmormonExistingId = Guid.Parse("086b02d5-9ec7-432e-8e57-9279d32374da");
 
+    private readonly DomainTestFixture _fixture = new();
     private readonly EpisodeMatcher _matcher = EpisodeDomainTestServices.CreateMatcher();
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
@@ -28,17 +28,17 @@ public class TitleDurationMatchingRules
         var release = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
         var existingLength = TimeSpan.FromSeconds(878.503);
         var incomingLength = TimeSpan.FromMinutes(14) + TimeSpan.FromSeconds(39);
-        var podcast = PodcastFixtures.Standard(name: "Postmormon Postmortem");
-        var stored = new Episode
+        var podcast = _fixture.StandardPodcast(name: "Postmormon Postmortem");
+        var stored = _fixture.CreateEpisode(e =>
         {
-            Id = PostmormonExistingId,
-            PodcastId = podcast.Id,
-            Title = "The Bear River Massacre and the Mormon History Behind Washakie Ward",
-            Release = release,
-            Length = existingLength,
-            SpotifyId = SpotifyEpisodeId,
-            Urls = new ServiceUrls { Spotify = SpotifyUrl }
-        };
+            e.Id = EpisodeFixtures.PostmormonExistingEpisodeId;
+            e.PodcastId = podcast.Id;
+            e.Title = "The Bear River Massacre and the Mormon History Behind Washakie Ward";
+            e.Release = release;
+            e.Length = existingLength;
+            e.SpotifyId = SpotifyEpisodeId;
+            e.Urls = new ServiceUrls { Spotify = SpotifyUrl };
+        });
         var expected = EpisodeExpectation.From(stored)
             .WithYouTube("l_iHjZWIsXw", new Uri("https://www.youtube.com/watch?v=l_iHjZWIsXw"));
 
@@ -58,7 +58,7 @@ public class TitleDurationMatchingRules
 
         result.AddedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().ContainSingle();
-        result.MergedEpisodes.Single().Existing.Id.Should().Be(PostmormonExistingId);
+        result.MergedEpisodes.Single().Existing.Id.Should().Be(EpisodeFixtures.PostmormonExistingEpisodeId);
         stored.ShouldMatchExpectation(expected);
     }
 
@@ -75,7 +75,7 @@ public class TitleDurationMatchingRules
             TimeSpan.FromMinutes(30));
 
         // When the matcher evaluates the pair on a standard podcast
-        var isMatch = _matcher.IsMatch(existing, incoming, episodeMatchRegex: null, PodcastFixtures.Standard());
+        var isMatch = _matcher.IsMatch(existing, incoming, episodeMatchRegex: null, _fixture.StandardPodcast());
 
         // Then they are not treated as the same episode
         isMatch.Should().BeFalse();
@@ -93,7 +93,7 @@ public class TitleDurationMatchingRules
         var incoming = CreateEpisode("Completely different title", length, release);
 
         // When the matcher evaluates the pair
-        var isMatch = _matcher.IsMatch(existing, incoming, episodeMatchRegex: null, PodcastFixtures.Standard());
+        var isMatch = _matcher.IsMatch(existing, incoming, episodeMatchRegex: null, _fixture.StandardPodcast());
 
         // Then they may be treated as the same episode
         isMatch.Should().BeTrue();
@@ -105,7 +105,7 @@ public class TitleDurationMatchingRules
     {
         // Given a podcast with an episode-number regex and two stored rows with different surface titles
         const string episodeMatchRegex = @"#(?'episodematch'\d+)\s";
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         podcast.EpisodeMatchRegex = episodeMatchRegex;
         var sharedRelease = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
         var stored = new Episode
@@ -142,11 +142,11 @@ public class TitleDurationMatchingRules
             new Uri("https://open.spotify.com/episode/regexForcedSpotify01")));
     }
 
-    private static Episode CreateEpisode(string title, TimeSpan length, DateTime? release = null) =>
-        new()
+    private Episode CreateEpisode(string title, TimeSpan length, DateTime? release = null) =>
+        _fixture.CreateEpisode(e =>
         {
-            Title = title,
-            Length = length,
-            Release = release ?? DateTime.UtcNow
-        };
+            e.Title = title;
+            e.Length = length;
+            e.Release = release ?? DateTime.UtcNow;
+        });
 }

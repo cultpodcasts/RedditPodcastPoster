@@ -16,6 +16,7 @@ public class PlatformIdentityMatchingRules
     private static readonly Uri SpotifyUrl = new("https://open.spotify.com/episode/1UncRhHtmojlTq2mO0Gntz");
     private const string SpotifyEpisodeId = "1UncRhHtmojlTq2mO0Gntz";
 
+    private readonly DomainTestFixture _fixture = new();
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
     [Fact(DisplayName =
@@ -25,16 +26,16 @@ public class PlatformIdentityMatchingRules
     public void Submitted_via_Spotify_URL_before_ID_exists_merges_on_reindex()
     {
         // Given a podcast episode stored from a URL submission (Spotify URL, no Spotify ID)
-        var podcast = PodcastFixtures.Standard(id: Guid.Parse("4672c845-15b4-4f88-bbff-567d521fe4a2"));
+        var podcast = _fixture.StandardPodcast(id: Guid.Parse("4672c845-15b4-4f88-bbff-567d521fe4a2"));
         var release = DateTime.UtcNow.Date;
-        var stored = EpisodeFixtures.SubmittedViaSpotifyUrlOnly(
+        var stored = _fixture.SubmittedViaSpotifyUrlOnly(
             SpotifyUrl,
             title: "Reddit post title",
             release: release);
         var expected = EpisodeExpectation.From(stored);
 
         // When Spotify catalogue returns the same URL with a catalogue title and ID
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             SpotifyEpisodeId,
             "Spotify catalogue title",
             SpotifyUrl,
@@ -56,9 +57,9 @@ public class PlatformIdentityMatchingRules
     public void Same_Spotify_ID_merges_onto_existing_episode()
     {
         // Given a stored episode with a Spotify ID
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var release = DateTime.UtcNow.AddMonths(-6);
-        var stored = EpisodeFixtures.FromSpotifyCatalogue(
+        var stored = _fixture.FromSpotifyCatalogue(
             SpotifyEpisodeId,
             "Stored title",
             SpotifyUrl,
@@ -67,7 +68,7 @@ public class PlatformIdentityMatchingRules
         var expected = EpisodeExpectation.From(stored);
 
         // When Spotify catalogue returns the same ID with updated metadata
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             SpotifyEpisodeId,
             "Incoming title",
             SpotifyUrl,
@@ -90,14 +91,14 @@ public class PlatformIdentityMatchingRules
     public void Different_Spotify_IDs_never_merge_by_title()
     {
         // Given two episodes with different Spotify IDs but the same title
-        var podcast = PodcastFixtures.Standard();
-        var existing = EpisodeFixtures.FromSpotifyCatalogue(
+        var podcast = _fixture.StandardPodcast();
+        var existing = _fixture.FromSpotifyCatalogue(
             "different-id",
             "Shared title",
             SpotifyUrl,
             DateTime.UtcNow,
             TimeSpan.FromMinutes(45));
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             SpotifyEpisodeId,
             "Shared title",
             new Uri($"https://open.spotify.com/episode/{SpotifyEpisodeId}"),
@@ -121,7 +122,7 @@ public class PlatformIdentityMatchingRules
         const string youTubeId = "l_iHjZWIsXw";
         var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
         var release = new DateTime(2026, 6, 1, 14, 0, 0, DateTimeKind.Utc);
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var stored = new Episode
         {
             Id = Guid.NewGuid(),
@@ -135,7 +136,7 @@ public class PlatformIdentityMatchingRules
         var expected = EpisodeExpectation.From(stored);
 
         // When YouTube returns the same video ID with a different title
-        var discovered = EpisodeFixtures.FromYouTubeVideo(
+        var discovered = _fixture.FromYouTubeVideo(
             youTubeId,
             "Incoming YouTube title",
             release,
@@ -159,13 +160,13 @@ public class PlatformIdentityMatchingRules
         const string sharedTitle = "Shared title";
         var release = DateTime.UtcNow;
         var length = TimeSpan.FromMinutes(45);
-        var podcast = PodcastFixtures.Standard();
-        var existing = EpisodeFixtures.FromYouTubeVideo(
+        var podcast = _fixture.StandardPodcast();
+        var existing = _fixture.FromYouTubeVideo(
             "video-id-one",
             sharedTitle,
             release,
             length);
-        var discovered = EpisodeFixtures.FromYouTubeVideo(
+        var discovered = _fixture.FromYouTubeVideo(
             "video-id-two",
             sharedTitle,
             release,
@@ -188,7 +189,7 @@ public class PlatformIdentityMatchingRules
         const long appleId = 1635013492;
         var appleUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleId}");
         var release = new DateTime(2026, 6, 1, 14, 0, 0, DateTimeKind.Utc);
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var stored = new Episode
         {
             Id = Guid.NewGuid(),
@@ -202,7 +203,7 @@ public class PlatformIdentityMatchingRules
         var expected = EpisodeExpectation.From(stored);
 
         // When Apple returns the same episode ID with a different title
-        var discovered = EpisodeFixtures.FromAppleEpisode(
+        var discovered = _fixture.FromAppleEpisode(
             appleId,
             "Incoming Apple title",
             release,
@@ -223,7 +224,7 @@ public class PlatformIdentityMatchingRules
     public void Incoming_Spotify_ID_owned_by_another_row_does_not_merge_onto_wrong_candidate()
     {
         // Given a YouTube-first podcast with a Spotify owner row and a separate YouTube-only row
-        var podcast = PodcastFixtures.CultsToConsciousness();
+        var podcast = _fixture.CultsToConsciousnessPodcast();
         const string otoSpotifyId = "16LveQifI6eBwDXAINpd7G";
         var otoSpotifyUrl = new Uri($"https://open.spotify.com/episode/{otoSpotifyId}");
         var correctOwnerId = Guid.Parse("1c804814-12ac-40c8-a223-88ab7c703d38");
@@ -257,7 +258,7 @@ public class PlatformIdentityMatchingRules
         var expectedWrongRow = EpisodeExpectation.From(wrongYouTubeOnly);
 
         // When Spotify re-index returns the owner episode ID with a fuzzy title match on both rows
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             otoSpotifyId,
             "What Really Happens During Ordo Templi Orientis Initiations",
             otoSpotifyUrl,
@@ -282,13 +283,13 @@ public class PlatformIdentityMatchingRules
         const string sharedTitle = "Shared title";
         var release = DateTime.UtcNow;
         var length = TimeSpan.FromMinutes(45);
-        var podcast = PodcastFixtures.Standard();
-        var existing = EpisodeFixtures.FromAppleEpisode(
+        var podcast = _fixture.StandardPodcast();
+        var existing = _fixture.FromAppleEpisode(
             1111111111,
             sharedTitle,
             release,
             length);
-        var discovered = EpisodeFixtures.FromAppleEpisode(
+        var discovered = _fixture.FromAppleEpisode(
             2222222222,
             sharedTitle,
             release,

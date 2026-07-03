@@ -16,6 +16,7 @@ public class EpisodeMergingRules
     private static readonly Uri ExistingSpotifyUrl = new($"https://open.spotify.com/episode/{SpotifyEpisodeId}");
     private static readonly Uri IncomingSpotifyUrl = new($"https://open.spotify.com/episode/{SpotifyEpisodeId}?si=incoming");
 
+    private readonly DomainTestFixture _fixture = new();
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
     [Fact(DisplayName =
@@ -23,22 +24,21 @@ public class EpisodeMergingRules
     public void Merge_fills_missing_Spotify_URL_without_replacing_existing()
     {
         // Given a stored episode with a Spotify URL already set
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var release = DateTime.UtcNow.AddMonths(-1);
-        var stored = new Episode
+        var stored = _fixture.CreateEpisode(e =>
         {
-            Id = Guid.NewGuid(),
-            PodcastId = podcast.Id,
-            Title = "Episode title",
-            Release = release,
-            Length = TimeSpan.FromMinutes(45),
-            SpotifyId = SpotifyEpisodeId,
-            Urls = new ServiceUrls { Spotify = ExistingSpotifyUrl }
-        };
+            e.PodcastId = podcast.Id;
+            e.Title = "Episode title";
+            e.Release = release;
+            e.Length = TimeSpan.FromMinutes(45);
+            e.SpotifyId = SpotifyEpisodeId;
+            e.Urls = new ServiceUrls { Spotify = ExistingSpotifyUrl };
+        });
         var expected = EpisodeExpectation.From(stored);
 
         // When Spotify re-index returns the same ID with a different URL variant
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             SpotifyEpisodeId,
             "Episode title",
             IncomingSpotifyUrl,
@@ -59,7 +59,7 @@ public class EpisodeMergingRules
         // Given a stored episode with a Spotify ID and YouTube video already assigned
         const string existingSpotifyId = "existingSpotifyId01";
         const string youTubeId = "sharedYouTubeId01";
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var release = DateTime.UtcNow.AddMonths(-1);
         var stored = new Episode
         {
@@ -79,7 +79,7 @@ public class EpisodeMergingRules
         var expected = EpisodeExpectation.From(stored);
 
         // When YouTube re-index returns the same video without a Spotify ID to fill
-        var discovered = EpisodeFixtures.FromYouTubeVideo(
+        var discovered = _fixture.FromYouTubeVideo(
             youTubeId,
             "Episode title",
             release,
@@ -99,7 +99,7 @@ public class EpisodeMergingRules
     {
         // Given a stored episode with YouTube identity but no Spotify ID
         const string youTubeId = "sharedYouTubeId02";
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var release = DateTime.UtcNow.AddMonths(-1);
         var stored = new Episode
         {
@@ -142,7 +142,7 @@ public class EpisodeMergingRules
     public void Merge_extends_truncated_description_ending_in_ellipsis()
     {
         // Given a stored episode with a truncated description
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var release = DateTime.UtcNow.AddMonths(-1);
         const string truncatedDescription = "This is a short preview...";
         const string fullDescription = "This is a short preview with the complete episode summary and details.";
@@ -160,7 +160,7 @@ public class EpisodeMergingRules
         var expected = EpisodeExpectation.From(stored).WithDescription(fullDescription);
 
         // When Spotify re-index returns a longer description for the same episode
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             SpotifyEpisodeId,
             "Episode title",
             ExistingSpotifyUrl,
@@ -180,8 +180,8 @@ public class EpisodeMergingRules
     public void No_match_adds_new_episode_with_new_Id()
     {
         // Given a stored episode with no overlapping platform identity
-        var podcast = PodcastFixtures.Standard();
-        var stored = EpisodeFixtures.FromSpotifyCatalogue(
+        var podcast = _fixture.StandardPodcast();
+        var stored = _fixture.FromSpotifyCatalogue(
             "storedSpotifyId01",
             "Stored episode title",
             new Uri("https://open.spotify.com/episode/storedSpotifyId01"),
@@ -189,7 +189,7 @@ public class EpisodeMergingRules
             TimeSpan.FromMinutes(30));
 
         // When indexing discovers an unrelated episode
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             "newSpotifyId000001",
             "Brand new episode title",
             new Uri("https://open.spotify.com/episode/newSpotifyId000001"),
@@ -216,7 +216,7 @@ public class EpisodeMergingRules
         const string youTubeId = "artworkYouTubeId01";
         var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
         var incomingImage = new Uri("https://i.ytimg.com/vi/artworkYouTubeId01/maxresdefault.jpg");
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var release = DateTime.UtcNow.AddMonths(-1);
         var stored = new Episode
         {
@@ -256,7 +256,7 @@ public class EpisodeMergingRules
         // Given a stored episode with Spotify artwork already set
         var existingImage = new Uri("https://i.scdn.co/image/existing-spotify-artwork");
         var incomingImage = new Uri("https://i.scdn.co/image/incoming-spotify-artwork");
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var release = DateTime.UtcNow.AddMonths(-1);
         var stored = new Episode
         {
@@ -295,7 +295,7 @@ public class EpisodeMergingRules
     public void Merge_does_not_replace_complete_description_with_shorter_text()
     {
         // Given a stored episode with a complete description
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var release = DateTime.UtcNow.AddMonths(-1);
         const string completeDescription =
             "This is a complete episode summary with full details about the topic and guests.";
@@ -314,7 +314,7 @@ public class EpisodeMergingRules
         var expected = EpisodeExpectation.From(stored);
 
         // When Spotify re-index returns a shorter description for the same episode
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             SpotifyEpisodeId,
             "Episode title",
             ExistingSpotifyUrl,
@@ -337,7 +337,7 @@ public class EpisodeMergingRules
         // Given a stored episode with Apple identity but no Apple URL
         const long appleId = 1635013493;
         var appleUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleId}");
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var release = DateTime.UtcNow.AddMonths(-1);
         var stored = new Episode
         {
@@ -351,7 +351,7 @@ public class EpisodeMergingRules
         var expected = EpisodeExpectation.From(stored).WithApple(appleId, appleUrl);
 
         // When Apple re-index returns the same episode with a URL
-        var discovered = EpisodeFixtures.FromAppleEpisode(
+        var discovered = _fixture.FromAppleEpisode(
             appleId,
             "Episode title",
             release,
@@ -372,7 +372,7 @@ public class EpisodeMergingRules
         // Given a stored episode with YouTube identity but no YouTube URL
         const string youTubeId = "fillMissingYouTube1";
         var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var release = DateTime.UtcNow.AddMonths(-1);
         var stored = new Episode
         {
@@ -386,7 +386,7 @@ public class EpisodeMergingRules
         var expected = EpisodeExpectation.From(stored).WithYouTube(youTubeId, youTubeUrl);
 
         // When YouTube re-index returns the same video with a URL
-        var discovered = EpisodeFixtures.FromYouTubeVideo(
+        var discovered = _fixture.FromYouTubeVideo(
             youTubeId,
             "Episode title",
             release,
@@ -408,7 +408,7 @@ public class EpisodeMergingRules
         const long appleId = 1635013492;
         var existingAppleUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleId}");
         var incomingAppleUrl = new Uri($"https://podcasts.apple.com/gb/podcast/episode/id{appleId}");
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var release = DateTime.UtcNow.AddMonths(-1);
         var stored = new Episode
         {
@@ -423,7 +423,7 @@ public class EpisodeMergingRules
         var expected = EpisodeExpectation.From(stored);
 
         // When Apple re-index returns the same ID with a different URL variant
-        var discovered = EpisodeFixtures.FromAppleEpisode(
+        var discovered = _fixture.FromAppleEpisode(
             appleId,
             "Episode title",
             release,
@@ -444,7 +444,7 @@ public class EpisodeMergingRules
         const string youTubeId = "existingYouTubeId1";
         var existingYouTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
         var incomingYouTubeUrl = new Uri($"https://youtu.be/{youTubeId}");
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var release = DateTime.UtcNow.AddMonths(-1);
         var stored = new Episode
         {
@@ -484,7 +484,7 @@ public class EpisodeMergingRules
         // Given a stored episode indexed with an earlier Spotify catalogue release date
         var catalogueRelease = new DateTime(2026, 6, 24, 0, 0, 0, DateTimeKind.Utc);
         var publicRelease = new DateTime(2026, 6, 28, 12, 0, 0, DateTimeKind.Utc);
-        var podcast = PodcastFixtures.Standard(id: Guid.Parse("4672c845-15b4-4f88-bbff-567d521fe4a2"));
+        var podcast = _fixture.StandardPodcast(id: Guid.Parse("4672c845-15b4-4f88-bbff-567d521fe4a2"));
         var stored = new Episode
         {
             Id = Guid.NewGuid(),
@@ -498,7 +498,7 @@ public class EpisodeMergingRules
         var expected = EpisodeExpectation.From(stored);
 
         // When Spotify re-index returns a newer public availability date for the same Spotify ID
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             SpotifyEpisodeId,
             "Spotify catalogue title",
             ExistingSpotifyUrl,

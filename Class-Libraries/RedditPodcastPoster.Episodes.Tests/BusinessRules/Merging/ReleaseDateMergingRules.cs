@@ -14,8 +14,8 @@ public class ReleaseDateMergingRules
 {
     private const string SpotifyEpisodeId = "6O1Z1s7ca0PI8Gq1rdt3j4";
     private static readonly Uri SpotifyUrl = new($"https://open.spotify.com/episode/{SpotifyEpisodeId}");
-    private static readonly Guid ExistingId = Guid.Parse("7dd136da-84ae-4c02-81be-9baa5f4c3362");
 
+    private readonly DomainTestFixture _fixture = new();
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
     [Fact(DisplayName =
@@ -24,7 +24,7 @@ public class ReleaseDateMergingRules
     public void YouTube_same_UTC_date_backfills_midnight_release_time()
     {
         // Given a stored episode with a date-only (midnight UTC) release
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
         var youTubeRelease = new DateTime(2026, 7, 1, 12, 30, 0, DateTimeKind.Utc);
         var stored = new Episode
@@ -42,7 +42,7 @@ public class ReleaseDateMergingRules
             .WithYouTube("video-id", new Uri("https://www.youtube.com/watch?v=video-id"));
 
         // When YouTube returns the same calendar date with a time-of-day
-        var discovered = EpisodeFixtures.FromYouTubeVideo(
+        var discovered = _fixture.FromYouTubeVideo(
             "video-id",
             "Episode title",
             youTubeRelease,
@@ -61,7 +61,7 @@ public class ReleaseDateMergingRules
     public void Spotify_same_date_does_not_backfill_midnight_release_time()
     {
         // Given a stored episode with a date-only (midnight UTC) release
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
         var spotifyRelease = new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc);
         var stored = new Episode
@@ -77,7 +77,7 @@ public class ReleaseDateMergingRules
         var expected = EpisodeExpectation.From(stored);
 
         // When Spotify re-index returns the same calendar date with a time-of-day
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             SpotifyEpisodeId,
             "Episode title",
             SpotifyUrl,
@@ -97,13 +97,13 @@ public class ReleaseDateMergingRules
     public void YouTube_authority_preserves_YouTube_release_on_Spotify_reindex()
     {
         // Given a YouTube-first podcast episode with a YouTube publish datetime already stored
-        var podcast = PodcastFixtures.CultsToConsciousness();
+        var podcast = _fixture.CultsToConsciousnessPodcast();
         var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
         var spotifyCatalogueRelease = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
         var youTubeUrl = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g");
         var stored = new Episode
         {
-            Id = ExistingId,
+            Id = EpisodeFixtures.C2CAbuserEpisodeId,
             PodcastId = podcast.Id,
             Title = "I Confronted My Ab*ser 30 Years Later. Everything Changed",
             Release = youTubeRelease,
@@ -119,7 +119,7 @@ public class ReleaseDateMergingRules
         var expected = EpisodeExpectation.From(stored);
 
         // When Spotify re-index returns a newer catalogue date for the same Spotify ID
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             SpotifyEpisodeId,
             "I Confronted My Abuser 30 Years Later… Everything Changed",
             SpotifyUrl,
@@ -140,7 +140,7 @@ public class ReleaseDateMergingRules
     public void YouTube_different_UTC_date_does_not_backfill_midnight_release_time()
     {
         // Given a stored episode with a date-only (midnight UTC) release
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
         var youTubeRelease = new DateTime(2026, 7, 2, 12, 30, 0, DateTimeKind.Utc);
         var stored = new Episode
@@ -157,7 +157,7 @@ public class ReleaseDateMergingRules
             .WithYouTube("video-id", new Uri("https://www.youtube.com/watch?v=video-id"));
 
         // When YouTube returns a time on a different calendar date
-        var discovered = EpisodeFixtures.FromYouTubeVideo(
+        var discovered = _fixture.FromYouTubeVideo(
             "video-id",
             "Episode title",
             youTubeRelease,
@@ -175,7 +175,7 @@ public class ReleaseDateMergingRules
     public void Apple_same_date_backfills_midnight_release_time()
     {
         // Given a stored episode with a date-only (midnight UTC) release
-        var podcast = PodcastFixtures.Standard();
+        var podcast = _fixture.StandardPodcast();
         const long appleId = 1635013492;
         var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
         var appleRelease = new DateTime(2026, 7, 1, 15, 45, 0, DateTimeKind.Utc);
@@ -195,7 +195,7 @@ public class ReleaseDateMergingRules
             .WithApple(appleId, appleUrl);
 
         // When Apple returns the same calendar date with a time-of-day
-        var discovered = EpisodeFixtures.FromAppleEpisode(
+        var discovered = _fixture.FromAppleEpisode(
             appleId,
             "Episode title",
             appleRelease,

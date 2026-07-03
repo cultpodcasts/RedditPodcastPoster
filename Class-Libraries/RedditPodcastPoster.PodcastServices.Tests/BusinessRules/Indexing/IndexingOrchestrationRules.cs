@@ -12,16 +12,18 @@ public class IndexingOrchestrationRules
     private static readonly DateTime ReleasedSince = new(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime EpisodeRelease = new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
 
+    private readonly DomainTestFixture _fixture = new();
+
     [Fact(DisplayName =
         "Full indexing discovers episodes, merges, enriches, filters, then persists.")]
     public async Task full_indexing_runs_discover_merge_enrich_filter_and_persist_stages()
     {
         // Given a podcast ready for a full indexing pass
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = PodcastFixtures.SpotifyPrimary("show-full-pipeline", Guid.Parse("12121212-1212-1212-1212-121212121212"));
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-full-pipeline", Guid.Parse("12121212-1212-1212-1212-121212121212"));
         harness.PodcastRepository.Seed(podcast);
 
-        var discovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var discovered = _fixture.FromSpotifyCatalogue(
             "pipeline-spot-1",
             "Pipeline episode",
             new Uri("https://open.spotify.com/episode/pipeline-spot-1"),
@@ -70,10 +72,10 @@ public class IndexingOrchestrationRules
     {
         // Given a discovered episode below minimum duration with SkipShortEpisodes enabled
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = PodcastFixtures.SpotifyPrimary("show-skip-short", Guid.Parse("13131313-1313-1313-1313-131313131313"));
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-skip-short", Guid.Parse("13131313-1313-1313-1313-131313131313"));
         harness.PodcastRepository.Seed(podcast);
 
-        var shortEpisode = EpisodeFixtures.FromSpotifyCatalogue(
+        var shortEpisode = _fixture.FromSpotifyCatalogue(
             "short-spot-2",
             "Short discovered episode",
             new Uri("https://open.spotify.com/episode/short-spot-2"),
@@ -108,12 +110,12 @@ public class IndexingOrchestrationRules
     {
         // Given a podcast with an older LatestReleased and newly added and merged episodes
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = PodcastFixtures.SpotifyPrimary("show-latest-released", Guid.Parse("14141414-1414-1414-1414-141414141414"));
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-latest-released", Guid.Parse("14141414-1414-1414-1414-141414141414"));
         podcast.LatestReleased = EpisodeRelease.AddDays(-30);
         harness.PodcastRepository.Seed(podcast);
 
         const string mergeSpotifyId = "merge-latest-spot";
-        var mergedExisting = EpisodeFixtures.FromSpotifyCatalogue(
+        var mergedExisting = _fixture.FromSpotifyCatalogue(
             mergeSpotifyId,
             "Merged episode",
             new Uri($"https://open.spotify.com/episode/{mergeSpotifyId}"),
@@ -124,7 +126,7 @@ public class IndexingOrchestrationRules
         mergedExisting.PodcastId = podcast.Id;
         harness.EpisodeRepository.Seed(mergedExisting);
 
-        var mergeDiscovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var mergeDiscovered = _fixture.FromSpotifyCatalogue(
             mergeSpotifyId,
             "Merged episode",
             new Uri($"https://open.spotify.com/episode/{mergeSpotifyId}?si=merge"),
@@ -132,7 +134,7 @@ public class IndexingOrchestrationRules
             TimeSpan.FromMinutes(45),
             "Longer merged description from catalogue");
 
-        var addedDiscovered = EpisodeFixtures.FromSpotifyCatalogue(
+        var addedDiscovered = _fixture.FromSpotifyCatalogue(
             "added-latest-spot",
             "Added episode",
             new Uri("https://open.spotify.com/episode/added-latest-spot"),
@@ -163,7 +165,7 @@ public class IndexingOrchestrationRules
     {
         // Given a podcast without expensive-query flags that discovers them during indexing
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = PodcastFixtures.SpotifyPrimary("show-expensive-query", Guid.Parse("16161616-1616-1616-1616-161616161616"));
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-expensive-query", Guid.Parse("16161616-1616-1616-1616-161616161616"));
         podcast.YouTubeChannelId = "channel-expensive";
         podcast.SpotifyEpisodesQueryIsExpensive = null;
         podcast.YouTubePlaylistQueryIsExpensive = null;
@@ -201,7 +203,7 @@ public class IndexingOrchestrationRules
     {
         // Given indexing that bypasses Spotify URL resolving during discovery
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = PodcastFixtures.SpotifyPrimary("show-spotify-bypass", Guid.Parse("17171717-1717-1717-1717-171717171717"));
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-spotify-bypass", Guid.Parse("17171717-1717-1717-1717-171717171717"));
         podcast.LastIndexed = null;
         harness.PodcastRepository.Seed(podcast);
 
@@ -235,7 +237,7 @@ public class IndexingOrchestrationRules
     {
         // Given indexing that bypasses YouTube URL resolving during discovery
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = PodcastFixtures.SpotifyPrimary("show-youtube-bypass", Guid.Parse("18181818-1818-1818-1818-181818181818"));
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-youtube-bypass", Guid.Parse("18181818-1818-1818-1818-181818181818"));
         podcast.YouTubeChannelId = "channel-youtube-bypass";
         podcast.LastIndexed = null;
         harness.PodcastRepository.Seed(podcast);

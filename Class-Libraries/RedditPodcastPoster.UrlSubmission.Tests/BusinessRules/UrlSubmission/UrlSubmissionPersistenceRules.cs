@@ -12,6 +12,7 @@ namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
 public class UrlSubmissionPersistenceRules
 {
+    private readonly DomainTestFixture _fixture = new();
     [Fact(DisplayName =
         "Submitting a URL for an existing episode that is enriched saves the episode.")]
     public async Task existing_episode_enriched_saves_episode()
@@ -19,10 +20,10 @@ public class UrlSubmissionPersistenceRules
         // Given an existing podcast and an enriched submit result
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var podcast = PodcastFixtures.SpotifyPrimary("show-existing");
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-existing");
         podcastRepository.Seed(podcast);
 
-        var enrichedEpisode = EpisodeFixtures.FromSpotifyCatalogue(
+        var enrichedEpisode = _fixture.FromSpotifyCatalogue(
             "existing-spot-1",
             "Existing episode",
             new Uri("https://open.spotify.com/episode/existing-spot-1"),
@@ -71,7 +72,7 @@ public class UrlSubmissionPersistenceRules
         // Given an existing podcast and an unchanged submit result
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var podcast = PodcastFixtures.SpotifyPrimary("show-unchanged");
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-unchanged");
         podcastRepository.Seed(podcast);
 
         var podcastProcessor = new Mock<IPodcastProcessor>();
@@ -111,8 +112,8 @@ public class UrlSubmissionPersistenceRules
         // Given a submit result that would normally persist both podcast and episode
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var newPodcast = PodcastFixtures.SpotifyPrimary("show-new-no-persist");
-        var newEpisode = EpisodeFixtures.FromSpotifyCatalogue(
+        var newPodcast = _fixture.SpotifyPrimaryPodcast("show-new-no-persist");
+        var newEpisode = _fixture.FromSpotifyCatalogue(
             "new-spot-1",
             "New episode",
             new Uri("https://open.spotify.com/episode/new-spot-1"),
@@ -161,8 +162,8 @@ public class UrlSubmissionPersistenceRules
         // Given a categorised item for a brand-new podcast
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var newPodcast = PodcastFixtures.SpotifyPrimary("show-brand-new");
-        var newEpisode = EpisodeFixtures.FromSpotifyCatalogue(
+        var newPodcast = _fixture.SpotifyPrimaryPodcast("show-brand-new");
+        var newEpisode = _fixture.FromSpotifyCatalogue(
             "brand-new-spot-1",
             "Brand new episode",
             new Uri("https://open.spotify.com/episode/brand-new-spot-1"),

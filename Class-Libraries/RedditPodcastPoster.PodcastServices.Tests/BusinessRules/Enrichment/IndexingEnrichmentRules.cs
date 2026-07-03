@@ -14,6 +14,8 @@ public class IndexingEnrichmentRules
 {
     private static readonly TimeSpan PublishingDelay = TimeSpan.FromDays(1);
 
+    private readonly DomainTestFixture _fixture = new();
+
     [Fact(DisplayName =
         "When Spotify URL or ID is missing, indexing attempts Spotify enrichment.")]
     public async Task spotify_enricher_is_invoked_when_spotify_link_is_missing()
@@ -39,8 +41,8 @@ public class IndexingEnrichmentRules
             appleEnricher,
             youTubeEnricher);
 
-        var podcast = PodcastFixtures.SpotifyPrimary("show-spotify-enrich");
-        var episode = EpisodeFixtures.FromYouTubeVideo(
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-spotify-enrich");
+        var episode = _fixture.FromYouTubeVideo(
             "yt-missing-spotify",
             "Episode missing Spotify",
             DateTime.UtcNow.AddDays(-7),
@@ -92,10 +94,10 @@ public class IndexingEnrichmentRules
             appleEnricher,
             youTubeEnricher);
 
-        var podcast = PodcastFixtures.SpotifyPrimary("show-apple-enrich");
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-apple-enrich");
         podcast.AppleId = 1234567890;
 
-        var episode = EpisodeFixtures.FromSpotifyCatalogue(
+        var episode = _fixture.FromSpotifyCatalogue(
             "spotify-missing-apple",
             "Episode missing Apple",
             new Uri("https://open.spotify.com/episode/spotify-missing-apple"),
@@ -148,10 +150,10 @@ public class IndexingEnrichmentRules
             appleEnricher,
             youTubeEnricher);
 
-        var podcast = PodcastFixtures.SpotifyPrimary("show-youtube-enrich");
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-youtube-enrich");
         podcast.YouTubeChannelId = "channel-youtube-enrich";
 
-        var episode = EpisodeFixtures.FromSpotifyCatalogue(
+        var episode = _fixture.FromSpotifyCatalogue(
             "spotify-missing-youtube",
             "Episode missing YouTube",
             new Uri("https://open.spotify.com/episode/spotify-missing-youtube"),
@@ -193,11 +195,11 @@ public class IndexingEnrichmentRules
             appleEnricher,
             youTubeEnricher);
 
-        var podcast = PodcastFixtures.SpotifyPrimary("show-skip-youtube");
+        var podcast = _fixture.SpotifyPrimaryPodcast("show-skip-youtube");
         podcast.YouTubeChannelId = "channel-skip-youtube";
         podcast.SkipEnrichingFromYouTube = true;
 
-        var episode = EpisodeFixtures.FromSpotifyCatalogue(
+        var episode = _fixture.FromSpotifyCatalogue(
             "spotify-only-1",
             "Episode missing YouTube",
             new Uri("https://open.spotify.com/episode/spotify-only-1"),
@@ -256,7 +258,7 @@ public class IndexingEnrichmentRules
             "channel-delayed-pass",
             PublishingDelay);
 
-        var expiredStoredEpisode = EpisodeFixtures.FromSpotifyCatalogue(
+        var expiredStoredEpisode = _fixture.FromSpotifyCatalogue(
             "expired-delayed-spot",
             "Recently expired delayed episode",
             new Uri("https://open.spotify.com/episode/expired-delayed-spot"),
@@ -266,7 +268,7 @@ public class IndexingEnrichmentRules
         expiredStoredEpisode.YouTubeId = string.Empty;
         expiredStoredEpisode.Urls.YouTube = null;
 
-        var discoveredEpisode = EpisodeFixtures.FromSpotifyCatalogue(
+        var discoveredEpisode = _fixture.FromSpotifyCatalogue(
             "discovered-with-youtube",
             "Discovered episode with YouTube already",
             new Uri("https://open.spotify.com/episode/discovered-with-youtube"),
@@ -320,7 +322,7 @@ public class IndexingEnrichmentRules
             "channel-single-pass",
             PublishingDelay);
 
-        var batchEpisode = EpisodeFixtures.FromSpotifyCatalogue(
+        var batchEpisode = _fixture.FromSpotifyCatalogue(
             "batch-delayed-spot",
             "Batch episode awaiting YouTube",
             new Uri("https://open.spotify.com/episode/batch-delayed-spot"),
@@ -365,7 +367,7 @@ public class IndexingEnrichmentRules
             "channel-in-window",
             PublishingDelay);
 
-        var inWindowEpisode = EpisodeFixtures.FromSpotifyCatalogue(
+        var inWindowEpisode = _fixture.FromSpotifyCatalogue(
             "in-window-spot",
             "Episode still awaiting YouTube",
             new Uri("https://open.spotify.com/episode/in-window-spot"),
