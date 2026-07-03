@@ -130,7 +130,7 @@ Existing `EpisodeReleaseMatchTolerance` logic migrates into `IReleaseMatchStrate
 
 ## 4. Test implementation guardrails
 
-> **AI / agent authoritative reference:** [`.cursor/rules/unit-tests.mdc`](../../.cursor/rules/unit-tests.mdc) — prescriptive MUST/NEVER guardrails, specimen contract, arrange checklist, and good/bad examples. This section retains architecture context and the rule catalog; do not duplicate the guardrails doc here.
+> **AI / agent authoritative reference:** [`.cursor/rules/unit-tests.mdc`](../../.cursor/rules/unit-tests.mdc) — prescriptive MUST/NEVER guardrails, specimen contract (platform semantics + generated values; no `Specimens` nested class), arrange checklist, and good/bad examples. This section retains architecture context and the rule catalog; do not duplicate the guardrails doc here.
 
 ### 4.1 Three test layers
 
@@ -230,7 +230,7 @@ Same helper works before and after refactor — tests stay stable.
 |-----------|---------|
 | `InMemoryEpisodeRepository` | Seed + capture saves; support `GetByPodcastId` predicates |
 | `InMemoryPodcastRepository` | Seed + capture podcast saves |
-| `DomainTestFixture` | `CreatePodcast()`, `CreateEpisode()`, `BuildEpisode()`, catalogue helpers; `Incidents` nested constants |
+| `DomainTestFixture` | `CreatePodcast()`, `CreateEpisode()`, `BuildEpisode()`, catalogue helpers; `Incidents` regression constants only (no `Specimens` nested class — generic releases are AutoFixture-generated) |
 | `SaveCallRecorder` | Assert save order for indexing (enriched → filtered → merged → added) |
 
 ### 4.5 Mock boundaries

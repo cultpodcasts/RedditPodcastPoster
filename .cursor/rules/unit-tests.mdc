@@ -101,15 +101,26 @@ Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-re
 
 Default builders produce **fully valid, platform-correct** objects. Tests trust these unless the rule requires overrides.
 
+**No `Specimens` nested class.** Generic catalogue/resolved-item releases are **not** fixed calendar values or named day-offset constants (no shared `DefaultAppleReleaseDaysAgo`, `DefaultYouTubeReleaseTimeOfDay`, etc.). AutoFixture generates bounded random offsets (1–365 days before today) and non-midnight publish times per test run. Only **`DomainTestFixture.Incidents`** carries fixed production regression values.
+
 | Entity | Release | ID | URL |
 |--------|---------|-----|-----|
-| Spotify catalogue / `ResolvedSpotifyItem` | Date-only midnight UTC (`UtcDateDaysAgo`; `.WithRelease()` floors to `.Date`) | 22-char base62 (fixture-generated) | `https://open.spotify.com/episode/{id}` |
-| Apple catalogue / `ResolvedAppleItem` | Full UTC datetime with non-midnight time-of-day (fixture-generated day offset + publish time) | long numeric ≥ 13 digits (fixture-generated) | `https://podcasts.apple.com/us/podcast/episode/id{id}` |
-| YouTube catalogue / `ResolvedYouTubeItem` | Full UTC datetime with non-midnight time-of-day (fixture-generated day offset + publish time) | 11 chars from `[A-Za-z0-9_-]` (fixture-generated) | `https://www.youtube.com/watch?v={id}` |
+| Spotify catalogue / `ResolvedSpotifyItem` | Date-only midnight UTC (`CreateSpotifyReleaseSpecimen` → `UtcDateDaysAgo`; `.WithRelease()` floors to `.Date`) | 22-char base62 (fixture-generated) | `https://open.spotify.com/episode/{id}` |
+| Apple catalogue / `ResolvedAppleItem` | Full UTC datetime (`CreateAppleReleaseSpecimen` → bounded day offset + `CreateNonMidnightTimeOfDaySpecimen`) | long numeric ≥ 13 digits (fixture-generated) | `https://podcasts.apple.com/us/podcast/episode/id{id}` |
+| YouTube catalogue / `ResolvedYouTubeItem` | Full UTC datetime (`CreateYouTubeReleaseSpecimen` → bounded day offset + `CreateNonMidnightTimeOfDaySpecimen`) | 11 chars from `[A-Za-z0-9_-]` (fixture-generated) | `https://www.youtube.com/watch?v={id}` |
 
-**Same-calendar-date probes:** `CreateMidnightUtcStoredEpisode` + `CreateYouTubeCatalogueEpisodeSameDayAs` / `CreateAppleCatalogueEpisodeSameDayAs` (backfill time-of-day generated from stored date, not a fixed constant).
+**Assert platform semantics, not named constants.** For generic adapter/mapping tests, assert against the created specimen — e.g. `input.Release`, `candidate.Release.Value.Should().Be(input.Release)`, `ReleasePrecision.DateOnly` vs `DateTimeUtc`, and `TimeOfDay` is zero (Spotify) or not zero (Apple/YouTube). Do not assert against removed `Specimens.*` literals or hardcoded day counts unless the rule is about a specific release relationship you arranged explicitly.
 
-**Stable references before build:** `_fixture.CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateDuration()`, `CreateNonMidnightTimeOfDay()`, `CreateYouTubeChannelId()`.
+**Same-calendar-date probes:** `CreateMidnightUtcStoredEpisode` + `CreateYouTubeCatalogueInputSameDayAs` / `CreateAppleCatalogueInputSameDayAs` (or episode equivalents). Backfill time-of-day comes from `CreateNonMidnightTimeOfDaySpecimen` or an explicit `TimeSpan` you pass — not a fixture-wide constant. Combine stored date + time via `SameCalendarDateWithTime(stored.Release, timeOfDay)`.
+
+**Generated values before build:**
+
+| Helper | Purpose |
+|--------|---------|
+| `CreateDuration()` | Realistic episode length (1–120 minutes) |
+| `CreateNonMidnightTimeOfDay()` | UTC publish time with non-zero seconds (Apple/YouTube) |
+| `CreateSpotifyId()` / `CreateAppleId()` / `CreateYouTubeId()` | Platform IDs with correct shape |
+| `CreateYouTubeChannelId()` | `UC` + 22 chars |
 
 ---
 
@@ -121,8 +132,9 @@ Before submitting a business-rule test, verify:
 - [ ] `// Arrange` / `// Act` / `// Assert` present
 - [ ] Only assertion-relevant fields overridden; catalogue/episode filler from specimens
 - [ ] Zero-arg `Create*CatalogueInput()` used where possible; builder callback only when needed
-- [ ] Relative dates (`UtcToday`, `UtcDateDaysAgo`, `UtcAtTime`) — no fixed year literals
-- [ ] Spotify releases date-only; Apple/YouTube use `UtcAtTime` when time-of-day matters
+- [ ] Relative dates (`UtcToday`, `UtcDateDaysAgo`, `UtcAtTime`) — no fixed year literals; no `Specimens.*` day-offset constants
+- [ ] Spotify releases date-only; Apple/YouTube carry non-midnight time-of-day from fixture generation
+- [ ] Generic adapter/mapping asserts use `input.Release` + precision/`TimeOfDay` rules — not named release constants
 - [ ] Platform IDs from specimens or `Incidents` — no hardcoded literals in generic tests
 - [ ] Shared matching fields (title, duration) from `_fixture.Create<string>()` / `CreateDuration()`, not `const` literals
 - [ ] Assert uses `EpisodeExpectation.From(...)` or repository/save assertions
@@ -197,10 +209,32 @@ var input = _fixture.CreateAppleCatalogueInput();
 stored.ShouldMatchExpectation(expected.WithApple(input.AppleId, input.AppleUrl));
 ```
 
+### Adapter mapping: assert specimen release semantics
+
+```csharp
+// GOOD — trust generated specimen; assert platform precision rules, not fixed calendar values
+var input = _fixture.CreateAppleCatalogueInput();
+var candidate = _appleAdapter.Adapt(input);
+
+candidate.Release.Precision.Should().Be(ReleasePrecision.DateTimeUtc);
+candidate.Release.Value.Should().Be(input.Release);
+input.Release.TimeOfDay.Should().NotBe(TimeSpan.Zero);
+```
+
+```csharp
+// GOOD — Spotify: date-only, midnight UTC
+var input = _fixture.CreateSpotifyCatalogueInput();
+var candidate = _spotifyAdapter.Adapt(input);
+
+candidate.Release.Precision.Should().Be(ReleasePrecision.DateOnly);
+candidate.Release.Value.Should().Be(input.Release);
+candidate.Release.Value.TimeOfDay.Should().Be(TimeSpan.Zero);
+```
+
 ### Builder override when rule needs exact release
 
 ```csharp
-// GOOD — override ONLY because assertion depends on exact release
+// GOOD — override ONLY because assertion depends on exact release relationship
 var release = DomainTestFixture.UtcDateDaysAgo(5);
 var input = _fixture.CreateSpotifyCatalogueInput(b => b.WithRelease(release));
 var discovered = _fixture.CreateSpotifyCatalogueEpisode(
@@ -260,8 +294,9 @@ public void snake_case_shorthand()
 | Catalogue input (trust defaults) | `CreateSpotifyCatalogueInput()`, `CreateAppleCatalogueInput()`, `CreateYouTubeCatalogueInput()` |
 | Catalogue input (override) | `CreateSpotifyCatalogueInput(b => b.WithRelease(...))` |
 | Catalogue episode | `CreateSpotifyCatalogueEpisode()`, `CreateSpotifyCatalogueEpisode(configure)`, overload with explicit id |
-| Same-day backfill probe | `CreateMidnightUtcStoredEpisode`, `CreateYouTubeCatalogueEpisodeSameDayAs`, `CreateAppleCatalogueEpisodeSameDayAs` |
-| Generated IDs / duration | `CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateDuration()` |
+| Same-day backfill probe | `CreateMidnightUtcStoredEpisode`, `Create*CatalogueInputSameDayAs`, `Create*CatalogueEpisodeSameDayAs` |
+| Generated values | `CreateDuration()`, `CreateNonMidnightTimeOfDay()`, `CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateYouTubeChannelId()` |
+| Same calendar date + time | `SameCalendarDateWithTime(dateOnlyRelease, timeOfDay)` |
 | Relative dates | `UtcToday`, `UtcDaysAgo(n)`, `UtcDateDaysAgo(n)`, `UtcAtTime(dayOffset, timeOfDay)` |
 | Incident constants | `DomainTestFixture.Incidents.*` |
 | Incident factories | `CreateC2CYouTubeOnlyStoredEpisode`, `CreateC2CSpotifyIncoming`, `CreatePostmormonStoredEpisode`, … |
