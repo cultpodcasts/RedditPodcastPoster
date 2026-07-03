@@ -41,12 +41,10 @@ public class IndexingEnrichmentRules
             appleEnricher,
             youTubeEnricher);
 
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-spotify-enrich");
-        var episode = _fixture.CreateYouTubeCatalogueEpisode(
-            "yt-missing-spotify",
-            "Episode missing Spotify",
-            DateTime.UtcNow.AddDays(-7),
-            TimeSpan.FromMinutes(45));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithRelease(DomainTestFixture.UtcDaysAgo(7))
+            .WithDuration(TimeSpan.FromMinutes(45)));
         episode.PodcastId = podcast.Id;
         episode.SpotifyId = string.Empty;
         episode.Urls.Spotify = null;
@@ -94,15 +92,12 @@ public class IndexingEnrichmentRules
             appleEnricher,
             youTubeEnricher);
 
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-apple-enrich");
-        podcast.AppleId = 1234567890;
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        podcast.AppleId = 1234567890123;
 
-        var episode = _fixture.CreateSpotifyCatalogueEpisode(
-            "spotify-missing-apple",
-            "Episode missing Apple",
-            new Uri("https://open.spotify.com/episode/spotify-missing-apple"),
-            DateTime.UtcNow.AddDays(-7),
-            TimeSpan.FromMinutes(45));
+        var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(DomainTestFixture.UtcDaysAgo(7))
+            .WithDuration(TimeSpan.FromMinutes(45)));
         episode.PodcastId = podcast.Id;
         episode.AppleId = null;
         episode.Urls.Apple = null;
@@ -141,7 +136,7 @@ public class IndexingEnrichmentRules
                 It.IsAny<EnrichmentContext>()))
             .Callback<EnrichmentRequest, IndexingContext, EnrichmentContext>((_, _, context) =>
             {
-                PodcastServicesEpisodeEnricherTestSupport.FillYouTubeLink(context, "filled-youtube-id");
+                PodcastServicesEpisodeEnricherTestSupport.FillYouTubeLink(context, "dQw4w9WgXcQ");
             })
             .Returns(Task.CompletedTask);
 
@@ -150,15 +145,12 @@ public class IndexingEnrichmentRules
             appleEnricher,
             youTubeEnricher);
 
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-youtube-enrich");
-        podcast.YouTubeChannelId = "channel-youtube-enrich";
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        podcast.YouTubeChannelId = "UCchannel123456789";
 
-        var episode = _fixture.CreateSpotifyCatalogueEpisode(
-            "spotify-missing-youtube",
-            "Episode missing YouTube",
-            new Uri("https://open.spotify.com/episode/spotify-missing-youtube"),
-            DateTime.UtcNow.AddDays(-7),
-            TimeSpan.FromMinutes(45));
+        var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(DomainTestFixture.UtcDaysAgo(7))
+            .WithDuration(TimeSpan.FromMinutes(45)));
         episode.PodcastId = podcast.Id;
         episode.YouTubeId = string.Empty;
         episode.Urls.YouTube = null;
@@ -195,16 +187,13 @@ public class IndexingEnrichmentRules
             appleEnricher,
             youTubeEnricher);
 
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-skip-youtube");
-        podcast.YouTubeChannelId = "channel-skip-youtube";
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        podcast.YouTubeChannelId = "UCchannel123456789";
         podcast.SkipEnrichingFromYouTube = true;
 
-        var episode = _fixture.CreateSpotifyCatalogueEpisode(
-            "spotify-only-1",
-            "Episode missing YouTube",
-            new Uri("https://open.spotify.com/episode/spotify-only-1"),
-            DateTime.UtcNow.AddDays(-7),
-            TimeSpan.FromMinutes(45));
+        var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(DomainTestFixture.UtcDaysAgo(7))
+            .WithDuration(TimeSpan.FromMinutes(45)));
         episode.PodcastId = podcast.Id;
         episode.YouTubeId = string.Empty;
         episode.Urls.YouTube = null;
@@ -244,7 +233,7 @@ public class IndexingEnrichmentRules
             .Callback<EnrichmentRequest, IndexingContext, EnrichmentContext>((request, _, context) =>
             {
                 enrichedEpisodeIds.Add(request.Episode.Id);
-                PodcastServicesEpisodeEnricherTestSupport.FillYouTubeLink(context, "delayed-pass-youtube");
+                PodcastServicesEpisodeEnricherTestSupport.FillYouTubeLink(context, "9aBcDeFgHiJ");
             })
             .Returns(Task.CompletedTask);
 
@@ -258,26 +247,19 @@ public class IndexingEnrichmentRules
             "channel-delayed-pass",
             PublishingDelay);
 
-        var expiredStoredEpisode = _fixture.CreateSpotifyCatalogueEpisode(
-            "expired-delayed-spot",
-            "Recently expired delayed episode",
-            new Uri("https://open.spotify.com/episode/expired-delayed-spot"),
-            DateTime.UtcNow.Subtract(PublishingDelay).AddHours(-2),
-            TimeSpan.FromMinutes(45));
+        var expiredStoredEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(DateTime.UtcNow.Subtract(PublishingDelay).AddHours(-2))
+            .WithDuration(TimeSpan.FromMinutes(45)));
         expiredStoredEpisode.PodcastId = podcast.Id;
         expiredStoredEpisode.YouTubeId = string.Empty;
         expiredStoredEpisode.Urls.YouTube = null;
 
-        var discoveredEpisode = _fixture.CreateSpotifyCatalogueEpisode(
-            "discovered-with-youtube",
-            "Discovered episode with YouTube already",
-            new Uri("https://open.spotify.com/episode/discovered-with-youtube"),
-            DateTime.UtcNow.AddDays(-2),
-            TimeSpan.FromMinutes(45),
-            "Discovered description");
+        var discoveredEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(DomainTestFixture.UtcDaysAgo(2))
+            .WithDuration(TimeSpan.FromMinutes(45)));
         discoveredEpisode.PodcastId = podcast.Id;
-        discoveredEpisode.YouTubeId = "discovered-yt-1";
-        discoveredEpisode.Urls.YouTube = new Uri("https://www.youtube.com/watch?v=discovered-yt-1");
+        discoveredEpisode.YouTubeId = "kLmNoPqRsTu";
+        discoveredEpisode.Urls.YouTube = _fixture.DefaultYouTubeUrl("kLmNoPqRsTu");
 
         // Act
         var results = await enricher.EnrichEpisodes(
@@ -309,7 +291,7 @@ public class IndexingEnrichmentRules
                 It.IsAny<EnrichmentContext>()))
             .Callback<EnrichmentRequest, IndexingContext, EnrichmentContext>((_, _, context) =>
             {
-                PodcastServicesEpisodeEnricherTestSupport.FillYouTubeLink(context, "single-pass-youtube");
+                PodcastServicesEpisodeEnricherTestSupport.FillYouTubeLink(context, "xYzAbCdEfGh");
             })
             .Returns(Task.CompletedTask);
 
@@ -323,12 +305,9 @@ public class IndexingEnrichmentRules
             "channel-single-pass",
             PublishingDelay);
 
-        var batchEpisode = _fixture.CreateSpotifyCatalogueEpisode(
-            "batch-delayed-spot",
-            "Batch episode awaiting YouTube",
-            new Uri("https://open.spotify.com/episode/batch-delayed-spot"),
-            DateTime.UtcNow.Subtract(PublishingDelay).AddHours(-2),
-            TimeSpan.FromMinutes(45));
+        var batchEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(DateTime.UtcNow.Subtract(PublishingDelay).AddHours(-2))
+            .WithDuration(TimeSpan.FromMinutes(45)));
         batchEpisode.PodcastId = podcast.Id;
         batchEpisode.YouTubeId = string.Empty;
         batchEpisode.Urls.YouTube = null;
@@ -368,12 +347,9 @@ public class IndexingEnrichmentRules
             "channel-in-window",
             PublishingDelay);
 
-        var inWindowEpisode = _fixture.CreateSpotifyCatalogueEpisode(
-            "in-window-spot",
-            "Episode still awaiting YouTube",
-            new Uri("https://open.spotify.com/episode/in-window-spot"),
-            DateTime.UtcNow.AddHours(-12),
-            TimeSpan.FromMinutes(45));
+        var inWindowEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(DateTime.UtcNow.AddHours(-12))
+            .WithDuration(TimeSpan.FromMinutes(45)));
         inWindowEpisode.PodcastId = podcast.Id;
         inWindowEpisode.YouTubeId = string.Empty;
         inWindowEpisode.Urls.YouTube = null;

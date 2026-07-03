@@ -85,16 +85,17 @@ public class PlatformIdentityMatchingRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
+        const string existingSpotifyId = "3vKvHj9mNoPqRsTuVwXyZ1";
         var existing = _fixture.CreateSpotifyCatalogueEpisode(
-            "different-id",
+            existingSpotifyId,
             "Shared title",
-            SpotifyUrl,
+            _fixture.DefaultSpotifyUrl(existingSpotifyId),
             DateTime.UtcNow,
             TimeSpan.FromMinutes(45));
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             SpotifyEpisodeId,
             "Shared title",
-            new Uri($"https://open.spotify.com/episode/{SpotifyEpisodeId}"),
+            SpotifyUrl,
             DateTime.UtcNow,
             TimeSpan.FromMinutes(45));
 
@@ -113,14 +114,13 @@ public class PlatformIdentityMatchingRules
     {
         // Arrange
         const string youTubeId = "l_iHjZWIsXw";
-        var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
         var release = DomainTestFixture.UtcAtTime(-32, TimeSpan.FromHours(14));
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
             .WithRelease(release)
             .WithTitle("Stored YouTube title")
-            .WithYouTube(youTubeId, youTubeUrl)
+            .WithYouTube(youTubeId, _fixture.DefaultYouTubeUrl(youTubeId))
             .Create();
         var expected = EpisodeExpectation.From(stored);
 
@@ -145,8 +145,14 @@ public class PlatformIdentityMatchingRules
         const string sharedTitle = "Shared title";
         var release = DateTime.UtcNow;
         var podcast = _fixture.CreatePodcast();
-        var existing = _fixture.CreateYouTubeCatalogueEpisode("video-id-one", title: sharedTitle, release: release);
-        var discovered = _fixture.CreateYouTubeCatalogueEpisode("video-id-two", title: sharedTitle, release: release);
+        var existing = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithYouTubeId("9aBcDeFgHiJ")
+            .WithTitle(sharedTitle)
+            .WithRelease(release));
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithYouTubeId("kLmNoPqRsTu")
+            .WithTitle(sharedTitle)
+            .WithRelease(release));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [existing], [discovered]);
@@ -163,14 +169,13 @@ public class PlatformIdentityMatchingRules
     {
         // Arrange
         const long appleId = 1635013492;
-        var appleUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleId}");
         var release = DomainTestFixture.UtcAtTime(-32, TimeSpan.FromHours(14));
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
             .WithRelease(release)
             .WithTitle("Stored Apple title")
-            .WithApple(appleId, appleUrl)
+            .WithApple(appleId, _fixture.DefaultAppleUrl(appleId))
             .Create();
         var expected = EpisodeExpectation.From(stored);
 
@@ -218,8 +223,14 @@ public class PlatformIdentityMatchingRules
         const string sharedTitle = "Shared title";
         var release = DateTime.UtcNow;
         var podcast = _fixture.CreatePodcast();
-        var existing = _fixture.CreateAppleCatalogueEpisode(1111111111, title: sharedTitle, release: release);
-        var discovered = _fixture.CreateAppleCatalogueEpisode(2222222222, title: sharedTitle, release: release);
+        var existing = _fixture.CreateAppleCatalogueEpisode(b => b
+            .WithAppleId(1111111111111)
+            .WithTitle(sharedTitle)
+            .WithRelease(release));
+        var discovered = _fixture.CreateAppleCatalogueEpisode(b => b
+            .WithAppleId(2222222222222)
+            .WithTitle(sharedTitle)
+            .WithRelease(release));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [existing], [discovered]);

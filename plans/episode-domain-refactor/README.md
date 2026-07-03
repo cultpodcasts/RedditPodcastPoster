@@ -181,6 +181,18 @@ public void snake_case_method_name()
 - **`EpisodeExpectation`** (or equivalent) for Assert clauses — not fifteen separate property assertions unless the rule is about one field
 - **Seed data from production incidents** is encouraged (C2C, Postmormon, Spotify URL-only) but must be expressed as rules with full outcome assertions
 
+**Remote entity specimens** (`DomainTestFixture` builders and `Create*CatalogueInput()` helpers):
+
+| Entity | ID / release format | URL pattern |
+|--------|---------------------|-------------|
+| Spotify episode / show | 22-char base62 (e.g. `6O1Z1s7ca0PI8Gq1rdt3j4`) | `https://open.spotify.com/episode/{id}` |
+| YouTube video | 11 chars from `[A-Za-z0-9_-]` (e.g. `dQw4w9WgXcQ`) | `https://www.youtube.com/watch?v={id}` |
+| Apple episode | long numeric ≥ 13 digits (e.g. `1234567890123`) | `https://podcasts.apple.com/us/podcast/episode/id{id}` |
+| Spotify release | date-only midnight UTC (`UtcDateDaysAgo`; `.WithRelease()` floors to `.Date`) | — |
+| Apple / YouTube release | full UTC datetime (`UtcAtTime` with explicit time-of-day) | — |
+
+AutoFixture customizations in `DomainTestFixture` wire catalogue and resolved-item DTOs through per-platform builders (`BuildSpotifyCatalogueInput()`, etc.). Each builder generates API-realistic IDs and derived URLs when not overridden. Tests call `_fixture.CreateSpotifyCatalogueInput()` or `Build…().WithRelease(…).Create()` and only set title, description, or duration when the assertion depends on them. Incident regression IDs live on `DomainTestFixture.Incidents`; do not use shared `Default*` string filler constants.
+
 **Do not:**
 
 - Test third-party libraries (e.g. FuzzySharp scores) as business rules

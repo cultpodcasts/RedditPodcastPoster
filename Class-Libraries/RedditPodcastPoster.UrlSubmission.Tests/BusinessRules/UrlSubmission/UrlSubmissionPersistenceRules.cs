@@ -20,15 +20,12 @@ public class UrlSubmissionPersistenceRules
         // Arrange
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-existing");
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
         podcastRepository.Seed(podcast);
 
-        var enrichedEpisode = _fixture.CreateSpotifyCatalogueEpisode(
-            "existing-spot-1",
-            "Existing episode",
-            new Uri("https://open.spotify.com/episode/existing-spot-1"),
-            DateTime.UtcNow.AddDays(-3),
-            TimeSpan.FromMinutes(45));
+        var enrichedEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(DomainTestFixture.UtcDaysAgo(3))
+            .WithDuration(TimeSpan.FromMinutes(45)));
         enrichedEpisode.PodcastId = podcast.Id;
 
         var podcastProcessor = new Mock<IPodcastProcessor>();
@@ -72,7 +69,7 @@ public class UrlSubmissionPersistenceRules
         // Arrange
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-unchanged");
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
         podcastRepository.Seed(podcast);
 
         var podcastProcessor = new Mock<IPodcastProcessor>();
@@ -112,13 +109,10 @@ public class UrlSubmissionPersistenceRules
         // Arrange
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var newPodcast = _fixture.CreateSpotifyPrimaryPodcast("show-new-no-persist");
-        var newEpisode = _fixture.CreateSpotifyCatalogueEpisode(
-            "new-spot-1",
-            "New episode",
-            new Uri("https://open.spotify.com/episode/new-spot-1"),
-            DateTime.UtcNow,
-            TimeSpan.FromMinutes(45));
+        var newPodcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        var newEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(DomainTestFixture.UtcToday)
+            .WithDuration(TimeSpan.FromMinutes(45)));
         newEpisode.PodcastId = newPodcast.Id;
 
         var factory = new Mock<IPodcastAndEpisodeFactory>();
@@ -162,13 +156,10 @@ public class UrlSubmissionPersistenceRules
         // Arrange
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var newPodcast = _fixture.CreateSpotifyPrimaryPodcast("show-brand-new");
-        var newEpisode = _fixture.CreateSpotifyCatalogueEpisode(
-            "brand-new-spot-1",
-            "Brand new episode",
-            new Uri("https://open.spotify.com/episode/brand-new-spot-1"),
-            DateTime.UtcNow,
-            TimeSpan.FromMinutes(45));
+        var newPodcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        var newEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(DomainTestFixture.UtcToday)
+            .WithDuration(TimeSpan.FromMinutes(45)));
         newEpisode.PodcastId = newPodcast.Id;
 
         var factory = new Mock<IPodcastAndEpisodeFactory>();

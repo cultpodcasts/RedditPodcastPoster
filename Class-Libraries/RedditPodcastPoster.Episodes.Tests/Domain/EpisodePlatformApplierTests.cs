@@ -11,8 +11,7 @@ public class EpisodePlatformApplierTests
     public void ApplyFillMissing_fills_YouTube_URL_when_absent()
     {
         // Given a stored episode with YouTube ID but no URL
-        const string youTubeId = "applierYouTube01";
-        var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
+        const string youTubeId = "dQw4w9WgXcQ";
         var target = new Episode
         {
             Title = "Episode title",
@@ -22,12 +21,12 @@ public class EpisodePlatformApplierTests
         // When applying a YouTube platform patch
         var applier = new EpisodePlatformApplier();
         var patch = new EpisodePlatformPatch(
-            new PlatformLink(Service.YouTube, youTubeId, youTubeUrl, null),
+            new PlatformLink(Service.YouTube, youTubeId, new Uri($"https://www.youtube.com/watch?v={youTubeId}"), null),
             null,
             null);
 
         // Then the missing URL is filled
         applier.ApplyFillMissing(target, patch).Should().BeTrue();
-        target.Urls.YouTube.Should().Be(youTubeUrl);
+        target.Urls.YouTube.Should().Be(new Uri($"https://www.youtube.com/watch?v={youTubeId}"));
     }
 }

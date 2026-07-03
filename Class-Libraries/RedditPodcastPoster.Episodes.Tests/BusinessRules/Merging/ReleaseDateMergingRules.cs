@@ -30,10 +30,15 @@ public class ReleaseDateMergingRules
             podcast, dateOnlyRelease, sharedTitle, sharedLength);
         var expected = EpisodeExpectation.From(stored)
             .WithRelease(youTubeRelease)
-            .WithYouTube("video-id", _fixture.DefaultYouTubeUrl("video-id"));
+            .WithYouTube(
+                DomainTestFixture.CrossPlatformProbeYouTubeId,
+                _fixture.DefaultYouTubeUrl(DomainTestFixture.CrossPlatformProbeYouTubeId));
 
-        var discovered = _fixture.CreateYouTubeCatalogueEpisode(
-            "video-id", sharedTitle, release: youTubeRelease, length: sharedLength);
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithYouTubeId(DomainTestFixture.CrossPlatformProbeYouTubeId)
+            .WithTitle(sharedTitle)
+            .WithRelease(youTubeRelease)
+            .WithDuration(sharedLength));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -51,14 +56,13 @@ public class ReleaseDateMergingRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var dateOnlyRelease = DomainTestFixture.UtcDateDaysAgo(2);
-        var spotifyRelease = DomainTestFixture.UtcDateDaysAgo(2);
         var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(podcast, dateOnlyRelease);
         var expected = EpisodeExpectation.From(stored);
 
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             DomainTestFixture.Incidents.C2CAbuserSpotifyId,
             spotifyUrl: _fixture.DefaultSpotifyUrl(DomainTestFixture.Incidents.C2CAbuserSpotifyId),
-            release: spotifyRelease);
+            release: dateOnlyRelease);
         // Episode model may retain API time before normalization; merge must still treat Spotify as date-only.
         discovered.Release = dateOnlyRelease.AddHours(8);
 
@@ -77,17 +81,15 @@ public class ReleaseDateMergingRules
     {
         // Arrange
         var podcast = _fixture.CreateCultsToConsciousnessPodcast();
-        var youTubeRelease = DomainTestFixture.Incidents.C2CAbuserYouTubeRelease;
-        var spotifyCatalogueRelease = DomainTestFixture.Incidents.C2CAbuserSpotifyRelease;
         var stored = _fixture.CreateC2CYouTubeAuthorityStoredEpisode(
             podcast,
-            release: youTubeRelease,
-            length: TimeSpan.Parse("01:28:37"));
+            release: DomainTestFixture.Incidents.C2CAbuserYouTubeRelease,
+            length: DomainTestFixture.Incidents.C2CAbuserYouTubeLength);
         var expected = EpisodeExpectation.From(stored);
 
         var discovered = _fixture.CreateC2CSpotifyIncoming(
-            release: spotifyCatalogueRelease,
-            length: TimeSpan.Parse("01:31:59.6990000"));
+            release: DomainTestFixture.Incidents.C2CAbuserSpotifyRelease,
+            length: DomainTestFixture.Incidents.C2CAbuserSpotifyLength);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -112,10 +114,15 @@ public class ReleaseDateMergingRules
         var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(
             podcast, dateOnlyRelease, sharedTitle, sharedLength);
         var expected = EpisodeExpectation.From(stored)
-            .WithYouTube("video-id", _fixture.DefaultYouTubeUrl("video-id"));
+            .WithYouTube(
+                DomainTestFixture.CrossPlatformProbeYouTubeId,
+                _fixture.DefaultYouTubeUrl(DomainTestFixture.CrossPlatformProbeYouTubeId));
 
-        var discovered = _fixture.CreateYouTubeCatalogueEpisode(
-            "video-id", sharedTitle, release: youTubeRelease, length: sharedLength);
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithYouTubeId(DomainTestFixture.CrossPlatformProbeYouTubeId)
+            .WithTitle(sharedTitle)
+            .WithRelease(youTubeRelease)
+            .WithDuration(sharedLength));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -142,8 +149,11 @@ public class ReleaseDateMergingRules
             .WithRelease(appleRelease)
             .WithApple(appleId, _fixture.DefaultAppleUrl(appleId));
 
-        var discovered = _fixture.CreateAppleCatalogueEpisode(
-            appleId, sharedTitle, release: appleRelease, length: sharedLength);
+        var discovered = _fixture.CreateAppleCatalogueEpisode(b => b
+            .WithAppleId(appleId)
+            .WithTitle(sharedTitle)
+            .WithRelease(appleRelease)
+            .WithDuration(sharedLength));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);

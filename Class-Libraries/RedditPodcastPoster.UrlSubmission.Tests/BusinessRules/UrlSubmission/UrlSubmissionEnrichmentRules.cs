@@ -23,27 +23,26 @@ public class UrlSubmissionEnrichmentRules
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
         var podcast = _fixture.CreatePodcast(p => p.Id = Guid.Parse("21212121-2121-2121-2121-212121212121"));
-        podcast.SpotifyId = "show-spotify-id";
-        podcast.AppleId = 9876543210;
+        podcast.SpotifyId = "6oTbi9wKZ2czCvSwBKxxoH";
+        podcast.AppleId = 9876543210123;
 
-        var episode = _fixture.CreateYouTubeCatalogueEpisode(
-            "yt-only-submit",
-            "YouTube-only stored episode",
-            new DateTime(2026, 5, 1, 12, 0, 0, DateTimeKind.Utc),
-            TimeSpan.FromMinutes(45),
-            "Stored description");
+        const string youTubeEpisodeId = "9aBcDeFgHiJ";
+        var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithYouTubeId(youTubeEpisodeId)
+            .WithRelease(DomainTestFixture.UtcAtTime(-63, TimeSpan.FromHours(12)))
+            .WithDuration(TimeSpan.FromMinutes(45))
+            .WithDescription("Stored description"));
         episode.PodcastId = podcast.Id;
         episode.SpotifyId = string.Empty;
         episode.AppleId = null;
         episode.Urls.Spotify = null;
         episode.Urls.Apple = null;
 
-        const string spotifyEpisodeId = "submit-spot-1";
-        const long appleEpisodeId = 1112223334;
-        const string youTubeEpisodeId = "yt-only-submit";
-        var spotifyUrl = new Uri($"https://open.spotify.com/episode/{spotifyEpisodeId}");
-        var appleUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleEpisodeId}");
-        var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeEpisodeId}");
+        const string spotifyEpisodeId = "1UncRhHtmojlTq2mO0Gntz";
+        const long appleEpisodeId = 1112223334445;
+        var spotifyUrl = _fixture.DefaultSpotifyUrl(spotifyEpisodeId);
+        var appleUrl = _fixture.DefaultAppleUrl(appleEpisodeId);
+        var youTubeUrl = _fixture.DefaultYouTubeUrl(youTubeEpisodeId);
 
         var categorisedItem = new CategorisedItem(
             podcast,
@@ -120,9 +119,12 @@ public class UrlSubmissionEnrichmentRules
         podcast.AppleId = null;
         podcast.YouTubeChannelId = string.Empty;
 
-        const string spotifyShowId = "show-submit-spotify";
-        const long appleShowId = 5556667778;
-        const string youTubeChannelId = "channel-submit-show";
+        const string spotifyShowId = "6oTbi9wKZ2czCvSwBKxxoH";
+        const long appleShowId = 5556667778889;
+        const string youTubeChannelId = "UCchannel123456789";
+        const string resolvedSpotifyEpisodeId = "3vKvHj9mNoPqRsTuVwXyZ1";
+        const long resolvedAppleEpisodeId = 1231231234567;
+        const string resolvedYouTubeEpisodeId = "kLmNoPqRsTu";
 
         var categorisedItem = new CategorisedItem(
             podcast,
@@ -130,7 +132,7 @@ public class UrlSubmissionEnrichmentRules
             null,
             new ResolvedSpotifyItem(
                 spotifyShowId,
-                "episode-spot-1",
+                resolvedSpotifyEpisodeId,
                 "Resolved show",
                 string.Empty,
                 "Publisher",
@@ -138,12 +140,12 @@ public class UrlSubmissionEnrichmentRules
                 "Resolved description",
                 DateTime.UtcNow.AddDays(-1),
                 TimeSpan.FromMinutes(45),
-                new Uri("https://open.spotify.com/episode/episode-spot-1"),
+                _fixture.DefaultSpotifyUrl(resolvedSpotifyEpisodeId),
                 false,
                 null),
             new ResolvedAppleItem(
                 appleShowId,
-                1231231234,
+                resolvedAppleEpisodeId,
                 "Resolved show",
                 string.Empty,
                 "Publisher",
@@ -151,12 +153,12 @@ public class UrlSubmissionEnrichmentRules
                 "Resolved description",
                 DateTime.UtcNow.AddDays(-1),
                 TimeSpan.FromMinutes(45),
-                new Uri("https://podcasts.apple.com/us/podcast/episode/id1231231234"),
+                _fixture.DefaultAppleUrl(resolvedAppleEpisodeId),
                 false,
                 null),
             new ResolvedYouTubeItem(
                 youTubeChannelId,
-                "yt-submit-1",
+                resolvedYouTubeEpisodeId,
                 "Resolved show",
                 string.Empty,
                 "Publisher",
@@ -164,7 +166,7 @@ public class UrlSubmissionEnrichmentRules
                 "Resolved description",
                 DateTime.UtcNow.AddDays(-1),
                 TimeSpan.FromMinutes(45),
-                new Uri("https://www.youtube.com/watch?v=yt-submit-1"),
+                _fixture.DefaultYouTubeUrl(resolvedYouTubeEpisodeId),
                 false,
                 null,
                 "playlist-submit"),
@@ -192,22 +194,23 @@ public class UrlSubmissionEnrichmentRules
         var descriptionHelper = CreateDescriptionHelper();
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-complete");
-        podcast.AppleId = 4445556667;
-        podcast.YouTubeChannelId = "channel-complete";
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        podcast.AppleId = 4445556667778;
+        podcast.YouTubeChannelId = "UCchannel123456789";
 
-        var episode = _fixture.CreateSpotifyCatalogueEpisode(
-            "complete-spot-1",
-            "Complete episode",
-            new Uri("https://open.spotify.com/episode/complete-spot-1"),
-            new DateTime(2026, 5, 2, 0, 0, 0, DateTimeKind.Utc),
-            TimeSpan.FromMinutes(45),
-            "Complete description");
+        const string spotifyEpisodeId = "1UncRhHtmojlTq2mO0Gntz";
+        const long appleEpisodeId = 8889990001234;
+        const string youTubeEpisodeId = "dQw4w9WgXcQ";
+        var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithSpotifyId(spotifyEpisodeId)
+            .WithRelease(DomainTestFixture.UtcDateDaysAgo(1))
+            .WithDuration(TimeSpan.FromMinutes(45))
+            .WithDescription("Complete description"));
         episode.PodcastId = podcast.Id;
-        episode.AppleId = 8889990001;
-        episode.YouTubeId = "complete-yt-1";
-        episode.Urls.Apple = new Uri("https://podcasts.apple.com/us/podcast/episode/id8889990001");
-        episode.Urls.YouTube = new Uri("https://www.youtube.com/watch?v=complete-yt-1");
+        episode.AppleId = appleEpisodeId;
+        episode.YouTubeId = youTubeEpisodeId;
+        episode.Urls.Apple = _fixture.DefaultAppleUrl(appleEpisodeId);
+        episode.Urls.YouTube = _fixture.DefaultYouTubeUrl(youTubeEpisodeId);
 
         var expected = EpisodeExpectation.From(episode);
 
@@ -277,19 +280,19 @@ public class UrlSubmissionEnrichmentRules
         var descriptionHelper = CreateDescriptionHelper();
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-enrich-state");
-        var episode = _fixture.CreateYouTubeCatalogueEpisode(
-            "yt-enrich-state",
-            "Episode awaiting Spotify",
-            new DateTime(2026, 5, 3, 0, 0, 0, DateTimeKind.Utc),
-            TimeSpan.FromMinutes(45),
-            "Stored description");
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        const string youTubeEpisodeId = "xYzAbCdEfGh";
+        var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithYouTubeId(youTubeEpisodeId)
+            .WithRelease(DomainTestFixture.UtcDateDaysAgo(2))
+            .WithDuration(TimeSpan.FromMinutes(45))
+            .WithDescription("Stored description"));
         episode.PodcastId = podcast.Id;
         episode.SpotifyId = string.Empty;
         episode.Urls.Spotify = null;
 
-        const string spotifyEpisodeId = "enrich-state-spot-1";
-        var spotifyUrl = new Uri($"https://open.spotify.com/episode/{spotifyEpisodeId}");
+        const string spotifyEpisodeId = "5nT8vW2xY4zA6bC8dE0fG2";
+        var spotifyUrl = _fixture.DefaultSpotifyUrl(spotifyEpisodeId);
         var expected = EpisodeExpectation.From(episode).WithSpotify(spotifyEpisodeId, spotifyUrl);
 
         var categorisedItem = new CategorisedItem(

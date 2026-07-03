@@ -20,16 +20,13 @@ public class IndexingScopeRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-short", Guid.Parse("99999999-9999-9999-9999-999999999999"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH", Guid.Parse("99999999-9999-9999-9999-999999999999"));
         harness.PodcastRepository.Seed(podcast);
 
-        var shortEpisode = _fixture.CreateSpotifyCatalogueEpisode(
-            "short-spot-1",
-            "Short episode",
-            new Uri("https://open.spotify.com/episode/short-spot-1"),
-            EpisodeRelease,
-            TimeSpan.FromMinutes(2),
-            "Too short");
+        var shortEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(EpisodeRelease)
+            .WithDuration(TimeSpan.FromMinutes(2))
+            .WithDescription("Too short"));
 
         harness.EpisodeProvider
             .Setup(x => x.GetEpisodes(

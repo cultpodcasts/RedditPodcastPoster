@@ -48,7 +48,7 @@ public class PlatformCatalogueAdapterRules
     public void Apple_catalogue_release_maps_to_datetime_utc_precision()
     {
         // Arrange
-        const long appleId = 1234567890;
+        const long appleId = 1234567890123;
         var appleRelease = DomainTestFixture.UtcAtTime(-84, TimeSpan.FromHours(9) + TimeSpan.FromMinutes(15) + TimeSpan.FromSeconds(30));
         var input = _fixture.CreateAppleCatalogueInput(b => b
             .WithAppleId(appleId)

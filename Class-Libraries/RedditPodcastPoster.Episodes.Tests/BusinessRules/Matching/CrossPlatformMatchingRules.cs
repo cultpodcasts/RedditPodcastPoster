@@ -22,9 +22,10 @@ public class CrossPlatformMatchingRules
     {
         // Arrange
         var podcast = _fixture.CreateCultsToConsciousnessPodcast();
-        var youTubeRelease = DomainTestFixture.Incidents.C2CAbuserYouTubeRelease;
-        var youTubeLength = DomainTestFixture.Incidents.C2CAbuserYouTubeLength;
-        var stored = _fixture.CreateC2CYouTubeOnlyStoredEpisode(podcast, release: youTubeRelease, length: youTubeLength);
+        var stored = _fixture.CreateC2CYouTubeOnlyStoredEpisode(
+            podcast,
+            release: DomainTestFixture.Incidents.C2CAbuserYouTubeRelease,
+            length: DomainTestFixture.Incidents.C2CAbuserYouTubeLength);
         var expected = EpisodeExpectation.From(stored)
             .WithSpotify(
                 DomainTestFixture.Incidents.C2CAbuserSpotifyId,
@@ -105,7 +106,6 @@ public class CrossPlatformMatchingRules
             channelId: "delayed-channel",
             youTubePublicationOffsetTicks: TimeSpan.FromDays(1).Ticks);
         var audioRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(12));
-        var youTubeRelease = audioRelease.AddDays(1);
         var length = TimeSpan.FromHours(1);
         var stored = _fixture.CreatePositiveDelayAudioStoredEpisode(
             podcast,
@@ -116,11 +116,11 @@ public class CrossPlatformMatchingRules
                 DomainTestFixture.Incidents.PositiveDelayIncomingYouTubeId,
                 _fixture.DefaultYouTubeUrl(DomainTestFixture.Incidents.PositiveDelayIncomingYouTubeId));
 
-        var discovered = _fixture.CreateYouTubeCatalogueEpisode(
-            DomainTestFixture.Incidents.PositiveDelayIncomingYouTubeId,
-            "Completely different title",
-            youTubeRelease,
-            length);
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithYouTubeId(DomainTestFixture.Incidents.PositiveDelayIncomingYouTubeId)
+            .WithTitle("Completely different title")
+            .WithRelease(audioRelease.AddDays(1))
+            .WithDuration(length));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);

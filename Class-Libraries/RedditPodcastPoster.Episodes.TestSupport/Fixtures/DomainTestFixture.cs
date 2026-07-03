@@ -186,23 +186,26 @@ public sealed class DomainTestFixture
 
     public const string AmbiguousSharedTitle = "Shared episode title";
 
-    public const string AmbiguousIncomingSpotifyId = "incomingSpotifyId01";
+    public const string AmbiguousIncomingSpotifyId = "7kN8mP2qR5sT1uV3wX4yZ6";
 
-    public const long AmbiguousAppleId = 1234567890L;
+    public const long AmbiguousAppleId = 1234567890123L;
 
     public const string PositiveDelayAudioTitle = "Episode A";
 
-    public const string PositiveDelayIncomingYouTubeId = "delayedYouTube01";
+    public const string PositiveDelayIncomingYouTubeId = "dQw4w9WgXcQ";
 
-    public const string PositiveDelayAudioSpotifyId = "delayedAudio01";
+    public const string PositiveDelayAudioSpotifyId = "5nT8vW2xY4zA6bC8dE0fG2";
 
     public const string EpisodeMatchRegexStoredTitle = "#42 Stored episode about the first topic";
 
     public const string EpisodeMatchRegexDiscoveredTitle =
       "#42 Catalogue title with completely different wording";
 
-    public const string EpisodeMatchRegexSpotifyId = "regexForcedSpotify01";
+    public const string EpisodeMatchRegexSpotifyId = "16LveQifI6eBwDXAINpd7G";
   }
+
+  /// <summary>Realistic 11-char YouTube video ID for cross-platform release merge probes.</summary>
+  public const string CrossPlatformProbeYouTubeId = "dQw4w9WgXcQ";
 
   public Uri DefaultSpotifyUrl(string spotifyEpisodeId) =>
     new($"https://open.spotify.com/episode/{spotifyEpisodeId}");
@@ -500,8 +503,8 @@ public sealed class DomainTestFixture
       e.Title = Incidents.AmbiguousSharedTitle;
       e.Release = release;
       e.Length = length;
-      e.YouTubeId = "youtube-video-id";
-      e.Urls.YouTube = DefaultYouTubeUrl("youtube-video-id");
+      e.YouTubeId = Incidents.C2CAbuserYouTubeId;
+      e.Urls.YouTube = DefaultYouTubeUrl(Incidents.C2CAbuserYouTubeId);
     });
     var appleOnly = CreateStoredEpisode(podcast, e =>
     {
@@ -592,6 +595,21 @@ public sealed class DomainTestFixture
     });
 
   public Episode CreateSpotifyCatalogueEpisode(
+    Action<SpotifyCatalogueInputBuilder>? configure = null)
+  {
+    var input = CreateSpotifyCatalogueInput(configure);
+    return Episode.FromSpotify(
+      input.SpotifyId,
+      input.Title,
+      input.Description,
+      input.Duration,
+      false,
+      input.Release,
+      input.SpotifyUrl,
+      input.Image);
+  }
+
+  public Episode CreateSpotifyCatalogueEpisode(
     string spotifyId,
     string? title = null,
     Uri? spotifyUrl = null,
@@ -628,6 +646,21 @@ public sealed class DomainTestFixture
   }
 
   public Episode CreateYouTubeCatalogueEpisode(
+    Action<YouTubeCatalogueInputBuilder>? configure = null)
+  {
+    var input = CreateYouTubeCatalogueInput(configure);
+    return Episode.FromYouTube(
+      input.YouTubeId,
+      input.Title,
+      input.Description,
+      input.Duration,
+      false,
+      input.Release,
+      input.YouTubeUrl,
+      input.Image);
+  }
+
+  public Episode CreateYouTubeCatalogueEpisode(
     string youTubeId,
     string? title = null,
     DateTime? release = null,
@@ -660,6 +693,21 @@ public sealed class DomainTestFixture
       false,
       input.Release,
       input.YouTubeUrl,
+      input.Image);
+  }
+
+  public Episode CreateAppleCatalogueEpisode(
+    Action<AppleCatalogueInputBuilder>? configure = null)
+  {
+    var input = CreateAppleCatalogueInput(configure);
+    return Episode.FromApple(
+      input.AppleId,
+      input.Title,
+      input.Description,
+      input.Duration,
+      false,
+      input.Release,
+      input.AppleUrl,
       input.Image);
   }
 
@@ -701,16 +749,37 @@ public sealed class DomainTestFixture
     _fixture.Register(() => new Uri($"https://example.com/{_fixture.Create<Guid>()}"));
     _fixture.Customize<Podcast>(composer => composer.FromFactory(() => CreatePodcast()));
     _fixture.Customize<Episode>(composer => composer.FromFactory(() => CreateEpisode()));
+    _fixture.Customize<SpotifyCatalogueInput>(composer => composer.FromFactory(
+      () => BuildSpotifyCatalogueInput().Create()));
+    _fixture.Customize<AppleCatalogueInput>(composer => composer.FromFactory(
+      () => BuildAppleCatalogueInput().Create()));
+    _fixture.Customize<YouTubeCatalogueInput>(composer => composer.FromFactory(
+      () => BuildYouTubeCatalogueInput().Create()));
+    _fixture.Customize<ResolvedSpotifyItemInput>(composer => composer.FromFactory(
+      () => BuildResolvedSpotifyItemInput().Create()));
+    _fixture.Customize<ResolvedAppleItemInput>(composer => composer.FromFactory(
+      () => BuildResolvedAppleItemInput().Create()));
+    _fixture.Customize<ResolvedYouTubeItemInput>(composer => composer.FromFactory(
+      () => BuildResolvedYouTubeItemInput().Create()));
   }
 
+  private const string Base62 =
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+  private const string YouTubeIdAlphabet =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
   internal static string CreateSpotifyIdSpecimen(Fixture fixture) =>
-    fixture.Create<string>().Replace("-", "")[..22];
+    CreateRandomString(fixture, Base62, 22);
+
+  internal static string CreateSpotifyShowIdSpecimen(Fixture fixture) =>
+    CreateRandomString(fixture, Base62, 22);
 
   internal static long CreateAppleIdSpecimen(Fixture fixture) =>
-    Math.Abs(fixture.Create<long>()) % 9_000_000_000L + 1_000_000_000L;
+    Math.Abs(fixture.Create<long>()) % 9_000_000_000_000L + 1_000_000_000_000L;
 
   internal static string CreateYouTubeIdSpecimen(Fixture fixture) =>
-    fixture.Create<string>().Replace("-", "")[..11];
+    CreateRandomString(fixture, YouTubeIdAlphabet, 11);
 
   internal static TimeSpan CreateDurationSpecimen(Fixture fixture) =>
     TimeSpan.FromMinutes(fixture.Create<int>() % 120 + 1);
@@ -719,7 +788,12 @@ public sealed class DomainTestFixture
     UtcDateDaysAgo(fixture.Create<int>() % 365 + 1);
 
   internal static DateTime CreateCatalogueReleaseSpecimen(Fixture fixture) =>
-    UtcDaysAgo(fixture.Create<int>() % 365 + 1);
+    UtcAtTime(-(fixture.Create<int>() % 365 + 1), TimeSpan.FromHours(fixture.Create<int>() % 24));
+
+  private static string CreateRandomString(Fixture fixture, string alphabet, int length) =>
+    new string(Enumerable.Range(0, length)
+      .Select(_ => alphabet[Math.Abs(fixture.Create<int>()) % alphabet.Length])
+      .ToArray());
 }
 
 /// <summary>Fluent builder for Spotify catalogue input specimens — release is always date-only.</summary>
