@@ -18,15 +18,15 @@ public class UrlSubmissionEnrichmentRules
         "Submitting a URL for an episode that already exists enriches missing platform links on the stored episode.")]
     public void existing_episode_missing_platform_links_are_filled_from_resolved_items()
     {
-        // Given an existing YouTube-only episode missing Spotify and Apple links
+        // Arrange
         var descriptionHelper = CreateDescriptionHelper();
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
-        var podcast = _fixture.StandardPodcast(Guid.Parse("21212121-2121-2121-2121-212121212121"));
+        var podcast = _fixture.CreatePodcast(p => p.Id = Guid.Parse("21212121-2121-2121-2121-212121212121"));
         podcast.SpotifyId = "show-spotify-id";
         podcast.AppleId = 9876543210;
 
-        var episode = _fixture.FromYouTubeVideo(
+        var episode = _fixture.CreateYouTubeCatalogueEpisode(
             "yt-only-submit",
             "YouTube-only stored episode",
             new DateTime(2026, 5, 1, 12, 0, 0, DateTimeKind.Utc),
@@ -97,13 +97,12 @@ public class UrlSubmissionEnrichmentRules
             .WithApple(appleEpisodeId, appleUrl)
             .WithYouTube(youTubeEpisodeId, youTubeUrl);
 
-        // When resolved platform properties are applied to the existing episode
         var response = enricher.ApplyResolvedPodcastServiceProperties(
             podcast,
             categorisedItem,
             episode);
 
-        // Then missing Spotify, Apple, and YouTube links are filled and the episode is marked enriched
+        // Assert missing Spotify, Apple, and YouTube links are filled and the episode is marked enriched
         EpisodeExpectation.From(episode).Should().Be(expected);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
     }
@@ -112,11 +111,11 @@ public class UrlSubmissionEnrichmentRules
         "When podcast show metadata is enriched, the podcast receives missing show identifiers from resolved items.")]
     public void podcast_show_metadata_is_enriched_from_resolved_items()
     {
-        // Given an existing podcast missing Spotify, Apple, and YouTube show identifiers
+        // Arrange
         var descriptionHelper = CreateDescriptionHelper();
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
-        var podcast = _fixture.StandardPodcast(Guid.Parse("22222222-2222-2222-2222-222222222222"));
+        var podcast = _fixture.CreatePodcast(p => p.Id = Guid.Parse("22222222-2222-2222-2222-222222222222"));
         podcast.SpotifyId = string.Empty;
         podcast.AppleId = null;
         podcast.YouTubeChannelId = string.Empty;
@@ -172,13 +171,12 @@ public class UrlSubmissionEnrichmentRules
             null,
             Service.Spotify);
 
-        // When resolved platform properties are applied without a matching episode
         var response = enricher.ApplyResolvedPodcastServiceProperties(
             podcast,
             categorisedItem,
             null);
 
-        // Then the podcast show metadata is enriched from the resolved items
+        // Assert the podcast show metadata is enriched from the resolved items
         podcast.SpotifyId.Should().Be(spotifyShowId);
         podcast.AppleId.Should().Be(appleShowId);
         podcast.YouTubeChannelId.Should().Be(youTubeChannelId);
@@ -190,15 +188,15 @@ public class UrlSubmissionEnrichmentRules
         "When an existing episode already has all resolved platform links, the result remains EpisodeAlreadyExists.")]
     public void unchanged_existing_episode_remains_episode_already_exists()
     {
-        // Given an existing episode that already has Spotify, Apple, and YouTube links
+        // Arrange
         var descriptionHelper = CreateDescriptionHelper();
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
-        var podcast = _fixture.SpotifyPrimaryPodcast("show-complete");
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-complete");
         podcast.AppleId = 4445556667;
         podcast.YouTubeChannelId = "channel-complete";
 
-        var episode = _fixture.FromSpotifyCatalogue(
+        var episode = _fixture.CreateSpotifyCatalogueEpisode(
             "complete-spot-1",
             "Complete episode",
             new Uri("https://open.spotify.com/episode/complete-spot-1"),
@@ -260,13 +258,12 @@ public class UrlSubmissionEnrichmentRules
             null,
             Service.Spotify);
 
-        // When resolved platform properties are applied without changing the episode
         var response = enricher.ApplyResolvedPodcastServiceProperties(
             podcast,
             categorisedItem,
             episode);
 
-        // Then the episode remains unchanged and the result is EpisodeAlreadyExists
+        // Assert the episode remains unchanged and the result is EpisodeAlreadyExists
         EpisodeExpectation.From(episode).Should().Be(expected);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
         response.PodcastResult.Should().Be(SubmitResultState.None);
@@ -276,12 +273,12 @@ public class UrlSubmissionEnrichmentRules
         "When an existing episode gains missing platform links, the result becomes Enriched instead of EpisodeAlreadyExists.")]
     public void enriched_existing_episode_reports_enriched_result_state()
     {
-        // Given an existing episode missing Spotify identity
+        // Arrange
         var descriptionHelper = CreateDescriptionHelper();
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
-        var podcast = _fixture.SpotifyPrimaryPodcast("show-enrich-state");
-        var episode = _fixture.FromYouTubeVideo(
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-enrich-state");
+        var episode = _fixture.CreateYouTubeCatalogueEpisode(
             "yt-enrich-state",
             "Episode awaiting Spotify",
             new DateTime(2026, 5, 3, 0, 0, 0, DateTimeKind.Utc),
@@ -317,13 +314,12 @@ public class UrlSubmissionEnrichmentRules
             null,
             Service.Spotify);
 
-        // When resolved Spotify properties fill the missing link
         var response = enricher.ApplyResolvedPodcastServiceProperties(
             podcast,
             categorisedItem,
             episode);
 
-        // Then the episode is enriched and no longer reported as merely existing
+        // Assert the episode is enriched and no longer reported as merely existing
         EpisodeExpectation.From(episode).Should().Be(expected);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
     }

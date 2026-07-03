@@ -22,7 +22,7 @@ public class ResolvedItemAdapterRules
         "with episode id, URL, and artwork from the resolved item.")]
     public void ResolvedSpotifyItem_maps_to_Spotify_PlatformLink()
     {
-        // Given UrlSubmission resolved Spotify episode properties
+        // Arrange
         const string episodeId = "submit-spot-1";
         var url = new Uri($"https://open.spotify.com/episode/{episodeId}");
         var image = new Uri("https://i.scdn.co/image/resolved-spotify");
@@ -35,10 +35,10 @@ public class ResolvedItemAdapterRules
             url,
             image);
 
-        // When the resolved Spotify adapter maps to an EpisodeCandidate
+        // Act
         var candidate = _spotifyAdapter.Adapt(input);
 
-        // Then SourceLink is the Spotify platform link and release stays date-only
+        // Assert
         candidate.SourceLink.Should().BeEquivalentTo(
             new PlatformLink(Service.Spotify, episodeId, url, image));
 
@@ -57,7 +57,7 @@ public class ResolvedItemAdapterRules
         "with episode id, URL, and artwork from the resolved item.")]
     public void ResolvedAppleItem_maps_to_Apple_PlatformLink()
     {
-        // Given UrlSubmission resolved Apple episode properties
+        // Arrange
         const long episodeId = 1112223334;
         var url = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{episodeId}");
         var image = new Uri("https://example.com/resolved-apple.jpg");
@@ -71,10 +71,10 @@ public class ResolvedItemAdapterRules
             url,
             image);
 
-        // When the resolved Apple adapter maps to an EpisodeCandidate
+        // Act
         var candidate = _appleAdapter.Adapt(input);
 
-        // Then SourceLink is the Apple platform link with full datetime release
+        // Assert
         candidate.SourceLink.Should().BeEquivalentTo(
             new PlatformLink(Service.Apple, episodeId.ToString(), url, image));
 
@@ -93,7 +93,7 @@ public class ResolvedItemAdapterRules
         "with video id, URL, and artwork from the resolved item.")]
     public void ResolvedYouTubeItem_maps_to_YouTube_PlatformLink()
     {
-        // Given UrlSubmission resolved YouTube episode properties
+        // Arrange
         const string episodeId = "yt-only-submit";
         var url = new Uri($"https://www.youtube.com/watch?v={episodeId}");
         var image = new Uri("https://i.ytimg.com/vi/yt-only-submit/hqdefault.jpg");
@@ -107,10 +107,10 @@ public class ResolvedItemAdapterRules
             url,
             image);
 
-        // When the resolved YouTube adapter maps to an EpisodeCandidate
+        // Act
         var candidate = _youTubeAdapter.Adapt(input);
 
-        // Then SourceLink is the YouTube platform link with publish datetime as-is
+        // Assert
         candidate.SourceLink.Should().BeEquivalentTo(
             new PlatformLink(Service.YouTube, episodeId, url, image));
 

@@ -25,26 +25,26 @@ public class PlatformIdentityMatchingRules
         "even if the Reddit title differs from the Spotify title.")]
     public void Submitted_via_Spotify_URL_before_ID_exists_merges_on_reindex()
     {
-        // Given a podcast episode stored from a URL submission (Spotify URL, no Spotify ID)
-        var podcast = _fixture.StandardPodcast(id: Guid.Parse("4672c845-15b4-4f88-bbff-567d521fe4a2"));
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.Id = Guid.Parse("4672c845-15b4-4f88-bbff-567d521fe4a2"));
         var release = DateTime.UtcNow.Date;
-        var stored = _fixture.SubmittedViaSpotifyUrlOnly(
+        var stored = _fixture.CreateSubmittedViaSpotifyUrlOnly(
             SpotifyUrl,
             title: "Reddit post title",
             release: release);
         var expected = EpisodeExpectation.From(stored);
 
-        // When Spotify catalogue returns the same URL with a catalogue title and ID
-        var discovered = _fixture.FromSpotifyCatalogue(
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             SpotifyEpisodeId,
             "Spotify catalogue title",
             SpotifyUrl,
             release,
             TimeSpan.FromMinutes(45));
 
-        // Then indexing merges onto the stored episode and fills the Spotify ID
+        // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
 
+        // Assert
         result.AddedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().ContainSingle();
         result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);
@@ -56,10 +56,10 @@ public class PlatformIdentityMatchingRules
         "indexing must treat the catalogue episode as the same row — not create a duplicate.")]
     public void Same_Spotify_ID_merges_onto_existing_episode()
     {
-        // Given a stored episode with a Spotify ID
-        var podcast = _fixture.StandardPodcast();
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
         var release = DateTime.UtcNow.AddMonths(-6);
-        var stored = _fixture.FromSpotifyCatalogue(
+        var stored = _fixture.CreateSpotifyCatalogueEpisode(
             SpotifyEpisodeId,
             "Stored title",
             SpotifyUrl,
@@ -67,8 +67,7 @@ public class PlatformIdentityMatchingRules
             TimeSpan.FromMinutes(45));
         var expected = EpisodeExpectation.From(stored);
 
-        // When Spotify catalogue returns the same ID with updated metadata
-        var discovered = _fixture.FromSpotifyCatalogue(
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             SpotifyEpisodeId,
             "Incoming title",
             SpotifyUrl,
@@ -76,9 +75,10 @@ public class PlatformIdentityMatchingRules
             TimeSpan.FromMinutes(45),
             description: "Incoming description");
 
-        // Then indexing merges onto the stored episode without adding a duplicate
+        // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
 
+        // Assert
         result.AddedEpisodes.Should().BeEmpty();
         result.FailedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().BeEmpty("no fields changed when only metadata differs");
@@ -90,25 +90,25 @@ public class PlatformIdentityMatchingRules
         "a new Spotify episode must not be merged by title similarity alone.")]
     public void Different_Spotify_IDs_never_merge_by_title()
     {
-        // Given two episodes with different Spotify IDs but the same title
-        var podcast = _fixture.StandardPodcast();
-        var existing = _fixture.FromSpotifyCatalogue(
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var existing = _fixture.CreateSpotifyCatalogueEpisode(
             "different-id",
             "Shared title",
             SpotifyUrl,
             DateTime.UtcNow,
             TimeSpan.FromMinutes(45));
-        var discovered = _fixture.FromSpotifyCatalogue(
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             SpotifyEpisodeId,
             "Shared title",
             new Uri($"https://open.spotify.com/episode/{SpotifyEpisodeId}"),
             DateTime.UtcNow,
             TimeSpan.FromMinutes(45));
 
-        // When indexing attempts to merge the discovered episode
+        // Act
         var result = _merger.MergeEpisodes(podcast, [existing], [discovered]);
 
-        // Then a new episode is added rather than merged
+        // Assert
         result.AddedEpisodes.Should().ContainSingle();
         result.MergedEpisodes.Should().BeEmpty();
     }
@@ -118,33 +118,28 @@ public class PlatformIdentityMatchingRules
         "indexing must merge them — even when titles differ.")]
     public void Same_YouTube_video_ID_merges_onto_existing_episode()
     {
-        // Given a stored episode with a YouTube video ID
+        // Arrange
         const string youTubeId = "l_iHjZWIsXw";
         var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
         var release = new DateTime(2026, 6, 1, 14, 0, 0, DateTimeKind.Utc);
-        var podcast = _fixture.StandardPodcast();
-        var stored = new Episode
-        {
-            Id = Guid.NewGuid(),
-            PodcastId = podcast.Id,
-            Title = "Stored YouTube title",
-            Release = release,
-            Length = TimeSpan.FromMinutes(45),
-            YouTubeId = youTubeId,
-            Urls = new ServiceUrls { YouTube = youTubeUrl }
-        };
+        var podcast = _fixture.CreatePodcast();
+        var stored = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithRelease(release)
+            .WithTitle("Stored YouTube title")
+            .WithYouTube(youTubeId, youTubeUrl)
+            .Create();
         var expected = EpisodeExpectation.From(stored);
 
-        // When YouTube returns the same video ID with a different title
-        var discovered = _fixture.FromYouTubeVideo(
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(
             youTubeId,
-            "Incoming YouTube title",
-            release,
-            TimeSpan.FromMinutes(45));
+            title: "Incoming YouTube title",
+            release: release);
 
-        // Then indexing recognizes the same row — no duplicate added
+        // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
 
+        // Assert
         result.AddedEpisodes.Should().BeEmpty();
         result.FailedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().BeEmpty("no fields changed when YouTube identity already complete");
@@ -156,26 +151,26 @@ public class PlatformIdentityMatchingRules
         "they must never merge — even when titles are identical.")]
     public void Different_YouTube_video_IDs_never_merge_by_title()
     {
-        // Given two episodes with different YouTube IDs but the same title
+        // Arrange
         const string sharedTitle = "Shared title";
         var release = DateTime.UtcNow;
         var length = TimeSpan.FromMinutes(45);
-        var podcast = _fixture.StandardPodcast();
-        var existing = _fixture.FromYouTubeVideo(
+        var podcast = _fixture.CreatePodcast();
+        var existing = _fixture.CreateYouTubeCatalogueEpisode(
             "video-id-one",
             sharedTitle,
             release,
             length);
-        var discovered = _fixture.FromYouTubeVideo(
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(
             "video-id-two",
             sharedTitle,
             release,
             length);
 
-        // When indexing attempts to merge the discovered episode
+        // Act
         var result = _merger.MergeEpisodes(podcast, [existing], [discovered]);
 
-        // Then a new episode is added rather than merged
+        // Assert
         result.AddedEpisodes.Should().ContainSingle();
         result.MergedEpisodes.Should().BeEmpty();
     }
@@ -185,33 +180,29 @@ public class PlatformIdentityMatchingRules
         "indexing must merge them — even when titles differ.")]
     public void Same_Apple_ID_merges_onto_existing_episode()
     {
-        // Given a stored episode with an Apple episode ID
+        // Arrange
         const long appleId = 1635013492;
         var appleUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleId}");
         var release = new DateTime(2026, 6, 1, 14, 0, 0, DateTimeKind.Utc);
-        var podcast = _fixture.StandardPodcast();
-        var stored = new Episode
-        {
-            Id = Guid.NewGuid(),
-            PodcastId = podcast.Id,
-            Title = "Stored Apple title",
-            Release = release,
-            Length = TimeSpan.FromMinutes(45),
-            AppleId = appleId,
-            Urls = new ServiceUrls { Apple = appleUrl }
-        };
+        var podcast = _fixture.CreatePodcast();
+        var stored = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithRelease(release)
+            .WithTitle("Stored Apple title")
+            .WithApple(appleId, appleUrl)
+            .Create();
         var expected = EpisodeExpectation.From(stored);
 
-        // When Apple returns the same episode ID with a different title
-        var discovered = _fixture.FromAppleEpisode(
+        var discovered = _fixture.CreateAppleCatalogueEpisode(
             appleId,
             "Incoming Apple title",
             release,
             TimeSpan.FromMinutes(45));
 
-        // Then indexing recognizes the same row — no duplicate added
+        // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
 
+        // Assert
         result.AddedEpisodes.Should().BeEmpty();
         result.FailedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().BeEmpty("no fields changed when Apple identity already complete");
@@ -223,8 +214,8 @@ public class PlatformIdentityMatchingRules
         "indexing must not merge onto the wrong row.")]
     public void Incoming_Spotify_ID_owned_by_another_row_does_not_merge_onto_wrong_candidate()
     {
-        // Given a YouTube-first podcast with a Spotify owner row and a separate YouTube-only row
-        var podcast = _fixture.CultsToConsciousnessPodcast();
+        // Arrange
+        var podcast = _fixture.CreateCultsToConsciousnessPodcast();
         const string otoSpotifyId = "16LveQifI6eBwDXAINpd7G";
         var otoSpotifyUrl = new Uri($"https://open.spotify.com/episode/{otoSpotifyId}");
         var correctOwnerId = Guid.Parse("1c804814-12ac-40c8-a223-88ab7c703d38");
@@ -257,17 +248,17 @@ public class PlatformIdentityMatchingRules
         var expectedOwner = EpisodeExpectation.From(correctOwner);
         var expectedWrongRow = EpisodeExpectation.From(wrongYouTubeOnly);
 
-        // When Spotify re-index returns the owner episode ID with a fuzzy title match on both rows
-        var discovered = _fixture.FromSpotifyCatalogue(
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             otoSpotifyId,
             "What Really Happens During Ordo Templi Orientis Initiations",
             otoSpotifyUrl,
             new DateTime(2026, 6, 24, 0, 0, 0, DateTimeKind.Utc),
             TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(42));
 
-        // Then indexing merges onto the Spotify owner row and leaves the YouTube-only row unchanged
+        // Act
         var result = _merger.MergeEpisodes(podcast, [correctOwner, wrongYouTubeOnly], [discovered]);
 
+        // Assert
         result.AddedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().BeEmpty("Spotify re-index must not rewrite YouTube release when catalogue date is newer");
         correctOwner.ShouldMatchExpectation(expectedOwner);
@@ -279,26 +270,26 @@ public class PlatformIdentityMatchingRules
         "they must never merge — even when titles are identical.")]
     public void Different_Apple_IDs_never_merge_by_title()
     {
-        // Given two episodes with different Apple IDs but the same title
+        // Arrange
         const string sharedTitle = "Shared title";
         var release = DateTime.UtcNow;
         var length = TimeSpan.FromMinutes(45);
-        var podcast = _fixture.StandardPodcast();
-        var existing = _fixture.FromAppleEpisode(
+        var podcast = _fixture.CreatePodcast();
+        var existing = _fixture.CreateAppleCatalogueEpisode(
             1111111111,
             sharedTitle,
             release,
             length);
-        var discovered = _fixture.FromAppleEpisode(
+        var discovered = _fixture.CreateAppleCatalogueEpisode(
             2222222222,
             sharedTitle,
             release,
             length);
 
-        // When indexing attempts to merge the discovered episode
+        // Act
         var result = _merger.MergeEpisodes(podcast, [existing], [discovered]);
 
-        // Then a new episode is added rather than merged
+        // Assert
         result.AddedEpisodes.Should().ContainSingle();
         result.MergedEpisodes.Should().BeEmpty();
     }

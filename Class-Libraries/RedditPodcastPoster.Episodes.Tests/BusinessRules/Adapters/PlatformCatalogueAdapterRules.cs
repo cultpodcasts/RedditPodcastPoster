@@ -22,7 +22,7 @@ public class PlatformCatalogueAdapterRules
         "because Spotify catalogue dates have no time-of-day.")]
     public void Spotify_catalogue_release_maps_to_date_only_precision()
     {
-        // Given Spotify catalogue fields matching Episode.FromSpotify inputs
+        // Arrange
         const string spotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4";
         var spotifyUrl = new Uri($"https://open.spotify.com/episode/{spotifyId}");
         var catalogueRelease = new DateTime(2026, 3, 15, 14, 30, 0, DateTimeKind.Utc);
@@ -35,10 +35,10 @@ public class PlatformCatalogueAdapterRules
             spotifyUrl,
             new Uri("https://i.scdn.co/image/spotify-art"));
 
-        // When the Spotify adapter maps to an EpisodeCandidate
+        // Act
         var candidate = _spotifyAdapter.Adapt(input);
 
-        // Then release is date-only at midnight UTC and the Spotify platform link is preserved
+        // Assert
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateOnly);
         candidate.Release.Value.Should().Be(new DateTime(2026, 3, 15, 0, 0, 0, DateTimeKind.Unspecified));
 
@@ -56,7 +56,7 @@ public class PlatformCatalogueAdapterRules
         "because Apple provides a full publish datetime.")]
     public void Apple_catalogue_release_maps_to_datetime_utc_precision()
     {
-        // Given Apple catalogue fields matching Episode.FromApple inputs
+        // Arrange
         const long appleId = 1234567890;
         var appleUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleId}");
         var appleRelease = new DateTime(2026, 4, 10, 9, 15, 30, DateTimeKind.Utc);
@@ -69,10 +69,10 @@ public class PlatformCatalogueAdapterRules
             appleUrl,
             new Uri("https://example.com/apple-art.jpg"));
 
-        // When the Apple adapter maps to an EpisodeCandidate
+        // Act
         var candidate = _appleAdapter.Adapt(input);
 
-        // Then release keeps the full UTC datetime and the Apple platform link is preserved
+        // Assert
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateTimeUtc);
         candidate.Release.Value.Should().Be(appleRelease);
 
@@ -90,7 +90,7 @@ public class PlatformCatalogueAdapterRules
         "because YouTube authority depends on the exact publish time.")]
     public void YouTube_catalogue_release_maps_publish_datetime_as_is()
     {
-        // Given YouTube catalogue fields matching Episode.FromYouTube inputs
+        // Arrange
         const string youTubeId = "dQw4w9WgXcQ";
         var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
         var publishDate = new DateTime(2026, 5, 20, 18, 45, 12, DateTimeKind.Utc);
@@ -103,10 +103,10 @@ public class PlatformCatalogueAdapterRules
             youTubeUrl,
             new Uri("https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"));
 
-        // When the YouTube adapter maps to an EpisodeCandidate
+        // Act
         var candidate = _youTubeAdapter.Adapt(input);
 
-        // Then publish datetime is unchanged and the YouTube platform link is preserved
+        // Assert
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateTimeUtc);
         candidate.Release.Value.Should().Be(publishDate);
 

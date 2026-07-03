@@ -18,12 +18,12 @@ public class IndexingOrchestrationRules
         "Full indexing discovers episodes, merges, enriches, filters, then persists.")]
     public async Task full_indexing_runs_discover_merge_enrich_filter_and_persist_stages()
     {
-        // Given a podcast ready for a full indexing pass
+        // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.SpotifyPrimaryPodcast("show-full-pipeline", Guid.Parse("12121212-1212-1212-1212-121212121212"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-full-pipeline", Guid.Parse("12121212-1212-1212-1212-121212121212"));
         harness.PodcastRepository.Seed(podcast);
 
-        var discovered = _fixture.FromSpotifyCatalogue(
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             "pipeline-spot-1",
             "Pipeline episode",
             new Uri("https://open.spotify.com/episode/pipeline-spot-1"),
@@ -37,13 +37,13 @@ public class IndexingOrchestrationRules
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync([discovered]);
 
-        // When full indexing runs
+        // Act
         await harness.Updater.Update(
             podcast,
             enrichOnly: false,
             PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
 
-        // Then discovery, enrichment, and filtering all run before persistence
+        // Assert discovery, enrichment, and filtering all run before persistence
         harness.EpisodeProvider.Verify(
             x => x.GetEpisodes(
                 podcast,
@@ -70,12 +70,12 @@ public class IndexingOrchestrationRules
         "When SkipShortEpisodes is set, short discovered episodes are removed before merge.")]
     public async Task skip_short_episodes_removes_short_discovered_episodes_before_merge()
     {
-        // Given a discovered episode below minimum duration with SkipShortEpisodes enabled
+        // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.SpotifyPrimaryPodcast("show-skip-short", Guid.Parse("13131313-1313-1313-1313-131313131313"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-skip-short", Guid.Parse("13131313-1313-1313-1313-131313131313"));
         harness.PodcastRepository.Seed(podcast);
 
-        var shortEpisode = _fixture.FromSpotifyCatalogue(
+        var shortEpisode = _fixture.CreateSpotifyCatalogueEpisode(
             "short-spot-2",
             "Short discovered episode",
             new Uri("https://open.spotify.com/episode/short-spot-2"),
@@ -94,13 +94,13 @@ public class IndexingOrchestrationRules
             SkipShortEpisodes = true
         };
 
-        // When full indexing runs
+        // Act
         await harness.Updater.Update(
             podcast,
             enrichOnly: false,
             indexingContext);
 
-        // Then the short episode is not added because it was removed before merge
+        // Assert the short episode is not added because it was removed before merge
         harness.EpisodeRepository.SavedEpisodes.Should().BeEmpty();
     }
 
@@ -108,14 +108,14 @@ public class IndexingOrchestrationRules
         "LatestReleased on the podcast reflects the most recent release among added and merged episodes.")]
     public async Task latest_released_is_updated_from_added_and_merged_episodes()
     {
-        // Given a podcast with an older LatestReleased and newly added and merged episodes
+        // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.SpotifyPrimaryPodcast("show-latest-released", Guid.Parse("14141414-1414-1414-1414-141414141414"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-latest-released", Guid.Parse("14141414-1414-1414-1414-141414141414"));
         podcast.LatestReleased = EpisodeRelease.AddDays(-30);
         harness.PodcastRepository.Seed(podcast);
 
         const string mergeSpotifyId = "merge-latest-spot";
-        var mergedExisting = _fixture.FromSpotifyCatalogue(
+        var mergedExisting = _fixture.CreateSpotifyCatalogueEpisode(
             mergeSpotifyId,
             "Merged episode",
             new Uri($"https://open.spotify.com/episode/{mergeSpotifyId}"),
@@ -126,7 +126,7 @@ public class IndexingOrchestrationRules
         mergedExisting.PodcastId = podcast.Id;
         harness.EpisodeRepository.Seed(mergedExisting);
 
-        var mergeDiscovered = _fixture.FromSpotifyCatalogue(
+        var mergeDiscovered = _fixture.CreateSpotifyCatalogueEpisode(
             mergeSpotifyId,
             "Merged episode",
             new Uri($"https://open.spotify.com/episode/{mergeSpotifyId}?si=merge"),
@@ -134,7 +134,7 @@ public class IndexingOrchestrationRules
             TimeSpan.FromMinutes(45),
             "Longer merged description from catalogue");
 
-        var addedDiscovered = _fixture.FromSpotifyCatalogue(
+        var addedDiscovered = _fixture.CreateSpotifyCatalogueEpisode(
             "added-latest-spot",
             "Added episode",
             new Uri("https://open.spotify.com/episode/added-latest-spot"),
@@ -148,13 +148,13 @@ public class IndexingOrchestrationRules
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync([mergeDiscovered, addedDiscovered]);
 
-        // When full indexing runs
+        // Act
         await harness.Updater.Update(
             podcast,
             enrichOnly: false,
             PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
 
-        // Then LatestReleased reflects the newest added episode release
+        // Assert LatestReleased reflects the newest added episode release
         podcast.LatestReleased.Should().Be(EpisodeRelease.AddDays(5));
         harness.PodcastRepository.GetStored(podcast.Id).LatestReleased.Should().Be(EpisodeRelease.AddDays(5));
     }
@@ -163,9 +163,9 @@ public class IndexingOrchestrationRules
         "Expensive-query flags discovered during indexing are persisted on the podcast.")]
     public async Task expensive_query_flags_are_persisted_on_the_podcast()
     {
-        // Given a podcast without expensive-query flags that discovers them during indexing
+        // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.SpotifyPrimaryPodcast("show-expensive-query", Guid.Parse("16161616-1616-1616-1616-161616161616"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-expensive-query", Guid.Parse("16161616-1616-1616-1616-161616161616"));
         podcast.YouTubeChannelId = "channel-expensive";
         podcast.SpotifyEpisodesQueryIsExpensive = null;
         podcast.YouTubePlaylistQueryIsExpensive = null;
@@ -183,13 +183,13 @@ public class IndexingOrchestrationRules
             })
             .ReturnsAsync([]);
 
-        // When full indexing runs
+        // Act
         await harness.Updater.Update(
             podcast,
             enrichOnly: false,
             PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
 
-        // Then the discovered expensive-query flags are persisted on the podcast
+        // Assert the discovered expensive-query flags are persisted on the podcast
         podcast.HasExpensiveSpotifyEpisodesQuery().Should().BeTrue();
         podcast.HasExpensiveYouTubePlaylistQuery().Should().BeTrue();
         harness.PodcastRepository.SavedPodcasts.Should().ContainSingle();
@@ -201,9 +201,9 @@ public class IndexingOrchestrationRules
         "LastIndexed is not updated when Spotify URL resolving is bypassed during indexing.")]
     public async Task last_indexed_is_not_set_when_spotify_bypass_occurs()
     {
-        // Given indexing that bypasses Spotify URL resolving during discovery
+        // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.SpotifyPrimaryPodcast("show-spotify-bypass", Guid.Parse("17171717-1717-1717-1717-171717171717"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-spotify-bypass", Guid.Parse("17171717-1717-1717-1717-171717171717"));
         podcast.LastIndexed = null;
         harness.PodcastRepository.Seed(podcast);
 
@@ -220,13 +220,13 @@ public class IndexingOrchestrationRules
             })
             .ReturnsAsync([]);
 
-        // When indexing completes after the Spotify bypass
+        // Act
         await harness.Updater.Update(
             podcast,
             enrichOnly: false,
             indexingContext);
 
-        // Then LastIndexed remains unset
+        // Assert LastIndexed remains unset
         podcast.LastIndexed.Should().BeNull();
         harness.PodcastRepository.SavedPodcasts.Should().BeEmpty();
     }
@@ -235,9 +235,9 @@ public class IndexingOrchestrationRules
         "LastIndexed is not updated when YouTube URL resolving is bypassed during indexing.")]
     public async Task last_indexed_is_not_set_when_youtube_bypass_occurs()
     {
-        // Given indexing that bypasses YouTube URL resolving during discovery
+        // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.SpotifyPrimaryPodcast("show-youtube-bypass", Guid.Parse("18181818-1818-1818-1818-181818181818"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-youtube-bypass", Guid.Parse("18181818-1818-1818-1818-181818181818"));
         podcast.YouTubeChannelId = "channel-youtube-bypass";
         podcast.LastIndexed = null;
         harness.PodcastRepository.Seed(podcast);
@@ -255,13 +255,13 @@ public class IndexingOrchestrationRules
             })
             .ReturnsAsync([]);
 
-        // When indexing completes after the YouTube bypass
+        // Act
         await harness.Updater.Update(
             podcast,
             enrichOnly: false,
             indexingContext);
 
-        // Then LastIndexed remains unset
+        // Assert LastIndexed remains unset
         podcast.LastIndexed.Should().BeNull();
         harness.PodcastRepository.SavedPodcasts.Should().BeEmpty();
     }
@@ -270,7 +270,7 @@ public class IndexingOrchestrationRules
         "LastIndexed is not updated when scheduled YouTube discovery is bypassed.")]
     public async Task last_indexed_is_not_set_when_scheduled_youtube_discovery_is_bypassed()
     {
-        // Given a channel-only podcast with YouTube discovery bypassed from the start
+        // Arrange
         var harness = new PodcastUpdaterTestHarness();
         var podcast = new Podcast
         {
@@ -290,13 +290,13 @@ public class IndexingOrchestrationRules
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync([]);
 
-        // When indexing completes with scheduled YouTube discovery bypassed
+        // Act
         await harness.Updater.Update(
             podcast,
             enrichOnly: false,
             indexingContext);
 
-        // Then LastIndexed remains unset
+        // Assert LastIndexed remains unset
         podcast.LastIndexed.Should().BeNull();
         harness.PodcastRepository.SavedPodcasts.Should().BeEmpty();
     }

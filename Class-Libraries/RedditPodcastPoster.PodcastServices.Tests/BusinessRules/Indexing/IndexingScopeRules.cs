@@ -18,12 +18,12 @@ public class IndexingScopeRules
         "Episodes below minimum duration are marked ignored during indexing.")]
     public async Task short_discovered_episodes_are_marked_ignored()
     {
-        // Given a podcast with default minimum duration and a discovered episode below that threshold
+        // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.SpotifyPrimaryPodcast("show-short", Guid.Parse("99999999-9999-9999-9999-999999999999"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-short", Guid.Parse("99999999-9999-9999-9999-999999999999"));
         harness.PodcastRepository.Seed(podcast);
 
-        var shortEpisode = _fixture.FromSpotifyCatalogue(
+        var shortEpisode = _fixture.CreateSpotifyCatalogueEpisode(
             "short-spot-1",
             "Short episode",
             new Uri("https://open.spotify.com/episode/short-spot-1"),
@@ -38,13 +38,13 @@ public class IndexingScopeRules
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync([shortEpisode]);
 
-        // When full indexing runs without removing short episodes before merge
+        // Act
         await harness.Updater.Update(
             podcast,
             enrichOnly: false,
             PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
 
-        // Then the short episode is added with Ignored set before persistence
+        // Assert the short episode is added with Ignored set before persistence
         harness.EpisodeRepository.SavedEpisodes.Should().ContainSingle();
         var saved = harness.EpisodeRepository.SavedEpisodes.Single();
         saved.Id.Should().Be(shortEpisode.Id);

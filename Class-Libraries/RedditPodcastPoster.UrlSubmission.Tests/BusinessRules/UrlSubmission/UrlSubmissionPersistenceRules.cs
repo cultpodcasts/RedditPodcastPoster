@@ -17,13 +17,13 @@ public class UrlSubmissionPersistenceRules
         "Submitting a URL for an existing episode that is enriched saves the episode.")]
     public async Task existing_episode_enriched_saves_episode()
     {
-        // Given an existing podcast and an enriched submit result
+        // Arrange
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var podcast = _fixture.SpotifyPrimaryPodcast("show-existing");
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-existing");
         podcastRepository.Seed(podcast);
 
-        var enrichedEpisode = _fixture.FromSpotifyCatalogue(
+        var enrichedEpisode = _fixture.CreateSpotifyCatalogueEpisode(
             "existing-spot-1",
             "Existing episode",
             new Uri("https://open.spotify.com/episode/existing-spot-1"),
@@ -54,12 +54,12 @@ public class UrlSubmissionPersistenceRules
             null,
             Service.Spotify);
 
-        // When the URL is submitted with persistence enabled
+        // Act
         await processor.ProcessCategorisedItem(
             categorisedItem,
             new SubmitOptions(null, MatchOtherServices: true, PersistToDatabase: true));
 
-        // Then only the episode is saved
+        // Assert
         episodeRepository.SavedEpisodes.Should().ContainSingle();
         episodeRepository.SavedEpisodes.Single().Id.Should().Be(enrichedEpisode.Id);
         podcastRepository.SavedPodcasts.Should().BeEmpty();
@@ -69,10 +69,10 @@ public class UrlSubmissionPersistenceRules
         "When an episode already exists and no fields change, neither podcast nor episode is saved.")]
     public async Task existing_episode_unchanged_saves_nothing()
     {
-        // Given an existing podcast and an unchanged submit result
+        // Arrange
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var podcast = _fixture.SpotifyPrimaryPodcast("show-unchanged");
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-unchanged");
         podcastRepository.Seed(podcast);
 
         var podcastProcessor = new Mock<IPodcastProcessor>();
@@ -95,12 +95,12 @@ public class UrlSubmissionPersistenceRules
             null,
             Service.Spotify);
 
-        // When the URL is submitted with persistence enabled
+        // Act
         await processor.ProcessCategorisedItem(
             categorisedItem,
             new SubmitOptions(null, MatchOtherServices: true, PersistToDatabase: true));
 
-        // Then neither podcast nor episode is persisted
+        // Assert
         episodeRepository.SavedEpisodes.Should().BeEmpty();
         podcastRepository.SavedPodcasts.Should().BeEmpty();
     }
@@ -109,11 +109,11 @@ public class UrlSubmissionPersistenceRules
         "When PersistToDatabase is false, no repository writes occur.")]
     public async Task persist_to_database_false_writes_nothing()
     {
-        // Given a submit result that would normally persist both podcast and episode
+        // Arrange
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var newPodcast = _fixture.SpotifyPrimaryPodcast("show-new-no-persist");
-        var newEpisode = _fixture.FromSpotifyCatalogue(
+        var newPodcast = _fixture.CreateSpotifyPrimaryPodcast("show-new-no-persist");
+        var newEpisode = _fixture.CreateSpotifyCatalogueEpisode(
             "new-spot-1",
             "New episode",
             new Uri("https://open.spotify.com/episode/new-spot-1"),
@@ -145,12 +145,12 @@ public class UrlSubmissionPersistenceRules
             null,
             Service.Spotify);
 
-        // When submission runs with PersistToDatabase disabled
+        // Act
         await processor.ProcessCategorisedItem(
             categorisedItem,
             new SubmitOptions(null, MatchOtherServices: true, PersistToDatabase: false));
 
-        // Then no repository writes occur
+        // Assert
         episodeRepository.SavedEpisodes.Should().BeEmpty();
         podcastRepository.SavedPodcasts.Should().BeEmpty();
     }
@@ -159,11 +159,11 @@ public class UrlSubmissionPersistenceRules
         "New podcast submission saves both podcast and episode.")]
     public async Task new_podcast_submission_saves_podcast_and_episode()
     {
-        // Given a categorised item for a brand-new podcast
+        // Arrange
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var newPodcast = _fixture.SpotifyPrimaryPodcast("show-brand-new");
-        var newEpisode = _fixture.FromSpotifyCatalogue(
+        var newPodcast = _fixture.CreateSpotifyPrimaryPodcast("show-brand-new");
+        var newEpisode = _fixture.CreateSpotifyCatalogueEpisode(
             "brand-new-spot-1",
             "Brand new episode",
             new Uri("https://open.spotify.com/episode/brand-new-spot-1"),
@@ -195,12 +195,12 @@ public class UrlSubmissionPersistenceRules
             null,
             Service.Spotify);
 
-        // When the URL is submitted with persistence enabled
+        // Act
         await processor.ProcessCategorisedItem(
             categorisedItem,
             new SubmitOptions(null, MatchOtherServices: true, PersistToDatabase: true));
 
-        // Then both podcast and episode are saved
+        // Assert
         podcastRepository.SavedPodcasts.Should().ContainSingle();
         podcastRepository.SavedPodcasts.Single().Id.Should().Be(newPodcast.Id);
         episodeRepository.SavedEpisodes.Should().ContainSingle();

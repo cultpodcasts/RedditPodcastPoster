@@ -19,7 +19,7 @@ This refactor introduces **domain types at platform boundaries** and **shared do
 | Rule | Rationale |
 |------|-----------|
 | **Tests before refactor code** | No domain extraction PR merges without its rule tests |
-| **Business-rule tests are the spec** | Plain-English rules + Given/When/Then; not implementation-focused names |
+| **Business-rule tests are the spec** | Plain-English rules + Arrange/Act/Assert; not implementation-focused names |
 | **No behavior change by accident** | Changing a test assertion requires explicit sign-off |
 | **Do not trust existing merge tests as comprehensive** | Recent incident-pin tests (~PRs #866–870) are starting points, not a safety net |
 | **Assert outcomes, not internals** | Repository commits and `EpisodeExpectation` snapshots; not “mock was called” alone |
@@ -147,9 +147,21 @@ Do **not** write Layer 3 tests that re-prove Layer 2 matching/merging logic. Orc
     "Plain English rule: when X, then Y, because Z.")]
 public void snake_case_method_name()
 {
-    // Given <business setup>
-    // When <action>
-    // Then <observable outcome>
+    // Arrange
+    var podcast = _fixture.CreatePodcast();
+    var stored = _fixture.CreateEpisode(e =>
+    {
+        e.Urls.Spotify = _fixture.DefaultSpotifyUrl("episode-id");
+        e.Title = "Reddit post title"; // only fields the rule cares about
+    });
+    var incoming = _fixture.CreateSpotifyCatalogueEpisode("episode-id");
+
+    // Act
+    var result = _merger.MergeEpisodes(podcast, [stored], [incoming]);
+
+    // Assert
+    result.AddedEpisodes.Should().BeEmpty();
+    stored.ShouldMatchExpectation(EpisodeExpectation.From(stored).WithSpotify("episode-id", stored.Urls.Spotify));
 }
 ```
 
@@ -157,8 +169,11 @@ public void snake_case_method_name()
 
 - **`DisplayName`** is the authoritative rule text (readable in Test Explorer / CI)
 - Method name is snake_case shorthand; never the only documentation
-- Body uses **`// Given` / `// When` / `// Then`** comments in every test
-- **`EpisodeExpectation`** (or equivalent) for Then-clauses — not fifteen separate property assertions unless the rule is about one field
+- Body uses **`// Arrange` / `// Act` / `// Assert`** comments in every test
+- **Lean arrange:** `DomainTestFixture` owns defaults (Guids, empty platform IDs, `ServiceUrls`, release/duration); tests set only properties relevant to the rule under test
+- Use **`CreatePodcast()`**, **`CreateEpisode(Action<Episode>?)`**, **`BuildEpisode().WithSpotify(...).Create()`**, and catalogue helpers (`CreateSpotifyCatalogueEpisode`, etc.) — not raw `new Episode { ... }` boilerplate
+- Incident regression GUIDs live on **`DomainTestFixture.Incidents`** (not separate fixture classes)
+- **`EpisodeExpectation`** (or equivalent) for Assert clauses — not fifteen separate property assertions unless the rule is about one field
 - **Seed data from production incidents** is encouraged (C2C, Postmormon, Spotify URL-only) but must be expressed as rules with full outcome assertions
 
 **Do not:**
@@ -196,8 +211,7 @@ Same helper works before and after refactor — tests stay stable.
 |-----------|---------|
 | `InMemoryEpisodeRepository` | Seed + capture saves; support `GetByPodcastId` predicates |
 | `InMemoryPodcastRepository` | Seed + capture podcast saves |
-| `PodcastFixtures` | `YouTubeFirst()`, `SpotifyPrimary()`, `ApplePrimary()`, negative delay |
-| `EpisodeFixtures` | Incident-based builders; `SubmittedViaSpotifyUrlOnly()`, etc. |
+| `DomainTestFixture` | `CreatePodcast()`, `CreateEpisode()`, `BuildEpisode()`, catalogue helpers; `Incidents` nested constants |
 | `SaveCallRecorder` | Assert save order for indexing (enriched → filtered → merged → added) |
 
 ### 4.5 Mock boundaries
@@ -420,7 +434,7 @@ Class-Libraries/
 Before opening a refactor PR:
 
 - [ ] All applicable business rules have tests with plain-English `DisplayName`
-- [ ] Given/When/Then structure in every new test
+- [ ] Arrange/Act/Assert structure in every new test
 - [ ] Then-clause uses `EpisodeExpectation` or repository save assertions
 - [ ] No existing rule test assertions changed (unless behavior change is explicit)
 - [ ] Domain branch coverage meets baseline

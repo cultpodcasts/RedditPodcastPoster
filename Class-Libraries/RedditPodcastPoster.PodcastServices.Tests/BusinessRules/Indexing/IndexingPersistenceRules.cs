@@ -19,10 +19,10 @@ public class IndexingPersistenceRules
         "Persist order: enriched episodes are saved, then filtered, then merged existing, then added.")]
     public async Task persist_order_is_enriched_then_filtered_then_merged_then_added()
     {
-        // Given a podcast with stored episodes that will be enriched, filtered, merged, and added during indexing
+        // Arrange
         var recorder = new SaveCallRecorder();
         var harness = new PodcastUpdaterTestHarness(recorder);
-        var podcast = _fixture.SpotifyPrimaryPodcast("show-save-order", Guid.Parse("11111111-1111-1111-1111-111111111111"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-save-order", Guid.Parse("11111111-1111-1111-1111-111111111111"));
         harness.PodcastRepository.Seed(podcast);
 
         var enrichedEpisodeId = Guid.Parse("22222222-2222-2222-2222-222222222222");
@@ -31,7 +31,7 @@ public class IndexingPersistenceRules
         const string mergeSpotifyId = "merge-spot-1";
         const string addedSpotifyId = "brand-new-99";
 
-        var enrichedEpisode = _fixture.FromSpotifyCatalogue(
+        var enrichedEpisode = _fixture.CreateSpotifyCatalogueEpisode(
             "enriched-spot-1",
             "Enriched episode",
             new Uri("https://open.spotify.com/episode/enriched-spot-1"),
@@ -41,7 +41,7 @@ public class IndexingPersistenceRules
         enrichedEpisode.Id = enrichedEpisodeId;
         enrichedEpisode.PodcastId = podcast.Id;
 
-        var filteredEpisode = _fixture.FromSpotifyCatalogue(
+        var filteredEpisode = _fixture.CreateSpotifyCatalogueEpisode(
             "filtered-spot-1",
             "Filtered episode",
             new Uri("https://open.spotify.com/episode/filtered-spot-1"),
@@ -51,7 +51,7 @@ public class IndexingPersistenceRules
         filteredEpisode.Id = filteredEpisodeId;
         filteredEpisode.PodcastId = podcast.Id;
 
-        var mergedExisting = _fixture.FromSpotifyCatalogue(
+        var mergedExisting = _fixture.CreateSpotifyCatalogueEpisode(
             mergeSpotifyId,
             "Merged episode",
             new Uri($"https://open.spotify.com/episode/{mergeSpotifyId}"),
@@ -63,7 +63,7 @@ public class IndexingPersistenceRules
 
         harness.EpisodeRepository.Seed(enrichedEpisode, filteredEpisode, mergedExisting);
 
-        var mergeDiscovered = _fixture.FromSpotifyCatalogue(
+        var mergeDiscovered = _fixture.CreateSpotifyCatalogueEpisode(
             mergeSpotifyId,
             "Merged episode",
             new Uri($"https://open.spotify.com/episode/{mergeSpotifyId}?si=discovered"),
@@ -71,7 +71,7 @@ public class IndexingPersistenceRules
             TimeSpan.FromMinutes(45),
             "Longer merged description from catalogue");
 
-        var addedDiscovered = _fixture.FromSpotifyCatalogue(
+        var addedDiscovered = _fixture.CreateSpotifyCatalogueEpisode(
             addedSpotifyId,
             "Added episode",
             new Uri($"https://open.spotify.com/episode/{addedSpotifyId}"),
@@ -107,13 +107,13 @@ public class IndexingPersistenceRules
             .Returns(new FilterResult([new FilteredEpisode(filteredEpisode, ["term"])]))
             ;
 
-        // When full indexing runs
+        // Act
         await harness.Updater.Update(
             podcast,
             enrichOnly: false,
             PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
 
-        // Then repository saves occur in enriched → filtered → merged → added order
+        // Assert
         recorder.EpisodeCalls.Should().HaveCount(4);
         recorder.EpisodeCalls[0].EpisodeIds.Should().ContainSingle().Which.Should().Be(enrichedEpisodeId);
         recorder.EpisodeCalls[1].EpisodeIds.Should().ContainSingle().Which.Should().Be(filteredEpisodeId);
@@ -125,9 +125,9 @@ public class IndexingPersistenceRules
         "LastIndexed is updated only when indexing succeeds without merge failures or platform bypasses.")]
     public async Task last_indexed_is_set_on_successful_index()
     {
-        // Given a podcast with no merge failures and no platform bypasses during indexing
+        // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.SpotifyPrimaryPodcast("show-success", Guid.Parse("55555555-5555-5555-5555-555555555555"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-success", Guid.Parse("55555555-5555-5555-5555-555555555555"));
         podcast.LastIndexed = null;
         harness.PodcastRepository.Seed(podcast);
 
@@ -138,13 +138,13 @@ public class IndexingPersistenceRules
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync([]);
 
-        // When full indexing completes successfully
+        // Act
         await harness.Updater.Update(
             podcast,
             enrichOnly: false,
             PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
 
-        // Then LastIndexed is set on the podcast
+        // Assert LastIndexed is set on the podcast
         podcast.LastIndexed.Should().NotBeNull();
         harness.PodcastRepository.SavedPodcasts.Should().ContainSingle();
         harness.PodcastRepository.GetStored(podcast.Id).LastIndexed.Should().NotBeNull();
@@ -154,9 +154,9 @@ public class IndexingPersistenceRules
         "LastIndexed is not updated when indexing records merge failures.")]
     public async Task last_indexed_is_not_set_when_merge_failures_occur()
     {
-        // Given two stored episodes that both match an incoming catalogue episode
+        // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.StandardPodcast(Guid.Parse("66666666-6666-6666-6666-666666666666"));
+        var podcast = _fixture.CreatePodcast(p => p.Id = Guid.Parse("66666666-6666-6666-6666-666666666666"));
         podcast.SpotifyId = "show-ambiguous";
         podcast.LastIndexed = null;
         harness.PodcastRepository.Seed(podcast);
@@ -186,7 +186,7 @@ public class IndexingPersistenceRules
         harness.EpisodeRepository.Seed(youTubeOnly, appleOnly);
 
         const string incomingSpotifyId = "incomingSpotifyId01";
-        var discovered = _fixture.FromSpotifyCatalogue(
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             incomingSpotifyId,
             sharedTitle,
             new Uri($"https://open.spotify.com/episode/{incomingSpotifyId}"),
@@ -200,13 +200,13 @@ public class IndexingPersistenceRules
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync([discovered]);
 
-        // When indexing runs and merge fails
+        // Act
         var result = await harness.Updater.Update(
             podcast,
             enrichOnly: false,
             PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
 
-        // Then LastIndexed remains unset because indexing did not succeed
+        // Assert
         result.MergeResult.FailedEpisodes.Should().ContainSingle();
         podcast.LastIndexed.Should().BeNull();
         harness.PodcastRepository.SavedPodcasts.Should().BeEmpty();
@@ -216,12 +216,12 @@ public class IndexingPersistenceRules
         "Enrich-only indexing does not discover new catalogue episodes from the episode provider.")]
     public async Task enrich_only_does_not_call_episode_provider_for_discovery()
     {
-        // Given a stored episode missing Spotify identity on a Spotify-primary podcast
+        // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.SpotifyPrimaryPodcast("show-enrich-only", Guid.Parse("77777777-7777-7777-7777-777777777777"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast("show-enrich-only", Guid.Parse("77777777-7777-7777-7777-777777777777"));
         harness.PodcastRepository.Seed(podcast);
 
-        var stored = _fixture.FromYouTubeVideo(
+        var stored = _fixture.CreateYouTubeCatalogueEpisode(
             "yt-only-1",
             "YouTube-only stored episode",
             EpisodeRelease,
@@ -232,13 +232,13 @@ public class IndexingPersistenceRules
         stored.Urls.Spotify = null;
         harness.EpisodeRepository.Seed(stored);
 
-        // When enrich-only indexing runs
+        // Act
         await harness.Updater.Update(
             podcast,
             enrichOnly: true,
             PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
 
-        // Then the episode provider is never asked for new catalogue episodes
+        // Assert the episode provider is never asked for new catalogue episodes
         harness.EpisodeProvider.Verify(
             x => x.GetEpisodes(
                 It.IsAny<Podcast>(),

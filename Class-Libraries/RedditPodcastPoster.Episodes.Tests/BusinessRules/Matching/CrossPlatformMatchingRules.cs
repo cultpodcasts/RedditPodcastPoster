@@ -23,14 +23,14 @@ public class CrossPlatformMatchingRules
         "when title and duration fuzzy-match and catalogue release aligns after publishing-delay adjustment.")]
     public void YouTube_first_Spotify_catalogue_matches_YouTube_only_stored_episode()
     {
-        // Given a Cults to Consciousness episode stored from YouTube only (C2C abuser incident)
-        var podcast = _fixture.CultsToConsciousnessPodcast();
+        // Arrange
+        var podcast = _fixture.CreateCultsToConsciousnessPodcast();
         var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
         var youTubeLength = TimeSpan.Parse("01:28:37");
         var youTubeUrl = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g");
         var stored = new Episode
         {
-            Id = EpisodeFixtures.C2CAbuserEpisodeId,
+            Id = DomainTestFixture.Incidents.C2CAbuserEpisodeId,
             PodcastId = podcast.Id,
             Title = "I Confronted My Ab*ser 30 Years Later. Everything Changed",
             Release = youTubeRelease,
@@ -41,21 +41,21 @@ public class CrossPlatformMatchingRules
         var expected = EpisodeExpectation.From(stored)
             .WithSpotify(C2CSpotifyId, C2CSpotifyUrl);
 
-        // When Spotify catalogue returns a fuzzy-matching title with aligned catalogue release
-        var discovered = _fixture.FromSpotifyCatalogue(
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             C2CSpotifyId,
             "I Confronted My Abuser 30 Years Later… Everything Changed",
             C2CSpotifyUrl,
             new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc),
             TimeSpan.Parse("01:31:59.6990000"));
 
-        // Then indexing merges onto the YouTube-only row and fills Spotify identity without changing release
+        // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
 
+        // Assert
         result.AddedEpisodes.Should().BeEmpty();
         result.FailedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().ContainSingle();
-        result.MergedEpisodes.Single().Existing.Id.Should().Be(EpisodeFixtures.C2CAbuserEpisodeId);
+        result.MergedEpisodes.Single().Existing.Id.Should().Be(DomainTestFixture.Incidents.C2CAbuserEpisodeId);
         stored.ShouldMatchExpectation(expected);
     }
 
@@ -64,8 +64,8 @@ public class CrossPlatformMatchingRules
         "release-and-duration alone when titles clearly refer to different episodes.")]
     public void Negative_delay_does_not_merge_on_release_and_duration_when_titles_differ()
     {
-        // Given a YouTube-first podcast and a YouTube-only stored episode (C2C negative-delay incident)
-        var podcast = _fixture.CultsToConsciousnessPodcast();
+        // Arrange
+        var podcast = _fixture.CreateCultsToConsciousnessPodcast();
         var stored = new Episode
         {
             Id = Guid.Parse("53ba0c64-58a7-4292-b7fe-ba135d4d3160"),
@@ -78,17 +78,17 @@ public class CrossPlatformMatchingRules
         };
         var expected = EpisodeExpectation.From(stored);
 
-        // When Spotify returns an episode with aligned release and similar duration but a different title
-        var discovered = _fixture.FromSpotifyCatalogue(
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             "1BTQKaev5KLjScdwHII14B",
             "Becoming a Fundamentalist Trad Wife Almost Killed Me",
             new Uri("https://open.spotify.com/episode/1BTQKaev5KLjScdwHII14B"),
             new DateTime(2026, 6, 28, 0, 0, 0, DateTimeKind.Utc),
             TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(30));
 
-        // Then indexing adds a new episode rather than merging onto the YouTube-only row
+        // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
 
+        // Assert
         result.MergedEpisodes.Should().BeEmpty();
         result.FailedEpisodes.Should().BeEmpty();
         result.AddedEpisodes.Should().ContainSingle();
@@ -101,8 +101,8 @@ public class CrossPlatformMatchingRules
         "— not pick arbitrarily.")]
     public void Ambiguous_match_records_failed_episodes_instead_of_picking_one()
     {
-        // Given two stored episodes with the same title, release, and duration on different platforms
-        var podcast = _fixture.StandardPodcast();
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
         var sharedTitle = "Shared episode title";
         var sharedRelease = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
         var sharedLength = TimeSpan.FromMinutes(45);
@@ -127,18 +127,18 @@ public class CrossPlatformMatchingRules
             Urls = new ServiceUrls { Apple = new Uri("https://podcasts.apple.com/us/podcast/episode/id1234567890") }
         };
 
-        // When Spotify catalogue returns an episode that title-matches both stored rows
         const string incomingSpotifyId = "incomingSpotifyId01";
-        var discovered = _fixture.FromSpotifyCatalogue(
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             incomingSpotifyId,
             sharedTitle,
             new Uri($"https://open.spotify.com/episode/{incomingSpotifyId}"),
             sharedRelease,
             sharedLength);
 
-        // Then indexing records a merge failure containing both candidates
+        // Act
         var result = _merger.MergeEpisodes(podcast, [youTubeOnly, appleOnly], [discovered]);
 
+        // Assert
         result.AddedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().BeEmpty();
         result.FailedEpisodes.Should().ContainSingle();
@@ -153,8 +153,8 @@ public class CrossPlatformMatchingRules
         "may match a stored audio episode when release aligns after delay adjustment.")]
     public void Positive_YouTube_delay_matches_incoming_YouTube_to_stored_audio_episode()
     {
-        // Given a YouTube-first podcast with a one-day publishing delay and a Spotify-only stored row
-        var podcast = _fixture.YouTubeFirstPodcast(
+        // Arrange
+        var podcast = _fixture.CreateYouTubeFirstPodcast(
             channelId: "delayed-channel",
             youTubePublicationOffsetTicks: TimeSpan.FromDays(1).Ticks);
         var audioRelease = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
@@ -172,16 +172,16 @@ public class CrossPlatformMatchingRules
         var expected = EpisodeExpectation.From(stored)
             .WithYouTube("delayedYouTube01", new Uri("https://www.youtube.com/watch?v=delayedYouTube01"));
 
-        // When YouTube returns a different title on the delayed publish date with the same duration
-        var discovered = _fixture.FromYouTubeVideo(
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(
             "delayedYouTube01",
             "Completely different title",
             youTubeRelease,
             length);
 
-        // Then indexing merges onto the stored audio row and fills YouTube identity
+        // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
 
+        // Assert
         result.AddedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().ContainSingle();
         result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);

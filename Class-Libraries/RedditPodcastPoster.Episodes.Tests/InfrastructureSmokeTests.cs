@@ -1,30 +1,28 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Episodes.Tests;
 
 public class InfrastructureSmokeTests
 {
+    private readonly DomainTestFixture _fixture = new();
+
     [Fact(DisplayName = "In-memory episode repository seeds episodes and records batch saves for test assertions.")]
     public async Task In_memory_episode_repository_records_saves()
     {
-        // Given a seeded episode repository with save-call recording
+        // Arrange
         var recorder = new SaveCallRecorder();
         var repository = new InMemoryEpisodeRepository(recorder);
-        var episode = new Episode
-        {
-            Id = Guid.NewGuid(),
-            PodcastId = Guid.NewGuid(),
-            Title = "Smoke test episode"
-        };
+        var episode = _fixture.CreateEpisode(e => e.Title = "Smoke test episode");
         repository.Seed(episode);
 
-        // When a batch save updates the episode title
+        // Act
         episode.Title = "Updated title";
         await repository.Save([episode]);
 
-        // Then the repository exposes the saved snapshot and records the batch call
+        // Assert
         repository.SavedEpisodes.Should().ContainSingle();
         repository.SavedEpisodes.Single().Title.Should().Be("Updated title");
         repository.GetStored(episode.Id).Title.Should().Be("Updated title");

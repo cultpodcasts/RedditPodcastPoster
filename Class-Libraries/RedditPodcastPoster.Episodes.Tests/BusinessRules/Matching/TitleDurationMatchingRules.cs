@@ -24,14 +24,14 @@ public class TitleDurationMatchingRules
         "episodes may be treated as the same.")]
     public void Typo_with_matching_duration_merges_onto_existing_episode()
     {
-        // Given a Postmormon Postmortem episode stored from Spotify (Massacre vs Masscare typo on YouTube)
+        // Arrange
         var release = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
         var existingLength = TimeSpan.FromSeconds(878.503);
         var incomingLength = TimeSpan.FromMinutes(14) + TimeSpan.FromSeconds(39);
-        var podcast = _fixture.StandardPodcast(name: "Postmormon Postmortem");
+        var podcast = _fixture.CreatePodcast(p => p.Name = "Postmormon Postmortem");
         var stored = _fixture.CreateEpisode(e =>
         {
-            e.Id = EpisodeFixtures.PostmormonExistingEpisodeId;
+            e.Id = DomainTestFixture.Incidents.PostmormonExistingEpisodeId;
             e.PodcastId = podcast.Id;
             e.Title = "The Bear River Massacre and the Mormon History Behind Washakie Ward";
             e.Release = release;
@@ -42,7 +42,6 @@ public class TitleDurationMatchingRules
         var expected = EpisodeExpectation.From(stored)
             .WithYouTube("l_iHjZWIsXw", new Uri("https://www.youtube.com/watch?v=l_iHjZWIsXw"));
 
-        // When YouTube returns a fuzzy-matching title with aligned duration
         var discovered = Episode.FromYouTube(
             "l_iHjZWIsXw",
             "The Bear River Masscare and the Mormon History Behind the Washakie Ward",
@@ -53,12 +52,13 @@ public class TitleDurationMatchingRules
             new Uri("https://www.youtube.com/watch?v=l_iHjZWIsXw"),
             null);
 
-        // Then indexing merges onto the stored row and fills YouTube identity
+        // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
 
+        // Assert
         result.AddedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().ContainSingle();
-        result.MergedEpisodes.Single().Existing.Id.Should().Be(EpisodeFixtures.PostmormonExistingEpisodeId);
+        result.MergedEpisodes.Single().Existing.Id.Should().Be(DomainTestFixture.Incidents.PostmormonExistingEpisodeId);
         stored.ShouldMatchExpectation(expected);
     }
 
@@ -66,7 +66,7 @@ public class TitleDurationMatchingRules
         "When titles differ by a typo but duration does not match, episodes are not the same.")]
     public void Typo_with_mismatched_duration_does_not_match()
     {
-        // Given two episodes with fuzzy-matching titles but different durations
+        // Arrange
         var existing = CreateEpisode(
             "The Bear River Massacre and the Mormon History Behind Washakie Ward",
             TimeSpan.FromMinutes(45));
@@ -74,10 +74,10 @@ public class TitleDurationMatchingRules
             "The Bear River Masscare and the Mormon History Behind the Washakie Ward",
             TimeSpan.FromMinutes(30));
 
-        // When the matcher evaluates the pair on a standard podcast
-        var isMatch = _matcher.IsMatch(existing, incoming, episodeMatchRegex: null, _fixture.StandardPodcast());
+        // Act
+        var isMatch = _matcher.IsMatch(existing, incoming, episodeMatchRegex: null, _fixture.CreatePodcast());
 
-        // Then they are not treated as the same episode
+        // Assert
         isMatch.Should().BeFalse();
     }
 
@@ -86,16 +86,16 @@ public class TitleDurationMatchingRules
         "on a non-YouTube-first podcast, episodes may be treated as the same.")]
     public void Release_and_duration_align_when_titles_differ_on_standard_podcast()
     {
-        // Given a standard podcast and two episodes with different titles but aligned release and duration
+        // Arrange
         var release = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
         var length = TimeSpan.FromMinutes(45);
         var existing = CreateEpisode("Episode A", length, release);
         var incoming = CreateEpisode("Completely different title", length, release);
 
-        // When the matcher evaluates the pair
-        var isMatch = _matcher.IsMatch(existing, incoming, episodeMatchRegex: null, _fixture.StandardPodcast());
+        // Act
+        var isMatch = _matcher.IsMatch(existing, incoming, episodeMatchRegex: null, _fixture.CreatePodcast());
 
-        // Then they may be treated as the same episode
+        // Assert
         isMatch.Should().BeTrue();
     }
 
@@ -103,9 +103,9 @@ public class TitleDurationMatchingRules
         "Custom EpisodeMatchRegex on the podcast may force a match when titles differ.")]
     public void EpisodeMatchRegex_forces_match_when_titles_differ()
     {
-        // Given a podcast with an episode-number regex and two stored rows with different surface titles
+        // Arrange
         const string episodeMatchRegex = @"#(?'episodematch'\d+)\s";
-        var podcast = _fixture.StandardPodcast();
+        var podcast = _fixture.CreatePodcast();
         podcast.EpisodeMatchRegex = episodeMatchRegex;
         var sharedRelease = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
         var stored = new Episode
@@ -118,7 +118,6 @@ public class TitleDurationMatchingRules
         };
         var expected = EpisodeExpectation.From(stored);
 
-        // When catalogue returns the same episode number with a different title and mismatched duration
         var discovered = new Episode
         {
             Title = "#42 Catalogue title with completely different wording",
@@ -131,9 +130,10 @@ public class TitleDurationMatchingRules
             }
         };
 
-        // Then indexing merges onto the stored row because the regex episodematch group aligns
+        // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
 
+        // Assert
         result.AddedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().ContainSingle();
         result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);
