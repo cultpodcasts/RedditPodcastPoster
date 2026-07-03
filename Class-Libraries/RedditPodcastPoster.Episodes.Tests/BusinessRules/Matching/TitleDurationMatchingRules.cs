@@ -51,12 +51,14 @@ public class TitleDurationMatchingRules
     public void Typo_with_mismatched_duration_does_not_match()
     {
         // Arrange
+        var existingLength = _fixture.CreateDuration();
+        var incomingLength = existingLength + TimeSpan.FromMinutes(20);
         var existing = CreateEpisode(
             DomainTestFixture.Incidents.PostmormonStoredTitle,
-            TimeSpan.FromMinutes(45));
+            existingLength);
         var incoming = CreateEpisode(
             DomainTestFixture.Incidents.PostmormonIncomingYouTubeTitle,
-            TimeSpan.FromMinutes(30));
+            incomingLength);
 
         // Act
         var isMatch = _matcher.IsMatch(existing, incoming, episodeMatchRegex: null, _fixture.CreatePodcast());
@@ -72,9 +74,9 @@ public class TitleDurationMatchingRules
     {
         // Arrange
         var release = DomainTestFixture.Incidents.PostmormonRelease;
-        var length = TimeSpan.FromMinutes(45);
-        var existing = CreateEpisode("Episode A", length, release);
-        var incoming = CreateEpisode("Completely different title", length, release);
+        var length = _fixture.CreateDuration();
+        var existing = CreateEpisode(_fixture.Create<string>(), length, release);
+        var incoming = CreateEpisode(_fixture.Create<string>(), length, release);
 
         // Act
         var isMatch = _matcher.IsMatch(existing, incoming, episodeMatchRegex: null, _fixture.CreatePodcast());

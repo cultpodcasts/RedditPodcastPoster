@@ -23,12 +23,13 @@ public class UrlSubmissionEnrichmentRules
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
         var podcast = _fixture.CreatePodcast(p => p.Id = Guid.Parse("21212121-2121-2121-2121-212121212121"));
-        podcast.SpotifyId = "6oTbi9wKZ2czCvSwBKxxoH";
+        podcast.SpotifyId = _fixture.CreateSpotifyId();
         podcast.AppleId = _fixture.CreateAppleId();
 
+        var storedDescription = _fixture.Create<string>();
         var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
-            .WithDuration(TimeSpan.FromMinutes(45))
-            .WithDescription("Stored description"));
+            .WithDuration(_fixture.CreateDuration())
+            .WithDescription(storedDescription));
         var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b
             .WithYouTubeId(youTubeInput.YouTubeId)
             .WithDuration(youTubeInput.Duration)
@@ -117,9 +118,9 @@ public class UrlSubmissionEnrichmentRules
         podcast.AppleId = null;
         podcast.YouTubeChannelId = string.Empty;
 
-        const string spotifyShowId = "6oTbi9wKZ2czCvSwBKxxoH";
+        var spotifyShowId = _fixture.CreateSpotifyId();
         var appleShowId = _fixture.CreateAppleId();
-        const string youTubeChannelId = "UCchannel123456789";
+        var youTubeChannelId = _fixture.CreateYouTubeChannelId();
         var spotifyInput = _fixture.CreateResolvedSpotifyItemInput();
         var appleInput = _fixture.CreateResolvedAppleItemInput();
         var youTubeInput = _fixture.CreateResolvedYouTubeItemInput();
@@ -192,13 +193,13 @@ public class UrlSubmissionEnrichmentRules
         var descriptionHelper = CreateDescriptionHelper();
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         podcast.AppleId = _fixture.CreateAppleId();
-        podcast.YouTubeChannelId = "UCchannel123456789";
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
 
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithDuration(TimeSpan.FromMinutes(45))
-            .WithDescription("Complete description"));
+            .WithDuration(_fixture.CreateDuration())
+            .WithDescription(_fixture.Create<string>()));
         episode.PodcastId = podcast.Id;
         var appleInput = _fixture.CreateResolvedAppleItemInput();
         var youTubeInput = _fixture.CreateResolvedYouTubeItemInput();
@@ -275,10 +276,11 @@ public class UrlSubmissionEnrichmentRules
         var descriptionHelper = CreateDescriptionHelper();
         var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
 
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        var storedDescription = _fixture.Create<string>();
         var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
-            .WithDuration(TimeSpan.FromMinutes(45))
-            .WithDescription("Stored description"));
+            .WithDuration(_fixture.CreateDuration())
+            .WithDescription(storedDescription));
         var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b
             .WithYouTubeId(youTubeInput.YouTubeId)
             .WithDuration(youTubeInput.Duration)

@@ -76,7 +76,7 @@ public class CrossPlatformMatchingRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var sharedRelease = DomainTestFixture.UtcDaysAgo(32);
-        var sharedLength = TimeSpan.FromMinutes(45);
+        var sharedLength = _fixture.CreateDuration();
         var (youTubeOnly, appleOnly) = _fixture.CreateAmbiguousMatchStoredEpisodes(
             podcast,
             sharedRelease,
@@ -102,11 +102,12 @@ public class CrossPlatformMatchingRules
     public void Positive_YouTube_delay_matches_incoming_YouTube_to_stored_audio_episode()
     {
         // Arrange
+        var publishingDelay = TimeSpan.FromDays(1);
         var podcast = _fixture.CreateYouTubeFirstPodcast(
-            channelId: "delayed-channel",
-            youTubePublicationOffsetTicks: TimeSpan.FromDays(1).Ticks);
-        var audioRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(12));
-        var length = TimeSpan.FromHours(1);
+            channelId: _fixture.CreateYouTubeChannelId(),
+            youTubePublicationOffsetTicks: publishingDelay.Ticks);
+        var audioRelease = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
+        var length = _fixture.CreateDuration();
         var stored = _fixture.CreatePositiveDelayAudioStoredEpisode(
             podcast,
             audioRelease: audioRelease,
@@ -118,8 +119,8 @@ public class CrossPlatformMatchingRules
 
         var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
             .WithYouTubeId(DomainTestFixture.Incidents.PositiveDelayIncomingYouTubeId)
-            .WithTitle("Completely different title")
-            .WithRelease(audioRelease.AddDays(1))
+            .WithTitle(_fixture.Create<string>())
+            .WithRelease(audioRelease.Add(publishingDelay))
             .WithDuration(length));
 
         // Act

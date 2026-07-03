@@ -20,11 +20,11 @@ public class UrlSubmissionPersistenceRules
         // Arrange
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         podcastRepository.Seed(podcast);
 
         var enrichedEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithDuration(TimeSpan.FromMinutes(45)));
+            .WithDuration(_fixture.CreateDuration()));
         enrichedEpisode.PodcastId = podcast.Id;
 
         var podcastProcessor = new Mock<IPodcastProcessor>();
@@ -68,7 +68,7 @@ public class UrlSubmissionPersistenceRules
         // Arrange
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         podcastRepository.Seed(podcast);
 
         var podcastProcessor = new Mock<IPodcastProcessor>();
@@ -108,9 +108,9 @@ public class UrlSubmissionPersistenceRules
         // Arrange
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var newPodcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        var newPodcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         var newEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithDuration(TimeSpan.FromMinutes(45)));
+            .WithDuration(_fixture.CreateDuration()));
         newEpisode.PodcastId = newPodcast.Id;
 
         var factory = new Mock<IPodcastAndEpisodeFactory>();
@@ -154,9 +154,9 @@ public class UrlSubmissionPersistenceRules
         // Arrange
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcastRepository = new InMemoryPodcastRepository();
-        var newPodcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        var newPodcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         var newEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithDuration(TimeSpan.FromMinutes(45)));
+            .WithDuration(_fixture.CreateDuration()));
         newEpisode.PodcastId = newPodcast.Id;
 
         var factory = new Mock<IPodcastAndEpisodeFactory>();

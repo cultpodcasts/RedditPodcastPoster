@@ -23,8 +23,8 @@ public class ReleaseDateMergingRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
-        const string sharedTitle = "Cross-platform release merge probe";
-        var sharedLength = TimeSpan.FromMinutes(42);
+        var sharedTitle = _fixture.Create<string>();
+        var sharedLength = _fixture.CreateDuration();
         var stored = _fixture.CreateMidnightUtcStoredEpisode(
             podcast, dateOnlyRelease, sharedTitle, sharedLength);
         var youTubeInput = _fixture.CreateYouTubeCatalogueInputSameDayAs(
@@ -36,6 +36,7 @@ public class ReleaseDateMergingRules
 
         var discovered = _fixture.CreateYouTubeCatalogueEpisodeSameDayAs(
             stored,
+            youTubeInput.Release.TimeOfDay,
             configure: b => b
                 .WithYouTubeId(youTubeInput.YouTubeId)
                 .WithTitle(sharedTitle)
@@ -109,9 +110,9 @@ public class ReleaseDateMergingRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
-        var youTubeRelease = DomainTestFixture.UtcAtTime(-1, TimeSpan.FromHours(12) + TimeSpan.FromMinutes(30));
-        const string sharedTitle = "Cross-platform release merge probe";
-        var sharedLength = TimeSpan.FromMinutes(42);
+        var youTubeRelease = DomainTestFixture.UtcAtTime(-1, _fixture.CreateNonMidnightTimeOfDay());
+        var sharedTitle = _fixture.Create<string>();
+        var sharedLength = _fixture.CreateDuration();
         var stored = _fixture.CreateMidnightUtcStoredEpisode(
             podcast, dateOnlyRelease, sharedTitle, sharedLength);
         var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
@@ -142,8 +143,8 @@ public class ReleaseDateMergingRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
-        const string sharedTitle = "Cross-platform release merge probe";
-        var sharedLength = TimeSpan.FromMinutes(42);
+        var sharedTitle = _fixture.Create<string>();
+        var sharedLength = _fixture.CreateDuration();
         var stored = _fixture.CreateMidnightUtcStoredEpisode(
             podcast, dateOnlyRelease, sharedTitle, sharedLength);
         var appleInput = _fixture.CreateAppleCatalogueInputSameDayAs(
@@ -155,6 +156,7 @@ public class ReleaseDateMergingRules
 
         var discovered = _fixture.CreateAppleCatalogueEpisodeSameDayAs(
             stored,
+            appleInput.Release.TimeOfDay,
             configure: b => b
                 .WithAppleId(appleInput.AppleId)
                 .WithTitle(sharedTitle)

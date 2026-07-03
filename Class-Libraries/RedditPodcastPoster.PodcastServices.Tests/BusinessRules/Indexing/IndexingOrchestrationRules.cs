@@ -9,8 +9,10 @@ namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Indexing;
 
 public class IndexingOrchestrationRules
 {
-    private static readonly DateTime ReleasedSince = new(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-    private static readonly DateTime EpisodeRelease = new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime ReleasedSince = DomainTestFixture.UtcDateDaysAgo(400);
+    private static readonly DateTime EpisodeRelease = DomainTestFixture.UtcDateDaysAgo(30);
+    private static readonly TimeSpan SubMinimumDuration =
+        PodcastUpdaterTestHarness.DefaultPostingCriteria.MinimumDuration - TimeSpan.FromMinutes(1);
 
     private readonly DomainTestFixture _fixture = new();
 
@@ -20,12 +22,13 @@ public class IndexingOrchestrationRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH", Guid.Parse("12121212-1212-1212-1212-121212121212"));
+        var spotifyShowId = _fixture.CreateSpotifyId();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(spotifyShowId, Guid.Parse("12121212-1212-1212-1212-121212121212"));
         harness.PodcastRepository.Seed(podcast);
 
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithRelease(EpisodeRelease)
-            .WithDuration(TimeSpan.FromMinutes(45)));
+            .WithDuration(_fixture.CreateDuration()));
 
         harness.EpisodeProvider
             .Setup(x => x.GetEpisodes(
@@ -69,12 +72,13 @@ public class IndexingOrchestrationRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH", Guid.Parse("13131313-1313-1313-1313-131313131313"));
+        var spotifyShowId = _fixture.CreateSpotifyId();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(spotifyShowId, Guid.Parse("13131313-1313-1313-1313-131313131313"));
         harness.PodcastRepository.Seed(podcast);
 
         var shortEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithRelease(EpisodeRelease)
-            .WithDuration(TimeSpan.FromMinutes(2)));
+            .WithDuration(SubMinimumDuration));
 
         harness.EpisodeProvider
             .Setup(x => x.GetEpisodes(
@@ -104,13 +108,13 @@ public class IndexingOrchestrationRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH", Guid.Parse("14141414-1414-1414-1414-141414141414"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId(), Guid.Parse("14141414-1414-1414-1414-141414141414"));
         podcast.LatestReleased = EpisodeRelease.AddDays(-30);
         harness.PodcastRepository.Seed(podcast);
 
         var mergeInput = _fixture.CreateSpotifyCatalogueInput(b => b
             .WithRelease(EpisodeRelease.AddDays(1))
-            .WithDuration(TimeSpan.FromMinutes(45))
+            .WithDuration(_fixture.CreateDuration())
             .WithDescription("Truncated description..."));
         var mergedExisting = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithSpotifyId(mergeInput.SpotifyId)
@@ -130,7 +134,7 @@ public class IndexingOrchestrationRules
 
         var addedInput = _fixture.CreateSpotifyCatalogueInput(b => b
             .WithRelease(EpisodeRelease.AddDays(5))
-            .WithDuration(TimeSpan.FromMinutes(50)));
+            .WithDuration(_fixture.CreateDuration()));
         var addedDiscovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithSpotifyId(addedInput.SpotifyId)
             .WithRelease(addedInput.Release)
@@ -160,8 +164,8 @@ public class IndexingOrchestrationRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH", Guid.Parse("16161616-1616-1616-1616-161616161616"));
-        podcast.YouTubeChannelId = "channel-expensive";
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId(), Guid.Parse("16161616-1616-1616-1616-161616161616"));
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
         podcast.SpotifyEpisodesQueryIsExpensive = null;
         podcast.YouTubePlaylistQueryIsExpensive = null;
         harness.PodcastRepository.Seed(podcast);
@@ -198,7 +202,7 @@ public class IndexingOrchestrationRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH", Guid.Parse("17171717-1717-1717-1717-171717171717"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId(), Guid.Parse("17171717-1717-1717-1717-171717171717"));
         podcast.LastIndexed = null;
         harness.PodcastRepository.Seed(podcast);
 
@@ -232,8 +236,8 @@ public class IndexingOrchestrationRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH", Guid.Parse("18181818-1818-1818-1818-181818181818"));
-        podcast.YouTubeChannelId = "channel-youtube-bypass";
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId(), Guid.Parse("18181818-1818-1818-1818-181818181818"));
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
         podcast.LastIndexed = null;
         harness.PodcastRepository.Seed(podcast);
 
@@ -270,8 +274,8 @@ public class IndexingOrchestrationRules
         var podcast = new Podcast
         {
             Id = Guid.Parse("19191919-1919-1919-1919-191919191919"),
-            Name = "Channel-only podcast",
-            YouTubeChannelId = "channel-only-bypass",
+            Name = _fixture.Create<string>(),
+            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
             LastIndexed = null
         };
         harness.PodcastRepository.Seed(podcast);

@@ -47,7 +47,7 @@ public class PlatformCatalogueAdapterRules
         "because Apple provides a full publish datetime.")]
     public void Apple_catalogue_release_maps_to_datetime_utc_precision()
     {
-        // Arrange — Apple specimens carry a fixed UTC publish time from fixture setup.
+        // Arrange — Apple specimens carry a full UTC publish datetime from fixture setup.
         var input = _fixture.CreateAppleCatalogueInput();
 
         // Act
@@ -56,7 +56,7 @@ public class PlatformCatalogueAdapterRules
         // Assert
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateTimeUtc);
         candidate.Release.Value.Should().Be(input.Release);
-        input.Release.TimeOfDay.Should().Be(DomainTestFixture.Specimens.DefaultAppleReleaseTimeOfDay);
+        input.Release.TimeOfDay.Should().NotBe(TimeSpan.Zero);
 
         var expected = new EpisodeExpectation(
             null,
@@ -72,7 +72,7 @@ public class PlatformCatalogueAdapterRules
         "because YouTube authority depends on the exact publish time.")]
     public void YouTube_catalogue_release_maps_publish_datetime_as_is()
     {
-        // Arrange — YouTube specimens carry a fixed UTC publish time from fixture setup.
+        // Arrange — YouTube specimens carry a full UTC publish datetime from fixture setup.
         var input = _fixture.CreateYouTubeCatalogueInput();
 
         // Act
@@ -81,7 +81,7 @@ public class PlatformCatalogueAdapterRules
         // Assert
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateTimeUtc);
         candidate.Release.Value.Should().Be(input.Release);
-        input.Release.TimeOfDay.Should().Be(DomainTestFixture.Specimens.DefaultYouTubeReleaseTimeOfDay);
+        input.Release.TimeOfDay.Should().NotBe(TimeSpan.Zero);
 
         var expected = new EpisodeExpectation(
             null,

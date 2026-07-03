@@ -7,6 +7,7 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -90,7 +91,7 @@ internal sealed class PodcastUpdaterTestHarness
     public PodcastUpdater Updater { get; }
 
     public static IndexingContext DefaultIndexingContext(DateTime? releasedSince = null) =>
-        new(ReleasedSince: releasedSince ?? new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc))
+        new(ReleasedSince: releasedSince ?? DomainTestFixture.UtcDateDaysAgo(400))
         {
             SkipShortEpisodes = false
         };

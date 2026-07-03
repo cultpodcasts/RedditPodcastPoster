@@ -9,8 +9,10 @@ namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Indexing;
 
 public class IndexingScopeRules
 {
-    private static readonly DateTime ReleasedSince = new(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-    private static readonly DateTime EpisodeRelease = new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime ReleasedSince = DomainTestFixture.UtcDateDaysAgo(400);
+    private static readonly DateTime EpisodeRelease = DomainTestFixture.UtcDateDaysAgo(30);
+    private static readonly TimeSpan SubMinimumDuration =
+        PodcastUpdaterTestHarness.DefaultPostingCriteria.MinimumDuration - TimeSpan.FromMinutes(1);
 
     private readonly DomainTestFixture _fixture = new();
 
@@ -20,13 +22,13 @@ public class IndexingScopeRules
     {
         // Arrange
         var harness = new PodcastUpdaterTestHarness();
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH", Guid.Parse("99999999-9999-9999-9999-999999999999"));
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId(), Guid.Parse("99999999-9999-9999-9999-999999999999"));
         harness.PodcastRepository.Seed(podcast);
 
         var shortEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithRelease(EpisodeRelease)
-            .WithDuration(TimeSpan.FromMinutes(2))
-            .WithDescription("Too short"));
+            .WithDuration(SubMinimumDuration)
+            .WithDescription(_fixture.Create<string>()));
 
         harness.EpisodeProvider
             .Setup(x => x.GetEpisodes(

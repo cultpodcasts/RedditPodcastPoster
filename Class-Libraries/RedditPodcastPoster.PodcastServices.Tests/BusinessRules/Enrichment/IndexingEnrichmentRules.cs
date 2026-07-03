@@ -41,9 +41,9 @@ public class IndexingEnrichmentRules
             appleEnricher,
             youTubeEnricher);
 
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b
-            .WithDuration(TimeSpan.FromMinutes(45)));
+            .WithDuration(_fixture.CreateDuration()));
         episode.PodcastId = podcast.Id;
         episode.SpotifyId = string.Empty;
         episode.Urls.Spotify = null;
@@ -91,11 +91,11 @@ public class IndexingEnrichmentRules
             appleEnricher,
             youTubeEnricher);
 
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         podcast.AppleId = _fixture.CreateAppleId();
 
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithDuration(TimeSpan.FromMinutes(45)));
+            .WithDuration(_fixture.CreateDuration()));
         episode.PodcastId = podcast.Id;
         episode.AppleId = null;
         episode.Urls.Apple = null;
@@ -143,11 +143,11 @@ public class IndexingEnrichmentRules
             appleEnricher,
             youTubeEnricher);
 
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
-        podcast.YouTubeChannelId = "UCchannel123456789";
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
 
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithDuration(TimeSpan.FromMinutes(45)));
+            .WithDuration(_fixture.CreateDuration()));
         episode.PodcastId = podcast.Id;
         episode.YouTubeId = string.Empty;
         episode.Urls.YouTube = null;
@@ -184,12 +184,12 @@ public class IndexingEnrichmentRules
             appleEnricher,
             youTubeEnricher);
 
-        var podcast = _fixture.CreateSpotifyPrimaryPodcast("6oTbi9wKZ2czCvSwBKxxoH");
-        podcast.YouTubeChannelId = "UCchannel123456789";
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
         podcast.SkipEnrichingFromYouTube = true;
 
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithDuration(TimeSpan.FromMinutes(45)));
+            .WithDuration(_fixture.CreateDuration()));
         episode.PodcastId = podcast.Id;
         episode.YouTubeId = string.Empty;
         episode.Urls.YouTube = null;
@@ -239,19 +239,19 @@ public class IndexingEnrichmentRules
             youTubeEnricher);
 
         var podcast = PodcastServicesEpisodeEnricherTestSupport.CreateDelayedPublishingPodcast(
-            "show-delayed-pass",
-            "channel-delayed-pass",
+            _fixture.CreateSpotifyId(),
+            _fixture.CreateYouTubeChannelId(),
             PublishingDelay);
 
         var expiredStoredEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithRelease(DateTime.UtcNow.Subtract(PublishingDelay).AddHours(-2))
-            .WithDuration(TimeSpan.FromMinutes(45)));
+            .WithDuration(_fixture.CreateDuration()));
         expiredStoredEpisode.PodcastId = podcast.Id;
         expiredStoredEpisode.YouTubeId = string.Empty;
         expiredStoredEpisode.Urls.YouTube = null;
 
         var discoveredYouTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
-            .WithDuration(TimeSpan.FromMinutes(45)));
+            .WithDuration(_fixture.CreateDuration()));
         var discoveredEpisode = _fixture.CreateYouTubeCatalogueEpisode(b => b
             .WithYouTubeId(discoveredYouTubeInput.YouTubeId)
             .WithDuration(discoveredYouTubeInput.Duration));
@@ -297,13 +297,13 @@ public class IndexingEnrichmentRules
             youTubeEnricher);
 
         var podcast = PodcastServicesEpisodeEnricherTestSupport.CreateDelayedPublishingPodcast(
-            "show-single-pass",
-            "channel-single-pass",
+            _fixture.CreateSpotifyId(),
+            _fixture.CreateYouTubeChannelId(),
             PublishingDelay);
 
         var batchEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithRelease(DateTime.UtcNow.Subtract(PublishingDelay).AddHours(-2))
-            .WithDuration(TimeSpan.FromMinutes(45)));
+            .WithDuration(_fixture.CreateDuration()));
         batchEpisode.PodcastId = podcast.Id;
         batchEpisode.YouTubeId = string.Empty;
         batchEpisode.Urls.YouTube = null;
@@ -339,13 +339,13 @@ public class IndexingEnrichmentRules
             youTubeEnricher);
 
         var podcast = PodcastServicesEpisodeEnricherTestSupport.CreateDelayedPublishingPodcast(
-            "show-in-window",
-            "channel-in-window",
+            _fixture.CreateSpotifyId(),
+            _fixture.CreateYouTubeChannelId(),
             PublishingDelay);
 
         var inWindowEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithRelease(DateTime.UtcNow.AddHours(-12))
-            .WithDuration(TimeSpan.FromMinutes(45)));
+            .WithDuration(_fixture.CreateDuration()));
         inWindowEpisode.PodcastId = podcast.Id;
         inWindowEpisode.YouTubeId = string.Empty;
         inWindowEpisode.Urls.YouTube = null;

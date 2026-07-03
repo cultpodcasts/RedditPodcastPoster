@@ -17,7 +17,7 @@ public class EpisodePlatformApplierTests
         var youTubeInput = _fixture.CreateYouTubeCatalogueInput();
         var target = new Episode
         {
-            Title = "Episode title",
+            Title = _fixture.Create<string>(),
             YouTubeId = youTubeInput.YouTubeId
         };
 

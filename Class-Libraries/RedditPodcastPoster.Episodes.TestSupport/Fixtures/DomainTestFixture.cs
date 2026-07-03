@@ -19,13 +19,11 @@ namespace RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 /// <description>Date-only midnight UTC (<see cref="UtcDateDaysAgo"/>); 22-char base62 id;
 /// <c>open.spotify.com/episode/{id}</c></description></item>
 /// <item><term>Apple catalogue / resolved</term>
-/// <description><see cref="UtcAtTime"/> with <see cref="Specimens.DefaultAppleReleaseDaysAgo"/> and
-/// <see cref="Specimens.DefaultAppleReleaseTimeOfDay"/>; long numeric id ≥13 digits;
-/// <c>podcasts.apple.com/.../id{id}</c></description></item>
+/// <description>Full UTC datetime with non-midnight time-of-day (fixture-generated day offset and
+/// publish time); long numeric id ≥13 digits; <c>podcasts.apple.com/.../id{id}</c></description></item>
 /// <item><term>YouTube catalogue / resolved</term>
-/// <description><see cref="UtcAtTime"/> with <see cref="Specimens.DefaultYouTubeReleaseDaysAgo"/> and
-/// <see cref="Specimens.DefaultYouTubeReleaseTimeOfDay"/>; 11-char id;
-/// <c>youtube.com/watch?v={id}</c></description></item>
+/// <description>Full UTC datetime with non-midnight time-of-day (fixture-generated day offset and
+/// publish time); 11-char id; <c>youtube.com/watch?v={id}</c></description></item>
 /// </list>
 /// Use <see cref="CreateMidnightUtcStoredEpisode"/> plus
 /// <see cref="CreateYouTubeCatalogueEpisodeSameDayAs"/> / <see cref="CreateAppleCatalogueEpisodeSameDayAs"/>
@@ -33,27 +31,6 @@ namespace RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 /// </summary>
 public sealed class DomainTestFixture
 {
-  /// <summary>Default specimen characteristics for catalogue and resolved-item builders.</summary>
-  public static class Specimens
-  {
-    /// <summary>Days before today for default Apple catalogue/resolved releases.</summary>
-    public const int DefaultAppleReleaseDaysAgo = 45;
-
-    /// <summary>Fixed time-of-day on default Apple specimen releases.</summary>
-    public static readonly TimeSpan DefaultAppleReleaseTimeOfDay = new(14, 30, 0);
-
-    /// <summary>Days before today for default YouTube catalogue/resolved releases.</summary>
-    public const int DefaultYouTubeReleaseDaysAgo = 52;
-
-    /// <summary>Fixed time-of-day on default YouTube specimen releases.</summary>
-    public static readonly TimeSpan DefaultYouTubeReleaseTimeOfDay = new(18, 45, 12);
-
-    /// <summary>Time-of-day when backfilling midnight stored releases from YouTube on the same calendar date.</summary>
-    public static readonly TimeSpan SameDayYouTubeBackfillTimeOfDay = new(12, 30, 0);
-
-    /// <summary>Time-of-day when backfilling midnight stored releases from Apple on the same calendar date.</summary>
-    public static readonly TimeSpan SameDayAppleBackfillTimeOfDay = new(15, 45, 0);
-  }
   /// <summary>Today at midnight UTC.</summary>
   public static DateTime UtcToday => DateTime.UtcNow.Date;
 
@@ -259,6 +236,16 @@ public sealed class DomainTestFixture
 
   /// <summary>Production-like YouTube video ID for generic tests (11 chars).</summary>
   public string CreateYouTubeId() => CreateYouTubeIdSpecimen(_fixture);
+
+  /// <summary>Realistic episode duration (1–120 minutes).</summary>
+  public TimeSpan CreateDuration() => CreateDurationSpecimen(_fixture);
+
+  /// <summary>UTC time-of-day with non-midnight seconds (Apple/YouTube publish times).</summary>
+  public TimeSpan CreateNonMidnightTimeOfDay() => CreateNonMidnightTimeOfDaySpecimen(_fixture);
+
+  /// <summary>YouTube channel ID (UC prefix + 22 chars).</summary>
+  public string CreateYouTubeChannelId() =>
+    "UC" + CreateRandomString(_fixture, YouTubeIdAlphabet, 22);
 
   public Uri DefaultSpotifyUrl(string spotifyEpisodeId) =>
     new($"https://open.spotify.com/episode/{spotifyEpisodeId}");
@@ -625,7 +612,7 @@ public sealed class DomainTestFixture
   {
     var release = SameCalendarDateWithTime(
       stored.Release,
-      timeOfDay ?? Specimens.SameDayYouTubeBackfillTimeOfDay);
+      timeOfDay ?? CreateNonMidnightTimeOfDaySpecimen(_fixture));
     return CreateYouTubeCatalogueInput(b =>
     {
       b.WithRelease(release);
@@ -657,7 +644,7 @@ public sealed class DomainTestFixture
   {
     var release = SameCalendarDateWithTime(
       stored.Release,
-      timeOfDay ?? Specimens.SameDayAppleBackfillTimeOfDay);
+      timeOfDay ?? CreateNonMidnightTimeOfDaySpecimen(_fixture));
     return CreateAppleCatalogueInput(b =>
     {
       b.WithRelease(release);
@@ -912,11 +899,19 @@ public sealed class DomainTestFixture
   internal static DateTime CreateSpotifyReleaseSpecimen(Fixture fixture) =>
     UtcDateDaysAgo(fixture.Create<int>() % 365 + 1);
 
-  internal static DateTime CreateAppleReleaseSpecimen(Fixture _) =>
-    UtcAtTime(-Specimens.DefaultAppleReleaseDaysAgo, Specimens.DefaultAppleReleaseTimeOfDay);
+  internal static DateTime CreateAppleReleaseSpecimen(Fixture fixture) =>
+    UtcAtTime(-(fixture.Create<int>() % 365 + 1), CreateNonMidnightTimeOfDaySpecimen(fixture));
 
-  internal static DateTime CreateYouTubeReleaseSpecimen(Fixture _) =>
-    UtcAtTime(-Specimens.DefaultYouTubeReleaseDaysAgo, Specimens.DefaultYouTubeReleaseTimeOfDay);
+  internal static DateTime CreateYouTubeReleaseSpecimen(Fixture fixture) =>
+    UtcAtTime(-(fixture.Create<int>() % 365 + 1), CreateNonMidnightTimeOfDaySpecimen(fixture));
+
+  internal static TimeSpan CreateNonMidnightTimeOfDaySpecimen(Fixture fixture)
+  {
+    var seconds = Math.Abs(fixture.Create<int>()) % (int)TimeSpan.FromDays(1).TotalSeconds;
+    if (seconds == 0)
+      seconds = 1;
+    return TimeSpan.FromSeconds(seconds);
+  }
 
   private static string CreateRandomString(Fixture fixture, string alphabet, int length) =>
     new string(Enumerable.Range(0, length)

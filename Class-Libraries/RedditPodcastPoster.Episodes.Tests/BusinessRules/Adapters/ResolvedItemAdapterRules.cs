@@ -65,7 +65,7 @@ public class ResolvedItemAdapterRules
             input.EpisodeDescription);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateTimeUtc);
-        input.Release.TimeOfDay.Should().Be(DomainTestFixture.Specimens.DefaultAppleReleaseTimeOfDay);
+        input.Release.TimeOfDay.Should().NotBe(TimeSpan.Zero);
     }
 
     [Fact(DisplayName =
@@ -91,6 +91,6 @@ public class ResolvedItemAdapterRules
             input.EpisodeDescription);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateTimeUtc);
-        input.Release.TimeOfDay.Should().Be(DomainTestFixture.Specimens.DefaultYouTubeReleaseTimeOfDay);
+        input.Release.TimeOfDay.Should().NotBe(TimeSpan.Zero);
     }
 }
