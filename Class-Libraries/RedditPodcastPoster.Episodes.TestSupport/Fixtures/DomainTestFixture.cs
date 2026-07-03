@@ -21,10 +21,19 @@ public sealed class DomainTestFixture
   /// <summary>Midnight UTC on a day <paramref name="days"/> before today.</summary>
   public static DateTime UtcDaysAgo(int days) => UtcToday.AddDays(-days);
 
+  /// <summary>
+  /// Midnight UTC on a day <paramref name="days"/> before today.
+  /// Use for date-only platforms (Spotify catalogue) — never combine with a time-of-day.
+  /// </summary>
+  public static DateTime UtcDateDaysAgo(int days) => UtcToday.AddDays(-days);
+
   /// <summary>Midnight UTC on a day <paramref name="days"/> after today.</summary>
   public static DateTime UtcDaysFromNow(int days) => UtcToday.AddDays(days);
 
-  /// <summary>UTC datetime on a day offset from today with an explicit time-of-day.</summary>
+  /// <summary>
+  /// UTC datetime on a day offset from today with an explicit time-of-day.
+  /// For Apple and YouTube releases only — Spotify catalogue has no time component.
+  /// </summary>
   public static DateTime UtcAtTime(int daysOffset, TimeSpan timeOfDay) =>
     UtcToday.AddDays(daysOffset).Add(timeOfDay);
   public const string DefaultCatalogueDescription = "Catalogue description";
@@ -106,7 +115,7 @@ public sealed class DomainTestFixture
     public static readonly TimeSpan C2CAbuserSpotifyLength = TimeSpan.Parse("01:31:59.6990000");
 
     public static DateTime C2CAbuserSpotifyRelease =>
-      UtcDaysAgo(C2CAbuserYouTubeReleaseDaysAgo - C2CAbuserSpotifyCatalogueDaysAfterYouTube);
+      UtcDateDaysAgo(C2CAbuserYouTubeReleaseDaysAgo - C2CAbuserSpotifyCatalogueDaysAfterYouTube);
 
     public const string C2CNegativeDelayTitle =
       "Why He Thinks Daughters Should Parent Their Siblings  (ft. Tia Levings)";
@@ -131,7 +140,7 @@ public sealed class DomainTestFixture
       "Becoming a Fundamentalist Trad Wife Almost Killed Me";
 
     public static DateTime C2CNegativeDelayIncomingRelease =>
-      UtcDaysAgo(C2CNegativeDelayStoredDaysAgo - C2CNegativeDelayIncomingDaysAfterStored);
+      UtcDateDaysAgo(C2CNegativeDelayStoredDaysAgo - C2CNegativeDelayIncomingDaysAfterStored);
 
     public static readonly TimeSpan C2CNegativeDelayIncomingLength =
       TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(30);
@@ -156,7 +165,7 @@ public sealed class DomainTestFixture
       TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(42);
 
     public static DateTime OtoIncomingSpotifyRelease =>
-      UtcDaysAgo(OtoReleaseDaysAgo - OtoIncomingSpotifyDaysAfterRelease);
+      UtcDateDaysAgo(OtoReleaseDaysAgo - OtoIncomingSpotifyDaysAfterRelease);
 
     public const string PostmormonPodcastName = "Postmormon Postmortem";
 
@@ -220,6 +229,9 @@ public sealed class DomainTestFixture
   public Uri DefaultAppleImage(long appleId) =>
     new($"https://example.com/apple-art-{appleId}.jpg");
 
+  /// <summary>
+  /// Spotify catalogue release is date-only; any time-of-day on <paramref name="release"/> is floored to midnight UTC.
+  /// </summary>
   public SpotifyCatalogueInput CreateSpotifyCatalogueInput(
     string? spotifyId = null,
     DateTime? release = null,
@@ -227,12 +239,13 @@ public sealed class DomainTestFixture
     Uri? image = null)
   {
     var id = spotifyId ?? "6O1Z1s7ca0PI8Gq1rdt3j4";
+    var releaseDate = (release ?? DefaultRelease).Date;
     return new SpotifyCatalogueInput(
       id,
       DefaultEpisodeTitle,
       DefaultCatalogueDescription,
       DefaultLength,
-      release ?? DefaultRelease,
+      releaseDate,
       spotifyUrl ?? DefaultSpotifyUrl(id),
       image ?? DefaultSpotifyImage(id));
   }
@@ -271,6 +284,9 @@ public sealed class DomainTestFixture
       image ?? DefaultYouTubeImage(id));
   }
 
+  /// <summary>
+  /// Spotify resolved-item release is date-only; any time-of-day on <paramref name="release"/> is floored to midnight UTC.
+  /// </summary>
   public ResolvedSpotifyItemInput CreateResolvedSpotifyItemInput(
     string? episodeId = null,
     DateTime? release = null,
@@ -278,11 +294,12 @@ public sealed class DomainTestFixture
     Uri? image = null)
   {
     var id = episodeId ?? "submit-spot-1";
+    var releaseDate = (release ?? DefaultRelease).Date;
     return new ResolvedSpotifyItemInput(
       id,
       DefaultEpisodeTitle,
       DefaultCatalogueDescription,
-      release ?? DefaultRelease,
+      releaseDate,
       DefaultLength,
       url ?? DefaultSpotifyUrl(id),
       image ?? DefaultSpotifyImage(id));

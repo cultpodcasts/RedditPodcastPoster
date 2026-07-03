@@ -46,8 +46,8 @@ public class ReleaseDateMergingRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
-        var spotifyRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(8));
+        var dateOnlyRelease = DomainTestFixture.UtcDateDaysAgo(2);
+        var spotifyRelease = DomainTestFixture.UtcDateDaysAgo(2);
         var stored = _fixture.CreateMidnightUtcSpotifyStoredEpisode(podcast, dateOnlyRelease);
         var expected = EpisodeExpectation.From(stored);
 
@@ -55,6 +55,8 @@ public class ReleaseDateMergingRules
             DomainTestFixture.Incidents.C2CAbuserSpotifyId,
             spotifyUrl: _fixture.DefaultSpotifyUrl(DomainTestFixture.Incidents.C2CAbuserSpotifyId),
             release: spotifyRelease);
+        // Episode model may retain API time before normalization; merge must still treat Spotify as date-only.
+        discovered.Release = dateOnlyRelease.AddHours(8);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);

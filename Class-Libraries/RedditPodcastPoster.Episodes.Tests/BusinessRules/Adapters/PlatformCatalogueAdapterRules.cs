@@ -1,5 +1,6 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.Adapters;
+using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Domain;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
@@ -21,24 +22,32 @@ public class PlatformCatalogueAdapterRules
         "because Spotify catalogue dates have no time-of-day.")]
     public void Spotify_catalogue_release_maps_to_date_only_precision()
     {
-        // Arrange
+        // Arrange — raw catalogue payload may carry time; adapter must floor to date-only.
         const string spotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4";
-        var catalogueRelease = DomainTestFixture.UtcAtTime(-110, TimeSpan.FromHours(14) + TimeSpan.FromMinutes(30));
-        var input = _fixture.CreateSpotifyCatalogueInput(spotifyId, release: catalogueRelease);
+        var releaseWithTime = DomainTestFixture.UtcAtTime(-110, TimeSpan.FromHours(14) + TimeSpan.FromMinutes(30));
+        var expectedDate = releaseWithTime.Date;
+        var input = new SpotifyCatalogueInput(
+            spotifyId,
+            DomainTestFixture.DefaultEpisodeTitle,
+            DomainTestFixture.DefaultCatalogueDescription,
+            DomainTestFixture.DefaultLength,
+            releaseWithTime,
+            _fixture.DefaultSpotifyUrl(spotifyId),
+            _fixture.DefaultSpotifyImage(spotifyId));
 
         // Act
         var candidate = _spotifyAdapter.Adapt(input);
 
         // Assert
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateOnly);
-        candidate.Release.Value.Should().Be(
-            new DateTime(catalogueRelease.Year, catalogueRelease.Month, catalogueRelease.Day, 0, 0, 0, DateTimeKind.Unspecified));
+        candidate.Release.Value.Should().Be(expectedDate);
+        candidate.Release.Value.TimeOfDay.Should().Be(TimeSpan.Zero);
 
         var expected = new EpisodeExpectation(
             new PlatformExpectation(spotifyId, input.SpotifyUrl, input.Image),
             null,
             null,
-            candidate.Release.Value,
+            expectedDate,
             input.Description);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);
     }

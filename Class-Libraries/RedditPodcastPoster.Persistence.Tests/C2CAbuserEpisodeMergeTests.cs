@@ -147,10 +147,7 @@ public class C2CAbuserEpisodeMergeTests
     {
         var podcast = CreatePodcast();
         var youTubeRelease = DomainTestFixture.Incidents.C2CAbuserSpotifyRelease;
-        var spotifyReleaseWithTime = DomainTestFixture.UtcAtTime(
-            -(DomainTestFixture.Incidents.C2CAbuserYouTubeReleaseDaysAgo
-              - DomainTestFixture.Incidents.C2CAbuserSpotifyCatalogueDaysAfterYouTube),
-            TimeSpan.FromHours(8));
+        var spotifyRelease = DomainTestFixture.Incidents.C2CAbuserSpotifyRelease;
 
         var existing = new Episode
         {
@@ -173,9 +170,11 @@ public class C2CAbuserEpisodeMergeTests
             "description",
             DomainTestFixture.Incidents.C2CAbuserSpotifyLength,
             false,
-            spotifyReleaseWithTime,
+            spotifyRelease,
             new Uri($"https://open.spotify.com/episode/{SpotifyId}"),
             null);
+        // Episode model may retain API time before normalization; merge must still treat Spotify as date-only.
+        incoming.Release = spotifyRelease.AddHours(8);
 
         var sut = EpisodeDomainTestServices.CreateMerger();
         var result = sut.MergeEpisodes(podcast, [existing], [incoming]);

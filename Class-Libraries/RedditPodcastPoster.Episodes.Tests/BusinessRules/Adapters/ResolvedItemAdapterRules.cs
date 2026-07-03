@@ -23,7 +23,7 @@ public class ResolvedItemAdapterRules
     {
         // Arrange
         const string episodeId = "submit-spot-1";
-        var release = DomainTestFixture.UtcDaysAgo(32);
+        var release = DomainTestFixture.UtcDateDaysAgo(32);
         var input = _fixture.CreateResolvedSpotifyItemInput(episodeId, release: release);
 
         // Act

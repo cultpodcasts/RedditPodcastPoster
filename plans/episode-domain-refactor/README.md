@@ -177,6 +177,7 @@ public void snake_case_method_name()
 - Use **`CreatePodcast()`**, **`CreateStoredEpisode(podcast, customize)`**, **`BuildEpisode().WithSpotify(...).Create()`**, and catalogue helpers (`CreateSpotifyCatalogueEpisode`, etc.) — not raw `new Episode { ... }` boilerplate
 - **Incident regression presets** live on `DomainTestFixture` as methods (e.g. `CreateC2CYouTubeOnlyStoredEpisode`, `CreateC2CSpotifyIncoming`); IDs, titles, and platform URLs live on **`DomainTestFixture.Incidents`**
 - **Relative dates:** use `DomainTestFixture.UtcToday`, `UtcDaysAgo`, `UtcDaysFromNow`, and `UtcAtTime` instead of fixed `DateTime` literals. Incident presets on `Incidents` expose offset constants (e.g. `C2CAbuserYouTubeReleaseDaysAgo`) and computed properties anchored to today. Tests that assert exact release equality must arrange and assert the same relative variable.
+- **Spotify releases are date-only:** use `UtcDateDaysAgo` (or incident Spotify presets such as `C2CAbuserSpotifyRelease`) for Spotify catalogue and resolved-item specimens — never `UtcAtTime`. Reserve `UtcAtTime` for Apple and YouTube releases that carry a publish time-of-day. Adapter tests may construct raw `SpotifyCatalogueInput` with a time-bearing release only to assert the adapter floors to midnight.
 - **`EpisodeExpectation`** (or equivalent) for Assert clauses — not fifteen separate property assertions unless the rule is about one field
 - **Seed data from production incidents** is encouraged (C2C, Postmormon, Spotify URL-only) but must be expressed as rules with full outcome assertions
 
