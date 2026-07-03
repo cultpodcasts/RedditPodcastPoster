@@ -54,7 +54,7 @@ Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-re
 | **MUST** | Override only fields the assertion cares about; let peripheral data come from specimens |
 | **MUST** | Call zero-arg `CreateSpotifyCatalogueInput()`, `CreateAppleCatalogueInput()`, `CreateYouTubeCatalogueInput()` (and resolved-item equivalents) and trust defaults unless the rule needs more |
 | **ONLY WHEN** | The rule asserts an exact release, a relationship between two releases, or identity matching — then override via builder callback: `CreateAppleCatalogueInput(b => b.WithRelease(...))` |
-| **ONLY WHEN** | Two episodes must share title/duration for matching — capture one generated value and reuse: `var title = _fixture.Create<string>();` then `.WithTitle(title)` on both sides |
+| **ONLY WHEN** | Two episodes must share title/duration for matching — capture one generated value and reuse: `var title = _fixture.CreateTitle();` then `.WithTitle(title)` on both sides |
 | **NEVER** | Hardcode arrange literals when the assertion does not depend on the exact value (see §5 anti-patterns) |
 
 ### Dates and IDs
@@ -78,7 +78,9 @@ Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-re
 
 | | Rule |
 |---|------|
-| **MUST** | Generate strings with `_fixture.Create<string>()` unless the rule is about that exact string (typo match, regex, truncated description) |
+| **MUST** | Generate episode/podcast **titles** with `_fixture.CreateTitle()` (or `CreateShortTitle()` / `CreateLongTitle()` / `CreateTitle(wordCount)`) — word-based titles for matching/fuzzy tests |
+| **MUST** | Generate other strings with `_fixture.Create<string>()` unless the rule is about that exact string (typo match, regex, truncated description) |
+| **NEVER** | Use `_fixture.Create<string>()` for episode titles when word-based matching or fuzzy title variants are under test |
 | **MUST** | Generate Guids with `_fixture.CreateGuid()` or `_fixture.Create<Guid>()` unless the assertion depends on that exact Guid |
 | **MUST** | Generate durations with `_fixture.CreateDuration()` unless the rule asserts an exact duration or tolerance edge |
 | **MUST** | Generate platform IDs with `CreateSpotifyId()` / `CreateAppleId()` / `CreateYouTubeId()` or read from built inputs (`input.SpotifyId`, `podcast.Id`) |
@@ -86,7 +88,7 @@ Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-re
 | **NEVER** | Declare `const string sharedTitle = "Episode about something"` for filler data |
 | **NEVER** | Use `TimeSpan.FromMinutes(42)` unless the assertion depends on that exact value |
 | **NEVER** | Use magic ints, URLs, or IDs in arrange when the assertion only checks behavior, not the literal value |
-| **NEVER** | Share arrange data via magic strings — share via variables from the fixture (`var title = _fixture.Create<string>()`), not duplicated literals |
+| **NEVER** | Share arrange data via magic strings — share via variables from the fixture (`var title = _fixture.CreateTitle()`), not duplicated literals |
 | **NEVER** | Use `Guid.Parse("...")` or hardcoded Guids for podcast/episode ids when only used as filler — use `_fixture.CreateGuid()` and capture from specimens (`podcast.Id`, `stored.Id`) when asserting identity |
 | **ONLY WHEN** | Keeping a literal is justified: regex-dependent title (`"#42"`), boundary math (`MinimumDuration - 1`), truncation/ellipsis assertions, or any case where the assertion explicitly depends on that exact value |
 
@@ -134,6 +136,8 @@ Default builders produce **fully valid, platform-correct** objects. Tests trust 
 | `CreateSpotifyId()` / `CreateAppleId()` / `CreateYouTubeId()` | Platform IDs with correct shape |
 | `CreateYouTubeChannelId()` | `UC` + 22 chars |
 | `CreateGuid()` / `Create<Guid>()` | Entity IDs (podcast, episode, row) when identity is filler |
+| `CreateTitle()` | Realistic episode-style title from random English words (default 2–7 words) |
+| `CreateTitle(wordCount)` / `CreateShortTitle()` / `CreateLongTitle()` | Explicit word-count bounds when a test needs short or long titles |
 
 ---
 
@@ -150,7 +154,7 @@ Before submitting a business-rule test, verify:
 - [ ] Generic adapter/mapping asserts use `input.Release` + precision/`TimeOfDay` rules — not named release constants
 - [ ] Platform IDs from specimens (`input.SpotifyId`, `CreateSpotifyId()`) — no hardcoded literals in generic tests
 - [ ] Guids from `_fixture.CreateGuid()` or specimen properties — no `Guid.Parse("...")` filler
-- [ ] Shared matching fields (title, duration) from `_fixture.Create<string>()` / `CreateDuration()`, not `const` literals
+- [ ] Shared matching fields (title, duration) from `_fixture.CreateTitle()` / `CreateDuration()`, not `const` literals
 - [ ] No hardcoded strings, ints, TimeSpans, URLs, or IDs in arrange unless the assertion depends on the exact value
 - [ ] Assert uses `EpisodeExpectation.From(...)` or repository/save assertions
 - [ ] Cross-platform / backfill scenarios use scenario-shaped fixture helpers, not brand-named presets
@@ -165,7 +169,7 @@ Before submitting a business-rule test, verify:
 | Same-calendar-date backfill, midnight UTC stored row | `CreateMidnightUtcStoredEpisode` + `Create*CatalogueEpisodeSameDayAs` |
 | YouTube-first cross-platform match (YouTube-only stored + delayed Spotify) | `CreateYouTubeFirstPodcastWithNegativeDelay()` + `CreateCrossPlatformYouTubeFirstPair()` |
 | Negative-delay guard (aligned release, different titles) | `CreateNegativeDelayNonMatchingPair()` |
-| Typo title fuzzy match | `CreateTypoTitleVariant()` + `CreateStoredEpisodeWithSpotifyOnly()` |
+| Typo title fuzzy match | `CreateTitle()` + `CreateTypoTitleVariant()` + `CreateStoredEpisodeWithSpotifyOnly()` |
 | Ambiguous dual-match failure | `CreateAmbiguousMatchStoredEpisodes` + `CreateAmbiguousMatchSpotifyIncoming` |
 | EpisodeMatchRegex forced match | Inline `#N` titles in test (regex-dependent literals only) |
 | Positive YouTube publishing delay | `CreatePositiveDelayAudioStoredEpisode` + `CreateYouTubeFirstPodcast(...)` |
@@ -216,7 +220,7 @@ var discovered = _fixture.CreateYouTubeCatalogueEpisode(
 // GOOD — generated filler; IDs from specimen; only release relationship is fixed
 var podcast = _fixture.CreatePodcast();
 var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
-var sharedTitle = _fixture.Create<string>();
+var sharedTitle = _fixture.CreateTitle();
 var sharedLength = _fixture.CreateDuration();
 var stored = _fixture.CreateMidnightUtcStoredEpisode(
     podcast, dateOnlyRelease, sharedTitle, sharedLength);
@@ -333,8 +337,8 @@ public void snake_case_shorthand()
 | Catalogue input (override) | `CreateSpotifyCatalogueInput(b => b.WithRelease(...))`, `CreateSpotifyCatalogueInputDaysAfterYouTubeRelease(...)` |
 | Catalogue episode | `CreateSpotifyCatalogueEpisode()`, `CreateSpotifyCatalogueEpisode(configure)`, overload with explicit id |
 | Same-day backfill probe | `CreateMidnightUtcStoredEpisode`, `Create*CatalogueInputSameDayAs`, `Create*CatalogueEpisodeSameDayAs` |
-| Generated values | `CreateDuration()`, `CreateNonMidnightTimeOfDay()`, `CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateYouTubeChannelId()`, `CreateGuid()` |
-| Title variants | `CreateFuzzyTitleVariant(title)`, `CreateTypoTitleVariant(title)` |
+| Generated values | `CreateTitle()`, `CreateDuration()`, `CreateNonMidnightTimeOfDay()`, `CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateYouTubeChannelId()`, `CreateGuid()` |
+| Title variants | `CreateFuzzyTitleVariant(title)`, `CreateTypoTitleVariant(title)` — input must be word-based from `CreateTitle()` |
 | Same calendar date + time | `SameCalendarDateWithTime(dateOnlyRelease, timeOfDay)`, `SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, days)` |
 | Relative dates | `UtcToday`, `UtcDaysAgo(n)`, `UtcDateDaysAgo(n)`, `UtcAtTime(dayOffset, timeOfDay)` |
 | Assert vocabulary | `EpisodeExpectation.From(episode)`, `.WithSpotify/.WithApple/.WithYouTube`, `ShouldMatchExpectation` |

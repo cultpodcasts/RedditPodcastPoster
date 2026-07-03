@@ -67,7 +67,7 @@ public class CrossPlatformMatchingRules
         var podcast = _fixture.CreatePodcast();
         var sharedRelease = DomainTestFixture.UtcDaysAgo(32);
         var sharedLength = _fixture.CreateDuration();
-        var sharedTitle = _fixture.Create<string>();
+        var sharedTitle = _fixture.CreateTitle();
         var (youTubeOnly, appleOnly) = _fixture.CreateAmbiguousMatchStoredEpisodes(
             podcast,
             sharedRelease,
@@ -114,7 +114,7 @@ public class CrossPlatformMatchingRules
             .WithYouTube(youTubeInput.YouTubeId, youTubeInput.YouTubeUrl);
         var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
             .WithYouTubeId(youTubeInput.YouTubeId)
-            .WithTitle(_fixture.Create<string>())
+            .WithTitle(_fixture.CreateTitle())
             .WithRelease(youTubeInput.Release)
             .WithDuration(length));
 

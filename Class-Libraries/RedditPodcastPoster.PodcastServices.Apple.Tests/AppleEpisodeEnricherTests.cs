@@ -25,7 +25,7 @@ public class AppleEpisodeEnricherTests
             -youTubeReleaseDaysAgo,
             _fixture.CreateNonMidnightTimeOfDay());
         var storedLength = _fixture.CreateDuration();
-        var storedTitle = _fixture.Create<string>();
+        var storedTitle = _fixture.CreateTitle();
         var appleTitle = DomainTestFixture.CreateFuzzyTitleVariant(storedTitle);
         var spotifyId = _fixture.CreateSpotifyId();
         var youTubeId = _fixture.CreateYouTubeId();
@@ -86,7 +86,7 @@ public class AppleEpisodeEnricherTests
         var episode = new Episode
         {
             Id = Guid.NewGuid(),
-            Title = _fixture.Create<string>(),
+            Title = _fixture.CreateTitle(),
             Release = dateOnlyRelease,
             Length = _fixture.CreateDuration(),
             SpotifyId = spotifyId,
@@ -132,7 +132,7 @@ public class AppleEpisodeEnricherTests
         var episode = new Episode
         {
             Id = Guid.NewGuid(),
-            Title = _fixture.Create<string>(),
+            Title = _fixture.CreateTitle(),
             Release = dateOnlyRelease,
             Length = _fixture.CreateDuration(),
             SpotifyId = spotifyId,

@@ -25,7 +25,7 @@ public class TitleDurationMatchingRules
         var release = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
         var existingLength = _fixture.CreateDuration();
         var incomingLength = existingLength + TimeSpan.FromSeconds(1);
-        var storedTitle = _fixture.Create<string>();
+        var storedTitle = _fixture.CreateTitle();
         var incomingTitle = DomainTestFixture.CreateTypoTitleVariant(storedTitle);
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.CreateStoredEpisodeWithSpotifyOnly(
@@ -60,7 +60,7 @@ public class TitleDurationMatchingRules
     public void Typo_with_mismatched_duration_does_not_match()
     {
         // Arrange
-        var storedTitle = _fixture.Create<string>();
+        var storedTitle = _fixture.CreateTitle();
         var incomingTitle = DomainTestFixture.CreateTypoTitleVariant(storedTitle);
         var existingLength = _fixture.CreateDuration();
         var incomingLength = existingLength + TimeSpan.FromMinutes(20);
@@ -82,8 +82,8 @@ public class TitleDurationMatchingRules
         // Arrange
         var release = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
         var length = _fixture.CreateDuration();
-        var existing = CreateEpisode(_fixture.Create<string>(), length, release);
-        var incoming = CreateEpisode(_fixture.Create<string>(), length, release);
+        var existing = CreateEpisode(_fixture.CreateTitle(), length, release);
+        var incoming = CreateEpisode(_fixture.CreateTitle(), length, release);
 
         // Act
         var isMatch = _matcher.IsMatch(existing, incoming, episodeMatchRegex: null, _fixture.CreatePodcast());

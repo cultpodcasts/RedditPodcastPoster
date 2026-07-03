@@ -26,7 +26,7 @@ public class PlatformIdentityMatchingRules
         var podcast = _fixture.CreatePodcast();
         var spotifyInput = _fixture.CreateSpotifyCatalogueInput();
         var spotifyUrl = spotifyInput.SpotifyUrl;
-        var redditTitle = _fixture.Create<string>();
+        var redditTitle = _fixture.CreateTitle();
         var stored = _fixture.CreateSubmittedViaSpotifyUrlOnly(
             spotifyUrl,
             title: redditTitle,
@@ -81,7 +81,7 @@ public class PlatformIdentityMatchingRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        var sharedTitle = _fixture.Create<string>();
+        var sharedTitle = _fixture.CreateTitle();
         var sharedLength = _fixture.CreateDuration();
         var existing = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithTitle(sharedTitle)
@@ -107,7 +107,7 @@ public class PlatformIdentityMatchingRules
         var podcast = _fixture.CreatePodcast();
         var discovered = _fixture.CreateYouTubeCatalogueEpisode();
         var youTubeId = discovered.YouTubeId;
-        var storedTitle = _fixture.Create<string>();
+        var storedTitle = _fixture.CreateTitle();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
             .WithRelease(discovered.Release)
@@ -132,7 +132,7 @@ public class PlatformIdentityMatchingRules
     public void Different_YouTube_video_IDs_never_merge_by_title()
     {
         // Arrange
-        var sharedTitle = _fixture.Create<string>();
+        var sharedTitle = _fixture.CreateTitle();
         var podcast = _fixture.CreatePodcast();
         var existing = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithTitle(sharedTitle));
         var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithTitle(sharedTitle));
@@ -154,7 +154,7 @@ public class PlatformIdentityMatchingRules
         var podcast = _fixture.CreatePodcast();
         var discovered = _fixture.CreateAppleCatalogueEpisode();
         var appleId = discovered.AppleId!.Value;
-        var storedTitle = _fixture.Create<string>();
+        var storedTitle = _fixture.CreateTitle();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
             .WithRelease(discovered.Release)
@@ -203,7 +203,7 @@ public class PlatformIdentityMatchingRules
     public void Different_Apple_IDs_never_merge_by_title()
     {
         // Arrange
-        var sharedTitle = _fixture.Create<string>();
+        var sharedTitle = _fixture.CreateTitle();
         var podcast = _fixture.CreatePodcast();
         var existing = _fixture.CreateAppleCatalogueEpisode(b => b.WithTitle(sharedTitle));
         var discovered = _fixture.CreateAppleCatalogueEpisode(b => b.WithTitle(sharedTitle));

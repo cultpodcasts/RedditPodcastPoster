@@ -23,7 +23,7 @@ public class ReleaseDateMergingRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
-        var sharedTitle = _fixture.Create<string>();
+        var sharedTitle = _fixture.CreateTitle();
         var sharedLength = _fixture.CreateDuration();
         var stored = _fixture.CreateMidnightUtcStoredEpisode(
             podcast, dateOnlyRelease, sharedTitle, sharedLength);
@@ -110,7 +110,7 @@ public class ReleaseDateMergingRules
         var podcast = _fixture.CreatePodcast();
         var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
         var youTubeRelease = DomainTestFixture.UtcAtTime(-1, _fixture.CreateNonMidnightTimeOfDay());
-        var sharedTitle = _fixture.Create<string>();
+        var sharedTitle = _fixture.CreateTitle();
         var sharedLength = _fixture.CreateDuration();
         var stored = _fixture.CreateMidnightUtcStoredEpisode(
             podcast, dateOnlyRelease, sharedTitle, sharedLength);
@@ -142,7 +142,7 @@ public class ReleaseDateMergingRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var dateOnlyRelease = DomainTestFixture.UtcDaysAgo(2);
-        var sharedTitle = _fixture.Create<string>();
+        var sharedTitle = _fixture.CreateTitle();
         var sharedLength = _fixture.CreateDuration();
         var stored = _fixture.CreateMidnightUtcStoredEpisode(
             podcast, dateOnlyRelease, sharedTitle, sharedLength);

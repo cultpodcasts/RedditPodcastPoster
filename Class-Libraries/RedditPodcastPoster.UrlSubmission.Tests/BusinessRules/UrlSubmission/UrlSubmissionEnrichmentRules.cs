@@ -127,7 +127,7 @@ public class UrlSubmissionEnrichmentRules
         var appleShowId = _fixture.CreateAppleId();
         var youTubeChannelId = _fixture.CreateYouTubeChannelId();
         var showName = _fixture.Create<string>();
-        var episodeName = _fixture.Create<string>();
+        var episodeName = _fixture.CreateTitle();
         var resolvedDescription = _fixture.Create<string>();
         var publisher = _fixture.Create<string>();
         var playlistId = _fixture.Create<string>();

@@ -357,7 +357,7 @@ public class EpisodeMergingRules
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithTitle(_fixture.Create<string>())
+            .WithTitle(_fixture.CreateTitle())
             .WithRelease(catalogueRelease)
             .WithSpotify(spotifyInput.SpotifyId, spotifyInput.SpotifyUrl)
             .Create();

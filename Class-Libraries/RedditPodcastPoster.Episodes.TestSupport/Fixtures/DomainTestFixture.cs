@@ -67,19 +67,89 @@ public sealed class DomainTestFixture
     int calendarDaysAfter) =>
     youTubeRelease.Date.AddDays(calendarDaysAfter);
 
-  /// <summary>Catalogue title variant that fuzzy-matches the stored title.</summary>
-  public static string CreateFuzzyTitleVariant(string title) =>
-    title.Length >= 3 ? title[..^1] + "…" : title + "…";
+  /// <summary>
+  /// Catalogue-style truncated title variant for fuzzy matching probes.
+  /// Drops the final character of the last word and appends an ellipsis (…).
+  /// Mimics platform feeds that cut titles mid-word; still matches via WeightedRatio ≥ 70
+  /// when paired with a <see cref="CreateTitle"/> stored title.
+  /// </summary>
+  public static string CreateFuzzyTitleVariant(string title)
+  {
+    if (string.IsNullOrWhiteSpace(title))
+      return "…";
 
-  /// <summary>Single-character typo variant for fuzzy title matching probes.</summary>
+    var lastSpace = title.LastIndexOf(' ');
+    var lastWordStart = lastSpace >= 0 ? lastSpace + 1 : 0;
+    var lastWord = title[lastWordStart..];
+
+    if (lastWord.Length >= 2)
+      return title[..(lastWordStart + lastWord.Length - 1)] + "…";
+
+    if (title.Length >= 3)
+      return title[..^1] + "…";
+
+    return title + "…";
+  }
+
+  /// <summary>
+  /// Single-character typo within an alphabetic word for fuzzy title matching probes.
+  /// Substitutes one letter in the longest word (length ≥ 4); assumes word-based input from
+  /// <see cref="CreateTitle"/>.
+  /// </summary>
   public static string CreateTypoTitleVariant(string title)
   {
-    if (title.Length < 4)
-      return title + "x";
-    var i = title.Length / 2;
-    var replacement = title[i] == 'a' ? 'e' : 'a';
-    return title[..i] + replacement + title[(i + 1)..];
+    var words = title.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    var wordIndex = -1;
+    var maxLen = 0;
+    for (var i = 0; i < words.Length; i++)
+    {
+      var letterCount = words[i].Count(char.IsLetter);
+      if (letterCount >= 4 && words[i].Length > maxLen)
+      {
+        maxLen = words[i].Length;
+        wordIndex = i;
+      }
+    }
+
+    if (wordIndex < 0)
+    {
+      if (title.Length < 4)
+        return title + "x";
+      var mid = title.Length / 2;
+      var replacement = title[mid] == 'a' ? 'e' : 'a';
+      return title[..mid] + replacement + title[(mid + 1)..];
+    }
+
+    var word = words[wordIndex];
+    var charIndex = word.Length / 2;
+    while (charIndex < word.Length && !char.IsLetter(word[charIndex]))
+      charIndex++;
+    if (charIndex >= word.Length)
+      charIndex = Math.Max(0, word.Length / 2);
+
+    var c = word[charIndex];
+    var typoChar = c switch
+    {
+      'a' => 'e',
+      'A' => 'E',
+      'e' => 'a',
+      'E' => 'A',
+      _ => char.IsUpper(c) ? char.ToUpperInvariant((char)(c + 1)) : (char)(c + 1)
+    };
+
+    words[wordIndex] = word[..charIndex] + typoChar + word[(charIndex + 1)..];
+    return string.Join(' ', words);
   }
+
+  private static readonly string[] TitleWords =
+  [
+    "Episode", "Interview", "Story", "History", "Culture", "Science", "Politics",
+    "Music", "Film", "Book", "Review", "Deep", "Dive", "Special", "Live",
+    "Discussion", "Analysis", "Behind", "Scenes", "Future", "Past", "Truth",
+    "Mystery", "Journey", "World", "Life", "Death", "Love", "War", "Peace",
+    "America", "Europe", "Ancient", "Modern", "True", "Hidden", "Secret",
+    "Lost", "Found", "Great", "Dark", "Light", "New", "Old", "First", "Last"
+  ];
 
   private readonly Fixture _fixture;
 
@@ -100,6 +170,20 @@ public sealed class DomainTestFixture
 
   /// <summary>Realistic episode duration (1–120 minutes).</summary>
   public TimeSpan CreateDuration() => CreateDurationSpecimen(_fixture);
+
+  /// <summary>Realistic episode-style title from random English words (2–7 words).</summary>
+  public string CreateTitle() => CreateTitleSpecimen(_fixture);
+
+  /// <summary>Episode-style title with an explicit word count.</summary>
+  public string CreateTitle(int wordCount) => CreateTitleSpecimen(_fixture, wordCount);
+
+  /// <summary>Short episode title (2–3 words).</summary>
+  public string CreateShortTitle() =>
+    CreateTitleSpecimen(_fixture, 2 + Math.Abs(_fixture.Create<int>()) % 2);
+
+  /// <summary>Long episode title (8–12 words).</summary>
+  public string CreateLongTitle() =>
+    CreateTitleSpecimen(_fixture, 8 + Math.Abs(_fixture.Create<int>()) % 5);
 
   /// <summary>UTC time-of-day with non-midnight seconds (Apple/YouTube publish times).</summary>
   public TimeSpan CreateNonMidnightTimeOfDay() => CreateNonMidnightTimeOfDaySpecimen(_fixture);
@@ -261,7 +345,7 @@ public sealed class DomainTestFixture
     {
       Id = Guid.NewGuid(),
       PodcastId = Guid.NewGuid(),
-      Title = _fixture.Create<string>(),
+      Title = CreateTitle(),
       Description = _fixture.Create<string>(),
       Release = UtcDaysAgo(_fixture.Create<int>() % 365 + 1),
       Length = TimeSpan.FromMinutes(_fixture.Create<int>() % 120 + 1),
@@ -357,7 +441,7 @@ public sealed class DomainTestFixture
     var spotifyRelease = SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, spotifyDaysAfterYouTube);
     var storedLength = CreateDuration();
     var incomingLength = storedLength + TimeSpan.FromMinutes(3);
-    var storedTitle = Create<string>();
+    var storedTitle = CreateTitle();
     var incomingTitle = fuzzyTitleVariant ? CreateFuzzyTitleVariant(storedTitle) : storedTitle;
 
     var stored = CreateStoredEpisodeWithYouTubeOnly(
@@ -396,9 +480,9 @@ public sealed class DomainTestFixture
       podcast,
       storedRelease,
       storedLength,
-      Create<string>());
+      CreateTitle());
     var incoming = CreateSpotifyCatalogueEpisode(b => b
-      .WithTitle(Create<string>())
+      .WithTitle(CreateTitle())
       .WithRelease(incomingRelease)
       .WithDuration(incomingLength));
 
@@ -424,7 +508,7 @@ public sealed class DomainTestFixture
     TimeSpan length,
     string? sharedTitle = null)
   {
-    var title = sharedTitle ?? Create<string>();
+    var title = sharedTitle ?? CreateTitle();
     var youTubeId = CreateYouTubeId();
     var appleId = CreateAppleId();
     var youTubeOnly = CreateStoredEpisode(podcast, e =>
@@ -451,7 +535,7 @@ public sealed class DomainTestFixture
     TimeSpan length,
     string? sharedTitle = null)
   {
-    var title = sharedTitle ?? Create<string>();
+    var title = sharedTitle ?? CreateTitle();
     var spotifyId = CreateSpotifyId();
     return CreateSpotifyCatalogueEpisode(
       spotifyId,
@@ -756,6 +840,20 @@ public sealed class DomainTestFixture
   private const string YouTubeIdAlphabet =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
+  internal static string CreateTitleSpecimen(Fixture fixture, int? wordCount = null)
+  {
+    var count = wordCount ?? Math.Abs(fixture.Create<int>()) % 6 + 2;
+    count = Math.Clamp(count, 1, 20);
+    var words = new string[count];
+    for (var i = 0; i < count; i++)
+      words[i] = TitleWords[Math.Abs(fixture.Create<int>()) % TitleWords.Length];
+    return FormatTitleWords(words);
+  }
+
+  private static string FormatTitleWords(IReadOnlyList<string> words) =>
+    string.Join(' ', words.Select(w =>
+      char.ToUpperInvariant(w[0]) + w[1..].ToLowerInvariant()));
+
   internal static string CreateSpotifyIdSpecimen(Fixture fixture) =>
     CreateRandomString(fixture, Base62, 22);
 
@@ -855,7 +953,7 @@ public sealed class SpotifyCatalogueInputBuilder
     var id = _spotifyId ?? DomainTestFixture.CreateSpotifyIdSpecimen(_fixture);
     return new SpotifyCatalogueInput(
       id,
-      _title ?? _fixture.Create<string>(),
+      _title ?? DomainTestFixture.CreateTitleSpecimen(_fixture),
       _description ?? _fixture.Create<string>(),
       _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
       (_release ?? DomainTestFixture.CreateSpotifyReleaseSpecimen(_fixture)).Date,
@@ -925,7 +1023,7 @@ public sealed class AppleCatalogueInputBuilder
     var id = _appleId ?? DomainTestFixture.CreateAppleIdSpecimen(_fixture);
     return new AppleCatalogueInput(
       id,
-      _title ?? _fixture.Create<string>(),
+      _title ?? DomainTestFixture.CreateTitleSpecimen(_fixture),
       _description ?? _fixture.Create<string>(),
       _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
       _release ?? DomainTestFixture.CreateAppleReleaseSpecimen(_fixture),
@@ -995,7 +1093,7 @@ public sealed class YouTubeCatalogueInputBuilder
     var id = _youTubeId ?? DomainTestFixture.CreateYouTubeIdSpecimen(_fixture);
     return new YouTubeCatalogueInput(
       id,
-      _title ?? _fixture.Create<string>(),
+      _title ?? DomainTestFixture.CreateTitleSpecimen(_fixture),
       _description ?? _fixture.Create<string>(),
       _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
       _release ?? DomainTestFixture.CreateYouTubeReleaseSpecimen(_fixture),
@@ -1065,7 +1163,7 @@ public sealed class ResolvedSpotifyItemInputBuilder
     var id = _episodeId ?? DomainTestFixture.CreateSpotifyIdSpecimen(_fixture);
     return new ResolvedSpotifyItemInput(
       id,
-      _title ?? _fixture.Create<string>(),
+      _title ?? DomainTestFixture.CreateTitleSpecimen(_fixture),
       _description ?? _fixture.Create<string>(),
       (_release ?? DomainTestFixture.CreateSpotifyReleaseSpecimen(_fixture)).Date,
       _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
@@ -1135,7 +1233,7 @@ public sealed class ResolvedAppleItemInputBuilder
     var id = _episodeId ?? DomainTestFixture.CreateAppleIdSpecimen(_fixture);
     return new ResolvedAppleItemInput(
       id,
-      _title ?? _fixture.Create<string>(),
+      _title ?? DomainTestFixture.CreateTitleSpecimen(_fixture),
       _description ?? _fixture.Create<string>(),
       _release ?? DomainTestFixture.CreateAppleReleaseSpecimen(_fixture),
       _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
@@ -1205,7 +1303,7 @@ public sealed class ResolvedYouTubeItemInputBuilder
     var id = _episodeId ?? DomainTestFixture.CreateYouTubeIdSpecimen(_fixture);
     return new ResolvedYouTubeItemInput(
       id,
-      _title ?? _fixture.Create<string>(),
+      _title ?? DomainTestFixture.CreateTitleSpecimen(_fixture),
       _description ?? _fixture.Create<string>(),
       _release ?? DomainTestFixture.CreateYouTubeReleaseSpecimen(_fixture),
       _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
