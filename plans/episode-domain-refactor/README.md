@@ -216,16 +216,26 @@ Platform enricher mocks should return **`EpisodePlatformPatch`** (once types exi
 Coverage does **not** prove rule completeness. Use it to find **missed branches** after the rule catalog is implemented.
 
 ```powershell
-dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults/coverage
+# Local: run gate (tests + merged Cobertura check)
+./scripts/coverage-gate.ps1
+
+# Report only (no fail) against existing TestResults
+./scripts/coverage-gate.ps1 -SkipTest -ReportOnly -ResultsDirectory ./TestResults/coverage-gate
 ```
 
-| Target | Branch coverage goal |
-|--------|---------------------|
-| `RedditPodcastPoster.Episodes` domain services | ≥ 90% |
-| Orchestration files (`PodcastUpdater`, `CategorisedItemProcessor`) | ≥ 85% |
-| Platform adapters | ~100% line (small files) |
+| Target | Branch coverage goal | Baseline (2026-07-03, `feature/episode-domain-refactor-tests`) |
+|--------|---------------------|----------------------------------------------------------------|
+| `RedditPodcastPoster.Episodes` domain services | ≥ 90% (aspiration) | **66%** branch, 79% line — gate at baseline |
+| Orchestration (`PodcastUpdater`, `CategorisedItemProcessor`, `EpisodeEnricher`, `EpisodeMerger`, `EpisodeMatcher`) | ≥ 85% (aspiration) | **60%** branch, 80% line — gate at baseline |
+| Platform adapters | ~100% line (aspiration) | **99%** line — gate at baseline |
 
-Baseline per-file after Phase 0; CI fails if orchestration/domain files drop below baseline on PR.
+Per-file baselines: `plans/episode-domain-refactor/coverage-baseline.json`. CI runs `./scripts/coverage-gate.ps1` after build (GitHub Actions `ubuntu-latest`, `pwsh`). Gate fails on regression below baseline, not below aspiration targets.
+
+**Known gaps to close** (aspiration vs baseline):
+
+- Domain: `YouTubePublishDelayMatchStrategy` (0%), `EpisodeMappingExtensions` (54%), `EpisodePlatformMatcher` (68%), `EpisodePlatformApplier` (69%)
+- Orchestration: `EpisodeEnricher` (44%), `PodcastUpdater` (69%); `CategorisedItemProcessor` at 82% (near target)
+- Adapters: `PlatformLinkFactory` line 86%
 
 ### 4.7 Handling suspected bugs
 
@@ -366,7 +376,13 @@ Step 3 rule catalog for §5.1–§5.3 is complete.
 - [x] `PlatformCatalogueAdapterRules` — Spotify → `ReleasePrecision.DateOnly`; Apple → `DateTimeUtc`; YouTube publish datetime as-is
 - [x] `ResolvedItemAdapterRules` — each `Resolved*Item` input → `PlatformLink` on `EpisodeCandidate.SourceLink`
 
-### Step 6 — Coverage baseline + CI gate (PR 9)
+### Step 6 — Coverage baseline + CI gate (PR 9) ✅
+
+- [x] Baseline measured across Episodes, PodcastServices, UrlSubmission, Persistence test projects (merged Cobertura)
+- [x] `plans/episode-domain-refactor/coverage-baseline.json` — per-file branch/line floors at current levels
+- [x] `scripts/coverage-gate.ps1` — runs four test projects with coverlet, merges Cobertura, enforces baseline
+- [x] CI: `.github/workflows/dotnet.yml` runs coverage gate after build (ubuntu + pwsh)
+- [x] Gate set at **achieved** levels (domain 66% branch, orchestration 60% branch, adapters 99% line) — prevents regression; aspiration targets (90/85/100) documented in §4.6
 
 ### Step 7 — Refactor phases B–F (implementation)
 

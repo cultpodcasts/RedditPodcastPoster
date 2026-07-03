@@ -29,3 +29,6 @@ jobs:
       run: dotnet build --configuration Release
     - name: Test
       run: dotnet test --no-build --configuration Release --verbosity normal
+    - name: Episode domain coverage gate
+      shell: pwsh
+      run: ./scripts/coverage-gate.ps1
