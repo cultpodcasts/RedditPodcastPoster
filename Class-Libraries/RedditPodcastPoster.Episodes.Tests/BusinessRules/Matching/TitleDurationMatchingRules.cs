@@ -22,19 +22,28 @@ public class TitleDurationMatchingRules
     public void Typo_with_matching_duration_merges_onto_existing_episode()
     {
         // Arrange
-        var release = DomainTestFixture.Incidents.PostmormonRelease;
-        var existingLength = TimeSpan.FromSeconds(878.503);
-        var incomingLength = TimeSpan.FromMinutes(14) + TimeSpan.FromSeconds(39);
-        var podcast = _fixture.CreatePostmormonPodcast();
-        var stored = _fixture.CreatePostmormonStoredEpisode(
+        var release = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
+        var existingLength = _fixture.CreateDuration();
+        var incomingLength = existingLength + TimeSpan.FromSeconds(1);
+        var storedTitle = _fixture.Create<string>();
+        var incomingTitle = DomainTestFixture.CreateTypoTitleVariant(storedTitle);
+        var podcast = _fixture.CreatePodcast();
+        var stored = _fixture.CreateStoredEpisodeWithSpotifyOnly(
             podcast,
             release: release,
-            length: existingLength);
+            length: existingLength,
+            title: storedTitle);
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
+            .WithTitle(incomingTitle)
+            .WithRelease(release)
+            .WithDuration(incomingLength));
         var expected = EpisodeExpectation.From(stored)
-            .WithYouTube(
-                DomainTestFixture.Incidents.PostmormonYouTubeId,
-                _fixture.DefaultYouTubeUrl(DomainTestFixture.Incidents.PostmormonYouTubeId));
-        var discovered = _fixture.CreatePostmormonYouTubeIncoming(release: release, length: incomingLength);
+            .WithYouTube(youTubeInput.YouTubeId, youTubeInput.YouTubeUrl);
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithYouTubeId(youTubeInput.YouTubeId)
+            .WithTitle(incomingTitle)
+            .WithRelease(release)
+            .WithDuration(incomingLength));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -42,7 +51,7 @@ public class TitleDurationMatchingRules
         // Assert
         result.AddedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().ContainSingle();
-        result.MergedEpisodes.Single().Existing.Id.Should().Be(DomainTestFixture.Incidents.PostmormonExistingEpisodeId);
+        result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);
         stored.ShouldMatchExpectation(expected);
     }
 
@@ -51,14 +60,12 @@ public class TitleDurationMatchingRules
     public void Typo_with_mismatched_duration_does_not_match()
     {
         // Arrange
+        var storedTitle = _fixture.Create<string>();
+        var incomingTitle = DomainTestFixture.CreateTypoTitleVariant(storedTitle);
         var existingLength = _fixture.CreateDuration();
         var incomingLength = existingLength + TimeSpan.FromMinutes(20);
-        var existing = CreateEpisode(
-            DomainTestFixture.Incidents.PostmormonStoredTitle,
-            existingLength);
-        var incoming = CreateEpisode(
-            DomainTestFixture.Incidents.PostmormonIncomingYouTubeTitle,
-            incomingLength);
+        var existing = CreateEpisode(storedTitle, existingLength);
+        var incoming = CreateEpisode(incomingTitle, incomingLength);
 
         // Act
         var isMatch = _matcher.IsMatch(existing, incoming, episodeMatchRegex: null, _fixture.CreatePodcast());
@@ -73,7 +80,7 @@ public class TitleDurationMatchingRules
     public void Release_and_duration_align_when_titles_differ_on_standard_podcast()
     {
         // Arrange
-        var release = DomainTestFixture.Incidents.PostmormonRelease;
+        var release = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
         var length = _fixture.CreateDuration();
         var existing = CreateEpisode(_fixture.Create<string>(), length, release);
         var incoming = CreateEpisode(_fixture.Create<string>(), length, release);
@@ -91,12 +98,26 @@ public class TitleDurationMatchingRules
     {
         // Arrange
         const string episodeMatchRegex = @"#(?'episodematch'\d+)\s";
+        const string storedTitle = "#42 Stored episode about the first topic";
+        const string discoveredTitle = "#42 Catalogue title with completely different wording";
         var podcast = _fixture.CreatePodcast();
         podcast.EpisodeMatchRegex = episodeMatchRegex;
         var sharedRelease = DomainTestFixture.UtcDaysAgo(124);
-        var stored = _fixture.CreateEpisodeMatchRegexStoredEpisode(podcast, release: sharedRelease);
+        var stored = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = storedTitle;
+            e.Release = sharedRelease;
+            e.Length = TimeSpan.FromMinutes(30);
+        });
         var expected = EpisodeExpectation.From(stored);
-        var discovered = _fixture.CreateEpisodeMatchRegexDiscoveredEpisode(release: sharedRelease.AddDays(7));
+        var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b
+            .WithTitle(discoveredTitle)
+            .WithRelease(sharedRelease.AddDays(7)));
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithSpotifyId(spotifyInput.SpotifyId)
+            .WithTitle(discoveredTitle)
+            .WithSpotifyUrl(spotifyInput.SpotifyUrl)
+            .WithRelease(spotifyInput.Release));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -105,9 +126,7 @@ public class TitleDurationMatchingRules
         result.AddedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().ContainSingle();
         result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);
-        stored.ShouldMatchExpectation(expected.WithSpotify(
-            DomainTestFixture.Incidents.EpisodeMatchRegexSpotifyId,
-            _fixture.DefaultSpotifyUrl(DomainTestFixture.Incidents.EpisodeMatchRegexSpotifyId)));
+        stored.ShouldMatchExpectation(expected.WithSpotify(spotifyInput.SpotifyId, spotifyInput.SpotifyUrl));
     }
 
     private Episode CreateEpisode(string title, TimeSpan length, DateTime? release = null) =>

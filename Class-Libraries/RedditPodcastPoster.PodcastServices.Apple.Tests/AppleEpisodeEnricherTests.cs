@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
@@ -8,60 +9,63 @@ namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 
 public class AppleEpisodeEnricherTests
 {
-    private const long C2CDelayTicks = -27216000000000;
-    private const long ExpectedAppleEpisodeId = 1000775174947;
+    private readonly DomainTestFixture _fixture = new();
 
-    [Fact]
+    [Fact(DisplayName =
+        "When YouTube-first episode with negative publishing delay is merged with Spotify, " +
+        "enrichment applies Apple URL and preserves YouTube publish datetime.")]
     public async Task Enrich_WhenYouTubeFirstEpisodeMergedWithSpotify_AppliesAppleUrl()
     {
-        var podcast = new Podcast
-        {
-            Id = Guid.Parse("1aa72d3d-f1e4-458f-a172-62990ef6c200"),
-            Name = "Cults to Consciousness",
-            ReleaseAuthority = Service.YouTube,
-            YouTubePublicationOffset = C2CDelayTicks,
-            SpotifyId = "6oTbi9wKZ2czCvSwBKxxoH",
-            AppleId = 1635013492
-        };
-        var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
-        var episode = new Episode
-        {
-            Id = Guid.Parse("7dd136da-84ae-4c02-81be-9baa5f4c3362"),
-            Title = "I Confronted My Ab*ser 30 Years Later. Everything Changed",
-            Release = youTubeRelease,
-            Length = TimeSpan.Parse("01:28:37"),
-            YouTubeId = "UsqC0L9He2g",
-            SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4",
-            Urls = new ServiceUrls
-            {
-                YouTube = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g"),
-                Spotify = new Uri("https://open.spotify.com/episode/6O1Z1s7ca0PI8Gq1rdt3j4")
-            }
-        };
+        // Arrange
+        const int youTubeReleaseDaysAgo = 30;
+        const int spotifyDaysAfterYouTube = 28;
+        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        podcast.AppleId = _fixture.CreateAppleId();
+        var youTubeRelease = DomainTestFixture.UtcAtTime(
+            -youTubeReleaseDaysAgo,
+            _fixture.CreateNonMidnightTimeOfDay());
+        var storedLength = _fixture.CreateDuration();
+        var storedTitle = _fixture.Create<string>();
+        var appleTitle = DomainTestFixture.CreateFuzzyTitleVariant(storedTitle);
+        var spotifyId = _fixture.CreateSpotifyId();
+        var youTubeId = _fixture.CreateYouTubeId();
+        var appleEpisodeId = _fixture.CreateAppleId();
+        var appleCatalogueRelease = DomainTestFixture
+            .SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, spotifyDaysAfterYouTube)
+            .AddHours(8);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeAndSpotify(
+            podcast,
+            spotifyId,
+            youTubeId,
+            youTubeRelease,
+            storedLength,
+            storedTitle);
         var appleEpisode = new AppleEpisode(
-            ExpectedAppleEpisodeId,
-            "I Confronted My Abuser 30 Years Later… Everything Changed",
-            new DateTime(2026, 7, 2, 8, 0, 0, DateTimeKind.Utc),
-            TimeSpan.Parse("01:31:59"),
-            new Uri(
-                "https://podcasts.apple.com/us/podcast/i-confronted-my-abuser-30-years-later-everything-changed/id1635013492?i=1000775174947"),
+            appleEpisodeId,
+            appleTitle,
+            appleCatalogueRelease,
+            storedLength + TimeSpan.FromMinutes(3),
+            new Uri($"https://podcasts.apple.com/us/podcast/episode/id{podcast.AppleId}?i={appleEpisodeId}"),
             string.Empty,
             false);
 
         var sut = new AppleEpisodeEnricher(
             new StubApplePodcastEnricher(),
-            new CapturingAppleEpisodeResolver([appleEpisode]),
+            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId),
             NullLogger<AppleEpisodeEnricher>.Instance);
 
         var enrichmentContext = new EnrichmentContext();
+
+        // Act
         await sut.Enrich(
             new EnrichmentRequest(podcast, [episode], episode),
             new IndexingContext(),
             enrichmentContext);
 
-        episode.AppleId.Should().Be(ExpectedAppleEpisodeId);
+        // Assert
+        episode.AppleId.Should().Be(appleEpisodeId);
         episode.Urls.Apple.Should().NotBeNull();
-        episode.Urls.Apple!.ToString().Should().Contain(ExpectedAppleEpisodeId.ToString());
+        episode.Urls.Apple!.ToString().Should().Contain(appleEpisodeId.ToString());
         episode.Release.Should().Be(youTubeRelease);
         enrichmentContext.AppleUrlUpdated.Should().BeTrue();
     }
@@ -73,31 +77,33 @@ public class AppleEpisodeEnricherTests
         {
             Id = Guid.NewGuid(),
             Name = "Test Podcast",
-            AppleId = 1635013492
+            AppleId = _fixture.CreateAppleId()
         };
-        var dateOnlyRelease = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
-        var appleRelease = new DateTime(2026, 7, 2, 8, 0, 0, DateTimeKind.Utc);
+        var dateOnlyRelease = DomainTestFixture.UtcDateDaysAgo(2);
+        var appleRelease = dateOnlyRelease.AddHours(8);
+        var appleEpisodeId = _fixture.CreateAppleId();
+        var spotifyId = _fixture.CreateSpotifyId();
         var episode = new Episode
         {
             Id = Guid.NewGuid(),
-            Title = "Test episode",
+            Title = _fixture.Create<string>(),
             Release = dateOnlyRelease,
-            Length = TimeSpan.FromMinutes(45),
-            SpotifyId = "spotify-id",
-            Urls = new ServiceUrls { Spotify = new Uri("https://open.spotify.com/episode/spotify-id") }
+            Length = _fixture.CreateDuration(),
+            SpotifyId = spotifyId,
+            Urls = new ServiceUrls { Spotify = _fixture.DefaultSpotifyUrl(spotifyId) }
         };
         var appleEpisode = new AppleEpisode(
-            ExpectedAppleEpisodeId,
-            "Test episode",
+            appleEpisodeId,
+            episode.Title,
             appleRelease,
-            TimeSpan.FromMinutes(45),
-            new Uri($"https://podcasts.apple.com/us/podcast/test/id1635013492?i={ExpectedAppleEpisodeId}"),
+            episode.Length,
+            new Uri($"https://podcasts.apple.com/us/podcast/test/id{podcast.AppleId}?i={appleEpisodeId}"),
             string.Empty,
             false);
 
         var sut = new AppleEpisodeEnricher(
             new StubApplePodcastEnricher(),
-            new CapturingAppleEpisodeResolver([appleEpisode]),
+            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId),
             NullLogger<AppleEpisodeEnricher>.Instance);
 
         var enrichmentContext = new EnrichmentContext();
@@ -117,31 +123,33 @@ public class AppleEpisodeEnricherTests
         {
             Id = Guid.NewGuid(),
             Name = "Test Podcast",
-            AppleId = 1635013492
+            AppleId = _fixture.CreateAppleId()
         };
-        var dateOnlyRelease = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
-        var appleRelease = new DateTime(2026, 7, 2, 8, 0, 0, DateTimeKind.Utc);
+        var dateOnlyRelease = DomainTestFixture.UtcDateDaysAgo(3);
+        var appleRelease = DomainTestFixture.UtcDateDaysAgo(2).AddHours(8);
+        var appleEpisodeId = _fixture.CreateAppleId();
+        var spotifyId = _fixture.CreateSpotifyId();
         var episode = new Episode
         {
             Id = Guid.NewGuid(),
-            Title = "Test episode",
+            Title = _fixture.Create<string>(),
             Release = dateOnlyRelease,
-            Length = TimeSpan.FromMinutes(45),
-            SpotifyId = "spotify-id",
-            Urls = new ServiceUrls { Spotify = new Uri("https://open.spotify.com/episode/spotify-id") }
+            Length = _fixture.CreateDuration(),
+            SpotifyId = spotifyId,
+            Urls = new ServiceUrls { Spotify = _fixture.DefaultSpotifyUrl(spotifyId) }
         };
         var appleEpisode = new AppleEpisode(
-            ExpectedAppleEpisodeId,
-            "Test episode",
+            appleEpisodeId,
+            episode.Title,
             appleRelease,
-            TimeSpan.FromMinutes(45),
-            new Uri($"https://podcasts.apple.com/us/podcast/test/id1635013492?i={ExpectedAppleEpisodeId}"),
+            episode.Length,
+            new Uri($"https://podcasts.apple.com/us/podcast/test/id{podcast.AppleId}?i={appleEpisodeId}"),
             string.Empty,
             false);
 
         var sut = new AppleEpisodeEnricher(
             new StubApplePodcastEnricher(),
-            new CapturingAppleEpisodeResolver([appleEpisode]),
+            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId),
             NullLogger<AppleEpisodeEnricher>.Instance);
 
         var enrichmentContext = new EnrichmentContext();
@@ -159,7 +167,9 @@ public class AppleEpisodeEnricherTests
         public Task AddId(Podcast podcast) => Task.CompletedTask;
     }
 
-    private sealed class CapturingAppleEpisodeResolver(IEnumerable<AppleEpisode> episodes) : IAppleEpisodeResolver
+    private sealed class CapturingAppleEpisodeResolver(
+        IEnumerable<AppleEpisode> episodes,
+        long expectedAppleEpisodeId) : IAppleEpisodeResolver
     {
         public Task<AppleEpisode?> FindEpisode(
             FindAppleEpisodeRequest request,
@@ -173,7 +183,7 @@ public class AppleEpisodeEnricherTests
             }
 
             return Task.FromResult(
-                matches.FirstOrDefault(x => x.Id == ExpectedAppleEpisodeId) ?? matches.FirstOrDefault());
+                matches.FirstOrDefault(x => x.Id == expectedAppleEpisodeId) ?? matches.FirstOrDefault());
         }
     }
 }

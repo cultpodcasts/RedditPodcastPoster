@@ -21,19 +21,10 @@ public class CrossPlatformMatchingRules
     public void YouTube_first_Spotify_catalogue_matches_YouTube_only_stored_episode()
     {
         // Arrange
-        var podcast = _fixture.CreateCultsToConsciousnessPodcast();
-        var stored = _fixture.CreateC2CYouTubeOnlyStoredEpisode(
-            podcast,
-            release: DomainTestFixture.Incidents.C2CAbuserYouTubeRelease,
-            length: DomainTestFixture.Incidents.C2CAbuserYouTubeLength);
+        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var (stored, discovered, spotifyId) = _fixture.CreateCrossPlatformYouTubeFirstPair(podcast);
         var expected = EpisodeExpectation.From(stored)
-            .WithSpotify(
-                DomainTestFixture.Incidents.C2CAbuserSpotifyId,
-                _fixture.DefaultSpotifyUrl(DomainTestFixture.Incidents.C2CAbuserSpotifyId));
-
-        var discovered = _fixture.CreateC2CSpotifyIncoming(
-            release: DomainTestFixture.Incidents.C2CAbuserSpotifyRelease,
-            length: DomainTestFixture.Incidents.C2CAbuserSpotifyLength);
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -42,7 +33,7 @@ public class CrossPlatformMatchingRules
         result.AddedEpisodes.Should().BeEmpty();
         result.FailedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().ContainSingle();
-        result.MergedEpisodes.Single().Existing.Id.Should().Be(DomainTestFixture.Incidents.C2CAbuserEpisodeId);
+        result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);
         stored.ShouldMatchExpectation(expected);
     }
 
@@ -52,10 +43,9 @@ public class CrossPlatformMatchingRules
     public void Negative_delay_does_not_merge_on_release_and_duration_when_titles_differ()
     {
         // Arrange
-        var podcast = _fixture.CreateCultsToConsciousnessPodcast();
-        var stored = _fixture.CreateC2CNegativeDelayStoredEpisode(podcast);
+        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var (stored, discovered) = _fixture.CreateNegativeDelayNonMatchingPair(podcast);
         var expected = EpisodeExpectation.From(stored);
-        var discovered = _fixture.CreateC2CNegativeDelaySpotifyIncoming();
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -77,11 +67,16 @@ public class CrossPlatformMatchingRules
         var podcast = _fixture.CreatePodcast();
         var sharedRelease = DomainTestFixture.UtcDaysAgo(32);
         var sharedLength = _fixture.CreateDuration();
+        var sharedTitle = _fixture.Create<string>();
         var (youTubeOnly, appleOnly) = _fixture.CreateAmbiguousMatchStoredEpisodes(
             podcast,
             sharedRelease,
-            sharedLength);
-        var discovered = _fixture.CreateAmbiguousMatchSpotifyIncoming(sharedRelease, sharedLength);
+            sharedLength,
+            sharedTitle);
+        var discovered = _fixture.CreateAmbiguousMatchSpotifyIncoming(
+            sharedRelease,
+            sharedLength,
+            sharedTitle);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [youTubeOnly, appleOnly], [discovered]);
@@ -112,15 +107,15 @@ public class CrossPlatformMatchingRules
             podcast,
             audioRelease: audioRelease,
             length: length);
-        var expected = EpisodeExpectation.From(stored)
-            .WithYouTube(
-                DomainTestFixture.Incidents.PositiveDelayIncomingYouTubeId,
-                _fixture.DefaultYouTubeUrl(DomainTestFixture.Incidents.PositiveDelayIncomingYouTubeId));
-
-        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
-            .WithYouTubeId(DomainTestFixture.Incidents.PositiveDelayIncomingYouTubeId)
-            .WithTitle(_fixture.Create<string>())
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
             .WithRelease(audioRelease.Add(publishingDelay))
+            .WithDuration(length));
+        var expected = EpisodeExpectation.From(stored)
+            .WithYouTube(youTubeInput.YouTubeId, youTubeInput.YouTubeUrl);
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithYouTubeId(youTubeInput.YouTubeId)
+            .WithTitle(_fixture.Create<string>())
+            .WithRelease(youTubeInput.Release)
             .WithDuration(length));
 
         // Act

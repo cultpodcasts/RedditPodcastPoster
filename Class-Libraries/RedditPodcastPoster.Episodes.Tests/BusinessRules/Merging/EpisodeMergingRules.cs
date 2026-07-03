@@ -350,10 +350,11 @@ public class EpisodeMergingRules
     public void Spotify_reindex_preserves_stored_catalogue_release()
     {
         // Arrange
-        var catalogueRelease = DomainTestFixture.Incidents.OtoIncomingSpotifyRelease;
-        var publicRelease = catalogueRelease.AddDays(4).AddHours(12);
+        const int publicAvailabilityDaysAfterCatalogue = 4;
+        var catalogueRelease = DomainTestFixture.UtcDateDaysAgo(10);
+        var publicRelease = catalogueRelease.AddDays(publicAvailabilityDaysAfterCatalogue).AddHours(12);
         var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b.WithRelease(catalogueRelease));
-        var podcast = _fixture.CreatePodcast(p => p.Id = Guid.Parse("4672c845-15b4-4f88-bbff-567d521fe4a2"));
+        var podcast = _fixture.CreatePodcast();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
             .WithTitle(_fixture.Create<string>())

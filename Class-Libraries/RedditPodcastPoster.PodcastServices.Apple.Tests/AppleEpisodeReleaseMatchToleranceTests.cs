@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
@@ -6,6 +7,7 @@ namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 
 public class EpisodeReleaseMatchToleranceTests
 {
+    private readonly DomainTestFixture _fixture = new();
     [Fact]
     public void GetToleranceTicks_WhenYouTubeIsReleaseAuthorityWithPositiveDelay_UsesTwiceDelayNotFourteenDays()
     {
@@ -238,29 +240,32 @@ public class EpisodeReleaseMatchToleranceTests
     }
 
     [Theory]
-    [InlineData("2026-07-02T00:00:00Z")]
-    [InlineData("2026-07-06T01:08:06Z")]
-    public void SpotifyCatalogueReleaseMatches_WhenYouTubeFirstC2CAbuserEpisodeAlignsWithinFiveDays_ReturnsTrue(
-        string appleCatalogueReleaseText)
+    [InlineData(0)]
+    [InlineData(4)]
+    public void SpotifyCatalogueReleaseMatches_WhenYouTubeFirstEpisodeAlignsWithinTolerance_ReturnsTrue(
+        int appleCatalogueDaysAfterSpotifyDate)
     {
-        var podcast = new Podcast
-        {
-            ReleaseAuthority = Service.YouTube,
-            YouTubePublicationOffset = -27216000000000
-        };
-        var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
+        // Arrange
+        const int youTubeReleaseDaysAgo = 30;
+        const int spotifyDaysAfterYouTube = 28;
+        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var youTubeRelease = DomainTestFixture.UtcAtTime(
+            -youTubeReleaseDaysAgo,
+            _fixture.CreateNonMidnightTimeOfDay());
         var expectedAudioRelease = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(
             podcast,
             youTubeRelease,
             episodeHasYouTubeIdentity: true);
-        var appleCatalogueRelease = DateTime.Parse(
-            appleCatalogueReleaseText,
-            null,
-            System.Globalization.DateTimeStyles.RoundtripKind);
+        var spotifyCatalogueDate = DomainTestFixture.SpotifyCatalogueReleaseDaysAfterYouTube(
+            youTubeRelease,
+            spotifyDaysAfterYouTube);
+        var appleCatalogueRelease = spotifyCatalogueDate.AddDays(appleCatalogueDaysAfterSpotifyDate)
+            .AddHours(8);
         var tolerance = EpisodeReleaseMatchTolerance.GetToleranceTicks(
             podcast,
-            TimeSpan.Parse("01:28:37"));
+            _fixture.CreateDuration());
 
+        // Act & Assert
         EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
                 appleCatalogueRelease,
                 expectedAudioRelease,

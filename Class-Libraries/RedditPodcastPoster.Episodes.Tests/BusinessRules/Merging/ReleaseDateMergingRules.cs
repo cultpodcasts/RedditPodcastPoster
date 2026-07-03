@@ -60,11 +60,10 @@ public class ReleaseDateMergingRules
         var dateOnlyRelease = DomainTestFixture.UtcDateDaysAgo(2);
         var stored = _fixture.CreateMidnightUtcStoredEpisode(podcast, dateOnlyRelease);
         var expected = EpisodeExpectation.From(stored);
-
-        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
-            DomainTestFixture.Incidents.C2CAbuserSpotifyId,
-            spotifyUrl: _fixture.DefaultSpotifyUrl(DomainTestFixture.Incidents.C2CAbuserSpotifyId),
-            release: dateOnlyRelease);
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithSpotifyId(stored.SpotifyId)
+            .WithSpotifyUrl(stored.Urls.Spotify!)
+            .WithRelease(dateOnlyRelease));
         // Episode model may retain API time before normalization; merge must still treat Spotify as date-only.
         discovered.Release = dateOnlyRelease.AddHours(8);
 
@@ -82,16 +81,16 @@ public class ReleaseDateMergingRules
     public void YouTube_authority_preserves_YouTube_release_on_Spotify_reindex()
     {
         // Arrange
-        var podcast = _fixture.CreateCultsToConsciousnessPodcast();
-        var stored = _fixture.CreateC2CYouTubeAuthorityStoredEpisode(
+        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var (storedTemplate, discovered, spotifyId) = _fixture.CreateCrossPlatformYouTubeFirstPair(podcast);
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeAndSpotify(
             podcast,
-            release: DomainTestFixture.Incidents.C2CAbuserYouTubeRelease,
-            length: DomainTestFixture.Incidents.C2CAbuserYouTubeLength);
+            spotifyId,
+            storedTemplate.YouTubeId,
+            storedTemplate.Release,
+            storedTemplate.Length,
+            storedTemplate.Title);
         var expected = EpisodeExpectation.From(stored);
-
-        var discovered = _fixture.CreateC2CSpotifyIncoming(
-            release: DomainTestFixture.Incidents.C2CAbuserSpotifyRelease,
-            length: DomainTestFixture.Incidents.C2CAbuserSpotifyLength);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);

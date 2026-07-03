@@ -179,12 +179,13 @@ public class PlatformIdentityMatchingRules
     public void Incoming_Spotify_ID_owned_by_another_row_does_not_merge_onto_wrong_candidate()
     {
         // Arrange
-        var podcast = _fixture.CreateCultsToConsciousnessPodcast();
-        var correctOwner = _fixture.CreateOtoCorrectOwnerEpisode(podcast);
-        var wrongYouTubeOnly = _fixture.CreateOtoWrongYouTubeOnlyEpisode(podcast);
+        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var spotifyId = _fixture.CreateSpotifyId();
+        var correctOwner = _fixture.CreateStoredEpisodeWithYouTubeAndSpotify(podcast, spotifyId);
+        var wrongYouTubeOnly = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
         var expectedOwner = EpisodeExpectation.From(correctOwner);
         var expectedWrongRow = EpisodeExpectation.From(wrongYouTubeOnly);
-        var discovered = _fixture.CreateOtoSpotifyIncoming();
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b.WithSpotifyId(spotifyId));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [correctOwner, wrongYouTubeOnly], [discovered]);

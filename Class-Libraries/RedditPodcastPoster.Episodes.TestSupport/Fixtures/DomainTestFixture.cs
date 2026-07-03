@@ -7,11 +7,11 @@ namespace RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 
 /// <summary>
 /// Shared AutoFixture wrapper for episode-domain business-rule tests.
-/// Owns specimen customizations, incident constants, and factory helpers.
+/// Owns specimen customizations and scenario-shaped factory helpers.
 /// <para>
 /// <b>Specimen contract</b> — default catalogue/resolved-item builders produce platform-realistic
 /// IDs, URLs, and releases. Tests trust these defaults unless a rule asserts an exact release or a
-/// relationship between two releases (same-calendar-date backfill, C2C offset, delayed publishing).
+/// relationship between two releases (same-calendar-date backfill, cross-platform offset, delayed publishing).
 /// </para>
 /// <list type="table">
 /// <listheader><term>Entity</term><description>Release / ID / URL</description></listheader>
@@ -57,175 +57,36 @@ public sealed class DomainTestFixture
   public static DateTime SameCalendarDateWithTime(DateTime dateOnlyRelease, TimeSpan timeOfDay) =>
     dateOnlyRelease.Date.Add(timeOfDay);
 
+  /// <summary>Default negative publishing delay for YouTube-first podcasts (~33½ days).</summary>
+  public static long DefaultNegativeYouTubePublishingDelayTicks =>
+    TimeSpan.FromDays(-33).Add(TimeSpan.FromHours(-12)).Ticks;
+
+  /// <summary>Spotify catalogue release N calendar days after a YouTube publish date.</summary>
+  public static DateTime SpotifyCatalogueReleaseDaysAfterYouTube(
+    DateTime youTubeRelease,
+    int calendarDaysAfter) =>
+    youTubeRelease.Date.AddDays(calendarDaysAfter);
+
+  /// <summary>Catalogue title variant that fuzzy-matches the stored title.</summary>
+  public static string CreateFuzzyTitleVariant(string title) =>
+    title.Length >= 3 ? title[..^1] + "…" : title + "…";
+
+  /// <summary>Single-character typo variant for fuzzy title matching probes.</summary>
+  public static string CreateTypoTitleVariant(string title)
+  {
+    if (title.Length < 4)
+      return title + "x";
+    var i = title.Length / 2;
+    var replacement = title[i] == 'a' ? 'e' : 'a';
+    return title[..i] + replacement + title[(i + 1)..];
+  }
+
   private readonly Fixture _fixture;
 
   public DomainTestFixture()
   {
     _fixture = new Fixture();
     CustomizeFixture();
-  }
-
-  /// <summary>Production-incident and regression GUIDs used by business-rule tests.</summary>
-  public static class Incidents
-  {
-    public static readonly Guid CultsToConsciousnessPodcastId =
-      Guid.Parse("1aa72d3d-f1e4-458f-a172-62990ef6c200");
-
-    public const string CultsToConsciousnessChannelId = "c2c-channel";
-
-    public const string CultsToConsciousnessSpotifyShowId = "6oTbi9wKZ2czCvSwBKxxoH";
-
-    public static readonly long CultsToConsciousnessYouTubePublicationOffsetTicks =
-      TimeSpan.FromDays(-33).Add(TimeSpan.FromHours(-12)).Ticks;
-
-    public static readonly Guid DefaultPodcastId =
-      Guid.Parse("4672c845-15b4-4f88-bbff-567d521fe4a2");
-
-    public static readonly Guid C2CAbuserEpisodeId =
-      Guid.Parse("7dd136da-84ae-4c02-81be-9baa5f4c3362");
-
-    public static readonly Guid C2CNegativeDelayEpisodeId =
-      Guid.Parse("53ba0c64-58a7-4292-b7fe-ba135d4d3160");
-
-    public static readonly Guid C2COtoOwnerEpisodeId =
-      Guid.Parse("1c804814-12ac-40c8-a223-88ab7c703d38");
-
-    public static readonly Guid PostmormonExistingEpisodeId =
-      Guid.Parse("086b02d5-9ec7-432e-8e57-9279d32374da");
-
-    public static readonly Guid AmbiguousYouTubeOnlyEpisodeId =
-      Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-
-    public static readonly Guid AmbiguousAppleOnlyEpisodeId =
-      Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
-
-    public static readonly Guid EpisodeMatchRegexStoredEpisodeId =
-      Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
-
-    public static readonly Guid PositiveDelayAudioEpisodeId =
-      Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
-
-    public const string C2CAbuserYouTubeId = "UsqC0L9He2g";
-
-    public const string C2CAbuserTitle =
-      "I Confronted My Ab*ser 30 Years Later. Everything Changed";
-
-    public const string C2CAbuserSpotifyIncomingTitle =
-      "I Confronted My Abuser 30 Years Later… Everything Changed";
-
-    public const string C2CAbuserSpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4";
-
-    /// <summary>Days before today for the C2C abuser YouTube publish (production: 2026-06-04).</summary>
-    public const int C2CAbuserYouTubeReleaseDaysAgo = 30;
-
-    public static readonly TimeSpan C2CAbuserYouTubeReleaseTimeOfDay =
-      new(13, 8, 6);
-
-    /// <summary>Spotify catalogue lands this many calendar days after the YouTube publish day.</summary>
-    public const int C2CAbuserSpotifyCatalogueDaysAfterYouTube = 28;
-
-    public static DateTime C2CAbuserYouTubeRelease =>
-      UtcAtTime(-C2CAbuserYouTubeReleaseDaysAgo, C2CAbuserYouTubeReleaseTimeOfDay);
-
-    public static readonly TimeSpan C2CAbuserYouTubeLength = TimeSpan.Parse("01:28:37");
-
-    public static readonly TimeSpan C2CAbuserSpotifyLength = TimeSpan.Parse("01:31:59.6990000");
-
-    public static DateTime C2CAbuserSpotifyRelease =>
-      UtcDateDaysAgo(C2CAbuserYouTubeReleaseDaysAgo - C2CAbuserSpotifyCatalogueDaysAfterYouTube);
-
-    public const string C2CNegativeDelayTitle =
-      "Why He Thinks Daughters Should Parent Their Siblings  (ft. Tia Levings)";
-
-    public const string C2CNegativeDelayYouTubeId = "u6ZF-2sWQQc";
-
-    public const int C2CNegativeDelayStoredDaysAgo = 34;
-
-    public static readonly TimeSpan C2CNegativeDelayReleaseTimeOfDay = new(21, 15, 27);
-
-    public const int C2CNegativeDelayIncomingDaysAfterStored = 28;
-
-    public static DateTime C2CNegativeDelayRelease =>
-      UtcAtTime(-C2CNegativeDelayStoredDaysAgo, C2CNegativeDelayReleaseTimeOfDay);
-
-    public static readonly TimeSpan C2CNegativeDelayLength =
-      TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(35);
-
-    public const string C2CNegativeDelayIncomingSpotifyId = "1BTQKaev5KLjScdwHII14B";
-
-    public const string C2CNegativeDelayIncomingTitle =
-      "Becoming a Fundamentalist Trad Wife Almost Killed Me";
-
-    public static DateTime C2CNegativeDelayIncomingRelease =>
-      UtcDateDaysAgo(C2CNegativeDelayStoredDaysAgo - C2CNegativeDelayIncomingDaysAfterStored);
-
-    public static readonly TimeSpan C2CNegativeDelayIncomingLength =
-      TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(30);
-
-    public const string OtoSpotifyId = "16LveQifI6eBwDXAINpd7G";
-
-    public const string OtoTitle =
-      "What Really Happens During \"Ordo Templi Orientis\" Initiations?  (Trapped in a Secret Society)";
-
-    public const string OtoYouTubeId = "l3aIdJeg0vE";
-
-    public const int OtoReleaseDaysAgo = 45;
-
-    public static readonly TimeSpan OtoReleaseTimeOfDay = new(22, 15, 16);
-
-    public const int OtoIncomingSpotifyDaysAfterRelease = 35;
-
-    public static DateTime OtoRelease =>
-      UtcAtTime(-OtoReleaseDaysAgo, OtoReleaseTimeOfDay);
-
-    public static readonly TimeSpan OtoLength =
-      TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(42);
-
-    public static DateTime OtoIncomingSpotifyRelease =>
-      UtcDateDaysAgo(OtoReleaseDaysAgo - OtoIncomingSpotifyDaysAfterRelease);
-
-    public const string PostmormonPodcastName = "Postmormon Postmortem";
-
-    public const string PostmormonStoredTitle =
-      "The Bear River Massacre and the Mormon History Behind Washakie Ward";
-
-    public const string PostmormonIncomingYouTubeTitle =
-      "The Bear River Masscare and the Mormon History Behind the Washakie Ward";
-
-    public const string PostmormonSpotifyId = "1UncRhHtmojlTq2mO0Gntz";
-
-    public const string PostmormonYouTubeId = "l_iHjZWIsXw";
-
-    public const int PostmormonReleaseDaysAgo = 2;
-
-    public static readonly TimeSpan PostmormonReleaseTimeOfDay = TimeSpan.FromHours(12);
-
-    public static DateTime PostmormonRelease =>
-      UtcAtTime(-PostmormonReleaseDaysAgo, PostmormonReleaseTimeOfDay);
-
-    public static readonly TimeSpan PostmormonStoredLength = TimeSpan.FromSeconds(878.503);
-
-    public static readonly TimeSpan PostmormonIncomingLength =
-      TimeSpan.FromMinutes(14) + TimeSpan.FromSeconds(39);
-
-    public const string AmbiguousSharedTitle = "Shared episode title";
-
-    public const string AmbiguousIncomingSpotifyId = "7kN8mP2qR5sT1uV3wX4yZ6";
-
-    public const long AmbiguousAppleId = 1234567890123L;
-
-    public const string PositiveDelayAudioTitle = "Episode A";
-
-    public const string PositiveDelayIncomingYouTubeId = "dQw4w9WgXcQ";
-
-    public const string PositiveDelayAudioSpotifyId = "5nT8vW2xY4zA6bC8dE0fG2";
-
-    public const string EpisodeMatchRegexStoredTitle = "#42 Stored episode about the first topic";
-
-    public const string EpisodeMatchRegexDiscoveredTitle =
-      "#42 Catalogue title with completely different wording";
-
-    public const string EpisodeMatchRegexSpotifyId = "16LveQifI6eBwDXAINpd7G";
   }
 
   /// <summary>Production-like Spotify episode ID for generic tests (22-char base62).</summary>
@@ -374,7 +235,8 @@ public sealed class DomainTestFixture
     Guid? id = null) =>
     CreatePodcast(p =>
     {
-      p.Id = id ?? Incidents.CultsToConsciousnessPodcastId;
+      if (id.HasValue)
+        p.Id = id.Value;
       p.Name = "YouTube-first podcast";
       p.ReleaseAuthority = Service.YouTube;
       p.YouTubeChannelId = channelId;
@@ -382,19 +244,20 @@ public sealed class DomainTestFixture
       p.SpotifyId = spotifyShowId ?? string.Empty;
     });
 
-  public Podcast CreateCultsToConsciousnessPodcast() =>
+  public Podcast CreateYouTubeFirstPodcastWithNegativeDelay(
+    long? youTubePublicationOffsetTicks = null,
+    string? spotifyShowId = null) =>
     CreateYouTubeFirstPodcast(
-      Incidents.CultsToConsciousnessChannelId,
-      Incidents.CultsToConsciousnessYouTubePublicationOffsetTicks,
-      Incidents.CultsToConsciousnessSpotifyShowId,
-      Incidents.CultsToConsciousnessPodcastId);
+      CreateYouTubeChannelId(),
+      youTubePublicationOffsetTicks ?? DefaultNegativeYouTubePublishingDelayTicks,
+      spotifyShowId ?? CreateSpotifyId());
 
   public Episode CreateEpisode(Action<Episode>? customize = null)
   {
     var episode = new Episode
     {
       Id = Guid.NewGuid(),
-      PodcastId = Incidents.DefaultPodcastId,
+      PodcastId = Guid.NewGuid(),
       Title = _fixture.Create<string>(),
       Description = _fixture.Create<string>(),
       Release = UtcDaysAgo(_fixture.Create<int>() % 365 + 1),
@@ -416,157 +279,184 @@ public sealed class DomainTestFixture
       customize?.Invoke(e);
     });
 
-  public Episode CreateC2CYouTubeOnlyStoredEpisode(
+  /// <summary>Stored episode with YouTube identity only (no Spotify/Apple).</summary>
+  public Episode CreateStoredEpisodeWithYouTubeOnly(
     Podcast podcast,
     DateTime? release = null,
-    TimeSpan? length = null) =>
-    CreateStoredEpisode(podcast, e =>
+    TimeSpan? length = null,
+    string? title = null)
+  {
+    var youTubeId = CreateYouTubeId();
+    return CreateStoredEpisode(podcast, e =>
     {
-      e.Id = Incidents.C2CAbuserEpisodeId;
-      e.Title = Incidents.C2CAbuserTitle;
-      e.Release = release ?? Incidents.C2CAbuserYouTubeRelease;
-      e.Length = length ?? Incidents.C2CAbuserYouTubeLength;
-      e.YouTubeId = Incidents.C2CAbuserYouTubeId;
-      e.Urls.YouTube = DefaultYouTubeUrl(Incidents.C2CAbuserYouTubeId);
+      if (title is not null)
+        e.Title = title;
+      e.Release = release ?? UtcAtTime(-30, CreateNonMidnightTimeOfDay());
+      e.Length = length ?? CreateDuration();
+      e.YouTubeId = youTubeId;
+      e.Urls.YouTube = DefaultYouTubeUrl(youTubeId);
     });
+  }
 
-  public Episode CreateC2CYouTubeAuthorityStoredEpisode(
+  /// <summary>Stored episode with Spotify identity only (no YouTube/Apple).</summary>
+  public Episode CreateStoredEpisodeWithSpotifyOnly(
     Podcast podcast,
     DateTime? release = null,
-    TimeSpan? length = null) =>
-    CreateStoredEpisode(podcast, e =>
+    TimeSpan? length = null,
+    string? title = null)
+  {
+    var spotifyId = CreateSpotifyId();
+    return CreateStoredEpisode(podcast, e =>
     {
-      e.Id = Incidents.C2CAbuserEpisodeId;
-      e.Title = Incidents.C2CAbuserTitle;
-      e.Release = release ?? Incidents.C2CAbuserYouTubeRelease;
-      e.Length = length ?? Incidents.C2CAbuserYouTubeLength;
-      e.YouTubeId = Incidents.C2CAbuserYouTubeId;
-      e.SpotifyId = Incidents.C2CAbuserSpotifyId;
-      e.Urls.YouTube = DefaultYouTubeUrl(Incidents.C2CAbuserYouTubeId);
-      e.Urls.Spotify = DefaultSpotifyUrl(Incidents.C2CAbuserSpotifyId);
+      if (title is not null)
+        e.Title = title;
+      e.Release = release ?? UtcAtTime(-2, CreateNonMidnightTimeOfDay());
+      e.Length = length ?? CreateDuration();
+      e.SpotifyId = spotifyId;
+      e.Urls.Spotify = DefaultSpotifyUrl(spotifyId);
     });
+  }
 
-  public Episode CreateC2CSpotifyIncoming(
-    DateTime? release = null,
-    TimeSpan? length = null) =>
-    CreateSpotifyCatalogueEpisode(
-      Incidents.C2CAbuserSpotifyId,
-      Incidents.C2CAbuserSpotifyIncomingTitle,
-      DefaultSpotifyUrl(Incidents.C2CAbuserSpotifyId),
-      release ?? Incidents.C2CAbuserSpotifyRelease,
-      length ?? Incidents.C2CAbuserSpotifyLength);
-
-  public Episode CreateC2CNegativeDelayStoredEpisode(Podcast podcast) =>
-    CreateStoredEpisode(podcast, e =>
-    {
-      e.Id = Incidents.C2CNegativeDelayEpisodeId;
-      e.Title = Incidents.C2CNegativeDelayTitle;
-      e.Release = Incidents.C2CNegativeDelayRelease;
-      e.Length = Incidents.C2CNegativeDelayLength;
-      e.YouTubeId = Incidents.C2CNegativeDelayYouTubeId;
-      e.Urls.YouTube = DefaultYouTubeUrl(Incidents.C2CNegativeDelayYouTubeId);
-    });
-
-  public Episode CreateC2CNegativeDelaySpotifyIncoming() =>
-    CreateSpotifyCatalogueEpisode(
-      Incidents.C2CNegativeDelayIncomingSpotifyId,
-      Incidents.C2CNegativeDelayIncomingTitle,
-      DefaultSpotifyUrl(Incidents.C2CNegativeDelayIncomingSpotifyId),
-      Incidents.C2CNegativeDelayIncomingRelease,
-      Incidents.C2CNegativeDelayIncomingLength);
-
-  public Episode CreateOtoCorrectOwnerEpisode(Podcast podcast) =>
-    CreateStoredEpisode(podcast, e =>
-    {
-      e.Id = Incidents.C2COtoOwnerEpisodeId;
-      e.Title = Incidents.OtoTitle;
-      e.Release = Incidents.OtoRelease;
-      e.Length = Incidents.OtoLength;
-      e.SpotifyId = Incidents.OtoSpotifyId;
-      e.YouTubeId = Incidents.OtoYouTubeId;
-      e.Urls.Spotify = DefaultSpotifyUrl(Incidents.OtoSpotifyId);
-      e.Urls.YouTube = DefaultYouTubeUrl(Incidents.OtoYouTubeId);
-    });
-
-  public Episode CreateOtoWrongYouTubeOnlyEpisode(Podcast podcast) =>
-    CreateStoredEpisode(podcast, e =>
-    {
-      e.Id = Incidents.C2CNegativeDelayEpisodeId;
-      e.Title = Incidents.C2CNegativeDelayTitle;
-      e.Release = Incidents.C2CNegativeDelayRelease;
-      e.Length = Incidents.C2CNegativeDelayLength;
-      e.YouTubeId = Incidents.C2CNegativeDelayYouTubeId;
-      e.Urls.YouTube = DefaultYouTubeUrl(Incidents.C2CNegativeDelayYouTubeId);
-    });
-
-  public Episode CreateOtoSpotifyIncoming() =>
-    CreateSpotifyCatalogueEpisode(
-      Incidents.OtoSpotifyId,
-      spotifyUrl: DefaultSpotifyUrl(Incidents.OtoSpotifyId),
-      release: Incidents.OtoIncomingSpotifyRelease,
-      length: Incidents.OtoLength);
-
-  public Podcast CreatePostmormonPodcast() =>
-    CreatePodcast(p => p.Name = Incidents.PostmormonPodcastName);
-
-  public Episode CreatePostmormonStoredEpisode(
+  /// <summary>Stored episode with both YouTube and Spotify identities.</summary>
+  public Episode CreateStoredEpisodeWithYouTubeAndSpotify(
     Podcast podcast,
+    string? spotifyId = null,
+    string? youTubeId = null,
     DateTime? release = null,
-    TimeSpan? length = null) =>
-    CreateStoredEpisode(podcast, e =>
+    TimeSpan? length = null,
+    string? title = null)
+  {
+    var sid = spotifyId ?? CreateSpotifyId();
+    var yid = youTubeId ?? CreateYouTubeId();
+    return CreateStoredEpisode(podcast, e =>
     {
-      e.Id = Incidents.PostmormonExistingEpisodeId;
-      e.Title = Incidents.PostmormonStoredTitle;
-      e.Release = release ?? Incidents.PostmormonRelease;
-      e.Length = length ?? Incidents.PostmormonStoredLength;
-      e.SpotifyId = Incidents.PostmormonSpotifyId;
-      e.Urls.Spotify = DefaultSpotifyUrl(Incidents.PostmormonSpotifyId);
+      if (title is not null)
+        e.Title = title;
+      e.Release = release ?? UtcAtTime(-30, CreateNonMidnightTimeOfDay());
+      e.Length = length ?? CreateDuration();
+      e.YouTubeId = yid;
+      e.SpotifyId = sid;
+      e.Urls.YouTube = DefaultYouTubeUrl(yid);
+      e.Urls.Spotify = DefaultSpotifyUrl(sid);
     });
+  }
 
-  public Episode CreatePostmormonYouTubeIncoming(
-    DateTime? release = null,
-    TimeSpan? length = null) =>
-    CreateYouTubeCatalogueEpisode(
-      Incidents.PostmormonYouTubeId,
-      Incidents.PostmormonIncomingYouTubeTitle,
-      release ?? Incidents.PostmormonRelease,
-      length ?? Incidents.PostmormonIncomingLength);
+  /// <summary>
+  /// YouTube-only stored row plus Spotify catalogue incoming shaped for YouTube-first cross-platform matching.
+  /// </summary>
+  public (Episode Stored, Episode Incoming, string SpotifyId) CreateCrossPlatformYouTubeFirstPair(
+    Podcast podcast,
+    int youTubeReleaseDaysAgo = 30,
+    int spotifyDaysAfterYouTube = 28,
+    bool fuzzyTitleVariant = true)
+  {
+    var youTubeRelease = UtcAtTime(-youTubeReleaseDaysAgo, CreateNonMidnightTimeOfDay());
+    var spotifyRelease = SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, spotifyDaysAfterYouTube);
+    var storedLength = CreateDuration();
+    var incomingLength = storedLength + TimeSpan.FromMinutes(3);
+    var storedTitle = Create<string>();
+    var incomingTitle = fuzzyTitleVariant ? CreateFuzzyTitleVariant(storedTitle) : storedTitle;
+
+    var stored = CreateStoredEpisodeWithYouTubeOnly(
+      podcast,
+      youTubeRelease,
+      storedLength,
+      storedTitle);
+    var spotifyInput = CreateSpotifyCatalogueInput(b => b
+      .WithTitle(incomingTitle)
+      .WithRelease(spotifyRelease)
+      .WithDuration(incomingLength));
+    var incoming = CreateSpotifyCatalogueEpisode(b => b
+      .WithSpotifyId(spotifyInput.SpotifyId)
+      .WithTitle(incomingTitle)
+      .WithSpotifyUrl(spotifyInput.SpotifyUrl)
+      .WithRelease(spotifyRelease)
+      .WithDuration(incomingLength));
+
+    return (stored, incoming, spotifyInput.SpotifyId);
+  }
+
+  /// <summary>
+  /// Stored YouTube row and Spotify incoming with aligned release/duration but clearly different titles —
+  /// negative-delay guard must not merge on release alone.
+  /// </summary>
+  public (Episode Stored, Episode Incoming) CreateNegativeDelayNonMatchingPair(Podcast podcast)
+  {
+    const int storedDaysAgo = 34;
+    const int incomingDaysAfterStored = 28;
+    var storedRelease = UtcAtTime(-storedDaysAgo, CreateNonMidnightTimeOfDay());
+    var incomingRelease = UtcDateDaysAgo(storedDaysAgo - incomingDaysAfterStored);
+    var storedLength = CreateDuration();
+    var incomingLength = storedLength - TimeSpan.FromSeconds(5);
+
+    var stored = CreateStoredEpisodeWithYouTubeOnly(
+      podcast,
+      storedRelease,
+      storedLength,
+      Create<string>());
+    var incoming = CreateSpotifyCatalogueEpisode(b => b
+      .WithTitle(Create<string>())
+      .WithRelease(incomingRelease)
+      .WithDuration(incomingLength));
+
+    return (stored, incoming);
+  }
+
+  public SpotifyCatalogueInput CreateSpotifyCatalogueInputDaysAfterYouTubeRelease(
+    DateTime youTubeRelease,
+    int calendarDaysAfter,
+    Action<SpotifyCatalogueInputBuilder>? configure = null)
+  {
+    var release = SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, calendarDaysAfter);
+    return CreateSpotifyCatalogueInput(b =>
+    {
+      b.WithRelease(release);
+      configure?.Invoke(b);
+    });
+  }
 
   public (Episode YouTubeOnly, Episode AppleOnly) CreateAmbiguousMatchStoredEpisodes(
     Podcast podcast,
     DateTime release,
-    TimeSpan length)
+    TimeSpan length,
+    string? sharedTitle = null)
   {
+    var title = sharedTitle ?? Create<string>();
+    var youTubeId = CreateYouTubeId();
+    var appleId = CreateAppleId();
     var youTubeOnly = CreateStoredEpisode(podcast, e =>
     {
-      e.Id = Incidents.AmbiguousYouTubeOnlyEpisodeId;
-      e.Title = Incidents.AmbiguousSharedTitle;
+      e.Title = title;
       e.Release = release;
       e.Length = length;
-      e.YouTubeId = Incidents.C2CAbuserYouTubeId;
-      e.Urls.YouTube = DefaultYouTubeUrl(Incidents.C2CAbuserYouTubeId);
+      e.YouTubeId = youTubeId;
+      e.Urls.YouTube = DefaultYouTubeUrl(youTubeId);
     });
     var appleOnly = CreateStoredEpisode(podcast, e =>
     {
-      e.Id = Incidents.AmbiguousAppleOnlyEpisodeId;
-      e.Title = Incidents.AmbiguousSharedTitle;
+      e.Title = title;
       e.Release = release;
       e.Length = length;
-      e.AppleId = Incidents.AmbiguousAppleId;
-      e.Urls.Apple = DefaultAppleUrl(Incidents.AmbiguousAppleId);
+      e.AppleId = appleId;
+      e.Urls.Apple = DefaultAppleUrl(appleId);
     });
     return (youTubeOnly, appleOnly);
   }
 
   public Episode CreateAmbiguousMatchSpotifyIncoming(
     DateTime release,
-    TimeSpan length) =>
-    CreateSpotifyCatalogueEpisode(
-      Incidents.AmbiguousIncomingSpotifyId,
-      Incidents.AmbiguousSharedTitle,
-      DefaultSpotifyUrl(Incidents.AmbiguousIncomingSpotifyId),
+    TimeSpan length,
+    string? sharedTitle = null)
+  {
+    var title = sharedTitle ?? Create<string>();
+    var spotifyId = CreateSpotifyId();
+    return CreateSpotifyCatalogueEpisode(
+      spotifyId,
+      title,
+      DefaultSpotifyUrl(spotifyId),
       release,
       length);
+  }
 
   public Episode CreatePositiveDelayAudioStoredEpisode(
     Podcast podcast,
@@ -574,11 +464,11 @@ public sealed class DomainTestFixture
     TimeSpan? length = null) =>
     CreateStoredEpisode(podcast, e =>
     {
-      e.Id = Incidents.PositiveDelayAudioEpisodeId;
-      e.Title = Incidents.PositiveDelayAudioTitle;
       e.Release = audioRelease ?? UtcDaysAgo(_fixture.Create<int>() % 365 + 1);
-      e.Length = length ?? TimeSpan.FromMinutes(_fixture.Create<int>() % 120 + 1);
-      e.Urls.Spotify = DefaultSpotifyUrl(Incidents.PositiveDelayAudioSpotifyId);
+      e.Length = length ?? CreateDuration();
+      var spotifyId = CreateSpotifyId();
+      e.SpotifyId = spotifyId;
+      e.Urls.Spotify = DefaultSpotifyUrl(spotifyId);
     });
 
   public Episode CreateMidnightUtcSpotifyStoredEpisode(
@@ -597,8 +487,9 @@ public sealed class DomainTestFixture
     CreateStoredEpisode(podcast, e =>
     {
       e.Release = dateOnlyRelease;
-      e.SpotifyId = Incidents.C2CAbuserSpotifyId;
-      e.Urls.Spotify = DefaultSpotifyUrl(Incidents.C2CAbuserSpotifyId);
+      var spotifyId = CreateSpotifyId();
+      e.SpotifyId = spotifyId;
+      e.Urls.Spotify = DefaultSpotifyUrl(spotifyId);
       if (title is not null)
         e.Title = title;
       if (length is not null)
@@ -669,25 +560,6 @@ public sealed class DomainTestFixture
       input.Image);
   }
 
-  public Episode CreateEpisodeMatchRegexStoredEpisode(
-    Podcast podcast,
-    DateTime? release = null) =>
-    CreateStoredEpisode(podcast, e =>
-    {
-      e.Id = Incidents.EpisodeMatchRegexStoredEpisodeId;
-      e.Title = Incidents.EpisodeMatchRegexStoredTitle;
-      e.Release = release ?? UtcDaysAgo(_fixture.Create<int>() % 365 + 1);
-      e.Length = TimeSpan.FromMinutes(30);
-    });
-
-  public Episode CreateEpisodeMatchRegexDiscoveredEpisode(DateTime? release = null) =>
-    CreateSpotifyCatalogueEpisode(
-      Incidents.EpisodeMatchRegexSpotifyId,
-      Incidents.EpisodeMatchRegexDiscoveredTitle,
-      DefaultSpotifyUrl(Incidents.EpisodeMatchRegexSpotifyId),
-      release ?? UtcDaysAgo(_fixture.Create<int>() % 365 + 1),
-      TimeSpan.FromMinutes(_fixture.Create<int>() % 120 + 1));
-
   public EpisodeBuilder BuildEpisode() => new(this);
 
   public Episode CreateSubmittedViaSpotifyUrlOnly(
@@ -700,7 +572,7 @@ public sealed class DomainTestFixture
     {
       if (episodeId.HasValue)
         e.Id = episodeId.Value;
-      e.PodcastId = podcastId ?? Incidents.DefaultPodcastId;
+      e.PodcastId = podcastId ?? Guid.NewGuid();
       e.Title = title;
       e.Release = release ?? DateTime.UtcNow.Date;
       e.Urls.Spotify = spotifyUrl;

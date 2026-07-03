@@ -17,7 +17,7 @@ Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-re
 1. [Hard guardrails (MUST / NEVER / ONLY WHEN)](#1-hard-guardrails-must--never--only-when)
 2. [Specimen contract table](#2-specimen-contract-table)
 3. [Arrange checklist](#3-arrange-checklist)
-4. [When to use Incidents vs generic specimens](#4-when-to-use-incidents-vs-generic-specimens)
+4. [Scenario-shaped fixtures vs generic specimens](#4-scenario-shaped-fixtures-vs-generic-specimens)
 5. [Good / bad examples](#5-good--bad-examples)
 6. [Fixture API quick reference](#6-fixture-api-quick-reference)
 
@@ -65,8 +65,9 @@ Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-re
 | **MUST** | Use `UtcDateDaysAgo` / `.WithRelease()` (floors to `.Date`) for Spotify — Spotify catalogue has **no time-of-day** |
 | **MUST** | Use `UtcAtTime` for Apple and YouTube releases that carry publish time-of-day |
 | **MUST** | Assert platform IDs via specimen properties (`input.AppleId`, `spotifyInput.SpotifyId`) or `_fixture.CreateAppleId()` — not inline magic numbers/strings |
-| **NEVER** | Use fixed calendar literals (`new DateTime(2026, 6, 4, ...)`) except inside `DomainTestFixture.Incidents` presets |
+| **NEVER** | Use fixed calendar literals (`new DateTime(2026, 6, 4, ...)`) in arrange — use relative date helpers |
 | **NEVER** | Hardcode platform IDs in generic tests (`const long appleId = 1234567890123`, `"6O1Z1s7ca0PI8Gq1rdt3j4"`) |
+| **NEVER** | Name tests, fixture methods, or arrange data after production podcasts or episodes (C2C, Postmormon, etc.) |
 
 ### Static literals in arrange
 
@@ -78,12 +79,12 @@ Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-re
 | **NEVER** | Use `TimeSpan.FromMinutes(42)` unless the assertion depends on that exact value |
 | **NEVER** | Share arrange data via magic strings — share via variables from the fixture (`var title = _fixture.Create<string>()`), not duplicated literals |
 
-### Incidents and regression presets
+### Scenario-shaped fixtures
 
 | | Rule |
 |---|------|
-| **MUST** | Use `DomainTestFixture.Incidents.*` and named preset methods (`CreateC2CYouTubeOnlyStoredEpisode`, `CreatePostmormonStoredEpisode`, etc.) for production regression cases |
-| **NEVER** | Copy production platform IDs into generic identity/merge tests |
+| **MUST** | Encode business circumstances in fixture helper names (`CreateCrossPlatformYouTubeFirstPair`, `CreateStoredEpisodeWithYouTubeOnly`) — not brand names |
+| **MUST** | Use `DisplayName` to describe the rule circumstance in plain English |
 | **ONLY WHEN** | Documenting a known bug — characterize **current** behavior with comment `// KNOWN: likely bug — fix tracked separately`; do not fix in the same PR |
 
 ### Test layers
@@ -101,7 +102,7 @@ Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-re
 
 Default builders produce **fully valid, platform-correct** objects. Tests trust these unless the rule requires overrides.
 
-**No `Specimens` nested class.** Generic catalogue/resolved-item releases are **not** fixed calendar values or named day-offset constants (no shared `DefaultAppleReleaseDaysAgo`, `DefaultYouTubeReleaseTimeOfDay`, etc.). AutoFixture generates bounded random offsets (1–365 days before today) and non-midnight publish times per test run. Only **`DomainTestFixture.Incidents`** carries fixed production regression values.
+**No `Specimens` or `Incidents` nested classes.** Generic catalogue/resolved-item releases are **not** fixed calendar values or named day-offset constants. AutoFixture generates bounded random offsets (1–365 days before today) and non-midnight publish times per test run. Scenario-shaped fixture helpers encode **relationships** (release offsets, platform identity shape) — not production show names.
 
 | Entity | Release | ID | URL |
 |--------|---------|-----|-----|
@@ -135,26 +136,28 @@ Before submitting a business-rule test, verify:
 - [ ] Relative dates (`UtcToday`, `UtcDateDaysAgo`, `UtcAtTime`) — no fixed year literals; no `Specimens.*` day-offset constants
 - [ ] Spotify releases date-only; Apple/YouTube carry non-midnight time-of-day from fixture generation
 - [ ] Generic adapter/mapping asserts use `input.Release` + precision/`TimeOfDay` rules — not named release constants
-- [ ] Platform IDs from specimens or `Incidents` — no hardcoded literals in generic tests
+- [ ] Platform IDs from specimens (`input.SpotifyId`, `CreateSpotifyId()`) — no hardcoded literals in generic tests
 - [ ] Shared matching fields (title, duration) from `_fixture.Create<string>()` / `CreateDuration()`, not `const` literals
 - [ ] Assert uses `EpisodeExpectation.From(...)` or repository/save assertions
-- [ ] Incident regression uses `Incidents.*` + preset factory methods, not copied IDs
+- [ ] Cross-platform / backfill scenarios use scenario-shaped fixture helpers, not brand-named presets
 
 ---
 
-## 4. When to use Incidents vs generic specimens
+## 4. Scenario-shaped fixtures vs generic specimens
 
 | Scenario | Use |
 |----------|-----|
 | Generic identity, merge, adapter mapping | Zero-arg `Create*CatalogueInput()` / `Create*CatalogueEpisode()` |
 | Same-calendar-date backfill, midnight UTC stored row | `CreateMidnightUtcStoredEpisode` + `Create*CatalogueEpisodeSameDayAs` |
-| YouTube-first cross-platform match, negative delay guard, C2C abuser merge | `CreateCultsToConsciousnessPodcast()`, `CreateC2C*`, `Incidents.C2CAbuser*` |
-| Typo title fuzzy match (Postmormon) | `CreatePostmormonPodcast()`, `CreatePostmormon*`, `Incidents.Postmormon*` |
-| Ambiguous dual-match failure | `CreateAmbiguousMatchStoredEpisodes`, `Incidents.Ambiguous*` |
-| EpisodeMatchRegex forced match | `CreateEpisodeMatchRegexStoredEpisode`, `Incidents.EpisodeMatchRegex*` |
-| Positive YouTube publishing delay | `CreatePositiveDelayAudioStoredEpisode`, `Incidents.PositiveDelay*` |
+| YouTube-first cross-platform match (YouTube-only stored + delayed Spotify) | `CreateYouTubeFirstPodcastWithNegativeDelay()` + `CreateCrossPlatformYouTubeFirstPair()` |
+| Negative-delay guard (aligned release, different titles) | `CreateNegativeDelayNonMatchingPair()` |
+| Typo title fuzzy match | `CreateTypoTitleVariant()` + `CreateStoredEpisodeWithSpotifyOnly()` |
+| Ambiguous dual-match failure | `CreateAmbiguousMatchStoredEpisodes` + `CreateAmbiguousMatchSpotifyIncoming` |
+| EpisodeMatchRegex forced match | Inline `#N` titles in test (regex-dependent literals only) |
+| Positive YouTube publishing delay | `CreatePositiveDelayAudioStoredEpisode` + `CreateYouTubeFirstPodcast(...)` |
+| Spotify ID owned by different row | `CreateStoredEpisodeWithYouTubeAndSpotify()` + `CreateStoredEpisodeWithYouTubeOnly()` |
 
-**Rule:** If the test is not documenting a specific production incident, do **not** import IDs from `Incidents`.
+**Rule:** Fixture method names describe **data shape / relationship**, not production podcast or episode names. `DisplayName` states the business circumstance.
 
 ---
 
@@ -243,22 +246,18 @@ var discovered = _fixture.CreateSpotifyCatalogueEpisode(
     release: release);
 ```
 
-### Incident regression (ONLY for production cases)
+### Cross-platform YouTube-first merge (circumstance-based)
 
 ```csharp
-// GOOD — C2C abuser incident: IDs and offsets live on Incidents
-var podcast = _fixture.CreateCultsToConsciousnessPodcast();
-var stored = _fixture.CreateC2CYouTubeOnlyStoredEpisode(
-    podcast,
-    release: DomainTestFixture.Incidents.C2CAbuserYouTubeRelease,
-    length: DomainTestFixture.Incidents.C2CAbuserYouTubeLength);
-var incoming = _fixture.CreateC2CSpotifyIncoming(
-    release: DomainTestFixture.Incidents.C2CAbuserSpotifyRelease,
-    length: DomainTestFixture.Incidents.C2CAbuserSpotifyLength);
-stored.ShouldMatchExpectation(
-    EpisodeExpectation.From(stored).WithSpotify(
-        DomainTestFixture.Incidents.C2CAbuserSpotifyId,
-        _fixture.DefaultSpotifyUrl(DomainTestFixture.Incidents.C2CAbuserSpotifyId)));
+// GOOD — scenario-shaped helpers; release offsets explicit; IDs from specimens
+var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+var (stored, discovered, spotifyId) = _fixture.CreateCrossPlatformYouTubeFirstPair(podcast);
+var expected = EpisodeExpectation.From(stored)
+    .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId));
+
+var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+stored.ShouldMatchExpectation(expected);
 ```
 
 ### Canonical test skeleton
@@ -289,17 +288,18 @@ public void snake_case_shorthand()
 
 | Need | API |
 |------|-----|
-| Podcast | `CreatePodcast()`, `CreateYouTubeFirstPodcast(...)`, `CreateCultsToConsciousnessPodcast()` |
+| Podcast | `CreatePodcast()`, `CreateYouTubeFirstPodcast(...)`, `CreateYouTubeFirstPodcastWithNegativeDelay()` |
 | Stored episode | `CreateStoredEpisode(podcast, customize)`, `BuildEpisode().WithSpotify(...).Create()` |
+| Stored episode (platform shape) | `CreateStoredEpisodeWithYouTubeOnly`, `CreateStoredEpisodeWithSpotifyOnly`, `CreateStoredEpisodeWithYouTubeAndSpotify` |
+| Cross-platform pair | `CreateCrossPlatformYouTubeFirstPair`, `CreateNegativeDelayNonMatchingPair` |
 | Catalogue input (trust defaults) | `CreateSpotifyCatalogueInput()`, `CreateAppleCatalogueInput()`, `CreateYouTubeCatalogueInput()` |
-| Catalogue input (override) | `CreateSpotifyCatalogueInput(b => b.WithRelease(...))` |
+| Catalogue input (override) | `CreateSpotifyCatalogueInput(b => b.WithRelease(...))`, `CreateSpotifyCatalogueInputDaysAfterYouTubeRelease(...)` |
 | Catalogue episode | `CreateSpotifyCatalogueEpisode()`, `CreateSpotifyCatalogueEpisode(configure)`, overload with explicit id |
 | Same-day backfill probe | `CreateMidnightUtcStoredEpisode`, `Create*CatalogueInputSameDayAs`, `Create*CatalogueEpisodeSameDayAs` |
 | Generated values | `CreateDuration()`, `CreateNonMidnightTimeOfDay()`, `CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateYouTubeChannelId()` |
-| Same calendar date + time | `SameCalendarDateWithTime(dateOnlyRelease, timeOfDay)` |
+| Title variants | `CreateFuzzyTitleVariant(title)`, `CreateTypoTitleVariant(title)` |
+| Same calendar date + time | `SameCalendarDateWithTime(dateOnlyRelease, timeOfDay)`, `SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, days)` |
 | Relative dates | `UtcToday`, `UtcDaysAgo(n)`, `UtcDateDaysAgo(n)`, `UtcAtTime(dayOffset, timeOfDay)` |
-| Incident constants | `DomainTestFixture.Incidents.*` |
-| Incident factories | `CreateC2CYouTubeOnlyStoredEpisode`, `CreateC2CSpotifyIncoming`, `CreatePostmormonStoredEpisode`, … |
 | Assert vocabulary | `EpisodeExpectation.From(episode)`, `.WithSpotify/.WithApple/.WithYouTube`, `ShouldMatchExpectation` |
 
 Implementation: `Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/Fixtures/DomainTestFixture.cs`
