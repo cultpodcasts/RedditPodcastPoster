@@ -1,5 +1,6 @@
 using AutoFixture;
 using AutoFixture.Dsl;
+using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -62,6 +63,117 @@ public sealed class DomainTestFixture
 
   public Uri DefaultAppleUrl(long appleId) =>
     new($"https://podcasts.apple.com/us/podcast/episode/id{appleId}");
+
+  public Uri DefaultSpotifyImage(string spotifyId) =>
+    new($"https://i.scdn.co/image/test-{spotifyId}");
+
+  public Uri DefaultYouTubeImage(string youTubeId) =>
+    new($"https://i.ytimg.com/vi/{youTubeId}/hqdefault.jpg");
+
+  public Uri DefaultAppleImage(long appleId) =>
+    new($"https://example.com/apple-art-{appleId}.jpg");
+
+  public SpotifyCatalogueInput CreateSpotifyCatalogueInput(
+    string? spotifyId = null,
+    DateTime? release = null,
+    Uri? spotifyUrl = null,
+    Uri? image = null)
+  {
+    var id = spotifyId ?? "6O1Z1s7ca0PI8Gq1rdt3j4";
+    return new SpotifyCatalogueInput(
+      id,
+      DefaultEpisodeTitle,
+      DefaultCatalogueDescription,
+      DefaultLength,
+      release ?? DefaultRelease,
+      spotifyUrl ?? DefaultSpotifyUrl(id),
+      image ?? DefaultSpotifyImage(id));
+  }
+
+  public AppleCatalogueInput CreateAppleCatalogueInput(
+    long? appleId = null,
+    DateTime? release = null,
+    Uri? appleUrl = null,
+    Uri? image = null)
+  {
+    var id = appleId ?? 1234567890L;
+    return new AppleCatalogueInput(
+      id,
+      DefaultEpisodeTitle,
+      DefaultAppleDescription,
+      DefaultLength,
+      release ?? DefaultRelease,
+      appleUrl ?? DefaultAppleUrl(id),
+      image);
+  }
+
+  public YouTubeCatalogueInput CreateYouTubeCatalogueInput(
+    string? youTubeId = null,
+    DateTime? release = null,
+    Uri? youTubeUrl = null,
+    Uri? image = null)
+  {
+    var id = youTubeId ?? "dQw4w9WgXcQ";
+    return new YouTubeCatalogueInput(
+      id,
+      DefaultEpisodeTitle,
+      DefaultYouTubeDescription,
+      DefaultLength,
+      release ?? DefaultRelease,
+      youTubeUrl ?? DefaultYouTubeUrl(id),
+      image ?? DefaultYouTubeImage(id));
+  }
+
+  public ResolvedSpotifyItemInput CreateResolvedSpotifyItemInput(
+    string? episodeId = null,
+    DateTime? release = null,
+    Uri? url = null,
+    Uri? image = null)
+  {
+    var id = episodeId ?? "submit-spot-1";
+    return new ResolvedSpotifyItemInput(
+      id,
+      DefaultEpisodeTitle,
+      DefaultCatalogueDescription,
+      release ?? DefaultRelease,
+      DefaultLength,
+      url ?? DefaultSpotifyUrl(id),
+      image ?? DefaultSpotifyImage(id));
+  }
+
+  public ResolvedAppleItemInput CreateResolvedAppleItemInput(
+    long? episodeId = null,
+    DateTime? release = null,
+    Uri? url = null,
+    Uri? image = null)
+  {
+    var id = episodeId ?? 1112223334L;
+    return new ResolvedAppleItemInput(
+      id,
+      DefaultEpisodeTitle,
+      DefaultAppleDescription,
+      release ?? DefaultRelease,
+      DefaultLength,
+      url ?? DefaultAppleUrl(id),
+      image ?? DefaultAppleImage(id));
+  }
+
+  public ResolvedYouTubeItemInput CreateResolvedYouTubeItemInput(
+    string? episodeId = null,
+    DateTime? release = null,
+    Uri? url = null,
+    Uri? image = null)
+  {
+    var id = episodeId ?? "yt-only-submit";
+    return new ResolvedYouTubeItemInput(
+      id,
+      DefaultEpisodeTitle,
+      DefaultYouTubeDescription,
+      release ?? DefaultRelease,
+      DefaultLength,
+      url ?? DefaultYouTubeUrl(id),
+      image ?? DefaultYouTubeImage(id));
+  }
 
   public IFixture Auto => _fixture;
 

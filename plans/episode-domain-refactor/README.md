@@ -170,7 +170,7 @@ public void snake_case_method_name()
 - **`DisplayName`** is the authoritative rule text (readable in Test Explorer / CI)
 - Method name is snake_case shorthand; never the only documentation
 - Body uses **`// Arrange` / `// Act` / `// Assert`** comments in every test
-- **Lean arrange:** `DomainTestFixture` owns defaults (Guids, empty platform IDs, `ServiceUrls`, release/duration); tests set only properties relevant to the rule under test
+- **Lean arrange:** `DomainTestFixture` owns defaults (Guids, empty platform IDs, `ServiceUrls`, release/duration); tests set only properties relevant to the rule under test. Arrange contains only assertion-relevant test data; fixture supplies catalogue input shapes (`CreateSpotifyCatalogueInput`, `CreateResolvedAppleItemInput`, etc.) and episode helpers with full peripheral defaults.
 - Use **`CreatePodcast()`**, **`CreateEpisode(Action<Episode>?)`**, **`BuildEpisode().WithSpotify(...).Create()`**, and catalogue helpers (`CreateSpotifyCatalogueEpisode`, etc.) — not raw `new Episode { ... }` boilerplate
 - Incident regression GUIDs live on **`DomainTestFixture.Incidents`** (not separate fixture classes)
 - **`EpisodeExpectation`** (or equivalent) for Assert clauses — not fifteen separate property assertions unless the rule is about one field

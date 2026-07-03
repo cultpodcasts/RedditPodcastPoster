@@ -142,19 +142,9 @@ public class EpisodeMergingRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        var stored = _fixture.CreateSpotifyCatalogueEpisode(
-            "storedSpotifyId01",
-            "Stored episode title",
-            new Uri("https://open.spotify.com/episode/storedSpotifyId01"),
-            DateTime.UtcNow.AddMonths(-2),
-            TimeSpan.FromMinutes(30));
+        var stored = _fixture.CreateSpotifyCatalogueEpisode("storedSpotifyId01");
 
-        var discovered = _fixture.CreateSpotifyCatalogueEpisode(
-            "newSpotifyId000001",
-            "Brand new episode title",
-            new Uri("https://open.spotify.com/episode/newSpotifyId000001"),
-            DateTime.UtcNow,
-            TimeSpan.FromMinutes(50));
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode("newSpotifyId000001");
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -396,10 +386,8 @@ public class EpisodeMergingRules
 
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             SpotifyEpisodeId,
-            title: "Spotify catalogue title",
             spotifyUrl: ExistingSpotifyUrl,
-            release: publicRelease,
-            description: "Incoming description");
+            release: publicRelease);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);

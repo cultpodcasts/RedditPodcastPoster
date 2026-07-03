@@ -36,10 +36,8 @@ public class PlatformIdentityMatchingRules
 
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             SpotifyEpisodeId,
-            "Spotify catalogue title",
-            SpotifyUrl,
-            release,
-            TimeSpan.FromMinutes(45));
+            spotifyUrl: SpotifyUrl,
+            release: release);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -61,19 +59,14 @@ public class PlatformIdentityMatchingRules
         var release = DateTime.UtcNow.AddMonths(-6);
         var stored = _fixture.CreateSpotifyCatalogueEpisode(
             SpotifyEpisodeId,
-            "Stored title",
-            SpotifyUrl,
-            release,
-            TimeSpan.FromMinutes(45));
+            spotifyUrl: SpotifyUrl,
+            release: release);
         var expected = EpisodeExpectation.From(stored);
 
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             SpotifyEpisodeId,
-            "Incoming title",
-            SpotifyUrl,
-            DateTime.UtcNow,
-            TimeSpan.FromMinutes(45),
-            description: "Incoming description");
+            spotifyUrl: SpotifyUrl,
+            release: DateTime.UtcNow);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -131,10 +124,7 @@ public class PlatformIdentityMatchingRules
             .Create();
         var expected = EpisodeExpectation.From(stored);
 
-        var discovered = _fixture.CreateYouTubeCatalogueEpisode(
-            youTubeId,
-            title: "Incoming YouTube title",
-            release: release);
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(youTubeId, release: release);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -154,18 +144,9 @@ public class PlatformIdentityMatchingRules
         // Arrange
         const string sharedTitle = "Shared title";
         var release = DateTime.UtcNow;
-        var length = TimeSpan.FromMinutes(45);
         var podcast = _fixture.CreatePodcast();
-        var existing = _fixture.CreateYouTubeCatalogueEpisode(
-            "video-id-one",
-            sharedTitle,
-            release,
-            length);
-        var discovered = _fixture.CreateYouTubeCatalogueEpisode(
-            "video-id-two",
-            sharedTitle,
-            release,
-            length);
+        var existing = _fixture.CreateYouTubeCatalogueEpisode("video-id-one", title: sharedTitle, release: release);
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode("video-id-two", title: sharedTitle, release: release);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [existing], [discovered]);
@@ -193,11 +174,7 @@ public class PlatformIdentityMatchingRules
             .Create();
         var expected = EpisodeExpectation.From(stored);
 
-        var discovered = _fixture.CreateAppleCatalogueEpisode(
-            appleId,
-            "Incoming Apple title",
-            release,
-            TimeSpan.FromMinutes(45));
+        var discovered = _fixture.CreateAppleCatalogueEpisode(appleId, release: release);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -250,10 +227,9 @@ public class PlatformIdentityMatchingRules
 
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             otoSpotifyId,
-            "What Really Happens During Ordo Templi Orientis Initiations",
-            otoSpotifyUrl,
-            new DateTime(2026, 6, 24, 0, 0, 0, DateTimeKind.Utc),
-            TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(42));
+            spotifyUrl: otoSpotifyUrl,
+            release: new DateTime(2026, 6, 24, 0, 0, 0, DateTimeKind.Utc),
+            length: TimeSpan.FromMinutes(61) + TimeSpan.FromSeconds(42));
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [correctOwner, wrongYouTubeOnly], [discovered]);
@@ -273,18 +249,9 @@ public class PlatformIdentityMatchingRules
         // Arrange
         const string sharedTitle = "Shared title";
         var release = DateTime.UtcNow;
-        var length = TimeSpan.FromMinutes(45);
         var podcast = _fixture.CreatePodcast();
-        var existing = _fixture.CreateAppleCatalogueEpisode(
-            1111111111,
-            sharedTitle,
-            release,
-            length);
-        var discovered = _fixture.CreateAppleCatalogueEpisode(
-            2222222222,
-            sharedTitle,
-            release,
-            length);
+        var existing = _fixture.CreateAppleCatalogueEpisode(1111111111, title: sharedTitle, release: release);
+        var discovered = _fixture.CreateAppleCatalogueEpisode(2222222222, title: sharedTitle, release: release);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [existing], [discovered]);

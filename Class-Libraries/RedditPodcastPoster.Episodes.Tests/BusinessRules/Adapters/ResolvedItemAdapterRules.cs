@@ -1,6 +1,5 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.Adapters;
-using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Domain;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
@@ -24,26 +23,18 @@ public class ResolvedItemAdapterRules
     {
         // Arrange
         const string episodeId = "submit-spot-1";
-        var url = new Uri($"https://open.spotify.com/episode/{episodeId}");
-        var image = new Uri("https://i.scdn.co/image/resolved-spotify");
-        var input = new ResolvedSpotifyItemInput(
-            episodeId,
-            "Resolved Spotify title",
-            "Resolved Spotify description",
-            new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-            TimeSpan.FromMinutes(44),
-            url,
-            image);
+        var release = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        var input = _fixture.CreateResolvedSpotifyItemInput(episodeId, release: release);
 
         // Act
         var candidate = _spotifyAdapter.Adapt(input);
 
         // Assert
         candidate.SourceLink.Should().BeEquivalentTo(
-            new PlatformLink(Service.Spotify, episodeId, url, image));
+            new PlatformLink(Service.Spotify, episodeId, input.Url, input.Image));
 
         var expected = new EpisodeExpectation(
-            new PlatformExpectation(episodeId, url, image),
+            new PlatformExpectation(episodeId, input.Url, input.Image),
             null,
             null,
             input.Release.Date,
@@ -59,28 +50,19 @@ public class ResolvedItemAdapterRules
     {
         // Arrange
         const long episodeId = 1112223334;
-        var url = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{episodeId}");
-        var image = new Uri("https://example.com/resolved-apple.jpg");
         var release = new DateTime(2026, 6, 2, 11, 30, 0, DateTimeKind.Utc);
-        var input = new ResolvedAppleItemInput(
-            episodeId,
-            "Resolved Apple title",
-            "Resolved Apple description",
-            release,
-            TimeSpan.FromMinutes(50),
-            url,
-            image);
+        var input = _fixture.CreateResolvedAppleItemInput(episodeId, release: release);
 
         // Act
         var candidate = _appleAdapter.Adapt(input);
 
         // Assert
         candidate.SourceLink.Should().BeEquivalentTo(
-            new PlatformLink(Service.Apple, episodeId.ToString(), url, image));
+            new PlatformLink(Service.Apple, episodeId.ToString(), input.Url, input.Image));
 
         var expected = new EpisodeExpectation(
             null,
-            new PlatformExpectation(episodeId.ToString(), url, image),
+            new PlatformExpectation(episodeId.ToString(), input.Url, input.Image),
             null,
             release,
             input.EpisodeDescription);
@@ -95,29 +77,20 @@ public class ResolvedItemAdapterRules
     {
         // Arrange
         const string episodeId = "yt-only-submit";
-        var url = new Uri($"https://www.youtube.com/watch?v={episodeId}");
-        var image = new Uri("https://i.ytimg.com/vi/yt-only-submit/hqdefault.jpg");
         var release = new DateTime(2026, 5, 1, 12, 0, 0, DateTimeKind.Utc);
-        var input = new ResolvedYouTubeItemInput(
-            episodeId,
-            "Resolved YouTube title",
-            "Resolved YouTube description",
-            release,
-            TimeSpan.FromMinutes(45),
-            url,
-            image);
+        var input = _fixture.CreateResolvedYouTubeItemInput(episodeId, release: release);
 
         // Act
         var candidate = _youTubeAdapter.Adapt(input);
 
         // Assert
         candidate.SourceLink.Should().BeEquivalentTo(
-            new PlatformLink(Service.YouTube, episodeId, url, image));
+            new PlatformLink(Service.YouTube, episodeId, input.Url, input.Image));
 
         var expected = new EpisodeExpectation(
             null,
             null,
-            new PlatformExpectation(episodeId, url, image),
+            new PlatformExpectation(episodeId, input.Url, input.Image),
             release,
             input.EpisodeDescription);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);

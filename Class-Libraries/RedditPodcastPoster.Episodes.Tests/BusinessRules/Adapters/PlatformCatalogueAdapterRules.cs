@@ -1,6 +1,5 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.Adapters;
-using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Domain;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
@@ -24,16 +23,8 @@ public class PlatformCatalogueAdapterRules
     {
         // Arrange
         const string spotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4";
-        var spotifyUrl = new Uri($"https://open.spotify.com/episode/{spotifyId}");
         var catalogueRelease = new DateTime(2026, 3, 15, 14, 30, 0, DateTimeKind.Utc);
-        var input = new SpotifyCatalogueInput(
-            spotifyId,
-            "Spotify episode title",
-            "Spotify description",
-            TimeSpan.FromMinutes(52),
-            catalogueRelease,
-            spotifyUrl,
-            new Uri("https://i.scdn.co/image/spotify-art"));
+        var input = _fixture.CreateSpotifyCatalogueInput(spotifyId, release: catalogueRelease);
 
         // Act
         var candidate = _spotifyAdapter.Adapt(input);
@@ -43,7 +34,7 @@ public class PlatformCatalogueAdapterRules
         candidate.Release.Value.Should().Be(new DateTime(2026, 3, 15, 0, 0, 0, DateTimeKind.Unspecified));
 
         var expected = new EpisodeExpectation(
-            new PlatformExpectation(spotifyId, spotifyUrl, input.Image),
+            new PlatformExpectation(spotifyId, input.SpotifyUrl, input.Image),
             null,
             null,
             candidate.Release.Value,
@@ -58,16 +49,8 @@ public class PlatformCatalogueAdapterRules
     {
         // Arrange
         const long appleId = 1234567890;
-        var appleUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{appleId}");
         var appleRelease = new DateTime(2026, 4, 10, 9, 15, 30, DateTimeKind.Utc);
-        var input = new AppleCatalogueInput(
-            appleId,
-            "Apple episode title",
-            "Apple description",
-            TimeSpan.FromMinutes(38),
-            appleRelease,
-            appleUrl,
-            new Uri("https://example.com/apple-art.jpg"));
+        var input = _fixture.CreateAppleCatalogueInput(appleId, release: appleRelease);
 
         // Act
         var candidate = _appleAdapter.Adapt(input);
@@ -78,7 +61,7 @@ public class PlatformCatalogueAdapterRules
 
         var expected = new EpisodeExpectation(
             null,
-            new PlatformExpectation(appleId.ToString(), appleUrl, input.Image),
+            new PlatformExpectation(appleId.ToString(), input.AppleUrl, input.Image),
             null,
             appleRelease,
             input.Description);
@@ -92,16 +75,8 @@ public class PlatformCatalogueAdapterRules
     {
         // Arrange
         const string youTubeId = "dQw4w9WgXcQ";
-        var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
         var publishDate = new DateTime(2026, 5, 20, 18, 45, 12, DateTimeKind.Utc);
-        var input = new YouTubeCatalogueInput(
-            youTubeId,
-            "YouTube episode title",
-            "YouTube description",
-            TimeSpan.FromMinutes(61),
-            publishDate,
-            youTubeUrl,
-            new Uri("https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"));
+        var input = _fixture.CreateYouTubeCatalogueInput(youTubeId, release: publishDate);
 
         // Act
         var candidate = _youTubeAdapter.Adapt(input);
@@ -113,7 +88,7 @@ public class PlatformCatalogueAdapterRules
         var expected = new EpisodeExpectation(
             null,
             null,
-            new PlatformExpectation(youTubeId, youTubeUrl, input.Image),
+            new PlatformExpectation(youTubeId, input.YouTubeUrl, input.Image),
             publishDate,
             input.Description);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);

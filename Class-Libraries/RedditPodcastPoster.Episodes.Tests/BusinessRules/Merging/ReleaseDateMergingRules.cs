@@ -41,11 +41,7 @@ public class ReleaseDateMergingRules
             .WithRelease(youTubeRelease)
             .WithYouTube("video-id", new Uri("https://www.youtube.com/watch?v=video-id"));
 
-        var discovered = _fixture.CreateYouTubeCatalogueEpisode(
-            "video-id",
-            "Episode title",
-            youTubeRelease,
-            TimeSpan.FromMinutes(45));
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode("video-id", release: youTubeRelease);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -78,10 +74,8 @@ public class ReleaseDateMergingRules
 
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(
             SpotifyEpisodeId,
-            "Episode title",
-            SpotifyUrl,
-            spotifyRelease,
-            TimeSpan.FromMinutes(45));
+            spotifyUrl: SpotifyUrl,
+            release: spotifyRelease);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -156,11 +150,7 @@ public class ReleaseDateMergingRules
         var expected = EpisodeExpectation.From(stored)
             .WithYouTube("video-id", new Uri("https://www.youtube.com/watch?v=video-id"));
 
-        var discovered = _fixture.CreateYouTubeCatalogueEpisode(
-            "video-id",
-            "Episode title",
-            youTubeRelease,
-            TimeSpan.FromMinutes(45));
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode("video-id", release: youTubeRelease);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -194,11 +184,7 @@ public class ReleaseDateMergingRules
             .WithRelease(appleRelease)
             .WithApple(appleId, appleUrl);
 
-        var discovered = _fixture.CreateAppleCatalogueEpisode(
-            appleId,
-            "Episode title",
-            appleRelease,
-            TimeSpan.FromMinutes(45));
+        var discovered = _fixture.CreateAppleCatalogueEpisode(appleId, release: appleRelease);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
