@@ -22,22 +22,21 @@ public class ResolvedItemAdapterRules
     public void ResolvedSpotifyItem_maps_to_Spotify_PlatformLink()
     {
         // Arrange
-        const string episodeId = "submit-spot-1";
         var release = DomainTestFixture.UtcDateDaysAgo(32);
-        var input = _fixture.CreateResolvedSpotifyItemInput(episodeId, release: release);
+        var input = _fixture.CreateResolvedSpotifyItemInput(b => b.WithRelease(release));
 
         // Act
         var candidate = _spotifyAdapter.Adapt(input);
 
         // Assert
         candidate.SourceLink.Should().BeEquivalentTo(
-            new PlatformLink(Service.Spotify, episodeId, input.Url, input.Image));
+            new PlatformLink(Service.Spotify, input.EpisodeId, input.Url, input.Image));
 
         var expected = new EpisodeExpectation(
-            new PlatformExpectation(episodeId, input.Url, input.Image),
+            new PlatformExpectation(input.EpisodeId, input.Url, input.Image),
             null,
             null,
-            input.Release.Date,
+            input.Release,
             input.EpisodeDescription);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateOnly);
@@ -49,20 +48,19 @@ public class ResolvedItemAdapterRules
     public void ResolvedAppleItem_maps_to_Apple_PlatformLink()
     {
         // Arrange
-        const long episodeId = 1112223334;
         var release = DomainTestFixture.UtcAtTime(-31, TimeSpan.FromHours(11) + TimeSpan.FromMinutes(30));
-        var input = _fixture.CreateResolvedAppleItemInput(episodeId, release: release);
+        var input = _fixture.CreateResolvedAppleItemInput(b => b.WithRelease(release));
 
         // Act
         var candidate = _appleAdapter.Adapt(input);
 
         // Assert
         candidate.SourceLink.Should().BeEquivalentTo(
-            new PlatformLink(Service.Apple, episodeId.ToString(), input.Url, input.Image));
+            new PlatformLink(Service.Apple, input.EpisodeId.ToString(), input.Url, input.Image));
 
         var expected = new EpisodeExpectation(
             null,
-            new PlatformExpectation(episodeId.ToString(), input.Url, input.Image),
+            new PlatformExpectation(input.EpisodeId.ToString(), input.Url, input.Image),
             null,
             release,
             input.EpisodeDescription);
@@ -76,21 +74,20 @@ public class ResolvedItemAdapterRules
     public void ResolvedYouTubeItem_maps_to_YouTube_PlatformLink()
     {
         // Arrange
-        const string episodeId = "yt-only-submit";
         var release = DomainTestFixture.UtcAtTime(-63, TimeSpan.FromHours(12));
-        var input = _fixture.CreateResolvedYouTubeItemInput(episodeId, release: release);
+        var input = _fixture.CreateResolvedYouTubeItemInput(b => b.WithRelease(release));
 
         // Act
         var candidate = _youTubeAdapter.Adapt(input);
 
         // Assert
         candidate.SourceLink.Should().BeEquivalentTo(
-            new PlatformLink(Service.YouTube, episodeId, input.Url, input.Image));
+            new PlatformLink(Service.YouTube, input.EpisodeId, input.Url, input.Image));
 
         var expected = new EpisodeExpectation(
             null,
             null,
-            new PlatformExpectation(episodeId, input.Url, input.Image),
+            new PlatformExpectation(input.EpisodeId, input.Url, input.Image),
             release,
             input.EpisodeDescription);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);

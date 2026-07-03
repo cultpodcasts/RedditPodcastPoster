@@ -7,14 +7,10 @@ namespace RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 
 /// <summary>
 /// Shared AutoFixture wrapper for episode-domain business-rule tests.
-/// Owns specimen defaults, incident constants, and factory helpers.
+/// Owns specimen customizations, incident constants, and factory helpers.
 /// </summary>
 public sealed class DomainTestFixture
 {
-  public static readonly TimeSpan DefaultLength = TimeSpan.FromMinutes(45);
-  public static DateTime DefaultRelease => UtcDaysAgo(30);
-  public const string DefaultEpisodeTitle = "Episode title";
-
   /// <summary>Today at midnight UTC.</summary>
   public static DateTime UtcToday => DateTime.UtcNow.Date;
 
@@ -36,9 +32,6 @@ public sealed class DomainTestFixture
   /// </summary>
   public static DateTime UtcAtTime(int daysOffset, TimeSpan timeOfDay) =>
     UtcToday.AddDays(daysOffset).Add(timeOfDay);
-  public const string DefaultCatalogueDescription = "Catalogue description";
-  public const string DefaultYouTubeDescription = "YouTube description";
-  public const string DefaultAppleDescription = "Apple description";
 
   private readonly Fixture _fixture;
 
@@ -229,114 +222,76 @@ public sealed class DomainTestFixture
   public Uri DefaultAppleImage(long appleId) =>
     new($"https://example.com/apple-art-{appleId}.jpg");
 
+  public SpotifyCatalogueInputBuilder BuildSpotifyCatalogueInput() =>
+    new(_fixture);
+
   /// <summary>
-  /// Spotify catalogue release is date-only; any time-of-day on <paramref name="release"/> is floored to midnight UTC.
+  /// Spotify catalogue release is date-only; any time-of-day is floored to midnight UTC.
   /// </summary>
   public SpotifyCatalogueInput CreateSpotifyCatalogueInput(
-    string? spotifyId = null,
-    DateTime? release = null,
-    Uri? spotifyUrl = null,
-    Uri? image = null)
+    Action<SpotifyCatalogueInputBuilder>? configure = null)
   {
-    var id = spotifyId ?? "6O1Z1s7ca0PI8Gq1rdt3j4";
-    var releaseDate = (release ?? DefaultRelease).Date;
-    return new SpotifyCatalogueInput(
-      id,
-      DefaultEpisodeTitle,
-      DefaultCatalogueDescription,
-      DefaultLength,
-      releaseDate,
-      spotifyUrl ?? DefaultSpotifyUrl(id),
-      image ?? DefaultSpotifyImage(id));
+    var builder = BuildSpotifyCatalogueInput();
+    configure?.Invoke(builder);
+    return builder.Create();
   }
+
+  public AppleCatalogueInputBuilder BuildAppleCatalogueInput() =>
+    new(_fixture);
 
   public AppleCatalogueInput CreateAppleCatalogueInput(
-    long? appleId = null,
-    DateTime? release = null,
-    Uri? appleUrl = null,
-    Uri? image = null)
+    Action<AppleCatalogueInputBuilder>? configure = null)
   {
-    var id = appleId ?? 1234567890L;
-    return new AppleCatalogueInput(
-      id,
-      DefaultEpisodeTitle,
-      DefaultAppleDescription,
-      DefaultLength,
-      release ?? DefaultRelease,
-      appleUrl ?? DefaultAppleUrl(id),
-      image);
+    var builder = BuildAppleCatalogueInput();
+    configure?.Invoke(builder);
+    return builder.Create();
   }
+
+  public YouTubeCatalogueInputBuilder BuildYouTubeCatalogueInput() =>
+    new(_fixture);
 
   public YouTubeCatalogueInput CreateYouTubeCatalogueInput(
-    string? youTubeId = null,
-    DateTime? release = null,
-    Uri? youTubeUrl = null,
-    Uri? image = null)
+    Action<YouTubeCatalogueInputBuilder>? configure = null)
   {
-    var id = youTubeId ?? "dQw4w9WgXcQ";
-    return new YouTubeCatalogueInput(
-      id,
-      DefaultEpisodeTitle,
-      DefaultYouTubeDescription,
-      DefaultLength,
-      release ?? DefaultRelease,
-      youTubeUrl ?? DefaultYouTubeUrl(id),
-      image ?? DefaultYouTubeImage(id));
+    var builder = BuildYouTubeCatalogueInput();
+    configure?.Invoke(builder);
+    return builder.Create();
   }
+
+  public ResolvedSpotifyItemInputBuilder BuildResolvedSpotifyItemInput() =>
+    new(_fixture);
 
   /// <summary>
-  /// Spotify resolved-item release is date-only; any time-of-day on <paramref name="release"/> is floored to midnight UTC.
+  /// Spotify resolved-item release is date-only; any time-of-day is floored to midnight UTC.
   /// </summary>
   public ResolvedSpotifyItemInput CreateResolvedSpotifyItemInput(
-    string? episodeId = null,
-    DateTime? release = null,
-    Uri? url = null,
-    Uri? image = null)
+    Action<ResolvedSpotifyItemInputBuilder>? configure = null)
   {
-    var id = episodeId ?? "submit-spot-1";
-    var releaseDate = (release ?? DefaultRelease).Date;
-    return new ResolvedSpotifyItemInput(
-      id,
-      DefaultEpisodeTitle,
-      DefaultCatalogueDescription,
-      releaseDate,
-      DefaultLength,
-      url ?? DefaultSpotifyUrl(id),
-      image ?? DefaultSpotifyImage(id));
+    var builder = BuildResolvedSpotifyItemInput();
+    configure?.Invoke(builder);
+    return builder.Create();
   }
+
+  public ResolvedAppleItemInputBuilder BuildResolvedAppleItemInput() =>
+    new(_fixture);
 
   public ResolvedAppleItemInput CreateResolvedAppleItemInput(
-    long? episodeId = null,
-    DateTime? release = null,
-    Uri? url = null,
-    Uri? image = null)
+    Action<ResolvedAppleItemInputBuilder>? configure = null)
   {
-    var id = episodeId ?? 1112223334L;
-    return new ResolvedAppleItemInput(
-      id,
-      DefaultEpisodeTitle,
-      DefaultAppleDescription,
-      release ?? DefaultRelease,
-      DefaultLength,
-      url ?? DefaultAppleUrl(id),
-      image ?? DefaultAppleImage(id));
+    var builder = BuildResolvedAppleItemInput();
+    configure?.Invoke(builder);
+    return builder.Create();
   }
 
+  public ResolvedYouTubeItemInputBuilder BuildResolvedYouTubeItemInput() =>
+    new(_fixture);
+
   public ResolvedYouTubeItemInput CreateResolvedYouTubeItemInput(
-    string? episodeId = null,
-    DateTime? release = null,
-    Uri? url = null,
-    Uri? image = null)
+    Action<ResolvedYouTubeItemInputBuilder>? configure = null)
   {
-    var id = episodeId ?? "yt-only-submit";
-    return new ResolvedYouTubeItemInput(
-      id,
-      DefaultEpisodeTitle,
-      DefaultYouTubeDescription,
-      release ?? DefaultRelease,
-      DefaultLength,
-      url ?? DefaultYouTubeUrl(id),
-      image ?? DefaultYouTubeImage(id));
+    var builder = BuildResolvedYouTubeItemInput();
+    configure?.Invoke(builder);
+    return builder.Create();
   }
 
   public IFixture Auto => _fixture;
@@ -350,7 +305,7 @@ public sealed class DomainTestFixture
     var podcast = new Podcast
     {
       Id = Guid.NewGuid(),
-      Name = "Test Podcast",
+      Name = _fixture.Create<string>(),
       SpotifyId = string.Empty,
       YouTubeChannelId = string.Empty,
       YouTubePlaylistId = string.Empty
@@ -397,10 +352,10 @@ public sealed class DomainTestFixture
     {
       Id = Guid.NewGuid(),
       PodcastId = Incidents.DefaultPodcastId,
-      Title = DefaultEpisodeTitle,
-      Description = string.Empty,
-      Release = DefaultRelease,
-      Length = DefaultLength,
+      Title = _fixture.Create<string>(),
+      Description = _fixture.Create<string>(),
+      Release = UtcDaysAgo(_fixture.Create<int>() % 365 + 1),
+      Length = TimeSpan.FromMinutes(_fixture.Create<int>() % 120 + 1),
       Urls = new ServiceUrls(),
       Images = new EpisodeImages(),
       Subjects = [],
@@ -578,19 +533,25 @@ public sealed class DomainTestFixture
     {
       e.Id = Incidents.PositiveDelayAudioEpisodeId;
       e.Title = Incidents.PositiveDelayAudioTitle;
-      e.Release = audioRelease ?? DefaultRelease;
-      e.Length = length ?? DefaultLength;
+      e.Release = audioRelease ?? UtcDaysAgo(_fixture.Create<int>() % 365 + 1);
+      e.Length = length ?? TimeSpan.FromMinutes(_fixture.Create<int>() % 120 + 1);
       e.Urls.Spotify = DefaultSpotifyUrl(Incidents.PositiveDelayAudioSpotifyId);
     });
 
   public Episode CreateMidnightUtcSpotifyStoredEpisode(
     Podcast podcast,
-    DateTime dateOnlyRelease) =>
+    DateTime dateOnlyRelease,
+    string? title = null,
+    TimeSpan? length = null) =>
     CreateStoredEpisode(podcast, e =>
     {
       e.Release = dateOnlyRelease;
       e.SpotifyId = Incidents.C2CAbuserSpotifyId;
       e.Urls.Spotify = DefaultSpotifyUrl(Incidents.C2CAbuserSpotifyId);
+      if (title is not null)
+        e.Title = title;
+      if (length is not null)
+        e.Length = length.Value;
     });
 
   public Episode CreateEpisodeMatchRegexStoredEpisode(
@@ -600,7 +561,7 @@ public sealed class DomainTestFixture
     {
       e.Id = Incidents.EpisodeMatchRegexStoredEpisodeId;
       e.Title = Incidents.EpisodeMatchRegexStoredTitle;
-      e.Release = release ?? DefaultRelease;
+      e.Release = release ?? UtcDaysAgo(_fixture.Create<int>() % 365 + 1);
       e.Length = TimeSpan.FromMinutes(30);
     });
 
@@ -609,8 +570,8 @@ public sealed class DomainTestFixture
       Incidents.EpisodeMatchRegexSpotifyId,
       Incidents.EpisodeMatchRegexDiscoveredTitle,
       DefaultSpotifyUrl(Incidents.EpisodeMatchRegexSpotifyId),
-      release ?? DefaultRelease.AddDays(7),
-      TimeSpan.FromHours(2));
+      release ?? UtcDaysAgo(_fixture.Create<int>() % 365 + 1),
+      TimeSpan.FromMinutes(_fixture.Create<int>() % 120 + 1));
 
   public EpisodeBuilder BuildEpisode() => new(this);
 
@@ -637,16 +598,34 @@ public sealed class DomainTestFixture
     DateTime? release = null,
     TimeSpan? length = null,
     string? description = null,
-    Uri? image = null) =>
-    Episode.FromSpotify(
-      spotifyId,
-      title ?? DefaultEpisodeTitle,
-      description ?? DefaultCatalogueDescription,
-      length ?? DefaultLength,
+    Uri? image = null)
+  {
+    var input = CreateSpotifyCatalogueInput(b =>
+    {
+      b.WithSpotifyId(spotifyId);
+      if (title is not null)
+        b.WithTitle(title);
+      if (spotifyUrl is not null)
+        b.WithSpotifyUrl(spotifyUrl);
+      if (release is null)
+        b.WithRelease(DomainTestFixture.CreateSpotifyReleaseSpecimen(_fixture));
+      if (length is not null)
+        b.WithDuration(length.Value);
+      if (description is not null)
+        b.WithDescription(description);
+      if (image is not null)
+        b.WithImage(image);
+    });
+    return Episode.FromSpotify(
+      input.SpotifyId,
+      input.Title,
+      input.Description,
+      input.Duration,
       false,
-      release ?? DefaultRelease,
-      spotifyUrl ?? DefaultSpotifyUrl(spotifyId),
-      image);
+      release ?? input.Release,
+      input.SpotifyUrl,
+      input.Image);
+  }
 
   public Episode CreateYouTubeCatalogueEpisode(
     string youTubeId,
@@ -655,16 +634,34 @@ public sealed class DomainTestFixture
     TimeSpan? length = null,
     string? description = null,
     Uri? youTubeUrl = null,
-    Uri? image = null) =>
-    Episode.FromYouTube(
-      youTubeId,
-      title ?? DefaultEpisodeTitle,
-      description ?? DefaultYouTubeDescription,
-      length ?? DefaultLength,
+    Uri? image = null)
+  {
+    var input = CreateYouTubeCatalogueInput(b =>
+    {
+      b.WithYouTubeId(youTubeId);
+      if (title is not null)
+        b.WithTitle(title);
+      if (release is not null)
+        b.WithRelease(release.Value);
+      if (length is not null)
+        b.WithDuration(length.Value);
+      if (description is not null)
+        b.WithDescription(description);
+      if (youTubeUrl is not null)
+        b.WithYouTubeUrl(youTubeUrl);
+      if (image is not null)
+        b.WithImage(image);
+    });
+    return Episode.FromYouTube(
+      input.YouTubeId,
+      input.Title,
+      input.Description,
+      input.Duration,
       false,
-      release ?? DefaultRelease,
-      youTubeUrl ?? DefaultYouTubeUrl(youTubeId),
-      image);
+      input.Release,
+      input.YouTubeUrl,
+      input.Image);
+  }
 
   public Episode CreateAppleCatalogueEpisode(
     long appleId,
@@ -672,22 +669,476 @@ public sealed class DomainTestFixture
     DateTime? release = null,
     TimeSpan? length = null,
     string? description = null,
-    Uri? appleUrl = null) =>
-    Episode.FromApple(
-      appleId,
-      title ?? DefaultEpisodeTitle,
-      description ?? DefaultAppleDescription,
-      length ?? DefaultLength,
+    Uri? appleUrl = null)
+  {
+    var input = CreateAppleCatalogueInput(b =>
+    {
+      b.WithAppleId(appleId);
+      if (title is not null)
+        b.WithTitle(title);
+      if (release is not null)
+        b.WithRelease(release.Value);
+      if (length is not null)
+        b.WithDuration(length.Value);
+      if (description is not null)
+        b.WithDescription(description);
+      if (appleUrl is not null)
+        b.WithAppleUrl(appleUrl);
+    });
+    return Episode.FromApple(
+      input.AppleId,
+      input.Title,
+      input.Description,
+      input.Duration,
       false,
-      release ?? DefaultRelease,
-      appleUrl ?? DefaultAppleUrl(appleId),
-      null);
+      input.Release,
+      input.AppleUrl,
+      input.Image);
+  }
 
   private void CustomizeFixture()
   {
-    _fixture.Register(() => new Uri("https://example.com/test"));
+    _fixture.Register(() => new Uri($"https://example.com/{_fixture.Create<Guid>()}"));
     _fixture.Customize<Podcast>(composer => composer.FromFactory(() => CreatePodcast()));
     _fixture.Customize<Episode>(composer => composer.FromFactory(() => CreateEpisode()));
+  }
+
+  internal static string CreateSpotifyIdSpecimen(Fixture fixture) =>
+    fixture.Create<string>().Replace("-", "")[..22];
+
+  internal static long CreateAppleIdSpecimen(Fixture fixture) =>
+    Math.Abs(fixture.Create<long>()) % 9_000_000_000L + 1_000_000_000L;
+
+  internal static string CreateYouTubeIdSpecimen(Fixture fixture) =>
+    fixture.Create<string>().Replace("-", "")[..11];
+
+  internal static TimeSpan CreateDurationSpecimen(Fixture fixture) =>
+    TimeSpan.FromMinutes(fixture.Create<int>() % 120 + 1);
+
+  internal static DateTime CreateSpotifyReleaseSpecimen(Fixture fixture) =>
+    UtcDateDaysAgo(fixture.Create<int>() % 365 + 1);
+
+  internal static DateTime CreateCatalogueReleaseSpecimen(Fixture fixture) =>
+    UtcDaysAgo(fixture.Create<int>() % 365 + 1);
+}
+
+/// <summary>Fluent builder for Spotify catalogue input specimens — release is always date-only.</summary>
+public sealed class SpotifyCatalogueInputBuilder
+{
+  private readonly Fixture _fixture;
+  private string? _spotifyId;
+  private string? _title;
+  private string? _description;
+  private TimeSpan? _duration;
+  private DateTime? _release;
+  private Uri? _spotifyUrl;
+  private Uri? _image;
+
+  internal SpotifyCatalogueInputBuilder(Fixture fixture) => _fixture = fixture;
+
+  public SpotifyCatalogueInputBuilder WithSpotifyId(string spotifyId)
+  {
+    _spotifyId = spotifyId;
+    return this;
+  }
+
+  public SpotifyCatalogueInputBuilder WithTitle(string title)
+  {
+    _title = title;
+    return this;
+  }
+
+  public SpotifyCatalogueInputBuilder WithDescription(string description)
+  {
+    _description = description;
+    return this;
+  }
+
+  public SpotifyCatalogueInputBuilder WithDuration(TimeSpan duration)
+  {
+    _duration = duration;
+    return this;
+  }
+
+  public SpotifyCatalogueInputBuilder WithRelease(DateTime release)
+  {
+    _release = release.Date;
+    return this;
+  }
+
+  public SpotifyCatalogueInputBuilder WithSpotifyUrl(Uri spotifyUrl)
+  {
+    _spotifyUrl = spotifyUrl;
+    return this;
+  }
+
+  public SpotifyCatalogueInputBuilder WithImage(Uri? image)
+  {
+    _image = image;
+    return this;
+  }
+
+  public SpotifyCatalogueInput Create()
+  {
+    var id = _spotifyId ?? DomainTestFixture.CreateSpotifyIdSpecimen(_fixture);
+    return new SpotifyCatalogueInput(
+      id,
+      _title ?? _fixture.Create<string>(),
+      _description ?? _fixture.Create<string>(),
+      _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
+      (_release ?? DomainTestFixture.CreateSpotifyReleaseSpecimen(_fixture)).Date,
+      _spotifyUrl ?? new Uri($"https://open.spotify.com/episode/{id}"),
+      _image);
+  }
+}
+
+/// <summary>Fluent builder for Apple catalogue input specimens.</summary>
+public sealed class AppleCatalogueInputBuilder
+{
+  private readonly Fixture _fixture;
+  private long? _appleId;
+  private string? _title;
+  private string? _description;
+  private TimeSpan? _duration;
+  private DateTime? _release;
+  private Uri? _appleUrl;
+  private Uri? _image;
+
+  internal AppleCatalogueInputBuilder(Fixture fixture) => _fixture = fixture;
+
+  public AppleCatalogueInputBuilder WithAppleId(long appleId)
+  {
+    _appleId = appleId;
+    return this;
+  }
+
+  public AppleCatalogueInputBuilder WithTitle(string title)
+  {
+    _title = title;
+    return this;
+  }
+
+  public AppleCatalogueInputBuilder WithDescription(string description)
+  {
+    _description = description;
+    return this;
+  }
+
+  public AppleCatalogueInputBuilder WithDuration(TimeSpan duration)
+  {
+    _duration = duration;
+    return this;
+  }
+
+  public AppleCatalogueInputBuilder WithRelease(DateTime release)
+  {
+    _release = release;
+    return this;
+  }
+
+  public AppleCatalogueInputBuilder WithAppleUrl(Uri appleUrl)
+  {
+    _appleUrl = appleUrl;
+    return this;
+  }
+
+  public AppleCatalogueInputBuilder WithImage(Uri? image)
+  {
+    _image = image;
+    return this;
+  }
+
+  public AppleCatalogueInput Create()
+  {
+    var id = _appleId ?? DomainTestFixture.CreateAppleIdSpecimen(_fixture);
+    return new AppleCatalogueInput(
+      id,
+      _title ?? _fixture.Create<string>(),
+      _description ?? _fixture.Create<string>(),
+      _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
+      _release ?? DomainTestFixture.CreateCatalogueReleaseSpecimen(_fixture),
+      _appleUrl ?? new Uri($"https://podcasts.apple.com/us/podcast/episode/id{id}"),
+      _image);
+  }
+}
+
+/// <summary>Fluent builder for YouTube catalogue input specimens.</summary>
+public sealed class YouTubeCatalogueInputBuilder
+{
+  private readonly Fixture _fixture;
+  private string? _youTubeId;
+  private string? _title;
+  private string? _description;
+  private TimeSpan? _duration;
+  private DateTime? _release;
+  private Uri? _youTubeUrl;
+  private Uri? _image;
+
+  internal YouTubeCatalogueInputBuilder(Fixture fixture) => _fixture = fixture;
+
+  public YouTubeCatalogueInputBuilder WithYouTubeId(string youTubeId)
+  {
+    _youTubeId = youTubeId;
+    return this;
+  }
+
+  public YouTubeCatalogueInputBuilder WithTitle(string title)
+  {
+    _title = title;
+    return this;
+  }
+
+  public YouTubeCatalogueInputBuilder WithDescription(string description)
+  {
+    _description = description;
+    return this;
+  }
+
+  public YouTubeCatalogueInputBuilder WithDuration(TimeSpan duration)
+  {
+    _duration = duration;
+    return this;
+  }
+
+  public YouTubeCatalogueInputBuilder WithRelease(DateTime release)
+  {
+    _release = release;
+    return this;
+  }
+
+  public YouTubeCatalogueInputBuilder WithYouTubeUrl(Uri youTubeUrl)
+  {
+    _youTubeUrl = youTubeUrl;
+    return this;
+  }
+
+  public YouTubeCatalogueInputBuilder WithImage(Uri? image)
+  {
+    _image = image;
+    return this;
+  }
+
+  public YouTubeCatalogueInput Create()
+  {
+    var id = _youTubeId ?? DomainTestFixture.CreateYouTubeIdSpecimen(_fixture);
+    return new YouTubeCatalogueInput(
+      id,
+      _title ?? _fixture.Create<string>(),
+      _description ?? _fixture.Create<string>(),
+      _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
+      _release ?? DomainTestFixture.CreateCatalogueReleaseSpecimen(_fixture),
+      _youTubeUrl ?? new Uri($"https://www.youtube.com/watch?v={id}"),
+      _image);
+  }
+}
+
+/// <summary>Fluent builder for ResolvedSpotifyItem input specimens — release is always date-only.</summary>
+public sealed class ResolvedSpotifyItemInputBuilder
+{
+  private readonly Fixture _fixture;
+  private string? _episodeId;
+  private string? _title;
+  private string? _description;
+  private DateTime? _release;
+  private TimeSpan? _duration;
+  private Uri? _url;
+  private Uri? _image;
+
+  internal ResolvedSpotifyItemInputBuilder(Fixture fixture) => _fixture = fixture;
+
+  public ResolvedSpotifyItemInputBuilder WithEpisodeId(string episodeId)
+  {
+    _episodeId = episodeId;
+    return this;
+  }
+
+  public ResolvedSpotifyItemInputBuilder WithTitle(string title)
+  {
+    _title = title;
+    return this;
+  }
+
+  public ResolvedSpotifyItemInputBuilder WithDescription(string description)
+  {
+    _description = description;
+    return this;
+  }
+
+  public ResolvedSpotifyItemInputBuilder WithRelease(DateTime release)
+  {
+    _release = release.Date;
+    return this;
+  }
+
+  public ResolvedSpotifyItemInputBuilder WithDuration(TimeSpan duration)
+  {
+    _duration = duration;
+    return this;
+  }
+
+  public ResolvedSpotifyItemInputBuilder WithUrl(Uri? url)
+  {
+    _url = url;
+    return this;
+  }
+
+  public ResolvedSpotifyItemInputBuilder WithImage(Uri? image)
+  {
+    _image = image;
+    return this;
+  }
+
+  public ResolvedSpotifyItemInput Create()
+  {
+    var id = _episodeId ?? DomainTestFixture.CreateSpotifyIdSpecimen(_fixture);
+    return new ResolvedSpotifyItemInput(
+      id,
+      _title ?? _fixture.Create<string>(),
+      _description ?? _fixture.Create<string>(),
+      (_release ?? DomainTestFixture.CreateSpotifyReleaseSpecimen(_fixture)).Date,
+      _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
+      _url ?? new Uri($"https://open.spotify.com/episode/{id}"),
+      _image);
+  }
+}
+
+/// <summary>Fluent builder for ResolvedAppleItem input specimens.</summary>
+public sealed class ResolvedAppleItemInputBuilder
+{
+  private readonly Fixture _fixture;
+  private long? _episodeId;
+  private string? _title;
+  private string? _description;
+  private DateTime? _release;
+  private TimeSpan? _duration;
+  private Uri? _url;
+  private Uri? _image;
+
+  internal ResolvedAppleItemInputBuilder(Fixture fixture) => _fixture = fixture;
+
+  public ResolvedAppleItemInputBuilder WithEpisodeId(long episodeId)
+  {
+    _episodeId = episodeId;
+    return this;
+  }
+
+  public ResolvedAppleItemInputBuilder WithTitle(string title)
+  {
+    _title = title;
+    return this;
+  }
+
+  public ResolvedAppleItemInputBuilder WithDescription(string description)
+  {
+    _description = description;
+    return this;
+  }
+
+  public ResolvedAppleItemInputBuilder WithRelease(DateTime release)
+  {
+    _release = release;
+    return this;
+  }
+
+  public ResolvedAppleItemInputBuilder WithDuration(TimeSpan duration)
+  {
+    _duration = duration;
+    return this;
+  }
+
+  public ResolvedAppleItemInputBuilder WithUrl(Uri? url)
+  {
+    _url = url;
+    return this;
+  }
+
+  public ResolvedAppleItemInputBuilder WithImage(Uri? image)
+  {
+    _image = image;
+    return this;
+  }
+
+  public ResolvedAppleItemInput Create()
+  {
+    var id = _episodeId ?? DomainTestFixture.CreateAppleIdSpecimen(_fixture);
+    return new ResolvedAppleItemInput(
+      id,
+      _title ?? _fixture.Create<string>(),
+      _description ?? _fixture.Create<string>(),
+      _release ?? DomainTestFixture.CreateCatalogueReleaseSpecimen(_fixture),
+      _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
+      _url ?? new Uri($"https://podcasts.apple.com/us/podcast/episode/id{id}"),
+      _image ?? new Uri($"https://example.com/apple-art-{id}.jpg"));
+  }
+}
+
+/// <summary>Fluent builder for ResolvedYouTubeItem input specimens.</summary>
+public sealed class ResolvedYouTubeItemInputBuilder
+{
+  private readonly Fixture _fixture;
+  private string? _episodeId;
+  private string? _title;
+  private string? _description;
+  private DateTime? _release;
+  private TimeSpan? _duration;
+  private Uri? _url;
+  private Uri? _image;
+
+  internal ResolvedYouTubeItemInputBuilder(Fixture fixture) => _fixture = fixture;
+
+  public ResolvedYouTubeItemInputBuilder WithEpisodeId(string episodeId)
+  {
+    _episodeId = episodeId;
+    return this;
+  }
+
+  public ResolvedYouTubeItemInputBuilder WithTitle(string title)
+  {
+    _title = title;
+    return this;
+  }
+
+  public ResolvedYouTubeItemInputBuilder WithDescription(string description)
+  {
+    _description = description;
+    return this;
+  }
+
+  public ResolvedYouTubeItemInputBuilder WithRelease(DateTime release)
+  {
+    _release = release;
+    return this;
+  }
+
+  public ResolvedYouTubeItemInputBuilder WithDuration(TimeSpan duration)
+  {
+    _duration = duration;
+    return this;
+  }
+
+  public ResolvedYouTubeItemInputBuilder WithUrl(Uri? url)
+  {
+    _url = url;
+    return this;
+  }
+
+  public ResolvedYouTubeItemInputBuilder WithImage(Uri? image)
+  {
+    _image = image;
+    return this;
+  }
+
+  public ResolvedYouTubeItemInput Create()
+  {
+    var id = _episodeId ?? DomainTestFixture.CreateYouTubeIdSpecimen(_fixture);
+    return new ResolvedYouTubeItemInput(
+      id,
+      _title ?? _fixture.Create<string>(),
+      _description ?? _fixture.Create<string>(),
+      _release ?? DomainTestFixture.CreateCatalogueReleaseSpecimen(_fixture),
+      _duration ?? DomainTestFixture.CreateDurationSpecimen(_fixture),
+      _url ?? new Uri($"https://www.youtube.com/watch?v={id}"),
+      _image);
   }
 }
 

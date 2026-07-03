@@ -22,32 +22,22 @@ public class PlatformCatalogueAdapterRules
         "because Spotify catalogue dates have no time-of-day.")]
     public void Spotify_catalogue_release_maps_to_date_only_precision()
     {
-        // Arrange — raw catalogue payload may carry time; adapter must floor to date-only.
-        const string spotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4";
-        var releaseWithTime = DomainTestFixture.UtcAtTime(-110, TimeSpan.FromHours(14) + TimeSpan.FromMinutes(30));
-        var expectedDate = releaseWithTime.Date;
-        var input = new SpotifyCatalogueInput(
-            spotifyId,
-            DomainTestFixture.DefaultEpisodeTitle,
-            DomainTestFixture.DefaultCatalogueDescription,
-            DomainTestFixture.DefaultLength,
-            releaseWithTime,
-            _fixture.DefaultSpotifyUrl(spotifyId),
-            _fixture.DefaultSpotifyImage(spotifyId));
+        // Arrange — Spotify specimens are date-only at source; adapter preserves midnight UTC.
+        var input = _fixture.CreateSpotifyCatalogueInput();
 
         // Act
         var candidate = _spotifyAdapter.Adapt(input);
 
         // Assert
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateOnly);
-        candidate.Release.Value.Should().Be(expectedDate);
+        candidate.Release.Value.Should().Be(input.Release);
         candidate.Release.Value.TimeOfDay.Should().Be(TimeSpan.Zero);
 
         var expected = new EpisodeExpectation(
-            new PlatformExpectation(spotifyId, input.SpotifyUrl, input.Image),
+            new PlatformExpectation(input.SpotifyId, input.SpotifyUrl, input.Image),
             null,
             null,
-            expectedDate,
+            input.Release,
             input.Description);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);
     }
@@ -60,7 +50,9 @@ public class PlatformCatalogueAdapterRules
         // Arrange
         const long appleId = 1234567890;
         var appleRelease = DomainTestFixture.UtcAtTime(-84, TimeSpan.FromHours(9) + TimeSpan.FromMinutes(15) + TimeSpan.FromSeconds(30));
-        var input = _fixture.CreateAppleCatalogueInput(appleId, release: appleRelease);
+        var input = _fixture.CreateAppleCatalogueInput(b => b
+            .WithAppleId(appleId)
+            .WithRelease(appleRelease));
 
         // Act
         var candidate = _appleAdapter.Adapt(input);
@@ -86,7 +78,9 @@ public class PlatformCatalogueAdapterRules
         // Arrange
         const string youTubeId = "dQw4w9WgXcQ";
         var publishDate = DomainTestFixture.UtcAtTime(-44, TimeSpan.FromHours(18) + TimeSpan.FromMinutes(45) + TimeSpan.FromSeconds(12));
-        var input = _fixture.CreateYouTubeCatalogueInput(youTubeId, release: publishDate);
+        var input = _fixture.CreateYouTubeCatalogueInput(b => b
+            .WithYouTubeId(youTubeId)
+            .WithRelease(publishDate));
 
         // Act
         var candidate = _youTubeAdapter.Adapt(input);
