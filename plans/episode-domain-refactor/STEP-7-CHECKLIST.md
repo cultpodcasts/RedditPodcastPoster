@@ -18,7 +18,7 @@
 
 | Phase | Status | Risk | PR |
 |-------|--------|------|----|
-| **A** — Domain types + applier/merger/matcher (internal) | 🟢 In production (Indexer soak) | Medium | [#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871) |
+| **A** — Domain types + applier/merger/matcher (internal) | 🟢 Soak passed — safe to merge | Medium | [#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871) |
 | **B** — UrlSubmission through applier | ⬜ Not started | Medium | _PR link_ |
 | **C** — Platform adapters at boundaries | ⬜ Not started | Medium–High | _PR link_ |
 | **D** — Collapse finders into single matcher | ⬜ Not started | Medium–High | _PR link_ |
@@ -29,7 +29,7 @@
 
 ## Phase 0 / Phase A status
 
-Steps 1–6 are complete. **Phase A** is **in production** on **Indexer** (soak). Phases B–F not started.
+Steps 1–6 are complete. **Phase A** soak on **Indexer** passed (2026-07-04 review). Phases B–F not started.
 
 | Step / phase | Outcome |
 |--------------|---------|
@@ -44,12 +44,12 @@ Steps 1–6 are complete. **Phase A** is **in production** on **Indexer** (soak)
 - [x] `EpisodeMerger` / `EpisodeMatcher` wired to `EpisodePlatformMatcher` / `EpisodePlatformMerger`
 - [x] Steps 1–6 test gate green; coverage baseline + CI gate
 - [x] Released via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)
-- [x] Deployed to **Indexer** for soak (2026-07-03)
-- [ ] Soak review (pending — check for major issues, or review tomorrow)
+- [x] Deployed to **Indexer** for soak (2026-07-03 ~20:02 UTC — `indexer-deployment/released-package.zip`)
+- [x] Soak review (2026-07-04) — no red flags in production telemetry; safe to merge PR #871
 
 ### Risk to production (Phase A — live / soak context)
 
-- **Risk level:** Medium
+- **Risk level:** Medium (residual; soak did not surface issues)
 - **Blast radius:** Indexer host — match/merge via `EpisodeMerger` → domain matcher/merger/applier
 - **What changes live:** Indexing episode match and merge (identity, title/duration, release strategies, fill-missing platform fields on merge)
 - **What does not change:** Adapters not live at provider/resolver boundaries; UrlSubmission `EpisodeEnricher` still mutates flat `Episode` directly
@@ -57,7 +57,14 @@ Steps 1–6 are complete. **Phase A** is **in production** on **Indexer** (soak)
   - Subtle merge drift vs pre-refactor `EpisodeMerger` on edge cases not covered by rules
   - YouTube URL-only backfill paths may diverge if not fully characterized
   - `YouTubePublishDelayMatchStrategy` at 0% coverage — delay-window match behavior under-tested
-- **Soak / deploy scope:** Indexer only (deployed 2026-07-03; soak review pending)
+- **Soak / deploy scope:** Indexer only (deployed 2026-07-03; soak passed 2026-07-04)
+- **Soak evidence (App Insights `ai-infra` + metrics `indexer-infra`):**
+  - Window: deploy `2026-07-03T20:02:19Z` through review `~2026-07-04T15:00Z` (~19h)
+  - Executions steady (~186 / 6h pre- and post-deploy; no drop)
+  - Zero `exceptions` for `indexer-infra`; zero traces with `Failed to ingest` (ambiguous multi-match `LogError`)
+  - Zero severity≥3 traces; no DI / `NullReference` / `ArgumentException` messages in episode-domain paths
+  - Visible warnings were Bluesky posting only (unrelated to match/merge)
+  - Caveat: `RedditPodcastPoster` log level is Warning + 25% OTel sampling — successful merge `LogInformation` not visible; red-flag path is `LogError` (`Failed to ingest`) which would still export
 - **Rollback notes:** Revert Phase A wiring (`EpisodeMerger` / `EpisodeMatcher` → domain services); no UrlSubmission rollback needed
 
 ---
