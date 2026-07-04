@@ -18,8 +18,8 @@
 
 | Phase | Status | Risk | PR |
 |-------|--------|------|----|
-| **A** — Domain types + applier/merger/matcher (internal) | 🟢 Soak passed — safe to merge | Medium | [#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871) |
-| **B** — UrlSubmission through applier | ⬜ Not started | Medium | _PR link_ |
+| **A** — Domain types + applier/merger/matcher (internal) | 🟢 In production / Done | Medium | [#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871) |
+| **B** — UrlSubmission through applier | 🟡 In progress | Medium | _PR link_ |
 | **C** — Platform adapters at boundaries | ⬜ Not started | Medium–High | _PR link_ |
 | **D** — Collapse finders into single matcher | ⬜ Not started | Medium–High | _PR link_ |
 | **E** — Shared enricher template | ⬜ Not started | Medium | _PR link_ |
@@ -29,14 +29,14 @@
 
 ## Phase 0 / Phase A status
 
-Steps 1–6 are complete. **Phase A** soak on **Indexer** passed (2026-07-04 review). Phases B–F not started.
+Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)). **Phase B** is in progress. Phases C–F not started.
 
 | Step / phase | Outcome |
 |--------------|---------|
 | Steps 1–6 | Test infrastructure, domain types, Layer 1–3 business rules, adapter rules, coverage baseline + CI gate |
 | **Phase A** | Domain services in `RedditPodcastPoster.Episodes`; `EpisodeMerger` / `EpisodeMatcher` wired to `EpisodePlatformMatcher` / `EpisodePlatformMerger` |
 | Adapters | Exist under `Episodes/Adapters/` with Layer 1 rules — **not** wired at provider/resolver boundaries |
-| Applier | Used inside Episodes (via merger path) — **not** used by UrlSubmission `EpisodeEnricher` |
+| Applier | Used inside Episodes (via merger path) and UrlSubmission `EpisodeEnricher` (Phase B) |
 
 ### Phase A checklist
 
@@ -87,18 +87,18 @@ Steps 1–6 are complete. **Phase A** soak on **Indexer** passed (2026-07-04 rev
 
 ### Checklist
 
-- [ ] Inject `IEpisodePlatformApplier` (and adapters as needed) into `EpisodeEnricher`
-- [ ] Map each `Resolved*Item` on `CategorisedItem` through the corresponding adapter → candidate/patch
-- [ ] Apply missing platform links (ID, URL, image) via applier — no direct `matchingEpisode.SpotifyId = …` style writes for platform fields
-- [ ] Preserve podcast-level enrichment (show IDs, etc.) and non-platform episode fields (description helper, BBC/IA if still special-cased) without regressing rules
-- [ ] Update UrlSubmission test construction to supply applier (real implementation, not a mock that hides behavior)
-- [ ] Confirm no new processing logic outside adapters / applier for platform field writes
+- [x] Inject `IEpisodePlatformApplier` (and adapters as needed) into `EpisodeEnricher`
+- [x] Map each `Resolved*Item` on `CategorisedItem` through the corresponding adapter → candidate/patch
+- [x] Apply missing platform links (ID, URL, image) via applier — no direct `matchingEpisode.SpotifyId = …` style writes for platform fields
+- [x] Preserve podcast-level enrichment (show IDs, etc.) and non-platform episode fields (description helper, BBC/IA if still special-cased) without regressing rules
+- [x] Update UrlSubmission test construction to supply applier (real implementation, not a mock that hides behavior)
+- [x] Confirm no new processing logic outside adapters / applier for platform field writes
 
 ### Exit criteria
 
-- [ ] All UrlSubmission business-rule tests pass **without assertion changes**
-- [ ] Full Step 7 test set green (Episodes, PodcastServices, UrlSubmission, Persistence)
-- [ ] `./scripts/coverage-gate.ps1` passes (no regression below baseline)
+- [x] All UrlSubmission business-rule tests pass **without assertion changes**
+- [x] Full Step 7 test set green (Episodes, PodcastServices, UrlSubmission, Persistence)
+- [x] `./scripts/coverage-gate.ps1` passes (no regression below baseline)
 - [ ] PR opened for Phase B only
 
 ### Risk to production
