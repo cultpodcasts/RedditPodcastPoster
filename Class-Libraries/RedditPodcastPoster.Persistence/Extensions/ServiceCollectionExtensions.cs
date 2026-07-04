@@ -1,6 +1,7 @@
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence.Extensions;
@@ -12,6 +13,7 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddRepositories()
         {
             return services
+                .AddEpisodesDomain()
                 .AddSingleton<ICosmosDbClientFactory, CosmosDbClientFactory>()
                 .AddSingleton(sp => sp.GetRequiredService<ICosmosDbClientFactory>().Create())
                 .AddSingleton<ICosmosDbContainerFactory, CosmosDbContainerFactory>()

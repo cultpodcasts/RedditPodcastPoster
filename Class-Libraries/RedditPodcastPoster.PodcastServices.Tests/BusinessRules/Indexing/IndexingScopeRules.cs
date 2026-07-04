@@ -1,0 +1,52 @@
+using FluentAssertions;
+using Moq;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Tests.Support;
+
+namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Indexing;
+
+public class IndexingScopeRules
+{
+    private static readonly DateTime ReleasedSince = DomainTestFixture.UtcDateDaysAgo(400);
+    private static readonly DateTime EpisodeRelease = DomainTestFixture.UtcDateDaysAgo(30);
+    private static readonly TimeSpan SubMinimumDuration =
+        PodcastUpdaterTestHarness.DefaultPostingCriteria.MinimumDuration - TimeSpan.FromMinutes(1);
+
+    private readonly DomainTestFixture _fixture = new();
+
+    [Fact(DisplayName =
+        "Episodes below minimum duration are marked ignored during indexing.")]
+    public async Task short_discovered_episodes_are_marked_ignored()
+    {
+        // Arrange
+        var harness = new PodcastUpdaterTestHarness();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        harness.PodcastRepository.Seed(podcast);
+
+        var shortEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(EpisodeRelease)
+            .WithDuration(SubMinimumDuration)
+            .WithDescription(_fixture.Create<string>()));
+
+        harness.EpisodeProvider
+            .Setup(x => x.GetEpisodes(
+                podcast,
+                It.IsAny<IEnumerable<Episode>>(),
+                It.IsAny<IndexingContext>()))
+            .ReturnsAsync([shortEpisode]);
+
+        // Act
+        await harness.Updater.Update(
+            podcast,
+            enrichOnly: false,
+            PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
+
+        // Assert the short episode is added with Ignored set before persistence
+        harness.EpisodeRepository.SavedEpisodes.Should().ContainSingle();
+        var saved = harness.EpisodeRepository.SavedEpisodes.Single();
+        saved.Id.Should().Be(shortEpisode.Id);
+        saved.Ignored.Should().BeTrue();
+    }
+}

@@ -1,0 +1,208 @@
+{
+  "generatedFromBranch": "feature/episode-domain-refactor-tests",
+  "generatedAt": "2026-07-03",
+  "testProjects": [
+    "Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj",
+    "Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj",
+    "Class-Libraries/RedditPodcastPoster.UrlSubmission.Tests/RedditPodcastPoster.UrlSubmission.Tests.csproj",
+    "Class-Libraries/RedditPodcastPoster.Persistence.Tests/RedditPodcastPoster.Persistence.Tests.csproj"
+  ],
+  "aspirationTargets": {
+    "episodesDomainBranch": 90,
+    "orchestrationBranch": 85,
+    "adaptersLine": 100
+  },
+  "groups": [
+    {
+      "name": "episodes-domain",
+      "minBranchCoverage": 66,
+      "minLineCoverage": 78,
+      "aspirationBranchCoverage": 90
+    },
+    {
+      "name": "episodes-adapters",
+      "minBranchCoverage": 50,
+      "minLineCoverage": 98,
+      "aspirationLineCoverage": 100
+    },
+    {
+      "name": "orchestration",
+      "minBranchCoverage": 59,
+      "minLineCoverage": 79,
+      "aspirationBranchCoverage": 85
+    }
+  ],
+  "gapsToClose": [
+    "Episodes domain branch 66% vs aspiration 90% — YouTubePublishDelayMatchStrategy (0%), EpisodeMappingExtensions (53.6%), EpisodePlatformApplier (68.8%), EpisodePlatformMatcher (68.3%)",
+    "Orchestration branch 60% vs aspiration 85% — EpisodeEnricher (43.8%), PodcastUpdater (68.6%); CategorisedItemProcessor close at 82.1%",
+    "Adapters line 98.6% vs aspiration 100% — PlatformLinkFactory (85.7%), ResolvedAppleItemAdapter branch 50% (line 100%)"
+  ],
+  "files": [
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/EpisodePlatformMatcher.cs",
+      "branchCoverage": 68,
+      "lineCoverage": 85,
+      "note": "Raise toward 90% branch aspiration"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/Strategies/ExactReleaseMatchStrategy.cs",
+      "branchCoverage": 75,
+      "lineCoverage": 90
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/Strategies/SpotifyCatalogueReleaseMatchStrategy.cs",
+      "branchCoverage": 50,
+      "lineCoverage": 85,
+      "note": "Raise toward 90% branch aspiration"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/Strategies/YouTubePublishDelayMatchStrategy.cs",
+      "branchCoverage": 0,
+      "lineCoverage": 0,
+      "note": "No direct tests yet — raise toward 90% branch aspiration"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Merging/EpisodePlatformMerger.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Merging/Policies/AppleTimeBackfillMergePolicy.cs",
+      "branchCoverage": 66,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Merging/Policies/SpotifyNoTimeBackfillMergePolicy.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Merging/Policies/YouTubeAuthoritativePreserveMergePolicy.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Merging/Policies/YouTubeTimeBackfillMergePolicy.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Applying/EpisodePlatformApplier.cs",
+      "branchCoverage": 68,
+      "lineCoverage": 86,
+      "note": "Raise toward 90% branch aspiration"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Extensions/EpisodeIdentityExtensions.cs",
+      "branchCoverage": 81,
+      "lineCoverage": 93
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Extensions/EpisodeMappingExtensions.cs",
+      "branchCoverage": 53,
+      "lineCoverage": 50,
+      "note": "Raise toward 90% branch aspiration"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/EpisodeReleaseTolerance.cs",
+      "branchCoverage": 61,
+      "lineCoverage": 91,
+      "note": "Raise toward 90% branch aspiration"
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/SpotifyEpisodeAdapter.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/AppleEpisodeAdapter.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/YouTubeEpisodeAdapter.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/ResolvedSpotifyItemAdapter.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/ResolvedAppleItemAdapter.cs",
+      "branchCoverage": 50,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/ResolvedYouTubeItemAdapter.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/PlatformLinkFactory.cs",
+      "branchCoverage": 50,
+      "lineCoverage": 85,
+      "note": "Raise toward 100% line aspiration"
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/ReleaseInfoFactory.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "orchestration",
+      "path": "Class-Libraries/RedditPodcastPoster.Persistence/EpisodeMerger.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "orchestration",
+      "path": "Class-Libraries/RedditPodcastPoster.Persistence/EpisodeMatcher.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "orchestration",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices/PodcastUpdater.cs",
+      "branchCoverage": 68,
+      "lineCoverage": 89,
+      "note": "Raise toward 85% branch aspiration"
+    },
+    {
+      "group": "orchestration",
+      "path": "Class-Libraries/RedditPodcastPoster.UrlSubmission/CategorisedItemProcessor.cs",
+      "branchCoverage": 82,
+      "lineCoverage": 80,
+      "note": "Close to 85% branch aspiration"
+    },
+    {
+      "group": "orchestration",
+      "path": "Class-Libraries/RedditPodcastPoster.UrlSubmission/EpisodeEnricher.cs",
+      "branchCoverage": 43,
+      "lineCoverage": 61,
+      "note": "Raise toward 85% branch aspiration — largest orchestration gap"
+    }
+  ]
+}

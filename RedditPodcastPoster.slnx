@@ -24,6 +24,10 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.DependencyInjection/RedditPodcastPoster.DependencyInjection.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery/RedditPodcastPoster.Discovery.csproj" />
 
+    <Project Path="Class-Libraries/RedditPodcastPoster.Episodes/RedditPodcastPoster.Episodes.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/RedditPodcastPoster.Episodes.TestSupport.csproj" />
+
     <Project Path="Class-Libraries/RedditPodcastPoster.EdgeApi/RedditPodcastPoster.EdgeApi.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.EntitySearchIndexer/RedditPodcastPoster.EntitySearchIndexer.csproj" />
@@ -77,7 +81,10 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.BBC.Tests/RedditPodcastPoster.BBC.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery.Tests/RedditPodcastPoster.Discovery.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Persistence.Tests/RedditPodcastPoster.Persistence.Tests.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple.Tests/RedditPodcastPoster.PodcastServices.Apple.Tests.csproj" />
 

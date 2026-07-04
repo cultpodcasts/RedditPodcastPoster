@@ -1,21 +1,25 @@
-using System.Text.RegularExpressions;
+using RedditPodcastPoster.Episodes.Merging;
+using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
 
-public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMerger
+public class EpisodeMerger(
+    IEpisodePlatformMatcher platformMatcher,
+    IEpisodePlatformMerger platformMerger) : IEpisodeMerger
 {
     public EpisodeMergeResult MergeEpisodes(
         Podcast podcast,
         IEnumerable<Episode> existingEpisodes,
         IEnumerable<Episode> episodesToMerge)
     {
-        Regex? episodeMatchRegex = null;
+        System.Text.RegularExpressions.Regex? episodeMatchRegex = null;
         if (!string.IsNullOrWhiteSpace(podcast.EpisodeMatchRegex))
         {
-            episodeMatchRegex = new Regex(podcast.EpisodeMatchRegex, Podcast.EpisodeMatchFlags);
+            episodeMatchRegex = new System.Text.RegularExpressions.Regex(
+                podcast.EpisodeMatchRegex,
+                Podcast.EpisodeMatchFlags);
         }
 
         var existingList = existingEpisodes.ToList();
@@ -27,7 +31,12 @@ public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMer
         foreach (var episodeToMerge in episodesToMerge)
         {
             var matchingExisting = existingList
-                .Where(x => Match(x, episodeToMerge, episodeMatchRegex, podcast, existingList))
+                .Where(x => platformMatcher.IsMatch(
+                    x,
+                    episodeToMerge,
+                    episodeMatchRegex,
+                    podcast,
+                    existingList))
                 .ToList();
 
             if (matchingExisting.Count <= 1)
@@ -35,18 +44,16 @@ public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMer
                 var existingEpisode = matchingExisting.SingleOrDefault();
                 if (existingEpisode == null)
                 {
-                    // New episode
                     episodeToMerge.Id = Guid.NewGuid();
-                    var (updatedPodcastProperties, updatedTimestamp) = episodeToMerge.SetPodcastProperties(podcast);
+                    episodeToMerge.SetPodcastProperties(podcast);
                     addedEpisodes.Add(episodeToMerge);
                     episodesToSave.Add(episodeToMerge);
-                    existingList.Add(episodeToMerge); // Add to list for subsequent matching
+                    existingList.Add(episodeToMerge);
                 }
                 else
                 {
-                    // Merge with existing
-                    var updated = MergeInPlace(existingEpisode, episodeToMerge, podcast);
-                    var (updatedPodcastProperties, updatedTimestamp) = existingEpisode.SetPodcastProperties(podcast);
+                    var updated = platformMerger.MergeInPlace(existingEpisode, episodeToMerge, podcast);
+                    existingEpisode.SetPodcastProperties(podcast);
 
                     if (updated)
                     {
@@ -63,208 +70,4 @@ public partial class EpisodeMerger(IEpisodeMatcher episodeMatcher) : IEpisodeMer
 
         return new EpisodeMergeResult(episodesToSave, addedEpisodes, mergedEpisodes, failedEpisodes);
     }
-
-
-    private bool Match(
-        Episode episode,
-        Episode episodeToMerge,
-        Regex? episodeMatchRegex,
-        Podcast podcast,
-        IReadOnlyList<Episode> existingEpisodes)
-    {
-        if (SpotifyEpisodesMatch(episode, episodeToMerge))
-        {
-            return true;
-        }
-
-        if (IncomingPlatformIdOwnedByAnotherEpisode(episode, episodeToMerge, existingEpisodes))
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(episode.SpotifyId) && !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(episode.YouTubeId) && !string.IsNullOrWhiteSpace(episodeToMerge.YouTubeId))
-        {
-            if (episode.YouTubeId == episodeToMerge.YouTubeId)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        if (episode.AppleId.HasValue && episodeToMerge.AppleId.HasValue)
-        {
-            if (episode.AppleId.Value == episodeToMerge.AppleId.Value)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        return episodeMatcher.IsMatch(episode, episodeToMerge, episodeMatchRegex, podcast);
-    }
-
-    private bool MergeInPlace(Episode existingEpisode, Episode episodeToMerge, Podcast podcast)
-    {
-        var updated = false;
-        var preserveYouTubeRelease =
-            EpisodeReleaseMatchTolerance.ShouldPreserveYouTubeAuthoritativeRelease(podcast, existingEpisode);
-        if (existingEpisode.Urls.Spotify == null && episodeToMerge.Urls.Spotify != null)
-        {
-            existingEpisode.Urls.Spotify ??= episodeToMerge.Urls.Spotify;
-            updated = true;
-        }
-
-        if (existingEpisode.Images?.Spotify == null && episodeToMerge.Images?.Spotify != null)
-        {
-            existingEpisode.Images ??= new EpisodeImages();
-            existingEpisode.Images.Spotify ??= episodeToMerge.Images.Spotify;
-            updated = true;
-        }
-
-        if (existingEpisode.Urls.Apple == null && episodeToMerge.Urls.Apple != null)
-        {
-            existingEpisode.Urls.Apple ??= episodeToMerge.Urls.Apple;
-            updated = true;
-        }
-
-        if (existingEpisode.Images?.Apple == null && episodeToMerge.Images?.Apple != null)
-        {
-            existingEpisode.Images ??= new EpisodeImages();
-            existingEpisode.Images.Apple ??= episodeToMerge.Images.Apple;
-            updated = true;
-        }
-
-        if (existingEpisode.Urls.YouTube == null && episodeToMerge.Urls.YouTube != null)
-        {
-            existingEpisode.Urls.YouTube ??= episodeToMerge.Urls.YouTube;
-            updated = true;
-        }
-
-        if (existingEpisode.Images?.YouTube == null && episodeToMerge.Images?.YouTube != null)
-        {
-            existingEpisode.Images ??= new EpisodeImages();
-            existingEpisode.Images.YouTube ??= episodeToMerge.Images.YouTube;
-            updated = true;
-        }
-
-        if (string.IsNullOrWhiteSpace(existingEpisode.SpotifyId) &&
-            !string.IsNullOrWhiteSpace(episodeToMerge.SpotifyId))
-        {
-            existingEpisode.SpotifyId = episodeToMerge.SpotifyId;
-            updated = true;
-        }
-
-        if (existingEpisode.AppleId == null && episodeToMerge.AppleId != null)
-        {
-            existingEpisode.AppleId = episodeToMerge.AppleId;
-            updated = true;
-        }
-
-        if (string.IsNullOrWhiteSpace(existingEpisode.YouTubeId) &&
-            !string.IsNullOrWhiteSpace(episodeToMerge.YouTubeId))
-        {
-            existingEpisode.YouTubeId = episodeToMerge.YouTubeId;
-            updated = true;
-        }
-
-        if (existingEpisode.Description.EndsWith("...") &&
-            existingEpisode.Description.Length < episodeToMerge.Description.Length)
-        {
-            existingEpisode.Description = episodeToMerge.Description;
-            updated = true;
-        }
-
-        if (!preserveYouTubeRelease &&
-            existingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
-            episodeToMerge.Release.TimeOfDay > TimeSpan.Zero &&
-            DateOnly.FromDateTime(existingEpisode.Release) == DateOnly.FromDateTime(episodeToMerge.Release) &&
-            HasYouTubeOrAppleIdentity(episodeToMerge))
-        {
-            existingEpisode.Release = episodeToMerge.Release;
-            updated = true;
-        }
-
-        return updated;
-    }
-
-    private static bool IncomingPlatformIdOwnedByAnotherEpisode(
-        Episode candidate,
-        Episode episodeToMerge,
-        IReadOnlyList<Episode> existingEpisodes)
-    {
-        var incomingSpotifyId = ResolveSpotifyEpisodeId(episodeToMerge.SpotifyId, episodeToMerge.Urls.Spotify);
-        if (!string.IsNullOrWhiteSpace(incomingSpotifyId))
-        {
-            foreach (var existingEpisode in existingEpisodes)
-            {
-                if (existingEpisode.Id == candidate.Id)
-                {
-                    continue;
-                }
-
-                var existingSpotifyId =
-                    ResolveSpotifyEpisodeId(existingEpisode.SpotifyId, existingEpisode.Urls.Spotify);
-                if (existingSpotifyId == incomingSpotifyId)
-                {
-                    return true;
-                }
-            }
-        }
-
-        if (episodeToMerge.AppleId is > 0)
-        {
-            foreach (var existingEpisode in existingEpisodes)
-            {
-                if (existingEpisode.Id == candidate.Id)
-                {
-                    continue;
-                }
-
-                if (existingEpisode.AppleId == episodeToMerge.AppleId)
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private static bool HasYouTubeOrAppleIdentity(Episode episode) =>
-        !string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.AppleId is > 0;
-
-    private static bool SpotifyEpisodesMatch(Episode episode, Episode episodeToMerge)
-    {
-        var existingId = ResolveSpotifyEpisodeId(episode.SpotifyId, episode.Urls.Spotify);
-        var incomingId = ResolveSpotifyEpisodeId(episodeToMerge.SpotifyId, episodeToMerge.Urls.Spotify);
-        return !string.IsNullOrWhiteSpace(existingId) &&
-               !string.IsNullOrWhiteSpace(incomingId) &&
-               existingId == incomingId;
-    }
-
-    private static string? ResolveSpotifyEpisodeId(string spotifyId, Uri? spotifyUrl)
-    {
-        if (!string.IsNullOrWhiteSpace(spotifyId))
-        {
-            return spotifyId;
-        }
-
-        if (spotifyUrl == null)
-        {
-            return null;
-        }
-
-        var match = SpotifyEpisodeIdRegex().Match(spotifyUrl.ToString());
-        return match.Success ? match.Groups["episodeId"].Value : null;
-    }
-
-    [GeneratedRegex(@"episode/(?'episodeId'\w+)")]
-    private static partial Regex SpotifyEpisodeIdRegex();
 }
