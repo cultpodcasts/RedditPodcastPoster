@@ -19,7 +19,7 @@
 | Phase | Status | Risk | PR |
 |-------|--------|------|----|
 | **A** — Domain types + applier/merger/matcher (internal) | 🟢 In production / Done | Medium | [#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871) |
-| **B** — UrlSubmission through applier | 🟡 In progress | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
+| **B** — UrlSubmission through applier | 🟢 In production (soak) | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
 | **C** — Platform adapters at boundaries | ⬜ Not started | Medium–High | _PR link_ |
 | **D** — Collapse finders into single matcher | ⬜ Not started | Medium–High | _PR link_ |
 | **E** — Shared enricher template | ⬜ Not started | Medium | _PR link_ |
@@ -29,7 +29,7 @@
 
 ## Phase 0 / Phase A status
 
-Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)). **Phase B** is in progress. Phases C–F not started.
+Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)). **Phase B** is in production (soak via [PR #872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872); review pending). Phases C–F not started.
 
 | Step / phase | Outcome |
 |--------------|---------|
@@ -131,18 +131,29 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 - [x] Full Step 7 test set green (Episodes, PodcastServices, UrlSubmission, Persistence)
 - [x] `./scripts/coverage-gate.ps1` passes (no regression below baseline)
 - [x] PR opened for Phase B only
+- [x] Deployed for overnight soak (2026-07-04)
+- [ ] Soak review — pending (~2026-07-05)
 
-### Risk to production
+### Phase B deploy / soak status
+
+- [x] Branch deployed from [PR #872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) (2026-07-04 overnight soak)
+- [x] **Api** — UrlSubmission Phase B (`EpisodeEnricher` → applier + resolved-item adapters)
+- [x] **Indexer** — explicit `AddEpisodesDomain()` + Phase A merge path
+- [x] **Discovery** — repos-only (no `AddEpisodesDomain()`)
+- [x] **Publishing console apps** — Poster etc. with explicit `AddEpisodesDomain()`
+- [ ] Soak review — pending (user review scheduled ~2026-07-05)
+
+### Risk to production (Phase B — live / soak context)
 
 - **Risk level:** Medium
-- **Blast radius:** UrlSubmission host — submit/enrich path (`EpisodeEnricher` → `EpisodePlatformApplier` + resolved-item adapters)
-- **What changes live:** How submitted URLs enrich existing episodes (platform ID/URL/image writes go through applier)
-- **What does not change:** Indexer match/merge (already on domain from Phase A); catalogue adapters still not wired at provider/resolver boundaries
+- **Blast radius:** UrlSubmission path on **Api** (`EpisodeEnricher` → `EpisodePlatformApplier` + resolved-item adapters); **Indexer** and publishing console apps carry explicit `AddEpisodesDomain()` registration; **Discovery** repos-only (unchanged domain wiring)
+- **What changes live:** How submitted URLs enrich existing episodes (platform ID/URL/image writes go through applier); composition roots updated for explicit domain registration on deployed hosts
+- **What does not change:** Indexer match/merge algorithms (Phase A, unchanged by B); catalogue adapters still not wired at provider/resolver boundaries; Discovery does not resolve matcher/merger/applier
 - **Residual risks:**
   - Podcast-level or non-platform fields (description, BBC/IA) regress if special-cases are dropped during the move
   - Resolved-item adapter quirks surface only on live submit traffic not covered by rules
-- **Recommended soak / deploy scope:** UrlSubmission-related host only (Indexer unchanged by this phase)
-- **Rollback notes:** Revert `EpisodeEnricher` to direct flat-field mutation; Indexer unaffected
+- **Soak / deploy scope:** Api, Indexer, Discovery, publishing console apps (deployed 2026-07-04; soak review pending)
+- **Rollback notes:** Revert `EpisodeEnricher` to direct flat-field mutation; revert explicit `AddEpisodesDomain()` at affected composition roots if needed
 
 **PR:** [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872)
 
