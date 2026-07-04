@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Indexing.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
@@ -33,6 +34,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddSingleton<IndexProcessor>()
+    .AddEpisodesDomain()
     .AddRepositories()
     .AddCommonServices()
     .AddPodcastServices()

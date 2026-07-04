@@ -100,21 +100,30 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 | Extension | Registers |
 |-----------|-----------|
 | `AddEpisodesDomain()` | `IEpisodePlatformApplier`, `IEpisodePlatformMerger`, `IEpisodePlatformMatcher`, match strategies, merge policies |
-| `AddRepositories()` | Calls `AddEpisodesDomain()` first, then Cosmos repositories and legacy `EpisodeMatcher` / `EpisodeMerger` |
+| `AddRepositories()` | Cosmos repositories and legacy `EpisodeMatcher` / `EpisodeMerger` only — **does not** call `AddEpisodesDomain()` |
 | `AddUrlSubmission()` | UrlSubmission services only (including `IEpisodeEnricher`); **does not** register episodes domain |
 
-**Hosts calling `AddUrlSubmission()`** — all use `AddRepositories()` first (episodes domain included):
+**Hosts that call both** `AddEpisodesDomain()` and `AddRepositories()` explicitly:
+
+| Host | Composition root | Why |
+|------|------------------|-----|
+| Api | `Cloud/Api/Ioc.cs` | `AddUrlSubmission`, `AddPodcastServices`, `AddIndexer` → applier + merger |
+| Indexer (cloud) | `Cloud/Indexer/Ioc.cs` | `AddPodcastServices` → `PodcastUpdater` / `IEpisodeMerger` |
+| Index CLI | `Console-Apps/Index/Program.cs` | `AddIndexer` + `AddPodcastServices` |
+| SubmitUrl CLI | `Console-Apps/SubmitUrl/Program.cs` | `AddUrlSubmission` + `AddPodcastServices` |
+| Enrich existing episodes CLI | `Console-Apps/EnrichExistingEpisodesFromPodcastServices/Program.cs` | `AddUrlSubmission` → applier |
+| Wikipedia episode enricher CLI | `Console-Apps/WikipediaEpisodeEnricher/Program.cs` | `AddUrlSubmission` + `AddPodcastServices` |
+| Poster, AddAudioPodcast, EnrichPodcastWithImages, WebsubStatus CLIs | respective `Program.cs` | `AddPodcastServices` → merger |
+
+**Repos-only hosts** (no `AddEpisodesDomain()` — do not resolve matcher/merger/applier):
 
 | Host | Composition root |
 |------|------------------|
-| Api | `Cloud/Api/Ioc.cs` |
-| SubmitUrl CLI | `Console-Apps/SubmitUrl/Program.cs` |
-| Enrich existing episodes CLI | `Console-Apps/EnrichExistingEpisodesFromPodcastServices/Program.cs` |
-| Wikipedia episode enricher CLI | `Console-Apps/WikipediaEpisodeEnricher/Program.cs` |
+| Discovery (cloud) | `Cloud/Discovery/Ioc.cs` |
+| Discover CLI | `Console-Apps/Discover/Program.cs` |
+| Other Cosmos maintenance/backfill CLIs | e.g. `CosmosDbUploader`, `SeedKnownTerms`, `FindDuplicateEpisodes`, … |
 
-**Other episode-domain consumers** (match/merge via persistence, no UrlSubmission): Indexer, Discovery, and Cosmos-backed console apps — domain via `AddRepositories()` only.
-
-**Rationale:** keep feature extensions (`AddUrlSubmission`, future enrich templates) focused on their pipeline; domain services stay explicit at the host or persistence layer so hosts that need matcher/merger/applier without UrlSubmission are not forced to pull UrlSubmission DI.
+**Rationale:** keep feature extensions (`AddUrlSubmission`, future enrich templates) focused on their pipeline; domain services stay explicit at the host composition root so callers choose matcher/merger/applier registration independently of persistence.
 
 ### Exit criteria
 

@@ -11,6 +11,12 @@ public static class ServiceCollectionExtensions
 {
     extension(IServiceCollection services)
     {
+        /// <summary>
+        /// Episode platform matcher, merger, applier, and their strategies/policies.
+        /// Required when resolving <c>IEpisodeMatcher</c>, <c>IEpisodeMerger</c>, or UrlSubmission
+        /// <c>IEpisodeEnricher</c>. Register at the host composition root alongside
+        /// <c>AddRepositories()</c> when needed — not nested inside persistence registration.
+        /// </summary>
         public IServiceCollection AddEpisodesDomain()
         {
             services.AddSingleton<IEpisodePlatformApplier, EpisodePlatformApplier>();

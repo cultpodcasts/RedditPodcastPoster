@@ -9,6 +9,7 @@ using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
@@ -33,6 +34,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<PostProcessor>()
+    .AddEpisodesDomain()
     .AddRepositories()
     .AddCommonServices()
     .AddPodcastServices()

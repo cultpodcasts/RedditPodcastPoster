@@ -17,6 +17,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Discovery.Extensions;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Indexing.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
@@ -44,6 +45,7 @@ public static class Ioc
         AdminRedditClientFactory.AddAdminRedditClient(serviceCollection);
 
         serviceCollection
+            .AddEpisodesDomain()
             .AddRepositories()
             .AddTextSanitiser()
             .AddYouTubeServices(ApplicationUsage.Api)
