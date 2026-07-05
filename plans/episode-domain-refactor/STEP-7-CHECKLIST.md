@@ -201,6 +201,7 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 - [x] Matching/merging/indexing/UrlSubmission rules still pass **without assertion changes**
 - [x] `./scripts/coverage-gate.ps1` passes
 - [x] PR opened for Phase C only
+- [x] Pre-soak business-rule gap tests added (+15): UrlSubmission persistence (2), `EpisodePlatformApplierRules` (6), provider round-trips (3), Resolved Apple URL-only (2), `YouTubePublishDelayMatchStrategyRules` (3 incl. Spotify negative); Episodes.Tests 91, UrlSubmission.Tests 20
 
 ### Risk to production
 

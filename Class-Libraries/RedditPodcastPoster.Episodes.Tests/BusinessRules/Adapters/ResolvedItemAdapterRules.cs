@@ -1,6 +1,8 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.Domain;
+using RedditPodcastPoster.Episodes.Factories;
+using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 
@@ -15,6 +17,7 @@ public class ResolvedItemAdapterRules
     private readonly ResolvedSpotifyItemAdapter _spotifyAdapter = new();
     private readonly ResolvedAppleItemAdapter _appleAdapter = new();
     private readonly ResolvedYouTubeItemAdapter _youTubeAdapter = new();
+    private readonly EpisodeFromCandidateFactory _factory = new();
 
     [Fact(DisplayName =
         "When a ResolvedSpotifyItem is adapted, the candidate SourceLink is a Spotify PlatformLink " +
@@ -92,5 +95,46 @@ public class ResolvedItemAdapterRules
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateTimeUtc);
         input.Release.TimeOfDay.Should().NotBe(TimeSpan.Zero);
+    }
+
+    [Fact(DisplayName =
+        "When a ResolvedAppleItem has a URL but no episode id, adaptation produces an Apple PlatformLink " +
+        "with the URL and no id because resolver links may omit episode identity.")]
+    public void ResolvedAppleItem_with_url_only_maps_to_link_without_id()
+    {
+        // Arrange
+        var input = _fixture.BuildResolvedAppleItemInput()
+            .WithoutEpisodeId()
+            .Create();
+
+        // Act
+        var candidate = _appleAdapter.Adapt(input);
+
+        // Assert
+        candidate.SourceLink.Should().NotBeNull();
+        candidate.SourceLink!.Service.Should().Be(Service.Apple);
+        candidate.SourceLink.Url.Should().Be(input.Url);
+        candidate.SourceLink.Id.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When a ResolvedAppleItem candidate has a URL but no episode id, materialization sets the Apple URL " +
+        "and leaves AppleId unset because only parseable numeric ids become AppleId.")]
+    public void ResolvedAppleItem_url_only_materializes_url_without_apple_id()
+    {
+        // Arrange
+        var input = _fixture.BuildResolvedAppleItemInput()
+            .WithoutEpisodeId()
+            .Create();
+        var candidate = _appleAdapter.Adapt(input);
+
+        // Act
+        var episode = _factory.Create(candidate, explicitContent: false);
+
+        // Assert
+        episode.Urls!.Apple.Should().Be(input.Url);
+        episode.AppleId.Should().BeNull();
+        episode.SpotifyId.Should().BeNullOrEmpty();
+        episode.YouTubeId.Should().BeNullOrEmpty();
     }
 }

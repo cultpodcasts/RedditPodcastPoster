@@ -148,6 +148,97 @@ public class UrlSubmissionPersistenceRules
     }
 
     [Fact(DisplayName =
+        "When a new episode is added to an existing podcast, only the episode is saved " +
+        "because the podcast row is unchanged unless show metadata was enriched.")]
+    public async Task new_episode_on_existing_podcast_saves_episode_only()
+    {
+        // Arrange
+        var episodeRepository = new InMemoryEpisodeRepository();
+        var podcastRepository = new InMemoryPodcastRepository();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcastRepository.Seed(podcast);
+
+        var newEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithDuration(_fixture.CreateDuration()));
+        newEpisode.PodcastId = podcast.Id;
+
+        var podcastProcessor = new Mock<IPodcastProcessor>();
+        podcastProcessor
+            .Setup(x => x.AddEpisodeToExistingPodcast(It.IsAny<CategorisedItem>()))
+            .ReturnsAsync(new SubmitResult(
+                SubmitResultState.Created,
+                SubmitResultState.None,
+                Episode: newEpisode));
+
+        var processor = CreateProcessor(
+            podcastProcessor.Object,
+            podcastRepository,
+            episodeRepository);
+
+        var categorisedItem = new CategorisedItem(
+            podcast,
+            [],
+            null,
+            null,
+            null,
+            null,
+            null,
+            Service.Spotify);
+
+        // Act
+        await processor.ProcessCategorisedItem(
+            categorisedItem,
+            new SubmitOptions(null, MatchOtherServices: true, PersistToDatabase: true));
+
+        // Assert
+        episodeRepository.SavedEpisodes.Should().ContainSingle();
+        episodeRepository.SavedEpisodes.Single().Id.Should().Be(newEpisode.Id);
+        podcastRepository.SavedPodcasts.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When podcast show metadata is enriched but the episode is unchanged, only the podcast is saved " +
+        "because unchanged episodes must not trigger a redundant episode write.")]
+    public async Task enriched_podcast_metadata_saves_podcast_only_when_episode_unchanged()
+    {
+        // Arrange
+        var episodeRepository = new InMemoryEpisodeRepository();
+        var podcastRepository = new InMemoryPodcastRepository();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcastRepository.Seed(podcast);
+
+        var podcastProcessor = new Mock<IPodcastProcessor>();
+        podcastProcessor
+            .Setup(x => x.AddEpisodeToExistingPodcast(It.IsAny<CategorisedItem>()))
+            .ReturnsAsync(new SubmitResult(SubmitResultState.None, SubmitResultState.Enriched));
+
+        var processor = CreateProcessor(
+            podcastProcessor.Object,
+            podcastRepository,
+            episodeRepository);
+
+        var categorisedItem = new CategorisedItem(
+            podcast,
+            [],
+            null,
+            null,
+            null,
+            null,
+            null,
+            Service.Spotify);
+
+        // Act
+        await processor.ProcessCategorisedItem(
+            categorisedItem,
+            new SubmitOptions(null, MatchOtherServices: true, PersistToDatabase: true));
+
+        // Assert
+        podcastRepository.SavedPodcasts.Should().ContainSingle();
+        podcastRepository.SavedPodcasts.Single().Id.Should().Be(podcast.Id);
+        episodeRepository.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "New podcast submission saves both podcast and episode.")]
     public async Task new_podcast_submission_saves_podcast_and_episode()
     {

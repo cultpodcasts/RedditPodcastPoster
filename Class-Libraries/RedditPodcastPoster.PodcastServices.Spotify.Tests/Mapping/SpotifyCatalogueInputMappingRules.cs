@@ -1,6 +1,9 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
+using RedditPodcastPoster.Episodes.Factories;
+using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Spotify.Mapping;
 using RedditPodcastPoster.Text;
@@ -12,6 +15,40 @@ public class SpotifyCatalogueInputMappingRules
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly IHtmlSanitiser _htmlSanitiser = new HtmlSanitiser(NullLogger<HtmlSanitiser>.Instance);
+    private readonly EpisodeFromCandidateFactory _factory = new();
+
+    [Fact(DisplayName =
+        "When a Spotify API episode is mapped through catalogue input, adapter, and factory, " +
+        "the episode matches the legacy FromSpotify shape because provider boundaries must preserve indexed fields.")]
+    public void Spotify_api_round_trip_matches_legacy_episode_shape()
+    {
+        // Arrange
+        var spotifyId = _fixture.CreateSpotifyId();
+        var title = _fixture.CreateTitle();
+        var descriptionHtml = $"<p>{_fixture.Create<string>()}</p>";
+        var duration = _fixture.CreateDuration();
+        var releaseDate = DomainTestFixture.UtcDateDaysAgo(3).ToString("yyyy-MM-dd");
+        var spotifyUrl = _fixture.DefaultSpotifyUrl(spotifyId).ToString();
+        var imageUrl = _fixture.Create<Uri>().ToString();
+        var images = new List<Image> { new() { Url = imageUrl, Height = 640 } };
+        var apiEpisode = new SimpleEpisode
+        {
+            Id = spotifyId,
+            Name = title,
+            HtmlDescription = descriptionHtml,
+            DurationMs = (int)duration.TotalMilliseconds,
+            ReleaseDate = releaseDate,
+            ExternalUrls = new Dictionary<string, string> { ["spotify"] = spotifyUrl },
+            Images = images
+        };
+        // Act
+        var input = apiEpisode.ToCatalogueInput(_htmlSanitiser);
+        var candidate = new SpotifyEpisodeAdapter().Adapt(input);
+        var episode = _factory.Create(candidate, explicitContent: false);
+
+        // Assert
+        episode.ShouldMatchExpectation(EpisodeExpectation.From(candidate));
+    }
 
     [Fact(DisplayName =
         "When Spotify returns no HTML description, catalogue mapping produces an empty sanitized description " +

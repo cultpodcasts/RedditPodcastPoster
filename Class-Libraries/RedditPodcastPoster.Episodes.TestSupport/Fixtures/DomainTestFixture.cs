@@ -1311,6 +1311,7 @@ public sealed class ResolvedAppleItemInputBuilder
 {
   private readonly Fixture _fixture;
   private long? _episodeId;
+  private bool _omitEpisodeId;
   private string? _title;
   private string? _description;
   private DateTime? _release;
@@ -1323,6 +1324,14 @@ public sealed class ResolvedAppleItemInputBuilder
   public ResolvedAppleItemInputBuilder WithEpisodeId(long episodeId)
   {
     _episodeId = episodeId;
+    _omitEpisodeId = false;
+    return this;
+  }
+
+  public ResolvedAppleItemInputBuilder WithoutEpisodeId()
+  {
+    _omitEpisodeId = true;
+    _episodeId = null;
     return this;
   }
 
@@ -1364,7 +1373,9 @@ public sealed class ResolvedAppleItemInputBuilder
 
   public ResolvedAppleItemInput Create()
   {
-    var id = _episodeId ?? DomainTestFixture.CreateAppleIdSpecimen(_fixture);
+    long? id = _omitEpisodeId
+      ? null
+      : _episodeId ?? DomainTestFixture.CreateAppleIdSpecimen(_fixture);
     return new ResolvedAppleItemInput(
       id,
       _title ?? DomainTestFixture.CreateTitleSpecimen(_fixture),
