@@ -208,20 +208,23 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 ### Phase C deploy / soak status
 
 - [x] Branch deployed from [PR #873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873) (2026-07-05)
+- [x] **Api** — Phase C soak (shared catalogue adapter wiring at provider/resolver boundaries)
 - [x] **Indexer** — catalogue providers → adapters → factory (`SpotifyEpisodeAdapter`, `AppleEpisodeAdapter`, `YouTubeEpisodeAdapter` at provider/resolver boundaries)
-- [ ] Soak review pending
+- [x] **Discovery** — Phase C soak (deployed with full soak scope)
+- [ ] **Publishing console apps** — deploying (Poster etc.)
+- [ ] Soak review pending — will revisit after soak
 
 ### Risk to production (Phase C — live / soak context)
 
 - **Risk level:** Medium–High
-- **Blast radius:** Indexer (all platform providers/resolvers); any host that builds episodes from catalogue API types. Discovery remains out of scope unless a shared provider is touched accidentally
+- **Blast radius:** Indexer (all platform providers/resolvers); any host that builds episodes from catalogue API types; Api / Discovery deployed for soak alongside Indexer and publishing console apps
 - **What changes live:** Spotify/Apple/YouTube catalogue → `EpisodeCandidate` at the boundary; `Episode.From*` / raw API types leave the indexing processing path
-- **What does not change:** Finder scoring logic (still Phase D); enricher mutation patterns (still Phase E); UrlSubmission already on adapters from Phase B; Api / Discovery unchanged by Phase C deploy
+- **What does not change:** Finder scoring logic (still Phase D); enricher mutation patterns (still Phase E); UrlSubmission already on adapters from Phase B
 - **Residual risks:**
   - Adapter mapping quirks (IDs, URLs, release shapes) affect every indexed episode for all platforms
   - Scattered `Episode.From*` leftovers produce divergent episode shapes if not fully removed
   - Platform-specific flags (e.g. Spotify expensive-query) misplaced into matcher/merger
-- **Soak / deploy scope:** Indexer only (deployed 2026-07-05; soak review pending)
+- **Soak / deploy scope:** Api, Indexer, Discovery, publishing console apps (deployed 2026-07-05; publishing console apps deploying; soak in progress — review pending, will revisit after soak)
 - **Rollback notes:** Revert provider/resolver wiring to pre-adapter `Episode.From*` / API-type path; Phase A/B domain services can remain
 
 **PR:** [#873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873)
