@@ -20,7 +20,7 @@
 |-------|--------|------|----|
 | **A** — Domain types + applier/merger/matcher (internal) | 🟢 In production / Done | Medium | [#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871) |
 | **B** — UrlSubmission through applier | 🟢 In production / Done | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
-| **C** — Platform adapters at boundaries | 🟡 In progress | Medium–High | _PR link_ |
+| **C** — Platform adapters at boundaries | 🟡 In progress | Medium–High | [#873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873) |
 | **D** — Collapse finders into single matcher | ⬜ Not started | Medium–High | _PR link_ |
 | **E** — Shared enricher template | ⬜ Not started | Medium | _PR link_ |
 | **F** — Cleanup | ⬜ Not started | Low–Medium | _PR link_ |
@@ -199,8 +199,8 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 
 - [x] Adapter business-rule tests pass **without assertion changes**
 - [x] Matching/merging/indexing/UrlSubmission rules still pass **without assertion changes**
-- [ ] `./scripts/coverage-gate.ps1` passes
-- [ ] PR opened for Phase C only
+- [x] `./scripts/coverage-gate.ps1` passes
+- [x] PR opened for Phase C only
 
 ### Risk to production
 
