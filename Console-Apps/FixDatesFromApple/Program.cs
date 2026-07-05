@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 
@@ -21,6 +22,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddSingleton<Processor>()
+    .AddEpisodesDomain()
     .AddRepositories()
     .AddAppleServices()
     .AddHttpClient();

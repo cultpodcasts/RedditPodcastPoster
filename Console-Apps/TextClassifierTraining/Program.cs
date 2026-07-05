@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
@@ -29,6 +30,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddFileRepository("subreddit-repository")
+    .AddEpisodesDomain()
     .AddRepositories()
     .AddSubredditServices(builder.Configuration)
     .AddSpotifyServices()

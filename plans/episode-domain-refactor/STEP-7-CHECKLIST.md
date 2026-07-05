@@ -114,6 +114,7 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 | Enrich existing episodes CLI | `Console-Apps/EnrichExistingEpisodesFromPodcastServices/Program.cs` | `AddUrlSubmission` → applier |
 | Wikipedia episode enricher CLI | `Console-Apps/WikipediaEpisodeEnricher/Program.cs` | `AddUrlSubmission` + `AddPodcastServices` |
 | Poster, AddAudioPodcast, EnrichPodcastWithImages, WebsubStatus CLIs | respective `Program.cs` | `AddPodcastServices` → merger |
+| EnrichYouTubeOnlyPodcasts, FixDatesFromApple, TextClassifierTraining, AddYouTubeChannelAsPodcast, ThrowawayConsole CLIs | respective `Program.cs` | platform episode providers → catalogue adapters (Phase C) |
 
 **Repos-only hosts** (no `AddEpisodesDomain()` — do not resolve matcher/merger/applier):
 
@@ -204,6 +205,8 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 - [x] Pre-soak business-rule gap tests added (+15): UrlSubmission persistence (2), `EpisodePlatformApplierRules` (6), provider round-trips (3), Resolved Apple URL-only (2), `YouTubePublishDelayMatchStrategyRules` (3 incl. Spotify negative); Episodes.Tests 91, UrlSubmission.Tests 20
 - [x] Deployed for soak (2026-07-05)
 - [ ] Soak review pending
+
+**Phase C soak incident (2026-07-05):** `enrichyouTubeOnlyPodcasts` failed at runtime — `Unable to resolve service for type 'IEpisodeCatalogueAdapter<YouTubeCatalogueInput>'` when activating `YouTubeEpisodeProvider`. Root cause: Phase C wired providers to inject catalogue adapters from `AddEpisodesDomain()`, but `EnrichYouTubeOnlyPodcasts` (and other platform-service CLIs) never called it explicitly. Fixed: add `AddEpisodesDomain()` at composition root before `AddYouTubeServices` / `AddAppleServices` / `AddSpotifyServices` on affected console apps (`EnrichYouTubeOnlyPodcasts`, `FixDatesFromApple`, `TextClassifierTraining`, `AddYouTubeChannelAsPodcast`, `ThrowawayConsole`).
 
 ### Phase C deploy / soak status
 
