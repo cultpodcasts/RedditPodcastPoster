@@ -19,7 +19,7 @@
 | Phase | Status | Risk | PR |
 |-------|--------|------|----|
 | **A** — Domain types + applier/merger/matcher (internal) | 🟢 In production / Done | Medium | [#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871) |
-| **B** — UrlSubmission through applier | 🟢 In production (soak) | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
+| **B** — UrlSubmission through applier | 🟢 Soak passed / ready to merge | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
 | **C** — Platform adapters at boundaries | ⬜ Not started | Medium–High | _PR link_ |
 | **D** — Collapse finders into single matcher | ⬜ Not started | Medium–High | _PR link_ |
 | **E** — Shared enricher template | ⬜ Not started | Medium | _PR link_ |
@@ -29,7 +29,7 @@
 
 ## Phase 0 / Phase A status
 
-Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)). **Phase B** is in production (soak via [PR #872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872); review pending). Phases C–F not started.
+Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)). **Phase B** soak passed (ready to merge via [PR #872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872)). Phases C–F not started.
 
 | Step / phase | Outcome |
 |--------------|---------|
@@ -132,7 +132,7 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 - [x] `./scripts/coverage-gate.ps1` passes (no regression below baseline)
 - [x] PR opened for Phase B only
 - [x] Deployed for overnight soak (2026-07-04)
-- [ ] Soak review — pending (~2026-07-05)
+- [x] Soak review (2026-07-05) — no red flags in production telemetry; safe to merge PR #872
 
 ### Phase B deploy / soak status
 
@@ -141,7 +141,7 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 - [x] **Indexer** — explicit `AddEpisodesDomain()` + Phase A merge path
 - [x] **Discovery** — repos-only (no `AddEpisodesDomain()`)
 - [x] **Publishing console apps** — Poster etc. with explicit `AddEpisodesDomain()`
-- [ ] Soak review — pending (user review scheduled ~2026-07-05)
+- [x] Soak review (2026-07-05) — no red flags; safe to merge PR #872
 
 ### Risk to production (Phase B — live / soak context)
 
@@ -152,7 +152,17 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 - **Residual risks:**
   - Podcast-level or non-platform fields (description, BBC/IA) regress if special-cases are dropped during the move
   - Resolved-item adapter quirks surface only on live submit traffic not covered by rules
-- **Soak / deploy scope:** Api, Indexer, Discovery, publishing console apps (deployed 2026-07-04; soak review pending)
+- **Soak / deploy scope:** Api, Indexer, Discovery, publishing console apps (deployed 2026-07-04; soak passed 2026-07-05)
+- **Soak evidence (App Insights `ai-infra` + Log Analytics `loganalytics-infra`):**
+  - Deploy blobs: `indexer-deployment` 2026-07-04T20:37:39Z, `api-deployment` 2026-07-04T20:42:55Z, `discovery-deployment` 2026-07-04T20:44:54Z
+  - Window: deploy through review ~2026-07-05T10:30Z (~14h)
+  - Zero `AppExceptions` for `api-infra`, `indexer-infra`, `discover-infra`
+  - Zero traces with `Failed to ingest`; zero episode-domain / UrlSubmission / DI resolve failures
+  - Severity≥3 traces are pre-existing noise only (Twitter credits depleted, YouTube channel-not-found, indexer `No updates` LogError) — not Phase B paths
+  - **Api happy path:** 4× `POST api/SubmitUrl` (all HTTP 200, post-deploy); 2× `POST api/DiscoveryCuration` (200); api cold-start loaded 28 functions including `SubmitUrl` (DI OK)
+  - **Indexer happy path:** 3× `Hourly` + 2× `HalfHourly` post-deploy, all success; full activity chain (Indexer, Categoriser, Poster, Publisher, Tweet, Bluesky)
+  - **Discovery happy path:** 1× `DiscoveryTrigger` → `Discover` post-deploy, success; repos-only wiring unchanged (no domain DI expected)
+  - Caveat: `RedditPodcastPoster` log level Warning + 25% OTel sampling — successful applier `LogInformation` not visible; red-flag path is exceptions / `LogError` which would still export
 - **Rollback notes:** Revert `EpisodeEnricher` to direct flat-field mutation; revert explicit `AddEpisodesDomain()` at affected composition roots if needed
 
 **PR:** [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872)
