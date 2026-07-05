@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using RedditPodcastPoster.Episodes.Applying;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Apple;
@@ -19,8 +20,7 @@ public class UrlSubmissionEnrichmentRules
     public void existing_episode_missing_platform_links_are_filled_from_resolved_items()
     {
         // Arrange
-        var descriptionHelper = CreateDescriptionHelper();
-        var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
+        var enricher = CreateEnricher();
 
         var podcast = _fixture.CreatePodcast();
         podcast.SpotifyId = _fixture.CreateSpotifyId();
@@ -115,8 +115,7 @@ public class UrlSubmissionEnrichmentRules
     public void podcast_show_metadata_is_enriched_from_resolved_items()
     {
         // Arrange
-        var descriptionHelper = CreateDescriptionHelper();
-        var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
+        var enricher = CreateEnricher();
 
         var podcast = _fixture.CreatePodcast();
         podcast.SpotifyId = string.Empty;
@@ -200,8 +199,7 @@ public class UrlSubmissionEnrichmentRules
     public void unchanged_existing_episode_remains_episode_already_exists()
     {
         // Arrange
-        var descriptionHelper = CreateDescriptionHelper();
-        var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
+        var enricher = CreateEnricher();
 
         var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         podcast.AppleId = _fixture.CreateAppleId();
@@ -284,8 +282,7 @@ public class UrlSubmissionEnrichmentRules
     public void enriched_existing_episode_reports_enriched_result_state()
     {
         // Arrange
-        var descriptionHelper = CreateDescriptionHelper();
-        var enricher = new EpisodeEnricher(descriptionHelper, NullLogger<EpisodeEnricher>.Instance);
+        var enricher = CreateEnricher();
 
         var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         var storedDescription = _fixture.Create<string>();
@@ -337,7 +334,7 @@ public class UrlSubmissionEnrichmentRules
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
     }
 
-    private static IDescriptionHelper CreateDescriptionHelper()
+    private static EpisodeEnricher CreateEnricher()
     {
         var descriptionHelper = new Mock<IDescriptionHelper>();
         descriptionHelper
@@ -346,6 +343,10 @@ public class UrlSubmissionEnrichmentRules
         descriptionHelper
             .Setup(x => x.EnrichMissingDescription(It.IsAny<CategorisedItem>()))
             .Returns("Resolved description");
-        return descriptionHelper.Object;
+
+        return new EpisodeEnricher(
+            descriptionHelper.Object,
+            new EpisodePlatformApplier(),
+            NullLogger<EpisodeEnricher>.Instance);
     }
 }

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
@@ -30,6 +31,7 @@ builder.Configuration
 builder.Services
     .AddSingleton<Processor>()
     .AddLogging()
+    .AddEpisodesDomain()
     .AddRepositories()
     .AddAppleServices()
     .AddYouTubeServices(ApplicationUsage.Cli)

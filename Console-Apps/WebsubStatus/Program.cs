@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.YouTubePushNotifications.Extensions;
@@ -24,6 +25,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<WebSubStatusProcessor>()
+    .AddEpisodesDomain()
     .AddRepositories()
     .AddPodcastServices()
     .AddCommonServices()

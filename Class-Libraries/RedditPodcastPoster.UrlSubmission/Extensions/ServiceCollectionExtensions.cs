@@ -9,6 +9,10 @@ namespace RedditPodcastPoster.UrlSubmission.Extensions;
 
 public static class ServiceCollectionExtensions
 {
+    /// <summary>
+    /// UrlSubmission pipeline services. Does not register episodes domain —
+    /// callers must call <c>AddEpisodesDomain()</c> explicitly at the composition root.
+    /// </summary>
     public static IServiceCollection AddUrlSubmission(this IServiceCollection services)
     {
         return services

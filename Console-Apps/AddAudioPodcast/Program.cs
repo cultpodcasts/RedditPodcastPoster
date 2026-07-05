@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -32,6 +33,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<AddAudioPodcastProcessor>()
+    .AddEpisodesDomain()
     .AddRepositories()
     .AddCommonServices()
     .AddPodcastServices()

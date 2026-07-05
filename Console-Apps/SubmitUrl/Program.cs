@@ -8,6 +8,7 @@ using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.InternetArchive.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
@@ -34,6 +35,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
+    .AddEpisodesDomain()
     .AddRepositories()
     .AddCommonServices()
     .AddPodcastServices()
