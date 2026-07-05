@@ -20,7 +20,7 @@
 |-------|--------|------|----|
 | **A** — Domain types + applier/merger/matcher (internal) | 🟢 In production / Done | Medium | [#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871) |
 | **B** — UrlSubmission through applier | 🟢 In production / Done | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
-| **C** — Platform adapters at boundaries | 🟡 In progress | Medium–High | [#873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873) |
+| **C** — Platform adapters at boundaries | 🟢 In production (soak) | Medium–High | [#873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873) |
 | **D** — Collapse finders into single matcher | ⬜ Not started | Medium–High | _PR link_ |
 | **E** — Shared enricher template | ⬜ Not started | Medium | _PR link_ |
 | **F** — Cleanup | ⬜ Not started | Low–Medium | _PR link_ |
@@ -29,7 +29,7 @@
 
 ## Phase 0 / Phase A status
 
-Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)). **Phase B** is in production (merged via [PR #872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872)). **Phase C** in progress. Phases D–F not started.
+Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)). **Phase B** is in production (merged via [PR #872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872)). **Phase C** in production (soak, review pending — [PR #873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873)). Phases D–F not started.
 
 | Step / phase | Outcome |
 |--------------|---------|
@@ -202,18 +202,26 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 - [x] `./scripts/coverage-gate.ps1` passes
 - [x] PR opened for Phase C only
 - [x] Pre-soak business-rule gap tests added (+15): UrlSubmission persistence (2), `EpisodePlatformApplierRules` (6), provider round-trips (3), Resolved Apple URL-only (2), `YouTubePublishDelayMatchStrategyRules` (3 incl. Spotify negative); Episodes.Tests 91, UrlSubmission.Tests 20
+- [x] Deployed for soak (2026-07-05)
+- [ ] Soak review pending
 
-### Risk to production
+### Phase C deploy / soak status
+
+- [x] Branch deployed from [PR #873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873) (2026-07-05)
+- [x] **Indexer** — catalogue providers → adapters → factory (`SpotifyEpisodeAdapter`, `AppleEpisodeAdapter`, `YouTubeEpisodeAdapter` at provider/resolver boundaries)
+- [ ] Soak review pending
+
+### Risk to production (Phase C — live / soak context)
 
 - **Risk level:** Medium–High
 - **Blast radius:** Indexer (all platform providers/resolvers); any host that builds episodes from catalogue API types. Discovery remains out of scope unless a shared provider is touched accidentally
 - **What changes live:** Spotify/Apple/YouTube catalogue → `EpisodeCandidate` at the boundary; `Episode.From*` / raw API types leave the indexing processing path
-- **What does not change:** Finder scoring logic (still Phase D); enricher mutation patterns (still Phase E); UrlSubmission already on adapters from Phase B
+- **What does not change:** Finder scoring logic (still Phase D); enricher mutation patterns (still Phase E); UrlSubmission already on adapters from Phase B; Api / Discovery unchanged by Phase C deploy
 - **Residual risks:**
   - Adapter mapping quirks (IDs, URLs, release shapes) affect every indexed episode for all platforms
   - Scattered `Episode.From*` leftovers produce divergent episode shapes if not fully removed
   - Platform-specific flags (e.g. Spotify expensive-query) misplaced into matcher/merger
-- **Recommended soak / deploy scope:** Indexer first (full catalogue path); watch all three platforms
+- **Soak / deploy scope:** Indexer only (deployed 2026-07-05; soak review pending)
 - **Rollback notes:** Revert provider/resolver wiring to pre-adapter `Episode.From*` / API-type path; Phase A/B domain services can remain
 
 **PR:** [#873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873)
