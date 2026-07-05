@@ -1,5 +1,6 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.Adapters;
+using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Domain;
 using RedditPodcastPoster.Episodes.Factories;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
@@ -194,26 +195,179 @@ public class EpisodeFromCandidateFactoryRules
         episode.Images.Should().BeNull();
     }
 
-    [Fact(DisplayName =
-        "When an Apple candidate link id is not a parseable long, materialization keeps the Apple URL but leaves AppleId unset " +
-        "because legacy parsing is tolerant.")]
-    public void Apple_non_numeric_link_id_keeps_url_without_apple_id()
+    public static TheoryData<PlatformLinkIdShape> PlatformLinkIdAsymmetryCases() =>
+        new()
+        {
+            PlatformLinkIdShape.SpotifyFixtureStringId,
+            PlatformLinkIdShape.SpotifyArbitraryStringId,
+            PlatformLinkIdShape.YouTubeFixtureStringId,
+            PlatformLinkIdShape.YouTubeArbitraryStringId,
+            PlatformLinkIdShape.AppleParseableNumericId,
+            PlatformLinkIdShape.AppleUnparseableStringId
+        };
+
+    [Theory(DisplayName =
+        "When a catalogue candidate carries a platform link id, Spotify and YouTube assign the string id as-is " +
+        "while Apple sets AppleId only when the id parses as a long, because platform episode identity types differ.")]
+    [MemberData(nameof(PlatformLinkIdAsymmetryCases))]
+    public void Platform_link_id_materialization_differs_by_service(PlatformLinkIdShape shape)
     {
         // Arrange
-        var input = _fixture.CreateAppleCatalogueInput(b => b.WithImage(null));
-        var candidate = new EpisodeCandidate(
-            input.Title,
-            input.Description,
-            input.Duration,
-            new ReleaseInfo(input.Release, ReleasePrecision.DateTimeUtc),
-            new PlatformLink(Service.Apple, "not-a-numeric-id", input.AppleUrl, null));
+        var (service, linkId, url, candidate) = CreatePlatformLinkCandidate(shape);
 
         // Act
         var episode = _factory.Create(candidate, explicitContent: false);
 
         // Assert
-        episode.AppleId.Should().BeNull();
-        episode.Urls!.Apple.Should().Be(input.AppleUrl);
+        switch (service)
+        {
+            case Service.Spotify:
+                episode.SpotifyId.Should().Be(linkId);
+                episode.Urls!.Spotify.Should().Be(url);
+                episode.AppleId.Should().BeNull();
+                episode.YouTubeId.Should().BeNullOrEmpty();
+                break;
+            case Service.YouTube:
+                episode.YouTubeId.Should().Be(linkId);
+                episode.Urls!.YouTube.Should().Be(url);
+                episode.AppleId.Should().BeNull();
+                episode.SpotifyId.Should().BeNullOrEmpty();
+                break;
+            case Service.Apple:
+                episode.Urls!.Apple.Should().Be(url);
+                episode.SpotifyId.Should().BeNullOrEmpty();
+                episode.YouTubeId.Should().BeNullOrEmpty();
+                if (long.TryParse(linkId, out var appleId))
+                {
+                    episode.AppleId.Should().Be(appleId);
+                }
+                else
+                {
+                    episode.AppleId.Should().BeNull();
+                }
+
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(service), service, null);
+        }
+    }
+
+    private (Service Service, string LinkId, Uri Url, EpisodeCandidate Candidate) CreatePlatformLinkCandidate(
+        PlatformLinkIdShape shape)
+    {
+        switch (shape)
+        {
+            case PlatformLinkIdShape.SpotifyFixtureStringId:
+            {
+                var input = _fixture.CreateSpotifyCatalogueInput();
+                return BuildPlatformLinkCandidate(
+                    Service.Spotify, input.SpotifyId, input.SpotifyUrl, input, ReleasePrecision.DateOnly);
+            }
+            case PlatformLinkIdShape.SpotifyArbitraryStringId:
+            {
+                var input = _fixture.CreateSpotifyCatalogueInput();
+                var linkId = _fixture.Create<string>();
+                return BuildPlatformLinkCandidate(
+                    Service.Spotify, linkId, input.SpotifyUrl, input, ReleasePrecision.DateOnly);
+            }
+            case PlatformLinkIdShape.YouTubeFixtureStringId:
+            {
+                var input = _fixture.CreateYouTubeCatalogueInput();
+                return BuildPlatformLinkCandidate(
+                    Service.YouTube, input.YouTubeId, input.YouTubeUrl, input, ReleasePrecision.DateTimeUtc);
+            }
+            case PlatformLinkIdShape.YouTubeArbitraryStringId:
+            {
+                var input = _fixture.CreateYouTubeCatalogueInput();
+                var linkId = _fixture.Create<string>();
+                return BuildPlatformLinkCandidate(
+                    Service.YouTube, linkId, input.YouTubeUrl, input, ReleasePrecision.DateTimeUtc);
+            }
+            case PlatformLinkIdShape.AppleParseableNumericId:
+            {
+                var input = _fixture.CreateAppleCatalogueInput();
+                var linkId = input.AppleId.ToString();
+                return BuildPlatformLinkCandidate(
+                    Service.Apple, linkId, input.AppleUrl, input, ReleasePrecision.DateTimeUtc);
+            }
+            case PlatformLinkIdShape.AppleUnparseableStringId:
+            {
+                var input = _fixture.CreateAppleCatalogueInput();
+                const string linkId = "not-a-numeric-id";
+                return BuildPlatformLinkCandidate(
+                    Service.Apple, linkId, input.AppleUrl, input, ReleasePrecision.DateTimeUtc);
+            }
+            default:
+                throw new ArgumentOutOfRangeException(nameof(shape), shape, null);
+        }
+    }
+
+    private static (Service Service, string LinkId, Uri Url, EpisodeCandidate Candidate) BuildPlatformLinkCandidate(
+        Service service,
+        string linkId,
+        Uri url,
+        SpotifyCatalogueInput input,
+        ReleasePrecision releasePrecision) =>
+        BuildPlatformLinkCandidate(
+            service,
+            linkId,
+            url,
+            input.Title,
+            input.Description,
+            input.Duration,
+            input.Release,
+            releasePrecision);
+
+    private static (Service Service, string LinkId, Uri Url, EpisodeCandidate Candidate) BuildPlatformLinkCandidate(
+        Service service,
+        string linkId,
+        Uri url,
+        AppleCatalogueInput input,
+        ReleasePrecision releasePrecision) =>
+        BuildPlatformLinkCandidate(
+            service,
+            linkId,
+            url,
+            input.Title,
+            input.Description,
+            input.Duration,
+            input.Release,
+            releasePrecision);
+
+    private static (Service Service, string LinkId, Uri Url, EpisodeCandidate Candidate) BuildPlatformLinkCandidate(
+        Service service,
+        string linkId,
+        Uri url,
+        YouTubeCatalogueInput input,
+        ReleasePrecision releasePrecision) =>
+        BuildPlatformLinkCandidate(
+            service,
+            linkId,
+            url,
+            input.Title,
+            input.Description,
+            input.Duration,
+            input.Release,
+            releasePrecision);
+
+    private static (Service Service, string LinkId, Uri Url, EpisodeCandidate Candidate) BuildPlatformLinkCandidate(
+        Service service,
+        string linkId,
+        Uri url,
+        string title,
+        string description,
+        TimeSpan duration,
+        DateTime release,
+        ReleasePrecision releasePrecision)
+    {
+        var candidate = new EpisodeCandidate(
+            title,
+            description,
+            duration,
+            new ReleaseInfo(release, releasePrecision),
+            new PlatformLink(service, linkId, url, null));
+
+        return (service, linkId, url, candidate);
     }
 
     private EpisodeCandidate CreateCandidate(CataloguePlatform platform, bool includeArtwork)
@@ -237,5 +391,15 @@ public class EpisodeFromCandidateFactoryRules
         Spotify,
         Apple,
         YouTube
+    }
+
+    public enum PlatformLinkIdShape
+    {
+        SpotifyFixtureStringId,
+        SpotifyArbitraryStringId,
+        YouTubeFixtureStringId,
+        YouTubeArbitraryStringId,
+        AppleParseableNumericId,
+        AppleUnparseableStringId
     }
 }
