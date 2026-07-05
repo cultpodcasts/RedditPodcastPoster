@@ -215,7 +215,7 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 - **Recommended soak / deploy scope:** Indexer first (full catalogue path); watch all three platforms
 - **Rollback notes:** Revert provider/resolver wiring to pre-adapter `Episode.From*` / API-type path; Phase A/B domain services can remain
 
-**PR:** _link_
+**PR:** [#873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873)
 
 ---
 
