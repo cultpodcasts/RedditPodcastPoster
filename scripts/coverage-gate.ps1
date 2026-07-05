@@ -12,7 +12,9 @@ param(
     [string]$ResultsDirectory = (Join-Path $PSScriptRoot '../TestResults/coverage-gate'),
     [switch]$SkipTest,
     [switch]$ReportOnly,
-    [switch]$MeasureOnly
+    [switch]$MeasureOnly,
+    [switch]$NoBuild,
+    [switch]$Verbose
 )
 
 Set-StrictMode -Version Latest
@@ -21,9 +23,15 @@ $ErrorActionPreference = 'Stop'
 function Normalize-SourceKey {
     param([string]$Path)
     $normalized = ($Path -replace '\\', '/').TrimStart('/')
-    if ($normalized -notlike 'Class-Libraries/*') {
+
+    # Coverlet on Linux often emits absolute repo paths; keep the Class-Libraries/ suffix only.
+    if ($normalized -match '(?i)(class-libraries/.+)$') {
+        $normalized = $Matches[1]
+    }
+    elseif ($normalized -notlike 'Class-Libraries/*') {
         $normalized = "Class-Libraries/$normalized"
     }
+
     return $normalized.ToLowerInvariant()
 }
 
@@ -140,25 +148,57 @@ try {
 
         foreach ($project in $testProjects) {
             Write-Host "Running coverage: $project"
-            dotnet test $project `
-                --configuration Release `
-                --collect:'XPlat Code Coverage' `
-                --results-directory $ResultsDirectory `
-                -- `
-                DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura `
-                | Write-Host
+            $testArgs = @(
+                'test', $project,
+                '--configuration', 'Release',
+                '--collect:XPlat Code Coverage',
+                '--results-directory', $ResultsDirectory,
+                '--',
+                'DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura'
+            )
+            if ($NoBuild) {
+                $testArgs += '--no-build'
+            }
+
+            dotnet @testArgs | Write-Host
             if ($LASTEXITCODE -ne 0) {
                 throw "dotnet test failed for $project (exit $LASTEXITCODE)"
             }
         }
     }
 
-    $xmlFiles = Get-ChildItem -Path $ResultsDirectory -Recurse -Filter 'coverage.cobertura.xml' -ErrorAction Stop
+    $xmlFiles = @(Get-ChildItem -Path $ResultsDirectory -Recurse -Filter 'coverage.cobertura.xml' -ErrorAction Stop)
     if ($xmlFiles.Count -eq 0) {
         throw "No coverage.cobertura.xml files found under $ResultsDirectory"
     }
 
+    if ($Verbose) {
+        Write-Host ''
+        Write-Host "Collected $($xmlFiles.Count) Cobertura report(s):"
+        foreach ($xmlFile in $xmlFiles) {
+            Write-Host "  $($xmlFile.FullName)"
+        }
+    }
+
     $merged = Merge-CoberturaReports -XmlFiles $xmlFiles
+
+    if ($Verbose) {
+        $baselineDoc = Get-Content $BaselinePath -Raw | ConvertFrom-Json
+        $missing = @()
+        foreach ($entry in $baselineDoc.files) {
+            $key = Normalize-SourceKey $entry.path
+            if (-not $merged.ContainsKey($key)) {
+                $missing += $entry.path
+            }
+        }
+
+        Write-Host ''
+        Write-Host "Merged coverage for $($merged.Keys.Count) source file(s)."
+        if ($missing.Count -gt 0) {
+            Write-Host "Missing baseline coverage data for $($missing.Count) file(s):"
+            $missing | ForEach-Object { Write-Host "  $_" }
+        }
+    }
 
     if ($MeasureOnly) {
         $patterns = @(
