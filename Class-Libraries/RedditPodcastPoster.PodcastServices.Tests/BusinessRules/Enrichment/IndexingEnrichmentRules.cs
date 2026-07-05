@@ -244,7 +244,7 @@ public class IndexingEnrichmentRules
             PublishingDelay);
 
         var expiredStoredEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DateTime.UtcNow.Subtract(PublishingDelay).AddHours(-2))
+            .WithRelease(DomainTestFixture.UtcDateDaysAgo(2))
             .WithDuration(_fixture.CreateDuration()));
         expiredStoredEpisode.PodcastId = podcast.Id;
         expiredStoredEpisode.YouTubeId = string.Empty;
@@ -302,7 +302,7 @@ public class IndexingEnrichmentRules
             PublishingDelay);
 
         var batchEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DateTime.UtcNow.Subtract(PublishingDelay).AddHours(-2))
+            .WithRelease(DomainTestFixture.UtcDateDaysAgo(2))
             .WithDuration(_fixture.CreateDuration()));
         batchEpisode.PodcastId = podcast.Id;
         batchEpisode.YouTubeId = string.Empty;
@@ -344,7 +344,7 @@ public class IndexingEnrichmentRules
             PublishingDelay);
 
         var inWindowEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DateTime.UtcNow.AddHours(-12))
+            .WithRelease(DomainTestFixture.UtcToday)
             .WithDuration(_fixture.CreateDuration()));
         inWindowEpisode.PodcastId = podcast.Id;
         inWindowEpisode.YouTubeId = string.Empty;
