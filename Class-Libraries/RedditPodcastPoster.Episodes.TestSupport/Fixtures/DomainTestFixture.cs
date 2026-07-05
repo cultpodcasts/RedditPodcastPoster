@@ -67,6 +67,63 @@ public sealed class DomainTestFixture
     int calendarDaysAfter) =>
     youTubeRelease.Date.AddDays(calendarDaysAfter);
 
+  /// <summary>
+  /// Apple or YouTube audio release with full UTC time-of-day, positioned so YouTube enrichment
+  /// is due in two hours (still inside a positive <paramref name="publishingDelay"/> window).
+  /// </summary>
+  public static DateTime AudioReleaseStillInsideDelayedPublishingWindow(TimeSpan publishingDelay) =>
+    DateTime.UtcNow.Subtract(publishingDelay).AddHours(2);
+
+  /// <summary>
+  /// Apple or YouTube audio release with full UTC time-of-day, positioned so the delayed-publishing
+  /// window expired two hours ago (recently expired for second-pass enrichment).
+  /// </summary>
+  public static DateTime AudioReleaseRecentlyExpiredDelayedPublishing(TimeSpan publishingDelay) =>
+    DateTime.UtcNow.Subtract(publishingDelay).AddHours(-2);
+
+  /// <summary>
+  /// Maps an "N hours before now" intent to a Spotify date-only catalogue release. Steps back extra
+  /// calendar days when midnight UTC flooring would still leave the episode inside the window.
+  /// </summary>
+  public static DateTime SpotifyCatalogueReleaseHoursAgoRespectingDateOnly(
+    int hoursAgo,
+    TimeSpan publishingDelay)
+  {
+    var dateOnlyRelease = DateTime.UtcNow.AddHours(-hoursAgo).Date;
+    while (dateOnlyRelease.Add(publishingDelay) > DateTime.UtcNow)
+      dateOnlyRelease = dateOnlyRelease.AddDays(-1);
+
+    return dateOnlyRelease;
+  }
+
+  /// <summary>
+  /// Date-only Spotify catalogue release still inside a positive
+  /// <paramref name="publishingDelay"/> window at any time of day.
+  /// </summary>
+  public static DateTime SpotifyCatalogueReleaseStillInsideDelayedPublishingWindow(
+    TimeSpan publishingDelay)
+  {
+    var dateOnlyRelease = UtcToday;
+    while (dateOnlyRelease.Add(publishingDelay) <= DateTime.UtcNow)
+      dateOnlyRelease = dateOnlyRelease.AddDays(1);
+
+    return dateOnlyRelease;
+  }
+
+  /// <summary>
+  /// Date-only Spotify catalogue release in the recently-expired delayed-publishing band
+  /// (window expired, still within the evaluation threshold).
+  /// </summary>
+  public static DateTime SpotifyCatalogueReleaseRecentlyExpiredDelayedPublishing(
+    TimeSpan publishingDelay)
+  {
+    var dateOnlyRelease = UtcToday.Subtract(publishingDelay).Date;
+    while (dateOnlyRelease.Add(publishingDelay) > DateTime.UtcNow)
+      dateOnlyRelease = dateOnlyRelease.AddDays(-1);
+
+    return dateOnlyRelease;
+  }
+
   private static readonly string[] TitleFillerWords = ["The", "A", "An"];
 
   /// <summary>
