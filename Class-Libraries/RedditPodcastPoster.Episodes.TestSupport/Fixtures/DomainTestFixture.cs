@@ -57,7 +57,7 @@ public sealed class DomainTestFixture
   public static DateTime SameCalendarDateWithTime(DateTime dateOnlyRelease, TimeSpan timeOfDay) =>
     dateOnlyRelease.Date.Add(timeOfDay);
 
-  /// <summary>Default negative publishing delay for YouTube-first podcasts (~33½ days).</summary>
+  /// <summary>Default negative YouTubePublicationOffset for negative-delay scenarios (~33½ days).</summary>
   public static long DefaultNegativeYouTubePublishingDelayTicks =>
     TimeSpan.FromDays(-33).Add(TimeSpan.FromHours(-12)).Ticks;
 
@@ -450,7 +450,8 @@ public sealed class DomainTestFixture
       p.ReleaseAuthority = Service.Spotify;
     });
 
-  public Podcast CreateYouTubeFirstPodcast(
+  /// <summary>Podcast with YouTube release authority (<see cref="Podcast.ReleaseAuthority"/> = <see cref="Service.YouTube"/>).</summary>
+  public Podcast CreateYouTubeReleaseAuthorityPodcast(
     string channelId,
     long youTubePublicationOffsetTicks,
     string? spotifyShowId = null,
@@ -459,17 +460,21 @@ public sealed class DomainTestFixture
     {
       if (id.HasValue)
         p.Id = id.Value;
-      p.Name = "YouTube-first podcast";
+      p.Name = "YouTube release authority podcast";
       p.ReleaseAuthority = Service.YouTube;
       p.YouTubeChannelId = channelId;
       p.YouTubePublicationOffset = youTubePublicationOffsetTicks;
       p.SpotifyId = spotifyShowId ?? string.Empty;
     });
 
-  public Podcast CreateYouTubeFirstPodcastWithNegativeDelay(
+  /// <summary>
+  /// YouTube release authority podcast with negative <see cref="Podcast.YouTubePublicationOffset"/>
+  /// (negative publishing delay scenario).
+  /// </summary>
+  public Podcast CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay(
     long? youTubePublicationOffsetTicks = null,
     string? spotifyShowId = null) =>
-    CreateYouTubeFirstPodcast(
+    CreateYouTubeReleaseAuthorityPodcast(
       CreateYouTubeChannelId(),
       youTubePublicationOffsetTicks ?? DefaultNegativeYouTubePublishingDelayTicks,
       spotifyShowId ?? CreateSpotifyId());
@@ -564,9 +569,10 @@ public sealed class DomainTestFixture
   }
 
   /// <summary>
-  /// YouTube-only stored row plus Spotify catalogue incoming shaped for YouTube-first cross-platform matching.
+  /// YouTube-only stored row plus Spotify catalogue incoming shaped for YouTube release authority
+  /// cross-platform matching (ReleaseAuthority = Service.YouTube).
   /// </summary>
-  public (Episode Stored, Episode Incoming, string SpotifyId) CreateCrossPlatformYouTubeFirstPair(
+  public (Episode Stored, Episode Incoming, string SpotifyId) CreateCrossPlatformYouTubeReleaseAuthorityPair(
     Podcast podcast,
     int youTubeReleaseDaysAgo = 30,
     int spotifyDaysAfterYouTube = 28,

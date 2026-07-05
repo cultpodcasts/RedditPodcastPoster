@@ -7,7 +7,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.Persistence.Tests;
 
-public class CrossPlatformYouTubeFirstMergeTests
+public class CrossPlatformYouTubeReleaseAuthorityMergeTests
 {
     private readonly DomainTestFixture _fixture = new();
 
@@ -19,8 +19,8 @@ public class CrossPlatformYouTubeFirstMergeTests
     public void EpisodesReleaseMatch_WhenSpotifyReleaseVaries(int spotifyReleaseOffsetDaysFromCatalogue)
     {
         // Arrange
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
-        var (existing, incomingTemplate, _) = _fixture.CreateCrossPlatformYouTubeFirstPair(podcast);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (existing, incomingTemplate, _) = _fixture.CreateCrossPlatformYouTubeReleaseAuthorityPair(podcast);
         var incoming = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithSpotifyId(incomingTemplate.SpotifyId)
             .WithTitle(incomingTemplate.Title)
@@ -45,8 +45,8 @@ public class CrossPlatformYouTubeFirstMergeTests
     public void MergeEpisodes_WhenSpotifyIncomingMatchesYouTubeOnlyEpisode_MergesOntoExisting()
     {
         // Arrange
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
-        var (existing, incoming, spotifyId) = _fixture.CreateCrossPlatformYouTubeFirstPair(podcast);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (existing, incoming, spotifyId) = _fixture.CreateCrossPlatformYouTubeReleaseAuthorityPair(podcast);
         var expectedRelease = existing.Release;
 
         // Act
@@ -62,13 +62,13 @@ public class CrossPlatformYouTubeFirstMergeTests
     }
 
     [Fact(DisplayName =
-        "For YouTube-authority podcasts, re-indexing from Spotify must not replace the YouTube publish datetime " +
+        "For YouTube release authority podcasts, re-indexing from Spotify must not replace the YouTube publish datetime " +
         "with a newer Spotify catalogue date.")]
     public void MergeEpisodes_WhenSpotifyReindexMatchesExistingSpotifyId_PreservesYouTubeReleaseDate()
     {
         // Arrange
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
-        var (storedTemplate, incoming, spotifyId) = _fixture.CreateCrossPlatformYouTubeFirstPair(podcast);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (storedTemplate, incoming, spotifyId) = _fixture.CreateCrossPlatformYouTubeReleaseAuthorityPair(podcast);
         var existing = _fixture.CreateStoredEpisodeWithYouTubeAndSpotify(
             podcast,
             spotifyId,
@@ -93,8 +93,8 @@ public class CrossPlatformYouTubeFirstMergeTests
     public void MergeEpisodes_WhenSpotifyOnlyReindexSameDateWithTime_DoesNotBackfillYouTubeReleaseTime()
     {
         // Arrange
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
-        var (_, incomingTemplate, spotifyId) = _fixture.CreateCrossPlatformYouTubeFirstPair(podcast);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (_, incomingTemplate, spotifyId) = _fixture.CreateCrossPlatformYouTubeReleaseAuthorityPair(podcast);
         var spotifyDateOnlyRelease = incomingTemplate.Release;
         var existing = _fixture.CreateStoredEpisodeWithYouTubeAndSpotify(
             podcast,

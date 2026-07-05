@@ -70,7 +70,7 @@ public class EpisodeReleaseMatchToleranceTests
     }
 
     [Fact]
-    public void SpotifyCatalogueReleaseMatches_WhenYouTubeFirstDelayAndSpotifyLandsEarlyWithinFiveDays_ReturnsTrue()
+    public void SpotifyCatalogueReleaseMatches_WhenYouTubeReleaseAuthorityWithNegativeDelayAndSpotifyLandsEarlyWithinFiveDays_ReturnsTrue()
     {
         var podcast = new Podcast
         {
@@ -203,7 +203,7 @@ public class EpisodeReleaseMatchToleranceTests
     }
 
     [Fact]
-    public void ShouldPreserveYouTubeAuthoritativeRelease_WhenYouTubeFirstEpisodeHasYouTubeIdentity_ReturnsTrue()
+    public void ShouldPreserveYouTubeAuthoritativeRelease_WhenYouTubeReleaseAuthorityEpisodeHasYouTubeIdentity_ReturnsTrue()
     {
         var podcast = new Podcast
         {
@@ -242,13 +242,13 @@ public class EpisodeReleaseMatchToleranceTests
     [Theory]
     [InlineData(0)]
     [InlineData(4)]
-    public void SpotifyCatalogueReleaseMatches_WhenYouTubeFirstEpisodeAlignsWithinTolerance_ReturnsTrue(
+    public void SpotifyCatalogueReleaseMatches_WhenYouTubeReleaseAuthorityEpisodeAlignsWithinTolerance_ReturnsTrue(
         int appleCatalogueDaysAfterSpotifyDate)
     {
         // Arrange
         const int youTubeReleaseDaysAgo = 30;
         const int spotifyDaysAfterYouTube = 28;
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var youTubeRelease = DomainTestFixture.UtcAtTime(
             -youTubeReleaseDaysAgo,
             _fixture.CreateNonMidnightTimeOfDay());

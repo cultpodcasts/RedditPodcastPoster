@@ -179,7 +179,7 @@ public class PlatformIdentityMatchingRules
     public void Incoming_Spotify_ID_owned_by_another_row_does_not_merge_onto_wrong_candidate()
     {
         // Arrange
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var spotifyId = _fixture.CreateSpotifyId();
         var correctOwner = _fixture.CreateStoredEpisodeWithYouTubeAndSpotify(podcast, spotifyId);
         var wrongYouTubeOnly = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);

@@ -60,14 +60,14 @@ public class AppleEpisodeResolverTests
     }
 
     [Fact(DisplayName =
-        "When YouTube-first episode with negative publishing delay is merged with Spotify, " +
+        "When a YouTube release authority episode with negative publishing delay is merged with Spotify, " +
         "Apple resolver uses catalogue release reducer and returns a matching catalogue row.")]
-    public async Task FindEpisode_WhenYouTubeFirstEpisodeUsesCatalogueReleaseReducer_ReturnsMatch()
+    public async Task FindEpisode_WhenYouTubeReleaseAuthorityEpisodeUsesCatalogueReleaseReducer_ReturnsMatch()
     {
         // Arrange
         const int youTubeReleaseDaysAgo = 30;
         const int spotifyDaysAfterYouTube = 28;
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         podcast.AppleId = _fixture.CreateAppleId();
         var youTubeRelease = DomainTestFixture.UtcAtTime(
             -youTubeReleaseDaysAgo,

@@ -97,7 +97,7 @@ Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-re
 
 | | Rule |
 |---|------|
-| **MUST** | Encode business circumstances in fixture helper names (`CreateCrossPlatformYouTubeFirstPair`, `CreateStoredEpisodeWithYouTubeOnly`) — not brand names |
+| **MUST** | Encode business circumstances in fixture helper names (`CreateCrossPlatformYouTubeReleaseAuthorityPair`, `CreateStoredEpisodeWithYouTubeOnly`) — not brand names |
 | **MUST** | Use `DisplayName` to describe the rule circumstance in plain English |
 | **ONLY WHEN** | Documenting a known bug — characterize **current** behavior with comment `// KNOWN: likely bug — fix tracked separately`; do not fix in the same PR |
 
@@ -170,13 +170,13 @@ Before submitting a business-rule test, verify:
 |----------|-----|
 | Generic identity, merge, adapter mapping | Zero-arg `Create*CatalogueInput()` / `Create*CatalogueEpisode()` |
 | Same-calendar-date backfill, midnight UTC stored row | `CreateMidnightUtcStoredEpisode` + `Create*CatalogueEpisodeSameDayAs` |
-| YouTube-first cross-platform match (YouTube-only stored + delayed Spotify) | `CreateYouTubeFirstPodcastWithNegativeDelay()` + `CreateCrossPlatformYouTubeFirstPair()` |
+| YouTube release authority cross-platform match (YouTube-only stored + delayed Spotify) | `CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay()` + `CreateCrossPlatformYouTubeReleaseAuthorityPair()` |
 | Negative-delay guard (aligned release, different titles) | `CreateNegativeDelayNonMatchingPair()` |
 | Typo title fuzzy match | `CreateShortTitle()` + `CreateTypoTitleVariant()` — single-character edit in one word; probes typo tolerance with duration |
 | Fuzzy title word-level match | `CreateShortTitle()` + `CreateFuzzyTitleVariant()` — word replace/drop/add/swap; probes catalogue wording drift (cross-platform, Apple resolver) |
 | Ambiguous dual-match failure | `CreateAmbiguousMatchStoredEpisodes` + `CreateAmbiguousMatchSpotifyIncoming` |
 | EpisodeMatchRegex forced match | Inline `#N` titles in test (regex-dependent literals only) |
-| Positive YouTube publishing delay | `CreatePositiveDelayAudioStoredEpisode` + `CreateYouTubeFirstPodcast(...)` |
+| Positive YouTube publishing delay | `CreatePositiveDelayAudioStoredEpisode` + `CreateYouTubeReleaseAuthorityPodcast(...)` |
 | Spotify ID owned by different row | `CreateStoredEpisodeWithYouTubeAndSpotify()` + `CreateStoredEpisodeWithYouTubeOnly()` |
 
 **Rule:** Fixture method names describe **data shape / relationship**, not production podcast or episode names. `DisplayName` states the business circumstance.
@@ -291,12 +291,12 @@ var discovered = _fixture.CreateSpotifyCatalogueEpisode(
     release: release);
 ```
 
-### Cross-platform YouTube-first merge (circumstance-based)
+### Cross-platform YouTube release authority merge (circumstance-based)
 
 ```csharp
 // GOOD — scenario-shaped helpers; release offsets explicit; IDs from specimens
-var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
-var (stored, discovered, spotifyId) = _fixture.CreateCrossPlatformYouTubeFirstPair(podcast);
+var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+var (stored, discovered, spotifyId) = _fixture.CreateCrossPlatformYouTubeReleaseAuthorityPair(podcast);
 var expected = EpisodeExpectation.From(stored)
     .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId));
 
@@ -333,10 +333,10 @@ public void snake_case_shorthand()
 
 | Need | API |
 |------|-----|
-| Podcast | `CreatePodcast()`, `CreateYouTubeFirstPodcast(...)`, `CreateYouTubeFirstPodcastWithNegativeDelay()` |
+| Podcast | `CreatePodcast()`, `CreateYouTubeReleaseAuthorityPodcast(...)`, `CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay()` |
 | Stored episode | `CreateStoredEpisode(podcast, customize)`, `BuildEpisode().WithSpotify(...).Create()` |
 | Stored episode (platform shape) | `CreateStoredEpisodeWithYouTubeOnly`, `CreateStoredEpisodeWithSpotifyOnly`, `CreateStoredEpisodeWithYouTubeAndSpotify` |
-| Cross-platform pair | `CreateCrossPlatformYouTubeFirstPair`, `CreateNegativeDelayNonMatchingPair` |
+| Cross-platform pair | `CreateCrossPlatformYouTubeReleaseAuthorityPair`, `CreateNegativeDelayNonMatchingPair` |
 | Catalogue input (trust defaults) | `CreateSpotifyCatalogueInput()`, `CreateAppleCatalogueInput()`, `CreateYouTubeCatalogueInput()` |
 | Catalogue input (override) | `CreateSpotifyCatalogueInput(b => b.WithRelease(...))`, `CreateSpotifyCatalogueInputDaysAfterYouTubeRelease(...)` |
 | Catalogue episode | `CreateSpotifyCatalogueEpisode()`, `CreateSpotifyCatalogueEpisode(configure)`, overload with explicit id |

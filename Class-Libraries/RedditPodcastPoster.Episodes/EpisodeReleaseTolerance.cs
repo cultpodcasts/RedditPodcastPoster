@@ -6,7 +6,7 @@ internal static class EpisodeReleaseTolerance
 {
     internal static readonly TimeSpan SameReleaseThreshold = TimeSpan.FromHours(3);
     internal static readonly TimeSpan YouTubePublishDelayMatchThreshold = TimeSpan.FromDays(1);
-    internal const int YouTubeFirstSpotifyCatalogueDayTolerance = 5;
+    internal const int YouTubeReleaseAuthoritySpotifyCatalogueDayTolerance = 5;
     internal static readonly TimeSpan YouTubeAuthorityToAudioReleaseConsiderationThreshold = TimeSpan.FromDays(14);
 
     internal static long GetToleranceTicks(Podcast podcast, TimeSpan episodeLength)
@@ -38,7 +38,7 @@ internal static class EpisodeReleaseTolerance
 
     internal static int GetSpotifyCatalogueDayTolerance(Podcast? podcast) =>
         podcast is { ReleaseAuthority: Service.YouTube } && podcast.YouTubePublishingDelay().Ticks < 0
-            ? YouTubeFirstSpotifyCatalogueDayTolerance
+            ? YouTubeReleaseAuthoritySpotifyCatalogueDayTolerance
             : 1;
 
     internal static bool SpotifyCatalogueReleaseMatches(

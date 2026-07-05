@@ -15,13 +15,13 @@ public class YouTubePublishDelayMatchStrategyRules
     private readonly YouTubePublishDelayMatchStrategy _strategy = new();
 
     [Fact(DisplayName =
-        "For YouTube-first podcasts with positive publishing delay, an incoming YouTube episode " +
+        "For YouTube release authority podcasts with positive publishing delay, an incoming YouTube episode " +
         "matches a stored audio episode when its release aligns after delay adjustment.")]
     public void positive_delay_aligned_youtube_release_matches_stored_audio_episode()
     {
         // Arrange
         var publishingDelay = TimeSpan.FromDays(1);
-        var podcast = _fixture.CreateYouTubeFirstPodcast(
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
             _fixture.CreateYouTubeChannelId(),
             publishingDelay.Ticks);
         var audioRelease = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
@@ -43,13 +43,13 @@ public class YouTubePublishDelayMatchStrategyRules
     }
 
     [Fact(DisplayName =
-        "For YouTube-first podcasts with positive publishing delay, an incoming YouTube episode " +
+        "For YouTube release authority podcasts with positive publishing delay, an incoming YouTube episode " +
         "does not match when its release exceeds the delay-alignment threshold.")]
     public void positive_delay_release_outside_threshold_does_not_match()
     {
         // Arrange
         var publishingDelay = TimeSpan.FromDays(1);
-        var podcast = _fixture.CreateYouTubeFirstPodcast(
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
             _fixture.CreateYouTubeChannelId(),
             publishingDelay.Ticks);
         var audioRelease = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
@@ -72,12 +72,12 @@ public class YouTubePublishDelayMatchStrategyRules
     }
 
     [Fact(DisplayName =
-        "For YouTube-first podcasts with negative publishing delay, a Spotify catalogue episode " +
+        "For YouTube release authority podcasts with negative publishing delay, a Spotify catalogue episode " +
         "does not match when its release falls outside the catalogue tolerance window.")]
-    public void spotify_catalogue_outside_tolerance_does_not_match_youtube_first_stored_episode()
+    public void spotify_catalogue_outside_tolerance_does_not_match_youtube_release_authority_stored_episode()
     {
         // Arrange
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var youTubeRelease = DomainTestFixture.UtcAtTime(-30, _fixture.CreateNonMidnightTimeOfDay());
         var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(
             podcast,
