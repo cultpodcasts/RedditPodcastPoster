@@ -19,8 +19,8 @@
 | Phase | Status | Risk | PR |
 |-------|--------|------|----|
 | **A** — Domain types + applier/merger/matcher (internal) | 🟢 In production / Done | Medium | [#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871) |
-| **B** — UrlSubmission through applier | 🟢 Soak passed / ready to merge | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
-| **C** — Platform adapters at boundaries | ⬜ Not started | Medium–High | _PR link_ |
+| **B** — UrlSubmission through applier | 🟢 In production / Done | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
+| **C** — Platform adapters at boundaries | 🟡 In progress | Medium–High | _PR link_ |
 | **D** — Collapse finders into single matcher | ⬜ Not started | Medium–High | _PR link_ |
 | **E** — Shared enricher template | ⬜ Not started | Medium | _PR link_ |
 | **F** — Cleanup | ⬜ Not started | Low–Medium | _PR link_ |
@@ -29,13 +29,13 @@
 
 ## Phase 0 / Phase A status
 
-Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)). **Phase B** soak passed (ready to merge via [PR #872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872)). Phases C–F not started.
+Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)). **Phase B** is in production (merged via [PR #872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872)). **Phase C** in progress. Phases D–F not started.
 
 | Step / phase | Outcome |
 |--------------|---------|
 | Steps 1–6 | Test infrastructure, domain types, Layer 1–3 business rules, adapter rules, coverage baseline + CI gate |
 | **Phase A** | Domain services in `RedditPodcastPoster.Episodes`; `EpisodeMerger` / `EpisodeMatcher` wired to `EpisodePlatformMatcher` / `EpisodePlatformMerger` |
-| Adapters | Exist under `Episodes/Adapters/` with Layer 1 rules — **not** wired at provider/resolver boundaries |
+| Adapters | Wired at provider boundaries (Phase C); resolved-item adapters in UrlSubmission (Phase B) |
 | Applier | Used inside Episodes (via merger path) and UrlSubmission `EpisodeEnricher` (Phase B) |
 
 ### Phase A checklist
@@ -184,21 +184,21 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 
 - [x] Phase A done
 - [x] Catalogue adapters + Layer 1 rules exist
-- [ ] Phase B merged (UrlSubmission path already uses adapters/applier pattern)
+- [x] Phase B merged (UrlSubmission path already uses adapters/applier pattern)
 
 ### Checklist
 
-- [ ] Wire Spotify catalogue path: API/`FullEpisode` (or existing input DTO) → `SpotifyEpisodeAdapter` → `EpisodeCandidate` at provider/resolver boundary
-- [ ] Wire Apple catalogue path: `AppleEpisode` (or input DTO) → `AppleEpisodeAdapter` → `EpisodeCandidate`
-- [ ] Wire YouTube catalogue path: `SearchResult` / `PlaylistItem` (or input DTOs) → `YouTubeEpisodeAdapter` → `EpisodeCandidate`
-- [ ] Convert candidates to persisted `Episode` only via applier/merger (or a single documented factory), not scattered `Episode.From*` in orchestration
-- [ ] Keep platform-specific flags at the boundary (`Spotify` expensive-query, etc.) — do not push into matcher/merger
-- [ ] Update any provider/resolver unit tests to assert candidate/episode outcomes, not adapter internals alone
+- [x] Wire Spotify catalogue path: API/`FullEpisode` (or existing input DTO) → `SpotifyEpisodeAdapter` → `EpisodeCandidate` at provider/resolver boundary
+- [x] Wire Apple catalogue path: `AppleEpisode` (or input DTO) → `AppleEpisodeAdapter` → `EpisodeCandidate`
+- [x] Wire YouTube catalogue path: `SearchResult` / `PlaylistItem` (or input DTOs) → `YouTubeEpisodeAdapter` → `EpisodeCandidate`
+- [x] Convert candidates to persisted `Episode` only via applier/merger (or a single documented factory), not scattered `Episode.From*` in orchestration
+- [x] Keep platform-specific flags at the boundary (`Spotify` expensive-query, etc.) — do not push into matcher/merger
+- [x] Update any provider/resolver unit tests to assert candidate/episode outcomes, not adapter internals alone
 
 ### Exit criteria
 
-- [ ] Adapter business-rule tests pass **without assertion changes**
-- [ ] Matching/merging/indexing/UrlSubmission rules still pass **without assertion changes**
+- [x] Adapter business-rule tests pass **without assertion changes**
+- [x] Matching/merging/indexing/UrlSubmission rules still pass **without assertion changes**
 - [ ] `./scripts/coverage-gate.ps1` passes
 - [ ] PR opened for Phase C only
 

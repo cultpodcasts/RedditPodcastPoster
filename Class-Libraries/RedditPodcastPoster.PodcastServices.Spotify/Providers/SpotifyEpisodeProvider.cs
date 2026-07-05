@@ -1,7 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes.Adapters;
+using RedditPodcastPoster.Episodes.Adapters.Inputs;
+using RedditPodcastPoster.Episodes.Factories;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Mapping;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.Text;
 
@@ -10,6 +14,8 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Providers;
 public class SpotifyEpisodeProvider(
     ISpotifyPodcastEpisodesProvider spotifyPodcastEpisodesProvider,
     IHtmlSanitiser htmlSanitiser,
+    IEpisodeCatalogueAdapter<SpotifyCatalogueInput> spotifyEpisodeAdapter,
+    IEpisodeFromCandidateFactory episodeFromCandidateFactory,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<SpotifyEpisodeProvider> logger)
 #pragma warning restore CS9113 // Parameter is unread.
@@ -27,17 +33,14 @@ public class SpotifyEpisodeProvider(
             episodes = episodes.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince.Value);
         }
 
-        return new GetEpisodesResponse(episodes.Select(x =>
-            Episode.FromSpotify(
-                x.Id,
-                x.Name.Trim(),
-                htmlSanitiser.Sanitise(x.HtmlDescription ?? string.Empty),
-                TimeSpan.FromMilliseconds(x.DurationMs),
-                x.Explicit,
-                x.GetReleaseDate(),
-                new Uri(x.ExternalUrls.FirstOrDefault().Value, UriKind.Absolute),
-                x.GetBestImageUrl()
-            )
-        ).ToList(), expensiveQueryFound);
+        return new GetEpisodesResponse(
+            episodes.Select(MapEpisode).ToList(),
+            expensiveQueryFound);
+    }
+
+    private Episode MapEpisode(SpotifyAPI.Web.SimpleEpisode episode)
+    {
+        var candidate = spotifyEpisodeAdapter.Adapt(episode.ToCatalogueInput(htmlSanitiser));
+        return episodeFromCandidateFactory.Create(candidate, episode.Explicit);
     }
 }
