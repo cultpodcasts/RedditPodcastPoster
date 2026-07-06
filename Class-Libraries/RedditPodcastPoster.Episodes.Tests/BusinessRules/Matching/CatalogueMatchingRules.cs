@@ -1,8 +1,11 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.TestSupport;
+using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 
@@ -13,6 +16,7 @@ public class CatalogueMatchingRules
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly IEpisodePlatformMatcher _matcher = EpisodeDomainTestServices.CreatePlatformMatcher();
+    private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
     [Fact(DisplayName =
         "When catalogue titles differ but only one candidate shares the probe duration, " +
@@ -727,5 +731,115 @@ public class CatalogueMatchingRules
 
         // Assert
         result.Should().BeSameAs(available);
+    }
+
+    [Fact(DisplayName =
+        "When probe and catalogue item share an exact title via IsMatch, merge accepts the pair " +
+        "even when release and duration clearly differ.")]
+    public void exact_title_is_match_merges_despite_mismatched_release_and_duration()
+    {
+        // KNOWN: likely wrong-merge risk — exact title short-circuits before release tolerance
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var sharedTitle = _fixture.CreateTitle();
+        var storedLength = _fixture.CreateDuration();
+        var incomingLength = storedLength + TimeSpan.FromMinutes(30);
+        var storedRelease = DomainTestFixture.UtcDateDaysAgo(30);
+        var incomingRelease = DomainTestFixture.UtcDateDaysAgo(2);
+        var stored = _fixture.CreateEpisode(e =>
+        {
+            e.Title = sharedTitle;
+            e.Length = storedLength;
+            e.Release = storedRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var incoming = _fixture.CreateEpisode(e =>
+        {
+            e.Title = sharedTitle;
+            e.Length = incomingLength;
+            e.Release = incomingRelease;
+            e.AppleId = _fixture.CreateAppleId();
+        });
+        var expected = EpisodeExpectation.From(stored);
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [incoming]);
+
+        // Assert
+        result.MergedEpisodes.Should().ContainSingle();
+        stored.AppleId.Should().Be(incoming.AppleId);
+    }
+
+    [Fact(DisplayName =
+        "When an episode match regex is configured, exact full-title equality does not bypass " +
+        "release and duration checks if the regex groups do not align.")]
+    public void exact_title_bypass_does_not_apply_when_episode_match_regex_is_configured()
+    {
+        // Arrange
+        const string episodeMatchRegex = @"#(?'episodematch'\d+)\s";
+        var sharedTitle = _fixture.CreateTitle();
+        var probeLength = _fixture.CreateDuration();
+        var catalogueLength = probeLength + TimeSpan.FromMinutes(30);
+        var probeRelease = DomainTestFixture.UtcDateDaysAgo(30);
+        var catalogueRelease = DomainTestFixture.UtcDateDaysAgo(2);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = sharedTitle;
+            e.Length = probeLength;
+            e.Release = probeRelease;
+        });
+        var catalogueItem = _fixture.CreateEpisode(e =>
+        {
+            e.Title = sharedTitle;
+            e.Length = catalogueLength;
+            e.Release = catalogueRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var podcast = _fixture.CreatePodcast();
+        podcast.EpisodeMatchRegex = episodeMatchRegex;
+
+        // Act
+        var matches = _matcher.IsCatalogueMatch(probe, catalogueItem, podcast, new System.Text.RegularExpressions.Regex(episodeMatchRegex));
+
+        // Assert
+        matches.Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "Exact title match for IsCatalogueMatch is case-sensitive — differing case falls through " +
+        "to fuzzy heuristics and does not auto-accept on title alone.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void exact_title_match_is_case_sensitive(bool alterCaseOnCatalogueTitle)
+    {
+        // Arrange
+        var baseTitle = _fixture.CreateShortTitle();
+        var probeTitle = baseTitle;
+        var catalogueTitle = alterCaseOnCatalogueTitle
+            ? new string(baseTitle.Select(c => char.IsLetter(c) ? char.ToUpperInvariant(c) : c).ToArray())
+            : baseTitle;
+        var probeLength = _fixture.CreateDuration();
+        var probeRelease = DomainTestFixture.UtcDateDaysAgo(30);
+        var catalogueRelease = DomainTestFixture.UtcDateDaysAgo(2);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = probeTitle;
+            e.Length = probeLength;
+            e.Release = probeRelease;
+        });
+        var catalogueItem = _fixture.CreateEpisode(e =>
+        {
+            e.Title = catalogueTitle;
+            e.Length = probeLength + TimeSpan.FromMinutes(30);
+            e.Release = catalogueRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var matches = _matcher.IsCatalogueMatch(probe, catalogueItem, podcast, episodeMatchRegex: null);
+
+        // Assert
+        matches.Should().Be(!alterCaseOnCatalogueTitle);
     }
 }

@@ -1,0 +1,190 @@
+using FluentAssertions;
+using RedditPodcastPoster.Episodes.Matching;
+using RedditPodcastPoster.Episodes.Matching.Strategies;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
+
+/// <summary>
+/// Direct characterization of <see cref="ExactReleaseMatchStrategy.Evaluate"/>.
+/// </summary>
+public class ExactReleaseMatchStrategyRules
+{
+    private readonly DomainTestFixture _fixture = new();
+    private readonly ExactReleaseMatchStrategy _strategy = new();
+
+    [Fact(DisplayName =
+        "When the podcast has zero YouTube publishing delay and releases are identical, " +
+        "exact release strategy returns true within the fourteen-day consideration threshold.")]
+    public void zero_delay_identical_releases_returns_true_within_fourteen_day_threshold()
+    {
+        // Arrange
+        var sharedRelease = DomainTestFixture.UtcDateDaysAgo(5);
+        var sharedLength = _fixture.CreateDuration();
+        var podcast = _fixture.CreatePodcast();
+        var stored = _fixture.CreateEpisode(e =>
+        {
+            e.Release = sharedRelease;
+            e.Length = sharedLength;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var incoming = _fixture.CreateEpisode(e =>
+        {
+            e.Release = sharedRelease;
+            e.Length = sharedLength;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When the podcast has zero YouTube publishing delay and releases differ beyond tolerance, " +
+        "exact release strategy returns false.")]
+    public void zero_delay_releases_outside_tolerance_returns_false()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var stored = _fixture.CreateEpisode(e =>
+        {
+            e.Release = DomainTestFixture.UtcDateDaysAgo(60);
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var incoming = _fixture.CreateEpisode(e =>
+        {
+            e.Release = DomainTestFixture.UtcDateDaysAgo(2);
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When the podcast has positive YouTube publishing delay and releases align within tolerance, " +
+        "exact release strategy returns true.")]
+    public void positive_delay_aligned_releases_within_tolerance_returns_true()
+    {
+        // Arrange
+        var publishingDelay = TimeSpan.FromDays(1);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+            _fixture.CreateYouTubeChannelId(),
+            publishingDelay.Ticks);
+        var sharedLength = _fixture.CreateDuration();
+        var audioRelease = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
+        var stored = _fixture.CreateEpisode(e =>
+        {
+            e.Release = audioRelease;
+            e.Length = sharedLength;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var incoming = _fixture.CreateEpisode(e =>
+        {
+            e.Release = audioRelease.AddHours(1);
+            e.Length = sharedLength;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When the podcast has positive delay but releases differ beyond tolerance, " +
+        "exact release strategy defers by returning null.")]
+    public void positive_delay_releases_outside_tolerance_returns_null()
+    {
+        // Arrange
+        var publishingDelay = TimeSpan.FromDays(1);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+            _fixture.CreateYouTubeChannelId(),
+            publishingDelay.Ticks);
+        var sharedLength = _fixture.CreateDuration();
+        var storedRelease = DomainTestFixture.UtcDateDaysAgo(60);
+        var stored = _fixture.CreateEpisode(e =>
+        {
+            e.Release = storedRelease;
+            e.Length = sharedLength;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var incoming = _fixture.CreateEpisode(e =>
+        {
+            e.Release = DomainTestFixture.UtcDateDaysAgo(2);
+            e.Length = sharedLength;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When the podcast has negative YouTube publishing delay, exact release strategy defers " +
+        "to cross-platform strategies by returning null.")]
+    public void negative_delay_returns_null()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var sharedRelease = DomainTestFixture.UtcDateDaysAgo(5);
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast, release: sharedRelease);
+        var incoming = _fixture.CreateSpotifyCatalogueEpisode(b => b.WithRelease(sharedRelease));
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Exact release strategy uses the stored episode length as reference when it is greater than zero.")]
+    public void uses_stored_length_for_tolerance_when_present()
+    {
+        // Arrange
+        var publishingDelay = TimeSpan.FromDays(1);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+            _fixture.CreateYouTubeChannelId(),
+            publishingDelay.Ticks);
+        var storedLength = TimeSpan.FromHours(2);
+        var incomingLength = TimeSpan.FromMinutes(30);
+        var sharedRelease = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
+        var stored = _fixture.CreateEpisode(e =>
+        {
+            e.Release = sharedRelease;
+            e.Length = storedLength;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var incoming = _fixture.CreateEpisode(e =>
+        {
+            e.Release = sharedRelease.AddMinutes(30);
+            e.Length = incomingLength;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+}

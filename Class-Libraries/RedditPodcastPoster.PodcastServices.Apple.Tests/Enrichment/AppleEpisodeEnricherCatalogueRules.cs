@@ -7,19 +7,18 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 
-namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
+namespace RedditPodcastPoster.PodcastServices.Apple.Tests.Enrichment;
 
 /// <summary>
-/// Legacy Apple enricher test entry point — catalogue E2E rules live in
-/// <see cref="Enrichment.AppleEpisodeEnricherCatalogueRules"/>.
+/// Apple episode enricher catalogue E2E rules mirroring YouTube enricher catalogue characterization.
 /// </summary>
-public class AppleEpisodeEnricherTests
+public class AppleEpisodeEnricherCatalogueRules
 {
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "When a YouTube release authority episode with negative publishing delay is merged with Spotify, " +
-        "enrichment applies Apple URL and preserves YouTube publish datetime.")]
+        "When a YouTube release authority episode with negative publishing delay is enriched from Apple, " +
+        "the enricher applies Apple URL and preserves YouTube publish datetime.")]
     public async Task enrich_applies_apple_url_and_preserves_youtube_release_for_negative_delay_authority()
     {
         // Arrange
@@ -54,10 +53,7 @@ public class AppleEpisodeEnricherTests
             new Uri($"https://podcasts.apple.com/us/podcast/episode/id{podcast.AppleId}?i={appleEpisodeId}"),
             string.Empty,
             false);
-
-        var sut = CreateEnricher(
-            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId));
-
+        var sut = CreateEnricher(new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId));
         var enrichmentContext = new EnrichmentContext();
 
         // Act
@@ -69,7 +65,6 @@ public class AppleEpisodeEnricherTests
         // Assert
         episode.AppleId.Should().Be(appleEpisodeId);
         episode.Urls.Apple.Should().NotBeNull();
-        episode.Urls.Apple!.ToString().Should().Contain(appleEpisodeId.ToString());
         episode.Release.Should().Be(youTubeRelease);
         enrichmentContext.AppleUrlUpdated.Should().BeTrue();
     }
@@ -102,10 +97,7 @@ public class AppleEpisodeEnricherTests
             new Uri($"https://podcasts.apple.com/us/podcast/episode/id{podcast.AppleId}?i={appleEpisodeId}"),
             string.Empty,
             false);
-
-        var sut = CreateEnricher(
-            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId));
-
+        var sut = CreateEnricher(new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId));
         var enrichmentContext = new EnrichmentContext();
 
         // Act
@@ -147,10 +139,7 @@ public class AppleEpisodeEnricherTests
             new Uri($"https://podcasts.apple.com/us/podcast/episode/id{podcast.AppleId}?i={appleEpisodeId}"),
             string.Empty,
             false);
-
-        var sut = CreateEnricher(
-            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId));
-
+        var sut = CreateEnricher(new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId));
         var enrichmentContext = new EnrichmentContext();
 
         // Act

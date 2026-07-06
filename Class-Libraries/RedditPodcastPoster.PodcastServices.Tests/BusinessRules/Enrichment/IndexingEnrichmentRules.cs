@@ -472,6 +472,118 @@ public class IndexingEnrichmentRules
         episode.ShouldMatchExpectation(expected);
     }
 
+    [Fact(DisplayName =
+        "When the Apple enricher mock applies a real domain patch, indexing updates the episode's " +
+        "Apple platform fields on the stored row, not only the enrichment context.")]
+    public async Task apple_patch_applying_mock_updates_episode_state_via_real_applicator()
+    {
+        // Arrange
+        var appleEnricher = PodcastServicesEpisodeEnricherTestSupport.CreateAppleEnricherMockApplyingPatch(_fixture);
+        var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
+        var youTubeEnricher = new Mock<IYouTubeEpisodeEnricher>();
+        var enricher = PodcastServicesEpisodeEnricherTestSupport.CreateEnricher(
+            spotifyEnricher,
+            appleEnricher,
+            youTubeEnricher);
+
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.AppleId = _fixture.CreateAppleId();
+        var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b.WithDuration(_fixture.CreateDuration()));
+        episode.PodcastId = podcast.Id;
+        episode.AppleId = null;
+        episode.Urls.Apple = null;
+
+        // Act
+        var results = await enricher.EnrichEpisodes(
+            podcast,
+            [episode],
+            [episode],
+            new IndexingContext());
+
+        // Assert
+        results.UpdatedEpisodes.Should().ContainSingle();
+        episode.AppleId.Should().NotBeNull();
+        episode.Urls.Apple.Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "When the YouTube enricher mock applies a real domain patch, indexing updates the episode's " +
+        "YouTube platform fields on the stored row, not only the enrichment context.")]
+    public async Task youtube_patch_applying_mock_updates_episode_state_via_real_applicator()
+    {
+        // Arrange
+        var youTubeEnricher = PodcastServicesEpisodeEnricherTestSupport.CreateYouTubeEnricherMockApplyingPatch(_fixture);
+        var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
+        var appleEnricher = new Mock<IAppleEpisodeEnricher>();
+        var enricher = PodcastServicesEpisodeEnricherTestSupport.CreateEnricher(
+            spotifyEnricher,
+            appleEnricher,
+            youTubeEnricher);
+
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b.WithDuration(_fixture.CreateDuration()));
+        episode.PodcastId = podcast.Id;
+        episode.YouTubeId = string.Empty;
+        episode.Urls.YouTube = null;
+
+        // Act
+        var results = await enricher.EnrichEpisodes(
+            podcast,
+            [episode],
+            [episode],
+            new IndexingContext());
+
+        // Assert
+        results.UpdatedEpisodes.Should().ContainSingle();
+        episode.YouTubeId.Should().NotBeNullOrWhiteSpace();
+        episode.Urls.YouTube.Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "When Spotify, Apple, and YouTube links are all missing, indexing enriches in platform order " +
+        "and the episode retains all three platform fields without cross-overwrite.")]
+    public async Task multi_platform_enrich_applies_spotify_apple_youtube_without_cross_overwrite()
+    {
+        // Arrange
+        var spotifyEnricher = PodcastServicesEpisodeEnricherTestSupport.CreateSpotifyEnricherMockApplyingPatch(_fixture);
+        var appleEnricher = PodcastServicesEpisodeEnricherTestSupport.CreateAppleEnricherMockApplyingPatch(_fixture);
+        var youTubeEnricher = PodcastServicesEpisodeEnricherTestSupport.CreateYouTubeEnricherMockApplyingPatch(_fixture);
+        var enricher = PodcastServicesEpisodeEnricherTestSupport.CreateEnricher(
+            spotifyEnricher,
+            appleEnricher,
+            youTubeEnricher);
+
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.AppleId = _fixture.CreateAppleId();
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.Length = _fixture.CreateDuration();
+            e.YouTubeId = string.Empty;
+            e.SpotifyId = string.Empty;
+            e.AppleId = null;
+            e.Urls = new ServiceUrls();
+        });
+        episode.PodcastId = podcast.Id;
+
+        // Act
+        var results = await enricher.EnrichEpisodes(
+            podcast,
+            [episode],
+            [episode],
+            new IndexingContext());
+
+        // Assert
+        results.UpdatedEpisodes.Should().ContainSingle();
+        episode.SpotifyId.Should().NotBeNullOrWhiteSpace();
+        episode.AppleId.Should().NotBeNull();
+        episode.YouTubeId.Should().NotBeNullOrWhiteSpace();
+        episode.Urls.Spotify.Should().NotBeNull();
+        episode.Urls.Apple.Should().NotBeNull();
+        episode.Urls.YouTube.Should().NotBeNull();
+    }
+
     private Episode CreateStoredEpisodeAwaitingYouTubeEnrichment(string audioPlatform, DateTime release)
     {
         var duration = _fixture.CreateDuration();

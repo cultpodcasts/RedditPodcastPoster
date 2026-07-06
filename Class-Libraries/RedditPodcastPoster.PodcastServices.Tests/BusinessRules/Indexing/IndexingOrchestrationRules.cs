@@ -297,4 +297,94 @@ public class IndexingOrchestrationRules
         podcast.LastIndexed.Should().BeNull();
         harness.PodcastRepository.SavedPodcasts.Should().BeEmpty();
     }
+
+    [Fact(DisplayName =
+        "When ShouldEnrichDespiteReleaseWindow applies, enrich-only indexing includes a YouTube-only episode " +
+        "missing Spotify even when its release is outside the normal enrichment window.")]
+    public async Task enrich_only_includes_episode_when_should_enrich_despite_release_window()
+    {
+        // Arrange
+        var harness = new PodcastUpdaterTestHarness();
+        var delay = TimeSpan.FromDays(-31).Add(TimeSpan.FromHours(-12));
+        var expectedAudioRelease = DateTime.UtcNow.AddDays(4);
+        var youTubeRelease = expectedAudioRelease.Add(delay);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        podcast.SpotifyId = _fixture.CreateSpotifyId();
+        podcast.AppleId = null;
+        podcast.YouTubePublicationOffset = delay.Ticks;
+        harness.PodcastRepository.Seed(podcast);
+
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+            podcast,
+            release: youTubeRelease);
+        episode.SpotifyId = string.Empty;
+        episode.Urls.Spotify = null;
+        harness.EpisodeRepository.Seed(episode);
+
+        var enrichedEpisodeIds = new List<Guid>();
+        harness.EpisodeEnricher
+            .Setup(x => x.EnrichEpisodes(
+                It.IsAny<Podcast>(),
+                It.IsAny<IEnumerable<Episode>>(),
+                It.IsAny<IList<Episode>>(),
+                It.IsAny<IndexingContext>()))
+            .Callback<Podcast, IEnumerable<Episode>, IList<Episode>, IndexingContext>((_, contextEpisodes, _, _) =>
+            {
+                enrichedEpisodeIds.AddRange(contextEpisodes.Select(e => e.Id));
+            })
+            .ReturnsAsync(new EnrichmentResults([]));
+
+        // Act
+        await harness.Updater.Update(
+            podcast,
+            enrichOnly: true,
+            PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
+
+        // Assert
+        enrichedEpisodeIds.Should().Contain(episode.Id);
+        harness.EpisodeEnricher.Verify(
+            x => x.EnrichEpisodes(
+                podcast,
+                It.Is<IEnumerable<Episode>>(eps => eps.Any(e => e.Id == episode.Id)),
+                It.IsAny<IList<Episode>>(),
+                It.IsAny<IndexingContext>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When a YouTube-only episode already has all configured platform links, enrich-only indexing " +
+        "does not invoke the enricher.")]
+    public async Task enrich_only_excludes_fully_linked_episode_when_no_platform_ids_missing()
+    {
+        // Arrange
+        var harness = new PodcastUpdaterTestHarness();
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        podcast.SpotifyId = _fixture.CreateSpotifyId();
+        podcast.AppleId = null;
+        harness.PodcastRepository.Seed(podcast);
+
+        var spotifyId = _fixture.CreateSpotifyId();
+        var youTubeId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeAndSpotify(
+            podcast,
+            spotifyId,
+            youTubeId,
+            release: DomainTestFixture.UtcDateDaysAgo(30));
+        harness.EpisodeRepository.Seed(episode);
+
+        // Act
+        await harness.Updater.Update(
+            podcast,
+            enrichOnly: true,
+            PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
+
+        // Assert — orchestrator still calls EnrichEpisodes, but no rows need platform backfill
+        harness.EpisodeEnricher.Verify(
+            x => x.EnrichEpisodes(
+                podcast,
+                It.IsAny<IEnumerable<Episode>>(),
+                It.Is<IList<Episode>>(eps => !eps.Any()),
+                It.IsAny<IndexingContext>()),
+            Times.Once);
+    }
 }

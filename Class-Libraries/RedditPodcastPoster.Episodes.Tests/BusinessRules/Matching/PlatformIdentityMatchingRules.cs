@@ -215,4 +215,69 @@ public class PlatformIdentityMatchingRules
         result.AddedEpisodes.Should().ContainSingle();
         result.MergedEpisodes.Should().BeEmpty();
     }
+
+    [Fact(DisplayName =
+        "When a stored episode has only a Spotify URL, indexing merges an incoming catalogue row " +
+        "whose Spotify ID is extracted from that same URL.")]
+    public void spotify_url_only_stored_episode_merges_incoming_id_from_matching_url()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var spotifyInput = _fixture.CreateSpotifyCatalogueInput();
+        var stored = _fixture.CreateSubmittedViaSpotifyUrlOnly(
+            spotifyInput.SpotifyUrl,
+            title: _fixture.CreateTitle(),
+            release: spotifyInput.Release);
+        stored.SpotifyId = string.Empty;
+        var expected = EpisodeExpectation.From(stored);
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithSpotifyId(spotifyInput.SpotifyId)
+            .WithSpotifyUrl(spotifyInput.SpotifyUrl));
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.AddedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        stored.ShouldMatchExpectation(expected.WithSpotify(spotifyInput.SpotifyId, spotifyInput.SpotifyUrl));
+    }
+
+    [Fact(DisplayName =
+        "When a stored episode has only an Apple URL, indexing merges an incoming catalogue row " +
+        "with the same Apple episode ID when titles align.")]
+    public void apple_url_only_stored_episode_merges_incoming_apple_id_when_titles_match()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var appleInput = _fixture.CreateAppleCatalogueInput();
+        var sharedTitle = _fixture.CreateTitle();
+        var sharedLength = _fixture.CreateDuration();
+        var sharedRelease = appleInput.Release;
+        var stored = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithTitle(sharedTitle)
+            .WithRelease(sharedRelease)
+            .WithLength(sharedLength)
+            .Customize(e =>
+            {
+                e.AppleId = null;
+                e.Urls = new ServiceUrls { Apple = appleInput.AppleUrl };
+            })
+            .Create();
+        var expected = EpisodeExpectation.From(stored);
+        var discovered = _fixture.CreateAppleCatalogueEpisode(b => b
+            .WithAppleId(appleInput.AppleId)
+            .WithTitle(sharedTitle)
+            .WithRelease(sharedRelease)
+            .WithDuration(sharedLength));
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.AddedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        stored.ShouldMatchExpectation(expected.WithApple(appleInput.AppleId, appleInput.AppleUrl));
+    }
 }
