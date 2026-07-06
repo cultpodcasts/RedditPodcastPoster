@@ -133,12 +133,17 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 Push-Location $repoRoot
 
 try {
-    $testProjects = @(
-        'Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj',
-        'Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj',
-        'Class-Libraries/RedditPodcastPoster.UrlSubmission.Tests/RedditPodcastPoster.UrlSubmission.Tests.csproj',
-        'Class-Libraries/RedditPodcastPoster.Persistence.Tests/RedditPodcastPoster.Persistence.Tests.csproj'
-    )
+    $baselineForProjects = Get-Content $BaselinePath -Raw | ConvertFrom-Json
+    $testProjects = if ($baselineForProjects.testProjects) {
+        @($baselineForProjects.testProjects)
+    } else {
+        @(
+            'Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj',
+            'Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj',
+            'Class-Libraries/RedditPodcastPoster.UrlSubmission.Tests/RedditPodcastPoster.UrlSubmission.Tests.csproj',
+            'Class-Libraries/RedditPodcastPoster.Persistence.Tests/RedditPodcastPoster.Persistence.Tests.csproj'
+        )
+    }
 
     if (-not $SkipTest) {
         if (Test-Path $ResultsDirectory) {
@@ -242,7 +247,10 @@ try {
         return
     }
 
-    $baseline = Get-Content $BaselinePath -Raw | ConvertFrom-Json
+    if (-not (Get-Variable -Name baselineForProjects -ErrorAction SilentlyContinue)) {
+        $baselineForProjects = Get-Content $BaselinePath -Raw | ConvertFrom-Json
+    }
+    $baseline = $baselineForProjects
 
     $failures = @()
     $reportRows = @()
