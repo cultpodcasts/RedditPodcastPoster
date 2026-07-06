@@ -272,23 +272,34 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 
 ### Deferred test gaps (documented — not blocking Phase D merge)
 
-Characterized in Phase D PR; follow-up rules optional in a later test-only PR if desired:
+Characterized in regression-hardening follow-up (uncommitted on branch); remaining gaps optional:
 
 | Gap | Location | Notes |
 |-----|----------|-------|
-| Release-only fallback (12h window) | `FindYouTubeDiscoveredCatalogueMatchByDuration` | Needs release-proximity-only fixture when duration match fails |
-| Multiple same-length fuzzy disambiguation | `CatalogueMinSameLengthFuzzyScore` (80) | Two candidates within 30s duration + title fuzzy pick |
+| Exact-title bypass of release tolerance | `EpisodePlatformMatcher.MatchesByTitleHeuristics` | `IsCatalogueMatch` returns true on exact title equality before release strategies run — pre-existing; wrong-merge risk if titles collide |
 | YouTube publish-delay matcher delegation | `IsPublishDelayCatalogueMatch` in YouTube finders | End-to-end covered by existing `SearchResultFinderTests`; dedicated domain rule optional |
-| Apple resolver thin-wrapper rules | `AppleEpisodeResolver` | Optional — `AppleEpisodeResolverTests` already cover YouTube-discovered + release reducer |
-| Spotify enricher `CatalogueReleaseMatches` reducer | `SpotifyEpisodeEnricher` | Low incremental value — mirrors Apple enricher path |
-| `YouTubePublishDelayMatchStrategy` Spotify-incoming branch | Strategy direct test | Partially exercised via `IsCatalogueMatch`; direct strategy test optional |
+| Spotify enricher `CatalogueReleaseMatches` reducer | `SpotifyEpisodeEnricher` | Low incremental value — mirrors Apple enricher path; orchestration layer |
+| `YouTubePublishDelayMatchStrategy` lines 30–36 | Strategy second YouTube-incoming block | Unreachable when incoming is YouTube (lines 23–27 win); stored-Spotify + incoming-YouTube covered by `positive_delay_spotify_stored_youtube_incoming_aligned` |
 
-### Phase D test additions (this PR)
+### Phase D test additions (PR #874)
 
 - `CatalogueMatchingRules` — 12 rules (catalogue lookup, release filter, `IsCatalogueMatch`)
 - `EpisodeMappingExtensionsRules` — 7 rules (stored → candidate/patch mapping)
-- `SearchResultFinderCatalogueWrapperRules` — 2 rules (Spotify thin wrapper delegation)
+- `SearchResultFinderCatalogueWrapperRules` — 3 rules (Spotify thin wrapper delegation)
 - Episodes.Tests: 110 total; coverage gate episodes-domain **74.9% branch / 92.1% line**
+
+### Phase D regression-hardening (follow-up on #874 — uncommitted)
+
+Additional rules pinning high-risk Phase D collapse vectors:
+
+| Rule file | New rules | Regression vector |
+|-----------|-----------|-------------------|
+| `CatalogueMatchingRules` | +8 | Cross-platform `IsCatalogueMatch` (negative-delay aligned Spotify; positive-delay misaligned YouTube when titles differ); 12h release-only YouTube-discovered fallback; same-length fuzzy disambiguation; zero-length missed-match guard; HTML entity decode; date-lookup reducer |
+| `YouTubePublishDelayMatchStrategyRules` | +1 | Stored Spotify + incoming YouTube aligned under positive delay (lines 23–27) |
+| `AppleEpisodeResolverCatalogueWrapperRules` | +1 | Apple thin-wrapper delegates YouTube-discovered unique-duration to domain matcher |
+
+- Episodes.Tests: **118** total; coverage gate episodes-domain **76.0% branch / 92.4% line**
+- `coverage-baseline.json` per-file floors corrected to measured Release values (prior file baselines for `EpisodePlatformMatcher.cs`, `YouTubePublishDelayMatchStrategy`, `EpisodeMappingExtensions` were aspirational)
 
 ### Risk to production
 

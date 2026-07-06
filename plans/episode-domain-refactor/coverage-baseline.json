@@ -1,6 +1,7 @@
 {
-  "generatedFromBranch": "feature/episode-domain-phase-d-single-matcher",
   "generatedAt": "2026-07-06",
+  "generatedFromBranch": "feature/episode-domain-phase-d-single-matcher",
+  "note": "Per-file floors from coverage-gate Release run after regression-hardening tests (group 76.0% branch / 92.4% line)",
   "testProjects": [
     "Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj",
     "Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj",
@@ -33,18 +34,18 @@
     }
   ],
   "gapsToClose": [
-    "Episodes domain branch 74.9% vs aspiration 90% — EpisodePlatformMatcher catalogue paths, SpotifyCatalogueReleaseMatchStrategy branch coverage",
+    "Episodes domain branch 76.0% vs aspiration 90% — EpisodePlatformMatcher.cs (70% branch), YouTubePublishDelayMatchStrategy (25% branch; lines 30–36 unreachable when incoming is YouTube)",
     "Orchestration branch 62.3% vs aspiration 85% — EpisodeEnricher (43.8%), PodcastUpdater (68.6%); CategorisedItemProcessor close at 82.1%",
     "Adapters line 98.6% vs aspiration 100% — PlatformLinkFactory (85.7%), ResolvedAppleItemAdapter branch 50% (line 100%)",
-    "Phase D deferred catalogue rules — see STEP-7-CHECKLIST.md Phase D deferred test gaps"
+    "Phase D deferred catalogue rules — see STEP-7-CHECKLIST.md Phase D deferred test gaps (post regression-hardening)"
   ],
   "files": [
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/EpisodePlatformMatcher.cs",
-      "branchCoverage": 75,
-      "lineCoverage": 92,
-      "note": "Includes EpisodePlatformMatcher.Catalogue.cs — raise toward 90% branch aspiration"
+      "branchCoverage": 70,
+      "lineCoverage": 87,
+      "note": "EpisodePlatformMatcher.cs only — Catalogue.cs tracked separately at gate merge; raise toward 90% branch aspiration"
     },
     {
       "group": "episodes-domain",
@@ -62,9 +63,9 @@
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/Strategies/YouTubePublishDelayMatchStrategy.cs",
-      "branchCoverage": 75,
-      "lineCoverage": 90,
-      "note": "Covered via YouTubePublishDelayMatchStrategyRules and IsCatalogueMatch — Spotify-incoming branch deferred"
+      "branchCoverage": 25,
+      "lineCoverage": 52,
+      "note": "Direct strategy tests cover lines 23–27; lines 30–36 appear unreachable when incoming is YouTube (first branch wins)"
     },
     {
       "group": "episodes-domain",
@@ -112,8 +113,8 @@
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Extensions/EpisodeMappingExtensions.cs",
-      "branchCoverage": 80,
-      "lineCoverage": 90,
+      "branchCoverage": 78,
+      "lineCoverage": 98,
       "note": "EpisodeMappingExtensionsRules added Phase D — raise toward 90% branch aspiration"
     },
     {

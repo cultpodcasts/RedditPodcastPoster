@@ -96,4 +96,41 @@ public class YouTubePublishDelayMatchStrategyRules
         // Assert
         result.Should().BeFalse();
     }
+
+    [Fact(DisplayName =
+        "For YouTube release authority podcasts with positive publishing delay, " +
+        "a stored Spotify episode matches an incoming YouTube episode when publish aligns after delay adjustment.")]
+    public void positive_delay_spotify_stored_youtube_incoming_aligned()
+    {
+        // Arrange
+        var publishingDelay = TimeSpan.FromDays(1);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+            _fixture.CreateYouTubeChannelId(),
+            publishingDelay.Ticks);
+        var audioRelease = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
+        var sharedLength = _fixture.CreateDuration();
+        var spotifyId = _fixture.CreateSpotifyId();
+        var stored = _fixture.CreateEpisode(e =>
+        {
+            e.Title = _fixture.CreateShortTitle();
+            e.Length = sharedLength;
+            e.Release = audioRelease;
+            e.SpotifyId = spotifyId;
+            e.Urls = new ServiceUrls { Spotify = _fixture.DefaultSpotifyUrl(spotifyId) };
+        });
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
+            .WithRelease(audioRelease.Add(publishingDelay))
+            .WithDuration(sharedLength));
+        var incoming = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithYouTubeId(youTubeInput.YouTubeId)
+            .WithRelease(youTubeInput.Release)
+            .WithDuration(sharedLength));
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeTrue();
+    }
 }
