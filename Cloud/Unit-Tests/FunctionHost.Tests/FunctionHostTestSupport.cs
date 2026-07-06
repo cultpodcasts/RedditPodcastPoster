@@ -11,12 +11,14 @@ namespace FunctionHost.Tests;
 
 internal static class FunctionHostTestSupport
 {
+    private const string CosmosTestAuthKey = "test-string";
+
     internal static IConfiguration CreateMinimalConfiguration()
     {
         var values = new Dictionary<string, string?>
         {
             ["cosmosdb:Endpoint"] = "https://localhost:8081",
-            ["cosmosdb:AuthKeyOrResourceToken"] = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==",
+            ["cosmosdb:AuthKeyOrResourceToken"] = CosmosTestAuthKey,
             ["cosmosdb:DatabaseId"] = "test-db",
             ["cosmosdb:PodcastsContainer"] = "Podcasts",
             ["cosmosdb:EpisodesContainer"] = "Episodes",
@@ -140,7 +142,7 @@ internal static class FunctionHostTestSupport
         mockContainerFactory.Setup(x => x.CreatePushSubscriptionsContainer()).Returns(mockContainer.Object);
 
         services.AddSingleton(mockContainerFactory.Object);
-        services.AddSingleton(_ => new CosmosClient("https://localhost:8081", "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="));
+        services.AddSingleton(_ => new CosmosClient("https://localhost:8081", CosmosTestAuthKey));
     }
 
     internal static void ReplaceLookupRepositoryWithTestDouble(IServiceCollection services)
