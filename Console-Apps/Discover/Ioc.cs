@@ -15,12 +15,6 @@ namespace Discover;
 
 public static class Ioc
 {
-    public static IReadOnlyList<Type> CompositionCanaryServices { get; } =
-    [
-        typeof(IDiscoveryService),
-        typeof(DiscoveryProcessor),
-    ];
-
     public static void ConfigureServices(IServiceCollection services)
     {
         services

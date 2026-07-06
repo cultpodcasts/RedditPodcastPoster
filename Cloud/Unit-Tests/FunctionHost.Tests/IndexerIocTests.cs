@@ -1,26 +1,33 @@
 using FluentAssertions;
 using Indexer;
-using Microsoft.Extensions.DependencyInjection;
-using RedditPodcastPoster.PodcastServices.Abstractions;
 using Xunit;
 
 namespace FunctionHost.Tests;
 
 public class IndexerIocTests
 {
-    public static IEnumerable<object[]> CanaryServices =>
+    public static IEnumerable<object[]> EntryPoints =>
     [
         [typeof(global::Indexer.Indexer)],
-        [typeof(IPodcastsUpdater)],
+        [typeof(Tweet)],
+        [typeof(Poster)],
+        [typeof(Categoriser)],
+        [typeof(Bluesky)],
+        [typeof(Publisher)],
+        [typeof(LoadRecentCandidates)],
+        [typeof(IndexIdProvider)],
+        [typeof(HourlyOrchestration)],
+        [typeof(HalfHourlyOrchestration)],
+        [typeof(OrchestrationTrigger)],
     ];
 
     [Theory]
-    [MemberData(nameof(CanaryServices))]
-    public async Task Indexer_composition_root_resolves_canary_service(Type serviceType)
+    [MemberData(nameof(EntryPoints))]
+    public async Task Indexer_host_resolves_entry_point(Type entryPointType)
     {
         var services = FunctionHostTestSupport.CreateServiceCollection(Ioc.ConfigureServices);
 
-        var act = async () => await FunctionHostTestSupport.ValidateCanaryServicesAsync(services, serviceType);
+        var act = async () => await FunctionHostTestSupport.ValidateEntryPointAsync(services, entryPointType);
 
         await act.Should().NotThrowAsync();
     }

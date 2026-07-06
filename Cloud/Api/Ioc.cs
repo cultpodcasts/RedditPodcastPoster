@@ -40,12 +40,6 @@ namespace Api;
 
 public static class Ioc
 {
-    public static IReadOnlyList<Type> CompositionCanaryServices { get; } =
-    [
-        typeof(IDiscoveryCurationHandler),
-        typeof(ISubmitUrlHandler),
-    ];
-
     public static void ConfigureServices(IServiceCollection serviceCollection)
     {
         AdminRedditClientFactory.AddAdminRedditClient(serviceCollection);

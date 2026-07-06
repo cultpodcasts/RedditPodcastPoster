@@ -31,12 +31,6 @@ namespace Indexer;
 
 public static class Ioc
 {
-    public static IReadOnlyList<Type> CompositionCanaryServices { get; } =
-    [
-        typeof(global::Indexer.Indexer),
-        typeof(IPodcastsUpdater),
-    ];
-
     public static void ConfigureServices(IServiceCollection serviceCollection)
     {
         serviceCollection

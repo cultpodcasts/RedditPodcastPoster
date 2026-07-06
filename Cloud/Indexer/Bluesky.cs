@@ -48,11 +48,8 @@ public class Bluesky(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failure to execute {object}.{method)}.",
-                nameof(IBlueskyPostManager), nameof(IBlueskyPostManager.Post));
-
             memoryProbe.End(false, ex.GetType().Name);
-            return indexerContext with { Success = false };
+            throw;
         }
 
         memoryProbe.End();

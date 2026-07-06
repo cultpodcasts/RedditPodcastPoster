@@ -67,22 +67,19 @@ public class Poster(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex,
-                "Failure executing {nameofIEpisodeProcessor}.{nameofIEpisodeProcessorPostEpisodesSinceReleaseDate)}.",
-                nameof(IEpisodeProcessor), nameof(IEpisodeProcessor.PostEpisodesSinceReleaseDate));
-            results = ProcessResponse.Fail(ex.Message);
+            memoryProbe.End(false, ex.GetType().Name);
+            throw;
         }
 
         if (!results.Success)
         {
             logger.LogError("{method} Failed to process posts. {results}", nameof(RunAsync), results);
-        }
-        else
-        {
-            logger.LogInformation("{method} Successfully processed posts. {results}", nameof(RunAsync), results);
+            throw new InvalidOperationException($"Poster failed: {results}");
         }
 
-        var result = indexerContext with { Success = results.Success };
+        logger.LogInformation("{method} Successfully processed posts. {results}", nameof(RunAsync), results);
+
+        var result = indexerContext with { Success = true };
 
         memoryProbe.End(result.Success ?? false);
 

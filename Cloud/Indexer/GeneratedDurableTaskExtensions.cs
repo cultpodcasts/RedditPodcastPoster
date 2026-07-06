@@ -1,7 +1,7 @@
-﻿using Microsoft.Azure.Functions.Worker;
+﻿using Azure;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask;
 using Microsoft.DurableTask.Internal;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Indexer;
 
@@ -61,7 +61,7 @@ public static class GeneratedDurableTaskExtensions
     [Function(nameof(LoadRecentCandidates))]
     public static async Task<IndexerContext> LoadRecentCandidates([ActivityTrigger] IndexerContext input, string instanceId, FunctionContext executionContext)
     {
-        ITaskActivity activity = ActivatorUtilities.CreateInstance<LoadRecentCandidates>(executionContext.InstanceServices);
+        ITaskActivity activity = DurableActivityActivator.Create<LoadRecentCandidates>(executionContext, nameof(LoadRecentCandidates));
         TaskActivityContext context = new GeneratedActivityContext("LoadRecentCandidates", instanceId);
         object? result = await activity.RunAsync(context, input);
         return (IndexerContext)result!;
@@ -75,7 +75,7 @@ public static class GeneratedDurableTaskExtensions
     [Function(nameof(Tweet))]
     public static async Task<IndexerContext> Tweet([ActivityTrigger] IndexerContext input, string instanceId, FunctionContext executionContext)
     {
-        ITaskActivity activity = ActivatorUtilities.CreateInstance<Tweet>(executionContext.InstanceServices);
+        ITaskActivity activity = DurableActivityActivator.Create<Tweet>(executionContext, nameof(Tweet));
         TaskActivityContext context = new GeneratedActivityContext("Tweet", instanceId);
         object? result = await activity.RunAsync(context, input);
         return (IndexerContext)result!;
@@ -89,7 +89,7 @@ public static class GeneratedDurableTaskExtensions
     [Function(nameof(Categoriser))]
     public static async Task<IndexerContext> Categoriser([ActivityTrigger] IndexerContext input, string instanceId, FunctionContext executionContext)
     {
-        ITaskActivity activity = ActivatorUtilities.CreateInstance<Categoriser>(executionContext.InstanceServices);
+        ITaskActivity activity = DurableActivityActivator.Create<Categoriser>(executionContext, nameof(Categoriser));
         TaskActivityContext context = new GeneratedActivityContext("Categoriser", instanceId);
         object? result = await activity.RunAsync(context, input);
         return (IndexerContext)result!;
@@ -103,7 +103,7 @@ public static class GeneratedDurableTaskExtensions
     [Function(nameof(Publisher))]
     public static async Task<IndexerContext> Publisher([ActivityTrigger] IndexerContext input, string instanceId, FunctionContext executionContext)
     {
-        ITaskActivity activity = ActivatorUtilities.CreateInstance<Publisher>(executionContext.InstanceServices);
+        ITaskActivity activity = DurableActivityActivator.Create<Publisher>(executionContext, nameof(Publisher));
         TaskActivityContext context = new GeneratedActivityContext("Publisher", instanceId);
         object? result = await activity.RunAsync(context, input);
         return (IndexerContext)result!;
@@ -117,7 +117,7 @@ public static class GeneratedDurableTaskExtensions
     [Function(nameof(Poster))]
     public static async Task<IndexerContext> Poster([ActivityTrigger] IndexerContext input, string instanceId, FunctionContext executionContext)
     {
-        ITaskActivity activity = ActivatorUtilities.CreateInstance<Poster>(executionContext.InstanceServices);
+        ITaskActivity activity = DurableActivityActivator.Create<Poster>(executionContext, nameof(Poster));
         TaskActivityContext context = new GeneratedActivityContext("Poster", instanceId);
         object? result = await activity.RunAsync(context, input);
         return (IndexerContext)result!;
@@ -131,7 +131,7 @@ public static class GeneratedDurableTaskExtensions
     [Function(nameof(Bluesky))]
     public static async Task<IndexerContext> Bluesky([ActivityTrigger] IndexerContext input, string instanceId, FunctionContext executionContext)
     {
-        ITaskActivity activity = ActivatorUtilities.CreateInstance<Bluesky>(executionContext.InstanceServices);
+        ITaskActivity activity = DurableActivityActivator.Create<Bluesky>(executionContext, nameof(Bluesky));
         TaskActivityContext context = new GeneratedActivityContext("Bluesky", instanceId);
         object? result = await activity.RunAsync(context, input);
         return (IndexerContext)result!;
@@ -145,7 +145,7 @@ public static class GeneratedDurableTaskExtensions
     [Function(nameof(IndexIdProvider))]
     public static async Task<IndexIdProviderResponse> IndexIdProvider([ActivityTrigger] IndexIdProviderRequest input, string instanceId, FunctionContext executionContext)
     {
-        ITaskActivity activity = ActivatorUtilities.CreateInstance<IndexIdProvider>(executionContext.InstanceServices);
+        ITaskActivity activity = DurableActivityActivator.Create<IndexIdProvider>(executionContext, nameof(IndexIdProvider));
         TaskActivityContext context = new GeneratedActivityContext("IndexIdProvider", instanceId);
         object? result = await activity.RunAsync(context, input);
         return (IndexIdProviderResponse)result!;
@@ -159,7 +159,7 @@ public static class GeneratedDurableTaskExtensions
     [Function(nameof(Indexer))]
     public static async Task<IndexerContext> Indexer([ActivityTrigger] IndexerContextWrapper input, string instanceId, FunctionContext executionContext)
     {
-        ITaskActivity activity = ActivatorUtilities.CreateInstance<Indexer>(executionContext.InstanceServices);
+        ITaskActivity activity = DurableActivityActivator.Create<Indexer>(executionContext, nameof(Indexer));
         TaskActivityContext context = new GeneratedActivityContext("Indexer", instanceId);
         object? result = await activity.RunAsync(context, input);
         return (IndexerContext)result!;

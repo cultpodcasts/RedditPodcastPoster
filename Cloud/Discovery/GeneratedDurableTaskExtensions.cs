@@ -1,7 +1,7 @@
-﻿using Microsoft.Azure.Functions.Worker;
+﻿using Azure;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask;
 using Microsoft.DurableTask.Internal;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Discovery;
 
@@ -41,7 +41,7 @@ public static class GeneratedDurableTaskExtensions
     public static async Task<DiscoveryContext> Discover([ActivityTrigger] DiscoveryContext input, string instanceId,
         FunctionContext executionContext)
     {
-        ITaskActivity activity = ActivatorUtilities.CreateInstance<Discover>(executionContext.InstanceServices);
+        ITaskActivity activity = DurableActivityActivator.Create<Discover>(executionContext, nameof(Discover));
         TaskActivityContext context = new GeneratedActivityContext("Discover", instanceId);
         var result = await activity.RunAsync(context, input);
         return (DiscoveryContext) result!;

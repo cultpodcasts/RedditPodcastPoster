@@ -46,18 +46,14 @@ public class Categoriser(
         try
         {
             await recentEpisodeCategoriser.Categorise(indexerContext.RecentEpisodeCandidates);
-            memoryProbe.End();
         }
         catch (Exception ex)
         {
-            logger.LogError(ex,
-                "Failure to execute {interface}.{method)}.",
-                nameof(IRecentPodcastEpisodeCategoriser), nameof(IRecentPodcastEpisodeCategoriser.Categorise));
-
             memoryProbe.End(false, ex.GetType().Name);
-
-            return indexerContext with { Success = false };
+            throw;
         }
+
+        memoryProbe.End();
 
         logger.LogInformation("{method} Completed", nameof(RunAsync));
         return indexerContext with { Success = true };

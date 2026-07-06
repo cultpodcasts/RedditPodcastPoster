@@ -69,7 +69,6 @@ public class Discover(
             };
         }
 
-        bool results;
         try
         {
             var getServiceConfigOptions = new GetServiceConfigOptions(
@@ -129,15 +128,19 @@ public class Discover(
                 "{method} Complete. {nameofDiscoveryBegan}: '{discoveryBegan:O}', document-id: '{discoveryResultsDocumentId}', results-count: '{discoveryResultsCount}', indexing-context: {indexingContext}",
                 nameof(RunAsync), nameof(discoveryBegan), discoveryBegan, discoveryResultsDocument.Id,
                 discoveryResults.Count, indexingContext);
-            results = true;
+
+            memoryProbe.End(true);
+            logger.LogInformation("{method} Completed", nameof(RunAsync));
+
+            return input with
+            {
+                Success = true
+            };
         }
         catch (Exception ex)
         {
             memoryProbe.End(false, ex.GetType().Name);
-            logger.LogError(ex,
-                "Failure to execute {nameofDiscover}.{method}.",
-                nameof(Discover), nameof(RunAsync));
-            results = false;
+            throw;
         }
         finally
         {
@@ -154,20 +157,6 @@ public class Discover(
                 logger.LogError(ex, "Failure to complete activity.");
             }
         }
-
-        if (!results)
-        {
-            logger.LogError("Failure occurred");
-        }
-
-        logger.LogInformation("{method} Completed", nameof(RunAsync));
-
-        memoryProbe.End(results);
-
-        return input with
-        {
-            Success = results
-        };
     }
 
     private void EnrichDiscoveryResultsDocument(

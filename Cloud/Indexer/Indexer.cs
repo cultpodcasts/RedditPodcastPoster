@@ -161,7 +161,7 @@ public class Indexer(
             logger.LogError(ex,
                 "Failure to execute {nameofIPodcastsUpdater}.{nameofIPodcastsUpdater.UpdatePodcasts}.",
                 nameof(IPodcastsUpdater), nameof(IPodcastsUpdater.UpdatePodcasts));
-            results = false;
+            throw;
         }
         finally
         {
@@ -194,7 +194,8 @@ public class Indexer(
 
         if (!results)
         {
-            logger.LogError("Failure occurred");
+            throw new InvalidOperationException(
+                $"Indexer pass {indexerContextWrapper.Pass} reported failure without throwing.");
         }
 
         var result = indexerContext with

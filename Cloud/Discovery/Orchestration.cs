@@ -21,6 +21,6 @@ public class Orchestration : TaskOrchestrator<object, DiscoveryContext>
         logger.LogInformation("{nameofDiscover} complete.", nameof(Discover));
 
 
-        return discoveryContext;
+        return result;
     }
 }

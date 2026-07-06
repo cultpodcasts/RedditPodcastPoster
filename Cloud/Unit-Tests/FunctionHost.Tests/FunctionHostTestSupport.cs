@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Subjects;
 
 namespace FunctionHost.Tests;
 
@@ -45,6 +46,10 @@ internal static class FunctionHostTestSupport
             ["youtube:Applications:2:Name"] = "test-api",
             ["youtube:Applications:2:Usage"] = "Api",
             ["youtube:Applications:2:DisplayName"] = "Test Api",
+            ["youtube:Applications:3:ApiKey"] = "test-youtube-bluesky-key",
+            ["youtube:Applications:3:Name"] = "test-bluesky",
+            ["youtube:Applications:3:Usage"] = "Bluesky",
+            ["youtube:Applications:3:DisplayName"] = "Test Bluesky",
             ["content:BucketName"] = "test-bucket",
             ["content:HomepageKey"] = "homepage.json",
             ["content:PreProcessedHomepageKey"] = "preprocessed-homepage.json",
@@ -122,6 +127,7 @@ internal static class FunctionHostTestSupport
         configure(services);
         ReplaceCosmosWithTestDoubles(services);
         ReplaceLookupRepositoryWithTestDouble(services);
+        ReplaceSubjectsProviderWithTestDouble(services);
         return services;
     }
 
@@ -160,9 +166,20 @@ internal static class FunctionHostTestSupport
         services.AddSingleton(mockLookupRepository.Object);
     }
 
-    internal static async Task ValidateCanaryServicesAsync(
+    internal static void ReplaceSubjectsProviderWithTestDouble(IServiceCollection services)
+    {
+        RemoveService<ISubjectsProvider>(services);
+        RemoveService<ICachedSubjectProvider>(services);
+
+        var emptySubjectsProvider = new EmptySubjectsProvider();
+        services.AddSingleton(emptySubjectsProvider);
+        services.AddSingleton<ISubjectsProvider>(emptySubjectsProvider);
+        services.AddSingleton<ICachedSubjectProvider>(emptySubjectsProvider);
+    }
+
+    internal static async Task ValidateEntryPointAsync(
         IServiceCollection services,
-        params Type[] canaryServiceTypes)
+        params Type[] entryPointTypes)
     {
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
@@ -170,9 +187,9 @@ internal static class FunctionHostTestSupport
         });
 
         await using var scope = provider.CreateAsyncScope();
-        foreach (var serviceType in canaryServiceTypes)
+        foreach (var entryPointType in entryPointTypes)
         {
-            HostCompositionValidator.ResolveFromScope(scope.ServiceProvider, serviceType);
+            HostCompositionValidator.ResolveFromScope(scope.ServiceProvider, entryPointType);
         }
     }
 
@@ -183,5 +200,10 @@ internal static class FunctionHostTestSupport
         {
             services.Remove(descriptor);
         }
+    }
+
+    private sealed class EmptySubjectsProvider : ISubjectsProvider, ICachedSubjectProvider
+    {
+        public IAsyncEnumerable<Subject> GetAll() => AsyncEnumerable.Empty<Subject>();
     }
 }

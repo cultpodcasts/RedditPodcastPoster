@@ -52,13 +52,8 @@ public class Publisher(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex,
-                "Failure to execute {PublisherContract}.{PublishHomepageMethod}.",
-                nameof(IHomepagePublisher), nameof(IHomepagePublisher.PublishHomepage));
-
             memoryProbe.End(false, ex.GetType().Name);
-
-            return indexerContext with { Success = false };
+            throw;
         }
 
         memoryProbe.End();
