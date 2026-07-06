@@ -384,7 +384,7 @@ Additional rules pinning high-risk Phase D collapse vectors:
 - **Recommended soak / deploy scope:** Indexer only
 - **Rollback notes:** Restore platform enrichers’ direct mutation; shared template can be removed without touching matcher/merger
 
-**PR:** _link_
+**PR:** [#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875)
 
 ---
 
