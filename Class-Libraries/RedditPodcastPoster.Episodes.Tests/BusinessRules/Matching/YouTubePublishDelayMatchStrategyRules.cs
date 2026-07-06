@@ -98,6 +98,24 @@ public class YouTubePublishDelayMatchStrategyRules
     }
 
     [Fact(DisplayName =
+        "For YouTube release authority podcasts with negative publishing delay, " +
+        "a stored YouTube episode matches an incoming Spotify catalogue item when release aligns after delay adjustment.")]
+    public void negative_delay_youtube_stored_spotify_incoming_aligned()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (stored, incoming, _) = _fixture.CreateCrossPlatformYouTubeReleaseAuthorityPair(podcast);
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+        var strategy = new SpotifyCatalogueReleaseMatchStrategy();
+
+        // Act
+        var result = strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "For YouTube release authority podcasts with positive publishing delay, " +
         "a stored Spotify episode matches an incoming YouTube episode when publish aligns after delay adjustment.")]
     public void positive_delay_spotify_stored_youtube_incoming_aligned()

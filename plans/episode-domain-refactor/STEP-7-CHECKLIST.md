@@ -272,14 +272,14 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 
 ### Deferred test gaps (documented — not blocking Phase D merge)
 
-Characterized in regression-hardening follow-up (uncommitted on branch); remaining gaps optional:
+Pre-soak characterization added in PR #874 follow-up (P0–P3):
 
-| Gap | Location | Notes |
-|-----|----------|-------|
-| Exact-title bypass of release tolerance | `EpisodePlatformMatcher.MatchesByTitleHeuristics` | `IsCatalogueMatch` returns true on exact title equality before release strategies run — pre-existing; wrong-merge risk if titles collide |
-| YouTube publish-delay matcher delegation | `IsPublishDelayCatalogueMatch` in YouTube finders | End-to-end covered by existing `SearchResultFinderTests`; dedicated domain rule optional |
-| Spotify enricher `CatalogueReleaseMatches` reducer | `SpotifyEpisodeEnricher` | Low incremental value — mirrors Apple enricher path; orchestration layer |
-| `YouTubePublishDelayMatchStrategy` lines 30–36 | Strategy second YouTube-incoming block | Unreachable when incoming is YouTube (lines 23–27 win); stored-Spotify + incoming-YouTube covered by `positive_delay_spotify_stored_youtube_incoming_aligned` |
+| Gap | Location | Status |
+|-----|----------|--------|
+| Exact-title bypass of release tolerance | `EpisodePlatformMatcher.MatchesByTitleHeuristics` | Characterized — `CatalogueMatchingRules.exact_title_match_accepts_despite_mismatched_release_and_duration` |
+| Cross-platform `IsCatalogueMatch` (negative-delay aligned Spotify; positive-delay misaligned YouTube) | `EpisodePlatformMatcher.IsCatalogueMatch` | Covered — `is_catalogue_match_accepts_negative_delay_aligned_spotify_catalogue`, `is_catalogue_match_rejects_positive_delay_misaligned_youtube_catalogue` |
+| Spotify enricher `CatalogueReleaseMatches` reducer | `SpotifyEpisodeEnricher` | Covered — `SpotifyEpisodeEnricherCatalogueReleaseReducerRules.enrich_filters_candidates_via_catalogue_release_reducer` |
+| Stored YouTube + incoming Spotify (strategy lines 28–37) | `SpotifyCatalogueReleaseMatchStrategy` | Covered — `YouTubePublishDelayMatchStrategyRules.negative_delay_youtube_stored_spotify_incoming_aligned` |
 
 ### Phase D test additions (PR #874)
 
@@ -287,6 +287,15 @@ Characterized in regression-hardening follow-up (uncommitted on branch); remaini
 - `EpisodeMappingExtensionsRules` — 7 rules (stored → candidate/patch mapping)
 - `SearchResultFinderCatalogueWrapperRules` — 3 rules (Spotify thin wrapper delegation)
 - Episodes.Tests: 110 total; coverage gate episodes-domain **74.9% branch / 92.1% line**
+
+### Phase D pre-soak test additions (PR #874 follow-up)
+
+| Priority | Rule / test | Regression vector |
+|----------|-------------|-------------------|
+| P0 | `CatalogueMatchingRules.exact_title_match_accepts_despite_mismatched_release_and_duration` | Exact-title bypass before release tolerance |
+| P1 | `is_catalogue_match_accepts_negative_delay_aligned_spotify_catalogue`, `is_catalogue_match_rejects_positive_delay_misaligned_youtube_catalogue` | Cross-platform `IsCatalogueMatch` |
+| P2 | `SpotifyEpisodeEnricherCatalogueReleaseReducerRules.enrich_filters_candidates_via_catalogue_release_reducer` | Spotify enricher `CatalogueReleaseMatches` reducer |
+| P3 | `YouTubePublishDelayMatchStrategyRules.negative_delay_youtube_stored_spotify_incoming_aligned` | Stored YouTube + incoming Spotify (`SpotifyCatalogueReleaseMatchStrategy` lines 28–37) |
 
 ### Phase D regression-hardening (follow-up on #874 — uncommitted)
 
