@@ -22,7 +22,7 @@
 | **B** — UrlSubmission through applier | 🟢 In production / Done | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
 | **C** — Platform adapters at boundaries | 🟢 In production (soak) | Medium–High | [#873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873) |
 | **D** — Collapse finders into single matcher | 🟢 In production / Done | Medium–High | [#874](https://github.com/cultpodcasts/RedditPodcastPoster/pull/874) |
-| **E** — Shared enricher template | 🟡 PR open | Medium | _PR link_ |
+| **E** — Shared enricher template | 🟡 PR open | Medium | [#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875) |
 | **F** — Cleanup | ⬜ Not started | Low–Medium | _PR link_ |
 
 ---
@@ -369,7 +369,7 @@ Additional rules pinning high-risk Phase D collapse vectors:
 - [x] Indexing orchestration/persistence rules pass **without assertion changes**
 - [x] No enricher path mutates platform fields without going through applier
 - [x] `./scripts/coverage-gate.ps1` passes
-- [ ] PR opened for Phase E only
+- [x] PR opened for Phase E only ([#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875))
 
 ### Risk to production
 
