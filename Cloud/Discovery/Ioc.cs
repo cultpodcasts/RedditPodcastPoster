@@ -6,7 +6,9 @@ using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
+using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Discovery.Extensions;
+using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
@@ -20,9 +22,17 @@ namespace Discovery;
 
 public static class Ioc
 {
+    public static IReadOnlyList<Type> CompositionCanaryServices { get; } =
+    [
+        typeof(Discover),
+        typeof(IDiscoveryService),
+        typeof(IDiscoveryResultsRepository),
+    ];
+
     public static void ConfigureServices(IServiceCollection serviceCollection)
     {
         serviceCollection
+            .AddEpisodesDomain()
             .AddRepositories()
             .AddSubjectServices()
             .AddCachedSubjectProvider()

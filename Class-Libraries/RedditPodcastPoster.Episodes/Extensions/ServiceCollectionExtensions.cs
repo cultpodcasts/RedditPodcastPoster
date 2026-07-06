@@ -8,7 +8,7 @@ using RedditPodcastPoster.Episodes.Matching.Strategies;
 using RedditPodcastPoster.Episodes.Merging;
 using RedditPodcastPoster.Episodes.Merging.Policies;
 
-namespace RedditPodcastPoster.Episodes;
+namespace RedditPodcastPoster.Episodes.Extensions;
 
 public static class ServiceCollectionExtensions
 {

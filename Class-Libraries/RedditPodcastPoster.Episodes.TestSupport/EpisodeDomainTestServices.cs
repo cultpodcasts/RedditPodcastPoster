@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using RedditPodcastPoster.Episodes;
+using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Episodes.Applying;
 using RedditPodcastPoster.Episodes.Merging;
 using RedditPodcastPoster.Episodes.Matching;
