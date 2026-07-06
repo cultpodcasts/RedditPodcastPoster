@@ -3,6 +3,7 @@ using FluentAssertions;
 using Google.Apis.YouTube.v3.Data;
 using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
@@ -21,6 +22,7 @@ public class SearchResultFinderTests
 
     public SearchResultFinderTests()
     {
+        _mocker.Use(EpisodeDomainTestServices.CreatePlatformMatcher());
         _mocker.GetMock<IYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),

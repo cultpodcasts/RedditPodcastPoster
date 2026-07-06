@@ -6,7 +6,7 @@ using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.Episodes.Matching;
 
-public sealed class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStrategy> releaseMatchStrategies)
+public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStrategy> releaseMatchStrategies)
     : IEpisodePlatformMatcher
 {
     private const int MinFuzzyTitleScore = 70;

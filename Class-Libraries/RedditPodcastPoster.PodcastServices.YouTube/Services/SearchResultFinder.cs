@@ -1,6 +1,8 @@
 ﻿using System.Text.RegularExpressions;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes.Matching;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
@@ -14,6 +16,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 public partial class SearchResultFinder(
     IYouTubeServiceWrapper youTubeService,
     IYouTubeVideoService videoService,
+    IEpisodePlatformMatcher platformMatcher,
     ILogger<SearchResultFinder> logger)
     : ISearchResultFinder
 {
@@ -56,7 +59,7 @@ public partial class SearchResultFinder(
         if (episode.HasAccurateReleaseTime() && youTubePublishDelay.HasValue)
         {
             match = MatchOnPublishTimeComparedToPublishDelay(episode, searchResults, youTubePublishDelay.Value);
-            if (match != null && FuzzyMatcher.IsMatch(episode.Title, match, s => s.Snippet.Title, MinFuzzyScore))
+            if (match != null && IsPublishDelayCatalogueMatch(episode, match, youTubePublishDelay.Value, videoDetails))
             {
                 if (videoDetails != null)
                 {
@@ -275,4 +278,47 @@ public partial class SearchResultFinder(
 
     [GeneratedRegex("(?'number'\\d{2,})", RegexOptions.Compiled)]
     private static partial Regex CreateNumberMatch();
+
+    private bool IsPublishDelayCatalogueMatch(
+        RedditPodcastPoster.Models.Episode episode,
+        SearchResult match,
+        TimeSpan youTubePublishDelay,
+        IList<Google.Apis.YouTube.v3.Data.Video>? videoDetails)
+    {
+        var videoDetail = videoDetails?.SingleOrDefault(x => x.Id == match.Id.VideoId);
+        var catalogueEpisode = new RedditPodcastPoster.Models.Episode
+        {
+            Title = match.Snippet.Title,
+            Release = match.Snippet.PublishedAtDateTimeOffset?.UtcDateTime ?? DateTime.MinValue,
+            Length = videoDetail?.GetLength() ?? episode.Length,
+            YouTubeId = match.Id.VideoId
+        };
+
+        var podcast = new RedditPodcastPoster.Models.Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = youTubePublishDelay.Ticks
+        };
+
+        if (!platformMatcher.IsCatalogueMatch(episode, catalogueEpisode, podcast, episodeMatchRegex: null))
+        {
+            return false;
+        }
+
+        if (videoDetail == null)
+        {
+            return true;
+        }
+
+        var matchingVideoLength = videoDetail.GetLength();
+        if (!matchingVideoLength.HasValue)
+        {
+            return false;
+        }
+
+        var matchingVideoLengthDifferentTicks =
+            Math.Abs((matchingVideoLength.Value - episode.Length).Ticks);
+        return matchingVideoLength > MinDurationForPublicationDate &&
+               matchingVideoLengthDifferentTicks < VideoDurationToleranceForPublicationDate.Ticks;
+    }
 }

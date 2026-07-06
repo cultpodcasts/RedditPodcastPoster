@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -48,6 +49,7 @@ public class AppleEpisodeResolverTests
 
         var sut = new AppleEpisodeResolver(
             new StubApplePodcastService(appleEpisodes),
+            EpisodeDomainTestServices.CreatePlatformMatcher(),
             NullLogger<AppleEpisodeResolver>.Instance);
 
         var result = await sut.FindEpisode(
@@ -101,10 +103,17 @@ public class AppleEpisodeResolverTests
                 false)
         };
         var request = FindAppleEpisodeRequestFactory.Create(podcast, episode);
-        var ticks = EpisodeReleaseMatchTolerance.GetToleranceTicks(podcast, episode.Length);
+        var matcher = EpisodeDomainTestServices.CreatePlatformMatcher();
+        var probeEpisode = new Episode
+        {
+            Title = episode.Title,
+            Length = storedLength,
+            Release = lookupRelease
+        };
 
         var sut = new AppleEpisodeResolver(
             new StubApplePodcastService(appleEpisodes),
+            matcher,
             NullLogger<AppleEpisodeResolver>.Instance);
 
         // Act
@@ -112,10 +121,15 @@ public class AppleEpisodeResolverTests
             request,
             new IndexingContext(),
             y => request.Released.HasValue &&
-                 EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
-                     y.Release,
-                     lookupRelease,
-                     ticks,
+                 matcher.CatalogueReleaseMatches(
+                     probeEpisode,
+                     new Episode
+                     {
+                         Title = y.Title,
+                         Length = y.Duration,
+                         Release = y.Release,
+                         AppleId = y.Id
+                     },
                      podcast));
 
         // Assert

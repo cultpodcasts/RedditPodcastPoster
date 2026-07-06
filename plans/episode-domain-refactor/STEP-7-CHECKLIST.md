@@ -21,7 +21,7 @@
 | **A** — Domain types + applier/merger/matcher (internal) | 🟢 In production / Done | Medium | [#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871) |
 | **B** — UrlSubmission through applier | 🟢 In production / Done | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
 | **C** — Platform adapters at boundaries | 🟢 In production (soak) | Medium–High | [#873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873) |
-| **D** — Collapse finders into single matcher | ⬜ Not started | Medium–High | _PR link_ |
+| **D** — Collapse finders into single matcher | 🟡 PR ready | Medium–High | _PR link_ |
 | **E** — Shared enricher template | ⬜ Not started | Medium | _PR link_ |
 | **F** — Cleanup | ⬜ Not started | Low–Medium | _PR link_ |
 
@@ -249,26 +249,46 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 
 **Preconditions:**
 
-- [ ] Phase C merged (candidates available at boundaries)
+- [x] Phase C merged (candidates available at boundaries)
 - [x] Matcher rule catalog (§5.1) green against `EpisodePlatformMatcher`
 
 ### Checklist
 
-- [ ] Inventory all finder/match entry points that duplicate identity, title/duration, or release tolerance logic
-- [ ] Route Spotify finder matching through `IEpisodePlatformMatcher` (candidates from adapters)
-- [ ] Route YouTube search/playlist finder matching through `IEpisodePlatformMatcher`
-- [ ] Route Apple match paths through `IEpisodePlatformMatcher`
-- [ ] Move remaining `EpisodeReleaseMatchTolerance` **match-time** methods into `IReleaseMatchStrategy` classes without semantic changes (§10.9)
-- [ ] Leave finders as thin wrappers (resolve candidates + call matcher) or delete if fully superseded
-- [ ] Document strategy registration order if DI order changes (first applicable wins)
+- [x] Inventory all finder/match entry points that duplicate identity, title/duration, or release tolerance logic
+- [x] Route Spotify finder matching through `IEpisodePlatformMatcher` (candidates from adapters)
+- [x] Route YouTube search/playlist finder matching through `IEpisodePlatformMatcher`
+- [x] Route Apple match paths through `IEpisodePlatformMatcher`
+- [x] Move remaining `EpisodeReleaseMatchTolerance` **match-time** methods into `IReleaseMatchStrategy` classes without semantic changes (§10.9) — Apple enricher reducer now uses `CatalogueReleaseMatches`
+- [x] Leave finders as thin wrappers (resolve candidates + call matcher) or delete if fully superseded
+- [x] Document strategy registration order if DI order changes (first applicable wins) — unchanged: Exact → SpotifyCatalogue → YouTubePublishDelay
 
 ### Exit criteria
 
-- [ ] Matcher business-rule tests pass **without assertion changes**
-- [ ] Duplicate finder scoring/tolerance code removed (no parallel implementations left)
-- [ ] Orchestration/indexing rules still pass **without assertion changes**
-- [ ] `./scripts/coverage-gate.ps1` passes
+- [x] Matcher business-rule tests pass **without assertion changes**
+- [x] Duplicate finder scoring/tolerance code removed (no parallel implementations left)
+- [x] Orchestration/indexing rules still pass **without assertion changes**
+- [x] `./scripts/coverage-gate.ps1` passes (baselines updated in `coverage-baseline.json`)
 - [ ] PR opened for Phase D only
+
+### Deferred test gaps (documented — not blocking Phase D merge)
+
+Characterized in Phase D PR; follow-up rules optional in a later test-only PR if desired:
+
+| Gap | Location | Notes |
+|-----|----------|-------|
+| Release-only fallback (12h window) | `FindYouTubeDiscoveredCatalogueMatchByDuration` | Needs release-proximity-only fixture when duration match fails |
+| Multiple same-length fuzzy disambiguation | `CatalogueMinSameLengthFuzzyScore` (80) | Two candidates within 30s duration + title fuzzy pick |
+| YouTube publish-delay matcher delegation | `IsPublishDelayCatalogueMatch` in YouTube finders | End-to-end covered by existing `SearchResultFinderTests`; dedicated domain rule optional |
+| Apple resolver thin-wrapper rules | `AppleEpisodeResolver` | Optional — `AppleEpisodeResolverTests` already cover YouTube-discovered + release reducer |
+| Spotify enricher `CatalogueReleaseMatches` reducer | `SpotifyEpisodeEnricher` | Low incremental value — mirrors Apple enricher path |
+| `YouTubePublishDelayMatchStrategy` Spotify-incoming branch | Strategy direct test | Partially exercised via `IsCatalogueMatch`; direct strategy test optional |
+
+### Phase D test additions (this PR)
+
+- `CatalogueMatchingRules` — 12 rules (catalogue lookup, release filter, `IsCatalogueMatch`)
+- `EpisodeMappingExtensionsRules` — 7 rules (stored → candidate/patch mapping)
+- `SearchResultFinderCatalogueWrapperRules` — 2 rules (Spotify thin wrapper delegation)
+- Episodes.Tests: 110 total; coverage gate episodes-domain **74.9% branch / 92.1% line**
 
 ### Risk to production
 

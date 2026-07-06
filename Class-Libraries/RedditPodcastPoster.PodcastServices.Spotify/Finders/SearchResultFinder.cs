@@ -1,31 +1,13 @@
 ﻿using System.Net;
-using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
-using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Finders;
 
-public class SearchResultFinder(
-#pragma warning disable CS9113 // Parameter is unread.
-    ILogger<SearchResultFinder> logger
-#pragma warning restore CS9113 // Parameter is unread.
-) : ISearchResultFinder
+public class SearchResultFinder(IEpisodePlatformMatcher platformMatcher) : ISearchResultFinder
 {
-    private const int MinFuzzyScore = 65;
-    private const int SameLengthMinFuzzyScore = 35;
-    private const int MinSameLengthFuzzyScore = 80;
-    private static readonly long TimeDifferenceThreshold = TimeSpan.FromSeconds(30).Ticks;
-    private static readonly long BroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
-    private static readonly long YouTubeDiscoveredDurationThreshold = TimeSpan.FromMinutes(5).Ticks;
-    private static readonly TimeSpan SameReleaseThreshold = TimeSpan.FromHours(3);
-
-    private static long GetDurationThresholdTicks(bool enrichingYouTubeDiscoveredEpisode) =>
-        enrichingYouTubeDiscoveredEpisode
-            ? YouTubeDiscoveredDurationThreshold
-            : TimeDifferenceThreshold;
-
     public IEnumerable<SimpleShow> FindMatchingPodcasts(string podcastName, List<SimpleShow>? podcasts)
     {
         if (podcasts == null)
@@ -33,8 +15,7 @@ public class SearchResultFinder(
             return [];
         }
 
-        var matches = podcasts.Where(x => x.Name.ToLower().Trim() == podcastName.ToLower());
-        return matches;
+        return podcasts.Where(x => x.Name.ToLower().Trim() == podcastName.ToLower());
     }
 
     public SimpleEpisode? FindMatchingEpisodeByLength(
@@ -46,68 +27,28 @@ public class SearchResultFinder(
         DateTime? released = null,
         bool acceptUniqueDurationWithoutTitleMatch = false)
     {
-        var requestEpisodeTitle = WebUtility.HtmlDecode(episodeTitle.Trim());
-
-        var matches = episodes.Where(x =>
-        {
-            var trimmedEpisodeTitle = WebUtility.HtmlDecode(x.Name.Trim());
-            return trimmedEpisodeTitle == requestEpisodeTitle ||
-                   trimmedEpisodeTitle.Contains(requestEpisodeTitle) ||
-                   requestEpisodeTitle.Contains(trimmedEpisodeTitle);
-        });
-        if (reducer != null)
-        {
-            matches = matches.Where(reducer);
-        }
-
-        var match = matches.MaxBy(x => x.Name);
-        if (match == null)
-        {
-            IList<SimpleEpisode> sampleList;
-            if (reducer != null)
+        var probe = CreateProbeEpisode(episodeTitle, episodeLength, released);
+        var candidates = episodes.Select(ToCatalogueEpisode).ToList();
+        Func<Episode, bool>? episodeReducer = reducer == null
+            ? null
+            : e =>
             {
-                sampleList = episodes.Where(reducer).ToList();
-            }
-            else
-            {
-                sampleList = episodes.ToList();
-            }
+                var source = episodes.FirstOrDefault(x => x.Id == e.SpotifyId);
+                return source != null && reducer(source);
+            };
 
-            var durationThreshold = GetDurationThresholdTicks(acceptUniqueDurationWithoutTitleMatch);
-            var sameLength = sampleList
-                .Where(x => Math.Abs((x.GetDuration() - episodeLength).Ticks) < durationThreshold)
-                .ToList();
-            if (sameLength.Count == 1 && acceptUniqueDurationWithoutTitleMatch)
-            {
-                return sameLength[0];
-            }
+        var match = platformMatcher.FindCatalogueMatchByLength(
+            probe,
+            candidates,
+            CreateLookupPodcast(releaseAuthority),
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(
+                releaseAuthority,
+                acceptUniqueDurationWithoutTitleMatch,
+                acceptUniqueDurationWithoutTitleMatch),
+            episodeReducer);
 
-            if (sameLength.Count > 1)
-            {
-                return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name, MinSameLengthFuzzyScore);
-            }
-
-            match = sameLength.SingleOrDefault(x => FuzzyMatcher.IsMatch(episodeTitle, x, y => y.Name, MinFuzzyScore));
-
-            if (match == null)
-            {
-                if (released.HasValue)
-                {
-                    sameLength = sampleList.Where(x =>
-                        Math.Abs((x.GetReleaseDate() - released.Value).Ticks) < SameReleaseThreshold.Ticks).ToList();
-                }
-
-                if (releaseAuthority == Service.YouTube)
-                {
-                    sameLength = sampleList.Where(x =>
-                        Math.Abs((x.GetDuration() - episodeLength).Ticks) < BroaderTimeDifferenceThreshold).ToList();
-                }
-
-                return FuzzyMatcher.Match(episodeTitle, sameLength, x => x.Name, SameLengthMinFuzzyScore);
-            }
-        }
-
-        return match;
+        return match == null ? null : FindSourceEpisode(episodes, match);
     }
 
     public SimpleEpisode? FindMatchingEpisodeByDate(
@@ -115,40 +56,41 @@ public class SearchResultFinder(
         DateTime? episodeRelease,
         IEnumerable<SimpleEpisode> episodes)
     {
-        var lowerTitle = episodeTitle.ToLowerInvariant();
-        var matches = episodes.Where(x =>
-        {
-            var itemLowerTitle = x.Name.Trim().ToLowerInvariant();
-            return itemLowerTitle == lowerTitle || itemLowerTitle.Contains(lowerTitle) ||
-                   lowerTitle.Contains(itemLowerTitle);
-        });
-        var match = matches.FirstOrDefault();
-        if (match == null && episodeRelease.HasValue)
-        {
-            var sameDateMatches =
-                episodes.Where(x =>
-                {
-                    var episodeReleaseDateTime = x.GetReleaseDate();
-                    if (episodeReleaseDateTime == DateTime.MinValue)
-                    {
-                        return true;
-                    }
+        var probe = CreateProbeEpisode(episodeTitle, TimeSpan.Zero, episodeRelease);
+        var candidates = episodes.Select(ToCatalogueEpisode).ToList();
 
-                    var episodeReleaseDate = DateOnly.FromDateTime(episodeReleaseDateTime);
-                    var expectedDateOnly = DateOnly.FromDateTime(episodeRelease.Value);
-                    var dateDiff = Math.Abs(expectedDateOnly.DayNumber - episodeReleaseDate.DayNumber);
+        var match = platformMatcher.FindCatalogueMatchByDate(
+            probe,
+            candidates,
+            CreateLookupPodcast(releaseAuthority: null),
+            episodeMatchRegex: null);
 
-                    return episodeReleaseDate == expectedDateOnly || dateDiff <= 1;
-                });
-            if (sameDateMatches.Count() > 1)
-            {
-                return FuzzyMatcher.Match(episodeTitle, sameDateMatches, x => x.Name, MinFuzzyScore);
-            }
-
-            match = sameDateMatches.SingleOrDefault(x =>
-                FuzzyMatcher.IsMatch(episodeTitle, x, x => x.Name, MinFuzzyScore));
-        }
-
-        return match;
+        return match == null ? null : FindSourceEpisode(episodes, match);
     }
+
+    private static Episode CreateProbeEpisode(string title, TimeSpan length, DateTime? released) =>
+        new()
+        {
+            Title = WebUtility.HtmlDecode(title.Trim()),
+            Length = length,
+            Release = released ?? DateTime.MinValue
+        };
+
+    private static Episode ToCatalogueEpisode(SimpleEpisode episode) =>
+        new()
+        {
+            Title = WebUtility.HtmlDecode(episode.Name.Trim()),
+            Length = episode.GetDuration(),
+            Release = episode.GetReleaseDate(),
+            SpotifyId = episode.Id
+        };
+
+    private static SimpleEpisode? FindSourceEpisode(IEnumerable<SimpleEpisode> episodes, Episode match) =>
+        episodes.FirstOrDefault(x => x.Id == match.SpotifyId);
+
+    private static Podcast CreateLookupPodcast(Service? releaseAuthority) =>
+        new()
+        {
+            ReleaseAuthority = releaseAuthority ?? Service.Spotify
+        };
 }

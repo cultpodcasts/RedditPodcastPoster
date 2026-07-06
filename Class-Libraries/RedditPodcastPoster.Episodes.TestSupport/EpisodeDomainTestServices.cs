@@ -25,6 +25,12 @@ public static class EpisodeDomainTestServices
             provider.GetRequiredService<IEpisodePlatformMatcher>());
     }
 
+    public static IEpisodePlatformMatcher CreatePlatformMatcher()
+    {
+        var provider = CreateServiceProvider();
+        return provider.GetRequiredService<IEpisodePlatformMatcher>();
+    }
+
     private static ServiceProvider CreateServiceProvider()
     {
         var services = new ServiceCollection();

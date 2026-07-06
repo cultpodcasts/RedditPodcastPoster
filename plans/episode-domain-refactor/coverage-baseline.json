@@ -1,6 +1,6 @@
 {
-  "generatedFromBranch": "feature/episode-domain-refactor-tests",
-  "generatedAt": "2026-07-03",
+  "generatedFromBranch": "feature/episode-domain-phase-d-single-matcher",
+  "generatedAt": "2026-07-06",
   "testProjects": [
     "Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj",
     "Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj",
@@ -15,35 +15,36 @@
   "groups": [
     {
       "name": "episodes-domain",
-      "minBranchCoverage": 66,
-      "minLineCoverage": 78,
+      "minBranchCoverage": 74,
+      "minLineCoverage": 92,
       "aspirationBranchCoverage": 90
     },
     {
       "name": "episodes-adapters",
-      "minBranchCoverage": 50,
+      "minBranchCoverage": 80,
       "minLineCoverage": 98,
       "aspirationLineCoverage": 100
     },
     {
       "name": "orchestration",
-      "minBranchCoverage": 59,
-      "minLineCoverage": 79,
+      "minBranchCoverage": 62,
+      "minLineCoverage": 82,
       "aspirationBranchCoverage": 85
     }
   ],
   "gapsToClose": [
-    "Episodes domain branch 66% vs aspiration 90% — YouTubePublishDelayMatchStrategy (0%), EpisodeMappingExtensions (53.6%), EpisodePlatformApplier (68.8%), EpisodePlatformMatcher (68.3%)",
-    "Orchestration branch 60% vs aspiration 85% — EpisodeEnricher (43.8%), PodcastUpdater (68.6%); CategorisedItemProcessor close at 82.1%",
-    "Adapters line 98.6% vs aspiration 100% — PlatformLinkFactory (85.7%), ResolvedAppleItemAdapter branch 50% (line 100%)"
+    "Episodes domain branch 74.9% vs aspiration 90% — EpisodePlatformMatcher catalogue paths, SpotifyCatalogueReleaseMatchStrategy branch coverage",
+    "Orchestration branch 62.3% vs aspiration 85% — EpisodeEnricher (43.8%), PodcastUpdater (68.6%); CategorisedItemProcessor close at 82.1%",
+    "Adapters line 98.6% vs aspiration 100% — PlatformLinkFactory (85.7%), ResolvedAppleItemAdapter branch 50% (line 100%)",
+    "Phase D deferred catalogue rules — see STEP-7-CHECKLIST.md Phase D deferred test gaps"
   ],
   "files": [
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/EpisodePlatformMatcher.cs",
-      "branchCoverage": 68,
-      "lineCoverage": 85,
-      "note": "Raise toward 90% branch aspiration"
+      "branchCoverage": 75,
+      "lineCoverage": 92,
+      "note": "Includes EpisodePlatformMatcher.Catalogue.cs — raise toward 90% branch aspiration"
     },
     {
       "group": "episodes-domain",
@@ -61,9 +62,9 @@
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/Strategies/YouTubePublishDelayMatchStrategy.cs",
-      "branchCoverage": 0,
-      "lineCoverage": 0,
-      "note": "No direct tests yet — raise toward 90% branch aspiration"
+      "branchCoverage": 75,
+      "lineCoverage": 90,
+      "note": "Covered via YouTubePublishDelayMatchStrategyRules and IsCatalogueMatch — Spotify-incoming branch deferred"
     },
     {
       "group": "episodes-domain",
@@ -111,9 +112,9 @@
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Extensions/EpisodeMappingExtensions.cs",
-      "branchCoverage": 53,
-      "lineCoverage": 50,
-      "note": "Raise toward 90% branch aspiration"
+      "branchCoverage": 80,
+      "lineCoverage": 90,
+      "note": "EpisodeMappingExtensionsRules added Phase D — raise toward 90% branch aspiration"
     },
     {
       "group": "episodes-domain",
