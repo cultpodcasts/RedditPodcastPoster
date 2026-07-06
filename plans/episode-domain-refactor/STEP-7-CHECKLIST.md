@@ -303,7 +303,7 @@ Characterized in Phase D PR; follow-up rules optional in a later test-only PR if
 - **Recommended soak / deploy scope:** Indexer only; compare match/merge outcomes vs pre-deploy baseline if available
 - **Rollback notes:** Restore platform finders’ pre-collapse scoring; keep domain matcher for EpisodeMerger path if still correct
 
-**PR:** _link_
+**PR:** [#874](https://github.com/cultpodcasts/RedditPodcastPoster/pull/874)
 
 ---
 
