@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\RedditPodcastPoster.Episodes\RedditPodcastPoster.Episodes.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Persistence.Abstractions\RedditPodcastPoster.Persistence.Abstractions.csproj" />
   </ItemGroup>

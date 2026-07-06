@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
@@ -50,11 +51,8 @@ public class AppleEpisodeEnricherTests
             string.Empty,
             false);
 
-        var sut = new AppleEpisodeEnricher(
-            new StubApplePodcastEnricher(),
-            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId),
-            EpisodeDomainTestServices.CreatePlatformMatcher(),
-            NullLogger<AppleEpisodeEnricher>.Instance);
+        var sut = CreateEnricher(
+            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId));
 
         var enrichmentContext = new EnrichmentContext();
 
@@ -103,11 +101,8 @@ public class AppleEpisodeEnricherTests
             string.Empty,
             false);
 
-        var sut = new AppleEpisodeEnricher(
-            new StubApplePodcastEnricher(),
-            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId),
-            EpisodeDomainTestServices.CreatePlatformMatcher(),
-            NullLogger<AppleEpisodeEnricher>.Instance);
+        var sut = CreateEnricher(
+            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId));
 
         var enrichmentContext = new EnrichmentContext();
         await sut.Enrich(
@@ -150,11 +145,8 @@ public class AppleEpisodeEnricherTests
             string.Empty,
             false);
 
-        var sut = new AppleEpisodeEnricher(
-            new StubApplePodcastEnricher(),
-            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId),
-            EpisodeDomainTestServices.CreatePlatformMatcher(),
-            NullLogger<AppleEpisodeEnricher>.Instance);
+        var sut = CreateEnricher(
+            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId));
 
         var enrichmentContext = new EnrichmentContext();
         await sut.Enrich(
@@ -165,6 +157,15 @@ public class AppleEpisodeEnricherTests
         episode.Release.Should().Be(dateOnlyRelease);
         enrichmentContext.ReleaseUpdated.Should().BeFalse();
     }
+
+    private static AppleEpisodeEnricher CreateEnricher(IAppleEpisodeResolver resolver) =>
+        new(
+            new StubApplePodcastEnricher(),
+            resolver,
+            EpisodeDomainTestServices.CreatePlatformMatcher(),
+            new AppleEpisodeAdapter(),
+            EpisodeDomainTestServices.CreateEnrichmentApplicator(),
+            NullLogger<AppleEpisodeEnricher>.Instance);
 
     private sealed class StubApplePodcastEnricher : IApplePodcastEnricher
     {

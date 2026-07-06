@@ -24,6 +24,7 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddEpisodesDomain()
         {
             services.AddSingleton<IEpisodePlatformApplier, EpisodePlatformApplier>();
+            services.AddSingleton<IPlatformEnrichmentApplicator, PlatformEnrichmentApplicator>();
             services.AddSingleton<IEpisodePlatformMerger, EpisodePlatformMerger>();
             services.AddSingleton<IEpisodePlatformMatcher, EpisodePlatformMatcher>();
 

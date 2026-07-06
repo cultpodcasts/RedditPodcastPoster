@@ -36,6 +36,7 @@ public static class ServiceCollectionExtensions
                 .AddSpotifyClient()
                 .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
                 .AddScoped<ISpotifyEpisodeEnricher, SpotifyEpisodeEnricher>()
+                .AddScoped<ISpotifyEnrichmentSideEffect, SpotifyExpensiveQuerySideEffect>()
                 .AddScoped<ISpotifyPodcastEnricher, SpotifyPodcastEnricher>()
                 .AddScoped<ISpotifyEpisodeResolver, SpotifyEpisodeResolver>()
                 .AddScoped<ISpotifyPodcastEpisodesProvider, SpotifyPodcastEpisodesProvider>()

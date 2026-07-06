@@ -21,8 +21,8 @@
 | **A** — Domain types + applier/merger/matcher (internal) | 🟢 In production / Done | Medium | [#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871) |
 | **B** — UrlSubmission through applier | 🟢 In production / Done | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
 | **C** — Platform adapters at boundaries | 🟢 In production (soak) | Medium–High | [#873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873) |
-| **D** — Collapse finders into single matcher | 🟡 PR open | Medium–High | [#874](https://github.com/cultpodcasts/RedditPodcastPoster/pull/874) |
-| **E** — Shared enricher template | ⬜ Not started | Medium | _PR link_ |
+| **D** — Collapse finders into single matcher | 🟢 In production / Done | Medium–High | [#874](https://github.com/cultpodcasts/RedditPodcastPoster/pull/874) |
+| **E** — Shared enricher template | 🟡 PR open | Medium | _PR link_ |
 | **F** — Cleanup | ⬜ Not started | Low–Medium | _PR link_ |
 
 ---
@@ -341,25 +341,34 @@ Additional rules pinning high-risk Phase D collapse vectors:
 
 **Preconditions:**
 
-- [ ] Phase D merged (matching is domain-owned)
+- [x] Phase D merged (matching is domain-owned)
 - [x] Indexing enrichment rules (§5.4) green
 
 ### Checklist
 
-- [ ] Introduce shared enrich flow (template/base) that: resolve → adapt → build `EpisodePlatformPatch` → apply via `IEpisodePlatformApplier`
-- [ ] Refactor Spotify enricher to return/apply patch only (no in-place `Episode` mutation for platform fields)
-- [ ] Refactor Apple enricher the same way
-- [ ] Refactor YouTube enricher the same way; honor `SkipEnrichingFromYouTube` in orchestration only
-- [ ] Keep delayed-publishing second pass and batch exclusion in orchestrator (not in platform enrichers)
-- [ ] Extract Spotify expensive-query persistence to a narrow side-effect if still coupled to enricher mutation
-- [ ] Update `PodcastServicesEpisodeEnricherTestSupport` / mocks to return patches or apply via real applier
+- [x] Introduce `IPlatformEnrichmentApplicator` — resolve candidate → `EpisodePlatformPatch` → `IEpisodePlatformApplier` (+ merge policies for release backfill)
+- [x] Refactor Spotify enricher to apply patch via applicator (catalogue adapter + `SpotifyExpensiveQuerySideEffect`)
+- [x] Refactor Apple enricher to apply patch via applicator
+- [x] Refactor YouTube enricher — platform links/release via applicator; description/image via applier fill-missing
+- [x] Extract shared enrich template base (`PlatformEpisodeEnricherTemplate` — delayed-publishing bypass + `ApplyResolvedCandidate`)
+- [x] Keep delayed-publishing second pass and batch exclusion in orchestrator (not in platform enrichers)
+- [x] Extract Spotify expensive-query persistence to `ISpotifyEnrichmentSideEffect`
+- [x] Update `PodcastServicesEpisodeEnricherTestSupport` — patch-applying mock factories per platform
+
+### Phase E test additions
+
+| Rule file | Tests | Business rule |
+|-----------|-------|---------------|
+| `PlatformEnrichmentApplicatorRules` | 7 | Fill-missing links; empty/truncated description; supplemental YouTube image; Apple time backfill; YouTube authority preserve |
+| `PodcastServicesEpisodeEnricherTestSupport` | 3 helpers | Mocks apply real adapter + applicator patches |
+| Existing enricher/orchestration rules | unchanged assertions | §5.4 indexing enrichment still green |
 
 ### Exit criteria
 
-- [ ] Enrichment business-rule tests pass **without assertion changes**
-- [ ] Indexing orchestration/persistence rules pass **without assertion changes**
-- [ ] No enricher path mutates platform fields without going through applier
-- [ ] `./scripts/coverage-gate.ps1` passes
+- [x] Enrichment business-rule tests pass **without assertion changes**
+- [x] Indexing orchestration/persistence rules pass **without assertion changes**
+- [x] No enricher path mutates platform fields without going through applier
+- [x] `./scripts/coverage-gate.ps1` passes
 - [ ] PR opened for Phase E only
 
 ### Risk to production

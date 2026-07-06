@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
@@ -60,6 +61,9 @@ public class SpotifyEpisodeEnricherCatalogueReleaseReducerRules
         var sut = new SpotifyEpisodeEnricher(
             new CapturingSpotifyEpisodeResolver([misalignedEpisode, alignedEpisode], alignedSpotifyId),
             EpisodeDomainTestServices.CreatePlatformMatcher(),
+            new SpotifyEpisodeAdapter(),
+            EpisodeDomainTestServices.CreateEnrichmentApplicator(),
+            new SpotifyExpensiveQuerySideEffect(),
             _htmlSanitiser,
             NullLogger<SpotifyEpisodeEnricher>.Instance);
 
