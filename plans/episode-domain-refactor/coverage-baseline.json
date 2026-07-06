@@ -1,7 +1,7 @@
 {
   "generatedAt": "2026-07-06",
-  "generatedFromBranch": "feature/episode-domain-phase-d-single-matcher",
-  "note": "Per-file floors from coverage-gate Release run after regression-hardening tests (group 76.0% branch / 92.4% line)",
+  "generatedFromBranch": "feature/episode-domain-phase-e-shared-enricher-template",
+  "note": "Per-file floors from coverage-gate Release run after Phase E test hardening (group 76.8% branch / 92.4% line)",
   "testProjects": [
     "Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj",
     "Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj",
@@ -37,7 +37,8 @@
     "Episodes domain branch 76.0% vs aspiration 90% — EpisodePlatformMatcher.cs (70% branch), YouTubePublishDelayMatchStrategy (25% branch; lines 30–36 unreachable when incoming is YouTube)",
     "Orchestration branch 62.3% vs aspiration 85% — EpisodeEnricher (43.8%), PodcastUpdater (68.6%); CategorisedItemProcessor close at 82.1%",
     "Adapters line 98.6% vs aspiration 100% — PlatformLinkFactory (85.7%), ResolvedAppleItemAdapter branch 50% (line 100%)",
-    "Phase D deferred catalogue rules — see STEP-7-CHECKLIST.md Phase D deferred test gaps (post regression-hardening)"
+    "Phase D deferred catalogue rules — see STEP-7-CHECKLIST.md Phase D deferred test gaps (post regression-hardening)",
+    "Phase E enricher/template files (PlatformEpisodeEnricherTemplate, SpotifyExpensiveQuerySideEffect, YouTubeEpisodeEnricher) covered by Spotify/YouTube.Tests — outside coverage-gate test projects"
   ],
   "files": [
     {
@@ -76,8 +77,9 @@
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Merging/Policies/AppleTimeBackfillMergePolicy.cs",
-      "branchCoverage": 66,
-      "lineCoverage": 100
+      "branchCoverage": 83,
+      "lineCoverage": 100,
+      "note": "Phase E — no backfill when incoming candidate has no Apple identity"
     },
     {
       "group": "episodes-domain",
@@ -100,9 +102,16 @@
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Applying/EpisodePlatformApplier.cs",
-      "branchCoverage": 68,
-      "lineCoverage": 86,
-      "note": "Raise toward 90% branch aspiration"
+      "branchCoverage": 81,
+      "lineCoverage": 96,
+      "note": "Phase E applicator branch tests — raise toward 90% branch aspiration"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Applying/PlatformEnrichmentApplicator.cs",
+      "branchCoverage": 94,
+      "lineCoverage": 97,
+      "note": "Phase E shared enrichment applicator — fill-missing, truncated description, release backfill"
     },
     {
       "group": "episodes-domain",
