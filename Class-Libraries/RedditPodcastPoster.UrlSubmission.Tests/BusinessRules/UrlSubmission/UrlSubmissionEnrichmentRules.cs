@@ -1,9 +1,12 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Applying;
+using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
@@ -334,7 +337,387 @@ public class UrlSubmissionEnrichmentRules
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
     }
 
-    private static EpisodeEnricher CreateEnricher()
+    [Fact(DisplayName =
+        "When an existing episode has midnight UTC release and a resolved Apple item carries publish time-of-day, " +
+        "UrlSubmission enrichment backfills release time parity with the domain applicator.")]
+    public void enrich_backfills_apple_release_from_midnight_stored_release()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        podcast.AppleId = _fixture.CreateAppleId();
+        var midnightRelease = DomainTestFixture.UtcDateDaysAgo(2);
+        var appleRelease = DomainTestFixture.SameCalendarDateWithTime(
+            midnightRelease,
+            _fixture.CreateNonMidnightTimeOfDay());
+        var appleInput = _fixture.CreateResolvedAppleItemInput(b => b.WithRelease(appleRelease));
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .Customize(e =>
+            {
+                e.Release = midnightRelease;
+                e.AppleId = appleInput.EpisodeId;
+                e.Urls = new ServiceUrls { Apple = appleInput.Url };
+            })
+            .Create();
+        var categorisedItem = CreateAppleOnlyCategorisedItem(podcast, episode, appleInput);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Release.Should().Be(appleRelease);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
+    }
+
+    [Fact(DisplayName =
+        "When an existing episode has midnight UTC release and a resolved YouTube item carries publish time-of-day, " +
+        "UrlSubmission enrichment backfills release time parity with the domain applicator.")]
+    public void enrich_backfills_youtube_release_from_midnight_stored_release()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var midnightRelease = DomainTestFixture.UtcDateDaysAgo(3);
+        var youTubeRelease = DomainTestFixture.SameCalendarDateWithTime(
+            midnightRelease,
+            _fixture.CreateNonMidnightTimeOfDay());
+        var youTubeInput = _fixture.CreateResolvedYouTubeItemInput(b => b.WithRelease(youTubeRelease));
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .Customize(e =>
+            {
+                e.Release = midnightRelease;
+                e.YouTubeId = youTubeInput.EpisodeId;
+                e.Urls = new ServiceUrls { YouTube = youTubeInput.Url };
+            })
+            .Create();
+        var categorisedItem = CreateYouTubeOnlyCategorisedItem(podcast, episode, youTubeInput);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Release.Should().Be(youTubeRelease);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
+    }
+
+    [Fact(DisplayName =
+        "When an existing episode has a truncated Apple description ending in ellipsis, " +
+        "UrlSubmission enrichment extends the description parity with the domain applicator.")]
+    public void enrich_extends_truncated_description_from_apple_resolved_item()
+    {
+        // Arrange
+        const string truncatedDescription = "Short Apple preview...";
+        const string fullDescription =
+            "Short Apple preview with the complete episode summary and additional details.";
+        var enricher = CreateEnricher(descriptionHelper =>
+        {
+            descriptionHelper
+                .Setup(x => x.CollapseDescription(fullDescription))
+                .Returns(fullDescription);
+        });
+        var podcast = _fixture.CreatePodcast();
+        podcast.AppleId = _fixture.CreateAppleId();
+        var appleInput = _fixture.CreateResolvedAppleItemInput(b => b.WithDescription(fullDescription));
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .Customize(e =>
+            {
+                e.Description = truncatedDescription;
+                e.AppleId = appleInput.EpisodeId;
+                e.Urls = new ServiceUrls { Apple = appleInput.Url };
+            })
+            .Create();
+        var categorisedItem = CreateAppleOnlyCategorisedItem(podcast, episode, appleInput);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Description.Should().Be(fullDescription);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
+    }
+
+    [Fact(DisplayName =
+        "When an existing episode has a truncated Spotify description ending in ellipsis, " +
+        "UrlSubmission enrichment extends the description parity with the domain applicator.")]
+    public void enrich_extends_truncated_description_from_spotify_resolved_item()
+    {
+        // Arrange
+        const string truncatedDescription = "Short Spotify preview...";
+        const string fullDescription =
+            "Short Spotify preview with the complete episode summary and additional details.";
+        var enricher = CreateEnricher(descriptionHelper =>
+        {
+            descriptionHelper
+                .Setup(x => x.CollapseDescription(fullDescription))
+                .Returns(fullDescription);
+        });
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        var spotifyInput = _fixture.CreateResolvedSpotifyItemInput(b => b.WithDescription(fullDescription));
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .Customize(e =>
+            {
+                e.Description = truncatedDescription;
+                e.SpotifyId = spotifyInput.EpisodeId;
+                e.Urls = new ServiceUrls { Spotify = spotifyInput.Url };
+            })
+            .Create();
+        var categorisedItem = CreateSpotifyOnlyCategorisedItem(podcast, episode, spotifyInput);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Description.Should().Be(fullDescription);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
+    }
+
+    [Fact(DisplayName =
+        "When an existing episode has a truncated YouTube description ending in ellipsis, " +
+        "UrlSubmission enrichment extends the description parity with the domain applicator.")]
+    public void enrich_extends_truncated_description_from_youtube_resolved_item()
+    {
+        // Arrange
+        const string truncatedDescription = "Short YouTube preview...";
+        const string fullDescription =
+            "Short YouTube preview with the complete episode summary and additional details.";
+        var enricher = CreateEnricher(descriptionHelper =>
+        {
+            descriptionHelper
+                .Setup(x => x.CollapseDescription(fullDescription))
+                .Returns(fullDescription);
+        });
+        var podcast = _fixture.CreatePodcast();
+        var youTubeInput = _fixture.CreateResolvedYouTubeItemInput(b => b.WithDescription(fullDescription));
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .Customize(e =>
+            {
+                e.Description = truncatedDescription;
+                e.YouTubeId = youTubeInput.EpisodeId;
+                e.Urls = new ServiceUrls { YouTube = youTubeInput.Url };
+            })
+            .Create();
+        var categorisedItem = CreateYouTubeOnlyCategorisedItem(podcast, episode, youTubeInput);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Description.Should().Be(fullDescription);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
+    }
+
+    [Fact(DisplayName =
+        "When an existing episode is missing a BBC link and a resolved non-podcast BBC item is present, " +
+        "UrlSubmission enrichment fills the BBC URL on the stored episode.")]
+    public void enrich_fills_missing_bbc_url_from_non_podcast_item()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e => e.Urls = new ServiceUrls());
+        var bbcUrl = _fixture.Create<Uri>();
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.BBC,
+            Url: bbcUrl,
+            Title: episode.Title,
+            Description: episode.Description);
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Urls.BBC.Should().Be(bbcUrl);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
+        response.SubmitEpisodeDetails.BBC.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When an existing episode is missing an Internet Archive link and a resolved non-podcast item is present, " +
+        "UrlSubmission enrichment fills the Internet Archive URL on the stored episode.")]
+    public void enrich_fills_missing_internet_archive_url_from_non_podcast_item()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e => e.Urls = new ServiceUrls());
+        var internetArchiveUrl = _fixture.Create<Uri>();
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.InternetArchive,
+            Url: internetArchiveUrl,
+            Title: episode.Title,
+            Description: episode.Description);
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Urls.InternetArchive.Should().Be(internetArchiveUrl);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
+        response.SubmitEpisodeDetails.InternetArchive.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When a non-podcast resolved item carries artwork and the episode has no Other image, " +
+        "UrlSubmission enrichment stores the image on Images.YouTube (current behavior).")]
+    public void enrich_stores_non_podcast_image_on_youtube_images_current_behavior()
+    {
+        // Arrange
+        // KNOWN: likely bug — fix tracked separately; see README §4.7
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e => e.Images = new EpisodeImages());
+        var image = _fixture.Create<Uri>();
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.BBC,
+            Url: _fixture.Create<Uri>(),
+            Title: episode.Title,
+            Description: episode.Description,
+            Image: image);
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Images!.YouTube.Should().Be(image);
+        episode.Images.Other.Should().BeNull();
+    }
+
+    private static CategorisedItem CreateAppleOnlyCategorisedItem(
+        Podcast podcast,
+        Episode episode,
+        ResolvedAppleItemInput appleInput)
+    {
+        var publisher = string.Empty;
+        return new CategorisedItem(
+            podcast,
+            [episode],
+            episode,
+            null,
+            new ResolvedAppleItem(
+                podcast.AppleId,
+                appleInput.EpisodeId,
+                podcast.Name,
+                string.Empty,
+                publisher,
+                episode.Title,
+                appleInput.EpisodeDescription,
+                appleInput.Release,
+                appleInput.Duration,
+                appleInput.Url!,
+                false,
+                appleInput.Image),
+            null,
+            null,
+            Service.Apple);
+    }
+
+    private static CategorisedItem CreateYouTubeOnlyCategorisedItem(
+        Podcast podcast,
+        Episode episode,
+        ResolvedYouTubeItemInput youTubeInput)
+    {
+        var publisher = string.Empty;
+        return new CategorisedItem(
+            podcast,
+            [episode],
+            episode,
+            null,
+            null,
+            new ResolvedYouTubeItem(
+                podcast.YouTubeChannelId,
+                youTubeInput.EpisodeId,
+                podcast.Name,
+                string.Empty,
+                publisher,
+                episode.Title,
+                youTubeInput.EpisodeDescription,
+                youTubeInput.Release,
+                youTubeInput.Duration,
+                youTubeInput.Url!,
+                false,
+                youTubeInput.Image,
+                null),
+            null,
+            Service.YouTube);
+    }
+
+    private static CategorisedItem CreateSpotifyOnlyCategorisedItem(
+        Podcast podcast,
+        Episode episode,
+        ResolvedSpotifyItemInput spotifyInput)
+    {
+        var publisher = string.Empty;
+        return new CategorisedItem(
+            podcast,
+            [episode],
+            episode,
+            new ResolvedSpotifyItem(
+                podcast.SpotifyId,
+                spotifyInput.EpisodeId,
+                podcast.Name,
+                string.Empty,
+                publisher,
+                episode.Title,
+                spotifyInput.EpisodeDescription,
+                spotifyInput.Release,
+                spotifyInput.Duration,
+                spotifyInput.Url!,
+                false,
+                spotifyInput.Image),
+            null,
+            null,
+            null,
+            Service.Spotify);
+    }
+
+    private static CategorisedItem CreateNonPodcastOnlyCategorisedItem(
+        Podcast podcast,
+        Episode episode,
+        ResolvedNonPodcastServiceItem nonPodcastItem) =>
+        new(
+            podcast,
+            [episode],
+            episode,
+            null,
+            null,
+            null,
+            nonPodcastItem,
+            Service.Other);
+
+    private static EpisodeEnricher CreateEnricher(
+        Action<Mock<IDescriptionHelper>>? configureDescriptionHelper = null)
     {
         var descriptionHelper = new Mock<IDescriptionHelper>();
         descriptionHelper
@@ -343,6 +726,7 @@ public class UrlSubmissionEnrichmentRules
         descriptionHelper
             .Setup(x => x.EnrichMissingDescription(It.IsAny<CategorisedItem>()))
             .Returns("Resolved description");
+        configureDescriptionHelper?.Invoke(descriptionHelper);
 
         return new EpisodeEnricher(
             descriptionHelper.Object,
