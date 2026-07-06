@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
@@ -7,9 +8,8 @@ namespace RedditPodcastPoster.PodcastServices.Apple;
 public class AppleEpisodeEnricher(
     IApplePodcastEnricher applePodcastEnricher,
     IAppleEpisodeResolver appleEpisodeResolver,
-#pragma warning disable CS9113 // Parameter is unread.
+    IEpisodePlatformMatcher platformMatcher,
     ILogger<AppleEpisodeEnricher> logger)
-#pragma warning restore CS9113 // Parameter is unread.
     : IAppleEpisodeEnricher
 {
     public async Task Enrich(
@@ -35,7 +35,12 @@ public class AppleEpisodeEnricher(
         if (request.Podcast.AppleId != null)
         {
             var findAppleEpisodeRequest = FindAppleEpisodeRequestFactory.Create(request.Podcast, request.Episode);
-            var ticks = EpisodeReleaseMatchTolerance.GetToleranceTicks(request.Podcast, request.Episode.Length);
+            var probeEpisode = new Episode
+            {
+                Title = request.Episode.Title,
+                Length = request.Episode.Length,
+                Release = findAppleEpisodeRequest.Released ?? request.Episode.Release
+            };
             var assignedAppleIds = request.Episodes
                 .Where(x => x.AppleId is > 0)
                 .Select(x => x.AppleId!.Value)
@@ -46,10 +51,15 @@ public class AppleEpisodeEnricher(
                 indexingContext,
                 y => !assignedAppleIds.Contains(y.Id) &&
                      findAppleEpisodeRequest.Released.HasValue &&
-                     EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
-                         y.Release,
-                         findAppleEpisodeRequest.Released.Value,
-                         ticks,
+                     platformMatcher.CatalogueReleaseMatches(
+                         probeEpisode,
+                         new Episode
+                         {
+                             Title = y.Title,
+                             Length = y.Duration,
+                             Release = y.Release,
+                             AppleId = y.Id
+                         },
                          request.Podcast));
             if (appleItem != null && request.Episodes.All(x => x.AppleId != appleItem.Id))
             {

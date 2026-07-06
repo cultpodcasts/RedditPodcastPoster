@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -52,6 +53,7 @@ public class AppleEpisodeEnricherTests
         var sut = new AppleEpisodeEnricher(
             new StubApplePodcastEnricher(),
             new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId),
+            EpisodeDomainTestServices.CreatePlatformMatcher(),
             NullLogger<AppleEpisodeEnricher>.Instance);
 
         var enrichmentContext = new EnrichmentContext();
@@ -104,6 +106,7 @@ public class AppleEpisodeEnricherTests
         var sut = new AppleEpisodeEnricher(
             new StubApplePodcastEnricher(),
             new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId),
+            EpisodeDomainTestServices.CreatePlatformMatcher(),
             NullLogger<AppleEpisodeEnricher>.Instance);
 
         var enrichmentContext = new EnrichmentContext();
@@ -150,6 +153,7 @@ public class AppleEpisodeEnricherTests
         var sut = new AppleEpisodeEnricher(
             new StubApplePodcastEnricher(),
             new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId),
+            EpisodeDomainTestServices.CreatePlatformMatcher(),
             NullLogger<AppleEpisodeEnricher>.Instance);
 
         var enrichmentContext = new EnrichmentContext();

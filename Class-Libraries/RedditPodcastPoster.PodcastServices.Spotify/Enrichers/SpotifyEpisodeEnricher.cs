@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
@@ -10,6 +11,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 
 public class SpotifyEpisodeEnricher(
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
+    IEpisodePlatformMatcher platformMatcher,
     IHtmlSanitiser htmlSanitiser,
     ILogger<SpotifyEpisodeEnricher> logger)
     : ISpotifyEpisodeEnricher
@@ -30,7 +32,12 @@ public class SpotifyEpisodeEnricher(
         }
 
         var findSpotifyEpisodeRequest = FindSpotifyEpisodeRequestFactory.Create(request.Podcast, request.Episode);
-        var ticks = EpisodeReleaseMatchTolerance.GetToleranceTicks(request.Podcast, request.Episode.Length);
+        var probeEpisode = new Episode
+        {
+            Title = request.Episode.Title,
+            Length = request.Episode.Length,
+            Release = findSpotifyEpisodeRequest.Released ?? request.Episode.Release
+        };
         var assignedSpotifyIds = request.Episodes
             .Where(x => !string.IsNullOrWhiteSpace(x.SpotifyId))
             .Select(x => x.SpotifyId)
@@ -41,10 +48,15 @@ public class SpotifyEpisodeEnricher(
             indexingContext,
             y => !assignedSpotifyIds.Contains(y.Id) &&
                  findSpotifyEpisodeRequest.Released.HasValue &&
-                 EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
-                     y.GetReleaseDate(),
-                     findSpotifyEpisodeRequest.Released.Value,
-                     ticks,
+                 platformMatcher.CatalogueReleaseMatches(
+                     probeEpisode,
+                     new Episode
+                     {
+                         Title = y.Name,
+                         Length = y.GetDuration(),
+                         Release = y.GetReleaseDate(),
+                         SpotifyId = y.Id
+                     },
                      request.Podcast));
 
         if (findEpisodeResult.FullEpisode != null &&
