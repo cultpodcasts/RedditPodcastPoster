@@ -504,6 +504,41 @@ public class CatalogueMatchingRules
     }
 
     [Fact(DisplayName =
+        "When probe and catalogue item share an exact title, IsCatalogueMatch accepts the match " +
+        "even when release and duration clearly differ.")]
+    public void exact_title_match_accepts_despite_mismatched_release_and_duration()
+    {
+        // KNOWN: likely wrong-merge risk — exact title short-circuits before release tolerance
+        // (EpisodePlatformMatcher.MatchesByTitleHeuristics lines 67–69; pre-soak characterization)
+        // Arrange
+        var sharedTitle = _fixture.CreateTitle();
+        var probeLength = _fixture.CreateDuration();
+        var catalogueLength = probeLength + TimeSpan.FromMinutes(30);
+        var probeRelease = DomainTestFixture.UtcDateDaysAgo(30);
+        var catalogueRelease = DomainTestFixture.UtcDateDaysAgo(2);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = sharedTitle;
+            e.Length = probeLength;
+            e.Release = probeRelease;
+        });
+        var catalogueItem = _fixture.CreateEpisode(e =>
+        {
+            e.Title = sharedTitle;
+            e.Length = catalogueLength;
+            e.Release = catalogueRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var matches = _matcher.IsCatalogueMatch(probe, catalogueItem, podcast, episodeMatchRegex: null);
+
+        // Assert
+        matches.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "When enriching a YouTube-discovered episode and duration does not match any catalogue row, " +
         "FindCatalogueMatchByLength may still select the sole row whose release is within twelve hours.")]
     public void youtube_discovered_release_only_match_within_twelve_hour_window()
