@@ -81,8 +81,8 @@ public class ReleaseDateMergingRules
     public void YouTube_authority_preserves_YouTube_release_on_Spotify_reindex()
     {
         // Arrange
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
-        var (storedTemplate, discovered, spotifyId) = _fixture.CreateCrossPlatformYouTubeFirstPair(podcast);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (storedTemplate, discovered, spotifyId) = _fixture.CreateCrossPlatformYouTubeReleaseAuthorityPair(podcast);
         var stored = _fixture.CreateStoredEpisodeWithYouTubeAndSpotify(
             podcast,
             spotifyId,

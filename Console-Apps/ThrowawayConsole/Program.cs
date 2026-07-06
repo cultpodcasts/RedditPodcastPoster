@@ -14,6 +14,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using System.Diagnostics;
 using System.Reflection;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 
@@ -30,6 +31,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
+    .AddEpisodesDomain()
     .AddRepositories()
     .AddYouTubeServices(ApplicationUsage.Cli)
     .AddHttpClient();

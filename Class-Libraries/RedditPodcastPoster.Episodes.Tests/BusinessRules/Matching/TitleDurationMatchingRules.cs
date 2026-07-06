@@ -76,7 +76,7 @@ public class TitleDurationMatchingRules
 
     [Fact(DisplayName =
         "When titles and duration differ but release and duration align within standard tolerance " +
-        "on a non-YouTube-first podcast, episodes may be treated as the same.")]
+        "on a podcast without YouTube release authority, episodes may be treated as the same.")]
     public void Release_and_duration_align_when_titles_differ_on_standard_podcast()
     {
         // Arrange

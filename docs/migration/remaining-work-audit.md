@@ -1,6 +1,6 @@
 # Remaining Migration Work — Audit
 
-> Last verified: post-`Persistence.Legacy` removal (PR #870 — YouTube-first platform enrichment).
+> Last verified: post-`Persistence.Legacy` removal (PR #870 — YouTube release authority platform enrichment).
 
 ---
 

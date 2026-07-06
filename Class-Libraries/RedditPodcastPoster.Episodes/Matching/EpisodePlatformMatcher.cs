@@ -11,7 +11,7 @@ public sealed class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStrategy> re
 {
     private const int MinFuzzyTitleScore = 70;
     private static readonly TimeSpan DurationTolerance = TimeSpan.FromMinutes(1);
-    private static readonly TimeSpan YouTubeFirstCrossPlatformDurationTolerance = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan YouTubeReleaseAuthorityCrossPlatformDurationTolerance = TimeSpan.FromMinutes(5);
 
     private readonly IReadOnlyList<IReleaseMatchStrategy> _releaseMatchStrategies = releaseMatchStrategies.ToList();
     private readonly CompareInfo _compareInfo = CultureInfo.InvariantCulture.CompareInfo;
@@ -182,7 +182,7 @@ public sealed class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStrategy> re
         if (podcast.YouTubePublishingDelay().Ticks < 0 &&
             HasCrossPlatformYouTubeSpotifyPair(existingEpisode, incomingEpisode))
         {
-            return YouTubeFirstCrossPlatformDurationTolerance;
+            return YouTubeReleaseAuthorityCrossPlatformDurationTolerance;
         }
 
         return DurationTolerance;

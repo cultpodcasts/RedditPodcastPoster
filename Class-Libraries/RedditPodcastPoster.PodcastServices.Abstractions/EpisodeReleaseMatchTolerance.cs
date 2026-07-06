@@ -6,8 +6,8 @@ public static class EpisodeReleaseMatchTolerance
 {
     private static readonly TimeSpan SameReleaseThreshold = TimeSpan.FromHours(3);
     private static readonly TimeSpan YouTubePublishDelayMatchThreshold = TimeSpan.FromDays(1);
-    private const int YouTubeFirstSpotifyCatalogueDayTolerance = 5;
-    private static readonly TimeSpan YouTubeFirstEnrichmentLookahead = TimeSpan.FromDays(14);
+    private const int YouTubeReleaseAuthoritySpotifyCatalogueDayTolerance = 5;
+    private static readonly TimeSpan YouTubeReleaseAuthorityEnrichmentLookahead = TimeSpan.FromDays(14);
 
     public static bool EpisodesReleaseMatch(Podcast podcast, Episode existingEpisode, Episode episodeToMerge)
     {
@@ -141,15 +141,15 @@ public static class EpisodeReleaseMatchTolerance
         }
 
         var expectedAudioRelease = GetAudioReleaseForPlatformLookup(podcast, episode);
-        var windowStart = expectedAudioRelease.AddDays(-YouTubeFirstSpotifyCatalogueDayTolerance);
-        var windowEnd = expectedAudioRelease.Add(YouTubeFirstEnrichmentLookahead);
+        var windowStart = expectedAudioRelease.AddDays(-YouTubeReleaseAuthoritySpotifyCatalogueDayTolerance);
+        var windowEnd = expectedAudioRelease.Add(YouTubeReleaseAuthorityEnrichmentLookahead);
         var now = DateTime.UtcNow;
         return now >= windowStart && now <= windowEnd;
     }
 
     private static int GetSpotifyCatalogueDayTolerance(Podcast? podcast) =>
         podcast is { ReleaseAuthority: Service.YouTube } && podcast.YouTubePublishingDelay().Ticks < 0
-            ? YouTubeFirstSpotifyCatalogueDayTolerance
+            ? YouTubeReleaseAuthoritySpotifyCatalogueDayTolerance
             : 1;
 
     private static bool EpisodeMissingConfiguredPlatformIds(Episode episode, Podcast podcast)

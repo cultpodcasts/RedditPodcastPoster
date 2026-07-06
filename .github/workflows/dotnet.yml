@@ -31,4 +31,4 @@ jobs:
       run: dotnet test --no-build --configuration Release --verbosity normal
     - name: Episode domain coverage gate
       shell: pwsh
-      run: ./scripts/coverage-gate.ps1
+      run: ./scripts/coverage-gate.ps1 -NoBuild -Verbose

@@ -1,5 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.Episodes.Adapters;
+using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Applying;
+using RedditPodcastPoster.Episodes.Factories;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.Matching.Strategies;
 using RedditPodcastPoster.Episodes.Merging;
@@ -32,6 +35,11 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IReleaseMergePolicy, YouTubeTimeBackfillMergePolicy>();
             services.AddSingleton<IReleaseMergePolicy, SpotifyNoTimeBackfillMergePolicy>();
             services.AddSingleton<IReleaseMergePolicy, AppleTimeBackfillMergePolicy>();
+
+            services.AddSingleton<IEpisodeFromCandidateFactory, EpisodeFromCandidateFactory>();
+            services.AddSingleton<IEpisodeCatalogueAdapter<SpotifyCatalogueInput>, SpotifyEpisodeAdapter>();
+            services.AddSingleton<IEpisodeCatalogueAdapter<AppleCatalogueInput>, AppleEpisodeAdapter>();
+            services.AddSingleton<IEpisodeCatalogueAdapter<YouTubeCatalogueInput>, YouTubeEpisodeAdapter>();
 
             return services;
         }

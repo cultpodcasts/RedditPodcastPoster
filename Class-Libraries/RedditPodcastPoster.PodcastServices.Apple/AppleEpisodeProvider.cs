@@ -1,11 +1,17 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes.Adapters;
+using RedditPodcastPoster.Episodes.Adapters.Inputs;
+using RedditPodcastPoster.Episodes.Factories;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Apple.Mapping;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
 
 public class AppleEpisodeProvider(
     ICachedApplePodcastService applePodcastService,
+    IEpisodeCatalogueAdapter<AppleCatalogueInput> appleEpisodeAdapter,
+    IEpisodeFromCandidateFactory episodeFromCandidateFactory,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<AppleEpisodeProvider> logger)
 #pragma warning restore CS9113 // Parameter is unread.
@@ -25,16 +31,12 @@ public class AppleEpisodeProvider(
             episodes = episodes.Where(x => x.Release >= indexingContext.ReleasedSince.Value).ToList();
         }
 
-        return episodes.Select(x =>
-            Episode.FromApple(
-                x.Id,
-                x.Title.Trim(),
-                x.Description.Trim(),
-                x.Duration,
-                x.Explicit,
-                x.Release,
-                x.Url.CleanAppleUrl(),
-                x.Image)
-        ).ToList();
+        return episodes.Select(MapEpisode).ToList();
+    }
+
+    private Episode MapEpisode(AppleEpisode episode)
+    {
+        var candidate = appleEpisodeAdapter.Adapt(episode.ToCatalogueInput());
+        return episodeFromCandidateFactory.Create(candidate, episode.Explicit);
     }
 }

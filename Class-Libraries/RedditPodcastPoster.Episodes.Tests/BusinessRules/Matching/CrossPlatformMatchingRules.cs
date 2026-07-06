@@ -8,7 +8,7 @@ using RedditPodcastPoster.Persistence;
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 
 /// <summary>
-/// Cross-platform matching rules for YouTube-first podcasts and ambiguous merge detection.
+/// Cross-platform matching rules for YouTube release authority podcasts and ambiguous merge detection.
 /// </summary>
 public class CrossPlatformMatchingRules
 {
@@ -16,13 +16,13 @@ public class CrossPlatformMatchingRules
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
     [Fact(DisplayName =
-        "For YouTube-first podcasts, a Spotify catalogue episode may match a YouTube-only stored episode " +
+        "For YouTube release authority podcasts, a Spotify catalogue episode may match a YouTube-only stored episode " +
         "when title and duration fuzzy-match and catalogue release aligns after publishing-delay adjustment.")]
-    public void YouTube_first_Spotify_catalogue_matches_YouTube_only_stored_episode()
+    public void YouTube_release_authority_Spotify_catalogue_matches_YouTube_only_stored_episode()
     {
         // Arrange
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
-        var (stored, discovered, spotifyId) = _fixture.CreateCrossPlatformYouTubeFirstPair(podcast);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (stored, discovered, spotifyId) = _fixture.CreateCrossPlatformYouTubeReleaseAuthorityPair(podcast);
         var expected = EpisodeExpectation.From(stored)
             .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId));
 
@@ -38,12 +38,12 @@ public class CrossPlatformMatchingRules
     }
 
     [Fact(DisplayName =
-        "For YouTube-first podcasts with negative publishing delay, episodes must not merge on " +
+        "For YouTube release authority podcasts with negative publishing delay, episodes must not merge on " +
         "release-and-duration alone when titles clearly refer to different episodes.")]
     public void Negative_delay_does_not_merge_on_release_and_duration_when_titles_differ()
     {
         // Arrange
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var (stored, discovered) = _fixture.CreateNegativeDelayNonMatchingPair(podcast);
         var expected = EpisodeExpectation.From(stored);
 
@@ -92,13 +92,13 @@ public class CrossPlatformMatchingRules
     }
 
     [Fact(DisplayName =
-        "For YouTube-first podcasts with positive publishing delay, an incoming YouTube episode " +
+        "For YouTube release authority podcasts with positive publishing delay, an incoming YouTube episode " +
         "may match a stored audio episode when release aligns after delay adjustment.")]
     public void Positive_YouTube_delay_matches_incoming_YouTube_to_stored_audio_episode()
     {
         // Arrange
         var publishingDelay = TimeSpan.FromDays(1);
-        var podcast = _fixture.CreateYouTubeFirstPodcast(
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
             channelId: _fixture.CreateYouTubeChannelId(),
             youTubePublicationOffsetTicks: publishingDelay.Ticks);
         var audioRelease = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());

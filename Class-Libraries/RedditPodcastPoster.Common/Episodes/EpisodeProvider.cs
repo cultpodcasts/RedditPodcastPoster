@@ -36,7 +36,7 @@ public class EpisodeProvider(
             {
                 newEpisodes = CombineDiscoveredEpisodes(newEpisodes, spotifyEpisodes);
                 logger.LogInformation(
-                    "Get Episodes for podcast '{podcastName}' merged {spotifyEpisodeCount} Spotify catalogue episodes for YouTube-first merge.",
+                    "Get Episodes for podcast '{podcastName}' merged {spotifyEpisodeCount} Spotify catalogue episodes for YouTube release authority merge.",
                     podcast.Name, spotifyEpisodes.Count);
             }
         }

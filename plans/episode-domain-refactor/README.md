@@ -301,13 +301,13 @@ Implement as test classes under `BusinessRules/`. Each rule = one `[Fact]` or `[
 
 - When titles differ by a typo but duration matches within tolerance, episodes may be treated as the same.
 - When titles differ by a typo but duration does not match, episodes are not the same.
-- When titles and duration differ but release and duration align within standard tolerance, episodes may be treated as the same (non-YouTube-first).
+- When titles and duration differ but release and duration align within standard tolerance, episodes may be treated as the same (without YouTube release authority).
 - Custom `EpisodeMatchRegex` on the podcast may force a match when titles differ.
 
-**Cross-platform (YouTube-first)**
+**Cross-platform (YouTube release authority)**
 
-- For YouTube-first podcasts, a Spotify catalogue episode may match a YouTube-only stored episode when title/duration fuzzy-match and catalogue release aligns after publishing-delay adjustment.
-- For YouTube-first podcasts with negative publishing delay, episodes must not merge on release-and-duration alone when titles clearly refer to different episodes.
+- For YouTube release authority podcasts, a Spotify catalogue episode may match a YouTube-only stored episode when title/duration fuzzy-match and catalogue release aligns after publishing-delay adjustment.
+- For YouTube release authority podcasts with negative publishing delay, episodes must not merge on release-and-duration alone when titles clearly refer to different episodes.
 - When two stored episodes could both match an incoming episode, indexing must record merge failure — not pick arbitrarily.
 
 ### 5.2 Release dates (`BusinessRules/Merging/ReleaseDateMergingRules.cs`)
@@ -378,7 +378,7 @@ Implement as test classes under `BusinessRules/`. Each rule = one `[Fact]` or `[
 
 - [x] `PlatformIdentityMatchingRules` — 8 rules (Spotify URL/ID, YouTube ID, Apple ID, negative cases, wrong-row guard)
 - [x] `TitleDurationMatchingRules` — 4 rules (typo+duration, release+duration, EpisodeMatchRegex)
-- [x] `CrossPlatformMatchingRules` — 4 rules (YouTube-first Spotify match, negative delay guard, ambiguous failure, positive delay)
+- [x] `CrossPlatformMatchingRules` — 4 rules (YouTube release authority Spotify match, negative delay guard, ambiguous failure, positive delay)
 - [x] `ReleaseDateMergingRules` — 6 rules (YouTube/Apple time backfill, Spotify no backfill, YouTube authority preserve, YouTube different-date guard)
 - [x] `EpisodeMergingRules` — 12 rules (fill missing URL/ID/artwork per platform, preserve existing, truncated/complete description, no-match add, Spotify catalogue release)
 - [x] Implement **real** `EpisodePlatformMatcher`, `EpisodePlatformMerger`, `EpisodePlatformApplier` (domain services in `RedditPodcastPoster.Episodes`)
@@ -602,7 +602,7 @@ Existing **`EpisodeReleaseMatchTolerance`** (`PodcastServices.Abstractions`) is 
 |----------------------------------------|-------------|
 | `EpisodesReleaseMatch`, `GetToleranceTicks`, delay-adjusted comparisons | `IReleaseMatchStrategy` implementations |
 | `SpotifyCatalogueReleaseMatches` | `SpotifyCatalogueReleaseMatchStrategy` |
-| YouTube delay / YouTube-first Spotify catalogue paths | `YouTubePublishDelayMatchStrategy`, `YouTubeNegativeDelayGuardStrategy` |
+| YouTube delay / YouTube release authority Spotify catalogue paths | `YouTubePublishDelayMatchStrategy`, `YouTubeNegativeDelayGuardStrategy` |
 | `ShouldPreserveYouTubeAuthoritativeRelease` | `YouTubeAuthoritativePreserveMergePolicy` |
 | Midnight UTC time backfill (YouTube / Apple) | `YouTubeTimeBackfillMergePolicy`, `AppleTimeBackfillMergePolicy` |
 | Spotify date-only (no time overwrite) | `SpotifyNoTimeBackfillMergePolicy` |

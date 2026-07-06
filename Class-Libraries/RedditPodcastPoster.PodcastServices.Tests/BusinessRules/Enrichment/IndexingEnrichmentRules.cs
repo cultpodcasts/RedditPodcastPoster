@@ -16,6 +16,9 @@ public class IndexingEnrichmentRules
 
     private readonly DomainTestFixture _fixture = new();
 
+    public static TheoryData<string> DelayedPublishingAudioPlatforms =>
+        new() { "Apple", "Spotify" };
+
     [Fact(DisplayName =
         "When Spotify URL or ID is missing, indexing attempts Spotify enrichment.")]
     public async Task spotify_enricher_is_invoked_when_spotify_link_is_missing()
@@ -211,9 +214,11 @@ public class IndexingEnrichmentRules
         results.UpdatedEpisodes.Should().BeEmpty();
     }
 
-    [Fact(DisplayName =
+    [Theory(DisplayName =
         "For podcasts with positive YouTube publishing delay, a second pass enriches recently expired delayed-publishing episodes that were not part of the current discovery batch.")]
-    public async Task delayed_publishing_second_pass_enriches_recently_expired_stored_episodes()
+    [MemberData(nameof(DelayedPublishingAudioPlatforms))]
+    public async Task delayed_publishing_second_pass_enriches_recently_expired_stored_episodes(
+        string audioPlatform)
     {
         // Arrange
         var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
@@ -243,12 +248,10 @@ public class IndexingEnrichmentRules
             _fixture.CreateYouTubeChannelId(),
             PublishingDelay);
 
-        var expiredStoredEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DateTime.UtcNow.Subtract(PublishingDelay).AddHours(-2))
-            .WithDuration(_fixture.CreateDuration()));
+        var expiredStoredEpisode = CreateStoredEpisodeAwaitingYouTubeEnrichment(
+            audioPlatform,
+            ReleaseRecentlyExpiredDelayedPublishing(audioPlatform, PublishingDelay));
         expiredStoredEpisode.PodcastId = podcast.Id;
-        expiredStoredEpisode.YouTubeId = string.Empty;
-        expiredStoredEpisode.Urls.YouTube = null;
 
         var discoveredYouTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
             .WithDuration(_fixture.CreateDuration()));
@@ -271,9 +274,11 @@ public class IndexingEnrichmentRules
         results.UpdatedEpisodes.Single().Episode.Id.Should().Be(expiredStoredEpisode.Id);
     }
 
-    [Fact(DisplayName =
+    [Theory(DisplayName =
         "Episodes in the current discovery batch are excluded from the delayed-publishing second pass.")]
-    public async Task episodes_in_new_episodes_batch_are_excluded_from_delayed_publishing_second_pass()
+    [MemberData(nameof(DelayedPublishingAudioPlatforms))]
+    public async Task episodes_in_new_episodes_batch_are_excluded_from_delayed_publishing_second_pass(
+        string audioPlatform)
     {
         // Arrange
         var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
@@ -301,12 +306,10 @@ public class IndexingEnrichmentRules
             _fixture.CreateYouTubeChannelId(),
             PublishingDelay);
 
-        var batchEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DateTime.UtcNow.Subtract(PublishingDelay).AddHours(-2))
-            .WithDuration(_fixture.CreateDuration()));
+        var batchEpisode = CreateStoredEpisodeAwaitingYouTubeEnrichment(
+            audioPlatform,
+            ReleaseRecentlyExpiredDelayedPublishing(audioPlatform, PublishingDelay));
         batchEpisode.PodcastId = podcast.Id;
-        batchEpisode.YouTubeId = string.Empty;
-        batchEpisode.Urls.YouTube = null;
 
         // Act
         await enricher.EnrichEpisodes(
@@ -324,9 +327,11 @@ public class IndexingEnrichmentRules
             Times.Once);
     }
 
-    [Fact(DisplayName =
+    [Theory(DisplayName =
         "Enrichment skips episodes still inside the delayed-publishing window (not yet due on YouTube).")]
-    public async Task enrichment_skips_episodes_still_inside_delayed_publishing_window()
+    [MemberData(nameof(DelayedPublishingAudioPlatforms))]
+    public async Task enrichment_skips_episodes_still_inside_delayed_publishing_window(
+        string audioPlatform)
     {
         // Arrange
         var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
@@ -343,12 +348,10 @@ public class IndexingEnrichmentRules
             _fixture.CreateYouTubeChannelId(),
             PublishingDelay);
 
-        var inWindowEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DateTime.UtcNow.AddHours(-12))
-            .WithDuration(_fixture.CreateDuration()));
+        var inWindowEpisode = CreateStoredEpisodeAwaitingYouTubeEnrichment(
+            audioPlatform,
+            ReleaseStillInsideDelayedPublishingWindow(audioPlatform, PublishingDelay));
         inWindowEpisode.PodcastId = podcast.Id;
-        inWindowEpisode.YouTubeId = string.Empty;
-        inWindowEpisode.Urls.YouTube = null;
 
         // Act
         var results = await enricher.EnrichEpisodes(
@@ -366,4 +369,43 @@ public class IndexingEnrichmentRules
             Times.Never);
         results.UpdatedEpisodes.Should().BeEmpty();
     }
+
+    private Episode CreateStoredEpisodeAwaitingYouTubeEnrichment(string audioPlatform, DateTime release)
+    {
+        var duration = _fixture.CreateDuration();
+        var episode = audioPlatform switch
+        {
+            "Apple" => _fixture.CreateAppleCatalogueEpisode(b => b
+                .WithRelease(release)
+                .WithDuration(duration)),
+            "Spotify" => _fixture.CreateSpotifyCatalogueEpisode(b => b
+                .WithRelease(release)
+                .WithDuration(duration)),
+            _ => throw new ArgumentOutOfRangeException(nameof(audioPlatform), audioPlatform, null)
+        };
+
+        episode.YouTubeId = string.Empty;
+        episode.Urls.YouTube = null;
+        return episode;
+    }
+
+    private static DateTime ReleaseRecentlyExpiredDelayedPublishing(
+        string audioPlatform,
+        TimeSpan publishingDelay) =>
+        audioPlatform switch
+        {
+            "Apple" => DomainTestFixture.AudioReleaseRecentlyExpiredDelayedPublishing(publishingDelay),
+            "Spotify" => DomainTestFixture.SpotifyCatalogueReleaseRecentlyExpiredDelayedPublishing(publishingDelay),
+            _ => throw new ArgumentOutOfRangeException(nameof(audioPlatform), audioPlatform, null)
+        };
+
+    private static DateTime ReleaseStillInsideDelayedPublishingWindow(
+        string audioPlatform,
+        TimeSpan publishingDelay) =>
+        audioPlatform switch
+        {
+            "Apple" => DomainTestFixture.AudioReleaseStillInsideDelayedPublishingWindow(publishingDelay),
+            "Spotify" => DomainTestFixture.SpotifyCatalogueReleaseStillInsideDelayedPublishingWindow(publishingDelay),
+            _ => throw new ArgumentOutOfRangeException(nameof(audioPlatform), audioPlatform, null)
+        };
 }

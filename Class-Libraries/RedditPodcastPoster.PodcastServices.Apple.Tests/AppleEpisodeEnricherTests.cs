@@ -12,14 +12,14 @@ public class AppleEpisodeEnricherTests
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "When YouTube-first episode with negative publishing delay is merged with Spotify, " +
+        "When a YouTube release authority episode with negative publishing delay is merged with Spotify, " +
         "enrichment applies Apple URL and preserves YouTube publish datetime.")]
-    public async Task Enrich_WhenYouTubeFirstEpisodeMergedWithSpotify_AppliesAppleUrl()
+    public async Task Enrich_WhenYouTubeReleaseAuthorityEpisodeMergedWithSpotify_AppliesAppleUrl()
     {
         // Arrange
         const int youTubeReleaseDaysAgo = 30;
         const int spotifyDaysAfterYouTube = 28;
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         podcast.AppleId = _fixture.CreateAppleId();
         var youTubeRelease = DomainTestFixture.UtcAtTime(
             -youTubeReleaseDaysAgo,

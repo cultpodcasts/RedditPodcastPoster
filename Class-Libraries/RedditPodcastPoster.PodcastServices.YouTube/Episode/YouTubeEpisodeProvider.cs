@@ -1,5 +1,8 @@
 ﻿using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes.Adapters;
+using RedditPodcastPoster.Episodes.Adapters.Inputs;
+using RedditPodcastPoster.Episodes.Factories;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
@@ -7,6 +10,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Mapping;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
@@ -23,6 +27,8 @@ public class YouTubeEpisodeProvider(
     IYouTubeChannelVideosService youTubeChannelVideosService,
     IYouTubeChannelVideoRetrievalPolicy youTubeChannelVideoRetrievalPolicy,
     IYouTubeThumbnailResolver youTubeThumbnailResolver,
+    IEpisodeCatalogueAdapter<YouTubeCatalogueInput> youTubeEpisodeAdapter,
+    IEpisodeFromCandidateFactory episodeFromCandidateFactory,
     ILogger<YouTubeEpisodeProvider> logger)
     : IYouTubeEpisodeProvider
 {
@@ -142,29 +148,21 @@ public class YouTubeEpisodeProvider(
     public async Task<RedditPodcastPoster.Models.Episode> GetEpisodeAsync(SearchResult searchResult,
         Google.Apis.YouTube.v3.Data.Video videoDetails)
     {
-        return RedditPodcastPoster.Models.Episode.FromYouTube(
-            searchResult.Id.VideoId,
-            searchResult.Snippet.Title.Trim(),
-            videoDetails.Snippet.Description.Trim(),
-            videoDetails.GetLength() ?? TimeSpan.Zero,
-            videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
-            searchResult.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-            searchResult.ToYouTubeUrl(),
-            await youTubeThumbnailResolver.GetImageUrlAsync(videoDetails));
+        var image = await youTubeThumbnailResolver.GetImageUrlAsync(videoDetails);
+        var candidate = youTubeEpisodeAdapter.Adapt(
+            searchResult.ToCatalogueInput(videoDetails, image));
+        var isExplicit = videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted";
+        return episodeFromCandidateFactory.Create(candidate, isExplicit);
     }
 
     public async Task<RedditPodcastPoster.Models.Episode> GetEpisodeAsync(PlaylistItemSnippet playlistItemSnippet,
         Google.Apis.YouTube.v3.Data.Video videoDetails)
     {
-        return RedditPodcastPoster.Models.Episode.FromYouTube(
-            playlistItemSnippet.ResourceId.VideoId,
-            playlistItemSnippet.Title.Trim(),
-            videoDetails.Snippet.Description.Trim(),
-            videoDetails.GetLength() ?? TimeSpan.Zero,
-            videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
-            playlistItemSnippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-            playlistItemSnippet.ToYouTubeUrl(),
-            await youTubeThumbnailResolver.GetImageUrlAsync(videoDetails));
+        var image = await youTubeThumbnailResolver.GetImageUrlAsync(videoDetails);
+        var candidate = youTubeEpisodeAdapter.Adapt(
+            playlistItemSnippet.ToCatalogueInput(videoDetails, image));
+        var isExplicit = videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted";
+        return episodeFromCandidateFactory.Create(candidate, isExplicit);
     }
 
     public async Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(YouTubePlaylistId youTubePlaylistId,

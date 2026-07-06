@@ -19,8 +19,8 @@
 | Phase | Status | Risk | PR |
 |-------|--------|------|----|
 | **A** — Domain types + applier/merger/matcher (internal) | 🟢 In production / Done | Medium | [#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871) |
-| **B** — UrlSubmission through applier | 🟢 Soak passed / ready to merge | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
-| **C** — Platform adapters at boundaries | ⬜ Not started | Medium–High | _PR link_ |
+| **B** — UrlSubmission through applier | 🟢 In production / Done | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
+| **C** — Platform adapters at boundaries | 🟢 In production (soak) | Medium–High | [#873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873) |
 | **D** — Collapse finders into single matcher | ⬜ Not started | Medium–High | _PR link_ |
 | **E** — Shared enricher template | ⬜ Not started | Medium | _PR link_ |
 | **F** — Cleanup | ⬜ Not started | Low–Medium | _PR link_ |
@@ -29,13 +29,13 @@
 
 ## Phase 0 / Phase A status
 
-Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)). **Phase B** soak passed (ready to merge via [PR #872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872)). Phases C–F not started.
+Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)). **Phase B** is in production (merged via [PR #872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872)). **Phase C** in production (soak, review pending — [PR #873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873)). Phases D–F not started.
 
 | Step / phase | Outcome |
 |--------------|---------|
 | Steps 1–6 | Test infrastructure, domain types, Layer 1–3 business rules, adapter rules, coverage baseline + CI gate |
 | **Phase A** | Domain services in `RedditPodcastPoster.Episodes`; `EpisodeMerger` / `EpisodeMatcher` wired to `EpisodePlatformMatcher` / `EpisodePlatformMerger` |
-| Adapters | Exist under `Episodes/Adapters/` with Layer 1 rules — **not** wired at provider/resolver boundaries |
+| Adapters | Wired at provider boundaries (Phase C); resolved-item adapters in UrlSubmission (Phase B) |
 | Applier | Used inside Episodes (via merger path) and UrlSubmission `EpisodeEnricher` (Phase B) |
 
 ### Phase A checklist
@@ -114,6 +114,7 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 | Enrich existing episodes CLI | `Console-Apps/EnrichExistingEpisodesFromPodcastServices/Program.cs` | `AddUrlSubmission` → applier |
 | Wikipedia episode enricher CLI | `Console-Apps/WikipediaEpisodeEnricher/Program.cs` | `AddUrlSubmission` + `AddPodcastServices` |
 | Poster, AddAudioPodcast, EnrichPodcastWithImages, WebsubStatus CLIs | respective `Program.cs` | `AddPodcastServices` → merger |
+| EnrichYouTubeOnlyPodcasts, FixDatesFromApple, TextClassifierTraining, AddYouTubeChannelAsPodcast, ThrowawayConsole CLIs | respective `Program.cs` | platform episode providers → catalogue adapters (Phase C) |
 
 **Repos-only hosts** (no `AddEpisodesDomain()` — do not resolve matcher/merger/applier):
 
@@ -184,38 +185,52 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 
 - [x] Phase A done
 - [x] Catalogue adapters + Layer 1 rules exist
-- [ ] Phase B merged (UrlSubmission path already uses adapters/applier pattern)
+- [x] Phase B merged (UrlSubmission path already uses adapters/applier pattern)
 
 ### Checklist
 
-- [ ] Wire Spotify catalogue path: API/`FullEpisode` (or existing input DTO) → `SpotifyEpisodeAdapter` → `EpisodeCandidate` at provider/resolver boundary
-- [ ] Wire Apple catalogue path: `AppleEpisode` (or input DTO) → `AppleEpisodeAdapter` → `EpisodeCandidate`
-- [ ] Wire YouTube catalogue path: `SearchResult` / `PlaylistItem` (or input DTOs) → `YouTubeEpisodeAdapter` → `EpisodeCandidate`
-- [ ] Convert candidates to persisted `Episode` only via applier/merger (or a single documented factory), not scattered `Episode.From*` in orchestration
-- [ ] Keep platform-specific flags at the boundary (`Spotify` expensive-query, etc.) — do not push into matcher/merger
-- [ ] Update any provider/resolver unit tests to assert candidate/episode outcomes, not adapter internals alone
+- [x] Wire Spotify catalogue path: API/`FullEpisode` (or existing input DTO) → `SpotifyEpisodeAdapter` → `EpisodeCandidate` at provider/resolver boundary
+- [x] Wire Apple catalogue path: `AppleEpisode` (or input DTO) → `AppleEpisodeAdapter` → `EpisodeCandidate`
+- [x] Wire YouTube catalogue path: `SearchResult` / `PlaylistItem` (or input DTOs) → `YouTubeEpisodeAdapter` → `EpisodeCandidate`
+- [x] Convert candidates to persisted `Episode` only via applier/merger (or a single documented factory), not scattered `Episode.From*` in orchestration
+- [x] Keep platform-specific flags at the boundary (`Spotify` expensive-query, etc.) — do not push into matcher/merger
+- [x] Update any provider/resolver unit tests to assert candidate/episode outcomes, not adapter internals alone
 
 ### Exit criteria
 
-- [ ] Adapter business-rule tests pass **without assertion changes**
-- [ ] Matching/merging/indexing/UrlSubmission rules still pass **without assertion changes**
-- [ ] `./scripts/coverage-gate.ps1` passes
-- [ ] PR opened for Phase C only
+- [x] Adapter business-rule tests pass **without assertion changes**
+- [x] Matching/merging/indexing/UrlSubmission rules still pass **without assertion changes**
+- [x] `./scripts/coverage-gate.ps1` passes
+- [x] PR opened for Phase C only
+- [x] Pre-soak business-rule gap tests added (+15): UrlSubmission persistence (2), `EpisodePlatformApplierRules` (6), provider round-trips (3), Resolved Apple URL-only (2), `YouTubePublishDelayMatchStrategyRules` (3 incl. Spotify negative); Episodes.Tests 91, UrlSubmission.Tests 20
+- [x] Deployed for soak (2026-07-05)
+- [ ] Soak review pending
 
-### Risk to production
+**Phase C soak incident (2026-07-05):** `enrichyouTubeOnlyPodcasts` failed at runtime — `Unable to resolve service for type 'IEpisodeCatalogueAdapter<YouTubeCatalogueInput>'` when activating `YouTubeEpisodeProvider`. Root cause: Phase C wired providers to inject catalogue adapters from `AddEpisodesDomain()`, but `EnrichYouTubeOnlyPodcasts` (and other platform-service CLIs) never called it explicitly. Fixed: add `AddEpisodesDomain()` at composition root before `AddYouTubeServices` / `AddAppleServices` / `AddSpotifyServices` on affected console apps (`EnrichYouTubeOnlyPodcasts`, `FixDatesFromApple`, `TextClassifierTraining`, `AddYouTubeChannelAsPodcast`, `ThrowawayConsole`).
+
+### Phase C deploy / soak status
+
+- [x] Branch deployed from [PR #873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873) (2026-07-05)
+- [x] **Api** — Phase C soak (shared catalogue adapter wiring at provider/resolver boundaries)
+- [x] **Indexer** — catalogue providers → adapters → factory (`SpotifyEpisodeAdapter`, `AppleEpisodeAdapter`, `YouTubeEpisodeAdapter` at provider/resolver boundaries)
+- [x] **Discovery** — Phase C soak (deployed with full soak scope)
+- [ ] **Publishing console apps** — deploying (Poster etc.)
+- [ ] Soak review pending — will revisit after soak
+
+### Risk to production (Phase C — live / soak context)
 
 - **Risk level:** Medium–High
-- **Blast radius:** Indexer (all platform providers/resolvers); any host that builds episodes from catalogue API types. Discovery remains out of scope unless a shared provider is touched accidentally
+- **Blast radius:** Indexer (all platform providers/resolvers); any host that builds episodes from catalogue API types; Api / Discovery deployed for soak alongside Indexer and publishing console apps
 - **What changes live:** Spotify/Apple/YouTube catalogue → `EpisodeCandidate` at the boundary; `Episode.From*` / raw API types leave the indexing processing path
 - **What does not change:** Finder scoring logic (still Phase D); enricher mutation patterns (still Phase E); UrlSubmission already on adapters from Phase B
 - **Residual risks:**
   - Adapter mapping quirks (IDs, URLs, release shapes) affect every indexed episode for all platforms
   - Scattered `Episode.From*` leftovers produce divergent episode shapes if not fully removed
   - Platform-specific flags (e.g. Spotify expensive-query) misplaced into matcher/merger
-- **Recommended soak / deploy scope:** Indexer first (full catalogue path); watch all three platforms
+- **Soak / deploy scope:** Api, Indexer, Discovery, publishing console apps (deployed 2026-07-05; publishing console apps deploying; soak in progress — review pending, will revisit after soak)
 - **Rollback notes:** Revert provider/resolver wiring to pre-adapter `Episode.From*` / API-type path; Phase A/B domain services can remain
 
-**PR:** _link_
+**PR:** [#873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873)
 
 ---
 

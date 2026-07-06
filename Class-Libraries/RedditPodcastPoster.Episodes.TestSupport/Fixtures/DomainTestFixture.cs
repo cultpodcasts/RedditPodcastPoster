@@ -57,7 +57,7 @@ public sealed class DomainTestFixture
   public static DateTime SameCalendarDateWithTime(DateTime dateOnlyRelease, TimeSpan timeOfDay) =>
     dateOnlyRelease.Date.Add(timeOfDay);
 
-  /// <summary>Default negative publishing delay for YouTube-first podcasts (~33½ days).</summary>
+  /// <summary>Default negative YouTubePublicationOffset for negative-delay scenarios (~33½ days).</summary>
   public static long DefaultNegativeYouTubePublishingDelayTicks =>
     TimeSpan.FromDays(-33).Add(TimeSpan.FromHours(-12)).Ticks;
 
@@ -66,6 +66,63 @@ public sealed class DomainTestFixture
     DateTime youTubeRelease,
     int calendarDaysAfter) =>
     youTubeRelease.Date.AddDays(calendarDaysAfter);
+
+  /// <summary>
+  /// Apple or YouTube audio release with full UTC time-of-day, positioned so YouTube enrichment
+  /// is due in two hours (still inside a positive <paramref name="publishingDelay"/> window).
+  /// </summary>
+  public static DateTime AudioReleaseStillInsideDelayedPublishingWindow(TimeSpan publishingDelay) =>
+    DateTime.UtcNow.Subtract(publishingDelay).AddHours(2);
+
+  /// <summary>
+  /// Apple or YouTube audio release with full UTC time-of-day, positioned so the delayed-publishing
+  /// window expired two hours ago (recently expired for second-pass enrichment).
+  /// </summary>
+  public static DateTime AudioReleaseRecentlyExpiredDelayedPublishing(TimeSpan publishingDelay) =>
+    DateTime.UtcNow.Subtract(publishingDelay).AddHours(-2);
+
+  /// <summary>
+  /// Maps an "N hours before now" intent to a Spotify date-only catalogue release. Steps back extra
+  /// calendar days when midnight UTC flooring would still leave the episode inside the window.
+  /// </summary>
+  public static DateTime SpotifyCatalogueReleaseHoursAgoRespectingDateOnly(
+    int hoursAgo,
+    TimeSpan publishingDelay)
+  {
+    var dateOnlyRelease = DateTime.UtcNow.AddHours(-hoursAgo).Date;
+    while (dateOnlyRelease.Add(publishingDelay) > DateTime.UtcNow)
+      dateOnlyRelease = dateOnlyRelease.AddDays(-1);
+
+    return dateOnlyRelease;
+  }
+
+  /// <summary>
+  /// Date-only Spotify catalogue release still inside a positive
+  /// <paramref name="publishingDelay"/> window at any time of day.
+  /// </summary>
+  public static DateTime SpotifyCatalogueReleaseStillInsideDelayedPublishingWindow(
+    TimeSpan publishingDelay)
+  {
+    var dateOnlyRelease = UtcToday;
+    while (dateOnlyRelease.Add(publishingDelay) <= DateTime.UtcNow)
+      dateOnlyRelease = dateOnlyRelease.AddDays(1);
+
+    return dateOnlyRelease;
+  }
+
+  /// <summary>
+  /// Date-only Spotify catalogue release in the recently-expired delayed-publishing band
+  /// (window expired, still within the evaluation threshold).
+  /// </summary>
+  public static DateTime SpotifyCatalogueReleaseRecentlyExpiredDelayedPublishing(
+    TimeSpan publishingDelay)
+  {
+    var dateOnlyRelease = UtcToday.Subtract(publishingDelay).Date;
+    while (dateOnlyRelease.Add(publishingDelay) > DateTime.UtcNow)
+      dateOnlyRelease = dateOnlyRelease.AddDays(-1);
+
+    return dateOnlyRelease;
+  }
 
   private static readonly string[] TitleFillerWords = ["The", "A", "An"];
 
@@ -393,7 +450,8 @@ public sealed class DomainTestFixture
       p.ReleaseAuthority = Service.Spotify;
     });
 
-  public Podcast CreateYouTubeFirstPodcast(
+  /// <summary>Podcast with YouTube release authority (<see cref="Podcast.ReleaseAuthority"/> = <see cref="Service.YouTube"/>).</summary>
+  public Podcast CreateYouTubeReleaseAuthorityPodcast(
     string channelId,
     long youTubePublicationOffsetTicks,
     string? spotifyShowId = null,
@@ -402,17 +460,21 @@ public sealed class DomainTestFixture
     {
       if (id.HasValue)
         p.Id = id.Value;
-      p.Name = "YouTube-first podcast";
+      p.Name = "YouTube release authority podcast";
       p.ReleaseAuthority = Service.YouTube;
       p.YouTubeChannelId = channelId;
       p.YouTubePublicationOffset = youTubePublicationOffsetTicks;
       p.SpotifyId = spotifyShowId ?? string.Empty;
     });
 
-  public Podcast CreateYouTubeFirstPodcastWithNegativeDelay(
+  /// <summary>
+  /// YouTube release authority podcast with negative <see cref="Podcast.YouTubePublicationOffset"/>
+  /// (negative publishing delay scenario).
+  /// </summary>
+  public Podcast CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay(
     long? youTubePublicationOffsetTicks = null,
     string? spotifyShowId = null) =>
-    CreateYouTubeFirstPodcast(
+    CreateYouTubeReleaseAuthorityPodcast(
       CreateYouTubeChannelId(),
       youTubePublicationOffsetTicks ?? DefaultNegativeYouTubePublishingDelayTicks,
       spotifyShowId ?? CreateSpotifyId());
@@ -507,9 +569,10 @@ public sealed class DomainTestFixture
   }
 
   /// <summary>
-  /// YouTube-only stored row plus Spotify catalogue incoming shaped for YouTube-first cross-platform matching.
+  /// YouTube-only stored row plus Spotify catalogue incoming shaped for YouTube release authority
+  /// cross-platform matching (ReleaseAuthority = Service.YouTube).
   /// </summary>
-  public (Episode Stored, Episode Incoming, string SpotifyId) CreateCrossPlatformYouTubeFirstPair(
+  public (Episode Stored, Episode Incoming, string SpotifyId) CreateCrossPlatformYouTubeReleaseAuthorityPair(
     Podcast podcast,
     int youTubeReleaseDaysAgo = 30,
     int spotifyDaysAfterYouTube = 28,
@@ -1254,6 +1317,7 @@ public sealed class ResolvedAppleItemInputBuilder
 {
   private readonly Fixture _fixture;
   private long? _episodeId;
+  private bool _omitEpisodeId;
   private string? _title;
   private string? _description;
   private DateTime? _release;
@@ -1266,6 +1330,14 @@ public sealed class ResolvedAppleItemInputBuilder
   public ResolvedAppleItemInputBuilder WithEpisodeId(long episodeId)
   {
     _episodeId = episodeId;
+    _omitEpisodeId = false;
+    return this;
+  }
+
+  public ResolvedAppleItemInputBuilder WithoutEpisodeId()
+  {
+    _omitEpisodeId = true;
+    _episodeId = null;
     return this;
   }
 
@@ -1307,7 +1379,9 @@ public sealed class ResolvedAppleItemInputBuilder
 
   public ResolvedAppleItemInput Create()
   {
-    var id = _episodeId ?? DomainTestFixture.CreateAppleIdSpecimen(_fixture);
+    long? id = _omitEpisodeId
+      ? null
+      : _episodeId ?? DomainTestFixture.CreateAppleIdSpecimen(_fixture);
     return new ResolvedAppleItemInput(
       id,
       _title ?? DomainTestFixture.CreateTitleSpecimen(_fixture),

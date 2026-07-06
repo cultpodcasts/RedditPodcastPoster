@@ -16,7 +16,7 @@ namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 /// <para>
 /// Threshold contract: <c>EpisodePlatformMatcher.MinFuzzyTitleScore = 70</c> for FuzzySharp
 /// WeightedRatio; standard duration tolerance 1 minute (strict &lt;) — cross-platform
-/// YouTube-first tolerance 5 minutes.
+/// YouTube release authority cross-platform duration tolerance: 5 minutes.
 /// </para>
 /// </summary>
 public class FuzzyTitleMatchingRules
@@ -128,20 +128,20 @@ public class FuzzyTitleMatchingRules
     }
 
     // --------------------------------------------------------------------------------------------
-    // Matrix: 4 variant strategies × YouTube-first negative-delay podcast.
+    // Matrix: 4 variant strategies × YouTube release authority podcast with negative publishing delay.
     // Negative delay requires fuzzy title match in BOTH the fuzzy-and-duration path AND the
     // release-and-duration path (see EpisodePlatformMatcher.MatchesByReleaseAndDuration line 146).
     // --------------------------------------------------------------------------------------------
 
     [Theory(DisplayName =
-        "For a YouTube-first podcast with negative publishing delay, each fuzzy variant strategy " +
+        "For a YouTube release authority podcast with negative publishing delay, each fuzzy variant strategy " +
         "drives a cross-platform merge when release and duration also align.")]
     [MemberData(nameof(AllFuzzyVariantStrategies))]
     public void Fuzzy_variant_on_negative_delay_podcast_merges_cross_platform(
         FuzzyTitleVariantStrategy strategy)
     {
         // Arrange
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var storedTitle = _fixture.CreateShortTitle();
         var incomingTitle = DomainTestFixture.CreateFuzzyTitleVariant(storedTitle, strategy);
         var youTubeRelease = DomainTestFixture.UtcAtTime(-30, _fixture.CreateNonMidnightTimeOfDay());
@@ -229,16 +229,16 @@ public class FuzzyTitleMatchingRules
     }
 
     // --------------------------------------------------------------------------------------------
-    // Cross-platform (YouTube-first, negative delay) duration boundary: tolerance widens to 5 minutes.
+    // Cross-platform (YouTube release authority, negative publishing delay) duration boundary: tolerance widens to 5 minutes.
     // --------------------------------------------------------------------------------------------
 
     [Fact(DisplayName =
-        "For YouTube-first negative-delay cross-platform pairs, when the fuzzy title matches and " +
+        "For YouTube release authority podcasts with negative publishing delay, when the fuzzy title matches and " +
         "duration differs by exactly the cross-platform tolerance (5 minutes), episodes must not merge.")]
     public void Fuzzy_match_with_duration_exactly_at_cross_platform_tolerance_does_not_merge()
     {
         // Arrange
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var storedTitle = _fixture.CreateShortTitle();
         var incomingTitle = DomainTestFixture.CreateFuzzyTitleVariant(
             storedTitle, FuzzyTitleVariantStrategy.ReplaceWord);
@@ -267,12 +267,12 @@ public class FuzzyTitleMatchingRules
     }
 
     [Fact(DisplayName =
-        "For YouTube-first negative-delay cross-platform pairs, when the fuzzy title matches and " +
+        "For YouTube release authority podcasts with negative publishing delay, when the fuzzy title matches and " +
         "duration differs by less than 5 minutes, episodes may be treated as the same.")]
     public void Fuzzy_match_with_duration_just_inside_cross_platform_tolerance_merges()
     {
         // Arrange
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var storedTitle = _fixture.CreateShortTitle();
         var incomingTitle = DomainTestFixture.CreateFuzzyTitleVariant(
             storedTitle, FuzzyTitleVariantStrategy.ReplaceWord);
@@ -347,7 +347,7 @@ public class FuzzyTitleMatchingRules
     {
         // Arrange
         // Standard podcast: release+duration fallback does NOT require fuzzy match (only
-        // negative-delay YouTube-first podcasts do).
+        // negative-delay YouTube release authority podcasts do).
         var release = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
         var length = _fixture.CreateDuration();
         const string storedTitle = "History Of Ancient Roman Politics";
@@ -367,12 +367,12 @@ public class FuzzyTitleMatchingRules
     }
 
     [Fact(DisplayName =
-        "For a YouTube-first negative-delay podcast, when the fuzzy score falls below threshold, " +
+        "For a YouTube release authority podcast with negative publishing delay, when the fuzzy score falls below threshold, " +
         "episodes must not merge even if release and duration align — negative-delay requires fuzzy.")]
     public void Fuzzy_below_threshold_on_negative_delay_podcast_blocks_release_and_duration_match()
     {
         // Arrange
-        var podcast = _fixture.CreateYouTubeFirstPodcastWithNegativeDelay();
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         const string storedTitle = "History Of Ancient Roman Politics";
         const string incomingTitle = "Modern Quantum Physics Research Highlights";
         var youTubeRelease = DomainTestFixture.UtcAtTime(-30, _fixture.CreateNonMidnightTimeOfDay());
