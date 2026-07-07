@@ -376,4 +376,22 @@ public class EpisodeMergingRules
         result.MergedEpisodes.Should().BeEmpty("Spotify re-index must not bump release when catalogue date is newer");
         stored.ShouldMatchExpectation(expected);
     }
+
+    [Fact(DisplayName =
+        "Merge inherits podcast default language onto newly added episodes when episode language is unset.")]
+    public void Merge_inherits_podcast_language_on_new_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.Language = "pl");
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode();
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [], [discovered]);
+
+        // Assert
+        result.AddedEpisodes.Should().ContainSingle();
+        var added = result.AddedEpisodes.Single();
+        added.Language.Should().Be("pl");
+        added.PodcastLanguage.Should().Be("pl");
+    }
 }
