@@ -615,7 +615,7 @@ Episodes → Models, Text only
 
 - [x] **F1** — Remove `EpisodeReleaseMatchTolerance` type; migrate call sites to `EpisodeReleaseTolerance`
 - [ ] **F2** — Retire transitional finder wrappers that only forward to domain matcher
-- [ ] **F3** — Unify remaining `Resolved*Item` / catalogue mapping onto adapters (delete duplicate mappers); consider UrlSubmission → applicator
+- [x] **F3** — Unify UrlSubmission `EpisodeEnricher` onto `PlatformEnrichmentApplicator` (Apple/Spotify/YouTube via resolved-item adapters)
 - [ ] **F4** — Rename confusing homonyms for clarity (document renames in PR)
 - [ ] **F5** — Sweep for `switch (service)` or direct tolerance calls in orchestrators (§10.8 anti-patterns)
 - [ ] **F12** — Confirm discovery remains out of scope (`EpisodeResultsEnricher` untouched unless already adapter-only)

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Applying;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
@@ -730,7 +731,7 @@ public class UrlSubmissionEnrichmentRules
 
         return new EpisodeEnricher(
             descriptionHelper.Object,
-            new EpisodePlatformApplier(),
+            EpisodeDomainTestServices.CreateEnrichmentApplicator(),
             NullLogger<EpisodeEnricher>.Instance);
     }
 }
