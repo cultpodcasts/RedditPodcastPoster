@@ -11,6 +11,7 @@ public class DiscoveryTrigger(
     ILogger<DiscoveryTrigger> logger,
     IMemoryProbeOrchestrator memoryProbeOrchestrator)
 {
+    private static readonly TimeSpan InstanceLookback = TimeSpan.FromHours(12);
     private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
     [Function("DiscoveryTrigger")]
@@ -24,18 +25,51 @@ public class DiscoveryTrigger(
         CancellationToken cancellationToken)
     {
         var memoryProbe = _memoryProbeOrchestrator.Start(nameof(DiscoveryTrigger));
+        var utcNow = DateTime.UtcNow;
 
-        logger.LogInformation("{nameofDiscoveryTrigger} {nameofRun} initiated.",
+        logger.LogInformation("{nameofDiscoveryTrigger} {nameof(Run)} initiated.",
             nameof(DiscoveryTrigger), nameof(Run));
 
-        if (await HasActiveOrchestrationInstanceAsync(client, nameof(Orchestration), cancellationToken))
+        var orchestrationInstances = await GetDiscoveryOrchestrationInstancesAsync(client, cancellationToken);
+        LogDiscoveryOrchestrationHealthIssues(
+            DiscoveryOrchestrationHealthChecker.FindFailedInstances(orchestrationInstances));
+
+        var inProgressInstances = orchestrationInstances
+            .Where(instance => DiscoveryOrchestrationHealthChecker.IsInProgressStatus(instance.Status))
+            .ToList();
+
+        var recentInProgress = inProgressInstances
+            .Where(instance => utcNow - instance.CreatedAt.UtcDateTime
+                < DiscoveryOrchestrationHealthChecker.CompletionThreshold)
+            .ToList();
+
+        if (recentInProgress.Count > 0)
         {
-            logger.LogWarning(
-                "{nameofDiscoveryTrigger} {nameofRun} skipped. Existing '{nameofOrchestration}' instance is still active.",
-                nameof(DiscoveryTrigger), nameof(Run), nameof(Orchestration));
+            var activeRun = recentInProgress[0];
+            logger.LogInformation(
+                "{DiscoveryTriggerName} {RunName} skipped. '{OrchestrationName}' instance-id='{InstanceId}' is still in progress (status='{Status}', created-at='{CreatedAtUtc}').",
+                nameof(DiscoveryTrigger),
+                nameof(Run),
+                nameof(Orchestration),
+                activeRun.InstanceId,
+                activeRun.Status,
+                activeRun.CreatedAt.UtcDateTime);
 
             memoryProbe.End();
+            return;
+        }
 
+        foreach (var stuckInstance in inProgressInstances)
+        {
+            LogDiscoveryOrchestrationHealthIssues(
+            [
+                DiscoveryOrchestrationHealthChecker.CreateBlockedByActiveRunIssue(stuckInstance)
+            ]);
+        }
+
+        if (inProgressInstances.Count > 0)
+        {
+            memoryProbe.End();
             return;
         }
 
@@ -47,52 +81,78 @@ public class DiscoveryTrigger(
         catch (RpcException ex)
         {
             memoryProbe.End(false, ex.GetType().Name);
-            logger.LogCritical(ex,
-                "Failure to execute '{nameofScheduleNewOrchestrationInstanceAsync}' for '{nameofOrchestration}'. Status-Code: '{StatusCode}', Status: '{Status}'.",
-                nameof(client.ScheduleNewOrchestrationInstanceAsync), nameof(Orchestration), ex.StatusCode, ex.Status);
+            var wrapped = new DiscoveryOrchestrationIncompleteException(
+                "Discovery orchestration could not be scheduled.",
+                ex);
+            logger.LogError(
+                wrapped,
+                "Failure to execute '{ScheduleNewOrchestrationInstanceAsyncName}' for '{OrchestrationName}'. Status-Code: '{StatusCode}', Status: '{Status}'.",
+                nameof(client.ScheduleNewOrchestrationInstanceAsync),
+                nameof(Orchestration),
+                ex.StatusCode,
+                ex.Status);
             throw;
         }
         catch (Exception ex)
         {
             memoryProbe.End(false, ex.GetType().Name);
-            logger.LogCritical(ex,
-                "Failure to execute '{nameofScheduleNewOrchestrationInstanceAsync}' for '{nameofOrchestration}'.",
-                nameof(client.ScheduleNewOrchestrationInstanceAsync), nameof(Orchestration));
+            var wrapped = new DiscoveryOrchestrationIncompleteException(
+                "Discovery orchestration could not be scheduled.",
+                ex);
+            logger.LogError(
+                wrapped,
+                "Failure to execute '{ScheduleNewOrchestrationInstanceAsyncName}' for '{OrchestrationName}'.",
+                nameof(client.ScheduleNewOrchestrationInstanceAsync),
+                nameof(Orchestration));
             throw;
         }
 
-        logger.LogInformation("{nameofDiscoveryTrigger} {nameofRun} complete. Instance-id= '{instanceId}'.",
+        logger.LogInformation("{nameofDiscoveryTrigger} {nameof(Run)} complete. Instance-id= '{instanceId}'.",
             nameof(DiscoveryTrigger), nameof(Run), instanceId);
 
         memoryProbe.End();
     }
 
-    private static async Task<bool> HasActiveOrchestrationInstanceAsync(
+    private static async Task<IReadOnlyList<DiscoveryOrchestrationInstance>> GetDiscoveryOrchestrationInstancesAsync(
         DurableTaskClient client,
-        string orchestrationName,
         CancellationToken cancellationToken)
     {
         var query = new OrchestrationQuery
         {
-            CreatedFrom = DateTime.UtcNow.Subtract(TimeSpan.FromDays(2)),
-            Statuses =
-            [
-                OrchestrationRuntimeStatus.Pending,
-                OrchestrationRuntimeStatus.Running,
-                OrchestrationRuntimeStatus.ContinuedAsNew
-            ]
+            CreatedFrom = DateTime.UtcNow.Subtract(InstanceLookback)
         };
 
+        var instances = new List<DiscoveryOrchestrationInstance>();
         await foreach (var metadata in client.GetAllInstancesAsync(query))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (metadata.Name == new TaskName(orchestrationName))
+            if (metadata.Name != new TaskName(nameof(Orchestration)))
             {
-                return true;
+                continue;
             }
+
+            instances.Add(new DiscoveryOrchestrationInstance(
+                metadata.CreatedAt,
+                metadata.RuntimeStatus,
+                metadata.InstanceId));
         }
 
-        return false;
+        return instances;
+    }
+
+    private void LogDiscoveryOrchestrationHealthIssues(IReadOnlyList<DiscoveryOrchestrationHealthIssue> issues)
+    {
+        foreach (var issue in issues)
+        {
+            var exception = new DiscoveryOrchestrationIncompleteException(issue.Message);
+            logger.LogError(
+                exception,
+                "Discovery orchestration health issue kind='{Kind}' instance-id='{InstanceId}' status='{Status}' created-at='{CreatedAtUtc}'.",
+                issue.Kind,
+                issue.InstanceId,
+                issue.Status,
+                issue.CreatedAt.UtcDateTime);
+        }
     }
 }

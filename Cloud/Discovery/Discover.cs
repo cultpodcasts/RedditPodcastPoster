@@ -140,7 +140,10 @@ public class Discover(
         catch (Exception ex)
         {
             memoryProbe.End(false, ex.GetType().Name);
-            throw;
+            logger.LogError(ex, "{method} did not complete.", nameof(RunAsync));
+            throw new DiscoveryOrchestrationIncompleteException(
+                $"Discover activity did not complete (operation-id='{input.DiscoveryOperationId}').",
+                ex);
         }
         finally
         {

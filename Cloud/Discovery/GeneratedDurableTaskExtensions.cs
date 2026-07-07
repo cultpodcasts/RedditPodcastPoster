@@ -41,7 +41,18 @@ public static class GeneratedDurableTaskExtensions
     public static async Task<DiscoveryContext> Discover([ActivityTrigger] DiscoveryContext input, string instanceId,
         FunctionContext executionContext)
     {
-        ITaskActivity activity = DurableActivityActivator.Create<Discover>(executionContext, nameof(Discover));
+        ITaskActivity activity;
+        try
+        {
+            activity = DurableActivityActivator.Create<Discover>(executionContext, nameof(Discover));
+        }
+        catch (Exception ex)
+        {
+            throw new DiscoveryOrchestrationIncompleteException(
+                "Discover activity failed dependency injection activation.",
+                ex);
+        }
+
         TaskActivityContext context = new GeneratedActivityContext("Discover", instanceId);
         var result = await activity.RunAsync(context, input);
         return (DiscoveryContext) result!;

@@ -17,6 +17,12 @@ public class Orchestration : TaskOrchestrator<object, DiscoveryContext>
         logger.LogInformation("{nameofRunAsync}: Pre: discovery-context: {discoveryContext}",
             nameof(RunAsync), discoveryContext);
         var result = await context.CallDiscoverAsync(discoveryContext);
+        if (result is not { Success: true } and not { DuplicateDiscoveryOperation: true })
+        {
+            throw new DiscoveryOrchestrationIncompleteException(
+                $"Discover activity returned without success (operation-id='{discoveryContext.DiscoveryOperationId}', success='{result.Success}', duplicate='{result.DuplicateDiscoveryOperation}').");
+        }
+
         logger.LogInformation("{nameofRunAsync}: Post: discovery-context: {result}", nameof(RunAsync), result);
         logger.LogInformation("{nameofDiscover} complete.", nameof(Discover));
 
