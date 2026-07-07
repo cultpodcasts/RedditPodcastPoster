@@ -15,7 +15,7 @@ public class DiscoveryTrigger(
     private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
     [Function("DiscoveryTrigger")]
-    public async Task Run([TimerTrigger("30 2/6 * * *" /* 30 3/6 * * * */
+    public async Task Run([TimerTrigger("0 33 2/6 * * *"
 #if DEBUG
             , RunOnStartup = true
 #endif
@@ -26,13 +26,35 @@ public class DiscoveryTrigger(
     {
         var memoryProbe = _memoryProbeOrchestrator.Start(nameof(DiscoveryTrigger));
         var utcNow = DateTime.UtcNow;
+        var currentSlotStart = DiscoverySchedule.GetSlotStartForTime(utcNow);
+        var priorSlotStart = DiscoverySchedule.GetPriorSlotStart(currentSlotStart);
 
-        logger.LogInformation("{nameofDiscoveryTrigger} {nameof(Run)} initiated.",
-            nameof(DiscoveryTrigger), nameof(Run));
+        logger.LogWarning(
+            "{DiscoveryTriggerName} {RunName} initiated slot-utc='{SlotUtc}'.",
+            nameof(DiscoveryTrigger),
+            nameof(Run),
+            DiscoverySlotAuditor.FormatSlot(currentSlotStart));
 
         var orchestrationInstances = await GetDiscoveryOrchestrationInstancesAsync(client, cancellationToken);
+        LogDiscoverySlotAudit(DiscoverySlotAuditor.AuditSlot(priorSlotStart, orchestrationInstances));
+
         LogDiscoveryOrchestrationHealthIssues(
             DiscoveryOrchestrationHealthChecker.FindFailedInstances(orchestrationInstances));
+
+        var currentSlotAudit = DiscoverySlotAuditor.AuditSlot(currentSlotStart, orchestrationInstances);
+        if (currentSlotAudit.Kind == DiscoverySlotAuditKind.Completed)
+        {
+            LogDiscoverySlotAudit(currentSlotAudit);
+            logger.LogWarning(
+                "{DiscoveryTriggerName} {RunName} skipped. Discovery already completed for slot-utc='{SlotUtc}' instance-id='{InstanceId}'.",
+                nameof(DiscoveryTrigger),
+                nameof(Run),
+                DiscoverySlotAuditor.FormatSlot(currentSlotStart),
+                currentSlotAudit.InstanceId);
+
+            memoryProbe.End();
+            return;
+        }
 
         var inProgressInstances = orchestrationInstances
             .Where(instance => DiscoveryOrchestrationHealthChecker.IsInProgressStatus(instance.Status))
@@ -46,7 +68,7 @@ public class DiscoveryTrigger(
         if (recentInProgress.Count > 0)
         {
             var activeRun = recentInProgress[0];
-            logger.LogInformation(
+            logger.LogWarning(
                 "{DiscoveryTriggerName} {RunName} skipped. '{OrchestrationName}' instance-id='{InstanceId}' is still in progress (status='{Status}', created-at='{CreatedAtUtc}').",
                 nameof(DiscoveryTrigger),
                 nameof(Run),
@@ -107,8 +129,12 @@ public class DiscoveryTrigger(
             throw;
         }
 
-        logger.LogInformation("{nameofDiscoveryTrigger} {nameof(Run)} complete. Instance-id= '{instanceId}'.",
-            nameof(DiscoveryTrigger), nameof(Run), instanceId);
+        logger.LogWarning(
+            "{DiscoveryTriggerName} {RunName} scheduled slot-utc='{SlotUtc}' instance-id='{InstanceId}'.",
+            nameof(DiscoveryTrigger),
+            nameof(Run),
+            DiscoverySlotAuditor.FormatSlot(currentSlotStart),
+            instanceId);
 
         memoryProbe.End();
     }
@@ -139,6 +165,31 @@ public class DiscoveryTrigger(
         }
 
         return instances;
+    }
+
+    private void LogDiscoverySlotAudit(DiscoverySlotAudit audit)
+    {
+        if (audit.Kind == DiscoverySlotAuditKind.Missing)
+        {
+            var exception = new DiscoveryOrchestrationIncompleteException(audit.Message);
+            logger.LogError(
+                exception,
+                "Discovery slot-audit kind='{Kind}' slot-utc='{SlotUtc}' instance-id='{InstanceId}' status='{Status}'.",
+                audit.Kind,
+                DiscoverySlotAuditor.FormatSlot(audit.SlotStartUtc),
+                audit.InstanceId,
+                audit.Status);
+            return;
+        }
+
+        logger.LogWarning(
+            "Discovery slot-audit kind='{Kind}' slot-utc='{SlotUtc}' instance-id='{InstanceId}' status='{Status}' created-at='{CreatedAtUtc}'. {Message}",
+            audit.Kind,
+            DiscoverySlotAuditor.FormatSlot(audit.SlotStartUtc),
+            audit.InstanceId,
+            audit.Status,
+            audit.CreatedAt?.UtcDateTime,
+            audit.Message);
     }
 
     private void LogDiscoveryOrchestrationHealthIssues(IReadOnlyList<DiscoveryOrchestrationHealthIssue> issues)

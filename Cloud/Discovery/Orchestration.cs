@@ -9,7 +9,7 @@ public class Orchestration : TaskOrchestrator<object, DiscoveryContext>
     public override async Task<DiscoveryContext> RunAsync(TaskOrchestrationContext context, object input)
     {
         var logger = context.CreateReplaySafeLogger<Orchestration>();
-        logger.LogInformation(
+        logger.LogWarning(
             "{nameofOrchestration}.{nameofRunAsync} initiated. Instance-id: '{contextInstanceId}'.",
             nameof(Orchestration), nameof(RunAsync), context.InstanceId);
 
@@ -24,7 +24,7 @@ public class Orchestration : TaskOrchestrator<object, DiscoveryContext>
         }
 
         logger.LogInformation("{nameofRunAsync}: Post: discovery-context: {result}", nameof(RunAsync), result);
-        logger.LogInformation("{nameofDiscover} complete.", nameof(Discover));
+        logger.LogWarning("{nameofDiscover} complete. Instance-id='{InstanceId}'.", nameof(Discover), context.InstanceId);
 
 
         return result;

@@ -124,13 +124,16 @@ public class Discover(
                     nameof(DiscoveryResultsDocument));
             }
 
-            logger.LogInformation(
-                "{method} Complete. {nameofDiscoveryBegan}: '{discoveryBegan:O}', document-id: '{discoveryResultsDocumentId}', results-count: '{discoveryResultsCount}', indexing-context: {indexingContext}",
-                nameof(RunAsync), nameof(discoveryBegan), discoveryBegan, discoveryResultsDocument.Id,
-                discoveryResults.Count, indexingContext);
+            logger.LogWarning(
+                "{method} complete. {nameofDiscoveryBegan}='{discoveryBegan:O}' document-id='{discoveryResultsDocumentId}' results-count='{discoveryResultsCount}' operation-id='{operationId}'.",
+                nameof(RunAsync),
+                nameof(discoveryBegan),
+                discoveryBegan,
+                discoveryResultsDocument.Id,
+                discoveryResults.Count,
+                input.DiscoveryOperationId);
 
             memoryProbe.End(true);
-            logger.LogInformation("{method} Completed", nameof(RunAsync));
 
             return input with
             {
