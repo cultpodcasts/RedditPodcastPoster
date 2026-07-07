@@ -1,0 +1,94 @@
+---
+description: HARD GUARDRAIL — authoritative Azure Functions execution proof (indexer/discover/api)
+alwaysApply: true
+---
+
+# Production execution truth (HARD GUARDRAIL)
+
+**Never claim an hourly/discovery run "did not start" or "failed" from logs alone until execution proof is checked.** Jul 2026 incident: `AppTraces` showed only host startups; **App Insights `AppRequests` showed full `HourlyOrchestration` + `activity:Indexer` at 9 PM UK.** Wrong conclusions drove bad recommendations.
+
+## Before ANY claim: run succeeded / failed / did not start
+
+1. **MUST** query **`AppRequests`** (Log Analytics) or **`requests`** (App Insights) for durable orchestration + key activities in the slot window.
+2. **MAY** query **`AppTraces`** for lifecycle detail — **supplement only, never sole evidence**.
+3. **MUST NOT** conclude "did not start" when only host-startup traces are missing lifecycle messages.
+4. If **`AppRequests` is empty** for a slot <30 min old, say **"execution unconfirmed — requests not ingested yet; retry or check App Insights End-to-end transactions"** — not **"failed"**.
+
+## Authoritative: did the orchestration run?
+
+**Workspace:** `loganalytics-infra` (`2b1c62ee-689f-422a-816b-be1605ae88fa`)  
+**App Insights:** `ai-infra` / `9005e913-7271-45e9-8358-4b3177d0b56d`
+
+### Indexer hourly slot (UTC hour H, trigger ~H:03 UTC = H+1:03 UK in BST)
+
+Replace `<start>` / `<end>` with the hour window (e.g. `2026-07-07T20:00:00Z` .. `2026-07-07T20:15:00Z` for 9 PM UK).
+
+```kusto
+// PRIMARY — execution proof (required)
+AppRequests
+| where TimeGenerated between (datetime(<start>) .. datetime(<end>))
+| where AppRoleName == "indexer-infra"
+| where Name startswith "orchestration:HourlyOrchestration"
+    or Name startswith "create_orchestration:HourlyOrchestration"
+    or Name == "activity:Indexer"
+    or Name == "activity:Bluesky"
+| project TimeGenerated, Name, Success, DurationMs, OperationId
+| order by TimeGenerated asc
+```
+
+**Run succeeded** when `orchestration:HourlyOrchestration` exists with `Success == true` and pipeline activities (`activity:Indexer`, … `activity:Bluesky`) appear in the same window.
+
+### Discovery slot
+
+```kusto
+AppRequests
+| where TimeGenerated between (datetime(<start>) .. datetime(<end>))
+| where AppRoleName == "discover-infra"
+| where Name has "Discover" or Name has "Orchestration" or Name has "DiscoveryTrigger"
+| project TimeGenerated, Name, Success, DurationMs, OperationId
+| order by TimeGenerated asc
+```
+
+## Supplementary: lifecycle traces (optional detail)
+
+```kusto
+AppTraces
+| where TimeGenerated between (datetime(<start>) .. datetime(<end>))
+| where AppRoleName == "indexer-infra"
+| where Message startswith "OrchestrationTrigger"
+    or Message startswith "HourlyOrchestration"
+    or Message startswith "Bluesky complete"
+| project TimeGenerated, Message
+| order by TimeGenerated asc
+```
+
+Absence here **does not** prove absence of execution if `AppRequests` shows the orchestration.
+
+## FORBIDDEN as sole execution evidence
+
+| Source | Why unsafe alone |
+|--------|------------------|
+| `AppTraces` missing `RunHourly initiated` | Sampling, severity filter, ingestion lag, worker recycle before flush |
+| Host startup logs only (`Host started`, `Found the following functions`) | Platform recycle ≠ missed run |
+| Empty `az monitor app-insights query` without retry | CLI/app-id issues; portal may still have data |
+| GitHub CI / deploy blob age | Deploy ≠ execution |
+| Assuming timer cron means run happened | Schedule ≠ proof |
+
+## Verdict matrix (required)
+
+| AppRequests | AppTraces lifecycle | Verdict to state |
+|-------------|---------------------|------------------|
+| Orchestration + activities, Success=true | Any | **Succeeded** |
+| Orchestration + activities, Success=false | Any | **Failed** (cite request name + duration) |
+| Empty, slot <30 min ago | Empty | **Unconfirmed** — retry AppRequests |
+| Empty, slot >30 min ago, traces empty | Empty | **Likely missed** — say "no request telemetry"; suggest portal End-to-end transactions |
+| Empty | Has lifecycle complete | **Succeeded** (traces corroborate) |
+
+## Portal cross-check
+
+User screenshot / **Application Insights → Investigate → Performance → End-to-end transactions** filtering `activity:Indexer` or `HourlyOrchestration` **overrides** agent Log Analytics gaps when CLI queries return empty but user provides portal evidence.
+
+## Related
+
+- Deploy time: [production-deploy-truth.mdc](production-deploy-truth.mdc)
+- KQL reference: [docs/indexing-app-insights-queries.md](../../docs/indexing-app-insights-queries.md) § Execution audit guardrails

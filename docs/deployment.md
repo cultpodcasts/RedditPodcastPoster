@@ -149,22 +149,53 @@ Enforced in [`.cursor/rules/deployment.mdc`](../.cursor/rules/deployment.mdc) (a
 6. **Never modify app settings** during code deploy.
 7. **Read this file** before editing `scripts/`.
 8. **Document** script changes here when behaviour changes.
+9. **Production deploy truth** — before stating when prod was last released, query blob `lastModified` per [production-deploy-truth.mdc](../.cursor/rules/production-deploy-truth.mdc). Never infer from Kudu deploy history or GitHub Build status.
+10. **Production execution truth** — before stating a scheduled run succeeded/failed/missed, query `AppRequests` per [production-execution-truth.mdc](../.cursor/rules/production-execution-truth.mdc). Never verdict from `AppTraces` or host-startup logs alone.
 
 ### June 2026 session incident
 
 An agent session **wrongly deleted** `deploy-api.ps1` and `deploy-indexer.ps1` as "duplicates" and removed a session-created `deploy-discover.ps1` the user expected. **Never repeat.** All three thin wrappers were restored; see [`deploy-discover.ps1` history](#deploy-discoverps1-history) above.
 
+## When was prod last deployed? (authoritative — script deploys)
+
+**Agents MUST use this before claiming prod is stale, current, or that a fix is/isn't live.**
+
+Script deploys (`deploy-*.ps1`) upload `released-package.zip` to `cultpodcastsstg` and restart the app. **Blob `lastModified` is the only authoritative release timestamp.**
+
+| App | Container |
+|-----|-----------|
+| `indexer-infra` | `indexer-deployment` |
+| `discover-infra` | `discovery-deployment` |
+| `api-infra` | `api-deployment` |
+
+```powershell
+# Indexer (swap container for discover/api)
+az storage blob show --account-name cultpodcastsstg --container-name indexer-deployment --name released-package.zip --auth-mode login --query "{lastModified:properties.lastModified, bytes:properties.contentLength}" -o json
+
+# Corroborate: script always restarts within ~60s of upload
+az monitor activity-log list --resource-group AutomatedInfra --start-time 2026-07-07T15:09:00Z --end-time 2026-07-07T15:14:00Z --query "[?contains(resourceId,'indexer-infra') && contains(operationName.value,'restart')].eventTimestamp" -o tsv
+```
+
+**Not authoritative for script deploys (never use alone):**
+
+- `az webapp log deployment list` / Kudu deploy history
+- GitHub **Build** or **deploy.yml** run success/failure
+- Git commit time, PR merge, or "branch pushed"
+- `az functionapp restart` without a matching blob upload (restart ≠ release)
+
+Cursor rule: [`.cursor/rules/production-deploy-truth.mdc`](../.cursor/rules/production-deploy-truth.mdc) (`alwaysApply: true`).
+
 ## CI status check
 
-Before assuming a push fixed production:
+**CI status is not production deploy truth** when you deploy by script. Use blob timestamps above for "what is on prod."
+
+GitHub Actions is relevant only when `deploy.yml` is the active deploy path:
 
 ```powershell
 gh run list --workflow=deploy.yml --limit 3
 ```
 
-As of 2026-06-11, recent `deploy.yml` runs failed with **GitHub Actions billing lock** — no CI deploy reached Azure. Local deploy or billing resolution is required until Actions runs again.
-
-**While CI is inactive:** see [interim-deployment.md](interim-deployment.md) for PowerShell scripts that mirror parts of the pipeline (code deploy, storage containers, model upload, telemetry overlays).
+As of 2026-06-11, recent `deploy.yml` runs failed with **GitHub Actions billing lock** — use [interim-deployment.md](interim-deployment.md) and script deploys instead.
 
 ## Backfill (separate)
 

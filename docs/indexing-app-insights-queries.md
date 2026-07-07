@@ -77,6 +77,35 @@ az monitor app-insights query `
 
 ---
 
+## Execution audit guardrails (agents — HARD)
+
+**Do not claim a run "did not start" from `AppTraces` alone.** Durable execution is proven by **`AppRequests`** (`orchestration:HourlyOrchestration`, `activity:Indexer`, …). Jul 2026: 9 PM UK hourly showed full orchestration in App Insights requests while Log Analytics `AppTraces` had only host startups — wrong trace-only audits caused false "missed run" reports.
+
+**Required before verdict:**
+
+```kusto
+AppRequests
+| where TimeGenerated between (datetime(<start>) .. datetime(<end>))
+| where AppRoleName == "indexer-infra"
+| where Name startswith "orchestration:HourlyOrchestration"
+    or Name startswith "create_orchestration:HourlyOrchestration"
+    or Name == "activity:Indexer"
+    or Name == "activity:Bluesky"
+| project TimeGenerated, Name, Success, DurationMs, OperationId
+| order by TimeGenerated asc
+```
+
+| Outcome | When to say it |
+|---------|----------------|
+| **Succeeded** | `orchestration:HourlyOrchestration` + activities, `Success == true` |
+| **Failed** | Request exists with `Success == false` |
+| **Unconfirmed** | Empty `AppRequests`, slot <30 min — ingestion lag; retry |
+| **Likely missed** | Empty `AppRequests` >30 min after slot, no portal E2E transaction |
+
+Cursor rule: [`.cursor/rules/production-execution-truth.mdc`](../.cursor/rules/production-execution-truth.mdc) (`alwaysApply: true`).
+
+---
+
 ## Warning-level diagnostic log catalog
 
 Deployed or pending (diagnostic logging work — `HourlyOrchestration`, `OrchestrationTrigger`, `Indexer`, `IndexIdProvider`, `PodcastsUpdater`, `YouTubeEpisodeRetrievalHandler`):
