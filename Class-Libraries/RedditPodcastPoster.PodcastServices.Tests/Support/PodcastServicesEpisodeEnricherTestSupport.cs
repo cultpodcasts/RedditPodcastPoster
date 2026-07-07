@@ -3,6 +3,9 @@ using Microsoft.Extensions.Options;
 using Moq;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration;
+using RedditPodcastPoster.Episodes.Adapters;
+using RedditPodcastPoster.Episodes.TestSupport;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
@@ -33,6 +36,79 @@ internal static class PodcastServicesEpisodeEnricherTestSupport
             youTubeEnricher.Object,
             episodeFilter,
             NullLogger<PodcastServicesEpisodeEnricher>.Instance);
+    }
+
+    /// <summary>
+    /// Spotify enricher mock that applies a real domain patch (adapter + applicator) instead of mutating context only.
+    /// </summary>
+    public static Mock<ISpotifyEpisodeEnricher> CreateSpotifyEnricherMockApplyingPatch(DomainTestFixture fixture)
+    {
+        var mock = new Mock<ISpotifyEpisodeEnricher>();
+        var applicator = EpisodeDomainTestServices.CreateEnrichmentApplicator();
+        var adapter = new SpotifyEpisodeAdapter();
+
+        mock
+            .Setup(x => x.Enrich(
+                It.IsAny<EnrichmentRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<EnrichmentContext>()))
+            .Callback<EnrichmentRequest, IndexingContext, EnrichmentContext>((request, _, context) =>
+            {
+                var input = fixture.CreateSpotifyCatalogueInput();
+                applicator.Apply(request.Podcast, request.Episode, adapter.Adapt(input)).ApplyTo(context);
+            })
+            .Returns(Task.CompletedTask);
+
+        return mock;
+    }
+
+    /// <summary>
+    /// Apple enricher mock that applies a real domain patch (adapter + applicator) instead of mutating context only.
+    /// </summary>
+    public static Mock<IAppleEpisodeEnricher> CreateAppleEnricherMockApplyingPatch(DomainTestFixture fixture)
+    {
+        var mock = new Mock<IAppleEpisodeEnricher>();
+        var applicator = EpisodeDomainTestServices.CreateEnrichmentApplicator();
+        var adapter = new AppleEpisodeAdapter();
+
+        mock
+            .Setup(x => x.Enrich(
+                It.IsAny<EnrichmentRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<EnrichmentContext>()))
+            .Callback<EnrichmentRequest, IndexingContext, EnrichmentContext>((request, _, context) =>
+            {
+                var input = fixture.CreateAppleCatalogueInput();
+                applicator.Apply(request.Podcast, request.Episode, adapter.Adapt(input)).ApplyTo(context);
+            })
+            .Returns(Task.CompletedTask);
+
+        return mock;
+    }
+
+    /// <summary>
+    /// YouTube enricher mock that applies a real domain patch (adapter + applicator) instead of mutating context only.
+    /// </summary>
+    public static Mock<IYouTubeEpisodeEnricher> CreateYouTubeEnricherMockApplyingPatch(DomainTestFixture fixture)
+    {
+        var mock = new Mock<IYouTubeEpisodeEnricher>();
+        var applicator = EpisodeDomainTestServices.CreateEnrichmentApplicator();
+        var adapter = new YouTubeEpisodeAdapter();
+
+        mock
+            .Setup(x => x.Enrich(
+                It.IsAny<EnrichmentRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<EnrichmentContext>()))
+            .Callback<EnrichmentRequest, IndexingContext, EnrichmentContext>((request, _, context) =>
+            {
+                var input = fixture.CreateYouTubeCatalogueInput();
+                applicator.Apply(request.Podcast, request.Episode, adapter.Adapt(input)).ApplyTo(context);
+                context.YouTubeId = input.YouTubeId;
+            })
+            .Returns(Task.CompletedTask);
+
+        return mock;
     }
 
     public static Podcast CreateDelayedPublishingPodcast(

@@ -1,6 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using RedditPodcastPoster.Episodes;
+using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Factories;

@@ -344,10 +344,14 @@ var taddy= {
 var indexerActivities= {
     activities__RunIndex: 'true'
     activities__RunCategoriser: 'true'
-    activities__RunPoster: 'true'
+    activities__RunPoster: 'false'
     activities__RunPublisher: 'true'
-    activities__RunTweet: 'true'
+    activities__RunTweet: 'false'
     activities__RunBluesky: 'true'
+}
+
+var indexerTriggers = {
+    AzureWebJobs_HalfHourly_Disabled: 'true'
 }
 
 var textanalytics= {
@@ -486,6 +490,7 @@ var indexerSettings= union(
     poster,
     postingCriteria,
     indexerActivities,
+    indexerTriggers,
     youtubeChannel
  )
 

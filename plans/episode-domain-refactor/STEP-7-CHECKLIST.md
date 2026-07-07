@@ -21,15 +21,15 @@
 | **A** — Domain types + applier/merger/matcher (internal) | 🟢 In production / Done | Medium | [#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871) |
 | **B** — UrlSubmission through applier | 🟢 In production / Done | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
 | **C** — Platform adapters at boundaries | 🟢 In production (soak) | Medium–High | [#873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873) |
-| **D** — Collapse finders into single matcher | 🟡 PR open | Medium–High | [#874](https://github.com/cultpodcasts/RedditPodcastPoster/pull/874) |
-| **E** — Shared enricher template | ⬜ Not started | Medium | _PR link_ |
-| **F** — Cleanup | ⬜ Not started | Low–Medium | _PR link_ |
+| **D** — Collapse finders into single matcher | 🟢 In production / Done | Medium–High | [#874](https://github.com/cultpodcasts/RedditPodcastPoster/pull/874) |
+| **E** — Shared enricher template | 🟡 Indexer deployed (soak) | Medium | [#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875) |
+| **F** — Cleanup | ⬜ Not started (blocked on Phase E soak + merge) | Low–Medium | _PR link_ |
 
 ---
 
 ## Phase 0 / Phase A status
 
-Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)). **Phase B** is in production (merged via [PR #872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872)). **Phase C** in production (soak, review pending — [PR #873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873)). Phases D–F not started.
+Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)). **Phase B** is in production (merged via [PR #872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872)). **Phase C** in production (soak, review pending — [PR #873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873)). **Phase D** in production (merged via [PR #874](https://github.com/cultpodcasts/RedditPodcastPoster/pull/874)). **Phase E** deployed to **Indexer** for soak ([#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875) open — merge after soak review). **Phase F** not started.
 
 | Step / phase | Outcome |
 |--------------|---------|
@@ -168,6 +168,15 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 
 **PR:** [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872)
 
+### Phase B remaining deferred test gaps (address in Phase F)
+
+| Gap | Location | Address in | Priority | Status |
+|-----|----------|------------|----------|--------|
+| UrlSubmission release/description parity with indexing applicator | `UrlSubmission/EpisodeEnricher.cs` | Phase F P0 — `UrlSubmissionEnrichmentRules` | P0 | [x] |
+| BBC / Internet Archive / non-podcast image paths | `EpisodeEnricher.cs` (~202–248) | Phase F P0 — `UrlSubmissionEnrichmentRules` | P0 | [x] |
+| Remaining `EpisodeEnricher` orchestration branches | `EpisodeEnricher.cs` (43% branch floor) | Phase F P1 — extend rules; raise toward 85% aspiration | P1 | Open |
+| Legacy `EpisodeReleaseMatchTolerance` (Abstractions) call sites on submit path | UrlSubmission categorisers | Phase F P1 — tolerance parity before removal | P1 | [x] Characterized — removal deferred to Phase F cleanup |
+
 ---
 
 ## Phase C — Platform adapters at provider/resolver boundaries
@@ -207,6 +216,14 @@ Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](htt
 - [ ] Soak review pending
 
 **Phase C soak incident (2026-07-05):** `enrichyouTubeOnlyPodcasts` failed at runtime — `Unable to resolve service for type 'IEpisodeCatalogueAdapter<YouTubeCatalogueInput>'` when activating `YouTubeEpisodeProvider`. Root cause: Phase C wired providers to inject catalogue adapters from `AddEpisodesDomain()`, but `EnrichYouTubeOnlyPodcasts` (and other platform-service CLIs) never called it explicitly. Fixed: add `AddEpisodesDomain()` at composition root before `AddYouTubeServices` / `AddAppleServices` / `AddSpotifyServices` on affected console apps (`EnrichYouTubeOnlyPodcasts`, `FixDatesFromApple`, `TextClassifierTraining`, `AddYouTubeChannelAsPodcast`, `ThrowawayConsole`).
+
+### Phase C remaining deferred test gaps (address in Phase F)
+
+| Gap | Location | Address in | Priority | Status |
+|-----|----------|------------|----------|--------|
+| `PlatformLinkFactory` null-all-inputs path | `Episodes/Adapters/PlatformLinkFactory.cs` | Phase F P2 — one adapter rule | P2 | [x] |
+| `ResolvedAppleItemAdapter` URL-only negative branch | `ResolvedAppleItemAdapter.cs` (50% branch) | Phase F P2 — optional rule | P2 | Open |
+| Phase C soak review | Deploy hosts | Operational — not a test gap | — | Pending |
 
 ### Phase C deploy / soak status
 
@@ -281,6 +298,18 @@ Pre-soak characterization added in PR #874 follow-up (P0–P3):
 | Spotify enricher `CatalogueReleaseMatches` reducer | `SpotifyEpisodeEnricher` | Covered — `SpotifyEpisodeEnricherCatalogueReleaseReducerRules.enrich_filters_candidates_via_catalogue_release_reducer` |
 | Stored YouTube + incoming Spotify (strategy lines 28–37) | `SpotifyCatalogueReleaseMatchStrategy` | Covered — `YouTubePublishDelayMatchStrategyRules.negative_delay_youtube_stored_spotify_incoming_aligned` |
 
+### Phase D remaining deferred test gaps (address in Phase F)
+
+| Gap | Location | Address in | Priority | Status |
+|-----|----------|------------|----------|--------|
+| Exact-title bypass extended matrix | `EpisodePlatformMatcher.MatchesByTitleHeuristics` | Phase F P2 — `CatalogueMatchingRules` | P2 | [x] |
+| `SpotifyCatalogueReleaseMatchStrategy` direct rules | Strategy file (50% branch) | Phase F P1 — new rule file | P1 | [x] |
+| `ExactReleaseMatchStrategy` direct rules | Strategy file (75% branch) | Phase F P1 — new rule file | P1 | [x] |
+| `YouTubePublishDelayMatchStrategy` lines 30–36 | Unreachable when incoming is YouTube | Phase F P3 — document-only | P3 | [x] |
+| `PlaylistItemFinder` wrapper + local fuzzy paths | `PlaylistItemFinder.cs` | Phase F P0 — `PlaylistItemFinderCatalogueWrapperRules` (16 rules) | P0 | [x] |
+| YouTube `SearchResultFinder` wrapper rules | `SearchResultFinder.cs` | Phase F P3 — mirror Spotify wrapper pattern if finder retired | P3 | Open |
+| `EpisodePlatformMatcher` branch aspiration (70% → 90%) | `EpisodePlatformMatcher.cs` | Phase F P3 — incremental catalogue rules | P3 | Open |
+
 ### Phase D test additions (PR #874)
 
 - `CatalogueMatchingRules` — 12 rules (catalogue lookup, release filter, `IsCatalogueMatch`)
@@ -307,7 +336,7 @@ Additional rules pinning high-risk Phase D collapse vectors:
 | `YouTubePublishDelayMatchStrategyRules` | +1 | Stored Spotify + incoming YouTube aligned under positive delay (lines 23–27) |
 | `AppleEpisodeResolverCatalogueWrapperRules` | +1 | Apple thin-wrapper delegates YouTube-discovered unique-duration to domain matcher |
 
-- Episodes.Tests: **118** total; coverage gate episodes-domain **76.0% branch / 92.4% line**
+- Episodes.Tests: **160** total; coverage gate episodes-domain **81.9% branch / 94.6% line**
 - `coverage-baseline.json` per-file floors corrected to measured Release values (prior file baselines for `EpisodePlatformMatcher.cs`, `YouTubePublishDelayMatchStrategy`, `EpisodeMappingExtensions` were aspirational)
 
 ### Risk to production
@@ -341,28 +370,105 @@ Additional rules pinning high-risk Phase D collapse vectors:
 
 **Preconditions:**
 
-- [ ] Phase D merged (matching is domain-owned)
+- [x] Phase D merged (matching is domain-owned)
 - [x] Indexing enrichment rules (§5.4) green
 
 ### Checklist
 
-- [ ] Introduce shared enrich flow (template/base) that: resolve → adapt → build `EpisodePlatformPatch` → apply via `IEpisodePlatformApplier`
-- [ ] Refactor Spotify enricher to return/apply patch only (no in-place `Episode` mutation for platform fields)
-- [ ] Refactor Apple enricher the same way
-- [ ] Refactor YouTube enricher the same way; honor `SkipEnrichingFromYouTube` in orchestration only
-- [ ] Keep delayed-publishing second pass and batch exclusion in orchestrator (not in platform enrichers)
-- [ ] Extract Spotify expensive-query persistence to a narrow side-effect if still coupled to enricher mutation
-- [ ] Update `PodcastServicesEpisodeEnricherTestSupport` / mocks to return patches or apply via real applier
+- [x] Introduce `IPlatformEnrichmentApplicator` — resolve candidate → `EpisodePlatformPatch` → `IEpisodePlatformApplier` (+ merge policies for release backfill)
+- [x] Refactor Spotify enricher to apply patch via applicator (catalogue adapter + `SpotifyExpensiveQuerySideEffect`)
+- [x] Refactor Apple enricher to apply patch via applicator
+- [x] Refactor YouTube enricher — platform links/release via applicator; description/image via applier fill-missing
+- [x] Extract shared enrich template base (`PlatformEpisodeEnricherTemplate` — delayed-publishing bypass + `ApplyResolvedCandidate`)
+- [x] Keep delayed-publishing second pass and batch exclusion in orchestrator (not in platform enrichers)
+- [x] Extract Spotify expensive-query persistence to `ISpotifyEnrichmentSideEffect`
+- [x] Update `PodcastServicesEpisodeEnricherTestSupport` — patch-applying mock factories per platform
+
+### Phase E test additions
+
+| Rule file | Tests | Business rule |
+|-----------|-------|---------------|
+| `PlatformEnrichmentApplicatorRules` | 13 | Fill-missing links (Spotify/Apple/YouTube); empty/truncated description; supplemental YouTube image; Apple time backfill; YouTube authority preserve; no-identity backfill guard |
+| `PlatformEpisodeEnricherTemplateRules` | 2 | Delayed-publishing bypass; ApplyResolvedCandidate → context + episode |
+| `PlatformEnrichmentResultExtensionsRules` | 3 | ApplyTo URL flags per service; release propagation; None unchanged |
+| `SpotifyExpensiveQuerySideEffectRules` | 2 | Expensive-query flag set / not set |
+| `YouTubeEpisodeEnricherCatalogueRules` | 5 | ID/URL backfill; video details; regex sanitization; release backfill |
+| `IndexingEnrichmentRules` | +2 | Patch-applying mock; multi-platform Spotify→Apple order |
+| `PodcastServicesEpisodeEnricherTestSupport` | 3 helpers | Mocks apply real adapter + applicator patches |
+| Existing enricher/orchestration rules | unchanged assertions | §5.4 indexing enrichment still green |
+
+### Phase E deferred test gaps — implementation plan (P0–P3)
+
+Pre-soak characterization for Phase E (#875) gap analysis:
+
+| Priority | Area | Test file | Rules | Status |
+|----------|------|-----------|-------|--------|
+| P0 | `PlatformEpisodeEnricherTemplate.IsBypassedByDelayedYouTubePublishing` | `PodcastServices.Tests/BusinessRules/Enrichment/PlatformEpisodeEnricherTemplateRules.cs` | Bypass when inside delayed-publishing window | [x] |
+| P0 | `PlatformEpisodeEnricherTemplate.ApplyResolvedCandidate` | `PodcastServices.Tests/BusinessRules/Enrichment/PlatformEpisodeEnricherTemplateRules.cs` | Updates `EnrichmentContext` (Spotify URL flag + episode state) | [x] |
+| P0 | `SpotifyExpensiveQuerySideEffect` | `PodcastServices.Spotify.Tests/Enrichers/SpotifyExpensiveQuerySideEffectRules.cs` | Sets `SpotifyEpisodesQueryIsExpensive` when expensive; not set when false | [x] |
+| P1 | `PlatformEnrichmentResultExtensions.ApplyTo` | `PodcastServices.Tests/BusinessRules/Enrichment/PlatformEnrichmentResultExtensionsRules.cs` | Spotify/Apple/YouTube URL flags; `ReleaseUpdated` → context release | [x] |
+| P1 | Applicator truncated description | `Episodes.Tests/BusinessRules/Applying/PlatformEnrichmentApplicatorRules.cs` | Extends description ending in `...` via `Apply` / `ApplyDescription` | [x] |
+| P1 | Applicator null `SourceLink` | `Episodes.Tests/BusinessRules/Applying/PlatformEnrichmentApplicatorRules.cs` | `Apply` with null link → `None` | [x] |
+| P1 | Applicator Apple fill-missing | `Episodes.Tests/BusinessRules/Applying/PlatformEnrichmentApplicatorRules.cs` | Full `Apply` fills missing Apple link | [x] |
+| P1 | Applicator YouTube fill-missing | `Episodes.Tests/BusinessRules/Applying/PlatformEnrichmentApplicatorRules.cs` | Full `Apply` fills missing YouTube link | [x] |
+| P1 | Applicator supplemental link no overwrite | `Episodes.Tests/BusinessRules/Applying/PlatformEnrichmentApplicatorRules.cs` | `ApplySupplementalLink` skips when image exists | [x] |
+| P1 | YouTube enricher catalogue paths | `PodcastServices.YouTube.Tests/Enrichment/YouTubeEpisodeEnricherCatalogueRules.cs` | ID-only URL backfill; URL-only ID backfill; video details; regex sanitization; release backfill | [x] |
+| P2 | Patch-applying mock orchestration | `PodcastServices.Tests/BusinessRules/Enrichment/IndexingEnrichmentRules.cs` | `CreateSpotifyEnricherMockApplyingPatch` updates episode state via real applicator | [x] |
+| P2 | Multi-platform enrich order | `PodcastServices.Tests/BusinessRules/Enrichment/IndexingEnrichmentRules.cs` | Spotify then Apple on same episode; no cross-overwrite | [x] |
+| P3 | `coverage-baseline.json` Phase E floors | `plans/episode-domain-refactor/coverage-baseline.json` | `platform-enrichment` group + 7 per-file floors (template, ApplyTo, side effect, enrichers, PlaylistItemFinder); gate includes Spotify/YouTube/Apple.Tests | [x] |
+| P3 | `AppleTimeBackfillMergePolicy` branch | `Episodes.Tests/BusinessRules/Applying/PlatformEnrichmentApplicatorRules.cs` | No release backfill when incoming candidate has no Apple identity | [x] |
+| P3 | Phase D deferred cross-phase items | (this checklist) | Document still-relevant Phase D gaps — do not re-implement unless trivial | [x] |
+
+#### Phase E remaining deferred (address in Phase F)
+
+| Gap | Location | Address in | Priority | Status |
+|-----|----------|------------|----------|--------|
+| Spotify enricher full catalogue E2E | `SpotifyEpisodeEnricher.cs` | Phase F P1 | P1 | [x] (#875) |
+| Apple enricher E2E + test convention debt | `AppleEpisodeEnricher.cs`, `AppleEpisodeEnricherTests.cs` | Phase F P1 / P2 | P1 | [x] (#875) |
+| Apple/YouTube patch-applying orchestration mocks | `IndexingEnrichmentRules.cs` | Phase F P1 | P1 | [x] (#875) |
+| Template bypass/apply per Apple/YouTube enricher (optional) | Platform enrichers inherit template | Phase F P3 optional | P3 | Open — optional; template base covered |
+| `PlaylistItemFinder` local fuzzy/duration paths below aspiration | `PlaylistItemFinder.cs` (44% branch) | Phase F P3 — more Theory rows or retire wrapper | P3 | Open |
+
+#### Phase D deferred cross-phase items (still relevant after Phase E)
+
+These Phase D gaps remain open for later phases; Phase E tests do not re-implement them unless trivial:
+
+| Gap | Location | Address in | Status |
+|-----|----------|------------|--------|
+| Exact-title bypass edge cases beyond current matrix | `EpisodePlatformMatcher.MatchesByTitleHeuristics` | Phase F P2 — `CatalogueMatchingRules` extension | [x] |
+| `YouTubePublishDelayMatchStrategy` lines 30–36 unreachable when incoming is YouTube | Strategy registration order | Phase F P3 — document-only unless order changes | [x] |
+| Release strategy direct characterization | `SpotifyCatalogueReleaseMatchStrategy`, `ExactReleaseMatchStrategy` | Phase F P1 — new rule files | [x] |
+| `EpisodePlatformMatcher` branch below 90% aspiration | `EpisodePlatformMatcher.cs` (70% branch) | Phase F P3 — incremental catalogue rules | Open |
+| Orchestration branch gaps | `EpisodeEnricher`, `PodcastUpdater` | Phase B/F — see master index | Partial — `PodcastUpdater` [x] (#875); `EpisodeEnricher` branches Open |
+| `ResolvedAppleItemAdapter` branch 50% | Adapters | Phase F P2 — optional negative branch | Open |
 
 ### Exit criteria
 
-- [ ] Enrichment business-rule tests pass **without assertion changes**
-- [ ] Indexing orchestration/persistence rules pass **without assertion changes**
-- [ ] No enricher path mutates platform fields without going through applier
-- [ ] `./scripts/coverage-gate.ps1` passes
-- [ ] PR opened for Phase E only
+- [x] Enrichment business-rule tests pass **without assertion changes**
+- [x] Indexing orchestration/persistence rules pass **without assertion changes**
+- [x] No enricher path mutates platform fields without going through applier
+- [x] `./scripts/coverage-gate.ps1` passes
+- [x] PR opened for Phase E only ([#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875))
+- [x] Deployed to **Indexer** for soak (2026-07-06 — branch `feature/episode-domain-phase-e-shared-enricher-template` / `indexer-deployment`)
+- [ ] Soak review pending — compare enrichment outcomes vs pre-deploy; watch platform link backfill, expensive-query flags, delayed-publishing second pass
 
-### Risk to production
+### Phase E deploy / soak status
+
+- [x] Branch deployed from [PR #875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875) (2026-07-06)
+- [x] **Indexer only** — `PodcastServicesEpisodeEnricher` + shared enrich template + platform enrichers (Spotify, Apple, YouTube)
+- [ ] **Api** — not deployed (UrlSubmission unchanged; Phase B path)
+- [ ] **Discovery** — not deployed (out of scope)
+- [ ] Soak review pending — will revisit after soak window
+
+**Soak watch list (Indexer):**
+
+- Platform link backfill (ID / URL / image) via `PlatformEnrichmentApplicator`
+- Spotify `SpotifyEpisodesQueryIsExpensive` side-effect persistence
+- Delayed-publishing second pass and `SkipEnrichingFromYouTube` orchestration (unchanged in orchestrator)
+- Multi-platform enrich order (Spotify → Apple → YouTube on same episode)
+- Enrichment exceptions / `Failed to ingest` (same red-flag path as prior soaks)
+
+### Risk to production (Phase E — live / soak context)
 
 - **Risk level:** Medium
 - **Blast radius:** Indexer — `PodcastServicesEpisodeEnricher` and platform enrichers (Spotify, Apple, YouTube)
@@ -372,16 +478,16 @@ Additional rules pinning high-risk Phase D collapse vectors:
   - `SkipEnrichingFromYouTube` or delayed-publishing second pass moved into enrichers by mistake
   - Spotify expensive-query side-effect lost or double-applied
   - Patch apply order differs from prior in-place mutation for multi-platform enrich
-- **Recommended soak / deploy scope:** Indexer only
+- **Soak / deploy scope:** Indexer only (deployed 2026-07-06; soak in progress — review pending)
 - **Rollback notes:** Restore platform enrichers’ direct mutation; shared template can be removed without touching matcher/merger
 
-**PR:** _link_
+**PR:** [#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875)
 
 ---
 
 ## Phase F — Cleanup
 
-**Goal:** Unify remaining mappers, rename homonyms, retire transitional wrappers. No behavior change.
+**Goal:** Unify remaining mappers, rename homonyms, retire transitional wrappers, and fix **project layering** (misplaced types pulling incorrect assembly references). No behavior change.
 
 **Scope / areas:**
 
@@ -390,20 +496,137 @@ Additional rules pinning high-risk Phase D collapse vectors:
 - Thin wrappers left from Phases D–E that no longer add value
 - Dead `EpisodeReleaseMatchTolerance` static surface once all call sites migrated
 - Naming/DI cleanup in `AddEpisodesDomain` / composition roots
+- **Project dependency cleanup** — relocate orchestration types out of `.Persistence`; remove red-flag edges (see **F13–F20** and audit table below)
 
 **Preconditions:**
 
-- [ ] Phases B–E merged
+- [ ] Phases B–E merged (Phase E: Indexer soak in progress — [#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875) merge after soak review)
 - [ ] No production call sites depend on retired wrappers
+- [x] **P0 test backlog complete** (see below — do not start Phase F cleanup until Phase E soak passes and #875 merges)
+
+### Phase F pre-requisites — final test gap audit (2026-07-06)
+
+Final audit before Phase F. **§5 catalog (57 rules) is complete.** Phase E P0–P3 hardening is done. Residual risk is orchestration parity and wrapper characterization, not domain merge/match core.
+
+**Decision:** Do not start Phase F wrapper retirement until Phase E soak review passes and [#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875) merges. Pre-soak test backlog (P0–P3) is complete in #875; remaining work is cleanup code + coverage aspiration (see deferred actions register below).
+
+#### Adequately covered (no action)
+
+- §5.1–§5.6 catalog — all rules have `[Fact]`/`[Theory]` tests
+- Domain merge/match/applier core; platform catalogue adapters (98–100% line)
+- Phase D collapse (`CatalogueMatchingRules`, Spotify/Apple wrapper rules, fuzzy title matrix)
+- Phase E template/applicator/side-effect/YouTube enricher/orchestration hardening
+
+#### Test backlog (ordered — implement before Phase F)
+
+| Priority | Item | Test target | Effort | Done |
+|----------|------|-------------|--------|------|
+| **P0** | UrlSubmission enrich parity | Extend `UrlSubmissionEnrichmentRules` — Apple/YouTube release backfill + truncated description (parity with `PlatformEnrichmentApplicator`) | M | [x] |
+| **P0** | `PlaylistItemFinder` characterization | New wrapper rules (mirror `SearchResultFinderCatalogueWrapperRules`) — publish-delay catalogue match, exact-title → `IsCatalogueMatch` | L | [x] |
+| **P0** | UrlSubmission BBC / IA / non-podcast image | Extend `UrlSubmissionEnrichmentRules` — special-cased paths in `EpisodeEnricher` (lines ~202–248); README §4.7 bug risk | S | [x] |
+| **P1** | Tolerance parity / migration | `EpisodeReleaseTolerance` matrix + legacy `EpisodeReleaseMatchTolerance` call-site characterization before type removal | M | [x] |
+| **P1** | Release strategy direct rules | New files for `SpotifyCatalogueReleaseMatchStrategy`, `ExactReleaseMatchStrategy` | S | [x] |
+| **P1** | `PodcastUpdater` scope/bypass | Extend `IndexingOrchestrationRules` — `ShouldEnrichDespiteReleaseWindow`, bypass flags | M | [x] |
+| **P1** | Spotify/Apple enricher E2E | Mirror `YouTubeEpisodeEnricherCatalogueRules` pattern per platform | M | [x] |
+| **P1** | Multi-platform orchestration (Apple/YouTube) | Extend `IndexingEnrichmentRules` — patch-applying mocks for Apple + YouTube | S | [x] |
+| **P2** | `EpisodeIdentityExtensions` edge cases | Extend `PlatformIdentityMatchingRules` — Spotify URL ID extraction, Apple URL-only | S | [x] |
+| **P2** | `PlatformLinkFactory` null guard | One adapter rule | S | [x] |
+| **P2** | `AppleEpisodeEnricherTests` convention debt | Add `DisplayName`; use fixtures not raw `new Episode`/`new Podcast` | S | [x] |
+| **P2** | Exact-title bypass extended matrix | Extend `CatalogueMatchingRules` (Phase D deferred) | M | [x] |
+| **P3** | `YouTubePublishDelayMatchStrategy` lines 30–36 | Document dead code; test only if strategy order changes | S | [x] |
+| **P3** | Raise matcher branch toward 90% aspiration | Incremental `CatalogueMatchingRules` | L | Open |
+| **P3** | Add `PodcastServices.*.Tests` to coverage gate | `coverage-baseline.json` + `coverage-gate.ps1` — `platform-enrichment` group | M | [x] |
+| **P3** | `PlaylistItemFinder` fuzzy/duration Theory expansion | `PlaylistItemFinderCatalogueWrapperRules` — raise branch toward aspiration | M | Open |
+
+#### Phase F — deferred actions register (all open work)
+
+Single register of **production cleanup** and **test/coverage aspiration** deferred past Phase E soak. Implement in Phase F PR(s) after #875 merges.
+
+| # | Action | Type | Location / target | Priority | Blocker |
+|---|--------|------|-------------------|----------|---------|
+| F1 | Remove `EpisodeReleaseMatchTolerance` type + Abstractions call-site sweep | Cleanup | UrlSubmission categorisers, any remaining match-time callers | P1 | Tolerance parity rules green (#875) |
+| F2 | Retire thin finder wrappers (`SearchResultFinder`, `PlaylistItemFinder`, Apple resolver wrapper) once call sites use domain matcher directly | Cleanup | `PodcastServices.Spotify/YouTube/Apple` finders | P1 | Soak confirms no finder quirk dependency |
+| F3 | Unify UrlSubmission `EpisodeEnricher` onto `PlatformEnrichmentApplicator` (delete dual enrichment model) | Cleanup | `UrlSubmission/EpisodeEnricher.cs` | P1 | P0 parity rules green (#875); optional separate PR |
+| F4 | Rename homonymous types (`SearchResultFinder` × platforms, legacy `EpisodeMatcher` surface) | Cleanup | Platform projects + DI | P2 | F2 or document retained wrappers |
+| F5 | Sweep orchestrators for `switch (service)` / direct tolerance calls (§10.8) | Cleanup | `PodcastUpdater`, enrichers, categorisers | P2 | F1 |
+| F6 | Extend `UrlSubmissionEnrichmentRules` — remaining `EpisodeEnricher` branches toward 85% aspiration | Test | `EpisodeEnricher.cs` (~43% branch) | P1 | Optional before F3 |
+| F7 | `ResolvedAppleItemAdapter` URL-only negative branch rule | Test (optional) | `ResolvedAppleItemAdapter.cs` (50% branch) | P2 | — |
+| F8 | YouTube `SearchResultFinder` wrapper rules (mirror Spotify) | Test | `SearchResultFinder.cs` | P3 | Before F2 if wrapper retained |
+| F9 | `PlaylistItemFinder` fuzzy/duration Theory expansion | Test | `PlaylistItemFinderCatalogueWrapperRules` | P3 | Before F2 if wrapper retained |
+| F10 | Raise `EpisodePlatformMatcher` branch toward 90% aspiration | Test | `CatalogueMatchingRules` | P3 | — |
+| F11 | Template bypass/apply per Apple/YouTube enricher (optional E2E) | Test (optional) | Platform enrichers | P3 | — |
+| F12 | Confirm discovery remains out of scope | Policy | `EpisodeResultsEnricher` | — | No action unless adapter-only already |
+| F13 | **Relocate merge orchestration off Persistence** — move `EpisodeMatcher` / `EpisodeMerger` implementations to `PodcastServices`; register in `AddPodcastServices()` (or `AddEpisodesIndexing()`); **remove `Persistence → Episodes` project reference** | Layering | `Persistence/EpisodeMatcher.cs`, `EpisodeMerger.cs` | P1 | #875 merged; soak green |
+| F14 | **Relocate merge contracts off Persistence.Abstractions** — move `IEpisodeMatcher`, `IEpisodeMerger`, `EpisodeMergeResult` to `PodcastServices.Abstractions` (or `Episodes` application surface); update `PodcastUpdater`, tests, `IndexPodcastResult` | Layering | `Persistence.Abstractions/IEpisode*.cs` | P1 | F13 (can ship together) |
+| F15 | **Remove orphan `Persistence → PodcastServices.Abstractions` reference** — csproj lists Abstractions but no `.cs` file in Persistence imports it | Layering | `Persistence.csproj` | P2 | Verify no compile need after F13/F14 |
+| F16 | **Decouple `PodcastServices.Abstractions` from `Persistence.Abstractions`** — `IndexPodcastResult` embeds `EpisodeMergeResult`; after F14, Abstractions should not reference Persistence for orchestration DTOs | Layering | `IndexPodcastResult.cs` | P2 | F14 |
+| F17 | **UrlSubmission dependency diet** — drop concrete `PodcastServices` reference where possible; stop `CategorisedItem` depending on platform `Resolved*Item` types + `ResolvedNonPodcastServiceItem` from aggregator; prefer `Episodes` adapter inputs or UrlSubmission-owned DTOs at boundary | Layering | `UrlSubmission/Categorisation/*`, `UrlSubmission.csproj` | P2 | F3 optional alignment |
+| F18 | **Move repository implementations out of Text** — `KnownTermsRepository` / elimination-terms factories implement `Persistence.Abstractions` repos inside `Text` assembly | Layering | `Text/KnownTerms/*`, `Text/EliminationTerms/*` | P3 | Separate PR acceptable |
+| F19 | **Drop `Episodes.TestSupport → Persistence`** — `EpisodeDomainTestServices.CreateMerger()` constructs `Persistence.EpisodeMerger`; after F13, reference `PodcastServices` merger or inline test double | Layering | `Episodes.TestSupport/EpisodeDomainTestServices.cs` | P2 | F13 |
+| F20 | **YouTube platform → Persistence.Abstractions** — quota/key-state services (`YouTubeQuotaUsageTracker`, `YouTubeIndexerKeyStateService`) live in platform assembly but depend on repo interfaces; extract narrow abstractions or move to infrastructure | Layering | `PodcastServices.YouTube/Quota/*` | P3 | Optional |
+
+**Out of scope (document only):** Discovery / `EpisodeResultsEnricher`; publishing console apps unless DI touched by F4/F5/F13.
+
+#### Project dependency red flags (misplaced types)
+
+Audit of **incorrect location → spurious project reference**. Target: `.Persistence` = Cosmos/repos only; `.Episodes` = domain; `.PodcastServices` = indexing orchestration; platform assemblies = API boundaries.
+
+| Red flag | Current location | Pulls reference | Target location | Phase F ref |
+|----------|------------------|-----------------|-----------------|-------------|
+| Merge loop orchestration (`EpisodeMerger`, `EpisodeMatcher`) | `Persistence` | `Persistence → Episodes` | `PodcastServices` (next to `PodcastUpdater`) | **F13** |
+| Merge contracts + `EpisodeMergeResult` DTO | `Persistence.Abstractions` | Orchestration types in “persistence” package | `PodcastServices.Abstractions` | **F14** |
+| `IndexPodcastResult` uses `EpisodeMergeResult` | `PodcastServices.Abstractions` | `Abstractions → Persistence.Abstractions` | After F14: orchestration DTOs colocated | **F16** |
+| Orphan csproj reference | `Persistence.csproj` | `→ PodcastServices.Abstractions` (unused in `.cs`) | Remove reference | **F15** |
+| Legacy tolerance static surface | `PodcastServices.Abstractions/EpisodeReleaseMatchTolerance.cs` | Call sites in UrlSubmission categorisers | Remove (domain `EpisodeReleaseTolerance` only) | **F1** |
+| `CategorisedItem` + UrlSubmission categorisation | `UrlSubmission` | `→ PodcastServices` (concrete), `→ Spotify`, platform `Resolved*Item` models | Abstractions + adapter inputs / UrlSubmission DTOs | **F17** |
+| `KnownTermsRepository` implementation | `Text` | `Text → Persistence.Abstractions` | `Persistence` (impl) + `Text` keeps providers only | **F18** |
+| Test support builds real `Persistence.EpisodeMerger` | `Episodes.TestSupport` | `TestSupport → Persistence` | `PodcastServices` merger or domain-only test helper | **F19** |
+| YouTube quota persistence | `PodcastServices.YouTube/Quota` | `YouTube → Persistence.Abstractions` | Narrow quota-state abstraction or host infra | **F20** |
+| `PlatformEpisodeEnricherTemplate` | `PodcastServices.Abstractions` | `Abstractions → Episodes` (acceptable short-term) | Optional: move to `Episodes` or keep — template is indexing enrich contract | Document only |
+
+**Target dependency edges (episode domain slice):**
+
+```
+PodcastServices → Episodes, PodcastServices.Abstractions, Persistence.Abstractions (repos only)
+PodcastServices.{Spotify,Apple,YouTube} → Episodes, Abstractions
+Persistence → Models, Persistence.Abstractions, Configuration, Text  (no Episodes)
+UrlSubmission → Episodes, Abstractions, platform categorisers (not full PodcastServices aggregator)
+Episodes → Models, Text only
+```
+
+#### Layer gaps to close with backlog above
+
+| Gap | Risk |
+|-----|------|
+| Indexing uses `PlatformEnrichmentApplicator`; UrlSubmission mutates release/description in-place | P0 parity rules in `UrlSubmissionEnrichmentRules` prove equivalent release/description outcomes |
+| `PlaylistItemFinder` has local matching logic; no wrapper rules (Spotify/Apple do) | `PlaylistItemFinderCatalogueWrapperRules` pins exact-title and publish-delay delegation |
+| Legacy `EpisodeReleaseMatchTolerance` (Abstractions) still has live call sites | Phase F **F1** — removal after domain parity (#875) |
+| `EpisodeEnricher` 43% branch, `PodcastUpdater` 68% branch | **F6** orchestration aspiration; `PodcastUpdater` scope/bypass characterized (#875) |
+
+#### Cross-phase deferred (document only unless P0/P1 item covers)
+
+| Item | Status |
+|------|--------|
+| Exact-title bypass beyond current matrix | [x] — `CatalogueMatchingRules` extended (Phase F P2, #875) |
+| `YouTubePublishDelayMatchStrategy` lines 30–36 unreachable | [x] — documented in strategy + checklist (Phase F P3) |
+| Discovery / `EpisodeResultsEnricher` | Out of scope |
 
 ### Checklist
 
-- [ ] Unify any remaining `Resolved*Item` / catalogue mapping onto adapters (delete duplicate mappers)
-- [ ] Rename confusing homonyms for clarity (document renames in PR)
-- [ ] Retire transitional wrappers that only forward to domain services
-- [ ] Remove unused `EpisodeReleaseMatchTolerance` members / type if fully migrated
-- [ ] Confirm discovery remains out of scope (`EpisodeResultsEnricher` untouched unless already adapter-only)
-- [ ] Sweep for `switch (service)` or direct tolerance calls in orchestrators (§10.8 anti-patterns)
+- [ ] **F1** — Remove unused `EpisodeReleaseMatchTolerance` members / type (call-site sweep)
+- [ ] **F2** — Retire transitional finder wrappers that only forward to domain matcher
+- [ ] **F3** — Unify remaining `Resolved*Item` / catalogue mapping onto adapters (delete duplicate mappers); consider UrlSubmission → applicator
+- [ ] **F4** — Rename confusing homonyms for clarity (document renames in PR)
+- [ ] **F5** — Sweep for `switch (service)` or direct tolerance calls in orchestrators (§10.8 anti-patterns)
+- [ ] **F12** — Confirm discovery remains out of scope (`EpisodeResultsEnricher` untouched unless already adapter-only)
+- [ ] **F13** — Move `EpisodeMatcher` / `EpisodeMerger` to `PodcastServices`; remove `Persistence → Episodes`
+- [ ] **F14** — Move `IEpisodeMatcher` / `IEpisodeMerger` / `EpisodeMergeResult` to orchestration abstractions
+- [ ] **F15** — Remove unused `Persistence → PodcastServices.Abstractions` csproj reference
+- [ ] **F16** — Decouple `PodcastServices.Abstractions` from `Persistence.Abstractions` (post F14)
+- [ ] **F17** — UrlSubmission dependency diet (`CategorisedItem` / platform model leakage)
+- [ ] **F18** — Move Text-hosted repository implementations to Persistence
+- [ ] **F19** — Episodes.TestSupport: drop Persistence reference after F13
+- [ ] **F20** — YouTube quota services: narrow persistence coupling (optional)
 
 ### Exit criteria
 
@@ -432,6 +655,42 @@ Additional rules pinning high-risk Phase D collapse vectors:
 ## Cross-cutting (every PR)
 
 Apply on **each** phase PR before merge:
+
+### Deferred test gaps index (master)
+
+Single index of test-gap status across phases. **Pre-soak backlog (Phase E P0–P3 + Phase F P0–P3) is complete in #875.** **Phase E Indexer soak in progress (2026-07-06).** Rows marked **Open** map to **Phase F deferred actions register** (F1–F12) — not Indexer soak blockers.
+
+| Gap | Location | Address in phase | Priority | Status | Phase F ref |
+|-----|----------|------------------|----------|--------|-------------|
+| §5 catalog (57 rules) | README §5.1–§5.6 | Phases A–E | — | [x] Complete | — |
+| Phase E enricher/applicator/template hardening | Episodes + PodcastServices.Tests | Phase E | P0–P3 | [x] Complete (#875) | — |
+| Phase E Indexer soak | Indexer deployment | Phase E | — | 🟡 Soak in progress | Merge #875 after review |
+| Pre-soak Phase F P0–P3 characterization | Multiple rule files | Phase F backlog (tests only, #875) | P0–P3 | [x] Complete (#875) | — |
+| Phase F P0 UrlSubmission parity + BBC/IA | `UrlSubmissionEnrichmentRules` | Phase F P0 | P0 | [x] (#875) | F3 optional |
+| Phase F P0 `PlaylistItemFinder` characterization | `PlaylistItemFinderCatalogueWrapperRules` | Phase F P0 | P0 | [x] (#875) | F2, F9 |
+| `coverage-baseline.json` `platform-enrichment` group | 7 Phase E files + gate test projects | Phase E P3 | P3 | [x] (#875) | — |
+| Tolerance parity / legacy `EpisodeReleaseMatchTolerance` removal | Abstractions + domain | Phase F cleanup | P1 | [x] Characterized — removal **Open** | **F1** |
+| Release strategy direct rules | `ExactReleaseMatchStrategy`, `SpotifyCatalogueReleaseMatchStrategy` | Phase F P1 | P1 | [x] (#875) | — |
+| `PodcastUpdater` scope/bypass branches | `PodcastUpdater.cs` | Phase F P1 | P1 | [x] (#875) | — |
+| Spotify/Apple enricher E2E business rules | Platform enrichers | Phase F P1 | P1 | [x] (#875) | — |
+| Apple/YouTube orchestration patch-applying mocks | `IndexingEnrichmentRules` | Phase F P1 | P1 | [x] (#875) | — |
+| `EpisodeIdentityExtensions` edge cases | Domain extensions | Phase F P2 | P2 | [x] (#875) | — |
+| `PlatformLinkFactory` null guard | Adapters | Phase F P2 | P2 | [x] (#875) | — |
+| `AppleEpisodeEnricherTests` convention debt | Apple.Tests | Phase F P2 | P2 | [x] (#875) | — |
+| Exact-title bypass extended matrix | `CatalogueMatchingRules` | Phase F P2 | P2 | [x] (#875) | — |
+| `YouTubePublishDelayMatchStrategy` dead branches | Strategy file | Phase F P3 | P3 | [x] Documented (#875) | — |
+| Remaining `EpisodeEnricher` branches (UrlSubmission) | `EpisodeEnricher.cs` (~43% branch) | Phase F | P1 | **Open** | **F6**, **F3** |
+| `ResolvedAppleItemAdapter` optional negative branch | Adapters (50% branch) | Phase F P2 optional | P2 | **Open** | **F7** |
+| Matcher branch aspiration (90%) | `EpisodePlatformMatcher.cs` (~79% gate) | Phase F P3 | P3 | **Open** | **F10** |
+| `PlaylistItemFinder` branch aspiration (~44%) | Local fuzzy/duration in finder | Phase F P3 | P3 | **Open** | **F9**, **F2** |
+| YouTube `SearchResultFinder` wrapper rules | YouTube search finder | Phase F P3 | P3 | **Open** | **F8**, **F2** |
+| Template bypass per Apple/YouTube enricher (optional) | Platform enrichers | Phase F P3 optional | P3 | **Open** | **F11** |
+| Phase F cleanup (wrapper/tolerance/unify enrich) | Phases D–E transitional code | Phase F PR | — | **Open** | **F1–F5** |
+| **Project layering** — merge orchestration off Persistence | `EpisodeMatcher`/`EpisodeMerger` in Persistence | Phase F | P1 | **Open** | **F13–F16** |
+| **Project layering** — UrlSubmission / Text / TestSupport red flags | See audit table | Phase F | P2–P3 | **Open** | **F17–F20** |
+| Discovery / `EpisodeResultsEnricher` | Discovery hosts | Out of scope | — | N/A | **F12** |
+
+See also: `coverage-baseline.json` → `gapsToClose` for coverage-specific follow-ups.
 
 ### Coverage gate
 

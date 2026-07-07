@@ -141,7 +141,7 @@ public class Indexer(
             indexerContext.DuplicateIndexerPassOperations[indexerContextWrapper.Pass - 1] = true;
         }
 
-        bool results;
+        bool results = true;
         try
         {
             var updateStopwatch = Stopwatch.StartNew();
@@ -157,7 +157,6 @@ public class Indexer(
         }
         catch (Exception ex)
         {
-            memoryProbe.End(false, ex.GetType().Name);
             logger.LogError(ex,
                 "Failure to execute {nameofIPodcastsUpdater}.{nameofIPodcastsUpdater.UpdatePodcasts}.",
                 nameof(IPodcastsUpdater), nameof(IPodcastsUpdater.UpdatePodcasts));
@@ -194,7 +193,9 @@ public class Indexer(
 
         if (!results)
         {
-            logger.LogError("Failure occurred");
+            logger.LogWarning(
+                "Indexer pass {Pass} completed with one or more podcast update failures. Continuing orchestration.",
+                indexerContextWrapper.Pass);
         }
 
         var result = indexerContext with
@@ -206,7 +207,7 @@ public class Indexer(
             SpotifyError = indexingContext.SkipSpotifyUrlResolving
         };
 
-        memoryProbe.End();
+        memoryProbe.End(results);
 
         logger.LogWarning(
             "IndexerPassComplete instance-id='{InstanceId}' pass='{Pass}' operation-id='{OperationId}' podcast-count='{PodcastCount}' success='{Success}' skip-youtube='{SkipYouTube}' youtube-error='{YouTubeError}' skip-spotify='{SkipSpotify}' spotify-error='{SpotifyError}' update-ms='{UpdateMs}'",

@@ -8,7 +8,7 @@ using RedditPodcastPoster.Episodes.Matching.Strategies;
 using RedditPodcastPoster.Episodes.Merging;
 using RedditPodcastPoster.Episodes.Merging.Policies;
 
-namespace RedditPodcastPoster.Episodes;
+namespace RedditPodcastPoster.Episodes.Extensions;
 
 public static class ServiceCollectionExtensions
 {
@@ -24,6 +24,7 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddEpisodesDomain()
         {
             services.AddSingleton<IEpisodePlatformApplier, EpisodePlatformApplier>();
+            services.AddSingleton<IPlatformEnrichmentApplicator, PlatformEnrichmentApplicator>();
             services.AddSingleton<IEpisodePlatformMerger, EpisodePlatformMerger>();
             services.AddSingleton<IEpisodePlatformMatcher, EpisodePlatformMatcher>();
 

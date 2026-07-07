@@ -1,19 +1,10 @@
 ﻿using System.Reflection;
 using CommandLine;
 using Discover;
-using iTunesSearch.Library;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.ContentPublisher;
-using RedditPodcastPoster.ContentPublisher.Extensions;
-using RedditPodcastPoster.Discovery.Extensions;
-using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PodcastServices;
-using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
-using RedditPodcastPoster.Subjects.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -27,18 +18,8 @@ builder.Configuration
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
 
-builder.Services
-    .AddLogging()
-    .AddDiscovery(ApplicationUsage.Cli)
-    .AddContentPublishing()
-    .AddScoped<DiscoveryProcessor>()
-    .AddScoped<IDiscoveryResultConsoleLogger, DiscoveryResultConsoleLogger>()
-    .AddRepositories()
-    .AddSubjectServices()
-    .AddCachedSubjectProvider()
-    .AddScoped<IRemoteClient, RemoteClient>()
-    .AddScoped(s => new iTunesSearchManager())
-    .AddHttpClient();
+builder.Services.AddLogging();
+Ioc.ConfigureServices(builder.Services);
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<DiscoveryRequest>(args)

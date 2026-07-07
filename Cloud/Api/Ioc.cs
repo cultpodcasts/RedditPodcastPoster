@@ -17,7 +17,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Discovery.Extensions;
-using RedditPodcastPoster.Episodes;
+using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Indexing.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;

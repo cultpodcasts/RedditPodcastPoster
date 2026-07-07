@@ -91,4 +91,16 @@ public class PlatformCatalogueAdapterRules
             input.Description);
         EpisodeExpectation.From(candidate).Should().BeEquivalentTo(expected);
     }
+
+    [Fact(DisplayName =
+        "When PlatformLinkFactory receives null id, null url, and null image, it returns null " +
+        "so adapters do not materialize empty platform links.")]
+    public void platform_link_factory_returns_null_when_all_inputs_are_null()
+    {
+        // Arrange & Act
+        var link = PlatformLinkFactory.Create(Service.Spotify, id: null, url: null, image: null);
+
+        // Assert
+        link.Should().BeNull();
+    }
 }

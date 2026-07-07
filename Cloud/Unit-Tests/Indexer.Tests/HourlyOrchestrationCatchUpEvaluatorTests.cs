@@ -32,7 +32,21 @@ public class HourlyOrchestrationCatchUpEvaluatorTests
     }
 
     [Fact]
-    public void ShouldNotScheduleCatchUp_when_instance_already_started_this_hour()
+    public void ShouldScheduleCatchUp_when_prior_hour_orchestration_is_still_active()
+    {
+        var instances = new[]
+        {
+            new HourlyOrchestrationInstance(HourStart.AddHours(-2), OrchestrationRuntimeStatus.Running)
+        };
+
+        HourlyOrchestrationCatchUpEvaluator.ShouldScheduleCatchUp(
+                HourStart.UtcDateTime.AddMinutes(5),
+                instances)
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void ShouldNotScheduleCatchUp_when_instance_already_completed_this_hour()
     {
         var instances = new[]
         {
@@ -41,25 +55,62 @@ public class HourlyOrchestrationCatchUpEvaluatorTests
 
         HourlyOrchestrationCatchUpEvaluator.ShouldScheduleCatchUp(
                 HourStart.UtcDateTime.AddMinutes(5),
-                instances)
+                instances,
+                out var skipReason)
             .Should().BeFalse();
+
+        skipReason.Should().Be(HourlyCatchUpSkipReason.CompletedThisHour);
     }
 
     [Theory]
-    [InlineData(OrchestrationRuntimeStatus.Pending)]
     [InlineData(OrchestrationRuntimeStatus.Running)]
     [InlineData(OrchestrationRuntimeStatus.ContinuedAsNew)]
-    public void ShouldNotScheduleCatchUp_when_hourly_orchestration_is_still_active(OrchestrationRuntimeStatus status)
+    public void ShouldNotScheduleCatchUp_when_hourly_orchestration_is_in_progress_this_hour(
+        OrchestrationRuntimeStatus status)
     {
         var instances = new[]
         {
-            new HourlyOrchestrationInstance(HourStart.AddHours(-2), status)
+            new HourlyOrchestrationInstance(HourStart.AddSeconds(30), status)
         };
 
         HourlyOrchestrationCatchUpEvaluator.ShouldScheduleCatchUp(
                 HourStart.UtcDateTime.AddMinutes(5),
-                instances)
+                instances,
+                out var skipReason)
             .Should().BeFalse();
+
+        skipReason.Should().Be(HourlyCatchUpSkipReason.InProgressThisHour);
+    }
+
+    [Fact]
+    public void ShouldNotScheduleCatchUp_when_recent_pending_instance_exists_this_hour()
+    {
+        var instances = new[]
+        {
+            new HourlyOrchestrationInstance(HourStart.AddSeconds(30), OrchestrationRuntimeStatus.Pending)
+        };
+
+        HourlyOrchestrationCatchUpEvaluator.ShouldScheduleCatchUp(
+                HourStart.UtcDateTime.AddMinutes(2),
+                instances,
+                out var skipReason)
+            .Should().BeFalse();
+
+        skipReason.Should().Be(HourlyCatchUpSkipReason.PendingThisHour);
+    }
+
+    [Fact]
+    public void ShouldScheduleCatchUp_when_pending_instance_is_stale_ghost_from_recycled_worker()
+    {
+        var instances = new[]
+        {
+            new HourlyOrchestrationInstance(HourStart.AddSeconds(2), OrchestrationRuntimeStatus.Pending)
+        };
+
+        HourlyOrchestrationCatchUpEvaluator.ShouldScheduleCatchUp(
+                HourStart.UtcDateTime.AddMinutes(8),
+                instances)
+            .Should().BeTrue();
     }
 
     [Fact]

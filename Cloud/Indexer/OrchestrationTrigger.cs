@@ -12,7 +12,7 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
 
     [Function("Hourly")]
     public async Task RunHourly(
-        [TimerTrigger("0 */1 * * *"
+        [TimerTrigger("0 3 * * * *"
 #if DEBUG
             , RunOnStartup = true
 #endif
@@ -21,16 +21,20 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
         [DurableClient] DurableTaskClient client,
         CancellationToken cancellationToken)
     {
-        var hourUtc = DateTime.UtcNow.Hour;
+        var utcNow = DateTime.UtcNow;
+        var hourUtc = utcNow.Hour;
         logger.LogWarning(
             "OrchestrationTrigger RunHourly initiated hour-utc='{HourUtc}'.",
             hourUtc);
 
-        if (await HasActiveOrchestrationInstanceAsync(client, nameof(HourlyOrchestration), cancellationToken))
+        var hourlyInstances = await GetHourlyOrchestrationInstancesAsync(client, cancellationToken);
+        LogHourlyOrchestrationHealthIssues(HourlyOrchestrationHealthChecker.FindPriorHourIssues(utcNow, hourlyInstances));
+
+        if (HourlyOrchestrationCatchUpEvaluator.HasActiveHourlyOrchestrationInCurrentUtcHour(utcNow, hourlyInstances))
         {
             logger.LogWarning(
-                "{OrchestrationTriggerName} {RunHourlyName} skipped. Existing '{HourlyOrchestrationName}' instance is still active.",
-                nameof(OrchestrationTrigger), nameof(RunHourly), nameof(HourlyOrchestration));
+                "{OrchestrationTriggerName} {RunHourlyName} skipped. '{HourlyOrchestrationName}' is already active for UTC hour {HourUtc}.",
+                nameof(OrchestrationTrigger), nameof(RunHourly), nameof(HourlyOrchestration), hourUtc);
             return;
         }
 
@@ -39,7 +43,7 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
 
     [Function("HourlyCatchUp")]
     public async Task RunHourlyCatchUp(
-        [TimerTrigger("0 5 * * * *"
+        [TimerTrigger("0 8 * * * *"
 #if DEBUG
             , RunOnStartup = false
 #endif
@@ -53,14 +57,22 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
 
         var utcNow = DateTime.UtcNow;
         var hourlyInstances = await GetHourlyOrchestrationInstancesAsync(client, cancellationToken);
+        LogHourlyOrchestrationHealthIssues(HourlyOrchestrationHealthChecker.FindPriorHourIssues(utcNow, hourlyInstances));
+        LogHourlyOrchestrationHealthIssues(
+            HourlyOrchestrationHealthChecker.FindCurrentHourStuckIssues(utcNow, hourlyInstances));
 
-        if (!HourlyOrchestrationCatchUpEvaluator.ShouldScheduleCatchUp(utcNow, hourlyInstances))
+        if (!HourlyOrchestrationCatchUpEvaluator.ShouldScheduleCatchUp(utcNow, hourlyInstances, out var skipReason))
         {
             logger.LogInformation(
-                "{OrchestrationTriggerName} {RunHourlyCatchUpName} skipped. Hourly orchestration already ran or is active for UTC hour {HourUtc}.",
-                nameof(OrchestrationTrigger), nameof(RunHourlyCatchUp), utcNow.Hour);
+                "{OrchestrationTriggerName} {RunHourlyCatchUpName} skipped for UTC hour {HourUtc}. Reason='{SkipReason}'.",
+                nameof(OrchestrationTrigger), nameof(RunHourlyCatchUp), utcNow.Hour, skipReason);
             return;
         }
+
+        LogHourlyOrchestrationHealthIssues(
+        [
+            HourlyOrchestrationHealthChecker.CreateCurrentHourPrimaryMissedIssue(utcNow.Hour)
+        ]);
 
         logger.LogWarning(
             "{OrchestrationTriggerName} {RunHourlyCatchUpName} scheduling missed hourly orchestration for UTC hour {HourUtc}.",
@@ -192,9 +204,27 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
                 continue;
             }
 
-            instances.Add(new HourlyOrchestrationInstance(metadata.CreatedAt, metadata.RuntimeStatus));
+            instances.Add(new HourlyOrchestrationInstance(
+                metadata.CreatedAt,
+                metadata.RuntimeStatus,
+                metadata.InstanceId));
         }
 
         return instances;
+    }
+
+    private void LogHourlyOrchestrationHealthIssues(IReadOnlyList<HourlyOrchestrationHealthIssue> issues)
+    {
+        foreach (var issue in issues)
+        {
+            var exception = new HourlyOrchestrationIncompleteException(issue.Message);
+            logger.LogError(
+                exception,
+                "Hourly orchestration health issue kind='{Kind}' hour-utc='{HourUtc}' instance-id='{InstanceId}' status='{Status}'.",
+                issue.Kind,
+                issue.HourUtc,
+                issue.InstanceId,
+                issue.Status);
+        }
     }
 }

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
@@ -8,6 +9,10 @@ using RedditPodcastPoster.PodcastServices.Apple;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 
+/// <summary>
+/// Legacy Apple enricher test entry point — catalogue E2E rules live in
+/// <see cref="Enrichment.AppleEpisodeEnricherCatalogueRules"/>.
+/// </summary>
 public class AppleEpisodeEnricherTests
 {
     private readonly DomainTestFixture _fixture = new();
@@ -15,7 +20,7 @@ public class AppleEpisodeEnricherTests
     [Fact(DisplayName =
         "When a YouTube release authority episode with negative publishing delay is merged with Spotify, " +
         "enrichment applies Apple URL and preserves YouTube publish datetime.")]
-    public async Task Enrich_WhenYouTubeReleaseAuthorityEpisodeMergedWithSpotify_AppliesAppleUrl()
+    public async Task enrich_applies_apple_url_and_preserves_youtube_release_for_negative_delay_authority()
     {
         // Arrange
         const int youTubeReleaseDaysAgo = 30;
@@ -50,11 +55,8 @@ public class AppleEpisodeEnricherTests
             string.Empty,
             false);
 
-        var sut = new AppleEpisodeEnricher(
-            new StubApplePodcastEnricher(),
-            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId),
-            EpisodeDomainTestServices.CreatePlatformMatcher(),
-            NullLogger<AppleEpisodeEnricher>.Instance);
+        var sut = CreateEnricher(
+            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId));
 
         var enrichmentContext = new EnrichmentContext();
 
@@ -72,99 +74,104 @@ public class AppleEpisodeEnricherTests
         enrichmentContext.AppleUrlUpdated.Should().BeTrue();
     }
 
-    [Fact]
-    public async Task Enrich_WhenAppleReleaseSameDateWithTime_BackfillsMidnightRelease()
+    [Fact(DisplayName =
+        "When Apple catalogue release shares the stored calendar date with a non-zero time, " +
+        "the enricher backfills midnight UTC stored release to the Apple publish datetime.")]
+    public async Task enrich_backfills_midnight_release_when_apple_release_shares_calendar_date()
     {
-        var podcast = new Podcast
-        {
-            Id = Guid.NewGuid(),
-            Name = "Test Podcast",
-            AppleId = _fixture.CreateAppleId()
-        };
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.AppleId = _fixture.CreateAppleId());
         var dateOnlyRelease = DomainTestFixture.UtcDateDaysAgo(2);
         var appleRelease = dateOnlyRelease.AddHours(8);
         var appleEpisodeId = _fixture.CreateAppleId();
         var spotifyId = _fixture.CreateSpotifyId();
-        var episode = new Episode
-        {
-            Id = Guid.NewGuid(),
-            Title = _fixture.CreateTitle(),
-            Release = dateOnlyRelease,
-            Length = _fixture.CreateDuration(),
-            SpotifyId = spotifyId,
-            Urls = new ServiceUrls { Spotify = _fixture.DefaultSpotifyUrl(spotifyId) }
-        };
+        var sharedTitle = _fixture.CreateTitle();
+        var sharedLength = _fixture.CreateDuration();
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithTitle(sharedTitle)
+            .WithRelease(dateOnlyRelease)
+            .WithLength(sharedLength)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
+            .Create();
         var appleEpisode = new AppleEpisode(
             appleEpisodeId,
-            episode.Title,
+            sharedTitle,
             appleRelease,
-            episode.Length,
-            new Uri($"https://podcasts.apple.com/us/podcast/test/id{podcast.AppleId}?i={appleEpisodeId}"),
+            sharedLength,
+            new Uri($"https://podcasts.apple.com/us/podcast/episode/id{podcast.AppleId}?i={appleEpisodeId}"),
             string.Empty,
             false);
 
-        var sut = new AppleEpisodeEnricher(
-            new StubApplePodcastEnricher(),
-            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId),
-            EpisodeDomainTestServices.CreatePlatformMatcher(),
-            NullLogger<AppleEpisodeEnricher>.Instance);
+        var sut = CreateEnricher(
+            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId));
 
         var enrichmentContext = new EnrichmentContext();
+
+        // Act
         await sut.Enrich(
             new EnrichmentRequest(podcast, [episode], episode),
             new IndexingContext(),
             enrichmentContext);
 
+        // Assert
         episode.Release.Should().Be(appleRelease);
         enrichmentContext.ReleaseUpdated.Should().BeTrue();
     }
 
-    [Fact]
-    public async Task Enrich_WhenAppleReleaseDifferentDate_DoesNotBackfillMidnightRelease()
+    [Fact(DisplayName =
+        "When Apple catalogue release is on a different calendar date, the enricher does not " +
+        "backfill a midnight UTC stored release.")]
+    public async Task enrich_does_not_backfill_release_when_apple_date_differs()
     {
-        var podcast = new Podcast
-        {
-            Id = Guid.NewGuid(),
-            Name = "Test Podcast",
-            AppleId = _fixture.CreateAppleId()
-        };
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.AppleId = _fixture.CreateAppleId());
         var dateOnlyRelease = DomainTestFixture.UtcDateDaysAgo(3);
         var appleRelease = DomainTestFixture.UtcDateDaysAgo(2).AddHours(8);
         var appleEpisodeId = _fixture.CreateAppleId();
         var spotifyId = _fixture.CreateSpotifyId();
-        var episode = new Episode
-        {
-            Id = Guid.NewGuid(),
-            Title = _fixture.CreateTitle(),
-            Release = dateOnlyRelease,
-            Length = _fixture.CreateDuration(),
-            SpotifyId = spotifyId,
-            Urls = new ServiceUrls { Spotify = _fixture.DefaultSpotifyUrl(spotifyId) }
-        };
+        var sharedTitle = _fixture.CreateTitle();
+        var sharedLength = _fixture.CreateDuration();
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithTitle(sharedTitle)
+            .WithRelease(dateOnlyRelease)
+            .WithLength(sharedLength)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
+            .Create();
         var appleEpisode = new AppleEpisode(
             appleEpisodeId,
-            episode.Title,
+            sharedTitle,
             appleRelease,
-            episode.Length,
-            new Uri($"https://podcasts.apple.com/us/podcast/test/id{podcast.AppleId}?i={appleEpisodeId}"),
+            sharedLength,
+            new Uri($"https://podcasts.apple.com/us/podcast/episode/id{podcast.AppleId}?i={appleEpisodeId}"),
             string.Empty,
             false);
 
-        var sut = new AppleEpisodeEnricher(
-            new StubApplePodcastEnricher(),
-            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId),
-            EpisodeDomainTestServices.CreatePlatformMatcher(),
-            NullLogger<AppleEpisodeEnricher>.Instance);
+        var sut = CreateEnricher(
+            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId));
 
         var enrichmentContext = new EnrichmentContext();
+
+        // Act
         await sut.Enrich(
             new EnrichmentRequest(podcast, [episode], episode),
             new IndexingContext(),
             enrichmentContext);
 
+        // Assert
         episode.Release.Should().Be(dateOnlyRelease);
         enrichmentContext.ReleaseUpdated.Should().BeFalse();
     }
+
+    private static AppleEpisodeEnricher CreateEnricher(IAppleEpisodeResolver resolver) =>
+        new(
+            new StubApplePodcastEnricher(),
+            resolver,
+            EpisodeDomainTestServices.CreatePlatformMatcher(),
+            new AppleEpisodeAdapter(),
+            EpisodeDomainTestServices.CreateEnrichmentApplicator(),
+            NullLogger<AppleEpisodeEnricher>.Instance);
 
     private sealed class StubApplePodcastEnricher : IApplePodcastEnricher
     {

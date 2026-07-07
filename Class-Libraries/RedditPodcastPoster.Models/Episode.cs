@@ -250,6 +250,11 @@ public class Episode
             updatedMetadata = true;
         }
 
+        if (InheritLanguageFromPodcastIfUnset(podcast))
+        {
+            updated = true;
+        }
+
         return (updated, updatedMetadata);
     }
 

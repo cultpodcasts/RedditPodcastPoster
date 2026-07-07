@@ -69,7 +69,6 @@ public class Discover(
             };
         }
 
-        bool results;
         try
         {
             var getServiceConfigOptions = new GetServiceConfigOptions(
@@ -125,19 +124,29 @@ public class Discover(
                     nameof(DiscoveryResultsDocument));
             }
 
-            logger.LogInformation(
-                "{method} Complete. {nameofDiscoveryBegan}: '{discoveryBegan:O}', document-id: '{discoveryResultsDocumentId}', results-count: '{discoveryResultsCount}', indexing-context: {indexingContext}",
-                nameof(RunAsync), nameof(discoveryBegan), discoveryBegan, discoveryResultsDocument.Id,
-                discoveryResults.Count, indexingContext);
-            results = true;
+            logger.LogWarning(
+                "{method} complete. {nameofDiscoveryBegan}='{discoveryBegan:O}' document-id='{discoveryResultsDocumentId}' results-count='{discoveryResultsCount}' operation-id='{operationId}'.",
+                nameof(RunAsync),
+                nameof(discoveryBegan),
+                discoveryBegan,
+                discoveryResultsDocument.Id,
+                discoveryResults.Count,
+                input.DiscoveryOperationId);
+
+            memoryProbe.End(true);
+
+            return input with
+            {
+                Success = true
+            };
         }
         catch (Exception ex)
         {
             memoryProbe.End(false, ex.GetType().Name);
-            logger.LogError(ex,
-                "Failure to execute {nameofDiscover}.{method}.",
-                nameof(Discover), nameof(RunAsync));
-            results = false;
+            logger.LogError(ex, "{method} did not complete.", nameof(RunAsync));
+            throw new DiscoveryOrchestrationIncompleteException(
+                $"Discover activity did not complete (operation-id='{input.DiscoveryOperationId}').",
+                ex);
         }
         finally
         {
@@ -154,20 +163,6 @@ public class Discover(
                 logger.LogError(ex, "Failure to complete activity.");
             }
         }
-
-        if (!results)
-        {
-            logger.LogError("Failure occurred");
-        }
-
-        logger.LogInformation("{method} Completed", nameof(RunAsync));
-
-        memoryProbe.End(results);
-
-        return input with
-        {
-            Success = results
-        };
     }
 
     private void EnrichDiscoveryResultsDocument(

@@ -48,9 +48,8 @@ public class Tweet(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Failure to execute {nameof(ITweeter)}.{nameof(ITweeter.Tweet)}.");
             memoryProbe.End(false, ex.GetType().Name);
-            return indexerContext with { Success = false };
+            throw;
         }
 
         memoryProbe.End();

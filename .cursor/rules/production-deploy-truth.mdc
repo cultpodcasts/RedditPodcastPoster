@@ -1,0 +1,54 @@
+---
+description: HARD GUARDRAIL — authoritative production deploy timestamps (Flex blob script deploys)
+alwaysApply: true
+---
+
+# Production deploy truth (HARD GUARDRAIL)
+
+**Production function apps are deployed by script** (`scripts/deploy-*.ps1` → blob upload + restart), not by GitHub Actions in normal operation. **Never infer deploy time from CI or Kudu.**
+
+## Before ANY claim about deploy timing, version on prod, or post-deploy behaviour
+
+1. **MUST** query the deployment blob `lastModified` (authoritative).
+2. **MUST** correlate with `Microsoft.Web/sites/restart/action` in the activity log within ~60s of that timestamp (script always restarts after upload).
+3. **MUST NOT** state or imply prod is stale/current based on sources listed below as **non-authoritative**.
+
+If blob query was not run in this conversation, say **"deploy time unknown — blob not checked"** instead of guessing.
+
+## Authoritative source (ONLY)
+
+| App | Storage account | Container | Blob |
+|-----|-----------------|-----------|------|
+| `indexer-infra` | `cultpodcastsstg` | `indexer-deployment` | `released-package.zip` |
+| `discover-infra` | `cultpodcastsstg` | `discovery-deployment` | `released-package.zip` |
+| `api-infra` | `cultpodcastsstg` | `api-deployment` | `released-package.zip` |
+
+```powershell
+az storage blob show --account-name cultpodcastsstg --container-name indexer-deployment --name released-package.zip --auth-mode login --query properties.lastModified -o tsv
+
+az monitor activity-log list --resource-group AutomatedInfra --start-time <blobTime-2m> --end-time <blobTime+2m> --query "[?contains(resourceId,'indexer-infra') && contains(operationName.value,'restart')].eventTimestamp" -o tsv
+```
+
+**Deploy timestamp = blob `lastModified` UTC.** Restart alone (no blob change) is **not** a code release.
+
+## FORBIDDEN as deploy evidence (do not use for recommendations)
+
+- `az webapp log deployment list` / Kudu deployment history
+- GitHub **Build** or **Provision and Deploy** workflow success/failure
+- `az functionapp deployment list` or SCM site deploy APIs
+- Assumption that "last commit" or "PR merged" equals prod deploy
+- Host restarts with **no** matching blob upload (may be manual restart or platform recycle)
+
+## Restart vs release
+
+| Signal | Meaning |
+|--------|---------|
+| Blob `lastModified` changed + restart ~same time | **Script code release** |
+| Restart only, blob unchanged | **Not** a code release — do not blame "deploy" for missed timers |
+| No blob check performed | **Unknown** — do not recommend "deploy the fix" without verifying blob age |
+
+## Post-deploy verification
+
+After stating deploy time from blob, verify behaviour using **`AppRequests` first** (see [production-execution-truth.mdc](production-execution-truth.mdc)) — not whether CI passed.
+
+See also: [docs/deployment.md](../../docs/deployment.md) § "When was prod last deployed?"

@@ -8,7 +8,7 @@ using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
-using RedditPodcastPoster.Episodes;
+using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
