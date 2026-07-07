@@ -2,7 +2,10 @@ using Microsoft.DurableTask.Client;
 
 namespace Indexer;
 
-public readonly record struct HourlyOrchestrationInstance(DateTimeOffset CreatedAt, OrchestrationRuntimeStatus Status);
+public readonly record struct HourlyOrchestrationInstance(
+    DateTimeOffset CreatedAt,
+    OrchestrationRuntimeStatus Status,
+    string InstanceId = "");
 
 public enum HourlyCatchUpSkipReason
 {
