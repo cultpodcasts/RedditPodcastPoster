@@ -4,7 +4,7 @@ using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Episodes.Applying;
 using RedditPodcastPoster.Episodes.Merging;
 using RedditPodcastPoster.Episodes.Matching;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.PodcastServices;
 
 namespace RedditPodcastPoster.Episodes.TestSupport;
 

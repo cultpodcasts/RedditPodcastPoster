@@ -2,8 +2,6 @@ using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence;
-using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.Persistence.Tests;
 
@@ -29,14 +27,12 @@ public class CrossPlatformYouTubeReleaseAuthorityMergeTests
             .WithDuration(existing.Length));
 
         // Act
-        var releaseMatches = EpisodeReleaseMatchTolerance.EpisodesReleaseMatch(podcast, existing, incoming);
         var isMatch = EpisodeDomainTestServices.CreateMatcher()
             .IsMatch(existing, incoming, episodeMatchRegex: null, podcast);
 
         // Assert
-        releaseMatches.Should().BeTrue(
+        isMatch.Should().BeTrue(
             $"Spotify release {incoming.Release:O} should align after delay adjustment");
-        isMatch.Should().BeTrue();
     }
 
     [Fact(DisplayName =

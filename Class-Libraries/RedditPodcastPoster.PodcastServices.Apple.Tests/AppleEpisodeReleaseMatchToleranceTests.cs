@@ -1,11 +1,12 @@
 using FluentAssertions;
+using RedditPodcastPoster.Episodes;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 
-public class EpisodeReleaseMatchToleranceTests
+public class EpisodeReleaseToleranceTests
 {
     private readonly DomainTestFixture _fixture = new();
     [Fact]
@@ -18,7 +19,7 @@ public class EpisodeReleaseMatchToleranceTests
         };
 
         var tolerance = TimeSpan.FromTicks(
-            EpisodeReleaseMatchTolerance.GetToleranceTicks(podcast, TimeSpan.FromHours(1)));
+            EpisodeReleaseTolerance.GetToleranceTicks(podcast, TimeSpan.FromHours(1)));
 
         tolerance.Should().BeLessThan(TimeSpan.FromDays(14));
         tolerance.Should().BeGreaterThan(TimeSpan.FromDays(1));
@@ -30,7 +31,7 @@ public class EpisodeReleaseMatchToleranceTests
         var expected = new DateTime(2026, 7, 2, 9, 15, 27, DateTimeKind.Utc);
         var spotifyCatalogue = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(spotifyCatalogue, expected).Should().BeTrue();
+        EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(spotifyCatalogue, expected).Should().BeTrue();
     }
 
     [Fact]
@@ -42,7 +43,7 @@ public class EpisodeReleaseMatchToleranceTests
         };
 
         var tolerance = TimeSpan.FromTicks(
-            EpisodeReleaseMatchTolerance.GetToleranceTicks(podcast, TimeSpan.Zero));
+            EpisodeReleaseTolerance.GetToleranceTicks(podcast, TimeSpan.Zero));
 
         tolerance.Should().Be(TimeSpan.FromDays(14));
     }
@@ -66,7 +67,9 @@ public class EpisodeReleaseMatchToleranceTests
             Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/watch?v=test-video") }
         };
 
-        EpisodeReleaseMatchTolerance.EpisodesReleaseMatch(podcast, existing, incoming).Should().BeTrue();
+        EpisodeDomainTestServices.CreateMatcher()
+            .IsMatch(existing, incoming, episodeMatchRegex: null, podcast)
+            .Should().BeTrue();
     }
 
     [Fact]
@@ -79,9 +82,9 @@ public class EpisodeReleaseMatchToleranceTests
         };
         var expected = new DateTime(2026, 7, 6, 1, 8, 6, DateTimeKind.Utc);
         var spotifyCatalogue = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
-        var tolerance = EpisodeReleaseMatchTolerance.GetToleranceTicks(podcast, TimeSpan.FromMinutes(88));
+        var tolerance = EpisodeReleaseTolerance.GetToleranceTicks(podcast, TimeSpan.FromMinutes(88));
 
-        EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
+        EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
                 spotifyCatalogue,
                 expected,
                 tolerance,
@@ -108,11 +111,11 @@ public class EpisodeReleaseMatchToleranceTests
             Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g") }
         };
 
-        EpisodeReleaseMatchTolerance.ShouldEnrichDespiteReleaseWindow(episode, podcast).Should().BeTrue();
+        EpisodeReleaseTolerance.ShouldEnrichDespiteReleaseWindow(episode, podcast).Should().BeTrue();
     }
 
     [Fact]
-    public void EpisodesReleaseMatch_WhenYouTubeAuthorityStoredYouTubeAndSpotifyIncomingAlignAfterDelayAdjustment_ReturnsTrue()
+    public void IsMatch_WhenYouTubeAuthorityStoredYouTubeAndSpotifyIncomingAlignAfterDelayAdjustment_ReturnsTrue()
     {
         var delay = TimeSpan.FromDays(1);
         var podcast = new Podcast
@@ -136,7 +139,9 @@ public class EpisodeReleaseMatchToleranceTests
             Urls = new ServiceUrls { Spotify = new Uri("https://open.spotify.com/episode/test") }
         };
 
-        EpisodeReleaseMatchTolerance.EpisodesReleaseMatch(podcast, existing, incoming).Should().BeTrue();
+        EpisodeDomainTestServices.CreateMatcher()
+            .IsMatch(existing, incoming, episodeMatchRegex: null, podcast)
+            .Should().BeTrue();
     }
 
     [Fact]
@@ -156,7 +161,7 @@ public class EpisodeReleaseMatchToleranceTests
             Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/watch?v=video-id") }
         };
 
-        EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, episode)
+        EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(podcast, episode)
             .Should().Be(youTubePublish - delay);
     }
 
@@ -171,7 +176,7 @@ public class EpisodeReleaseMatchToleranceTests
         };
         var release = new DateTime(2026, 7, 2, 9, 0, 0, DateTimeKind.Utc);
 
-        EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, release, episodeHasYouTubeIdentity: false)
+        EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(podcast, release, episodeHasYouTubeIdentity: false)
             .Should().Be(release - delay);
     }
 
@@ -198,7 +203,7 @@ public class EpisodeReleaseMatchToleranceTests
             }
         };
 
-        EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, episode)
+        EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(podcast, episode)
             .Should().Be(youTubeRelease - TimeSpan.FromTicks(c2cDelayTicks));
     }
 
@@ -217,7 +222,7 @@ public class EpisodeReleaseMatchToleranceTests
             SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4"
         };
 
-        EpisodeReleaseMatchTolerance.ShouldPreserveYouTubeAuthoritativeRelease(podcast, episode)
+        EpisodeReleaseTolerance.ShouldPreserveYouTubeAuthoritativeRelease(podcast, episode)
             .Should().BeTrue();
     }
 
@@ -235,7 +240,7 @@ public class EpisodeReleaseMatchToleranceTests
             SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4"
         };
 
-        EpisodeReleaseMatchTolerance.ShouldPreserveYouTubeAuthoritativeRelease(podcast, episode)
+        EpisodeReleaseTolerance.ShouldPreserveYouTubeAuthoritativeRelease(podcast, episode)
             .Should().BeFalse();
     }
 
@@ -252,7 +257,7 @@ public class EpisodeReleaseMatchToleranceTests
         var youTubeRelease = DomainTestFixture.UtcAtTime(
             -youTubeReleaseDaysAgo,
             _fixture.CreateNonMidnightTimeOfDay());
-        var expectedAudioRelease = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(
+        var expectedAudioRelease = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(
             podcast,
             youTubeRelease,
             episodeHasYouTubeIdentity: true);
@@ -261,12 +266,12 @@ public class EpisodeReleaseMatchToleranceTests
             spotifyDaysAfterYouTube);
         var appleCatalogueRelease = spotifyCatalogueDate.AddDays(appleCatalogueDaysAfterSpotifyDate)
             .AddHours(8);
-        var tolerance = EpisodeReleaseMatchTolerance.GetToleranceTicks(
+        var tolerance = EpisodeReleaseTolerance.GetToleranceTicks(
             podcast,
             _fixture.CreateDuration());
 
         // Act & Assert
-        EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
+        EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
                 appleCatalogueRelease,
                 expectedAudioRelease,
                 tolerance,

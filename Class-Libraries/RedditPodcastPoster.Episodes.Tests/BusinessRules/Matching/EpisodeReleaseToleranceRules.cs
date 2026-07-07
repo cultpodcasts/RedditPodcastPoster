@@ -2,13 +2,11 @@ using FluentAssertions;
 using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 
 /// <summary>
-/// Domain <see cref="EpisodeReleaseTolerance"/> parity with legacy
-/// <see cref="EpisodeReleaseMatchTolerance"/> before Abstractions type removal.
+/// Characterizes <see cref="EpisodeReleaseTolerance"/> release lookup and catalogue tolerance behavior.
 /// </summary>
 public class EpisodeReleaseToleranceRules
 {
@@ -24,9 +22,9 @@ public class EpisodeReleaseToleranceRules
         };
 
     [Theory(DisplayName =
-        "Domain GetToleranceTicks matches legacy EpisodeReleaseMatchTolerance for delay and authority scenarios.")]
+        "GetToleranceTicks returns expected thresholds for delay and release-authority scenarios.")]
     [MemberData(nameof(ToleranceScenarioNames))]
-    public void get_tolerance_ticks_matches_legacy_implementation(string scenario)
+    public void get_tolerance_ticks_for_delay_and_authority_scenarios(string scenario)
     {
         // Arrange
         var episodeLength = _fixture.CreateDuration();
@@ -42,17 +40,32 @@ public class EpisodeReleaseToleranceRules
         };
 
         // Act
-        var domainTicks = EpisodeReleaseTolerance.GetToleranceTicks(podcast, episodeLength);
-        var legacyTicks = EpisodeReleaseMatchTolerance.GetToleranceTicks(podcast, episodeLength);
+        var toleranceTicks = EpisodeReleaseTolerance.GetToleranceTicks(podcast, episodeLength);
+        var tolerance = TimeSpan.FromTicks(toleranceTicks);
 
         // Assert
-        domainTicks.Should().Be(legacyTicks);
+        switch (scenario)
+        {
+            case "zero_delay":
+                tolerance.Should().Be(EpisodeReleaseTolerance.YouTubeAuthorityToAudioReleaseConsiderationThreshold);
+                break;
+            case "negative_delay":
+                tolerance.Should().BeGreaterThan(EpisodeReleaseTolerance.YouTubePublishDelayMatchThreshold);
+                break;
+            case "positive_delay_youtube_authority":
+                tolerance.Should().BeLessThan(EpisodeReleaseTolerance.YouTubeAuthorityToAudioReleaseConsiderationThreshold);
+                tolerance.Should().BeGreaterThan(TimeSpan.FromDays(1));
+                break;
+            case "positive_delay_spotify_authority":
+                tolerance.Should().Be(EpisodeReleaseTolerance.YouTubeAuthorityToAudioReleaseConsiderationThreshold);
+                break;
+        }
     }
 
     [Fact(DisplayName =
         "When YouTube is release authority with negative delay, Spotify catalogue day tolerance " +
-        "is five days in domain and legacy SpotifyCatalogueReleaseMatches behavior.")]
-    public void spotify_catalogue_day_tolerance_matches_legacy_for_negative_delay_youtube_authority()
+        "is five days and SpotifyCatalogueReleaseMatches accepts releases within that window.")]
+    public void spotify_catalogue_day_tolerance_for_negative_delay_youtube_authority()
     {
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
@@ -62,26 +75,22 @@ public class EpisodeReleaseToleranceRules
         var beyondFiveDays = expectedRelease.AddDays(-6);
 
         // Act
-        var domainDayTolerance = EpisodeReleaseTolerance.GetSpotifyCatalogueDayTolerance(podcast);
-        var domainWithin = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+        var dayTolerance = EpisodeReleaseTolerance.GetSpotifyCatalogueDayTolerance(podcast);
+        var withinMatches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
             withinFiveDays, expectedRelease, toleranceTicks, podcast);
-        var domainBeyond = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
-            beyondFiveDays, expectedRelease, toleranceTicks, podcast);
-        var legacyWithin = EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
-            withinFiveDays, expectedRelease, toleranceTicks, podcast);
-        var legacyBeyond = EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
+        var beyondMatches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
             beyondFiveDays, expectedRelease, toleranceTicks, podcast);
 
         // Assert
-        domainDayTolerance.Should().Be(5);
-        domainWithin.Should().BeTrue().And.Be(legacyWithin);
-        domainBeyond.Should().BeFalse().And.Be(legacyBeyond);
+        dayTolerance.Should().Be(5);
+        withinMatches.Should().BeTrue();
+        beyondMatches.Should().BeFalse();
     }
 
     [Fact(DisplayName =
         "When the podcast is not YouTube release authority, Spotify catalogue day tolerance " +
-        "is one day in domain and legacy SpotifyCatalogueReleaseMatches behavior.")]
-    public void spotify_catalogue_day_tolerance_matches_legacy_for_default_podcast()
+        "is one day and SpotifyCatalogueReleaseMatches uses that window.")]
+    public void spotify_catalogue_day_tolerance_for_default_podcast()
     {
         // Arrange
         var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
@@ -91,26 +100,22 @@ public class EpisodeReleaseToleranceRules
         var beyondOneDay = expectedRelease.AddDays(15);
 
         // Act
-        var domainDayTolerance = EpisodeReleaseTolerance.GetSpotifyCatalogueDayTolerance(podcast);
-        var domainWithin = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+        var dayTolerance = EpisodeReleaseTolerance.GetSpotifyCatalogueDayTolerance(podcast);
+        var withinMatches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
             withinOneDay, expectedRelease, toleranceTicks, podcast);
-        var domainBeyond = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
-            beyondOneDay, expectedRelease, toleranceTicks, podcast);
-        var legacyWithin = EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
-            withinOneDay, expectedRelease, toleranceTicks, podcast);
-        var legacyBeyond = EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
+        var beyondMatches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
             beyondOneDay, expectedRelease, toleranceTicks, podcast);
 
         // Assert
-        domainDayTolerance.Should().Be(1);
-        domainWithin.Should().BeTrue().And.Be(legacyWithin);
-        domainBeyond.Should().BeFalse().And.Be(legacyBeyond);
+        dayTolerance.Should().Be(1);
+        withinMatches.Should().BeTrue();
+        beyondMatches.Should().BeFalse();
     }
 
     [Fact(DisplayName =
-        "SpotifyCatalogueReleaseMatches day and tick tolerance outcomes match legacy " +
-        "for YouTube release authority negative-delay alignment.")]
-    public void spotify_catalogue_release_matches_matches_legacy_negative_delay_alignment()
+        "SpotifyCatalogueReleaseMatches accepts aligned Spotify catalogue dates for " +
+        "YouTube release authority negative-delay podcasts.")]
+    public void spotify_catalogue_release_matches_negative_delay_alignment()
     {
         // Arrange
         const int youTubeReleaseDaysAgo = 30;
@@ -119,7 +124,7 @@ public class EpisodeReleaseToleranceRules
         var youTubeRelease = DomainTestFixture.UtcAtTime(
             -youTubeReleaseDaysAgo,
             _fixture.CreateNonMidnightTimeOfDay());
-        var expectedAudioRelease = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(
+        var expectedAudioRelease = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(
             podcast,
             youTubeRelease,
             episodeHasYouTubeIdentity: true);
@@ -129,26 +134,19 @@ public class EpisodeReleaseToleranceRules
         var toleranceTicks = EpisodeReleaseTolerance.GetToleranceTicks(podcast, _fixture.CreateDuration());
 
         // Act
-        var domainMatches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
-            spotifyCatalogueRelease,
-            expectedAudioRelease,
-            toleranceTicks,
-            podcast);
-        var legacyMatches = EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
+        var matches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
             spotifyCatalogueRelease,
             expectedAudioRelease,
             toleranceTicks,
             podcast);
 
         // Assert
-        domainMatches.Should().BeTrue();
-        domainMatches.Should().Be(legacyMatches);
+        matches.Should().BeTrue();
     }
 
     [Fact(DisplayName =
-        "SpotifyCatalogueReleaseMatches rejects far-off Spotify catalogue dates consistently " +
-        "in domain and legacy implementations.")]
-    public void spotify_catalogue_release_matches_matches_legacy_outside_tolerance()
+        "SpotifyCatalogueReleaseMatches rejects far-off Spotify catalogue dates.")]
+    public void spotify_catalogue_release_matches_outside_tolerance()
     {
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
@@ -157,20 +155,14 @@ public class EpisodeReleaseToleranceRules
         var toleranceTicks = EpisodeReleaseTolerance.GetToleranceTicks(podcast, _fixture.CreateDuration());
 
         // Act
-        var domainMatches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
-            farOffSpotifyRelease,
-            expectedRelease,
-            toleranceTicks,
-            podcast);
-        var legacyMatches = EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
+        var matches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
             farOffSpotifyRelease,
             expectedRelease,
             toleranceTicks,
             podcast);
 
         // Assert
-        domainMatches.Should().BeFalse();
-        domainMatches.Should().Be(legacyMatches);
+        matches.Should().BeFalse();
     }
 
     private Podcast CreateSpotifyPrimaryWithPositiveDelay()

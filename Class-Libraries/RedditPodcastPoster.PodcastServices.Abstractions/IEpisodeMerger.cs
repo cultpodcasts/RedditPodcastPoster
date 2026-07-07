@@ -1,7 +1,7 @@
 using System.Text;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Persistence.Abstractions;
+namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public interface IEpisodeMerger
 {

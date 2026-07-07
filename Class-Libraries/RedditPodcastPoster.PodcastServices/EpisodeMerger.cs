@@ -1,9 +1,9 @@
 using RedditPodcastPoster.Episodes.Merging;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 
-namespace RedditPodcastPoster.Persistence;
+namespace RedditPodcastPoster.PodcastServices;
 
 public class EpisodeMerger(
     IEpisodePlatformMatcher platformMatcher,

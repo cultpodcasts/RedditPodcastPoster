@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
@@ -77,7 +78,7 @@ public class AppleUrlCategoriser(
 
         var findEpisodeRequest = FindAppleEpisodeRequestFactory.Create(matchingPodcast, podcast, criteria);
 
-        var ticks = EpisodeReleaseMatchTolerance.GetToleranceTicks(
+        var ticks = EpisodeReleaseTolerance.GetToleranceTicks(
             matchingPodcast,
             criteria.Duration,
             findEpisodeRequest.YouTubePublishingDelay,
@@ -85,7 +86,7 @@ public class AppleUrlCategoriser(
 
         var episode = await appleEpisodeResolver.FindEpisode(findEpisodeRequest, indexingContext,
                 y => findEpisodeRequest.Released.HasValue &&
-                     EpisodeReleaseMatchTolerance.SpotifyCatalogueReleaseMatches(
+                     EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
                          y.Release,
                          findEpisodeRequest.Released.Value,
                          ticks,

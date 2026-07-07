@@ -10,6 +10,8 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddPodcastServices()
         {
             return services
+                .AddSingleton<IEpisodeMatcher, EpisodeMatcher>()
+                .AddSingleton<IEpisodeMerger, EpisodeMerger>()
                 .AddScoped<IFlushable, CacheFlusher>()
                 .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
                 .AddScoped<IPodcastUpdater, PodcastUpdater>()

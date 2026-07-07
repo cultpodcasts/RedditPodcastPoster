@@ -22,14 +22,14 @@
 | **B** — UrlSubmission through applier | 🟢 In production / Done | Medium | [#872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872) |
 | **C** — Platform adapters at boundaries | 🟢 In production (soak) | Medium–High | [#873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873) |
 | **D** — Collapse finders into single matcher | 🟢 In production / Done | Medium–High | [#874](https://github.com/cultpodcasts/RedditPodcastPoster/pull/874) |
-| **E** — Shared enricher template | 🟡 Indexer deployed (soak) | Medium | [#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875) |
-| **F** — Cleanup | ⬜ Not started (blocked on Phase E soak + merge) | Low–Medium | _PR link_ |
+| **E** — Shared enricher template | 🟢 Done (merged [#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875)) | Medium | [#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875) |
+| **F** — Cleanup | 🟡 In progress | Low–Medium | _PR link_ |
 
 ---
 
 ## Phase 0 / Phase A status
 
-Steps 1–6 are complete. **Phase A** is in production (merged via [PR #871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)). **Phase B** is in production (merged via [PR #872](https://github.com/cultpodcasts/RedditPodcastPoster/pull/872)). **Phase C** in production (soak, review pending — [PR #873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873)). **Phase D** in production (merged via [PR #874](https://github.com/cultpodcasts/RedditPodcastPoster/pull/874)). **Phase E** deployed to **Indexer** for soak ([#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875) open — merge after soak review). **Phase F** not started.
+Steps 1–6 are complete. **Phase A–E** merged to main ([#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)–[#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875)). **Phase F** in progress on branch `feature/episode-domain-phase-f-cleanup`.
 
 | Step / phase | Outcome |
 |--------------|---------|
@@ -500,7 +500,7 @@ These Phase D gaps remain open for later phases; Phase E tests do not re-impleme
 
 **Preconditions:**
 
-- [ ] Phases B–E merged (Phase E: Indexer soak in progress — [#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875) merge after soak review)
+- [x] Phases B–E merged ([#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875) merged 2026-07-08)
 - [ ] No production call sites depend on retired wrappers
 - [x] **P0 test backlog complete** (see below — do not start Phase F cleanup until Phase E soak passes and #875 merges)
 
@@ -613,19 +613,19 @@ Episodes → Models, Text only
 
 ### Checklist
 
-- [ ] **F1** — Remove unused `EpisodeReleaseMatchTolerance` members / type (call-site sweep)
+- [x] **F1** — Remove `EpisodeReleaseMatchTolerance` type; migrate call sites to `EpisodeReleaseTolerance`
 - [ ] **F2** — Retire transitional finder wrappers that only forward to domain matcher
 - [ ] **F3** — Unify remaining `Resolved*Item` / catalogue mapping onto adapters (delete duplicate mappers); consider UrlSubmission → applicator
 - [ ] **F4** — Rename confusing homonyms for clarity (document renames in PR)
 - [ ] **F5** — Sweep for `switch (service)` or direct tolerance calls in orchestrators (§10.8 anti-patterns)
 - [ ] **F12** — Confirm discovery remains out of scope (`EpisodeResultsEnricher` untouched unless already adapter-only)
-- [ ] **F13** — Move `EpisodeMatcher` / `EpisodeMerger` to `PodcastServices`; remove `Persistence → Episodes`
-- [ ] **F14** — Move `IEpisodeMatcher` / `IEpisodeMerger` / `EpisodeMergeResult` to orchestration abstractions
-- [ ] **F15** — Remove unused `Persistence → PodcastServices.Abstractions` csproj reference
-- [ ] **F16** — Decouple `PodcastServices.Abstractions` from `Persistence.Abstractions` (post F14)
+- [x] **F13** — Move `EpisodeMatcher` / `EpisodeMerger` to `PodcastServices`; remove `Persistence → Episodes`
+- [x] **F14** — Move `IEpisodeMatcher` / `IEpisodeMerger` / `EpisodeMergeResult` to orchestration abstractions
+- [x] **F15** — Remove unused `Persistence → PodcastServices.Abstractions` csproj reference
+- [x] **F16** — Decouple `PodcastServices.Abstractions` from `Persistence.Abstractions` (post F14)
 - [ ] **F17** — UrlSubmission dependency diet (`CategorisedItem` / platform model leakage)
 - [ ] **F18** — Move Text-hosted repository implementations to Persistence
-- [ ] **F19** — Episodes.TestSupport: drop Persistence reference after F13
+- [x] **F19** — Episodes.TestSupport: drop Persistence reference after F13
 - [ ] **F20** — YouTube quota services: narrow persistence coupling (optional)
 
 ### Exit criteria

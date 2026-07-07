@@ -1,4 +1,5 @@
-﻿using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Episodes;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple;
@@ -7,7 +8,7 @@ public static class FindAppleEpisodeRequestFactory
 {
     public static FindAppleEpisodeRequest Create(Podcast podcast, Episode episode)
     {
-        var release = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, episode);
+        var release = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(podcast, episode);
         var enrichingYouTubeDiscoveredEpisode =
             !string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.Urls.YouTube != null;
         return new FindAppleEpisodeRequest(
@@ -31,7 +32,7 @@ public static class FindAppleEpisodeRequestFactory
         var release = criteria.Release;
         if (podcast != null)
         {
-            release = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, criteria.Release, false);
+            release = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(podcast, criteria.Release, false);
         }
 
         return new FindAppleEpisodeRequest(

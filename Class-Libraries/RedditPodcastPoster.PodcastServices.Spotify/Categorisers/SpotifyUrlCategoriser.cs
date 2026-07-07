@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
@@ -73,7 +74,7 @@ public class SpotifyUrlCategoriser(
         }
 
         var request = FindSpotifyEpisodeRequestFactory.Create(matchingPodcast, criteria);
-        var ticks = EpisodeReleaseMatchTolerance.GetToleranceTicks(
+        var ticks = EpisodeReleaseTolerance.GetToleranceTicks(
             matchingPodcast,
             criteria.Duration,
             request.YouTubePublishingDelay,

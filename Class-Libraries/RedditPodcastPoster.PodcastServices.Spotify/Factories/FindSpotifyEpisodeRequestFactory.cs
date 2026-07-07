@@ -1,4 +1,5 @@
-﻿using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Episodes;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 
@@ -11,7 +12,7 @@ public static class FindSpotifyEpisodeRequestFactory
         var release = criteria.Release;
         if (podcast != null)
         {
-            release = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, criteria.Release, false);
+            release = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(podcast, criteria.Release, false);
         }
 
         return new FindSpotifyEpisodeRequest(
@@ -29,7 +30,7 @@ public static class FindSpotifyEpisodeRequestFactory
     public static FindSpotifyEpisodeRequest Create(Podcast podcast, Episode episode)
     {
         var enrichingYouTubeDiscoveredEpisode = EpisodeHasYouTubeIdentity(episode);
-        var release = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, episode);
+        var release = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(podcast, episode);
 
         return new FindSpotifyEpisodeRequest(
             podcast.SpotifyId,
