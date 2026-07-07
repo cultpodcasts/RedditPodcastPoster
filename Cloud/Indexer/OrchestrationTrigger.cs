@@ -12,7 +12,7 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
 
     [Function("Hourly")]
     public async Task RunHourly(
-        [TimerTrigger("0 */1 * * *"
+        [TimerTrigger("0 3 * * * *"
 #if DEBUG
             , RunOnStartup = true
 #endif
@@ -21,17 +21,37 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
         [DurableClient] DurableTaskClient client,
         CancellationToken cancellationToken)
     {
-        var hourUtc = DateTime.UtcNow.Hour;
+        var utcNow = DateTime.UtcNow;
+        var hourUtc = utcNow.Hour;
         logger.LogWarning(
             "OrchestrationTrigger RunHourly initiated hour-utc='{HourUtc}'.",
             hourUtc);
 
-        if (await HasActiveOrchestrationInstanceAsync(client, nameof(HourlyOrchestration), cancellationToken))
+        var hourlyInstances = await GetHourlyOrchestrationInstancesAsync(client, cancellationToken);
+        if (HourlyOrchestrationCatchUpEvaluator.HasActiveHourlyOrchestrationInCurrentUtcHour(utcNow, hourlyInstances))
         {
             logger.LogWarning(
-                "{OrchestrationTriggerName} {RunHourlyName} skipped. Existing '{HourlyOrchestrationName}' instance is still active.",
-                nameof(OrchestrationTrigger), nameof(RunHourly), nameof(HourlyOrchestration));
+                "{OrchestrationTriggerName} {RunHourlyName} skipped. '{HourlyOrchestrationName}' is already active for UTC hour {HourUtc}.",
+                nameof(OrchestrationTrigger), nameof(RunHourly), nameof(HourlyOrchestration), hourUtc);
             return;
+        }
+
+        var stuckPriorHourInstances = hourlyInstances
+            .Where(instance =>
+                !HourlyOrchestrationCatchUpEvaluator.IsInUtcHour(instance.CreatedAt, utcNow)
+                && HourlyOrchestrationCatchUpEvaluator.IsInProgressStatus(instance.Status))
+            .ToList();
+
+        if (stuckPriorHourInstances.Count > 0)
+        {
+            logger.LogWarning(
+                "{OrchestrationTriggerName} {RunHourlyName} scheduling UTC hour {HourUtc} while {StuckCount} prior-hour '{HourlyOrchestrationName}' instance(s) remain active (created-at='{CreatedAtUtc}').",
+                nameof(OrchestrationTrigger),
+                nameof(RunHourly),
+                hourUtc,
+                stuckPriorHourInstances.Count,
+                nameof(HourlyOrchestration),
+                stuckPriorHourInstances[0].CreatedAt.UtcDateTime);
         }
 
         await ScheduleHourlyOrchestrationAsync(client, nameof(RunHourly), hourUtc, cancellationToken);
@@ -39,7 +59,7 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
 
     [Function("HourlyCatchUp")]
     public async Task RunHourlyCatchUp(
-        [TimerTrigger("0 5 * * * *"
+        [TimerTrigger("0 8 * * * *"
 #if DEBUG
             , RunOnStartup = false
 #endif
@@ -54,11 +74,11 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
         var utcNow = DateTime.UtcNow;
         var hourlyInstances = await GetHourlyOrchestrationInstancesAsync(client, cancellationToken);
 
-        if (!HourlyOrchestrationCatchUpEvaluator.ShouldScheduleCatchUp(utcNow, hourlyInstances))
+        if (!HourlyOrchestrationCatchUpEvaluator.ShouldScheduleCatchUp(utcNow, hourlyInstances, out var skipReason))
         {
             logger.LogInformation(
-                "{OrchestrationTriggerName} {RunHourlyCatchUpName} skipped. Hourly orchestration already ran or is active for UTC hour {HourUtc}.",
-                nameof(OrchestrationTrigger), nameof(RunHourlyCatchUp), utcNow.Hour);
+                "{OrchestrationTriggerName} {RunHourlyCatchUpName} skipped for UTC hour {HourUtc}. Reason='{SkipReason}'.",
+                nameof(OrchestrationTrigger), nameof(RunHourlyCatchUp), utcNow.Hour, skipReason);
             return;
         }
 
