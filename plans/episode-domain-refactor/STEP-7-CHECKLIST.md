@@ -614,11 +614,11 @@ Episodes → Models, Text only
 ### Checklist
 
 - [x] **F1** — Remove `EpisodeReleaseMatchTolerance` type; migrate call sites to `EpisodeReleaseTolerance`
-- [ ] **F2** — Retire transitional finder wrappers that only forward to domain matcher
+- [ ] **F2** — Retire transitional finder wrappers that only forward to domain matcher *(deferred: Spotify/Apple/YouTube finders retain platform catalogue mapping and YouTube heuristics — not thin forwards; see F4/F8/F9 if renaming or extra characterization needed)*
 - [x] **F3** — Unify UrlSubmission `EpisodeEnricher` onto `PlatformEnrichmentApplicator` (Apple/Spotify/YouTube via resolved-item adapters)
 - [ ] **F4** — Rename confusing homonyms for clarity (document renames in PR)
-- [ ] **F5** — Sweep for `switch (service)` or direct tolerance calls in orchestrators (§10.8 anti-patterns)
-- [ ] **F12** — Confirm discovery remains out of scope (`EpisodeResultsEnricher` untouched unless already adapter-only)
+- [x] **F5** — Sweep for `switch (service)` or direct tolerance calls in orchestrators (§10.8 anti-patterns) — `PodcastServicesEpisodeEnricher` enum dispatch removed; `PodcastUpdater` / request factories retain domain `EpisodeReleaseTolerance` at scope/lookup boundaries per §10.9
+- [x] **F12** — Confirm discovery remains out of scope (`EpisodeResultsEnricher` untouched unless already adapter-only)
 - [x] **F13** — Move `EpisodeMatcher` / `EpisodeMerger` to `PodcastServices`; remove `Persistence → Episodes`
 - [x] **F14** — Move `IEpisodeMatcher` / `IEpisodeMerger` / `EpisodeMergeResult` to orchestration abstractions
 - [x] **F15** — Remove unused `Persistence → PodcastServices.Abstractions` csproj reference
@@ -680,7 +680,7 @@ Single index of test-gap status across phases. **Pre-soak backlog (Phase E P0–
 | Exact-title bypass extended matrix | `CatalogueMatchingRules` | Phase F P2 | P2 | [x] (#875) | — |
 | `YouTubePublishDelayMatchStrategy` dead branches | Strategy file | Phase F P3 | P3 | [x] Documented (#875) | — |
 | Remaining `EpisodeEnricher` branches (UrlSubmission) | `EpisodeEnricher.cs` (~43% branch) | Phase F | P1 | **Open** | **F6**, **F3** |
-| `ResolvedAppleItemAdapter` optional negative branch | Adapters (50% branch) | Phase F P2 optional | P2 | **Open** | **F7** |
+| `ResolvedAppleItemAdapter` optional negative branch | Adapters (50% branch) | Phase F P2 optional | P2 | [x] `ResolvedItemAdapterRules` URL-only cases | **F7** |
 | Matcher branch aspiration (90%) | `EpisodePlatformMatcher.cs` (~79% gate) | Phase F P3 | P3 | **Open** | **F10** |
 | `PlaylistItemFinder` branch aspiration (~44%) | Local fuzzy/duration in finder | Phase F P3 | P3 | **Open** | **F9**, **F2** |
 | YouTube `SearchResultFinder` wrapper rules | YouTube search finder | Phase F P3 | P3 | **Open** | **F8**, **F2** |
