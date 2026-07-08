@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
@@ -90,7 +91,7 @@ public class AppleEpisodeResolverTests
             youTubeRelease,
             storedLength,
             storedTitle);
-        var lookupRelease = EpisodeReleaseMatchTolerance.GetAudioReleaseForPlatformLookup(podcast, episode);
+        var lookupRelease = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(podcast, episode);
         var appleEpisodes = new[]
         {
             new AppleEpisode(

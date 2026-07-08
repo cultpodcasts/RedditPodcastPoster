@@ -4,7 +4,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Models;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 
-public interface ISearchResultFinder
+public interface IYouTubeSearchResultFinder
 {
     Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(RedditPodcastPoster.Models.Episode episode,
         IList<SearchResult> searchResults,

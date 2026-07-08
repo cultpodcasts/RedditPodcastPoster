@@ -6,7 +6,7 @@ using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Finders;
 
-public class SearchResultFinder(IEpisodePlatformMatcher platformMatcher) : ISearchResultFinder
+public class SpotifySearchResultFinder(IEpisodePlatformMatcher platformMatcher) : ISpotifySearchResultFinder
 {
     public IEnumerable<SimpleShow> FindMatchingPodcasts(string podcastName, List<SimpleShow>? podcasts)
     {

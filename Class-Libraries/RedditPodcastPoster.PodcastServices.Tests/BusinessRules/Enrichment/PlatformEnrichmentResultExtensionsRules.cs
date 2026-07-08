@@ -88,6 +88,74 @@ public class PlatformEnrichmentResultExtensionsRules
     }
 
     [Fact(DisplayName =
+        "When a platform enrichment result reports release updated but carries no release value, ApplyTo " +
+        "does not mark the enrichment context release flag because there is nothing to persist.")]
+    public void apply_to_skips_release_when_release_updated_but_value_null()
+    {
+        // Arrange
+        var context = new EnrichmentContext();
+        var result = new PlatformEnrichmentResult(
+            Updated: true,
+            Service: Service.Apple,
+            PlatformUrl: _fixture.CreateAppleCatalogueInput().AppleUrl,
+            ReleaseUpdated: true,
+            Release: null);
+
+        // Act
+        result.ApplyTo(context);
+
+        // Assert
+        context.ReleaseUpdated.Should().BeFalse();
+        context.AppleUrlUpdated.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When a platform enrichment result carries a service but no platform URL, ApplyTo does not mark " +
+        "any platform URL flags because persistence only tracks concrete link updates.")]
+    public void apply_to_skips_platform_url_when_url_is_null()
+    {
+        // Arrange
+        var context = new EnrichmentContext();
+        var result = new PlatformEnrichmentResult(
+            Updated: true,
+            Service: Service.Spotify,
+            PlatformUrl: null,
+            ReleaseUpdated: false,
+            Release: null);
+
+        // Act
+        result.ApplyTo(context);
+
+        // Assert
+        context.SpotifyUrlUpdated.Should().BeFalse();
+        context.AppleUrlUpdated.Should().BeFalse();
+        context.YouTubeUrlUpdated.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When a platform enrichment result carries a platform URL but no service, ApplyTo does not mark " +
+        "any platform URL flags because the target persistence field is unknown.")]
+    public void apply_to_skips_platform_url_when_service_is_null()
+    {
+        // Arrange
+        var context = new EnrichmentContext();
+        var result = new PlatformEnrichmentResult(
+            Updated: true,
+            Service: null,
+            PlatformUrl: _fixture.CreateSpotifyCatalogueInput().SpotifyUrl,
+            ReleaseUpdated: false,
+            Release: null);
+
+        // Act
+        result.ApplyTo(context);
+
+        // Assert
+        context.SpotifyUrlUpdated.Should().BeFalse();
+        context.AppleUrlUpdated.Should().BeFalse();
+        context.YouTubeUrlUpdated.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "When a platform enrichment result did not update anything, ApplyTo leaves the enrichment context " +
         "unchanged because no persistence fields were touched.")]
     public void apply_to_leaves_context_unchanged_for_none_result()

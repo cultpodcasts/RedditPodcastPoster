@@ -4,9 +4,6 @@ using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Applying;
 using RedditPodcastPoster.Episodes.Domain;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.PodcastServices.Apple;
-using RedditPodcastPoster.PodcastServices.Spotify.Models;
-using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 
@@ -14,7 +11,7 @@ namespace RedditPodcastPoster.UrlSubmission;
 
 public class EpisodeEnricher(
     IDescriptionHelper descriptionHelper,
-    IEpisodePlatformApplier episodePlatformApplier,
+    IPlatformEnrichmentApplicator enrichmentApplicator,
     ILogger<EpisodeEnricher> logger) : IEpisodeEnricher
 {
     private readonly ResolvedAppleItemAdapter _appleItemAdapter = new();
@@ -52,46 +49,19 @@ public class EpisodeEnricher(
 
             if (matchingEpisode != null)
             {
-                var missingAppleId = !matchingEpisode.AppleId.HasValue;
-                var missingAppleUrl = matchingEpisode.Urls.Apple == null;
-
-                ApplyPlatformLink(matchingEpisode, _appleItemAdapter.Adapt(ToInput(categorisedItem.ResolvedAppleItem)));
-
-                if (missingAppleId && matchingEpisode.AppleId.HasValue)
-                {
-                    addedApple = true;
-                    episodeResult = SubmitResultState.Enriched;
-                    logger.LogInformation(
-                        "Enriched episode '{matchingEpisodeId}' with apple details with apple-id {resolvedAppleItemEpisodeId}.",
-                        matchingEpisode.Id, matchingEpisode.AppleId);
-                }
-
-                if (missingAppleUrl && matchingEpisode.Urls.Apple != null)
-                {
-                    addedApple = true;
-                    episodeResult = SubmitResultState.Enriched;
-                    logger.LogInformation(
-                        "Enriched episode '{matchingEpisodeId}' with apple details with apple-url {resolvedAppleItemUrl}.",
-                        matchingEpisode.Id, matchingEpisode.Urls.Apple);
-                }
-
-                if (matchingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
-                    categorisedItem.ResolvedAppleItem.Release.TimeOfDay != TimeSpan.Zero)
-                {
-                    matchingEpisode.Release = categorisedItem.ResolvedAppleItem.Release;
-                    episodeResult = SubmitResultState.Enriched;
-                }
-
-                var description =
-                    descriptionHelper.CollapseDescription(categorisedItem.ResolvedAppleItem.EpisodeDescription) ??
-                    descriptionHelper.EnrichMissingDescription(categorisedItem);
-                if (string.IsNullOrWhiteSpace(matchingEpisode.Description) ||
-                    (matchingEpisode.Description.EndsWith("...") &&
-                     description.Length > matchingEpisode.Description.Length))
-                {
-                    matchingEpisode.Description = description;
-                    episodeResult = SubmitResultState.Enriched;
-                }
+                var outcome = ApplyResolvedPlatformEnrichment(
+                    matchingPodcast,
+                    matchingEpisode,
+                    BuildCandidate(
+                        _appleItemAdapter.Adapt(categorisedItem.ResolvedAppleItem.ToAdapterInput()),
+                        categorisedItem.ResolvedAppleItem.EpisodeDescription,
+                        categorisedItem),
+                    platformName: "apple",
+                    logIdProperty: "apple-id",
+                    idSelector: e => e.AppleId?.ToString(),
+                    urlSelector: e => e.Urls.Apple);
+                addedApple |= outcome.PlatformLinkAdded;
+                episodeResult = MergeEpisodeResult(episodeResult, outcome);
             }
         }
 
@@ -108,38 +78,19 @@ public class EpisodeEnricher(
 
             if (matchingEpisode != null)
             {
-                var missingSpotifyId = string.IsNullOrWhiteSpace(matchingEpisode.SpotifyId);
-                var missingSpotifyUrl = matchingEpisode.Urls.Spotify == null;
-
-                ApplyPlatformLink(matchingEpisode, _spotifyItemAdapter.Adapt(ToInput(categorisedItem.ResolvedSpotifyItem)));
-
-                if (missingSpotifyId && !string.IsNullOrWhiteSpace(matchingEpisode.SpotifyId))
-                {
-                    addedSpotify = true;
-                    episodeResult = SubmitResultState.Enriched;
-                    logger.LogInformation(
-                        "Enriched episode '{matchingEpisodeId}' with spotify details with spotify-id {resolvedSpotifyItemEpisodeId}.",
-                        matchingEpisode.Id, matchingEpisode.SpotifyId);
-                }
-
-                if (missingSpotifyUrl && matchingEpisode.Urls.Spotify != null)
-                {
-                    addedSpotify = true;
-                    episodeResult = SubmitResultState.Enriched;
-                    logger.LogInformation(
-                        "Enriched episode '{matchingEpisodeId}' with spotify details with spotify-url {resolvedSpotifyItemUrl}.",
-                        matchingEpisode.Id, matchingEpisode.Urls.Spotify);
-                }
-
-                var description =
-                    descriptionHelper.CollapseDescription(categorisedItem.ResolvedSpotifyItem.EpisodeDescription) ??
-                    descriptionHelper.EnrichMissingDescription(categorisedItem);
-                if (matchingEpisode.Description.EndsWith("...") &&
-                    description.Length > matchingEpisode.Description.Length)
-                {
-                    matchingEpisode.Description = description;
-                    episodeResult = SubmitResultState.Enriched;
-                }
+                var outcome = ApplyResolvedPlatformEnrichment(
+                    matchingPodcast,
+                    matchingEpisode,
+                    BuildCandidate(
+                        _spotifyItemAdapter.Adapt(categorisedItem.ResolvedSpotifyItem.ToAdapterInput()),
+                        categorisedItem.ResolvedSpotifyItem.EpisodeDescription,
+                        categorisedItem),
+                    platformName: "spotify",
+                    logIdProperty: "spotify-id",
+                    idSelector: e => e.SpotifyId,
+                    urlSelector: e => e.Urls.Spotify);
+                addedSpotify |= outcome.PlatformLinkAdded;
+                episodeResult = MergeEpisodeResult(episodeResult, outcome);
             }
         }
 
@@ -157,45 +108,19 @@ public class EpisodeEnricher(
 
             if (matchingEpisode != null)
             {
-                var missingYouTubeId = string.IsNullOrWhiteSpace(matchingEpisode.YouTubeId);
-                var missingYouTubeUrl = matchingEpisode.Urls.YouTube == null;
-
-                ApplyPlatformLink(matchingEpisode, _youTubeItemAdapter.Adapt(ToInput(categorisedItem.ResolvedYouTubeItem)));
-
-                if (missingYouTubeId && !string.IsNullOrWhiteSpace(matchingEpisode.YouTubeId))
-                {
-                    addedYouTube = true;
-                    episodeResult = SubmitResultState.Enriched;
-                    logger.LogInformation(
-                        "Enriched episode '{matchingEpisodeId}' with youtube details with youtube-id {resolvedYouTubeItemEpisodeId}.",
-                        matchingEpisode.Id, matchingEpisode.YouTubeId);
-                }
-
-                if (missingYouTubeUrl && matchingEpisode.Urls.YouTube != null)
-                {
-                    addedYouTube = true;
-                    episodeResult = SubmitResultState.Enriched;
-                    logger.LogInformation(
-                        "Enriched episode '{matchingEpisodeId}' with youtube details with youtube-url {resolvedYouTubeItem.}.",
-                        matchingEpisode.Id, matchingEpisode.Urls.YouTube);
-                }
-
-                if (matchingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
-                    categorisedItem.ResolvedYouTubeItem.Release.TimeOfDay != TimeSpan.Zero)
-                {
-                    matchingEpisode.Release = categorisedItem.ResolvedYouTubeItem.Release;
-                    episodeResult = SubmitResultState.Enriched;
-                }
-
-                var description =
-                    descriptionHelper.CollapseDescription(categorisedItem.ResolvedYouTubeItem.EpisodeDescription) ??
-                    descriptionHelper.EnrichMissingDescription(categorisedItem);
-                if (matchingEpisode.Description.Trim().EndsWith("...") &&
-                    description.Length > matchingEpisode.Description.Length)
-                {
-                    matchingEpisode.Description = description;
-                    episodeResult = SubmitResultState.Enriched;
-                }
+                var outcome = ApplyResolvedPlatformEnrichment(
+                    matchingPodcast,
+                    matchingEpisode,
+                    BuildCandidate(
+                        _youTubeItemAdapter.Adapt(categorisedItem.ResolvedYouTubeItem.ToAdapterInput()),
+                        categorisedItem.ResolvedYouTubeItem.EpisodeDescription,
+                        categorisedItem),
+                    platformName: "youtube",
+                    logIdProperty: "youtube-id",
+                    idSelector: e => e.YouTubeId,
+                    urlSelector: e => e.Urls.YouTube);
+                addedYouTube |= outcome.PlatformLinkAdded;
+                episodeResult = MergeEpisodeResult(episodeResult, outcome);
             }
         }
 
@@ -252,40 +177,59 @@ public class EpisodeEnricher(
             new SubmitEpisodeDetails(addedSpotify, addedApple, addedYouTube, [], addedBBC, addedInternetArchive));
     }
 
-    private void ApplyPlatformLink(Episode matchingEpisode, EpisodeCandidate candidate)
+    private static SubmitResultState MergeEpisodeResult(
+        SubmitResultState current,
+        ResolvedPlatformApplyOutcome outcome) =>
+        outcome.EpisodeEnriched ? SubmitResultState.Enriched : current;
+
+    private ResolvedPlatformApplyOutcome ApplyResolvedPlatformEnrichment(
+        Podcast podcast,
+        Episode episode,
+        EpisodeCandidate candidate,
+        string platformName,
+        string logIdProperty,
+        Func<Episode, string?> idSelector,
+        Func<Episode, Uri?> urlSelector)
     {
-        episodePlatformApplier.ApplyFillMissing(
-            matchingEpisode,
-            new EpisodePlatformPatch(candidate.SourceLink, Description: null, Release: null));
+        var missingId = string.IsNullOrWhiteSpace(idSelector(episode));
+        var missingUrl = urlSelector(episode) == null;
+
+        var result = enrichmentApplicator.Apply(podcast, episode, candidate);
+        var platformLinkAdded = false;
+
+        if (missingId && !string.IsNullOrWhiteSpace(idSelector(episode)))
+        {
+            platformLinkAdded = true;
+            logger.LogInformation(
+                "Enriched episode '{matchingEpisodeId}' with {platformName} details with {logIdProperty} {platformId}.",
+                episode.Id,
+                platformName,
+                logIdProperty,
+                idSelector(episode));
+        }
+
+        if (missingUrl && urlSelector(episode) != null)
+        {
+            platformLinkAdded = true;
+            logger.LogInformation(
+                "Enriched episode '{matchingEpisodeId}' with {platformName} details with {platformName}-url {platformUrl}.",
+                episode.Id,
+                platformName,
+                platformName,
+                urlSelector(episode));
+        }
+
+        return new ResolvedPlatformApplyOutcome(platformLinkAdded, result.Updated);
     }
 
-    private static ResolvedAppleItemInput ToInput(ResolvedAppleItem item) =>
-        new(
-            item.EpisodeId,
-            item.EpisodeTitle,
-            item.EpisodeDescription,
-            item.Release,
-            item.Duration,
-            item.Url,
-            item.Image);
-
-    private static ResolvedSpotifyItemInput ToInput(ResolvedSpotifyItem item) =>
-        new(
-            item.EpisodeId,
-            item.EpisodeTitle,
-            item.EpisodeDescription,
-            item.Release,
-            item.Duration,
-            item.Url,
-            item.Image);
-
-    private static ResolvedYouTubeItemInput ToInput(ResolvedYouTubeItem item) =>
-        new(
-            item.EpisodeId,
-            item.EpisodeTitle,
-            item.EpisodeDescription,
-            item.Release,
-            item.Duration,
-            item.Url,
-            item.Image);
+    private EpisodeCandidate BuildCandidate(
+        EpisodeCandidate candidate,
+        string? resolvedDescription,
+        CategorisedItem categorisedItem)
+    {
+        var description =
+            descriptionHelper.CollapseDescription(resolvedDescription) ??
+            descriptionHelper.EnrichMissingDescription(categorisedItem);
+        return candidate with { Description = description };
+    }
 }

@@ -5,6 +5,7 @@ using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
@@ -326,7 +327,7 @@ public class PodcastUpdater(
         TimeSpan youTubePublishingDelay,
         DateTime releasedSince)
     {
-        if (EpisodeReleaseMatchTolerance.ShouldEnrichDespiteReleaseWindow(episode, podcast))
+        if (EpisodeReleaseTolerance.ShouldEnrichDespiteReleaseWindow(episode, podcast))
         {
             return ReduceToSinceIncorporatingPublishDelay(episode, youTubePublishingDelay, DateTime.MinValue);
         }

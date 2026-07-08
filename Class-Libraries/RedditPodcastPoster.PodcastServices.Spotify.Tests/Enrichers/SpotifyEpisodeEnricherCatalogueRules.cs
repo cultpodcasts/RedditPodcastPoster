@@ -143,6 +143,51 @@ public class SpotifyEpisodeEnricherCatalogueRules
         enrichmentContext.SpotifyUrlUpdated.Should().BeFalse();
     }
 
+    [Fact(DisplayName =
+        "When Spotify catalogue returns an episode id already owned by another stored episode, " +
+        "Spotify enrichment leaves the current episode unchanged.")]
+    public async Task enrich_skips_spotify_id_already_owned_by_another_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        podcast.SpotifyId = _fixture.CreateSpotifyId();
+        var youTubeRelease = DomainTestFixture.UtcAtTime(-30, _fixture.CreateNonMidnightTimeOfDay());
+        var storedLength = _fixture.CreateDuration();
+        var storedTitle = _fixture.CreateShortTitle();
+        var spotifyId = _fixture.CreateSpotifyId();
+        var alignedRelease = DomainTestFixture.SpotifyCatalogueReleaseDaysAfterYouTube(
+            youTubeRelease,
+            28);
+        var current = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+            podcast,
+            youTubeRelease,
+            storedLength,
+            storedTitle);
+        var other = _fixture.CreateStoredEpisodeWithSpotifyOnly(
+            podcast,
+            release: alignedRelease,
+            length: storedLength,
+            title: _fixture.CreateTitle());
+        other.SpotifyId = spotifyId;
+        var fullEpisode = CreateFullEpisode(
+            spotifyId,
+            DomainTestFixture.CreateFuzzyTitleVariant(storedTitle),
+            alignedRelease,
+            storedLength + TimeSpan.FromMinutes(3));
+        var sut = CreateEnricher(new CapturingSpotifyEpisodeResolver([fullEpisode], spotifyId));
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [current, other], current),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        current.SpotifyId.Should().BeNullOrWhiteSpace();
+        enrichmentContext.SpotifyUrlUpdated.Should().BeFalse();
+    }
+
     private SpotifyEpisodeEnricher CreateEnricher(ISpotifyEpisodeResolver resolver) =>
         new(
             resolver,

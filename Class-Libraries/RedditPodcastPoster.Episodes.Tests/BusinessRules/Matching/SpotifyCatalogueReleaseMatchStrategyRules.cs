@@ -128,4 +128,65 @@ public class SpotifyCatalogueReleaseMatchStrategyRules
         // Assert
         result.Should().BeFalse();
     }
+
+    [Fact(DisplayName =
+        "For YouTube release authority with positive publishing delay, a stored YouTube episode " +
+        "matches an aligned incoming Spotify catalogue item after delay adjustment.")]
+    public void positive_delay_youtube_authority_aligned_spotify_returns_true()
+    {
+        // Arrange
+        var delay = TimeSpan.FromDays(1);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+            _fixture.CreateYouTubeChannelId(),
+            delay.Ticks);
+        var youTubeRelease = DomainTestFixture.UtcAtTime(-30, _fixture.CreateNonMidnightTimeOfDay());
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast, release: youTubeRelease);
+        var expectedAudioRelease = youTubeRelease - delay;
+        var incoming = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(expectedAudioRelease));
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When an incoming Apple episode is paired with a stored YouTube episode, " +
+        "Spotify catalogue release strategy defers because Apple is not a Spotify catalogue lookup.")]
+    public void youtube_stored_apple_incoming_returns_null()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var incoming = _fixture.CreateAppleCatalogueEpisode();
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When stored length is zero, Spotify catalogue release strategy uses incoming length " +
+        "as the tolerance reference for an aligned YouTube-to-Spotify pair.")]
+    public void zero_stored_length_uses_incoming_length_for_aligned_match()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (stored, incoming, _) = _fixture.CreateCrossPlatformYouTubeReleaseAuthorityPair(podcast);
+        stored.Length = TimeSpan.Zero;
+        incoming.Length = _fixture.CreateDuration();
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeTrue();
+    }
 }

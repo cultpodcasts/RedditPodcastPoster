@@ -1,7 +1,6 @@
-﻿using RedditPodcastPoster.Models;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.PodcastServices;
+namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public interface INonPodcastServiceCategoriser
 {

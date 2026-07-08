@@ -1,7 +1,5 @@
 ﻿using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Apple;
-using RedditPodcastPoster.PodcastServices.Spotify.Models;
-using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Categorisation;
 
@@ -9,7 +7,7 @@ public static class PodcastServiceSearchCriteriaExtensions
 {
     public static PodcastServiceSearchCriteria Merge(
         this PodcastServiceSearchCriteria criteria,
-        ResolvedSpotifyItem item)
+        CategorisedSpotifyItem item)
     {
         return new PodcastServiceSearchCriteria(
             !string.IsNullOrWhiteSpace(criteria.ShowName) ? criteria.ShowName : item.ShowName,
@@ -26,7 +24,7 @@ public static class PodcastServiceSearchCriteriaExtensions
 
     public static PodcastServiceSearchCriteria Merge(
         this PodcastServiceSearchCriteria criteria,
-        ResolvedYouTubeItem item)
+        CategorisedYouTubeItem item)
     {
         return new PodcastServiceSearchCriteria(
             !string.IsNullOrWhiteSpace(criteria.ShowName) ? criteria.ShowName : item.ShowName,
@@ -43,7 +41,7 @@ public static class PodcastServiceSearchCriteriaExtensions
 
     public static PodcastServiceSearchCriteria Merge(
         this PodcastServiceSearchCriteria criteria,
-        ResolvedAppleItem item)
+        CategorisedAppleItem item)
     {
         return new PodcastServiceSearchCriteria(
             !string.IsNullOrWhiteSpace(criteria.ShowName) ? criteria.ShowName : item.ShowName,

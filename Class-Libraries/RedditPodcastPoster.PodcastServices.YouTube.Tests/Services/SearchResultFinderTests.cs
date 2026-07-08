@@ -18,7 +18,7 @@ public class SearchResultFinderTests
     private readonly Fixture _fixture = new();
     private readonly AutoMocker _mocker = new();
 
-    private ISearchResultFinder Sut => _mocker.CreateInstance<SearchResultFinder>();
+    private IYouTubeSearchResultFinder Sut => _mocker.CreateInstance<YouTubeSearchResultFinder>();
 
     public SearchResultFinderTests()
     {

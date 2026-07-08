@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
@@ -42,13 +42,13 @@ public class YouTubeIndexerKeyStateServiceTests
     [Fact]
     public async Task ResolveSessionStartAsync_WhenSavedStateMatchesQuotaDay_ResumesAtSavedKey()
     {
-        var lookupRepository = new Mock<ILookupRepository>();
+        var indexerKeyStateStore = new Mock<IYouTubeIndexerKeyStateStore>();
         var strategy = CreateStrategy(CreateProductionLikeSettings(), hour: 0);
         var sut = new YouTubeIndexerKeyStateService(
-            lookupRepository.Object,
+            indexerKeyStateStore.Object,
             strategy,
             NullLogger<YouTubeIndexerKeyStateService>.Instance);
-        lookupRepository.Setup(x => x.GetYouTubeIndexerKeyState()).ReturnsAsync(new YouTubeIndexerKeyState
+        indexerKeyStateStore.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new YouTubeIndexerKeyState
         {
             PacificQuotaDate = CurrentPacificQuotaDate,
             LastRingIndex = 8,
@@ -66,14 +66,14 @@ public class YouTubeIndexerKeyStateServiceTests
     [Fact]
     public async Task ResolveSessionStartAsync_WhenQuotaDayChanged_ResetsToHourFallback()
     {
-        var lookupRepository = new Mock<ILookupRepository>();
+        var indexerKeyStateStore = new Mock<IYouTubeIndexerKeyStateStore>();
         var strategy = CreateStrategy(CreateProductionLikeSettings(), hour: 0);
         var sut = new YouTubeIndexerKeyStateService(
-            lookupRepository.Object,
+            indexerKeyStateStore.Object,
             strategy,
             NullLogger<YouTubeIndexerKeyStateService>.Instance);
 
-        lookupRepository.Setup(x => x.GetYouTubeIndexerKeyState()).ReturnsAsync(new YouTubeIndexerKeyState
+        indexerKeyStateStore.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new YouTubeIndexerKeyState
         {
             PacificQuotaDate = PreviousPacificQuotaDate,
             LastRingIndex = 8,
@@ -90,13 +90,13 @@ public class YouTubeIndexerKeyStateServiceTests
     [Fact]
     public async Task ResolveSessionStartAsync_WhenSavedKeyMissingFromRing_FallsBackToHourFallback()
     {
-        var lookupRepository = new Mock<ILookupRepository>();
+        var indexerKeyStateStore = new Mock<IYouTubeIndexerKeyStateStore>();
         var strategy = CreateStrategy(CreateProductionLikeSettings(), hour: 0);
         var sut = new YouTubeIndexerKeyStateService(
-            lookupRepository.Object,
+            indexerKeyStateStore.Object,
             strategy,
             NullLogger<YouTubeIndexerKeyStateService>.Instance);
-        lookupRepository.Setup(x => x.GetYouTubeIndexerKeyState()).ReturnsAsync(new YouTubeIndexerKeyState
+        indexerKeyStateStore.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new YouTubeIndexerKeyState
         {
             PacificQuotaDate = CurrentPacificQuotaDate,
             LastRingIndex = 8,
@@ -113,16 +113,16 @@ public class YouTubeIndexerKeyStateServiceTests
     [Fact]
     public async Task PersistSessionEndAsync_SavesCurrentRingPosition()
     {
-        var lookupRepository = new Mock<ILookupRepository>();
+        var indexerKeyStateStore = new Mock<IYouTubeIndexerKeyStateStore>();
         var strategy = CreateStrategy(CreateProductionLikeSettings(), hour: 0);
         var sut = new YouTubeIndexerKeyStateService(
-            lookupRepository.Object,
+            indexerKeyStateStore.Object,
             strategy,
             NullLogger<YouTubeIndexerKeyStateService>.Instance);
         YouTubeIndexerKeyState? savedState = null;
-        lookupRepository
-            .Setup(x => x.SaveYouTubeIndexerKeyState(It.IsAny<YouTubeIndexerKeyState>()))
-            .Callback<YouTubeIndexerKeyState>(state => savedState = state)
+        indexerKeyStateStore
+            .Setup(x => x.SaveAsync(It.IsAny<YouTubeIndexerKeyState>(), It.IsAny<CancellationToken>()))
+            .Callback<YouTubeIndexerKeyState, CancellationToken>((state, _) => savedState = state)
             .Returns(Task.CompletedTask);
 
         await sut.PersistSessionEndAsync(3, "key2");

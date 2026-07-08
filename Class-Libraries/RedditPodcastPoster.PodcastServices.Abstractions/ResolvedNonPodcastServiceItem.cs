@@ -1,6 +1,6 @@
-﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.PodcastServices;
+namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public record ResolvedNonPodcastServiceItem(
     NonPodcastService NonPodcastService,

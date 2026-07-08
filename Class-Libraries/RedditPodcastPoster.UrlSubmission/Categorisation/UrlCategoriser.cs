@@ -1,15 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
-using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.Spotify.Categorisers;
-using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube;
-using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
+using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Categorisation;
 
@@ -30,9 +28,9 @@ public class UrlCategoriser(
         IndexingContext indexingContext,
         bool matchOtherServices)
     {
-        ResolvedSpotifyItem? resolvedSpotifyItem = null;
-        ResolvedAppleItem? resolvedAppleItem = null;
-        ResolvedYouTubeItem? resolvedYouTubeItem = null;
+        CategorisedSpotifyItem? resolvedSpotifyItem = null;
+        CategorisedAppleItem? resolvedAppleItem = null;
+        CategorisedYouTubeItem? resolvedYouTubeItem = null;
         ResolvedNonPodcastServiceItem? resolvedNonPodcastServiceItem = null;
         PodcastServiceSearchCriteria? criteria = null;
         Service authority = 0;
@@ -46,7 +44,8 @@ public class UrlCategoriser(
 
         if (SpotifyPodcastServiceMatcher.IsMatch(url))
         {
-            resolvedSpotifyItem = await spotifyUrlCategoriser.Resolve(podcast, episodes, url, indexingContext);
+            resolvedSpotifyItem = PlatformResolvedItemMappers.FromPlatform(
+                await spotifyUrlCategoriser.Resolve(podcast, episodes, url, indexingContext));
             matchingEpisode = episodes.SingleOrDefault(x =>
                 x.Urls.Spotify == url || x.SpotifyId == resolvedSpotifyItem.EpisodeId);
             criteria = resolvedSpotifyItem.ToPodcastServiceSearchCriteria();
@@ -54,7 +53,8 @@ public class UrlCategoriser(
         }
         else if (ApplePodcastServiceMatcher.IsMatch(url))
         {
-            resolvedAppleItem = await appleUrlCategoriser.Resolve(podcast, episodes, url, indexingContext);
+            resolvedAppleItem = PlatformResolvedItemMappers.FromPlatform(
+                await appleUrlCategoriser.Resolve(podcast, episodes, url, indexingContext));
             criteria = resolvedAppleItem.ToPodcastServiceSearchCriteria();
             matchingEpisode =
                 episodes.SingleOrDefault(x => x.Urls.Apple == url || x.AppleId == resolvedAppleItem.EpisodeId);
@@ -62,9 +62,10 @@ public class UrlCategoriser(
         }
         else if (YouTubePodcastServiceMatcher.IsMatch(url))
         {
-            resolvedYouTubeItem = await youTubeUrlCategoriser.Resolve(podcast, episodes, url, indexingContext);
-            if (resolvedYouTubeItem != null)
+            var youTubePlatform = await youTubeUrlCategoriser.Resolve(podcast, episodes, url, indexingContext);
+            if (youTubePlatform != null)
             {
+                resolvedYouTubeItem = PlatformResolvedItemMappers.FromPlatform(youTubePlatform);
                 criteria = resolvedYouTubeItem.ToPodcastServiceSearchCriteria();
                 matchingEpisode = episodes.SingleOrDefault(x =>
                     x.Urls.YouTube == url || x.YouTubeId == resolvedYouTubeItem.EpisodeId);
@@ -105,10 +106,11 @@ public class UrlCategoriser(
                         };
                     }
 
-                    resolvedSpotifyItem =
+                    var spotifyPlatform =
                         await spotifyUrlCategoriser.Resolve(criteria, podcast, indexingContext);
-                    if (resolvedSpotifyItem != null)
+                    if (spotifyPlatform != null)
                     {
+                        resolvedSpotifyItem = PlatformResolvedItemMappers.FromPlatform(spotifyPlatform);
                         criteria = criteria.Merge(resolvedSpotifyItem);
                     }
                 }
@@ -140,9 +142,10 @@ public class UrlCategoriser(
                         };
                     }
 
-                    resolvedAppleItem = await appleUrlCategoriser.Resolve(criteria, podcast, indexingContext);
-                    if (resolvedAppleItem != null)
+                    var applePlatform = await appleUrlCategoriser.Resolve(criteria, podcast, indexingContext);
+                    if (applePlatform != null)
                     {
+                        resolvedAppleItem = PlatformResolvedItemMappers.FromPlatform(applePlatform);
                         criteria = criteria.Merge(resolvedAppleItem);
                     }
                 }
@@ -160,10 +163,11 @@ public class UrlCategoriser(
                         };
                     }
 
-                    resolvedYouTubeItem =
+                    var youTubePlatform =
                         await youTubeUrlCategoriser.Resolve(criteria, podcast, episodes, indexingContext);
-                    if (resolvedYouTubeItem != null)
+                    if (youTubePlatform != null)
                     {
+                        resolvedYouTubeItem = PlatformResolvedItemMappers.FromPlatform(youTubePlatform);
                         criteria = criteria.Merge(resolvedYouTubeItem);
                     }
                 }

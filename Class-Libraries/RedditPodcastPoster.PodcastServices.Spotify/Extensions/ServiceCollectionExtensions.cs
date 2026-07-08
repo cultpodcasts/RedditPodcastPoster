@@ -42,7 +42,7 @@ public static class ServiceCollectionExtensions
                 .AddScoped<ISpotifyPodcastEpisodesProvider, SpotifyPodcastEpisodesProvider>()
                 .AddScoped<ISpotifyPodcastResolver, SpotifyPodcastResolver>()
                 .AddScoped<ISpotifyQueryPaginator, SpotifyQueryPaginator>()
-                .AddScoped<ISearchResultFinder, SearchResultFinder>()
+                .AddScoped<ISpotifySearchResultFinder, SpotifySearchResultFinder>()
                 .AddScoped<ISpotifySearcher, SpotifySearcher>()
                 .AddScoped<ISpotifyEpisodeRetrievalHandler, SpotifyEpisodeRetrievalHandler>();
         }

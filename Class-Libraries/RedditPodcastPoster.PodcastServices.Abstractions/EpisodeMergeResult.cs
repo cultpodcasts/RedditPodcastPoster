@@ -1,15 +1,7 @@
 using System.Text;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Persistence.Abstractions;
-
-public interface IEpisodeMerger
-{
-    EpisodeMergeResult MergeEpisodes(
-        Podcast podcast,
-        IEnumerable<Episode> existingEpisodes,
-        IEnumerable<Episode> episodesToMerge);
-}
+namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public class EpisodeMergeResult(
     IList<Episode> EpisodesToSave,

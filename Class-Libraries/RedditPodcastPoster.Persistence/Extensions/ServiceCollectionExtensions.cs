@@ -1,7 +1,13 @@
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Lookups;
+using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.Text.EliminationTerms;
+using RedditPodcastPoster.Text.KnownTerms;
 
 namespace RedditPodcastPoster.Persistence.Extensions;
 
@@ -10,9 +16,9 @@ public static class ServiceCollectionExtensions
     extension(IServiceCollection services)
     {
         /// <summary>
-        /// Cosmos repositories and legacy <see cref="IEpisodeMatcher"/> / <see cref="IEpisodeMerger"/>.
-        /// Does not register episodes domain — callers that resolve matcher, merger, or UrlSubmission
-        /// enrichers must call <c>AddEpisodesDomain()</c> explicitly at the composition root.
+        /// Cosmos repositories. Does not register episodes domain or merge orchestration — callers that
+        /// resolve matcher, merger, or UrlSubmission enrichers must call <c>AddEpisodesDomain()</c> and
+        /// <c>AddPodcastServices()</c> explicitly at the composition root.
         /// </summary>
         public IServiceCollection AddRepositories()
         {
@@ -20,8 +26,6 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<ICosmosDbClientFactory, CosmosDbClientFactory>()
                 .AddSingleton(sp => sp.GetRequiredService<ICosmosDbClientFactory>().Create())
                 .AddSingleton<ICosmosDbContainerFactory, CosmosDbContainerFactory>()
-                .AddSingleton<IEpisodeMatcher, EpisodeMatcher>()
-                .AddSingleton<IEpisodeMerger, EpisodeMerger>()
                 .AddSingleton<IPodcastRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
@@ -54,7 +58,21 @@ public static class ServiceCollectionExtensions
                 })
                 .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
+                .AddSingleton<IKnownTermsRepository, KnownTermsRepository>()
+                .AddSingleton<IKnownTermsProviderFactory, KnownTermsProviderFactory>()
+                .AddSingleton<IAsyncInstance<IKnownTermsProvider>>(s =>
+                    new AsyncInstance<IKnownTermsProvider>(s.GetRequiredService<IKnownTermsProviderFactory>()))
+                .AddSingleton<IYouTubeQuotaUsageStateStore, YouTubeQuotaUsageStateStore>()
+                .AddSingleton<IYouTubeIndexerKeyStateStore, YouTubeIndexerKeyStateStore>()
                 .BindConfiguration<CosmosDbSettings>("cosmosdb");
+        }
+
+        public IServiceCollection AddEliminationTerms()
+        {
+            return services
+                .AddSingleton<IEliminationTermsProviderFactory, EliminationTermsProviderFactory>()
+                .AddSingleton<IAsyncInstance<IEliminationTermsProvider>>(s =>
+                    new AsyncInstance<IEliminationTermsProvider>(s.GetRequiredService<IEliminationTermsProviderFactory>()));
         }
 
         public IServiceCollection AddFileRepository(string containerName = "",

@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Strategies;
 
@@ -10,7 +10,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 public sealed class YouTubeQuotaUsageTracker(
     IOptions<YouTubeSettings> settings,
-    ILookupRepository lookupRepository,
+    IYouTubeQuotaUsageStateStore quotaUsageStateStore,
     ILogger<YouTubeQuotaUsageTracker> logger) : IYouTubeQuotaUsageTracker
 {
     private const string SourceApplication = "Indexer";
@@ -159,7 +159,7 @@ public sealed class YouTubeQuotaUsageTracker(
                 RingExhaustionCount = 0,
                 NonQuotaErrorCount = 0
             };
-            await lookupRepository.SaveYouTubeQuotaUsageState(emptyState);
+            await quotaUsageStateStore.SaveAsync(emptyState);
         }
         finally
         {
@@ -208,7 +208,7 @@ public sealed class YouTubeQuotaUsageTracker(
         }
 
         _stats.Clear();
-        var savedState = await lookupRepository.GetYouTubeQuotaUsageState();
+        var savedState = await quotaUsageStateStore.GetAsync(cancellationToken);
         if (savedState != null && savedState.PacificQuotaDate == currentPacificQuotaDate)
         {
             foreach (var entry in savedState.Entries)
@@ -278,7 +278,7 @@ public sealed class YouTubeQuotaUsageTracker(
             NonQuotaErrorCount = _nonQuotaErrorCount
         };
 
-        await lookupRepository.SaveYouTubeQuotaUsageState(state);
+        await quotaUsageStateStore.SaveAsync(state, cancellationToken);
     }
 
     private YouTubeQuotaDailyReport BuildReport(DateOnly reportDate, string sourceApplication)

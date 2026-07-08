@@ -2,10 +2,8 @@
 using FluentAssertions;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.PodcastServices.Apple;
-using RedditPodcastPoster.PodcastServices.Spotify.Models;
-using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Models;
 using Xunit;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests;
@@ -36,14 +34,14 @@ public class EpisodeHelperTests
                 Spotify = new Uri("http://existing-url")
             })
             .Create();
-        var spotifyItem = _fixture.Build<ResolvedSpotifyItem>()
+        var spotifyItem = _fixture.Build<CategorisedSpotifyItem>()
             .With(x => x.EpisodeTitle, substring)
             .Create();
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.Spotify)
             .With(x => x.ResolvedSpotifyItem, spotifyItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
-            .With(x => x.ResolvedYouTubeItem, (ResolvedYouTubeItem?)null)
+            .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
+            .With(x => x.ResolvedYouTubeItem, (CategorisedYouTubeItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
@@ -64,14 +62,14 @@ public class EpisodeHelperTests
                 Spotify = null
             })
             .Create();
-        var spotifyItem = _fixture.Build<ResolvedSpotifyItem>()
+        var spotifyItem = _fixture.Build<CategorisedSpotifyItem>()
             .With(x => x.EpisodeTitle, substring)
             .Create();
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.Spotify)
             .With(x => x.ResolvedSpotifyItem, spotifyItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
-            .With(x => x.ResolvedYouTubeItem, (ResolvedYouTubeItem?)null)
+            .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
+            .With(x => x.ResolvedYouTubeItem, (CategorisedYouTubeItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
@@ -93,14 +91,14 @@ public class EpisodeHelperTests
                 Spotify = new Uri("http://existing-url")
             })
             .Create();
-        var spotifyItem = _fixture.Build<ResolvedSpotifyItem>()
+        var spotifyItem = _fixture.Build<CategorisedSpotifyItem>()
             .With(x => x.EpisodeTitle, "prefix " + substring + " suffix")
             .Create();
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.Spotify)
             .With(x => x.ResolvedSpotifyItem, spotifyItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
-            .With(x => x.ResolvedYouTubeItem, (ResolvedYouTubeItem?)null)
+            .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
+            .With(x => x.ResolvedYouTubeItem, (CategorisedYouTubeItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
@@ -121,14 +119,14 @@ public class EpisodeHelperTests
                 Spotify = null
             })
             .Create();
-        var spotifyItem = _fixture.Build<ResolvedSpotifyItem>()
+        var spotifyItem = _fixture.Build<CategorisedSpotifyItem>()
             .With(x => x.EpisodeTitle, "prefix " + substring + " suffix")
             .Create();
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.Spotify)
             .With(x => x.ResolvedSpotifyItem, spotifyItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
-            .With(x => x.ResolvedYouTubeItem, (ResolvedYouTubeItem?)null)
+            .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
+            .With(x => x.ResolvedYouTubeItem, (CategorisedYouTubeItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
@@ -149,14 +147,14 @@ public class EpisodeHelperTests
                 YouTube = new Uri("http://existing-url")
             })
             .Create();
-        var youTubeItem = _fixture.Build<ResolvedYouTubeItem>()
+        var youTubeItem = _fixture.Build<CategorisedYouTubeItem>()
             .With(x => x.EpisodeTitle, substring)
             .Create();
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.YouTube)
             .With(x => x.ResolvedYouTubeItem, youTubeItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
-            .With(x => x.ResolvedSpotifyItem, (ResolvedSpotifyItem?)null)
+            .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
+            .With(x => x.ResolvedSpotifyItem, (CategorisedSpotifyItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
@@ -177,14 +175,14 @@ public class EpisodeHelperTests
                 YouTube = null
             })
             .Create();
-        var youTubeItem = _fixture.Build<ResolvedYouTubeItem>()
+        var youTubeItem = _fixture.Build<CategorisedYouTubeItem>()
             .With(x => x.EpisodeTitle, substring)
             .Create();
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.YouTube)
             .With(x => x.ResolvedYouTubeItem, youTubeItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
-            .With(x => x.ResolvedSpotifyItem, (ResolvedSpotifyItem?)null)
+            .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
+            .With(x => x.ResolvedSpotifyItem, (CategorisedSpotifyItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
@@ -206,14 +204,14 @@ public class EpisodeHelperTests
                 YouTube = new Uri("http://existing-url")
             })
             .Create();
-        var youTubeItem = _fixture.Build<ResolvedYouTubeItem>()
+        var youTubeItem = _fixture.Build<CategorisedYouTubeItem>()
             .With(x => x.EpisodeTitle, "prefix " + substring + " suffix")
             .Create();
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.YouTube)
             .With(x => x.ResolvedYouTubeItem, youTubeItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
-            .With(x => x.ResolvedSpotifyItem, (ResolvedSpotifyItem?)null)
+            .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
+            .With(x => x.ResolvedSpotifyItem, (CategorisedSpotifyItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
@@ -234,14 +232,14 @@ public class EpisodeHelperTests
                 YouTube = null
             })
             .Create();
-        var youTubeItem = _fixture.Build<ResolvedYouTubeItem>()
+        var youTubeItem = _fixture.Build<CategorisedYouTubeItem>()
             .With(x => x.EpisodeTitle, "prefix " + substring + " suffix")
             .Create();
         var categorisedItem = _fixture.Build<CategorisedItem>()
             .With(x => x.Authority, Service.YouTube)
             .With(x => x.ResolvedYouTubeItem, youTubeItem)
-            .With(x => x.ResolvedAppleItem, (ResolvedAppleItem?)null)
-            .With(x => x.ResolvedSpotifyItem, (ResolvedSpotifyItem?)null)
+            .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
+            .With(x => x.ResolvedSpotifyItem, (CategorisedSpotifyItem?)null)
             .Create();
         // act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);

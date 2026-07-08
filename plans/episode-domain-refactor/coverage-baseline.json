@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-07-06",
-  "generatedFromBranch": "feature/episode-domain-phase-e-shared-enricher-template",
-  "note": "Per-file floors from coverage-gate Release run after Phase E hardening + platform-enrichment group (Spotify/YouTube/Apple.Tests in gate)",
+  "generatedAt": "2026-07-08",
+  "generatedFromBranch": "feature/episode-domain-phase-f-cleanup",
+  "note": "Phase F — matcher/finder characterization expanded; EpisodePlatformMatcher 85% branch; PlaylistItemFinder fuzzy/duration/episode-number Theory",
   "testProjects": [
     "Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj",
     "Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj",
@@ -21,7 +21,7 @@
   "groups": [
     {
       "name": "episodes-domain",
-      "minBranchCoverage": 74,
+      "minBranchCoverage": 77,
       "minLineCoverage": 92,
       "aspirationBranchCoverage": 90
     },
@@ -33,8 +33,8 @@
     },
     {
       "name": "platform-enrichment",
-      "minBranchCoverage": 44,
-      "minLineCoverage": 68,
+      "minBranchCoverage": 66,
+      "minLineCoverage": 86,
       "aspirationBranchCoverage": 85,
       "aspirationLineCoverage": 95
     },
@@ -46,20 +46,17 @@
     }
   ],
   "gapsToClose": [
-    "Episodes domain branch vs aspiration 90% — EpisodePlatformMatcher.cs (70% branch), YouTubePublishDelayMatchStrategy (25% branch; lines 30–36 unreachable when incoming is YouTube)",
-    "Platform enrichment branch vs aspiration 85% — PlaylistItemFinder local fuzzy/duration paths (44% branch); YouTubeEpisodeEnricher Enrich branches; Apple/Spotify enricher E2E gaps — see Phase F P1 backlog",
-    "Orchestration branch vs aspiration 85% — EpisodeEnricher remaining branches after P0 parity; PodcastUpdater (68%)",
-    "Adapters line vs aspiration 100% — PlatformLinkFactory (85.7% line), ResolvedAppleItemAdapter branch 50%",
-    "Phase D deferred catalogue rules — exact-title bypass extended matrix; see Phase F P2",
-    "Legacy EpisodeReleaseMatchTolerance call sites — Phase F P1 tolerance parity before type removal"
+    "Episodes domain branch 87.9% (aspiration 90%) — EpisodeReleaseTolerance + YouTubePublishDelay strategy stretch",
+    "Platform enrichment branch 78.4% (75% met; 85% stretch — PlaylistItemFinder 69%)",
+    "Orchestration branch 86.5% (aspiration 82% met)"
   ],
   "files": [
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/EpisodePlatformMatcher.cs",
-      "branchCoverage": 70,
-      "lineCoverage": 87,
-      "note": "EpisodePlatformMatcher.cs only — Catalogue.cs tracked separately at gate merge; raise toward 90% branch aspiration"
+      "branchCoverage": 85,
+      "lineCoverage": 95,
+      "note": "EpisodePlatformMatcher.cs + Catalogue.cs partial (~86% branch combined); CatalogueMatchingRules + TitleDurationMatchingRules"
     },
     {
       "group": "episodes-domain",
@@ -71,16 +68,16 @@
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/Strategies/SpotifyCatalogueReleaseMatchStrategy.cs",
-      "branchCoverage": 50,
-      "lineCoverage": 85,
-      "note": "Phase F P1 — dedicated strategy rule file"
+      "branchCoverage": 100,
+      "lineCoverage": 100,
+      "note": "Step 8 stretch — SpotifyCatalogueReleaseMatchStrategyRules complete matrix"
     },
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/Strategies/YouTubePublishDelayMatchStrategy.cs",
-      "branchCoverage": 25,
-      "lineCoverage": 52,
-      "note": "Lines 30–36 appear unreachable when incoming is YouTube — Phase F P3 document-only unless strategy order changes"
+      "branchCoverage": 100,
+      "lineCoverage": 100,
+      "note": "Step 8 stretch — YouTubePublishDelayMatchStrategyRules (zero delay, same-platform, audio→YT only)"
     },
     {
       "group": "episodes-domain",
@@ -144,9 +141,9 @@
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/EpisodeReleaseTolerance.cs",
-      "branchCoverage": 61,
-      "lineCoverage": 91,
-      "note": "Phase F P1 — GetToleranceTicks matrix before legacy tolerance removal"
+      "branchCoverage": 83,
+      "lineCoverage": 95,
+      "note": "Step 8 stretch — EpisodeReleaseToleranceRules (zero length tolerance, Apple-only enrich window)"
     },
     {
       "group": "episodes-adapters",
@@ -201,16 +198,16 @@
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Abstractions/Enriching/PlatformEpisodeEnricherTemplate.cs",
-      "branchCoverage": 50,
-      "lineCoverage": 88,
+      "branchCoverage": 100,
+      "lineCoverage": 100,
       "note": "Phase E — PlatformEpisodeEnricherTemplateRules (bypass + ApplyResolvedCandidate); measured via PodcastServices.Tests"
     },
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Abstractions/PlatformEnrichmentResultExtensions.cs",
-      "branchCoverage": 78,
+      "branchCoverage": 92,
       "lineCoverage": 100,
-      "note": "Phase E — PlatformEnrichmentResultExtensionsRules (ApplyTo URL flags + release)"
+      "note": "Step 8F — PlatformEnrichmentResultExtensionsRules (partial/null ApplyTo guards)"
     },
     {
       "group": "platform-enrichment",
@@ -222,40 +219,40 @@
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify/Enrichers/SpotifyEpisodeEnricher.cs",
-      "branchCoverage": 66,
-      "lineCoverage": 90,
-      "note": "Phase F P1 — Spotify enricher E2E business rules (reducer ruled; full catalogue flow thin)"
+      "branchCoverage": 91,
+      "lineCoverage": 100,
+      "note": "Phase F P1 — SpotifyEpisodeEnricherCatalogueRules (match / no match / expensive / bypass / owned id)"
     },
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Enrichment/YouTubeEpisodeEnricher.cs",
-      "branchCoverage": 65,
-      "lineCoverage": 78,
-      "note": "Phase E — YouTubeEpisodeEnricherCatalogueRules (5 rules); Enrich entry paths partially covered"
+      "branchCoverage": 82,
+      "lineCoverage": 94,
+      "note": "Step 8 stretch — YouTubeEpisodeEnricherCatalogueRules (URL/id edge cases, skip video details)"
     },
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Apple/AppleEpisodeEnricher.cs",
-      "branchCoverage": 50,
-      "lineCoverage": 80,
-      "note": "Phase F P1 — Apple enricher E2E + convention debt in AppleEpisodeEnricherTests"
+      "branchCoverage": 92,
+      "lineCoverage": 100,
+      "note": "Step 8F — AppleEpisodeEnricherCatalogueRules (podcast show-id resolution + catalogue E2E)"
     },
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Services/PlaylistItemFinder.cs",
-      "branchCoverage": 44,
-      "lineCoverage": 68,
-      "note": "Phase F P0 — PlaylistItemFinderCatalogueWrapperRules (16 Theory/Fact rules); local fuzzy + duration paths remain below aspiration"
+      "branchCoverage": 69,
+      "lineCoverage": 86,
+      "note": "Step 8 stretch — PlaylistItemFinderCatalogueWrapperRules: publish-delay guards, substring exact title, live-filter null"
     },
     {
       "group": "orchestration",
-      "path": "Class-Libraries/RedditPodcastPoster.Persistence/EpisodeMerger.cs",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices/EpisodeMerger.cs",
       "branchCoverage": 100,
       "lineCoverage": 100
     },
     {
       "group": "orchestration",
-      "path": "Class-Libraries/RedditPodcastPoster.Persistence/EpisodeMatcher.cs",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices/EpisodeMatcher.cs",
       "branchCoverage": 100,
       "lineCoverage": 100
     },
@@ -276,9 +273,9 @@
     {
       "group": "orchestration",
       "path": "Class-Libraries/RedditPodcastPoster.UrlSubmission/EpisodeEnricher.cs",
-      "branchCoverage": 43,
-      "lineCoverage": 61,
-      "note": "P0 parity rules added; remaining branches — Phase F P1 orchestration extension"
+      "branchCoverage": 74,
+      "lineCoverage": 97,
+      "note": "F3 applicator unification — remaining BBC/IA branches; F6 optional extension"
     }
   ]
 }

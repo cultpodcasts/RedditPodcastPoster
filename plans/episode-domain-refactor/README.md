@@ -421,7 +421,7 @@ Step 3 rule catalog for §5.1–§5.3 is complete.
 
 One phase per PR; all business-rule tests green; no assertion changes.
 
-**Tracker:** [STEP-7-CHECKLIST.md](./STEP-7-CHECKLIST.md) — working checklist for phases B–F (Phase A done via EpisodeMerger wiring). Do not duplicate progress here; update the checklist as phases land.
+**Tracker:** [STEP-7-CHECKLIST.md](./STEP-7-CHECKLIST.md) — working checklist for phases B–F (Phase A done via EpisodeMerger wiring). Post-F test hardening: [STEP-8-TEST-HARDENING-PLAN.md](./STEP-8-TEST-HARDENING-PLAN.md). Do not duplicate progress here; update the checklists as phases land.
 
 ---
 
@@ -594,7 +594,7 @@ Core services (`EpisodePlatformMatcher`, `EpisodePlatformMerger`, `EpisodePlatfo
 
 Existing **`EpisodeReleaseMatchTolerance`** (`PodcastServices.Abstractions`) is the **source of truth for current semantics**. During Phase A–D:
 
-1. **Characterize** each public method with business-rule tests (many already exist in `AppleEpisodeReleaseMatchToleranceTests` and incident-pin tests).
+1. **Characterize** each public method with business-rule tests (many already exist in `EpisodeReleaseToleranceTests` and incident-pin tests).
 2. **Move** logic into named strategy/policy classes **without rewriting** — copy behavior, then delete the static call sites.
 3. **Map** roughly as follows (exact class names may differ; semantics must not):
 

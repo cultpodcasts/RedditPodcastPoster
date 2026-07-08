@@ -13,12 +13,12 @@ using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 
-public partial class SearchResultFinder(
+public partial class YouTubeSearchResultFinder(
     IYouTubeServiceWrapper youTubeService,
     IYouTubeVideoService videoService,
     IEpisodePlatformMatcher platformMatcher,
-    ILogger<SearchResultFinder> logger)
-    : ISearchResultFinder
+    ILogger<YouTubeSearchResultFinder> logger)
+    : IYouTubeSearchResultFinder
 {
     private const int MinFuzzyScore = 70;
     private static readonly Regex NumberMatch = CreateNumberMatch();

@@ -286,6 +286,103 @@ public class UrlSubmissionPersistenceRules
         episodeRepository.SavedEpisodes.Single().Id.Should().Be(newEpisode.Id);
     }
 
+    [Fact(DisplayName =
+        "When PersistToDatabase is false for an existing podcast submission, no repository writes occur.")]
+    public async Task existing_podcast_persist_false_writes_nothing()
+    {
+        // Arrange
+        var episodeRepository = new InMemoryEpisodeRepository();
+        var podcastRepository = new InMemoryPodcastRepository();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcastRepository.Seed(podcast);
+
+        var enrichedEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithDuration(_fixture.CreateDuration()));
+        enrichedEpisode.PodcastId = podcast.Id;
+
+        var podcastProcessor = new Mock<IPodcastProcessor>();
+        podcastProcessor
+            .Setup(x => x.AddEpisodeToExistingPodcast(It.IsAny<CategorisedItem>()))
+            .ReturnsAsync(new SubmitResult(
+                SubmitResultState.Enriched,
+                SubmitResultState.Enriched,
+                Episode: enrichedEpisode));
+
+        var processor = CreateProcessor(
+            podcastProcessor.Object,
+            podcastRepository,
+            episodeRepository);
+
+        var categorisedItem = new CategorisedItem(
+            podcast,
+            [],
+            enrichedEpisode,
+            null,
+            null,
+            null,
+            null,
+            Service.Spotify);
+
+        // Act
+        await processor.ProcessCategorisedItem(
+            categorisedItem,
+            new SubmitOptions(null, MatchOtherServices: true, PersistToDatabase: false));
+
+        // Assert
+        episodeRepository.SavedEpisodes.Should().BeEmpty();
+        podcastRepository.SavedPodcasts.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When both podcast metadata and episode are enriched on an existing podcast submission, " +
+        "both podcast and episode are saved.")]
+    public async Task existing_podcast_podcast_and_episode_enriched_saves_both()
+    {
+        // Arrange
+        var episodeRepository = new InMemoryEpisodeRepository();
+        var podcastRepository = new InMemoryPodcastRepository();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcastRepository.Seed(podcast);
+
+        var enrichedEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithDuration(_fixture.CreateDuration()));
+        enrichedEpisode.PodcastId = podcast.Id;
+
+        var podcastProcessor = new Mock<IPodcastProcessor>();
+        podcastProcessor
+            .Setup(x => x.AddEpisodeToExistingPodcast(It.IsAny<CategorisedItem>()))
+            .ReturnsAsync(new SubmitResult(
+                SubmitResultState.Enriched,
+                SubmitResultState.Enriched,
+                Episode: enrichedEpisode));
+
+        var processor = CreateProcessor(
+            podcastProcessor.Object,
+            podcastRepository,
+            episodeRepository);
+
+        var categorisedItem = new CategorisedItem(
+            podcast,
+            [],
+            enrichedEpisode,
+            null,
+            null,
+            null,
+            null,
+            Service.Spotify);
+
+        // Act
+        await processor.ProcessCategorisedItem(
+            categorisedItem,
+            new SubmitOptions(null, MatchOtherServices: true, PersistToDatabase: true));
+
+        // Assert
+        podcastRepository.SavedPodcasts.Should().ContainSingle();
+        podcastRepository.SavedPodcasts.Single().Id.Should().Be(podcast.Id);
+        episodeRepository.SavedEpisodes.Should().ContainSingle();
+        episodeRepository.SavedEpisodes.Single().Id.Should().Be(enrichedEpisode.Id);
+    }
+
     private static CategorisedItemProcessor CreateProcessor(
         IPodcastProcessor podcastProcessor,
         InMemoryPodcastRepository podcastRepository,

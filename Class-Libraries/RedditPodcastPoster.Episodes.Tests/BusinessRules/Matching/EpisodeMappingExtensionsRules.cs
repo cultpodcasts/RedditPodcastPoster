@@ -168,4 +168,95 @@ public class EpisodeMappingExtensionsRules
         patch.Description.Should().Be(stored.Description);
         patch.Release!.Value.Should().Be(stored.Release);
     }
+
+    public static TheoryData<Service> AllPlatformServices() =>
+        new()
+        {
+            Service.Spotify,
+            Service.Apple,
+            Service.YouTube
+        };
+
+    [Theory(DisplayName =
+        "ToCandidate maps each platform service to a SourceLink with that platform's id and URL.")]
+    [MemberData(nameof(AllPlatformServices))]
+    public void to_candidate_maps_each_platform_service(Service service)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var stored = CreateEpisodeWithAllPlatformLinks(podcast);
+
+        // Act
+        var candidate = stored.ToCandidate(service);
+
+        // Assert
+        candidate.SourceLink.Should().NotBeNull();
+        candidate.SourceLink!.Service.Should().Be(service);
+        candidate.SourceLink.Id.Should().Be(service switch
+        {
+            Service.Spotify => stored.SpotifyId,
+            Service.Apple => stored.AppleId!.Value.ToString(),
+            Service.YouTube => stored.YouTubeId,
+            _ => throw new ArgumentOutOfRangeException(nameof(service), service, null)
+        });
+        candidate.SourceLink.Url.Should().Be(service switch
+        {
+            Service.Spotify => stored.Urls.Spotify,
+            Service.Apple => stored.Urls.Apple,
+            Service.YouTube => stored.Urls.YouTube,
+            _ => throw new ArgumentOutOfRangeException(nameof(service), service, null)
+        });
+    }
+
+    [Theory(DisplayName =
+        "Platform-specific To*Patch helpers carry only the requested platform link.")]
+    [MemberData(nameof(AllPlatformServices))]
+    public void platform_patch_helpers_carry_requested_platform_link(Service service)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var stored = CreateEpisodeWithAllPlatformLinks(podcast);
+
+        // Act
+        var patch = service switch
+        {
+            Service.Spotify => stored.ToSpotifyPatch(),
+            Service.Apple => stored.ToApplePatch(),
+            Service.YouTube => stored.ToYouTubePatch(),
+            _ => throw new ArgumentOutOfRangeException(nameof(service), service, null)
+        };
+
+        // Assert
+        patch.Link.Should().NotBeNull();
+        patch.Link!.Service.Should().Be(service);
+        patch.Description.Should().Be(stored.Description);
+        patch.Release!.Value.Should().Be(stored.Release);
+    }
+
+    [Fact(DisplayName =
+        "ToCandidate with an unsupported source service returns a candidate with a null source link.")]
+    public void to_candidate_unsupported_service_has_null_source_link()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var stored = CreateEpisodeWithAllPlatformLinks(podcast);
+
+        // Act
+        var candidate = stored.ToCandidate(Service.Other);
+
+        // Assert
+        candidate.SourceLink.Should().BeNull();
+        candidate.Title.Should().Be(stored.Title);
+    }
+
+    private Episode CreateEpisodeWithAllPlatformLinks(Podcast podcast)
+    {
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeAndSpotify(
+            podcast,
+            _fixture.CreateSpotifyId(),
+            _fixture.CreateYouTubeId());
+        stored.AppleId = _fixture.CreateAppleId();
+        stored.Urls.Apple = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{stored.AppleId}");
+        return stored;
+    }
 }

@@ -116,6 +116,64 @@ public class YouTubePublishDelayMatchStrategyRules
     }
 
     [Fact(DisplayName =
+        "When the podcast has no YouTube publishing delay, YouTube publish-delay strategy " +
+        "defers to other strategies by returning null.")]
+    public void zero_delay_returns_null()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var stored = _fixture.CreateSpotifyCatalogueEpisode();
+        var incoming = _fixture.CreateYouTubeCatalogueEpisode();
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When stored and incoming episodes both carry YouTube identity, YouTube publish-delay strategy " +
+        "returns false because delay alignment applies only across platform types.")]
+    public void both_youtube_identity_returns_false()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+            _fixture.CreateYouTubeChannelId(),
+            TimeSpan.FromDays(1).Ticks);
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var incoming = _fixture.CreateYouTubeCatalogueEpisode();
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When the stored episode has YouTube identity but the incoming episode does not, " +
+        "YouTube publish-delay strategy returns false because only audio-to-YouTube alignment is supported.")]
+    public void stored_youtube_incoming_non_youtube_returns_false()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+            _fixture.CreateYouTubeChannelId(),
+            TimeSpan.FromDays(1).Ticks);
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var incoming = _fixture.CreateSpotifyCatalogueEpisode();
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "For YouTube release authority podcasts with positive publishing delay, " +
         "a stored Spotify episode matches an incoming YouTube episode when publish aligns after delay adjustment.")]
     public void positive_delay_spotify_stored_youtube_incoming_aligned()

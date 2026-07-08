@@ -1,7 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Text.KnownTerms;
+using KnownTermsModel = RedditPodcastPoster.Text.KnownTerms.KnownTerms;
 
-namespace RedditPodcastPoster.Text.KnownTerms;
+namespace RedditPodcastPoster.Persistence.Lookups;
 
 public class KnownTermsRepository(
     ILookupRepository lookupRepository,
@@ -10,12 +12,12 @@ public class KnownTermsRepository(
 #pragma warning restore CS9113 // Parameter is unread.
     : IKnownTermsRepository
 {
-    public async Task<KnownTerms> Get()
+    public async Task<KnownTermsModel> Get()
     {
-        return (await lookupRepository.GetKnownTerms<KnownTerms>())!;
+        return (await lookupRepository.GetKnownTerms<KnownTermsModel>())!;
     }
 
-    public Task Save(KnownTerms terms)
+    public Task Save(KnownTermsModel terms)
     {
         return lookupRepository.SaveKnownTerms(terms);
     }

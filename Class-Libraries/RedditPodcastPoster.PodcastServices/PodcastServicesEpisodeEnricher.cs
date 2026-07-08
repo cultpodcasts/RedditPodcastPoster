@@ -30,25 +30,22 @@ public class PodcastServicesEpisodeEnricher(
         {
             var enrichmentContext = new EnrichmentContext();
             var enrichmentRequest = new EnrichmentRequest(podcast, episodes, episode);
-            foreach (Service service in Enum.GetValues(typeof(Service)))
+
+            if (episode.Urls.Spotify == null || string.IsNullOrWhiteSpace(episode.SpotifyId))
             {
-                switch (service)
-                {
-                    case Service.Spotify
-                        when episode.Urls.Spotify == null || string.IsNullOrWhiteSpace(episode.SpotifyId):
-                        await spotifyEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
-                        break;
-                    case Service.Apple
-                        when episode.Urls.Apple == null || episode.AppleId == null || episode.AppleId == 0:
-                        await appleEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
-                        break;
-                    case Service.YouTube
-                        when podcast.SkipEnrichingFromYouTube is null or false &&
-                             !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) && (episode.Urls.YouTube == null ||
-                                 string.IsNullOrWhiteSpace(episode.YouTubeId)):
-                        await youTubeEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
-                        break;
-                }
+                await spotifyEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
+            }
+
+            if (episode.Urls.Apple == null || episode.AppleId == null || episode.AppleId == 0)
+            {
+                await appleEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
+            }
+
+            if (podcast.SkipEnrichingFromYouTube is null or false &&
+                !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
+                (episode.Urls.YouTube == null || string.IsNullOrWhiteSpace(episode.YouTubeId)))
+            {
+                await youTubeEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
             }
 
             if (enrichmentContext.Updated)

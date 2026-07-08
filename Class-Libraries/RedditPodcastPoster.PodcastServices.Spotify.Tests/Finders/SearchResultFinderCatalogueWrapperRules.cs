@@ -12,7 +12,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.Finders;
 public class SearchResultFinderCatalogueWrapperRules
 {
     private readonly DomainTestFixture _fixture = new();
-    private readonly SearchResultFinder _sut = new(EpisodeDomainTestServices.CreatePlatformMatcher());
+    private readonly SpotifySearchResultFinder _sut = new(EpisodeDomainTestServices.CreatePlatformMatcher());
 
     [Fact(DisplayName =
         "When the Spotify finder resolves by release date, " +

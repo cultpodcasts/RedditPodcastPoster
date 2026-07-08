@@ -129,6 +129,55 @@ public class TitleDurationMatchingRules
         stored.ShouldMatchExpectation(expected.WithSpotify(spotifyInput.SpotifyId, spotifyInput.SpotifyUrl));
     }
 
+    [Fact(DisplayName =
+        "When EpisodeMatchRegex captures a title group, symbol differences between stored and incoming titles " +
+        "may still match via CompareOptions.IgnoreSymbols.")]
+    public void EpisodeMatchRegex_title_group_ignores_symbol_differences()
+    {
+        // Arrange
+        const string episodeMatchRegex = @"Episode\s+(?'title'[\w\s]+)";
+        var release = DomainTestFixture.UtcDaysAgo(12);
+        var length = _fixture.CreateDuration();
+        var stored = CreateEpisode("Episode Part One!", length, release);
+        var incoming = CreateEpisode("Episode Part One", length, release);
+        var podcast = _fixture.CreatePodcast();
+        podcast.EpisodeMatchRegex = episodeMatchRegex;
+
+        // Act
+        var isMatch = _matcher.IsMatch(
+            stored,
+            incoming,
+            new System.Text.RegularExpressions.Regex(episodeMatchRegex),
+            podcast);
+
+        // Assert
+        isMatch.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When two episodes have different YouTube video IDs, IsMatch returns false even if titles align.")]
+    public void Different_YouTube_ids_do_not_match_via_IsMatch()
+    {
+        // Arrange
+        var sharedTitle = _fixture.CreateTitle();
+        var sharedRelease = DomainTestFixture.UtcDaysAgo(8);
+        var sharedLength = _fixture.CreateDuration();
+        var existing = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithTitle(sharedTitle)
+            .WithRelease(sharedRelease)
+            .WithDuration(sharedLength));
+        var incoming = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithTitle(sharedTitle)
+            .WithRelease(sharedRelease)
+            .WithDuration(sharedLength));
+
+        // Act
+        var isMatch = _matcher.IsMatch(existing, incoming, episodeMatchRegex: null, _fixture.CreatePodcast());
+
+        // Assert
+        isMatch.Should().BeFalse();
+    }
+
     private Episode CreateEpisode(string title, TimeSpan length, DateTime? release = null) =>
         _fixture.CreateEpisode(e =>
         {

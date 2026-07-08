@@ -16,8 +16,8 @@ public static class ServiceCollectionExtensions
     {
         /// <summary>
         /// Episode platform matcher, merger, applier, and their strategies/policies.
-        /// Required when resolving <c>IEpisodeMatcher</c>, <c>IEpisodeMerger</c>, or UrlSubmission
-        /// <c>IEpisodeEnricher</c>. Each host must call this explicitly at its composition root
+        /// Required when resolving <c>IEpisodeMatcher</c>, <c>IEpisodeMerger</c> (via <c>AddPodcastServices()</c>),
+        /// or UrlSubmission <c>IEpisodeEnricher</c>. Each host must call this explicitly at its composition root
         /// (alongside <c>AddRepositories()</c> when needed) — never nested inside
         /// <c>AddRepositories()</c>, <c>AddUrlSubmission()</c>, or any other extension method.
         /// </summary>

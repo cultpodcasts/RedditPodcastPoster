@@ -18,7 +18,7 @@ public sealed partial class EpisodePlatformMatcher
 
     /// <summary>
     /// Selects the best catalogue episode match by title and duration heuristics
-    /// (consolidated from Spotify SearchResultFinder and Apple episode resolver).
+    /// (consolidated from Spotify <c>SpotifySearchResultFinder</c> and Apple episode resolver).
     /// </summary>
     public Episode? FindCatalogueMatchByLength(
         Episode probe,
