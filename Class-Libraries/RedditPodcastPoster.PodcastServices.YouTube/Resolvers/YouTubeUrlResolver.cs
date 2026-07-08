@@ -16,7 +16,7 @@ public class YouTubeItemResolver(
     ICachedTolerantYouTubePlaylistService youTubePlaylistService,
     IYouTubeChannelVideosService youTubeChannelVideosService,
     IYouTubeChannelVideoRetrievalPolicy youTubeChannelVideoRetrievalPolicy,
-    ISearchResultFinder searchResultFinder,
+    IYouTubeSearchResultFinder searchResultFinder,
     IPlaylistItemFinder playlistItemFinder,
     ILogger<YouTubeItemResolver> logger)
     : IYouTubeItemResolver

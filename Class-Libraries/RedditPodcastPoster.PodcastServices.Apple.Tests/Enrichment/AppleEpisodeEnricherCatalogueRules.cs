@@ -153,6 +153,40 @@ public class AppleEpisodeEnricherCatalogueRules
         enrichmentContext.ReleaseUpdated.Should().BeFalse();
     }
 
+    [Fact(DisplayName =
+        "When the episode is still inside the delayed YouTube publishing window, Apple enrichment " +
+        "is bypassed and does not query the catalogue.")]
+    public async Task enrich_is_bypassed_inside_delayed_youtube_publishing_window()
+    {
+        // Arrange
+        var publishingDelay = TimeSpan.FromDays(1);
+        var podcast = _fixture.CreatePodcast(p => p.AppleId = _fixture.CreateAppleId());
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        podcast.YouTubePublicationOffset = publishingDelay.Ticks;
+        var inWindowRelease = DomainTestFixture.SpotifyCatalogueReleaseStillInsideDelayedPublishingWindow(
+            publishingDelay);
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithRelease(inWindowRelease)
+            .WithLength(_fixture.CreateDuration())
+            .Create();
+        episode.AppleId = null;
+        episode.Urls.Apple = null;
+        var resolver = new TrackingAppleEpisodeResolver();
+        var sut = CreateEnricher(resolver);
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        resolver.FindEpisodeInvoked.Should().BeFalse();
+        enrichmentContext.AppleUrlUpdated.Should().BeFalse();
+    }
+
     private static AppleEpisodeEnricher CreateEnricher(IAppleEpisodeResolver resolver) =>
         new(
             new StubApplePodcastEnricher(),
@@ -165,6 +199,20 @@ public class AppleEpisodeEnricherCatalogueRules
     private sealed class StubApplePodcastEnricher : IApplePodcastEnricher
     {
         public Task AddId(Podcast podcast) => Task.CompletedTask;
+    }
+
+    private sealed class TrackingAppleEpisodeResolver : IAppleEpisodeResolver
+    {
+        public bool FindEpisodeInvoked { get; private set; }
+
+        public Task<AppleEpisode?> FindEpisode(
+            FindAppleEpisodeRequest request,
+            IndexingContext indexingContext,
+            Func<AppleEpisode, bool>? reducer = null)
+        {
+            FindEpisodeInvoked = true;
+            return Task.FromResult<AppleEpisode?>(null);
+        }
     }
 
     private sealed class CapturingAppleEpisodeResolver(

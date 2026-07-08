@@ -3,7 +3,7 @@ using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Finders;
 
-public interface ISearchResultFinder
+public interface ISpotifySearchResultFinder
 {
     SimpleEpisode? FindMatchingEpisodeByDate(
         string episodeTitle,

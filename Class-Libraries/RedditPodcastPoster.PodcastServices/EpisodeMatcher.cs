@@ -6,6 +6,8 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.PodcastServices;
 
+/// Indexing orchestration matcher: delegates stored-episode merge decisions to <see cref="Episodes.Matching.IEpisodePlatformMatcher"/>.
+/// Not to be confused with platform catalogue finders (<c>SpotifySearchResultFinder</c>, <c>YouTubeSearchResultFinder</c>).
 public class EpisodeMatcher(
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<EpisodeMatcher> logger,

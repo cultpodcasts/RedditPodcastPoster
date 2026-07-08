@@ -193,7 +193,7 @@ flowchart TB
         SP_P[SpotifyEpisodeProvider]
         SP_E[SpotifyEpisodeEnricher]
         SP_R[SpotifyEpisodeResolver]
-        SP_F[SearchResultFinder]
+        SP_F[SpotifySearchResultFinder]
         SP_S[SpotifyExpensiveQuerySideEffect]
     end
 
@@ -207,7 +207,7 @@ flowchart TB
         YT_P[YouTubeEpisodeProvider]
         YT_E[YouTubeEpisodeEnricher]
         YT_R[YouTubeItemResolver]
-        YT_F[SearchResultFinder · PlaylistItemFinder]
+        YT_F[YouTubeSearchResultFinder · PlaylistItemFinder]
     end
 
     subgraph UrlSubmission["RedditPodcastPoster.UrlSubmission"]
@@ -251,7 +251,7 @@ Each platform assembly follows the same shape:
 | **Discovery**                 | `SpotifyEpisodeProvider`          | `AppleEpisodeProvider`                | `YouTubeEpisodeProvider`                   |
 | **Enrich**                    | `SpotifyEpisodeEnricher`          | `AppleEpisodeEnricher`                | `YouTubeEpisodeEnricher`                   |
 | **Resolve**                   | `SpotifyEpisodeResolver`          | `AppleEpisodeResolver`                | `YouTubeItemResolver`                      |
-| **Find / catalogue boundary** | `SearchResultFinder`              | `AppleEpisodeResolver` (uses matcher) | `SearchResultFinder`, `PlaylistItemFinder` |
+| **Find / catalogue boundary** | `SpotifySearchResultFinder`              | `AppleEpisodeResolver` (uses matcher) | `YouTubeSearchResultFinder`, `PlaylistItemFinder` |
 | **Side effects**              | `SpotifyExpensiveQuerySideEffect` | —                                     | —                                          |
 | **Catalogue adapter**         | `SpotifyEpisodeAdapter`           | `AppleEpisodeAdapter`                 | `YouTubeEpisodeAdapter`                    |
 

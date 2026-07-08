@@ -11,7 +11,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 
 public class SpotifyPodcastResolver(
     ISpotifyClientWrapper spotifyClientWrapper,
-    ISearchResultFinder searchResultFinder,
+    ISpotifySearchResultFinder searchResultFinder,
     ISpotifyPodcastEpisodesProvider spotifyPodcastEpisodesProvider,
     ILogger<SpotifyPodcastResolver> logger)
     : ISpotifyPodcastResolver

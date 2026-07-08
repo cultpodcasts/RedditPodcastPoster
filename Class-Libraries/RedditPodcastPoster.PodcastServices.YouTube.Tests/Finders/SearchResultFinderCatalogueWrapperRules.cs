@@ -55,7 +55,7 @@ public class SearchResultFinderCatalogueWrapperRules
             FuzzyTitleVariantStrategy.SwapAdjacentWords
         };
 
-    private ISearchResultFinder Sut => _mocker.CreateInstance<SearchResultFinder>();
+    private IYouTubeSearchResultFinder Sut => _mocker.CreateInstance<YouTubeSearchResultFinder>();
 
     [Fact(DisplayName =
         "When the search-result finder resolves by exact episode title, " +

@@ -258,8 +258,8 @@ Steps 1–6 are complete. **Phase A–E** merged to main ([#871](https://github.
 **Scope / areas:**
 
 - `EpisodePlatformMatcher` + `IReleaseMatchStrategy` implementations
-- Spotify: `SearchResultFinder` / `ISearchResultFinder`
-- YouTube: `SearchResultFinder`, `PlaylistItemFinder`
+- Spotify: `SpotifySearchResultFinder` / `ISpotifySearchResultFinder`
+- YouTube: `YouTubeSearchResultFinder`, `PlaylistItemFinder`
 - Apple finder/enricher match paths (any parallel title/duration/release logic)
 - Existing `EpisodeReleaseMatchTolerance` call sites used only for matching (migrate per §10.9 — copy semantics, do not rewrite)
 - Matcher rules: `Episodes.Tests/BusinessRules/Matching/`
@@ -547,14 +547,14 @@ Single register of **production cleanup** and **test/coverage aspiration** defer
 | F1 | Remove `EpisodeReleaseMatchTolerance` type + Abstractions call-site sweep | Cleanup | UrlSubmission categorisers, any remaining match-time callers | P1 | [x] |
 | F2 | Retire thin finder wrappers (`SearchResultFinder`, `PlaylistItemFinder`, Apple resolver wrapper) once call sites use domain matcher directly | Cleanup | `PodcastServices.Spotify/YouTube/Apple` finders | P1 | Open — deferred (finders not thin forwards) |
 | F3 | Unify UrlSubmission `EpisodeEnricher` onto `PlatformEnrichmentApplicator` (delete dual enrichment model) | Cleanup | `UrlSubmission/EpisodeEnricher.cs` | P1 | [x] |
-| F4 | Rename homonymous types (`SearchResultFinder` × platforms, legacy `EpisodeMatcher` surface) | Cleanup | Platform projects + DI | P2 | Open |
+| F4 | Rename homonymous types (`SearchResultFinder` × platforms, legacy `EpisodeMatcher` surface) | Cleanup | Platform projects + DI | P2 | [x] `SpotifySearchResultFinder`, `YouTubeSearchResultFinder`; `EpisodeMatcher` documented |
 | F5 | Sweep orchestrators for `switch (service)` / direct tolerance calls (§10.8) | Cleanup | `PodcastUpdater`, enrichers, categorisers | P2 | [x] |
 | F6 | Extend `UrlSubmissionEnrichmentRules` — remaining `EpisodeEnricher` branches toward 85% aspiration | Test | `EpisodeEnricher.cs` (~74% branch gate) | P1 | [x] non-podcast skip/backfill + url-only link rules |
 | F7 | `ResolvedAppleItemAdapter` URL-only negative branch rule | Test (optional) | `ResolvedAppleItemAdapter.cs` | P2 | [x] |
 | F8 | YouTube `SearchResultFinder` wrapper rules (mirror Spotify) | Test | `SearchResultFinderCatalogueWrapperRules` | P3 | [x] 12 rules |
 | F9 | `PlaylistItemFinder` fuzzy/duration Theory expansion | Test | `PlaylistItemFinderCatalogueWrapperRules` | P3 | [x] ~55% branch gate |
 | F10 | Raise `EpisodePlatformMatcher` branch toward 90% aspiration | Test | `CatalogueMatchingRules` | P3 | [x] ~85% branch gate |
-| F11 | Template bypass/apply per Apple/YouTube enricher (optional E2E) | Test (optional) | Platform enrichers | P3 | Open |
+| F11 | Template bypass/apply per Apple/YouTube enricher (optional E2E) | Test (optional) | Platform enrichers | P3 | [x] delayed-publishing bypass rules (Apple + YouTube + Spotify) |
 | F12 | Confirm discovery remains out of scope | Policy | `EpisodeResultsEnricher` | — | [x] |
 | F13 | **Relocate merge orchestration off Persistence** — move `EpisodeMatcher` / `EpisodeMerger` implementations to `PodcastServices`; register in `AddPodcastServices()` (or `AddEpisodesIndexing()`); **remove `Persistence → Episodes` project reference** | Layering | `Persistence/EpisodeMatcher.cs`, `EpisodeMerger.cs` | P1 | [x] |
 | F14 | **Relocate merge contracts off Persistence.Abstractions** — move `IEpisodeMatcher`, `IEpisodeMerger`, `EpisodeMergeResult` to `PodcastServices.Abstractions` (or `Episodes` application surface); update `PodcastUpdater`, tests, `IndexPodcastResult` | Layering | `Persistence.Abstractions/IEpisode*.cs` | P1 | [x] |
@@ -616,13 +616,14 @@ Episodes → Models, Text only
 - [x] **F1** — Remove `EpisodeReleaseMatchTolerance` type; migrate call sites to `EpisodeReleaseTolerance`
 - [ ] **F2** — Retire transitional finder wrappers that only forward to domain matcher *(deferred: Spotify/Apple/YouTube finders retain platform catalogue mapping and YouTube heuristics — not thin forwards; see F4/F8/F9 if renaming or extra characterization needed)*
 - [x] **F3** — Unify UrlSubmission `EpisodeEnricher` onto `PlatformEnrichmentApplicator` (Apple/Spotify/YouTube via resolved-item adapters)
-- [ ] **F4** — Rename confusing homonyms for clarity (document renames in PR)
+- [x] **F4** — Rename homonymous finders: `SpotifySearchResultFinder`, `YouTubeSearchResultFinder`; document `PodcastServices.EpisodeMatcher` vs domain matcher
 - [x] **F5** — Sweep for `switch (service)` or direct tolerance calls in orchestrators (§10.8 anti-patterns) — `PodcastServicesEpisodeEnricher` enum dispatch removed; `PodcastUpdater` / request factories retain domain `EpisodeReleaseTolerance` at scope/lookup boundaries per §10.9
 - [x] **F6** — Extend `UrlSubmissionEnrichmentRules` for non-podcast skip/backfill branches and url-only platform link enrichment
 - [x] **F7** — `ResolvedAppleItemAdapter` URL-only negative branch (`ResolvedItemAdapterRules`)
 - [x] **F8** — YouTube `SearchResultFinder` wrapper rules (`SearchResultFinderCatalogueWrapperRules`)
 - [x] **F9** — `PlaylistItemFinder` fuzzy/duration Theory expansion (~55% branch gate)
 - [x] **F10** — Raise `EpisodePlatformMatcher` branch toward 90% aspiration (~85% branch gate; 6 new catalogue/title-duration rules)
+- [x] **F11** — Template delayed-publishing bypass per Apple/YouTube enricher (`*EnricherCatalogueRules`)
 - [x] **F12** — Confirm discovery remains out of scope (`EpisodeResultsEnricher` untouched unless already adapter-only)
 - [x] **F13** — Move `EpisodeMatcher` / `EpisodeMerger` to `PodcastServices`; remove `Persistence → Episodes`
 - [x] **F14** — Move `IEpisodeMatcher` / `IEpisodeMerger` / `EpisodeMergeResult` to orchestration abstractions
@@ -689,8 +690,8 @@ Single index of test-gap status across phases. **Pre-soak backlog (Phase E P0–
 | Matcher branch aspiration (90%) | `EpisodePlatformMatcher.cs` (~85% gate) | Phase F P3 | P3 | [x] 6 new rules; 90% aspirational | **F10** |
 | `PlaylistItemFinder` branch aspiration (~55% gate) | Local fuzzy/duration in finder | Phase F P3 | P3 | [x] Theory expansion | **F9**, **F2** |
 | YouTube `SearchResultFinder` wrapper rules | YouTube search finder | Phase F P3 | P3 | [x] 12 wrapper rules | **F8**, **F2** |
-| Template bypass per Apple/YouTube enricher (optional) | Platform enrichers | Phase F P3 optional | P3 | **Open** | **F11** |
-| Phase F cleanup (wrapper/tolerance/unify enrich) | Phases D–E transitional code | Phase F PR | — | Partial — **F1/F3/F5–F10/F12–F16/F19** [x]; **F2/F4/F11** open | **F1–F20** |
+| Template bypass per Apple/YouTube enricher (optional) | Platform enrichers | Phase F P3 optional | P3 | [x] Apple + YouTube bypass rules | **F11** |
+| Phase F cleanup (wrapper/tolerance/unify enrich) | Phases D–E transitional code | Phase F PR | — | Partial — **F1/F3–F11/F12–F16/F19** [x]; **F2** deferred; **F17–F20** open | **F1–F20** |
 | **Project layering** — merge orchestration off Persistence | `EpisodeMatcher`/`EpisodeMerger` in Persistence | Phase F | P1 | [x] **F13–F16** | — |
 | **Project layering** — UrlSubmission / Text / TestSupport red flags | See audit table | Phase F | P2–P3 | **Open** | **F17–F20** |
 | Discovery / `EpisodeResultsEnricher` | Discovery hosts | Out of scope | — | N/A | **F12** |

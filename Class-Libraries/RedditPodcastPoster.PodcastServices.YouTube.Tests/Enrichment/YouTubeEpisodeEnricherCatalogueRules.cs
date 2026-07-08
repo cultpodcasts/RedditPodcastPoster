@@ -264,6 +264,45 @@ public class YouTubeEpisodeEnricherCatalogueRules
         enrichmentContext.ReleaseUpdated.Should().BeTrue();
     }
 
+    [Fact(DisplayName =
+        "When the episode is still inside the delayed YouTube publishing window, YouTube enrichment " +
+        "is bypassed and does not query the catalogue.")]
+    public async Task enrich_is_bypassed_inside_delayed_youtube_publishing_window()
+    {
+        // Arrange
+        var publishingDelay = TimeSpan.FromDays(1);
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        podcast.YouTubePublicationOffset = publishingDelay.Ticks;
+        var inWindowRelease = DomainTestFixture.SpotifyCatalogueReleaseStillInsideDelayedPublishingWindow(
+            publishingDelay);
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithRelease(inWindowRelease)
+            .WithLength(_fixture.CreateDuration())
+            .Customize(e =>
+            {
+                e.YouTubeId = string.Empty;
+                e.Urls = new ServiceUrls();
+            })
+            .Create();
+        var resolver = new Mock<IYouTubeItemResolver>();
+        var sut = CreateEnricher(youTubeItemResolver: resolver.Object);
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        resolver.Verify(
+            x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()),
+            Times.Never);
+        enrichmentContext.YouTubeUrlUpdated.Should().BeFalse();
+    }
+
     private YouTubeEpisodeEnricher CreateEnricher(
         IYouTubeItemResolver? youTubeItemResolver = null,
         IYouTubeVideoService? youTubeVideoService = null,

@@ -33,7 +33,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
             .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
             .AddScoped<ITolerantYouTubeChannelService, TolerantYouTubeChannelService>()
-            .AddScoped<ISearchResultFinder, SearchResultFinder>()
+            .AddScoped<IYouTubeSearchResultFinder, YouTubeSearchResultFinder>()
             .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>()
             .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
             .AddSingleton<INoRedirectHttpClientFactory, NoRedirectHttpClientFactory>()
