@@ -67,6 +67,54 @@ public class SpotifyCatalogueInputMappingRules
     }
 
     [Fact(DisplayName =
+        "When FullEpisode HtmlDescription is null, catalogue mapping produces an empty sanitized description " +
+        "because the full-episode enricher path must tolerate the same API nulls as SimpleEpisode.")]
+    public void Full_episode_null_html_description_maps_to_empty_sanitized_description()
+    {
+        // Arrange
+        var episode = CreateFullEpisode();
+        episode.HtmlDescription = null;
+
+        // Act
+        var input = episode.ToCatalogueInput(_htmlSanitiser);
+
+        // Assert
+        input.Description.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When Spotify episode has no images, catalogue mapping leaves Image null " +
+        "because missing artwork must not throw during adapter conversion.")]
+    public void Simple_episode_without_images_maps_to_null_image_url()
+    {
+        // Arrange
+        var episode = CreateSimpleEpisode();
+        episode.Images = [];
+
+        // Act
+        var input = episode.ToCatalogueInput(_htmlSanitiser);
+
+        // Assert
+        input.Image.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When FullEpisode has no images, catalogue mapping leaves Image null " +
+        "because both provider DTO paths must tolerate absent artwork.")]
+    public void Full_episode_without_images_maps_to_null_image_url()
+    {
+        // Arrange
+        var episode = CreateFullEpisode();
+        episode.Images = [];
+
+        // Act
+        var input = episode.ToCatalogueInput(_htmlSanitiser);
+
+        // Assert
+        input.Image.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "When Spotify episode name has leading or trailing whitespace, catalogue mapping trims the title " +
         "because indexed titles must match legacy FromSpotify behavior.")]
     public void Title_whitespace_is_trimmed()
@@ -132,6 +180,24 @@ public class SpotifyCatalogueInputMappingRules
     {
         var spotifyId = _fixture.CreateSpotifyId();
         return new SimpleEpisode
+        {
+            Id = spotifyId,
+            Name = name ?? _fixture.CreateTitle(),
+            HtmlDescription = htmlDescription ?? $"<p>{_fixture.Create<string>()}</p>",
+            DurationMs = (int)_fixture.CreateDuration().TotalMilliseconds,
+            ReleaseDate = DomainTestFixture.UtcDateDaysAgo(1).ToString("yyyy-MM-dd"),
+            ExternalUrls = new Dictionary<string, string>
+            {
+                ["spotify"] = _fixture.DefaultSpotifyUrl(spotifyId).ToString()
+            },
+            Images = []
+        };
+    }
+
+    private FullEpisode CreateFullEpisode(string? name = null, string? htmlDescription = null)
+    {
+        var spotifyId = _fixture.CreateSpotifyId();
+        return new FullEpisode
         {
             Id = spotifyId,
             Name = name ?? _fixture.CreateTitle(),
