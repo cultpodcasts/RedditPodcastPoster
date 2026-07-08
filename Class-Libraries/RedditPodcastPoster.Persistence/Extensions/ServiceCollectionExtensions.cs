@@ -4,6 +4,8 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Lookups;
+using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text.EliminationTerms;
 using RedditPodcastPoster.Text.KnownTerms;
 
@@ -60,6 +62,8 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IKnownTermsProviderFactory, KnownTermsProviderFactory>()
                 .AddSingleton<IAsyncInstance<IKnownTermsProvider>>(s =>
                     new AsyncInstance<IKnownTermsProvider>(s.GetRequiredService<IKnownTermsProviderFactory>()))
+                .AddSingleton<IYouTubeQuotaUsageStateStore, YouTubeQuotaUsageStateStore>()
+                .AddSingleton<IYouTubeIndexerKeyStateStore, YouTubeIndexerKeyStateStore>()
                 .BindConfiguration<CosmosDbSettings>("cosmosdb");
         }
 

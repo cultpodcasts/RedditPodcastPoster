@@ -8,11 +8,10 @@ using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Apple;
-using RedditPodcastPoster.PodcastServices.Spotify.Models;
-using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
@@ -56,7 +55,7 @@ public class UrlSubmissionEnrichmentRules
             podcast,
             [episode],
             episode,
-            new ResolvedSpotifyItem(
+            new CategorisedSpotifyItem(
                 podcast.SpotifyId,
                 spotifyInput.EpisodeId,
                 podcast.Name,
@@ -69,7 +68,7 @@ public class UrlSubmissionEnrichmentRules
                 spotifyInput.Url!,
                 false,
                 null),
-            new ResolvedAppleItem(
+            new CategorisedAppleItem(
                 podcast.AppleId,
                 appleInput.EpisodeId,
                 podcast.Name,
@@ -82,7 +81,7 @@ public class UrlSubmissionEnrichmentRules
                 appleInput.Url!,
                 false,
                 null),
-            new ResolvedYouTubeItem(
+            new CategorisedYouTubeItem(
                 youTubeChannelId,
                 youTubeInput.YouTubeId,
                 podcast.Name,
@@ -142,7 +141,7 @@ public class UrlSubmissionEnrichmentRules
             podcast,
             [],
             null,
-            new ResolvedSpotifyItem(
+            new CategorisedSpotifyItem(
                 spotifyShowId,
                 spotifyInput.EpisodeId,
                 showName,
@@ -155,7 +154,7 @@ public class UrlSubmissionEnrichmentRules
                 spotifyInput.Url!,
                 false,
                 null),
-            new ResolvedAppleItem(
+            new CategorisedAppleItem(
                 appleShowId,
                 appleInput.EpisodeId,
                 showName,
@@ -168,7 +167,7 @@ public class UrlSubmissionEnrichmentRules
                 appleInput.Url!,
                 false,
                 null),
-            new ResolvedYouTubeItem(
+            new CategorisedYouTubeItem(
                 youTubeChannelId,
                 youTubeInput.EpisodeId,
                 showName,
@@ -227,7 +226,7 @@ public class UrlSubmissionEnrichmentRules
             podcast,
             [episode],
             episode,
-            new ResolvedSpotifyItem(
+            new CategorisedSpotifyItem(
                 podcast.SpotifyId,
                 episode.SpotifyId,
                 podcast.Name,
@@ -240,7 +239,7 @@ public class UrlSubmissionEnrichmentRules
                 episode.Urls.Spotify!,
                 false,
                 null),
-            new ResolvedAppleItem(
+            new CategorisedAppleItem(
                 podcast.AppleId,
                 episode.AppleId,
                 podcast.Name,
@@ -253,7 +252,7 @@ public class UrlSubmissionEnrichmentRules
                 episode.Urls.Apple!,
                 false,
                 null),
-            new ResolvedYouTubeItem(
+            new CategorisedYouTubeItem(
                 podcast.YouTubeChannelId,
                 episode.YouTubeId,
                 podcast.Name,
@@ -310,7 +309,7 @@ public class UrlSubmissionEnrichmentRules
             podcast,
             [episode],
             episode,
-            new ResolvedSpotifyItem(
+            new CategorisedSpotifyItem(
                 podcast.SpotifyId,
                 spotifyInput.EpisodeId,
                 podcast.Name,
@@ -785,7 +784,7 @@ public class UrlSubmissionEnrichmentRules
             [episode],
             episode,
             null,
-            new ResolvedAppleItem(
+            new CategorisedAppleItem(
                 podcast.AppleId,
                 appleInput.EpisodeId,
                 podcast.Name,
@@ -815,7 +814,7 @@ public class UrlSubmissionEnrichmentRules
             episode,
             null,
             null,
-            new ResolvedYouTubeItem(
+            new CategorisedYouTubeItem(
                 podcast.YouTubeChannelId,
                 youTubeInput.EpisodeId,
                 podcast.Name,
@@ -843,7 +842,7 @@ public class UrlSubmissionEnrichmentRules
             podcast,
             [episode],
             episode,
-            new ResolvedSpotifyItem(
+            new CategorisedSpotifyItem(
                 podcast.SpotifyId,
                 spotifyInput.EpisodeId,
                 podcast.Name,

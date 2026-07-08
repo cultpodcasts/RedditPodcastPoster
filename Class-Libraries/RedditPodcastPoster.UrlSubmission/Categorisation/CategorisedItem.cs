@@ -1,8 +1,6 @@
 ﻿using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Apple;
-using RedditPodcastPoster.PodcastServices.Spotify.Models;
-using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Categorisation;
 
@@ -10,8 +8,8 @@ public record CategorisedItem(
     Podcast? MatchingPodcast,
     IEnumerable<Episode>? MatchingPodcastEpisodes,
     Episode? MatchingEpisode,
-    ResolvedSpotifyItem? ResolvedSpotifyItem,
-    ResolvedAppleItem? ResolvedAppleItem,
-    ResolvedYouTubeItem? ResolvedYouTubeItem,
+    CategorisedSpotifyItem? ResolvedSpotifyItem,
+    CategorisedAppleItem? ResolvedAppleItem,
+    CategorisedYouTubeItem? ResolvedYouTubeItem,
     ResolvedNonPodcastServiceItem? ResolvedNonPodcastServiceItem,
     Service Authority);

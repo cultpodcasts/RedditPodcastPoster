@@ -134,7 +134,7 @@ flowchart TB
 | **PlatformEnrichmentApplicator** | Shared enrich entry point (indexing + UrlSubmission): candidate → patch → applier + release backfill policies. Returns `PlatformEnrichmentResult`.                                                                                                                                            |
 | **EpisodeReleaseTolerance**      | Domain static helpers for tolerance ticks, Spotify catalogue release comparison, audio-release lookup, and indexing scope (`ShouldEnrichDespiteReleaseWindow`). Used by strategies, matcher catalogue paths, and orchestration scope boundaries — not by enrichers for direct field mutation. |
 | **Catalogue adapters**           | Map platform catalogue inputs (`SpotifyCatalogueInput`, etc.) to `EpisodeCandidate`.                                                                                                                                                                                                          |
-| **Resolved-item adapters**       | Map UrlSubmission `Resolved*Item` DTOs to `EpisodeCandidate`.                                                                                                                                                                                                                                 |
+| **Resolved-item adapters**       | Map UrlSubmission `Categorised*Item` DTOs to `EpisodeCandidate` via `ToAdapterInput()`.                                                                                                                                                                                                         |
 
 
 ### Strategy and policy order
@@ -324,7 +324,7 @@ flowchart LR
 
 ## Dependency graph (projects)
 
-Current state after Phase F layering work (F13–F16, F19). Remaining debt in **F17–F20**.
+Current state after Phase F (F1–F20 complete on `feature/episode-domain-phase-f-cleanup`). Layering debt from F17–F20 resolved.
 
 ```mermaid
 flowchart BT
@@ -370,9 +370,9 @@ flowchart BT
 
 | Issue                                                                                        | Why it matters                                                  | Phase F action |
 | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | -------------- |
-| `UrlSubmission → PodcastServices` (concrete) + platform `Resolved*Item` on `CategorisedItem` | Submit path pulls indexing aggregator + foreign platform models | **F17**        |
+| `UrlSubmission` orchestration uses `Categorised*Item` DTOs; platform types only at categoriser boundary | Submit path decoupled from platform model leakage on `CategorisedItem` | **F17** [x]    |
 | `KnownTermsRepository` + lookup provider factories                                           | Moved to `Persistence/Lookups`; Text no longer refs Persistence.Abstractions | **F18** [x]    |
-| `PodcastServices.YouTube → Persistence.Abstractions`                                         | Platform assembly knows repo interfaces for quota state         | **F20**        |
+| YouTube quota/key-state store ports + Persistence adapters                                   | `YouTube → Persistence.Abstractions` removed                    | **F20** [x]    |
 
 
 ---

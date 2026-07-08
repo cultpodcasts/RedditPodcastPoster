@@ -1,13 +1,11 @@
 ﻿using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Apple;
-using RedditPodcastPoster.PodcastServices.Spotify.Models;
-using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Categorisation;
 
 public static class ResolvedItemExtensions
 {
-    public static PodcastServiceSearchCriteria ToPodcastServiceSearchCriteria(this ResolvedSpotifyItem item)
+    public static PodcastServiceSearchCriteria ToPodcastServiceSearchCriteria(this CategorisedSpotifyItem item)
     {
         var showName = item.ShowName == null || string.IsNullOrWhiteSpace(item.ShowName)
             ? string.Empty
@@ -29,7 +27,7 @@ public static class ResolvedItemExtensions
             item.Duration);
     }
 
-    public static PodcastServiceSearchCriteria ToPodcastServiceSearchCriteria(this ResolvedAppleItem item)
+    public static PodcastServiceSearchCriteria ToPodcastServiceSearchCriteria(this CategorisedAppleItem item)
     {
         return new PodcastServiceSearchCriteria(
             item.ShowName.Trim(),
@@ -41,7 +39,7 @@ public static class ResolvedItemExtensions
             item.Duration);
     }
 
-    public static PodcastServiceSearchCriteria ToPodcastServiceSearchCriteria(this ResolvedYouTubeItem item)
+    public static PodcastServiceSearchCriteria ToPodcastServiceSearchCriteria(this CategorisedYouTubeItem item)
     {
         return new PodcastServiceSearchCriteria(
             item.ShowName.Trim(),

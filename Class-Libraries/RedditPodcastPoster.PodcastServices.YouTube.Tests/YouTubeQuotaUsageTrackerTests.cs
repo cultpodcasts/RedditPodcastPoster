@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
@@ -235,11 +235,11 @@ public class YouTubeQuotaUsageTrackerTests
     public async Task RecordCallAsync_DoesNotPersistUntilFlush()
     {
         YouTubeQuotaUsageState? savedState = null;
-        var lookupRepository = new Mock<ILookupRepository>();
-        lookupRepository.Setup(x => x.GetYouTubeQuotaUsageState()).ReturnsAsync((YouTubeQuotaUsageState?)null);
-        lookupRepository
-            .Setup(x => x.SaveYouTubeQuotaUsageState(It.IsAny<YouTubeQuotaUsageState>()))
-            .Callback<YouTubeQuotaUsageState>(state => savedState = state)
+        var quotaStore = new Mock<IYouTubeQuotaUsageStateStore>();
+        quotaStore.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync((YouTubeQuotaUsageState?)null);
+        quotaStore
+            .Setup(x => x.SaveAsync(It.IsAny<YouTubeQuotaUsageState>(), It.IsAny<CancellationToken>()))
+            .Callback<YouTubeQuotaUsageState, CancellationToken>((state, _) => savedState = state)
             .Returns(Task.CompletedTask);
 
         var application = new Application
@@ -249,7 +249,7 @@ public class YouTubeQuotaUsageTrackerTests
             Usage = ApplicationUsage.Indexer,
             DisplayName = "Indexer-Key-01-CultPodcasts"
         };
-        var sut = CreateTracker(lookupRepository.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
+        var sut = CreateTracker(quotaStore.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
 
         await sut.RecordCallAsync(application, ApplicationUsage.Indexer);
 
@@ -260,11 +260,11 @@ public class YouTubeQuotaUsageTrackerTests
     public async Task FlushToCosmosAsync_PersistsUsageStateAfterRecord()
     {
         YouTubeQuotaUsageState? savedState = null;
-        var lookupRepository = new Mock<ILookupRepository>();
-        lookupRepository.Setup(x => x.GetYouTubeQuotaUsageState()).ReturnsAsync((YouTubeQuotaUsageState?)null);
-        lookupRepository
-            .Setup(x => x.SaveYouTubeQuotaUsageState(It.IsAny<YouTubeQuotaUsageState>()))
-            .Callback<YouTubeQuotaUsageState>(state => savedState = state)
+        var quotaStore = new Mock<IYouTubeQuotaUsageStateStore>();
+        quotaStore.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync((YouTubeQuotaUsageState?)null);
+        quotaStore
+            .Setup(x => x.SaveAsync(It.IsAny<YouTubeQuotaUsageState>(), It.IsAny<CancellationToken>()))
+            .Callback<YouTubeQuotaUsageState, CancellationToken>((state, _) => savedState = state)
             .Returns(Task.CompletedTask);
 
         var application = new Application
@@ -274,7 +274,7 @@ public class YouTubeQuotaUsageTrackerTests
             Usage = ApplicationUsage.Indexer,
             DisplayName = "Indexer-Key-01-CultPodcasts"
         };
-        var sut = CreateTracker(lookupRepository.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
+        var sut = CreateTracker(quotaStore.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
 
         await sut.RecordCallAsync(application, ApplicationUsage.Indexer);
         await sut.FlushToCosmosAsync();
@@ -290,8 +290,8 @@ public class YouTubeQuotaUsageTrackerTests
     {
         var pacificQuotaDate = YouTubePacificQuotaDate.GetCurrent(DateTime.UtcNow);
         YouTubeQuotaUsageState? savedState = null;
-        var lookupRepository = new Mock<ILookupRepository>();
-        lookupRepository.Setup(x => x.GetYouTubeQuotaUsageState()).ReturnsAsync(new YouTubeQuotaUsageState
+        var quotaStore = new Mock<IYouTubeQuotaUsageStateStore>();
+        quotaStore.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new YouTubeQuotaUsageState
         {
             PacificQuotaDate = pacificQuotaDate,
             SourceApplication = "Indexer",
@@ -310,9 +310,9 @@ public class YouTubeQuotaUsageTrackerTests
                 }
             ]
         });
-        lookupRepository
-            .Setup(x => x.SaveYouTubeQuotaUsageState(It.IsAny<YouTubeQuotaUsageState>()))
-            .Callback<YouTubeQuotaUsageState>(state => savedState = state)
+        quotaStore
+            .Setup(x => x.SaveAsync(It.IsAny<YouTubeQuotaUsageState>(), It.IsAny<CancellationToken>()))
+            .Callback<YouTubeQuotaUsageState, CancellationToken>((state, _) => savedState = state)
             .Returns(Task.CompletedTask);
 
         var application = new Application
@@ -322,7 +322,7 @@ public class YouTubeQuotaUsageTrackerTests
             Usage = ApplicationUsage.Indexer,
             DisplayName = "Indexer-Key-01-CultPodcasts"
         };
-        var sut = CreateTracker(lookupRepository.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
+        var sut = CreateTracker(quotaStore.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
 
         await sut.RecordCallAsync(application, ApplicationUsage.Indexer);
         await sut.RecordCallAsync(application, ApplicationUsage.Indexer);
@@ -337,8 +337,8 @@ public class YouTubeQuotaUsageTrackerTests
     public async Task CreateReportAsync_HydratesPersistedUsageStateOnColdStart()
     {
         var pacificQuotaDate = YouTubePacificQuotaDate.GetCurrent(DateTime.UtcNow);
-        var lookupRepository = new Mock<ILookupRepository>();
-        lookupRepository.Setup(x => x.GetYouTubeQuotaUsageState()).ReturnsAsync(new YouTubeQuotaUsageState
+        var quotaStore = new Mock<IYouTubeQuotaUsageStateStore>();
+        quotaStore.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new YouTubeQuotaUsageState
         {
             PacificQuotaDate = pacificQuotaDate,
             SourceApplication = "Indexer",
@@ -357,12 +357,12 @@ public class YouTubeQuotaUsageTrackerTests
                 }
             ]
         });
-        lookupRepository
-            .Setup(x => x.SaveYouTubeQuotaUsageState(It.IsAny<YouTubeQuotaUsageState>()))
+        quotaStore
+            .Setup(x => x.SaveAsync(It.IsAny<YouTubeQuotaUsageState>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var sut = CreateTracker(
-            lookupRepository.Object,
+            quotaStore.Object,
             App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"),
             App("key2", "CultPodcasts", "Indexer-Key-02-CultPodcasts"));
 
@@ -419,14 +419,14 @@ public class YouTubeQuotaUsageTrackerTests
     public async Task FlushToCosmosAsync_PersistsPodcastQuotaSkipCounts()
     {
         YouTubeQuotaUsageState? savedState = null;
-        var lookupRepository = new Mock<ILookupRepository>();
-        lookupRepository.Setup(x => x.GetYouTubeQuotaUsageState()).ReturnsAsync((YouTubeQuotaUsageState?)null);
-        lookupRepository
-            .Setup(x => x.SaveYouTubeQuotaUsageState(It.IsAny<YouTubeQuotaUsageState>()))
-            .Callback<YouTubeQuotaUsageState>(state => savedState = state)
+        var quotaStore = new Mock<IYouTubeQuotaUsageStateStore>();
+        quotaStore.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync((YouTubeQuotaUsageState?)null);
+        quotaStore
+            .Setup(x => x.SaveAsync(It.IsAny<YouTubeQuotaUsageState>(), It.IsAny<CancellationToken>()))
+            .Callback<YouTubeQuotaUsageState, CancellationToken>((state, _) => savedState = state)
             .Returns(Task.CompletedTask);
 
-        var sut = CreateTracker(lookupRepository.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
+        var sut = CreateTracker(quotaStore.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
 
         await sut.RecordPodcastNotIndexedDueToQuotaAsync();
         await sut.RecordPodcastNotEnrichedDueToQuotaAsync();
@@ -441,8 +441,8 @@ public class YouTubeQuotaUsageTrackerTests
     public async Task CreateReportAsync_HydratesPodcastQuotaSkipCountsOnColdStart()
     {
         var pacificQuotaDate = YouTubePacificQuotaDate.GetCurrent(DateTime.UtcNow);
-        var lookupRepository = new Mock<ILookupRepository>();
-        lookupRepository.Setup(x => x.GetYouTubeQuotaUsageState()).ReturnsAsync(new YouTubeQuotaUsageState
+        var quotaStore = new Mock<IYouTubeQuotaUsageStateStore>();
+        quotaStore.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new YouTubeQuotaUsageState
         {
             PacificQuotaDate = pacificQuotaDate,
             SourceApplication = "Indexer",
@@ -451,12 +451,12 @@ public class YouTubeQuotaUsageTrackerTests
             PodcastsNotEnrichedDueToQuota = 7,
             Entries = []
         });
-        lookupRepository
-            .Setup(x => x.SaveYouTubeQuotaUsageState(It.IsAny<YouTubeQuotaUsageState>()))
+        quotaStore
+            .Setup(x => x.SaveAsync(It.IsAny<YouTubeQuotaUsageState>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var sut = CreateTracker(
-            lookupRepository.Object,
+            quotaStore.Object,
             App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
 
         await sut.RecordPodcastNotIndexedDueToQuotaAsync();
@@ -470,14 +470,14 @@ public class YouTubeQuotaUsageTrackerTests
     public async Task ResetAsync_ClearsPodcastQuotaSkipCounts()
     {
         YouTubeQuotaUsageState? savedState = null;
-        var lookupRepository = new Mock<ILookupRepository>();
-        lookupRepository.Setup(x => x.GetYouTubeQuotaUsageState()).ReturnsAsync((YouTubeQuotaUsageState?)null);
-        lookupRepository
-            .Setup(x => x.SaveYouTubeQuotaUsageState(It.IsAny<YouTubeQuotaUsageState>()))
-            .Callback<YouTubeQuotaUsageState>(state => savedState = state)
+        var quotaStore = new Mock<IYouTubeQuotaUsageStateStore>();
+        quotaStore.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync((YouTubeQuotaUsageState?)null);
+        quotaStore
+            .Setup(x => x.SaveAsync(It.IsAny<YouTubeQuotaUsageState>(), It.IsAny<CancellationToken>()))
+            .Callback<YouTubeQuotaUsageState, CancellationToken>((state, _) => savedState = state)
             .Returns(Task.CompletedTask);
 
-        var sut = CreateTracker(lookupRepository.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
+        var sut = CreateTracker(quotaStore.Object, App("key1", "CultPodcasts", "Indexer-Key-01-CultPodcasts"));
 
         await sut.RecordPodcastNotIndexedDueToQuotaAsync();
         await sut.ResetAsync();
@@ -492,24 +492,24 @@ public class YouTubeQuotaUsageTrackerTests
     }
 
     private static YouTubeQuotaUsageTracker CreateTracker(params Application[] applications) =>
-        CreateTracker(CreateLookupRepository().Object, applications);
+        CreateTracker(CreateQuotaUsageStateStore().Object, applications);
 
     private static YouTubeQuotaUsageTracker CreateTracker(
-        ILookupRepository lookupRepository,
+        IYouTubeQuotaUsageStateStore quotaUsageStateStore,
         params Application[] applications) =>
         new(
             Options.Create(new YouTubeSettings { Applications = applications }),
-            lookupRepository,
+            quotaUsageStateStore,
             NullLogger<YouTubeQuotaUsageTracker>.Instance);
 
-    private static Mock<ILookupRepository> CreateLookupRepository()
+    private static Mock<IYouTubeQuotaUsageStateStore> CreateQuotaUsageStateStore()
     {
-        var lookupRepository = new Mock<ILookupRepository>();
-        lookupRepository.Setup(x => x.GetYouTubeQuotaUsageState()).ReturnsAsync((YouTubeQuotaUsageState?)null);
-        lookupRepository
-            .Setup(x => x.SaveYouTubeQuotaUsageState(It.IsAny<YouTubeQuotaUsageState>()))
+        var store = new Mock<IYouTubeQuotaUsageStateStore>();
+        store.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync((YouTubeQuotaUsageState?)null);
+        store
+            .Setup(x => x.SaveAsync(It.IsAny<YouTubeQuotaUsageState>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        return lookupRepository;
+        return store;
     }
 
     private static Application App(

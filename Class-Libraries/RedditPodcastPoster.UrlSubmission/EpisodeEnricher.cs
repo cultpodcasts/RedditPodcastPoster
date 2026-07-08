@@ -4,9 +4,6 @@ using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Applying;
 using RedditPodcastPoster.Episodes.Domain;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.PodcastServices.Apple;
-using RedditPodcastPoster.PodcastServices.Spotify.Models;
-using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 
@@ -56,7 +53,7 @@ public class EpisodeEnricher(
                     matchingPodcast,
                     matchingEpisode,
                     BuildCandidate(
-                        _appleItemAdapter.Adapt(ToInput(categorisedItem.ResolvedAppleItem)),
+                        _appleItemAdapter.Adapt(categorisedItem.ResolvedAppleItem.ToAdapterInput()),
                         categorisedItem.ResolvedAppleItem.EpisodeDescription,
                         categorisedItem),
                     ref addedApple,
@@ -85,7 +82,7 @@ public class EpisodeEnricher(
                     matchingPodcast,
                     matchingEpisode,
                     BuildCandidate(
-                        _spotifyItemAdapter.Adapt(ToInput(categorisedItem.ResolvedSpotifyItem)),
+                        _spotifyItemAdapter.Adapt(categorisedItem.ResolvedSpotifyItem.ToAdapterInput()),
                         categorisedItem.ResolvedSpotifyItem.EpisodeDescription,
                         categorisedItem),
                     ref addedSpotify,
@@ -115,7 +112,7 @@ public class EpisodeEnricher(
                     matchingPodcast,
                     matchingEpisode,
                     BuildCandidate(
-                        _youTubeItemAdapter.Adapt(ToInput(categorisedItem.ResolvedYouTubeItem)),
+                        _youTubeItemAdapter.Adapt(categorisedItem.ResolvedYouTubeItem.ToAdapterInput()),
                         categorisedItem.ResolvedYouTubeItem.EpisodeDescription,
                         categorisedItem),
                     ref addedYouTube,
@@ -233,34 +230,4 @@ public class EpisodeEnricher(
             descriptionHelper.EnrichMissingDescription(categorisedItem);
         return candidate with { Description = description };
     }
-
-    private static ResolvedAppleItemInput ToInput(ResolvedAppleItem item) =>
-        new(
-            item.EpisodeId,
-            item.EpisodeTitle,
-            item.EpisodeDescription,
-            item.Release,
-            item.Duration,
-            item.Url,
-            item.Image);
-
-    private static ResolvedSpotifyItemInput ToInput(ResolvedSpotifyItem item) =>
-        new(
-            item.EpisodeId,
-            item.EpisodeTitle,
-            item.EpisodeDescription,
-            item.Release,
-            item.Duration,
-            item.Url,
-            item.Image);
-
-    private static ResolvedYouTubeItemInput ToInput(ResolvedYouTubeItem item) =>
-        new(
-            item.EpisodeId,
-            item.EpisodeTitle,
-            item.EpisodeDescription,
-            item.Release,
-            item.Duration,
-            item.Url,
-            item.Image);
 }

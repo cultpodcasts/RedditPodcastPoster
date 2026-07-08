@@ -111,8 +111,8 @@ public class DiscoveryResultProcessor(
         {
             categorisedItem = categorisedItem with
             {
-                ResolvedSpotifyItem =
-                await spotifyUrlCategoriser.Resolve(null, [], urls.Spotify!, indexingContext)
+                ResolvedSpotifyItem = PlatformResolvedItemMappers.FromPlatform(
+                    await spotifyUrlCategoriser.Resolve(null, [], urls.Spotify!, indexingContext))
             };
         }
 
@@ -130,8 +130,8 @@ public class DiscoveryResultProcessor(
         {
             categorisedItem = categorisedItem with
             {
-                ResolvedAppleItem =
-                await appleUrlCategoriser.Resolve(null, [], urls.Apple!, indexingContext)
+                ResolvedAppleItem = PlatformResolvedItemMappers.FromPlatform(
+                    await appleUrlCategoriser.Resolve(null, [], urls.Apple!, indexingContext))
             };
         }
 
@@ -146,7 +146,8 @@ public class DiscoveryResultProcessor(
         {
             categorisedItem = categorisedItem with
             {
-                ResolvedYouTubeItem = await youTubeUrlCategoriser.Resolve(null, [],urls.YouTube!, indexingContext)
+                ResolvedYouTubeItem = PlatformResolvedItemMappers.FromPlatform(
+                    await youTubeUrlCategoriser.Resolve(null, [], urls.YouTube!, indexingContext))
             };
         }
 

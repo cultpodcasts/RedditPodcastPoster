@@ -1,13 +1,13 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Strategies;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 public sealed class YouTubeIndexerKeyStateService(
-    ILookupRepository lookupRepository,
+    IYouTubeIndexerKeyStateStore indexerKeyStateStore,
     IYouTubeApiKeyStrategy youTubeApiKeyStrategy,
     ILogger<YouTubeIndexerKeyStateService> logger) : IYouTubeIndexerKeyStateService
 {
@@ -18,7 +18,7 @@ public sealed class YouTubeIndexerKeyStateService(
         var ring = youTubeApiKeyStrategy.BuildIndexerKeyRing(0);
         var currentPacificQuotaDate = YouTubePacificQuotaDate.GetCurrent(DateTime.UtcNow);
 
-        var savedState = await lookupRepository.GetYouTubeIndexerKeyState();
+        var savedState = await indexerKeyStateStore.GetAsync(cancellationToken);
         var initialRingIndex = IndexerKeyRingSessionResolver.ResolveInitialRingIndex(
             ring,
             savedState,
@@ -71,7 +71,7 @@ public sealed class YouTubeIndexerKeyStateService(
             UpdatedUtc = DateTime.UtcNow
         };
 
-        await lookupRepository.SaveYouTubeIndexerKeyState(state);
+        await indexerKeyStateStore.SaveAsync(state, cancellationToken);
 
         logger.LogInformation(
             "Persisted YouTube indexer key state at ring index {RingIndex} for quota day {PacificQuotaDate}.",
