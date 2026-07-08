@@ -24,6 +24,30 @@ public class PlatformEpisodeEnricherTemplateRules
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
+        "When an episode is outside the delayed-publishing window, the shared enricher template " +
+        "does not bypass platform enrichment.")]
+    public void template_does_not_bypass_enrichment_outside_delayed_publishing_window()
+    {
+        // Arrange
+        var podcast = PodcastServicesEpisodeEnricherTestSupport.CreateDelayedPublishingPodcast(
+            _fixture.CreateSpotifyId(),
+            _fixture.CreateYouTubeChannelId(),
+            PublishingDelay);
+        var release = DomainTestFixture.UtcDateDaysAgo(30);
+        var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(release)
+            .WithDuration(_fixture.CreateDuration()));
+        var request = new EnrichmentRequest(podcast, [episode], episode);
+        var enricher = new TestPlatformEpisodeEnricher(EpisodeDomainTestServices.CreateEnrichmentApplicator());
+
+        // Act
+        var bypassed = enricher.TryBypass(request, NullLogger.Instance);
+
+        // Assert
+        bypassed.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "When an episode is still inside the delayed-publishing window, the shared enricher template " +
         "bypasses platform enrichment because audio is not yet due on YouTube.")]
     public void template_bypasses_enrichment_inside_delayed_publishing_window()

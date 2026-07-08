@@ -187,6 +187,114 @@ public class AppleEpisodeEnricherCatalogueRules
         enrichmentContext.AppleUrlUpdated.Should().BeFalse();
     }
 
+    [Fact(DisplayName =
+        "When no Apple catalogue match is found, Apple enrichment leaves the episode unchanged " +
+        "and does not mark Apple URL flags.")]
+    public async Task enrich_leaves_episode_unchanged_when_no_catalogue_match()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.AppleId = _fixture.CreateAppleId());
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.AppleId = null;
+            e.Urls = new ServiceUrls();
+        });
+        var sut = CreateEnricher(new TrackingAppleEpisodeResolver());
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        episode.AppleId.Should().BeNull();
+        episode.Urls.Apple.Should().BeNull();
+        enrichmentContext.AppleUrlUpdated.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When Apple catalogue returns an episode id already owned by another stored episode, " +
+        "Apple enrichment leaves the current episode unchanged.")]
+    public async Task enrich_skips_apple_id_already_owned_by_another_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.AppleId = _fixture.CreateAppleId());
+        var appleEpisodeId = _fixture.CreateAppleId();
+        var sharedTitle = _fixture.CreateTitle();
+        var sharedLength = _fixture.CreateDuration();
+        var sharedRelease = DomainTestFixture.UtcDateDaysAgo(2);
+        var current = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithTitle(sharedTitle)
+            .WithRelease(sharedRelease)
+            .WithLength(sharedLength)
+            .Create();
+        current.AppleId = null;
+        current.Urls.Apple = null;
+        var other = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithTitle(_fixture.CreateTitle())
+            .WithRelease(sharedRelease.AddDays(-1))
+            .WithLength(sharedLength)
+            .Create();
+        other.AppleId = appleEpisodeId;
+        var appleEpisode = new AppleEpisode(
+            appleEpisodeId,
+            sharedTitle,
+            sharedRelease.AddHours(8),
+            sharedLength,
+            new Uri($"https://podcasts.apple.com/us/podcast/episode/id{podcast.AppleId}?i={appleEpisodeId}"),
+            string.Empty,
+            false);
+        var sut = CreateEnricher(new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId));
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [current, other], current),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        current.AppleId.Should().BeNull();
+        enrichmentContext.AppleUrlUpdated.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When the podcast still has no Apple show id after podcast enricher runs, " +
+        "episode enrichment exits without querying the catalogue.")]
+    public async Task enrich_exits_when_podcast_apple_id_cannot_be_resolved()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.AppleId = null);
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.AppleId = null;
+            e.Urls = new ServiceUrls();
+        });
+        var resolver = new TrackingAppleEpisodeResolver();
+        var sut = new AppleEpisodeEnricher(
+            new StubApplePodcastEnricher(),
+            resolver,
+            EpisodeDomainTestServices.CreatePlatformMatcher(),
+            new AppleEpisodeAdapter(),
+            EpisodeDomainTestServices.CreateEnrichmentApplicator(),
+            NullLogger<AppleEpisodeEnricher>.Instance);
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        resolver.FindEpisodeInvoked.Should().BeFalse();
+        enrichmentContext.AppleUrlUpdated.Should().BeFalse();
+    }
+
     private static AppleEpisodeEnricher CreateEnricher(IAppleEpisodeResolver resolver) =>
         new(
             new StubApplePodcastEnricher(),

@@ -148,12 +148,12 @@ One PR per phase (or pair P0+P1 if small). Order matters: dead code → F17 boun
 
 | Task | Test file | Matrix |
 |------|-----------|--------|
-| **8F.1** `PlatformEpisodeEnricherTemplate` (50% branch) | `PlatformEpisodeEnricherTemplateRules.cs` | bypass delayed publishing × apply resolved candidate × null catalogue |
-| **8F.2** `PlatformEnrichmentResultExtensions` (78% branch) | `PlatformEnrichmentResultExtensionsRules.cs` | extend `PlatformUrlServices` matrix for release + URL flags |
-| **8F.3** `AppleEpisodeEnricher` (50% branch) | `AppleEpisodeEnricherCatalogueRules.cs` | catalogue match / no match / bypass template |
-| **8F.4** `YouTubeEpisodeEnricher` (65% branch) | `YouTubeEpisodeEnricherCatalogueRules.cs` | Enrich entry paths; link-only applier backfill |
-| **8F.5** `SpotifyEpisodeEnricher` (66% branch) | `SpotifyEpisodeEnricherCatalogueRules.cs` | full catalogue flow; expensive-query side effect interaction |
-| **8F.6** `PlaylistItemFinder` (55% branch) | `PlaylistItemFinderCatalogueWrapperRules.cs` | extend fuzzy `TheoryData` if still below 60% after 8A–8E |
+| **8F.1** `PlatformEpisodeEnricherTemplate` (50% branch) | `PlatformEpisodeEnricherTemplateRules.cs` | ✅ bypass + non-bypass delayed publishing |
+| **8F.2** `PlatformEnrichmentResultExtensions` (78% branch) | `PlatformEnrichmentResultExtensionsRules.cs` | ✅ already had PlatformUrlServices matrix |
+| **8F.3** `AppleEpisodeEnricher` (50% branch) | `AppleEpisodeEnricherCatalogueRules.cs` | ✅ no match / owned id / unresolved show id / bypass |
+| **8F.4** `YouTubeEpisodeEnricher` (65% branch) | `YouTubeEpisodeEnricherCatalogueRules.cs` | ✅ no-match + link-only + bypass |
+| **8F.5** `SpotifyEpisodeEnricher` (66% branch) | `SpotifyEpisodeEnricherCatalogueRules.cs` | ✅ already had match / no match / expensive / bypass |
+| **8F.6** `PlaylistItemFinder` (55% branch) | `PlaylistItemFinderCatalogueWrapperRules.cs` | **Deferred** — already had fuzzy Theory matrix; re-measure after gate |
 
 **Pattern:** `platform × { match, no match, bypass, link-only }` — reuse `DelayedPublishingAudioPlatforms` style from `IndexingEnrichmentRules`.
 
@@ -165,8 +165,8 @@ One PR per phase (or pair P0+P1 if small). Order matters: dead code → F17 boun
 
 | Task | Test file | Matrix |
 |------|-----------|--------|
-| **8G.1** `PodcastUpdater` (68% branch) | `IndexingOrchestrationRules.cs` | enrich-only scope × `ShouldEnrichDespiteReleaseWindow` × bypass flags |
-| **8G.2** Indexing + tolerance integration | `IndexingScopeRules.cs` | cross-platform second-pass delayed YouTube publishing |
+| **8G.1** `PodcastUpdater` (68% branch) | `IndexingOrchestrationRules.cs` | ✅ enrich-only × ShouldEnrichDespiteReleaseWindow × bypass flags already present |
+| **8G.2** Indexing + tolerance integration | `IndexingScopeRules.cs` / `IndexingEnrichmentRules.cs` | ✅ delayed-publishing second pass already characterized |
 
 **Exit:** orchestration branch ≥ 82% (stretch 85%).
 

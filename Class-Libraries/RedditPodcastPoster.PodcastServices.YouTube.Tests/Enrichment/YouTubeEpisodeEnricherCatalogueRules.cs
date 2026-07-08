@@ -265,6 +265,41 @@ public class YouTubeEpisodeEnricherCatalogueRules
     }
 
     [Fact(DisplayName =
+        "When no matching YouTube catalogue item is found, the enricher leaves YouTube identity " +
+        "unchanged and does not mark YouTube URL flags.")]
+    public async Task enrich_leaves_episode_unchanged_when_no_catalogue_match()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .Customize(e =>
+            {
+                e.YouTubeId = string.Empty;
+                e.Urls = new ServiceUrls();
+            })
+            .Create();
+        var enrichmentContext = new EnrichmentContext();
+        var resolver = new Mock<IYouTubeItemResolver>();
+        resolver
+            .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync((FindEpisodeResponse?)null);
+        var sut = CreateEnricher(youTubeItemResolver: resolver.Object);
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        episode.YouTubeId.Should().BeNullOrWhiteSpace();
+        episode.Urls.YouTube.Should().BeNull();
+        enrichmentContext.YouTubeUrlUpdated.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "When the episode is still inside the delayed YouTube publishing window, YouTube enrichment " +
         "is bypassed and does not query the catalogue.")]
     public async Task enrich_is_bypassed_inside_delayed_youtube_publishing_window()
