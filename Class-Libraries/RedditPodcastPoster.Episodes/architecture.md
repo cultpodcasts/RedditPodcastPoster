@@ -2,7 +2,7 @@
 
 Platform-agnostic episode domain for **match**, **merge**, **apply**, and **adapt** operations. Platform API types stay in `PodcastServices.{Spotify,Apple,YouTube}`; this library owns the normalized model and algorithms.
 
-**Status:** Phases A–E merged to `main` (#871–#875). Phase F cleanup in progress on `feature/episode-domain-phase-f-cleanup` — merge orchestration relocated, legacy tolerance removed, UrlSubmission unified on `IPlatformEnrichmentApplicator`.
+**Status:** Phases A–E merged to `main` (#871–#875). Phase F complete on `feature/episode-domain-phase-f-cleanup` (#876) — merge orchestration relocated, legacy tolerance removed, UrlSubmission unified on `IPlatformEnrichmentApplicator`, project layering red flags resolved (F1–F20).
 
 **Related docs:** [Step 7 checklist](../../plans/episode-domain-refactor/STEP-7-CHECKLIST.md) · [Episode domain refactor plan](../../plans/episode-domain-refactor/README.md)
 
@@ -344,10 +344,8 @@ flowchart BT
     Abstr --> Episodes & Models
     PS --> Episodes & Abstr & SP & AP & YT
     SP & AP & YT --> Episodes & Abstr
-    Pers --> PersAbstr & Models & Text
-    US --> Episodes & PS & AP & SP
-    YT --> PersAbstr
-    Text --> PersAbstr
+    Pers --> PersAbstr & Models & Text & Abstr
+    US --> Episodes & Abstr & SP & AP & YT
 ```
 
 
@@ -359,20 +357,14 @@ flowchart BT
 | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `Persistence → Episodes`                                               | **Removed** — `EpisodeMatcher`/`EpisodeMerger` moved to `PodcastServices` (**F13**) |
 | `IEpisodeMatcher` / `EpisodeMergeResult` in `Persistence.Abstractions` | **Moved** to `PodcastServices.Abstractions` (**F14**)                               |
-| `Persistence → PodcastServices.Abstractions` orphan reference          | **Removed** (**F15**)                                                               |
 | `PodcastServices.Abstractions → Persistence.Abstractions`              | **Removed** — `IndexPodcastResult` uses orchestration DTOs only (**F16**)           |
-| `Episodes.TestSupport → Persistence` for merger construction           | **Removed** — uses `PodcastServices` facades (**F19**)                              |
+| `Episodes.TestSupport → Persistence` for merger construction           | **Removed** — uses `PodcastServices` facades (**F19**); retains `Persistence.Abstractions` only for in-memory repo fakes |
 | Legacy `EpisodeReleaseMatchTolerance` in Abstractions                  | **Deleted** — call sites use domain `EpisodeReleaseTolerance` (**F1**)              |
-
-
-### Layering — still open (Phase F)
-
-
-| Issue                                                                                        | Why it matters                                                  | Phase F action |
-| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | -------------- |
-| `UrlSubmission` orchestration uses `Categorised*Item` DTOs; platform types only at categoriser boundary | Submit path decoupled from platform model leakage on `CategorisedItem` | **F17** [x]    |
-| `KnownTermsRepository` + lookup provider factories                                           | Moved to `Persistence/Lookups`; Text no longer refs Persistence.Abstractions | **F18** [x]    |
-| YouTube quota/key-state store ports + Persistence adapters                                   | `YouTube → Persistence.Abstractions` removed                    | **F20** [x]    |
+| `UrlSubmission` platform types on `CategorisedItem` orchestration path | **Resolved** — UrlSubmission-owned `Categorised*Item` DTOs; platform mapping at categoriser boundary only (**F17**) |
+| `KnownTermsRepository` + lookup provider factories in Text             | **Moved** to `Persistence/Lookups`; Text drops `Persistence.Abstractions` (**F18**) |
+| YouTube quota/key-state via `ILookupRepository` in platform assembly   | **Narrowed** — `IYouTube*StateStore` in Abstractions; adapters in Persistence (**F20**); `YouTube → Persistence.Abstractions` removed |
+| `Persistence → PodcastServices.Abstractions`                           | **Intentional** (post-F20) — Persistence implements YouTube state-store ports defined in Abstractions (**F15** superseded) |
+| `PlatformEpisodeEnricherTemplate` in Abstractions                      | **Accepted** — indexing enrich contract; `Abstractions → Episodes` is deliberate short-term coupling |
 
 
 ---

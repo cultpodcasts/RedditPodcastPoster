@@ -23,7 +23,7 @@
 | **C** — Platform adapters at boundaries | 🟢 In production (soak) | Medium–High | [#873](https://github.com/cultpodcasts/RedditPodcastPoster/pull/873) |
 | **D** — Collapse finders into single matcher | 🟢 In production / Done | Medium–High | [#874](https://github.com/cultpodcasts/RedditPodcastPoster/pull/874) |
 | **E** — Shared enricher template | 🟢 Done (merged [#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875)) | Medium | [#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875) |
-| **F** — Cleanup | 🟡 In progress | Low–Medium | _PR link_ |
+| **F** — Cleanup | 🟢 Done (PR [#876](https://github.com/cultpodcasts/RedditPodcastPoster/pull/876)) | Low–Medium | [#876](https://github.com/cultpodcasts/RedditPodcastPoster/pull/876) |
 
 ---
 
@@ -573,25 +573,26 @@ Audit of **incorrect location → spurious project reference**. Target: `.Persis
 
 | Red flag | Current location | Pulls reference | Target location | Phase F ref |
 |----------|------------------|-----------------|-----------------|-------------|
-| Merge loop orchestration (`EpisodeMerger`, `EpisodeMatcher`) | `Persistence` | `Persistence → Episodes` | `PodcastServices` (next to `PodcastUpdater`) | **F13** |
-| Merge contracts + `EpisodeMergeResult` DTO | `Persistence.Abstractions` | Orchestration types in “persistence” package | `PodcastServices.Abstractions` | **F14** |
-| `IndexPodcastResult` uses `EpisodeMergeResult` | `PodcastServices.Abstractions` | `Abstractions → Persistence.Abstractions` | After F14: orchestration DTOs colocated | **F16** |
-| Orphan csproj reference | `Persistence.csproj` | `→ PodcastServices.Abstractions` (unused in `.cs`) | Remove reference | **F15** |
-| Legacy tolerance static surface | `PodcastServices.Abstractions/EpisodeReleaseMatchTolerance.cs` | Call sites in UrlSubmission categorisers | Remove (domain `EpisodeReleaseTolerance` only) | **F1** |
+| Merge loop orchestration (`EpisodeMerger`, `EpisodeMatcher`) | `PodcastServices` | — | `PodcastServices` (next to `PodcastUpdater`) | **F13** [x] |
+| Merge contracts + `EpisodeMergeResult` DTO | `PodcastServices.Abstractions` | — | `PodcastServices.Abstractions` | **F14** [x] |
+| `IndexPodcastResult` uses `EpisodeMergeResult` | `PodcastServices.Abstractions` | No `Abstractions → Persistence.Abstractions` | Orchestration DTOs colocated | **F16** [x] |
+| `Persistence → PodcastServices.Abstractions` | `Persistence` (YouTube state-store adapters) | Intentional port implementation edge | Keep — F15 orphan superseded by F20 | **F15/F20** [x] |
+| Legacy tolerance static surface | *(deleted)* | — | Domain `EpisodeReleaseTolerance` only | **F1** [x] |
 | `CategorisedItem` + UrlSubmission categorisation | `UrlSubmission` | Platform refs only at categoriser boundary (`PlatformResolvedItemMappers`) | UrlSubmission DTOs on orchestration path | **F17** [x] |
 | `KnownTermsRepository` + provider factories | `Persistence/Lookups` | `Text` no longer references Persistence.Abstractions | `Persistence` (impl) + `Text` keeps providers only | **F18** [x] |
-| Test support builds real `Persistence.EpisodeMerger` | `Episodes.TestSupport` | `TestSupport → Persistence` | `PodcastServices` merger or domain-only test helper | **F19** |
+| Test support builds real `Persistence.EpisodeMerger` | `Episodes.TestSupport` | `PodcastServices` facades only (no `Persistence` csproj) | `PodcastServices` merger or domain-only test helper | **F19** [x] |
 | YouTube quota persistence | `Persistence/Lookups` adapters | `YouTube → Persistence.Abstractions` removed | Narrow store ports in Abstractions | **F20** [x] |
-| `PlatformEpisodeEnricherTemplate` | `PodcastServices.Abstractions` | `Abstractions → Episodes` (acceptable short-term) | Optional: move to `Episodes` or keep — template is indexing enrich contract | Document only |
+| `PlatformEpisodeEnricherTemplate` | `PodcastServices.Abstractions` | `Abstractions → Episodes` (acceptable short-term) | Optional: move to `Episodes` or keep — template is indexing enrich contract | Document only [x] |
 
 **Target dependency edges (episode domain slice):**
 
 ```
-PodcastServices → Episodes, PodcastServices.Abstractions, Persistence.Abstractions (repos only)
+PodcastServices → Episodes, PodcastServices.Abstractions, platform assemblies
 PodcastServices.{Spotify,Apple,YouTube} → Episodes, Abstractions
-Persistence → Models, Persistence.Abstractions, Configuration, Text  (no Episodes)
-UrlSubmission → Episodes, Abstractions, platform categorisers (not full PodcastServices aggregator)
+Persistence → Models, Persistence.Abstractions, Configuration, Text, PodcastServices.Abstractions (YouTube state-store adapters only)
+UrlSubmission → Episodes, Abstractions, platform categorisers (not PodcastServices aggregator)
 Episodes → Models, Text only
+Text → Models, DependencyInjection only (no Persistence.Abstractions)
 ```
 
 #### Layer gaps to close with backlog above
