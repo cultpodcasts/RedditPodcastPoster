@@ -594,7 +594,7 @@ Core services (`EpisodePlatformMatcher`, `EpisodePlatformMerger`, `EpisodePlatfo
 
 Existing **`EpisodeReleaseMatchTolerance`** (`PodcastServices.Abstractions`) is the **source of truth for current semantics**. During Phase A–D:
 
-1. **Characterize** each public method with business-rule tests (many already exist in `AppleEpisodeReleaseMatchToleranceTests` and incident-pin tests).
+1. **Characterize** each public method with business-rule tests (many already exist in `EpisodeReleaseToleranceTests` and incident-pin tests).
 2. **Move** logic into named strategy/policy classes **without rewriting** — copy behavior, then delete the static call sites.
 3. **Map** roughly as follows (exact class names may differ; semantics must not):
 

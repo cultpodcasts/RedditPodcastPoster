@@ -840,4 +840,188 @@ public class CatalogueMatchingRules
         // Assert
         matches.Should().Be(!alterCaseOnCatalogueTitle);
     }
+
+    [Fact(DisplayName =
+        "When the probe episode has no release date, " +
+        "FindCatalogueMatchByDate returns no catalogue match.")]
+    public void date_match_returns_null_when_probe_has_no_release()
+    {
+        // Arrange
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = _fixture.CreateTitle();
+            e.Release = DateTime.MinValue;
+        });
+        var candidate = _fixture.CreateEpisode(e =>
+        {
+            e.Title = _fixture.CreateTitle();
+            e.Release = DomainTestFixture.UtcDateDaysAgo(3);
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByDate(
+            probe,
+            [candidate],
+            podcast,
+            episodeMatchRegex: null);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When exactly one catalogue row shares the probe duration within the standard threshold " +
+        "and titles fuzzy-match at the catalogue threshold, FindCatalogueMatchByLength selects it.")]
+    public void single_duration_candidate_fuzzy_match_at_catalogue_threshold()
+    {
+        // Arrange
+        var storedTitle = _fixture.CreateShortTitle();
+        var incomingTitle = DomainTestFixture.CreateTypoTitleVariant(storedTitle);
+        var probeLength = _fixture.CreateDuration();
+        var catalogueLength = probeLength + TimeSpan.FromSeconds(20);
+        var sharedRelease = DomainTestFixture.UtcDateDaysAgo(2);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = storedTitle;
+            e.Length = probeLength;
+            e.Release = sharedRelease;
+        });
+        var matchingCandidate = _fixture.CreateEpisode(e =>
+        {
+            e.Title = incomingTitle;
+            e.Length = catalogueLength;
+            e.Release = sharedRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [matchingCandidate],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions());
+
+        // Assert
+        result.Should().BeSameAs(matchingCandidate);
+    }
+
+    [Fact(DisplayName =
+        "When enriching a YouTube-discovered episode and multiple catalogue rows align on release " +
+        "within twelve hours but not on duration, FindCatalogueMatchByLength picks the closest release.")]
+    public void youtube_discovered_multiple_release_only_candidates_picks_closest_release()
+    {
+        // Arrange
+        var probeLength = TimeSpan.FromMinutes(60);
+        var probeRelease = DomainTestFixture.UtcAtTime(-4, _fixture.CreateNonMidnightTimeOfDay());
+        var closerRelease = probeRelease.AddHours(4);
+        var fartherRelease = probeRelease.AddHours(10);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = _fixture.CreateTitle();
+            e.Length = probeLength;
+            e.Release = probeRelease;
+        });
+        var closerCandidate = _fixture.CreateEpisode(e =>
+        {
+            e.Title = _fixture.CreateTitle();
+            e.Length = TimeSpan.FromMinutes(30);
+            e.Release = closerRelease;
+            e.AppleId = _fixture.CreateAppleId();
+        });
+        var fartherCandidate = _fixture.CreateEpisode(e =>
+        {
+            e.Title = _fixture.CreateTitle();
+            e.Length = TimeSpan.FromMinutes(35);
+            e.Release = fartherRelease;
+            e.AppleId = _fixture.CreateAppleId();
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [fartherCandidate, closerCandidate],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        result.Should().BeSameAs(closerCandidate);
+    }
+
+    [Fact(DisplayName =
+        "When multiple catalogue rows share the probe calendar date, " +
+        "FindCatalogueMatchByDate fuzzy-disambiguates by preferring the closest title match.")]
+    public void date_match_with_multiple_same_date_candidates_fuzzy_disambiguates()
+    {
+        // Arrange
+        var sharedTitle = _fixture.CreateShortTitle();
+        var typoTitle = DomainTestFixture.CreateTypoTitleVariant(sharedTitle);
+        var unrelatedTitle = _fixture.CreateTitle();
+        var sharedRelease = DomainTestFixture.UtcDateDaysAgo(7);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = sharedTitle;
+            e.Release = sharedRelease;
+        });
+        var matching = _fixture.CreateEpisode(e =>
+        {
+            e.Title = typoTitle;
+            e.Release = sharedRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var nonMatching = _fixture.CreateEpisode(e =>
+        {
+            e.Title = unrelatedTitle;
+            e.Release = sharedRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByDate(
+            probe,
+            [nonMatching, matching],
+            podcast,
+            episodeMatchRegex: null);
+
+        // Assert
+        result.Should().BeSameAs(matching);
+    }
+
+    [Fact(DisplayName =
+        "When a catalogue row has no release date, " +
+        "FindCatalogueMatchByDate may still include it in the same-date candidate set.")]
+    public void date_match_includes_catalogue_row_with_min_release_when_probe_has_release()
+    {
+        // Arrange
+        var sharedTitle = _fixture.CreateTitle();
+        var probeRelease = DomainTestFixture.UtcDateDaysAgo(5);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = sharedTitle;
+            e.Release = probeRelease;
+        });
+        var candidateWithoutRelease = _fixture.CreateEpisode(e =>
+        {
+            e.Title = sharedTitle;
+            e.Release = DateTime.MinValue;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByDate(
+            probe,
+            [candidateWithoutRelease],
+            podcast,
+            episodeMatchRegex: null);
+
+        // Assert
+        result.Should().BeSameAs(candidateWithoutRelease);
+    }
 }

@@ -1,7 +1,7 @@
 {
   "generatedAt": "2026-07-08",
   "generatedFromBranch": "feature/episode-domain-phase-f-cleanup",
-  "note": "Phase F — merge orchestration moved to PodcastServices; EpisodeReleaseMatchTolerance removed; EpisodeReleaseTolerance public API expanded",
+  "note": "Phase F — matcher/finder characterization expanded; EpisodePlatformMatcher 85% branch; PlaylistItemFinder fuzzy/duration/episode-number Theory",
   "testProjects": [
     "Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj",
     "Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj",
@@ -21,8 +21,8 @@
   "groups": [
     {
       "name": "episodes-domain",
-      "minBranchCoverage": 74,
-      "minLineCoverage": 91,
+      "minBranchCoverage": 77,
+      "minLineCoverage": 92,
       "aspirationBranchCoverage": 90
     },
     {
@@ -33,8 +33,8 @@
     },
     {
       "name": "platform-enrichment",
-      "minBranchCoverage": 44,
-      "minLineCoverage": 68,
+      "minBranchCoverage": 66,
+      "minLineCoverage": 86,
       "aspirationBranchCoverage": 85,
       "aspirationLineCoverage": 95
     },
@@ -46,20 +46,18 @@
     }
   ],
   "gapsToClose": [
-    "Episodes domain branch vs aspiration 90% — EpisodePlatformMatcher.cs (70% branch), YouTubePublishDelayMatchStrategy (25% branch; lines 30–36 unreachable when incoming is YouTube)",
-    "Platform enrichment branch vs aspiration 85% — PlaylistItemFinder local fuzzy/duration paths (44% branch); YouTubeEpisodeEnricher Enrich branches; Apple/Spotify enricher E2E gaps — see Phase F P1 backlog",
-    "Orchestration branch vs aspiration 85% — EpisodeEnricher remaining branches after P0 parity; PodcastUpdater (68%)",
-    "Adapters line vs aspiration 100% — PlatformLinkFactory (85.7% line), ResolvedAppleItemAdapter branch 50%",
-    "Phase D deferred catalogue rules — exact-title bypass extended matrix; see Phase F P2",
-    "Legacy EpisodeReleaseMatchTolerance call sites — Phase F P1 tolerance parity before type removal"
+    "Episodes domain branch vs aspiration 90% — EpisodePlatformMatcher.cs 85% + Catalogue.cs 86% (YouTubePublishDelayMatchStrategy 25% branch; lines 30–36 unreachable)",
+    "Platform enrichment branch vs aspiration 85% — PlaylistItemFinder raised via episode-number/duration/live-filter rules; enricher E2E gaps remain",
+    "Orchestration branch vs aspiration 85% — EpisodeEnricher 74% after F3 applicator unification; PodcastUpdater characterized",
+    "EpisodeReleaseTolerance branch 54% — expand rules toward aspiration (optional)"
   ],
   "files": [
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/EpisodePlatformMatcher.cs",
-      "branchCoverage": 70,
-      "lineCoverage": 87,
-      "note": "EpisodePlatformMatcher.cs only — Catalogue.cs tracked separately at gate merge; raise toward 90% branch aspiration"
+      "branchCoverage": 85,
+      "lineCoverage": 95,
+      "note": "EpisodePlatformMatcher.cs + Catalogue.cs partial (~86% branch combined); CatalogueMatchingRules + TitleDurationMatchingRules"
     },
     {
       "group": "episodes-domain",
@@ -243,9 +241,9 @@
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Services/PlaylistItemFinder.cs",
-      "branchCoverage": 44,
-      "lineCoverage": 68,
-      "note": "Phase F P0 — PlaylistItemFinderCatalogueWrapperRules (16 Theory/Fact rules); local fuzzy + duration paths remain below aspiration"
+      "branchCoverage": 55,
+      "lineCoverage": 78,
+      "note": "Phase F — PlaylistItemFinderCatalogueWrapperRules: fuzzy Theory matrix, episode-number, duration-only, live-filter, publish-delay"
     },
     {
       "group": "orchestration",
@@ -276,9 +274,9 @@
     {
       "group": "orchestration",
       "path": "Class-Libraries/RedditPodcastPoster.UrlSubmission/EpisodeEnricher.cs",
-      "branchCoverage": 43,
-      "lineCoverage": 61,
-      "note": "P0 parity rules added; remaining branches — Phase F P1 orchestration extension"
+      "branchCoverage": 74,
+      "lineCoverage": 97,
+      "note": "F3 applicator unification — remaining BBC/IA branches; F6 optional extension"
     }
   ]
 }

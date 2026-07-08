@@ -1,6 +1,8 @@
-# RedditPodcastPoster.Episodes — architecture
+# \\\\\RedditPodcastPoster.Episodes — architecture
 
 Platform-agnostic episode domain for **match**, **merge**, **apply**, and **adapt** operations. Platform API types stay in `PodcastServices.{Spotify,Apple,YouTube}`; this library owns the normalized model and algorithms.
+
+**Status:** Phases A–E merged to `main` (#871–#875). Phase F cleanup in progress on `feature/episode-domain-phase-f-cleanup` — merge orchestration relocated, legacy tolerance removed, UrlSubmission unified on `IPlatformEnrichmentApplicator`.
 
 **Related docs:** [Step 7 checklist](../../plans/episode-domain-refactor/STEP-7-CHECKLIST.md) · [Episode domain refactor plan](../../plans/episode-domain-refactor/README.md)
 
@@ -8,14 +10,18 @@ Platform-agnostic episode domain for **match**, **merge**, **apply**, and **adap
 
 ## Design principles
 
-| Principle | Detail |
-|-----------|--------|
-| **No platform references** | `RedditPodcastPoster.Episodes` references only `Models` and `Text`. Spotify/Apple/YouTube assemblies reference Episodes, not the reverse. |
-| **Adapters map** | Foreign API / resolved-item DTOs → `EpisodeCandidate` at boundaries. |
-| **Strategies match** | Release tolerance and cross-platform delay logic live in `IReleaseMatchStrategy` implementations. |
-| **Policies merge** | Release backfill and authority rules live in `IReleaseMergePolicy` implementations. |
-| **Applier writes** | All platform field writes on an existing `Episode` go through `IEpisodePlatformApplier` (or `IPlatformEnrichmentApplicator` for indexing enrich). |
-| **Orchestrators coordinate** | `PodcastUpdater`, `PodcastServicesEpisodeEnricher`, and UrlSubmission `EpisodeEnricher` call domain services; they do not embed match/merge/apply logic. |
+
+| Principle                                        | Detail                                                                                                                                                                                   |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **No platform references**                       | `RedditPodcastPoster.Episodes` references only `Models` and `Text`. Spotify/Apple/YouTube assemblies reference Episodes, not the reverse.                                                |
+| **Adapters map**                                 | Foreign API / resolved-item DTOs → `EpisodeCandidate` at boundaries.                                                                                                                     |
+| **Strategies match**                             | Release tolerance and cross-platform delay logic live in `IReleaseMatchStrategy` implementations (backed by domain `EpisodeReleaseTolerance`).                                           |
+| **Policies merge**                               | Release backfill and authority rules live in `IReleaseMergePolicy` implementations.                                                                                                      |
+| **Applier writes**                               | All platform field writes on an existing `Episode` go through `IEpisodePlatformApplier`.                                                                                                 |
+| **Enrichment applicator**                        | Indexing enrichers and UrlSubmission `EpisodeEnricher` call `IPlatformEnrichmentApplicator.Apply()` — not the applier directly for platform links.                                       |
+| **Orchestrators coordinate**                     | `PodcastUpdater`, `PodcastServicesEpisodeEnricher`, and UrlSubmission `EpisodeEnricher` call domain services or thin PodcastServices facades; they do not embed match/merge/apply logic. |
+| **Merge orchestration lives in PodcastServices** | `EpisodeMatcher` / `EpisodeMerger` facades (implementing `IEpisodeMatcher` / `IEpisodeMerger`) sit in `PodcastServices`, not `Persistence`. Persistence is Cosmos-only.                  |
+
 
 ---
 
@@ -23,13 +29,31 @@ Platform-agnostic episode domain for **match**, **merge**, **apply**, and **adap
 
 ```
 RedditPodcastPoster.Episodes/
-├── Domain/           EpisodeCandidate, PlatformLink, ReleaseInfo, EpisodePlatformPatch
-├── Adapters/         IEpisodeCatalogueAdapter<T>, catalogue + resolved-item adapters
-├── Applying/         IEpisodePlatformApplier, IPlatformEnrichmentApplicator
-├── Matching/         IEpisodePlatformMatcher + IReleaseMatchStrategy chain
-├── Merging/          IEpisodePlatformMerger + IReleaseMergePolicy chain
-├── Factories/        IEpisodeFromCandidateFactory (candidate → new Episode)
-├── Extensions/       Identity/mapping helpers; ServiceCollectionExtensions (AddEpisodesDomain)
+├── Domain/              EpisodeCandidate, PlatformLink, ReleaseInfo, EpisodePlatformPatch
+├── Adapters/            IEpisodeCatalogueAdapter<T>, catalogue + resolved-item adapters
+├── Applying/            IEpisodePlatformApplier, IPlatformEnrichmentApplicator
+├── Matching/            IEpisodePlatformMatcher + IReleaseMatchStrategy chain
+├── Merging/             IEpisodePlatformMerger + IReleaseMergePolicy chain
+├── Factories/           IEpisodeFromCandidateFactory (candidate → new Episode)
+├── Extensions/          Identity/mapping helpers; ServiceCollectionExtensions (AddEpisodesDomain)
+├── EpisodeReleaseTolerance.cs   Domain tolerance helpers (replaces legacy Abstractions static)
+└── architecture.md      This document
+```
+
+**Outside Episodes but part of the episode pipeline:**
+
+```
+PodcastServices/
+├── EpisodeMatcher.cs    IEpisodeMatcher facade → IEpisodePlatformMatcher
+├── EpisodeMerger.cs     IEpisodeMerger facade → IEpisodePlatformMatcher + IEpisodePlatformMerger
+└── PodcastUpdater.cs    Indexing orchestrator
+
+PodcastServices.Abstractions/
+├── IEpisodeMatcher.cs · IEpisodeMerger.cs · EpisodeMergeResult
+└── IndexPodcastResult.cs
+
+PodcastServices.{Spotify,Apple,YouTube}/
+└── Finders / resolvers   Platform catalogue boundary (map API types → domain matcher inputs)
 ```
 
 ---
@@ -49,11 +73,12 @@ flowchart TB
         PL[PlatformLink]
         RI[ReleaseInfo]
         PATCH[EpisodePlatformPatch]
+        TOL[EpisodeReleaseTolerance]
         EC --- PL & RI
     end
 
     subgraph Adapters["Adapters"]
-        CAT[IEpisodeCatalogueAdapter&lt;T&gt;<br/>Spotify / Apple / YouTube]
+        CAT[IEpisodeCatalogueAdapter<T><br/>Spotify / Apple / YouTube]
         RES[Resolved*ItemAdapter<br/>UrlSubmission path]
         FACT[IEpisodeFromCandidateFactory]
         CAT --> EC
@@ -67,6 +92,7 @@ flowchart TB
         RS2[SpotifyCatalogueReleaseMatchStrategy]
         RS3[YouTubePublishDelayMatchStrategy]
         MATCH -.-> RS1 & RS2 & RS3
+        RS1 & RS2 & RS3 -.-> TOL
     end
 
     subgraph Merging["Merging"]
@@ -94,21 +120,26 @@ flowchart TB
     ENRICH --> EP
 ```
 
+
+
 ### Responsibilities
 
-| Component | Role |
-|-----------|------|
-| **EpisodeCandidate** | Normalized platform snapshot (title, duration, links, release) before apply or factory create. |
-| **EpisodePlatformMatcher** | Identity match, title/duration heuristics, catalogue lookup (`FindCatalogueMatchByLength/ByDate`, `IsCatalogueMatch`). Delegates release decisions to strategies (first non-null `bool?` wins). |
-| **EpisodePlatformMerger** | Merges incoming candidate into stored episode in place; uses applier for fill-missing platform fields and policy chain for release. |
-| **EpisodePlatformApplier** | Writes `EpisodePlatformPatch` onto `Episode` (links, description, release) without overwriting existing values unless policy allows. |
-| **PlatformEnrichmentApplicator** | Indexing enrich entry point: candidate → patch → applier + release backfill policies. Returns `PlatformEnrichmentResult`. |
-| **Catalogue adapters** | Map platform catalogue inputs (`SpotifyCatalogueInput`, etc.) to `EpisodeCandidate`. |
-| **Resolved-item adapters** | Map UrlSubmission `Resolved*Item` DTOs to `EpisodeCandidate`. |
+
+| Component                        | Role                                                                                                                                                                                                                                                                                          |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **EpisodeCandidate**             | Normalized platform snapshot (title, duration, links, release) before apply or factory create.                                                                                                                                                                                                |
+| **EpisodePlatformMatcher**       | Identity match, title/duration heuristics, catalogue lookup (`FindCatalogueMatchByLength/ByDate`, `IsCatalogueMatch`). Delegates release decisions to strategies (first non-null `bool?` wins).                                                                                               |
+| **EpisodePlatformMerger**        | Merges incoming candidate into stored episode in place; uses applier for fill-missing platform fields and policy chain for release.                                                                                                                                                           |
+| **EpisodePlatformApplier**       | Writes `EpisodePlatformPatch` onto `Episode` (links, description, release) without overwriting existing values unless policy allows.                                                                                                                                                          |
+| **PlatformEnrichmentApplicator** | Shared enrich entry point (indexing + UrlSubmission): candidate → patch → applier + release backfill policies. Returns `PlatformEnrichmentResult`.                                                                                                                                            |
+| **EpisodeReleaseTolerance**      | Domain static helpers for tolerance ticks, Spotify catalogue release comparison, audio-release lookup, and indexing scope (`ShouldEnrichDespiteReleaseWindow`). Used by strategies, matcher catalogue paths, and orchestration scope boundaries — not by enrichers for direct field mutation. |
+| **Catalogue adapters**           | Map platform catalogue inputs (`SpotifyCatalogueInput`, etc.) to `EpisodeCandidate`.                                                                                                                                                                                                          |
+| **Resolved-item adapters**       | Map UrlSubmission `Resolved*Item` DTOs to `EpisodeCandidate`.                                                                                                                                                                                                                                 |
+
 
 ### Strategy and policy order
 
-Registered in `AddEpisodesDomain()` (`Extensions/ServiceCollectionExtensions.cs`, namespace `RedditPodcastPoster.Episodes.Extensions`):
+Registered in `AddEpisodesDomain()` (`Extensions/ServiceCollectionExtensions.cs`):
 
 **Match strategies** (chain — first applicable non-null result):
 
@@ -147,13 +178,15 @@ flowchart TB
     subgraph Abstractions["PodcastServices.Abstractions"]
         TPL[PlatformEpisodeEnricherTemplate]
         CTX[EnrichmentRequest / EnrichmentContext]
+        IFM[IEpisodeMatcher · IEpisodeMerger]
     end
 
     subgraph Orchestration["RedditPodcastPoster.PodcastServices"]
         PU[PodcastUpdater]
         PSE[PodcastServicesEpisodeEnricher]
-        EP[EpisodeProvider<br/>Common]
-        EM[EpisodeMerger facade<br/>Persistence]
+        EP[EpisodeProvider]
+        EMATCH[EpisodeMatcher]
+        EMERGE[EpisodeMerger]
     end
 
     subgraph Spotify["PodcastServices.Spotify"]
@@ -185,7 +218,9 @@ flowchart TB
     DI --> Domain & Orchestration & Spotify & Apple & YouTube & UrlSubmission
 
     PU --> EP --> SP_P & AP_P & YT_P
-    PU --> EM --> M & MG
+    PU --> EMERGE --> M & MG
+    PU --> EMATCH --> M
+    EMATCH & EMERGE --> IFM
     PU --> PSE --> SP_E & AP_E & YT_E
 
     SP_P & AP_P & YT_P --> AD
@@ -194,28 +229,34 @@ flowchart TB
     AP_E --> AP_R
     YT_E --> YT_R & YT_F & AP
 
-    SP_F & YT_F --> M
-    SP_R & AP_R & YT_R --> AD
+    SP_F & YT_F & AP_R --> M
+    SP_R & YT_R --> AD
 
     PP --> UE --> AD
-    UE --> AP
+    UE --> EA
 
     EA --> AP
     MG --> AP
 ```
 
+
+
 ### Platform specialization pattern
 
 Each platform assembly follows the same shape:
 
-| Layer | Spotify | Apple | YouTube |
-|-------|---------|-------|---------|
-| **Discovery** | `SpotifyEpisodeProvider` | `AppleEpisodeProvider` | `YouTubeEpisodeProvider` |
-| **Enrich** | `SpotifyEpisodeEnricher` | `AppleEpisodeEnricher` | `YouTubeEpisodeEnricher` |
-| **Resolve** | `SpotifyEpisodeResolver` | `AppleEpisodeResolver` | `YouTubeItemResolver` |
-| **Find / match helper** | `SearchResultFinder` | (resolver uses matcher) | `SearchResultFinder`, `PlaylistItemFinder` |
-| **Side effects** | `SpotifyExpensiveQuerySideEffect` | — | — |
-| **Catalogue adapter** | `SpotifyEpisodeAdapter` | `AppleEpisodeAdapter` | `YouTubeEpisodeAdapter` |
+
+| Layer                         | Spotify                           | Apple                                 | YouTube                                    |
+| ----------------------------- | --------------------------------- | ------------------------------------- | ------------------------------------------ |
+| **Discovery**                 | `SpotifyEpisodeProvider`          | `AppleEpisodeProvider`                | `YouTubeEpisodeProvider`                   |
+| **Enrich**                    | `SpotifyEpisodeEnricher`          | `AppleEpisodeEnricher`                | `YouTubeEpisodeEnricher`                   |
+| **Resolve**                   | `SpotifyEpisodeResolver`          | `AppleEpisodeResolver`                | `YouTubeItemResolver`                      |
+| **Find / catalogue boundary** | `SearchResultFinder`              | `AppleEpisodeResolver` (uses matcher) | `SearchResultFinder`, `PlaylistItemFinder` |
+| **Side effects**              | `SpotifyExpensiveQuerySideEffect` | —                                     | —                                          |
+| **Catalogue adapter**         | `SpotifyEpisodeAdapter`           | `AppleEpisodeAdapter`                 | `YouTubeEpisodeAdapter`                    |
+
+
+Platform finders/resolvers are **not** thin forwards — they map platform API types to domain `Episode` probes/candidates and delegate release matching to `IEpisodePlatformMatcher`. YouTube finders additionally contain platform-specific heuristics (fuzzy title, episode number, duration gates).
 
 Platform enrichers inherit `PlatformEpisodeEnricherTemplate` (in Abstractions):
 
@@ -234,7 +275,7 @@ YouTube enricher additionally calls `IEpisodePlatformApplier` directly for link-
 
 ## Diagram 3 — Runtime paths
 
-Two production paths consume Episodes differently.
+Two production paths consume Episodes. Both platform enrich paths and UrlSubmission now converge on `**IPlatformEnrichmentApplicator**`.
 
 ```mermaid
 flowchart LR
@@ -242,7 +283,7 @@ flowchart LR
         direction TB
         I1[PodcastUpdater.Update]
         I2[EpisodeProvider → platform Provider]
-        I3[EpisodeMerger → Matcher + Merger]
+        I3[EpisodeMerger facade → Matcher + Merger]
         I4[PodcastServicesEpisodeEnricher]
         I5[Platform enricher → EnrichmentApplicator]
         I6[(Cosmos save)]
@@ -254,9 +295,11 @@ flowchart LR
         S1[UrlCategoriser → CategorisedItem]
         S2[PodcastProcessor]
         S3[EpisodeEnricher]
-        S4[Resolved*ItemAdapter → Applier]
-        S5[(Cosmos save)]
-        S1 --> S2 --> S3 --> S4 --> S5
+        S4[Resolved*ItemAdapter → EnrichmentApplicator]
+        S5[Non-podcast paths: BBC / IA / description direct]
+        S6[(Cosmos save)]
+        S1 --> S2 --> S3 --> S4 --> S6
+        S3 --> S5 --> S6
     end
 
     Domain2[RedditPodcastPoster.Episodes]
@@ -264,18 +307,24 @@ flowchart LR
     Submit --> Domain2
 ```
 
-| Path | Host | Domain entry points | Platform enrichers? |
-|------|------|---------------------|---------------------|
-| **Indexing** | Indexer | Matcher, Merger, EnrichmentApplicator, catalogue adapters | Yes — Spotify → Apple → YouTube per episode |
-| **UrlSubmission** | Api | Applier, resolved-item adapters | No — resolved URL already known |
 
-**Indexing enrich order** (`PodcastServicesEpisodeEnricher`): for each new episode, Spotify then Apple then YouTube when links/IDs are missing. Delayed YouTube publishing triggers a **second pass** on recently expired episodes (orchestrator concern, not in platform enrichers).
+
+
+| Path              | Host    | Domain entry points                                                                                  | Platform enrichers?                         |
+| ----------------- | ------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **Indexing**      | Indexer | Matcher, Merger, EnrichmentApplicator, catalogue adapters; `EpisodeMatcher`/`EpisodeMerger` facades  | Yes — Spotify → Apple → YouTube per episode |
+| **UrlSubmission** | Api     | EnrichmentApplicator, resolved-item adapters; BBC/IA/description handled inline in `EpisodeEnricher` | No — resolved URL already known             |
+
+
+**Indexing enrich order** (`PodcastServicesEpisodeEnricher`): for each new episode, explicit guards run Spotify then Apple then YouTube when links/IDs are missing (no `switch (Service)` enum loop). Delayed YouTube publishing triggers a **second pass** on recently expired episodes (orchestrator concern, not in platform enrichers).
+
+**Out of scope:** Discovery `EpisodeResultsEnricher` — unchanged; does not use this domain pipeline.
 
 ---
 
 ## Dependency graph (projects)
 
-Current state (episode-domain slice). **Red edges** are layering debt — see [Phase F F13–F20](../../plans/episode-domain-refactor/STEP-7-CHECKLIST.md#project-dependency-red-flags-misplaced-types).
+Current state after Phase F layering work (F13–F16, F19). Remaining debt in **F17–F20**.
 
 ```mermaid
 flowchart BT
@@ -291,72 +340,62 @@ flowchart BT
     US[UrlSubmission]
     Text[Text]
 
-    Episodes --> Models
-    Abstr --> Episodes
-    Abstr --> Models
-    Abstr --> PersAbstr
-    SP & AP & YT --> Episodes
-    SP & AP & YT --> Abstr
-    PS --> SP & AP & YT & Abstr
-    Pers --> Episodes
-    Pers -.->|orphan?| Abstr
-    Pers --> PersAbstr
-    US --> Episodes
-    US --> PS
-    US --> AP & SP
+    Episodes --> Models & Text
+    Abstr --> Episodes & Models
+    PS --> Episodes & Abstr & SP & AP & YT
+    SP & AP & YT --> Episodes & Abstr
+    Pers --> PersAbstr & Models & Text
+    US --> Episodes & PS & AP & SP
     YT --> PersAbstr
     Text --> PersAbstr
 ```
 
-### Dependency red flags (Phase F)
 
-| Issue | Why it matters | Phase F action |
-|-------|----------------|----------------|
-| `Persistence → Episodes` | Storage layer depends on domain algorithms; merge orchestration is not persistence | **F13** — move `EpisodeMatcher`/`EpisodeMerger` to `PodcastServices` |
-| `IEpisodeMatcher` / `EpisodeMergeResult` in `Persistence.Abstractions` | Orchestration contracts mislabeled as persistence; forces `IndexPodcastResult → PersAbstr` | **F14**, **F16** |
-| `Persistence → PodcastServices.Abstractions` (csproj only) | Unused reference — likely stale | **F15** |
-| `UrlSubmission → PodcastServices` (concrete) + platform `Resolved*Item` on `CategorisedItem` | Submit path pulls full indexing aggregator + foreign platform models | **F17** |
-| `Text` hosts `KnownTermsRepository` | Text library implements Cosmos repos | **F18** |
-| `Episodes.TestSupport → Persistence` | Domain test helpers construct persistence facades | **F19** (after F13) |
-| `PodcastServices.YouTube → Persistence.Abstractions` | Platform assembly knows repo interfaces for quota state | **F20** |
 
-### Target graph (after Phase F layering)
+### Layering — resolved (Phase F)
 
-```mermaid
-flowchart BT
-    Models[Models]
-    Episodes[Episodes]
-    PersAbstr[Persistence.Abstractions]
-    Abstr[PodcastServices.Abstractions]
-    PS[PodcastServices]
-    SP & AP & YT[Platform assemblies]
-    Pers[Persistence]
-    US[UrlSubmission]
 
-    Episodes --> Models
-    Abstr --> Episodes & Models
-    PS --> Episodes & Abstr & PersAbstr
-    SP & AP & YT --> Episodes & Abstr
-    Pers --> PersAbstr & Models
-    US --> Episodes & Abstr
-```
+| Issue                                                                  | Resolution                                                                          |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `Persistence → Episodes`                                               | **Removed** — `EpisodeMatcher`/`EpisodeMerger` moved to `PodcastServices` (**F13**) |
+| `IEpisodeMatcher` / `EpisodeMergeResult` in `Persistence.Abstractions` | **Moved** to `PodcastServices.Abstractions` (**F14**)                               |
+| `Persistence → PodcastServices.Abstractions` orphan reference          | **Removed** (**F15**)                                                               |
+| `PodcastServices.Abstractions → Persistence.Abstractions`              | **Removed** — `IndexPodcastResult` uses orchestration DTOs only (**F16**)           |
+| `Episodes.TestSupport → Persistence` for merger construction           | **Removed** — uses `PodcastServices` facades (**F19**)                              |
+| Legacy `EpisodeReleaseMatchTolerance` in Abstractions                  | **Deleted** — call sites use domain `EpisodeReleaseTolerance` (**F1**)              |
 
-`PodcastServices` owns merge orchestration and references `IEpisodeRepository` via abstractions only. `Persistence` has no `Episodes` reference.
+
+### Layering — still open (Phase F)
+
+
+| Issue                                                                                        | Why it matters                                                  | Phase F action |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | -------------- |
+| `UrlSubmission → PodcastServices` (concrete) + platform `Resolved*Item` on `CategorisedItem` | Submit path pulls indexing aggregator + foreign platform models | **F17**        |
+| `Text` hosts `KnownTermsRepository`                                                          | Text library implements Cosmos repos                            | **F18**        |
+| `PodcastServices.YouTube → Persistence.Abstractions`                                         | Platform assembly knows repo interfaces for quota state         | **F20**        |
+
 
 ---
 
 ## DI registration
 
-`AddEpisodesDomain()` must be called **explicitly** at each host composition root that needs matcher, merger, or applier — it is not nested inside `AddRepositories()` or `AddUrlSubmission()`. Import `RedditPodcastPoster.Episodes.Extensions` (same pattern as `Persistence.Extensions`).
+Hosts that need episode processing must call `**AddEpisodesDomain()`** explicitly. It is **not** nested inside `AddRepositories()`, `AddPodcastServices()`, or `AddUrlSubmission()`.
 
-| Extension | Registers |
-|-----------|-----------|
-| `AddEpisodesDomain()` | Applier, enrichment applicator, merger, matcher, 3 strategies, 4 policies, factory, 3 catalogue adapters |
-| `AddSpotifyServices()` | Spotify provider, enricher, resolver, finder, side effect |
-| `AddAppleServices()` | Apple provider, enricher, resolver |
-| `AddYouTubeServices()` | YouTube provider, enricher, resolver, finders |
-| `AddPodcastServices()` | `PodcastUpdater`, `PodcastServicesEpisodeEnricher`, metadata handlers (does **not** register Episodes domain) |
-| `AddUrlSubmission()` | UrlSubmission pipeline (does **not** register Episodes domain) |
+Hosts that need indexing merge orchestration must also call `**AddPodcastServices()`**, which registers `IEpisodeMatcher` / `IEpisodeMerger` facades (these depend on domain services from `AddEpisodesDomain()`).
+
+Import `RedditPodcastPoster.Episodes.Extensions` at the composition root (same pattern as `Persistence.Extensions`).
+
+
+| Extension              | Registers                                                                                                                                                  |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AddEpisodesDomain()`  | Applier, enrichment applicator, merger, matcher, 3 strategies, 4 policies, factory, 3 catalogue adapters                                                   |
+| `AddPodcastServices()` | `**IEpisodeMatcher**`, `**IEpisodeMerger**`, `PodcastUpdater`, `PodcastServicesEpisodeEnricher`, metadata handlers (does **not** register Episodes domain) |
+| `AddSpotifyServices()` | Spotify provider, enricher, resolver, finder, side effect                                                                                                  |
+| `AddAppleServices()`   | Apple provider, enricher, resolver                                                                                                                         |
+| `AddYouTubeServices()` | YouTube provider, enricher, resolver, finders                                                                                                              |
+| `AddRepositories()`    | Cosmos repositories only (no episode domain)                                                                                                               |
+| `AddUrlSubmission()`   | UrlSubmission pipeline including `IEpisodeEnricher` (does **not** register Episodes domain)                                                                |
+
 
 **Typical Indexer host:** `AddEpisodesDomain()` → `AddRepositories()` → `Add*Services()` → `AddPodcastServices()`.
 
@@ -366,15 +405,28 @@ flowchart BT
 
 ## Key source files
 
-| Area | Path |
-|------|------|
-| DI | `Extensions/ServiceCollectionExtensions.cs` |
-| Matcher | `Matching/IEpisodePlatformMatcher.cs`, `Matching/EpisodePlatformMatcher.cs` |
-| Merger | `Merging/IEpisodePlatformMerger.cs`, `Merging/EpisodePlatformMerger.cs` |
-| Applier | `Applying/IEpisodePlatformApplier.cs`, `Applying/EpisodePlatformApplier.cs` |
-| Enrichment applicator | `Applying/IPlatformEnrichmentApplicator.cs`, `Applying/PlatformEnrichmentApplicator.cs` |
-| Enricher template | `../RedditPodcastPoster.PodcastServices.Abstractions/Enriching/PlatformEpisodeEnricherTemplate.cs` |
-| Indexing orchestrator | `../RedditPodcastPoster.PodcastServices/PodcastUpdater.cs` |
-| Enrich facade | `../RedditPodcastPoster.PodcastServices/PodcastServicesEpisodeEnricher.cs` |
-| Persistence facades | `../RedditPodcastPoster.Persistence/EpisodeMatcher.cs`, `EpisodeMerger.cs` |
-| UrlSubmission enrich | `../RedditPodcastPoster.UrlSubmission/EpisodeEnricher.cs` |
+
+| Area                        | Path                                                                                               |
+| --------------------------- | -------------------------------------------------------------------------------------------------- |
+| DI (domain)                 | `Extensions/ServiceCollectionExtensions.cs`                                                        |
+| Tolerance                   | `EpisodeReleaseTolerance.cs`                                                                       |
+| Matcher                     | `Matching/IEpisodePlatformMatcher.cs`, `Matching/EpisodePlatformMatcher.cs`                        |
+| Merger (domain)             | `Merging/IEpisodePlatformMerger.cs`, `Merging/EpisodePlatformMerger.cs`                            |
+| Applier                     | `Applying/IEpisodePlatformApplier.cs`, `Applying/EpisodePlatformApplier.cs`                        |
+| Enrichment applicator       | `Applying/IPlatformEnrichmentApplicator.cs`, `Applying/PlatformEnrichmentApplicator.cs`            |
+| Merge orchestration facades | `../RedditPodcastPoster.PodcastServices/EpisodeMatcher.cs`, `EpisodeMerger.cs`                     |
+| Orchestration contracts     | `../RedditPodcastPoster.PodcastServices.Abstractions/IEpisodeMatcher.cs`, `IEpisodeMerger.cs`      |
+| Enricher template           | `../RedditPodcastPoster.PodcastServices.Abstractions/Enriching/PlatformEpisodeEnricherTemplate.cs` |
+| Indexing orchestrator       | `../RedditPodcastPoster.PodcastServices/PodcastUpdater.cs`                                         |
+| Indexing enrich facade      | `../RedditPodcastPoster.PodcastServices/PodcastServicesEpisodeEnricher.cs`                         |
+| UrlSubmission enrich        | `../RedditPodcastPoster.UrlSubmission/EpisodeEnricher.cs`                                          |
+| DI (orchestration)          | `../RedditPodcastPoster.PodcastServices/Extensions/ServiceCollectionExtensions.cs`                 |
+
+
+---
+
+## Testing
+
+Business-rule tests live in `RedditPodcastPoster.Episodes.Tests` (matcher, merger, applier, adapters, tolerance). Platform and UrlSubmission paths have characterization tests in their respective test projects. Coverage gates and baselines: `plans/episode-domain-refactor/coverage-baseline.json`, `./scripts/coverage-gate.ps1`.
+
+Test support: `RedditPodcastPoster.Episodes.TestSupport` provides `EpisodeDomainTestServices` (applier, enrichment applicator, merger/matcher via PodcastServices facades) and shared fixtures/assertions.
