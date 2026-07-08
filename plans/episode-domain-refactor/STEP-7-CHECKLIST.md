@@ -307,7 +307,7 @@ Pre-soak characterization added in PR #874 follow-up (P0–P3):
 | `ExactReleaseMatchStrategy` direct rules | Strategy file (75% branch) | Phase F P1 — new rule file | P1 | [x] |
 | `YouTubePublishDelayMatchStrategy` lines 30–36 | Unreachable when incoming is YouTube | Phase F P3 — document-only | P3 | [x] |
 | `PlaylistItemFinder` wrapper + local fuzzy paths | `PlaylistItemFinder.cs` | Phase F P0 — `PlaylistItemFinderCatalogueWrapperRules` (16 rules) | P0 | [x] |
-| YouTube `SearchResultFinder` wrapper rules | `SearchResultFinder.cs` | Phase F P3 — mirror Spotify wrapper pattern if finder retired | P3 | Open |
+| YouTube `SearchResultFinder` wrapper rules | `SearchResultFinder.cs` | Phase F P3 — `SearchResultFinderCatalogueWrapperRules` (12 rules) | P3 | [x] |
 | `EpisodePlatformMatcher` branch aspiration (70% → 90%) | `EpisodePlatformMatcher.cs` | Phase F P3 — incremental catalogue rules | P3 | [x] ~85% branch (90% aspirational) |
 
 ### Phase D test additions (PR #874)
@@ -549,9 +549,9 @@ Single register of **production cleanup** and **test/coverage aspiration** defer
 | F3 | Unify UrlSubmission `EpisodeEnricher` onto `PlatformEnrichmentApplicator` (delete dual enrichment model) | Cleanup | `UrlSubmission/EpisodeEnricher.cs` | P1 | [x] |
 | F4 | Rename homonymous types (`SearchResultFinder` × platforms, legacy `EpisodeMatcher` surface) | Cleanup | Platform projects + DI | P2 | Open |
 | F5 | Sweep orchestrators for `switch (service)` / direct tolerance calls (§10.8) | Cleanup | `PodcastUpdater`, enrichers, categorisers | P2 | [x] |
-| F6 | Extend `UrlSubmissionEnrichmentRules` — remaining `EpisodeEnricher` branches toward 85% aspiration | Test | `EpisodeEnricher.cs` (~74% branch gate) | P1 | Open |
+| F6 | Extend `UrlSubmissionEnrichmentRules` — remaining `EpisodeEnricher` branches toward 85% aspiration | Test | `EpisodeEnricher.cs` (~74% branch gate) | P1 | [x] non-podcast skip/backfill + url-only link rules |
 | F7 | `ResolvedAppleItemAdapter` URL-only negative branch rule | Test (optional) | `ResolvedAppleItemAdapter.cs` | P2 | [x] |
-| F8 | YouTube `SearchResultFinder` wrapper rules (mirror Spotify) | Test | `SearchResultFinder.cs` | P3 | Open |
+| F8 | YouTube `SearchResultFinder` wrapper rules (mirror Spotify) | Test | `SearchResultFinderCatalogueWrapperRules` | P3 | [x] 12 rules |
 | F9 | `PlaylistItemFinder` fuzzy/duration Theory expansion | Test | `PlaylistItemFinderCatalogueWrapperRules` | P3 | [x] ~55% branch gate |
 | F10 | Raise `EpisodePlatformMatcher` branch toward 90% aspiration | Test | `CatalogueMatchingRules` | P3 | [x] ~85% branch gate |
 | F11 | Template bypass/apply per Apple/YouTube enricher (optional E2E) | Test (optional) | Platform enrichers | P3 | Open |
@@ -618,7 +618,9 @@ Episodes → Models, Text only
 - [x] **F3** — Unify UrlSubmission `EpisodeEnricher` onto `PlatformEnrichmentApplicator` (Apple/Spotify/YouTube via resolved-item adapters)
 - [ ] **F4** — Rename confusing homonyms for clarity (document renames in PR)
 - [x] **F5** — Sweep for `switch (service)` or direct tolerance calls in orchestrators (§10.8 anti-patterns) — `PodcastServicesEpisodeEnricher` enum dispatch removed; `PodcastUpdater` / request factories retain domain `EpisodeReleaseTolerance` at scope/lookup boundaries per §10.9
+- [x] **F6** — Extend `UrlSubmissionEnrichmentRules` for non-podcast skip/backfill branches and url-only platform link enrichment
 - [x] **F7** — `ResolvedAppleItemAdapter` URL-only negative branch (`ResolvedItemAdapterRules`)
+- [x] **F8** — YouTube `SearchResultFinder` wrapper rules (`SearchResultFinderCatalogueWrapperRules`)
 - [x] **F9** — `PlaylistItemFinder` fuzzy/duration Theory expansion (~55% branch gate)
 - [x] **F10** — Raise `EpisodePlatformMatcher` branch toward 90% aspiration (~85% branch gate; 6 new catalogue/title-duration rules)
 - [x] **F12** — Confirm discovery remains out of scope (`EpisodeResultsEnricher` untouched unless already adapter-only)
@@ -682,13 +684,13 @@ Single index of test-gap status across phases. **Pre-soak backlog (Phase E P0–
 | `AppleEpisodeEnricherTests` convention debt | Apple.Tests | Phase F P2 | P2 | [x] (#875) | — |
 | Exact-title bypass extended matrix | `CatalogueMatchingRules` | Phase F P2 | P2 | [x] (#875) | — |
 | `YouTubePublishDelayMatchStrategy` dead branches | Strategy file | Phase F P3 | P3 | [x] Documented (#875) | — |
-| Remaining `EpisodeEnricher` branches (UrlSubmission) | `EpisodeEnricher.cs` (~74% branch gate) | Phase F | P1 | **Open** | **F6** |
+| Remaining `EpisodeEnricher` branches (UrlSubmission) | `EpisodeEnricher.cs` (~74% branch gate) | Phase F | P1 | [x] skip/backfill + url-only rules | **F6** |
 | `ResolvedAppleItemAdapter` optional negative branch | Adapters | Phase F P2 optional | P2 | [x] `ResolvedItemAdapterRules` URL-only cases | **F7** |
 | Matcher branch aspiration (90%) | `EpisodePlatformMatcher.cs` (~85% gate) | Phase F P3 | P3 | [x] 6 new rules; 90% aspirational | **F10** |
 | `PlaylistItemFinder` branch aspiration (~55% gate) | Local fuzzy/duration in finder | Phase F P3 | P3 | [x] Theory expansion | **F9**, **F2** |
-| YouTube `SearchResultFinder` wrapper rules | YouTube search finder | Phase F P3 | P3 | **Open** | **F8**, **F2** |
+| YouTube `SearchResultFinder` wrapper rules | YouTube search finder | Phase F P3 | P3 | [x] 12 wrapper rules | **F8**, **F2** |
 | Template bypass per Apple/YouTube enricher (optional) | Platform enrichers | Phase F P3 optional | P3 | **Open** | **F11** |
-| Phase F cleanup (wrapper/tolerance/unify enrich) | Phases D–E transitional code | Phase F PR | — | Partial — **F1/F3/F5/F7/F9/F10/F12–F16/F19** [x]; **F2/F4/F6/F8** open | **F1–F20** |
+| Phase F cleanup (wrapper/tolerance/unify enrich) | Phases D–E transitional code | Phase F PR | — | Partial — **F1/F3/F5–F10/F12–F16/F19** [x]; **F2/F4/F11** open | **F1–F20** |
 | **Project layering** — merge orchestration off Persistence | `EpisodeMatcher`/`EpisodeMerger` in Persistence | Phase F | P1 | [x] **F13–F16** | — |
 | **Project layering** — UrlSubmission / Text / TestSupport red flags | See audit table | Phase F | P2–P3 | **Open** | **F17–F20** |
 | Discovery / `EpisodeResultsEnricher` | Discovery hosts | Out of scope | — | N/A | **F12** |

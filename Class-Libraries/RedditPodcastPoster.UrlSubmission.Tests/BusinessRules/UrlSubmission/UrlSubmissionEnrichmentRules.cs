@@ -615,6 +615,165 @@ public class UrlSubmissionEnrichmentRules
         episode.Images.Other.Should().BeNull();
     }
 
+    [Fact(DisplayName =
+        "When an existing episode has midnight UTC release and a resolved non-podcast item carries publish time-of-day, " +
+        "UrlSubmission enrichment backfills release on the stored episode.")]
+    public void enrich_backfills_non_podcast_release_from_midnight_stored_release()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var midnightRelease = DomainTestFixture.UtcDateDaysAgo(2);
+        var timedRelease = DomainTestFixture.SameCalendarDateWithTime(
+            midnightRelease,
+            _fixture.CreateNonMidnightTimeOfDay());
+        var episode = _fixture.CreateStoredEpisode(
+            podcast,
+            e => e.Release = midnightRelease);
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.BBC,
+            Url: _fixture.Create<Uri>(),
+            Title: episode.Title,
+            Description: episode.Description,
+            Release: timedRelease);
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Release.Should().Be(timedRelease);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
+    }
+
+    [Fact(DisplayName =
+        "When an existing episode already has a BBC URL, " +
+        "UrlSubmission enrichment does not replace the stored BBC link.")]
+    public void enrich_skips_bbc_url_when_episode_already_has_bbc_link()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var existingBbcUrl = _fixture.Create<Uri>();
+        var episode = _fixture.CreateStoredEpisode(
+            podcast,
+            e => e.Urls = new ServiceUrls { BBC = existingBbcUrl });
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.BBC,
+            Url: _fixture.Create<Uri>(),
+            Title: episode.Title,
+            Description: episode.Description);
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Urls.BBC.Should().Be(existingBbcUrl);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+        response.SubmitEpisodeDetails.BBC.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When an existing episode already has an Internet Archive URL, " +
+        "UrlSubmission enrichment does not replace the stored link.")]
+    public void enrich_skips_internet_archive_url_when_episode_already_has_link()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var existingUrl = _fixture.Create<Uri>();
+        var episode = _fixture.CreateStoredEpisode(
+            podcast,
+            e => e.Urls = new ServiceUrls { InternetArchive = existingUrl });
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.InternetArchive,
+            Url: _fixture.Create<Uri>(),
+            Title: episode.Title,
+            Description: episode.Description);
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Urls.InternetArchive.Should().Be(existingUrl);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+        response.SubmitEpisodeDetails.InternetArchive.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When a stored episode description is complete and a resolved non-podcast item offers longer text, " +
+        "UrlSubmission enrichment does not replace the stored description.")]
+    public void enrich_does_not_extend_non_podcast_description_when_stored_description_is_complete()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        const string completeDescription = "A complete episode description without truncation.";
+        var episode = _fixture.CreateStoredEpisode(
+            podcast,
+            e =>
+            {
+                e.Description = completeDescription;
+                e.Urls = new ServiceUrls { BBC = _fixture.Create<Uri>() };
+            });
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.BBC,
+            Url: _fixture.Create<Uri>(),
+            Title: episode.Title,
+            Description: "A much longer resolved description that would replace a truncated stored value.");
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Description.Should().Be(completeDescription);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+    }
+
+    [Fact(DisplayName =
+        "When an existing episode already has a platform identifier but is missing the platform URL, " +
+        "UrlSubmission enrichment fills the missing URL via the domain applicator.")]
+    public void enrich_fills_missing_platform_url_when_platform_id_already_present()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        var spotifyInput = _fixture.CreateResolvedSpotifyItemInput();
+        var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithDuration(_fixture.CreateDuration())
+            .WithDescription(_fixture.Create<string>()));
+        episode.PodcastId = podcast.Id;
+        episode.SpotifyId = spotifyInput.EpisodeId;
+        episode.Urls.Spotify = null;
+        var categorisedItem = CreateSpotifyOnlyCategorisedItem(podcast, episode, spotifyInput);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Urls.Spotify.Should().Be(spotifyInput.Url);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
+        response.SubmitEpisodeDetails.Spotify.Should().BeTrue();
+    }
+
     private static CategorisedItem CreateAppleOnlyCategorisedItem(
         Podcast podcast,
         Episode episode,
