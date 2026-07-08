@@ -387,4 +387,182 @@ public class IndexingOrchestrationRules
                 It.IsAny<IndexingContext>()),
             Times.Once);
     }
+
+    [Fact(DisplayName =
+        "When IgnoreAllEpisodes is set, newly discovered episodes are marked ignored before persistence.")]
+    public async Task ignore_all_episodes_marks_added_episodes_ignored()
+    {
+        // Arrange
+        var harness = new PodcastUpdaterTestHarness();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.IgnoreAllEpisodes = true;
+        harness.PodcastRepository.Seed(podcast);
+
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(EpisodeRelease)
+            .WithDuration(_fixture.CreateDuration()));
+        harness.EpisodeProvider
+            .Setup(x => x.GetEpisodes(
+                podcast,
+                It.IsAny<IEnumerable<Episode>>(),
+                It.IsAny<IndexingContext>()))
+            .ReturnsAsync([discovered]);
+
+        // Act
+        await harness.Updater.Update(
+            podcast,
+            enrichOnly: false,
+            PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
+
+        // Assert
+        harness.EpisodeRepository.SavedEpisodes.Should().ContainSingle();
+        harness.EpisodeRepository.SavedEpisodes.Single().Ignored.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When YouTube channel search becomes forbidden during indexing, the flag is persisted on the podcast.")]
+    public async Task youtube_channel_search_forbidden_flag_is_persisted()
+    {
+        // Arrange
+        var harness = new PodcastUpdaterTestHarness();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        podcast.YouTubeChannelSearchForbidden = null;
+        harness.PodcastRepository.Seed(podcast);
+
+        harness.EpisodeProvider
+            .Setup(x => x.GetEpisodes(
+                podcast,
+                It.IsAny<IEnumerable<Episode>>(),
+                It.IsAny<IndexingContext>()))
+            .Callback<Podcast, IEnumerable<Episode>, IndexingContext>((indexedPodcast, _, _) =>
+            {
+                indexedPodcast.YouTubeChannelSearchForbidden = true;
+            })
+            .ReturnsAsync([]);
+
+        // Act
+        await harness.Updater.Update(
+            podcast,
+            enrichOnly: false,
+            PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
+
+        // Assert
+        podcast.HasYouTubeChannelSearchForbidden().Should().BeTrue();
+        harness.PodcastRepository.SavedPodcasts.Should().ContainSingle();
+        harness.PodcastRepository.GetStored(podcast.Id).HasYouTubeChannelSearchForbidden().Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When YouTube quota is exhausted during enrich-only indexing, the quota tracker records " +
+        "that the podcast was not enriched.")]
+    public async Task youtube_quota_exhausted_records_not_enriched_for_enrich_only()
+    {
+        // Arrange
+        var harness = new PodcastUpdaterTestHarness();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        harness.PodcastRepository.Seed(podcast);
+
+        var indexingContext = PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince) with
+        {
+            YouTubeQuotaExhausted = true
+        };
+
+        // Act
+        await harness.Updater.Update(podcast, enrichOnly: true, indexingContext);
+
+        // Assert
+        harness.YouTubeQuotaUsageTracker.Verify(
+            x => x.RecordPodcastNotEnrichedDueToQuotaAsync(It.IsAny<CancellationToken>()),
+            Times.Once);
+        harness.YouTubeQuotaUsageTracker.Verify(
+            x => x.RecordPodcastNotIndexedDueToQuotaAsync(It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When YouTube quota is exhausted and YouTube resolving flips to skipped mid-run, " +
+        "the quota tracker records that the podcast was not indexed.")]
+    public async Task youtube_quota_exhausted_records_not_indexed_when_discovery_bypassed()
+    {
+        // Arrange
+        var harness = new PodcastUpdaterTestHarness();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.LastIndexed = null;
+        });
+        harness.PodcastRepository.Seed(podcast);
+
+        var indexingContext = PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince) with
+        {
+            YouTubeQuotaExhausted = true
+        };
+
+        harness.EpisodeProvider
+            .Setup(x => x.GetEpisodes(
+                podcast,
+                It.IsAny<IEnumerable<Episode>>(),
+                It.IsAny<IndexingContext>()))
+            .Callback<Podcast, IEnumerable<Episode>, IndexingContext>((_, _, context) =>
+            {
+                context.SkipYouTubeUrlResolving = true;
+            })
+            .ReturnsAsync([]);
+
+        // Act
+        await harness.Updater.Update(podcast, enrichOnly: false, indexingContext);
+
+        // Assert
+        harness.YouTubeQuotaUsageTracker.Verify(
+            x => x.RecordPodcastNotIndexedDueToQuotaAsync(It.IsAny<CancellationToken>()),
+            Times.Once);
+        harness.YouTubeQuotaUsageTracker.Verify(
+            x => x.RecordPodcastNotEnrichedDueToQuotaAsync(It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When merge produces failed episodes, LastIndexed is not updated even though MergedEpisodes may be empty.")]
+    public async Task failed_merge_does_not_update_last_indexed()
+    {
+        // Arrange
+        var harness = new PodcastUpdaterTestHarness();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.LastIndexed = null;
+        harness.PodcastRepository.Seed(podcast);
+
+        var sharedRelease = DomainTestFixture.UtcDaysAgo(32);
+        var sharedLength = _fixture.CreateDuration();
+        var sharedTitle = _fixture.CreateTitle();
+        var (youTubeOnly, appleOnly) = _fixture.CreateAmbiguousMatchStoredEpisodes(
+            podcast,
+            sharedRelease,
+            sharedLength,
+            sharedTitle);
+        harness.EpisodeRepository.Seed(youTubeOnly);
+        harness.EpisodeRepository.Seed(appleOnly);
+
+        var discovered = _fixture.CreateAmbiguousMatchSpotifyIncoming(
+            sharedRelease,
+            sharedLength,
+            sharedTitle);
+        harness.EpisodeProvider
+            .Setup(x => x.GetEpisodes(
+                podcast,
+                It.IsAny<IEnumerable<Episode>>(),
+                It.IsAny<IndexingContext>()))
+            .ReturnsAsync([discovered]);
+
+        // Act
+        var result = await harness.Updater.Update(
+            podcast,
+            enrichOnly: false,
+            PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
+
+        // Assert
+        result.MergeResult.FailedEpisodes.Should().ContainSingle();
+        podcast.LastIndexed.Should().BeNull();
+    }
 }

@@ -153,7 +153,7 @@ One PR per phase (or pair P0+P1 if small). Order matters: dead code → F17 boun
 | **8F.3** `AppleEpisodeEnricher` (50% branch) | `AppleEpisodeEnricherCatalogueRules.cs` | ✅ no match / owned id / unresolved show id / bypass |
 | **8F.4** `YouTubeEpisodeEnricher` (65% branch) | `YouTubeEpisodeEnricherCatalogueRules.cs` | ✅ no-match + link-only + bypass |
 | **8F.5** `SpotifyEpisodeEnricher` (66% branch) | `SpotifyEpisodeEnricherCatalogueRules.cs` | ✅ already had match / no match / expensive / bypass |
-| **8F.6** `PlaylistItemFinder` (55% branch) | `PlaylistItemFinderCatalogueWrapperRules.cs` | **Deferred** — already had fuzzy Theory matrix; re-measure after gate |
+| **8F.6** `PlaylistItemFinder` (55% branch) | `PlaylistItemFinderCatalogueWrapperRules.cs` | ✅ empty-after-live-filter; publish-delay accept; ambiguous episode number |
 
 **Pattern:** `platform × { match, no match, bypass, link-only }` — reuse `DelayedPublishingAudioPlatforms` style from `IndexingEnrichmentRules`.
 
@@ -165,7 +165,7 @@ One PR per phase (or pair P0+P1 if small). Order matters: dead code → F17 boun
 
 | Task | Test file | Matrix |
 |------|-----------|--------|
-| **8G.1** `PodcastUpdater` (68% branch) | `IndexingOrchestrationRules.cs` | ✅ enrich-only × ShouldEnrichDespiteReleaseWindow × bypass flags already present |
+| **8G.1** `PodcastUpdater` (68% branch) | `IndexingOrchestrationRules.cs` | ✅ IgnoreAll / YT forbidden / quota not-enriched / not-indexed / failed-merge + prior enrich-only/bypass |
 | **8G.2** Indexing + tolerance integration | `IndexingScopeRules.cs` / `IndexingEnrichmentRules.cs` | ✅ delayed-publishing second pass already characterized |
 
 **Exit:** orchestration branch ≥ 82% (stretch 85%).

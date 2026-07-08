@@ -556,6 +556,117 @@ public class PlaylistItemFinderCatalogueWrapperRules
         result.Should().BeNull();
     }
 
+    [Fact(DisplayName =
+        "When live filtering leaves no completed public videos, the playlist finder returns no match.")]
+    public async Task empty_playlist_after_live_filter_returns_no_match()
+    {
+        // Arrange
+        var episode = _fixture.BuildEpisode()
+            .Customize(e =>
+            {
+                e.Title = _fixture.CreateTitle();
+                e.Length = TimeSpan.FromHours(1);
+            })
+            .Create();
+        var liveVideoId = _fixture.CreateYouTubeId();
+        var playlistItems = new List<PlaylistItem>
+        {
+            CreatePlaylistItem(liveVideoId, episode.Title, DomainTestFixture.UtcDaysAgo(1))
+        };
+        _mocker.GetMock<IYouTubeVideoService>()
+            .Setup(x => x.GetVideoContentDetails(
+                It.IsAny<IYouTubeServiceWrapper>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync((
+                IYouTubeServiceWrapper _,
+                IEnumerable<string> videoIds,
+                IndexingContext _,
+                bool _,
+                bool _) =>
+                videoIds.Select(id => CreateVideo(id, episode.Length, liveBroadcastContent: "live")).ToList());
+
+        // Act
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            playlistItems,
+            youTubePublishDelay: null,
+            new IndexingContext());
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When publish-delay catalogue matching succeeds and video duration is within the 5-minute " +
+        "publication tolerance, the matching PlaylistItem is returned.")]
+    public async Task publish_delay_match_accepts_duration_within_publication_tolerance()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateShortTitle();
+        var catalogueTitle = DomainTestFixture.CreateFuzzyTitleVariant(
+            episodeTitle, FuzzyTitleVariantStrategy.ReplaceWord);
+        AssertFuzzyScoreAboveThreshold(
+            episodeTitle, catalogueTitle, FuzzyTitleVariantStrategy.ReplaceWord);
+
+        var (episode, matchingVideoId, playlistItems, catalogueVideoLength) =
+            BuildPublishDelayScenario(
+                episodeTitle,
+                catalogueTitle,
+                durationOffsetFromEpisode: TimeSpan.FromMinutes(2));
+        ConfigureVideoDuration(matchingVideoId, catalogueVideoLength);
+
+        // Act
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            playlistItems,
+            youTubePublishDelay: TimeSpan.FromHours(-6),
+            new IndexingContext());
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.PlaylistItem!.GetVideoId().Should().Be(matchingVideoId);
+    }
+
+    [Fact(DisplayName =
+        "When multiple playlist titles share the same episode number and other matchers also fail, " +
+        "no PlaylistItem is returned.")]
+    public async Task ambiguous_episode_number_match_does_not_resolve()
+    {
+        // Arrange
+        var episodeLength = TimeSpan.FromHours(1);
+        var firstVideoId = _fixture.CreateYouTubeId();
+        var secondVideoId = _fixture.CreateYouTubeId();
+        var episode = _fixture.BuildEpisode()
+            .Customize(e =>
+            {
+                e.Title = "Episode 42 — Monday briefing";
+                e.Length = episodeLength;
+            })
+            .Create();
+        var playlistItems = new List<PlaylistItem>
+        {
+            CreatePlaylistItem(firstVideoId, "Episode 42 — studio cut", DomainTestFixture.UtcDaysAgo(1)),
+            CreatePlaylistItem(secondVideoId, "Episode 42 — extended cut", DomainTestFixture.UtcDaysAgo(2))
+        };
+        // Durations beyond the two-minute duration-only path so only ambiguous number matching is in play.
+        ConfigureVideoDurations(
+            (firstVideoId, episodeLength - TimeSpan.FromMinutes(8)),
+            (secondVideoId, episodeLength + TimeSpan.FromMinutes(8)));
+
+        // Act
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            playlistItems,
+            youTubePublishDelay: null,
+            new IndexingContext());
+
+        // Assert
+        result.Should().BeNull();
+    }
+
     private void ConfigureVideoDurations(params (string VideoId, TimeSpan Duration)[] durations)
     {
         var durationByVideoId = durations.ToDictionary(x => x.VideoId, x => x.Duration);
