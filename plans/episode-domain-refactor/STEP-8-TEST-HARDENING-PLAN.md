@@ -208,13 +208,13 @@ After each PR: run `./scripts/coverage-gate.ps1`; update `coverage-baseline.json
 - [x] F17 categorisation characterized in `UrlSubmissionCategorisationRules`
 - [x] `CategorisedItemProcessor` has persistence business rules
 - [x] `EpisodeReleaseTolerance` single home in Episodes.Tests; Apple duplicate removed
-- [ ] `coverage-baseline.json` `gapsToClose` updated — no stale “unreachable lines 30–36” entry
-- [ ] Coverage gate green; group aspirations met or documented as accepted residual:
-  - episodes-domain branch ≥ **85%** (90% stretch)
-  - platform-enrichment branch ≥ **75%** (85% stretch)
-  - orchestration branch ≥ **82%** (85% stretch)
-- [ ] No existing business-rule assertion lines changed without sign-off
-- [ ] STEP-7 checklist gets a “Step 8” row linking this plan (when work starts)
+- [x] `coverage-baseline.json` `gapsToClose` updated — no stale “unreachable lines 30–36” entry
+- [x] Coverage gate green (post 8D–8F); residual vs aspiration documented:
+  - episodes-domain branch **85.5%** (≥85% met; 90% stretch open)
+  - platform-enrichment branch **71.1%** (short of 75%; PlaylistItemFinder / enricher residual)
+  - orchestration branch **80.2%** (short of 82%; PodcastUpdater / EpisodeEnricher residual)
+- [x] No existing business-rule assertion lines changed without sign-off
+- [x] STEP-7 checklist gets a “Step 8” row linking this plan (when work starts)
 
 ---
 

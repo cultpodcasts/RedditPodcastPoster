@@ -46,9 +46,9 @@
     }
   ],
   "gapsToClose": [
-    "Episodes domain branch vs aspiration 90% — EpisodePlatformMatcher.cs 85% + Catalogue.cs 86%; Step 8C expanded EpisodeReleaseToleranceRules",
-    "Platform enrichment branch vs aspiration 85% — PlaylistItemFinder raised via episode-number/duration/live-filter rules; enricher E2E gaps remain",
-    "Orchestration branch vs aspiration 85% — EpisodeEnricher 74% after F3 applicator unification; PodcastUpdater characterized"
+    "Episodes domain branch 85.5% (aspiration 90%) — Step 8D strategy/identity/applier matrices",
+    "Platform enrichment branch 71.1% (aspiration 75%) — Step 8F Apple/YouTube/template paths; PlaylistItemFinder residual",
+    "Orchestration branch 80.2% (aspiration 82%) — PodcastUpdater / EpisodeEnricher residual"
   ],
   "files": [
     {
