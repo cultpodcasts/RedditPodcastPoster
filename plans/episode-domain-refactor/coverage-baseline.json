@@ -47,8 +47,8 @@
   ],
   "gapsToClose": [
     "Episodes domain branch 85.5% (aspiration 90%) — Step 8D strategy/identity/applier matrices",
-    "Platform enrichment branch 71.1% (aspiration 75%) — Step 8F Apple/YouTube/template paths; PlaylistItemFinder residual",
-    "Orchestration branch 80.2% (aspiration 82%) — PodcastUpdater / EpisodeEnricher residual"
+    "Platform enrichment branch 73.5% (aspiration 75%) — Step 8 residual PlaylistItemFinder + enricher paths",
+    "Orchestration branch 86.5% (aspiration 82% met) — PodcastUpdater quota/IgnoreAll/failed-merge + EpisodeEnricher"
   ],
   "files": [
     {
