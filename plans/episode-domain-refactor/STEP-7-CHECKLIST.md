@@ -29,7 +29,7 @@
 
 ## Phase 0 / Phase A status
 
-Steps 1–6 are complete. **Phase A–E** merged to main ([#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)–[#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875)). **Phase F** in progress on branch `feature/episode-domain-phase-f-cleanup`.
+Steps 1–6 are complete. **Phase A–E** merged to main ([#871](https://github.com/cultpodcasts/RedditPodcastPoster/pull/871)–[#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875)). **Phase F** complete on branch `feature/episode-domain-phase-f-cleanup` ([#876](https://github.com/cultpodcasts/RedditPodcastPoster/pull/876)).
 
 | Step / phase | Outcome |
 |--------------|---------|
@@ -501,7 +501,7 @@ These Phase D gaps remain open for later phases; Phase E tests do not re-impleme
 **Preconditions:**
 
 - [x] Phases B–E merged ([#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875) merged 2026-07-08)
-- [ ] No production call sites depend on retired wrappers
+- [x] No production call sites depend on retired wrappers *(N/A — F2 closed-retain; finders kept)*
 - [x] **P0 test backlog complete** (see below — do not start Phase F cleanup until Phase E soak passes and #875 merges)
 
 ### Phase F pre-requisites — final test gap audit (2026-07-06)
@@ -638,7 +638,7 @@ Episodes → Models, Text only
 
 - [ ] **Zero** business-rule assertion changes
 - [x] Full test set green; coverage gate passes locally
-- [ ] No dead wrapper types left in the episode match/merge/apply/enrich path *(F2 deferred — wrappers retain platform heuristics)*
+- [x] No dead wrapper types left in the episode match/merge/apply/enrich path *(F2 closed-retain — finders kept; not dead code)*
 - [x] PR opened for Phase F only
 
 ### Risk to production
@@ -691,9 +691,9 @@ Single index of test-gap status across phases. **Pre-soak backlog (Phase E P0–
 | `PlaylistItemFinder` branch aspiration (~55% gate) | Local fuzzy/duration in finder | Phase F P3 | P3 | [x] Theory expansion | **F9**, **F2** |
 | YouTube `SearchResultFinder` wrapper rules | YouTube search finder | Phase F P3 | P3 | [x] 12 wrapper rules | **F8**, **F2** |
 | Template bypass per Apple/YouTube enricher (optional) | Platform enrichers | Phase F P3 optional | P3 | [x] Apple + YouTube bypass rules | **F11** |
-| Phase F cleanup (wrapper/tolerance/unify enrich) | Phases D–E transitional code | Phase F PR | — | Partial — **F1/F3–F11/F12–F16/F19** [x]; **F2** deferred; **F17–F20** open | **F1–F20** |
+| Phase F cleanup (wrapper/tolerance/unify enrich) | Phases D–E transitional code | Phase F PR | — | [x] **F1–F20** complete (**F2** closed-retain) | **F1–F20** |
 | **Project layering** — merge orchestration off Persistence | `EpisodeMatcher`/`EpisodeMerger` in Persistence | Phase F | P1 | [x] **F13–F16** | — |
-| **Project layering** — UrlSubmission / Text / TestSupport red flags | See audit table | Phase F | P2–P3 | **Open** | **F17–F20** |
+| **Project layering** — UrlSubmission / Text / TestSupport red flags | See audit table | Phase F | P2–P3 | [x] **F17–F20** | — |
 | Discovery / `EpisodeResultsEnricher` | Discovery hosts | Out of scope | — | N/A | **F12** |
 
 See also: `coverage-baseline.json` → `gapsToClose` for coverage-specific follow-ups.
