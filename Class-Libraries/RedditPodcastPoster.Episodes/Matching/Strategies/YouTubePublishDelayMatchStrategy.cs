@@ -17,16 +17,19 @@ public sealed class YouTubePublishDelayMatchStrategy : IReleaseMatchStrategy
         var incomingIsYouTube = context.IncomingEpisode.HasYouTubeIdentity();
         if (existingIsYouTube == incomingIsYouTube)
         {
-            return false;
+            return null;
         }
 
         if (!existingIsYouTube && incomingIsYouTube)
         {
-            var expectedPublish = context.ExistingEpisode.Release.Add(delay);
-            return Math.Abs((context.IncomingEpisode.Release - expectedPublish).Ticks) <
-                   EpisodeReleaseTolerance.YouTubePublishDelayMatchThreshold.Ticks;
+            return EpisodeReleaseTolerance.IsYouTubePublishDelayAligned(
+                context.ExistingEpisode.Release,
+                context.IncomingEpisode.Release,
+                delay)
+                ? true
+                : null;
         }
 
-        return false;
+        return null;
     }
 }

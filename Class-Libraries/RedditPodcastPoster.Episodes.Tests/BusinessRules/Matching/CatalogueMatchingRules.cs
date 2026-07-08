@@ -437,7 +437,7 @@ public class CatalogueMatchingRules
 
     [Fact(DisplayName =
         "For YouTube release authority podcasts with negative publishing delay, " +
-        "IsCatalogueMatch does not treat clearly different titles as the same catalogue item.")]
+        "IsCatalogueMatch does not treat episodes as the same when titles share no fuzzy or substring relationship.")]
     public void is_catalogue_match_rejects_negative_delay_when_titles_clearly_differ()
     {
         // Arrange

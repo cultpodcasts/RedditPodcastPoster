@@ -6,6 +6,32 @@ public static class EpisodeReleaseTolerance
 {
     public static readonly TimeSpan SameReleaseThreshold = TimeSpan.FromHours(3);
     public static readonly TimeSpan YouTubePublishDelayMatchThreshold = TimeSpan.FromDays(1);
+
+    /// <summary>
+    /// High-confidence signal: incoming YouTube publish is within the delay-alignment window of audio release + offset.
+    /// </summary>
+    public static bool IsYouTubePublishDelayAligned(
+        DateTime audioRelease,
+        DateTime youTubeRelease,
+        TimeSpan publishingDelay)
+    {
+        if (publishingDelay == TimeSpan.Zero)
+        {
+            return false;
+        }
+
+        var expectedPublish = audioRelease.Add(publishingDelay);
+        return Math.Abs((youTubeRelease - expectedPublish).Ticks) < YouTubePublishDelayMatchThreshold.Ticks;
+    }
+
+    /// <summary>
+    /// Moderate-confidence signal: audio and YouTube publishes share a calendar day (offset informs expectation, not a hard gate).
+    /// </summary>
+    public static bool AreCrossPlatformReleasesOnSameCalendarDay(
+        DateTime audioRelease,
+        DateTime youTubeRelease) =>
+        DateOnly.FromDateTime(audioRelease) == DateOnly.FromDateTime(youTubeRelease);
+
     public const int YouTubeReleaseAuthoritySpotifyCatalogueDayTolerance = 5;
     public static readonly TimeSpan YouTubeAuthorityToAudioReleaseConsiderationThreshold = TimeSpan.FromDays(14);
     private static readonly TimeSpan YouTubeReleaseAuthorityEnrichmentLookahead = TimeSpan.FromDays(14);

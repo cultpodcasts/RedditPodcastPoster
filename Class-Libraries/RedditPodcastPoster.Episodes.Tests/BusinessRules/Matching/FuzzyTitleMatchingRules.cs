@@ -367,9 +367,9 @@ public class FuzzyTitleMatchingRules
     }
 
     [Fact(DisplayName =
-        "For a YouTube release authority podcast with negative publishing delay, when the fuzzy score falls below threshold, " +
-        "episodes must not merge even if release and duration align — negative-delay requires fuzzy.")]
-    public void Fuzzy_below_threshold_on_negative_delay_podcast_blocks_release_and_duration_match()
+        "For a YouTube release authority podcast with negative publishing delay, when titles share no fuzzy " +
+        "or substring relationship, episodes must not merge on release and duration alignment alone.")]
+    public void Disjoint_titles_on_negative_delay_podcast_blocks_release_and_duration_match()
     {
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();

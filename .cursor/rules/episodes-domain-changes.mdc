@@ -1,0 +1,97 @@
+---
+description: Business-rules-first decision process for RedditPodcastPoster.Episodes production changes
+globs: "Class-Libraries/RedditPodcastPoster.Episodes/**,Class-Libraries/RedditPodcastPoster.Episodes.Tests/**,Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/**"
+alwaysApply: false
+---
+
+# Episodes domain — business-rules-first change guardrails
+
+Read before changing production code under `RedditPodcastPoster.Episodes/` (matching, merging, applying, adapters, release tolerance).
+
+**Related:** [unit-tests.mdc](unit-tests.mdc) (how to write rule tests), [plans/episode-domain-refactor/README.md](../../plans/episode-domain-refactor/README.md) §5 (rule catalog).
+
+---
+
+## Decision tree (MUST follow)
+
+```
+Production change in .Episodes?
+  → Identify touched rule area (Matching / Merging / Applying / Adapters)
+  → Search BusinessRules/* and README §5 for existing DisplayName rules
+  → Classify (below)
+  → Write or update rule test FIRST (or in same PR, test before/alongside code)
+  → Only then change production
+```
+
+### 1. Edge case / bug fix — proceed
+
+Production diverged from **clear existing rule intent**. No policy change.
+
+| Signal | Example |
+|--------|---------|
+| Existing rule test passes but production fails a real incident | Typo in branch condition |
+| Rule DisplayName already states the outcome; code was wrong | `!existingYouTube` written as `!incomingYouTube` |
+| Narrow fix; no new merge paths or tolerance bands | One-line condition fix |
+
+**Actions:** Add a focused `[Fact]` for the incident **shape** (scenario-named, not production brand names per unit-tests.mdc). Fix production minimally. Do **not** rewrite unrelated rule DisplayNames.
+
+### 2. Rule refinement — proceed (document)
+
+Policy intent unchanged; catalog was **incomplete or too narrow**.
+
+| Signal | Example |
+|--------|---------|
+| Same invariant, new platform pair or title shape already implied by neighbors | Substring title when exact+fuzzy rules exist |
+| Clarify DisplayName on existing test; add sibling test | Split one rule into two explicit cases |
+| Tighten assertion without changing merge outcome for covered cases | Assert `EpisodeExpectation` fields, not only `ContainSingle` |
+
+**Actions:** Add/refine rule tests. Note in PR/commit: *"Refined rule X — edge case Y now explicit."* Update README §5 catalog if display names change.
+
+### 3. Functional change — PAUSE for user guidance
+
+**New or broader policy.** Merge/match behavior changes for scenarios **not** already implied by existing rules.
+
+| Signal | Example |
+|--------|---------|
+| Widen or narrow numeric tolerance (duration, release window) | 1 min → 5 min for new platform pairs |
+| Remove a gate (release authority, delay sign, identity requirement) | 5-min tolerance no longer requires negative delay |
+| New cross-platform pair class | Apple↔YouTube when rules only documented Spotify↔YouTube |
+| Weaker guard (merge when previously must-not-merge) | Release+duration merge without fuzzy on negative-delay podcasts |
+| Stronger guard (must-not-merge when previously could merge) | Stricter identity checks |
+
+**Actions:** **Stop before production change.** Present to user:
+
+1. Existing rules touched (cite DisplayName strings)
+2. What would change for merge/match outcomes
+3. Proposed new rule DisplayName(s)
+4. Risk (false-positive merges vs missed merges)
+
+Implement only after explicit approval.
+
+---
+
+## Offset confidence model (approved direction)
+
+`youTubePublicationOffset` informs **how much to trust** release alignment — it is not a sole hard veto.
+
+| Signal | Strength | Where |
+|--------|----------|-------|
+| Delay-aligned publish (`audio + offset` within 1 day) | High | `IsYouTubePublishDelayAligned`, `YouTubePublishDelayMatchStrategy` → `true` |
+| Same calendar day (audio vs YouTube) | Moderate | `AreCrossPlatformReleasesOnSameCalendarDay`, `ExactReleaseMatchStrategy` → `true` |
+| Misaligned offset / wrong platform mix | Defer | Release strategies return `null` — other strategies or title/duration heuristics decide |
+| Disjoint titles on cross-platform release+duration path | Block | `HasCrossPlatformTitleConfidence` (fuzzy **or** substring) |
+
+**Duration:** YouTube-only ↔ audio-only pairs use 5-minute cross-platform tolerance (strict less-than).
+
+**Do not** reintroduce hard `false` from offset strategies when a weaker signal could still match downstream.
+
+---
+
+## PR checklist (Episodes production diff)
+
+- [ ] Listed existing `BusinessRules/*` rules touched
+- [ ] Classified each hunk: edge case | refinement | **functional (approved)**
+- [ ] New/changed `[Fact]` / `[Theory]` with plain-English `DisplayName` before or with code
+- [ ] `dotnet test --filter FullyQualifiedName~Rules` on affected test projects
+- [ ] No production brand names in test arrange (use scenario-shaped fixtures)
+- [ ] If functional: user sign-off recorded in PR or chat
