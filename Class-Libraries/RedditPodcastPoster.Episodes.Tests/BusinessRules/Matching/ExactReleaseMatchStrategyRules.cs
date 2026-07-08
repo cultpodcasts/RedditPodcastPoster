@@ -187,4 +187,88 @@ public class ExactReleaseMatchStrategyRules
         // Assert
         result.Should().BeTrue();
     }
+
+    public static TheoryData<string> DelayAndDeltaScenarios =>
+        new()
+        {
+            "zero_delay_within",
+            "zero_delay_outside",
+            "positive_delay_within",
+            "positive_delay_outside_defers",
+            "negative_delay_defers"
+        };
+
+    [Theory(DisplayName =
+        "Exact release strategy returns true, false, or null according to delay sign " +
+        "and whether the release delta falls within tolerance.")]
+    [MemberData(nameof(DelayAndDeltaScenarios))]
+    public void delay_sign_and_release_delta_matrix(string scenario)
+    {
+        // Arrange
+        var sharedLength = _fixture.CreateDuration();
+        Podcast podcast;
+        DateTime storedRelease;
+        DateTime incomingRelease;
+        bool? expected;
+
+        switch (scenario)
+        {
+            case "zero_delay_within":
+                podcast = _fixture.CreatePodcast();
+                storedRelease = DomainTestFixture.UtcDateDaysAgo(5);
+                incomingRelease = storedRelease;
+                expected = true;
+                break;
+            case "zero_delay_outside":
+                podcast = _fixture.CreatePodcast();
+                storedRelease = DomainTestFixture.UtcDateDaysAgo(60);
+                incomingRelease = DomainTestFixture.UtcDateDaysAgo(2);
+                expected = false;
+                break;
+            case "positive_delay_within":
+                podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+                    _fixture.CreateYouTubeChannelId(),
+                    TimeSpan.FromDays(1).Ticks);
+                storedRelease = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
+                incomingRelease = storedRelease.AddHours(1);
+                expected = true;
+                break;
+            case "positive_delay_outside_defers":
+                podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+                    _fixture.CreateYouTubeChannelId(),
+                    TimeSpan.FromDays(1).Ticks);
+                storedRelease = DomainTestFixture.UtcDateDaysAgo(60);
+                incomingRelease = DomainTestFixture.UtcDateDaysAgo(2);
+                expected = null;
+                break;
+            case "negative_delay_defers":
+                podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+                storedRelease = DomainTestFixture.UtcDateDaysAgo(5);
+                incomingRelease = storedRelease;
+                expected = null;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(scenario), scenario, null);
+        }
+
+        var stored = _fixture.CreateEpisode(e =>
+        {
+            e.Release = storedRelease;
+            e.Length = sharedLength;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var incoming = _fixture.CreateEpisode(e =>
+        {
+            e.Release = incomingRelease;
+            e.Length = sharedLength;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().Be(expected);
+    }
 }

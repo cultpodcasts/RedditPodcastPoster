@@ -121,11 +121,11 @@ One PR per phase (or pair P0+P1 if small). Order matters: dead code → F17 boun
 
 | Task | Test file | Matrix |
 |------|-----------|--------|
-| **8D.1** `SpotifyCatalogueReleaseMatchStrategy` (50% branch) | `SpotifyCatalogueReleaseMatchStrategyRules.cs` | positive-delay YT authority; Apple-incoming defer; edge null-defer rows |
-| **8D.2** `ExactReleaseMatchStrategy` (75% branch) | `ExactReleaseMatchStrategyRules.cs` | release delta within/outside tolerance × delay zero/negative/positive |
-| **8D.3** `EpisodeMappingExtensions` (78% branch) | `EpisodeMappingExtensionsRules.cs` | `[MemberData(nameof(AllPlatformServices))]` for `ToCandidate` / patch builders |
-| **8D.4** `EpisodeIdentityExtensions` (81% branch) | new `EpisodeIdentityExtensionsRules.cs` | Spotify URL ID extraction × Apple URL-only identity |
-| **8D.5** `EpisodePlatformApplier` (81% branch) | `EpisodePlatformApplierRules.cs` | extend `AllPlatformServices` matrix for fill-missing vs preserve-existing per field |
+| **8D.1** `SpotifyCatalogueReleaseMatchStrategy` (50% branch) | `SpotifyCatalogueReleaseMatchStrategyRules.cs` | ✅ positive-delay aligned; Apple-incoming defer; zero stored length |
+| **8D.2** `ExactReleaseMatchStrategy` (75% branch) | `ExactReleaseMatchStrategyRules.cs` | ✅ delay × release-delta matrix |
+| **8D.3** `EpisodeMappingExtensions` (78% branch) | `EpisodeMappingExtensionsRules.cs` | ✅ `AllPlatformServices` for `ToCandidate` / To*Patch |
+| **8D.4** `EpisodeIdentityExtensions` (81% branch) | new `EpisodeIdentityExtensionsRules.cs` | ✅ Spotify/Apple identity × URL ID extract × ownership |
+| **8D.5** `EpisodePlatformApplier` (81% branch) | `EpisodePlatformApplierRules.cs` | ✅ URL-only matrix; description truncate; release fill |
 
 **Exit:** episodes-domain group branch measurably closer to 90% aspiration; update `coverage-baseline.json` per-file notes.
 
@@ -135,8 +135,8 @@ One PR per phase (or pair P0+P1 if small). Order matters: dead code → F17 boun
 
 | Task | Test file | Matrix |
 |------|-----------|--------|
-| **8E.1** `PlatformLinkFactory` (50% branch) | `PlatformCatalogueAdapterRules.cs` or new `PlatformLinkFactoryRules.cs` | partial inputs: id-only, url-only, image-only, all-null (exists) |
-| **8E.2** `ResolvedAppleItemAdapter` (50% branch) | `ResolvedItemAdapterRules.cs` | URL-only vs id+url × empty description |
+| **8E.1** `PlatformLinkFactory` (50% branch) | `PlatformCatalogueAdapterRules.cs` | ✅ partial inputs: id/url/image-only + whitespace id |
+| **8E.2** `ResolvedAppleItemAdapter` (50% branch) | `ResolvedItemAdapterRules.cs` | ✅ URL-only vs id+url × empty description |
 
 **Exit:** episodes-adapters line aspiration 100% maintained; branch floors raised.
 

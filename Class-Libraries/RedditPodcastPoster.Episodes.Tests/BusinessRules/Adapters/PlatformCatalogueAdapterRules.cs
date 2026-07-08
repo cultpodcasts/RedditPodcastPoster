@@ -103,4 +103,50 @@ public class PlatformCatalogueAdapterRules
         // Assert
         link.Should().BeNull();
     }
+
+    public static TheoryData<string> PartialPlatformLinkInputs =>
+        new()
+        {
+            "id_only",
+            "url_only",
+            "image_only",
+            "all_present"
+        };
+
+    [Theory(DisplayName =
+        "PlatformLinkFactory materializes a link when any of id, url, or image is present, " +
+        "and normalizes blank ids to null.")]
+    [MemberData(nameof(PartialPlatformLinkInputs))]
+    public void platform_link_factory_partial_input_scenarios(string scenario)
+    {
+        // Arrange
+        var id = scenario is "id_only" or "all_present" ? _fixture.CreateSpotifyId() : null;
+        var url = scenario is "url_only" or "all_present"
+            ? new Uri("https://open.spotify.com/episode/partialLink")
+            : null;
+        var image = scenario is "image_only" or "all_present"
+            ? _fixture.Create<Uri>()
+            : null;
+
+        // Act
+        var link = PlatformLinkFactory.Create(Service.Spotify, id, url, image);
+
+        // Assert
+        link.Should().NotBeNull();
+        link!.Service.Should().Be(Service.Spotify);
+        link.Id.Should().Be(id);
+        link.Url.Should().Be(url);
+        link.Image.Should().Be(image);
+    }
+
+    [Fact(DisplayName =
+        "PlatformLinkFactory treats whitespace-only ids as absent and returns null when url and image are also null.")]
+    public void platform_link_factory_whitespace_id_alone_returns_null()
+    {
+        // Act
+        var link = PlatformLinkFactory.Create(Service.Apple, id: "   ", url: null, image: null);
+
+        // Assert
+        link.Should().BeNull();
+    }
 }

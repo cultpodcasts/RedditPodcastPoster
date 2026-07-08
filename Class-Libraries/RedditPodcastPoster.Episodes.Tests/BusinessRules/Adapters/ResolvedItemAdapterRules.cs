@@ -137,4 +137,39 @@ public class ResolvedItemAdapterRules
         episode.SpotifyId.Should().BeNullOrEmpty();
         episode.YouTubeId.Should().BeNullOrEmpty();
     }
+
+    [Fact(DisplayName =
+        "When a ResolvedAppleItem has both episode id and URL, adaptation carries both on the Apple PlatformLink.")]
+    public void ResolvedAppleItem_with_id_and_url_maps_both()
+    {
+        // Arrange
+        var input = _fixture.CreateResolvedAppleItemInput();
+
+        // Act
+        var candidate = _appleAdapter.Adapt(input);
+
+        // Assert
+        candidate.SourceLink.Should().NotBeNull();
+        candidate.SourceLink!.Id.Should().Be(input.EpisodeId!.Value.ToString());
+        candidate.SourceLink.Url.Should().Be(input.Url);
+        candidate.Description.Should().Be(input.EpisodeDescription);
+    }
+
+    [Fact(DisplayName =
+        "When a ResolvedAppleItem has an empty description, adaptation preserves the empty description.")]
+    public void ResolvedAppleItem_empty_description_is_preserved()
+    {
+        // Arrange
+        var input = _fixture.BuildResolvedAppleItemInput()
+            .WithDescription(string.Empty)
+            .Create();
+
+        // Act
+        var candidate = _appleAdapter.Adapt(input);
+
+        // Assert
+        candidate.Description.Should().BeEmpty();
+        candidate.SourceLink.Should().NotBeNull();
+        candidate.SourceLink!.Service.Should().Be(Service.Apple);
+    }
 }
