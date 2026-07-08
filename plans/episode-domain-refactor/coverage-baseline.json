@@ -46,7 +46,7 @@
     }
   ],
   "gapsToClose": [
-    "Episodes domain branch vs aspiration 90% — EpisodePlatformMatcher.cs 85% + Catalogue.cs 86% (YouTubePublishDelayMatchStrategy 25% branch; lines 30–36 unreachable)",
+    "Episodes domain branch vs aspiration 90% — EpisodePlatformMatcher.cs 85% + Catalogue.cs 86%; EpisodeReleaseTolerance expand in Step 8C",
     "Platform enrichment branch vs aspiration 85% — PlaylistItemFinder raised via episode-number/duration/live-filter rules; enricher E2E gaps remain",
     "Orchestration branch vs aspiration 85% — EpisodeEnricher 74% after F3 applicator unification; PodcastUpdater characterized",
     "EpisodeReleaseTolerance branch 54% — expand rules toward aspiration (optional)"
@@ -78,7 +78,7 @@
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/Strategies/YouTubePublishDelayMatchStrategy.cs",
       "branchCoverage": 25,
       "lineCoverage": 52,
-      "note": "Lines 30–36 appear unreachable when incoming is YouTube — Phase F P3 document-only unless strategy order changes"
+      "note": "Dead branch removed Step 8A; branch % rises on next coverage run — characterize via YouTubePublishDelayMatchStrategyRules"
     },
     {
       "group": "episodes-domain",

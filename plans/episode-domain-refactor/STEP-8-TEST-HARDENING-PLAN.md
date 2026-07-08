@@ -53,11 +53,11 @@ Remove only when **provably unreachable** or **superseded** — characterize rem
 
 ### 1.3 Dead-code PR checklist
 
-- [ ] Run full test suite before deletion
-- [ ] Delete dead branch; run `YouTubePublishDelayMatchStrategyRules` — all green
+- [x] Run full test suite before deletion
+- [x] Delete dead branch; run `YouTubePublishDelayMatchStrategyRules` — all green
 - [ ] Confirm coverage on `YouTubePublishDelayMatchStrategy.cs` **increases** (branch % should rise after removing unreachable lines)
-- [ ] Update `coverage-baseline.json` note for that file (remove “unreachable lines 30–36” wording)
-- [ ] No change to matcher strategy **registration order** in `AddEpisodesDomain()`
+- [x] Update `coverage-baseline.json` note for that file (remove “unreachable lines 30–36” wording)
+- [x] No change to matcher strategy **registration order** in `AddEpisodesDomain()`
 
 ---
 
