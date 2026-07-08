@@ -72,19 +72,24 @@ Implement only after explicit approval.
 
 ## Offset confidence model (approved direction)
 
-`youTubePublicationOffset` informs **how much to trust** release alignment — it is not a sole hard veto.
+`youTubePublicationOffset` informs **how much to trust** release alignment — it is not a sole hard veto. **Title is a strong signal, not a sole override** — matching requires composite evidence.
 
 | Signal | Strength | Where |
 |--------|----------|-------|
 | Delay-aligned publish (`audio + offset` within 1 day) | High | `IsYouTubePublishDelayAligned`, `YouTubePublishDelayMatchStrategy` → `true` |
 | Same calendar day (audio vs YouTube) | Moderate | `AreCrossPlatformReleasesOnSameCalendarDay`, `ExactReleaseMatchStrategy` → `true` |
-| Misaligned offset / wrong platform mix | Defer | Release strategies return `null` — other strategies or title/duration heuristics decide |
+| Title (exact / substring / fuzzy) | Strong supporting | Catalogue enrichment gate, cross-platform release+duration path — **never alone** |
+| Duration within cross-platform band (5 min) | Required for merge | `CrossPlatformDurationTolerance` on YouTube↔audio pairs |
+| Large duration gap (e.g. YouTube clip vs full audio) | Block | Similar title must **not** merge clip onto full episode — duration vetoes |
+| Misaligned offset / wrong platform mix | Defer | Release strategies return `null` — other strategies or title+duration heuristics decide |
 | Disjoint titles on cross-platform release+duration path | Block | `HasCrossPlatformTitleConfidence` (fuzzy **or** substring) |
 | YouTube-authority index | Apple + Spotify catalogue pass | `EpisodeProvider` fetches Apple/Spotify for negative-delay merge (not only enrichment) |
 | YouTube-stored + Apple-incoming release | `AppleCatalogueReleaseMatchStrategy` | Same offset-adjusted calendar-day logic as Spotify via `AudioCatalogueReleaseMatches` |
 | YouTube-discovered enrichment catalogue lookup | Title required before duration/release snipe | `HasCatalogueTitleConfidence` gates `FindYouTubeDiscoveredCatalogueMatch` |
 
-**Duration:** YouTube-only ↔ audio-only pairs use 5-minute cross-platform tolerance (strict less-than).
+**Duration:** YouTube-only ↔ audio-only pairs use 5-minute cross-platform tolerance (strict less-than). A matching title with duration far outside that band indicates a **clip or excerpt**, not the same catalogue row.
+
+**Do not** implement title-only overrides that bypass release or duration gates. Early audio drops (offset misalignment) need a **composite** rule (e.g. title + duration + bounded release slack), not title alone.
 
 **Do not** reintroduce hard `false` from offset strategies when a weaker signal could still match downstream.
 
