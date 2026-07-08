@@ -55,10 +55,7 @@ public sealed partial class EpisodePlatformMatcher
         if (options.EnrichingYouTubeDiscoveredEpisode &&
             probe.Length > TimeSpan.Zero)
         {
-            var youTubeDiscoveredMatch = FindYouTubeDiscoveredCatalogueMatchByDuration(
-                sampleList,
-                probe.Length,
-                probe.Release);
+            var youTubeDiscoveredMatch = FindYouTubeDiscoveredCatalogueMatch(probe, sampleList);
             if (youTubeDiscoveredMatch != null)
             {
                 return youTubeDiscoveredMatch;
@@ -183,7 +180,7 @@ public sealed partial class EpisodePlatformMatcher
 
         var referenceLength = probe.Length > TimeSpan.Zero ? probe.Length : catalogueItem.Length;
         var toleranceTicks = EpisodeReleaseTolerance.GetToleranceTicks(podcast, referenceLength);
-        return EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+        return EpisodeReleaseTolerance.AudioCatalogueReleaseMatches(
             catalogueItem.Release,
             probe.Release,
             toleranceTicks,
@@ -199,6 +196,45 @@ public sealed partial class EpisodePlatformMatcher
         Podcast podcast,
         Regex? episodeMatchRegex) =>
         IsMatch(probe, catalogueItem, episodeMatchRegex, podcast, []);
+
+    private static Episode? FindYouTubeDiscoveredCatalogueMatch(
+        Episode probe,
+        IList<Episode> sampleList)
+    {
+        var titleConfidentCandidates = sampleList
+            .Where(x => HasCatalogueTitleConfidence(probe.Title, x.Title))
+            .ToList();
+
+        if (titleConfidentCandidates.Count == 0)
+        {
+            return null;
+        }
+
+        return FindYouTubeDiscoveredCatalogueMatchByDuration(
+            titleConfidentCandidates,
+            probe.Length,
+            probe.Release);
+    }
+
+    private static bool HasCatalogueTitleConfidence(string probeTitle, string candidateTitle)
+    {
+        var left = WebUtility.HtmlDecode(probeTitle.Trim());
+        var right = WebUtility.HtmlDecode(candidateTitle.Trim());
+
+        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+        {
+            return false;
+        }
+
+        if (left.Equals(right, StringComparison.OrdinalIgnoreCase) ||
+            left.Contains(right, StringComparison.OrdinalIgnoreCase) ||
+            right.Contains(left, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return FuzzyMatcher.IsMatch(left, new Episode { Title = right }, e => e.Title, CatalogueMinFuzzyScore);
+    }
 
     private static Episode? FindYouTubeDiscoveredCatalogueMatchByDuration(
         IList<Episode> sampleList,
