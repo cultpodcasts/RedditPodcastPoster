@@ -667,6 +667,306 @@ public class PlaylistItemFinderCatalogueWrapperRules
         result.Should().BeNull();
     }
 
+    [Fact(DisplayName =
+        "When the stored episode lacks accurate release time, publish-delay matching is skipped " +
+        "even if a delayed YouTube publish would otherwise align.")]
+    public async Task publish_delay_skipped_without_accurate_release_time()
+    {
+        // Arrange
+        var episodeTitle = "Economics of Cheese";
+        var catalogueTitle = "Quantum Gardening Weekly";
+        var episodeLength = TimeSpan.FromHours(1);
+        var release = DomainTestFixture.UtcAtTime(-4, _fixture.CreateNonMidnightTimeOfDay());
+        var matchingVideoId = _fixture.CreateYouTubeId();
+        var episode = _fixture.BuildEpisode()
+            .Customize(e =>
+            {
+                e.Title = episodeTitle;
+                e.Length = episodeLength;
+                e.Release = release;
+                e.AppleId = null;
+                e.Urls = new ServiceUrls();
+            })
+            .Create();
+        var publishedAt = release.Add(TimeSpan.FromHours(-6));
+        var playlistItems = new List<PlaylistItem>
+        {
+            CreatePlaylistItem(matchingVideoId, catalogueTitle, publishedAt)
+        };
+        ConfigureVideoDuration(matchingVideoId, episodeLength - TimeSpan.FromMinutes(3));
+
+        // Act
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            playlistItems,
+            youTubePublishDelay: TimeSpan.FromHours(-6),
+            new IndexingContext());
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When the closest playlist publish time is more than one day from the delay-adjusted expectation, " +
+        "publish-delay matching does not resolve a video.")]
+    public async Task publish_delay_rejects_when_closest_publish_exceeds_one_day()
+    {
+        // Arrange
+        var episodeTitle = "Economics of Cheese";
+        var catalogueTitle = "Quantum Gardening Weekly";
+        var (episode, matchingVideoId, playlistItems, catalogueVideoLength) =
+            BuildPublishDelayScenario(
+                episodeTitle,
+                catalogueTitle,
+                durationOffsetFromEpisode: TimeSpan.FromMinutes(8));
+        var misalignedPublish = episode.Release
+            .Add(TimeSpan.FromHours(-6))
+            .AddDays(2);
+        playlistItems[0].Snippet.PublishedAtDateTimeOffset = misalignedPublish;
+        ConfigureVideoDuration(matchingVideoId, catalogueVideoLength);
+
+        // Act
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            playlistItems,
+            youTubePublishDelay: TimeSpan.FromHours(-6),
+            new IndexingContext());
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When publish time aligns but domain catalogue matching rejects the candidate, " +
+        "no PlaylistItem is returned.")]
+    public async Task publish_delay_rejects_when_domain_catalogue_match_fails()
+    {
+        // Arrange
+        var episodeTitle = "Economics of Cheese";
+        var catalogueTitle = "Quantum Gardening Weekly";
+        var (episode, matchingVideoId, playlistItems, catalogueVideoLength) =
+            BuildPublishDelayScenario(
+                episodeTitle,
+                catalogueTitle,
+                durationOffsetFromEpisode: TimeSpan.FromMinutes(8));
+        ConfigureVideoDuration(matchingVideoId, catalogueVideoLength);
+        var matcher = new Mock<RedditPodcastPoster.Episodes.Matching.IEpisodePlatformMatcher>();
+        matcher
+            .Setup(x => x.IsCatalogueMatch(
+                It.IsAny<RedditPodcastPoster.Models.Episode>(),
+                It.IsAny<RedditPodcastPoster.Models.Episode>(),
+                It.IsAny<Podcast>(),
+                null))
+            .Returns(false);
+        _mocker.Use(matcher.Object);
+
+        // Act
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            playlistItems,
+            youTubePublishDelay: TimeSpan.FromHours(-6),
+            new IndexingContext());
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When publish-delay catalogue matching succeeds but the YouTube video is shorter than five minutes, " +
+        "no PlaylistItem is returned.")]
+    public async Task publish_delay_rejects_when_video_shorter_than_minimum_publication_duration()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateShortTitle();
+        var catalogueTitle = DomainTestFixture.CreateFuzzyTitleVariant(
+            episodeTitle,
+            FuzzyTitleVariantStrategy.ReplaceWord);
+        AssertFuzzyScoreAboveThreshold(
+            episodeTitle, catalogueTitle, FuzzyTitleVariantStrategy.ReplaceWord);
+        var (episode, matchingVideoId, playlistItems, _) =
+            BuildPublishDelayScenario(episodeTitle, catalogueTitle, durationOffsetFromEpisode: TimeSpan.FromMinutes(2));
+        ConfigureVideoDuration(matchingVideoId, TimeSpan.FromMinutes(4));
+
+        // Act
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            playlistItems,
+            youTubePublishDelay: TimeSpan.FromHours(-6),
+            new IndexingContext());
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When a single playlist title contains the stored episode title as a substring, " +
+        "exact-title matching resolves that candidate after duration validation.")]
+    public async Task exact_title_substring_match_resolves_single_candidate()
+    {
+        // Arrange
+        const string episodeTitle = "beta";
+        const string catalogueTitle = "extended beta episode special";
+        var episodeLength = TimeSpan.FromHours(1);
+        var videoId = _fixture.CreateYouTubeId();
+        var episode = _fixture.BuildEpisode()
+            .Customize(e =>
+            {
+                e.Title = episodeTitle;
+                e.Length = episodeLength;
+            })
+            .Create();
+        var playlistItems = new List<PlaylistItem>
+        {
+            CreatePlaylistItem(videoId, catalogueTitle, DomainTestFixture.UtcDaysAgo(1))
+        };
+        ConfigureVideoDuration(videoId, episodeLength);
+
+        // Act
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            playlistItems,
+            youTubePublishDelay: null,
+            new IndexingContext());
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.PlaylistItem!.GetVideoId().Should().Be(videoId);
+    }
+
+    [Fact(DisplayName =
+        "When fuzzy title matching finds a candidate but per-video duration validation fails, " +
+        "no PlaylistItem is returned.")]
+    public async Task fuzzy_match_rejects_unacceptable_video_duration()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateShortTitle();
+        var catalogueTitle = DomainTestFixture.CreateFuzzyTitleVariant(
+            episodeTitle,
+            FuzzyTitleVariantStrategy.ReplaceWord);
+        AssertFuzzyScoreAboveThreshold(
+            episodeTitle, catalogueTitle, FuzzyTitleVariantStrategy.ReplaceWord);
+        var episodeLength = TimeSpan.FromHours(1);
+        var matchingVideoId = _fixture.CreateYouTubeId();
+        var episode = _fixture.BuildEpisode()
+            .Customize(e =>
+            {
+                e.Title = episodeTitle;
+                e.Length = episodeLength;
+            })
+            .Create();
+        var playlistItems = new List<PlaylistItem>
+        {
+            CreatePlaylistItem(matchingVideoId, catalogueTitle, DomainTestFixture.UtcDaysAgo(1))
+        };
+        ConfigureVideoDuration(matchingVideoId, TimeSpan.FromMinutes(10));
+
+        // Act
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            playlistItems,
+            youTubePublishDelay: null,
+            new IndexingContext());
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When an exact-title candidate is found but YouTube returns no video details for that id, " +
+        "no PlaylistItem is returned.")]
+    public async Task exact_title_match_returns_null_when_video_details_missing()
+    {
+        // Arrange
+        var sharedTitle = _fixture.CreateTitle();
+        var episodeLength = TimeSpan.FromHours(1);
+        var videoId = _fixture.CreateYouTubeId();
+        var episode = _fixture.BuildEpisode()
+            .Customize(e =>
+            {
+                e.Title = sharedTitle;
+                e.Length = episodeLength;
+            })
+            .Create();
+        var playlistItems = new List<PlaylistItem>
+        {
+            CreatePlaylistItem(videoId, sharedTitle, DomainTestFixture.UtcDaysAgo(1))
+        };
+        _mocker.GetMock<IYouTubeVideoService>()
+            .Setup(x => x.GetVideoContentDetails(
+                It.IsAny<IYouTubeServiceWrapper>(),
+                It.Is<IEnumerable<string>>(ids => ids.Single() == videoId),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync([]);
+
+        // Act
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            playlistItems,
+            youTubePublishDelay: null,
+            new IndexingContext());
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When live/upcoming filtering cannot load video details, the finder keeps the original playlist " +
+        "and may still match completed-looking items.")]
+    public async Task live_filter_skipped_when_video_details_unavailable()
+    {
+        // Arrange
+        var sharedTitle = _fixture.CreateTitle();
+        var episodeLength = TimeSpan.FromHours(1);
+        var videoId = _fixture.CreateYouTubeId();
+        var episode = _fixture.BuildEpisode()
+            .Customize(e =>
+            {
+                e.Title = sharedTitle;
+                e.Length = episodeLength;
+            })
+            .Create();
+        var playlistItems = new List<PlaylistItem>
+        {
+            CreatePlaylistItem(videoId, sharedTitle, DomainTestFixture.UtcDaysAgo(1))
+        };
+        _mocker.GetMock<IYouTubeVideoService>()
+            .Setup(x => x.GetVideoContentDetails(
+                It.IsAny<IYouTubeServiceWrapper>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync((
+                IYouTubeServiceWrapper _,
+                IEnumerable<string> videoIds,
+                IndexingContext _,
+                bool _,
+                bool withSnippets) =>
+            {
+                if (withSnippets)
+                {
+                    return null;
+                }
+
+                return videoIds
+                    .Select(id => CreateCompletedVideo(id, episodeLength))
+                    .ToList();
+            });
+
+        // Act
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            playlistItems,
+            youTubePublishDelay: null,
+            new IndexingContext());
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.PlaylistItem!.GetVideoId().Should().Be(videoId);
+    }
+
     private void ConfigureVideoDurations(params (string VideoId, TimeSpan Duration)[] durations)
     {
         var durationByVideoId = durations.ToDictionary(x => x.VideoId, x => x.Duration);

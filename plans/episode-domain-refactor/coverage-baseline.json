@@ -46,9 +46,9 @@
     }
   ],
   "gapsToClose": [
-    "Episodes domain branch 85.5% (aspiration 90%) — Step 8D strategy/identity/applier matrices",
-    "Platform enrichment branch 77.0% (aspiration 75% met; 85% stretch — PlaylistItemFinder residual)",
-    "Orchestration branch 86.5% (aspiration 82% met) — PodcastUpdater quota/IgnoreAll/failed-merge + EpisodeEnricher"
+    "Episodes domain branch 87.9% (aspiration 90%) — EpisodeReleaseTolerance + YouTubePublishDelay strategy stretch",
+    "Platform enrichment branch 78.4% (75% met; 85% stretch — PlaylistItemFinder 69%)",
+    "Orchestration branch 86.5% (aspiration 82% met)"
   ],
   "files": [
     {
@@ -68,16 +68,16 @@
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/Strategies/SpotifyCatalogueReleaseMatchStrategy.cs",
-      "branchCoverage": 50,
-      "lineCoverage": 85,
-      "note": "Phase F P1 — dedicated strategy rule file"
+      "branchCoverage": 100,
+      "lineCoverage": 100,
+      "note": "Step 8 stretch — SpotifyCatalogueReleaseMatchStrategyRules complete matrix"
     },
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/Strategies/YouTubePublishDelayMatchStrategy.cs",
-      "branchCoverage": 25,
-      "lineCoverage": 52,
-      "note": "Dead branch removed Step 8A; branch % rises on next coverage run — characterize via YouTubePublishDelayMatchStrategyRules"
+      "branchCoverage": 100,
+      "lineCoverage": 100,
+      "note": "Step 8 stretch — YouTubePublishDelayMatchStrategyRules (zero delay, same-platform, audio→YT only)"
     },
     {
       "group": "episodes-domain",
@@ -141,9 +141,9 @@
     {
       "group": "episodes-domain",
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/EpisodeReleaseTolerance.cs",
-      "branchCoverage": 54,
-      "lineCoverage": 76,
-      "note": "Step 8C — EpisodeReleaseToleranceRules (null-podcast overload, audio lookup, enrich window, preserve YT release); Apple duplicate removed"
+      "branchCoverage": 83,
+      "lineCoverage": 95,
+      "note": "Step 8 stretch — EpisodeReleaseToleranceRules (zero length tolerance, Apple-only enrich window)"
     },
     {
       "group": "episodes-adapters",
@@ -205,7 +205,7 @@
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Abstractions/PlatformEnrichmentResultExtensions.cs",
-      "branchCoverage": 93,
+      "branchCoverage": 92,
       "lineCoverage": 100,
       "note": "Step 8F — PlatformEnrichmentResultExtensionsRules (partial/null ApplyTo guards)"
     },
@@ -219,7 +219,7 @@
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify/Enrichers/SpotifyEpisodeEnricher.cs",
-      "branchCoverage": 92,
+      "branchCoverage": 91,
       "lineCoverage": 100,
       "note": "Phase F P1 — SpotifyEpisodeEnricherCatalogueRules (match / no match / expensive / bypass / owned id)"
     },
@@ -227,22 +227,22 @@
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Enrichment/YouTubeEpisodeEnricher.cs",
       "branchCoverage": 82,
-      "lineCoverage": 95,
-      "note": "Step 8F — YouTubeEpisodeEnricherCatalogueRules (playlist-item path, owned id, thumbnail)"
+      "lineCoverage": 94,
+      "note": "Step 8 stretch — YouTubeEpisodeEnricherCatalogueRules (URL/id edge cases, skip video details)"
     },
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Apple/AppleEpisodeEnricher.cs",
-      "branchCoverage": 93,
+      "branchCoverage": 92,
       "lineCoverage": 100,
       "note": "Step 8F — AppleEpisodeEnricherCatalogueRules (podcast show-id resolution + catalogue E2E)"
     },
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Services/PlaylistItemFinder.cs",
-      "branchCoverage": 66,
+      "branchCoverage": 69,
       "lineCoverage": 86,
-      "note": "Phase F — PlaylistItemFinderCatalogueWrapperRules: fuzzy Theory matrix, episode-number, duration-only, live-filter, publish-delay"
+      "note": "Step 8 stretch — PlaylistItemFinderCatalogueWrapperRules: publish-delay guards, substring exact title, live-filter null"
     },
     {
       "group": "orchestration",

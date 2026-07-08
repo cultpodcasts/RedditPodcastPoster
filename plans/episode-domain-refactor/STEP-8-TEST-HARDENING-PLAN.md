@@ -209,9 +209,9 @@ After each PR: run `./scripts/coverage-gate.ps1`; update `coverage-baseline.json
 - [x] `CategorisedItemProcessor` has persistence business rules
 - [x] `EpisodeReleaseTolerance` single home in Episodes.Tests; Apple duplicate removed
 - [x] `coverage-baseline.json` `gapsToClose` updated — no stale “unreachable lines 30–36” entry
-- [x] Coverage gate green (post enrichment lift); residual vs aspiration documented:
-  - episodes-domain branch **85.5%** (≥85% met; 90% stretch open)
-  - platform-enrichment branch **77.0%** (≥75% met; 85% stretch open — PlaylistItemFinder residual)
+- [x] Coverage gate green (post stretch lift); residual vs aspiration documented:
+  - episodes-domain branch **87.9%** (≥85% met; 90% stretch open)
+  - platform-enrichment branch **78.4%** (≥75% met; 85% stretch — PlaylistItemFinder 69%)
   - orchestration branch **86.5%** (≥82% met)
 - [x] No existing business-rule assertion lines changed without sign-off
 - [x] STEP-7 checklist gets a “Step 8” row linking this plan (when work starts)

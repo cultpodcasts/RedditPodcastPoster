@@ -537,4 +537,53 @@ public class EpisodeReleaseToleranceRules
         // Assert
         matches.Should().BeTrue();
     }
+
+    [Fact(DisplayName =
+        "GetToleranceTicks for positive-delay YouTube authority omits episode length from tolerance " +
+        "when the stored episode length is zero.")]
+    public void get_tolerance_ticks_positive_delay_youtube_authority_ignores_zero_episode_length()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+            _fixture.CreateYouTubeChannelId(),
+            TimeSpan.FromDays(1).Ticks);
+        var withLength = EpisodeReleaseTolerance.GetToleranceTicks(podcast, TimeSpan.FromHours(1));
+        var withoutLength = EpisodeReleaseTolerance.GetToleranceTicks(podcast, TimeSpan.Zero);
+
+        // Act & assert
+        withoutLength.Should().BeLessThan(withLength);
+        withoutLength.Should().BeGreaterThan(TimeSpan.FromDays(1).Ticks);
+    }
+
+    [Fact(DisplayName =
+        "ShouldEnrichDespiteReleaseWindow returns true when only Apple catalogue identity is still missing " +
+        "for a YouTube-only episode inside the enrichment window.")]
+    public void should_enrich_despite_release_window_when_only_apple_id_missing()
+    {
+        // Arrange
+        var delay = TimeSpan.FromDays(-31).Add(TimeSpan.FromHours(-12));
+        var expectedAudioRelease = DateTime.UtcNow.AddDays(4);
+        var youTubeRelease = expectedAudioRelease.Add(delay);
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = delay.Ticks,
+            AppleId = _fixture.CreateAppleId()
+        };
+        var episode = new Episode
+        {
+            Release = youTubeRelease,
+            YouTubeId = _fixture.CreateYouTubeId(),
+            Urls = new ServiceUrls
+            {
+                YouTube = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}")
+            }
+        };
+
+        // Act
+        var shouldEnrich = EpisodeReleaseTolerance.ShouldEnrichDespiteReleaseWindow(episode, podcast);
+
+        // Assert
+        shouldEnrich.Should().BeTrue();
+    }
 }

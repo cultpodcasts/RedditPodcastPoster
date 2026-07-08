@@ -59,6 +59,92 @@ public class YouTubeEpisodeEnricherCatalogueRules
     }
 
     [Fact(DisplayName =
+        "When a stored episode has a YouTube URL that does not contain an extractable video id, " +
+        "the enricher leaves YouTube identity unchanged.")]
+    public async Task enrich_leaves_episode_unchanged_when_url_has_no_extractable_video_id()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .Customize(e =>
+            {
+                e.YouTubeId = string.Empty;
+                e.Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/channel/UCexample") };
+            })
+            .Create();
+        var enrichmentContext = new EnrichmentContext();
+        var resolver = new Mock<IYouTubeItemResolver>();
+        var sut = CreateEnricher(youTubeItemResolver: resolver.Object);
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        episode.YouTubeId.Should().BeNullOrWhiteSpace();
+        enrichmentContext.YouTubeIdUpdated.Should().BeFalse();
+        resolver.Verify(
+            x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When a matching catalogue item is found and the episode already has description and thumbnail, " +
+        "the enricher does not load supplemental YouTube video details.")]
+    public async Task enrich_skips_video_details_when_description_and_thumbnail_present()
+    {
+        // Arrange
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput();
+        var podcast = _fixture.CreatePodcast();
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .Customize(e =>
+            {
+                e.Title = youTubeInput.Title;
+                e.Length = youTubeInput.Duration;
+                e.Release = youTubeInput.Release;
+                e.Description = _fixture.Create<string>();
+                e.YouTubeId = string.Empty;
+                e.Urls = new ServiceUrls();
+                e.Images = new EpisodeImages { YouTube = _fixture.Create<Uri>() };
+            })
+            .Create();
+        var resolver = new Mock<IYouTubeItemResolver>();
+        resolver
+            .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync(CreateSearchResultResponse(
+                youTubeInput.YouTubeId,
+                youTubeInput.Title,
+                youTubeInput.Release));
+        var videoService = new Mock<IYouTubeVideoService>();
+        var sut = CreateEnricher(
+            youTubeItemResolver: resolver.Object,
+            youTubeVideoService: videoService.Object);
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        enrichmentContext.YouTubeUrlUpdated.Should().BeTrue();
+        videoService.Verify(
+            x => x.GetVideoContentDetails(
+                It.IsAny<IYouTubeServiceWrapper>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<IndexingContext>(),
+                true,
+                It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
         "When a stored episode has a YouTube URL but no ID, the enricher extracts the video ID " +
         "and marks the enrichment context YouTubeId flag.")]
     public async Task enrich_sets_youtube_id_when_url_present_and_id_missing()
