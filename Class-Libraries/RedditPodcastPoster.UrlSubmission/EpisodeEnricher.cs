@@ -49,19 +49,19 @@ public class EpisodeEnricher(
 
             if (matchingEpisode != null)
             {
-                ApplyResolvedPlatformEnrichment(
+                var outcome = ApplyResolvedPlatformEnrichment(
                     matchingPodcast,
                     matchingEpisode,
                     BuildCandidate(
                         _appleItemAdapter.Adapt(categorisedItem.ResolvedAppleItem.ToAdapterInput()),
                         categorisedItem.ResolvedAppleItem.EpisodeDescription,
                         categorisedItem),
-                    ref addedApple,
-                    ref episodeResult,
                     platformName: "apple",
                     logIdProperty: "apple-id",
                     idSelector: e => e.AppleId?.ToString(),
                     urlSelector: e => e.Urls.Apple);
+                addedApple |= outcome.PlatformLinkAdded;
+                episodeResult = MergeEpisodeResult(episodeResult, outcome);
             }
         }
 
@@ -78,19 +78,19 @@ public class EpisodeEnricher(
 
             if (matchingEpisode != null)
             {
-                ApplyResolvedPlatformEnrichment(
+                var outcome = ApplyResolvedPlatformEnrichment(
                     matchingPodcast,
                     matchingEpisode,
                     BuildCandidate(
                         _spotifyItemAdapter.Adapt(categorisedItem.ResolvedSpotifyItem.ToAdapterInput()),
                         categorisedItem.ResolvedSpotifyItem.EpisodeDescription,
                         categorisedItem),
-                    ref addedSpotify,
-                    ref episodeResult,
                     platformName: "spotify",
                     logIdProperty: "spotify-id",
                     idSelector: e => e.SpotifyId,
                     urlSelector: e => e.Urls.Spotify);
+                addedSpotify |= outcome.PlatformLinkAdded;
+                episodeResult = MergeEpisodeResult(episodeResult, outcome);
             }
         }
 
@@ -108,19 +108,19 @@ public class EpisodeEnricher(
 
             if (matchingEpisode != null)
             {
-                ApplyResolvedPlatformEnrichment(
+                var outcome = ApplyResolvedPlatformEnrichment(
                     matchingPodcast,
                     matchingEpisode,
                     BuildCandidate(
                         _youTubeItemAdapter.Adapt(categorisedItem.ResolvedYouTubeItem.ToAdapterInput()),
                         categorisedItem.ResolvedYouTubeItem.EpisodeDescription,
                         categorisedItem),
-                    ref addedYouTube,
-                    ref episodeResult,
                     platformName: "youtube",
                     logIdProperty: "youtube-id",
                     idSelector: e => e.YouTubeId,
                     urlSelector: e => e.Urls.YouTube);
+                addedYouTube |= outcome.PlatformLinkAdded;
+                episodeResult = MergeEpisodeResult(episodeResult, outcome);
             }
         }
 
@@ -177,12 +177,15 @@ public class EpisodeEnricher(
             new SubmitEpisodeDetails(addedSpotify, addedApple, addedYouTube, [], addedBBC, addedInternetArchive));
     }
 
-    private void ApplyResolvedPlatformEnrichment(
+    private static SubmitResultState MergeEpisodeResult(
+        SubmitResultState current,
+        ResolvedPlatformApplyOutcome outcome) =>
+        outcome.EpisodeEnriched ? SubmitResultState.Enriched : current;
+
+    private ResolvedPlatformApplyOutcome ApplyResolvedPlatformEnrichment(
         Podcast podcast,
         Episode episode,
         EpisodeCandidate candidate,
-        ref bool addedPlatformLink,
-        ref SubmitResultState episodeResult,
         string platformName,
         string logIdProperty,
         Func<Episode, string?> idSelector,
@@ -192,14 +195,11 @@ public class EpisodeEnricher(
         var missingUrl = urlSelector(episode) == null;
 
         var result = enrichmentApplicator.Apply(podcast, episode, candidate);
-        if (result.Updated)
-        {
-            episodeResult = SubmitResultState.Enriched;
-        }
+        var platformLinkAdded = false;
 
         if (missingId && !string.IsNullOrWhiteSpace(idSelector(episode)))
         {
-            addedPlatformLink = true;
+            platformLinkAdded = true;
             logger.LogInformation(
                 "Enriched episode '{matchingEpisodeId}' with {platformName} details with {logIdProperty} {platformId}.",
                 episode.Id,
@@ -210,7 +210,7 @@ public class EpisodeEnricher(
 
         if (missingUrl && urlSelector(episode) != null)
         {
-            addedPlatformLink = true;
+            platformLinkAdded = true;
             logger.LogInformation(
                 "Enriched episode '{matchingEpisodeId}' with {platformName} details with {platformName}-url {platformUrl}.",
                 episode.Id,
@@ -218,6 +218,8 @@ public class EpisodeEnricher(
                 platformName,
                 urlSelector(episode));
         }
+
+        return new ResolvedPlatformApplyOutcome(platformLinkAdded, result.Updated);
     }
 
     private EpisodeCandidate BuildCandidate(
