@@ -263,6 +263,56 @@ public class AppleEpisodeEnricherCatalogueRules
     }
 
     [Fact(DisplayName =
+        "When the podcast has no Apple show id but the podcast enricher resolves one, " +
+        "episode enrichment continues and applies a matching catalogue row.")]
+    public async Task enrich_resolves_podcast_apple_id_then_applies_catalogue_match()
+    {
+        // Arrange
+        var resolvedAppleId = _fixture.CreateAppleId();
+        var podcast = _fixture.CreatePodcast(p => p.AppleId = null);
+        var appleEpisodeId = _fixture.CreateAppleId();
+        var sharedTitle = _fixture.CreateTitle();
+        var sharedLength = _fixture.CreateDuration();
+        var sharedRelease = DomainTestFixture.UtcDateDaysAgo(2);
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithTitle(sharedTitle)
+            .WithRelease(sharedRelease)
+            .WithLength(sharedLength)
+            .WithSpotify(_fixture.CreateSpotifyId(), _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId()))
+            .Create();
+        episode.AppleId = null;
+        episode.Urls.Apple = null;
+        var appleEpisode = new AppleEpisode(
+            appleEpisodeId,
+            sharedTitle,
+            sharedRelease.AddHours(8),
+            sharedLength,
+            new Uri($"https://podcasts.apple.com/us/podcast/episode/id{resolvedAppleId}?i={appleEpisodeId}"),
+            string.Empty,
+            false);
+        var sut = new AppleEpisodeEnricher(
+            new ResolvingApplePodcastEnricher(resolvedAppleId),
+            new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId),
+            EpisodeDomainTestServices.CreatePlatformMatcher(),
+            new AppleEpisodeAdapter(),
+            EpisodeDomainTestServices.CreateEnrichmentApplicator(),
+            NullLogger<AppleEpisodeEnricher>.Instance);
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        podcast.AppleId.Should().Be(resolvedAppleId);
+        episode.AppleId.Should().Be(appleEpisodeId);
+        enrichmentContext.AppleUrlUpdated.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "When the podcast still has no Apple show id after podcast enricher runs, " +
         "episode enrichment exits without querying the catalogue.")]
     public async Task enrich_exits_when_podcast_apple_id_cannot_be_resolved()
@@ -307,6 +357,15 @@ public class AppleEpisodeEnricherCatalogueRules
     private sealed class StubApplePodcastEnricher : IApplePodcastEnricher
     {
         public Task AddId(Podcast podcast) => Task.CompletedTask;
+    }
+
+    private sealed class ResolvingApplePodcastEnricher(long appleId) : IApplePodcastEnricher
+    {
+        public Task AddId(Podcast podcast)
+        {
+            podcast.AppleId = appleId;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class TrackingAppleEpisodeResolver : IAppleEpisodeResolver

@@ -24,7 +24,7 @@
 | **D** — Collapse finders into single matcher | 🟢 In production / Done | Medium–High | [#874](https://github.com/cultpodcasts/RedditPodcastPoster/pull/874) |
 | **E** — Shared enricher template | 🟢 Done (merged [#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875)) | Medium | [#875](https://github.com/cultpodcasts/RedditPodcastPoster/pull/875) |
 | **F** — Cleanup | 🟢 Done (PR [#876](https://github.com/cultpodcasts/RedditPodcastPoster/pull/876)) | Low–Medium | [#876](https://github.com/cultpodcasts/RedditPodcastPoster/pull/876) |
-| **8** — Test hardening (post-F) | 🟡 Gate green; enrichment 73.5% (short of 75%); domain/orchestration met | Low | [STEP-8-TEST-HARDENING-PLAN.md](./STEP-8-TEST-HARDENING-PLAN.md) |
+| **8** — Test hardening (post-F) | ✅ Gate green; enrichment **77.0%** (≥75% met); domain/orchestration met | Low | [STEP-8-TEST-HARDENING-PLAN.md](./STEP-8-TEST-HARDENING-PLAN.md) |
 
 ---
 

@@ -480,14 +480,16 @@ public class CatalogueMatchingRules
             publishingDelay.Ticks);
         var audioRelease = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
         var sharedLength = _fixture.CreateDuration();
+        var probeTitle = "The Economics of Cheese";
+        var catalogueTitle = "Quantum Gardening Weekly";
         var probe = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateShortTitle();
+            e.Title = probeTitle;
             e.Length = sharedLength;
             e.Release = audioRelease;
         });
         var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
-            .WithTitle(_fixture.CreateTitle())
+            .WithTitle(catalogueTitle)
             .WithRelease(audioRelease.Add(publishingDelay).AddDays(2))
             .WithDuration(sharedLength));
         var catalogueItem = _fixture.CreateEpisode(e =>

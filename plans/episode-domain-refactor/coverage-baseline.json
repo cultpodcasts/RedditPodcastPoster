@@ -47,7 +47,7 @@
   ],
   "gapsToClose": [
     "Episodes domain branch 85.5% (aspiration 90%) — Step 8D strategy/identity/applier matrices",
-    "Platform enrichment branch 73.5% (aspiration 75%) — Step 8 residual PlaylistItemFinder + enricher paths",
+    "Platform enrichment branch 77.0% (aspiration 75% met; 85% stretch — PlaylistItemFinder residual)",
     "Orchestration branch 86.5% (aspiration 82% met) — PodcastUpdater quota/IgnoreAll/failed-merge + EpisodeEnricher"
   ],
   "files": [
@@ -198,16 +198,16 @@
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Abstractions/Enriching/PlatformEpisodeEnricherTemplate.cs",
-      "branchCoverage": 50,
-      "lineCoverage": 88,
+      "branchCoverage": 100,
+      "lineCoverage": 100,
       "note": "Phase E — PlatformEpisodeEnricherTemplateRules (bypass + ApplyResolvedCandidate); measured via PodcastServices.Tests"
     },
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Abstractions/PlatformEnrichmentResultExtensions.cs",
-      "branchCoverage": 78,
+      "branchCoverage": 93,
       "lineCoverage": 100,
-      "note": "Phase E — PlatformEnrichmentResultExtensionsRules (ApplyTo URL flags + release)"
+      "note": "Step 8F — PlatformEnrichmentResultExtensionsRules (partial/null ApplyTo guards)"
     },
     {
       "group": "platform-enrichment",
@@ -219,29 +219,29 @@
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify/Enrichers/SpotifyEpisodeEnricher.cs",
-      "branchCoverage": 66,
-      "lineCoverage": 90,
-      "note": "Phase F P1 — Spotify enricher E2E business rules (reducer ruled; full catalogue flow thin)"
+      "branchCoverage": 92,
+      "lineCoverage": 100,
+      "note": "Phase F P1 — SpotifyEpisodeEnricherCatalogueRules (match / no match / expensive / bypass / owned id)"
     },
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Enrichment/YouTubeEpisodeEnricher.cs",
-      "branchCoverage": 65,
-      "lineCoverage": 78,
-      "note": "Phase E — YouTubeEpisodeEnricherCatalogueRules (5 rules); Enrich entry paths partially covered"
+      "branchCoverage": 82,
+      "lineCoverage": 95,
+      "note": "Step 8F — YouTubeEpisodeEnricherCatalogueRules (playlist-item path, owned id, thumbnail)"
     },
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Apple/AppleEpisodeEnricher.cs",
-      "branchCoverage": 50,
-      "lineCoverage": 80,
-      "note": "Phase F P1 — Apple enricher E2E + convention debt in AppleEpisodeEnricherTests"
+      "branchCoverage": 93,
+      "lineCoverage": 100,
+      "note": "Step 8F — AppleEpisodeEnricherCatalogueRules (podcast show-id resolution + catalogue E2E)"
     },
     {
       "group": "platform-enrichment",
       "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Services/PlaylistItemFinder.cs",
-      "branchCoverage": 55,
-      "lineCoverage": 78,
+      "branchCoverage": 66,
+      "lineCoverage": 86,
       "note": "Phase F — PlaylistItemFinderCatalogueWrapperRules: fuzzy Theory matrix, episode-number, duration-only, live-filter, publish-delay"
     },
     {
