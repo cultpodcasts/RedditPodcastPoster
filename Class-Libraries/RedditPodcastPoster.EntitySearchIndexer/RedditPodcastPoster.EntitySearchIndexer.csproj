@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\RedditPodcastPoster.Persistence.Abstractions\RedditPodcastPoster.Persistence.Abstractions.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Search\RedditPodcastPoster.Search.csproj" />
   </ItemGroup>
 

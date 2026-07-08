@@ -560,7 +560,7 @@ Single register of **production cleanup** and **test/coverage aspiration** defer
 | F14 | **Relocate merge contracts off Persistence.Abstractions** — move `IEpisodeMatcher`, `IEpisodeMerger`, `EpisodeMergeResult` to `PodcastServices.Abstractions` (or `Episodes` application surface); update `PodcastUpdater`, tests, `IndexPodcastResult` | Layering | `Persistence.Abstractions/IEpisode*.cs` | P1 | [x] |
 | F15 | **Remove orphan `Persistence → PodcastServices.Abstractions` reference** — csproj lists Abstractions but no `.cs` file in Persistence imports it | Layering | `Persistence.csproj` | P2 | [x] |
 | F16 | **Decouple `PodcastServices.Abstractions` from `Persistence.Abstractions`** — `IndexPodcastResult` embeds `EpisodeMergeResult`; after F14, Abstractions should not reference Persistence for orchestration DTOs | Layering | `IndexPodcastResult.cs` | P2 | [x] |
-| F17 | **UrlSubmission dependency diet** — drop concrete `PodcastServices` reference where possible; stop `CategorisedItem` depending on platform `Resolved*Item` types + `ResolvedNonPodcastServiceItem` from aggregator; prefer `Episodes` adapter inputs or UrlSubmission-owned DTOs at boundary | Layering | `UrlSubmission/Categorisation/*`, `UrlSubmission.csproj` | P2 | Open |
+| F17 | **UrlSubmission dependency diet** — drop concrete `PodcastServices` reference; move `ResolvedNonPodcastServiceItem`, `NonPodcastServiceMatcher`, `INonPodcastServiceCategoriser`, `NonPodcastService` enum to Abstractions/Models; **remaining:** platform `Resolved*Item` on `CategorisedItem` | Layering | `UrlSubmission/Categorisation/*`, `UrlSubmission.csproj` | P2 | Open (partial) |
 | F18 | **Move repository implementations out of Text** — `KnownTermsRepository` / elimination-terms provider factories moved to `Persistence.Lookups`; `Text` keeps providers + `IKnownTermsRepository` contract only; **removed `Text → Persistence.Abstractions`** | Layering | `Persistence/Lookups/*`, `Text/KnownTerms/*` | P3 | [x] |
 | F19 | **Drop `Episodes.TestSupport → Persistence`** — `EpisodeDomainTestServices.CreateMerger()` constructs `Persistence.EpisodeMerger`; after F13, reference `PodcastServices` merger or inline test double | Layering | `Episodes.TestSupport/EpisodeDomainTestServices.cs` | P2 | [x] |
 | F20 | **YouTube platform → Persistence.Abstractions** — quota/key-state services (`YouTubeQuotaUsageTracker`, `YouTubeIndexerKeyStateService`) live in platform assembly but depend on repo interfaces; extract narrow abstractions or move to infrastructure | Layering | `PodcastServices.YouTube/Quota/*` | P3 | Open |
@@ -578,7 +578,7 @@ Audit of **incorrect location → spurious project reference**. Target: `.Persis
 | `IndexPodcastResult` uses `EpisodeMergeResult` | `PodcastServices.Abstractions` | `Abstractions → Persistence.Abstractions` | After F14: orchestration DTOs colocated | **F16** |
 | Orphan csproj reference | `Persistence.csproj` | `→ PodcastServices.Abstractions` (unused in `.cs`) | Remove reference | **F15** |
 | Legacy tolerance static surface | `PodcastServices.Abstractions/EpisodeReleaseMatchTolerance.cs` | Call sites in UrlSubmission categorisers | Remove (domain `EpisodeReleaseTolerance` only) | **F1** |
-| `CategorisedItem` + UrlSubmission categorisation | `UrlSubmission` | `→ PodcastServices` (concrete), `→ Spotify`, platform `Resolved*Item` models | Abstractions + adapter inputs / UrlSubmission DTOs | **F17** |
+| `CategorisedItem` + UrlSubmission categorisation | `UrlSubmission` | `→ PodcastServices` (concrete) removed; platform `Resolved*Item` models remain | Abstractions + adapter inputs / UrlSubmission DTOs | **F17** (partial) |
 | `KnownTermsRepository` + provider factories | `Persistence/Lookups` | `Text` no longer references Persistence.Abstractions | `Persistence` (impl) + `Text` keeps providers only | **F18** [x] |
 | Test support builds real `Persistence.EpisodeMerger` | `Episodes.TestSupport` | `TestSupport → Persistence` | `PodcastServices` merger or domain-only test helper | **F19** |
 | YouTube quota persistence | `PodcastServices.YouTube/Quota` | `YouTube → Persistence.Abstractions` | Narrow quota-state abstraction or host infra | **F20** |
@@ -629,7 +629,7 @@ Episodes → Models, Text only
 - [x] **F14** — Move `IEpisodeMatcher` / `IEpisodeMerger` / `EpisodeMergeResult` to orchestration abstractions
 - [x] **F15** — Remove unused `Persistence → PodcastServices.Abstractions` csproj reference
 - [x] **F16** — Decouple `PodcastServices.Abstractions` from `Persistence.Abstractions` (post F14)
-- [ ] **F17** — UrlSubmission dependency diet (`CategorisedItem` / platform model leakage)
+- [ ] **F17** — UrlSubmission dependency diet: **done** — dropped `UrlSubmission → PodcastServices` (concrete); boundary types in Abstractions/Models. **Remaining** — platform `Resolved*Item` on `CategorisedItem`
 - [x] **F18** — Move Text-hosted repository implementations to Persistence (`KnownTermsRepository`, provider factories in `Persistence/Lookups`; `AddEliminationTerms()` on Persistence.Extensions)
 - [x] **F19** — Episodes.TestSupport: drop Persistence reference after F13
 - [ ] **F20** — YouTube quota services: narrow persistence coupling (optional)
