@@ -638,8 +638,8 @@ Episodes → Models, Text only
 
 - [ ] **Zero** business-rule assertion changes
 - [x] Full test set green; coverage gate passes locally
-- [ ] No dead wrapper types left in the episode match/merge/apply/enrich path
-- [ ] PR opened for Phase F only
+- [ ] No dead wrapper types left in the episode match/merge/apply/enrich path *(F2 deferred — wrappers retain platform heuristics)*
+- [x] PR opened for Phase F only
 
 ### Risk to production
 
@@ -654,7 +654,7 @@ Episodes → Models, Text only
 - **Recommended soak / deploy scope:** Indexer + UrlSubmission if both composition roots change; otherwise the host(s) whose DI was touched
 - **Rollback notes:** Revert cleanup commit; behavior path should be identical to post–Phase E
 
-**PR:** _link_
+**PR:** [#876](https://github.com/cultpodcasts/RedditPodcastPoster/pull/876)
 
 ---
 
