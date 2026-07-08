@@ -1,7 +1,11 @@
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Lookups;
+using RedditPodcastPoster.Text.EliminationTerms;
+using RedditPodcastPoster.Text.KnownTerms;
 
 namespace RedditPodcastPoster.Persistence.Extensions;
 
@@ -52,7 +56,19 @@ public static class ServiceCollectionExtensions
                 })
                 .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
+                .AddSingleton<IKnownTermsRepository, KnownTermsRepository>()
+                .AddSingleton<IKnownTermsProviderFactory, KnownTermsProviderFactory>()
+                .AddSingleton<IAsyncInstance<IKnownTermsProvider>>(s =>
+                    new AsyncInstance<IKnownTermsProvider>(s.GetRequiredService<IKnownTermsProviderFactory>()))
                 .BindConfiguration<CosmosDbSettings>("cosmosdb");
+        }
+
+        public IServiceCollection AddEliminationTerms()
+        {
+            return services
+                .AddSingleton<IEliminationTermsProviderFactory, EliminationTermsProviderFactory>()
+                .AddSingleton<IAsyncInstance<IEliminationTermsProvider>>(s =>
+                    new AsyncInstance<IEliminationTermsProvider>(s.GetRequiredService<IEliminationTermsProviderFactory>()));
         }
 
         public IServiceCollection AddFileRepository(string containerName = "",

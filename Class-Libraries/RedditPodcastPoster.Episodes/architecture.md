@@ -371,7 +371,7 @@ flowchart BT
 | Issue                                                                                        | Why it matters                                                  | Phase F action |
 | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | -------------- |
 | `UrlSubmission → PodcastServices` (concrete) + platform `Resolved*Item` on `CategorisedItem` | Submit path pulls indexing aggregator + foreign platform models | **F17**        |
-| `Text` hosts `KnownTermsRepository`                                                          | Text library implements Cosmos repos                            | **F18**        |
+| `KnownTermsRepository` + lookup provider factories                                           | Moved to `Persistence/Lookups`; Text no longer refs Persistence.Abstractions | **F18** [x]    |
 | `PodcastServices.YouTube → Persistence.Abstractions`                                         | Platform assembly knows repo interfaces for quota state         | **F20**        |
 
 
