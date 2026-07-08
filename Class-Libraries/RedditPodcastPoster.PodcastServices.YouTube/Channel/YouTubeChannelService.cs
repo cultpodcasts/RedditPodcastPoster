@@ -122,36 +122,6 @@ public class YouTubeChannelService(
         return channelContentDetails;
     }
 
-    public async Task FindChannel(string channelName, IndexingContext indexingContext)
-    {
-        throw new NotImplementedException("method not fully implemented");
-#pragma warning disable CS0162 // Unreachable code detected
-        if (indexingContext.SkipYouTubeUrlResolving)
-        {
-            logger.LogInformation(
-                "Skipping '{FindChannelName}' as '{IndexingContextSkipYouTubeUrlResolvingName}' is set. Channel-name: '{ChannelName}'.", nameof(FindChannel), nameof(indexingContext.SkipYouTubeUrlResolving), channelName);
-            return;
-        }
-
-        var channelsListRequest = youTubeService.YouTubeService.Search.List("snippet");
-        channelsListRequest.Type = "channel";
-        channelsListRequest.Fields = "items/snippet/channelId";
-        channelsListRequest.Q = channelName;
-        SearchListResponse channelsListResponse;
-        try
-        {
-            channelsListResponse = await channelsListRequest.ExecuteAsync();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex,
-                "Failed to use {YouTubeServiceName} obtaining channel with channel-name '{ChannelName}'.", nameof(youTubeService.YouTubeService), channelName);
-            indexingContext.SkipYouTubeUrlResolving = true;
-            return;
-        }
-#pragma warning restore CS0162 // Unreachable code detected
-    }
-
     private string GetWriteCacheKey(
         string channelId,
         bool withSnippets,
