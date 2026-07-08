@@ -27,7 +27,7 @@ public abstract class PlatformEpisodeEnricherTemplate(IPlatformEnrichmentApplica
         logger.LogInformation(
             "'{method}': Bypassing enriching of '{requestEpisodeTitle}' with release-date of '{requestEpisodeRelease:R}' " +
             "from {platformName} as it is within the {delayProperty} which is '{timeSpan}'.",
-            "Enrich",
+            nameof(PlatformEpisodeEnricherTemplate),
             request.Episode.Title,
             request.Episode.Release,
             platformName,
