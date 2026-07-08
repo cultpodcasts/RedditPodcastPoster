@@ -84,16 +84,16 @@ One PR per phase (or pair P0+P1 if small). Order matters: dead code → F17 boun
 
 ### Phase 8B — UrlSubmission orchestration (P0)
 
-**Goal:** `CategorisedItemProcessor` currently has **zero** tests; close orchestration aspiration gap.
+**Goal:** Close orchestration aspiration gap for `CategorisedItemProcessor` and residual `EpisodeEnricher` branches.
+
+**Note:** `UrlSubmissionPersistenceRules` and `UrlSubmissionEnrichmentRules` already had extensive coverage when Step 8 started; plan “zero tests” claim was stale.
 
 | Task | Test file | Matrix |
 |------|-----------|--------|
-| **8B.1** Existing podcast path | `UrlSubmission.Tests/BusinessRules/UrlSubmission/UrlSubmissionPersistenceRules.cs` (extend) | `MatchingPodcast != null` × `PersistToDatabase` true/false × episode Created/Enriched/unchanged |
-| **8B.2** New podcast path | same | `MatchingPodcast == null` → factory create × persist true/false |
-| **8B.3** Podcast-only enrich save | same | `PodcastResult: Enriched` saves podcast; episode save only on Created/Enriched |
-| **8B.4** `EpisodeEnricher` residual branches | `UrlSubmissionEnrichmentRules.cs` (extend) | Matrix: partial platform DTOs filled (Spotify only, Apple only, YT only); discovery-submit path if distinct from standard submit |
-
-**Mocks:** Repository saves via `SaveCallRecorder` / in-memory repos — assert **what** persisted, not mock call counts alone.
+| **8B.1** Existing podcast path | `UrlSubmissionPersistenceRules.cs` (extend) | ✅ existing + added persist-false + podcast+episode both enriched |
+| **8B.2** New podcast path | same | ✅ covered |
+| **8B.3** Podcast-only enrich save | same | ✅ covered |
+| **8B.4** `EpisodeEnricher` residual branches | `UrlSubmissionEnrichmentRules.cs` | ✅ extensive single-platform + non-podcast rules already present |
 
 **Exit:** `CategorisedItemProcessor` branch ≥ 85%; `EpisodeEnricher` branch ≥ 80% (update baseline after measure).
 
@@ -105,11 +105,11 @@ One PR per phase (or pair P0+P1 if small). Order matters: dead code → F17 boun
 
 | Task | Test file | Matrix (`MemberData`) |
 |------|-----------|------------------------|
-| **8C.1** `GetToleranceTicks` overload (null podcast) | `EpisodeReleaseToleranceRules.cs` | `(delay sign) × (releaseAuthority) × (episodeLength zero/non-zero)` — mirror podcast overload outcomes |
-| **8C.2** `GetAudioReleaseForPlatformLookup` | same | YT release authority × episode has YT identity × podcast has audio platform configured |
-| **8C.3** `ShouldEnrichDespiteReleaseWindow` | same | negative delay × missing Spotify/Apple IDs × now inside/outside window (use relative dates, not `DateTime.UtcNow` literals where possible — inject or boundary-fix “now”) |
-| **8C.4** `ShouldPreserveYouTubeAuthoritativeRelease` | same | release authority × YT identity present/absent |
-| **8C.5** Migrate + delete | Remove `Apple.Tests/EpisodeReleaseToleranceTests.cs` after porting unique cases | Align with unit-tests.mdc |
+| **8C.1** `GetToleranceTicks` overload (null podcast) | `EpisodeReleaseToleranceRules.cs` | ✅ `NullPodcastToleranceScenarioNames` mirrors podcast overload |
+| **8C.2** `GetAudioReleaseForPlatformLookup` | same | ✅ `AudioReleaseLookupScenarioNames` + merged YT/Spotify case |
+| **8C.3** `ShouldEnrichDespiteReleaseWindow` | same | ✅ positive + 4 negative scenarios |
+| **8C.4** `ShouldPreserveYouTubeAuthoritativeRelease` | same | ✅ YT identity present/absent |
+| **8C.5** Migrate + delete | ✅ Removed `Apple.Tests/EpisodeReleaseToleranceTests.cs` | Matcher-only cases retained in Episodes.Tests strategy/merge rules |
 
 **Note:** `ShouldEnrichDespiteReleaseWindow` uses `DateTime.UtcNow` in production — tests may use fixture dates near window edges; document if time-sensitive tests need frozen clock (only if flaky).
 
@@ -204,10 +204,10 @@ After each PR: run `./scripts/coverage-gate.ps1`; update `coverage-baseline.json
 
 ## 5. Exit criteria (Step 8 complete)
 
-- [ ] Dead branch removed from `YouTubePublishDelayMatchStrategy`; strategy rules green
-- [ ] F17 categorisation characterized in `UrlSubmissionCategorisationRules`
-- [ ] `CategorisedItemProcessor` has persistence business rules
-- [ ] `EpisodeReleaseTolerance` single home in Episodes.Tests; Apple duplicate removed
+- [x] Dead branch removed from `YouTubePublishDelayMatchStrategy`; strategy rules green
+- [x] F17 categorisation characterized in `UrlSubmissionCategorisationRules`
+- [x] `CategorisedItemProcessor` has persistence business rules
+- [x] `EpisodeReleaseTolerance` single home in Episodes.Tests; Apple duplicate removed
 - [ ] `coverage-baseline.json` `gapsToClose` updated — no stale “unreachable lines 30–36” entry
 - [ ] Coverage gate green; group aspirations met or documented as accepted residual:
   - episodes-domain branch ≥ **85%** (90% stretch)

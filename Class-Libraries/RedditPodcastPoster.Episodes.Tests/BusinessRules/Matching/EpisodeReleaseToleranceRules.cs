@@ -172,4 +172,369 @@ public class EpisodeReleaseToleranceRules
         podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
         return podcast;
     }
+
+    public static TheoryData<string> NullPodcastToleranceScenarioNames =>
+        new()
+        {
+            "zero_delay",
+            "negative_delay",
+            "positive_delay_youtube_authority",
+            "positive_delay_spotify_authority"
+        };
+
+    [Theory(DisplayName =
+        "GetToleranceTicks without a podcast uses delay and release-authority parameters " +
+        "with the same thresholds as the podcast overload.")]
+    [MemberData(nameof(NullPodcastToleranceScenarioNames))]
+    public void get_tolerance_ticks_without_podcast_mirrors_podcast_overload(string scenario)
+    {
+        // Arrange
+        var episodeLength = _fixture.CreateDuration();
+        var (podcast, delay, authority) = scenario switch
+        {
+            "zero_delay" => (_fixture.CreatePodcast(), (TimeSpan?)null, (Service?)null),
+            "negative_delay" => (
+                _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay(),
+                _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay().YouTubePublishingDelay(),
+                Service.YouTube),
+            "positive_delay_youtube_authority" => (
+                _fixture.CreateYouTubeReleaseAuthorityPodcast(
+                    _fixture.CreateYouTubeChannelId(),
+                    TimeSpan.FromDays(1).Ticks),
+                TimeSpan.FromDays(1),
+                Service.YouTube),
+            "positive_delay_spotify_authority" => (
+                CreateSpotifyPrimaryWithPositiveDelay(),
+                TimeSpan.FromDays(1),
+                Service.Spotify),
+            _ => throw new ArgumentOutOfRangeException(nameof(scenario), scenario, null)
+        };
+
+        // Act
+        var fromPodcast = EpisodeReleaseTolerance.GetToleranceTicks(podcast, episodeLength);
+        var withoutPodcast = EpisodeReleaseTolerance.GetToleranceTicks(
+            null,
+            episodeLength,
+            delay,
+            authority);
+
+        // Assert
+        withoutPodcast.Should().Be(fromPodcast);
+    }
+
+    [Fact(DisplayName =
+        "SpotifyCatalogueReleaseMatches accepts a midnight Spotify catalogue date when the expected " +
+        "release is the same calendar day with a non-midnight time.")]
+    public void spotify_catalogue_release_matches_midnight_spotify_date_same_calendar_day()
+    {
+        // Arrange
+        var expected = new DateTime(2026, 7, 2, 9, 15, 27, DateTimeKind.Utc);
+        var spotifyCatalogue = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        // Act
+        var matches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(spotifyCatalogue, expected);
+
+        // Assert
+        matches.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When YouTube is release authority with negative delay, Spotify catalogue release may land " +
+        "several days early and still match within the five-day day tolerance.")]
+    public void spotify_catalogue_release_matches_negative_delay_early_spotify_within_five_days()
+    {
+        // Arrange
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = TimeSpan.FromDays(-31).Add(TimeSpan.FromHours(-12)).Ticks
+        };
+        var expected = new DateTime(2026, 7, 6, 1, 8, 6, DateTimeKind.Utc);
+        var spotifyCatalogue = new DateTime(2026, 7, 2, 0, 0, 0, DateTimeKind.Utc);
+        var tolerance = EpisodeReleaseTolerance.GetToleranceTicks(podcast, TimeSpan.FromMinutes(88));
+
+        // Act
+        var matches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+            spotifyCatalogue,
+            expected,
+            tolerance,
+            podcast);
+
+        // Assert
+        matches.Should().BeTrue();
+    }
+
+    public static TheoryData<string> AudioReleaseLookupScenarioNames =>
+        new()
+        {
+            "zero_delay",
+            "youtube_authority",
+            "youtube_discovered_on_spotify_primary",
+            "youtube_authority_without_episode_identity",
+            "youtube_identity_without_audio_platform"
+        };
+
+    [Theory(DisplayName =
+        "GetAudioReleaseForPlatformLookup adjusts release by publishing delay only when authority " +
+        "or episode/platform configuration requires it.")]
+    [MemberData(nameof(AudioReleaseLookupScenarioNames))]
+    public void get_audio_release_for_platform_lookup_scenarios(string scenario)
+    {
+        // Arrange
+        var delay = TimeSpan.FromDays(1);
+        var release = new DateTime(2026, 7, 2, 9, 0, 0, DateTimeKind.Utc);
+        var expected = release;
+
+        Podcast podcast;
+        Episode? episode = null;
+        switch (scenario)
+        {
+            case "zero_delay":
+                podcast = _fixture.CreatePodcast();
+                break;
+            case "youtube_authority":
+                podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+                    _fixture.CreateYouTubeChannelId(),
+                    delay.Ticks);
+                expected = release - delay;
+                break;
+            case "youtube_discovered_on_spotify_primary":
+                podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+                podcast.YouTubePublicationOffset = delay.Ticks;
+                episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+                    podcast,
+                    release: release);
+                expected = release - delay;
+                break;
+            case "youtube_authority_without_episode_identity":
+                podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+                    _fixture.CreateYouTubeChannelId(),
+                    delay.Ticks);
+                expected = release - delay;
+                break;
+            case "youtube_identity_without_audio_platform":
+                podcast = _fixture.CreatePodcast();
+                podcast.YouTubePublicationOffset = delay.Ticks;
+                episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+                    podcast,
+                    release: release);
+                expected = release;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(scenario), scenario, null);
+        }
+
+        // Act
+        var lookup = episode == null
+            ? EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(
+                podcast,
+                release,
+                episodeHasYouTubeIdentity: false)
+            : EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(podcast, episode);
+
+        // Assert
+        lookup.Should().Be(expected);
+    }
+
+    [Fact(DisplayName =
+        "GetAudioReleaseForPlatformLookup subtracts publishing delay when a merged episode has both " +
+        "YouTube and Spotify identities on a YouTube release authority podcast.")]
+    public void get_audio_release_for_platform_lookup_merged_youtube_and_spotify_episode()
+    {
+        // Arrange
+        const long c2cDelayTicks = -27216000000000;
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = c2cDelayTicks,
+            SpotifyId = "6oTbi9wKZ2czCvSwBKxxoH"
+        };
+        var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
+        var episode = new Episode
+        {
+            Release = youTubeRelease,
+            YouTubeId = "UsqC0L9He2g",
+            SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4",
+            Urls = new ServiceUrls
+            {
+                YouTube = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g"),
+                Spotify = new Uri("https://open.spotify.com/episode/6O1Z1s7ca0PI8Gq1rdt3j4")
+            }
+        };
+
+        // Act
+        var lookup = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(podcast, episode);
+
+        // Assert
+        lookup.Should().Be(youTubeRelease - TimeSpan.FromTicks(c2cDelayTicks));
+    }
+
+    [Fact(DisplayName =
+        "ShouldPreserveYouTubeAuthoritativeRelease returns true when YouTube is release authority " +
+        "and the episode has YouTube identity.")]
+    public void should_preserve_youtube_authoritative_release_when_youtube_identity_present()
+    {
+        // Arrange
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = -27216000000000
+        };
+        var episode = new Episode
+        {
+            Release = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc),
+            YouTubeId = "UsqC0L9He2g",
+            SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4"
+        };
+
+        // Act
+        var preserve = EpisodeReleaseTolerance.ShouldPreserveYouTubeAuthoritativeRelease(podcast, episode);
+
+        // Assert
+        preserve.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "ShouldPreserveYouTubeAuthoritativeRelease returns false when the episode has no YouTube identity.")]
+    public void should_preserve_youtube_authoritative_release_false_for_spotify_only_episode()
+    {
+        // Arrange
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = -27216000000000
+        };
+        var episode = new Episode
+        {
+            Release = new DateTime(2026, 6, 28, 0, 0, 0, DateTimeKind.Utc),
+            SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4"
+        };
+
+        // Act
+        var preserve = EpisodeReleaseTolerance.ShouldPreserveYouTubeAuthoritativeRelease(podcast, episode);
+
+        // Assert
+        preserve.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "ShouldEnrichDespiteReleaseWindow returns true for a YouTube-only episode near expected audio release " +
+        "when Spotify or Apple catalogue IDs are still missing.")]
+    public void should_enrich_despite_release_window_when_youtube_only_near_expected_audio_release()
+    {
+        // Arrange
+        var delay = TimeSpan.FromDays(-31).Add(TimeSpan.FromHours(-12));
+        var expectedAudioRelease = DateTime.UtcNow.AddDays(4);
+        var youTubeRelease = expectedAudioRelease.Add(delay);
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = delay.Ticks,
+            SpotifyId = "show-id"
+        };
+        var episode = new Episode
+        {
+            Release = youTubeRelease,
+            YouTubeId = "UsqC0L9He2g",
+            Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g") }
+        };
+
+        // Act
+        var shouldEnrich = EpisodeReleaseTolerance.ShouldEnrichDespiteReleaseWindow(episode, podcast);
+
+        // Assert
+        shouldEnrich.Should().BeTrue();
+    }
+
+    public static TheoryData<string> ShouldNotEnrichDespiteReleaseWindowScenarioNames =>
+        new()
+        {
+            "positive_delay",
+            "spotify_authority",
+            "episode_already_has_spotify_id",
+            "outside_release_window"
+        };
+
+    [Theory(DisplayName =
+        "ShouldEnrichDespiteReleaseWindow returns false when delay, authority, platform IDs, " +
+        "or the current time falls outside the enrichment window.")]
+    [MemberData(nameof(ShouldNotEnrichDespiteReleaseWindowScenarioNames))]
+    public void should_enrich_despite_release_window_returns_false(string scenario)
+    {
+        // Arrange
+        var delay = TimeSpan.FromDays(-31).Add(TimeSpan.FromHours(-12));
+        var podcast = new Podcast
+        {
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = delay.Ticks,
+            SpotifyId = "show-id"
+        };
+        var episode = new Episode
+        {
+            Release = DateTime.UtcNow.AddDays(4).Add(delay),
+            YouTubeId = "UsqC0L9He2g",
+            Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g") }
+        };
+
+        switch (scenario)
+        {
+            case "positive_delay":
+                podcast.YouTubePublicationOffset = TimeSpan.FromDays(1).Ticks;
+                break;
+            case "spotify_authority":
+                podcast.ReleaseAuthority = Service.Spotify;
+                break;
+            case "episode_already_has_spotify_id":
+                episode.SpotifyId = "existing-spotify-id";
+                break;
+            case "outside_release_window":
+                episode.Release = DateTime.UtcNow.AddDays(-60).Add(delay);
+                break;
+        }
+
+        // Act
+        var shouldEnrich = EpisodeReleaseTolerance.ShouldEnrichDespiteReleaseWindow(episode, podcast);
+
+        // Assert
+        shouldEnrich.Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "SpotifyCatalogueReleaseMatches accepts Apple catalogue releases within tolerance " +
+        "for YouTube release authority negative-delay podcasts.")]
+    [InlineData(0)]
+    [InlineData(4)]
+    public void spotify_catalogue_release_matches_youtube_authority_apple_within_tolerance(
+        int appleCatalogueDaysAfterSpotifyDate)
+    {
+        // Arrange
+        const int youTubeReleaseDaysAgo = 30;
+        const int spotifyDaysAfterYouTube = 28;
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var youTubeRelease = DomainTestFixture.UtcAtTime(
+            -youTubeReleaseDaysAgo,
+            _fixture.CreateNonMidnightTimeOfDay());
+        var expectedAudioRelease = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(
+            podcast,
+            youTubeRelease,
+            episodeHasYouTubeIdentity: true);
+        var spotifyCatalogueDate = DomainTestFixture.SpotifyCatalogueReleaseDaysAfterYouTube(
+            youTubeRelease,
+            spotifyDaysAfterYouTube);
+        var appleCatalogueRelease = spotifyCatalogueDate.AddDays(appleCatalogueDaysAfterSpotifyDate)
+            .AddHours(8);
+        var toleranceTicks = EpisodeReleaseTolerance.GetToleranceTicks(
+            podcast,
+            _fixture.CreateDuration());
+
+        // Act
+        var matches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+            appleCatalogueRelease,
+            expectedAudioRelease,
+            toleranceTicks,
+            podcast);
+
+        // Assert
+        matches.Should().BeTrue();
+    }
 }

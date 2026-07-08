@@ -46,10 +46,9 @@
     }
   ],
   "gapsToClose": [
-    "Episodes domain branch vs aspiration 90% — EpisodePlatformMatcher.cs 85% + Catalogue.cs 86%; EpisodeReleaseTolerance expand in Step 8C",
+    "Episodes domain branch vs aspiration 90% — EpisodePlatformMatcher.cs 85% + Catalogue.cs 86%; Step 8C expanded EpisodeReleaseToleranceRules",
     "Platform enrichment branch vs aspiration 85% — PlaylistItemFinder raised via episode-number/duration/live-filter rules; enricher E2E gaps remain",
-    "Orchestration branch vs aspiration 85% — EpisodeEnricher 74% after F3 applicator unification; PodcastUpdater characterized",
-    "EpisodeReleaseTolerance branch 54% — expand rules toward aspiration (optional)"
+    "Orchestration branch vs aspiration 85% — EpisodeEnricher 74% after F3 applicator unification; PodcastUpdater characterized"
   ],
   "files": [
     {
@@ -144,7 +143,7 @@
       "path": "Class-Libraries/RedditPodcastPoster.Episodes/EpisodeReleaseTolerance.cs",
       "branchCoverage": 54,
       "lineCoverage": 76,
-      "note": "Phase F — public API includes GetAudioReleaseForPlatformLookup, ShouldEnrichDespiteReleaseWindow; expand rules toward aspiration"
+      "note": "Step 8C — EpisodeReleaseToleranceRules (null-podcast overload, audio lookup, enrich window, preserve YT release); Apple duplicate removed"
     },
     {
       "group": "episodes-adapters",
