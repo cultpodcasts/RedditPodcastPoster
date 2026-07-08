@@ -1,6 +1,6 @@
 ---
 description: Business-rules-first decision process for RedditPodcastPoster.Episodes production changes
-globs: "Class-Libraries/RedditPodcastPoster.Episodes/**,Class-Libraries/RedditPodcastPoster.Episodes.Tests/**,Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/**"
+globs: "Class-Libraries/RedditPodcastPoster.Episodes/**,Class-Libraries/RedditPodcastPoster.Episodes.Tests/**,Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/**,Class-Libraries/RedditPodcastPoster.Common/Episodes/**,Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/BusinessRules/Indexing/**"
 alwaysApply: false
 ---
 
@@ -95,11 +95,26 @@ Implement only after explicit approval.
 
 ---
 
-## PR checklist (Episodes production diff)
+## Indexing orchestration (`EpisodeProvider`)
 
-- [ ] Listed existing `BusinessRules/*` rules touched
+Changes to `RedditPodcastPoster.Common/Episodes/EpisodeProvider.cs` that affect discovery or catalogue merge passes are **episode-domain production changes** and require tests in **`PodcastServices.Tests`**:
+
+| Area | Test home |
+|------|-----------|
+| YouTube-authority Apple/Spotify catalogue merge passes | `BusinessRules/Indexing/EpisodeProviderRules.cs` |
+| Handler gate conditions (skip paths, empty results) | `EpisodeProviderTests.cs` |
+
+**MUST** add or update both a business-rule test (`DisplayName`) and a unit test when changing `EpisodeProvider` gates or merge composition.
+
+---
+
+## PR checklist (Episodes + EpisodeProvider production diff)
+
+- [ ] Listed existing `BusinessRules/*` rules touched (`.Episodes.Tests` and/or `PodcastServices.Tests`)
 - [ ] Classified each hunk: edge case | refinement | **functional (approved)**
 - [ ] New/changed `[Fact]` / `[Theory]` with plain-English `DisplayName` before or with code
+- [ ] Matching unit test(s) for orchestration/gate logic where applicable (`EpisodeProviderTests`, strategy `*Rules`, etc.)
 - [ ] `dotnet test --filter FullyQualifiedName~Rules` on affected test projects
+- [ ] `dotnet test` on unit test classes for touched production files
 - [ ] No production brand names in test arrange (use scenario-shaped fixtures)
 - [ ] If functional: user sign-off recorded in PR or chat
