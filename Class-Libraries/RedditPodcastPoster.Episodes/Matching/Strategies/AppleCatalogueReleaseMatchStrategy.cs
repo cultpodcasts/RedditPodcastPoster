@@ -3,7 +3,7 @@ using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Episodes.Matching.Strategies;
 
-public sealed class SpotifyCatalogueReleaseMatchStrategy : IReleaseMatchStrategy
+public sealed class AppleCatalogueReleaseMatchStrategy : IReleaseMatchStrategy
 {
     public bool? Evaluate(ReleaseMatchContext context)
     {
@@ -25,7 +25,7 @@ public sealed class SpotifyCatalogueReleaseMatchStrategy : IReleaseMatchStrategy
             : context.IncomingEpisode.Length;
         var toleranceTicks = EpisodeReleaseTolerance.GetToleranceTicks(context.Podcast, referenceLength);
 
-        if (existingIsYouTube && context.IncomingEpisode.HasSpotifyIdentity() &&
+        if (existingIsYouTube && context.IncomingEpisode.HasAppleIdentity() &&
             context.Podcast.ReleaseAuthority == Service.YouTube)
         {
             var expectedAudioRelease = context.ExistingEpisode.Release - delay;

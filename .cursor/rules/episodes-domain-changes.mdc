@@ -80,6 +80,8 @@ Implement only after explicit approval.
 | Same calendar day (audio vs YouTube) | Moderate | `AreCrossPlatformReleasesOnSameCalendarDay`, `ExactReleaseMatchStrategy` → `true` |
 | Misaligned offset / wrong platform mix | Defer | Release strategies return `null` — other strategies or title/duration heuristics decide |
 | Disjoint titles on cross-platform release+duration path | Block | `HasCrossPlatformTitleConfidence` (fuzzy **or** substring) |
+| YouTube-authority index | Apple + Spotify catalogue pass | `EpisodeProvider` fetches Apple/Spotify for negative-delay merge (not only enrichment) |
+| YouTube-stored + Apple-incoming release | `AppleCatalogueReleaseMatchStrategy` | Same offset-adjusted calendar-day logic as Spotify via `AudioCatalogueReleaseMatches` |
 
 **Duration:** YouTube-only ↔ audio-only pairs use 5-minute cross-platform tolerance (strict less-than).
 

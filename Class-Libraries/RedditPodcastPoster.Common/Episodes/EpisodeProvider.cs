@@ -41,6 +41,20 @@ public class EpisodeProvider(
             }
         }
 
+        if (podcast.AppleId != null &&
+            podcast.ReleaseAuthority == Service.YouTube &&
+            podcast.YouTubePublishingDelay().Ticks < 0)
+        {
+            var (appleEpisodes, _) = await appleEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
+            if (appleEpisodes is { Count: > 0 })
+            {
+                newEpisodes = CombineDiscoveredEpisodes(newEpisodes, appleEpisodes);
+                logger.LogInformation(
+                    "Get Episodes for podcast '{podcastName}' merged {appleEpisodeCount} Apple catalogue episodes for YouTube release authority merge.",
+                    podcast.Name, appleEpisodes.Count);
+            }
+        }
+
         if (indexingContext.IndexSpotify && podcast.ReleaseAuthority is null or Service.Spotify &&
             !string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {

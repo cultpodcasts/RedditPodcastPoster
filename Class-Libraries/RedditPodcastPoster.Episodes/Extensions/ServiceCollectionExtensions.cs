@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
 
             services.AddSingleton<IReleaseMatchStrategy, ExactReleaseMatchStrategy>();
             services.AddSingleton<IReleaseMatchStrategy, SpotifyCatalogueReleaseMatchStrategy>();
+            services.AddSingleton<IReleaseMatchStrategy, AppleCatalogueReleaseMatchStrategy>();
             services.AddSingleton<IReleaseMatchStrategy, YouTubePublishDelayMatchStrategy>();
 
             services.AddSingleton<IReleaseMergePolicy, YouTubeAuthoritativePreserveMergePolicy>();

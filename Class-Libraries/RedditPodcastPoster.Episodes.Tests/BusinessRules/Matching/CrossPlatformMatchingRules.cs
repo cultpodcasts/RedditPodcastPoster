@@ -16,6 +16,28 @@ public class CrossPlatformMatchingRules
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
     [Fact(DisplayName =
+        "For YouTube release authority podcasts, an Apple catalogue episode may match a YouTube-only stored episode " +
+        "when title and duration fuzzy-match and catalogue release aligns after publishing-delay adjustment.")]
+    public void YouTube_release_authority_Apple_catalogue_matches_YouTube_only_stored_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (stored, discovered, appleId) = _fixture.CreateCrossPlatformYouTubeReleaseAuthorityApplePair(podcast);
+        var expected = EpisodeExpectation.From(stored)
+            .WithApple(appleId, _fixture.DefaultAppleUrl(appleId));
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.AddedEpisodes.Should().BeEmpty();
+        result.FailedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
         "For YouTube release authority podcasts, a Spotify catalogue episode may match a YouTube-only stored episode " +
         "when title and duration fuzzy-match and catalogue release aligns after publishing-delay adjustment.")]
     public void YouTube_release_authority_Spotify_catalogue_matches_YouTube_only_stored_episode()

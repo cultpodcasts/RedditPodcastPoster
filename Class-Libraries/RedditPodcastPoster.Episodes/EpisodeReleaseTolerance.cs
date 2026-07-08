@@ -129,6 +129,17 @@ public static class EpisodeReleaseTolerance
         return Math.Abs((spotifyCatalogueRelease - expectedRelease).Ticks) < toleranceTicks;
     }
 
+    /// <summary>
+    /// Shared calendar-day catalogue alignment for Apple and Spotify audio lookups
+    /// (offset-adjusted expected audio release vs catalogue item release).
+    /// </summary>
+    public static bool AudioCatalogueReleaseMatches(
+        DateTime catalogueRelease,
+        DateTime expectedRelease,
+        long toleranceTicks,
+        Podcast? podcast) =>
+        SpotifyCatalogueReleaseMatches(catalogueRelease, expectedRelease, toleranceTicks, podcast);
+
     public static DateTime GetAudioReleaseForPlatformLookup(Podcast podcast, Episode episode) =>
         GetAudioReleaseForPlatformLookup(podcast, episode.Release, HasYouTubeIdentity(episode));
 

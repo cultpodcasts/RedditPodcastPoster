@@ -605,6 +605,41 @@ public sealed class DomainTestFixture
   }
 
   /// <summary>
+  /// YouTube-only stored row plus Apple catalogue incoming shaped for YouTube release authority
+  /// cross-platform matching (ReleaseAuthority = Service.YouTube).
+  /// </summary>
+  public (Episode Stored, Episode Incoming, long AppleId) CreateCrossPlatformYouTubeReleaseAuthorityApplePair(
+    Podcast podcast,
+    int youTubeReleaseDaysAgo = 30,
+    int appleDaysAfterYouTube = 28,
+    bool fuzzyTitleVariant = true)
+  {
+    var youTubeRelease = UtcAtTime(-youTubeReleaseDaysAgo, CreateNonMidnightTimeOfDay());
+    var appleRelease = SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, appleDaysAfterYouTube);
+    var storedLength = CreateDuration();
+    var incomingLength = storedLength + TimeSpan.FromMinutes(3);
+    var storedTitle = CreateShortTitle();
+    var incomingTitle = fuzzyTitleVariant ? CreateFuzzyTitleVariant(storedTitle) : storedTitle;
+
+    var stored = CreateStoredEpisodeWithYouTubeOnly(
+      podcast,
+      youTubeRelease,
+      storedLength,
+      storedTitle);
+    var appleInput = CreateAppleCatalogueInput(b => b
+      .WithTitle(incomingTitle)
+      .WithRelease(appleRelease)
+      .WithDuration(incomingLength));
+    var incoming = CreateAppleCatalogueEpisode(b => b
+      .WithAppleId(appleInput.AppleId)
+      .WithTitle(incomingTitle)
+      .WithRelease(appleRelease)
+      .WithDuration(incomingLength));
+
+    return (stored, incoming, appleInput.AppleId);
+  }
+
+  /// <summary>
   /// Stored YouTube row and Spotify incoming with aligned release/duration but clearly different titles —
   /// negative-delay guard must not merge on release alone.
   /// </summary>
