@@ -82,7 +82,7 @@ public class SubjectHandler(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "{method}: Failed to update subject.", nameof(Get));
+            logger.LogError(ex, "{method}: Failed to update subject.", nameof(Post));
         }
 
         var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
