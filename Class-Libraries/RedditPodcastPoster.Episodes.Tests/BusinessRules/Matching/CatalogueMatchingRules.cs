@@ -240,26 +240,27 @@ public class CatalogueMatchingRules
     public void youtube_discovered_multiple_same_length_picks_closest_release()
     {
         // Arrange
+        var probeTitle = _fixture.CreateShortTitle();
         var probeLength = TimeSpan.FromMinutes(54) + TimeSpan.FromSeconds(30);
         var probeRelease = DomainTestFixture.UtcAtTime(-5, _fixture.CreateNonMidnightTimeOfDay());
         var closerRelease = probeRelease.AddHours(-2);
         var fartherRelease = probeRelease.AddDays(-3);
         var probe = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = probeTitle;
             e.Length = probeLength;
             e.Release = probeRelease;
         });
         var closerCandidate = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = DomainTestFixture.CreateTypoTitleVariant(probeTitle);
             e.Length = probeLength + TimeSpan.FromSeconds(10);
             e.Release = closerRelease;
             e.AppleId = _fixture.CreateAppleId();
         });
         var fartherCandidate = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = DomainTestFixture.CreateTypoTitleVariant(probeTitle);
             e.Length = probeLength - TimeSpan.FromSeconds(15);
             e.Release = fartherRelease;
             e.AppleId = _fixture.CreateAppleId();
@@ -437,7 +438,7 @@ public class CatalogueMatchingRules
 
     [Fact(DisplayName =
         "For YouTube release authority podcasts with negative publishing delay, " +
-        "IsCatalogueMatch does not treat clearly different titles as the same catalogue item.")]
+        "IsCatalogueMatch does not treat episodes as the same when titles share no fuzzy or substring relationship.")]
     public void is_catalogue_match_rejects_negative_delay_when_titles_clearly_differ()
     {
         // Arrange
@@ -544,22 +545,23 @@ public class CatalogueMatchingRules
 
     [Fact(DisplayName =
         "When enriching a YouTube-discovered episode and duration does not match any catalogue row, " +
-        "FindCatalogueMatchByLength may still select the sole row whose release is within twelve hours.")]
+        "FindCatalogueMatchByLength may still select the sole title-aligned row whose release is within twelve hours.")]
     public void youtube_discovered_release_only_match_within_twelve_hour_window()
     {
         // Arrange
+        var sharedTitle = _fixture.CreateShortTitle();
         var probeLength = TimeSpan.FromMinutes(60);
         var mismatchedLength = TimeSpan.FromMinutes(40);
         var probeRelease = DomainTestFixture.UtcAtTime(-4, _fixture.CreateNonMidnightTimeOfDay());
         var probe = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = sharedTitle;
             e.Length = probeLength;
             e.Release = probeRelease;
         });
         var releaseAlignedCandidate = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = DomainTestFixture.CreateTypoTitleVariant(sharedTitle);
             e.Length = mismatchedLength;
             e.Release = probeRelease.AddHours(6);
             e.AppleId = _fixture.CreateAppleId();
@@ -576,6 +578,46 @@ public class CatalogueMatchingRules
 
         // Assert
         result.Should().BeSameAs(releaseAlignedCandidate);
+    }
+
+    [Fact(DisplayName =
+        "When enriching a YouTube-discovered episode, FindCatalogueMatchByLength must not duration-snipe " +
+        "a catalogue row whose title shares no fuzzy or substring relationship with the stored episode.")]
+    public void youtube_discovered_enrichment_does_not_duration_snipe_disjoint_titles()
+    {
+        // Arrange — Cults to Consciousness shape: release window aligns but titles refer to different interviews
+        const string storedTitle = "My Buddhist Guru Convinced Me Her Ab*se Was Enlightenment";
+        const string catalogueTitle =
+            "Growing Up On SISTER WIVES: The Dark Side of Parenting No One Talks About (ft. Mykelti Brown)";
+        var sharedLength = TimeSpan.FromMinutes(80);
+        var probeRelease = DomainTestFixture.UtcAtTime(-30, TimeSpan.FromHours(7));
+        var catalogueRelease = probeRelease.AddDays(-5);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = storedTitle;
+            e.Length = sharedLength;
+            e.Release = probeRelease;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+        });
+        var catalogueItem = _fixture.CreateEpisode(e =>
+        {
+            e.Title = catalogueTitle;
+            e.Length = sharedLength + TimeSpan.FromMinutes(3);
+            e.Release = catalogueRelease;
+            e.AppleId = _fixture.CreateAppleId();
+        });
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [catalogueItem],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        result.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -917,26 +959,27 @@ public class CatalogueMatchingRules
     public void youtube_discovered_multiple_release_only_candidates_picks_closest_release()
     {
         // Arrange
+        var sharedTitle = _fixture.CreateShortTitle();
         var probeLength = TimeSpan.FromMinutes(60);
         var probeRelease = DomainTestFixture.UtcAtTime(-4, _fixture.CreateNonMidnightTimeOfDay());
         var closerRelease = probeRelease.AddHours(4);
         var fartherRelease = probeRelease.AddHours(10);
         var probe = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = sharedTitle;
             e.Length = probeLength;
             e.Release = probeRelease;
         });
         var closerCandidate = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = DomainTestFixture.CreateTypoTitleVariant(sharedTitle);
             e.Length = TimeSpan.FromMinutes(30);
             e.Release = closerRelease;
             e.AppleId = _fixture.CreateAppleId();
         });
         var fartherCandidate = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = DomainTestFixture.CreateTypoTitleVariant(sharedTitle);
             e.Length = TimeSpan.FromMinutes(35);
             e.Release = fartherRelease;
             e.AppleId = _fixture.CreateAppleId();

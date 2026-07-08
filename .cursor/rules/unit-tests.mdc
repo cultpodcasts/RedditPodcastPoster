@@ -37,7 +37,20 @@ Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-re
 | **NEVER** | Use Given/When/Then section comments |
 | **NEVER** | Name tests after implementation (`MergeInPlace_WhenUrlsSpotifyNull`) |
 | **NEVER** | Change production behavior without updating the corresponding business-rule test |
+| **NEVER** | Merge production code changes without test coverage in the same PR (see §1a) |
 | **NEVER** | Change an existing rule test assertion unless behavior change is explicit and agreed |
+
+### 1a. ALL production changes require tests (HARD GUARDRAIL)
+
+Every production code change **MUST** ship with tests in the same PR:
+
+| Production location | Business-rule test | Unit test |
+|---------------------|-------------------|-----------|
+| `RedditPodcastPoster.Episodes/**` | `Episodes.Tests/BusinessRules/**` | Same file (characterization) or sibling `*Tests.cs` when mocking boundaries |
+| `RedditPodcastPoster.Common/Episodes/EpisodeProvider.cs` | `PodcastServices.Tests/BusinessRules/Indexing/EpisodeProviderRules.cs` | `PodcastServices.Tests/EpisodeProviderTests.cs` |
+| Other `*Tests` projects | `BusinessRules/**` with `DisplayName` where domain rules apply | Focused `*Tests.cs` for gates, DI, or handler wiring |
+
+**Before merge:** run `dotnet test` on every test project whose production assembly changed. No exceptions for "small" diffs — if production changed, tests changed.
 
 ### Single fixture
 

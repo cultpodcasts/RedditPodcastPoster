@@ -45,6 +45,69 @@ public class ExactReleaseMatchStrategyRules
     }
 
     [Fact(DisplayName =
+        "When raw release delta exceeds the fourteen-day consideration window but delay-adjusted YouTube publish " +
+        "aligns within the offset confidence threshold, exact release strategy returns true.")]
+    public void cross_platform_delay_aligned_release_returns_true_beyond_raw_consideration_window()
+    {
+        // Arrange
+        var publishingDelay = TimeSpan.FromDays(19);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+            _fixture.CreateYouTubeChannelId(),
+            publishingDelay.Ticks);
+        var sharedLength = _fixture.CreateDuration();
+        var audioRelease = DomainTestFixture.UtcDateDaysAgo(30);
+        var youTubeRelease = audioRelease.Add(publishingDelay);
+        var stored = _fixture.CreateEpisode(e =>
+        {
+            e.Release = audioRelease;
+            e.Length = sharedLength;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var incoming = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithRelease(youTubeRelease)
+            .WithDuration(sharedLength));
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When audio-stored and YouTube-incoming releases share a calendar day but miss delay-aligned " +
+        "expectation, exact release strategy still returns true — same-day is a moderate-confidence signal.")]
+    public void cross_platform_same_calendar_day_returns_true_when_offset_misaligned()
+    {
+        // Arrange
+        var publishingDelay = TimeSpan.FromHours(2);
+        var podcast = _fixture.CreatePodcast();
+        podcast.YouTubePublicationOffset = publishingDelay.Ticks;
+        var sharedLength = _fixture.CreateDuration();
+        var audioRelease = DomainTestFixture.UtcAtTime(-1, TimeSpan.FromHours(14));
+        var youTubeRelease = audioRelease.AddHours(1);
+        var stored = _fixture.CreateEpisode(e =>
+        {
+            e.Release = audioRelease;
+            e.Length = sharedLength;
+            e.AppleId = _fixture.CreateAppleId();
+        });
+        var incoming = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithRelease(youTubeRelease)
+            .WithDuration(sharedLength));
+        var context = new ReleaseMatchContext(podcast, stored, incoming);
+
+        // Act
+        var result = _strategy.Evaluate(context);
+
+        // Assert
+        result.Should().BeTrue();
+        EpisodeReleaseTolerance.AreCrossPlatformReleasesOnSameCalendarDay(audioRelease, youTubeRelease)
+            .Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "When the podcast has zero YouTube publishing delay and releases differ beyond tolerance, " +
         "exact release strategy returns false.")]
     public void zero_delay_releases_outside_tolerance_returns_false()

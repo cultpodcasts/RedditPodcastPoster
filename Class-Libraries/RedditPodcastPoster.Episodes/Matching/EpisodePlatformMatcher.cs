@@ -11,7 +11,7 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
 {
     private const int MinFuzzyTitleScore = 70;
     private static readonly TimeSpan DurationTolerance = TimeSpan.FromMinutes(1);
-    private static readonly TimeSpan YouTubeReleaseAuthorityCrossPlatformDurationTolerance = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan CrossPlatformDurationTolerance = TimeSpan.FromMinutes(5);
 
     private readonly IReadOnlyList<IReleaseMatchStrategy> _releaseMatchStrategies = releaseMatchStrategies.ToList();
     private readonly CompareInfo _compareInfo = CultureInfo.InvariantCulture.CompareInfo;
@@ -143,10 +143,39 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
 
         if (podcast.YouTubePublishingDelay().Ticks < 0)
         {
+            if (HasCrossPlatformYouTubeAudioPair(existingEpisode, incomingEpisode))
+            {
+                return HasCrossPlatformTitleConfidence(existingEpisode, incomingEpisode);
+            }
+
             return FuzzyMatcher.IsMatch(existingEpisode.Title, incomingEpisode, e => e.Title, MinFuzzyTitleScore);
         }
 
         return true;
+    }
+
+    private static bool HasCrossPlatformTitleConfidence(Episode existingEpisode, Episode incomingEpisode)
+    {
+        var existingTitle = existingEpisode.Title;
+        var incomingTitle = incomingEpisode.Title;
+
+        if (FuzzyMatcher.IsMatch(existingTitle, incomingEpisode, e => e.Title, MinFuzzyTitleScore))
+        {
+            return true;
+        }
+
+        return TitlesShareSubstringRelationship(existingTitle, incomingTitle);
+    }
+
+    private static bool TitlesShareSubstringRelationship(string left, string right)
+    {
+        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+        {
+            return false;
+        }
+
+        return left.Contains(right, StringComparison.OrdinalIgnoreCase) ||
+               right.Contains(left, StringComparison.OrdinalIgnoreCase);
     }
 
     private bool EpisodesReleaseMatch(
@@ -179,23 +208,32 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
         Episode incomingEpisode,
         Podcast podcast)
     {
-        if (podcast.YouTubePublishingDelay().Ticks < 0 &&
-            HasCrossPlatformYouTubeSpotifyPair(existingEpisode, incomingEpisode))
+        if (HasCrossPlatformYouTubeAudioPair(existingEpisode, incomingEpisode))
         {
-            return YouTubeReleaseAuthorityCrossPlatformDurationTolerance;
+            return CrossPlatformDurationTolerance;
         }
 
         return DurationTolerance;
     }
 
-    private static bool HasCrossPlatformYouTubeSpotifyPair(Episode existingEpisode, Episode incomingEpisode)
+    private static bool HasCrossPlatformYouTubeAudioPair(Episode existingEpisode, Episode incomingEpisode)
     {
-        var existingYouTube = existingEpisode.HasYouTubeIdentity();
-        var existingSpotify = existingEpisode.HasSpotifyIdentity();
-        var incomingYouTube = incomingEpisode.HasYouTubeIdentity();
-        var incomingSpotify = incomingEpisode.HasSpotifyIdentity();
+        return IsYouTubeOnlyToAudioOnlyPair(existingEpisode, incomingEpisode) ||
+               IsYouTubeOnlyToAudioOnlyPair(incomingEpisode, existingEpisode);
+    }
 
-        return (existingYouTube && !existingSpotify && incomingSpotify && !incomingYouTube) ||
-               (incomingYouTube && !incomingSpotify && existingSpotify && !incomingYouTube);
+    private static bool IsYouTubeOnlyToAudioOnlyPair(Episode youTubeSide, Episode audioSide)
+    {
+        if (!youTubeSide.HasYouTubeIdentity() || audioSide.HasYouTubeIdentity())
+        {
+            return false;
+        }
+
+        if (youTubeSide.HasSpotifyIdentity() || youTubeSide.HasAppleIdentity())
+        {
+            return false;
+        }
+
+        return audioSide.HasSpotifyIdentity() || audioSide.HasAppleIdentity();
     }
 }

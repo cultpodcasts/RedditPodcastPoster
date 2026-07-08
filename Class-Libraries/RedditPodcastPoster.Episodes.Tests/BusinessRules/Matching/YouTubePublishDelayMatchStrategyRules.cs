@@ -44,8 +44,8 @@ public class YouTubePublishDelayMatchStrategyRules
 
     [Fact(DisplayName =
         "For YouTube release authority podcasts with positive publishing delay, an incoming YouTube episode " +
-        "does not match when its release exceeds the delay-alignment threshold.")]
-    public void positive_delay_release_outside_threshold_does_not_match()
+        "defers when its release exceeds the delay-alignment threshold — offset is a confidence signal, not a hard veto.")]
+    public void positive_delay_release_outside_threshold_defers()
     {
         // Arrange
         var publishingDelay = TimeSpan.FromDays(1);
@@ -68,7 +68,7 @@ public class YouTubePublishDelayMatchStrategyRules
         var result = _strategy.Evaluate(context);
 
         // Assert
-        result.Should().BeFalse();
+        result.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -135,8 +135,8 @@ public class YouTubePublishDelayMatchStrategyRules
 
     [Fact(DisplayName =
         "When stored and incoming episodes both carry YouTube identity, YouTube publish-delay strategy " +
-        "returns false because delay alignment applies only across platform types.")]
-    public void both_youtube_identity_returns_false()
+        "defers because delay alignment applies only across platform types.")]
+    public void both_youtube_identity_defers()
     {
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
@@ -150,13 +150,13 @@ public class YouTubePublishDelayMatchStrategyRules
         var result = _strategy.Evaluate(context);
 
         // Assert
-        result.Should().BeFalse();
+        result.Should().BeNull();
     }
 
     [Fact(DisplayName =
         "When the stored episode has YouTube identity but the incoming episode does not, " +
-        "YouTube publish-delay strategy returns false because only audio-to-YouTube alignment is supported.")]
-    public void stored_youtube_incoming_non_youtube_returns_false()
+        "YouTube publish-delay strategy defers because only audio-to-YouTube alignment is in scope.")]
+    public void stored_youtube_incoming_non_youtube_defers()
     {
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
@@ -170,7 +170,7 @@ public class YouTubePublishDelayMatchStrategyRules
         var result = _strategy.Evaluate(context);
 
         // Assert
-        result.Should().BeFalse();
+        result.Should().BeNull();
     }
 
     [Fact(DisplayName =

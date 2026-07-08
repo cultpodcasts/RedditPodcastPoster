@@ -113,6 +113,48 @@ public class EpisodeReleaseToleranceRules
     }
 
     [Fact(DisplayName =
+        "IsYouTubePublishDelayAligned returns true when YouTube publish is within one day of audio release plus offset " +
+        "and false when the delta exceeds that confidence window.")]
+    public void is_youtube_publish_delay_aligned_uses_one_day_confidence_window()
+    {
+        // Arrange
+        var publishingDelay = TimeSpan.FromHours(2);
+        var audioRelease = DomainTestFixture.UtcAtTime(-1, TimeSpan.FromHours(14));
+        var alignedYouTubeRelease = audioRelease.Add(publishingDelay);
+        var misalignedYouTubeRelease = alignedYouTubeRelease.AddDays(2);
+
+        // Act
+        var aligned = EpisodeReleaseTolerance.IsYouTubePublishDelayAligned(
+            audioRelease, alignedYouTubeRelease, publishingDelay);
+        var misaligned = EpisodeReleaseTolerance.IsYouTubePublishDelayAligned(
+            audioRelease, misalignedYouTubeRelease, publishingDelay);
+
+        // Assert
+        aligned.Should().BeTrue();
+        misaligned.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "AreCrossPlatformReleasesOnSameCalendarDay returns true when audio and YouTube share a calendar day " +
+        "regardless of whether the configured offset would predict a later YouTube publish.")]
+    public void are_cross_platform_releases_on_same_calendar_day_ignores_offset_expectation()
+    {
+        // Arrange
+        var audioRelease = DomainTestFixture.UtcAtTime(-1, TimeSpan.FromHours(14));
+        var youTubeReleaseSameDay = audioRelease.AddHours(1);
+
+        // Act
+        var sameDay = EpisodeReleaseTolerance.AreCrossPlatformReleasesOnSameCalendarDay(
+            audioRelease, youTubeReleaseSameDay);
+        var differentDay = EpisodeReleaseTolerance.AreCrossPlatformReleasesOnSameCalendarDay(
+            audioRelease, audioRelease.AddDays(1));
+
+        // Assert
+        sameDay.Should().BeTrue();
+        differentDay.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "SpotifyCatalogueReleaseMatches accepts aligned Spotify catalogue dates for " +
         "YouTube release authority negative-delay podcasts.")]
     public void spotify_catalogue_release_matches_negative_delay_alignment()

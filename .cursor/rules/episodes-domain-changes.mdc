@@ -1,0 +1,120 @@
+---
+description: Business-rules-first decision process for RedditPodcastPoster.Episodes production changes
+globs: "Class-Libraries/RedditPodcastPoster.Episodes/**,Class-Libraries/RedditPodcastPoster.Episodes.Tests/**,Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/**,Class-Libraries/RedditPodcastPoster.Common/Episodes/**,Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/BusinessRules/Indexing/**"
+alwaysApply: false
+---
+
+# Episodes domain — business-rules-first change guardrails
+
+Read before changing production code under `RedditPodcastPoster.Episodes/` (matching, merging, applying, adapters, release tolerance).
+
+**Related:** [unit-tests.mdc](unit-tests.mdc) (how to write rule tests), [plans/episode-domain-refactor/README.md](../../plans/episode-domain-refactor/README.md) §5 (rule catalog).
+
+---
+
+## Decision tree (MUST follow)
+
+```
+Production change in .Episodes?
+  → Identify touched rule area (Matching / Merging / Applying / Adapters)
+  → Search BusinessRules/* and README §5 for existing DisplayName rules
+  → Classify (below)
+  → Write or update rule test FIRST (or in same PR, test before/alongside code)
+  → Only then change production
+```
+
+### 1. Edge case / bug fix — proceed
+
+Production diverged from **clear existing rule intent**. No policy change.
+
+| Signal | Example |
+|--------|---------|
+| Existing rule test passes but production fails a real incident | Typo in branch condition |
+| Rule DisplayName already states the outcome; code was wrong | `!existingYouTube` written as `!incomingYouTube` |
+| Narrow fix; no new merge paths or tolerance bands | One-line condition fix |
+
+**Actions:** Add a focused `[Fact]` for the incident **shape** (scenario-named, not production brand names per unit-tests.mdc). Fix production minimally. Do **not** rewrite unrelated rule DisplayNames.
+
+### 2. Rule refinement — proceed (document)
+
+Policy intent unchanged; catalog was **incomplete or too narrow**.
+
+| Signal | Example |
+|--------|---------|
+| Same invariant, new platform pair or title shape already implied by neighbors | Substring title when exact+fuzzy rules exist |
+| Clarify DisplayName on existing test; add sibling test | Split one rule into two explicit cases |
+| Tighten assertion without changing merge outcome for covered cases | Assert `EpisodeExpectation` fields, not only `ContainSingle` |
+
+**Actions:** Add/refine rule tests. Note in PR/commit: *"Refined rule X — edge case Y now explicit."* Update README §5 catalog if display names change.
+
+### 3. Functional change — PAUSE for user guidance
+
+**New or broader policy.** Merge/match behavior changes for scenarios **not** already implied by existing rules.
+
+| Signal | Example |
+|--------|---------|
+| Widen or narrow numeric tolerance (duration, release window) | 1 min → 5 min for new platform pairs |
+| Remove a gate (release authority, delay sign, identity requirement) | 5-min tolerance no longer requires negative delay |
+| New cross-platform pair class | Apple↔YouTube when rules only documented Spotify↔YouTube |
+| Weaker guard (merge when previously must-not-merge) | Release+duration merge without fuzzy on negative-delay podcasts |
+| Stronger guard (must-not-merge when previously could merge) | Stricter identity checks |
+
+**Actions:** **Stop before production change.** Present to user:
+
+1. Existing rules touched (cite DisplayName strings)
+2. What would change for merge/match outcomes
+3. Proposed new rule DisplayName(s)
+4. Risk (false-positive merges vs missed merges)
+
+Implement only after explicit approval.
+
+---
+
+## Offset confidence model (approved direction)
+
+`youTubePublicationOffset` informs **how much to trust** release alignment — it is not a sole hard veto. **Title is a strong signal, not a sole override** — matching requires composite evidence.
+
+| Signal | Strength | Where |
+|--------|----------|-------|
+| Delay-aligned publish (`audio + offset` within 1 day) | High | `IsYouTubePublishDelayAligned`, `YouTubePublishDelayMatchStrategy` → `true` |
+| Same calendar day (audio vs YouTube) | Moderate | `AreCrossPlatformReleasesOnSameCalendarDay`, `ExactReleaseMatchStrategy` → `true` |
+| Title (exact / substring / fuzzy) | Strong supporting | Catalogue enrichment gate, cross-platform release+duration path — **never alone** |
+| Duration within cross-platform band (5 min) | Required for merge | `CrossPlatformDurationTolerance` on YouTube↔audio pairs |
+| Large duration gap (e.g. YouTube clip vs full audio) | Block | Similar title must **not** merge clip onto full episode — duration vetoes |
+| Misaligned offset / wrong platform mix | Defer | Release strategies return `null` — other strategies or title+duration heuristics decide |
+| Disjoint titles on cross-platform release+duration path | Block | `HasCrossPlatformTitleConfidence` (fuzzy **or** substring) |
+| YouTube-authority index | Apple + Spotify catalogue pass | `EpisodeProvider` fetches Apple/Spotify for negative-delay merge (not only enrichment) |
+| YouTube-stored + Apple-incoming release | `AppleCatalogueReleaseMatchStrategy` | Same offset-adjusted calendar-day logic as Spotify via `AudioCatalogueReleaseMatches` |
+| YouTube-discovered enrichment catalogue lookup | Title required before duration/release snipe | `HasCatalogueTitleConfidence` gates `FindYouTubeDiscoveredCatalogueMatch` |
+
+**Duration:** YouTube-only ↔ audio-only pairs use 5-minute cross-platform tolerance (strict less-than). A matching title with duration far outside that band indicates a **clip or excerpt**, not the same catalogue row.
+
+**Do not** implement title-only overrides that bypass release or duration gates. Early audio drops (offset misalignment) need a **composite** rule (e.g. title + duration + bounded release slack), not title alone.
+
+**Do not** reintroduce hard `false` from offset strategies when a weaker signal could still match downstream.
+
+---
+
+## Indexing orchestration (`EpisodeProvider`)
+
+Changes to `RedditPodcastPoster.Common/Episodes/EpisodeProvider.cs` that affect discovery or catalogue merge passes are **episode-domain production changes** and require tests in **`PodcastServices.Tests`**:
+
+| Area | Test home |
+|------|-----------|
+| YouTube-authority Apple/Spotify catalogue merge passes | `BusinessRules/Indexing/EpisodeProviderRules.cs` |
+| Handler gate conditions (skip paths, empty results) | `EpisodeProviderTests.cs` |
+
+**MUST** add or update both a business-rule test (`DisplayName`) and a unit test when changing `EpisodeProvider` gates or merge composition.
+
+---
+
+## PR checklist (Episodes + EpisodeProvider production diff)
+
+- [ ] Listed existing `BusinessRules/*` rules touched (`.Episodes.Tests` and/or `PodcastServices.Tests`)
+- [ ] Classified each hunk: edge case | refinement | **functional (approved)**
+- [ ] New/changed `[Fact]` / `[Theory]` with plain-English `DisplayName` before or with code
+- [ ] Matching unit test(s) for orchestration/gate logic where applicable (`EpisodeProviderTests`, strategy `*Rules`, etc.)
+- [ ] `dotnet test --filter FullyQualifiedName~Rules` on affected test projects
+- [ ] `dotnet test` on unit test classes for touched production files
+- [ ] No production brand names in test arrange (use scenario-shaped fixtures)
+- [ ] If functional: user sign-off recorded in PR or chat
