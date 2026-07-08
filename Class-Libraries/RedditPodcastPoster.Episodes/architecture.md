@@ -1,8 +1,8 @@
-# \\\\\RedditPodcastPoster.Episodes — architecture
+# RedditPodcastPoster.Episodes — architecture
 
 Platform-agnostic episode domain for **match**, **merge**, **apply**, and **adapt** operations. Platform API types stay in `PodcastServices.{Spotify,Apple,YouTube}`; this library owns the normalized model and algorithms.
 
-**Status:** Phases A–E merged to `main` (#871–#875). Phase F complete on `feature/episode-domain-phase-f-cleanup` (#876) — merge orchestration relocated, legacy tolerance removed, UrlSubmission unified on `IPlatformEnrichmentApplicator`, project layering red flags resolved (F1–F20).
+**Status:** Phases A–E merged to `main` (#871–#875). Phase F complete in [#876](https://github.com/cultpodcasts/RedditPodcastPoster/pull/876) (open, targets `main`) — merge orchestration relocated, legacy tolerance removed, UrlSubmission unified on `IPlatformEnrichmentApplicator` with owned categorised DTOs (F17), project layering red flags resolved (F1–F20).
 
 **Related docs:** [Step 7 checklist](../../plans/episode-domain-refactor/STEP-7-CHECKLIST.md) · [Episode domain refactor plan](../../plans/episode-domain-refactor/README.md)
 
@@ -53,7 +53,13 @@ PodcastServices.Abstractions/
 └── IndexPodcastResult.cs
 
 PodcastServices.{Spotify,Apple,YouTube}/
-└── Finders / resolvers   Platform catalogue boundary (map API types → domain matcher inputs)
+└── Finders / resolvers / categorisers   Platform API boundary (map API types → domain or UrlSubmission DTOs)
+
+UrlSubmission/
+├── Models/              CategorisedSpotifyItem · CategorisedAppleItem · CategorisedYouTubeItem (orchestration DTOs)
+├── Categorisation/      CategorisedItem, UrlCategoriser, PlatformResolvedItemMappers (platform → DTO at boundary only)
+├── EpisodeEnricher.cs   Submit-path enrich orchestrator → IPlatformEnrichmentApplicator
+└── PodcastProcessor.cs
 ```
 
 ---
@@ -211,8 +217,17 @@ flowchart TB
     end
 
     subgraph UrlSubmission["RedditPodcastPoster.UrlSubmission"]
+        UC[UrlCategoriser · DiscoveryResultProcessor]
+        MAP[PlatformResolvedItemMappers]
+        DTO[CategorisedItem + Categorised*Item DTOs]
         UE[EpisodeEnricher]
         PP[PodcastProcessor]
+    end
+
+    subgraph PlatCat["Platform categorisers (boundary only)"]
+        SP_CAT[SpotifyUrlCategoriser]
+        AP_CAT[AppleUrlCategoriser]
+        YT_CAT[YouTubeUrlCategoriser]
     end
 
     DI --> Domain & Orchestration & Spotify & Apple & YouTube & UrlSubmission
@@ -232,7 +247,11 @@ flowchart TB
     SP_F & YT_F & AP_R --> M
     SP_R & YT_R --> AD
 
-    PP --> UE --> AD
+    UC --> SP_CAT & AP_CAT & YT_CAT
+    SP_CAT & AP_CAT & YT_CAT --> MAP
+    MAP --> DTO
+    DTO --> PP --> UE
+    UE --> AD
     UE --> EA
 
     EA --> AP
@@ -271,6 +290,8 @@ Resolver finds catalogue item
 
 YouTube enricher additionally calls `IEpisodePlatformApplier` directly for link-only backfill and supplemental video metadata (description, thumbnail).
 
+**UrlSubmission categorisation (F17):** platform assemblies resolve URLs to their native types (`ResolvedSpotifyItem`, etc.) only inside categorisers. `PlatformResolvedItemMappers.FromPlatform()` maps to UrlSubmission-owned `Categorised*Item` DTOs on `CategorisedItem`. Downstream orchestration (`PodcastProcessor`, `EpisodeEnricher`) uses DTOs only; `Resolved*ItemAdapter.ToAdapterInput()` bridges into Episodes adapters at enrich time.
+
 ---
 
 ## Diagram 3 — Runtime paths
@@ -292,13 +313,15 @@ flowchart LR
 
     subgraph Submit["UrlSubmission path (Api)"]
         direction TB
-        S1[UrlCategoriser → CategorisedItem]
+        S0[Platform categorisers<br/>Spotify · Apple · YouTube]
+        S1[PlatformResolvedItemMappers]
+        S1b[CategorisedItem + Categorised*Item DTOs]
         S2[PodcastProcessor]
         S3[EpisodeEnricher]
-        S4[Resolved*ItemAdapter → EnrichmentApplicator]
+        S4[Resolved*ItemAdapter.ToAdapterInput → EnrichmentApplicator]
         S5[Non-podcast paths: BBC / IA / description direct]
         S6[(Cosmos save)]
-        S1 --> S2 --> S3 --> S4 --> S6
+        S0 --> S1 --> S1b --> S2 --> S3 --> S4 --> S6
         S3 --> S5 --> S6
     end
 
@@ -313,7 +336,7 @@ flowchart LR
 | Path              | Host    | Domain entry points                                                                                  | Platform enrichers?                         |
 | ----------------- | ------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------- |
 | **Indexing**      | Indexer | Matcher, Merger, EnrichmentApplicator, catalogue adapters; `EpisodeMatcher`/`EpisodeMerger` facades  | Yes — Spotify → Apple → YouTube per episode |
-| **UrlSubmission** | Api     | EnrichmentApplicator, resolved-item adapters; BBC/IA/description handled inline in `EpisodeEnricher` | No — resolved URL already known             |
+| **UrlSubmission** | Api     | Categorised DTOs → resolved-item adapters → enrichment applicator; BBC/IA/description inline in `EpisodeEnricher` | No — resolved URL already known; platform types stop at categoriser boundary |
 
 
 **Indexing enrich order** (`PodcastServicesEpisodeEnricher`): for each new episode, explicit guards run Spotify then Apple then YouTube when links/IDs are missing (no `switch (Service)` enum loop). Delayed YouTube publishing triggers a **second pass** on recently expired episodes (orchestrator concern, not in platform enrichers).
@@ -324,7 +347,7 @@ flowchart LR
 
 ## Dependency graph (projects)
 
-Current state after Phase F (F1–F20 complete on `feature/episode-domain-phase-f-cleanup`). Layering debt from F17–F20 resolved.
+Current state after Phase F (F1–F20 complete in [#876](https://github.com/cultpodcasts/RedditPodcastPoster/pull/876)). Layering debt from F17–F20 resolved.
 
 ```mermaid
 flowchart BT
@@ -380,16 +403,17 @@ Import `RedditPodcastPoster.Episodes.Extensions` at the composition root (same p
 
 | Extension              | Registers                                                                                                                                                  |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AddEpisodesDomain()`  | Applier, enrichment applicator, merger, matcher, 3 strategies, 4 policies, factory, 3 catalogue adapters                                                   |
-| `AddPodcastServices()` | `**IEpisodeMatcher**`, `**IEpisodeMerger**`, `PodcastUpdater`, `PodcastServicesEpisodeEnricher`, metadata handlers (does **not** register Episodes domain) |
+| `AddEpisodesDomain()`  | Applier, enrichment applicator, merger, matcher, 3 strategies, 4 policies, factory, 3 catalogue adapters (does **not** register orchestration or repos)   |
+| `AddPodcastServices()` | `IEpisodeMatcher`, `IEpisodeMerger`, `PodcastUpdater`, `PodcastServicesEpisodeEnricher`, metadata handlers (does **not** register Episodes domain)         |
 | `AddSpotifyServices()` | Spotify provider, enricher, resolver, finder, side effect                                                                                                  |
-| `AddAppleServices()`   | Apple provider, enricher, resolver                                                                                                                         |
-| `AddYouTubeServices()` | YouTube provider, enricher, resolver, finders                                                                                                              |
-| `AddRepositories()`    | Cosmos repositories only (no episode domain)                                                                                                               |
-| `AddUrlSubmission()`   | UrlSubmission pipeline including `IEpisodeEnricher` (does **not** register Episodes domain)                                                                |
+| `AddAppleServices()`   | Apple provider, enricher, resolver                                                                                                                        |
+| `AddYouTubeServices()` | YouTube provider, enricher, resolver, finders (does **not** register persistence stores — those come from `AddRepositories()`)                              |
+| `AddRepositories()`    | Cosmos repos (`IPodcastRepository`, `IEpisodeRepository`, `ILookupRepository`, `IActivityRepository`), known-terms / elimination-terms repos and provider factories (`Persistence/Lookups`), `IYouTubeQuotaUsageStateStore` / `IYouTubeIndexerKeyStateStore` adapters; no episode domain or merge orchestration |
+| `AddEliminationTerms()`| Elimination-terms provider factory + async instance (call after `AddRepositories()` when hosts need elimination terms)                                     |
+| `AddUrlSubmission()`   | `IUrlCategoriser`, `ISpotifyUrlCategoriser` / `IAppleUrlCategoriser` / `IYouTubeUrlCategoriser` (implementations in platform assemblies), `IEpisodeEnricher`, `IPodcastProcessor`, submit/discovery pipeline (does **not** register Episodes domain) |
 
 
-**Typical Indexer host:** `AddEpisodesDomain()` → `AddRepositories()` → `Add*Services()` → `AddPodcastServices()`.
+**Typical Indexer host:** `AddEpisodesDomain()` → `AddRepositories()` → `AddEliminationTerms()` (if needed) → `Add*Services()` → `AddPodcastServices()`.
 
 **Typical Api host:** same, plus `AddUrlSubmission()`.
 
@@ -412,7 +436,14 @@ Import `RedditPodcastPoster.Episodes.Extensions` at the composition root (same p
 | Indexing orchestrator       | `../RedditPodcastPoster.PodcastServices/PodcastUpdater.cs`                                         |
 | Indexing enrich facade      | `../RedditPodcastPoster.PodcastServices/PodcastServicesEpisodeEnricher.cs`                         |
 | UrlSubmission enrich        | `../RedditPodcastPoster.UrlSubmission/EpisodeEnricher.cs`                                          |
+| UrlSubmission DTOs (F17)    | `../RedditPodcastPoster.UrlSubmission/Models/CategorisedSpotifyItem.cs`, `CategorisedAppleItem.cs`, `CategorisedYouTubeItem.cs` |
+| Platform → DTO mappers (F17)| `../RedditPodcastPoster.UrlSubmission/Categorisation/PlatformResolvedItemMappers.cs`               |
+| UrlSubmission categorisers  | `../RedditPodcastPoster.UrlSubmission/Categorisation/UrlCategoriser.cs`, `DiscoveryResultProcessor.cs`, `CategorisedItem.cs` |
 | DI (orchestration)          | `../RedditPodcastPoster.PodcastServices/Extensions/ServiceCollectionExtensions.cs`                 |
+| DI (UrlSubmission)          | `../RedditPodcastPoster.UrlSubmission/Extensions/ServiceCollectionExtensions.cs`                   |
+| DI (persistence)            | `../RedditPodcastPoster.Persistence/Extensions/ServiceCollectionExtensions.cs`                     |
+| YouTube state-store ports   | `../RedditPodcastPoster.PodcastServices.Abstractions/IYouTubeQuotaUsageStateStore.cs`, `IYouTubeIndexerKeyStateStore.cs` |
+| YouTube state-store adapters| `../RedditPodcastPoster.Persistence/Lookups/YouTubeQuotaUsageStateStore.cs`, `YouTubeIndexerKeyStateStore.cs` |
 
 
 ---
