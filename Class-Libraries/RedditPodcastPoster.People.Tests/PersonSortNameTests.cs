@@ -112,6 +112,21 @@ public class PersonSortNameTests
     }
 
     [Fact]
+    public void ResolveForPersist_StripsLeadingThe_ForOrgNames()
+    {
+        PersonSortNameResolver.StripLeadingThe("The Lead CNN").Should().Be("Lead CNN");
+        PersonSortNameResolver.StripLeadingThe("the BBC").Should().Be("BBC");
+        PersonSortNameResolver.StripLeadingThe("The New York Times").Should().Be("New York Times");
+
+        PersonSortNameResolver.GuessSortName("The Lead CNN").Should().Be("Lead CNN");
+        PersonSortNameResolver.ResolveForPersist("The Lead CNN", null).Should().Be("Lead CNN");
+        PersonSortNameResolver.ResolveForPersist("The Lead CNN", "The Lead CNN")
+            .Should().Be("Lead CNN");
+        PersonSortNameResolver.ResolveForPersist("The Lead CNN", "Lead CNN")
+            .Should().Be("Lead CNN");
+    }
+
+    [Fact]
     public void ResolveForPersist_KeepsManualOverride()
     {
         PersonSortNameResolver.ResolveForPersist("Daniella Mestyanek Young", "Mestyanek Young")

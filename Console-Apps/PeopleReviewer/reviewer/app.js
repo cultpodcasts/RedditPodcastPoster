@@ -206,7 +206,7 @@ function swapAliasWithCanonical(alias) {
   els.name.value = person.name;
   const guess = guessSortName(person.name);
   els.sortName.value = guess;
-  els.useFullName.checked = looksLikeOrganization(person.name) && guess === person.name.trim();
+  els.useFullName.checked = looksLikeOrganization(person.name);
   person.sortName = sortNameForPersist(person.name, guess, els.useFullName.checked);
   renderAliases(person.aliases);
   updateSortsAsHint();
@@ -239,9 +239,12 @@ function renderEditor() {
   const storedSort = person.sortName?.trim() ?? '';
   const guess = guessSortName(name);
   const displaySort = storedSort || guess;
+  const orgKey = stripLeadingThe(name.trim());
   els.name.value = name;
   els.sortName.value = displaySort;
-  els.useFullName.checked = !!displaySort && displaySort === name.trim();
+  els.useFullName.checked =
+    looksLikeOrganization(name) &&
+    (!!displaySort && (displaySort === orgKey || displaySort === name.trim()));
   state.sortNameManuallyEdited =
     !!storedSort && storedSort !== guess && storedSort !== deriveSortKeyFromName(name);
   state.syncingSort = false;
@@ -364,13 +367,13 @@ els.name.addEventListener('input', () => {
   const name = els.name.value;
   if (els.useFullName.checked) {
     state.syncingSort = true;
-    els.sortName.value = name;
+    els.sortName.value = guessSortName(name);
     state.syncingSort = false;
   } else if (!state.sortNameManuallyEdited) {
     state.syncingSort = true;
     const guess = guessSortName(name);
     els.sortName.value = guess;
-    const orgGuess = !!guess && looksLikeOrganization(name) && guess === name.trim();
+    const orgGuess = looksLikeOrganization(name);
     if (els.useFullName.checked !== orgGuess) {
       els.useFullName.checked = orgGuess;
     }
@@ -384,7 +387,8 @@ els.sortName.addEventListener('input', () => {
   state.sortNameManuallyEdited = true;
   const name = els.name.value.trim();
   const sortName = els.sortName.value.trim();
-  const isOrg = !!sortName && sortName === name;
+  const orgKey = stripLeadingThe(name);
+  const isOrg = !!sortName && (sortName === orgKey || sortName === name);
   if (els.useFullName.checked !== isOrg) {
     state.syncingSort = true;
     els.useFullName.checked = isOrg;
@@ -398,9 +402,9 @@ els.useFullName.addEventListener('change', () => {
   state.syncingSort = true;
   state.sortNameManuallyEdited = false;
   if (els.useFullName.checked) {
-    els.sortName.value = els.name.value;
-  } else {
     els.sortName.value = guessSortName(els.name.value);
+  } else {
+    els.sortName.value = deriveSortKeyFromName(els.name.value);
   }
   state.syncingSort = false;
   updateSortsAsHint();

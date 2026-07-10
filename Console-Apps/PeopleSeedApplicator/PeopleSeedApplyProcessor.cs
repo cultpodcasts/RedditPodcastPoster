@@ -96,19 +96,12 @@ public class PeopleSeedApplyProcessor(
             var desiredAliases = NormalizeAliases(entry.Aliases);
             var desiredTwitter = PersonFactory.NormalizeHandle(entry.TwitterHandle);
             var desiredBluesky = PersonFactory.NormalizeHandle(entry.BlueskyHandle);
-            // Always materialize effective sortName for Cosmos visibility.
-            // Seed often omits last-token defaults (reviewer historically nulls those out).
-            // Prefer explicit seed sortName; otherwise GuessSortName (org full name / last token).
-            // Do not use ResolveForPersist here — that helper may omit last-token defaults.
-            var desiredSortName = !string.IsNullOrWhiteSpace(entry.SortName)
-                ? entry.SortName.Trim()
-                : PersonSortNameResolver.GuessSortName(entry.Name);
-            if (string.IsNullOrWhiteSpace(desiredSortName))
-            {
-                desiredSortName = null;
-            }
-
-            if (desiredSortName is not null && string.IsNullOrWhiteSpace(entry.SortName))
+            // Omit only when effective key == last-token default.
+            // Org path: StripLeadingThe(Name) — always persist when ≠ last-token.
+            var desiredSortName = PersonSortNameResolver.ResolveForPersist(entry.Name, entry.SortName);
+            if (desiredSortName is not null &&
+                (string.IsNullOrWhiteSpace(entry.SortName) ||
+                 !string.Equals(entry.SortName.Trim(), desiredSortName, StringComparison.Ordinal)))
             {
                 sortNameInferred++;
                 if (sampleSortBackfill.Count < 10)

@@ -26,6 +26,15 @@ function deriveSortKeyFromName(name) {
   return parts[parts.length - 1] ?? '';
 }
 
+/** Strip leading "The " for corp/entity sort keys (display Name unchanged). */
+function stripLeadingThe(value) {
+  const trimmed = value?.trim() ?? '';
+  if (trimmed.length >= 4 && /^the\s+/i.test(trimmed)) {
+    return trimmed.replace(/^the\s+/i, '').trimStart();
+  }
+  return trimmed;
+}
+
 function looksLikeOrganization(name) {
   const trimmed = name?.trim();
   if (!trimmed) return false;
@@ -41,7 +50,7 @@ function looksLikeOrganization(name) {
 function guessSortName(name) {
   const trimmed = name?.trim() ?? '';
   if (!trimmed) return '';
-  if (looksLikeOrganization(trimmed)) return trimmed;
+  if (looksLikeOrganization(trimmed)) return stripLeadingThe(trimmed);
   return deriveSortKeyFromName(trimmed);
 }
 
@@ -51,12 +60,33 @@ function getEffectiveSortKey(person) {
 }
 
 /**
- * Always persist the effective sort key so Cosmos Person docs show sortName.
- * Prefer the editor value; otherwise guess (org full name / last token).
+ * Persist null ONLY when effective key equals last-token surname default.
+ * Org path: StripLeadingThe(Name). Keep other overrides.
  */
 function sortNameForPersist(name, sortName, useFullName) {
-  const trimmed = sortName?.trim() ?? '';
-  if (trimmed) return trimmed;
-  if (useFullName) return name?.trim() || null;
-  return guessSortName(name) || null;
+  const trimmedName = name?.trim() ?? '';
+  const lastToken = deriveSortKeyFromName(trimmedName);
+  const isOrg = useFullName || looksLikeOrganization(trimmedName);
+  const orgKey = isOrg ? stripLeadingThe(trimmedName) : '';
+
+  let effective = sortName?.trim() ?? '';
+  if (effective) {
+    if (isOrg && orgKey) {
+      const stripped = stripLeadingThe(effective);
+      if (
+        effective.toLowerCase() === trimmedName.toLowerCase() ||
+        stripped.toLowerCase() === orgKey.toLowerCase() ||
+        /^the\s+/i.test(effective)
+      ) {
+        effective = orgKey;
+      }
+    }
+  } else if (isOrg && orgKey) {
+    effective = orgKey;
+  } else {
+    effective = lastToken;
+  }
+
+  if (!effective || effective === lastToken) return null;
+  return effective;
 }
