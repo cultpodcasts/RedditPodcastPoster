@@ -90,7 +90,7 @@ public class PersonService(
     private PersonMatchResult[] MatchTerms(Episode episode, Person person, bool withDescription)
     {
         var matches = new List<PersonMatchResult>();
-        foreach (var term in person.GetSearchTerms().Where(x => !string.IsNullOrWhiteSpace(x)))
+        foreach (var term in person.GetNames().Where(x => !string.IsNullOrWhiteSpace(x)))
         {
             var matchCount = 0;
             matchCount += CountMatches(term, WebUtility.HtmlDecode(episode.Title));

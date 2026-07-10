@@ -46,9 +46,13 @@ public sealed class Person : CosmosSelector
         NameKey = NormalizeNameKey(Name);
     }
 
-    public IEnumerable<string> GetSearchTerms()
+    public IEnumerable<string> GetNames()
     {
-        yield return Name;
+        if (!string.IsNullOrWhiteSpace(Name))
+        {
+            yield return Name.Trim();
+        }
+
         if (Aliases == null)
         {
             yield break;

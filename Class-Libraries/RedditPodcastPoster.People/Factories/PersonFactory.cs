@@ -33,7 +33,12 @@ public class PersonFactory : IPersonFactory
             return null;
         }
 
-        var trimmed = handle.Trim();
-        return trimmed.StartsWith('@') ? trimmed : $"@{trimmed}";
+        var parts = handle
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(part => part.StartsWith('@') ? part : $"@{part}")
+            .Where(part => part.Length > 1)
+            .ToArray();
+
+        return parts.Length == 0 ? null : string.Join(' ', parts);
     }
 }
