@@ -15,7 +15,8 @@ public class PersonRepository(
     public async Task Save(Person person)
     {
         person.EnsureNameKey();
-        await peopleContainer.UpsertItemAsync(person, new PartitionKey(person.Id.ToString()));
+        // People container partitions on /type so UniqueKeyPolicy(/nameKey) is global for all Person docs.
+        await peopleContainer.UpsertItemAsync(person, new PartitionKey(person.ModelType.ToString()));
     }
 
     public async Task<int> Count()

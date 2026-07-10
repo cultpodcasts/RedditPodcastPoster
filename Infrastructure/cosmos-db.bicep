@@ -143,12 +143,10 @@ resource subjectsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/c
   }
 }
 
-// People: case-insensitive name uniqueness uses persisted nameKey (trimmed + lower-invariant).
+// People: case-insensitive name uniqueness via persisted nameKey (trimmed + lower-invariant).
 // UniqueKeyPolicy can ONLY be set at container create time — it cannot be added/changed later.
-// NOTE: Cosmos unique keys are scoped to a logical partition. With partition key /id, /nameKey
-// uniqueness is per-document partition and does NOT enforce global name uniqueness across people.
-// App-layer GetByName(nameKey) checks are the enforceable path for existing and /id-partitioned containers.
-// To get durable container-wide uniqueness, recreate with a shared partition key (e.g. /type) plus /nameKey.
+// Cosmos unique keys are scoped to a logical partition. Partition on /type (ModelType.Person)
+// so all Person docs share one partition and /nameKey uniqueness is container-wide.
 resource peopleContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
   parent: database
   name: 'People'
@@ -156,7 +154,7 @@ resource peopleContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/con
     resource: {
       id: 'People'
       partitionKey: {
-        paths: ['/id']
+        paths: ['/type']
         kind: 'Hash'
       }
       uniqueKeyPolicy: {
