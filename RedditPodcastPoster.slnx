@@ -184,7 +184,6 @@
     <Project Path="Console-Apps/LaunchSettingsToAppSettings/LaunchSettingsToAppSettings.csproj" />
     <Project Path="Console-Apps/MachineAuth0/MachineAuth0.csproj" />
     <Project Path="Console-Apps/Poster/Poster.csproj" />
-    <Project Path="Console-Apps/PeopleReviewer/PeopleReviewer.csproj" />
 
     <Project Path="Console-Apps/RemoveEpisodes/RemoveEpisodes.csproj" />
 
