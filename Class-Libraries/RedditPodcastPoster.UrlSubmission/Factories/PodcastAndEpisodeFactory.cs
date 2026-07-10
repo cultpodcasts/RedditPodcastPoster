@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.People;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
@@ -11,6 +12,7 @@ public class PodcastAndEpisodeFactory(
     IEpisodeFactory episodeFactory,
     IPodcastFactory podcastFactory,
     ISubjectEnricher subjectEnricher,
+    IEpisodeGuestEnricher guestEnricher,
     ILogger<PodcastAndEpisodeFactory> logger
 ) : IPodcastAndEpisodeFactory
 {
@@ -55,6 +57,7 @@ public class PodcastAndEpisodeFactory(
 
         var episode = episodeFactory.CreateEpisode(categorisedItem);
         var subjectsResult = await subjectEnricher.EnrichSubjects(episode);
+        await guestEnricher.EnrichGuests(episode);
         logger.LogInformation("Created podcast with name '{ShowName}' with id '{NewPodcastId}'.", showName, newPodcast.Id);
 
         var submitEpisodeDetails = new SubmitEpisodeDetails(

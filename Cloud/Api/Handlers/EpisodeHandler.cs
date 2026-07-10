@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Api.Dtos;
+using Api.Dtos.Extensions;
 using Api.Extensions;
 using Api.Models;
 using Api.Resolvers;
@@ -28,6 +29,8 @@ using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.Reddit;
+using RedditPodcastPoster.People;
+using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.Twitter;
@@ -57,6 +60,7 @@ public class EpisodeHandler(
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ITextSanitiser textSanitiser,
     ICachedSubjectProvider subjectsProvider,
+    IPersonService personService,
     ILogger<EpisodeHandler> logger) : IEpisodeHandler
 {
     private readonly DateTime pastWeek = DateTime.UtcNow.AddDays(-7);
@@ -504,7 +508,7 @@ public class EpisodeHandler(
 
             var subjects = await subjectsProvider.GetAll().ToListAsync(c);
             var discreteEpisode = await ToDiscreteEpisode(podcastEpisodeResolverResponse.Episode,
-                podcastEpisodeResolverResponse.Podcast, subjects);
+                podcastEpisodeResolverResponse.Podcast, subjects, includeGuestSuggestions: true);
             var success = await req.CreateResponse(HttpStatusCode.OK)
                 .WithJsonBody(discreteEpisode, c);
             return success;
@@ -520,7 +524,7 @@ public class EpisodeHandler(
     }
 
     private async Task<DiscreteEpisode> ToDiscreteEpisode(Episode episode, Podcast podcast,
-        IEnumerable<Subject> subjects)
+        IEnumerable<Subject> subjects, bool includeGuestSuggestions = false)
     {
         var episodeSubjects = subjects
             .Where(s => episode.Subjects.Contains(s.Name))
@@ -535,7 +539,7 @@ public class EpisodeHandler(
             ? null
             : new Regex(podcast.DescriptionRegex, RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
-        return new DiscreteEpisode
+        var discreteEpisode = new DiscreteEpisode
         {
             Id = episode.Id,
             PodcastName = podcast.Name,
@@ -565,14 +569,48 @@ public class EpisodeHandler(
             Image =
                 episode.Images?.YouTube ?? episode.Images?.Spotify ?? episode.Images?.Apple ?? episode.Images?.Other,
             Language = episode.Language,
-            TwitterHandles = episode.TwitterHandles,
-            BlueskyHandles = episode.BlueskyHandles,
+            Guests = episode.Guests,
             DisplayTitle = await textSanitiser.SanitiseTitle(
                 episode.Title,
                 titleRegex,
                 podcast.KnownTerms ?? Array.Empty<string>(),
                 episodeSubjects),
             DisplayDescription = textSanitiser.SanitiseDescription(episode.Description, descriptionRegex)
+        };
+
+        if (episode.Guests is { Length: > 0 })
+        {
+            var guestPeople = await personService.GetByNames(episode.Guests);
+            discreteEpisode.GuestPeople = guestPeople.Select(x => x.ToDto()).ToList();
+        }
+
+        if (includeGuestSuggestions)
+        {
+            var selectedNames = episode.Guests?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+            var suggestions = await personService.MatchEpisode(episode);
+            discreteEpisode.GuestSuggestions = suggestions
+                .Where(x => !selectedNames.Contains(x.Person.Name))
+                .Select(ToPersonMatchDto)
+                .ToList();
+        }
+
+        return discreteEpisode;
+    }
+
+    private static PersonMatchDto ToPersonMatchDto(PersonMatch match)
+    {
+        return new PersonMatchDto
+        {
+            Person = new Dtos.Person
+            {
+                Id = match.Person.Id,
+                Name = match.Person.Name,
+                TwitterHandle = match.Person.TwitterHandle,
+                BlueskyHandle = match.Person.BlueskyHandle
+            },
+            MatchResults = match.MatchResults
+                .Select(x => new PersonMatchResultDto { Term = x.Term, Matches = x.Matches })
+                .ToArray()
         };
     }
 
@@ -895,17 +933,13 @@ public class EpisodeHandler(
             changeState.PublishHomepage = true;
         }
 
-        if (episodeChangeRequest.TwitterHandles != null)
+        if (episodeChangeRequest.Guests != null)
         {
-            episode.TwitterHandles = episodeChangeRequest.TwitterHandles.Length > 0
-                ? episodeChangeRequest.TwitterHandles
-                : null;
-        }
-
-        if (episodeChangeRequest.BlueskyHandles != null)
-        {
-            episode.BlueskyHandles = episodeChangeRequest.BlueskyHandles.Length > 0
-                ? episodeChangeRequest.BlueskyHandles
+            episode.Guests = episodeChangeRequest.Guests.Length > 0
+                ? episodeChangeRequest.Guests
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .ToArray()
                 : null;
         }
 

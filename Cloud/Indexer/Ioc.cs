@@ -1,4 +1,4 @@
-﻿using Azure;
+using Azure;
 using Azure.Diagnostics;
 using iTunesSearch.Library;
 using Microsoft.Azure.Cosmos;
@@ -22,6 +22,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Search.Extensions;
+using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Twitter.Extensions;
@@ -50,6 +51,7 @@ public static class Ioc
             .AddBlueskyServices()
             .AddSubjectServices()
             .AddCachedSubjectProvider()
+            .AddPeopleServices()
             .AddScoped<Container>(s => s.GetRequiredService<ICosmosDbContainerFactory>().CreateActivitiesContainer())
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()
             .AddContentPublishing()

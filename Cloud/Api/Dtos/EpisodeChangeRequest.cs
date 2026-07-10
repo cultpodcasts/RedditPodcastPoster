@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models;
 
 namespace Api.Dtos;
@@ -50,11 +50,8 @@ public class EpisodeChangeRequest
     [JsonPropertyName("lang")]
     public string? Language { get; set; }
 
-    [JsonPropertyName("twitterHandles")]
-    public string[]? TwitterHandles { get; set; }
-
-    [JsonPropertyName("blueskyHandles")]
-    public string[]? BlueskyHandles { get; set; }
+    [JsonPropertyName("guests")]
+    public string[]? Guests { get; set; }
 
     [JsonIgnore]
     public bool HasChange =>
@@ -73,6 +70,5 @@ public class EpisodeChangeRequest
         Subjects != null ||
         SearchTerms != null ||
         Language != null ||
-        TwitterHandles != null ||
-        BlueskyHandles != null;
+        Guests != null;
 }

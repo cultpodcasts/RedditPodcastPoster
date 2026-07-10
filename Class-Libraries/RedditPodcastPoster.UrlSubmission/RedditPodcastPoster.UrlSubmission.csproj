@@ -18,6 +18,7 @@
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Abstractions\RedditPodcastPoster.PodcastServices.Abstractions.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Apple\RedditPodcastPoster.PodcastServices.Apple.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Spotify\RedditPodcastPoster.PodcastServices.Spotify.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.People\RedditPodcastPoster.People.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.YouTube\RedditPodcastPoster.PodcastServices.YouTube.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj" />
   </ItemGroup>

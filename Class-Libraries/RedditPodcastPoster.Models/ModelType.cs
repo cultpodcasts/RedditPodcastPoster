@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace RedditPodcastPoster.Models;
 
@@ -44,6 +44,9 @@ public enum ModelType
     YouTubeIndexerKeyState = 13,
 
     [JsonPropertyName(nameof(YouTubeQuotaUsageState))]
-    YouTubeQuotaUsageState = 14
+    YouTubeQuotaUsageState = 14,
+
+    [JsonPropertyName(nameof(Person))]
+    Person = 15
 
 }

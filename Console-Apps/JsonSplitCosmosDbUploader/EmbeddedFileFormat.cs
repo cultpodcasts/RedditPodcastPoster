@@ -139,10 +139,4 @@ public class EmbeddedEpisode
 
     [JsonPropertyName("images")]
     public EpisodeImages? Images { get; set; }
-
-    [JsonPropertyName("twitterHandles")]
-    public string[]? TwitterHandles { get; set; }
-
-    [JsonPropertyName("blueskyHandles")]
-    public string[]? BlueskyHandles { get; set; }
 }

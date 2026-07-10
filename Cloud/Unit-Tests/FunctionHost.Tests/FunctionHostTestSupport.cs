@@ -24,6 +24,7 @@ internal static class FunctionHostTestSupport
             ["cosmosdb:PodcastsContainer"] = "Podcasts",
             ["cosmosdb:EpisodesContainer"] = "Episodes",
             ["cosmosdb:SubjectsContainer"] = "Subjects",
+            ["cosmosdb:PeopleContainer"] = "People",
             ["cosmosdb:ActivitiesContainer"] = "Activity",
             ["cosmosdb:DiscoveryContainer"] = "Discovery",
             ["cosmosdb:LookUpsContainer"] = "LookUps",
@@ -54,6 +55,7 @@ internal static class FunctionHostTestSupport
             ["content:HomepageKey"] = "homepage.json",
             ["content:PreProcessedHomepageKey"] = "preprocessed-homepage.json",
             ["content:SubjectsKey"] = "subjects.json",
+            ["content:PeopleKey"] = "people",
             ["content:FlairsKey"] = "flairs.json",
             ["content:LanguagesKey"] = "languages.json",
             ["content:DiscoveryInfoKey"] = "discovery-info.json",
@@ -142,6 +144,7 @@ internal static class FunctionHostTestSupport
         mockContainerFactory.Setup(x => x.CreatePodcastsContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateEpisodesContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateSubjectsContainer()).Returns(mockContainer.Object);
+        mockContainerFactory.Setup(x => x.CreatePeopleContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateActivitiesContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateDiscoveryContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateLookUpsContainer()).Returns(mockContainer.Object);

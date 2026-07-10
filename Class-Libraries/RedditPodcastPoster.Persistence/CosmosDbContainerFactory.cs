@@ -1,4 +1,4 @@
-﻿using Microsoft.Azure.Cosmos;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Persistence.Abstractions;
@@ -38,6 +38,11 @@ public class CosmosDbContainerFactory(
     public Container CreateSubjectsContainer()
     {
         return GetContainer(cosmosDbSettings.SubjectsContainer, "cosmosdb:SubjectsContainer");
+    }
+
+    public Container CreatePeopleContainer()
+    {
+        return GetContainer(cosmosDbSettings.PeopleContainer, "cosmosdb:PeopleContainer");
     }
 
     public Container CreateActivitiesContainer()
