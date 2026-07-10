@@ -437,7 +437,3 @@ plan-blocks.md
 .local/
 **/people-seed*.json
 !**/sample-people-seed.json
-
-# Local-only CLI tools (keep on disk; not part of PR)
-Console-Apps/EpisodeGuestsLinker/
-Console-Apps/PeopleSeedApplicator/

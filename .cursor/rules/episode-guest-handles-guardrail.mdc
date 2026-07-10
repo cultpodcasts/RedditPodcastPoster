@@ -5,14 +5,14 @@ alwaysApply: true
 
 # Episode guest handles — production guardrail
 
-**Incident (Jul 2026):** `PeopleMigrator` removed `twitterHandles` / `blueskyHandles` from the Episode model and upserted episodes while seeding People — stripping guest handle data from Cosmos.
+**Incident (Jul 2026):** A People seeder removed `twitterHandles` / `blueskyHandles` from the Episode model and upserted episodes while seeding People — stripping guest handle data from Cosmos. Those migration-aid tools have been deleted.
 
 **Status (Jul 2026):** First-class `Episode.TwitterHandles` / `Episode.BlueskyHandles` are **retired**. Social posting resolves handles from `Episode.Guests` → People. Subsequent full-document `Save()` upserts may drop orphan handle JSON from Cosmos — that is an accepted consequence of retirement (no bulk wipe required).
 
 ## Forbidden always
 
 - **Never write episodes** without explicit user approval in the current conversation.
-- **`PeopleMigrator` / People seeder must NOT write episodes** — no `IEpisodeRepository`, no episode patch/upsert/delete.
+- **People seeders / migrators must NOT write episodes** — no `IEpisodeRepository`, no episode patch/upsert/delete.
 - **Do not re-add** first-class `twitterHandles` / `blueskyHandles` on Episode, API DTOs, or change requests.
 
 ## Allowed (ONLY with explicit user approval)
@@ -22,7 +22,6 @@ Requires the user to **explicitly** request `--apply`, `--restore`, or another n
 | Action | Constraint |
 |--------|------------|
 | Patch **`guests` member on Episodes ONLY** | Surgical Cosmos patch — **no other episode fields** |
-| `EpisodeGuestsLinker --apply` | Obsolete for Cosmos (handles not on model); backup-JSON only if revived |
 
 **Default for all episode write tools: dry-run only.** No production Cosmos writes unless the user has explicitly approved.
 
@@ -31,7 +30,7 @@ Requires the user to **explicitly** request `--apply`, `--restore`, or another n
 Unless the user **explicitly** requests `--apply`, `--restore`, or another named write/restore operation in the current conversation:
 
 - **Do not** patch, upsert, save, or delete episode documents in Cosmos (production or backup replay).
-- **Do not** run `EpisodeGuestsLinker --apply`, People seeder `--apply`, or any migrator that writes episodes.
+- **Do not** run any People seeder `--apply` or migrator that writes episodes.
 - **Do not** suggest or execute production Cosmos writes as a default next step — dry-run and read-only analysis only.
 - **Stop** any in-progress episode or production-data writes immediately when this guardrail is invoked.
 
@@ -39,17 +38,16 @@ Unless the user **explicitly** requests `--apply`, `--restore`, or another named
 
 - Local code, model, DTO, and UI changes on branch.
 - Dry-run tools: read prod, report, preview — **no writes**.
-- People seeder dry-run only (`PeopleMigrator` / `PeopleFromGuestHandlesSeeder` without `--apply`).
+- People seeder dry-run only (without `--apply`).
 
 ### Forbidden unless user explicitly requests apply/restore
 
 | Action | Why forbidden |
 |--------|---------------|
-| `EpisodeGuestsLinker --apply` | Patches live episode documents |
 | Any `IEpisodeRepository.Save()` / episode upsert or patch | Writes live episode documents |
 | People seeder or migrator episode writes | People seeding must not touch episodes |
 
-## People seeding tools (`PeopleMigrator`, `PeopleFromGuestHandlesSeeder`, future seeders)
+## People seeding (if revived)
 
 1. **Input:** guest-handle-restore-cache.json, backup episode JSON folder, or read-only Cosmos SELECT.
 2. **Output:** People container only (`IPersonRepository.Save`).
