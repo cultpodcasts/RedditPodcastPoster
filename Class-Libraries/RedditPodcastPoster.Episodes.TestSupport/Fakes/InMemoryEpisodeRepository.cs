@@ -148,6 +148,19 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
         await Task.CompletedTask;
     }
 
+    public Task PatchGuests(Guid podcastId, Guid episodeId, string[] guests)
+    {
+        ArgumentNullException.ThrowIfNull(guests);
+        if (!_episodes.TryGetValue(episodeId, out var episode) || episode.PodcastId != podcastId)
+        {
+            throw new InvalidOperationException(
+                $"Episode {episodeId} not found for podcast {podcastId}.");
+        }
+
+        episode.Guests = guests.ToArray();
+        return Task.CompletedTask;
+    }
+
     public Episode GetStored(Guid episodeId) =>
         Clone(_episodes[episodeId]);
 

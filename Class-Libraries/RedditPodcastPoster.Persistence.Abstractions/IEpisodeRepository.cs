@@ -12,4 +12,9 @@ public interface IEpisodeRepository : IRepository<Episode>, IFilterableRepositor
     Task<Episode?> GetMostRecentByPodcastId(Guid podcastId);
     Task Save(IEnumerable<Episode> episodes);
     Task Delete(Guid podcastId, Guid episodeId);
+
+    /// <summary>
+    /// Surgical Cosmos patch of <c>/guests</c> only. Does not touch handle fields or other properties.
+    /// </summary>
+    Task PatchGuests(Guid podcastId, Guid episodeId, string[] guests);
 }

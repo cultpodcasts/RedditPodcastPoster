@@ -218,6 +218,26 @@ public class EpisodeRepository(
         }
     }
 
+    public async Task PatchGuests(Guid podcastId, Guid episodeId, string[] guests)
+    {
+        if (podcastId == Guid.Empty)
+        {
+            throw new InvalidOperationException("podcastId must be set before patching guests.");
+        }
+
+        if (episodeId == Guid.Empty)
+        {
+            throw new InvalidOperationException("episodeId must be set before patching guests.");
+        }
+
+        ArgumentNullException.ThrowIfNull(guests);
+
+        await container.PatchItemAsync<Episode>(
+            episodeId.ToString(),
+            ToPartitionKey(podcastId),
+            [PatchOperation.Set("/guests", guests)]);
+    }
+
     public async Task<Episode?> GetBy(Expression<Func<Episode, bool>> selector)
     {
         var query = container
