@@ -61,8 +61,11 @@ public class TweetBuilder(
 
         var tweetBuilder = new StringBuilder();
         var (twitterHandles, _) = await personGuestHandleResolver.Resolve(podcastEpisode.Episode);
-        var guestHandles = twitterHandles.Length > 0
-            ? " " + string.Join(" ", twitterHandles)
+        var guestHandlesToAppend = SocialHandleDeduplicator.Deduplicate(
+            twitterHandles,
+            alreadyTagged: [podcastEpisode.Podcast.TwitterHandle]);
+        var guestHandles = guestHandlesToAppend.Length > 0
+            ? " " + string.Join(" ", guestHandlesToAppend)
             : string.Empty;
         if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TwitterHandle))
         {

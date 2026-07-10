@@ -63,8 +63,11 @@ public class BlueskyEmbedCardPostFactory(
 
         var postBuilder = new StringBuilder();
         var (_, blueskyHandles) = await personGuestHandleResolver.Resolve(podcastEpisode.Episode);
-        var guestHandles = blueskyHandles.Length > 0
-            ? " " + string.Join(" ", blueskyHandles)
+        var guestHandlesToAppend = SocialHandleDeduplicator.Deduplicate(
+            blueskyHandles,
+            alreadyTagged: [podcastEpisode.Podcast.BlueskyHandle]);
+        var guestHandles = guestHandlesToAppend.Length > 0
+            ? " " + string.Join(" ", guestHandlesToAppend)
             : string.Empty;
         if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.BlueskyHandle))
         {

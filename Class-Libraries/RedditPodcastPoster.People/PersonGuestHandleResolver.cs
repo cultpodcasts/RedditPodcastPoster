@@ -11,8 +11,8 @@ public class PersonGuestHandleResolver(IPersonService personService) : IPersonGu
 {
     public async Task<(string[] TwitterHandles, string[] BlueskyHandles)> Resolve(Episode episode)
     {
-        var twitterHandles = NormalizeHandleArray(episode.TwitterHandles);
-        var blueskyHandles = NormalizeHandleArray(episode.BlueskyHandles);
+        var twitterHandles = SocialHandleDeduplicator.Deduplicate(episode.TwitterHandles ?? []);
+        var blueskyHandles = SocialHandleDeduplicator.Deduplicate(episode.BlueskyHandles ?? []);
         if (twitterHandles.Length > 0 || blueskyHandles.Length > 0)
         {
             return (twitterHandles, blueskyHandles);
@@ -24,22 +24,10 @@ public class PersonGuestHandleResolver(IPersonService personService) : IPersonGu
         }
 
         var people = await personService.GetByNames(episode.Guests);
-        twitterHandles = people
-            .Select(x => x.TwitterHandle)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => x!)
-            .ToArray();
-        blueskyHandles = people
-            .Select(x => x.BlueskyHandle)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => x!)
-            .ToArray();
+        twitterHandles = SocialHandleDeduplicator.Deduplicate(
+            people.Select(x => x.TwitterHandle));
+        blueskyHandles = SocialHandleDeduplicator.Deduplicate(
+            people.Select(x => x.BlueskyHandle));
         return (twitterHandles, blueskyHandles);
     }
-
-    private static string[] NormalizeHandleArray(string[]? handles) =>
-        handles?
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => x.Trim())
-            .ToArray() ?? [];
 }
