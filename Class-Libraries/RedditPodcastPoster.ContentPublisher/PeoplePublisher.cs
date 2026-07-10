@@ -25,15 +25,17 @@ public class PeoplePublisher(
     public async Task PublishPeople()
     {
         var people = await personRepository.GetAll()
+            .OrderBy(x => x.GetEffectiveSortKey())
+            .ThenBy(x => x.Name)
             .Select(x => new
             {
                 id = x.Id,
                 name = x.Name,
+                sortName = x.SortName,
                 aliases = x.Aliases,
                 twitterHandle = x.TwitterHandle,
                 blueskyHandle = x.BlueskyHandle
             })
-            .OrderBy(x => x.name)
             .ToListAsync();
 
         var request = new PutObjectRequest

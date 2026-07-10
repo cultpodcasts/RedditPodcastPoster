@@ -10,6 +10,9 @@ public class Person
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 
+    [JsonPropertyName("sortName")]
+    public string? SortName { get; set; }
+
     [JsonPropertyName("aliases")]
     public string[]? Aliases { get; set; }
 

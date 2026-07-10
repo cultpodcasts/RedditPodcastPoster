@@ -27,8 +27,9 @@ public class PersonHandler(
         try
         {
             var people = await personRepository.GetAll()
+                .OrderBy(x => x.GetEffectiveSortKey())
+                .ThenBy(x => x.Name)
                 .Select(x => x.ToDto())
-                .OrderBy(x => x.Name)
                 .ToListAsync(c);
             return await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(people, c);
         }
@@ -125,7 +126,8 @@ public class PersonHandler(
             person.Name,
             person.Aliases,
             person.TwitterHandle,
-            person.BlueskyHandle);
+            person.BlueskyHandle,
+            person.SortName);
 
         var nameConflict = await personRepository.GetByName(entity.Name);
         if (nameConflict != null)
@@ -152,6 +154,13 @@ public class PersonHandler(
         {
             entity.Name = change.Name.Trim();
             entity.EnsureNameKey();
+        }
+
+        if (change.SortName != null)
+        {
+            entity.SortName = string.IsNullOrWhiteSpace(change.SortName)
+                ? null
+                : change.SortName.Trim();
         }
 
         if (change.Aliases != null)

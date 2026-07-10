@@ -4,12 +4,22 @@ namespace RedditPodcastPoster.People.Factories;
 
 public interface IPersonFactory
 {
-    Person Create(string name, string[]? aliases = null, string? twitterHandle = null, string? blueskyHandle = null);
+    Person Create(
+        string name,
+        string[]? aliases = null,
+        string? twitterHandle = null,
+        string? blueskyHandle = null,
+        string? sortName = null);
 }
 
 public class PersonFactory : IPersonFactory
 {
-    public Person Create(string name, string[]? aliases = null, string? twitterHandle = null, string? blueskyHandle = null)
+    public Person Create(
+        string name,
+        string[]? aliases = null,
+        string? twitterHandle = null,
+        string? blueskyHandle = null,
+        string? sortName = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -18,10 +28,12 @@ public class PersonFactory : IPersonFactory
 
         var person = new Person(name.Trim())
         {
+            SortName = string.IsNullOrWhiteSpace(sortName) ? null : sortName.Trim(),
             Aliases = aliases?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToArray(),
             TwitterHandle = NormalizeHandle(twitterHandle),
             BlueskyHandle = NormalizeHandle(blueskyHandle)
         };
+        // nameKey is always derived from Name — never from sortName.
         person.EnsureNameKey();
         return person;
     }
