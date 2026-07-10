@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-07-10T00:00:00+00:00",
+  "sourceCache": null,
+  "sourceBackupPath": null,
+  "people": [
+    {
+      "name": "Ilhan Omar",
+      "aliases": ["Omar"],
+      "twitterHandle": "@Ilhan",
+      "blueskyHandle": null,
+      "sourceEpisodeIds": [],
+      "notes": "sample — last-token sort defaults to Omar"
+    },
+    {
+      "name": "CNN News",
+      "sortName": "CNN News",
+      "aliases": [],
+      "twitterHandle": null,
+      "blueskyHandle": null,
+      "sourceEpisodeIds": [],
+      "notes": "sample — org keyword → full-name sort"
+    },
+    {
+      "name": "Jean-Luc Picard",
+      "aliases": ["Picard"],
+      "twitterHandle": null,
+      "blueskyHandle": null,
+      "sourceEpisodeIds": [],
+      "notes": "sample — hyphenated last token kept whole"
+    }
+  ]
+}

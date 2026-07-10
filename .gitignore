@@ -432,3 +432,8 @@ secrets/youtube-keys.local.json
 plan-blocks.md
 **/.plan-url
 /json/
+
+# PeopleReviewer local runtime + large seed iterations (sample-people-seed.json is tracked)
+.local/
+**/people-seed*.json
+!**/sample-people-seed.json
