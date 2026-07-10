@@ -18,6 +18,7 @@ public static class ServiceCollectionExtensions
                     return new PersonRepository(containerFactory.CreatePeopleContainer(), logger);
                 })
                 .AddScoped<IPersonService, PersonService>()
+                .AddScoped<IEpisodeGuestEnricher, EpisodeGuestEnricher>()
                 .AddScoped<IPersonGuestHandleResolver, PersonGuestHandleResolver>()
                 .AddScoped<IPersonFactory, PersonFactory>();
         }

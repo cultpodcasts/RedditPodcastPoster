@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.People;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text;
@@ -14,6 +15,7 @@ public class PodcastProcessor(
     IEpisodeEnricher episodeEnricher,
     IEpisodeFactory episodeFactory,
     ISubjectEnricher subjectEnricher,
+    IEpisodeGuestEnricher guestEnricher,
     ILogger<PodcastProcessor> logger) : IPodcastProcessor
 {
     public async Task<SubmitResult> AddEpisodeToExistingPodcast(CategorisedItem categorisedItem)
@@ -60,6 +62,7 @@ public class PodcastProcessor(
                     categorisedItem.MatchingPodcast.IgnoredSubjects,
                     categorisedItem.MatchingPodcast.DefaultSubject,
                     categorisedItem.MatchingPodcast.DescriptionRegex));
+            await guestEnricher.EnrichGuests(episode);
 
             if (!episode.Subjects.Any())
             {
@@ -103,6 +106,15 @@ public class PodcastProcessor(
                         categorisedItem.MatchingPodcast.DefaultSubject,
                         categorisedItem.MatchingPodcast.DescriptionRegex));
                 if (episode.Subjects.Any())
+                {
+                    episodeResult = SubmitResultState.Enriched;
+                }
+            }
+
+            if (episode.Guests is not { Length: > 0 })
+            {
+                var guestsResult = await guestEnricher.EnrichGuests(episode);
+                if (guestsResult.Additions.Any())
                 {
                     episodeResult = SubmitResultState.Enriched;
                 }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Indexing.Models;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.People;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Subjects;
@@ -13,6 +14,7 @@ public class Indexer(
     IEpisodeRepository episodeRepository,
     IPodcastUpdater podcastUpdater,
     ISubjectEnricher subjectEnricher,
+    IEpisodeGuestEnricher guestEnricher,
     ILogger<Indexer> logger
 ) : IIndexer
 {
@@ -124,10 +126,13 @@ public class Indexer(
                         podcast.DefaultSubject,
                         podcast.DescriptionRegex));
 
+                var guestsResult = await guestEnricher.EnrichGuests(indexedEpisode.Episode);
+
                 var result = updatedEpisodes.FirstOrDefault(x => x.Episode.Id == indexedEpisode.Episode.Id);
                 result?.Subjects = subjectsResult.Additions;
 
-                if (subjectsResult.Additions.Any() || subjectsResult.Removals.Any())
+                if (subjectsResult.Additions.Any() || subjectsResult.Removals.Any() ||
+                    guestsResult.Additions.Any())
                 {
                     await episodeRepository.Save(indexedEpisode.Episode);
                 }
