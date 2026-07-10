@@ -165,9 +165,6 @@
 
     <Project Path="Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubeOnlyPodcasts.csproj" />
     <Project Path="Console-Apps/EpisodeDriftDetector/EpisodeDriftDetector.csproj" />
-
-    <Project Path="Console-Apps/EpisodeGuestHandleRestorer/EpisodeGuestHandleRestorer.csproj" />
-
     <Project Path="Console-Apps/FindDuplicateEpisodes/FindDuplicateEpisodes.csproj" />
 
     <Project Path="Console-Apps/FixDatesFromApple/FixDatesFromApple.csproj" />
@@ -186,9 +183,6 @@
 
     <Project Path="Console-Apps/LaunchSettingsToAppSettings/LaunchSettingsToAppSettings.csproj" />
     <Project Path="Console-Apps/MachineAuth0/MachineAuth0.csproj" />
-
-    <Project Path="Console-Apps/PeopleMigrator/PeopleMigrator.csproj" />
-
     <Project Path="Console-Apps/Poster/Poster.csproj" />
 
     <Project Path="Console-Apps/RemoveEpisodes/RemoveEpisodes.csproj" />
@@ -222,9 +216,6 @@
   </Folder>
 
   <Folder Name="/Console-Apps/Tests/">
-
-    <Project Path="Console-Apps/PeopleMigrator.Tests/PeopleMigrator.Tests.csproj" />
-
     <Project Path="Console-Apps/TextClassifierTraining.Tests/TextClassifierTraining.Tests.csproj" />
 
   </Folder>
