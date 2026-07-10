@@ -93,28 +93,6 @@ public class EpisodeGuestEnricherTests
     }
 
     [Fact]
-    public async Task EnrichGuests_NeverTouchesHandleFields()
-    {
-        var episode = CreateEpisode("Interview with Janja Lalich");
-        episode.TwitterHandles = ["@existing"];
-        episode.BlueskyHandles = ["existing.bsky.social"];
-
-        var match = new PersonMatch(
-            new PersonMatchPerson(Guid.NewGuid(), "Janja Lalich", "@janja", "janja.bsky.social"),
-            [new PersonMatchResult("Janja Lalich", 1)]);
-
-        _personService
-            .Setup(x => x.MatchEpisode(episode, false))
-            .ReturnsAsync([match]);
-
-        await CreateSut().EnrichGuests(episode);
-
-        episode.Guests.Should().Equal("Janja Lalich");
-        episode.TwitterHandles.Should().Equal("@existing");
-        episode.BlueskyHandles.Should().Equal("existing.bsky.social");
-    }
-
-    [Fact]
     public async Task EnrichGuests_MinMatchCount_SkipsBelowThreshold()
     {
         var episode = CreateEpisode("Interview with Janja Lalich");

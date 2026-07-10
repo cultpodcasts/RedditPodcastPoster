@@ -16,8 +16,7 @@ using RedditPodcastPoster.Subjects.Models;
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Indexing;
 
 /// <summary>
-/// After PodcastUpdater, Indexer enriches Guests on updated episodes and re-saves when guests are added,
-/// without stripping TwitterHandles / BlueskyHandles.
+/// After PodcastUpdater, Indexer enriches Guests on updated episodes and re-saves when guests are added.
 /// </summary>
 public class IndexingGuestEnrichmentRules
 {
@@ -25,8 +24,8 @@ public class IndexingGuestEnrichmentRules
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "When indexing adds an episode, guest enrichment unions guests and persists the episode including existing handles.")]
-    public async Task indexing_added_episode_enriches_guests_and_preserves_handles()
+        "When indexing adds an episode, guest enrichment unions guests and persists the episode.")]
+    public async Task indexing_added_episode_enriches_guests()
     {
         // Arrange
         var podcastRepository = new InMemoryPodcastRepository();
@@ -39,8 +38,6 @@ public class IndexingGuestEnrichmentRules
             .WithDuration(_fixture.CreateDuration()));
         added.Id = _fixture.CreateGuid();
         added.PodcastId = podcast.Id;
-        added.TwitterHandles = ["@keep-me"];
-        added.BlueskyHandles = ["keep.bsky.social"];
         added.Guests = null;
 
         var podcastUpdater = new Mock<IPodcastUpdater>();
@@ -89,8 +86,6 @@ public class IndexingGuestEnrichmentRules
         episodeRepository.SavedEpisodes.Should().ContainSingle();
         var saved = episodeRepository.SavedEpisodes.Single();
         saved.Guests.Should().Equal("Janja Lalich");
-        saved.TwitterHandles.Should().Equal("@keep-me");
-        saved.BlueskyHandles.Should().Equal("keep.bsky.social");
     }
 
     [Fact(DisplayName =
@@ -108,7 +103,6 @@ public class IndexingGuestEnrichmentRules
             .WithDuration(_fixture.CreateDuration()));
         added.Id = _fixture.CreateGuid();
         added.PodcastId = podcast.Id;
-        added.TwitterHandles = ["@keep"];
         added.Guests = ["Already Linked"];
 
         var podcastUpdater = new Mock<IPodcastUpdater>();
@@ -149,6 +143,5 @@ public class IndexingGuestEnrichmentRules
             Times.Once);
         episodeRepository.SavedEpisodes.Should().BeEmpty();
         added.Guests.Should().Equal("Already Linked");
-        added.TwitterHandles.Should().Equal("@keep");
     }
 }

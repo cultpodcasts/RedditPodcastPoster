@@ -15,22 +15,6 @@ public class PersonGuestHandleResolverTests
     }
 
     [Fact]
-    public async Task Resolve_EpisodeHandles_DeduplicatesCaseInsensitively()
-    {
-        var episode = new Episode
-        {
-            TwitterHandles = ["@Foo", "foo", "@Bar"],
-            BlueskyHandles = ["@a.bsky.social", "A.bsky.social", "@b.bsky.social"]
-        };
-
-        var (twitter, bluesky) = await _sut.Resolve(episode);
-
-        twitter.Should().Equal("@Foo", "@Bar");
-        bluesky.Should().Equal("@a.bsky.social", "@b.bsky.social");
-        _personService.Verify(x => x.GetByNames(It.IsAny<IEnumerable<string>>()), Times.Never);
-    }
-
-    [Fact]
     public async Task Resolve_FromGuests_DeduplicatesSharedAndSpaceDelimitedHandles()
     {
         var episode = new Episode { Guests = ["Alice", "Bob"] };
@@ -56,28 +40,33 @@ public class PersonGuestHandleResolverTests
     }
 
     [Fact]
-    public async Task Resolve_EpisodeHandlesPresent_DoesNotLookupGuests()
+    public async Task Resolve_WithGuests_LooksUpPeople()
     {
-        var episode = new Episode
-        {
-            Guests = ["Alice"],
-            TwitterHandles = ["@FromEpisode"],
-            BlueskyHandles = ["from.bsky.social"]
-        };
+        var episode = new Episode { Guests = ["Alice"] };
+        _personService
+            .Setup(x => x.GetByNames(It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync([
+                new Person("Alice")
+                {
+                    TwitterHandle = "@FromPerson",
+                    BlueskyHandle = "from.bsky.social"
+                }
+            ]);
 
         var (twitter, bluesky) = await _sut.Resolve(episode);
 
-        twitter.Should().Equal("@FromEpisode");
+        twitter.Should().Equal("@FromPerson");
         bluesky.Should().Equal("@from.bsky.social");
-        _personService.Verify(x => x.GetByNames(It.IsAny<IEnumerable<string>>()), Times.Never);
+        _personService.Verify(x => x.GetByNames(It.IsAny<IEnumerable<string>>()), Times.Once);
     }
 
     [Fact]
-    public async Task Resolve_NoHandlesOrGuests_ReturnsEmpty()
+    public async Task Resolve_NoGuests_ReturnsEmpty()
     {
         var (twitter, bluesky) = await _sut.Resolve(new Episode());
 
         twitter.Should().BeEmpty();
         bluesky.Should().BeEmpty();
+        _personService.Verify(x => x.GetByNames(It.IsAny<IEnumerable<string>>()), Times.Never);
     }
 }

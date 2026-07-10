@@ -16,7 +16,7 @@ namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
 /// <summary>
 /// Guest enrichment on URL/discovery submit: create path enriches; existing empty guests enrich;
-/// existing guests are preserved; handle fields are never stripped by guest enrichment.
+/// existing guests are preserved.
 /// </summary>
 public class UrlSubmissionGuestEnrichmentRules
 {
@@ -32,8 +32,6 @@ public class UrlSubmissionGuestEnrichmentRules
             .WithDuration(_fixture.CreateDuration()));
         created.PodcastId = podcast.Id;
         created.Subjects = ["Cults"];
-        created.TwitterHandles = ["@preexisting"];
-        created.BlueskyHandles = ["pre.bsky.social"];
 
         var guestEnricher = new Mock<IEpisodeGuestEnricher>();
         guestEnricher
@@ -57,8 +55,6 @@ public class UrlSubmissionGuestEnrichmentRules
         // Assert
         result.EpisodeResult.Should().Be(SubmitResultState.Created);
         result.Episode!.Guests.Should().Equal("Janja Lalich");
-        result.Episode.TwitterHandles.Should().Equal("@preexisting");
-        result.Episode.BlueskyHandles.Should().Equal("pre.bsky.social");
         guestEnricher.Verify(
             x => x.EnrichGuests(created, It.IsAny<GuestEnrichmentOptions?>()),
             Times.Once);
@@ -75,8 +71,6 @@ public class UrlSubmissionGuestEnrichmentRules
         existing.PodcastId = podcast.Id;
         existing.Subjects = ["Cults"];
         existing.Guests = null;
-        existing.TwitterHandles = ["@keep"];
-        existing.BlueskyHandles = ["keep.bsky.social"];
 
         var guestEnricher = new Mock<IEpisodeGuestEnricher>();
         guestEnricher
@@ -104,15 +98,13 @@ public class UrlSubmissionGuestEnrichmentRules
         // Assert
         result.EpisodeResult.Should().Be(SubmitResultState.Enriched);
         result.Episode!.Guests.Should().Equal("Steven Hassan");
-        result.Episode.TwitterHandles.Should().Equal("@keep");
-        result.Episode.BlueskyHandles.Should().Equal("keep.bsky.social");
         guestEnricher.Verify(
             x => x.EnrichGuests(existing, It.IsAny<GuestEnrichmentOptions?>()),
             Times.Once);
     }
 
     [Fact(DisplayName =
-        "When an existing episode already has Guests, URL submission does not re-run guest enrichment or clear handles.")]
+        "When an existing episode already has Guests, URL submission does not re-run guest enrichment.")]
     public async Task existing_episode_with_guests_skips_guest_enrichment()
     {
         // Arrange
@@ -122,8 +114,6 @@ public class UrlSubmissionGuestEnrichmentRules
         existing.PodcastId = podcast.Id;
         existing.Subjects = ["Cults"];
         existing.Guests = ["Existing Guest"];
-        existing.TwitterHandles = ["@keep"];
-        existing.BlueskyHandles = ["keep.bsky.social"];
 
         var guestEnricher = new Mock<IEpisodeGuestEnricher>();
         var processor = CreateProcessor(
@@ -143,8 +133,6 @@ public class UrlSubmissionGuestEnrichmentRules
         // Assert
         result.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
         result.Episode!.Guests.Should().Equal("Existing Guest");
-        result.Episode.TwitterHandles.Should().Equal("@keep");
-        result.Episode.BlueskyHandles.Should().Equal("keep.bsky.social");
         guestEnricher.Verify(
             x => x.EnrichGuests(It.IsAny<Episode>(), It.IsAny<GuestEnrichmentOptions?>()),
             Times.Never);
@@ -157,8 +145,6 @@ public class UrlSubmissionGuestEnrichmentRules
         // Arrange
         var created = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithDuration(_fixture.CreateDuration()));
-        created.TwitterHandles = ["@from-submit"];
-        created.BlueskyHandles = null;
 
         var episodeFactory = new Mock<IEpisodeFactory>();
         episodeFactory
@@ -219,7 +205,6 @@ public class UrlSubmissionGuestEnrichmentRules
 
         // Assert
         response.NewEpisode.Guests.Should().Equal("Janja Lalich");
-        response.NewEpisode.TwitterHandles.Should().Equal("@from-submit");
         guestEnricher.Verify(
             x => x.EnrichGuests(created, It.IsAny<GuestEnrichmentOptions?>()),
             Times.Once);

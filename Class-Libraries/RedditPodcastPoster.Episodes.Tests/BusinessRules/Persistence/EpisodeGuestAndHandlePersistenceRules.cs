@@ -8,7 +8,8 @@ using RedditPodcastPoster.PodcastServices;
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Persistence;
 
 /// <summary>
-/// Guests and legacy guest-handle fields must survive repository round-trips and merge.
+/// Guests must survive repository round-trips and merge.
+/// Episode twitterHandles / blueskyHandles are retired.
 /// </summary>
 public class EpisodeGuestAndHandlePersistenceRules
 {
@@ -16,8 +17,8 @@ public class EpisodeGuestAndHandlePersistenceRules
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
 
     [Fact(DisplayName =
-        "Saving an episode round-trips Guests, TwitterHandles, and BlueskyHandles without stripping any field.")]
-    public async Task save_round_trip_preserves_guests_and_handles()
+        "Saving an episode round-trips Guests without stripping the field.")]
+    public async Task save_round_trip_preserves_guests()
     {
         // Arrange
         var repository = new InMemoryEpisodeRepository();
@@ -27,8 +28,6 @@ public class EpisodeGuestAndHandlePersistenceRules
             .Customize(e =>
             {
                 e.Guests = ["Janja Lalich", "Steven Hassan"];
-                e.TwitterHandles = ["@existing", "@also"];
-                e.BlueskyHandles = ["existing.bsky.social"];
             })
             .Create();
 
@@ -38,13 +37,11 @@ public class EpisodeGuestAndHandlePersistenceRules
 
         // Assert
         stored.Guests.Should().Equal("Janja Lalich", "Steven Hassan");
-        stored.TwitterHandles.Should().Equal("@existing", "@also");
-        stored.BlueskyHandles.Should().Equal("existing.bsky.social");
     }
 
     [Fact(DisplayName =
-        "Merge fills missing platform links without clearing Guests or guest handle fields on the stored episode.")]
-    public void merge_preserves_guests_and_handles_on_stored_episode()
+        "Merge fills missing platform links without clearing Guests on the stored episode.")]
+    public void merge_preserves_guests_on_stored_episode()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
@@ -56,8 +53,6 @@ public class EpisodeGuestAndHandlePersistenceRules
             .Customize(e =>
             {
                 e.Guests = ["Janja Lalich"];
-                e.TwitterHandles = ["@janja"];
-                e.BlueskyHandles = ["janja.bsky.social"];
                 e.SpotifyId = string.Empty;
                 e.Urls.Spotify = null;
             })
@@ -74,8 +69,6 @@ public class EpisodeGuestAndHandlePersistenceRules
         // Assert
         result.MergedEpisodes.Should().ContainSingle();
         stored.Guests.Should().Equal("Janja Lalich");
-        stored.TwitterHandles.Should().Equal("@janja");
-        stored.BlueskyHandles.Should().Equal("janja.bsky.social");
         stored.SpotifyId.Should().Be(spotifyInput.SpotifyId);
         stored.Urls.Spotify.Should().Be(spotifyInput.SpotifyUrl);
     }

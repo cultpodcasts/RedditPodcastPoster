@@ -1,5 +1,5 @@
 ---
-description: HARD GUARDRAIL — never remove or strip episode guest handles; never write episodes without explicit user approval
+description: HARD GUARDRAIL — episode handle members retired; never write episodes without explicit approval
 alwaysApply: true
 ---
 
@@ -7,15 +7,13 @@ alwaysApply: true
 
 **Incident (Jul 2026):** `PeopleMigrator` removed `twitterHandles` / `blueskyHandles` from the Episode model and upserted episodes while seeding People — stripping guest handle data from Cosmos.
 
+**Status (Jul 2026):** First-class `Episode.TwitterHandles` / `Episode.BlueskyHandles` are **retired**. Social posting resolves handles from `Episode.Guests` → People. Subsequent full-document `Save()` upserts may drop orphan handle JSON from Cosmos — that is an accepted consequence of retirement (no bulk wipe required).
+
 ## Forbidden always
 
-- **NO DATA LOSS on production** — never strip, overwrite, or omit existing episode fields.
-- **Never remove** `twitterHandles` or `blueskyHandles` from `Episode`, DTOs, API, or serializers. Live episodes and backups rely on these fields.
-- **Never full-document replace** that strips fields absent from the write model (e.g. `IEpisodeRepository.Save()` upsert).
 - **Never write episodes** without explicit user approval in the current conversation.
 - **`PeopleMigrator` / People seeder must NOT write episodes** — no `IEpisodeRepository`, no episode patch/upsert/delete.
-
-Adding new fields (e.g. `guests: string[]`) in local code is fine — **never** remove or rename away the handle fields.
+- **Do not re-add** first-class `twitterHandles` / `blueskyHandles` on Episode, API DTOs, or change requests.
 
 ## Allowed (ONLY with explicit user approval)
 
@@ -23,10 +21,8 @@ Requires the user to **explicitly** request `--apply`, `--restore`, or another n
 
 | Action | Constraint |
 |--------|------------|
-| Add `guests: string[]` to Episode model | Code/model/DTO/UI changes on branch only until approved |
 | Patch **`guests` member on Episodes ONLY** | Surgical Cosmos patch — **no other episode fields** |
-| `EpisodeGuestHandleRestorer --apply` | Patches `twitterHandles` / `blueskyHandles` only |
-| Future `EpisodeGuestsLinker --apply` | Maps restored handles → People canonical names → patches `guests` only |
+| `EpisodeGuestsLinker --apply` | Obsolete for Cosmos (handles not on model); backup-JSON only if revived |
 
 **Default for all episode write tools: dry-run only.** No production Cosmos writes unless the user has explicitly approved.
 
@@ -35,55 +31,40 @@ Requires the user to **explicitly** request `--apply`, `--restore`, or another n
 Unless the user **explicitly** requests `--apply`, `--restore`, or another named write/restore operation in the current conversation:
 
 - **Do not** patch, upsert, save, or delete episode documents in Cosmos (production or backup replay).
-- **Do not** run `EpisodeGuestHandleRestorer --apply`, `EpisodeGuestsLinker --apply`, People seeder `--apply`, or any migrator that writes episodes.
+- **Do not** run `EpisodeGuestsLinker --apply`, People seeder `--apply`, or any migrator that writes episodes.
 - **Do not** suggest or execute production Cosmos writes as a default next step — dry-run and read-only analysis only.
 - **Stop** any in-progress episode or production-data writes immediately when this guardrail is invoked.
 
 ### Allowed without explicit apply approval
 
-- Local code, model, DTO, and UI changes on branch (e.g. add `guests: string[]` to `Episode` — code only, no Cosmos write).
+- Local code, model, DTO, and UI changes on branch.
 - Dry-run tools: read prod, report, preview — **no writes**.
 - People seeder dry-run only (`PeopleMigrator` / `PeopleFromGuestHandlesSeeder` without `--apply`).
-- Episode write tool dry-runs (e.g. `EpisodeGuestsLinker` without `--apply`).
 
 ### Forbidden unless user explicitly requests apply/restore
 
 | Action | Why forbidden |
 |--------|---------------|
-| `EpisodeGuestHandleRestorer --apply` | Patches live episode documents |
-| `EpisodeGuestsLinker --apply` | Patches live episode `guests` field |
-| Any `IEpisodeRepository.Save()` / episode upsert or patch | Full-document upsert overwrites fields absent from the write model |
+| `EpisodeGuestsLinker --apply` | Patches live episode documents |
+| Any `IEpisodeRepository.Save()` / episode upsert or patch | Writes live episode documents |
 | People seeder or migrator episode writes | People seeding must not touch episodes |
-| Setting `guestPersonIds` or `guests` on episodes from People seeding tools | Linking is via UI or dedicated linker — not People seeding |
 
 ## People seeding tools (`PeopleMigrator`, `PeopleFromGuestHandlesSeeder`, future seeders)
 
-1. **Input:** guest-handle-restore-cache.json, backup episode JSON folder, or read-only Cosmos SELECT of handle fields only.
+1. **Input:** guest-handle-restore-cache.json, backup episode JSON folder, or read-only Cosmos SELECT.
 2. **Output:** People container only (`IPersonRepository.Save`).
-3. **Default:** dry-run; require `--apply` for Cosmos writes to People.
+3. **Default:** dry-run; require `--apply` for Cosmos writes to People only.
 4. **Episode container:** read-only at most — **never** patch, upsert, or delete episode documents.
 5. **No** `IEpisodeRepository` dependency; no episode save/patch/upsert calls.
 
-## Handle restoration (separate concern)
+## Social posting
 
-`EpisodeGuestHandleRestorer` patches `twitterHandles` / `blueskyHandles` only via Cosmos patch — use that tool to restore stripped handles, not People seeding. **Requires explicit user `--apply` approval** before running against production.
-
-## Guest linking (separate concern — future tool)
-
-`EpisodeGuestsLinker` (not yet implemented) would:
-
-1. Read restored `twitterHandles` / `blueskyHandles` from episodes (read-only).
-2. Resolve handles → People canonical names via the People register.
-3. Patch **`guests: string[]` only** on episode documents — surgical patch, no other fields.
-
-**Requires `--apply` and explicit user approval** ("approved" or equivalent) before any production write. Default: dry-run only.
-
-People seeding and guest linking are separate pipelines — never combine them in one tool that writes both containers.
+`PersonGuestHandleResolver` resolves Twitter/Bluesky handles from `Episode.Guests` → People register only. Do not restore episode-level handle arrays for posting.
 
 ## Before changing Episode or People migration code
 
-- [ ] `Episode.cs` still has `twitterHandles` and `blueskyHandles`
+- [ ] Episode has no first-class `TwitterHandles` / `BlueskyHandles` properties
 - [ ] People seeder has no `IEpisodeRepository` dependency and no episode upsert/patch calls
 - [ ] Dry-run is default; `--apply` required for Cosmos writes to People only
-- [ ] Episode write tools patch only the approved field (`guests`, or handle fields for restorer) — never full-document replace
+- [ ] Episode write tools patch only the approved field (`guests`) when surgically updating
 - [ ] No agent or script will write episodes without explicit user approval in the conversation

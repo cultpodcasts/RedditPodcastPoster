@@ -3,10 +3,16 @@ using RedditPodcastPoster.Models;
 namespace RedditPodcastPoster.People;
 
 /// <summary>
-/// Links episode guest handles to Person canonical names.
+/// Links guest handles to Person canonical names.
 /// Expands space-delimited handles, normalizes '@', and matches case-insensitively.
-/// Never removes existing guests; never mutates handle fields.
+/// Never removes existing guests.
 /// </summary>
+/// <remarks>
+/// Episode-level <c>twitterHandles</c> / <c>blueskyHandles</c> are retired from the model.
+/// Pass handle arrays explicitly (e.g. from backup JSON). The EpisodeGuestsLinker console
+/// app can no longer discover handles via the Episode model. Subsequent Save() upserts may
+/// drop orphan handle JSON from Cosmos — accepted as part of retirement.
+/// </remarks>
 public static class EpisodeGuestHandleLinker
 {
     /// <summary>
@@ -45,15 +51,17 @@ public static class EpisodeGuestHandleLinker
     }
 
     /// <summary>
-    /// Resolves guests to add from episode twitter/bluesky handles against the person handle map.
+    /// Resolves guests to add from the given twitter/bluesky handles against the person handle map.
     /// Does not mutate <paramref name="episode"/>.
     /// </summary>
     public static EpisodeGuestLinkMatch Match(
         Episode episode,
+        IEnumerable<string>? twitterHandles,
+        IEnumerable<string>? blueskyHandles,
         IReadOnlyDictionary<string, string> handleToName)
     {
         var episodeHandles = SocialHandleDeduplicator.Deduplicate(
-            (episode.TwitterHandles ?? []).Concat(episode.BlueskyHandles ?? []));
+            (twitterHandles ?? []).Concat(blueskyHandles ?? []));
 
         if (episodeHandles.Length == 0)
         {

@@ -53,12 +53,6 @@ public class EpisodeChangeRequest
     [JsonPropertyName("guests")]
     public string[]? Guests { get; set; }
 
-    [JsonPropertyName("twitterHandles")]
-    public string[]? TwitterHandles { get; set; }
-
-    [JsonPropertyName("blueskyHandles")]
-    public string[]? BlueskyHandles { get; set; }
-
     [JsonIgnore]
     public bool HasChange =>
         Title != null ||
@@ -76,7 +70,5 @@ public class EpisodeChangeRequest
         Subjects != null ||
         SearchTerms != null ||
         Language != null ||
-        Guests != null ||
-        TwitterHandles != null ||
-        BlueskyHandles != null;
+        Guests != null;
 }

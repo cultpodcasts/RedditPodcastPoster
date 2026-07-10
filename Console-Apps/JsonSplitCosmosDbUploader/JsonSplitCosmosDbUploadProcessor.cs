@@ -92,9 +92,7 @@ public class JsonSplitCosmosDbUploadProcessor(
                     Language = episode.Language,
                     PodcastMetadataVersion = null,
                     PodcastRemoved = podcast.Removed,
-                    Images = episode.Images,
-                    TwitterHandles = episode.TwitterHandles,
-                    BlueskyHandles = episode.BlueskyHandles
+                    Images = episode.Images
                 }).ToArray();
 
                 if (episodes.Any())

@@ -570,8 +570,6 @@ public class EpisodeHandler(
                 episode.Images?.YouTube ?? episode.Images?.Spotify ?? episode.Images?.Apple ?? episode.Images?.Other,
             Language = episode.Language,
             Guests = episode.Guests,
-            TwitterHandles = episode.TwitterHandles,
-            BlueskyHandles = episode.BlueskyHandles,
             DisplayTitle = await textSanitiser.SanitiseTitle(
                 episode.Title,
                 titleRegex,
@@ -942,20 +940,6 @@ public class EpisodeHandler(
                     .Where(x => !string.IsNullOrWhiteSpace(x))
                     .Select(x => x.Trim())
                     .ToArray()
-                : null;
-        }
-
-        if (episodeChangeRequest.TwitterHandles != null)
-        {
-            episode.TwitterHandles = episodeChangeRequest.TwitterHandles.Length > 0
-                ? episodeChangeRequest.TwitterHandles
-                : null;
-        }
-
-        if (episodeChangeRequest.BlueskyHandles != null)
-        {
-            episode.BlueskyHandles = episodeChangeRequest.BlueskyHandles.Length > 0
-                ? episodeChangeRequest.BlueskyHandles
                 : null;
         }
 

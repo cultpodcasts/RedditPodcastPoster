@@ -7,8 +7,7 @@ public interface IEpisodeGuestEnricher
 {
     /// <summary>
     /// Union high-confidence matches into <see cref="Episode.Guests"/>.
-    /// Never removes guests; never touches <see cref="Episode.TwitterHandles"/> /
-    /// <see cref="Episode.BlueskyHandles"/>.
+    /// Never removes guests.
     /// </summary>
     Task<EnrichGuestsResult> EnrichGuests(
         Episode episode,

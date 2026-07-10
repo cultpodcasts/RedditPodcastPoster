@@ -51,22 +51,19 @@ public class EpisodeGuestHandleLinkerTests
             new Person("Steven Hassan") { BlueskyHandle = "steven.bsky.social" }
         ]);
 
-        var episode = new Episode
-        {
-            Guests = ["Existing Guest"],
-            TwitterHandles = ["janja", "@other"],
-            BlueskyHandles = ["steven.bsky.social"]
-        };
+        var episode = new Episode { Guests = ["Existing Guest"] };
 
-        var result = EpisodeGuestHandleLinker.Match(episode, map);
+        var result = EpisodeGuestHandleLinker.Match(
+            episode,
+            ["janja", "@other"],
+            ["steven.bsky.social"],
+            map);
 
         result.HasAdditions.Should().BeTrue();
         result.GuestsToAdd.Should().Equal("Janja Lalich", "Steven Hassan");
         result.MatchedHandles.Should().BeEquivalentTo(["@janja", "@steven.bsky.social"]);
         result.ResultingGuests.Should().Equal("Existing Guest", "Janja Lalich", "Steven Hassan");
         episode.Guests.Should().Equal("Existing Guest");
-        episode.TwitterHandles.Should().Equal("janja", "@other");
-        episode.BlueskyHandles.Should().Equal("steven.bsky.social");
     }
 
     [Fact]
@@ -77,13 +74,9 @@ public class EpisodeGuestHandleLinkerTests
             new Person("Janja Lalich") { TwitterHandle = "@janja" }
         ]);
 
-        var episode = new Episode
-        {
-            Guests = ["janja lalich"],
-            TwitterHandles = ["@Janja"]
-        };
+        var episode = new Episode { Guests = ["janja lalich"] };
 
-        var result = EpisodeGuestHandleLinker.Match(episode, map);
+        var result = EpisodeGuestHandleLinker.Match(episode, ["@Janja"], null, map);
 
         result.HasAdditions.Should().BeFalse();
         result.GuestsToAdd.Should().BeEmpty();
@@ -100,12 +93,13 @@ public class EpisodeGuestHandleLinkerTests
             new Person("Xenu TV") { TwitterHandle = "@XENUTV" }
         ]);
 
-        var episode = new Episode
-        {
-            TwitterHandles = ["@MarkBunker4U @XENUTV"]
-        };
+        var episode = new Episode();
 
-        var result = EpisodeGuestHandleLinker.Match(episode, map);
+        var result = EpisodeGuestHandleLinker.Match(
+            episode,
+            ["@MarkBunker4U @XENUTV"],
+            null,
+            map);
 
         result.GuestsToAdd.Should().Equal("Mark Bunker", "Xenu TV");
         result.MatchedHandles.Should().Equal("@MarkBunker4U", "@XENUTV");
@@ -119,7 +113,11 @@ public class EpisodeGuestHandleLinkerTests
             new Person("Alice") { TwitterHandle = "@alice" }
         ]);
 
-        var result = EpisodeGuestHandleLinker.Match(new Episode { Guests = ["Keep"] }, map);
+        var result = EpisodeGuestHandleLinker.Match(
+            new Episode { Guests = ["Keep"] },
+            null,
+            null,
+            map);
 
         result.Should().Be(EpisodeGuestLinkMatch.Empty);
     }
@@ -132,8 +130,8 @@ public class EpisodeGuestHandleLinkerTests
             new Person("Alice") { TwitterHandle = "@alice" }
         ]);
 
-        var episode = new Episode { TwitterHandles = ["@unknown"] };
-        var result = EpisodeGuestHandleLinker.Match(episode, map);
+        var episode = new Episode();
+        var result = EpisodeGuestHandleLinker.Match(episode, ["@unknown"], null, map);
 
         result.HasAdditions.Should().BeFalse();
         result.GuestsToAdd.Should().BeEmpty();
