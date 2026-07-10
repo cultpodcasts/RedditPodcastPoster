@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <AzureFunctionsVersion>v4</AzureFunctionsVersion>
@@ -33,6 +33,7 @@
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices.YouTube\RedditPodcastPoster.PodcastServices.YouTube.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices\RedditPodcastPoster.PodcastServices.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PushSubscriptions\RedditPodcastPoster.PushSubscriptions.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.People\RedditPodcastPoster.People.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Twitter\RedditPodcastPoster.Twitter.csproj" />

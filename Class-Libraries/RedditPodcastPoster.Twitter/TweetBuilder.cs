@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Factories;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
+using RedditPodcastPoster.People;
 using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Text;
 
@@ -15,6 +16,7 @@ public class TweetBuilder(
     IHashTagEnricher hashTagEnricher,
     IHashTagProvider hashTagProvider,
     IPostModelFactory postModelFactory,
+    IPersonGuestHandleResolver personGuestHandleResolver,
     IOptions<TwitterOptions> twitterOptions,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<TweetBuilder> logger)
@@ -58,8 +60,9 @@ public class TweetBuilder(
         var podcastName = textSanitiser.SanitisePodcastName(postModel);
 
         var tweetBuilder = new StringBuilder();
-        var guestHandles = podcastEpisode.Episode.TwitterHandles is { Length: > 0 }
-            ? " " + string.Join(" ", podcastEpisode.Episode.TwitterHandles)
+        var (twitterHandles, _) = await personGuestHandleResolver.Resolve(podcastEpisode.Episode);
+        var guestHandles = twitterHandles.Length > 0
+            ? " " + string.Join(" ", twitterHandles)
             : string.Empty;
         if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TwitterHandle))
         {

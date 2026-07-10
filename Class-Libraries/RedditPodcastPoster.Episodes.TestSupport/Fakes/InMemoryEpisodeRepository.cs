@@ -194,8 +194,7 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
             Language = episode.Language,
             PodcastMetadataVersion = episode.PodcastMetadataVersion,
             PodcastRemoved = episode.PodcastRemoved,
-            TwitterHandles = episode.TwitterHandles?.ToArray(),
-            BlueskyHandles = episode.BlueskyHandles?.ToArray(),
+            Guests = episode.Guests?.ToArray(),
             Timestamp = episode.Timestamp
         };
 }

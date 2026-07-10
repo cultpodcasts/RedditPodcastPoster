@@ -7,6 +7,7 @@ using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common.Factories;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
+using RedditPodcastPoster.People;
 using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Text;
 
@@ -17,6 +18,7 @@ public class BlueskyEmbedCardPostFactory(
     IHashTagEnricher hashTagEnricher,
     IHashTagProvider hashTagProvider,
     IPostModelFactory postModelFactory,
+    IPersonGuestHandleResolver personGuestHandleResolver,
     IOptions<BlueskyOptions> blueskyOptions,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<IBlueskyEmbedCardPostFactory> logger
@@ -60,8 +62,9 @@ public class BlueskyEmbedCardPostFactory(
         var podcastName = textSanitiser.SanitisePodcastName(postModel);
 
         var postBuilder = new StringBuilder();
-        var guestHandles = podcastEpisode.Episode.BlueskyHandles is { Length: > 0 }
-            ? " " + string.Join(" ", podcastEpisode.Episode.BlueskyHandles)
+        var (_, blueskyHandles) = await personGuestHandleResolver.Resolve(podcastEpisode.Episode);
+        var guestHandles = blueskyHandles.Length > 0
+            ? " " + string.Join(" ", blueskyHandles)
             : string.Empty;
         if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.BlueskyHandle))
         {

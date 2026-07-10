@@ -199,6 +199,7 @@ var content= {
     content__LanguagesKey: 'languages'
     content__PreProcessedHomepageKey: 'homepage-ssr'
     content__SubjectsKey: 'subjects'
+    content__PeopleKey: 'people'
 }
 
 var cosmosdb= {
@@ -208,6 +209,7 @@ var cosmosdb= {
     cosmosdb__PodcastsContainer: 'Podcasts'
     cosmosdb__EpisodesContainer: 'Episodes'
     cosmosdb__SubjectsContainer: 'Subjects'
+    cosmosdb__PeopleContainer: 'People'
     cosmosdb__ActivitiesContainer: 'Activity'
     cosmosdb__DiscoveryContainer: 'Discovery'
     cosmosdb__LookUpsContainer: 'LookUps'

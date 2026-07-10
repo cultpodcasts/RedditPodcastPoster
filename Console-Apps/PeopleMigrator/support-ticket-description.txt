@@ -1,0 +1,36 @@
+REQUEST: Periodic backup restore of Episodes container to a NEW account (do NOT overwrite production).
+
+SOURCE ACCOUNT
+- Account name: cultpodcasts-db
+- Resource group: AutomatedData
+- Subscription: a6b8f1a2-6163-41bc-aa6d-e33928939a6e
+- Location: UK South
+- Backup mode: Periodic (NOT continuous PITR)
+- Database: cultpodcasts-db
+- Container: Episodes
+
+RESTORE TARGET
+- Preferred restore timestamp (UTC): 2026-07-08T21:06:33Z
+- Fallback if unavailable: 2026-07-08T17:06:33Z
+- Target new account name: cultpodcasts-db-restored1
+- Scope: Episodes container only (preferred) or full database if container-only restore is not supported for periodic mode
+- IMPORTANT: Restore to a NEW account only. Do NOT merge into or overwrite the live cultpodcasts-db account.
+
+INCIDENT SUMMARY
+- Approximate corruption start: 2026-07-08T21:26:00Z (UTC)
+- Cause: Accidental bulk upsert via internal PeopleMigrator tool stripped legacy guest handle fields (twitterHandles, blueskyHandles) from approximately 557 episode documents while setting guestPersonIds
+- Production guest metadata curated over years was lost from episode documents
+- People container was also affected separately; this ticket is specifically for Episodes container restore
+
+VERIFICATION EPISODE (must have guest handles after restore)
+- Episode id: c9b116c6-e251-45f3-acfb-8a567428d047
+- Expected: twitterHandles includes @karenmitchell__ (MindMatters episode "Predators in High Places with Dr. Karen Mitchell")
+- Tweet posted ~2 hours before discovery confirms handle existed pre-incident
+
+REQUESTED ACTIONS
+1. Restore Episodes container from periodic backup snapshot nearest to but BEFORE 2026-07-08T21:26:00Z
+2. Create new account cultpodcasts-db-restored1 in UK South
+3. Confirm restore timestamp used and provide restored account endpoint/keys
+4. We will manually verify and copy Episodes data back to production after validation
+
+URGENCY: Production data loss affecting ~557 episodes. Request restore within periodic backup retention window.

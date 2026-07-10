@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 
@@ -11,6 +11,7 @@ public static class ServiceCollectionExtensions
         return services
             .AddScoped<IHomepagePublisher, HomepagePublisher>()
             .AddScoped<ISubjectsPublisher, SubjectsPublisher>()
+            .AddScoped<IPeoplePublisher, PeoplePublisher>()
             .AddScoped<IDiscoveryPublisher, DiscoveryPublisher>()
             .AddScoped<IDiscoveryInfoContentPublisher, DiscoveryInfoContentPublisher>()
             .AddScoped<ILanguagesPublisher, LanguagesPublisher>()

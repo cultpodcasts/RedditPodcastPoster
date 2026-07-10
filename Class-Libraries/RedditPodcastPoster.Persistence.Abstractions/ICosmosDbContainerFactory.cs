@@ -1,4 +1,4 @@
-﻿using Microsoft.Azure.Cosmos;
+using Microsoft.Azure.Cosmos;
 
 namespace RedditPodcastPoster.Persistence.Abstractions;
 
@@ -7,6 +7,7 @@ public interface ICosmosDbContainerFactory
     Container CreatePodcastsContainer();
     Container CreateEpisodesContainer();
     Container CreateSubjectsContainer();
+    Container CreatePeopleContainer();
     Container CreateActivitiesContainer();
     Container CreateDiscoveryContainer();
     Container CreateLookUpsContainer();

@@ -30,6 +30,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Reddit;
 using RedditPodcastPoster.Reddit.Extensions;
+using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Twitter.Extensions;
@@ -57,6 +58,7 @@ public static class Ioc
             .AddScoped(s => new iTunesSearchManager())
             .AddSubjectServices()
             .AddSubjectProvider()
+            .AddPeopleServices()
             .AddUrlSubmission()
             .AddDiscoveryRepository()
             .AddSingleton<IDiscoveryResultDeduplicator, DiscoveryResultDeduplicator>()
@@ -85,6 +87,7 @@ public static class Ioc
             .AddScoped<ISearchIndexHandler, SearchIndexHandler>()
             .AddScoped<ISubmitUrlHandler, SubmitUrlHandler>()
             .AddScoped<ISubjectHandler, SubjectHandler>()
+            .AddScoped<IPersonHandler, PersonHandler>()
             .AddScoped<ITermsHandler, TermsHandler>()
             .AddScoped<IDiscoveryCurationHandler, DiscoveryCurationHandler>()
             .AddScoped<IPodcastEpisodeResolver, PodcastEpisodeResolver>()

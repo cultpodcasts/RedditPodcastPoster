@@ -104,12 +104,16 @@ public class Episode
     [JsonPropertyOrder(150)]
     public EpisodeImages? Images { get; set; }
 
-    [JsonPropertyName("twitterHandles")]
+    [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]
+    public string[]? Guests { get; set; }
+
+    [JsonPropertyName("twitterHandles")]
+    [JsonPropertyOrder(161)]
     public string[]? TwitterHandles { get; set; }
 
     [JsonPropertyName("blueskyHandles")]
-    [JsonPropertyOrder(161)]
+    [JsonPropertyOrder(162)]
     public string[]? BlueskyHandles { get; set; }
 
     [JsonPropertyName("_ts")]

@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models;
 
 namespace Api.Dtos;
@@ -42,4 +42,12 @@ public class DiscreteEpisode : Episode
     [JsonPropertyName("displayDescription")]
     [JsonPropertyOrder(41)]
     public string DisplayDescription { get; set; } = "";
+
+    [JsonPropertyName("guestPeople")]
+    [JsonPropertyOrder(270)]
+    public IList<Person>? GuestPeople { get; set; }
+
+    [JsonPropertyName("guestSuggestions")]
+    [JsonPropertyOrder(271)]
+    public IList<PersonMatchDto>? GuestSuggestions { get; set; }
 }

@@ -8,6 +8,7 @@ public class CosmosDbSettings
     public required string PodcastsContainer { get; set; }
     public required string EpisodesContainer { get; set; }
     public required string SubjectsContainer { get; set; }
+    public required string PeopleContainer { get; set; }
     public required string ActivitiesContainer { get; set; }
     public required string DiscoveryContainer { get; set; }
     public required string LookUpsContainer { get; set; }
