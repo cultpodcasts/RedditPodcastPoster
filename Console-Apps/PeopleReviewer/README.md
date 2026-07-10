@@ -34,7 +34,8 @@ Guessing rules mirror the website (`person-sort.ts`):
 - Org/show keywords (podcast, news, CNN, …) or long/ALL-CAPS names → **full name**
 - Otherwise → **last whitespace token** (hyphenated tokens kept whole)
 - Manual sort edits are **not** overwritten when the name changes
-- On save, redundant last-token guesses are stored as `null`/`omitted`; org full-name and manual overrides are kept
+- On save, **always persist** the effective sort key (org full name, manual override, or last-token default) so Cosmos Person docs show `sortName`
+- `PeopleSeedApplicator` materializes the same effective key when applying a seed that omitted last-token defaults
 
 ## Seed file
 

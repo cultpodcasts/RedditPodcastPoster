@@ -50,11 +50,13 @@ function getEffectiveSortKey(person) {
   return deriveSortKeyFromName(person.name);
 }
 
-/** Persist null when sort equals last-token default (unless org/full-name). */
+/**
+ * Always persist the effective sort key so Cosmos Person docs show sortName.
+ * Prefer the editor value; otherwise guess (org full name / last token).
+ */
 function sortNameForPersist(name, sortName, useFullName) {
   const trimmed = sortName?.trim() ?? '';
-  if (!trimmed) return null;
-  if (useFullName) return trimmed;
-  if (trimmed === deriveSortKeyFromName(name)) return null;
-  return trimmed;
+  if (trimmed) return trimmed;
+  if (useFullName) return name?.trim() || null;
+  return guessSortName(name) || null;
 }

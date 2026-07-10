@@ -81,4 +81,40 @@ public class PersonSortNameTests
         person.GetEffectiveSortKey().Should().Be("Omar");
         person.NameKey.Should().Be("ilhan omar");
     }
+
+    [Theory]
+    [InlineData("CNN News Central", true)]
+    [InlineData("Church of Scientology", true)]
+    [InlineData("University of Michigan", true)]
+    [InlineData("Ilhan Omar", false)]
+    [InlineData("Daniella Mestyanek Young", false)]
+    public void LooksLikeOrganization_DetectsOrgKeywords(string name, bool expected)
+    {
+        PersonSortNameResolver.LooksLikeOrganization(name).Should().Be(expected);
+    }
+
+    [Fact]
+    public void ResolveForPersist_OmitsLastTokenDefault()
+    {
+        PersonSortNameResolver.ResolveForPersist("Ilhan Omar", null).Should().BeNull();
+        PersonSortNameResolver.ResolveForPersist("Ilhan Omar", "Omar").Should().BeNull();
+        PersonSortNameResolver.ResolveForPersist("Ilhan Omar", "  Omar  ").Should().BeNull();
+        PersonSortNameResolver.ResolveForPersist("Alan Sherry", null).Should().BeNull();
+    }
+
+    [Fact]
+    public void ResolveForPersist_KeepsOrgFullName_EvenWhenSeedOmitted()
+    {
+        PersonSortNameResolver.ResolveForPersist("CNN News Central", null)
+            .Should().Be("CNN News Central");
+        PersonSortNameResolver.ResolveForPersist("CNN News Central", "CNN News Central")
+            .Should().Be("CNN News Central");
+    }
+
+    [Fact]
+    public void ResolveForPersist_KeepsManualOverride()
+    {
+        PersonSortNameResolver.ResolveForPersist("Daniella Mestyanek Young", "Mestyanek Young")
+            .Should().Be("Mestyanek Young");
+    }
 }

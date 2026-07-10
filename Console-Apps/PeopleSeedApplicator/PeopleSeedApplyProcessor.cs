@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.People;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.People.Factories;
 
@@ -82,9 +83,12 @@ public class PeopleSeedApplyProcessor(
         var updated = 0;
         var skipped = 0;
         var failures = 0;
+        var sortNameInferred = 0;
+        var sortNameBackfilled = 0;
         var sampleCreate = new List<string>();
         var sampleUpdate = new List<string>();
         var sampleSkip = new List<string>();
+        var sampleSortBackfill = new List<string>();
 
         foreach (var entry in seedEntries)
         {
@@ -92,7 +96,26 @@ public class PeopleSeedApplyProcessor(
             var desiredAliases = NormalizeAliases(entry.Aliases);
             var desiredTwitter = PersonFactory.NormalizeHandle(entry.TwitterHandle);
             var desiredBluesky = PersonFactory.NormalizeHandle(entry.BlueskyHandle);
-            var desiredSortName = string.IsNullOrWhiteSpace(entry.SortName) ? null : entry.SortName.Trim();
+            // Always materialize effective sortName for Cosmos visibility.
+            // Seed often omits last-token defaults (reviewer historically nulls those out).
+            // Prefer explicit seed sortName; otherwise GuessSortName (org full name / last token).
+            // Do not use ResolveForPersist here — that helper may omit last-token defaults.
+            var desiredSortName = !string.IsNullOrWhiteSpace(entry.SortName)
+                ? entry.SortName.Trim()
+                : PersonSortNameResolver.GuessSortName(entry.Name);
+            if (string.IsNullOrWhiteSpace(desiredSortName))
+            {
+                desiredSortName = null;
+            }
+
+            if (desiredSortName is not null && string.IsNullOrWhiteSpace(entry.SortName))
+            {
+                sortNameInferred++;
+                if (sampleSortBackfill.Count < 10)
+                {
+                    sampleSortBackfill.Add($"{entry.Name.Trim()} → {desiredSortName}");
+                }
+            }
 
             if (!existingByNameKey.TryGetValue(nameKey, out var existing))
             {
@@ -141,6 +164,11 @@ public class PeopleSeedApplyProcessor(
             }
 
             toUpdate++;
+            if (desiredSortName is not null && string.IsNullOrWhiteSpace(existing.SortName))
+            {
+                sortNameBackfilled++;
+            }
+
             if (sampleUpdate.Count < 5)
             {
                 sampleUpdate.Add(existing.Name);
@@ -177,6 +205,8 @@ public class PeopleSeedApplyProcessor(
         Console.WriteLine($"Would create:    {toCreate}");
         Console.WriteLine($"Would update:    {toUpdate}");
         Console.WriteLine($"Would skip:      {toSkip} (identical)");
+        Console.WriteLine($"Sort inferred:   {sortNameInferred} (seed omitted; org/full-name resolved)");
+        Console.WriteLine($"Sort backfill:   {sortNameBackfilled} (Cosmos missing sortName → will set)");
         if (sampleCreate.Count > 0)
         {
             Console.WriteLine($"Sample create:   {string.Join(", ", sampleCreate)}");
@@ -192,18 +222,24 @@ public class PeopleSeedApplyProcessor(
             Console.WriteLine($"Sample skip:     {string.Join(", ", sampleSkip)}");
         }
 
+        if (sampleSortBackfill.Count > 0)
+        {
+            Console.WriteLine($"Sample sort:     {string.Join("; ", sampleSortBackfill)}");
+        }
+
         if (request.Apply)
         {
             Console.WriteLine($"Created:         {created}");
             Console.WriteLine($"Updated:         {updated}");
             Console.WriteLine($"Skipped:         {skipped}");
             Console.WriteLine($"Failures:        {failures}");
+            Console.WriteLine($"Sort backfilled: {sortNameBackfilled}");
 
             var cosmosCount = await personRepository.Count();
             Console.WriteLine($"Cosmos count:    {cosmosCount}");
             logger.LogInformation(
-                "Apply complete. Created={Created}, Updated={Updated}, Skipped={Skipped}, Failures={Failures}, CosmosCount={CosmosCount}",
-                created, updated, skipped, failures, cosmosCount);
+                "Apply complete. Created={Created}, Updated={Updated}, Skipped={Skipped}, Failures={Failures}, SortBackfilled={SortBackfilled}, CosmosCount={CosmosCount}",
+                created, updated, skipped, failures, sortNameBackfilled, cosmosCount);
         }
         else
         {

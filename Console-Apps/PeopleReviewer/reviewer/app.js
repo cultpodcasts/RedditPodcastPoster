@@ -293,8 +293,20 @@ async function loadSeed() {
   applyFilters();
 }
 
+/** Ensure every person persists org full-name sortName (not only the open editor row). */
+function normalizeAllSortNames() {
+  for (const person of state.document.people) {
+    const name = person.name?.trim() ?? '';
+    const stored = person.sortName?.trim() ?? '';
+    const display = stored || guessSortName(name);
+    const useFull = !!display && display === name;
+    person.sortName = sortNameForPersist(name, display, useFull);
+  }
+}
+
 async function saveSeed() {
   readEditorIntoPerson();
+  normalizeAllSortNames();
   setStatus('Saving…');
   const response = await fetch('/api/seed', {
     method: 'PUT',
