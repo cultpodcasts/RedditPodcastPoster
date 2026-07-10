@@ -179,7 +179,7 @@
 
     <Project Path="Console-Apps/KVWriter/KVWriter.csproj" />
 
-    <Project Path="Console-Apps/LanguagesPublisher/LanguagesPublisher.csproj" />
+    <Project Path="Console-Apps/R2Publisher/R2Publisher.csproj" />
 
     <Project Path="Console-Apps/LaunchSettingsToAppSettings/LaunchSettingsToAppSettings.csproj" />
     <Project Path="Console-Apps/MachineAuth0/MachineAuth0.csproj" />

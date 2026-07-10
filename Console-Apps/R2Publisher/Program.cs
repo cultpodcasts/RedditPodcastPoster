@@ -91,11 +91,11 @@ static bool IsHelpArg(string arg) =>
 static void PrintUsage()
 {
     Console.WriteLine("""
-        LanguagesPublisher — publish static content JSON to Cloudflare R2.
+        R2Publisher — publish static content JSON to Cloudflare R2 (languages and people).
 
         Usage:
-          LanguagesPublisher [languages|people|all]
-          LanguagesPublisher [--languages|-l|--people|-p|--all|-a]
+          R2Publisher [languages|people|all]
+          R2Publisher [--languages|-l|--people|-p|--all|-a]
 
         Targets:
           languages (default)  Publish languages list to R2
@@ -103,10 +103,10 @@ static void PrintUsage()
           all                  Publish languages, then people
 
         Examples:
-          LanguagesPublisher
-          LanguagesPublisher people
-          LanguagesPublisher --people
-          LanguagesPublisher all
+          R2Publisher
+          R2Publisher people
+          R2Publisher --people
+          R2Publisher all
         """);
 }
 
