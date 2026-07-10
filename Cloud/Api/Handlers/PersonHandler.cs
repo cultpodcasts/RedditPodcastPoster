@@ -45,7 +45,7 @@ public class PersonHandler(
     {
         try
         {
-            var person = await personRepository.GetBy(x => x.Name == personName);
+            var person = await personRepository.GetByName(personName);
             if (person == null)
             {
                 return req.CreateResponse(HttpStatusCode.NotFound);
@@ -76,7 +76,30 @@ public class PersonHandler(
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            UpdatePerson(person, personChangeRequestWrapper.Person);
+            var change = personChangeRequestWrapper.Person;
+            if (change.Name != null)
+            {
+                if (string.IsNullOrWhiteSpace(change.Name))
+                {
+                    return await req.CreateResponse(HttpStatusCode.BadRequest)
+                        .WithJsonBody(new { message = "Person name cannot be empty" }, c);
+                }
+
+                var trimmedName = change.Name.Trim();
+                var newNameKey = PersonEntity.NormalizeNameKey(trimmedName);
+                person.EnsureNameKey();
+                if (newNameKey != person.NameKey)
+                {
+                    var nameConflict = await personRepository.GetByName(trimmedName);
+                    if (nameConflict != null && nameConflict.Id != person.Id)
+                    {
+                        return await req.CreateResponse(HttpStatusCode.Conflict)
+                            .WithJsonBody(new { conflict = nameConflict.Name }, c);
+                    }
+                }
+            }
+
+            UpdatePerson(person, change);
             await personRepository.Save(person);
             await peoplePublisher.PublishPeople();
             return req.CreateResponse(HttpStatusCode.Accepted);
@@ -103,6 +126,14 @@ public class PersonHandler(
             person.Aliases,
             person.TwitterHandle,
             person.BlueskyHandle);
+
+        var nameConflict = await personRepository.GetByName(entity.Name);
+        if (nameConflict != null)
+        {
+            return await req.CreateResponse(HttpStatusCode.Conflict)
+                .WithJsonBody(new { conflict = nameConflict.Name }, ct);
+        }
+
         var matchingPerson = await personService.Match(person.Name);
         if (matchingPerson != null)
         {
@@ -117,6 +148,12 @@ public class PersonHandler(
 
     private static void UpdatePerson(PersonEntity entity, PersonDto change)
     {
+        if (change.Name != null && !string.IsNullOrWhiteSpace(change.Name))
+        {
+            entity.Name = change.Name.Trim();
+            entity.EnsureNameKey();
+        }
+
         if (change.Aliases != null)
         {
             entity.Aliases = change.Aliases.Length == 0

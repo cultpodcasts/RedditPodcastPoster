@@ -14,6 +14,7 @@ public class PersonRepository(
 {
     public async Task Save(Person person)
     {
+        person.EnsureNameKey();
         await peopleContainer.UpsertItemAsync(person, new PartitionKey(person.Id.ToString()));
     }
 
@@ -67,7 +68,14 @@ public class PersonRepository(
 
     public Task<Person?> GetByName(string name)
     {
-        return GetBy(x => x.Name == name);
+        var nameKey = Person.NormalizeNameKey(name);
+        if (string.IsNullOrEmpty(nameKey))
+        {
+            return Task.FromResult<Person?>(null);
+        }
+
+        // Prefer nameKey; fall back to LOWER(name) for documents not yet backfilled.
+        return GetBy(x => x.NameKey == nameKey || x.Name.ToLower() == nameKey);
     }
 
     public async Task<Person?> GetBy(Expression<Func<Person, bool>> selector)

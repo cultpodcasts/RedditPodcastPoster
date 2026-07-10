@@ -22,6 +22,7 @@ public class PersonFactory : IPersonFactory
             TwitterHandle = NormalizeHandle(twitterHandle),
             BlueskyHandle = NormalizeHandle(blueskyHandle)
         };
+        person.EnsureNameKey();
         return person;
     }
 

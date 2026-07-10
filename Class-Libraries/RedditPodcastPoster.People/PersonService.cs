@@ -21,7 +21,9 @@ public class PersonService(
         var people = await personRepository.GetAll().ToListAsync();
         var term = nameOrAlias.Trim().ToLowerInvariant();
 
-        var matchedPerson = people.SingleOrDefault(x => x.Name.Trim().ToLowerInvariant() == term);
+        var matchedPerson = people.SingleOrDefault(x =>
+            (!string.IsNullOrEmpty(x.NameKey) && x.NameKey == term) ||
+            x.Name.Trim().ToLowerInvariant() == term);
         if (matchedPerson != null)
         {
             return matchedPerson;
