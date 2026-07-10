@@ -56,6 +56,23 @@ public class PersonGuestHandleResolverTests
     }
 
     [Fact]
+    public async Task Resolve_EpisodeHandlesPresent_DoesNotLookupGuests()
+    {
+        var episode = new Episode
+        {
+            Guests = ["Alice"],
+            TwitterHandles = ["@FromEpisode"],
+            BlueskyHandles = ["from.bsky.social"]
+        };
+
+        var (twitter, bluesky) = await _sut.Resolve(episode);
+
+        twitter.Should().Equal("@FromEpisode");
+        bluesky.Should().Equal("@from.bsky.social");
+        _personService.Verify(x => x.GetByNames(It.IsAny<IEnumerable<string>>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Resolve_NoHandlesOrGuests_ReturnsEmpty()
     {
         var (twitter, bluesky) = await _sut.Resolve(new Episode());

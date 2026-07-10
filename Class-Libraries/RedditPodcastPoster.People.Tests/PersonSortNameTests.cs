@@ -127,6 +127,20 @@ public class PersonSortNameTests
     }
 
     [Fact]
+    public void GuessSortName_Person_UsesLastToken()
+    {
+        PersonSortNameResolver.GuessSortName("Ilhan Omar").Should().Be("Omar");
+        PersonSortNameResolver.GuessSortName("Madonna").Should().Be("Madonna");
+    }
+
+    [Fact]
+    public void StripLeadingThe_NonThePrefix_Unchanged()
+    {
+        PersonSortNameResolver.StripLeadingThe("Lead CNN").Should().Be("Lead CNN");
+        PersonSortNameResolver.StripLeadingThe("Theater Group").Should().Be("Theater Group");
+    }
+
+    [Fact]
     public void ResolveForPersist_KeepsManualOverride()
     {
         PersonSortNameResolver.ResolveForPersist("Daniella Mestyanek Young", "Mestyanek Young")

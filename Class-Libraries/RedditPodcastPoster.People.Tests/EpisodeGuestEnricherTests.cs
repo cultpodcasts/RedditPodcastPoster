@@ -115,17 +115,61 @@ public class EpisodeGuestEnricherTests
     }
 
     [Fact]
-    public async Task EnrichGuests_TitleOnly_PassesWithDescriptionFalse()
+    public async Task EnrichGuests_MinMatchCount_SkipsBelowThreshold()
+    {
+        var episode = CreateEpisode("Interview with Janja Lalich");
+        var match = new PersonMatch(
+            new PersonMatchPerson(Guid.NewGuid(), "Janja Lalich", null, null),
+            [new PersonMatchResult("Janja Lalich", 1)]);
+
+        _personService
+            .Setup(x => x.MatchEpisode(episode, false))
+            .ReturnsAsync([match]);
+
+        var result = await CreateSut().EnrichGuests(
+            episode,
+            GuestEnrichmentOptions.Default with { MinMatchCount = 2 });
+
+        result.Additions.Should().BeEmpty();
+        result.SkippedLowConfidence.Should().ContainSingle()
+            .Which.Person.Name.Should().Be("Janja Lalich");
+        episode.Guests.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task EnrichGuests_MinMatchCount_AcceptsAtOrAboveThreshold()
+    {
+        var episode = CreateEpisode("Interview with Janja Lalich");
+        var match = new PersonMatch(
+            new PersonMatchPerson(Guid.NewGuid(), "Janja Lalich", null, null),
+            [new PersonMatchResult("Janja Lalich", 2)]);
+
+        _personService
+            .Setup(x => x.MatchEpisode(episode, false))
+            .ReturnsAsync([match]);
+
+        var result = await CreateSut().EnrichGuests(
+            episode,
+            GuestEnrichmentOptions.Default with { MinMatchCount = 2 });
+
+        result.Additions.Should().Equal("Janja Lalich");
+        episode.Guests.Should().Equal("Janja Lalich");
+    }
+
+    [Fact]
+    public async Task EnrichGuests_WithDescription_PassesWithDescriptionTrue()
     {
         var episode = CreateEpisode("Some title");
         _personService
-            .Setup(x => x.MatchEpisode(episode, false))
+            .Setup(x => x.MatchEpisode(episode, true))
             .ReturnsAsync([]);
 
-        await CreateSut().EnrichGuests(episode, GuestEnrichmentOptions.Default);
+        await CreateSut().EnrichGuests(
+            episode,
+            GuestEnrichmentOptions.Default with { TitleOnly = false });
 
-        _personService.Verify(x => x.MatchEpisode(episode, false), Times.Once);
-        _personService.Verify(x => x.MatchEpisode(episode, true), Times.Never);
+        _personService.Verify(x => x.MatchEpisode(episode, true), Times.Once);
+        _personService.Verify(x => x.MatchEpisode(episode, false), Times.Never);
     }
 
     private static Episode CreateEpisode(string title) =>
