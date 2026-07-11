@@ -10,6 +10,7 @@ using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
+using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
@@ -38,6 +39,7 @@ builder.Services
     .AddRepositories()
     .AddCommonServices()
     .AddPodcastServices()
+    .AddPeopleServices()
     .AddContentPublishing()
     .AddRedditServices()
     .AddTwitterServices()

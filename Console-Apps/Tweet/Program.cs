@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
@@ -24,6 +25,7 @@ builder.Services
     .AddLogging()
     .AddRepositories()
     .AddSingleton<TweetProcessor>()
+    .AddPeopleServices()
     .AddTwitterServices()
     .AddSubjectServices()
     .AddCachedSubjectProvider()

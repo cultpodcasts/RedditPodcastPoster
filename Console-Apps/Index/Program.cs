@@ -10,6 +10,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Indexing.Extensions;
+using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -47,6 +48,7 @@ builder.Services
     .AddSubjectServices()
     .AddCachedSubjectProvider()
     .AddTextSanitiser()
+    .AddPeopleServices()
     .AddIndexer()
     .AddEpisodeSearchIndexerService()
     .AddHttpClient();
