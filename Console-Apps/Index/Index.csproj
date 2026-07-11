@@ -18,6 +18,7 @@
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.EntitySearchIndexer\RedditPodcastPoster.EntitySearchIndexer.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Indexing\RedditPodcastPoster.Indexing.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.People\RedditPodcastPoster.People.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices\RedditPodcastPoster.PodcastServices.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj" />
   </ItemGroup>

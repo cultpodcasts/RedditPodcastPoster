@@ -5,15 +5,20 @@ using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Bluesky.YouTube;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;
+using RedditPodcastPoster.People.Extensions;
 
 namespace RedditPodcastPoster.Bluesky.Extensions;
 
 public static class ServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers Bluesky posting services. Also registers People services required by
+    /// <c>BlueskyEmbedCardPostFactory</c> (<c>IPersonGuestHandleResolver</c>).
+    /// </summary>
     public static IServiceCollection AddBlueskyServices(this IServiceCollection services)
     {
-
         return services
+            .AddPeopleServices()
             .AddSingleton<IBlueskyClientFactory, BlueskyClientFactory>()
             .AddSingleton(x => x.GetService<IBlueskyClientFactory>()!.Create())
             .AddScoped<IBlueskyEmbedCardPostFactory, BlueskyEmbedCardPostFactory>()
