@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Episodes.Extensions;
+using RedditPodcastPoster.People;
 using RedditPodcastPoster.UrlSubmission.Extensions;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests;
@@ -33,5 +34,15 @@ public class UrlSubmissionDependencyInjectionTests
 
         var act = () => provider.GetRequiredService<IEpisodeEnricher>();
         act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void AddUrlSubmission_registers_episode_guest_enricher()
+    {
+        var services = new ServiceCollection();
+        services.AddUrlSubmission();
+
+        services.Should().Contain(d => d.ServiceType == typeof(IEpisodeGuestEnricher));
+        services.Should().Contain(d => d.ServiceType == typeof(IPodcastProcessor));
     }
 }

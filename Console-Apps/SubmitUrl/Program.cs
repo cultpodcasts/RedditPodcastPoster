@@ -10,6 +10,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
+using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -44,6 +45,7 @@ builder.Services
     .AddYouTubeServices(ApplicationUsage.Cli)
     .AddScoped<IRemoteClient, RemoteClient>()
     .AddScoped(s => new iTunesSearchManager())
+    .AddPeopleServices()
     .AddUrlSubmission()
     .AddSubjectServices()
     .AddCachedSubjectProvider()
