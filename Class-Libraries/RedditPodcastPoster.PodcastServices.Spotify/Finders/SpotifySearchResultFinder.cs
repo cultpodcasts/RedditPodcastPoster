@@ -25,7 +25,7 @@ public class SpotifySearchResultFinder(IEpisodePlatformMatcher platformMatcher) 
         Func<SimpleEpisode, bool>? reducer = null,
         Service? releaseAuthority = null,
         DateTime? released = null,
-        bool acceptUniqueDurationWithoutTitleMatch = false)
+        bool enrichingYouTubeDiscoveredEpisode = false)
     {
         var probe = CreateProbeEpisode(episodeTitle, episodeLength, released);
         var candidates = episodes.Select(ToCatalogueEpisode).ToList();
@@ -37,15 +37,17 @@ public class SpotifySearchResultFinder(IEpisodePlatformMatcher platformMatcher) 
                 return source != null && reducer(source);
             };
 
+        // Match AppleEpisodeResolver: YouTube-discovered enrichment must not accept a sole
+        // duration match without title confidence (prevents wrong-week Spotify sniping).
         var match = platformMatcher.FindCatalogueMatchByLength(
             probe,
             candidates,
             CreateLookupPodcast(releaseAuthority),
             episodeMatchRegex: null,
             new CatalogueMatchByLengthOptions(
-                releaseAuthority,
-                acceptUniqueDurationWithoutTitleMatch,
-                acceptUniqueDurationWithoutTitleMatch),
+                ReleaseAuthority: releaseAuthority,
+                AcceptUniqueDurationWithoutTitleMatch: false,
+                EnrichingYouTubeDiscoveredEpisode: enrichingYouTubeDiscoveredEpisode),
             episodeReducer);
 
         return match == null ? null : FindSourceEpisode(episodes, match);

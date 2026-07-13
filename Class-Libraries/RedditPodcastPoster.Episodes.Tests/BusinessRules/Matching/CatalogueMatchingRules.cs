@@ -438,7 +438,8 @@ public class CatalogueMatchingRules
 
     [Fact(DisplayName =
         "For YouTube release authority podcasts with negative publishing delay, " +
-        "IsCatalogueMatch does not treat episodes as the same when titles share no fuzzy or substring relationship.")]
+        "IsCatalogueMatch does not treat episodes as the same when weak catalogue-day release alignment " +
+        "plus similar duration lack fuzzy or substring title confidence.")]
     public void is_catalogue_match_rejects_negative_delay_when_titles_clearly_differ()
     {
         // Arrange
@@ -452,7 +453,25 @@ public class CatalogueMatchingRules
         matches.Should().BeFalse();
     }
 
+    
     [Fact(DisplayName =
+        "For YouTube release authority podcasts with negative publishing delay, IsCatalogueMatch accepts " +
+        "delay-aligned Apple/Spotify catalogue rows for a YouTube-only stored episode even when marketing " +
+        "titles are wholly divergent — composite score meets the cross-platform threshold.")]
+    public void is_catalogue_match_accepts_negative_delay_aligned_divergent_titles()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (stored, discovered, _) = _fixture.CreateNegativeDelayAlignedDivergentTitlePair(podcast);
+
+        // Act
+        var matches = _matcher.IsCatalogueMatch(stored, discovered, podcast, episodeMatchRegex: null);
+
+        // Assert
+        matches.Should().BeTrue();
+    }
+
+[Fact(DisplayName =
         "For YouTube release authority podcasts with negative publishing delay, " +
         "IsCatalogueMatch accepts an aligned Spotify catalogue item for a YouTube-only stored episode.")]
     public void is_catalogue_match_accepts_negative_delay_aligned_spotify_catalogue()
@@ -615,6 +634,50 @@ public class CatalogueMatchingRules
             podcast,
             episodeMatchRegex: null,
             new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When enriching a YouTube-discovered episode with both EnrichingYouTubeDiscoveredEpisode and " +
+        "AcceptUniqueDurationWithoutTitleMatch set (legacy Spotify finder combo), indexing must still " +
+        "refuse a wrong-week Spotify catalogue row within five minutes whose title is wholly disjoint.")]
+    public void youtube_enrichment_with_unique_duration_flag_still_rejects_wrong_week_duration_snipe()
+    {
+        // Arrange — production Spotify finder previously set both flags true
+        const string lastWeekYouTubeTitle =
+            "Civic turnout strategies for mid-cycle ballot measures";
+        const string thisWeekSpotifyTitle =
+            "She Spent a Fortune in a Wellness Scheme with a Guest: New parenthood and a decade lost";
+        var lastWeekYouTubeLength = TimeSpan.FromMinutes(59) + TimeSpan.FromSeconds(40);
+        var thisWeekSpotifyLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(39);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = lastWeekYouTubeTitle;
+            e.Length = lastWeekYouTubeLength;
+            e.Release = new DateTime(2026, 7, 11, 3, 30, 46, DateTimeKind.Utc);
+            e.YouTubeId = _fixture.CreateYouTubeId();
+        });
+        var catalogueItem = _fixture.CreateEpisode(e =>
+        {
+            e.Title = thisWeekSpotifyTitle;
+            e.Length = thisWeekSpotifyLength;
+            e.Release = new DateTime(2026, 7, 13, 8, 30, 0, DateTimeKind.Utc);
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [catalogueItem],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(
+                ReleaseAuthority: Service.YouTube,
+                AcceptUniqueDurationWithoutTitleMatch: true,
+                EnrichingYouTubeDiscoveredEpisode: true));
 
         // Assert
         result.Should().BeNull();

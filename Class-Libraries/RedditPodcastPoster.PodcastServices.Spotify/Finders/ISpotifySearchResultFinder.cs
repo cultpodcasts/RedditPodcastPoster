@@ -21,5 +21,5 @@ public interface ISpotifySearchResultFinder
         Func<SimpleEpisode, bool>? reducer = null,
         Service? releaseAuthority = null,
         DateTime? released = null,
-        bool acceptUniqueDurationWithoutTitleMatch = false);
+        bool enrichingYouTubeDiscoveredEpisode = false);
 }

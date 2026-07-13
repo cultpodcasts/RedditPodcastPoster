@@ -72,7 +72,12 @@ public sealed partial class EpisodePlatformMatcher
             .Where(x => Math.Abs((x.Length - probe.Length).Ticks) < durationThreshold)
             .ToList();
 
-        if (sameLength.Count == 1 && options.AcceptUniqueDurationWithoutTitleMatch)
+        // YouTube-discovered enrichment already attempted title-confident matching above.
+        // Do not fall through to unique-duration acceptance — that snipes wrong-week audio
+        // when catalogue titles diverge.
+        if (sameLength.Count == 1 &&
+            options.AcceptUniqueDurationWithoutTitleMatch &&
+            !options.EnrichingYouTubeDiscoveredEpisode)
         {
             return sameLength[0];
         }
