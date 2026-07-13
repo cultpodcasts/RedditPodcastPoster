@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// <summary>
 /// Composite confidence score for YouTube↔audio cross-platform merges.
 /// Signals add; match when total ≥ <see cref="MatchThreshold"/>.
-/// Delay-aligned release + duration reaches threshold without title (Hassan-style).
+/// Delay-aligned release + duration reaches threshold without title confidence.
 /// Weak catalogue-day release + duration alone does not (#869 protection).
 /// </summary>
 public static class CrossPlatformMatchScorer

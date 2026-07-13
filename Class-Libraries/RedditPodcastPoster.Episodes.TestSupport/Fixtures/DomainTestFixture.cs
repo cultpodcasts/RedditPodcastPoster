@@ -669,7 +669,7 @@ public sealed class DomainTestFixture
 
   /// <summary>
   /// YouTube-only stored + Apple incoming with delay-aligned releases, duration within five minutes,
-  /// and disjoint marketing titles (Hassan-shaped). Scoring should merge without title confidence.
+  /// and disjoint marketing titles. Scoring should merge without title confidence.
   /// </summary>
   public (Episode Stored, Episode Incoming, long AppleId) CreateNegativeDelayAlignedDivergentTitlePair(
     Podcast podcast)
@@ -705,7 +705,7 @@ public sealed class DomainTestFixture
 
   /// <summary>
   /// YouTube-only stored + Spotify incoming with delay-aligned releases, duration within five minutes,
-  /// and disjoint marketing titles (Hassan-shaped). Scoring should merge without title confidence.
+  /// and disjoint marketing titles. Scoring should merge without title confidence.
   /// </summary>
   public (Episode Stored, Episode Incoming, string SpotifyId) CreateNegativeDelayAlignedDivergentTitleSpotifyPair(
     Podcast podcast)

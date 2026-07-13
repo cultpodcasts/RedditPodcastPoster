@@ -84,9 +84,9 @@ public class CrossPlatformMatchingRules
     }
 
     [Fact(DisplayName =
-        "Hassan-shaped: after Apple has already merged onto the YouTube row, an incoming Spotify catalogue " +
-        "episode with delay-aligned release and duration within five minutes must still merge onto that " +
-        "YouTube+Apple target despite wholly divergent marketing titles.")]
+        "After Apple has already merged onto the YouTube row, an incoming Spotify catalogue episode with " +
+        "delay-aligned release and duration within five minutes must still merge onto that YouTube+Apple " +
+        "target despite wholly divergent marketing titles.")]
     public void Spotify_merges_onto_youtube_plus_apple_when_delay_aligned_despite_divergent_titles()
     {
         // Arrange
@@ -97,17 +97,18 @@ public class CrossPlatformMatchingRules
         var youTubeLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(37);
         var spotifyLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(39);
         var appleId = _fixture.CreateAppleId();
+        var youTubeId = _fixture.CreateYouTubeId();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithTitle("The Cult Next Door: The Shocking Truth About MLM Schemes and Wellness Influencers")
+            .WithTitle("The Neighborhood Scheme: Shocking Truth About Wellness Influencer Networks")
             .WithRelease(youTubeRelease)
             .WithLength(youTubeLength)
-            .WithYouTube("JH_934xaeN0", _fixture.DefaultYouTubeUrl("JH_934xaeN0"))
+            .WithYouTube(youTubeId, _fixture.DefaultYouTubeUrl(youTubeId))
             .WithApple(appleId, _fixture.DefaultAppleUrl(appleId))
             .Create();
         var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b
             .WithTitle(
-                "She Spent $115K in a Wellness MLM with Brandie Hadfield: A new mom, an autistic baby, and a decade lost to a commercial cult")
+                "She Spent a Fortune in a Wellness Scheme with a Guest: New parenthood and a decade lost")
             .WithRelease(audioRelease)
             .WithDuration(spotifyLength));
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
@@ -131,36 +132,37 @@ public class CrossPlatformMatchingRules
     }
 
     [Fact(DisplayName =
-        "Hassan-shaped: Spotify for this week's MLM episode must not merge onto last week's YouTube episode " +
-        "even when catalogue-day tolerance (±5) and five-minute duration include that row — composite score " +
-        "stays below threshold without delay alignment or title confidence.")]
+        "Spotify for this week's episode must not merge onto last week's YouTube episode even when " +
+        "catalogue-day tolerance (±5) and five-minute duration include that row — composite score stays " +
+        "below threshold without delay alignment or title confidence.")]
     public void Spotify_does_not_merge_onto_wrong_week_youtube_under_weak_catalogue_day_alignment()
     {
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         podcast.YouTubePublicationOffset = TimeSpan.FromHours(-8.5).Ticks;
         var lastWeekYouTubeRelease = new DateTime(2026, 7, 10, 19, 0, 46, DateTimeKind.Utc);
-        var mlmSpotifyRelease = new DateTime(2026, 7, 13, 8, 30, 0, DateTimeKind.Utc);
+        var thisWeekSpotifyRelease = new DateTime(2026, 7, 13, 8, 30, 0, DateTimeKind.Utc);
         var lastWeekLength = TimeSpan.FromMinutes(59) + TimeSpan.FromSeconds(40);
-        var mlmSpotifyLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(39);
+        var thisWeekSpotifyLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(39);
+        var youTubeId = _fixture.CreateYouTubeId();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithTitle("Can Local Elections Stop Authoritarianism? Defending Democracy One Vote at a Time")
+            .WithTitle("Civic turnout strategies for mid-cycle ballot measures")
             .WithRelease(lastWeekYouTubeRelease)
             .WithLength(lastWeekLength)
-            .WithYouTube("yN_wIF8zk4w", _fixture.DefaultYouTubeUrl("yN_wIF8zk4w"))
+            .WithYouTube(youTubeId, _fixture.DefaultYouTubeUrl(youTubeId))
             .Create();
         var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b
             .WithTitle(
-                "She Spent $115K in a Wellness MLM with Brandie Hadfield: A new mom, an autistic baby, and a decade lost to a commercial cult")
-            .WithRelease(mlmSpotifyRelease)
-            .WithDuration(mlmSpotifyLength));
+                "She Spent a Fortune in a Wellness Scheme with a Guest: New parenthood and a decade lost")
+            .WithRelease(thisWeekSpotifyRelease)
+            .WithDuration(thisWeekSpotifyLength));
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithSpotifyId(spotifyInput.SpotifyId)
             .WithTitle(spotifyInput.Title)
             .WithSpotifyUrl(spotifyInput.SpotifyUrl)
-            .WithRelease(mlmSpotifyRelease)
-            .WithDuration(mlmSpotifyLength));
+            .WithRelease(thisWeekSpotifyRelease)
+            .WithDuration(thisWeekSpotifyLength));
         var expected = EpisodeExpectation.From(stored);
 
         // Act
@@ -175,8 +177,8 @@ public class CrossPlatformMatchingRules
 
     
     [Fact(DisplayName =
-        "Hassan-shaped: a Spotify catalogue episode with delay-aligned release and duration within five minutes " +
-        "must merge onto a YouTube-only stored episode despite wholly divergent marketing titles.")]
+        "A Spotify catalogue episode with delay-aligned release and duration within five minutes must " +
+        "merge onto a YouTube-only stored episode despite wholly divergent marketing titles.")]
     public void Spotify_merges_onto_youtube_only_when_delay_aligned_despite_divergent_titles()
     {
         // Arrange

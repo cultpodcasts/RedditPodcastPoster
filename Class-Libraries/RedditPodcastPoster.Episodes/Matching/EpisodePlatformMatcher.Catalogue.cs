@@ -74,7 +74,7 @@ public sealed partial class EpisodePlatformMatcher
 
         // YouTube-discovered enrichment already attempted title-confident matching above.
         // Do not fall through to unique-duration acceptance — that snipes wrong-week audio
-        // when catalogue titles diverge (Hassan Local-Elections←MLM Spotify).
+        // when catalogue titles diverge.
         if (sameLength.Count == 1 &&
             options.AcceptUniqueDurationWithoutTitleMatch &&
             !options.EnrichingYouTubeDiscoveredEpisode)

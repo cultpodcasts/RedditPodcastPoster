@@ -89,11 +89,11 @@ public class SearchResultFinderCatalogueWrapperRules
         "within five minutes of duration but with a disjoint title must not be selected.")]
     public void find_by_length_youtube_enrichment_does_not_duration_snipe_disjoint_title()
     {
-        // Arrange — Hassan shape: Local Elections YT (~59:40) must not claim MLM Spotify (~62:39)
+        // Arrange — wrong-week YouTube (~59:40) must not claim this week's Spotify (~62:39) on duration alone
         const string youTubeTitle =
-            "Can Local Elections Stop Authoritarianism? Defending Democracy One Vote at a Time";
+            "Civic turnout strategies for mid-cycle ballot measures";
         const string spotifyTitle =
-            "She Spent $115K in a Wellness MLM with Brandie Hadfield: A new mom, an autistic baby, and a decade lost to a commercial cult";
+            "She Spent a Fortune in a Wellness Scheme with a Guest: New parenthood and a decade lost";
         var youTubeLength = TimeSpan.FromMinutes(59) + TimeSpan.FromSeconds(40);
         var spotifyLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(39);
         var matchingId = _fixture.CreateSpotifyId();
@@ -160,7 +160,7 @@ public class SearchResultFinderCatalogueWrapperRules
     {
         // Arrange
         const string title =
-            "Can Local Elections Stop Authoritarianism? Defending Democracy One Vote at a Time";
+            "Civic turnout strategies for mid-cycle ballot measures";
         var length = TimeSpan.FromMinutes(59) + TimeSpan.FromSeconds(40);
         var matchingId = _fixture.CreateSpotifyId();
         var episodes = new List<SimpleEpisode>
